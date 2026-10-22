@@ -181,7 +181,7 @@ async function submit(page) {
 }
 
 async function loaded(page) {
-  await expect(page.getByText('Authenticated campaign draft loaded · Not scheduled or published.')).toBeVisible()
+  await expect(page.getByText('Authenticated campaign draft loaded. Publishing is still unavailable.')).toBeVisible()
 }
 
 test('real UI: login -> authorized seven-day plan -> edit/save -> render status -> signed link', async ({ page }) => {
@@ -301,7 +301,7 @@ test('failed upload registration, edit conflict and unsafe download surface fail
   await loaded(page)
   await page.getByLabel('Post body').fill('Conflicting local edit')
   await page.getByRole('button', { name: 'Save day' }).click()
-  await expect(page.getByRole('alert')).toContainText('Reload before trying again')
+  await expect(page.getByRole('alert').filter({ hasText: 'Reload before trying again' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Render saved Reel' })).toBeDisabled()
 })
 
