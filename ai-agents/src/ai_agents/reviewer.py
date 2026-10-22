@@ -22,6 +22,8 @@ class ReviewResult:
 
 def review_campaign(campaign: dict, request: CampaignBrief) -> ReviewResult:
     issues: list[str] = []
+    if isinstance(campaign, dict) and campaign.get("shop_id") != request.shop_id:
+        return ReviewResult(False, True, ("CROSS_TENANT_CAMPAIGN",))
     try:
         validate_campaign(campaign, expected_count=request.duration_days)
     except (ContractError, KeyError, TypeError, ValueError) as exc:
