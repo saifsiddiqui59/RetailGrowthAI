@@ -34,3 +34,9 @@ Required controls:
 | D Hosted E2E | **PENDING** | Offline harness previously merged as O | **NONE** | Mock-only validation |
 
 **Approval language:** A future user message should explicitly identify *which one* of A/B/C/D, exact reviewed site/project/RG, cost cap and rollout scope. Approval for A never includes B/C/D. Do not interpret “prepare,” “PR merged,” “OIDC works,” or “show preview” as a hosted-change authorization.
+
+## 2026-10-22 — Source-approved vs hosted-unapproved distinction
+- P [PR #56](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/56), R [PR #59](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/59) and Q [PR #57](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/57) are merged; coordinator manual frontend-only workflow [#58](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/58) is also merged. Combined main [CI #39835674846 attempt 2](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39835674846) **passed 4/4**. Those are **source code** checks, not live runtime evidence.
+- **A #51 PENDING**: approve separately one isolated Azure Static Web App DEV mock website, exact name/region/plan/cost, protected GitHub secret and manual deploy; only after actual HTTPS `/`, `/campaigns`, `/account` checks may a real URL be reported. **No URL exists yet.**
+- **B #52 PENDING**: separate hosted RetailGrowthAI DEV Supabase SQL migration authorization for seven ordered versions with backup/restore validation. **C #53 PENDING**: separate Azure DEV Functions/Storage/queue/FFmpeg resource provisioning/deploy with IAM/cost/rollback. **D #54 PENDING**: separate real hosted DEV E2E testing with live test identities, media-rights evidence and cleanup.
+- Permission for A never includes B/C/D; none of these grants WineShopPOS or PROD access.

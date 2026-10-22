@@ -68,3 +68,6 @@ JSON fixture passes validation in Python and JavaScript; exact field names share
 
 ## 2026-10-22 — I/J/K internal reliability integration
 Public v1 request/response schema **unchanged**. A successful authenticated POST still means a durable `202` job accepted, but server-side Azure mode now derives queue delivery from a transactional DB outbox, not a best-effort synchronous send. Internal service-role RPCs add token/attempt-fenced completion and recovery; they are **not user-facing endpoints**. Workstream K tests the existing public contract with network mocks; real hosted compatibility is unverified until an explicitly approved DEV deployment and migrations.
+
+## 2026-10-22 — P/Q/R source integration compatibility (no public v1 schema change)
+- P is database migration execution *planning*; Q is Azure deployment *preparation*; R adds SPA static-hosting fallback and tests only. Public API request/response fields and the canonical mock seven-day campaign fixture remain unchanged. A publicly hosted `/campaigns` page without backend settings is labeled **mock-only** and does not imply live model output, saved tenant data, authenticated backend, real rendering or publishing.
