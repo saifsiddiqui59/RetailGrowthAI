@@ -21,11 +21,17 @@ def test_monitor_counts_stale_risk_without_exposing_identifiers():
         {"kind": "render", "id": str(uuid4()), "status": "SUCCEEDED",
          "attempts": 1, "created_at": (NOW - timedelta(hours=1)).isoformat()},
         {"kind": "render", "id": str(uuid4()), "status": "QUEUED",
-         "attempts": 1, "created_at": (NOW - timedelta(minutes=1)).isoformat()},
+         "attempts": 1, "created_at": (NOW - timedelta(seconds=30)).isoformat()},
     ]
     data = summarize(rows, NOW)
     assert data["total"] == 3
     assert data["recoverable"] == {"planning.mark_failed": 1}
+    # Exactly at the 60-second no-lease grace boundary, the queued job is stale.
+    at_boundary = [dict(row) for row in rows]
+    at_boundary[2]["created_at"] = (NOW - timedelta(minutes=1)).isoformat()
+    assert summarize(at_boundary, NOW)["recoverable"] == {
+        "planning.mark_failed": 1, "render.requeue": 1,
+    }
     assert data["older_than_15m"] == {"planning": 1}
     assert data["requires_operator"] is True
     text = json.dumps(data)
