@@ -65,3 +65,5 @@
 - Signed MP4 URLs are minted only from tenant-authorized private storage via the end-user JWT (60-second expiry). Render job POST needs verified membership and licensed asset IDs; server-derived idempotency key prevents duplicate requests for identical day/reel.
 
 - Keep renderer as bounded server-only Queue trigger consuming opaque job IDs; regenerate trusted manifest using tenant-authenticated DB rows and private media paths. Persist deterministic output key and never allow arbitrary browser-provided FFmpeg paths. Quota/lease sizing must be benchmarked before cloud deployment.
+
+- Frontend must never send synthetic fixture asset IDs; authenticated live mode selects previously authorized per-shop media via RLS. API calls refresh the Supabase access token, reject redirects and gate signed downloads to the configured private storage origin. Unsaved edits remain local and cannot be rendered as saved server drafts.

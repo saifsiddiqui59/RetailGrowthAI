@@ -2,7 +2,7 @@
 // No service-role keys, no client-side authorization assumptions.
 // Use a publishable key and let PostgreSQL RLS enforce every tenant boundary.
 const STORAGE_KEY = 'retailgrowthai-auth-v1'
-const ALLOWED_TABLES = new Set(['shops', 'shop_memberships', 'business_profiles'])
+const ALLOWED_TABLES = new Set(['shops', 'shop_memberships', 'business_profiles', 'media_assets'])
 
 export function createRetailClient({
   url = import.meta.env?.VITE_SUPABASE_URL,
@@ -159,9 +159,18 @@ export function createRetailClient({
     if (!rows?.length) throw new Error('Business profile not found or you do not have edit permission')
     return rows[0]
   }
+  async function listMediaAssets(shopId) {
+    if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/.test(shopId || '')) throw new Error('Invalid shop ID')
+    const rows = await table('media_assets', {
+      query: { select: 'id,shop_id,source,license_name,mime_type',
+        shop_id: 'eq.' + shopId, order: 'created_at.desc', limit: '100' },
+    })
+    return rows.filter(row => row.shop_id === shopId && row.license_name)
+  }
   return {
-    configured, getStoredSession: () => session, signIn, signUp, signOut, getUser,
-    listShops, createShop, getBusinessProfile, updateBusinessProfile,
+    configured, getStoredSession: () => session, getAccessToken: accessToken,
+    signIn, signUp, signOut, getUser,
+    listShops, createShop, getBusinessProfile, updateBusinessProfile, listMediaAssets,
   }
 }
 
