@@ -35,13 +35,16 @@ begin
   end;
   if not denied then raise exception 'FAIL: wrong tenant media upload'; end if;
 
-  update storage.objects set name='44444444-4444-4444-8444-444444444444/renamed.png'
-  where bucket_id='retailgrowth-media'
-    and name='55555555-5555-4555-8555-555555555555/b.png';
-  get diagnostics rows_changed = row_count;
-  -- Either zero rows (no update permissions) or an RLS error is a denial;
-  -- explicit exceptions are checked below in an update-specific block.
-  if rows_changed > 0 then raise exception 'FAIL: media moved to wrong tenant'; end if;
+  denied := false;
+  begin
+    update storage.objects set name='44444444-4444-4444-8444-444444444444/renamed.png'
+    where bucket_id='retailgrowth-media'
+      and name='55555555-5555-4555-8555-555555555555/b.png';
+    get diagnostics rows_changed = row_count;
+    if rows_changed = 0 then denied := true; end if;
+  exception when insufficient_privilege then denied := true;
+  end;
+  if not denied then raise exception 'FAIL: media moved to wrong tenant'; end if;
 end $$;
 
 select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',true);
