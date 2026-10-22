@@ -1,0 +1,26 @@
+# RetailGrowthAI DEV A/B/C/D execution checkpoint — 2026-10-22
+
+**Status: owner instructed us to proceed with all DEV gates, but NO hosted changes yet executed.** This is a factual preflight handoff, not a deployment record. GitHub repo: `saifsiddiqui59/RetailGrowthAI`, preflight `main` `9eba930fe6543c9577a26a955e68fa4da3e64c05`, green [Actions #39838121567](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39838121567).
+
+## Read-only real target confirmation
+- Supabase connected project `jeearzffnjbvghwjjjrf`, name RetailGrowthAI, `ACTIVE_HEALTHY`, `ap-northeast-1` (Tokyo), PostgreSQL 17.11. No WineShopPOS or production environment opened for modification.
+- Hosted migrations (read only): `20261022085124_p1_foundation`, `20261022085132_p1_private_media`, `20261022085503_p1_security_hardening` are applied. Seven later repo migration files remain unapplied in canonical ascending order: 100400, 101800, 162000, 173000, 180000, 205000, 220000 suffixes (see `supabase/DEV_RELEASE_READINESS.md` for full timestamps).
+- Catalog read-only verification: public base tables=10, without RLS=0; auth.users=0, shops=0, campaigns=0, render_jobs=0, storage.objects=0. Security advisors reported 0 findings. Performance advisors reported informational unused indexes on the new, empty schema: do not remove them without measured workload evidence.
+- No verified schema/data/role and Storage rollback artifact, backup ID, restorable test project, or rehearsal result was available. Supabase backups are plan-dependent; do not assume that a green security advisor or empty tables proves recoverability.
+
+## Operator launch blockers
+| Gate | Owner go-ahead | Ready to execute? | Missing safe preconditions | Executed? |
+| --- | --- | --- | --- | --- |
+| A — mock-only Azure SWA | Received | **No** | Azure-capable tool/session; exact DEV subscription/RG/name/plan, accepted cost cap, protected dev-frontend GitHub environment + existing site/token; manual main-only workflow | **No site or URL** |
+| B — DEV Supabase migrations | Received | **No** | Verified database+Storage backup and independent restore rehearsal; fresh migration ledger; exact timestamp-preserving reviewed CLI process, no guessed project link | **No SQL applied** |
+| C — DEV Azure backend | Received | **No** | Gate B complete; dedicated Central India RG IAM/what-if; billing currency cap & 80/100% alerts; licensed Linux FFmpeg+ffprobe and first-release rollback/package hash; Azure-capable session | **No resources or code deployed** |
+| D — actual DEV E2E | Received | **No** | Deployed A/B/C endpoints and test tenants, legitimate image rights, isolated JWT/denial/retry scope, audit/cleanup and cost ceilings | **No hosted smoke** |
+
+## Safe continuation
+1. Prioritize A: use Azure Portal or an approved Azure-capable Cloud Browser/operator, identify isolated existing/new RetailGrowthAI DEV static site and choose Free tier when quota/requirements permit. Set exact scoped billing/resource limits, protected `dev-frontend` environment and SWA deployment token. Only then dispatch `.github/workflows/azure-dev-static-frontend-manual.yml` on the approved main SHA. Verify actual public HTTPS routes /, /campaigns, /account; do not claim a URL before it exists.
+2. For B, privately take and restore-test a complete DEV PostgreSQL/role/Storage backup. With verified dedicated DEV project linked using the official Supabase CLI, run dry-run/check history first, then apply all seven timestamped repo migrations in order. Generic connected `apply_migration` lacks an exact version field; using it risks a divergent `schema_migrations` ledger. Do not use raw untracked SQL in its place.
+3. For C, confirm read-only IAM and Azure deployment what-if and cost controls, approved FFmpeg license/package, safe first release and Gate B schema. Provision and publish exclusively in dedicated DEV RG under an Azure-capable reviewed operator.
+4. D follows the actual B/C services and requires real DEV-only E2E fixtures, securely configured credentials and rights-cleared input. Run the O harness, collect exact endpoints/screenshots/test logs and cleanup.
+5. Keep separate evidence/comments on GitHub [#51](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/51), [#52](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/52), [#53](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/53), [#54](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/54). All four issues remain open until actually completed. No WineShopPOS or PROD change.
+
+**No Azure Static Web App has been verified, no public URL invented, no Supabase migrations applied, and no hosted tests executed during this checkpoint.**
