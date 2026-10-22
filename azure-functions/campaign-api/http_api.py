@@ -10,12 +10,13 @@ from draft_api import DraftAPI
 
 
 class HTTPAPI:
-    def __init__(self, verify_token, store, planning_queue=None, render_api=None, failure_store=None):
+    def __init__(self, verify_token, store, planning_queue=None, render_api=None, failure_store=None, durable_outbox=False):
         self.verify_token = verify_token
         self.store = store
         self.planning_queue = planning_queue
         self.render_api = render_api
         self.failure_store = failure_store
+        self.durable_outbox = durable_outbox
 
     def handle(self, method, path, authorization, body=None):
         try:
@@ -46,6 +47,10 @@ class HTTPAPI:
                     return 403, {"error": "FORBIDDEN"}
                 cid = str(uuid4())
                 self.store.save_pending(token, user_id, cid, brief)
+                if self.durable_outbox:
+                    # INSERT trigger persists dispatch in the same transaction.
+                    # Even if Azure Queue is temporarily down, the outbox can replay.
+                    return 202, {"campaign_id": cid, "status": "PLANNING"}
                 try:
                     self.planning_queue.enqueue(cid)
                 except Exception:

@@ -30,8 +30,12 @@ class AdminStore:
         self.transport = transport or urlopen
 
     def request(self, path, *, query=None, data=None, method="GET", upsert=False):
-        if path not in ("rpc/claim_campaign_job", "rpc/claim_render_job", "campaigns", "campaign_days",
-                        "shop_memberships", "media_assets", "render_jobs"):
+        if path not in ("rpc/claim_campaign_job", "rpc/claim_render_job",
+                        "rpc/complete_campaign_claim", "rpc/fail_campaign_claim",
+                        "rpc/complete_render_claim", "rpc/fail_render_claim",
+                        "rpc/claim_outbox_events", "rpc/confirm_outbox_event",
+                        "rpc/record_poison_event", "rpc/reconcile_stale_jobs",
+                        "campaigns", "campaign_days", "shop_memberships", "media_assets", "render_jobs"):
             raise ValueError("unsupported worker path")
         url = self.origin + "/rest/v1/" + path
         if query:
@@ -96,6 +100,21 @@ class AdminStore:
         return ({a["id"] for a in assets} == set(ids) and
                 all(a["shop_id"] == sid and a.get("license_name") for a in assets))
 
+    def _claim_rpc(self, action, row, extra):
+        """Fail closed on an expired, replaced, or missing lease. No direct status PATCH."""
+        kind = "planning" if "campaign" in action else "render"
+        prefix = "planning" if kind == "planning" else "render"
+        attempt_key = "planning_attempts" if kind == "planning" else "attempts"
+        token = row.get(prefix + "_claim_token")
+        attempt = row.get(attempt_key)
+        if not token or type(attempt) is not int or attempt < 1:
+            raise StorageUnavailable("missing fenced worker claim")
+        payload = {"p_id": canonical_uuid(row["id"]), "p_attempt": attempt,
+                   "p_token": canonical_uuid(token), **extra}
+        result = self.request("rpc/" + action, method="POST", data=payload)
+        if result is not True:
+            raise StorageUnavailable("stale or revoked worker claim")
+
     def finish(self, row, campaign):
         cid = canonical_uuid(row["id"])
         if campaign["id"] != cid or campaign["shop_id"] != row["shop_id"]:
@@ -104,26 +123,39 @@ class AdminStore:
             "id": day["id"], "campaign_id": cid, "shop_id": row["shop_id"],
             "day_index": day["day_index"], "scheduled_date": day["scheduled_date"],
             "topic": day["topic"], "linkedin": day["linkedin"],
-            "instagram": day["instagram"], "review_status": "DRAFT",
+            "instagram": day["instagram"],
         } for day in campaign["days"]]
-        self.request("campaign_days", query={"on_conflict": "campaign_id,day_index"},
-                     method="POST", data=days, upsert=True)
-        self.request("campaigns", method="PATCH", query={
-            "id": "eq." + cid, "shop_id": "eq." + row["shop_id"],
-            "status": "eq.PLANNING",
-        }, data={"status": "DRAFT", "planning_lease_until": None})
+        self._claim_rpc("complete_campaign_claim", row, {"p_days": days})
 
     def fail(self, row, code, *, permanent=False):
-        status = "FAILED" if permanent or row["planning_attempts"] >= 3 else "PLANNING"
-        self.request("campaigns", method="PATCH", query={
-            "id": "eq." + canonical_uuid(row["id"]),
-            "shop_id": "eq." + canonical_uuid(row["shop_id"]),
-            "status": "eq.PLANNING",
-        }, data={
-            "status": status, "planning_error_code": code,
-            "planning_lease_until": None,
-        })
+        self._claim_rpc("fail_campaign_claim", row,
+                        {"p_code": code, "p_permanent": bool(permanent)})
 
+    def claim_outbox(self, limit=20):
+        rows = self.request("rpc/claim_outbox_events", method="POST", data={"p_limit": limit})
+        if not isinstance(rows, list):
+            raise StorageUnavailable("invalid outbox claim response")
+        return rows
+
+    def confirm_outbox(self, event, sent):
+        result = self.request("rpc/confirm_outbox_event", method="POST", data={
+            "p_id": canonical_uuid(event["id"]),
+            "p_token": canonical_uuid(event["lease_token"]), "p_sent": bool(sent)})
+        if result is not True:
+            raise StorageUnavailable("outbox delivery lease lost")
+
+    def record_poison(self, kind, fingerprint, job_id=None):
+        if kind not in ("planning", "render"):
+            raise ValueError("invalid queue kind")
+        result = self.request("rpc/record_poison_event", method="POST", data={
+            "p_kind": kind, "p_fingerprint": fingerprint,
+            "p_job_id": canonical_uuid(job_id) if job_id else None})
+        if result is not True:
+            raise StorageUnavailable("poison receipt not durable")
+
+    def reconcile(self, limit=30):
+        return self.request("rpc/reconcile_stale_jobs", method="POST",
+                            data={"p_limit": limit})
 
     def valid_media(self, shop_id, asset_ids):
         sid = canonical_uuid(shop_id)
@@ -203,34 +235,8 @@ class AdminStore:
         return campaigns[0], days[0], {a["id"]: a for a in assets}
 
     def complete_render(self, job, object_path):
-        sid, jid = canonical_uuid(job["shop_id"]), canonical_uuid(job["id"])
-        records = self.request("media_assets", query={
-            "select": "id", "shop_id": "eq." + sid,
-            "object_path": "eq." + object_path, "limit": "1",
-        })
-        if records:
-            aid = records[0]["id"]
-        else:
-            import uuid
-            aid = str(uuid.uuid4())
-            self.request("media_assets", method="POST", data={
-                "id": aid, "shop_id": sid, "created_by": job["requested_by"],
-                "object_path": object_path, "storage_bucket": "retailgrowth-media",
-                "mime_type": "video/mp4", "source": "GENERATED",
-                "license_name": "owned",
-                "attribution": "rendered from tenant-authorized source assets",
-            })
-        result = self.request("render_jobs", method="PATCH", query={
-            "id": "eq." + jid, "shop_id": "eq." + sid, "status": "eq.RUNNING",
-        }, data={"status": "SUCCEEDED", "output_asset_id": aid,
-                 "error_code": None, "render_lease_until": None})
-        if len(result) != 1:
-            raise StorageUnavailable("render completion was not stored")
+        self._claim_rpc("complete_render_claim", job, {"p_object_path": object_path})
 
     def render_failure(self, job, code, permanent=False):
-        status = "FAILED" if permanent or job["attempts"] >= 3 else "QUEUED"
-        self.request("render_jobs", method="PATCH", query={
-            "id": "eq." + canonical_uuid(job["id"]),
-            "shop_id": "eq." + canonical_uuid(job["shop_id"]),
-            "status": "eq.RUNNING",
-        }, data={"status": status, "error_code": code, "render_lease_until": None})
+        self._claim_rpc("fail_render_claim", job,
+                        {"p_code": code, "p_permanent": bool(permanent)})

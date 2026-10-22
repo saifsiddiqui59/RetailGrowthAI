@@ -28,7 +28,9 @@ LICENSES = {"owned", "cc0", "royalty_free", "commercial"}
 def process_render(job_id, admin, media, *, render_fn=render):
     jid = str(UUID(job_id))
     status = admin.render_status(jid)
-    if status in ("SUCCEEDED", "FAILED", None):
+    if status is None:
+        raise StorageUnavailable("unknown render job")
+    if status in ("SUCCEEDED", "FAILED"):
         return "ALREADY_FINAL"
     job = admin.claim_render(jid)
     if job is None:
@@ -95,7 +97,11 @@ def process_render(job_id, admin, media, *, render_fn=render):
             if (result["video_codec"] != "h264" or result["audio_codec"] != "aac"
                     or abs(result["duration_seconds"] - 30) > 0.12):
                 raise RenderError("invalid encoded media")
-            object_path = media.upload(sid, jid, output)
+            token = job.get("render_claim_token")
+            if token:
+                object_path = media.upload(sid, jid, output, lease_token=token)
+            else:
+                object_path = media.upload(sid, jid, output)
             admin.complete_render(job, object_path)
             return "SUCCEEDED"
     except Exception:
