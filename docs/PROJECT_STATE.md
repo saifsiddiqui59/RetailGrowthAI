@@ -159,3 +159,8 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 - PR #26 [CI run #39777549911](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39777549911) passed all four tests before merge. Verify newest post-merge main CI separately; prior intermediate main runs may be cancelled by further merges.
 - **NOT CONNECTED:** ChatGPT GitHub actions cannot create GitHub environment secrets or Entra federated credentials/RBAC. `dev` environment, three Azure ID secrets, matching Azure federated credential and scoped Reader role require owner setup and a separate manual verification run.
 - This feature does **not** deploy Functions/queues, authorize migrations, grant Contributor, configure runtime secrets or touch WineShopPOS.
+
+## 2026-10-22 — Bounded worker timeout/lease safety fix (feature PR, source only)
+- Coordinator merged Azure OIDC documentation PR #27 (`1b755328`); the manual Azure DEV login check is still unverified.
+- Candidate next milestone changes the Flex Functions host timeout from 4 to 20 minutes and appends a **pending** migration making both planning/render claims 25 minutes. FFmpeg remains strictly capped at 780 seconds (13 minutes); a source/package test rejects drift. This prevents a database lease expiring while the host may still be executing under its configured cap.
+- **Not deployment-ready:** actual asset staging/upload and 1080p encoding must be benchmarked under the target plan, failed/stale attempts need a durable reconciler and poison handlers, and the claim token/attempt should fence all final writes. No Azure resource, DEV migration, or WineShopPOS change was made.

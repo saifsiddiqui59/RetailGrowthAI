@@ -23,8 +23,20 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(host["extensions"]["queues"]["batchSize"], 1)
         self.assertEqual(host["extensions"]["queues"]["newBatchThreshold"], 0)
         self.assertEqual(host["extensions"]["queues"]["maxDequeueCount"], 3)
-        self.assertEqual(host["functionTimeout"], "00:04:00")
+        self.assertEqual(host["functionTimeout"], "00:20:00")
         self.assertIn(b"sys.path.insert", files["function_app.py"])
+
+    def test_budget_mismatch_fails_closed(self):
+        host = {"functionTimeout": "00:20:00"}
+        sql = (mod.ROOT / "supabase/migrations/20261022205000_p1_worker_execution_budget.sql").read_text()
+        renderer = (mod.RENDER / "render.py").read_text()
+        mod.verify_worker_budget(host, sql, renderer)
+        with self.assertRaises(ValueError):
+            mod.verify_worker_budget({"functionTimeout": "00:04:00"}, sql, renderer)
+        with self.assertRaises(ValueError):
+            mod.verify_worker_budget(host, sql.replace("25 minutes", "4 minutes"), renderer)
+        with self.assertRaises(ValueError):
+            mod.verify_worker_budget(host, sql, renderer.replace("timeout=780", "timeout=1500"))
 
     def test_binaries_must_be_verified_not_downloaded(self):
         with tempfile.TemporaryDirectory() as tmp:
