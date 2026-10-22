@@ -154,7 +154,8 @@ create table public.render_jobs (
   foreign key (shop_id,campaign_id) references public.campaigns(shop_id,id) on delete cascade,
   foreign key (shop_id,day_id) references public.campaign_days(shop_id,id),
   foreign key (shop_id,output_asset_id) references public.media_assets(shop_id,id),
-  unique (shop_id,idempotency_key)
+  unique (shop_id,idempotency_key),
+  unique (shop_id,id)
 );
 create index render_jobs_shop_recent on public.render_jobs(shop_id,created_at desc);
 
