@@ -58,5 +58,5 @@ If a workflow change is not yet merged, its manual `workflow_dispatch` trigger m
 
 ## 2026-10-22 — Upload registration gate
 - The Supabase security job also runs `tests/security/draft_save_negative.sql` and `tests/security/upload_registration_negative.sql` on an isolated disposable DB, including denied cross-shop / VIEWER / anonymous operations, stale edits and unsigned media metadata registration. The frontend security tests exercise signed-in private binary upload, byte-signature checks and restricted RPC behavior.
-- PR #16 [run #39769374328](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39769374328) passed all four jobs before merge. Post-merge main #39769717413 requires independent confirmation.
+- PR #16 [run #39769374328](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39769374328) passed all four jobs before merge. Post-merge main [#39769717413](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39769717413) independently passed all four checks.
 - These checks do not validate real Supabase Storage HTTP upload or genuine third-party commercial license provenance without an approved DEV deployment.
