@@ -16,7 +16,10 @@ class RetryableJob(Exception):
 
 def process_campaign(campaign_id, admin, *, mock_enabled=False, provider=None):
     cid = str(UUID(campaign_id))
-    if admin.campaign_status(cid) in ("DRAFT", "READY", "FAILED", None):
+    current = admin.campaign_status(cid)
+    if current is None:
+        raise StorageUnavailable("unknown planning job")
+    if current in ("DRAFT", "READY", "FAILED"):
         return "ALREADY_FINAL"
     row = admin.claim(cid)
     if row is None:
