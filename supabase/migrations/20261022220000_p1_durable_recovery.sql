@@ -264,8 +264,9 @@ $$;
 create function public.reconcile_stale_jobs(p_limit int default 30)
 returns jsonb language plpgsql volatile security invoker set search_path = ''
 as $$
-declare v record;
-declare failed int:=0;
+declare
+  v record;
+  failed int:=0;
 begin
   if p_limit<1 or p_limit>100 then raise exception 'invalid reconcile limit'; end if;
   for v in
@@ -325,7 +326,7 @@ begin
 end;
 $;
 
-do $$
+do $
 declare f text;
 begin
   foreach f in array array['claim_outbox_events(integer)',
