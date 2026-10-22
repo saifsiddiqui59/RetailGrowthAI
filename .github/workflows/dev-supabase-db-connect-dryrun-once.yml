@@ -102,7 +102,27 @@ jobs:
               -d "$(cat "$RUNNER_TEMP/rgai-private-db-uri")" \
               -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" \
               > "$RUNNER_TEMP/versions" 2>"$RUNNER_TEMP/psql.err"; then
-             echo "::error::BLOCKED: database password, SSL, or pooler connection failed; check secret privately"; exit 3
+             python3 - "$RUNNER_TEMP/psql.err" <<'PY'
+          import sys
+          from pathlib import Path
+          e=Path(sys.argv[1]).read_text(errors="replace").lower()
+          if "password authentication failed" in e:
+              category="PASSWORD_AUTHENTICATION_FAILED"
+          elif "tenant or user not found" in e or "user not found" in e:
+              category="POOLER_USER_NOT_FOUND"
+          elif "no pg_hba.conf entry" in e or "ssl" in e:
+              category="SSL_OR_ACCESS_POLICY"
+          elif "could not translate host name" in e or "name or service not known" in e:
+              category="HOSTNAME_RESOLUTION"
+          elif "connection refused" in e or "timeout" in e or "network is unreachable" in e:
+              category="NETWORK_OR_POOLER_UNREACHABLE"
+          elif "database" in e and "does not exist" in e:
+              category="DATABASE_NAME"
+          else:
+              category="DATABASE_LOGIN_OTHER_ERROR"
+          print("BLOCKED: DATABASE_CONNECTION_CATEGORY="+category)
+          PY
+             exit 3
           fi
           python3 - "$RUNNER_TEMP/versions" <<'PY'
           from pathlib import Path
