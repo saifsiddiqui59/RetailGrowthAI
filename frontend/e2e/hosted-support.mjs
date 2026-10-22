@@ -67,6 +67,10 @@ export function hostedConfig(env = process.env) {
       allowlist.some(x => ![frontend, api, supabase].includes(x))) {
     throw new Error('All three DEV HTTPS origins must match the pinned allowlist exactly')
   }
+  // Require DEV environment naming even when an operator incorrectly pins a PROD host.
+  if (![frontend, api].every(value => new URL(value).hostname.toLowerCase().includes('dev'))) {
+    throw new Error('Both frontend and API hosts must be explicitly DEV-named')
+  }
   if (frontend === api || api === supabase || frontend === supabase) {
     throw new Error('Hosted DEV origins must be isolated')
   }
@@ -84,6 +88,7 @@ export function hostedConfig(env = process.env) {
     throw new Error('Image ownership must be explicitly attested before upload')
   }
   const evidence = required(env, 'RG_E2E_IMAGE_EVIDENCE')
+  if (evidence.length < 10 || evidence.length > 500) throw new Error('Provide 10–500 characters of genuine image rights evidence')
   const imagePath = required(env, 'RG_E2E_IMAGE_PATH')
   const image = imageFile(imagePath)
   const expiredJwt = required(env, 'RG_E2E_EXPIRED_JWT')
