@@ -50,7 +50,7 @@ end $$;
 -- An authenticated editor cannot bypass image registration using arbitrary paths
 -- or types, even under a shop they own.
 do $$
-declare denied boolean; count_changed integer;
+declare denied boolean;
 begin
   denied := false;
   begin
@@ -68,14 +68,10 @@ begin
   end;
   if not denied then raise exception 'FAIL: browser MP4 upload accepted'; end if;
 
-  -- Failed registration cleanup is still available for an unregistered object.
+  -- Canonical new image uploads remain possible. Storage object deletion must
+  -- be tested through the Storage API, which manages backing bytes.
   insert into storage.objects(bucket_id,name)
     values('retailgrowth-media','55555555-5555-4555-8555-555555555555/uploads/cccccccc-cccc-4ccc-8ccc-cccccccccccc.webp');
-  delete from storage.objects
-    where bucket_id='retailgrowth-media'
-      and name='55555555-5555-4555-8555-555555555555/uploads/cccccccc-cccc-4ccc-8ccc-cccccccccccc.webp';
-  get diagnostics count_changed = row_count;
-  if count_changed <> 1 then raise exception 'FAIL: orphan cleanup denied'; end if;
 end $$;
 
 select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',true);
