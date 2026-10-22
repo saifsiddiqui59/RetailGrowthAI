@@ -40,3 +40,5 @@ Use scripts/checkpoint.sh after completing a task.
 
 
 - 2026-10-22: Coordinator confirmed PRs #7–#12 merged after 4-job CI, prepared final live request-preview consistency fix in PR #13 and documented approved-cloud deployment gaps. No WineShopPOS changes or new cloud resources.
+
+- 2026-10-22: Prepared draft-save API/security milestone in isolated branch feat/p1-draft-save-api: PATCH endpoint with strict v1 validation, owner/editor and asset checks, protected Supabase RPC for concurrent/conflicting edits, local SQL denial tests and Python API tests. No live database migration, Azure deployment, WineShopPOS mutation or production verification. Verify feature PR and main Actions before claiming completion.
