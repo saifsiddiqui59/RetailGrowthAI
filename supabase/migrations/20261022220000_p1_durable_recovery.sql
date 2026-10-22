@@ -324,9 +324,9 @@ begin
       and (j.render_lease_until is null or j.render_lease_until<now()-interval '60 seconds');
   return jsonb_build_object('failed',failed);
 end;
-$;
+$$;
 
-do $
+do $$
 declare f text;
 begin
   foreach f in array array['claim_outbox_events(integer)',
