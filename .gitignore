@@ -17,3 +17,20 @@ dist/
 .venv/
 __pycache__/
 *.log
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# JavaScript
+node_modules/
+dist/
+
+# Local editor
+.vscode/
