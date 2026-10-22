@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { hostedConfig, pollHosted, signedDownloadUrl } from './hosted-support.mjs'
 
 const cfg = hostedConfig(process.env)
-const state = { campaignId: '', dayId: '', jobId: '', uploadedAssetId: '', jwt: '' }
+const state = { campaignId: '', dayId: '', jobId: '', uploadedAssetId: '', jwt: '', savedDay: null }
 const noRetry = { failOnStatusCode: false, timeout: 30000, maxRetries: 0 }
 const campaign = id => cfg.api + '/api/campaigns/' + id
 const render = id => cfg.api + '/api/render-jobs/' + id
@@ -131,7 +131,8 @@ test.describe.serial('RetailGrowthAI approved hosted DEV journey (real network a
     const persistedResponse = await authed(request, state.jwt, 'GET', campaign(state.campaignId))
     expect(persistedResponse.status()).toBe(200)
     const persisted = await json(persistedResponse)
-    expect(persisted.days.find(d => d.id === state.dayId)?.linkedin?.post_text).toBe(edited)
+    state.savedDay = persisted.days.find(d => d.id === state.dayId)
+    expect(state.savedDay?.linkedin?.post_text).toBe(edited)
 
     const createdRender = page.waitForResponse(r => r.url() === campaign(state.campaignId) +
       '/renders' && r.request().method() === 'POST')
@@ -178,7 +179,7 @@ test.describe.serial('RetailGrowthAI approved hosted DEV journey (real network a
     expectDenied(deniedRead, [403, 404])
     const deniedEdit = await authed(request, token, 'PATCH',
       campaign(state.campaignId) + '/days/' + state.dayId,
-      { topic: 'cross-tenant edit', linkedin: { post_text: 'hijack', hashtags: [] }, instagram: {} })
+      { topic: state.savedDay.topic, linkedin: state.savedDay.linkedin, instagram: state.savedDay.instagram })
     expectDenied(deniedEdit, [403, 404])
     const deniedRender = await authed(request, token, 'POST', campaign(state.campaignId) + '/renders',
       { day_id: state.dayId, preset: 'instagram_reel_30s' })
@@ -205,7 +206,8 @@ test.describe.serial('RetailGrowthAI approved hosted DEV journey (real network a
     expectDenied(plan, [401])
     for (const [method, url, data] of [
       ['GET', campaign(state.campaignId)],
-      ['PATCH', campaign(state.campaignId) + '/days/' + state.dayId, { topic: 'forged change' }],
+      ['PATCH', campaign(state.campaignId) + '/days/' + state.dayId, {
+        topic: state.savedDay.topic, linkedin: state.savedDay.linkedin, instagram: state.savedDay.instagram }],
       ['POST', campaign(state.campaignId) + '/renders', { day_id: state.dayId, preset: 'instagram_reel_30s' }],
       ['GET', render(state.jobId)],
       ['GET', render(state.jobId) + '/download'],
