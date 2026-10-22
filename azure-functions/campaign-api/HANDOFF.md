@@ -19,3 +19,7 @@ Branch: feat/p1-durable-recovery. Do not merge this file's branch before four ch
 
 ## Coordinator decision request
 Confirm host and queue SDK message encoding against Azure Functions queues extension in an approved isolated DEV smoke test; verify timer host storage, concurrency and cold-start behavior. Preserve the read-only CI credential model and audit poison retention/alert thresholds before any deployment.
+
+## Branch CI reconciliation (2026-10-22)
+- The previous PR run [#39793489861](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39793489861) has completed Python, frontend and isolated Supabase security checks successfully. The replayed FFmpeg attempt #2 logged successful codec smoke, full synthetic renderer harness, artifact upload and job cleanup, but GitHub did **not** publish a final overall success: check status remained `in_progress`.
+- GitHub refused a second job rerun while the earlier run remained in progress (HTTP 403). A newer source-only branch checkpoint triggers fresh CI for a definitive 4/4 result; coordinator must verify the newest head SHA and completed run rather than count the stale attempt as passed.
