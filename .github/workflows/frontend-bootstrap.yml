@@ -118,8 +118,15 @@ jobs:
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
             # A stalled package mirror must fail this job in a bounded time,
             # not strand CI indefinitely. Failures stay visible; never skip media tests.
-            # The runner's Azure apt mirror timed out before even downloading 10 MB
-            # (run #39809015246); use Ubuntu's official archive with bounded installs.
+            # GitHub's Ubuntu source often uses mirror+file:/etc/apt/apt-mirrors.txt.
+            # Changing ubuntu.sources alone did not remove azure.archive.ubuntu.com
+            # (post-merge main run #39810509471 failed after 480s of slow downloads).
+            # Pin the ephemeral runner mirror list to the Ubuntu archive; keep
+            # every H.264/AAC and full 30s render assertion mandatory below.
+            if [ -f /etc/apt/apt-mirrors.txt ]; then
+              printf '%s\n' 'http://archive.ubuntu.com/ubuntu/' |
+                sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+            fi
             if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
               sudo sed -i 's#http://azure.archive.ubuntu.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' \
                 /etc/apt/sources.list.d/ubuntu.sources
