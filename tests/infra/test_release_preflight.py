@@ -198,5 +198,50 @@ class ReleasePreflightTests(unittest.TestCase):
             self.assertNotIn(verb, shell)
 
 
+class RollbackGuardTests(unittest.TestCase):
+    def test_guard_rejects_missing_rollback_and_same_artifact(self):
+        import importlib.util
+        from tempfile import TemporaryDirectory
+        import struct
+        path = ROOT / "scripts/deploy/rollback_guard.py"
+        spec = importlib.util.spec_from_file_location("rgai_rollback_guard", path)
+        rollback = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(rollback)
+        package_spec = importlib.util.spec_from_file_location(
+            "rgai_test_package", ROOT / "scripts/deploy/package.py")
+        package = importlib.util.module_from_spec(package_spec)
+        package_spec.loader.exec_module(package)
+        entries = package.source_files()
+        elf = bytearray(100_000)
+        elf[:7] = b"\x7fELF\x02\x01\x01"
+        struct.pack_into("<H", elf, 18, 62)
+        struct.pack_into("<Q", elf, 32, 64)
+        struct.pack_into("<HH", elf, 54, 56, 1)
+        struct.pack_into("<I", elf, 64, 1)
+        entries.update({
+            "bin/ffmpeg": bytes(elf), "bin/ffprobe": bytes(elf),
+            "bin/THIRD_PARTY_NOTICES.txt": b"synthetic test fixture, not licensed production",
+        })
+        with TemporaryDirectory() as temp:
+            first = Path(temp) / "first.zip"
+            second = Path(temp) / "second.zip"
+            package.write_zip(first, entries)
+            entries["ai_agents/__init__.py"] += b"\n# distinct synthetic release\n"
+            package.write_zip(second, entries)
+            with self.assertRaises(ValueError):
+                rollback.verify_pair(second, None, False)
+            with self.assertRaises(ValueError):
+                rollback.verify_pair(second, first, True)
+            with self.assertRaises(ValueError):
+                rollback.verify_pair(first, first, False)
+            digest, previous = rollback.verify_pair(second, first, False)
+            self.assertEqual(len(digest), 64)
+            self.assertEqual(len(previous), 64)
+            self.assertNotEqual(digest, previous)
+            digest, previous = rollback.verify_pair(first, None, True)
+            self.assertEqual(len(digest), 64)
+            self.assertIsNone(previous)
+
+
 if __name__ == "__main__":
     unittest.main()
