@@ -48,6 +48,14 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch })
   return {
     createCampaign: (payload) => request('POST', '/campaigns', payload),
     getCampaign: (campaignId) => request('GET', '/campaigns/' + uuid(campaignId)),
+    saveDay: (campaignId, dayId, day) => {
+      if (!day || typeof day !== 'object') throw new Error('A complete draft day is required')
+      return request('PATCH', '/campaigns/' + uuid(campaignId) + '/days/' + uuid(dayId), {
+        topic: day.topic,
+        linkedin: day.linkedin,
+        instagram: day.instagram,
+      })
+    },
     createRender: (campaignId, dayId) => request('POST',
       '/campaigns/' + uuid(campaignId) + '/renders',
       { day_id: uuid(dayId), preset: 'instagram_reel_30s' }),

@@ -314,6 +314,7 @@ export default function CampaignDashboard() {
   const [campaignStatus, setCampaignStatus] = useState('')
   const [baseline, setBaseline] = useState(() => cloneCampaign(sampleCampaign))
   const [renderJob, setRenderJob] = useState(null)
+  const [savingDay, setSavingDay] = useState(false)
   const live = Boolean(api && user && client.configured && shopId)
   const loaded = live && campaignId && campaignStatus === 'DRAFT'
   const [campaign, setCampaign] = useState(() => cloneCampaign(sampleCampaign))
@@ -407,8 +408,41 @@ export default function CampaignDashboard() {
     } catch (error) { setLiveError(error.message) }
   }
 
+  async function saveDay() {
+    if (!loaded || !changed || storyErrors.length || savingDay) return
+    const snapshot = cloneCampaign(day)
+    const currentCampaignId = campaignId
+    const snapshotShopId = shopId
+    setSavingDay(true)
+    setLiveError('')
+    try {
+      const response = await api.saveDay(currentCampaignId, snapshot.id, snapshot)
+      const saved = response?.day
+      if (!saved || saved.id !== snapshot.id ||
+          saved.campaign_id !== currentCampaignId || saved.shop_id !== snapshotShopId) {
+        throw new Error('Saved draft identity mismatch')
+      }
+      setBaseline(current => current.id === currentCampaignId
+        ? updateCampaignDay(current, snapshot.id, () => saved) : current)
+      setCampaign(current => {
+        if (current.id !== currentCampaignId) return current
+        const latest = current.days.find(item => item.id === snapshot.id)
+        return updateCampaignDay(current, snapshot.id, () =>
+          JSON.stringify(latest) === JSON.stringify(snapshot) ? saved : latest)
+      })
+      setRenderJob(null)
+      setNotice('Draft day saved to your secure workspace.')
+    } catch (error) {
+      setLiveError(error.status === 409
+        ? 'Draft changed or rendering is active. Reload before trying again.'
+        : error.message)
+    } finally {
+      setSavingDay(false)
+    }
+  }
+
   async function startRender() {
-    if (!loaded || changed || storyErrors.length) return
+    if (!loaded || changed || storyErrors.length || savingDay) return
     setLiveError('')
     try {
       const job = await api.createRender(campaignId, day.id)
@@ -434,7 +468,7 @@ export default function CampaignDashboard() {
 
   function editDay(transform) {
     setCampaign(current => updateCampaignDay(current, day.id, transform))
-    setNotice('Edits remain local. Rendering uses only the unchanged saved backend draft.')
+    setNotice('Edits are unsaved. Save this day before rendering.')
   }
   function restoreDay() {
     setCampaign(current => updateCampaignDay(current, day.id, () => cloneCampaign(original)))
@@ -468,11 +502,15 @@ export default function CampaignDashboard() {
       <section className="rg-editor rg-panel" aria-labelledby="rg-editor-title">
         <div className="rg-inline-title rg-editor-heading">
           <div><span className="rg-kicker">CONTENT WORKSPACE / DAY {String(day.day_index).padStart(2, '0')}</span>
-            <h2 id="rg-editor-title">Refine your draft</h2><p>{formatDayDate(day.scheduled_date)} · {loaded ? 'Authorized draft · edits local' : 'Local sample campaign'}</p>
+            <h2 id="rg-editor-title">Refine your draft</h2><p>{formatDayDate(day.scheduled_date)} · {loaded ? 'Authenticated draft · save changes before rendering' : 'Local sample campaign'}</p>
           </div>
           <div className="rg-editor-actions">
-            {changed && <span className="rg-changed">Edited in this tab</span>}
-            <button className="rg-button rg-quiet" type="button" onClick={restoreDay}>Reset day</button>
+            {changed && <span className="rg-changed">Unsaved changes</span>}
+            {loaded && <button className="rg-button rg-secondary" type="button"
+              disabled={!changed || storyErrors.length > 0 || savingDay}
+              onClick={saveDay}>{savingDay ? 'Saving…' : 'Save day'}</button>}
+            <button className="rg-button rg-quiet" type="button" disabled={savingDay}
+              onClick={restoreDay}>Reset day</button>
           </div>
         </div>
         <label className="rg-field rg-topic" htmlFor="rg-topic">
@@ -510,12 +548,12 @@ export default function CampaignDashboard() {
               </div>
               <ReelPreview day={day} />
             </div>}
-        <RenderStatus day={day} valid={storyErrors.length === 0} live={loaded} dirty={changed}
+        <RenderStatus day={day} valid={storyErrors.length === 0} live={loaded} dirty={changed || savingDay}
           job={renderJob} onRender={startRender} onDownload={downloadRender} />
       </section>
       {notice && <p className="rg-session-notice" role="status">{notice}</p>}
       <p className="rg-footnote">{loaded
-        ? 'Live drafts come from your authenticated API. Edits are local only; publishing and remote editing remain unavailable.'
+        ? 'Live drafts can be saved using your authenticated API. Uploads and publishing remain unavailable.'
         : 'Sample data only. No remote save, uploads, model output or published media is implied.'}</p>
     </div>
   )

@@ -127,3 +127,8 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 - New migration removes direct authenticated campaign_days UPDATE grants and exposes an optimistic, membership-rechecking save RPC. Concurrent stale writes, non-DRAFT parent campaigns and active queued/running renders fail closed.
 - Added Python API/transport denial tests and disposable Postgres RPC bypass/viewer/conflict checks in the fourth CI job.
 - **Pending:** branch/PR and post-merge CI evidence, DEV migration approval/application, frontend Save button and real browser E2E. No Azure or Supabase hosted resource was modified.
+
+## 2026-10-22 — Authenticated draft Save UI (stacked feature branch)
+- CampaignDashboard now provides live-only **Save day** for topic, LinkedIn and Instagram edits via scoped PATCH API; returned tenant/day identity is checked and local baseline updates only after success.
+- Late in-flight edits remain visibly unsaved. Render is blocked during save or whenever the local day differs from the server baseline. Demo fixture still has no remote Save button.
+- This is front-end code only; the draft-save API/SQL migration PR must land first. No deployed UI, real assets or browser E2E verification.

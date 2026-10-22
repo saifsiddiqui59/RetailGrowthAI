@@ -57,3 +57,8 @@ Coordinator merged Workstream A PR #5, stacked coordinator PR #6, Workstream B P
 2. Wire a live-only **Save day** UI action using PATCH and its returned persisted day; preserve demo mode, unsaved-change protection and render gating.
 3. Build a proper media registration/upload path with verified license provenance and private-object authorization, plus negative tenant tests; do not trust user-declared licensing alone.
 4. After explicit approval, apply RetailGrowthAI-only pending migrations and deploy isolated DEV API/queues; verify Supabase Auth, JWT, uploads, worker retries, download and browser E2E. No PROD yet.
+
+## After live Save day wiring
+- Merge draft-save backend PR before stacked React Save UI PR; verify all 4 jobs on both and on main.
+- Approve and apply RetailGrowthAI-only migrations to isolated DEV, then test an actual signed-in browser Save/PATCH/GET round trip and cross-tenant denial. Source-only CI cannot prove this.
+- Next: private, licensed media upload/registration; app/queue deployment after approval; real media render/download, poison recovery and end-to-end QA.

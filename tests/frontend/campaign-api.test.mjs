@@ -66,3 +66,45 @@ test('downloads may only open verified Supabase private storage', () => {
     'https://my-shop.supabase.co/storage/v1/object/public/retailgrowth-media/x',
     'https://my-shop.supabase.co'), /private storage/)
 })
+
+
+test('live draft save sends only editable fields with refreshed user JWT', async () => {
+  const seen = []
+  const api = createCampaignApi({
+    baseUrl: 'https://retail-api.example.com',
+    tokenProvider: async () => 'live-user-jwt',
+    fetchImpl: async (url, options) => {
+      seen.push({ url, options })
+      return { ok: true, json: async () => ({ day: { id: ID } }) }
+    },
+  })
+  const draft = {
+    id: 'forged-identity', shop_id: 'forged-shop', review_status: 'APPROVED',
+    topic: 'Fresh topic',
+    linkedin: { post_text: 'New post', hashtags: ['#new'] },
+    instagram: { caption: 'New caption' },
+  }
+  const saved = await api.saveDay(ID, ID, draft)
+  assert.equal(saved.day.id, ID)
+  assert.equal(seen[0].url, 'https://retail-api.example.com/api/campaigns/' + ID + '/days/' + ID)
+  assert.equal(seen[0].options.method, 'PATCH')
+  assert.equal(seen[0].options.headers.Authorization, 'Bearer live-user-jwt')
+  assert.deepEqual(JSON.parse(seen[0].options.body), {
+    topic: draft.topic, linkedin: draft.linkedin, instagram: draft.instagram,
+  })
+  assert.throws(() => api.saveDay('../unknown', ID, draft), /resource ID/)
+})
+
+test('remote edit conflict returns a 409 rather than silently overwriting', async () => {
+  const api = createCampaignApi({
+    baseUrl: 'https://retail-api.example.com',
+    tokenProvider: async () => 'signed',
+    fetchImpl: async () => ({
+      ok: false, status: 409,
+      json: async () => ({ error: 'EDIT_CONFLICT' }),
+    }),
+  })
+  await assert.rejects(() => api.saveDay(ID, ID, {
+    topic: 'Test', linkedin: {}, instagram: {},
+  }), error => error.status === 409)
+})
