@@ -1,5 +1,6 @@
 name: RetailGrowthAI DEV release prereq audit (read-only, once)
 on:
+  workflow_dispatch: # Optional manual re-audit after protected DEV settings change
   push:
     branches: [main]
     paths:
