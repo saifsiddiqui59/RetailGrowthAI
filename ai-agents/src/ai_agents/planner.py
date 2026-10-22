@@ -49,6 +49,25 @@ def _category(brief: str) -> str:
     return "general"
 
 
+def _theme(brief: str, category: str) -> str:
+    """Extract bounded, non-factual themes rather than quoting arbitrary instructions."""
+    lower = brief.lower()
+    for keyword, theme in (
+        ("navratri", "Navratri-inspired ideas"),
+        ("diwali", "Diwali-inspired ideas"),
+        ("agentic ai", "Agentic AI learning"),
+        ("retail", "Retail inspiration"),
+    ):
+        if keyword in lower:
+            return theme
+    return {
+        "clothing": "Everyday styling",
+        "restaurant": "Food and dining",
+        "technology": "Practical technology",
+        "general": "Practical inspiration",
+    }[category]
+
+
 def _is_regulated(brief: str) -> bool:
     return any(term in brief.lower() for term in
                ("beer", "alcohol", "liquor", "wine", "tobacco", "vape", "gambling", "betting", "pharmacy", "medicine"))
@@ -63,6 +82,7 @@ def generate_campaign(
     campaign_id = str(UUID(campaign_id))
     category = _category(request.brief)
     regulated = _is_regulated(request.brief)
+    theme = _theme(request.brief, category)
     days: list[dict] = []
     for i in range(request.duration_days):
         scheduled = request.start_date + timedelta(days=i)
@@ -73,12 +93,12 @@ def generate_campaign(
         if request.offer and scheduled <= request.offer.valid_until and not regulated:
             offer_line = f" User-provided offer: {request.offer.description} (valid through {request.offer.valid_until.isoformat()}). Please verify terms before publishing."
         linkedin = (
-            f"{topic}. Here is a fresh idea to explore today. "
+            f"{topic} — {theme}. Here is a fresh idea to explore today. "
             f"Consider how it relates to your goals and what questions it raises. "
             f"Share your own perspective or ask us for more details.{offer_line}"
         )
         caption = (
-            f"Day {i + 1}: {topic}. What would you try or learn next? "
+            f"Day {i + 1}: {topic} — {theme}. What would you try or learn next? "
             f"Tell us below! {' '.join(TAGS[category])}{offer_line}"
         )
         cta = "Ask us for more details" if category != "technology" else "Explore the topic further"
