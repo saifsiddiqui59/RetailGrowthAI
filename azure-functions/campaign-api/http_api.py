@@ -5,7 +5,8 @@ from uuid import uuid4
 from ai_agents.schemas import CampaignBrief, ContractError, validate_campaign
 
 from security import AuthenticationError
-from tenant_store import StorageUnavailable, canonical_uuid\nfrom draft_api import DraftAPI
+from tenant_store import StorageUnavailable, canonical_uuid
+from draft_api import DraftAPI
 
 
 class HTTPAPI:
