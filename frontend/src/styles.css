@@ -51,3 +51,16 @@ h2 { letter-spacing: -.025em; }
   .content { padding: 32px 18px 60px; }
   .metrics, .day-grid { grid-template-columns: 1fr; }
 }
+
+/* Coordinator integration: account route uses Workstream A's form controls. */
+.panel[aria-label="Business account"] { max-width: 760px; }
+.panel[aria-label="Business account"] form { display: grid; gap: 15px; margin: 22px 0; padding-top: 14px; border-top: 1px solid #e5eaf0; }
+.panel[aria-label="Business account"] form label { display: grid; gap: 7px; color: #354c64; font-weight: 650; font-size: 14px; }
+.panel[aria-label="Business account"] input,
+.panel[aria-label="Business account"] textarea,
+.panel[aria-label="Business account"] select { max-width: 100%; width: 100%; padding: 11px 12px; font: inherit; border: 1px solid #b8c8d7; border-radius: 9px; background: #fff; color: #17263c; }
+.panel[aria-label="Business account"] textarea { min-height: 86px; resize: vertical; }
+.panel[aria-label="Business account"] button { justify-self: start; border: 1px solid #275b51; background: #185c4f; color: white; border-radius: 9px; padding: 10px 15px; cursor: pointer; font: inherit; font-weight: 650; }
+.panel[aria-label="Business account"] button[type="button"] { background: white; color: #185c4f; }
+.panel[aria-label="Business account"] button:disabled { opacity: .5; cursor: not-allowed; }
+.panel[aria-label="Business account"] [role="alert"] { color: #aa203a; }
