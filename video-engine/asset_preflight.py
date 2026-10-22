@@ -61,7 +61,10 @@ def inspect_staged_image(path):
     if len(streams) != 1 or streams[0].get("codec_type") != "video":
         raise AssetPreflightError("Staged image must contain exactly one video/image stream")
     video = streams[0]
-    width, height = int(video.get("width") or 0), int(video.get("height") or 0)
+    try:
+        width, height = int(video.get("width") or 0), int(video.get("height") or 0)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise AssetPreflightError("Invalid image dimensions") from exc
     if (video.get("codec_name") != IMAGE_CODECS[path.suffix.lower()]
             or width <= 0 or height <= 0 or width > MAX_SIDE or height > MAX_SIDE
             or width * height > MAX_PIXELS):
@@ -83,12 +86,16 @@ def inspect_staged_audio(path):
     stream = streams[0]
     if stream.get("codec_name") not in AUDIO_CODECS[path.suffix.lower()]:
         raise AssetPreflightError("Audio extension/codec mismatch")
-    rate = int(stream.get("sample_rate") or 0)
-    channels = int(stream.get("channels") or 0)
-    duration = data.get("format", {}).get("duration")
+    try:
+        rate = int(stream.get("sample_rate") or 0)
+        channels = int(stream.get("channels") or 0)
+        raw_duration = data.get("format", {}).get("duration")
+        duration = float(raw_duration) if raw_duration is not None else None
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise AssetPreflightError("Invalid audio stream metadata") from exc
     if not 0 < rate <= 192000 or not 0 < channels <= 8:
         raise AssetPreflightError("Audio channel/sample-rate limit failed")
-    if duration is not None and (not math.isfinite(float(duration)) or not 0 < float(duration) <= 3600):
+    if duration is not None and (not math.isfinite(duration) or not 0 < duration <= 3600):
         raise AssetPreflightError("Music length limit failed")
     return {"bytes": size, "sample_rate": rate, "channels": channels}
 
