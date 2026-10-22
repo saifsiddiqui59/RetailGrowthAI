@@ -98,3 +98,17 @@ export function serializeDraftDay(day) {
   if (errors.length) throw new Error('Fix the storyboard before exporting: ' + errors.join(' '))
   return JSON.stringify(day, null, 2) + '\n'
 }
+
+
+// Bind the same verified shop/media selection to the preview and request body.
+export function withAuthorizedMedia(preview, shopId, ids) {
+  if (typeof shopId !== 'string' || !UUID.test(shopId)) {
+    throw new Error('Select an authorized business.')
+  }
+  if (!Array.isArray(ids) || ids.length < 1 || ids.length > 21 ||
+      !ids.every(id => typeof id === 'string' && UUID.test(id)) ||
+      new Set(ids).size !== ids.length) {
+    throw new Error('Select 1–21 distinct authorized media assets.')
+  }
+  return { ...preview, shop_id: shopId, media_asset_ids: [...ids] }
+}

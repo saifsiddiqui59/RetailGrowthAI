@@ -69,3 +69,7 @@
 - Frontend must never send synthetic fixture asset IDs; authenticated live mode selects previously authorized per-shop media via RLS. API calls refresh the Supabase access token, reject redirects and gate signed downloads to the configured private storage origin. Unsaved edits remain local and cannot be rendered as saved server drafts.
 
 - The campaign status column remains server-owned. Privileged cleanup is narrowly filtered by campaign, tenant, owner and status. Use opaque sb_secret_ keys only in apikey; reject unverified existing rendered objects rather than treating 409 as upload success.
+
+
+## 2026-10-22 — Live UI request consistency
+- The campaign request shown to a signed-in user must exactly match the authorized payload sent to the API. Only selected business/asset UUIDs from the RLS-backed UI may appear; never substitute sample fixture IDs in live requests. Missing or duplicate media blocks submission. Offline mock mode remains unchanged.

@@ -4,7 +4,7 @@ import { createCampaignApi, validateSignedVideoUrl } from './campaign-api.mjs'
 import sampleCampaign from './fixtures/sample-campaign.json'
 import {
   buildCampaignRequest, cloneCampaign, formatDayDate, linkedInText,
-  serializeDraftDay, timelineErrors, updateCampaignDay, updateScene,
+  serializeDraftDay, timelineErrors, updateCampaignDay, updateScene, withAuthorizedMedia,
 } from './campaign-model.mjs'
 import './CampaignDashboard.css'
 
@@ -22,7 +22,7 @@ function saveLocalFile(filename, contents, mimeType) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-function CampaignPrompt({ campaign, onRequest, live = false }) {
+function CampaignPrompt({ campaign, onRequest, live = false, liveShopId = '', liveAssetIds = [] }) {
   const [brief, setBrief] = useState(INITIAL_BRIEF)
   const [startDate, setStartDate] = useState(campaign.days[0].scheduled_date)
   const [offer, setOffer] = useState('')
@@ -34,10 +34,13 @@ function CampaignPrompt({ campaign, onRequest, live = false }) {
   function submit(event) {
     event.preventDefault()
     try {
-      const next = buildCampaignRequest({
+      const sampleRequest = buildCampaignRequest({
         brief, start_date: startDate, offer_description: offer,
         offer_valid_until: expiry,
       }, campaign)
+      const next = live
+        ? withAuthorizedMedia(sampleRequest, liveShopId, liveAssetIds)
+        : sampleRequest
       setRequest(next)
       setError('')
       setShowRequest(true)
@@ -396,9 +399,7 @@ export default function CampaignDashboard() {
     }
     setLiveError('')
     try {
-      const accepted = await api.createCampaign({
-        ...request, shop_id: shopId, media_asset_ids: assetIds,
-      })
+      const accepted = await api.createCampaign(request)
       if (accepted.status !== 'PLANNING') throw new Error('Campaign was not queued')
       setCampaignId(accepted.campaign_id)
       setCampaignStatus('PLANNING')
@@ -459,7 +460,8 @@ export default function CampaignDashboard() {
       {api && user && client.configured &&
         <LiveMediaSelection shops={shops} shopId={shopId} onShop={(id) => { setShopId(id); setLiveError('') }}
           assets={assets} assetIds={assetIds} onAssets={setAssetIds} error={liveError} />}
-      <CampaignPrompt campaign={campaign} live={live} onRequest={submitLive} />
+      <CampaignPrompt key={shopId || 'demo'} campaign={campaign} live={live}
+        liveShopId={shopId} liveAssetIds={assetIds} onRequest={submitLive} />
       {live && campaignStatus === 'PLANNING' && <p role="status">Campaign planning in progress. No new draft is available yet.</p>}
       {live && campaignStatus === 'FAILED' && <p className="rg-validation" role="alert">Campaign planning failed.</p>}
       <Calendar days={campaign.days} live={loaded} selectedId={day.id} onSelect={(id) => { setSelectedId(id); setRenderJob(null); setNotice('') }} />

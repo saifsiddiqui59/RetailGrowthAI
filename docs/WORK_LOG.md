@@ -37,3 +37,6 @@ Use scripts/checkpoint.sh after completing a task.
 - 2026-10-22: PR #11 frontend CI exposed a JavaScript syntax typo in campaign-api.mjs; corrected without skipping tests, queued new four-job CI.
 
 - 2026-10-22: Coordinator prepared API security hotfix: privileged queue cleanup, Supabase opaque key handling, private media collision rejection and negative tests. No WineShopPOS change or cloud deployment.
+
+
+- 2026-10-22: Coordinator confirmed PRs #7–#12 merged after 4-job CI, prepared final live request-preview consistency fix in PR #13 and documented approved-cloud deployment gaps. No WineShopPOS changes or new cloud resources.

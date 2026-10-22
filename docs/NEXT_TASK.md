@@ -43,3 +43,11 @@ Coordinator merged Workstream A PR #5, stacked coordinator PR #6, Workstream B P
 - Set VITE_CAMPAIGN_API_BASE_URL and RetailGrowthAI-only Supabase publishable settings on an approved deployment; verify browser E2E and CORS. Media upload UI, remote edit/save, production licensing and post approval remain separate work.
 
 - Verify post-merge four-job CI and complete live Auth/queue/render/browser testing before deployment. Fix any orphaned queued jobs with monitored recovery; do not grant user UPDATE on campaigns.status.
+
+
+## Next implementation blockers after PR #7–#13 (approval-gated)
+1. Review and apply durable planning + rendering migrations to **RetailGrowthAI-only DEV** (never WineShopPOS); verify DB advisors and RPC permissions.
+2. Provision/configure approved Azure Functions app and two Storage queues, using backend-only secrets and packaging `ai_agents` + `video-engine`. Test Azure Functions host locally and in isolated DEV before enabling frontend.
+3. Set HTTPS API origin and Supabase publishable values for RetailGrowthAI; test real sign-in, per-tenant uploads/rights and CORS.
+4. Add live save/edit draft API, uploads with licensing, verified final downloads, poison/recovery reconciliation, cost/lease limits and browser E2E.
+5. Commit reviewed npm lockfile, implement production Foundry provider, create separate PROD only with approval. Publishing remains Part 2; Wan Part 3.

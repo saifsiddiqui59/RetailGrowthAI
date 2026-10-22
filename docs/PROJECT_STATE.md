@@ -114,3 +114,10 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## 2026-10-22 — Coordinator backend authorization hotfix
 - Queue error cleanup is an explicitly scoped backend status update; a missing backend key blocks POST before persistence. Opaque Supabase sb_secret_ keys use apikey only, legacy service JWTs additionally use Bearer. Private media 409 collisions fail closed. Offline tests added; no cloud deployed.
+
+
+## Coordinator feature-integration checkpoint — 2026-10-22
+- Merged PR #7 (secure Supabase JWT HTTP API), #8 (durable campaign queue and DB lease), #9 (render API and signed private downloads), #10 (FFmpeg queue worker and private upload), #11 (authenticated React live-mode wiring) and #12 (backend status cleanup, opaque-key/media safety). Each milestone passed the four-job CI before merge.
+- Live-mode campaign request preview now uses selected RLS-authorized shop/media IDs, not fixture UUIDs; offline UI remains in demo mode without settings.
+- All changes are GitHub source code and disposable CI tests only. **No Azure Functions deployment, Azure Queue creation, additional Supabase resources, DEV migration push, or browser E2E was performed.** An existing RetailGrowthAI DEV database is not equivalent to a deployed API.
+- Use latest main GitHub Actions run as final CI authority; project is NOT production-ready.

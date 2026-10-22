@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import {
   buildCampaignRequest, cloneCampaign, formatDayDate, linkedInText,
-  serializeDraftDay, timelineErrors, updateCampaignDay, updateScene,
+  serializeDraftDay, timelineErrors, updateCampaignDay, updateScene, withAuthorizedMedia,
 } from '../../frontend/src/features/campaigns/campaign-model.mjs'
 
 const fixture = JSON.parse(await readFile(
@@ -99,4 +99,19 @@ test('local day export retains the contract fields and never produces a fake MP4
 test('rejects invalid edit operation', () => {
   assert.throws(() => updateScene(day.instagram.reel.storyboard, 0, 'asset_id', 'arbitrary'), /Unsupported/)
   assert.throws(() => updateScene(day.instagram.reel.storyboard, 99, 'overlay_text', 'a'), /does not exist/)
+})
+
+
+test('live request preview has real selected shop/asset IDs and matches API payload', () => {
+  const realShop = 'e1000000-0000-4000-8000-000000000001'
+  const realAsset = 'e1000000-0000-4000-8000-000000000002'
+  const sample = buildCampaignRequest({ brief: validBrief, start_date: '2026-11-01' }, fixture)
+  const live = withAuthorizedMedia(sample, realShop, [realAsset])
+  assert.equal(live.shop_id, realShop)
+  assert.deepEqual(live.media_asset_ids, [realAsset])
+  assert.equal(sample.shop_id, fixture.shop_id)
+  assert.deepEqual(sample.media_asset_ids, [])
+  assert.throws(() => withAuthorizedMedia(sample, realShop, []), /1–21/)
+  assert.throws(() => withAuthorizedMedia(sample, fixture.shop_id, [realAsset, realAsset]), /distinct/)
+  assert.throws(() => withAuthorizedMedia(sample, 'not-uuid', [realAsset]), /business/)
 })
