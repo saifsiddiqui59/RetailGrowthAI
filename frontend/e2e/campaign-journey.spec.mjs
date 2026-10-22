@@ -181,7 +181,7 @@ async function submit(page) {
 }
 
 async function loaded(page) {
-  await expect(page.getByText('Authenticated campaign draft loaded · Not scheduled or published.')).toBeVisible()
+  await expect(page.getByText('Authenticated campaign draft loaded. Publishing is still unavailable.')).toBeVisible()
 }
 
 test('real UI: login -> authorized seven-day plan -> edit/save -> render status -> signed link', async ({ page }) => {
