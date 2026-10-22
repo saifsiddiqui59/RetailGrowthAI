@@ -73,3 +73,5 @@ Remaining known gaps: a 50 MB multi-purpose bucket allows unregistered objects u
 - `tests/security/dev-db-preflight.mjs` validates sorted unique migrations, required SQL guardrails, project-pinned remote migration prefix and detects gaps/drift/wrong project; `dev-db-preflight.test.mjs` is discovered independently by the coordinator's wildcard Node security CI step.
 - `tests/security/durable_recovery_negative.sql` is executed independently by the coordinator's disposable-database SQL CI step; it tests service-only grants, RLS, transactional dispatch, outbox CAS ACK, planner/render attempt fencing, poison deduplication, paths and stale retry terminalization.
 - No canonical shared docs (`docs/**`), cloud resources, hosted database migrations or WineShopPOS changes are authorized in Workstream L. Coordinator 3 updates shared docs and CI configuration after review/merge.
+
+- CI coordination note: after the GitHub runner mirror update, rerun the complete offline checks against current main; do not use historical runs to authorize deployment.
