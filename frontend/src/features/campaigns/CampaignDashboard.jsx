@@ -309,7 +309,10 @@ function LiveImageUploader({ client, shopId, onUploaded }) {
   const [message, setMessage] = useState('')
   const [uploadError, setUploadError] = useState('')
   const active = useRef(true)
-  useEffect(() => () => { active.current = false }, [])
+  useEffect(() => {
+    active.current = true
+    return () => { active.current = false }
+  }, [])
 
   async function submit(event) {
     event.preventDefault()
