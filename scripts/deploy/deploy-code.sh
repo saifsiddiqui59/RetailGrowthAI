@@ -25,25 +25,9 @@ for needed in AzureWebJobsStorage RETAIL_STORAGE RETAIL_SUPABASE_URL RETAIL_SUPA
     echo "Missing backend secret/config key: $needed" >&2; exit 3
   fi
 done
-# Avoid accidentally publishing a ZIP without the approved FFmpeg distribution.
+# Refuse an incomplete/malformed/dependency-unsafe bundle before any upload.
 if command -v python3 >/dev/null 2>&1; then py=python3; else py=python; fi
-"$py" - "$2" <<'PY'
-from sys import argv
-from zipfile import ZipFile
-with ZipFile(argv[1]) as z:
-    names = set(z.namelist())
-    needed = {
-        "function_app.py", "requirements.txt", "host.json",
-        "ai_agents/schemas.py", "azure-functions/campaign-api/render_worker.py",
-        "video-engine/render.py", "bin/ffmpeg", "bin/ffprobe",
-        "bin/THIRD_PARTY_NOTICES.txt",
-    }
-    if not needed.issubset(names):
-        raise SystemExit("Incomplete package: refuse publish")
-    for name in ("bin/ffmpeg", "bin/ffprobe"):
-        if z.read(name)[:4] != b"\x7fELF":
-            raise SystemExit("Invalid Linux binary: " + name)
-PY
+"$py" "$(cd "$(dirname "$0")/../.." && pwd)/scripts/deploy/package.py" --verify-zip "$2"
 # Do not use until approved Supabase DEV migrations, timeout/retry,
 # licensing, billing alerts and function app configuration are verified.
 az functionapp deployment source config-zip --name "$RETAIL_AZURE_FUNCTION_NAME" --resource-group "$RETAIL_AZURE_DEV_RG" --subscription "$RETAIL_AZURE_SUBSCRIPTION_ID" --src "$2" --build-remote true

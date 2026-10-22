@@ -1,6 +1,7 @@
 """Offline deployment package tests (no network, Azure or secrets)."""
 import importlib.util
 import json
+import struct
 from pathlib import Path
 import tempfile
 import unittest
@@ -46,6 +47,44 @@ class PackageTests(unittest.TestCase):
             (folder / "THIRD_PARTY_NOTICES.txt").write_text("Unverified")
             with self.assertRaises(ValueError):
                 mod.ffmpeg_files(folder)
+
+    def test_static_elf_rejects_dynamic_and_wrong_architecture(self):
+        payload = bytearray(100_000)
+        payload[:7] = b"\x7fELF\x02\x01\x01"
+        struct.pack_into("<H", payload, 18, 62)
+        struct.pack_into("<Q", payload, 32, 64)
+        struct.pack_into("<HH", payload, 54, 56, 1)
+        struct.pack_into("<I", payload, 64, 1)
+        mod.verify_static_linux_elf(bytes(payload), "ffmpeg")
+        dynamic = bytearray(payload)
+        struct.pack_into("<I", dynamic, 64, 3)
+        with self.assertRaises(ValueError):
+            mod.verify_static_linux_elf(bytes(dynamic), "ffmpeg")
+        wrong = bytearray(payload)
+        struct.pack_into("<H", wrong, 18, 183)
+        with self.assertRaises(ValueError):
+            mod.verify_static_linux_elf(bytes(wrong), "ffmpeg")
+
+    def test_zip_guards_check_binary_runtime_and_permissions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            entries = mod.source_files()
+            payload = bytearray(100_000)
+            payload[:7] = b"\x7fELF\x02\x01\x01"
+            struct.pack_into("<H", payload, 18, 62)
+            struct.pack_into("<Q", payload, 32, 64)
+            struct.pack_into("<HH", payload, 54, 56, 1)
+            struct.pack_into("<I", payload, 64, 1)
+            entries.update({
+                "bin/ffmpeg": bytes(payload), "bin/ffprobe": bytes(payload),
+                "bin/THIRD_PARTY_NOTICES.txt": b"Offline synthetic fixture, not a production binary",
+            })
+            path = Path(tmp) / "approved.zip"
+            mod.write_zip(path, entries)
+            self.assertTrue(mod.verify_zip(path))
+            entries["host.json"] = entries["host.json"].replace(b"00:20:00", b"00:30:00")
+            mod.write_zip(path, entries)
+            with self.assertRaises(ValueError):
+                mod.verify_zip(path)
 
     def test_zip_reproducible_and_does_not_embed_secrets(self):
         with tempfile.TemporaryDirectory() as tmp:

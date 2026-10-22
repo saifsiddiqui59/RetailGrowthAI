@@ -19,6 +19,9 @@ SERVICE = ROOT / "azure-functions" / "campaign-api"
 RENDER = ROOT / "video-engine"
 AGENTS = ROOT / "ai-agents" / "src" / "ai_agents"
 TIMESTAMP = (2026, 1, 1, 0, 0, 0)
+MAX_BINARY_BYTES = 180 * 1024 * 1024
+MAX_ARCHIVE_BYTES = 300 * 1024 * 1024
+MAX_UNPACKED_BYTES = 400 * 1024 * 1024
 ENTRY = '''"""Generated entrypoint; source lives at azure-functions/campaign-api/function_app.py."""
 from pathlib import Path
 import importlib.util
@@ -91,21 +94,78 @@ def source_files():
     return entries
 
 
+
+def verify_static_linux_elf(payload: bytes, name: str):
+    """Require self-contained Linux x86_64 ELF without a dynamic loader."""
+    if not 100_000 <= len(payload) <= MAX_BINARY_BYTES:
+        raise ValueError("Invalid FFmpeg executable size: " + name)
+    if (payload[:7] != b"\x7fELF\x02\x01\x01"
+            or struct.unpack_from("<H", payload, 18)[0] != 62):
+        raise ValueError("Not Linux x86_64 ELF: " + name)
+    offset = struct.unpack_from("<Q", payload, 32)[0]
+    stride, count = struct.unpack_from("<HH", payload, 54)
+    if not offset or stride < 56 or not 1 <= count <= 1024:
+        raise ValueError("Invalid ELF headers: " + name)
+    if offset + stride * count > len(payload):
+        raise ValueError("Truncated ELF headers: " + name)
+    for index in range(count):
+        if struct.unpack_from("<I", payload, offset + stride * index)[0] == 3:
+            raise ValueError("Dynamically linked FFmpeg binary unsupported: " + name)
+
+
+def verify_zip(path: Path):
+    """Validate ZIP and licensing without touching Azure or executing binaries."""
+    if not path.is_file() or path.stat().st_size > MAX_ARCHIVE_BYTES:
+        raise ValueError("Missing or oversized 300 MiB Functions ZIP")
+    with ZipFile(path) as archive:
+        infos = archive.infolist()
+        names = [info.filename for info in infos]
+        if len(names) != len(set(names)) or len(names) > 120:
+            raise ValueError("Duplicate or excessive ZIP members")
+        if sum(info.file_size for info in infos) > MAX_UNPACKED_BYTES:
+            raise ValueError("400 MiB uncompressed package budget exceeded")
+        for name in names:
+            if (name.startswith("/") or ".." in name.split("/")
+                    or "\\" in name or name.startswith(".")
+                    or name.endswith(".env") or "local.settings.json" in name):
+                raise ValueError("Unsafe or secret-like ZIP member: " + name)
+        required = {
+            "function_app.py", "requirements.txt", "host.json",
+            "ai_agents/schemas.py", "azure-functions/campaign-api/render_worker.py",
+            "video-engine/render.py", "bin/ffmpeg", "bin/ffprobe",
+            "bin/THIRD_PARTY_NOTICES.txt",
+        }
+        if not required.issubset(names):
+            raise ValueError("Incomplete Functions ZIP")
+        if archive.testzip() is not None:
+            raise ValueError("Corrupt Functions ZIP")
+        host = json.loads(archive.read("host.json"))
+        queue = host.get("extensions", {}).get("queues", {})
+        if (host.get("functionTimeout") != "00:20:00"
+                or any(queue.get(key) != val for key, val in {
+                    "batchSize": 1, "newBatchThreshold": 0, "maxDequeueCount": 3
+                }.items())):
+            raise ValueError("Unsafe packaged Functions timeout or queue controls")
+        if not archive.read("bin/THIRD_PARTY_NOTICES.txt").strip():
+            raise ValueError("Missing third-party license notices")
+        for name in ("bin/ffmpeg", "bin/ffprobe"):
+            if not (archive.getinfo(name).external_attr >> 16) & 0o111:
+                raise ValueError("Missing executable permission: " + name)
+            verify_static_linux_elf(archive.read(name), name)
+    return True
+
+
 def ffmpeg_files(folder: Path):
     if not folder.is_dir():
         raise ValueError("Missing approved FFmpeg directory")
     found = {}
     for name in ("ffmpeg", "ffprobe"):
         file = folder / name
-        if not file.is_file() or file.stat().st_size < 100000:
-            raise ValueError("Missing full Linux x86_64 executable: " + name)
-        with file.open("rb") as stream:
-            header = stream.read(20)
-        if not (len(header) == 20 and header[:4] == b"\x7fELF"
-                and header[4:6] == bytes((2, 1))
-                and struct.unpack("<H", header[18:20])[0] == 62):
-            raise ValueError("Not Linux x86_64 ELF: " + name)
-        found["bin/" + name] = file.read_bytes()
+        if not file.is_file() or file.stat().st_size > MAX_BINARY_BYTES:
+            raise ValueError("Missing or oversized Linux x86_64 executable: " + name)
+        payload = file.read_bytes()
+        verify_static_linux_elf(payload, name)
+        found["bin/" + name] = payload
     notices = folder / "THIRD_PARTY_NOTICES.txt"
     if not notices.is_file() or not notices.read_text("utf-8").strip():
         raise ValueError("An audited FFmpeg distribution and licensing notice is required")
@@ -127,9 +187,14 @@ def write_zip(path: Path, entries: dict[str, bytes]):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Only validate source/layout")
+    parser.add_argument("--verify-zip", type=Path, help="Verify deployment ZIP offline")
     parser.add_argument("--ffmpeg-dir", type=Path, help="Approved Linux x64 FFmpeg + notices directory")
     parser.add_argument("--output", type=Path, default=ROOT / ".artifacts" / "retailgrowth-functions.zip")
     args = parser.parse_args(argv)
+    if args.verify_zip:
+        verify_zip(args.verify_zip)
+        print("PASS: offline ZIP verified:", args.verify_zip)
+        return 0
     entries = source_files()
     if args.check:
         assert "azure-functions/campaign-api/render_worker.py" in entries
@@ -141,9 +206,7 @@ def main(argv=None):
         parser.error("Must supply approved Linux FFmpeg: --ffmpeg-dir")
     entries.update(ffmpeg_files(args.ffmpeg_dir))
     write_zip(args.output, entries)
-    with ZipFile(args.output) as archive:
-        if set(archive.namelist()) != set(entries):
-            raise ValueError("Incomplete ZIP")
+    verify_zip(args.output)
     print("PASS: packaged offline, not deployed:", args.output)
     return 0
 

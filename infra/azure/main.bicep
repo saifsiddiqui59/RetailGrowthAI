@@ -5,6 +5,7 @@ targetScope = 'resourceGroup'
 param environmentName string = 'dev'
 
 @description('Confirm Flex Consumption region availability before approved deployment.')
+@allowed(['centralindia'])
 param location string = 'centralindia'
 
 @description('New dedicated StorageV2 globally unique lowercase name.')
@@ -21,12 +22,12 @@ param functionPlanName string
 @description('Exact HTTPS frontend origin, never wildcard.')
 param frontendOrigin string
 
-@description('Max on-demand instances per scale group.')
-@minValue(1)
-@maxValue(10)
-param maxInstances int = 2
+@description('DEV cap applies to EACH independently scaling function group; higher values require a review.')
+@allowed([1, 2])
+param maxInstances int = 1
 
-@allowed([2048, 4096])
+@description('DEV is capped to 2048 MiB pending representative render measurements.')
+@allowed([2048])
 param instanceMemoryMB int = 2048
 
 var deploymentContainerName = 'retailgrowth-functions-packages'
@@ -88,7 +89,7 @@ resource flexPlan 'Microsoft.Web/serverfarms@2024-04-01' = {
 }
 
 // Backend secrets are intentionally NOT template parameters or outputs.
-var storageConnection = format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix=core.windows.net', storage.name, listKeys(storage.id, '2023-05-01').keys[0].value)
+var storageConnection = format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', storage.name, storage.listKeys().keys[0].value, environment().suffixes.storage)
 
 resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
   name: functionAppName
