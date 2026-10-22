@@ -114,6 +114,7 @@ class TenantStore:
                 "valid_until": brief.offer.valid_until.isoformat(),
             },
             "status": "PLANNING",
+            "media_asset_ids": list(brief.media_asset_ids),
         })
         if len(rows) != 1 or rows[0].get("id") != campaign_id:
             raise StorageUnavailable("campaign insert verification failed")

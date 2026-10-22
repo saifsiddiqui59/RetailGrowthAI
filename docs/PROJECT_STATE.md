@@ -99,3 +99,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 ## Secure API milestone (PR branch, 2026-10-22)
 - Azure Functions v2 HTTP adapter authored: signed RS256/ES256 Supabase JWT checks with pinned project issuer/audience; RLS user-token PostgREST tenant reads and write-gated campaign creation.
 - **POST remains fail-closed (503)** until a durable queue is added. GET can return tenant-filtered draft records when configured. Not deployed, not E2E-verified.
+
+## Durable planning milestone (branch)
+- Added pending-campaign media IDs, atomic claim/attempt/lease migration, Azure Storage Queue producer and queue-trigger planner with revoked-membership/media rechecks. This is code only; **neither migration nor Azure queue deployed**. Production Foundry remains unconfigured.

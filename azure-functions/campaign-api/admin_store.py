@@ -1,0 +1,104 @@
+"""Worker-only service-role PostgREST adapter. Never import into the browser.
+
+This adapter can only be instantiated with explicitly provided backend credentials.
+Atomic DB claim prevents parallel queue deliveries generating duplicate campaigns.
+"""
+from __future__ import annotations
+
+import json
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+
+from tenant_store import StorageUnavailable, canonical_uuid
+
+
+class AdminStore:
+    def __init__(self, origin, service_role_key, transport=None):
+        if not origin.startswith("https://") or not service_role_key:
+            raise ValueError("worker-only Supabase HTTPS origin and secret key required")
+        self.origin, self.secret = origin.rstrip("/"), service_role_key
+        self.transport = transport or urlopen
+
+    def request(self, path, *, query=None, data=None, method="GET", upsert=False):
+        if path not in ("rpc/claim_campaign_job", "campaigns", "campaign_days",
+                        "shop_memberships", "media_assets"):
+            raise ValueError("unsupported worker path")
+        url = self.origin + "/rest/v1/" + path
+        if query:
+            url += "?" + urlencode(query, safe="(),.*")
+        headers = {
+            "apikey": self.secret, "Authorization": "Bearer " + self.secret,
+            "Accept": "application/json", "Content-Type": "application/json",
+        }
+        if method != "GET":
+            headers["Prefer"] = ("resolution=merge-duplicates,return=representation"
+                                 if upsert else "return=representation")
+        body = None if data is None else json.dumps(data).encode("utf-8")
+        try:
+            with self.transport(Request(url, data=body, headers=headers, method=method),
+                                timeout=10) as resp:
+                raw = resp.read()
+                return json.loads(raw.decode()) if raw else None
+        except (HTTPError, URLError, OSError, json.JSONDecodeError) as exc:
+            raise StorageUnavailable("worker database request failed") from exc
+
+    def claim(self, cid):
+        return self.request("rpc/claim_campaign_job", method="POST",
+                            data={"p_id": canonical_uuid(cid)})
+
+    def campaign_status(self, cid):
+        rows = self.request("campaigns", query={
+            "select": "status", "id": "eq." + canonical_uuid(cid), "limit": "1",
+        })
+        return rows[0]["status"] if rows else None
+
+    def still_authorized(self, row):
+        sid, uid = canonical_uuid(row["shop_id"]), canonical_uuid(row["created_by"])
+        memberships = self.request("shop_memberships", query={
+            "select": "role", "shop_id": "eq." + sid, "user_id": "eq." + uid,
+            "active": "eq.true", "limit": "1",
+        })
+        if not memberships or memberships[0]["role"] not in ("OWNER", "EDITOR"):
+            return False
+        asset_ids = row["media_asset_ids"]
+        if not isinstance(asset_ids, list) or not 1 <= len(asset_ids) <= 21:
+            return False
+        ids = [canonical_uuid(a) for a in asset_ids]
+        if len(ids) != len(set(ids)):
+            return False
+        assets = self.request("media_assets", query={
+            "select": "id,shop_id,license_name,source", "shop_id": "eq." + sid,
+            "id": "in.(" + ",".join(ids) + ")",
+        })
+        # Missing license declarations or tenant-owned assets fail closed.
+        return ({a["id"] for a in assets} == set(ids) and
+                all(a["shop_id"] == sid and a.get("license_name") for a in assets))
+
+    def finish(self, row, campaign):
+        cid = canonical_uuid(row["id"])
+        if campaign["id"] != cid or campaign["shop_id"] != row["shop_id"]:
+            raise StorageUnavailable("wrong campaign owner")
+        days = [{
+            "id": day["id"], "campaign_id": cid, "shop_id": row["shop_id"],
+            "day_index": day["day_index"], "scheduled_date": day["scheduled_date"],
+            "topic": day["topic"], "linkedin": day["linkedin"],
+            "instagram": day["instagram"], "review_status": "DRAFT",
+        } for day in campaign["days"]]
+        self.request("campaign_days", query={"on_conflict": "campaign_id,day_index"},
+                     method="POST", data=days, upsert=True)
+        self.request("campaigns", method="PATCH", query={
+            "id": "eq." + cid, "shop_id": "eq." + row["shop_id"],
+            "status": "eq.PLANNING",
+        }, data={"status": "DRAFT", "planning_lease_until": None})
+
+    def fail(self, row, code, *, permanent=False):
+        status = "FAILED" if permanent or row["planning_attempts"] >= 3 else "PLANNING"
+        self.request("campaigns", method="PATCH", query={
+            "id": "eq." + canonical_uuid(row["id"]),
+            "shop_id": "eq." + canonical_uuid(row["shop_id"]),
+            "status": "eq.PLANNING",
+        }, data={
+            "status": status, "planning_error_code": code,
+            "planning_lease_until": None,
+        })
