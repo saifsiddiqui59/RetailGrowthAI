@@ -54,6 +54,18 @@ create trigger campaign_job_outbox after insert on public.campaigns
 create trigger render_job_outbox after insert on public.render_jobs
   for each row execute function retail_private.enqueue_new_job();
 
+-- Restore recovery visibility for unfinished records inserted by older versions
+-- before these INSERT triggers existed. Never backfill completed/failed work.
+insert into public.job_outbox(kind,job_id,next_attempt_at)
+select 'planning',id,coalesce(planning_lease_until,now()) from public.campaigns
+ where status='PLANNING'
+on conflict(kind,job_id) do nothing;
+insert into public.job_outbox(kind,job_id,next_attempt_at)
+select 'render',id,coalesce(render_lease_until,now()) from public.render_jobs
+ where status in ('QUEUED','RUNNING')
+on conflict(kind,job_id) do nothing;
+
+
 -- At-least-once dispatcher: a crashed sender's lease expires; a lost ACK may resend.
 -- The worker's claim token/attempt always gates commits.
 create function public.claim_outbox_events(p_limit integer default 20)
