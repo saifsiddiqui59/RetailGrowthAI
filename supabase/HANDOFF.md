@@ -43,3 +43,26 @@ These live SQL tests simulate authenticated database roles/JWT claims directly; 
 - Coordinator to add an isolated security CI job (disposable Supabase local/Auth/Storage database, migrations and SQL tests plus Node test) in coordinator-owned `.github/workflows/**`. Do not turn off failing tests.
 - Browser-client Node unit tests `tests/security/supabase-client.test.mjs` remain unverified until executed through Node or CI. Production sign-in and profile editing over HTTPS also remain unverified until coordinator wires the route.
 - Coordinator alone updates canonical `docs/PROJECT_STATE.md`, `docs/NEXT_TASK.md`, `docs/DECISIONS.md`, `docs/WORK_LOG.md` after integration; this worker does not touch shared docs.
+
+
+## 2026-10-22 — DEV migration and RLS readiness review (branch `feat/p1-dev-migration-readiness`)
+
+### Read-only hosted DEV verification
+- Current `main` starting point: `92889707a19f9a42238bced6d527963b677e0e74`; dedicated project `jeearzffnjbvghwjjjrf` is `ACTIVE_HEALTHY` (Tokyo, PostgreSQL 17).
+- Remote migration history **still contains ONLY** `20261022085124`, `20261022085132`, `20261022085503`. The durable-planning, render-claim, draft-save, private-upload-registration and new media-integrity migrations are **pending**, in order. Do not assume source files are deployed.
+- Remote security advisor returned **zero notices** for the presently deployed three-migration schema. Performance advisor returned **15 INFO-only unused-index notices**; expected in an unused DEV database, not a reason to remove planned foreign-key indexes.
+- No migration was applied; no hosted Supabase data, policies, buckets, auth users or service keys were changed.
+
+### Code hardening queued for review
+- New `20261022180000_p1_dev_media_integrity.sql` strengthens browser Storage INSERT to canonical `<shop-id>/uploads/<uuid>.png|jpg|webp`, closes browser UPDATE/upsert/rename of Storage objects, prevents user deletion of registered blobs, and revokes browser deletion of `media_assets` registration rows. This removes the two-step bypass where a member first deletes metadata and then replaces previously registered content.
+- Verified frontend contract is upload-only with `x-upsert: false` and server-bound registration; generated video files are backend-managed. The single shared private bucket intentionally retains its existing 50 MB ceiling to accommodate generated MP4 outputs.
+- Expanded disposable Postgres tests in `tests/security/storage_negative.sql` and `tests/security/upload_registration_negative.sql` to exercise canonical paths, malicious browser MP4 upload, orphan cleanup, registered image overwrite/deletion and metadata-delete bypass.
+- No incompatible HTTP/JSON interface was changed. Any future user media revocation/delete requires a separate audited server-side workflow.
+
+### Approval-gated deployment order and checks
+1. Obtain explicit coordinator/user approval, verify backup/recovery plan for **RetailGrowthAI DEV only**, and compare hosted migration history against committed files before applying.
+2. Review and apply sequentially: `20261022100400` durable planning, `20261022101800` render claim, `20261022162000` draft save, `20261022173000` private upload registration, `20261022180000` media integrity. Stop on drift/errors; do not apply to other projects.
+3. After authorized DEV rollout, run Supabase security/performance advisors, verify RLS and RPC EXECUTE/GRANT, and test a real user-authorized private upload/registration, cross-tenant rejection, registered overwrite/delete denial, and service-only generated MP4 handling.
+4. Await isolated Azure Function and Storage queue deployment approval before claiming authenticated campaign/render E2E. Production remains unprovisioned.
+
+Remaining known gaps: a 50 MB multi-purpose bucket allows unregistered objects up to its ceiling; abandoned upload cleanup and quotas require an approved service workflow. User-declared rights remain unverified until human/commercial review. This branch does not deploy or prove hosted browser functionality. Canonical `docs/**` updates are coordinator-owned and should be performed after PR integration.
