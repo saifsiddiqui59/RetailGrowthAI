@@ -7,6 +7,8 @@ Branch: `feat/p1-worker-reliability` — **ops/** and **tests/reliability/** ONL
 - `ops/orphan_cleanup.py`: inventory comparison for private tenant uploads ONLY, conservative 48-hour minimum age, metadata/ETag and DB-reference recheck; no renderer output removal. Applying deletion requires explicit approval, exclusive durable claim and conditional delete; no live adapter.
 - `ops/monitor.py`: offline state counts, stale (>15-minute) and actionable-job alerts without tenant IDs or tokens.
 - `ops/benchmark.py`: reproducible synthetic real-engine FFmpeg execution, 30s ffprobe stream/duration/resolution validation, wall-time distribution and optional *input-rate-only* compute budget model. Run `python -m ops.benchmark --profile worker --repeats 3`. CI-size smoke: `--profile ci`.
+- `ops/runbook.py`: dry-run JSON stdin CLI for recovery, poison-delivery quarantine decisions and stale tenant upload candidate inventory. No live side effects.
+- `ops/ci.sh`: standalone `pytest -q tests/reliability` runner for coordinator CI integration.
 - `tests/reliability/`: negative/edge/unit tests using only standard library and pytest.
 
 ## Mandatory coordinator-owned backend changes BEFORE live retry or cleanup
