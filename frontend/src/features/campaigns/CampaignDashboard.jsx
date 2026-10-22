@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useRetailAuth } from '../../auth/AuthProvider.jsx'
+import { createCampaignApi, validateSignedVideoUrl } from './campaign-api.mjs'
 import sampleCampaign from './fixtures/sample-campaign.json'
 import {
   buildCampaignRequest, cloneCampaign, formatDayDate, linkedInText,
@@ -20,7 +22,7 @@ function saveLocalFile(filename, contents, mimeType) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-function CampaignPrompt({ campaign, onRequest }) {
+function CampaignPrompt({ campaign, onRequest, live = false }) {
   const [brief, setBrief] = useState(INITIAL_BRIEF)
   const [startDate, setStartDate] = useState(campaign.days[0].scheduled_date)
   const [offer, setOffer] = useState('')
@@ -39,7 +41,7 @@ function CampaignPrompt({ campaign, onRequest }) {
       setRequest(next)
       setError('')
       setShowRequest(true)
-      onRequest()
+      onRequest(next)
     } catch (problem) {
       setError(problem.message)
       setShowRequest(false)
@@ -52,7 +54,7 @@ function CampaignPrompt({ campaign, onRequest }) {
         <div>
           <span className="rg-kicker">01 / THE CREATIVE BRIEF</span>
           <h2 id="rg-brief-title">What should we create?</h2>
-          <p>Describe your campaign in your own words. Build a local API request preview before any AI connection.</p>
+          <p>{live ? 'Submit an authorized seven-day planning job with selected business media.' : 'Build a local API request preview before any AI connection.'}</p>
         </div>
         <span className="rg-mini-pill">7-day plan</span>
       </div>
@@ -62,7 +64,7 @@ function CampaignPrompt({ campaign, onRequest }) {
           <textarea id="rg-prompt" value={brief} onChange={event => setBrief(event.target.value)}
             minLength={10} maxLength={2000} rows={3} required
             placeholder="e.g. Plan seven days of summer looks using my approved products..." />
-          <small>{brief.length}/2000 characters · No AI request is sent</small>
+          <small>{brief.length}/2000 characters · {live ? 'Authenticated API when submitted' : 'No AI request is sent'}</small>
         </label>
         <label className="rg-field" htmlFor="rg-start">
           <span>Start date</span>
@@ -81,20 +83,20 @@ function CampaignPrompt({ campaign, onRequest }) {
           <div className="rg-platforms" aria-label="Planned channels">
             <span>LinkedIn</span><span>Instagram Reels</span>
           </div>
-          <button className="rg-button rg-primary" type="submit">Preview campaign request <span aria-hidden="true">→</span></button>
+          <button className="rg-button rg-primary" type="submit">{live ? 'Submit campaign job' : 'Preview campaign request'} <span aria-hidden="true">→</span></button>
         </div>
       </form>
       {error && <p className="rg-validation" role="alert">{error}</p>}
       {showRequest && request && (
         <div className="rg-request-preview" aria-live="polite">
           <div className="rg-inline-title">
-            <strong>Contract v1 request · local preview only</strong>
+            <strong>Contract v1 request · {live ? 'submitted for authorization' : 'local preview only'}</strong>
             <button type="button" className="rg-button rg-quiet"
               onClick={() => saveLocalFile('campaign-request.json', JSON.stringify(request, null, 2) + '\n', 'application/json')}>
               Export request JSON
             </button>
           </div>
-          <p>No campaign was generated; the seven sample days below are unchanged.</p>
+          <p>{live ? 'A backend job must report DRAFT before new content replaces these samples.' : 'No campaign was generated; the seven sample days below are unchanged.'}</p>
           <pre>{JSON.stringify(request, null, 2)}</pre>
         </div>
       )}
@@ -102,7 +104,7 @@ function CampaignPrompt({ campaign, onRequest }) {
   )
 }
 
-function Calendar({ days, selectedId, onSelect }) {
+function Calendar({ days, selectedId, onSelect, live = false }) {
   return (
     <section className="rg-calendar-section" aria-labelledby="rg-calendar-title">
       <div className="rg-inline-title rg-calendar-heading">
@@ -110,7 +112,7 @@ function Calendar({ days, selectedId, onSelect }) {
           <span className="rg-kicker">02 / CONTENT CALENDAR</span>
           <h2 id="rg-calendar-title">Your week, at a glance</h2>
         </div>
-        <span className="rg-subtle">7 sample days · not scheduled</span>
+        <span className="rg-subtle">{live ? 'Authorized drafts · not published' : '7 sample days · not scheduled'}</span>
       </div>
       <div className="rg-calendar" aria-label="Choose a campaign day">
         {days.map(day => (
@@ -243,17 +245,17 @@ function StoryboardEditor({ day, onChange }) {
   )
 }
 
-function RenderStatus({ day, valid }) {
+function RenderStatus({ day, valid, live, dirty, job, onRender, onDownload }) {
   return (
     <section className="rg-render" aria-labelledby="rg-render-title">
       <div className="rg-inline-title">
         <div><span className="rg-kicker">04 / RENDER & EXPORT</span><h3 id="rg-render-title">Production queue</h3></div>
-        <span className="rg-status-pill">Not queued</span>
+        <span className="rg-status-pill">{job?.status || 'Not queued'}</span>
       </div>
-      <p>Video rendering is not connected. No render job ID or MP4 exists for this sample. A signed download will require the backend.</p>
+      <p>{live ? 'Render only the saved, authorized draft. Unsaved browser edits are not sent.' : 'Video rendering is not connected. No render job ID or MP4 exists for this sample.'}</p>
       <div className="rg-render-actions">
-        <button type="button" className="rg-button rg-secondary" disabled title="Backend render endpoint required">Render Reel · unavailable</button>
-        <button type="button" className="rg-button rg-secondary" disabled title="No rendered MP4 is available">Download MP4 · unavailable</button>
+        <button type="button" className="rg-button rg-secondary" disabled={!live || !valid || dirty || (job && !['FAILED', 'SUCCEEDED'].includes(job.status))} onClick={onRender}>{live ? 'Render saved Reel' : 'Render Reel · unavailable'}</button>
+        <button type="button" className="rg-button rg-secondary" disabled={!live || job?.status !== 'SUCCEEDED'} onClick={onDownload}>Download signed MP4</button>
         <button type="button" className="rg-button rg-quiet" disabled={!valid}
           onClick={() => saveLocalFile('day-' + day.day_index + '-draft.json', serializeDraftDay(day), 'application/json')}>
           Export day JSON
@@ -264,23 +266,178 @@ function RenderStatus({ day, valid }) {
   )
 }
 
+function LiveMediaSelection({ shops, shopId, onShop, assets, assetIds, onAssets, error }) {
+  return (
+    <section className="rg-panel" aria-label="Authorized business and media">
+      <div className="rg-inline-title">
+        <div><span className="rg-kicker">SECURE WORKSPACE</span><h2>Business and approved media</h2></div>
+        <span className="rg-status-pill">Signed-in account</span>
+      </div>
+      <label className="rg-field" htmlFor="rg-shop">
+        <span>Business</span>
+        <select id="rg-shop" value={shopId} onChange={event => onShop(event.target.value)}>
+          <option value="">Select your business</option>
+          {shops.map(shop => <option key={shop.id} value={shop.id}>{shop.name} · {shop.membership.role}</option>)}
+        </select>
+      </label>
+      <div className="rg-media-list" aria-label="Approved media assets">
+        {assets.length === 0 ? <p>No licensed assets are registered for this shop. Upload/authorize media first.</p> :
+          assets.map(asset => <label key={asset.id}>
+            <input type="checkbox" checked={assetIds.includes(asset.id)}
+              onChange={event => onAssets(event.target.checked
+                ? [...assetIds, asset.id].slice(0, 21)
+                : assetIds.filter(id => id !== asset.id))} />
+            <span>{asset.mime_type} · {asset.license_name} · {asset.id.slice(0, 8)}…</span>
+          </label>)}
+      </div>
+      <p className="rg-subtle">Use 1–21 existing, tenant-owned licensed assets. Synthetic demo IDs are never submitted.</p>
+      {error && <p className="rg-validation" role="alert">{error}</p>}
+    </section>
+  )
+}
+
 export default function CampaignDashboard() {
+  const { user, client } = useRetailAuth()
+  const api = useMemo(() => createCampaignApi({
+    baseUrl: import.meta.env?.VITE_CAMPAIGN_API_BASE_URL || '',
+    tokenProvider: () => client.getAccessToken(),
+  }), [client])
+  const [shops, setShops] = useState([])
+  const [shopId, setShopId] = useState('')
+  const [assets, setAssets] = useState([])
+  const [assetIds, setAssetIds] = useState([])
+  const [liveError, setLiveError] = useState('')
+  const [campaignId, setCampaignId] = useState('')
+  const [campaignStatus, setCampaignStatus] = useState('')
+  const [baseline, setBaseline] = useState(() => cloneCampaign(sampleCampaign))
+  const [renderJob, setRenderJob] = useState(null)
+  const live = Boolean(api && user && client.configured && shopId)
+  const loaded = live && campaignId && campaignStatus === 'DRAFT'
   const [campaign, setCampaign] = useState(() => cloneCampaign(sampleCampaign))
   const [selectedId, setSelectedId] = useState(sampleCampaign.days[0].id)
   const [tab, setTab] = useState('linkedin')
   const [notice, setNotice] = useState('')
   const day = campaign.days.find(entry => entry.id === selectedId) || campaign.days[0]
   const storyErrors = timelineErrors(day.instagram.reel.storyboard)
-  const original = sampleCampaign.days.find(entry => entry.id === day.id)
+  const original = baseline.days.find(entry => entry.id === day.id) || day
   const changed = JSON.stringify(original) !== JSON.stringify(day)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!api || !user || !client.configured) {
+      setShops([]); setShopId(''); setAssets([]); setAssetIds([])
+      setCampaignId(''); setCampaignStatus('')
+      return () => { cancelled = true }
+    }
+    client.listShops().then(items => {
+      if (cancelled) return
+      setShops(items.filter(item => ['OWNER', 'EDITOR'].includes(item.membership?.role)))
+    }).catch(error => { if (!cancelled) setLiveError(error.message) })
+    return () => { cancelled = true }
+  }, [api, user, client])
+
+  useEffect(() => {
+    let cancelled = false
+    setAssets([]); setAssetIds([])
+    setCampaignId(''); setCampaignStatus(''); setRenderJob(null)
+    setCampaign(cloneCampaign(sampleCampaign)); setBaseline(cloneCampaign(sampleCampaign))
+    if (shopId && user && api) {
+      client.listMediaAssets(shopId).then(list => {
+        if (!cancelled) setAssets(list)
+      }).catch(error => { if (!cancelled) setLiveError(error.message) })
+    }
+    return () => { cancelled = true }
+  }, [shopId, user, client, api])
+
+  useEffect(() => {
+    if (!campaignId || !live || campaignStatus !== 'PLANNING') return
+    let cancelled = false
+    async function poll() {
+      try {
+        const result = await api.getCampaign(campaignId)
+        if (cancelled) return
+        if (result.shop_id !== shopId) throw new Error('Campaign tenant mismatch')
+        setCampaignStatus(result.status)
+        if (result.status === 'DRAFT' && Array.isArray(result.days) && result.days.length > 0) {
+          setBaseline(cloneCampaign(result))
+          setCampaign(cloneCampaign(result))
+          setSelectedId(result.days[0].id)
+          setNotice('Authenticated campaign draft loaded. Publishing is still unavailable.')
+        }
+        if (result.status === 'FAILED') setNotice('Campaign planning failed. No draft was generated.')
+      } catch (error) { if (!cancelled) setLiveError(error.message) }
+    }
+    poll()
+    const timer = window.setInterval(poll, 5000)
+    return () => { cancelled = true; window.clearInterval(timer) }
+  }, [api, live, campaignId, campaignStatus, shopId])
+
+  useEffect(() => {
+    if (!live || !renderJob?.job_id || !['QUEUED', 'RUNNING'].includes(renderJob.status)) return
+    let cancelled = false
+    async function poll() {
+      try {
+        const job = await api.getRenderJob(renderJob.job_id)
+        if (!cancelled) setRenderJob(job)
+      } catch (error) { if (!cancelled) setLiveError(error.message) }
+    }
+    const timer = window.setInterval(poll, 5000)
+    return () => { cancelled = true; window.clearInterval(timer) }
+  }, [api, live, renderJob?.job_id, renderJob?.status])
+
+  async function submitLive(request) {
+    if (!live) {
+      setNotice('API request preview built locally; sample content is unchanged.')
+      return
+    }
+    if (assetIds.length < 1 || assetIds.length > 21) {
+      setLiveError('Select 1–21 licensed assets before submitting.')
+      return
+    }
+    setLiveError('')
+    try {
+      const accepted = await api.createCampaign({
+        ...request, shop_id: shopId, media_asset_ids: assetIds,
+      })
+      if (accepted.status !== 'PLANNING') throw new Error('Campaign was not queued')
+      setCampaignId(accepted.campaign_id)
+      setCampaignStatus('PLANNING')
+      setNotice('Campaign queued. Waiting for an authorized draft.')
+    } catch (error) { setLiveError(error.message) }
+  }
+
+  async function startRender() {
+    if (!loaded || changed || storyErrors.length) return
+    setLiveError('')
+    try {
+      const job = await api.createRender(campaignId, day.id)
+      setRenderJob(job)
+      setNotice('Render request accepted. Waiting for job status.')
+    } catch (error) { setLiveError(error.message) }
+  }
+
+  async function downloadRender() {
+    if (!loaded || renderJob?.status !== 'SUCCEEDED') return
+    try {
+      const reply = await api.getDownload(renderJob.job_id)
+      const link = validateSignedVideoUrl(reply.url, import.meta.env.VITE_SUPABASE_URL)
+      const anchor = document.createElement('a')
+      anchor.href = link
+      anchor.rel = 'noopener noreferrer'
+      anchor.target = '_blank'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+    } catch (error) { setLiveError(error.message) }
+  }
 
   function editDay(transform) {
     setCampaign(current => updateCampaignDay(current, day.id, transform))
-    setNotice('Edits are held only in this browser tab. Export a draft to keep a copy.')
+    setNotice('Edits remain local. Rendering uses only the unchanged saved backend draft.')
   }
   function restoreDay() {
     setCampaign(current => updateCampaignDay(current, day.id, () => cloneCampaign(original)))
-    setNotice('Sample draft restored for day ' + day.day_index + '.')
+    setNotice((loaded ? 'Saved' : 'Sample') + ' draft restored for day ' + day.day_index + '.')
   }
 
   return (
@@ -289,22 +446,27 @@ export default function CampaignDashboard() {
         <div><span className="rg-kicker">RETAILGROWTHAI / CAMPAIGN STUDIO</span>
           <h1>Make every day <span>worth sharing.</span></h1>
           <p>From a simple idea to a seven-day content plan. Shape your story across LinkedIn and Instagram.</p>
-          <span className="rg-demo-notice" role="status">{MOCK_NOTICE}</span>
+          <span className="rg-demo-notice" role="status">{loaded ? 'Authenticated draft loaded · Not scheduled or published.' : MOCK_NOTICE}</span>
         </div>
         <div className="rg-hero-art" aria-hidden="true"><span>01</span><span>PLAN / CREATE / REVIEW</span><b>↗</b></div>
       </div>
-      <div className="rg-stats" aria-label="Sample campaign summary">
+      <div className="rg-stats" aria-label="Campaign summary">
         <div><strong>07</strong><span>Draft campaign days</span></div>
         <div><strong>14</strong><span>Channel draft concepts</span></div>
         <div><strong>30<span>s</span></strong><span>Reel storyboard target</span></div>
-        <div><strong>0</strong><span>Videos actually rendered</span></div>
+        <div><strong>{renderJob?.status === 'SUCCEEDED' ? '1' : '0'}</strong><span>Verified render jobs completed</span></div>
       </div>
-      <CampaignPrompt campaign={campaign} onRequest={() => setNotice('API request preview built locally; sample content is unchanged.')} />
-      <Calendar days={campaign.days} selectedId={day.id} onSelect={(id) => { setSelectedId(id); setNotice('') }} />
+      {api && user && client.configured &&
+        <LiveMediaSelection shops={shops} shopId={shopId} onShop={(id) => { setShopId(id); setLiveError('') }}
+          assets={assets} assetIds={assetIds} onAssets={setAssetIds} error={liveError} />}
+      <CampaignPrompt campaign={campaign} live={live} onRequest={submitLive} />
+      {live && campaignStatus === 'PLANNING' && <p role="status">Campaign planning in progress. No new draft is available yet.</p>}
+      {live && campaignStatus === 'FAILED' && <p className="rg-validation" role="alert">Campaign planning failed.</p>}
+      <Calendar days={campaign.days} live={loaded} selectedId={day.id} onSelect={(id) => { setSelectedId(id); setRenderJob(null); setNotice('') }} />
       <section className="rg-editor rg-panel" aria-labelledby="rg-editor-title">
         <div className="rg-inline-title rg-editor-heading">
           <div><span className="rg-kicker">CONTENT WORKSPACE / DAY {String(day.day_index).padStart(2, '0')}</span>
-            <h2 id="rg-editor-title">Refine your draft</h2><p>{formatDayDate(day.scheduled_date)} · Local sample campaign</p>
+            <h2 id="rg-editor-title">Refine your draft</h2><p>{formatDayDate(day.scheduled_date)} · {loaded ? 'Authorized draft · edits local' : 'Local sample campaign'}</p>
           </div>
           <div className="rg-editor-actions">
             {changed && <span className="rg-changed">Edited in this tab</span>}
@@ -346,10 +508,13 @@ export default function CampaignDashboard() {
               </div>
               <ReelPreview day={day} />
             </div>}
-        <RenderStatus day={day} valid={storyErrors.length === 0} />
+        <RenderStatus day={day} valid={storyErrors.length === 0} live={loaded} dirty={changed}
+          job={renderJob} onRender={startRender} onDownload={downloadRender} />
       </section>
       {notice && <p className="rg-session-notice" role="status">{notice}</p>}
-      <p className="rg-footnote">Sample data only. This UI neither uploads files nor schedules, publishes, authorizes assets, saves drafts remotely, calls AI or renders videos.</p>
+      <p className="rg-footnote">{loaded
+        ? 'Live drafts come from your authenticated API. Edits are local only; publishing and remote editing remain unavailable.'
+        : 'Sample data only. No remote save, uploads, model output or published media is implied.'}</p>
     </div>
   )
 }

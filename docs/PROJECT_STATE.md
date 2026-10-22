@@ -108,3 +108,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## Render worker milestone (branch)
 - Azure Queue trigger and service-only PostgREST claim handler code for private 30-second FFmpeg generation, tenant source/right checks and private output recording added. No cloud migration/service deployed or real user video verified.
+
+## Live frontend API wiring (branch)
+- React dashboard now supports an explicit authenticated API mode with shop selection from RLS-backed memberships and authorized media IDs, job polling, render status and private signed MP4 links. Absent API configuration it remains a clearly labeled mock editor. No cloud deployment, upload UI or remote edit persistence.

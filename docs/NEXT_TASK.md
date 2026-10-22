@@ -38,3 +38,6 @@ Coordinator merged Workstream A PR #5, stacked coordinator PR #6, Workstream B P
 
 ## Render worker follow-up
 - Review/apply latest render claim migration to dedicated DEV only after deployment approval; configure existing Azure queue and worker secrets, test with licensed images/music and real Auth sign/download. Add bounded worker observability/cleanup.
+
+## After frontend wiring
+- Set VITE_CAMPAIGN_API_BASE_URL and RetailGrowthAI-only Supabase publishable settings on an approved deployment; verify browser E2E and CORS. Media upload UI, remote edit/save, production licensing and post approval remain separate work.
