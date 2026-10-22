@@ -301,7 +301,7 @@ test('failed upload registration, edit conflict and unsafe download surface fail
   await loaded(page)
   await page.getByLabel('Post body').fill('Conflicting local edit')
   await page.getByRole('button', { name: 'Save day' }).click()
-  await expect(page.getByRole('alert')).toContainText('Reload before trying again')
+  await expect(page.getByRole('alert').filter({ hasText: 'Reload before trying again' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Render saved Reel' })).toBeDisabled()
 })
 
