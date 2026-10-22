@@ -54,18 +54,19 @@ The system generates multi-day marketing campaigns.
 - GitHub
 
 ## Current Status
-GitHub access and initial uv scaffold verified. Architecture and parallel work contracts documented on 2026-10-22. React/Vite frontend and runtime implementation remain not built.
+GitHub access and initial uv scaffold verified. Architecture and parallel contracts documented on 2026-10-22. Coordinator bootstrap on 2026-10-22 added a runnable React/Vite shell, router and shared mock campaign fixture. Actual npm build verification is tracked in CI; no business service is implemented.
 
-No RetailGrowthAI business features implemented yet.
+No RetailGrowthAI business features implemented yet; the sample seven-day campaign and its storyboard metadata are local mock records, not AI output, rendered assets or scheduled posts.
 No new Supabase database deployed yet.
 No new Azure application resources deployed yet.
 
 ## Next
-See docs/NEXT_TASK.md.
+See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by project-specific credentials/resources; do not connect WineShopPOS.
 
 ## Parallel Part 1 architecture baseline
 - See docs/ARCHITECTURE.md for technical flow and infrastructure boundaries.
 - See docs/INTERFACES_V1.md for campaign/day/render API contracts and fixtures.
 - See docs/PARALLEL_WORK.md for four feature branches, disjoint file ownership and integration rules.
-- First coordinator task: bootstrap runnable React/Vite shell and contract fixture on main, then launch workstreams A/B/C/D.
+- Coordinator bootstrap: React/Vite router shell and seven-day v1 fixture on main, dependency-free JavaScript and Python contract checks, and GitHub Actions build workflow.
+- Four Part 1 feature branches are created only after bootstrap verification; see docs/PARALLEL_WORK.md.
 - No cloud deployment or live model calls verified as part of this architecture milestone.

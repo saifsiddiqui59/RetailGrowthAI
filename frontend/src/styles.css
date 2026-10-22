@@ -1,0 +1,53 @@
+:root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #17263c; background: #f5f7fa; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+a { color: inherit; }
+.shell { display: flex; min-height: 100vh; }
+.sidebar { display: flex; flex-direction: column; flex: 0 0 244px; background: #10213a; padding: 28px 18px 22px; color: #eaf1ff; }
+.brand { display: flex; gap: 11px; align-items: center; padding: 0 9px; }
+.brand-mark { display: grid; place-items: center; height: 36px; width: 36px; border-radius: 11px; color: #12243b; font-weight: 900; background: #a4efd3; }
+.brand strong { display: block; font-size: 15px; letter-spacing: -.025em; }
+.brand small { display: block; margin-top: 2px; font-size: 11px; color: #9dafc6; }
+.nav-label { margin: 54px 10px 12px; font-size: 10px; letter-spacing: .16em; color: #91a8c4; font-weight: 700; }
+.sidebar nav { display: grid; gap: 5px; }
+.nav-link { text-decoration: none; border-radius: 9px; padding: 12px 14px; color: #b7c8de; font-weight: 600; font-size: 13px; }
+.nav-link:hover, .nav-link:focus-visible { background: #253b58; color: white; }
+.nav-link.active { background: #304664; color: white; }
+.sidebar-bottom { margin-top: auto; padding: 18px 10px 0; border-top: 1px solid #30425a; color: #91a8c4; font-size: 12px; display: flex; justify-content: space-between; }
+.page { flex: 1; min-width: 0; }
+.topbar { height: 74px; display: flex; justify-content: space-between; align-items: center; padding: 0 38px; border-bottom: 1px solid #e3e7ed; background: white; color: #687a90; font-size: 12px; font-weight: 650; }
+.environment { letter-spacing: .08em; color: #577767; background: #e9f7f0; border-radius: 999px; padding: 8px 11px; font-size: 10px; }
+.content { max-width: 1180px; padding: 51px 38px 90px; margin: 0 auto; }
+.eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .13em; color: #418571; }
+h1 { margin: 11px 0 10px; font-size: clamp(30px, 3.7vw, 44px); letter-spacing: -.05em; line-height: 1.1; }
+h2 { letter-spacing: -.025em; }
+.lead { max-width: 680px; color: #697a8e; font-size: 16px; line-height: 1.65; margin: 0 0 33px; }
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 17px; margin-bottom: 28px; }
+.metric, .panel, .day-card { background: white; border: 1px solid #e5eaf0; border-radius: 15px; box-shadow: 0 7px 25px rgba(34, 52, 78, .035); }
+.metric { padding: 24px; }
+.metric strong { display: block; font-size: 32px; letter-spacing: -.045em; color: #193652; }
+.metric span { display: block; margin-top: 5px; color: #7b8a9e; font-size: 13px; }
+.panel { padding: 27px 29px; }
+.panel-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; }
+.panel h2 { margin: 7px 0 4px; font-size: 23px; }
+.panel p { max-width: 710px; color: #6a7d90; line-height: 1.65; font-size: 14px; }
+.tag { font-size: 11px; white-space: nowrap; color: #7c6a37; background: #fff5da; border-radius: 999px; padding: 6px 10px; font-weight: 750; }
+.text-link { display: inline-block; margin-top: 5px; color: #1a765d; font-weight: 750; text-decoration: none; }
+.text-link:hover { text-decoration: underline; }
+.day-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.day-card { padding: 22px; min-width: 0; }
+.day-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-weight: 800; color: #438673; font-size: 12px; }
+.day-card h2 { font-size: 19px; line-height: 1.3; margin: 16px 0 4px; }
+.day-card .date { margin: 0; color: #8b99a8; font-size: 12px; }
+.day-card > p:not(.date) { color: #6c7e90; font-size: 14px; line-height: 1.55; min-height: 64px; }
+.day-footer { border-top: 1px solid #e8edf1; padding-top: 13px; margin-top: 18px; color: #7e8fa1; font-size: 11px; }
+@media (max-width: 760px) {
+  .shell { display: block; }
+  .sidebar { padding: 15px; }
+  .sidebar nav { display: flex; flex-wrap: wrap; margin-top: 15px; }
+  .nav-label, .sidebar-bottom { display: none; }
+  .nav-link { padding: 8px 12px; }
+  .topbar { height: 55px; padding: 0 18px; }
+  .content { padding: 32px 18px 60px; }
+  .metrics, .day-grid { grid-template-columns: 1fr; }
+}

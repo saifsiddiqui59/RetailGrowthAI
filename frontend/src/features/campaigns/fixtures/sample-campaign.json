@@ -1,0 +1,329 @@
+{
+  "id": "c1000000-0000-4000-8000-000000000001",
+  "shop_id": "b1000000-0000-4000-8000-000000000001",
+  "status": "DRAFT",
+  "days": [
+    {
+      "id": "d1000000-0000-4000-8000-000000000001",
+      "campaign_id": "c1000000-0000-4000-8000-000000000001",
+      "shop_id": "b1000000-0000-4000-8000-000000000001",
+      "day_index": 1,
+      "scheduled_date": "2026-11-01",
+      "topic": "Meet the everyday collection",
+      "linkedin": {
+        "post_text": "Refresh your wardrobe with thoughtful everyday pieces. Explore combinations that feel like you, and visit our store to see the collection.",
+        "hashtags": [
+          "#EverydayStyle",
+          "#RetailInspiration"
+        ]
+      },
+      "instagram": {
+        "caption": "Day 1: Discover everyday style ideas. Browse the collection in store. #StyleInspiration",
+        "banner_asset_id": null,
+        "reel": {
+          "duration_seconds": 30,
+          "aspect_ratio": "9:16",
+          "storyboard": [
+            {
+              "start_seconds": 0,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000001",
+              "overlay_text": "Day 1"
+            },
+            {
+              "start_seconds": 10,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000002",
+              "overlay_text": "Meet the everyday collection"
+            },
+            {
+              "start_seconds": 20,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000003",
+              "overlay_text": "Visit our store"
+            }
+          ],
+          "music_asset_id": null,
+          "cta": "Visit our store"
+        }
+      },
+      "review_status": "DRAFT"
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000002",
+      "campaign_id": "c1000000-0000-4000-8000-000000000001",
+      "shop_id": "b1000000-0000-4000-8000-000000000001",
+      "day_index": 2,
+      "scheduled_date": "2026-11-02",
+      "topic": "Pairing colors for a fresh look",
+      "linkedin": {
+        "post_text": "Color choices can change the whole mood of an outfit. Try pairing a favorite shade with a neutral and discover more ideas in store.",
+        "hashtags": [
+          "#EverydayStyle",
+          "#RetailInspiration"
+        ]
+      },
+      "instagram": {
+        "caption": "Day 2: Try a fresh color pairing. What's your favorite combination? #ColorAndStyle",
+        "banner_asset_id": null,
+        "reel": {
+          "duration_seconds": 30,
+          "aspect_ratio": "9:16",
+          "storyboard": [
+            {
+              "start_seconds": 0,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000002",
+              "overlay_text": "Day 2"
+            },
+            {
+              "start_seconds": 10,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000003",
+              "overlay_text": "Pairing colors for a fresh look"
+            },
+            {
+              "start_seconds": 20,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000004",
+              "overlay_text": "Visit our store"
+            }
+          ],
+          "music_asset_id": null,
+          "cta": "Visit our store"
+        }
+      },
+      "review_status": "DRAFT"
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000003",
+      "campaign_id": "c1000000-0000-4000-8000-000000000001",
+      "shop_id": "b1000000-0000-4000-8000-000000000001",
+      "day_index": 3,
+      "scheduled_date": "2026-11-03",
+      "topic": "Layers for a flexible wardrobe",
+      "linkedin": {
+        "post_text": "Versatile layers help you adapt a look for different moments. Stop by to explore simple styling options.",
+        "hashtags": [
+          "#EverydayStyle",
+          "#RetailInspiration"
+        ]
+      },
+      "instagram": {
+        "caption": "Day 3: Easy layers, many possibilities. Visit us for inspiration. #WardrobeIdeas",
+        "banner_asset_id": null,
+        "reel": {
+          "duration_seconds": 30,
+          "aspect_ratio": "9:16",
+          "storyboard": [
+            {
+              "start_seconds": 0,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000003",
+              "overlay_text": "Day 3"
+            },
+            {
+              "start_seconds": 10,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000004",
+              "overlay_text": "Layers for a flexible wardrobe"
+            },
+            {
+              "start_seconds": 20,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000005",
+              "overlay_text": "Visit our store"
+            }
+          ],
+          "music_asset_id": null,
+          "cta": "Visit our store"
+        }
+      },
+      "review_status": "DRAFT"
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000004",
+      "campaign_id": "c1000000-0000-4000-8000-000000000001",
+      "shop_id": "b1000000-0000-4000-8000-000000000001",
+      "day_index": 4,
+      "scheduled_date": "2026-11-04",
+      "topic": "Spotlight on everyday details",
+      "linkedin": {
+        "post_text": "Small details can make everyday clothing feel special. Discover the collection and tell us what catches your eye.",
+        "hashtags": [
+          "#EverydayStyle",
+          "#RetailInspiration"
+        ]
+      },
+      "instagram": {
+        "caption": "Day 4: It's all in the details. Which detail stands out? #EverydayStyle",
+        "banner_asset_id": null,
+        "reel": {
+          "duration_seconds": 30,
+          "aspect_ratio": "9:16",
+          "storyboard": [
+            {
+              "start_seconds": 0,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000004",
+              "overlay_text": "Day 4"
+            },
+            {
+              "start_seconds": 10,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000005",
+              "overlay_text": "Spotlight on everyday details"
+            },
+            {
+              "start_seconds": 20,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000006",
+              "overlay_text": "Visit our store"
+            }
+          ],
+          "music_asset_id": null,
+          "cta": "Visit our store"
+        }
+      },
+      "review_status": "DRAFT"
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000005",
+      "campaign_id": "c1000000-0000-4000-8000-000000000001",
+      "shop_id": "b1000000-0000-4000-8000-000000000001",
+      "day_index": 5,
+      "scheduled_date": "2026-11-05",
+      "topic": "Styling one piece two ways",
+      "linkedin": {
+        "post_text": "One versatile piece can support multiple looks. Share how you would style yours, and visit the store for inspiration.",
+        "hashtags": [
+          "#EverydayStyle",
+          "#RetailInspiration"
+        ]
+      },
+      "instagram": {
+        "caption": "Day 5: One item, two different looks. Save your favorite. #StyleTips",
+        "banner_asset_id": null,
+        "reel": {
+          "duration_seconds": 30,
+          "aspect_ratio": "9:16",
+          "storyboard": [
+            {
+              "start_seconds": 0,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000005",
+              "overlay_text": "Day 5"
+            },
+            {
+              "start_seconds": 10,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000006",
+              "overlay_text": "Styling one piece two ways"
+            },
+            {
+              "start_seconds": 20,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000007",
+              "overlay_text": "Visit our store"
+            }
+          ],
+          "music_asset_id": null,
+          "cta": "Visit our store"
+        }
+      },
+      "review_status": "DRAFT"
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000006",
+      "campaign_id": "c1000000-0000-4000-8000-000000000001",
+      "shop_id": "b1000000-0000-4000-8000-000000000001",
+      "day_index": 6,
+      "scheduled_date": "2026-11-06",
+      "topic": "Care tips that help clothing last",
+      "linkedin": {
+        "post_text": "Careful washing and storage can help clothes last longer. Tell us your favorite garment-care tip and browse our collection.",
+        "hashtags": [
+          "#EverydayStyle",
+          "#RetailInspiration"
+        ]
+      },
+      "instagram": {
+        "caption": "Day 6: Look after the clothes you love. Share your tips. #ClothingCare",
+        "banner_asset_id": null,
+        "reel": {
+          "duration_seconds": 30,
+          "aspect_ratio": "9:16",
+          "storyboard": [
+            {
+              "start_seconds": 0,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000006",
+              "overlay_text": "Day 6"
+            },
+            {
+              "start_seconds": 10,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000007",
+              "overlay_text": "Care tips that help clothing last"
+            },
+            {
+              "start_seconds": 20,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000001",
+              "overlay_text": "Visit our store"
+            }
+          ],
+          "music_asset_id": null,
+          "cta": "Visit our store"
+        }
+      },
+      "review_status": "DRAFT"
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000007",
+      "campaign_id": "c1000000-0000-4000-8000-000000000001",
+      "shop_id": "b1000000-0000-4000-8000-000000000001",
+      "day_index": 7,
+      "scheduled_date": "2026-11-07",
+      "topic": "Wrap-up: choose your next favorite",
+      "linkedin": {
+        "post_text": "Thanks for following our seven-day style inspiration series. Which look was your favorite? Visit our store to explore your own.",
+        "hashtags": [
+          "#EverydayStyle",
+          "#RetailInspiration"
+        ]
+      },
+      "instagram": {
+        "caption": "Day 7: Your style, your choice. Which look won the week? #StyleSeries",
+        "banner_asset_id": null,
+        "reel": {
+          "duration_seconds": 30,
+          "aspect_ratio": "9:16",
+          "storyboard": [
+            {
+              "start_seconds": 0,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000007",
+              "overlay_text": "Day 7"
+            },
+            {
+              "start_seconds": 10,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000001",
+              "overlay_text": "Wrap-up: choose your next favorite"
+            },
+            {
+              "start_seconds": 20,
+              "duration_seconds": 10,
+              "asset_id": "a1000000-0000-4000-8000-000000000002",
+              "overlay_text": "Visit our store"
+            }
+          ],
+          "music_asset_id": null,
+          "cta": "Visit our store"
+        }
+      },
+      "review_status": "DRAFT"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+name: Frontend bootstrap checks
+
+on:
+  push:
+    branches: [main, 'feat/p1-*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install npm dependencies
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+      - name: JavaScript contract tests
+        working-directory: frontend
+        run: npm test
+      - name: Python contract test
+        run: python3 tests/contracts/test_campaign_fixture.py
+      - name: Vite production build
+        working-directory: frontend
+        run: npm run build
