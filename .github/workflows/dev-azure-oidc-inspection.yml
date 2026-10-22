@@ -116,7 +116,7 @@ jobs:
           fi
           echo "Inspecting direct service-principal IAM (no role changes)..."
           if object_id="$(az ad sp show --id "$EXPECTED_CLIENT_ID" --query id -o tsv 2>/dev/null)" && [ -n "$object_id" ]; then
-            if az role assignment list --assignee-object-id "$object_id" --scope "$rg_id" --all --include-inherited --output json > "$group_file.roles" 2>/dev/null; then
+            if az role assignment list --assignee-object-id "$object_id" --scope "$rg_id" --include-inherited --output json > "$group_file.roles" 2>/dev/null; then
               python3 - "$group_file.roles" "$rg_id" <<'PY'
           import json,sys
           roles=json.load(open(sys.argv[1]))
