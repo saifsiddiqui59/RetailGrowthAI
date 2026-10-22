@@ -152,3 +152,4 @@ end $$;
 reset role;
 rollback;
 \echo 'PASS: cross-shop read/write, owner forgery, viewer escalation, revocation and anon-denial RLS tests'
+

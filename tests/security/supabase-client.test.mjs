@@ -178,3 +178,4 @@ test('server-denied metadata registration never claims upload success', async ()
     attribution: 'Created by the brand photography team',
   }), /registration was denied/)
 })
+

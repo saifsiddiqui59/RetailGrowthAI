@@ -66,3 +66,12 @@ These live SQL tests simulate authenticated database roles/JWT claims directly; 
 4. Await isolated Azure Function and Storage queue deployment approval before claiming authenticated campaign/render E2E. Production remains unprovisioned.
 
 Remaining known gaps: a 50 MB multi-purpose bucket allows unregistered objects up to its ceiling; abandoned upload cleanup and quotas require an approved service workflow. User-declared rights remain unverified until human/commercial review. This branch does not deploy or prove hosted browser functionality. Canonical `docs/**` updates are coordinator-owned and should be performed after PR integration.
+
+
+## 2026-10-22 — Workstream L: DEV database release readiness (source-only)
+- Read-only migration history confirmation: existing RetailGrowthAI DEV has only versions `20261022085124`, `20261022085132`, `20261022085503`; all seven later source migrations remain unapplied as checked during this workstream. See `DEV_RELEASE_READINESS.md` for the exact pending order and approval gate.
+- `tests/security/dev-db-preflight.mjs` validates sorted unique migrations, required SQL guardrails, project-pinned remote migration prefix and detects gaps/drift/wrong project; `dev-db-preflight.test.mjs` is discovered independently by the coordinator's wildcard Node security CI step.
+- `tests/security/durable_recovery_negative.sql` is executed independently by the coordinator's disposable-database SQL CI step; it tests service-only grants, RLS, transactional dispatch, outbox CAS ACK, planner/render attempt fencing, poison deduplication, paths and stale retry terminalization.
+- No canonical shared docs (`docs/**`), cloud resources, hosted database migrations or WineShopPOS changes are authorized in Workstream L. Coordinator 3 updates shared docs and CI configuration after review/merge.
+
+- CI coordination note: after the GitHub runner mirror update, rerun the complete offline checks against current main; do not use historical runs to authorize deployment.
