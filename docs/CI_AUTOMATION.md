@@ -55,3 +55,8 @@ If a workflow change is not yet merged, its manual `workflow_dispatch` trigger m
 - Four expected CI jobs: frontend Node/Vite build; Python uv pytest including `tests/integration/`; FFmpeg smoke **plus** `video-engine/ci.sh` 30-second synthetic render, ffprobe and media unit tests; local-only Supabase auth client and SQL isolation checks.
 - Integrated offline test: `tests/integration/test_campaign_render_contract.py` checks B MockFoundryProvider v1 output against C asset-rights/tenant-safe `load_job` for seven days; does **not** exercise HTTP, real JWT, a hosted database, or signed media downloads.
 - The reconciled PR #4 commit passed all four jobs in [run 39755166150](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39755166150). Verify the final coordinator commit on main separately.
+
+## 2026-10-22 — Upload registration gate
+- The Supabase security job also runs `tests/security/draft_save_negative.sql` and `tests/security/upload_registration_negative.sql` on an isolated disposable DB, including denied cross-shop / VIEWER / anonymous operations, stale edits and unsigned media metadata registration. The frontend security tests exercise signed-in private binary upload, byte-signature checks and restricted RPC behavior.
+- PR #16 [run #39769374328](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39769374328) passed all four jobs before merge. Post-merge main [#39769717413](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39769717413) independently passed all four checks.
+- These checks do not validate real Supabase Storage HTTP upload or genuine third-party commercial license provenance without an approved DEV deployment.

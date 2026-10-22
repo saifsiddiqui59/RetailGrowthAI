@@ -68,3 +68,10 @@ Coordinator merged Workstream A PR #5, stacked coordinator PR #6, Workstream B P
 2. Obtain approval to apply all new RetailGrowthAI-only pending migrations to isolated DEV. The uploader stays nonoperational on cloud until the registration RPC is present.
 3. Real signed-in browser upload -> media row -> campaign planning -> saved edit -> render -> download E2E with actual licensed media; verify file content, CORS, 25 MB bounds and cross-tenant denial. Human rights evidence review required before commercial publishing.
 4. Add bounded abandoned-private-upload cleanup, media deletion/revocation safety, licensed audio/stock ingestion, worker recovery/poison monitoring and cost benchmarking. Deploy Functions/storage queues and Foundry only after explicit approval.
+
+## Current next steps after merged PR #16 (supersedes earlier feature-branch handoffs)
+1. Verify the final post-merge four-job Actions run on main; fix any failures using a small PR. Keep the tenant/security tests enabled.
+2. **Approval required:** apply pending migrations (durable planning, render claim, draft save, private upload registration) to **existing RetailGrowthAI DEV only** after review and backup; do not create a new project or touch WineShopPOS.
+3. **Approval required:** configure and deploy isolated RetailGrowthAI Azure Functions and two existing/approved queues, package worker dependencies and licensed FFmpeg assets; configure frontend HTTPS API origin and Supabase publishable key without revealing backend secrets.
+4. Verify a real browser flow: authenticated login -> private upload -> registered media -> 7-day campaign -> saved day edit -> 30-second rendered MP4 -> signed download. Test cross-shop/VIEWER denials and broken uploads.
+5. Before a production claim: independent third-party licensing review, orphan-storage cleanup, media revocation, retry/poison reconciliation, rendering budget and latency benchmark, accessibility and security review. No publishing/Wan/PROD deployment now.
