@@ -25,3 +25,11 @@ Install locally from Git Bash: `cd azure-functions/campaign-api && uv pip instal
 - GET `/api/render-jobs/{id}` is user-RLS-scoped and never exposes a foreign job.
 - GET `/api/render-jobs/{id}/download` requests a 60-second signed **private** Supabase Storage URL with the caller's JWT, for verified SUCCEEDED jobs only; no untrusted client URLs.
 - `retail-reel-render` Azure Queue is referenced but **not** provisioned. Render worker comes in a separate PR; API defaults to 503 if queue/worker credentials are absent.
+
+
+## FFmpeg renderer worker milestone (code only)
+- `retail-reel-render` Azure Queue trigger claims `render_jobs` with a backend-only atomic RPC and 4-minute lease. Attempts capped at three; Azure poison queue remains enabled.
+- Rechecks active tenant membership on every delivery, reads tenant-scoped campaign day and media IDs, and downloads only the trusted storage bucket/path from DB, capped at 25MiB/input.
+- Runs `video-engine/render.py` with explicit rights evidence, fixed dimensions/codecs and server-staged files. Uploads MP4 privately under `<shop>/renders/<job>.mp4`, records output_asset_id and marks job SUCCEEDED.
+- No deployment, actual Azure queue creation, hosted migration application or live commercial image/music verification occurred in this PR.
+- Packaging must include the sibling `video-engine` directory plus `ai-agents` and exact dependencies. The 4-minute timeout and 4-minute lease require production render benchmarking; use Container Apps Jobs if renders routinely exceed this limit.

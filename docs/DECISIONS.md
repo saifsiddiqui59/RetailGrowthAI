@@ -63,3 +63,5 @@
 - Durable planning uses existing Supabase campaigns as atomic idempotent claim state plus Azure Storage Queue for persisted deliveries. Worker uses service role only server-side, never trusts message/asset rights and never self-provisions cloud resources.
 
 - Signed MP4 URLs are minted only from tenant-authorized private storage via the end-user JWT (60-second expiry). Render job POST needs verified membership and licensed asset IDs; server-derived idempotency key prevents duplicate requests for identical day/reel.
+
+- Keep renderer as bounded server-only Queue trigger consuming opaque job IDs; regenerate trusted manifest using tenant-authenticated DB rows and private media paths. Persist deterministic output key and never allow arbitrary browser-provided FFmpeg paths. Quota/lease sizing must be benchmarked before cloud deployment.
