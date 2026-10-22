@@ -1,0 +1,150 @@
+name: RetailGrowthAI DEV GPv2 private Blob and Storage Queues (one-time)
+# Owner explicitly waived budget and alert prerequisites for DEV. Azure Storage incurs usage charges.
+# No migration/production changes, no Functions or app settings, no secrets printed.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/azure-dev-storage-queues-once.yml'
+
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-storage-queues-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  release-storage:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    name: Provision private Azure Blob plus four DEV queues
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-retailgrowth-dev
+      SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      CLIENT: ${{ secrets.AZURE_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Login via existing scoped Azure DEV OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify isolated DEV target and derive deterministic globally unique account
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUB" && test -n "$CLIENT"
+          test "$(az account show --query id -o tsv)" = "$SUB"
+          az group show -g "$RG" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1]))
+          tags={k.lower():str(v).lower() for k,v in (x.get('tags') or {}).items()}
+          assert x['name']=='rg-retailgrowth-dev' and x['location']=='centralindia'
+          assert tags.get('app')=='retailgrowthai' and tags.get('environment')=='dev'
+          print('PASS: exact RetailGrowthAI DEV Central India RG and tags')
+          PY
+          rgid="$(az group show -g "$RG" --query id -o tsv)"
+          oid="$(az ad sp show --id "$CLIENT" --query id -o tsv)"
+          test -n "$rgid" && test -n "$oid"
+          az role assignment list --assignee-object-id "$oid" --scope "$rgid" --include-inherited -o json > "$RUNNER_TEMP/iam.json"
+          python3 - "$RUNNER_TEMP/iam.json" "$rgid" <<'PY'
+          import json,sys
+          roles=json.load(open(sys.argv[1]))
+          scope=sys.argv[2].lower()
+          assert any((r.get('scope') or '').lower()==scope and
+                     (r.get('roleDefinitionName') or '').lower()=='contributor' for r in roles)
+          assert all((r.get('roleDefinitionName') or '').lower()=='reader' for r in roles
+                     if (r.get('scope') or '').lower()!=scope)
+          print('PASS: direct Contributor to exactly the intended DEV RG; no broad write assignment')
+          PY
+          account="rgai$(printf '%s' "$rgid" | sha256sum | cut -c1-16)"
+          [[ "$account" =~ ^rgai[a-f0-9]{16}$ ]]
+          test -z "$(az storage account list -g "$RG" --query '[].name' -o tsv)" || {
+            echo "::error::BLOCKED: RG already has storage account; no duplication or mutations"; exit 3;
+          }
+          test "$(az storage account check-name -n "$account" --query nameAvailable -o tsv)" = "true" || {
+            echo "::error::BLOCKED: proposed globally unique account name unavailable"; exit 3;
+          }
+          echo "ACCOUNT=$account" >> "$GITHUB_ENV"
+          echo "NEW ACCOUNT NAME: $account"
+          echo "PASS: zero existing Storage Accounts in dedicated DEV RG; no collision"
+
+      - name: Run ARM what-if and allow only NEW Azure Storage resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          az deployment group what-if -g "$RG" \
+            --template-file infra/azure/storage-queues-dev.bicep \
+            --parameters storageAccountName="$ACCOUNT" \
+            --no-pretty-print -o json > "$RUNNER_TEMP/whatif.json"
+          python3 - "$RUNNER_TEMP/whatif.json" <<'PY'
+          import json,sys
+          payload=json.load(open(sys.argv[1]))
+          changes=payload.get('changes') or (payload.get('properties') or {}).get('changes') or []
+          assert changes,'ARM what-if returned no parseable changes'
+          for item in changes:
+              action=item.get('changeType')
+              target=(item.get('resourceId') or '').lower()
+              if action not in ('Create','NoChange') or '/providers/microsoft.storage/storageaccounts/' not in target:
+                  raise SystemExit('BLOCKED unexpected Azure what-if type/scope: '+str(action))
+          print('PASS: ARM what-if only proposes new dedicated Storage account, private Blob service/container and queues')
+          PY
+
+      - name: CREATE exactly one StorageV2 Standard_LRS account with private Blob and four queues
+        shell: bash
+        run: |
+          set -euo pipefail
+          az deployment group create -g "$RG" --name rgai-dev-storage-queues-initial \
+            --mode Incremental --template-file infra/azure/storage-queues-dev.bicep \
+            --parameters storageAccountName="$ACCOUNT" -o none
+          echo "PASS: ARM deployment applied; confirming exact resources and privacy"
+
+      - name: Verify persisted Azure resources using ARM (not mocked)
+        shell: bash
+        run: |
+          set -euo pipefail
+          az storage account show -g "$RG" -n "$ACCOUNT" -o json > "$RUNNER_TEMP/account.json"
+          python3 - "$RUNNER_TEMP/account.json" "$ACCOUNT" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1]))
+          t={k.lower():str(v).lower() for k,v in (x.get('tags') or {}).items()}
+          assert x.get('name')==sys.argv[2] and x.get('location')=='centralindia'
+          assert x.get('kind')=='StorageV2' and (x.get('sku') or {}).get('name')=='Standard_LRS'
+          assert x.get('allowBlobPublicAccess') is False
+          assert x.get('minimumTlsVersion')=='TLS1_2'
+          assert x.get('enableHttpsTrafficOnly') is True
+          assert t.get('app')=='retailgrowthai' and t.get('environment')=='dev'
+          print('PASS: actual DEV StorageV2 Standard_LRS, TLS1.2, HTTPS-only, public Blob disabled')
+          PY
+          base="$(az storage account show -g "$RG" -n "$ACCOUNT" --query id -o tsv)"
+          for name in retailgrowth-functions-packages; do
+            az rest --method get --url "https://management.azure.com${base}/blobServices/default/containers/${name}?api-version=2023-05-01" -o json > "$RUNNER_TEMP/container.json"
+            python3 - "$RUNNER_TEMP/container.json" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1]))
+          assert (x.get('properties') or {}).get('publicAccess') in ('None',None)
+          print('PASS: actual private Azure Blob container for Function packages')
+          PY
+          done
+          for name in retail-campaign-planning retail-reel-render retail-campaign-planning-poison retail-reel-render-poison; do
+            az rest --method get --url "https://management.azure.com${base}/queueServices/default/queues/${name}?api-version=2023-05-01" \
+              --query name -o tsv | grep -Fxq "$name"
+            echo "PASS: actual Azure Storage Queue $name"
+          done
+          echo "AZURE DEV STORAGE DEPLOYED: $ACCOUNT"
+          echo "No Functions deployed yet. No SQL or test identities changed. Azure GPv2 storage usage can incur charges."
+
+      - name: Logout
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
