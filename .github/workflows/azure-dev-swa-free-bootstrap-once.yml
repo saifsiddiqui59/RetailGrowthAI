@@ -1,0 +1,176 @@
+name: RetailGrowthAI DEV demo SWA FREE first-release bootstrap (one-time)
+
+# Explicit owner instruction 2026-10-22 to publish mock-only DEV frontend.
+# Inert after initial merge: only changes to this exact workflow on main retrigger;
+# existing site blocks re-provision. Never execute in a pull request.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/azure-dev-swa-free-bootstrap-once.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retailgrowthai-dev-swa-free-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  deploy-free-demo:
+    if: github.ref == 'refs/heads/main' && github.repository == 'saifsiddiqui59/RetailGrowthAI'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      SWA_NAME: retailgrowthai-dev-preview
+      RG_NAME: rg-retailgrowth-dev
+      AZ_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZ_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Build and test existing MOCK React/Vite frontend without backend
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          if env | cut -d= -f1 | grep -Eq '^VITE_'; then
+            echo "::error::BLOCKED: Public VITE variables present; mock-only demo cannot use backend settings."; exit 3
+          fi
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          npm test
+          npm run build
+          test -s dist/index.html
+          test -s dist/staticwebapp.config.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const c=JSON.parse(fs.readFileSync('dist/staticwebapp.config.json','utf8'));
+          if(c.navigationFallback?.rewrite !== '/index.html') throw new Error('No SPA fallback');
+          console.log('PASS: existing mock frontend, build, SPA fallback; no backend connected');
+          NODE
+
+      - name: Sign in with existing RetailGrowthAI DEV OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate exact RG and directly scoped Contributor, no cloud changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$AZ_SUBSCRIPTION"
+          test -n "$AZ_CLIENT_ID"
+          test "$(az account show --query id -o tsv)" = "$AZ_SUBSCRIPTION" || {
+            echo "::error::BLOCKED: subscription mismatch"; exit 3;
+          }
+          az group show --name "$RG_NAME" --subscription "$AZ_SUBSCRIPTION" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" "$RG_NAME" <<'PY'
+          import json,sys
+          rg=json.load(open(sys.argv[1]))
+          assert rg["name"].lower()==sys.argv[2].lower(), "Incorrect RG name"
+          assert rg["location"].lower().replace(" ","")=="centralindia", "RG must be Central India"
+          tags={str(k).lower():str(v).lower() for k,v in (rg.get("tags") or {}).items()}
+          assert not tags or (tags.get("app")=="retailgrowthai" and tags.get("environment")=="dev"), "Unknown existing RG tags - stop without overwriting"
+          print("PASS: correct Central India RG, tags either absent or confirmed for RetailGrowthAI DEV")
+          PY
+          rgid="$(az group show -n "$RG_NAME" --query id -o tsv)"
+          oid="$(az ad sp show --id "$AZ_CLIENT_ID" --query id -o tsv)"
+          test -n "$oid"
+          az role assignment list --assignee-object-id "$oid" --scope "$rgid" --include-inherited -o json > "$RUNNER_TEMP/roles.json"
+          python3 - "$RUNNER_TEMP/roles.json" "$rgid" <<'PY'
+          import json,sys
+          roles=json.load(open(sys.argv[1]))
+          rgid=sys.argv[2].lower()
+          exact=[r for r in roles if str(r.get("scope","")).lower()==rgid]
+          assert any(str(r.get("roleDefinitionName","")).lower()=="contributor" for r in exact), "No DIRECT RG Contributor"
+          inherited=[str(r.get("roleDefinitionName","")) for r in roles if str(r.get("scope","")).lower()!=rgid]
+          assert all(x.lower()=="reader" for x in inherited), "Broad inherited Azure IAM requires separate review"
+          print("PASS: direct Contributor scoped only to isolated RetailGrowthAI DEV RG")
+          PY
+          existing="$(az staticwebapp list -g "$RG_NAME" --query 'length(@)' -o tsv)"
+          test "$existing" = "0" || { echo "::error::BLOCKED: Existing SWA; no unreviewed overwrite"; exit 3; }
+          echo "PASS: zero existing Static Web Apps in isolated DEV RG."
+
+      - name: Label exact existing DEV RG and create Free-only static preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          # No VM/Functions/API/Storage queue. Exact named RG had no tags at inspection;
+          # do not overwrite any unexpected tags.
+          az group update --name "$RG_NAME" --subscription "$AZ_SUBSCRIPTION" \
+            --tags app=RetailGrowthAI environment=dev --output none
+          az staticwebapp create --name "$SWA_NAME" --resource-group "$RG_NAME" \
+            --subscription "$AZ_SUBSCRIPTION" --location EastAsia --sku Free \
+            --tags app=RetailGrowthAI environment=dev purpose=mock-demo \
+            --output none
+          az staticwebapp show --name "$SWA_NAME" -g "$RG_NAME" -o json > "$RUNNER_TEMP/site.json"
+          python3 - "$RUNNER_TEMP/site.json" "$SWA_NAME" <<'PY'
+          import json,sys
+          site=json.load(open(sys.argv[1]))
+          assert site.get("name","").lower()==sys.argv[2].lower(),"Wrong site"
+          assert (site.get("sku") or {}).get("name","").lower()=="free","STOP: Site is not Free SKU"
+          assert site.get("defaultHostname"),"Azure did not return a public hostname"
+          print("PASS: Azure created only the Free-plan DEV mock static site")
+          PY
+
+      - name: Retrieve temporary deployment token (masked, runner-only)
+        id: temporary-token
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="$(az staticwebapp secrets list --name "$SWA_NAME" --resource-group "$RG_NAME" --query 'properties.apiKey' -o tsv)"
+          test -n "$token" || { echo "::error::Missing SWA deployment token"; exit 3; }
+          echo "::add-mask::$token"
+          echo "deployment_token=$token" >> "$GITHUB_OUTPUT"
+          echo "PASS: protected temporary SWA token acquired; never displayed or committed"
+
+      - name: Deploy existing frontend/dist to Azure SWA production environment
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9
+        with:
+          azure_static_web_apps_api_token: ${{ steps.temporary-token.outputs.deployment_token }}
+          action: upload
+          app_location: frontend
+          api_location: ''
+          output_location: dist
+          app_build_command: npm run build
+          production_branch: main
+
+      - name: Verify REAL public HTTPS pages, no guessed URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          host="$(az staticwebapp show -n "$SWA_NAME" -g "$RG_NAME" --query defaultHostname -o tsv)"
+          case "$host" in *.azurestaticapps.net) ;; *) echo "::error::Unexpected Azure hostname"; exit 3;; esac
+          url="https://$host"
+          for route in '' campaigns account; do
+            ok=0
+            for attempt in 1 2 3 4 5 6 7 8; do
+              if curl --silent --show-error --fail --location --max-time 15 \
+                -o "$RUNNER_TEMP/page.html" "$url/$route" 2>/dev/null; then
+                if grep -Fq 'id="root"' "$RUNNER_TEMP/page.html"; then ok=1; break; fi
+              fi
+              sleep 6
+            done
+            test "$ok" = 1 || { echo "::error::BLOCKED: Real HTTPS route failed /$route"; exit 3; }
+            echo "PASS: actual Azure HTTPS route /$route"
+          done
+          echo "ACTUAL VERIFIED RETAILGROWTHAI DEV STATIC DEMO URL: $url"
+          echo "Mock-only frontend; no Supabase migrations, Functions, queues or WineShopPOS."
+
+      - name: Remove runner Azure session
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
