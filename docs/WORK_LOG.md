@@ -24,3 +24,5 @@ Use scripts/checkpoint.sh after completing a task.
 - 2026-10-22: Coordinator optimized FFmpeg GitHub Actions setup after the final integrated build's media job remained in unconditional apt installation: reuse runner's installed ffmpeg/ffprobe when present, install only when missing. Full synthetic 2s and 30s video checks remain unchanged and mandatory. Recheck newest main CI; earlier run #39755629270 was not yet complete when this change was made.
 
 - 2026-10-22: Authenticated Azure Functions HTTP adapter work proposed in isolated PR. JWT cryptographic, tenant-scoped PostgREST, fail-closed queue gating and negative tests added. No resource provisioned or WineShopPOS change.
+
+- 2026-10-22: PR #7 Python and frontend checks passed; media CI encountered FFmpeg 8/toolchain mismatch on rolling runner. Pinned video job to Ubuntu 24.04 for repeatable media verification; no tests disabled. Re-run full four-job CI.

@@ -79,7 +79,8 @@ jobs:
 
   video:
     name: FFmpeg codecs + renderer tests
-    runs-on: ubuntu-latest
+    # Pin a verified media toolchain runner; ubuntu-latest upgraded FFmpeg mid-branch.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
