@@ -60,14 +60,25 @@ jobs:
           data=json.load(open(sys.argv[1]))
           groups = data if isinstance(data,list) else [data]
           approved=[]
+          candidates=[]
           for rg in groups:
               tags={str(k).lower():str(v).lower() for k,v in (rg.get("tags") or {}).items()}
               name=str(rg.get("name",""))
               loc=str(rg.get("location","")).lower().replace(" ","")
+              if ("retailgrowth" in name.lower() or "rgai" in name.lower()
+                  or tags.get("app")=="retailgrowthai"):
+                  candidates.append({"name":name,"location":loc,
+                                     "app_tag":tags.get("app","(missing)"),
+                                     "env_tag":tags.get("environment","(missing)")})
               if (tags.get("app")=="retailgrowthai" and tags.get("environment")=="dev"
                   and loc=="centralindia" and name.lower().startswith("rg-")
                   and "retailgrowth" in name.lower()):
                   approved.append({"name":name, "location":loc, "id":rg.get("id")})
+          print("Count of RGs visible to DEV identity:",len(groups))
+          print("RetailGrowthAI-named/tagged RG candidates:",len(candidates))
+          for candidate in candidates:
+              print("CANDIDATE:",candidate["name"], "| region:",candidate["location"],
+                    "| app tag:",candidate["app_tag"], "| environment tag:",candidate["env_tag"])
           json.dump(approved,open(sys.argv[2],"w"))
           print("Matching isolated, tagged Central India RetailGrowthAI DEV RG count:",len(approved))
           for group in approved:
