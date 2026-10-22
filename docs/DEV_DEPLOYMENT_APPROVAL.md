@@ -37,3 +37,8 @@ A **separate explicit user go/no-go for EACH gate** must be recorded in this doc
 
 ## Change record
 - 2026-10-22 — Coordinator 3 created approval template from merged I/J/K plus green main baseline. **No approvals granted and no hosted changes executed.**
+
+## E. Additional separate frontend-only DEV preview gate (added 2026-10-22)
+- [ ] **Gate 0 — Azure Static Web Apps demo only** is independently reviewed and **NOT APPROVED**. See [approval issue #51](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/51). Required: merged R source and 4/4 post-main CI; exact isolated SWA name/region/plan, explicit monthly cost ceiling and spending alert; clean `frontend`/ `dist` config and SPA fallback; verified mock-only `/`, `/campaigns`, `/account`; no backend/hosted Supabase secrets or changes; protected main-only deployment workflow; planned rollback and cleanup.
+- [ ] Only if Gate 0 is separately, explicitly approved may the operator create/configure and deploy the **frontend static demo** and subsequently verify/report the **actual** public HTTPS address. The URL is unknown/unverified until then.
+- [ ] Gate 0 cannot authorize Gate 1 Supabase migration [#52](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/52), Gate 2 Azure backend [#53](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/53), or Gate 3 real hosted E2E [#54](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/54). These remain **PENDING** and have independent prerequisites. No PROD or WineShopPOS resources may be touched.
