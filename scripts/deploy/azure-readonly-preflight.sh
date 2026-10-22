@@ -73,7 +73,7 @@ if [ "$phase" = "runtime" ]; then
   done
   # ARM read of RG-scoped Consumption budgets. Missing permissions/budget => blocked.
   az rest --method get --url "https://management.azure.com$scope/providers/Microsoft.Consumption/budgets?api-version=2023-05-01" \
-    --query 'value[].{properties:properties}' -o json > "$tmp/budgets-list.json"
+    --query 'value[].{id:id,properties:properties}' -o json > "$tmp/budgets-list.json"
 fi
 python3 - "$tmp" "$RETAIL_AZURE_SUBSCRIPTION_ID" <<'PY'
 import json, pathlib, sys
