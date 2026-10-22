@@ -153,5 +153,3 @@ reset role;
 rollback;
 \echo 'PASS: cross-shop read/write, owner forgery, viewer escalation, revocation and anon-denial RLS tests'
 
--- Workstream L: run durable recovery denials and CAS tests in the existing security CI step.
-\ir durable_recovery_negative.sql
