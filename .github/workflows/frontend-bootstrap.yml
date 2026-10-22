@@ -227,7 +227,30 @@ jobs:
           fi
       - name: Start disposable Supabase Postgres and apply migrations
         shell: bash
-        run: supabase db start
+        run: |
+          set -euo pipefail
+          log="$(mktemp)"
+          trap 'rm -f "$log"' EXIT
+          for attempt in 1 2 3; do
+            if supabase db start 2>&1 | tee "$log"; then
+              exit 0
+            fi
+            # GitHub runner sometimes receives a transient GHCR registry
+            # rate limit BEFORE SQL starts (e.g. main #39835674846).
+            # Genuine schema/migration errors remain fatal, never ignored.
+            if ! grep -Eiq 'failed to display json stream|error from registry|too many requests|rate limit|retry-after' "$log"; then
+              echo "::error::Non-registry Supabase startup failure; fail closed."
+              exit 1
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Registry startup failed after 3 bounded attempts."
+              exit 1
+            fi
+            echo "::warning::Transient Docker registry limit; retrying local Supabase startup."
+            supabase stop --no-backup || true
+            sleep "$((attempt * 12))"
+            : > "$log"
+          done
       - name: Install PostgreSQL command-line client
         shell: bash
         run: |
