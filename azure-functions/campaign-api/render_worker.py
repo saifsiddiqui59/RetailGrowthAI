@@ -28,7 +28,9 @@ LICENSES = {"owned", "cc0", "royalty_free", "commercial"}
 def process_render(job_id, admin, media, *, render_fn=render):
     jid = str(UUID(job_id))
     status = admin.render_status(jid)
-    if status in ("SUCCEEDED", "FAILED", None):
+    if status is None:
+        raise StorageUnavailable("unknown render job")
+    if status in ("SUCCEEDED", "FAILED"):
         return "ALREADY_FINAL"
     job = admin.claim_render(jid)
     if job is None:
