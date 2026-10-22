@@ -1,4 +1,4 @@
-"""Browser-only authenticated API gateway; no service key or synthetic media IDs."""
+// Browser-only authenticated API gateway; never sends service keys or synthetic media IDs.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function uuid(value) {
