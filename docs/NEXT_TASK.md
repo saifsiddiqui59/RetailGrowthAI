@@ -101,7 +101,7 @@ Coordinator merged Workstream A PR #5, stacked coordinator PR #6, Workstream B P
 - **Still approval-gated:** hosted Supabase migrations, Azure Functions/queues, 1080p performance/cost testing with licensed assets and real authenticated browser E2E. Do not modify WineShopPOS.
 
 ## Active Coordinator 1 I/J/K integration queue (2026-10-22)
-1. **Done:** review and merge OIDC documentation PR #30 (`7c6c506a`) after all four branch CI checks passed. Independently confirm [post-merge main run #39790938647](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39790938647); do not infer outcome while running.
+1. **Done:** review and merge OIDC documentation PR #30 (`7c6c506a`) after all four branch CI checks passed. [Post-merge main run #39790938647](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39790938647) **passed all four jobs**.
 2. **Await PR I:** review durable queue transactional outbox, replay, poison acknowledgements, stale-job terminalization, claim/attempt fencing, negative RLS and fault-injection. Fail if changes break tenant invariants or apply hosted SQL. Require 4/4 PR and main CI, then merge.
 3. **Await PR J:** validate Azure DEV-only Flex/Bicep/FFmpeg source packaging, quota and cost safety against merged I and migration/lease constraints. No provisioning/deployment. Require 4/4 PR and main CI, then merge.
 4. **Await PR K:** validate mocked API and Chromium browser suites cover authentication expiry/revocation, cross-tenant denial, upload, generate, save, render and download plus error recovery. Do not claim real hosted E2E. Require 4/4 PR and main CI, then merge.
