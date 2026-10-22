@@ -39,7 +39,7 @@ third-party origin calls are mocked; do not set live SUPABASE/Azure URLs.
 The test uploads only 128 bytes with a PNG signature to a mocked endpoint;
 it is not a real licensed image. The signed-link response is a stub, not a real MP4.
 
-## Coordinator CI integration needed
+## Historical CI integration note (resolved by coordinator PR #22)
 
 The existing four jobs do not discover these paths: frontend/package.json
 lists three explicit Node tests, and the Python job lists tests/api and other
@@ -62,3 +62,37 @@ billing, browser accessibility/performance, or production publish readiness.
 After explicit RetailGrowthAI DEV authorization/deployment, create a separate
 staging-only suite with non-production test users/shops, rights-cleared images,
 and verified MP4 bytes. Never point these offline mocks at WineShopPOS.
+
+
+## Workstream K hardening (mock-only, 2026-10-22)
+
+Additional **browser** regression coverage:
+- Expired persisted bearer token triggers a denied refresh, clears the local session,
+  and prevents any campaign API call; no real JWT signature verification is implied.
+- Storage upload denial does not invoke registration or create an apparent asset;
+  an explicit retry after mocked storage recovery can register and submit it.
+- A temporary campaign API 503 can be surfaced and a new explicit submit can work.
+- Draft PATCH 503 does not discard unsaved copy or enable rendering; a retry after
+  recovery persists only the intended editable fields.
+- Server-side token revocation is modeled by HTTP 401 after a successful draft load:
+  unauthorized edits are not accepted and an unsigned render/download is not offered.
+
+Additional **Python service-boundary** regression coverage:
+- Expired/forged tokens denied on creation, GET, PATCH, render/status and signing.
+- Planning queue enqueue 503 transitions the abandoned pending job to FAILED,
+  while an explicit new request can succeed once the queue recovers.
+- VIEWER/revoked membership prevents mutations and private downloads.
+- A nominally successful job does not sign missing or non-video private output.
+- Failed render enqueue remains terminal without a durable replay service;
+  repeating a matching POST currently returns the FAILED idempotent job, **not**
+  a new queue message. Coordinator / Workstream I must implement guarded replay.
+
+The CI workflow on main already discovers these folders (PR #22); no workflow
+or global dependency changes were made. Run the two commands above and inspect
+the actual PR run before claiming green. Browser tests use fixture JWT strings,
+fake PNG byte signatures and a stubbed MP4 response only. Cloud Auth, RLS,
+licensed video and crash-safe queue replay still require separate DEV evidence.
+
+Handoff: All modifications for K stay inside `frontend/e2e/**` and
+`tests/e2e/**`. Shared canonical docs are coordinator-owned and should be
+updated only after the PR has been reviewed/integrated.
