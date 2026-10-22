@@ -46,3 +46,10 @@
 - Wrap root app with Workstream A AuthProvider, mount AccountWorkspace only under `/account`, and continue labeling campaign data as mock. Live Auth depends on RetailGrowthAI-only VITE publishable settings; never ship service-role or secret keys.
 - Add an independent read-only GitHub Actions security job: Node client tests plus disposable Supabase Postgres and migrations followed by negative SQL tests. No hosted Supabase database or credential is used in CI; do not weaken tests for green status.
 - Dedicated RetailGrowthAI Supabase project `jeearzffnjbvghwjjjrf` is DEV/pilot only; production requires a separate project. No changes to WineShopPOS or existing voice projects.
+
+
+## 2026-10-22 — Workstream integration and truthful runtime boundaries
+- Integrate A PR #5 before stacked coordinator PR #6, then B PR #3, C PR #2, and D PR #4; reconcile the shared App.jsx router to retain both live-configurable AccountWorkspace and mock CampaignDashboard.
+- The UI's natural-language campaign brief must remain preview-only until a real authenticated HTTP service and authorized tenant-specific media are wired. Never silently replace synthetic fixture IDs with trusted IDs or enable fake render/download controls.
+- The Python CampaignService is a dependency-injected **non-deployed** API boundary, not a working Azure Function; the 30-second renderer is a tested offline CLI. A coordinator cross-component integration test validates v1 B planner -> C renderer manifest compatibility without pretending to run an online campaign.
+- Four CI jobs run independently; a green CI run proves covered fixture, unit, synthetic render and disposable Supabase security checks, not browser E2E or production cloud auth. Never share WineShopPOS secrets/resources.

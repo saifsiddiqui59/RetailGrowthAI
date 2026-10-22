@@ -1,52 +1,25 @@
 # Next Development Task
 
-## Current phase
-Part 1 — AI Campaign Creation. Coordinator bootstrap verified in GitHub Actions and all four Part 1 feature branches established; parallel implementation may begin.
+## Current phase — Part 1 integration, not production launch (2026-10-22)
 
-## Completed 2026-10-22
-- Private GitHub repository and continuity docs verified; Python uv scaffold retained.
-- Architecture, v1 interfaces and parallel ownership documented.
-- Coordinator-owned React/Vite frontend initialized with an overview, mock campaign preview and account placeholder.
-- Seven-day shared campaign fixture added at `frontend/src/features/campaigns/fixtures/sample-campaign.json`.
-- JavaScript and Python offline contract checks added; GitHub Actions workflow defined to execute npm install, tests and build.
-- No cloud resources, live AI, tenant database, video rendering, social platform integration or WineShopPOS edits.
+Coordinator merged Workstream A PR #5, stacked coordinator PR #6, Workstream B PR #3, Workstream C PR #2 and Workstream D PR #4, in dependency order. PR #4 required explicit root App.jsx reconciliation preserving both AuthProvider/AccountWorkspace and CampaignDashboard. See docs/PROJECT_STATE.md and docs/WORK_LOG.md.
 
-## Next: Run four Part 1 workstreams (only from separate feature branches)
-- A `feat/p1-foundation`: implement RetailGrowthAI-only Supabase schema/RLS, membership and auth shell; prove cross-shop denial. Do not use WineShopPOS resources.
-- B `feat/p1-campaign-ai`: Python deterministic v1 schemas, seven-day planner and reviewer with mocked provider; authenticated campaign API boundary proposal.
-- C `feat/p1-video`: offline FFmpeg 30-second portrait MP4 using authorized test media, with duration/codecs verified and license metadata.
-- D `feat/p1-campaign-ui`: prompt, seven-day calendar, editor and mock render job UX within owned path; never label mock content as live.
-- All read `AGENTS.md`, `docs/INTERFACES_V1.md` and `docs/PARALLEL_WORK.md`; create PRs to main without merging. Coordinator integrates with contract/security checks.
+## Verified and committed work
+- React/Vite routes: `/account` uses configurable RetailGrowthAI Auth and business onboarding; `/campaigns` is an interactive seven-day **mock** editor with local draft exports.
+- Supabase migration-led tenant schema, private media, OWNER/EDITOR/VIEWER roles and negative cross-shop RLS/storage tests.
+- Dependency-free Python validated campaign planner, bounded reviewer, mocked Foundry adapter and **non-deployed** CampaignService service boundary.
+- Offline FFmpeg renderer (30-second, 1080x1920, H.264/AAC, multiple images/transitions/overlays), test media rights metadata and negative tests.
+- Four CI jobs: frontend tests/build, Python fixture/planner/API tests plus offline B-to-C interface tests, 30-second synthetic video rendering, disposable Supabase tenant isolation.
+- PR #4 reconciled branch passed all four jobs in [Actions #39755166150](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39755166150). Inspect the **latest main** CI run before marking final integration green.
 
-## Verification / coordination gates
-- GitHub Actions `Frontend bootstrap checks` succeeded on bootstrap commit `5b7eb6f`: https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39739502984. Actual results: npm install (69 packages), JavaScript tests (2/2), Python unittest (1/1), Vite production build (42 modules; 2.17 seconds).
-- The local sandbox cannot reach the npm registry; local npm install/build must not be claimed as executed successfully.
-- The coordinator should generate and commit a reviewed `frontend/package-lock.json` with `npm install` from Git Bash, then change CI to `npm ci`.
-- The initial mock contract has no live storage asset IDs; workstreams must not interpret fixture UUIDs as actual uploaded media.
-- The four remote branches exist at the same coordinator-verified baseline. Workers must create their own local Git worktree and then open PRs. Review/merge in the documented order.
+## Next unfinished work — priority order
+1. **Secure API adapters (highest priority):** deploy a RetailGrowthAI-only Azure Functions HTTP API implementing INTERFACES_V1 POST/GET endpoints with cryptographically verified Supabase Auth JWTs; server-side active shop membership checks; real per-tenant media authorization; RLS-aware durable persistence. B's `service.py` is not an HTTP server.
+2. **Durable jobs and render integration:** build real queue/worker orchestration for planning and rendering; ensure idempotency, retry limits, state transitions, usage accounting, review/approval checks, asset rights verification and signed private output downloads. Never accept a browser-asserted license or local path as authorization.
+3. **Frontend connected flows:** configure *only* `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in the RetailGrowthAI environment. With authenticated shop selection, wire CampaignDashboard brief submission, job polling, draft save/edit, authorized media uploads and verified download/render controls. Keep mock-mode honesty until live flows pass.
+4. **Release-level verification:** browser signup/login/password expiry/session refresh, onboarding and profile updates, denial of cross-tenant API calls, full end-to-end prompt -> seven drafts -> authorized 30s output, negative paths, external media licensing/attribution, accessibility, performance and cost benchmark.
+5. **Reproducibility/deployment:** commit reviewed `frontend/package-lock.json` using Git Bash (CI uses npm install until then), configure isolated RetailGrowthAI DEV/PROD cloud resources only under explicit deployment work, Azure AI Foundry adapter/credentials, and separate production Supabase project when launch is approved.
 
-## Integration acceptance
-- Cross-tenant reads/writes denied; each campaign response matches v1, with seven days and seven LinkedIn + Reel drafts.
-- FFmpeg generates verified playable 30-sec H.264/AAC outputs from appropriately licensed test media.
-- Complete auth -> prompt -> planning job -> draft review -> local render -> signed download, with bounded retries, idempotency and usage safety, before any deployment.
-
-## Deployment blockers
-- RetailGrowthAI DEV/pilot Supabase provisioned, but a separate PROD Supabase project is absent.
-- No model credentials/Foundry deployment or cloud video worker configured.
-- Live publishing is Part 2, Wan is Part 3, and production testing is Part 4.
-
-## CI upgrade merged — workstreams ready to begin (2026-10-22)
-- PR #1 merged to `main` (`6e3627968beb8288afe857adea0238db4fcda862`). [Post-merge CI](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39745758948) passed all **three** jobs: frontend, Python/uv, FFmpeg smoke.
-- Chats A/B/C/D may begin **after confirming their assigned branch is updated to the latest `main` baseline**. Each chat owns only its paths under `docs/PARALLEL_WORK.md`, reads all canonical docs, and sends a PR without self-merging.
-- Chat A: implement schema/membership/RLS with actual cross-tenant denial tests; dedicated RetailGrowthAI Supabase required before any live configuration.
-- Chat B: add real Python campaign planner/reviewer tests in `tests/ai` or `ai-agents/tests`; commit `ai-agents/uv.lock` after dependencies stabilize.
-- Chat C: add `video-engine/ci.sh` with 30-second fixture render, ffprobe codec/aspect/duration assertions, and test-media rights metadata. Synthetic FFmpeg smoke **does not** validate full rendering.
-- Chat D: build contract-compliant campaign UI in owned directory with clearly labeled mocks.
-- Coordinator follow-up: generate/review/commit `frontend/package-lock.json` using Git Bash; current CI still uses `npm install`. Once a reviewed lock exists CI switches to `npm ci`.
-- See `docs/CI_AUTOMATION.md` for GitHub Actions evidence, three-job test scope, and security limits.
-
-## Coordinator follow-up after Workstream A PR #5 — 2026-10-22
-- Workstream A PR #5 is open/unmerged. Its migration files match the dedicated RetailGrowthAI DEV database migration history; real negative database and private-storage tests passed there.
-- The stacked coordinator integration branch `chore/p1-foundation-auth-ci-integration` wires the Account route and proposes required local Supabase security CI. [Branch Actions run 39752723276](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39752723276) passed all four jobs, including new security CI. Coordinator still reviews integration before merging.
-- Integration sequence: review/merge PR #5 to main once ready; then retarget and merge the coordinator integration PR to main, rebase/check for conflicts, and validate all CI jobs after merging. No worker or coordinator should merge a failing/untested change.
-- Remaining: configure frontend-only RetailGrowthAI publishable key and project URL in deployment settings (never a service key), verify real email sign-in and shop/profile updates in browser, create isolated PROD when launch-ready. Campaign generation/rendering remains with B/C/D.
+## Not in current scope
+- No platform publishing/OAuth (Part 2), no Wan integration (Part 3), and no claim of production readiness (Part 4).
+- Never use or modify WineShopPOS resources.
+- Keep INTERFACES_V1.md stable; change only via coordinator-reviewed contract revision.

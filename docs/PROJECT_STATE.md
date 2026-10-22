@@ -56,7 +56,7 @@ The system generates multi-day marketing campaigns.
 ## Current Status
 GitHub access and initial uv scaffold verified. Architecture and parallel contracts documented on 2026-10-22. Coordinator bootstrap on 2026-10-22 added a runnable React/Vite shell, router and shared mock campaign fixture. GitHub Actions completed successfully on the bootstrap commit: npm installed 69 packages, 2 JavaScript tests passed, 1 Python test passed, and Vite v7.3.7 built 42 modules. Evidence: https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39739502984. No business service is implemented.
 
-No generated/published campaigns exist yet; the seven-day fixture remains mock data. Workstream A's tenant schema, Auth and RLS code is in open PR #5 and is not integrated to main.
+No generated or published campaigns exist yet; the seven-day UI fixture is mock data. Workstream A tenant schema, RLS and Auth are merged; AccountWorkspace is mounted and the CampaignDashboard is mounted but uses local request previews, not a live API.
 A dedicated RetailGrowthAI **DEV/pilot** Supabase project exists (`jeearzffnjbvghwjjjrf`, Tokyo); a separate production project does not exist.
 No new Azure application resources deployed yet.
 
@@ -74,7 +74,7 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 ## GitHub Actions expansion — PR #1 merged (2026-10-22)
 - PR #1 (`chore/part1-ci`) squash-merged to `main` at commit `6e3627968beb8288afe857adea0238db4fcda862`.
 - Three new independent CI jobs (frontend, Python/uv, FFmpeg) all passed **after merge** in [GitHub Actions run #39745758948](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39745758948).
-- Frontend runs npm install until `frontend/package-lock.json` is reviewed; Python checks currently exercise only the shared fixture contract; FFmpeg smoke checks a 2-second synthetic MP4, not a completed campaign renderer.
+- Frontend runs npm install until `frontend/package-lock.json` is reviewed; Python checks also run the campaign planner/service and coordinator B-to-C contract tests; video-engine/ci.sh runs a real 30-second synthetic MP4 render in addition to the 2-second smoke.
 - Four remote Part 1 workstream branches exist; coordinator synchronizes them to the final documented baseline before worker chats begin. No live model, tenant database, cloud resources, publishing, or production render was created by this CI update.
 
 ## Coordinator auth/security integration proposal — 2026-10-22
@@ -85,3 +85,13 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 - Do not interpret code/CI success as real browser login over HTTPS; VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY must be set in a RetailGrowthAI-only deployment, followed by manual functional testing. No production database/project is available yet.
 
 - Coordinator branch verification: [Actions run 39752723276](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39752723276) **passed all four jobs**, including live-on-disposable-DB SQL negative tests and browser-client Node tests. This is branch-only CI evidence; main and the production deployment are unchanged.
+
+
+## Integrated Part 1 checkpoint — 2026-10-22
+- PR #5 (Supabase foundation) merged as `0ae77540f5808a3e16bba116ab024781ba55e8c0`; stacked PR #6 (Auth route + isolated security CI) retargeted, then merged as `8ab4250f5763164d914a0566395008f6aa960189`.
+- PR #3 (mock planner/API boundary) merged as `b75438da96334020bdea08603c312bd1a398c451`; PR #2 (FFmpeg 30-second offline renderer) merged as `7ae0c50e12b226599255be49af6b5970674b3ced`.
+- PR #4 (React campaign studio) required a root `App.jsx` conflict resolution with AuthProvider. The reconciled PR branch passed **four jobs** in [run #39755166150](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39755166150), then merged as `8d2e85e50d05d542d285784e566459ff2b5f691e`.
+- Account route supports configurable RetailGrowthAI DEV Auth; campaign route supports a seven-day **mock** editor/export. Python generates/offline-reviews v1 data; the video CLI renders validated synthetic media. A coordinator integration test asserts planner output can be consumed by the renderer, including rejection of mismatched shops and unauthorized assets.
+- Four GitHub Actions jobs: frontend tests/build; Python pytest + coordinator cross-component contract; FFmpeg smoke + real synthetic 30-second render/ffprobe; isolated Supabase Auth/RLS/storage negative tests. Read the final post-integration Actions run before claiming this last commit is green.
+- Dedicated RetailGrowthAI DEV/pilot Supabase (Tokyo, ref `jeearzffnjbvghwjjjrf`) exists, but credentials are **not** committed/configured for hosted frontend. PROD remains absent. No WineShopPOS resources touched.
+- **Not yet end-to-end:** no deployed authenticated campaign HTTP endpoint or durable queue, no live Foundry/AI credentials, no uploaded/authorized real user media manifest or signed MP4 delivery, no browser-to-API wired campaign generation/save/render, no platform OAuth/publishing or production QA.

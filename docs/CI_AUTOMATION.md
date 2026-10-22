@@ -2,7 +2,7 @@
 
 ## What this provides
 Workflow: `.github/workflows/frontend-bootstrap.yml` (retained path to preserve compatibility; displayed workflow name is **RetailGrowthAI Part 1 CI**).
-GitHub automatically runs the three independent jobs below on pushes to `main`, `feat/**`, `chore/**`, and pull requests targeting `main`. It may also be started manually from the Actions tab after merging the workflow to the default branch.
+GitHub automatically runs the four independent jobs below on pushes to `main`, `feat/**`, `chore/**`, and pull requests targeting `main`. It may also be started manually from the Actions tab after merging the workflow to the default branch.
 
 | Job | Executed checks |
 | --- | --- |
@@ -11,7 +11,7 @@ GitHub automatically runs the three independent jobs below on pushes to `main`, 
 | FFmpeg codecs + renderer tests | install FFmpeg, encode a **2-second synthetic portrait** H.264/AAC video, verify streams via ffprobe, and call `video-engine/ci.sh` when implemented |
 | Supabase isolation + authentication client tests | Node 22 client unit tests, isolated Supabase CLI Postgres, apply all tenant migrations, execute RLS and private-storage negative SQL tests with assertion failures fatal |
 
-The synthetic MP4 is a **toolchain smoke test**, not evidence that real 30-second commercial Reels render. If renderer code is added without `video-engine/ci.sh`, the media job fails intentionally. Workstream C owns creating an executable `video-engine/ci.sh` that renders fixture inputs offline, validates duration/aspect/codecs/content and returns nonzero on failure. It should write permitted non-sensitive evidence into `ci-artifacts/` if an artifact is useful.
+The two-second synthetic MP4 is a toolchain smoke test. After PR #2, `video-engine/ci.sh` additionally renders and verifies a genuine **30-second synthetic multi-image** H.264/AAC Reel. This still is not evidence that externally licensed commercial Reels are production-ready. If renderer code is added without `video-engine/ci.sh`, the media job fails intentionally. Workstream C owns creating an executable `video-engine/ci.sh` that renders fixture inputs offline, validates duration/aspect/codecs/content and returns nonzero on failure. It should write permitted non-sensitive evidence into `ci-artifacts/` if an artifact is useful.
 
 ## Chat-based coding and debugging loop
 1. Worker chat uses its assigned feature branch and file ownership from `docs/PARALLEL_WORK.md`.
@@ -25,10 +25,10 @@ Note: GitHub Actions only runs declared commands. It **does not automatically re
 ## Security, cost, and current gaps
 - Workflow has read-only `contents: read` permissions. No production secrets, service keys, cloud deploys or `pull_request_target` privilege elevation.
 - PR jobs can execute untrusted code, so never inject deployment credentials into them.
-- The coordinator integration branch adds a fourth independent local Supabase security job; all jobs have timeouts, and redundant runs are cancelled. GitHub-hosted runner minutes/storage depend on current repository plan.
+- The merged workflow includes a fourth independent local Supabase security job; all jobs have timeouts, and redundant runs are cancelled. GitHub-hosted runner minutes/storage depend on current repository plan.
 - The existing frontend uses `npm install` until its reviewed `package-lock.json` is committed. Once committed, workflow uses deterministic `npm ci`.
-- For AI dependencies, commit `ai-agents/uv.lock` when established; until then `uv sync` can resolve current packages.
-- Workstream A provides cross-tenant RLS/private-media tests, executed on dedicated DEV; the coordinator security job runs them against disposable local Supabase on each push. Python `pytest` and renderer coverage are still being extended by B/C.
+- Workstream B committed `ai-agents/uv.lock`; the frontend still needs its package lock.
+- Workstream A provides cross-tenant RLS/private-media tests, executed on dedicated DEV; the coordinator security job runs them against disposable local Supabase on each push. Python pytest now exercises B campaign/provider/service tests and coordinator B-to-C contract tests; the C renderer CI runs real 30s synthetic encoding.
 - Read GitHub Actions job logs/artifacts before changing code. Do not assume a successful smoke check proves cloud auth/tenant isolation, FFmpeg quality, model correctness or production readiness.
 - `ci-artifacts/` contains synthetic test output only; artifact retention is 3 days.
 
@@ -40,7 +40,7 @@ If a workflow change is not yet merged, its manual `workflow_dispatch` trigger m
 ## Coordinator verification — 2026-10-22
 - PR #1 squash-merged as `6e3627968beb8288afe857adea0238db4fcda862`.
 - [Post-merge GitHub Actions run #39745758948](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39745758948) concluded **success** on `main` with all three jobs successful.
-- This validates the workflow scaffold only. Frontend lockfile, Python behavior tests, tenant isolation and real 30-second MP4 rendering remain for subsequent tasks.
+- This records the earlier three-job scaffold only. PRs #5/#6/#3/#2/#4 later added tenant isolation, Python behavior and a real 30-second synthetic MP4 render; see the updated coordinator checkpoint below.
 
 ## Proposed coordinator gate — Workstream A dependency
 - Workstream A [PR #5](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/5) must land first. Coordinator integration branch `chore/p1-foundation-auth-ci-integration` then brings the fourth job and account route onto main after CI passes.
@@ -48,3 +48,10 @@ If a workflow change is not yet merged, its manual `workflow_dispatch` trigger m
 - CI tests are not production/browser Auth end-to-end tests. Validate actual email sign-in, profile editing and session expiry separately with RetailGrowthAI DEV settings before release.
 
 - Verified on coordinator integration branch: [run 39752723276](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39752723276) completed successfully; security step executed Supabase migrations and both negative SQL tests. All four jobs passed. This evidence is from the branch, not post-merge main.
+
+
+## Integrated coordinator checkpoint — 2026-10-22
+- PRs #5, #6, #3, #2, #4 integrated to main, preserving an authenticated `/account` route and a mock-only `/campaigns` editor.
+- Four expected CI jobs: frontend Node/Vite build; Python uv pytest including `tests/integration/`; FFmpeg smoke **plus** `video-engine/ci.sh` 30-second synthetic render, ffprobe and media unit tests; local-only Supabase auth client and SQL isolation checks.
+- Integrated offline test: `tests/integration/test_campaign_render_contract.py` checks B MockFoundryProvider v1 output against C asset-rights/tenant-safe `load_job` for seven days; does **not** exercise HTTP, real JWT, a hosted database, or signed media downloads.
+- The reconciled PR #4 commit passed all four jobs in [run 39755166150](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39755166150). Verify the final coordinator commit on main separately.
