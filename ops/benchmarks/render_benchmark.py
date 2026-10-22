@@ -6,6 +6,7 @@ samples Linux /proc process-tree RSS/CPU and records a local FFmpeg binary
 inventory. Default preset/fps reflect renderer defaults; CI overrides both.
 """
 import argparse
+import ast
 import hashlib
 import json
 import math
@@ -86,6 +87,23 @@ def audit_binary(name):
                                        "has_drawtext", "has_xfade")):
             raise BenchmarkError("FFmpeg lacks a required renderer codec/filter")
     return result
+
+
+def assert_source_ffmpeg_cap():
+    """Prevent the benchmark from silently auditing a stale timeout assumption."""
+    tree = ast.parse(RENDERER.read_text(encoding="utf-8"))
+    matching = [
+        kw.value.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "subprocess" and node.func.attr == "run"
+        for kw in node.keywords
+        if kw.arg == "timeout" and isinstance(kw.value, ast.Constant)
+    ]
+    if matching != [FFMPEG_CAP_SECONDS]:
+        raise BenchmarkError("Renderer subprocess timeout diverges from 780-second budget")
+    return True
 
 
 def budget_assessment(render_seconds, measured_peak_rss_bytes=None, memory_limit_mib=None):
@@ -212,6 +230,7 @@ def run_render(command, timeout=HOST_SECONDS):
 
 
 def benchmark(args):
+    assert_source_ffmpeg_cap()
     binaries = [audit_binary("ffmpeg"), audit_binary("ffprobe")]
     with tempfile.TemporaryDirectory(prefix="retailgrowth-bench-") as directory:
         work = Path(directory)
