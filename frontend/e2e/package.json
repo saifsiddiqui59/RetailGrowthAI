@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "playwright test --config playwright.config.mjs"
+    "test": "playwright test --config playwright.config.mjs",
+    "test:hosted-dev": "playwright test --config hosted.playwright.config.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1"
