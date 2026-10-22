@@ -4,12 +4,33 @@
 const STORAGE_KEY = 'retailgrowthai-auth-v1'
 const ALLOWED_TABLES = new Set(['shops', 'shop_memberships', 'business_profiles', 'media_assets'])
 
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const IMAGE_TYPES = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp' }
+const LICENSES = new Set(['owned', 'cc0', 'royalty_free', 'commercial'])
+
+async function verifyImageBytes(file) {
+  if (!file || typeof file.slice !== 'function' || !IMAGE_TYPES[file.type] ||
+      !Number.isSafeInteger(file.size) || file.size < 100 || file.size > 25 * 1024 * 1024) {
+    throw new Error('Choose a PNG, JPEG or WebP image between 100 bytes and 25 MB.')
+  }
+  const signature = new Uint8Array(await file.slice(0, 12).arrayBuffer())
+  const check = file.type === 'image/png'
+    ? [137,80,78,71,13,10,26,10].every((b,i) => signature[i] === b)
+    : file.type === 'image/jpeg'
+      ? [255,216,255].every((b,i) => signature[i] === b)
+      : [82,73,70,70].every((b,i) => signature[i] === b) &&
+        [87,69,66,80].every((b,i) => signature[i+8] === b)
+  if (!check) throw new Error('Image bytes do not match the declared MIME type.')
+}
+
+
 export function createRetailClient({
   url = import.meta.env?.VITE_SUPABASE_URL,
   key = import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY,
   storage = typeof window === 'undefined' ? null : window.sessionStorage,
   fetchImpl = (...args) => fetch(...args),
   clock = () => Date.now(),
+  uuidFactory = () => crypto.randomUUID(),
 } = {}) {
   const configured = Boolean(url && key && /^https:\/\//.test(url))
   const origin = configured ? url.replace(/\/+$/, '') : ''
@@ -159,6 +180,58 @@ export function createRetailClient({
     if (!rows?.length) throw new Error('Business profile not found or you do not have edit permission')
     return rows[0]
   }
+  async function uploadImageAsset(shopId, { file, licenseName, licenseUrl = '',
+                                              attribution = '', confirmedRights = false }) {
+    ensureConfigured()
+    if (!UUID_V4.test(shopId) || !confirmedRights) {
+      throw new Error('Select a business and confirm commercial media rights.')
+    }
+    if (!LICENSES.has(licenseName) || typeof attribution !== 'string' ||
+        attribution.trim().length < 10 || attribution.trim().length > 500 ||
+        typeof licenseUrl !== 'string' || licenseUrl.length > 500) {
+      throw new Error('Provide your license type and a meaningful evidence/attribution note.')
+    }
+    if (licenseName !== 'owned') {
+      try {
+        const url = new URL(licenseUrl)
+        if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) {
+          throw new Error('invalid license evidence URL')
+        }
+      } catch {
+        throw new Error('Non-owned media requires an HTTPS license evidence URL.')
+      }
+    }
+    await verifyImageBytes(file)
+    const newId = uuidFactory()
+    if (!UUID_V4.test(newId)) throw new Error('Invalid generated upload ID')
+    const objectPath = shopId + '/uploads/' + newId + IMAGE_TYPES[file.type]
+    const token = await accessToken()
+    const response = await fetchImpl(origin + '/storage/v1/object/retailgrowth-media/' + objectPath, {
+      method: 'POST', redirect: 'error',
+      headers: {
+        apikey: key, Authorization: 'Bearer ' + token, 'Content-Type': file.type,
+        'x-upsert': 'false',
+      },
+      body: file,
+    })
+    if (!response.ok) throw new Error('Private image upload was rejected.')
+    // Registration is a restricted, per-user JWT RPC: Postgres checks Storage
+    // object owner, membership, size and MIME. A failed RPC can leave a private
+    // orphan; do not delete on an ambiguous network failure after an insert.
+    const assetId = await send('/rest/v1/rpc/register_uploaded_image', {
+      method: 'POST', token: await accessToken(),
+      body: {
+        p_shop_id: shopId, p_object_path: objectPath, p_license_name: licenseName,
+        p_license_url: licenseUrl || null, p_attribution: attribution.trim(),
+      },
+    })
+    if (!UUID_V4.test(assetId || '')) {
+      throw new Error('Uploaded privately but asset registration was denied. Contact support.')
+    }
+    return { id: assetId, shop_id: shopId, mime_type: file.type,
+      license_name: licenseName, object_path: objectPath }
+  }
+
   async function listMediaAssets(shopId) {
     if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/.test(shopId || '')) throw new Error('Invalid shop ID')
     const rows = await table('media_assets', {
@@ -170,7 +243,7 @@ export function createRetailClient({
   return {
     configured, getStoredSession: () => session, getAccessToken: accessToken,
     signIn, signUp, signOut, getUser,
-    listShops, createShop, getBusinessProfile, updateBusinessProfile, listMediaAssets,
+    listShops, createShop, getBusinessProfile, updateBusinessProfile, listMediaAssets, uploadImageAsset,
   }
 }
 
