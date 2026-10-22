@@ -1,27 +1,125 @@
-name: Frontend bootstrap checks
+name: RetailGrowthAI Part 1 CI
 
+# Runs automatically for all Part 1 branches and PRs, plus manual reruns.
 on:
   push:
-    branches: [main, 'feat/p1-*']
+    branches: [main, 'feat/**', 'chore/**']
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   frontend:
+    name: Frontend build + contract tests
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install npm dependencies
+      - name: Install dependencies (npm ci once lockfile exists)
         working-directory: frontend
-        run: npm install --no-audit --no-fund
-      - name: JavaScript contract tests
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          else
+            echo "::warning::frontend/package-lock.json not committed; using npm install until lockfile is reviewed"
+            npm install --no-audit --no-fund
+          fi
+      - name: JavaScript tests
         working-directory: frontend
         run: npm test
-      - name: Python contract test
-        run: python3 tests/contracts/test_campaign_fixture.py
       - name: Vite production build
         working-directory: frontend
         run: npm run build
+
+  python:
+    name: Python / uv + campaign contract tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: true
+      - name: Install Python 3.13
+        run: uv python install 3.13
+      - name: Resolve and install AI-agent project
+        run: |
+          uv sync --project ai-agents
+          if [ ! -f ai-agents/uv.lock ]; then
+            echo "::warning::Commit ai-agents/uv.lock after dependency selection for reproducible CI"
+          fi
+      - name: Validate campaign contract and AI tests
+        shell: bash
+        run: |
+          paths=(tests/contracts)
+          if [ -d tests/ai ]; then paths+=(tests/ai); fi
+          if [ -d ai-agents/tests ]; then paths+=(ai-agents/tests); fi
+          uv run --project ai-agents --with pytest -- python -m pytest -q "${paths[@]}"
+
+  video:
+    name: FFmpeg codecs + renderer tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version | head -n 1
+      - name: Encode and verify synthetic H.264/AAC sample
+        shell: bash
+        run: |
+          mkdir -p ci-artifacts
+          ffmpeg -nostdin -hide_banner -loglevel error -y \
+            -f lavfi -i "testsrc2=size=360x640:rate=15:duration=2" \
+            -f lavfi -i "sine=frequency=660:sample_rate=44100:duration=2" \
+            -c:v libx264 -preset ultrafast -pix_fmt yuv420p \
+            -c:a aac -shortest ci-artifacts/ffmpeg-smoke.mp4
+          python3 - <<'PY'
+          import json
+          import subprocess
+          result = subprocess.check_output(
+              ["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "ci-artifacts/ffmpeg-smoke.mp4"],
+              text=True,
+          )
+          data = json.loads(result)
+          codecs = {(stream["codec_type"], stream["codec_name"]) for stream in data["streams"]}
+          assert ("video", "h264") in codecs, codecs
+          assert ("audio", "aac") in codecs, codecs
+          assert 1.8 <= float(data["format"]["duration"]) <= 2.2
+          print("PASS: synthetic portrait H.264/AAC video plays for ~2 seconds")
+          PY
+      - name: Execute video-engine owned CI harness when implemented
+        shell: bash
+        run: |
+          if [ -f video-engine/ci.sh ]; then
+            bash video-engine/ci.sh
+          elif find video-engine -type f ! -name '.gitkeep' ! -name 'README.md' | grep -q .; then
+            echo "::error::Video engine code exists; add video-engine/ci.sh with real rendering tests"
+            exit 1
+          else
+            echo "::notice::Renderer has not been implemented: only FFmpeg smoke validated"
+          fi
+      - name: Upload synthetic media evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-smoke
+          path: ci-artifacts/
+          if-no-files-found: ignore
+          retention-days: 3
