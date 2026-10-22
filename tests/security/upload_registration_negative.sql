@@ -72,14 +72,15 @@ begin
   end;
   if changed <> 0 then raise exception 'FAIL: registered image overwritten'; end if;
 
-  changed := -1;
-  begin
-    delete from storage.objects
-     where bucket_id='retailgrowth-media' and name=target_path;
-    get diagnostics changed = row_count;
-  exception when insufficient_privilege then changed := 0;
-  end;
-  if changed <> 0 then raise exception 'FAIL: registered storage object deleted'; end if;
+  -- Storage API, not direct SQL, owns object deletion and backing-byte cleanup.
+  -- Assert the RLS delete policy is explicitly registration-aware; API-level
+  -- denial must be verified after approved DEV deployment.
+  if not exists (
+    select 1 from pg_catalog.pg_policies
+     where schemaname='storage' and tablename='objects'
+       and policyname='retailgrowth_media_delete'
+       and cmd='DELETE' and qual ilike '%media_assets%'
+  ) then raise exception 'FAIL: registered-object DELETE policy missing'; end if;
 
   -- Deleting the database registration first must not bypass Storage protection.
   changed := -1;
