@@ -67,7 +67,7 @@ begin
      where ((state='PENDING' and next_attempt_at<=now())
         or (state='CLAIMED' and lease_until<=now()))
        and delivery_attempts<100
-     order by created_at,id for update skip locked limit p_limit
+     order by created_at,id limit p_limit for update skip locked
   ), claimed as (
     update public.job_outbox o
        set state='CLAIMED',delivery_attempts=o.delivery_attempts+1,
@@ -138,8 +138,8 @@ create function public.complete_campaign_claim(
 returns boolean language plpgsql volatile security invoker set search_path = ''
 as $$
 declare v public.campaigns%rowtype;
-declare d jsonb;
-declare idx int;
+  d jsonb;
+  idx int;
 begin
   select * into v from public.campaigns where id=p_id for update;
   if not found or v.status<>'PLANNING' or v.planning_attempts<>p_attempt
@@ -200,7 +200,7 @@ create function public.complete_render_claim(
 returns boolean language plpgsql volatile security invoker set search_path = ''
 as $$
 declare v public.render_jobs%rowtype;
-declare aid uuid;
+  aid uuid;
 begin
   select * into v from public.render_jobs where id=p_id for update;
   if not found or v.status<>'RUNNING' or v.attempts<>p_attempt
@@ -274,7 +274,7 @@ begin
     where status='PLANNING'
       and ((planning_lease_until is not null and planning_lease_until<now()-interval '60 seconds')
         or (planning_lease_until is null and created_at<now()-interval '60 seconds'))
-    order by created_at for update skip locked limit p_limit
+    order by created_at limit p_limit for update skip locked
   loop
     if v.attempts>=3 then
       update public.campaigns set status='FAILED',planning_error_code='RETRY_EXHAUSTED',
@@ -294,7 +294,7 @@ begin
     where status in ('QUEUED','RUNNING')
       and ((render_lease_until is not null and render_lease_until<now()-interval '60 seconds')
        or (render_lease_until is null and created_at<now()-interval '60 seconds'))
-    order by created_at for update skip locked limit p_limit
+    order by created_at limit p_limit for update skip locked
   loop
     if v.attempts>=3 then
       update public.render_jobs set status='FAILED',error_code='RETRY_EXHAUSTED',
