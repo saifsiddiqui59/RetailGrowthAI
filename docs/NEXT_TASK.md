@@ -51,3 +51,9 @@ Coordinator merged Workstream A PR #5, stacked coordinator PR #6, Workstream B P
 3. Set HTTPS API origin and Supabase publishable values for RetailGrowthAI; test real sign-in, per-tenant uploads/rights and CORS.
 4. Add live save/edit draft API, uploads with licensing, verified final downloads, poison/recovery reconciliation, cost/lease limits and browser E2E.
 5. Commit reviewed npm lockfile, implement production Foundry provider, create separate PROD only with approval. Publishing remains Part 2; Wan Part 3.
+
+## Following the draft-save API milestone (code, not deployed)
+1. Verify the new draft-save SQL/Python/CI changes on a feature PR and merge only after all four jobs pass; confirm post-merge main CI.
+2. Wire a live-only **Save day** UI action using PATCH and its returned persisted day; preserve demo mode, unsaved-change protection and render gating.
+3. Build a proper media registration/upload path with verified license provenance and private-object authorization, plus negative tenant tests; do not trust user-declared licensing alone.
+4. After explicit approval, apply RetailGrowthAI-only pending migrations and deploy isolated DEV API/queues; verify Supabase Auth, JWT, uploads, worker retries, download and browser E2E. No PROD yet.
