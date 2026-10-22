@@ -157,11 +157,11 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 ## 2026-10-22 — GitHub Azure DEV OIDC authentication preparation
 - Coordinator merged [PR #26](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/26) as `8bcaa4d9`: adds a *manual, main-only, read-only* `dev` Azure login verification workflow using `azure/login@v3`, plus `docs/AZURE_GITHUB_OIDC.md` with the repository's immutable OIDC subject and owner setup instructions.
 - PR #26 [CI run #39777549911](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39777549911) passed all four tests before merge. Verify newest post-merge main CI separately; prior intermediate main runs may be cancelled by further merges.
-- **NOT CONNECTED:** ChatGPT GitHub actions cannot create GitHub environment secrets or Entra federated credentials/RBAC. `dev` environment, three Azure ID secrets, matching Azure federated credential and scoped Reader role require owner setup and a separate manual verification run.
+- **Historical PR #26 handoff (superseded):** owner-managed OIDC setup was pending at merge time. The latest verification result appears in the newest checkpoint below; resource-group IAM scope is not independently confirmed.
 - This feature does **not** deploy Functions/queues, authorize migrations, grant Contributor, configure runtime secrets or touch WineShopPOS.
 
 ## 2026-10-22 — Bounded worker timeout/lease safety fix (feature PR, source only)
-- Coordinator merged Azure OIDC documentation PR #27 (`1b755328`); the manual Azure DEV login check is still unverified.
+- Coordinator merged Azure OIDC documentation PR #27 (`1b755328`); the manual Azure DEV login check was then unverified (its later rerun succeeded; see newest checkpoint).
 - Candidate next milestone changes the Flex Functions host timeout from 4 to 20 minutes and appends a **pending** migration making both planning/render claims 25 minutes. FFmpeg remains strictly capped at 780 seconds (13 minutes); a source/package test rejects drift. This prevents a database lease expiring while the host may still be executing under its configured cap.
 - **Not deployment-ready:** actual asset staging/upload and 1080p encoding must be benchmarked under the target plan, failed/stale attempts need a durable reconciler and poison handlers, and the claim token/attempt should fence all final writes. No Azure resource, DEV migration, or WineShopPOS change was made.
 
@@ -169,3 +169,7 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 - Merged [PR #28](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/28) as `4b6ecb779bedaa88ebe487b8f7da679399505b64`. PR [run #39781338310](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39781338310) and **post-merge main** [run #39781848452](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39781848452) each passed all four jobs. Source host 20m, new **unapplied** 25m claim-lease migration, FFmpeg 780s and offline package consistency tests are integrated.
 - Manual read-only [Azure DEV OIDC run #39780713421](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39780713421) **failed** with `AADSTS70025`: the `retailgrowthai-github-dev` Entra app has no configured federated identity credentials. This is an Azure portal owner-action blocker, **not** an Azure deployment. No Supabase hosted migration or WineShopPOS change.
 - Unfinished: durable outbox/poison/reconciler, attempt-fenced job completion, approved runtime benchmarks and live browser-to-cloud E2E. The source-only alignment does NOT authorize cloud deployment.
+
+## Verified Azure OIDC authentication — 2026-10-22 (latest status)
+- The **latest attempt** of [Azure DEV OIDC workflow run #39780713421](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39780713421) completed successfully, including protected environment identifier checks, federated Azure login, and read-only subscription verification. This **supersedes the earlier `AADSTS70025` failure** recorded in prior dated checkpoints.
+- Only read-only authentication/subscription visibility is verified. Resource-group role permissions, deploy permissions, runtime secrets, queues/Functions, hosted DEV migrations and real browser E2E remain unverified or approval-gated. No cloud provisioning or WineShopPOS changes occurred in this docs milestone.
