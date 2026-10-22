@@ -35,3 +35,12 @@ Coordinator/Integrator alone owns `docs/**`, `AGENTS.md`, `README.md`, `frontend
 3. Integrate A's RLS/auth, then B structured campaign generation, then D UI to API and C renderer; can vary based on test readiness.
 4. Verify end-to-end one prompt -> seven days -> seven LinkedIn drafts -> seven Instagram reels with asset tracking/download. Include denial tests, cost bound, job retry/idempotency.
 5. Update PROJECT_STATE, NEXT_TASK, DECISIONS, WORK_LOG and release evidence.
+
+## Active parallel workstreams I / J / K — 2026-10-22
+The original A-D ownership above remains historical. For the current source-only Part 1 hardening sprint, branch heads were initially seeded from `3d4495c3`. All future PRs must target the latest `main`; worker branches should update from `main` before final CI if their code depends on later merges.
+
+- **I — `feat/p1-durable-recovery`**: own `azure-functions/campaign-api/**`, related NEW `supabase/migrations/**`, and `tests/reliability/**` plus directly relevant backend tests. Transactional outbox, replay, poison handling, stale-job reconciliation and attempt/lease-fenced terminal writes. Do NOT apply hosted SQL or use live cloud queues.
+- **J — `feat/p1-azure-dev-readiness`**: own `infra/azure/**`, `scripts/deploy/**` and infrastructure tests. Validate Python Flex app package, approved FFmpeg binary/notice compatibility, 20m host/25m lease assumptions, quotas and low-cost DEV-only guardrails. Do NOT provision or deploy Azure.
+- **K — `feat/p1-integration-e2e-hardening`**: own `tests/e2e/**` and `frontend/e2e/**`. Expand mocked HTTP/browser coverage for authentication, revoked memberships, tenant isolation, authorized uploads, campaign/draft/render/downloads, expired JWT and failures. Hosted E2E remains approval-gated.
+
+**Integration dependency:** review/merge I first (DB/worker semantics), then J (package/runtime verification against I), then K (tests reflecting integrated behavior); handle cross-workstream failures only with small coordinator PRs. Verify four required GitHub Actions checks on each feature PR and every post-merge `main`. Coordinator alone owns `docs/**`, shared interfaces and `.github/workflows/**`. Do not silently update API contracts. No WineShopPOS changes.
