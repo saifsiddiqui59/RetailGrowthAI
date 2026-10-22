@@ -1,5 +1,6 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import sampleCampaign from './features/campaigns/fixtures/sample-campaign.json'
+import CampaignDashboard from './features/campaigns/CampaignDashboard.jsx'
 
 const links = [
   { to: '/', label: 'Overview', end: true },
@@ -26,27 +27,6 @@ function Overview() {
         <p>The seven-day example follows <code>docs/INTERFACES_V1.md</code>. AI generation, rendering, authentication and publishing are not available in this bootstrap.</p>
         <NavLink className="text-link" to="/campaigns">Inspect sample days →</NavLink>
       </section>
-    </>
-  )
-}
-
-function Campaigns() {
-  return (
-    <>
-      <div className="eyebrow">READ-ONLY SAMPLE</div>
-      <h1>Campaign days</h1>
-      <p className="lead">Contract-compliant mock records for frontend development. Nothing here is saved, rendered or published.</p>
-      <div className="day-grid">
-        {sampleCampaign.days.map((day) => (
-          <article className="day-card" key={day.id}>
-            <div className="day-top"><span>Day {day.day_index}</span><span className="tag">DRAFT · mock</span></div>
-            <h2>{day.topic}</h2>
-            <p className="date">{day.scheduled_date}</p>
-            <p>{day.instagram.caption}</p>
-            <div className="day-footer">LinkedIn draft · Instagram Reel storyboard</div>
-          </article>
-        ))}
-      </div>
     </>
   )
 }
@@ -82,7 +62,7 @@ export default function App() {
         <main className="content">
           <Routes>
             <Route path="/" element={<Overview />} />
-            <Route path="/campaigns" element={<Campaigns />} />
+            <Route path="/campaigns" element={<CampaignDashboard />} />
             <Route path="/account" element={<Account />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
