@@ -1,0 +1,101 @@
+name: Azure DEV Static Web Apps — FRONTEND ONLY (manual, approval required)
+
+# No push/PR triggers. This workflow is inert until approved and manually dispatched.
+on:
+  workflow_dispatch:
+    inputs:
+      approval_issue:
+        description: 'Explicitly approved frontend-only request issue number (must be 51)'
+        required: true
+        type: string
+      approval_phrase:
+        description: 'Type FRONTEND_ONLY_DEV_APPROVED only after owner approval'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retailgrowthai-dev-static-preview
+  cancel-in-progress: false
+
+jobs:
+  deploy-frontend-demo:
+    name: Deploy approved mock/demo frontend ONLY
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      inputs.approval_issue == '51' &&
+      inputs.approval_phrase == 'FRONTEND_ONLY_DEV_APPROVED'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Configure this separate protected GitHub environment and main restriction
+    # AFTER explicit owner approval. Never share backend/production secrets with it.
+    environment: dev-frontend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify frontend-only payload and SPA navigation config (no Azure calls)
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f package.json
+          test -f src/App.jsx
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          else
+            npm install --no-audit --no-fund
+          fi
+          npm test
+          npm run build
+          test -s dist/index.html
+          test -f dist/staticwebapp.config.json
+          node - <<'NODE'
+          const fs = require('fs')
+          const config = JSON.parse(fs.readFileSync('dist/staticwebapp.config.json', 'utf8'))
+          if (config.navigationFallback?.rewrite !== '/index.html') {
+            throw new Error('BLOCKED: missing SPA fallback to /index.html')
+          }
+          console.log('Frontend artifact and SPA fallback verified; no hosted API tested.')
+          NODE
+      - name: Require separate DEV frontend deployment token
+        shell: bash
+        env:
+          SWA_DEPLOY_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SWA_DEPLOY_TOKEN:-}" ]; then
+            echo "::error::Missing dev-frontend environment deployment token; no deployment."
+            exit 1
+          fi
+      - name: Upload static React demo to EXISTING approved Azure SWA
+        id: deploy
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: upload
+          app_location: frontend
+          api_location: ''
+          output_location: dist
+          app_build_command: npm run build
+          production_branch: main
+      - name: Report Azure-returned URL (NOT a verified browser smoke)
+        shell: bash
+        env:
+          DEPLOYED_URL: ${{ steps.deploy.outputs.static_web_app_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEPLOYED_URL:-}" ]; then
+            echo "::error::Azure did not return a Static Web Apps URL."
+            exit 1
+          fi
+          case "$DEPLOYED_URL" in
+            https://*.azurestaticapps.net|https://*.azurestaticapps.net/)
+              echo "Azure reported frontend URL: $DEPLOYED_URL" ;;
+            *)
+              echo "::error::Unexpected deployed origin; verify manually in Azure before sharing."
+              exit 1 ;;
+          esac
+          echo "Approval gate 0 only. Hosted SQL, backend Functions, and E2E not approved."
