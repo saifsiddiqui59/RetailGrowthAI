@@ -10,8 +10,9 @@ PRESET = "instagram_reel_30s"
 
 
 class RenderAPI:
-    def __init__(self, user_store, admin, queue):
+    def __init__(self, user_store, admin, queue, *, durable_outbox=False):
         self.users, self.admin, self.queue = user_store, admin, queue
+        self.durable_outbox = durable_outbox
 
     def create(self, token, user_id, campaign_id, body):
         cid = canonical_uuid(campaign_id)
@@ -63,6 +64,9 @@ class RenderAPI:
             if not previous:
                 raise
             return 202, {"job_id": previous["id"], "status": previous["status"]}
+        if self.durable_outbox:
+            # Transactional INSERT trigger already saved the dispatch event.
+            return 202, {"job_id": jid, "status": "QUEUED"}
         try:
             self.queue.enqueue(jid)
         except Exception:
