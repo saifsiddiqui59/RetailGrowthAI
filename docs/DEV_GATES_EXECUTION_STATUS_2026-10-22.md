@@ -24,3 +24,9 @@
 5. Keep separate evidence/comments on GitHub [#51](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/51), [#52](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/52), [#53](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/53), [#54](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/54). All four issues remain open until actually completed. No WineShopPOS or PROD change.
 
 **No Azure Static Web App has been verified, no public URL invented, no Supabase migrations applied, and no hosted tests executed during this checkpoint.**
+
+## Subsequent live re-verification — DEV Release Operator, main a0fd1b4
+- Live `main` = `a0fd1b47b616499baa2ea2f2a50d7d4b0c78b209`, [GitHub Actions #39840388940](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39840388940) all four completed successful jobs.
+- Azure OIDC previous manual login run #39780713421 remains the sole visible manual `workflow_dispatch` run in the latest 20 recorded; no SWA deployment run was observed. No Azure ARM/Cloud Browser integration can enumerate current sites, IAM, budgets or set protected `dev-frontend` secrets here. The actual public SWA URL is **unavailable/unverified**.
+- Supabase connected project `jeearzffnjbvghwjjjrf` ACTIVE_HEALTHY; live ledger exactly three applied and seven pending canonical SQL timestamps. Read-only SQL: all 10 public tables have RLS enabled, zero unprotected; zero auth users, Storage objects, shops, campaigns and render jobs; security lints zero. None of this substitutes for complete independent recoverable backup and restore rehearsal.
+- Gates A/B/C/D all **not executed** in this operator session. No known hosted API endpoints, media URL, E2E results, or verified actual cloud spend/alerts. Owner general go-ahead is recorded, but exact scope, budget, backup/rollback and credential prerequisites still block writes. GitHub #51–#54 include this verification. No WineShopPOS or production touches.
