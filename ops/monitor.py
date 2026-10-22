@@ -12,8 +12,13 @@ from datetime import datetime, timedelta, timezone
 from .recovery import Job, decide, utc_time
 
 
-def summarize(rows, now):
+def summarize(rows, now, *, poison_depths=None):
     now = utc_time(now)
+    poison_depths = poison_depths or {}
+    if (not isinstance(poison_depths, dict)
+            or any(k not in ("planning", "render") or type(v) is not int or v < 0
+                   for k, v in poison_depths.items())):
+        raise ValueError("invalid poison queue depths")
     counts = Counter()
     actions = Counter()
     delayed = Counter()
@@ -32,7 +37,8 @@ def summarize(rows, now):
     return {"total": sum(counts.values()), "statuses": dict(sorted(counts.items())),
             "recoverable": dict(sorted(actions.items())),
             "older_than_15m": dict(sorted(delayed.items())),
-            "requires_operator": bool(actions or delayed)}
+            "poison_queue_depths": dict(sorted(poison_depths.items())),
+            "requires_operator": bool(actions or delayed or any(poison_depths.values()))}
 
 
 def main():
@@ -41,7 +47,8 @@ def main():
         if not isinstance(payload, dict) or not isinstance(payload.get("jobs"), list):
             raise ValueError("expected {'jobs':[...]} snapshot")
         now = utc_time(payload.get("now") or datetime.now(timezone.utc))
-        result = summarize(payload["jobs"], now)
+        result = summarize(payload["jobs"], now,
+                           poison_depths=payload.get("poison_depths", {}))
         print(json.dumps(result, sort_keys=True))
     except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
         print("Invalid offline monitoring snapshot: " + type(exc).__name__, file=sys.stderr)
