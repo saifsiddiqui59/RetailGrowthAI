@@ -46,7 +46,9 @@ test('approval, origin pinning, tenant split and real file signature are mandato
     ]) {
       expect(() => hostedConfig({ ...env, ...changes })).toThrow()
     }
-    writeFileSync(env.RG_E2E_IMAGE_PATH, Buffer.from('not really a photo'))
+    const invalidSignature = Buffer.alloc(128)
+    Buffer.from('not really a photo').copy(invalidSignature)
+    writeFileSync(env.RG_E2E_IMAGE_PATH, invalidSignature)
     expect(() => hostedConfig(env)).toThrow(/Image bytes/)
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
