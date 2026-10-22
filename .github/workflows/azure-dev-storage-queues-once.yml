@@ -95,9 +95,10 @@ jobs:
           for item in changes:
               action=item.get('changeType')
               target=(item.get('resourceId') or '').lower()
-              if action not in ('Create','NoChange') or '/providers/microsoft.storage/storageaccounts/' not in target:
+              if action not in ('Create','NoChange','Ignore') or '/providers/microsoft.storage/storageaccounts/' not in target:
                   raise SystemExit('BLOCKED unexpected Azure what-if type/scope: '+str(action))
-          print('PASS: ARM what-if only proposes new dedicated Storage account, private Blob service/container and queues')
+          assert any(ch.get('changeType')=='Create' for ch in changes),'No new Storage resource detected' 
+          print('PASS: ARM what-if only new Storage resources; ignored nested children allowed, no deletion/modification')
           PY
 
       - name: CREATE exactly one StorageV2 Standard_LRS account with private Blob and four queues
