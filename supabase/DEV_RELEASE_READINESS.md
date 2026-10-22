@@ -42,7 +42,7 @@ The following **seven** local migrations are **not** present in the DEV migratio
 
     This is an **example snapshot**, not an instruction to overwrite any existing history. As migrations are deployed, update it from the actual DEV history.
 3. Run from repository root: `node tests/security/dev-db-preflight.mjs --remote-history /path/to/fresh-dev-history.json`. The command checks project ID, a complete applied prefix, strictly increasing unique timestamps, file presence and critical RLS/outbox/RPC syntax; it reports pending SQL files. It cannot connect to or mutate Supabase.
-4. Run automated disposable-database checks through standard four-job GitHub Actions CI. Existing security CI executes both Node migration preflight tests and `tests/security/durable_recovery_negative.sql` through `rls_negative.sql`. SQL checks use a transaction that rolls back on a local Supabase instance. **This is not proof of hosted RLS behavior**.
+4. Run automated disposable-database checks through standard four-job GitHub Actions CI. Existing security CI independently discovers `tests/security/*.test.mjs` and executes `tests/security/durable_recovery_negative.sql` once on isolated Postgres. SQL checks use a transaction that rolls back on a local Supabase instance. **This is not proof of hosted RLS behavior**.
 
 **Hard STOP** on unknown remote migrations, version/name drift, missing migration, skipped version, non-prefix history, unauthorized project, new unexpected object GRANT, failing negative test, or insufficient recovery evidence. Do not use `migration repair` to conceal drift: it changes tracking state, not physical schema.
 
