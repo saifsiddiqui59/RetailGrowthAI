@@ -121,3 +121,9 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 - Live-mode campaign request preview now uses selected RLS-authorized shop/media IDs, not fixture UUIDs; offline UI remains in demo mode without settings.
 - All changes are GitHub source code and disposable CI tests only. **No Azure Functions deployment, Azure Queue creation, additional Supabase resources, DEV migration push, or browser E2E was performed.** An existing RetailGrowthAI DEV database is not equivalent to a deployed API.
 - Use latest main GitHub Actions run as final CI authority; project is NOT production-ready.
+
+## 2026-10-22 — Draft-save API milestone (feature branch; no deployment)
+- Added authenticated PATCH /api/campaigns/{campaign_id}/days/{day_id} for remotely saving only editable day fields, after v1 campaign shape validation, active OWNER/EDITOR membership and shop asset checks.
+- New migration removes direct authenticated campaign_days UPDATE grants and exposes an optimistic, membership-rechecking save RPC. Concurrent stale writes, non-DRAFT parent campaigns and active queued/running renders fail closed.
+- Added Python API/transport denial tests and disposable Postgres RPC bypass/viewer/conflict checks in the fourth CI job.
+- **Pending:** branch/PR and post-merge CI evidence, DEV migration approval/application, frontend Save button and real browser E2E. No Azure or Supabase hosted resource was modified.
