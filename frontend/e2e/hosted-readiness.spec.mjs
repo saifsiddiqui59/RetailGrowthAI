@@ -7,7 +7,9 @@ import { hostedConfig, checkExpiredJwt, signedDownloadUrl, pollHosted } from './
 function fixture() {
   const dir = mkdtempSync(join(tmpdir(), 'rg-dev-e2e-'))
   const photo = join(dir, 'owned.png')
-  writeFileSync(photo, Buffer.from('89504e470d0a1a0a00000000', 'hex'))
+  const validSignature = Buffer.alloc(128)
+  Buffer.from('89504e470d0a1a0a', 'hex').copy(validSignature)
+  writeFileSync(photo, validSignature)
   const supabase = 'https://jeearzffnjbvghwjjjrf.supabase.co'
   const jwt = 'header.' + Buffer.from(JSON.stringify({ iss: supabase + '/auth/v1', aud: 'authenticated',
     exp: Math.floor(Date.now() / 1000) - 600 })).toString('base64url') + '.signature'
@@ -86,4 +88,14 @@ test('hosted suites are excluded by the existing default offline browser suite',
   expect('hosted-journey.hosted.mjs'.endsWith('.spec.mjs')).toBe(false)
   expect(readFileSync(new URL('./hosted.playwright.config.mjs', import.meta.url), 'utf8'))
     .not.toContain('webServer:')
+})
+
+test('hosted-only journey/config parse safely without invoking any hosted network calls', async () => {
+  const { spawnSync } = await import('node:child_process')
+  const { fileURLToPath } = await import('node:url')
+  for (const name of ['hosted-journey.hosted.mjs', 'hosted.playwright.config.mjs']) {
+    const check = spawnSync(process.execPath, ['--check', fileURLToPath(new URL(name, import.meta.url))],
+      { encoding: 'utf8', timeout: 15000 })
+    expect(check.status, name + ': ' + check.stderr).toBe(0)
+  }
 })
