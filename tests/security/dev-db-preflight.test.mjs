@@ -1,0 +1,64 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { cpSync, mkdtempSync, rmSync, renameSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
+import { DEV_PROJECT_REF, REQUIRED_MIGRATIONS, verifyPreflight } from './dev-db-preflight.mjs';
+
+const sourceMigrations = resolve(import.meta.dirname ?? resolve('.'), '../../supabase/migrations');
+const known = verifyPreflight();
+
+function history(entries) {
+  return { project_ref: DEV_PROJECT_REF, applied: entries };
+}
+function temporaryMigrationCopy(run) {
+  const dir = mkdtempSync(resolve(tmpdir(), 'retailgrowthai-dev-db-'));
+  try {
+    cpSync(sourceMigrations, dir, { recursive: true, force: true });
+    run(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+test('all ten canonical migrations exist with ordered unique timestamps and security markers', () => {
+  assert.deepEqual(known.local.slice(0, REQUIRED_MIGRATIONS.length).map(x => x.file), REQUIRED_MIGRATIONS);
+  assert.equal(known.pending, null);
+});
+test('read-only remote DEV snapshot identifies exact prefix and pending ordered migrations', () => {
+  const result = verifyPreflight({ remoteHistory: history(known.local.slice(0, 3)) });
+  assert.equal(result.appliedCount, 3);
+  assert.equal(result.pending.length, known.local.length - 3);
+  assert.equal(result.pending[0].file, '20261022100400_p1_durable_planning.sql');
+  assert.equal(result.pending.at(-1).file, '20261022220000_p1_durable_recovery.sql');
+});
+test('refuses missing snapshot, wrong project, gaps, duplicates, renamed or newer remote versions', () => {
+  assert.throws(() => verifyPreflight({ requireRemoteHistory: true }), /history is required/);
+  assert.throws(() => verifyPreflight({ remoteHistory: { project_ref: 'wrong-project', applied: [] } }), /dedicated/);
+  const one = known.local[0], two = known.local[1], three = known.local[2];
+  for (const bad of [
+    [one, three],
+    [one, one],
+    [one, { ...two, name: 'wrong_name' }],
+    [one, two, { version: '20991231235959', name: 'fake' }],
+  ]) assert.throws(() => verifyPreflight({ remoteHistory: history(bad) }), /diverges|duplicate/);
+});
+test('rejects gaps, duplicate version files and stripped service-only migration safeguards', () => {
+  temporaryMigrationCopy(dir => {
+    rmSync(resolve(dir, '20261022220000_p1_durable_recovery.sql'));
+    assert.throws(() => verifyPreflight({ migrationDir: dir }), /missing canonical/);
+  });
+  temporaryMigrationCopy(dir => {
+    writeFileSync(resolve(dir, '20261022220000_collision.sql'), 'select 1;');
+    assert.throws(() => verifyPreflight({ migrationDir: dir }), /duplicate migration version/);
+  });
+  temporaryMigrationCopy(dir => {
+    const path = resolve(dir, '20261022220000_p1_durable_recovery.sql');
+    const sql = readFileSync(path, 'utf8').replace('alter table public.job_outbox enable row level security;', '-- removed');
+    writeFileSync(path, sql);
+    assert.throws(() => verifyPreflight({ migrationDir: dir }), /missing required SQL capability/);
+  });
+  temporaryMigrationCopy(dir => {
+    renameSync(resolve(dir, '20261022180000_p1_dev_media_integrity.sql'), resolve(dir, 'broken.sql'));
+    assert.throws(() => verifyPreflight({ migrationDir: dir }), /invalid migration file name|missing canonical/);
+  });
+});
