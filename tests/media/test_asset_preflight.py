@@ -63,6 +63,16 @@ class PreflightTests(unittest.TestCase):
             with self.assertRaisesRegex(AssetPreflightError, "mismatch"):
                 inspect_staged_audio(audio)
 
+    def test_unparseable_audio_duration_denied(self):
+        audio = self.root / "bad.wav"
+        audio.write_bytes(b"placeholder")
+        with patch("asset_preflight._probe", return_value={"streams": [
+            {"codec_type": "audio", "codec_name": "pcm_s16le",
+             "sample_rate": "44100", "channels": 2}
+        ], "format": {"duration": "N/A"}}):
+            with self.assertRaisesRegex(AssetPreflightError, "Invalid audio"):
+                inspect_staged_audio(audio)
+
     def test_probe_timeout_fail_closed(self):
         image = self.root / "image.png"
         image.write_bytes(b"\x89PNG\r\n\x1a\n")
