@@ -76,6 +76,17 @@ resource renderingQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@
   parent: queueService
 }
 
+// Poison queues must exist before hosted Functions indexes the poison handlers.
+resource planningPoisonQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
+  name: 'retail-campaign-planning-poison'
+  parent: queueService
+}
+
+resource renderingPoisonQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
+  name: 'retail-reel-render-poison'
+  parent: queueService
+}
+
 resource flexPlan 'Microsoft.Web/serverfarms@2024-04-01' = {
   name: functionPlanName
   location: location
@@ -132,9 +143,11 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
       }
     }
   }
-  dependsOn: [packageContainer, planningQueue, renderingQueue]
+  dependsOn: [packageContainer, planningQueue, renderingQueue, planningPoisonQueue, renderingPoisonQueue]
 }
 
 output functionAppResourceId string = functionApp.id
 output planningQueueName string = planningQueue.name
 output renderingQueueName string = renderingQueue.name
+output planningPoisonQueueName string = planningPoisonQueue.name
+output renderingPoisonQueueName string = renderingPoisonQueue.name

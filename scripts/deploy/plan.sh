@@ -12,5 +12,6 @@ if [ "$actual" != "$RETAIL_AZURE_SUBSCRIPTION_ID" ]; then
   echo "Subscription mismatch; refusing preview" >&2; exit 3
 fi
 root="$(cd "$(dirname "$0")/../.." && pwd)"
+python3 "$root/scripts/deploy/release_package.py" --parameters "$1" --check-parameters
 az deployment group what-if --resource-group "$RETAIL_AZURE_DEV_RG" --subscription "$RETAIL_AZURE_SUBSCRIPTION_ID" --template-file "$root/infra/azure/main.bicep" --parameters "@$1"
 echo "What-if only: NO resource creation and NO code deployment"

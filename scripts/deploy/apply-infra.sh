@@ -21,4 +21,14 @@ if [ "$actual" != "$RETAIL_AZURE_SUBSCRIPTION_ID" ]; then
   echo "Wrong subscription; no cloud write" >&2; exit 3
 fi
 root="$(cd "$(dirname "$0")/../.." && pwd)"
+python3 "$root/scripts/deploy/release_package.py" --parameters "$2" --check-parameters
+# Do not reapply declarative Bicep appSettings to an existing site: it can erase protected keys.
+app_name="$(python3 "$root/scripts/deploy/release_package.py" --parameters "$2" --get-function-name)"
+existing="$(az resource list --resource-group "$RETAIL_AZURE_DEV_RG" --subscription "$RETAIL_AZURE_SUBSCRIPTION_ID" --resource-type Microsoft.Web/sites --query "[?name=='$app_name'].id" -o tsv)"
+if [ -n "$existing" ]; then
+  echo "BLOCKED: existing Function App; protected settings might be overwritten" >&2
+  exit 3
+fi
+# Fail closed if this OIDC identity is not an exact-RG scoped Contributor.
+bash "$root/scripts/deploy/azure-readonly-preflight.sh" iam
 az deployment group create --resource-group "$RETAIL_AZURE_DEV_RG" --subscription "$RETAIL_AZURE_SUBSCRIPTION_ID" --template-file "$root/infra/azure/main.bicep" --parameters "@$2"
