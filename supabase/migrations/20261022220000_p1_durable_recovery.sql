@@ -144,7 +144,7 @@ begin
   select * into v from public.campaigns where id=p_id for update;
   if not found or v.status<>'PLANNING' or v.planning_attempts<>p_attempt
      or v.planning_claim_token is distinct from p_token
-     or v.planning_lease_until<=now() or p_token is null then return false; end if;
+     or v.planning_lease_until is null or v.planning_lease_until<=now() or p_token is null then return false; end if;
   if not exists (select 1 from public.shop_memberships m
       where m.shop_id=v.shop_id and m.user_id=v.created_by and m.active
         and m.role in ('OWNER','EDITOR')) then return false; end if;
@@ -205,7 +205,7 @@ begin
   select * into v from public.render_jobs where id=p_id for update;
   if not found or v.status<>'RUNNING' or v.attempts<>p_attempt
     or v.render_claim_token is distinct from p_token or p_token is null
-    or v.render_lease_until<=now() then return false; end if;
+    or v.render_lease_until is null or v.render_lease_until<=now() then return false; end if;
   if p_object_path is distinct from
        (v.shop_id::text||'/renders/'||v.id::text||'/'||p_token::text||'.mp4')
     then return false; end if;
@@ -265,7 +265,6 @@ create function public.reconcile_stale_jobs(p_limit int default 30)
 returns jsonb language plpgsql volatile security invoker set search_path = ''
 as $$
 declare v record;
-declare queued int:=0;
 declare failed int:=0;
 begin
   if p_limit<1 or p_limit>100 then raise exception 'invalid reconcile limit'; end if;
@@ -287,7 +286,6 @@ begin
         and ((state='SENT' and sent_at<now()-interval '5 minutes')
           or (state='PENDING' and next_attempt_at<now()-interval '5 minutes')
           or (state='CLAIMED' and lease_until<now()-interval '60 seconds'));
-      get diagnostics queued = row_count; -- overwritten below; only observability
     end if;
   end loop;
   for v in
@@ -310,9 +308,22 @@ begin
           or (state='CLAIMED' and lease_until<now()-interval '60 seconds'));
     end if;
   end loop;
+  -- A permanently unsendable outbox must not strand a job forever.
+  update public.campaigns c set status='FAILED',planning_error_code='QUEUE_RETRY_EXHAUSTED',
+    planning_claim_token=null,planning_lease_until=null
+    from public.job_outbox o
+    where o.kind='planning' and o.job_id=c.id and o.delivery_attempts>=100
+      and c.status='PLANNING'
+      and (c.planning_lease_until is null or c.planning_lease_until<now()-interval '60 seconds');
+  update public.render_jobs j set status='FAILED',error_code='QUEUE_RETRY_EXHAUSTED',
+    render_claim_token=null,render_lease_until=null
+    from public.job_outbox o
+    where o.kind='render' and o.job_id=j.id and o.delivery_attempts>=100
+      and j.status in ('QUEUED','RUNNING')
+      and (j.render_lease_until is null or j.render_lease_until<now()-interval '60 seconds');
   return jsonb_build_object('failed',failed);
 end;
-$$;
+$;
 
 do $$
 declare f text;
