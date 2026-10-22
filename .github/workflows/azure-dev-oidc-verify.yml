@@ -1,0 +1,54 @@
+name: Azure DEV OIDC connection check (read-only)
+
+# This must never provision, deploy, or modify Azure resources.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-azure-dev:
+    name: Verify federated Azure login only
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Validate Azure environment secrets are present
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing required dev environment secret: ${name}"
+              exit 1
+            fi
+          done
+
+      - name: Authenticate with Azure using GitHub OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify selected Azure subscription (no resource changes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          az account show --query '{subscriptionName:name, state:state}' --output json
+          test "$(az account show --query state --output tsv)" = "Enabled"
+          echo "Azure OIDC authentication succeeded; no resources were deployed."
+
+      - name: Remove Azure login from runner
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
