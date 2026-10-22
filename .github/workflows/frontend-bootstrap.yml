@@ -54,6 +54,19 @@ jobs:
         run: |
           # Network mirrors occasionally stall; fail visibly, never skip browser tests.
           timeout --signal=TERM --kill-after=10s 180s npm install --prefix e2e --no-audit --no-fund
+          # GitHub Ubuntu runners route apt via mirror+file:/etc/apt/apt-mirrors.txt.
+          # An unhealthy Azure archive caused browser setup to reach the 420s
+          # timeout in main run #39826247419. Switch the ephemeral runner to
+          # Ubuntu's official archive before installing Playwright dependencies.
+          # Do not disable Chromium installation or the actual browser tests.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'http://archive.ubuntu.com/ubuntu/' |
+              sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+            sudo sed -i 's#http://azure.archive.ubuntu.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' \
+              /etc/apt/sources.list.d/ubuntu.sources
+          fi
           timeout --signal=TERM --kill-after=10s 420s ./e2e/node_modules/.bin/playwright install --with-deps chromium
       - name: Execute mocked React browser E2E (when present)
         if: ${{ hashFiles('frontend/e2e/package.json') != '' }}
