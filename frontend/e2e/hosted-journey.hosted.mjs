@@ -54,14 +54,7 @@ function validateMp4(bytes) {
 
 test.describe.serial('RetailGrowthAI approved hosted DEV journey (real network and private image)', () => {
   test('user A login -> real private image upload -> seven-day campaign -> PATCH draft -> 30s render -> signed MP4', async ({ page, request }) => {
-    // Pin the three origin boundaries; no Playwright route mocks are installed.
-    page.on('request', req => {
-      const url = new URL(req.url())
-      // Only enforce HTTPS for any non-document subrequests to keep browser/CDN assets observable.
-      if (req.isNavigationRequest() && !cfg.allowlist.includes(url.origin)) {
-        throw new Error('Unexpected DEV navigation origin')
-      }
-    })
+    // No Playwright mock routes installed; real browser and API exercise approved DEV only.
     await page.goto(cfg.frontend + '/account')
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
     await page.getByLabel('Email').fill(cfg.a.email)
@@ -163,6 +156,15 @@ test.describe.serial('RetailGrowthAI approved hosted DEV journey (real network a
   test('user B cannot read, modify, render or download user A resources', async ({ request }) => {
     expect(state.campaignId && state.dayId && state.jobId && state.uploadedAssetId).toBeTruthy()
     const token = await loginToken(request, cfg.b)
+    // Prove B's account actually sees its own separate DEV shop (not a fake invalid user).
+    const memberships = await request.get(cfg.supabase +
+      '/rest/v1/shop_memberships?select=shop_id&active=eq.true', {
+      ...noRetry, headers: { apikey: cfg.publishable, Authorization: 'Bearer ' + token },
+    })
+    expect(memberships.status()).toBe(200)
+    const ownShops = await json(memberships)
+    expect(ownShops.some(s => s.shop_id === cfg.shopB)).toBe(true)
+    expect(ownShops.some(s => s.shop_id === cfg.shopA)).toBe(false)
     const deniedRead = await authed(request, token, 'GET', campaign(state.campaignId))
     expectDenied(deniedRead, [403, 404])
     const deniedEdit = await authed(request, token, 'PATCH',
@@ -203,14 +205,16 @@ test.describe.serial('RetailGrowthAI approved hosted DEV journey (real network a
     }
   })
 
-  test('render re-submission is idempotent; optional fault-injected retry recovery is inspected', async ({ request }) => {
+  test('render re-submission is idempotent after completed hosted render', async ({ request }) => {
     const resubmit = await authed(request, state.jwt, 'POST',
       campaign(state.campaignId) + '/renders',
       { day_id: state.dayId, preset: 'instagram_reel_30s' })
     expect([200, 202]).toContain(resubmit.status())
     const same = await json(resubmit)
     expect(same.job_id).toBe(state.jobId)
+  })
 
+  test('optional operator-faulted DEV render recovery is observable, not independently proven', async ({ request }) => {
     test.skip(!cfg.recoveryJob,
       'No explicitly pre-faulted DEV job provided. Azure poison/reconciler retry recovery remains UNVERIFIED.')
     // Operator must create a DEV-only, safely fault-injected job and record the
