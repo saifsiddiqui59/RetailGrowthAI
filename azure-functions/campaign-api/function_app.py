@@ -7,6 +7,9 @@ import azure.functions as func
 from http_api import HTTPAPI
 from security import SupabaseJWTVerifier
 from tenant_store import TenantStore
+from queue_adapter import AzurePlanningQueue
+from admin_store import AdminStore
+from planning_worker import process_campaign
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -15,7 +18,10 @@ def build_api():
     # Fail closed when environment settings are absent or malformed.
     url = os.environ["RETAIL_SUPABASE_URL"]
     key = os.environ["RETAIL_SUPABASE_PUBLISHABLE_KEY"]
-    return HTTPAPI(SupabaseJWTVerifier(url), TenantStore(url, key))
+    # Queue is only usable if an existing Azure Storage Queue has been configured.
+    connection = os.environ.get("RETAIL_STORAGE")
+    queue = AzurePlanningQueue(connection) if connection else None
+    return HTTPAPI(SupabaseJWTVerifier(url), TenantStore(url, key), queue)
 
 
 def dispatch(request, path):
@@ -45,3 +51,18 @@ def create_campaign(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="campaigns/{campaign_id}", methods=["GET"])
 def read_campaign(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/campaigns/" + req.route_params["campaign_id"])
+
+
+@app.queue_trigger(arg_name="message", queue_name="retail-campaign-planning",
+                   connection="RETAIL_STORAGE")
+def plan_campaign(message: func.QueueMessage):
+    # The message contains ONLY a canonical UUID; no user tokens or media URLs.
+    admin = AdminStore(
+        os.environ["RETAIL_SUPABASE_URL"],
+        os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"],
+    )
+    cid = message.get_body().decode("ascii")
+    process_campaign(
+        cid, admin,
+        mock_enabled=os.environ.get("RETAIL_ENABLE_MOCK_CAMPAIGNS") == "true",
+    )

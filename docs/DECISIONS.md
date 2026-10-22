@@ -59,3 +59,5 @@
 - Keep API POST returning 503 until a persistent, acknowledged queue exists. Never present an in-memory queue or unqueued write as accepted.
 
 - Pin FFmpeg CI runner to `ubuntu-24.04` after the rolling runner introduced FFmpeg 8 with unverified pixel-format behavior. Keep all smoke, codec, duration and content assertions enabled; verify compatibility before upgrading.
+
+- Durable planning uses existing Supabase campaigns as atomic idempotent claim state plus Azure Storage Queue for persisted deliveries. Worker uses service role only server-side, never trusts message/asset rights and never self-provisions cloud resources.

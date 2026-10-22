@@ -28,3 +28,7 @@ Coordinator merged Workstream A PR #5, stacked coordinator PR #6, Workstream B P
 - Add durable queue + worker + retry/idempotent database operations before enabling POST. No accepted campaign may be silently dropped.
 - Then expose renderer jobs and signed media downloads; wire React only with authenticated non-mock campaign data.
 - Review and test HTTP boundary with real Azure Functions host locally; this milestone has tests but no cloud deployment.
+
+## After durable planning code
+- Review migration and apply to isolated RetailGrowthAI DEV only after explicit deployment authorization. Provision/configure an Azure Queue only after approval, then verify queue poison/retry and seeded load tests.
+- Add tenant-safe render jobs, a verified media staging worker and signed downloads. Connect React to deployed endpoints only after auth/asset live E2E.

@@ -26,3 +26,5 @@ Use scripts/checkpoint.sh after completing a task.
 - 2026-10-22: Authenticated Azure Functions HTTP adapter work proposed in isolated PR. JWT cryptographic, tenant-scoped PostgREST, fail-closed queue gating and negative tests added. No resource provisioned or WineShopPOS change.
 
 - 2026-10-22: PR #7 Python and frontend checks passed; media CI encountered FFmpeg 8/toolchain mismatch on rolling runner. Pinned video job to Ubuntu 24.04 for repeatable media verification; no tests disabled. Re-run full four-job CI.
+
+- 2026-10-22: Prepared small stacked durable-planning PR: Azure Queue producer and trigger, Postgres atomic lease migration, service-only worker, revocation/license checks, retry tests. No resource/migration deployed; awaiting review and CI.
