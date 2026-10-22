@@ -10,8 +10,8 @@ class FlexReadinessTests(unittest.TestCase):
     def test_python_v2_runtime_region_and_cost_limits(self):
         bicep = (ROOT / "infra/azure/main.bicep").read_text()
         for setting in (
-            "FUNCTIONS_WORKER_RUNTIME", "FUNCTIONS_EXTENSION_VERSION",
-            "'python'", "'~4'", "instanceMemoryMB: instanceMemoryMB",
+            "runtime: { name: 'python', version: '3.12' }",
+            "instanceMemoryMB: instanceMemoryMB",
             "maximumInstanceCount: maxInstances", "tier: 'FlexConsumption'",
             "@allowed(['centralindia'])",
             "allowBlobPublicAccess: false", "supportsHttpsTrafficOnly: true",
@@ -19,6 +19,8 @@ class FlexReadinessTests(unittest.TestCase):
             self.assertIn(setting, bicep)
         self.assertIn("@allowed([1, 2])\nparam maxInstances int = 1", bicep)
         self.assertIn("@allowed([2048])\nparam instanceMemoryMB int = 2048", bicep)
+        self.assertNotIn("FUNCTIONS_WORKER_RUNTIME", bicep)
+        self.assertNotIn("FUNCTIONS_EXTENSION_VERSION", bicep)
         self.assertNotIn("alwaysReady", bicep)
         self.assertNotIn("WEBSITE_RUN_FROM_PACKAGE", bicep)
 

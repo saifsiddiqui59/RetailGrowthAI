@@ -89,7 +89,7 @@ resource flexPlan 'Microsoft.Web/serverfarms@2024-04-01' = {
 }
 
 // Backend secrets are intentionally NOT template parameters or outputs.
-var storageConnection = format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix=core.windows.net', storage.name, listKeys(storage.id, '2023-05-01').keys[0].value)
+var storageConnection = format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', storage.name, storage.listKeys().keys[0].value, environment().suffixes.storage)
 
 resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
   name: functionAppName
@@ -109,8 +109,6 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
         supportCredentials: false
       }
       appSettings: [
-        { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'python' }
-        { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
         { name: 'AzureWebJobsStorage', value: storageConnection }
         { name: 'RETAIL_STORAGE', value: storageConnection }
         { name: 'RETAIL_ENABLE_MOCK_CAMPAIGNS', value: 'false' }
