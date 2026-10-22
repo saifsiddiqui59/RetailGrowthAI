@@ -1,0 +1,60 @@
+name: RetailGrowthAI DEV Python backend publish prerequisites (read-only)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/dev-backend-code-readiness-once.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+jobs:
+  audit:
+    if: github.ref == 'refs/heads/main' && github.repository == 'saifsiddiqui59/RetailGrowthAI'
+    runs-on: ubuntu-24.04
+    environment: dev
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      SUPABASE_SERVICE: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_PUBLISHABLE: ${{ secrets.RETAIL_SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_DB: ${{ secrets.RETAIL_SUPABASE_DB_URL }}
+      FFMPEG_SOURCE: ${{ vars.RETAIL_APPROVED_FFMPEG_SOURCE }}
+    steps:
+      - uses: actions/checkout@v7
+        with: { persist-credentials: false }
+      - name: Check source release ZIP validations and env presence without values
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/deploy/package.py --check
+          echo "PACKAGE_SOURCE_CHECK: PASS"
+          if [ -n "${SUPABASE_SERVICE:-}" ]; then echo "RETAIL_SUPABASE_SERVICE_ROLE_KEY: PRESENT"; else echo "RETAIL_SUPABASE_SERVICE_ROLE_KEY: MISSING"; fi
+          if [ -n "${SUPABASE_PUBLISHABLE:-}" ]; then echo "RETAIL_SUPABASE_PUBLISHABLE_KEY: PRESENT"; else echo "RETAIL_SUPABASE_PUBLISHABLE_KEY: MISSING"; fi
+          if [ -n "${SUPABASE_DB:-}" ]; then echo "RETAIL_SUPABASE_DB_URL: PRESENT"; else echo "RETAIL_SUPABASE_DB_URL: MISSING (canonical-version migration CLI cannot connect)"; fi
+          if [ -n "${FFMPEG_SOURCE:-}" ]; then echo "APPROVED_FFMPEG_SOURCE: DECLARED (license + ELF validation still required)"; else echo "APPROVED_FFMPEG_SOURCE: MISSING"; fi
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Check existing Functions configuration names and indexed functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$SUB"
+          rg=rg-retailgrowth-dev
+          app=rgai-dev-functions-d4e5ddbd
+          az functionapp show -g "$rg" -n "$app" --query '{name:name,state:state,kind:kind}' -o json
+          names="$(az functionapp config appsettings list -g "$rg" -n "$app" --query '[].name' -o tsv)"
+          for key in AzureWebJobsStorage RETAIL_STORAGE RETAIL_SUPABASE_URL RETAIL_SUPABASE_PUBLISHABLE_KEY RETAIL_SUPABASE_SERVICE_ROLE_KEY; do
+            if grep -Fxq "$key" <<< "$names"; then echo "AZURE_HOST_SETTING $key: PRESENT"; else echo "AZURE_HOST_SETTING $key: MISSING"; fi
+          done
+          # Never print credential values, function keys, storage account keys or tenant data.
+          echo "READONLY: Functions host code publication and release manifest remain separate actions."
+      - name: Logout
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
