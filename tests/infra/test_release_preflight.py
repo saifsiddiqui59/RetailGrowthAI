@@ -70,6 +70,7 @@ def inventory():
         ],
         "queues": [{"name": "default/" + q} for q in validator.QUEUES.values()],
         "budgets": {"value": [{
+            "id": f"{SCOPE}/providers/Microsoft.Consumption/budgets/dev-cost",
             "properties": {
                 "category": "Cost", "timeGrain": "Monthly", "amount": BUDGET_LIMIT,
                 "notifications": {
@@ -181,6 +182,32 @@ class ReleasePreflightTests(unittest.TestCase):
             with self.subTest(mutation=mutation):
                 self.assertTrue(any("budget" in i for i in run(snapshot)))
         self.assertTrue(run(inventory(), monthly_budget_limit=None))
+
+    def test_subscription_level_budget_does_not_count_as_dev_rg_budget(self):
+        snapshot = inventory()
+        snapshot["budgets"]["value"][0]["id"] = (
+            f"/subscriptions/{SUB}/providers/Microsoft.Consumption/budgets/subscription-cost"
+        )
+        self.assertTrue(any("budget" in x for x in run(snapshot)))
+
+    def test_other_resource_group_budget_does_not_count(self):
+        snapshot = inventory()
+        snapshot["budgets"]["value"][0]["id"] = (
+            f"/subscriptions/{SUB}/resourceGroups/rg-other-dev/"
+            "providers/Microsoft.Consumption/budgets/other"
+        )
+        self.assertTrue(any("budget" in x for x in run(snapshot)))
+
+    def test_budget_snapshot_includes_resource_scope_not_just_amount(self):
+        shell = (ROOT / "scripts/deploy/azure-readonly-preflight.sh").read_text()
+        self.assertIn("value[].{id:id,properties:properties}", shell)
+
+    def test_bicep_declares_poison_queues_as_resources(self):
+        bicep = (ROOT / "infra/azure/main.bicep").read_text()
+        for queue in ("retail-campaign-planning-poison", "retail-reel-render-poison"):
+            self.assertIn("name: '" + queue + "'", bicep)
+        self.assertIn("planningPoisonQueue, renderingPoisonQueue", bicep)
+
 
     def test_frontend_origin_must_be_exact_https(self):
         for origin in ("http://retailgrowth-dev.example.test", "https://*.example.test",
