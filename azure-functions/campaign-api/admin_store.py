@@ -22,7 +22,7 @@ class AdminStore:
 
     def request(self, path, *, query=None, data=None, method="GET", upsert=False):
         if path not in ("rpc/claim_campaign_job", "campaigns", "campaign_days",
-                        "shop_memberships", "media_assets"):
+                        "shop_memberships", "media_assets", "render_jobs"):
             raise ValueError("unsupported worker path")
         url = self.origin + "/rest/v1/" + path
         if query:
@@ -102,3 +102,36 @@ class AdminStore:
             "status": status, "planning_error_code": code,
             "planning_lease_until": None,
         })
+
+
+    def valid_media(self, shop_id, asset_ids):
+        sid = canonical_uuid(shop_id)
+        ids = {canonical_uuid(asset_id) for asset_id in asset_ids}
+        if not ids or len(ids) > 21:
+            return False
+        rows = self.request("media_assets", query={
+            "select": "id,shop_id,license_name", "shop_id": "eq." + sid,
+            "id": "in.(" + ",".join(sorted(ids)) + ")",
+        })
+        return (len(rows) == len(ids) and {row["id"] for row in rows} == ids
+                and all(row["shop_id"] == sid and row.get("license_name") in
+                        ("owned", "cc0", "royalty_free", "commercial") for row in rows))
+
+    def find_render_job(self, shop_id, key):
+        rows = self.request("render_jobs", query={
+            "select": "id,status",
+            "shop_id": "eq." + canonical_uuid(shop_id),
+            "idempotency_key": "eq." + key, "limit": "1",
+        })
+        return rows[0] if rows else None
+
+    def insert_render_job(self, row):
+        result = self.request("render_jobs", method="POST", data=row)
+        if len(result) != 1 or result[0]["id"] != row["id"]:
+            raise StorageUnavailable("render job not persisted")
+
+    def fail_render_job(self, job_id, shop_id, reason):
+        self.request("render_jobs", method="PATCH", query={
+            "id": "eq." + canonical_uuid(job_id),
+            "shop_id": "eq." + canonical_uuid(shop_id),
+        }, data={"status": "FAILED", "error_code": reason})

@@ -37,7 +37,7 @@ class TenantStore:
         self.transport = transport or urlopen
 
     def _request(self, table, token, *, query=None, method="GET", data=None):
-        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days"}:
+        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs"}:
             raise ValueError("unsupported table")
         url = self.origin + "/rest/v1/" + table
         if query:
@@ -123,3 +123,54 @@ class TenantStore:
         self._request("campaigns", token, method="PATCH",
                       query={"id": "eq." + canonical_uuid(campaign_id)},
                       data={"status": "FAILED"})
+
+
+    def render_job(self, token, user_id, job_id):
+        jid = canonical_uuid(job_id)
+        found = self._request("render_jobs", token, query={
+            "select": "id,shop_id,status,output_asset_id,error_code",
+            "id": "eq." + jid, "limit": "1",
+        })
+        if len(found) != 1 or found[0]["id"] != jid:
+            return None
+        item = found[0]
+        if not self.member(token, user_id, item["shop_id"]):
+            return None
+        return item
+
+    def asset(self, token, shop_id, asset_id):
+        sid, aid = canonical_uuid(shop_id), canonical_uuid(asset_id)
+        rows = self._request("media_assets", token, query={
+            "select": "id,shop_id,storage_bucket,object_path,mime_type",
+            "id": "eq." + aid, "shop_id": "eq." + sid, "limit": "1",
+        })
+        if len(rows) != 1 or rows[0]["shop_id"] != sid or rows[0]["id"] != aid:
+            return None
+        result = rows[0]
+        if result["storage_bucket"] != "retailgrowth-media" or not result["object_path"].startswith(sid + "/"):
+            return None
+        return result
+
+    def sign_download(self, token, shop_id, object_path):
+        """Request a short-lived link with the real user's RLS-scoped JWT."""
+        from urllib.parse import quote
+        sid = canonical_uuid(shop_id)
+        if (not isinstance(object_path, str) or not object_path.startswith(sid + "/")
+                or ".." in object_path.split("/") or "\\" in object_path):
+            raise ValueError("invalid private object path")
+        prefix = "/object/sign/retailgrowth-media/" + quote(object_path, safe="/")
+        req = Request(
+            self.origin + "/storage/v1" + prefix, method="POST",
+            data=b'{"expiresIn":60}',
+            headers={"apikey": self.key, "Authorization": "Bearer " + token,
+                     "Content-Type": "application/json"},
+        )
+        try:
+            with self.transport(req, timeout=8) as response:
+                result = json.loads(response.read().decode())
+        except (HTTPError, URLError, OSError, json.JSONDecodeError) as exc:
+            raise StorageUnavailable("signed media authorization unavailable") from exc
+        link = result.get("signedURL") if isinstance(result, dict) else None
+        if not isinstance(link, str) or not link.startswith(prefix + "?token="):
+            raise StorageUnavailable("invalid signed storage response")
+        return self.origin + "/storage/v1" + link
