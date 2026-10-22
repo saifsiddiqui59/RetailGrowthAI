@@ -74,7 +74,8 @@ jobs:
           if [ -d tests/ai ]; then paths+=(tests/ai); fi
           if [ -d ai-agents/tests ]; then paths+=(ai-agents/tests); fi
           if [ -d tests/integration ]; then paths+=(tests/integration); fi
-          uv run --project ai-agents --with pytest -- python -m pytest -q "${paths[@]}"
+          if [ -d tests/api ]; then paths+=(tests/api); fi
+          uv run --project ai-agents --with pytest --with "PyJWT[crypto]==2.10.1" -- python -m pytest -q "${paths[@]}"
 
   video:
     name: FFmpeg codecs + renderer tests

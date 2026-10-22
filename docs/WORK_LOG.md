@@ -22,3 +22,5 @@ Use scripts/checkpoint.sh after completing a task.
 - 2026-10-22: Coordinator added `tests/integration/test_campaign_render_contract.py` and scheduled it in Python CI: B MockFoundryProvider output validates against C renderer manifests for all seven days, and negative tests reject forged shop IDs, unknown assets and synthetic media without CI-only permission. Updated canonical docs to distinguish offline integration from missing hosted API, queue, private signed assets and browser E2E. Check final main CI before claiming success.
 
 - 2026-10-22: Coordinator optimized FFmpeg GitHub Actions setup after the final integrated build's media job remained in unconditional apt installation: reuse runner's installed ffmpeg/ffprobe when present, install only when missing. Full synthetic 2s and 30s video checks remain unchanged and mandatory. Recheck newest main CI; earlier run #39755629270 was not yet complete when this change was made.
+
+- 2026-10-22: Authenticated Azure Functions HTTP adapter work proposed in isolated PR. JWT cryptographic, tenant-scoped PostgREST, fail-closed queue gating and negative tests added. No resource provisioned or WineShopPOS change.
