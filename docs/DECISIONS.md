@@ -67,3 +67,5 @@
 - Keep renderer as bounded server-only Queue trigger consuming opaque job IDs; regenerate trusted manifest using tenant-authenticated DB rows and private media paths. Persist deterministic output key and never allow arbitrary browser-provided FFmpeg paths. Quota/lease sizing must be benchmarked before cloud deployment.
 
 - Frontend must never send synthetic fixture asset IDs; authenticated live mode selects previously authorized per-shop media via RLS. API calls refresh the Supabase access token, reject redirects and gate signed downloads to the configured private storage origin. Unsaved edits remain local and cannot be rendered as saved server drafts.
+
+- The campaign status column remains server-owned. Privileged cleanup is narrowly filtered by campaign, tenant, owner and status. Use opaque sb_secret_ keys only in apikey; reject unverified existing rendered objects rather than treating 409 as upload success.

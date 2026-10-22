@@ -9,11 +9,12 @@ from tenant_store import StorageUnavailable, canonical_uuid
 
 
 class HTTPAPI:
-    def __init__(self, verify_token, store, planning_queue=None, render_api=None):
+    def __init__(self, verify_token, store, planning_queue=None, render_api=None, failure_store=None):
         self.verify_token = verify_token
         self.store = store
         self.planning_queue = planning_queue
         self.render_api = render_api
+        self.failure_store = failure_store
 
     def handle(self, method, path, authorization, body=None):
         try:
@@ -35,7 +36,7 @@ class HTTPAPI:
                 return self.render_api.get(token, user_id, target)
             if method == "POST" and path == "/campaigns":
                 # Fail closed BEFORE writing if durable queue is not yet configured.
-                if self.planning_queue is None:
+                if self.planning_queue is None or self.failure_store is None:
                     return 503, {"error": "PLANNING_NOT_CONFIGURED"}
                 brief = CampaignBrief.from_dict(body)
                 if not self.store.member(token, user_id, brief.shop_id, write=True):
@@ -48,7 +49,7 @@ class HTTPAPI:
                     self.planning_queue.enqueue(cid)
                 except Exception:
                     # A failed durable enqueue must not masquerade as an accepted job.
-                    self.store.fail(token, cid)
+                    self.failure_store.fail_pending(cid, brief.shop_id, user_id)
                     return 503, {"error": "QUEUE_UNAVAILABLE"}
                 return 202, {"campaign_id": cid, "status": "PLANNING"}
             if method == "GET" and path.startswith("/campaigns/"):

@@ -13,6 +13,15 @@ from urllib.request import Request, urlopen
 from tenant_store import StorageUnavailable, canonical_uuid
 
 
+def backend_headers(secret):
+    """Use opaque Supabase secret keys as API keys, not bearer tokens."""
+    if isinstance(secret, str) and secret.startswith("sb_secret_"):
+        return {"apikey": secret}
+    if isinstance(secret, str) and secret.startswith("eyJ") and secret.count(".") == 2:
+        return {"apikey": secret, "Authorization": "Bearer " + secret}
+    raise ValueError("unsupported backend Supabase secret key format")
+
+
 class AdminStore:
     def __init__(self, origin, service_role_key, transport=None):
         if not origin.startswith("https://") or not service_role_key:
@@ -28,7 +37,7 @@ class AdminStore:
         if query:
             url += "?" + urlencode(query, safe="(),.*")
         headers = {
-            "apikey": self.secret, "Authorization": "Bearer " + self.secret,
+            **backend_headers(self.secret),
             "Accept": "application/json", "Content-Type": "application/json",
         }
         if method != "GET":
@@ -42,6 +51,18 @@ class AdminStore:
                 return json.loads(raw.decode()) if raw else None
         except (HTTPError, URLError, OSError, json.JSONDecodeError) as exc:
             raise StorageUnavailable("worker database request failed") from exc
+
+    def fail_pending(self, campaign_id, shop_id, created_by):
+        """Backend-only cleanup; user RLS must not grant status updates."""
+        rows = self.request("campaigns", method="PATCH", query={
+            "id": "eq." + canonical_uuid(campaign_id),
+            "shop_id": "eq." + canonical_uuid(shop_id),
+            "created_by": "eq." + canonical_uuid(created_by),
+            "status": "eq.PLANNING",
+        }, data={"status": "FAILED", "planning_error_code": "QUEUE_UNAVAILABLE",
+                 "planning_lease_until": None})
+        if not isinstance(rows, list) or len(rows) != 1:
+            raise StorageUnavailable("pending cleanup could not be confirmed")
 
     def claim(self, cid):
         return self.request("rpc/claim_campaign_job", method="POST",

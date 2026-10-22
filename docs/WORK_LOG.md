@@ -35,3 +35,5 @@ Use scripts/checkpoint.sh after completing a task.
 
 - 2026-10-22: UI API wiring PR: authenticated shop/media picker, seven-day campaign POST/poll, render status, short-lived signed MP4 opening, negative client tests; mock fallback and offline editor retained. Not deployed; WineShopPOS untouched.
 - 2026-10-22: PR #11 frontend CI exposed a JavaScript syntax typo in campaign-api.mjs; corrected without skipping tests, queued new four-job CI.
+
+- 2026-10-22: Coordinator prepared API security hotfix: privileged queue cleanup, Supabase opaque key handling, private media collision rejection and negative tests. No WineShopPOS change or cloud deployment.
