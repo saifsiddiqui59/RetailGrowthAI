@@ -136,7 +136,7 @@ end $$;
 reset role;
 set local role anon;
 select set_config('request.jwt.claim.sub','',true);
-do $
+do $$
 declare denied boolean := false;
 begin
   begin
@@ -148,7 +148,7 @@ begin
       where grantee='anon' and table_name='shops' and privilege_type='SELECT') then
     raise exception 'FAIL: anonymous table grant was unexpectedly installed';
   end if;
-end $;
+end $$;
 reset role;
 rollback;
 \echo 'PASS: cross-shop read/write, owner forgery, viewer escalation, revocation and anon-denial RLS tests'
