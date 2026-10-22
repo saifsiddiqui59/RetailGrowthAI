@@ -56,3 +56,36 @@ def test_campaign_foreign_row_hidden_even_from_bad_backend_response():
         raise AssertionError("should not request days")
     store = TenantStore("https://retail.supabase.co", "publishable-key", transport)
     assert store.campaign("jwt", USER, cid) is None
+
+
+def test_draft_rpc_passes_user_jwt_and_conditional_old_values():
+    captured = []
+    def transport(req, timeout):
+        captured.append(req)
+        return MockResponse(True)
+    store = TenantStore("https://retail.supabase.co", "publishable-key", transport)
+    cid, did = str(uuid4()), str(uuid4())
+    expected = {"topic": "old", "linkedin": {"post_text": "old"}, "instagram": {"caption": "old"}}
+    changes = {"topic": "new", "linkedin": {"post_text": "new"}, "instagram": {"caption": "new"}}
+    assert store.save_day("signed-user-token", SHOP, cid, did, expected, changes)
+    req = captured[0]
+    assert urlsplit(req.full_url).path == "/rest/v1/rpc/save_campaign_day"
+    assert req.get_method() == "POST"
+    assert req.get_header("Authorization") == "Bearer signed-user-token"
+    assert req.get_header("Apikey") == "publishable-key"
+    sent = json.loads(req.data)
+    assert sent == {
+        "p_shop_id": SHOP, "p_campaign_id": cid, "p_day_id": did,
+        "p_expected": expected, "p_changes": changes,
+    }
+
+
+def test_draft_rpc_false_and_malformed_result_are_not_success():
+    from tenant_store import StorageUnavailable
+    import pytest
+    store = TenantStore("https://retail.supabase.co", "publishable-key",
+                        lambda req, timeout: MockResponse(False))
+    assert store.save_day("jwt", SHOP, str(uuid4()), str(uuid4()), {}, {}) is False
+    store.transport = lambda req, timeout: MockResponse({"updated": True})
+    with pytest.raises(StorageUnavailable):
+        store.save_day("jwt", SHOP, str(uuid4()), str(uuid4()), {}, {})
