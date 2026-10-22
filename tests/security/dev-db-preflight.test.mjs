@@ -48,7 +48,7 @@ test('rejects gaps, duplicate version files and stripped service-only migration 
     assert.throws(() => verifyPreflight({ migrationDir: dir }), /missing canonical/);
   });
   temporaryMigrationCopy(dir => {
-    writeFileSync(resolve(dir, '20261022220000_collision.sql'), 'select 1;');
+    writeFileSync(resolve(dir, '20261022220000_collision.sql'), readFileSync(resolve(dir, '20261022220000_p1_durable_recovery.sql'), 'utf8'));
     assert.throws(() => verifyPreflight({ migrationDir: dir }), /duplicate migration version/);
   });
   temporaryMigrationCopy(dir => {
