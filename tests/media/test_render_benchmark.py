@@ -7,10 +7,13 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "ops/benchmarks"))
 from render_benchmark import (BenchmarkError, budget_assessment,
-                               estimate_compute_cost, _sample_tree)
+                               estimate_compute_cost, _sample_tree, assert_source_ffmpeg_cap)
 
 
 class RenderBudgetTests(unittest.TestCase):
+    def test_render_source_has_expected_780s_timeout(self):
+        self.assertTrue(assert_source_ffmpeg_cap())
+
     def test_three_budgets_consistent(self):
         result = budget_assessment(45.0, 500 * 1024 * 1024, 2048)
         self.assertEqual(result["host_timeout_seconds"], 1200)
