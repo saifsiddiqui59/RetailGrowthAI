@@ -43,9 +43,10 @@ class PrivateMedia:
         target.write_bytes(data)
         return target
 
-    def upload(self, shop_id, job_id, media_file):
+    def upload(self, shop_id, job_id, media_file, *, lease_token=None):
         sid, jid = canonical_uuid(shop_id), canonical_uuid(job_id)
-        key = sid + "/renders/" + jid + ".mp4"
+        token = canonical_uuid(lease_token) if lease_token is not None else None
+        key = sid + "/renders/" + jid + ("/" + token if token else "") + ".mp4"
         path = self._path(sid, key)
         media_file = Path(media_file)
         if media_file.stat().st_size > MAX_OUTPUT or media_file.stat().st_size < 100:
