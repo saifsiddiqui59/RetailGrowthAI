@@ -16,4 +16,9 @@ python3 "$ROOT/video-engine/probe.py" "$TMP/reel.mp4" --width 1080 --height 1920
 python3 "$ROOT/tests/media/check_content.py" "$TMP/reel.mp4"
 mkdir -p "$ROOT/ci-artifacts"
 cp "$TMP/reel.mp4" "$ROOT/ci-artifacts/workstream-c-30s-reel.mp4"
+# A second full-resolution offline render records CPU/RSS on the actual CI runner.
+# 15fps/ultrafast is a fast smoke profile, NOT production's 24fps/veryfast.
+python3 "$ROOT/ops/benchmarks/render_benchmark.py" \
+  --width 1080 --height 1920 --fps 15 --preset ultrafast \
+  --report "$ROOT/ci-artifacts/workstream-n-render-benchmark.json"
 echo "PASS: 30s 1080x1920 H.264/AAC multi-image Reel, xfade, generated tone, overlays, rights"

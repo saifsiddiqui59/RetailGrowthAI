@@ -15,6 +15,7 @@ import textwrap
 from pathlib import Path
 
 from probe import verify_reel
+from asset_preflight import AssetPreflightError, preflight_assets
 
 DURATION = 30.0
 TRANSITION = 0.5
@@ -157,6 +158,12 @@ def render(storyboard, images, music, cta, output, width=1080, height=1920,
         raise RenderError("Unsupported encoder preset")
     if offer_text is not None:
         offer_text = check_text(offer_text, "Explicit approved offer", 110)
+    # Decode headers and enforce hard asset size/pixel bounds before expensive FFmpeg work.
+    # Tenant/rights/path confinement is still enforced by load_job, not this preflight.
+    try:
+        preflight_assets(images, music)
+    except (AssetPreflightError, OSError) as exc:
+        raise RenderError(f"Staged media preflight failed: {exc}") from exc
     output = Path(output).resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="retail-reel-") as scratch:
