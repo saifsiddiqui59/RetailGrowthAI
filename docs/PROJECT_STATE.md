@@ -70,3 +70,7 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 - Coordinator bootstrap: React/Vite router shell and seven-day v1 fixture on main, dependency-free JavaScript and Python contract checks, and GitHub Actions build workflow.
 - Four Part 1 feature branches created from the verified coordinator baseline: feat/p1-foundation, feat/p1-campaign-ai, feat/p1-video, feat/p1-campaign-ui. See docs/PARALLEL_WORK.md; the workstreams have not implemented features yet.
 - No cloud deployment or live model calls verified as part of this architecture milestone.
+
+## GitHub Actions expansion (chore/part1-ci PR, not merged yet)
+- A CI improvement branch introduces separate frontend, uv/Python, and FFmpeg smoke + renderer-harness jobs on push/PR, with documentation in docs/CI_AUTOMATION.md.
+- Previous bootstrap CI was green; expanded CI run result must be verified on its PR before merge. No live model, cloud resources, production render or tenant database created by this CI update.
