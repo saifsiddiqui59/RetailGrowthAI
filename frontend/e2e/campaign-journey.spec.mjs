@@ -379,7 +379,7 @@ test('temporary campaign API outage surfaces failure and a later retry can load 
   const state = await mockServices(page)
   await login(page)
   await business(page)
-  await page.getByRole('checkbox', { name: /image\\/png.*owned/ }).check()
+  await expect(page.getByRole('checkbox', { name: /image\/png.*owned/ })).toBeVisible()
   state.backendOffline = true
   await page.getByRole('button', { name: /Submit campaign job/ }).click()
   await expect(page.getByRole('alert')).toContainText('SERVICE_UNAVAILABLE')
