@@ -1,30 +1,11 @@
-# Workstream B — campaign API boundary
+# RetailGrowthAI HTTP adapter — milestone 1
 
-The v1 handlers are implemented as dependency-injected application services in
-service.py, not as deployed Azure Functions. This deliberate separation lets the
-coordinator connect the Supabase authentication + RLS storage owned by Chat A and
-a durable Azure queue after provisioned RetailGrowthAI DEV resources exist.
+**No cloud deployment.** Python Azure Functions v2 entrypoint `function_app.py` exposes:
+- `POST /api/campaigns` — returns **503 until durable queue milestone**; never persists unqueued jobs.
+- `GET /api/campaigns/{id}` — verifies asymmetrically signed Supabase Auth JWT (ES256/RS256), issuer, audience, expiry and user subject; reads tenant-authorized RLS rows using the *user token*.
 
-POST /api/campaigns should call CampaignService.post_campaign(Authorization, body)
-and return its 202 status/payload. GET /api/campaigns/{id} should call
-get_campaign(Authorization, id). Never expose run_planning_job publicly.
-It must be invoked only from a trusted queue consumer.
+Environment: `RETAIL_SUPABASE_URL` (dedicated HTTPS project) and `RETAIL_SUPABASE_PUBLISHABLE_KEY` (non-secret). Never use WineShopPOS keys; never expose a service role key. HTTPS-only verification and exact project JWKS; HS256 legacy tokens fail closed until asymmetric signing is configured.
 
-Required dependencies have **no insecure defaults**:
-- token_verifier: validates the signature, expiry, audience and issuer of the JWT
-  (not just parsing it), returns the authenticated user UUID.
-- membership_checker: checks ACTIVE membership for that user/shop.
-- asset_checker: checks that each UUID belongs to the same shop and can be used.
-- store: durable save_pending/load_pending/save_draft/fail/get with RLS-aware access.
-- enqueue_planning: durable queue with retries/idempotency.
-- provider: MockFoundryProvider for offline tests, AzureFoundryProvider with
-  a separately reviewed authenticated real client for future live generation.
+The Azure Functions app is not provisioned or hosted; cross-origin access must be allowlisted in Azure Functions before use. No signup, queue, rendering or new cloud resources are created here. For this stage, any live request to POST receives 503, by design. Next PR adds a durable write/queue adapter, tests and deployment readiness gates.
 
-Planning jobs perform **a second membership and asset check**; revoked access
-blocks the job. Review findings travel to the store separately and never change
-the canonical v1 day JSON. Claims, discounts, regulated content and publishing
-always require human review as applicable. No social auto-posting exists.
-
-There is no configured Azure Function trigger, HTTP listener, JWT verifier,
-database connection, durable queue or live Azure AI Foundry deployment yet.
-Do not label this an API that is live or production ready.
+Install locally from Git Bash: `cd azure-functions/campaign-api && uv pip install -r requirements.txt` into an activated venv; package `ai_agents` separately for runtime. CI validates security via `uv run --with PyJWT[crypto] --with pytest` and never needs cloud credentials.

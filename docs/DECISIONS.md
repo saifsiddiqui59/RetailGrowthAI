@@ -53,3 +53,9 @@
 - The UI's natural-language campaign brief must remain preview-only until a real authenticated HTTP service and authorized tenant-specific media are wired. Never silently replace synthetic fixture IDs with trusted IDs or enable fake render/download controls.
 - The Python CampaignService is a dependency-injected **non-deployed** API boundary, not a working Azure Function; the 30-second renderer is a tested offline CLI. A coordinator cross-component integration test validates v1 B planner -> C renderer manifest compatibility without pretending to run an online campaign.
 - Four CI jobs run independently; a green CI run proves covered fixture, unit, synthetic render and disposable Supabase security checks, not browser E2E or production cloud auth. Never share WineShopPOS secrets/resources.
+
+## 2026-10-22 — API security boundary
+- Prefer project-pinned asymmetric Supabase JWKS verification, exact issuer/audience and RLS access via the end-user bearer token; reject missing secrets/unsigned or HS256 JWT without a verified migration plan.
+- Keep API POST returning 503 until a persistent, acknowledged queue exists. Never present an in-memory queue or unqueued write as accepted.
+
+- Pin FFmpeg CI runner to `ubuntu-24.04` after the rolling runner introduced FFmpeg 8 with unverified pixel-format behavior. Keep all smoke, codec, duration and content assertions enabled; verify compatibility before upgrading.

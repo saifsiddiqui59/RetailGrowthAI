@@ -23,3 +23,8 @@ Coordinator merged Workstream A PR #5, stacked coordinator PR #6, Workstream B P
 - No platform publishing/OAuth (Part 2), no Wan integration (Part 3), and no claim of production readiness (Part 4).
 - Never use or modify WineShopPOS resources.
 - Keep INTERFACES_V1.md stable; change only via coordinator-reviewed contract revision.
+
+## Secure HTTP API milestone handoff
+- Add durable queue + worker + retry/idempotent database operations before enabling POST. No accepted campaign may be silently dropped.
+- Then expose renderer jobs and signed media downloads; wire React only with authenticated non-mock campaign data.
+- Review and test HTTP boundary with real Azure Functions host locally; this milestone has tests but no cloud deployment.

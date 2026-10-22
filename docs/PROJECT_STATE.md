@@ -95,3 +95,7 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 - Four GitHub Actions jobs: frontend tests/build; Python pytest + coordinator cross-component contract; FFmpeg smoke + real synthetic 30-second render/ffprobe; isolated Supabase Auth/RLS/storage negative tests. Read the final post-integration Actions run before claiming this last commit is green.
 - Dedicated RetailGrowthAI DEV/pilot Supabase (Tokyo, ref `jeearzffnjbvghwjjjrf`) exists, but credentials are **not** committed/configured for hosted frontend. PROD remains absent. No WineShopPOS resources touched.
 - **Not yet end-to-end:** no deployed authenticated campaign HTTP endpoint or durable queue, no live Foundry/AI credentials, no uploaded/authorized real user media manifest or signed MP4 delivery, no browser-to-API wired campaign generation/save/render, no platform OAuth/publishing or production QA.
+
+## Secure API milestone (PR branch, 2026-10-22)
+- Azure Functions v2 HTTP adapter authored: signed RS256/ES256 Supabase JWT checks with pinned project issuer/audience; RLS user-token PostgREST tenant reads and write-gated campaign creation.
+- **POST remains fail-closed (503)** until a durable queue is added. GET can return tenant-filtered draft records when configured. Not deployed, not E2E-verified.
