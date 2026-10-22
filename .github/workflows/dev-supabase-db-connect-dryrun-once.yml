@@ -1,0 +1,117 @@
+name: RetailGrowthAI DEV Supabase connection and exact migration dry-run (one-time)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/dev-supabase-db-connect-dryrun-once.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-supabase-migration
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    environment: dev
+    env:
+      RETAIL_SUPABASE_DB_URL: ${{ secrets.RETAIL_SUPABASE_DB_URL }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Confirm exact DEV URL identity without printing credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os,urllib.parse
+          url=os.environ.get("RETAIL_SUPABASE_DB_URL") or ""
+          if not url: raise SystemExit("BLOCKED: RETAIL_SUPABASE_DB_URL GitHub dev environment secret missing")
+          try:
+              u=urllib.parse.urlsplit(url)
+              assert u.scheme in ("postgresql","postgres")
+              assert u.hostname in ("aws-0-ap-northeast-1.pooler.supabase.com","db.jeearzffnjbvghwjjjrf.supabase.co")
+              assert urllib.parse.unquote(u.username or "") in ("postgres.jeearzffnjbvghwjjjrf","postgres")
+              if u.username=="postgres":
+                  assert u.hostname=="db.jeearzffnjbvghwjjjrf.supabase.co"
+              assert u.path=="/postgres" and (u.port in (5432,6543))
+              pwd=urllib.parse.unquote(u.password or "")
+              assert len(pwd)>=4 and not any(t in pwd for t in ("YOUR-PASSWORD","[","]"))
+              print("PASS: expected RetailGrowthAI DEV Supabase project, database, credential format (password masked)")
+          except Exception:
+              raise SystemExit("BLOCKED: URL must use actual DEV session pooler credentials, not placeholders")
+          PY
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: '2.84.2'
+
+      - name: Verify CLI available and local migration fingerprints
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase --version
+          supabase db push --help > "$RUNNER_TEMP/db-push-help"
+          grep -q -- '--db-url' "$RUNNER_TEMP/db-push-help"
+          grep -q -- '--dry-run' "$RUNNER_TEMP/db-push-help"
+          python3 - <<'PY'
+          from pathlib import Path
+          got=[f.name for f in sorted(Path("supabase/migrations").glob("*.sql"))]
+          expected=[
+          "20261022085124_p1_foundation.sql",
+          "20261022085132_p1_private_media.sql",
+          "20261022085503_p1_security_hardening.sql",
+          "20261022100400_p1_durable_planning.sql",
+          "20261022101800_p1_render_claim.sql",
+          "20261022162000_p1_draft_save.sql",
+          "20261022173000_p1_private_upload_registration.sql",
+          "20261022180000_p1_dev_media_integrity.sql",
+          "20261022205000_p1_worker_execution_budget.sql",
+          "20261022220000_p1_durable_recovery.sql",
+          ]
+          if got!=expected: raise SystemExit("BLOCKED: unexpected local Supabase migrations/version drift")
+          print("PASS: local migration source is exactly reviewed 10-version canonical sequence")
+          PY
+
+      - name: Test actual DB login and verify 3-version migration ledger read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! timeout 55s psql -X -qAt -w -v ON_ERROR_STOP=1 \
+              -d "$RETAIL_SUPABASE_DB_URL" \
+              -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" \
+              > "$RUNNER_TEMP/versions" 2>"$RUNNER_TEMP/psql.err"; then
+             echo "::error::BLOCKED: database password, SSL, or pooler connection failed; check secret privately"; exit 3
+          fi
+          python3 - "$RUNNER_TEMP/versions" <<'PY'
+          from pathlib import Path
+          import sys
+          history=Path(sys.argv[1]).read_text().splitlines()
+          if history!=["20261022085124","20261022085132","20261022085503"]:
+              raise SystemExit("BLOCKED: unexpected hosted migration ledger; do not apply without reviewing history")
+          print("PASS: authenticated real database connection; exactly 3 prior migration versions")
+          PY
+
+      - name: Official Supabase CLI dry-run against exact protected DEV URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! timeout 150s supabase db push --db-url "$RETAIL_SUPABASE_DB_URL" --dry-run \
+               > "$RUNNER_TEMP/dryrun.out" 2>"$RUNNER_TEMP/dryrun.err"; then
+             echo "::error::BLOCKED: Supabase CLI --dry-run unsuccessful; no DDL executed"; exit 3
+          fi
+          python3 - "$RUNNER_TEMP/dryrun.out" "$RUNNER_TEMP/dryrun.err" <<'PY'
+          from pathlib import Path
+          import sys
+          out="\n".join(Path(i).read_text(errors="replace") for i in sys.argv[1:])
+          required=["20261022100400","20261022101800","20261022162000",
+                    "20261022173000","20261022180000","20261022205000","20261022220000"]
+          missing=[v for v in required if v not in out]
+          if missing:
+              raise SystemExit("BLOCKED: CLI dry-run did not show exactly intended pending migrations")
+          print("PASS: official Supabase CLI dry-run lists all seven pending canonical versions")
+          print("NO DDL: read-only credential, migration-ledger and dry-run verification completed")
+          PY
