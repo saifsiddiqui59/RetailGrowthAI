@@ -22,37 +22,45 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Confirm exact DEV URL identity without printing credentials
+      - name: Normalize protected DEV pooler URI in ephemeral private runner file
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import os,urllib.parse
-          url=os.environ.get("RETAIL_SUPABASE_DB_URL") or ""
-          if not url: raise SystemExit("BLOCKED: RETAIL_SUPABASE_DB_URL GitHub dev environment secret missing")
-          if "[YOUR-PASSWORD]" in url or "[YOUR_PASSWORD]" in url:
-              raise SystemExit("BLOCKED: database password placeholder is still present; replace it in GitHub dev secret")
-          try:
-              u=urllib.parse.urlsplit(url)
-              project="jeearzffnjbvghwjjjrf"
-              checks={
-                  "scheme":u.scheme in ("postgresql","postgres"),
-                  "host":u.hostname in ("aws-0-ap-northeast-1.pooler.supabase.com","db."+project+".supabase.co"),
-                  "username":urllib.parse.unquote(u.username or "") in ("postgres."+project,"postgres"),
-                  "db":u.path=="/postgres",
-                  "port":u.port in (5432,6543),
-                  "password":len(urllib.parse.unquote(u.password or ""))>=4 and all(t not in urllib.parse.unquote(u.password or "") for t in ("YOUR-PASSWORD","[","]")),
-              }
-              if (u.username or "")=="postgres":
-                  checks["direct-host"]=u.hostname=="db."+project+".supabase.co"
-              for name,ok in checks.items():
-                  print("DB_URL_CHECK_"+name.upper().replace("-","_")+": "+("PASS" if ok else "FAIL"))
-              if not all(checks.values()):
-                  raise SystemExit("BLOCKED: DEV database URI field(s) invalid; fix GitHub secret privately")
-              print("PASS: expected RetailGrowthAI DEV Supabase connection URI format (secret masked)")
-          except ValueError:
-              raise SystemExit("BLOCKED: database URL parse failed: percent-encode special password characters; use a single Session Pooler URI")
-
+          import os, pathlib, urllib.parse
+          raw=(os.environ.get("RETAIL_SUPABASE_DB_URL") or "").strip()
+          if not raw:
+              raise SystemExit("BLOCKED: secret RETAIL_SUPABASE_DB_URL missing in GitHub environment dev")
+          project="jeearzffnjbvghwjjjrf"
+          canonical=None
+          for scheme in ("postgresql","postgres"):
+              prefix=scheme+"://postgres."+project+":"
+              suffix="@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
+              if raw.startswith(prefix) and raw.endswith(suffix):
+                  pw=raw[len(prefix):-len(suffix)]
+                  if not pw or "YOUR-PASSWORD" in pw or pw in ("password","changeme"):
+                      raise SystemExit("BLOCKED: database password is empty or still placeholder in GitHub secret")
+                  # The user copied a Session Pooler URI. Password may contain
+                  # reserved URL characters. Normalize only the secret password part.
+                  encoded=urllib.parse.quote(urllib.parse.unquote(pw),safe="")
+                  canonical="postgresql://postgres."+project+":"+encoded+suffix
+                  print("PASS: exact Supabase DEV session-pooler URI pattern; password encoded privately")
+                  break
+          if not canonical:
+              try:
+                  u=urllib.parse.urlsplit(raw)
+                  assert u.scheme in ("postgresql","postgres")
+                  assert u.hostname in ("aws-0-ap-northeast-1.pooler.supabase.com","db."+project+".supabase.co")
+                  assert u.path=="/postgres" and u.port in (5432,6543)
+                  assert u.username in ("postgres."+project, "postgres")
+                  assert u.password and "YOUR-PASSWORD" not in u.password
+                  canonical=raw
+              except Exception:
+                  raise SystemExit("BLOCKED: GitHub DEV secret does not contain a valid connection URI for RetailGrowthAI")
+          target=pathlib.Path(os.environ["RUNNER_TEMP"])/"rgai-private-db-uri"
+          target.write_text(canonical)
+          target.chmod(0o600)
+          print("PASS: checked DEV database identity and saved temporary encoded URI without logging credentials")
           PY
 
       - uses: supabase/setup-cli@v3
@@ -91,7 +99,7 @@ jobs:
         run: |
           set -euo pipefail
           if ! timeout 55s psql -X -qAt -w -v ON_ERROR_STOP=1 \
-              -d "$RETAIL_SUPABASE_DB_URL" \
+              -d "$(cat "$RUNNER_TEMP/rgai-private-db-uri")" \
               -c "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version" \
               > "$RUNNER_TEMP/versions" 2>"$RUNNER_TEMP/psql.err"; then
              echo "::error::BLOCKED: database password, SSL, or pooler connection failed; check secret privately"; exit 3
@@ -109,7 +117,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if ! timeout 150s supabase db push --db-url "$RETAIL_SUPABASE_DB_URL" --dry-run \
+          if ! timeout 150s supabase db push --db-url "$(cat "$RUNNER_TEMP/rgai-private-db-uri")" --dry-run \
                > "$RUNNER_TEMP/dryrun.out" 2>"$RUNNER_TEMP/dryrun.err"; then
              echo "::error::BLOCKED: Supabase CLI --dry-run unsuccessful; no DDL executed"; exit 3
           fi
