@@ -180,3 +180,11 @@ def test_foundry_invalid_or_wrong_tenant_output_is_refused():
         AzureFoundryProvider(lambda req, cid: wrong).generate(request, campaign_id=CID)
     with pytest.raises((ContractError, ValueError)):
         AzureFoundryProvider(lambda req, cid: {"nonsense": 1}).generate(request, campaign_id=CID)
+
+
+def test_brief_theme_is_reflected_without_fabricated_event_dates():
+    _, navratri = make_campaign()
+    assert "Navratri-inspired" in navratri["days"][0]["linkedin"]["post_text"]
+    _, agentic = make_campaign(brief="Create daily Agentic AI learning posts")
+    assert "Agentic AI learning" in agentic["days"][0]["instagram"]["caption"]
+    assert all("2026-10-" not in d["linkedin"]["post_text"] for d in navratri["days"])
