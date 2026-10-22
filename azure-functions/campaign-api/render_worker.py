@@ -95,7 +95,11 @@ def process_render(job_id, admin, media, *, render_fn=render):
             if (result["video_codec"] != "h264" or result["audio_codec"] != "aac"
                     or abs(result["duration_seconds"] - 30) > 0.12):
                 raise RenderError("invalid encoded media")
-            object_path = media.upload(sid, jid, output)
+            token = job.get("render_claim_token")
+            if token:
+                object_path = media.upload(sid, jid, output, lease_token=token)
+            else:
+                object_path = media.upload(sid, jid, output)
             admin.complete_render(job, object_path)
             return "SUCCEEDED"
     except Exception:
