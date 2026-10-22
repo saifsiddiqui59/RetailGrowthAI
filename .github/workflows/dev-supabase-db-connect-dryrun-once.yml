@@ -32,17 +32,25 @@ jobs:
           if not url: raise SystemExit("BLOCKED: RETAIL_SUPABASE_DB_URL GitHub dev environment secret missing")
           try:
               u=urllib.parse.urlsplit(url)
-              assert u.scheme in ("postgresql","postgres")
-              assert u.hostname in ("aws-0-ap-northeast-1.pooler.supabase.com","db.jeearzffnjbvghwjjjrf.supabase.co")
-              assert urllib.parse.unquote(u.username or "") in ("postgres.jeearzffnjbvghwjjjrf","postgres")
-              if u.username=="postgres":
-                  assert u.hostname=="db.jeearzffnjbvghwjjjrf.supabase.co"
-              assert u.path=="/postgres" and (u.port in (5432,6543))
-              pwd=urllib.parse.unquote(u.password or "")
-              assert len(pwd)>=4 and not any(t in pwd for t in ("YOUR-PASSWORD","[","]"))
-              print("PASS: expected RetailGrowthAI DEV Supabase project, database, credential format (password masked)")
-          except Exception:
-              raise SystemExit("BLOCKED: URL must use actual DEV session pooler credentials, not placeholders")
+              project="jeearzffnjbvghwjjjrf"
+              checks={
+                  "scheme":u.scheme in ("postgresql","postgres"),
+                  "host":u.hostname in ("aws-0-ap-northeast-1.pooler.supabase.com","db."+project+".supabase.co"),
+                  "username":urllib.parse.unquote(u.username or "") in ("postgres."+project,"postgres"),
+                  "db":u.path=="/postgres",
+                  "port":u.port in (5432,6543),
+                  "password":len(urllib.parse.unquote(u.password or ""))>=4 and all(t not in urllib.parse.unquote(u.password or "") for t in ("YOUR-PASSWORD","[","]")),
+              }
+              if (u.username or "")=="postgres":
+                  checks["direct-host"]=u.hostname=="db."+project+".supabase.co"
+              for name,ok in checks.items():
+                  print("DB_URL_CHECK_"+name.upper().replace("-","_")+": "+("PASS" if ok else "FAIL"))
+              if not all(checks.values()):
+                  raise SystemExit("BLOCKED: DEV database URI field(s) invalid; fix GitHub secret privately")
+              print("PASS: expected RetailGrowthAI DEV Supabase connection URI format (secret masked)")
+          except ValueError:
+              raise SystemExit("BLOCKED: invalid URL/port, use Supabase Connect > Session Pooler > URI")
+
           PY
 
       - uses: supabase/setup-cli@v3
