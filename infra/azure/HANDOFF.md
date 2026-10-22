@@ -12,3 +12,11 @@ NEXT (coordinator-owned):
 5. Run hosted function indexing, real auth/JWT/CORS, user-licensed uploads, cross-shop/VIEWER denial, queue retry/poison, signed MP4, 30-second E2E and cost/monitoring tests.
 
 Status: preparation only; no deployment or end-to-end verification.
+
+## Workstream J — source-only Flex readiness review (2026-10-22)
+
+- Fixed Bicep runtime settings for Python 3.12 Azure Functions, limited instance/memory parameters and DEV region.
+- Hardened approved static FFmpeg packaging, ZIP inspection, executable bits, host/queue invariants, resource budgets and offline regression tests; pre-deployment script reuses ZIP verification.
+- Coordinator must update canonical `PROJECT_STATE.md`, `NEXT_TASK.md`, `DECISIONS.md` and `WORK_LOG.md` after merge; Workstream J owns only `infra/azure/**` and `scripts/deploy/**`, so shared docs/workflows were not edited.
+- OIDC read-only check verified in coordinator PR #30; cloud deployment remains approval-gated. Blockers: licensed Linux media benchmark and codec/font tests, real Functions host indexing, cost/poison alarms, Workstream I durable recovery and migrations to isolated Supabase DEV.
+- No WineShopPOS, hosted database or Azure resources changed.
