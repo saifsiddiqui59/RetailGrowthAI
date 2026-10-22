@@ -105,3 +105,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## Render API milestone (branch)
 - Authenticated render job create/status and short-lived signed private download endpoints implemented in code. Tenant rights checks and request idempotency included. Actual renderer worker, object upload and cloud deployment remain unfinished.
+
+## Render worker milestone (branch)
+- Azure Queue trigger and service-only PostgREST claim handler code for private 30-second FFmpeg generation, tenant source/right checks and private output recording added. No cloud migration/service deployed or real user video verified.

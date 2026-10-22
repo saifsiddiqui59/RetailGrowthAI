@@ -21,7 +21,7 @@ class AdminStore:
         self.transport = transport or urlopen
 
     def request(self, path, *, query=None, data=None, method="GET", upsert=False):
-        if path not in ("rpc/claim_campaign_job", "campaigns", "campaign_days",
+        if path not in ("rpc/claim_campaign_job", "rpc/claim_render_job", "campaigns", "campaign_days",
                         "shop_memberships", "media_assets", "render_jobs"):
             raise ValueError("unsupported worker path")
         url = self.origin + "/rest/v1/" + path
@@ -135,3 +135,81 @@ class AdminStore:
             "id": "eq." + canonical_uuid(job_id),
             "shop_id": "eq." + canonical_uuid(shop_id),
         }, data={"status": "FAILED", "error_code": reason})
+
+
+    def render_status(self, job_id):
+        items = self.request("render_jobs", query={
+            "select": "status", "id": "eq." + canonical_uuid(job_id), "limit": "1",
+        })
+        return items[0]["status"] if items else None
+
+    def claim_render(self, job_id):
+        return self.request("rpc/claim_render_job", method="POST",
+                            data={"p_id": canonical_uuid(job_id)})
+
+    def render_authorized(self, job):
+        sid, uid = canonical_uuid(job["shop_id"]), canonical_uuid(job["requested_by"])
+        membership = self.request("shop_memberships", query={
+            "select": "role", "shop_id": "eq." + sid, "user_id": "eq." + uid,
+            "active": "eq.true", "limit": "1",
+        })
+        return bool(membership) and membership[0]["role"] in ("OWNER", "EDITOR")
+
+    def render_sources(self, job):
+        sid, cid, did = [canonical_uuid(job[field]) for field in
+                         ("shop_id", "campaign_id", "day_id")]
+        campaigns = self.request("campaigns", query={
+            "select": "id,shop_id,status", "id": "eq." + cid,
+            "shop_id": "eq." + sid, "limit": "1",
+        })
+        days = self.request("campaign_days", query={
+            "select": "id,shop_id,campaign_id,day_index,instagram,review_status",
+            "id": "eq." + did, "campaign_id": "eq." + cid,
+            "shop_id": "eq." + sid, "limit": "1",
+        })
+        if len(campaigns) != 1 or len(days) != 1:
+            raise StorageUnavailable("render source missing")
+        reel = days[0]["instagram"]["reel"]
+        ids = {canonical_uuid(s["asset_id"]) for s in reel["storyboard"]}
+        if reel.get("music_asset_id"):
+            ids.add(canonical_uuid(reel["music_asset_id"]))
+        assets = self.request("media_assets", query={
+            "select": "id,shop_id,storage_bucket,object_path,mime_type,source,license_name,license_url,attribution",
+            "shop_id": "eq." + sid, "id": "in.(" + ",".join(sorted(ids)) + ")",
+        })
+        if len(assets) != len(ids):
+            raise StorageUnavailable("missing authorized render asset")
+        return campaigns[0], days[0], {a["id"]: a for a in assets}
+
+    def complete_render(self, job, object_path):
+        sid, jid = canonical_uuid(job["shop_id"]), canonical_uuid(job["id"])
+        records = self.request("media_assets", query={
+            "select": "id", "shop_id": "eq." + sid,
+            "object_path": "eq." + object_path, "limit": "1",
+        })
+        if records:
+            aid = records[0]["id"]
+        else:
+            import uuid
+            aid = str(uuid.uuid4())
+            self.request("media_assets", method="POST", data={
+                "id": aid, "shop_id": sid, "created_by": job["requested_by"],
+                "object_path": object_path, "storage_bucket": "retailgrowth-media",
+                "mime_type": "video/mp4", "source": "GENERATED",
+                "license_name": "owned",
+                "attribution": "rendered from tenant-authorized source assets",
+            })
+        result = self.request("render_jobs", method="PATCH", query={
+            "id": "eq." + jid, "shop_id": "eq." + sid, "status": "eq.RUNNING",
+        }, data={"status": "SUCCEEDED", "output_asset_id": aid,
+                 "error_code": None, "render_lease_until": None})
+        if len(result) != 1:
+            raise StorageUnavailable("render completion was not stored")
+
+    def render_failure(self, job, code, permanent=False):
+        status = "FAILED" if permanent or job["attempts"] >= 3 else "QUEUED"
+        self.request("render_jobs", method="PATCH", query={
+            "id": "eq." + canonical_uuid(job["id"]),
+            "shop_id": "eq." + canonical_uuid(job["shop_id"]),
+            "status": "eq.RUNNING",
+        }, data={"status": status, "error_code": code, "render_lease_until": None})

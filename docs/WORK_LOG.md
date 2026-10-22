@@ -30,3 +30,5 @@ Use scripts/checkpoint.sh after completing a task.
 - 2026-10-22: Prepared small stacked durable-planning PR: Azure Queue producer and trigger, Postgres atomic lease migration, service-only worker, revocation/license checks, retry tests. No resource/migration deployed; awaiting review and CI.
 
 - 2026-10-22: Implemented isolated render API milestone: secure queued-job creation, polling and user-scoped signed media URLs; queued worker/render staging remains next PR. No cloud resources or WineShopPOS edits.
+
+- 2026-10-22: Staged render worker PR with DB atomic claim, bounded private asset staging/upload and negative tenant/license checks. Cloud configuration, production rights and browser E2E remain unverified; no WineShopPOS changes.

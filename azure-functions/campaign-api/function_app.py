@@ -11,6 +11,8 @@ from queue_adapter import AzurePlanningQueue, AzureRenderQueue
 from admin_store import AdminStore
 from planning_worker import process_campaign
 from render_api import RenderAPI
+from render_worker import process_render
+from private_media import PrivateMedia
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -88,3 +90,15 @@ def get_render(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="render-jobs/{job_id}/download", methods=["GET"])
 def get_render_download(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/render-jobs/" + req.route_params["job_id"] + "/download")
+
+
+@app.queue_trigger(arg_name="message", queue_name="retail-reel-render",
+                   connection="RETAIL_STORAGE")
+def render_campaign_reel(message: func.QueueMessage):
+    # Queue message contains only a validated job UUID. No paths, tokens or URLs.
+    origin = os.environ["RETAIL_SUPABASE_URL"]
+    key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
+    process_render(
+        message.get_body().decode("ascii"),
+        AdminStore(origin, key), PrivateMedia(origin, key),
+    )

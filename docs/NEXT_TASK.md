@@ -35,3 +35,6 @@ Coordinator merged Workstream A PR #5, stacked coordinator PR #6, Workstream B P
 
 ## Render API follow-up
 - Implement real Azure Queue-triggered renderer with atomic job claims, securely staged licensed media and bounded uploads. Do not enable render UX until that worker and browser-to-API tests pass.
+
+## Render worker follow-up
+- Review/apply latest render claim migration to dedicated DEV only after deployment approval; configure existing Azure queue and worker secrets, test with licensed images/music and real Auth sign/download. Add bounded worker observability/cleanup.
