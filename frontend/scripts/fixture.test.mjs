@@ -62,3 +62,27 @@ test('days are consecutive, tenant-bound and channel-complete', () => {
   assert.equal(ids.size, 7)
   assert.equal(topics.size, 7)
 })
+
+
+test('static preview provides SPA fallback without rewriting built assets', async () => {
+  const config = JSON.parse(await readFile(new URL('../public/staticwebapp.config.json', import.meta.url), 'utf8'))
+  assert.equal(config.navigationFallback.rewrite, '/index.html')
+  assert.ok(config.navigationFallback.exclude.includes('/assets/*'),
+    'Vite assets must not be rewritten to index.html')
+  assert.ok(config.navigationFallback.exclude.some(rule => rule.includes('json') && rule.includes('js')),
+    'Missing assets should remain 404, not be rewritten as HTML')
+  assert.equal(config.globalHeaders['X-Content-Type-Options'], 'nosniff')
+})
+
+test('SPA shell retains overview, campaigns, account and explicit mock mode', async () => {
+  const app = await readFile(new URL('../src/App.jsx', import.meta.url), 'utf8')
+  const campaignSource = await readFile(new URL('../src/features/campaigns/CampaignDashboard.jsx', import.meta.url), 'utf8')
+  const auth = await readFile(new URL('../src/lib/supabase.js', import.meta.url), 'utf8')
+  for (const route of ['/', '/campaigns', '/account']) {
+    assert.ok(app.includes('path="' + route + '"'), 'Missing React route: ' + route)
+  }
+  assert.match(campaignSource, /Demo only · Sample drafts/)
+  assert.match(campaignSource, /Preview campaign request/)
+  assert.match(auth, /if \(!sharedClient\) sharedClient = createRetailClient\(\)/)
+  assert.equal(campaign.days.length, 7)
+})
