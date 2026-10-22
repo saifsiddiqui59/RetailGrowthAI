@@ -174,3 +174,31 @@ class TenantStore:
         if not isinstance(link, str) or not link.startswith(prefix + "?token="):
             raise StorageUnavailable("invalid signed storage response")
         return self.origin + "/storage/v1" + link
+
+    def save_day(self, token, shop_id, campaign_id, day_id, expected, changes):
+        """RLS-authenticated RPC; false means stale, locked or revoked rights."""
+        sid, cid, did = (canonical_uuid(x) for x in (shop_id, campaign_id, day_id))
+        request = Request(
+            self.origin + "/rest/v1/rpc/save_campaign_day",
+            method="POST",
+            data=json.dumps({
+                "p_shop_id": sid, "p_campaign_id": cid, "p_day_id": did,
+                "p_expected": expected, "p_changes": changes,
+            }).encode("utf-8"),
+            headers={
+                "apikey": self.key, "Authorization": "Bearer " + token,
+                "Content-Type": "application/json", "Accept": "application/json",
+            },
+        )
+        try:
+            with self.transport(request, timeout=8) as response:
+                value = json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code in (401, 403):
+                raise AuthenticationError("draft save denied") from exc
+            raise StorageUnavailable("draft save rejected") from exc
+        except (URLError, OSError, json.JSONDecodeError) as exc:
+            raise StorageUnavailable("draft save unavailable") from exc
+        if type(value) is not bool:
+            raise StorageUnavailable("unexpected draft save response")
+        return value
