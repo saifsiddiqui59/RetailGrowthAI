@@ -31,7 +31,7 @@ Status: **source-ready only**. Workstream K mocked browser/API tests already run
 | RG_E2E_POLL_TIMEOUT_MS | Optional 60000–1800000, defaults to 1200000 |
 | RG_E2E_RECOVERY_JOB_ID | Optional authorized shop A job created during separately approved DEV fault injection |
 
-Preflight rejects CI, production/unrecognized Supabase project, unpinned/non-HTTPS origins, duplicate tenants/users, unlicensed/invalid file bytes and nonexpired JWTs. JWT payload validation does not establish signature authenticity, so a genuine expired JWT must be supplied by the operator.
+Preflight rejects CI, production/unrecognized Supabase project, unpinned/non-HTTPS origins (frontend/API hostname must both contain "dev", duplicate tenants/users, unlicensed/invalid file bytes and nonexpired JWTs. JWT payload validation does not establish signature authenticity, so a genuine expired JWT must be supplied by the operator.
 
 The frontend must already be built with matching VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY and VITE_CAMPAIGN_API_BASE_URL. Tests never deploy or apply migrations.
 
