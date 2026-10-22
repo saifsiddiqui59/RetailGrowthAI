@@ -22,7 +22,6 @@ param functionPlanName string
 @description('Exact HTTPS frontend origin, never wildcard.')
 param frontendOrigin string
 
-@description('Max on-demand instances per scale group.')
 @description('DEV cap applies to EACH independently scaling function group; higher values require a review.')
 @allowed([1, 2])
 param maxInstances int = 1
