@@ -73,3 +73,8 @@
 
 ## 2026-10-22 — Live UI request consistency
 - The campaign request shown to a signed-in user must exactly match the authorized payload sent to the API. Only selected business/asset UUIDs from the RLS-backed UI may appear; never substitute sample fixture IDs in live requests. Missing or duplicate media blocks submission. Offline mock mode remains unchanged.
+
+## 2026-10-22 — Draft edits through a restricted user-scoped RPC
+- Require the HTTP boundary to validate complete v1 campaign output and authorized source asset IDs before accepting an edit. Only topic, LinkedIn and Instagram draft fields can change; identity/schedule/status are server-owned.
+- Revoke direct authenticated UPDATE on public.campaign_days and use a PostgreSQL security-definer RPC with explicit auth.uid() and active OWNER/EDITOR membership checks, plus original-value comparison and blocked edits during queued/running renders. Do not grant service-role tokens to browsers.
+- A UI preview is never evidence that a draft is saved; remote edits are enabled only after the authenticated PATCH returns committed data. DEV migration needs explicit approval, no hosted mutation in CI.
