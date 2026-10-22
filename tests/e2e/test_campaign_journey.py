@@ -306,3 +306,126 @@ def test_membership_revocation_blocks_existing_draft_and_download(journey):
     assert call(api, "GET", "/campaigns/" + cid)[0] == 404
     assert call(api, "GET", "/render-jobs/" + jid)[0] == 404
     assert call(api, "GET", "/render-jobs/" + jid + "/download")[0] == 404
+
+
+def test_expired_and_forged_tokens_are_denied_at_each_api_boundary(journey):
+    api, store, admin, planning, rendering = journey
+    code, accepted = call(api, "POST", "/campaigns", body=brief())
+    assert code == 202
+    cid = accepted["campaign_id"]
+    campaign = store.finish_planning(cid)
+    day = campaign["days"][0]
+    render_path = f"/campaigns/{cid}/renders"
+    body = {"day_id": day["id"], "preset": "instagram_reel_30s"}
+    render_code, rendered = call(api, "POST", render_path, body=body)
+    assert render_code == 202
+    jid = rendered["job_id"]
+    admin.complete(jid)
+    snapshot = copy.deepcopy(store.campaigns[cid])
+    before = (len(planning.items), len(rendering.items), len(store.jobs))
+
+    for token in ("expired-jwt", "forged-jwt", ""):
+        for method, path, data in (
+            ("POST", "/campaigns", brief()),
+            ("GET", f"/campaigns/{cid}", None),
+            ("PATCH", f"/campaigns/{cid}/days/{day['id']}", draft_changes(day)),
+            ("POST", render_path, body),
+            ("GET", f"/render-jobs/{jid}", None),
+            ("GET", f"/render-jobs/{jid}/download", None),
+        ):
+            assert call(api, method, path, token, data) == (401, {"error": "UNAUTHORIZED"})
+    assert store.campaigns[cid] == snapshot
+    assert (len(planning.items), len(rendering.items), len(store.jobs)) == before
+
+
+def test_transient_planning_enqueue_failure_can_be_retried_without_reviving_failed_job(journey):
+    api, store, _, planning, _ = journey
+    planning.broken = True
+    assert call(api, "POST", "/campaigns", body=brief()) == (
+        503, {"error": "QUEUE_UNAVAILABLE"}
+    )
+    failed_ids = list(store.pending)
+    assert len(failed_ids) == 1
+    assert store.pending[failed_ids[0]]["status"] == "FAILED"
+    assert planning.items == []
+
+    planning.broken = False
+    code, accepted = call(api, "POST", "/campaigns", body=brief())
+    assert code == 202 and accepted["status"] == "PLANNING"
+    assert accepted["campaign_id"] != failed_ids[0]
+    assert planning.items == [accepted["campaign_id"]]
+    assert store.pending[failed_ids[0]]["status"] == "FAILED"
+    result = store.finish_planning(accepted["campaign_id"])
+    assert len(result["days"]) == 7
+    assert all(item["shop_id"] == SHOP_A for item in result["days"])
+
+
+def test_revoked_membership_denies_mutation_and_private_output_after_creation(journey):
+    api, store, admin, _, rendering = journey
+    cid = call(api, "POST", "/campaigns", body=brief())[1]["campaign_id"]
+    campaign = store.finish_planning(cid)
+    day = campaign["days"][0]
+    save_path = f"/campaigns/{cid}/days/{day['id']}"
+    render_path = f"/campaigns/{cid}/renders"
+    render_body = {"day_id": day["id"], "preset": "instagram_reel_30s"}
+    jid = call(api, "POST", render_path, body=render_body)[1]["job_id"]
+    admin.complete(jid)
+    original = copy.deepcopy(store.campaigns[cid])
+    queued = len(rendering.items)
+
+    store.members[(ALICE, SHOP_A)] = "VIEWER"
+    assert call(api, "GET", f"/campaigns/{cid}")[0] == 200
+    assert call(api, "PATCH", save_path, body=draft_changes(day))[0] == 403
+    assert call(api, "POST", render_path, body=render_body)[0] == 403
+    assert store.campaigns[cid] == original and len(rendering.items) == queued
+
+    store.members.pop((ALICE, SHOP_A))
+    for path in (f"/campaigns/{cid}", f"/render-jobs/{jid}",
+                 f"/render-jobs/{jid}/download"):
+        assert call(api, "GET", path)[0] == 404
+
+
+def test_download_rejects_absent_or_non_video_output_even_after_success(journey):
+    api, store, admin, _, _ = journey
+    cid = call(api, "POST", "/campaigns", body=brief())[1]["campaign_id"]
+    day = store.finish_planning(cid)["days"][0]
+    jid = call(api, "POST", f"/campaigns/{cid}/renders", body={
+        "day_id": day["id"], "preset": "instagram_reel_30s"
+    })[1]["job_id"]
+    assert call(api, "GET", f"/render-jobs/{jid}/download") == (
+        409, {"error": "OUTPUT_NOT_READY"}
+    )
+    admin.complete(jid)
+    store.output[OUTPUT]["mime_type"] = "image/png"
+    assert call(api, "GET", f"/render-jobs/{jid}/download") == (
+        404, {"error": "OUTPUT_NOT_FOUND"}
+    )
+    store.output.pop(OUTPUT)
+    assert call(api, "GET", f"/render-jobs/{jid}/download") == (
+        404, {"error": "OUTPUT_NOT_FOUND"}
+    )
+
+
+def test_render_queue_failure_is_terminal_until_explicit_reconciler_replay(journey):
+    api, store, _, _, rendering = journey
+    cid = call(api, "POST", "/campaigns", body=brief())[1]["campaign_id"]
+    day = store.finish_planning(cid)["days"][0]
+    path = f"/campaigns/{cid}/renders"
+    body = {"day_id": day["id"], "preset": "instagram_reel_30s"}
+    rendering.broken = True
+    assert call(api, "POST", path, body=body) == (
+        503, {"error": "QUEUE_UNAVAILABLE"}
+    )
+    assert len(store.jobs) == 1 and rendering.items == []
+    job = next(iter(store.jobs.values()))
+    assert job["status"] == "FAILED"
+    assert call(api, "GET", f"/render-jobs/{job['id']}/download") == (
+        409, {"error": "OUTPUT_NOT_READY"}
+    )
+    # The API currently deduplicates the failed key rather than silently requeuing.
+    # Workstream I's durable recovery/reconciler owns explicit retry semantics.
+    rendering.broken = False
+    assert call(api, "POST", path, body=body) == (
+        200, {"job_id": job["id"], "status": "FAILED"}
+    )
+    assert rendering.items == [] and len(store.jobs) == 1
