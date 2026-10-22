@@ -178,3 +178,6 @@ test('server-denied metadata registration never claims upload success', async ()
     attribution: 'Created by the brand photography team',
   }), /registration was denied/)
 })
+
+// Workstream L: static migration release preflight runs in the existing security CI step.
+import './dev-db-preflight.test.mjs';
