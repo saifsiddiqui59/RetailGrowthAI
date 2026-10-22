@@ -32,3 +32,6 @@ Coordinator merged Workstream A PR #5, stacked coordinator PR #6, Workstream B P
 ## After durable planning code
 - Review migration and apply to isolated RetailGrowthAI DEV only after explicit deployment authorization. Provision/configure an Azure Queue only after approval, then verify queue poison/retry and seeded load tests.
 - Add tenant-safe render jobs, a verified media staging worker and signed downloads. Connect React to deployed endpoints only after auth/asset live E2E.
+
+## Render API follow-up
+- Implement real Azure Queue-triggered renderer with atomic job claims, securely staged licensed media and bounded uploads. Do not enable render UX until that worker and browser-to-API tests pass.

@@ -18,3 +18,10 @@ Install locally from Git Bash: `cd azure-functions/campaign-api && uv pip instal
 - Queue-trigger worker atomically claims a Postgres lease; rechecks active membership and licensed assets; upserts seven day records, then marks DRAFT. Duplicate deliveries become idempotent.
 - Worker operates with `RETAIL_SUPABASE_SERVICE_ROLE_KEY` **backend only**, never in frontend. `RETAIL_ENABLE_MOCK_CAMPAIGNS=true` is a development-only opt-in; no live Foundry provider is configured.
 - Azure Storage Queue has poison-message support; retries and lease timeouts are bounded. Runtime packaging and live HTTP/queue/E2E tests remain required before any deployment.
+
+
+## Render API milestone (no deployment)
+- POST `/api/campaigns/{id}/renders` accepts only authenticated, active OWNER/EDITOR access and a draft day within the same shop. Checks DB-backed asset IDs and recognized rights before creating an idempotent job.
+- GET `/api/render-jobs/{id}` is user-RLS-scoped and never exposes a foreign job.
+- GET `/api/render-jobs/{id}/download` requests a 60-second signed **private** Supabase Storage URL with the caller's JWT, for verified SUCCEEDED jobs only; no untrusted client URLs.
+- `retail-reel-render` Azure Queue is referenced but **not** provisioned. Render worker comes in a separate PR; API defaults to 503 if queue/worker credentials are absent.

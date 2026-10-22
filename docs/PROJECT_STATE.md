@@ -102,3 +102,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## Durable planning milestone (branch)
 - Added pending-campaign media IDs, atomic claim/attempt/lease migration, Azure Storage Queue producer and queue-trigger planner with revoked-membership/media rechecks. This is code only; **neither migration nor Azure queue deployed**. Production Foundry remains unconfigured.
+
+## Render API milestone (branch)
+- Authenticated render job create/status and short-lived signed private download endpoints implemented in code. Tenant rights checks and request idempotency included. Actual renderer worker, object upload and cloud deployment remain unfinished.

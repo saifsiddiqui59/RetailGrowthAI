@@ -9,10 +9,11 @@ from tenant_store import StorageUnavailable, canonical_uuid
 
 
 class HTTPAPI:
-    def __init__(self, verify_token, store, planning_queue=None):
+    def __init__(self, verify_token, store, planning_queue=None, render_api=None):
         self.verify_token = verify_token
         self.store = store
         self.planning_queue = planning_queue
+        self.render_api = render_api
 
     def handle(self, method, path, authorization, body=None):
         try:
@@ -20,6 +21,18 @@ class HTTPAPI:
                 raise AuthenticationError("bearer token required")
             token = authorization[7:].strip()
             user_id = self.verify_token(token)
+            if method == "POST" and path.startswith("/campaigns/") and path.endswith("/renders"):
+                if self.render_api is None:
+                    return 503, {"error": "RENDER_NOT_CONFIGURED"}
+                cid = path[len("/campaigns/"):-len("/renders")].strip("/")
+                return self.render_api.create(token, user_id, cid, body)
+            if method == "GET" and path.startswith("/render-jobs/"):
+                if self.render_api is None:
+                    return 503, {"error": "RENDER_NOT_CONFIGURED"}
+                target = path[len("/render-jobs/"):]
+                if target.endswith("/download"):
+                    return self.render_api.download(token, user_id, target[:-len("/download")])
+                return self.render_api.get(token, user_id, target)
             if method == "POST" and path == "/campaigns":
                 # Fail closed BEFORE writing if durable queue is not yet configured.
                 if self.planning_queue is None:

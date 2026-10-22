@@ -22,3 +22,12 @@ class AzurePlanningQueue:
         if str(UUID(campaign_id)) != campaign_id:
             raise ValueError("noncanonical campaign ID")
         self.client.send_message(campaign_id)
+
+
+class AzureRenderQueue(AzurePlanningQueue):
+    def __init__(self, connection_string: str):
+        if not connection_string:
+            raise ValueError("Azure Storage queue connection required")
+        self.client = QueueClient.from_connection_string(
+            connection_string, queue_name="retail-reel-render"
+        )  # does not provision a queue

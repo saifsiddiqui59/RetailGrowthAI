@@ -7,9 +7,10 @@ import azure.functions as func
 from http_api import HTTPAPI
 from security import SupabaseJWTVerifier
 from tenant_store import TenantStore
-from queue_adapter import AzurePlanningQueue
+from queue_adapter import AzurePlanningQueue, AzureRenderQueue
 from admin_store import AdminStore
 from planning_worker import process_campaign
+from render_api import RenderAPI
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -21,7 +22,13 @@ def build_api():
     # Queue is only usable if an existing Azure Storage Queue has been configured.
     connection = os.environ.get("RETAIL_STORAGE")
     queue = AzurePlanningQueue(connection) if connection else None
-    return HTTPAPI(SupabaseJWTVerifier(url), TenantStore(url, key), queue)
+    store = TenantStore(url, key)
+    admin_key = os.environ.get("RETAIL_SUPABASE_SERVICE_ROLE_KEY")
+    render_api = (
+        RenderAPI(store, AdminStore(url, admin_key), AzureRenderQueue(connection))
+        if connection and admin_key else None
+    )
+    return HTTPAPI(SupabaseJWTVerifier(url), store, queue, render_api)
 
 
 def dispatch(request, path):
@@ -66,3 +73,18 @@ def plan_campaign(message: func.QueueMessage):
         cid, admin,
         mock_enabled=os.environ.get("RETAIL_ENABLE_MOCK_CAMPAIGNS") == "true",
     )
+
+
+@app.route(route="campaigns/{campaign_id}/renders", methods=["POST"])
+def create_render(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/campaigns/" + req.route_params["campaign_id"] + "/renders")
+
+
+@app.route(route="render-jobs/{job_id}", methods=["GET"])
+def get_render(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/render-jobs/" + req.route_params["job_id"])
+
+
+@app.route(route="render-jobs/{job_id}/download", methods=["GET"])
+def get_render_download(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/render-jobs/" + req.route_params["job_id"] + "/download")
