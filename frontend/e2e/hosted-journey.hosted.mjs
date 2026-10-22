@@ -2,6 +2,9 @@
 // It intentionally does not intercept network, seed fake assets, or synthesize success.
 import { test, expect } from '@playwright/test'
 import { spawnSync } from 'node:child_process'
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { hostedConfig, pollHosted, signedDownloadUrl } from './hosted-support.mjs'
 
 const cfg = hostedConfig(process.env)
@@ -36,20 +39,26 @@ function expectDenied(response, codes) {
   expect(codes, 'Cross-tenant/expired requests must fail closed').toContain(response.status())
 }
 function validateMp4(bytes) {
-  // ffprobe is mandatory for manual hosted qualification; media contents not stored/logged.
-  const probe = spawnSync('ffprobe', ['-v', 'error', '-show_entries',
-    'format=duration:stream=codec_type,codec_name,width,height', '-of', 'json', '-i', 'pipe:0'],
-  { input: bytes, encoding: 'utf8', maxBuffer: 2 * 1024 * 1024, timeout: 30000 })
-  if (probe.error || probe.status !== 0) {
-    throw new Error('ffprobe unavailable or unable to decode signed MP4; verify local ffprobe installation')
-  }
-  const media = JSON.parse(probe.stdout)
-  const video = media.streams.find(s => s.codec_type === 'video')
-  const audio = media.streams.find(s => s.codec_type === 'audio')
-  expect(video).toMatchObject({ codec_name: 'h264', width: 1080, height: 1920 })
-  expect(audio?.codec_name).toBe('aac')
-  expect(Number(media.format.duration)).toBeGreaterThanOrEqual(29)
-  expect(Number(media.format.duration)).toBeLessThanOrEqual(31)
+  // Use a short-lived, owner-readable temp file because some MP4s require
+  // a seekable ffprobe input for their final moov atom. Always erase it.
+  const dir = mkdtempSync(join(tmpdir(), 'rg-hosted-render-'))
+  try {
+    const filename = join(dir, 'render.mp4')
+    writeFileSync(filename, bytes, { mode: 0o600 })
+    const probe = spawnSync('ffprobe', ['-v', 'error', '-show_entries',
+      'format=duration:stream=codec_type,codec_name,width,height', '-of', 'json', filename],
+    { encoding: 'utf8', maxBuffer: 2 * 1024 * 1024, timeout: 30000 })
+    if (probe.error || probe.status !== 0) {
+      throw new Error('ffprobe unavailable or unable to decode signed MP4; verify local ffprobe installation')
+    }
+    const media = JSON.parse(probe.stdout)
+    const video = media.streams.find(s => s.codec_type === 'video')
+    const audio = media.streams.find(s => s.codec_type === 'audio')
+    expect(video).toMatchObject({ codec_name: 'h264', width: 1080, height: 1920 })
+    expect(audio?.codec_name).toBe('aac')
+    expect(Number(media.format.duration)).toBeGreaterThanOrEqual(29)
+    expect(Number(media.format.duration)).toBeLessThanOrEqual(31)
+  } finally { rmSync(dir, { recursive: true, force: true }) }
 }
 
 test.describe.serial('RetailGrowthAI approved hosted DEV journey (real network and private image)', () => {
