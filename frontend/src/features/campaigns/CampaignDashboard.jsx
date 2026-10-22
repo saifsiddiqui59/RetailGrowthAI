@@ -1,0 +1,355 @@
+import { useMemo, useState } from 'react'
+import sampleCampaign from './fixtures/sample-campaign.json'
+import {
+  buildCampaignRequest, cloneCampaign, formatDayDate, linkedInText,
+  serializeDraftDay, timelineErrors, updateCampaignDay, updateScene,
+} from './campaign-model.mjs'
+import './CampaignDashboard.css'
+
+const INITIAL_BRIEF = 'Create seven days of helpful style inspiration for my clothing boutique, with LinkedIn posts and Instagram Reel concepts.'
+const MOCK_NOTICE = 'Demo only · Sample drafts and synthetic asset IDs. No AI, saving, rendering or publishing is connected.'
+
+function saveLocalFile(filename, contents, mimeType) {
+  const url = URL.createObjectURL(new Blob([contents], { type: mimeType }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+function CampaignPrompt({ campaign, onRequest }) {
+  const [brief, setBrief] = useState(INITIAL_BRIEF)
+  const [startDate, setStartDate] = useState(campaign.days[0].scheduled_date)
+  const [offer, setOffer] = useState('')
+  const [expiry, setExpiry] = useState('')
+  const [error, setError] = useState('')
+  const [showRequest, setShowRequest] = useState(false)
+  const [request, setRequest] = useState(null)
+
+  function submit(event) {
+    event.preventDefault()
+    try {
+      const next = buildCampaignRequest({
+        brief, start_date: startDate, offer_description: offer,
+        offer_valid_until: expiry,
+      }, campaign)
+      setRequest(next)
+      setError('')
+      setShowRequest(true)
+      onRequest()
+    } catch (problem) {
+      setError(problem.message)
+      setShowRequest(false)
+    }
+  }
+
+  return (
+    <section className="rg-panel rg-brief" aria-labelledby="rg-brief-title">
+      <div className="rg-section-head">
+        <div>
+          <span className="rg-kicker">01 / THE CREATIVE BRIEF</span>
+          <h2 id="rg-brief-title">What should we create?</h2>
+          <p>Describe your campaign in your own words. Build a local API request preview before any AI connection.</p>
+        </div>
+        <span className="rg-mini-pill">7-day plan</span>
+      </div>
+      <form onSubmit={submit} className="rg-brief-form">
+        <label className="rg-field rg-wide" htmlFor="rg-prompt">
+          <span>Campaign instructions</span>
+          <textarea id="rg-prompt" value={brief} onChange={event => setBrief(event.target.value)}
+            minLength={10} maxLength={2000} rows={3} required
+            placeholder="e.g. Plan seven days of summer looks using my approved products..." />
+          <small>{brief.length}/2000 characters · No AI request is sent</small>
+        </label>
+        <label className="rg-field" htmlFor="rg-start">
+          <span>Start date</span>
+          <input id="rg-start" type="date" value={startDate} onChange={event => setStartDate(event.target.value)} required />
+        </label>
+        <label className="rg-field" htmlFor="rg-offer">
+          <span>Offer (optional)</span>
+          <input id="rg-offer" value={offer} onChange={event => setOffer(event.target.value)}
+            placeholder="Only enter real, approved offers" />
+        </label>
+        <label className="rg-field" htmlFor="rg-expiry">
+          <span>Offer ends (if specified)</span>
+          <input id="rg-expiry" type="date" value={expiry} onChange={event => setExpiry(event.target.value)} />
+        </label>
+        <div className="rg-prompt-actions">
+          <div className="rg-platforms" aria-label="Planned channels">
+            <span>LinkedIn</span><span>Instagram Reels</span>
+          </div>
+          <button className="rg-button rg-primary" type="submit">Preview campaign request <span aria-hidden="true">→</span></button>
+        </div>
+      </form>
+      {error && <p className="rg-validation" role="alert">{error}</p>}
+      {showRequest && request && (
+        <div className="rg-request-preview" aria-live="polite">
+          <div className="rg-inline-title">
+            <strong>Contract v1 request · local preview only</strong>
+            <button type="button" className="rg-button rg-quiet"
+              onClick={() => saveLocalFile('campaign-request.json', JSON.stringify(request, null, 2) + '\n', 'application/json')}>
+              Export request JSON
+            </button>
+          </div>
+          <p>No campaign was generated; the seven sample days below are unchanged.</p>
+          <pre>{JSON.stringify(request, null, 2)}</pre>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function Calendar({ days, selectedId, onSelect }) {
+  return (
+    <section className="rg-calendar-section" aria-labelledby="rg-calendar-title">
+      <div className="rg-inline-title rg-calendar-heading">
+        <div>
+          <span className="rg-kicker">02 / CONTENT CALENDAR</span>
+          <h2 id="rg-calendar-title">Your week, at a glance</h2>
+        </div>
+        <span className="rg-subtle">7 sample days · not scheduled</span>
+      </div>
+      <div className="rg-calendar" aria-label="Choose a campaign day">
+        {days.map(day => (
+          <button type="button" key={day.id} onClick={() => onSelect(day.id)}
+            className={'rg-calendar-day' + (selectedId === day.id ? ' is-selected' : '')}
+            aria-pressed={selectedId === day.id} aria-label={'Day ' + day.day_index + ': ' + day.topic}>
+            <span className="rg-calendar-index">DAY {String(day.day_index).padStart(2, '0')}</span>
+            <strong>{formatDayDate(day.scheduled_date)}</strong>
+            <span className="rg-calendar-topic">{day.topic}</span>
+            <span className="rg-calendar-status"><i aria-hidden="true" />Draft preview</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function LinkedInEditor({ day, onChange }) {
+  const [copied, setCopied] = useState(false)
+  async function copy() {
+    if (!navigator.clipboard?.writeText) return
+    try {
+      await navigator.clipboard.writeText(linkedInText(day))
+      setCopied(true)
+    } catch {
+      setCopied(false)
+    }
+  }
+  const wordCount = day.linkedin.post_text.trim().split(/\s+/).filter(Boolean).length
+  return (
+    <div className="rg-editor-pane" aria-label="LinkedIn content editor">
+      <div className="rg-input-meta"><span>LINKEDIN POST · EDITABLE DRAFT</span><span>{wordCount} words</span></div>
+      <label className="rg-field" htmlFor="rg-linkedin-copy">
+        <span>Post body</span>
+        <textarea id="rg-linkedin-copy" rows={8} value={day.linkedin.post_text}
+          onChange={event => onChange(current => ({
+            ...current, linkedin: { ...current.linkedin, post_text: event.target.value },
+          }))} />
+      </label>
+      <label className="rg-field" htmlFor="rg-tags">
+        <span>Hashtags (comma separated)</span>
+        <input id="rg-tags" value={day.linkedin.hashtags.join(', ')}
+          onChange={event => onChange(current => ({
+            ...current, linkedin: { ...current.linkedin,
+              hashtags: event.target.value.split(',').map(tag => tag.trim()).filter(Boolean).map(tag => tag.startsWith('#') ? tag : '#' + tag),
+            },
+          }))} />
+      </label>
+      <div className="rg-editor-actions">
+        <button className="rg-button rg-secondary" type="button" onClick={() => saveLocalFile(
+          'day-' + day.day_index + '-linkedin.txt', linkedInText(day), 'text/plain;charset=utf-8'
+        )}>Download post .txt</button>
+        <button className="rg-button rg-quiet" type="button" onClick={copy}>{copied ? 'Copied' : 'Copy text'}</button>
+      </div>
+    </div>
+  )
+}
+
+function ReelPreview({ day }) {
+  return (
+    <div className="rg-preview-pane">
+      <div className="rg-phone-wrap">
+        <div className="rg-phone" role="img" aria-label="Illustrative Instagram Reel layout. No images or video have been rendered.">
+          <div className="rg-phone-top"><span>▰▰</span><span>REEL CONCEPT</span><span>⋮</span></div>
+          <div className="rg-phone-graphic"><span className="rg-orbit rg-orbit-one"/><span className="rg-orbit rg-orbit-two"/></div>
+          <div className="rg-phone-center">
+            <small>DAY {String(day.day_index).padStart(2, '0')} / 07</small>
+            <strong>{day.instagram.reel.storyboard[1]?.overlay_text || day.topic}</strong>
+            <em>{day.instagram.reel.cta}</em>
+          </div>
+          <div className="rg-phone-bottom"><span>@your_brand · illustrative mock</span><span>♡  ◻  ↗</span></div>
+        </div>
+        <div className="rg-video-caption">9:16 concept frame · no actual media</div>
+      </div>
+      <div className="rg-field">
+        <span>Instagram caption</span>
+        <p className="rg-caption-preview">{day.instagram.caption}</p>
+      </div>
+    </div>
+  )
+}
+
+function StoryboardEditor({ day, onChange }) {
+  const scenes = day.instagram.reel.storyboard
+  const errors = useMemo(() => timelineErrors(scenes), [scenes])
+  const duration = scenes.reduce((total, scene) => total + (Number.isFinite(scene.duration_seconds) ? scene.duration_seconds : 0), 0)
+  function changeScene(index, field, value) {
+    onChange(current => ({
+      ...current,
+      instagram: {
+        ...current.instagram,
+        reel: {
+          ...current.instagram.reel,
+          storyboard: updateScene(current.instagram.reel.storyboard, index, field, value),
+        },
+      },
+    }))
+  }
+  return (
+    <section className="rg-storyboard" aria-labelledby="rg-storyboard-title">
+      <div className="rg-inline-title">
+        <div><span className="rg-kicker">03 / REEL STORYBOARD</span><h3 id="rg-storyboard-title">Frame by frame</h3></div>
+        <span className={'rg-timing' + (errors.length ? ' rg-timing-bad' : '')}>{duration}s / 30s</span>
+      </div>
+      <p className="rg-subtle">Edit scene text and duration. Starts are recalculated automatically; synthetic asset IDs remain read-only.</p>
+      <div className="rg-scene-list">
+        {scenes.map((scene, index) => (
+          <div className="rg-scene" key={scene.asset_id + '-' + index}>
+            <div className="rg-scene-number">0{index + 1}</div>
+            <div className="rg-scene-body">
+              <label className="rg-field" htmlFor={'rg-scene-text-' + index}>
+                <span>Overlay text</span>
+                <input id={'rg-scene-text-' + index} value={scene.overlay_text}
+                  onChange={event => changeScene(index, 'overlay_text', event.target.value)} />
+              </label>
+              <span className="rg-asset-id" title={scene.asset_id}>Sample asset · {scene.asset_id.slice(0, 8)}…</span>
+            </div>
+            <label className="rg-field rg-duration" htmlFor={'rg-scene-time-' + index}>
+              <span>Seconds</span>
+              <input id={'rg-scene-time-' + index} type="number" min="1" max="30" step="1"
+                value={scene.duration_seconds} onChange={event => changeScene(index, 'duration_seconds', event.target.value)} />
+              <small>Starts {scene.start_seconds}s</small>
+            </label>
+          </div>
+        ))}
+      </div>
+      {errors.length > 0 && <div className="rg-validation" role="alert">{errors.map(error => <p key={error}>{error}</p>)}</div>}
+      {errors.length === 0 && <div className="rg-valid-timeline">✓ Continuous 30-second timeline (metadata only)</div>}
+    </section>
+  )
+}
+
+function RenderStatus({ day, valid }) {
+  return (
+    <section className="rg-render" aria-labelledby="rg-render-title">
+      <div className="rg-inline-title">
+        <div><span className="rg-kicker">04 / RENDER & EXPORT</span><h3 id="rg-render-title">Production queue</h3></div>
+        <span className="rg-status-pill">Not queued</span>
+      </div>
+      <p>Video rendering is not connected. No render job ID or MP4 exists for this sample. A signed download will require the backend.</p>
+      <div className="rg-render-actions">
+        <button type="button" className="rg-button rg-secondary" disabled title="Backend render endpoint required">Render Reel · unavailable</button>
+        <button type="button" className="rg-button rg-secondary" disabled title="No rendered MP4 is available">Download MP4 · unavailable</button>
+        <button type="button" className="rg-button rg-quiet" disabled={!valid}
+          onClick={() => saveLocalFile('day-' + day.day_index + '-draft.json', serializeDraftDay(day), 'application/json')}>
+          Export day JSON
+        </button>
+      </div>
+      <span className="rg-subtle">JSON export includes edited storyboard metadata, not any media file.</span>
+    </section>
+  )
+}
+
+export default function CampaignDashboard() {
+  const [campaign, setCampaign] = useState(() => cloneCampaign(sampleCampaign))
+  const [selectedId, setSelectedId] = useState(sampleCampaign.days[0].id)
+  const [tab, setTab] = useState('linkedin')
+  const [notice, setNotice] = useState('')
+  const day = campaign.days.find(entry => entry.id === selectedId) || campaign.days[0]
+  const storyErrors = timelineErrors(day.instagram.reel.storyboard)
+  const original = sampleCampaign.days.find(entry => entry.id === day.id)
+  const changed = JSON.stringify(original) !== JSON.stringify(day)
+
+  function editDay(transform) {
+    setCampaign(current => updateCampaignDay(current, day.id, transform))
+    setNotice('Edits are held only in this browser tab. Export a draft to keep a copy.')
+  }
+  function restoreDay() {
+    setCampaign(current => updateCampaignDay(current, day.id, () => cloneCampaign(original)))
+    setNotice('Sample draft restored for day ' + day.day_index + '.')
+  }
+
+  return (
+    <div className="rg-dashboard">
+      <div className="rg-hero">
+        <div><span className="rg-kicker">RETAILGROWTHAI / CAMPAIGN STUDIO</span>
+          <h1>Make every day <span>worth sharing.</span></h1>
+          <p>From a simple idea to a seven-day content plan. Shape your story across LinkedIn and Instagram.</p>
+          <span className="rg-demo-notice" role="status">{MOCK_NOTICE}</span>
+        </div>
+        <div className="rg-hero-art" aria-hidden="true"><span>01</span><span>PLAN / CREATE / REVIEW</span><b>↗</b></div>
+      </div>
+      <div className="rg-stats" aria-label="Sample campaign summary">
+        <div><strong>07</strong><span>Draft campaign days</span></div>
+        <div><strong>14</strong><span>Channel draft concepts</span></div>
+        <div><strong>30<span>s</span></strong><span>Reel storyboard target</span></div>
+        <div><strong>0</strong><span>Videos actually rendered</span></div>
+      </div>
+      <CampaignPrompt campaign={campaign} onRequest={() => setNotice('API request preview built locally; sample content is unchanged.')} />
+      <Calendar days={campaign.days} selectedId={day.id} onSelect={(id) => { setSelectedId(id); setNotice('') }} />
+      <section className="rg-editor rg-panel" aria-labelledby="rg-editor-title">
+        <div className="rg-inline-title rg-editor-heading">
+          <div><span className="rg-kicker">CONTENT WORKSPACE / DAY {String(day.day_index).padStart(2, '0')}</span>
+            <h2 id="rg-editor-title">Refine your draft</h2><p>{formatDayDate(day.scheduled_date)} · Local sample campaign</p>
+          </div>
+          <div className="rg-editor-actions">
+            {changed && <span className="rg-changed">Edited in this tab</span>}
+            <button className="rg-button rg-quiet" type="button" onClick={restoreDay}>Reset day</button>
+          </div>
+        </div>
+        <label className="rg-field rg-topic" htmlFor="rg-topic">
+          <span>Content topic</span>
+          <input id="rg-topic" value={day.topic} onChange={event => editDay(current => ({ ...current, topic: event.target.value }))} />
+        </label>
+        <div className="rg-tab-bar" role="group" aria-label="Content editor section">
+          <button type="button" className={tab === 'linkedin' ? 'rg-tab is-active' : 'rg-tab'}
+            aria-pressed={tab === 'linkedin'} onClick={() => setTab('linkedin')}>LinkedIn post</button>
+          <button type="button" className={tab === 'instagram' ? 'rg-tab is-active' : 'rg-tab'}
+            aria-pressed={tab === 'instagram'} onClick={() => setTab('instagram')}>Instagram concept</button>
+        </div>
+        {tab === 'linkedin'
+          ? <div className="rg-editor-content rg-linkedin-layout">
+              <LinkedInEditor key={day.id} day={day} onChange={editDay} />
+              <div className="rg-linkedin-preview">
+                <div className="rg-social-profile"><div>R</div><span><strong>Your business</strong><small>Post preview · not published</small></span><b>•••</b></div>
+                <p>{day.linkedin.post_text}</p>
+                <div className="rg-hashtag-preview">{day.linkedin.hashtags.join(' ')}</div>
+                <div className="rg-social-footer">Like <span>Comment</span> Repost <span>Send</span></div>
+              </div>
+            </div>
+          : <div className="rg-editor-content rg-instagram-layout">
+              <div className="rg-instagram-controls">
+                <label className="rg-field" htmlFor="rg-caption"><span>Instagram caption</span>
+                  <textarea id="rg-caption" rows={5} value={day.instagram.caption}
+                    onChange={event => editDay(current => ({
+                      ...current, instagram: { ...current.instagram, caption: event.target.value },
+                    }))} /></label>
+                <label className="rg-field" htmlFor="rg-cta"><span>Reel call-to-action</span>
+                  <input id="rg-cta" value={day.instagram.reel.cta} onChange={event => editDay(current => ({
+                    ...current, instagram: { ...current.instagram, reel: { ...current.instagram.reel, cta: event.target.value } },
+                  }))} /></label>
+                <StoryboardEditor day={day} onChange={editDay} />
+              </div>
+              <ReelPreview day={day} />
+            </div>}
+        <RenderStatus day={day} valid={storyErrors.length === 0} />
+      </section>
+      {notice && <p className="rg-session-notice" role="status">{notice}</p>}
+      <p className="rg-footnote">Sample data only. This UI neither uploads files nor schedules, publishes, authorizes assets, saves drafts remotely, calls AI or renders videos.</p>
+    </div>
+  )
+}
