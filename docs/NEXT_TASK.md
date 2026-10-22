@@ -31,7 +31,7 @@ Part 1 — AI Campaign Creation. Coordinator bootstrap verified in GitHub Action
 - Complete auth -> prompt -> planning job -> draft review -> local render -> signed download, with bounded retries, idempotency and usage safety, before any deployment.
 
 ## Deployment blockers
-- Dedicated RetailGrowthAI Supabase DEV/PROD projects absent.
+- RetailGrowthAI DEV/pilot Supabase provisioned, but a separate PROD Supabase project is absent.
 - No model credentials/Foundry deployment or cloud video worker configured.
 - Live publishing is Part 2, Wan is Part 3, and production testing is Part 4.
 
@@ -44,3 +44,9 @@ Part 1 — AI Campaign Creation. Coordinator bootstrap verified in GitHub Action
 - Chat D: build contract-compliant campaign UI in owned directory with clearly labeled mocks.
 - Coordinator follow-up: generate/review/commit `frontend/package-lock.json` using Git Bash; current CI still uses `npm install`. Once a reviewed lock exists CI switches to `npm ci`.
 - See `docs/CI_AUTOMATION.md` for GitHub Actions evidence, three-job test scope, and security limits.
+
+## Coordinator follow-up after Workstream A PR #5 — 2026-10-22
+- Workstream A PR #5 is open/unmerged. Its migration files match the dedicated RetailGrowthAI DEV database migration history; real negative database and private-storage tests passed there.
+- The stacked coordinator integration branch `chore/p1-foundation-auth-ci-integration` wires the Account route and proposes required local Supabase security CI. [Branch Actions run 39752723276](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39752723276) passed all four jobs, including new security CI. Coordinator still reviews integration before merging.
+- Integration sequence: review/merge PR #5 to main once ready; then retarget and merge the coordinator integration PR to main, rebase/check for conflicts, and validate all CI jobs after merging. No worker or coordinator should merge a failing/untested change.
+- Remaining: configure frontend-only RetailGrowthAI publishable key and project URL in deployment settings (never a service key), verify real email sign-in and shop/profile updates in browser, create isolated PROD when launch-ready. Campaign generation/rendering remains with B/C/D.

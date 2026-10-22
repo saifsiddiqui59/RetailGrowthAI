@@ -1,6 +1,8 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import sampleCampaign from './features/campaigns/fixtures/sample-campaign.json'
 import CampaignDashboard from './features/campaigns/CampaignDashboard.jsx'
+import { AuthProvider } from './auth/AuthProvider.jsx'
+import { AccountWorkspace } from './auth/AccountWorkspace.jsx'
 
 const links = [
   { to: '/', label: 'Overview', end: true },
@@ -24,27 +26,14 @@ function Overview() {
           <div><div className="eyebrow">DEVELOPER PREVIEW</div><h2>Shared campaign contract</h2></div>
           <span className="tag">Fixture only</span>
         </div>
-        <p>The seven-day example follows <code>docs/INTERFACES_V1.md</code>. AI generation, rendering, authentication and publishing are not available in this bootstrap.</p>
+        <p>The seven-day example follows <code>docs/INTERFACES_V1.md</code>. AI generation, rendering and publishing are not available in this bootstrap. Business sign-in is available in Account when configured.</p>
         <NavLink className="text-link" to="/campaigns">Inspect sample days →</NavLink>
       </section>
     </>
   )
 }
 
-function Account() {
-  return (
-    <>
-      <div className="eyebrow">FOUNDATION WORKSTREAM</div>
-      <h1>Account</h1>
-      <section className="panel">
-        <h2>Authentication is not configured</h2>
-        <p>This placeholder is reserved for the tenant-safe Supabase authentication workstream. No credentials or live shop data are used.</p>
-      </section>
-    </>
-  )
-}
-
-export default function App() {
+function AppShell() {
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -58,16 +47,20 @@ export default function App() {
         <div className="sidebar-bottom">Developer bootstrap <span>v0.1</span></div>
       </aside>
       <div className="page">
-        <header className="topbar"><span>RetailGrowthAI / Part 1</span><span className="environment">LOCAL MOCK MODE</span></header>
+        <header className="topbar"><span>RetailGrowthAI / Part 1</span><span className="environment">CAMPAIGNS: MOCK · ACCOUNT: CONFIGURABLE</span></header>
         <main className="content">
           <Routes>
             <Route path="/" element={<Overview />} />
             <Route path="/campaigns" element={<CampaignDashboard />} />
-            <Route path="/account" element={<Account />} />
+            <Route path="/account" element={<AccountWorkspace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
       </div>
     </div>
   )
+}
+
+export default function App() {
+  return <AuthProvider><AppShell /></AuthProvider>
 }

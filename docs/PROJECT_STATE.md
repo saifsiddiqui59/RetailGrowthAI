@@ -56,8 +56,8 @@ The system generates multi-day marketing campaigns.
 ## Current Status
 GitHub access and initial uv scaffold verified. Architecture and parallel contracts documented on 2026-10-22. Coordinator bootstrap on 2026-10-22 added a runnable React/Vite shell, router and shared mock campaign fixture. GitHub Actions completed successfully on the bootstrap commit: npm installed 69 packages, 2 JavaScript tests passed, 1 Python test passed, and Vite v7.3.7 built 42 modules. Evidence: https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39739502984. No business service is implemented.
 
-No RetailGrowthAI business features implemented yet; the sample seven-day campaign and its storyboard metadata are local mock records, not AI output, rendered assets or scheduled posts.
-No new Supabase database deployed yet.
+No generated/published campaigns exist yet; the seven-day fixture remains mock data. Workstream A's tenant schema, Auth and RLS code is in open PR #5 and is not integrated to main.
+A dedicated RetailGrowthAI **DEV/pilot** Supabase project exists (`jeearzffnjbvghwjjjrf`, Tokyo); a separate production project does not exist.
 No new Azure application resources deployed yet.
 
 ## Next
@@ -76,3 +76,12 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 - Three new independent CI jobs (frontend, Python/uv, FFmpeg) all passed **after merge** in [GitHub Actions run #39745758948](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39745758948).
 - Frontend runs npm install until `frontend/package-lock.json` is reviewed; Python checks currently exercise only the shared fixture contract; FFmpeg smoke checks a 2-second synthetic MP4, not a completed campaign renderer.
 - Four remote Part 1 workstream branches exist; coordinator synchronizes them to the final documented baseline before worker chats begin. No live model, tenant database, cloud resources, publishing, or production render was created by this CI update.
+
+## Coordinator auth/security integration proposal — 2026-10-22
+- Branch `chore/p1-foundation-auth-ci-integration` is based on open Workstream A PR #5 (do not merge out of order).
+- AuthProvider now wraps the application shell; `/account` renders AccountWorkspace (sign-in, registration, shop creation, profile editing) instead of the bootstrap placeholder. The campaign overview is still clearly mock-only.
+- A fourth Actions job runs Node browser Auth client tests and starts disposable local Supabase Postgres to apply all three A migrations and execute both negative RLS/storage SQL scripts; uses no cloud credentials and cannot modify hosted resources.
+- Workstream A previously verified 10 RLS-enabled tables, 25 tenant policies, four private-storage policies, and zero Supabase security advisories on the dedicated DEV/pilot project. Live tests used rollback and created no persistent test data.
+- Do not interpret code/CI success as real browser login over HTTPS; VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY must be set in a RetailGrowthAI-only deployment, followed by manual functional testing. No production database/project is available yet.
+
+- Coordinator branch verification: [Actions run 39752723276](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39752723276) **passed all four jobs**, including live-on-disposable-DB SQL negative tests and browser-client Node tests. This is branch-only CI evidence; main and the production deployment are unchanged.
