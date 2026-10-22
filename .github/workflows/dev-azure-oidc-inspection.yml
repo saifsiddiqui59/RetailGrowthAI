@@ -45,7 +45,7 @@ jobs:
           fi
           echo "PASS: Azure OIDC selected the expected DEV subscription (ID hidden)."
           group_file="$(mktemp)"
-          trap 'rm -f "$group_file" "$group_file.matches" "$group_file.sites" "$group_file.roles"' EXIT
+          trap 'rm -f "$group_file" "$group_file.matches" "$group_file.sites" "$group_file.roles" "$group_file.matches.missing-tags"' EXIT
           if az group list --subscription "$EXPECTED_SUB" --output json > "$group_file" 2>/dev/null; then
             echo "PASS: subscription resource-group read access."
           elif az group show --subscription "$EXPECTED_SUB" --name rg-retailgrowth-dev --output json > "$group_file" 2>/dev/null; then
@@ -84,8 +84,18 @@ jobs:
           for group in approved:
               print("DEV RG:",group["name"],"| region:",group["location"])
           if len(approved)!=1:
-              print("BLOCKED: require exactly one tagged dedicated Central India RG; no resources changed.")
-              sys.exit(3)
+              # Read-only diagnostic exception: inspect the exact pre-agreed RG
+              # without treating missing ownership tags as deployment approval.
+              exact=[rg for rg in groups
+                     if str(rg.get("name","")).lower()=="rg-retailgrowth-dev"
+                     and str(rg.get("location","")).lower().replace(" ","")=="centralindia"]
+              if len(exact)!=1 or len(approved)>1:
+                  print("BLOCKED: no unambiguous dedicated Central India RG; no resources changed.")
+                  sys.exit(3)
+              approved=[{"name":exact[0]["name"],"location":"centralindia","id":exact[0]["id"]}]
+              json.dump(approved,open(sys.argv[2],"w"))
+              open(sys.argv[2]+".missing-tags","w").write("yes")
+              print("READ-ONLY EXCEPTION: exact dedicated RG found, missing required tags. Inspecting IAM and SWA without changing resources.")
           PY
           rg="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))[0]["name"])' "$group_file.matches")"
           rg_id="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))[0]["id"])' "$group_file.matches")"
@@ -125,6 +135,10 @@ jobs:
             fi
           else
             echo "BLOCKED: Principal object ID is not readable via Entra; cannot verify IAM."
+          fi
+          if [ -f "$group_file.matches.missing-tags" ]; then
+            echo "::error::BLOCKED FOR DEPLOY: rg-retailgrowth-dev requires app=RetailGrowthAI and environment=dev tags. IAM and SWA inventory above is read-only."
+            exit 3
           fi
           echo "Azure inventory complete: READ-ONLY. No resource, token or secret was created."
       - name: Remove transient Azure credentials
