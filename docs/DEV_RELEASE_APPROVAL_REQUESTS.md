@@ -28,15 +28,14 @@ Required controls:
 
 | Gate | Owner decision | Latest source and 4/4 main CI | Hosted change | Actual verification |
 | --- | --- | --- | --- | --- |
-| A SWA frontend-only | **PENDING** | R PR not yet verified | **NONE** | No live URL |
-| B Supabase DEV SQL | **PENDING** | P PR not yet verified | **NONE** | Read-only history to be refreshed |
-| C Azure backend | **PENDING** | Q PR not yet verified | **NONE** | Read-only OIDC authentication only |
-| D Hosted E2E | **PENDING** | Offline harness previously merged as O | **NONE** | Mock-only validation |
+| A SWA frontend-only | **PENDING** | R #59 merged db8aeee6; main #39834922909 4/4 | **NONE** | No live URL |
+| B Supabase DEV SQL | **PENDING** | P #56 merged a393787b; main #39834506027 4/4 | **NONE** | Read-only history to be refreshed |
+| C Azure backend | **PENDING** | Q #57 merged 28cd7a6c; main #39835674846 attempt 2 4/4 | **NONE** | Read-only OIDC authentication only |
+| D Hosted E2E | **PENDING** | Offline O harness merged; main #39835674846 attempt 2 4/4 | **NONE** | Mock-only validation |
 
 **Approval language:** A future user message should explicitly identify *which one* of A/B/C/D, exact reviewed site/project/RG, cost cap and rollout scope. Approval for A never includes B/C/D. Do not interpret “prepare,” “PR merged,” “OIDC works,” or “show preview” as a hosted-change authorization.
 
-## 2026-10-22 — Source-approved vs hosted-unapproved distinction
-- P [PR #56](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/56), R [PR #59](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/59) and Q [PR #57](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/57) are merged; coordinator manual frontend-only workflow [#58](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/58) is also merged. Combined main [CI #39835674846 attempt 2](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39835674846) **passed 4/4**. Those are **source code** checks, not live runtime evidence.
-- **A #51 PENDING**: approve separately one isolated Azure Static Web App DEV mock website, exact name/region/plan/cost, protected GitHub secret and manual deploy; only after actual HTTPS `/`, `/campaigns`, `/account` checks may a real URL be reported. **No URL exists yet.**
-- **B #52 PENDING**: separate hosted RetailGrowthAI DEV Supabase SQL migration authorization for seven ordered versions with backup/restore validation. **C #53 PENDING**: separate Azure DEV Functions/Storage/queue/FFmpeg resource provisioning/deploy with IAM/cost/rollback. **D #54 PENDING**: separate real hosted DEV E2E testing with live test identities, media-rights evidence and cleanup.
-- Permission for A never includes B/C/D; none of these grants WineShopPOS or PROD access.
+
+## 2026-10-22 — verified source handoff (LATEST)
+- All P/Q/R PRs and coordinator workflow are merged: P #56 / a393787b, R #59 / db8aeee6, Q #57 / 28cd7a6c. Latest main #39835674846 attempt 2 passed all four offline CI jobs. The first attempt only failed due to ghcr.io disposable database image rate limiting. R mock static website is prepared, but no live Azure Static Web App has been created and no HTTPS demo URL was verified.
+- GitHub issues #51, #52, #53 and #54 remain **OPEN/PENDING** for separate go/no-go decisions. Gate A is first; source integration, issue creation and this document are NOT permission to deploy any website, migrate SQL, provision Functions or execute hosted E2E.
