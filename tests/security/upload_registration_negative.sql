@@ -36,7 +36,7 @@ values(
 
 do $$
 declare
-  asset_id uuid; rejection boolean := false;
+  asset_id uuid; rejection boolean := false; changed integer;
   target_path text := 'd4444444-4444-4444-8444-444444444444/uploads/e5555555-5555-4555-8555-555555555555.png';
 begin
   begin
@@ -59,6 +59,39 @@ begin
        and a.created_by='a1111111-1111-4111-8111-111111111111'
        and a.source='UPLOAD' and a.mime_type='image/png'
   ) then raise exception 'FAIL: authorized uploaded object not registered'; end if;
+
+  -- A registered blob is immutable through user-facing Storage policies.
+  -- This protects the registered MIME, identity and rights evidence.
+  changed := -1;
+  begin
+    update storage.objects
+       set metadata='{"mimetype":"image/jpeg","size":300}'::jsonb
+     where bucket_id='retailgrowth-media' and name=target_path;
+    get diagnostics changed = row_count;
+  exception when insufficient_privilege then changed := 0;
+  end;
+  if changed <> 0 then raise exception 'FAIL: registered image overwritten'; end if;
+
+  changed := -1;
+  begin
+    delete from storage.objects
+     where bucket_id='retailgrowth-media' and name=target_path;
+    get diagnostics changed = row_count;
+  exception when insufficient_privilege then changed := 0;
+  end;
+  if changed <> 0 then raise exception 'FAIL: registered storage object deleted'; end if;
+
+  -- Deleting the database registration first must not bypass Storage protection.
+  changed := -1;
+  begin
+    delete from public.media_assets where id=asset_id;
+    get diagnostics changed = row_count;
+  exception when insufficient_privilege then changed := 0;
+  end;
+  if changed <> 0 then raise exception 'FAIL: user removed media registration'; end if;
+  if not exists (select 1 from public.media_assets where id=asset_id) then
+    raise exception 'FAIL: registered metadata vanished';
+  end if;
 
   if public.register_uploaded_image(
     'd4444444-4444-4444-8444-444444444444',
