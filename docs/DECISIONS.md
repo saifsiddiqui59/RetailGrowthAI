@@ -78,3 +78,8 @@
 - Require the HTTP boundary to validate complete v1 campaign output and authorized source asset IDs before accepting an edit. Only topic, LinkedIn and Instagram draft fields can change; identity/schedule/status are server-owned.
 - Revoke direct authenticated UPDATE on public.campaign_days and use a PostgreSQL security-definer RPC with explicit auth.uid() and active OWNER/EDITOR membership checks, plus original-value comparison and blocked edits during queued/running renders. Do not grant service-role tokens to browsers.
 - A UI preview is never evidence that a draft is saved; remote edits are enabled only after the authenticated PATCH returns committed data. DEV migration needs explicit approval, no hosted mutation in CI.
+
+## 2026-10-22 — Bind user-uploaded media metadata to private Storage objects
+- Browser may upload only PNG/JPEG/WebP bytes after declared commercial-use ownership/permission and evidence. Direct authenticated `media_assets` INSERT is revoked; a restricted server-side PostgreSQL RPC verifies the user-owned private Storage object, current shop edit membership, MIME/size/path and license fields before recording metadata.
+- Upload UUID and shop ID determine the object path; neither browser-submitted paths nor browser-side license declarations alone grant access to another tenant or confirm independent copyright clearance. Storage object size/content-type remain untrusted until renderer decodes real bytes. Browser JWT/publishable key only; service keys never cross into the client.
+- Registration/RLS checks are automated in disposable CI. Hosted migration and actual third-party asset provenance/approval remain unverified/approval-gated.

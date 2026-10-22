@@ -62,3 +62,9 @@ Coordinator merged Workstream A PR #5, stacked coordinator PR #6, Workstream B P
 - Merge draft-save backend PR before stacked React Save UI PR; verify all 4 jobs on both and on main.
 - Approve and apply RetailGrowthAI-only migrations to isolated DEV, then test an actual signed-in browser Save/PATCH/GET round trip and cross-tenant denial. Source-only CI cannot prove this.
 - Next: private, licensed media upload/registration; app/queue deployment after approval; real media render/download, poison recovery and end-to-end QA.
+
+## After private-media upload code
+1. Merge the private image-upload migration/UI PR only after all four jobs pass, then verify post-merge main.
+2. Obtain approval to apply all new RetailGrowthAI-only pending migrations to isolated DEV. The uploader stays nonoperational on cloud until the registration RPC is present.
+3. Real signed-in browser upload -> media row -> campaign planning -> saved edit -> render -> download E2E with actual licensed media; verify file content, CORS, 25 MB bounds and cross-tenant denial. Human rights evidence review required before commercial publishing.
+4. Add bounded abandoned-private-upload cleanup, media deletion/revocation safety, licensed audio/stock ingestion, worker recovery/poison monitoring and cost benchmarking. Deploy Functions/storage queues and Foundry only after explicit approval.

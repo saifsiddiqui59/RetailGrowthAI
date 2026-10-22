@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { createCampaignApi, validateSignedVideoUrl } from './campaign-api.mjs'
 import sampleCampaign from './fixtures/sample-campaign.json'
@@ -273,7 +273,7 @@ function LiveMediaSelection({ shops, shopId, onShop, assets, assetIds, onAssets,
   return (
     <section className="rg-panel" aria-label="Authorized business and media">
       <div className="rg-inline-title">
-        <div><span className="rg-kicker">SECURE WORKSPACE</span><h2>Business and approved media</h2></div>
+        <div><span className="rg-kicker">SECURE WORKSPACE</span><h2>Business and registered media</h2></div>
         <span className="rg-status-pill">Signed-in account</span>
       </div>
       <label className="rg-field" htmlFor="rg-shop">
@@ -284,7 +284,7 @@ function LiveMediaSelection({ shops, shopId, onShop, assets, assetIds, onAssets,
         </select>
       </label>
       <div className="rg-media-list" aria-label="Approved media assets">
-        {assets.length === 0 ? <p>No licensed assets are registered for this shop. Upload/authorize media first.</p> :
+        {assets.length === 0 ? <p>No images registered for this shop. Upload a private, rights-declared image first.</p> :
           assets.map(asset => <label key={asset.id}>
             <input type="checkbox" checked={assetIds.includes(asset.id)}
               onChange={event => onAssets(event.target.checked
@@ -293,9 +293,91 @@ function LiveMediaSelection({ shops, shopId, onShop, assets, assetIds, onAssets,
             <span>{asset.mime_type} · {asset.license_name} · {asset.id.slice(0, 8)}…</span>
           </label>)}
       </div>
-      <p className="rg-subtle">Use 1–21 existing, tenant-owned licensed assets. Synthetic demo IDs are never submitted.</p>
+      <p className="rg-subtle">Use 1–21 registered tenant-owned assets. Rights evidence is self-declared until reviewed. Synthetic IDs are never submitted.</p>
       {error && <p className="rg-validation" role="alert">{error}</p>}
     </section>
+  )
+}
+
+function LiveImageUploader({ client, shopId, onUploaded }) {
+  const [file, setFile] = useState(null)
+  const [licenseName, setLicenseName] = useState('owned')
+  const [licenseUrl, setLicenseUrl] = useState('')
+  const [attribution, setAttribution] = useState('')
+  const [confirmedRights, setConfirmedRights] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [message, setMessage] = useState('')
+  const [uploadError, setUploadError] = useState('')
+  const active = useRef(true)
+  useEffect(() => {
+    active.current = true
+    return () => { active.current = false }
+  }, [])
+
+  async function submit(event) {
+    event.preventDefault()
+    if (!file || uploading || !confirmedRights) return
+    setUploading(true)
+    setUploadError('')
+    setMessage('')
+    try {
+      const asset = await client.uploadImageAsset(shopId, {
+        file, licenseName, licenseUrl, attribution, confirmedRights,
+      })
+      if (!active.current) return
+      onUploaded(asset)
+      setFile(null)
+      setMessage('Image stored privately and registered. Rights declarations require review before publishing.')
+      setConfirmedRights(false)
+    } catch (error) {
+      if (active.current) setUploadError(error.message)
+    } finally {
+      if (active.current) setUploading(false)
+    }
+  }
+
+  return (
+    <form className="rg-panel" onSubmit={submit} aria-label="Upload private campaign image">
+      <div className="rg-inline-title">
+        <div><span className="rg-kicker">REAL MEDIA / PRIVATE STORAGE</span>
+          <h2>Upload your product image</h2></div>
+      </div>
+      <label className="rg-field" htmlFor="rg-private-photo"><span>PNG, JPEG or WebP · max 25 MB</span>
+        <input id="rg-private-photo" type="file" accept="image/png,image/jpeg,image/webp"
+          onChange={event => setFile(event.target.files?.[0] || null)} />
+      </label>
+      <label className="rg-field" htmlFor="rg-license-type"><span>Commercial use rights</span>
+        <select id="rg-license-type" value={licenseName} onChange={event => setLicenseName(event.target.value)}>
+          <option value="owned">I own the image</option>
+          <option value="cc0">CC0 / public domain</option>
+          <option value="royalty_free">Licensed royalty-free</option>
+          <option value="commercial">Commercial license</option>
+        </select>
+      </label>
+      {licenseName !== 'owned' && <label className="rg-field" htmlFor="rg-license-url">
+        <span>HTTPS license evidence link</span>
+        <input id="rg-license-url" type="url" value={licenseUrl} required
+          placeholder="https://provider.example/license" onChange={event => setLicenseUrl(event.target.value)} />
+      </label>}
+      <label className="rg-field" htmlFor="rg-media-evidence">
+        <span>Source and ownership evidence / attribution</span>
+        <textarea id="rg-media-evidence" rows={2} value={attribution}
+          onChange={event => setAttribution(event.target.value)}
+          placeholder="Example: Original product photo created by our team" required />
+      </label>
+      <label className="rg-field">
+        <span><input type="checkbox" checked={confirmedRights}
+          onChange={event => setConfirmedRights(event.target.checked)} />
+          I confirm I have commercial rights to use this image</span>
+      </label>
+      <button className="rg-button rg-secondary" type="submit"
+        disabled={uploading || !file || !confirmedRights}>
+        {uploading ? 'Uploading privately…' : 'Upload image'}
+      </button>
+      {message && <p role="status">{message}</p>}
+      {uploadError && <p className="rg-validation" role="alert">{uploadError}</p>}
+      <p className="rg-subtle">Evidence is user-declared, not independently verified. Never upload media you lack rights to use.</p>
+    </form>
   )
 }
 
@@ -494,6 +576,12 @@ export default function CampaignDashboard() {
       {api && user && client.configured &&
         <LiveMediaSelection shops={shops} shopId={shopId} onShop={(id) => { setShopId(id); setLiveError('') }}
           assets={assets} assetIds={assetIds} onAssets={setAssetIds} error={liveError} />}
+      {live && <LiveImageUploader key={shopId} client={client} shopId={shopId}
+        onUploaded={asset => {
+          setAssets(current => [asset, ...current.filter(item => item.id !== asset.id)])
+          setAssetIds(current => current.includes(asset.id) || current.length >= 21
+            ? current : [...current, asset.id])
+        }} />}
       <CampaignPrompt key={shopId || 'demo'} campaign={campaign} live={live}
         liveShopId={shopId} liveAssetIds={assetIds} onRequest={submitLive} />
       {live && campaignStatus === 'PLANNING' && <p role="status">Campaign planning in progress. No new draft is available yet.</p>}
@@ -553,7 +641,7 @@ export default function CampaignDashboard() {
       </section>
       {notice && <p className="rg-session-notice" role="status">{notice}</p>}
       <p className="rg-footnote">{loaded
-        ? 'Live drafts can be saved using your authenticated API. Uploads and publishing remain unavailable.'
+        ? 'Live drafts and private image uploads use authenticated APIs. Publishing and independent rights verification remain unavailable.'
         : 'Sample data only. No remote save, uploads, model output or published media is implied.'}</p>
     </div>
   )

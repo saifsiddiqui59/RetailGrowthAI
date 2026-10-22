@@ -80,3 +80,101 @@ test('unconfigured client refuses all network/auth requests', async () => {
   assert.equal(api.configured, false)
   await assert.rejects(() => api.signIn('a', 'b'), /not configured/)
 })
+
+
+const mediaShop = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+const uploadUuid = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+const recordedMedia = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+function pngFile() {
+  const bytes = new Uint8Array(256)
+  bytes.set([137, 80, 78, 71, 13, 10, 26, 10])
+  return new Blob([bytes], { type: 'image/png' })
+}
+
+test('private upload verifies bytes, user JWT, tenant path and registration RPC', async () => {
+  const requests = []
+  const client = createRetailClient({
+    url: 'https://rg.example.supabase.co', key: 'sb_publishable_demo',
+    storage: storage(), uuidFactory: () => uploadUuid,
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options })
+      if (url.includes('/auth/v1/token')) {
+        return json({ access_token: 'user-access', refresh_token: 'user-refresh', expires_in: 3600 })
+      }
+      if (url.includes('/storage/v1/object/')) return json({ Key: 'private' }, 201)
+      if (url.includes('/rest/v1/rpc/register_uploaded_image')) return json(recordedMedia)
+      throw Error('unexpected URL ' + url)
+    },
+  })
+  await client.signIn('editor@example.test', 'password123')
+  const media = await client.uploadImageAsset(mediaShop, {
+    file: pngFile(), licenseName: 'owned',
+    attribution: 'Original product photograph created by our own team',
+    confirmedRights: true,
+  })
+  assert.equal(media.id, recordedMedia)
+  const upload = requests.find(entry => entry.url.includes('/storage/v1/object/'))
+  assert.equal(upload.url, 'https://rg.example.supabase.co/storage/v1/object/retailgrowth-media/' +
+    mediaShop + '/uploads/' + uploadUuid + '.png')
+  assert.equal(upload.options.method, 'POST')
+  assert.equal(upload.options.redirect, 'error')
+  assert.equal(upload.options.headers.Authorization, 'Bearer user-access')
+  assert.equal(upload.options.headers['x-upsert'], 'false')
+  assert.equal(upload.options.body.type, 'image/png')
+  const rpc = requests.find(entry => entry.url.includes('/rest/v1/rpc/'))
+  assert.equal(rpc.options.headers.Authorization, 'Bearer user-access')
+  assert.deepEqual(JSON.parse(rpc.options.body), {
+    p_shop_id: mediaShop,
+    p_object_path: mediaShop + '/uploads/' + uploadUuid + '.png',
+    p_license_name: 'owned', p_license_url: null,
+    p_attribution: 'Original product photograph created by our own team',
+  })
+  assert.doesNotMatch(JSON.stringify(rpc), /service.role|service_role|sb_secret_/i)
+})
+
+test('invalid ownership assertion, file signature and license URL prevent upload', async () => {
+  let calls = 0
+  const client = createRetailClient({
+    url: 'https://rg.example.supabase.co', key: 'sb_publishable_demo',
+    storage: storage(), uuidFactory: () => uploadUuid,
+    fetchImpl: async (url) => {
+      calls++
+      if (url.includes('/auth/v1/token')) {
+        return json({ access_token: 'user-access', refresh_token: 'refresh', expires_in: 3600 })
+      }
+      throw new Error('unauthorized network call ' + url)
+    },
+  })
+  await client.signIn('editor@example.test', 'password123')
+  const originalCalls = calls
+  const base = { file: pngFile(), licenseName: 'owned',
+    attribution: 'Original image created and owned by us', confirmedRights: true }
+  await assert.rejects(() => client.uploadImageAsset(mediaShop, { ...base, confirmedRights: false }), /confirm/)
+  await assert.rejects(() => client.uploadImageAsset('not-a-shop-id', base), /business/)
+  await assert.rejects(() => client.uploadImageAsset(mediaShop, {
+    ...base, licenseName: 'commercial', licenseUrl: 'http://not-secure.test/evidence',
+  }), /HTTPS/)
+  const corrupted = new Blob([new Uint8Array(256)], { type: 'image/png' })
+  await assert.rejects(() => client.uploadImageAsset(mediaShop, { ...base, file: corrupted }), /bytes/)
+  assert.equal(calls, originalCalls)
+})
+
+test('server-denied metadata registration never claims upload success', async () => {
+  const client = createRetailClient({
+    url: 'https://rg.example.supabase.co', key: 'sb_publishable_demo',
+    storage: storage(), uuidFactory: () => uploadUuid,
+    fetchImpl: async (url) => {
+      if (url.includes('/auth/v1/token')) {
+        return json({ access_token: 'user-access', refresh_token: 'user-refresh', expires_in: 3600 })
+      }
+      if (url.includes('/storage/v1/object/')) return json({ Key: 'private' }, 201)
+      if (url.includes('/rest/v1/rpc/')) return json(null)
+      throw Error('unexpected')
+    },
+  })
+  await client.signIn('editor@example.test', 'password123')
+  await assert.rejects(() => client.uploadImageAsset(mediaShop, {
+    file: pngFile(), licenseName: 'owned', confirmedRights: true,
+    attribution: 'Created by the brand photography team',
+  }), /registration was denied/)
+})

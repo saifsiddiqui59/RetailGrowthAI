@@ -132,3 +132,9 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 - CampaignDashboard now provides live-only **Save day** for topic, LinkedIn and Instagram edits via scoped PATCH API; returned tenant/day identity is checked and local baseline updates only after success.
 - Late in-flight edits remain visibly unsaved. Render is blocked during save or whenever the local day differs from the server baseline. Demo fixture still has no remote Save button.
 - This is front-end code only; the draft-save API/SQL migration PR must land first. No deployed UI, real assets or browser E2E verification.
+
+## 2026-10-22 — Private tenant image uploads (feature branch, NOT deployed)
+- Authenticated React uploads actual PNG/JPEG/WebP bytes (25 MB limit, signature check) into the existing private `retailgrowth-media` bucket under tenant-specific `shop_id/uploads/UUID.ext` paths without service keys. The uploader requires user-confirmed commercial rights and source attribution/evidence.
+- New restricted `register_uploaded_image` Postgres RPC derives MIME and size from the uploaded storage object's metadata; checks current storage-object owner and active shop OWNER/EDITOR membership, supported type, license evidence and uniqueness. Browser INSERT into `media_assets` is revoked to prevent metadata-only fake assets.
+- Browser displays rights as **user-declared**, never provider-verified. No automated legal provenance audit or user-generated commercial publishing approval; real media processing and final output E2E still require a hosted DEV environment and approvals.
+- New isolated SQL security tests cover cross-shop/viewer/anonymous registrations, missing/mismatched objects, MIME spoofing, duplicate paths and forbidden INSERT. Browser Node tests cover token forwarding, binary upload and denial. No Supabase DEV changes, Azure deployment or WineShopPOS mutation.
