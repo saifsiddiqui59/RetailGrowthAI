@@ -90,3 +90,8 @@
 - Restrict user uploads to their canonical shop/upload UUID image path; browser cannot overwrite, rename, or delete registered assets. Registration-safe deletion is reserved for a separately audited service workflow and requires explicit approval and persistent fencing.
 - Keep recovery and orphan cleanup in offline **dry-run** mode. Poison ACK, replay and actual Storage DELETE require durable compare-and-swap idempotence, audit, ETag and recheck; do not connect stubs directly to queues.
 - Flex Consumption Bicep/deployment scripts are **preparation only**. Real deployment is blocked until database lease/Function timeout vs 780s FFmpeg cap is reconciled, cloud runtime and licensed binary packaging are verified, and the owner authorizes isolated DEV. Retain all user-to-tenant checks and never commit backend secrets.
+
+## 2026-10-22 — Least-privilege GitHub-to-Azure DEV authentication baseline
+- Use GitHub Actions OIDC (not a stored client secret/publishing profile) for `retailgrowthai-github-dev`; trust only the **immutable GitHub owner/repo numeric-ID** subject scoped to environment `dev`, as documented in `docs/AZURE_GITHUB_OIDC.md`.
+- The verification workflow is `workflow_dispatch` on main only, has `id-token: write` solely for its verification job, performs a read-only Azure subscription identity check, and uses protected environment secrets for three Azure identifiers. Existing PR CI never receives cloud credentials.
+- Assign initially only Reader on a RetailGrowthAI-specific DEV resource group. Azure provisioning/deployment and migration approval are separate actions; never inherit WineShopPOS permissions or secrets.
