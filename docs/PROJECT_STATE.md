@@ -54,7 +54,7 @@ The system generates multi-day marketing campaigns.
 - GitHub
 
 ## Current Status
-Project setup in progress.
+GitHub access and initial uv scaffold verified. Architecture and parallel work contracts documented on 2026-10-22. React/Vite frontend and runtime implementation remain not built.
 
 No RetailGrowthAI business features implemented yet.
 No new Supabase database deployed yet.
@@ -62,3 +62,10 @@ No new Azure application resources deployed yet.
 
 ## Next
 See docs/NEXT_TASK.md.
+
+## Parallel Part 1 architecture baseline
+- See docs/ARCHITECTURE.md for technical flow and infrastructure boundaries.
+- See docs/INTERFACES_V1.md for campaign/day/render API contracts and fixtures.
+- See docs/PARALLEL_WORK.md for four feature branches, disjoint file ownership and integration rules.
+- First coordinator task: bootstrap runnable React/Vite shell and contract fixture on main, then launch workstreams A/B/C/D.
+- No cloud deployment or live model calls verified as part of this architecture milestone.
