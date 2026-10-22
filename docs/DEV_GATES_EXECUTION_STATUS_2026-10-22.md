@@ -37,3 +37,9 @@
 - **C NOT DONE:** RG scoped IAM verified for OIDC, but billing-currency budget/80/100% alerts, what-if, FFmpeg/ffprobe provenance/license hashes, rollback artifact, backend Functions/Queues/poison/timer and server-only settings still pending; Gate B prerequisite unmet. [Issue #53](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/53) OPEN.
 - **D NOT DONE:** hosted E2E needs backend, approved tenants/JWTs/rights-cleared image, bounded poisoning and cleanup; no hosted result yet. [Issue #54](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/54) OPEN.
 - Azure **SWA Free plan fee** is distinct from actual subscription consumption; no current invoice or configured alerts were verified. No WineShopPOS or PROD changes.
+
+## Latest live operator preflight — 2026-10-22 (after successful Free SWA frontend)
+- [GitHub release audit #39849981000](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39849981000) successfully executed read-only inspection from main `4a32385c5add9b834d9264308c573f16cd2fe1a4`: exact `rg-retailgrowth-dev` exists, correctly tagged in Central India, current frontend `retailgrowthai-dev-preview` remains Free SKU, owner-confirmed public https://purple-dune-06b5da200.2.azurestaticapps.net unchanged.
+- **B blocked:** GitHub `dev` environment lacks expected RetailGrowthAI Postgres connection URL/password secrets; no private recoverable Supabase Free database/Storage backup and independent restore proof. Live migration history remains 3/7; no DDL applied.
+- **C blocked:** no protected monthly budget monetary amount/recipient configured and no exact-RG monthly Azure Cost budget with 80%/100% email notifications; required paid-backend safeguards, FFmpeg provenance and Gate B completion missing. No Azure backend resources or endpoints created.
+- **D blocked:** dependency C absent, so no licensed 30-second render, real tenant authentication, isolation, poison/retry or signed-download E2E. No WineShopPOS/PROD work.
