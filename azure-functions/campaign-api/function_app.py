@@ -13,6 +13,7 @@ from planning_worker import process_campaign
 from render_api import RenderAPI
 from render_worker import process_render
 from private_media import PrivateMedia
+from recovery_runtime import dispatch_outbox, record_poison, reconcile_and_dispatch
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -28,11 +29,11 @@ def build_api():
     admin_key = os.environ.get("RETAIL_SUPABASE_SERVICE_ROLE_KEY")
     admin = AdminStore(url, admin_key) if admin_key else None
     render_api = (
-        RenderAPI(store, admin, AzureRenderQueue(connection))
+        RenderAPI(store, admin, AzureRenderQueue(connection), durable_outbox=True)
         if connection and admin else None
     )
     return HTTPAPI(SupabaseJWTVerifier(url), store, queue, render_api,
-                   failure_store=admin)
+                   failure_store=admin, durable_outbox=bool(connection and admin))
 
 
 def dispatch(request, path):
@@ -110,3 +111,34 @@ def render_campaign_reel(message: func.QueueMessage):
         message.get_body().decode("ascii"),
         AdminStore(origin, key), PrivateMedia(origin, key),
     )
+
+
+def _recovery_dependencies():
+    origin = os.environ["RETAIL_SUPABASE_URL"]
+    key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
+    connection = os.environ["RETAIL_STORAGE"]
+    return (AdminStore(origin, key), AzurePlanningQueue(connection),
+            AzureRenderQueue(connection))
+
+
+@app.timer_trigger(schedule="0 */2 * * * *", arg_name="timer",
+                   run_on_startup=False, use_monitor=True)
+def recover_stale_jobs(timer: func.TimerRequest):
+    # Never silently swallow a database failure; retry on the next scheduled tick.
+    admin, planning, rendering = _recovery_dependencies()
+    reconcile_and_dispatch(admin, planning, rendering)
+
+
+@app.queue_trigger(arg_name="message", queue_name="retail-campaign-planning-poison",
+                   connection="RETAIL_STORAGE")
+def planning_poison(message: func.QueueMessage):
+    # A DB receipt is mandatory before the trigger acknowledges/removes poison.
+    admin, _, _ = _recovery_dependencies()
+    record_poison(admin, "planning", message.get_body())
+
+
+@app.queue_trigger(arg_name="message", queue_name="retail-reel-render-poison",
+                   connection="RETAIL_STORAGE")
+def render_poison(message: func.QueueMessage):
+    admin, _, _ = _recovery_dependencies()
+    record_poison(admin, "render", message.get_body())
