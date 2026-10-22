@@ -5,6 +5,7 @@ targetScope = 'resourceGroup'
 param environmentName string = 'dev'
 
 @description('Confirm Flex Consumption region availability before approved deployment.')
+@allowed(['centralindia'])
 param location string = 'centralindia'
 
 @description('New dedicated StorageV2 globally unique lowercase name.')
@@ -22,11 +23,12 @@ param functionPlanName string
 param frontendOrigin string
 
 @description('Max on-demand instances per scale group.')
-@minValue(1)
-@maxValue(10)
-param maxInstances int = 2
+@description('DEV cap applies to EACH independently scaling function group; higher values require a review.')
+@allowed([1, 2])
+param maxInstances int = 1
 
-@allowed([2048, 4096])
+@description('DEV is capped to 2048 MiB pending representative render measurements.')
+@allowed([2048])
 param instanceMemoryMB int = 2048
 
 var deploymentContainerName = 'retailgrowth-functions-packages'
@@ -108,6 +110,8 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
         supportCredentials: false
       }
       appSettings: [
+        { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'python' }
+        { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
         { name: 'AzureWebJobsStorage', value: storageConnection }
         { name: 'RETAIL_STORAGE', value: storageConnection }
         { name: 'RETAIL_ENABLE_MOCK_CAMPAIGNS', value: 'false' }
