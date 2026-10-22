@@ -136,10 +136,19 @@ end $$;
 reset role;
 set local role anon;
 select set_config('request.jwt.claim.sub','',true);
-do $$
+do $
+declare denied boolean := false;
 begin
-  if exists (select 1 from public.shops) then raise exception 'FAIL: anon read shops'; end if;
-end $$;
+  begin
+    if exists (select 1 from public.shops) then raise exception 'FAIL: anon read shops'; end if;
+  exception when insufficient_privilege then denied := true;
+  end;
+  -- Denial by either lack of table GRANT or RLS-visible zero rows is acceptable.
+  if not denied and exists (select 1 from information_schema.role_table_grants
+      where grantee='anon' and table_name='shops' and privilege_type='SELECT') then
+    raise exception 'FAIL: anonymous table grant was unexpectedly installed';
+  end if;
+end $;
 reset role;
 rollback;
 \echo 'PASS: cross-shop read/write, owner forgery, viewer escalation, revocation and anon-denial RLS tests'
