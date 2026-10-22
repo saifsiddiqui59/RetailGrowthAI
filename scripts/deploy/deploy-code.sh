@@ -28,6 +28,20 @@ done
 # Refuse an incomplete/malformed/dependency-unsafe bundle before any upload.
 if command -v python3 >/dev/null 2>&1; then py=python3; else py=python; fi
 "$py" "$(cd "$(dirname "$0")/../.." && pwd)/scripts/deploy/package.py" --verify-zip "$2"
+# Require a validated retained rollback artifact on upgrades; no silent "first release".
+# These environment values are additional to the existing explicit deploy approval.
+root="$(cd "$(dirname "$0")/../.." && pwd)"
+if [ "${RETAIL_AZURE_FIRST_RELEASE_APPROVED:-}" = "YES" ]; then
+  if [ -n "${RETAIL_AZURE_ROLLBACK_ZIP:-}" ]; then
+    echo "BLOCKED: first release and rollback ZIP are mutually exclusive" >&2; exit 3
+  fi
+  "$py" "$root/scripts/deploy/rollback_guard.py" --candidate "$2" --first-release-approved
+else
+  if [ -z "${RETAIL_AZURE_ROLLBACK_ZIP:-}" ]; then
+    echo "BLOCKED: retain known-good RETAIL_AZURE_ROLLBACK_ZIP or explicitly approve first release" >&2; exit 3
+  fi
+  "$py" "$root/scripts/deploy/rollback_guard.py" --candidate "$2" --previous "$RETAIL_AZURE_ROLLBACK_ZIP"
+fi
 # Do not use until approved Supabase DEV migrations, timeout/retry,
 # licensing, billing alerts and function app configuration are verified.
 az functionapp deployment source config-zip --name "$RETAIL_AZURE_FUNCTION_NAME" --resource-group "$RETAIL_AZURE_DEV_RG" --subscription "$RETAIL_AZURE_SUBSCRIPTION_ID" --src "$2" --build-remote true
