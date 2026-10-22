@@ -52,8 +52,9 @@ jobs:
         working-directory: frontend
         shell: bash
         run: |
-          npm install --prefix e2e --no-audit --no-fund
-          ./e2e/node_modules/.bin/playwright install --with-deps chromium
+          # Network mirrors occasionally stall; fail visibly, never skip browser tests.
+          timeout --signal=TERM --kill-after=10s 180s npm install --prefix e2e --no-audit --no-fund
+          timeout --signal=TERM --kill-after=10s 420s ./e2e/node_modules/.bin/playwright install --with-deps chromium
       - name: Execute mocked React browser E2E (when present)
         if: ${{ hashFiles('frontend/e2e/package.json') != '' }}
         working-directory: frontend
@@ -90,6 +91,7 @@ jobs:
           if [ -d tests/api ]; then paths+=(tests/api); fi
           if [ -d tests/reliability ]; then paths+=(tests/reliability); fi
           if [ -d tests/e2e ]; then paths+=(tests/e2e); fi
+          if [ -d tests/infra ]; then paths+=(tests/infra); fi
           uv run --project ai-agents --with pytest --with "PyJWT[crypto]==2.10.1" -- python -m pytest -q "${paths[@]}"
       - name: Validate offline Azure packaging and approval gates (when present)
         shell: bash
@@ -116,13 +118,19 @@ jobs:
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
             # A stalled package mirror must fail this job in a bounded time,
             # not strand CI indefinitely. Failures stay visible; never skip media tests.
-            timeout --signal=TERM --kill-after=10s 120s sudo apt-get \
-              -o Acquire::Retries=1 -o Acquire::http::Timeout=20 \
-              -o Acquire::https::Timeout=20 update -qq
-            timeout --signal=TERM --kill-after=10s 120s sudo env \
+            # The runner's Azure apt mirror timed out before even downloading 10 MB
+            # (run #39809015246); use Ubuntu's official archive with bounded installs.
+            if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+              sudo sed -i 's#http://azure.archive.ubuntu.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' \
+                /etc/apt/sources.list.d/ubuntu.sources
+            fi
+            timeout --signal=TERM --kill-after=10s 150s sudo apt-get \
+              -o Acquire::Retries=2 -o Acquire::http::Timeout=25 \
+              -o Acquire::https::Timeout=25 update -qq
+            timeout --signal=TERM --kill-after=10s 480s sudo env \
               DEBIAN_FRONTEND=noninteractive apt-get \
-              -o Acquire::Retries=1 -o Acquire::http::Timeout=20 \
-              -o Acquire::https::Timeout=20 install -y ffmpeg
+              -o Acquire::Retries=2 -o Acquire::http::Timeout=25 \
+              -o Acquire::https::Timeout=25 install -y --no-install-recommends ffmpeg
           fi
           timeout --signal=TERM --kill-after=5s 20s ffmpeg -version | head -n 1
           timeout --signal=TERM --kill-after=5s 20s ffprobe -version | head -n 1
@@ -184,7 +192,7 @@ jobs:
           node-version: '22'
           package-manager-cache: false
       - name: Check browser authentication client without secrets
-        run: node --test tests/security/supabase-client.test.mjs
+        run: node --test tests/security/*.test.mjs
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v3
         with:
@@ -215,6 +223,9 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f tests/security/storage_negative.sql
           psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f tests/security/draft_save_negative.sql
           psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f tests/security/upload_registration_negative.sql
+          if [ -f tests/security/durable_recovery_negative.sql ]; then
+            psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f tests/security/durable_recovery_negative.sql
+          fi
       - name: Stop isolated Supabase database
         if: always()
         shell: bash
