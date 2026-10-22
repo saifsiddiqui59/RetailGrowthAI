@@ -7,6 +7,7 @@ walking two parents. A generated root wrapper exposes the decorated 'app' object
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 from pathlib import Path
 import struct
@@ -36,6 +37,29 @@ app = module.app
 '''
 
 
+def verify_worker_budget(host, lease_sql, renderer_source):
+    """Fail closed if the fixed host, DB lease, or encoder budget drifts."""
+    if host.get("functionTimeout") != "00:20:00":
+        raise ValueError("Expected bounded 20-minute Flex Functions host timeout")
+    for name in ("claim_campaign_job", "claim_render_job"):
+        marker = "create or replace function public." + name + "("
+        body = lease_sql.partition(marker)[2].partition("\n$;")[0]
+        if not body or "interval '25 minutes'" not in body:
+            raise ValueError("Worker claim lease must be 25 minutes for " + name)
+    parsed = ast.parse(renderer_source)
+    timeouts = [
+        keyword.value.value
+        for node in ast.walk(parsed)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "subprocess" and node.func.attr == "run"
+        for keyword in node.keywords
+        if keyword.arg == "timeout" and isinstance(keyword.value, ast.Constant)
+    ]
+    if timeouts != [780]:
+        raise ValueError("FFmpeg subprocess must retain its 780-second hard limit")
+
+
 def source_files():
     required = [
         SERVICE / "function_app.py", SERVICE / "render_worker.py",
@@ -56,8 +80,11 @@ def source_files():
     entries["function_app.py"] = ENTRY.encode()
     entries["requirements.txt"] = (SERVICE / "requirements.txt").read_bytes()
     host = json.loads((SERVICE / "host.json").read_text("utf-8"))
-    if host.get("functionTimeout") != "00:04:00":
-        raise ValueError("Host timeout changed; reconcile the four-minute DB lease")
+    verify_worker_budget(
+        host,
+        (ROOT / "supabase/migrations/20261022205000_p1_worker_execution_budget.sql").read_text("utf-8"),
+        (RENDER / "render.py").read_text("utf-8"),
+    )
     queues = host.setdefault("extensions", {}).setdefault("queues", {})
     queues.update({"batchSize": 1, "newBatchThreshold": 0, "maxDequeueCount": 3})
     entries["host.json"] = (json.dumps(host, indent=2) + "\n").encode()
