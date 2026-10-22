@@ -1,0 +1,125 @@
+name: RetailGrowthAI DEV release prereq audit (read-only, once)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/dev-release-prereq-audit-once.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Audit exact DEV credentials, budgets and RG (no deployment)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: dev
+    if: github.ref == 'refs/heads/main' && github.repository == 'saifsiddiqui59/RetailGrowthAI'
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZ_CLIENT: ${{ secrets.AZURE_CLIENT_ID }}
+      DB_URL: ${{ secrets.RETAIL_SUPABASE_DB_URL }}
+      DB_URL_FALLBACK: ${{ secrets.SUPABASE_DB_URL }}
+      DB_PASSWORD: ${{ secrets.RETAIL_SUPABASE_DB_PASSWORD }}
+      DB_PASSWORD_FALLBACK: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      COST_CEILING: ${{ vars.RETAIL_DEV_MONTHLY_BUDGET_LIMIT }}
+      ALERT_EMAIL: ${{ vars.RETAIL_DEV_BUDGET_ALERT_EMAIL }}
+    steps:
+      - name: Check private credential presence, never print values
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${DB_URL:-}" ] || [ -n "${DB_URL_FALLBACK:-}" ]; then
+            url="${DB_URL:-$DB_URL_FALLBACK}"
+            if ! DB_CHECK="$url" python3 - <<'PY'
+          import os,urllib.parse
+          try:
+              u=urllib.parse.urlsplit(os.environ["DB_CHECK"])
+              host=u.hostname or ""
+              correct=(u.scheme in ("postgres","postgresql")
+                       and ("jeearzffnjbvghwjjjrf" in host
+                            or ("pooler.supabase.com" in host and
+                                "jeearzffnjbvghwjjjrf" in urllib.parse.unquote(u.username or "")))
+                       and u.path=="/postgres")
+              if not correct: raise ValueError("Incorrect or unverifiable project/database URL")
+              print("DB_CREDENTIAL_CONFIG: present; DEV project identity matches (not connection tested)")
+          except Exception:
+              print("BLOCKED: configured database URL does not identify exact RetailGrowthAI DEV project")
+              raise SystemExit(3)
+          PY
+            then exit 3; fi
+          elif [ -n "${DB_PASSWORD:-}" ] || [ -n "${DB_PASSWORD_FALLBACK:-}" ]; then
+            echo "DB_CREDENTIAL_CONFIG: password present only; requires private verified connection URL/pooler details"
+          else
+            echo "DB_CREDENTIAL_CONFIG: missing; no secure Supabase CLI dump, restore rehearsal or db push possible"
+          fi
+          if [ -n "${COST_CEILING:-}" ] && [ -n "${ALERT_EMAIL:-}" ]; then
+            if [[ "$COST_CEILING" =~ ^[0-9]+([.][0-9]+)?$ ]] && [ "$COST_CEILING" != "0" ]; then
+              echo "BILLING_APPROVAL_CONFIG: monthly ceiling and alert recipient specified (values masked)"
+            else
+              echo "BLOCKED: invalid monthly budget ceiling format"; exit 3
+            fi
+          else
+            echo "BILLING_APPROVAL_CONFIG: missing monthly currency cap and/or alert recipient; no paid backend allowed"
+          fi
+
+      - name: Authenticate dedicated RetailGrowthAI DEV Azure OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify tagged exact RG, frontend Free plan, RG cost budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          rgid="$(az group show -g rg-retailgrowth-dev --subscription "$AZ_SUB" --query id -o tsv)"
+          test -n "$rgid"
+          rgfile="$RUNNER_TEMP/rg-inventory.json"
+          az group show -g rg-retailgrowth-dev --subscription "$AZ_SUB" -o json > "$rgfile"
+          python3 - "$rgfile" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1]))
+          t={str(k).lower():str(v).lower() for k,v in (x.get("tags") or {}).items()}
+          assert x["name"]=="rg-retailgrowth-dev" and x["location"]=="centralindia"
+          assert t.get("app")=="retailgrowthai" and t.get("environment")=="dev"
+          print("AZURE_DEV_RG: exact Central India RG with RetailGrowthAI DEV tags confirmed")
+          PY
+          az staticwebapp show -g rg-retailgrowth-dev -n retailgrowthai-dev-preview \
+            --subscription "$AZ_SUB" --output json > "$RUNNER_TEMP/preview.json"
+          python3 - "$RUNNER_TEMP/preview.json" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1]))
+          assert x.get("name")=="retailgrowthai-dev-preview"
+          assert (x.get("sku") or {}).get("name","").lower()=="free"
+          assert x.get("defaultHostname","").endswith(".azurestaticapps.net")
+          print("FRONTEND: existing preview site still Free SKU, Azure hostname verified")
+          PY
+          api="https://management.azure.com${rgid}/providers/Microsoft.Consumption/budgets?api-version=2023-05-01"
+          if az rest --method get --url "$api" --output json > "$RUNNER_TEMP/budgets.json" 2>/dev/null; then
+            python3 - "$RUNNER_TEMP/budgets.json" "$rgid" <<'PY'
+          import json,sys
+          entries=json.load(open(sys.argv[1])).get("value") or []
+          exact=sys.argv[2].lower()+"/providers/microsoft.consumption/budgets/"
+          good=0
+          for b in entries:
+              p=b.get("properties") or {}
+              notifications=p.get("notifications") or {}
+              active={int(v.get("threshold")) for v in notifications.values()
+                      if isinstance(v,dict) and v.get("enabled") is True
+                      and v.get("contactEmails") and isinstance(v.get("threshold"),(int,float))}
+              if str(b.get("id","")).lower().startswith(exact) and p.get("category")=="Cost" and p.get("timeGrain")=="Monthly" and {80,100}<=active:
+                  good+=1
+          print("COST_BUDGET_STATUS:", "RG-scoped monthly budget with 80/100 email alerts present" if good else "BLOCKED: no matching RG-scoped budget with 80/100 alerts")
+          PY
+          else
+            echo "COST_BUDGET_STATUS: UNVERIFIED (Azure permissions or API response); paid deployment blocked"
+          fi
+          echo "AUDIT COMPLETE: no Azure or Supabase writes, no backend deployment, no hosted E2E."
+      - name: Cleanup Azure OIDC session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
