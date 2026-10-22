@@ -14,7 +14,7 @@ Branch: feat/p1-durable-recovery. Do not merge this file's branch before four ch
 - New migration 20261022220000_p1_durable_recovery.sql is **UNAPPLIED**; it relies on all prior migrations including 25-minute budget.
 - Only coordinator may update docs/PROJECT_STATE.md, docs/NEXT_TASK.md, docs/DECISIONS.md, docs/WORK_LOG.md and shared workflow / contracts. Record this handoff as source-only, then verify latest main CI after merging.
 - Existing GitHub CI applies the new migration on a disposable Supabase DB; Python offline tests exercise queue/DB failure paths. Real live Azure poison/replay, Flex timer identity, hosted worker data, tenant revocation races, TTL retention and end-to-end paid resource performance are **UNVERIFIED**.
-- Until authorized DEV migration plus cloud hosting and real 1080p licensed-content benchmarks, **do not deploy**. Azure GitHub OIDC AADSTS70025 remains a separate owner setup blocker.
+- Until authorized DEV migration plus cloud hosting and real 1080p licensed-content benchmarks, **do not deploy**. Azure GitHub OIDC was independently reverified read-only in coordinator PR #30; DEV resource-group IAM and any deployment authorization remain separately unverified.
 - WineShopPOS has not been touched; no cloud resources created or changed.
 
 ## Coordinator decision request
