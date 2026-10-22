@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "dev"
+    },
+    "location": {
+      "value": "centralindia"
+    },
+    "storageAccountName": {
+      "value": "replaceuniqueaccount"
+    },
+    "functionAppName": {
+      "value": "rgai-dev-functions-replace"
+    },
+    "functionPlanName": {
+      "value": "rgai-dev-flex"
+    },
+    "frontendOrigin": {
+      "value": "https://replace-with-retailgrowthai-dev.example"
+    }
+  }
+}
