@@ -39,7 +39,7 @@ def dispatch(request, path):
     try:
         api = build_api()
         try:
-            body = request.get_json() if request.method == "POST" else None
+            body = request.get_json() if request.method in ("POST", "PATCH") else None
         except ValueError:
             return func.HttpResponse('{"error":"INVALID_REQUEST"}', status_code=400,
                                      mimetype="application/json")
@@ -77,6 +77,12 @@ def plan_campaign(message: func.QueueMessage):
         cid, admin,
         mock_enabled=os.environ.get("RETAIL_ENABLE_MOCK_CAMPAIGNS") == "true",
     )
+
+
+@app.route(route="campaigns/{campaign_id}/days/{day_id}", methods=["PATCH"])
+def save_campaign_day(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/campaigns/" + req.route_params["campaign_id"]
+                    + "/days/" + req.route_params["day_id"])
 
 
 @app.route(route="campaigns/{campaign_id}/renders", methods=["POST"])
