@@ -62,7 +62,7 @@ async function mockServices(page, options = {}) {
     const url = new URL(req.url())
     const path = url.pathname
     const method = req.method()
-    if (method === 'OPTIONS') return payload(204, null, route)
+    if (method === 'OPTIONS') return payload(200, null, route)
     if (path === '/auth/v1/token' && url.searchParams.get('grant_type') === 'password') {
       state.sessions++
       return options.invalidLogin
@@ -78,7 +78,7 @@ async function mockServices(page, options = {}) {
     if (path === '/auth/v1/token' && url.searchParams.get('grant_type') === 'refresh_token') {
       return payload(401, { error_description: 'Refresh token expired' }, route)
     }
-    if (path === '/auth/v1/logout') return payload(204, null, route)
+    if (path === '/auth/v1/logout') return payload(200, null, route)
     if (path === '/rest/v1/shop_memberships') return payload(200, [
       { shop_id: SHOP, role: options.viewer ? 'VIEWER' : 'OWNER', active: true },
     ], route)
@@ -111,7 +111,7 @@ async function mockServices(page, options = {}) {
     const req = route.request()
     const path = new URL(req.url()).pathname
     const method = req.method()
-    if (method === 'OPTIONS') return payload(204, null, route)
+    if (method === 'OPTIONS') return payload(200, null, route)
     const authorization = req.headers().authorization
     if (authorization !== 'Bearer test-alice-token') {
       return payload(401, { error: 'UNAUTHORIZED' }, route)
