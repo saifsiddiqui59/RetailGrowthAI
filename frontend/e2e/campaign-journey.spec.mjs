@@ -41,7 +41,8 @@ function normalizedCampaign() {
 /** Intercept every external origin: real UI/client, offline-only HTTP mocks. */
 async function mockServices(page, options = {}) {
   const state = {
-    sessions: 0, uploads: [], registrations: [], requests: [], saves: [],
+    sessions: 0, refreshes: 0, uploads: [], registrations: [], requests: [], saves: [],
+    backendOffline: false, rejectJwt: false, rejectUploads: Boolean(options.uploadDenied),
     renders: [], renderPolls: 0, signedOpens: 0, campaign: normalizedCampaign(),
     assets: options.emptyAssets ? [] : [{
       id: MEDIA, shop_id: SHOP, license_name: 'owned',
@@ -76,6 +77,7 @@ async function mockServices(page, options = {}) {
         : payload(401, { error: 'Invalid session' }, route)
     }
     if (path === '/auth/v1/token' && url.searchParams.get('grant_type') === 'refresh_token') {
+      state.refreshes++
       return payload(401, { error_description: 'Refresh token expired' }, route)
     }
     if (path === '/auth/v1/logout') return payload(200, null, route)
@@ -91,7 +93,7 @@ async function mockServices(page, options = {}) {
       state.uploads.push({
         path, headers: req.headers(), bytes: req.postDataBuffer(),
       })
-      return payload(options.uploadDenied ? 403 : 200, options.uploadDenied
+      return payload(state.rejectUploads ? 403 : 200, state.rejectUploads
         ? { error: 'STORAGE_FORBIDDEN' } : { Key: path }, route)
     }
     if (path === '/rest/v1/rpc/register_uploaded_image') {
@@ -113,6 +115,8 @@ async function mockServices(page, options = {}) {
     const method = req.method()
     if (method === 'OPTIONS') return payload(200, null, route)
     const authorization = req.headers().authorization
+    if (state.backendOffline) return payload(503, { error: 'SERVICE_UNAVAILABLE' }, route)
+    if (state.rejectJwt) return payload(401, { error: 'UNAUTHORIZED' }, route)
     if (authorization !== 'Bearer test-alice-token') {
       return payload(401, { error: 'UNAUTHORIZED' }, route)
     }
@@ -327,5 +331,98 @@ test('unsigned external download URL is never opened', async ({ page }) => {
   await expect.poll(() => state.renderPolls, { timeout: 12_000 }).toBeGreaterThan(0)
   await page.getByRole('button', { name: 'Download signed MP4' }).click()
   await expect(page.getByRole('alert')).toContainText('private storage')
+  expect(state.signedOpens).toBe(0)
+})
+
+
+test('expired persisted JWT with denied refresh clears session and never sends campaign API calls', async ({ page }) => {
+  const state = await mockServices(page)
+  await page.addInitScript(() => sessionStorage.setItem('retailgrowthai-auth-v1', JSON.stringify({
+    access_token: 'expired-access', refresh_token: 'expired-refresh', expires_at: 1,
+  })))
+  await page.goto('/account')
+  await expect(page.getByRole('alert')).toContainText('Your session expired. Please sign in again.')
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
+  expect(state.refreshes).toBe(1)
+  expect(state.requests).toHaveLength(0)
+  expect(await page.evaluate(() => sessionStorage.getItem('retailgrowthai-auth-v1'))).toBeNull()
+})
+
+test('private storage rejection never calls media registration; retry uploads once access recovers', async ({ page }) => {
+  const state = await mockServices(page, { emptyAssets: true, uploadDenied: true })
+  await login(page)
+  await business(page)
+  const bytes = Buffer.alloc(128, 7)
+  Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(bytes)
+  await page.locator('#rg-private-photo').setInputFiles({
+    name: 'owned.png', mimeType: 'image/png', buffer: bytes,
+  })
+  await page.locator('#rg-media-evidence').fill('Owner-created product photography; all rights retained')
+  await page.getByRole('checkbox', { name: /I confirm I have commercial rights/ }).check()
+  await page.getByRole('button', { name: 'Upload image' }).click()
+  await expect(page.getByRole('alert')).toContainText('Private image upload was rejected')
+  expect(state.uploads).toHaveLength(1)
+  expect(state.registrations).toHaveLength(0)
+  expect(state.requests).toHaveLength(0)
+
+  state.rejectUploads = false
+  await page.getByRole('button', { name: 'Upload image' }).click()
+  await expect(page.getByText(/Image stored privately and registered/)).toBeVisible()
+  expect(state.uploads).toHaveLength(2)
+  expect(state.registrations).toHaveLength(1)
+  await page.getByRole('button', { name: /Submit campaign job/ }).click()
+  await loaded(page)
+  expect(state.requests[0].body.media_asset_ids).toEqual([UPLOADED])
+})
+
+test('temporary campaign API outage surfaces failure and a later retry can load seven draft days', async ({ page }) => {
+  const state = await mockServices(page)
+  await login(page)
+  await business(page)
+  await page.getByRole('checkbox', { name: /image\\/png.*owned/ }).check()
+  state.backendOffline = true
+  await page.getByRole('button', { name: /Submit campaign job/ }).click()
+  await expect(page.getByRole('alert')).toContainText('SERVICE_UNAVAILABLE')
+  expect(state.requests).toHaveLength(0)
+  await expect(page.getByRole('button', { name: 'Save day' })).toHaveCount(0)
+  state.backendOffline = false
+  await page.getByRole('button', { name: /Submit campaign job/ }).click()
+  await loaded(page)
+  expect(state.requests).toHaveLength(1)
+  await expect(page.locator('.rg-calendar-day')).toHaveCount(7)
+})
+
+test('draft edit failure keeps render disabled; recovery persists exactly one authorized save', async ({ page }) => {
+  const state = await mockServices(page)
+  await login(page)
+  await business(page)
+  await submit(page)
+  await loaded(page)
+  await page.getByLabel('Post body').fill('Keep this approved copy after network recovery')
+  state.backendOffline = true
+  await page.getByRole('button', { name: 'Save day' }).click()
+  await expect(page.getByRole('alert')).toContainText('SERVICE_UNAVAILABLE')
+  expect(state.saves).toHaveLength(0)
+  await expect(page.getByRole('button', { name: 'Render saved Reel' })).toBeDisabled()
+  state.backendOffline = false
+  await page.getByRole('button', { name: 'Save day' }).click()
+  await expect(page.getByText('Draft day saved to your secure workspace.')).toBeVisible()
+  expect(state.saves).toHaveLength(1)
+  expect(state.saves[0].body.linkedin.post_text).toContain('network recovery')
+})
+
+test('revoked JWT is rejected by backend after draft load without saving or rendering', async ({ page }) => {
+  const state = await mockServices(page)
+  await login(page)
+  await business(page)
+  await submit(page)
+  await loaded(page)
+  state.rejectJwt = true
+  await page.getByLabel('Post body').fill('Unauthorized after session revocation')
+  await page.getByRole('button', { name: 'Save day' }).click()
+  await expect(page.getByRole('alert')).toContainText('UNAUTHORIZED')
+  expect(state.saves).toHaveLength(0)
+  await expect(page.getByRole('button', { name: 'Render saved Reel' })).toBeDisabled()
+  expect(state.renders).toHaveLength(0)
   expect(state.signedOpens).toBe(0)
 })
