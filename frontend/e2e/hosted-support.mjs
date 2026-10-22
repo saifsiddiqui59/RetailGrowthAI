@@ -27,7 +27,7 @@ function imageFile(file) {
   const mime = IMAGE_TYPES[extension]
   if (!mime) throw new Error('Hosted asset must be PNG, JPEG or WebP')
   const size = statSync(file).size
-  if (!size || size > 25 * 1024 * 1024) throw new Error('Hosted asset must be between 1 byte and 25 MB')
+  if (size < 100 || size > 25 * 1024 * 1024) throw new Error('Hosted asset must be between 1 byte and 25 MB')
   const head = readFileSync(file).subarray(0, 16)
   const png = Buffer.from('89504e470d0a1a0a', 'hex')
   const jpeg = Buffer.from('ffd8ff', 'hex')
