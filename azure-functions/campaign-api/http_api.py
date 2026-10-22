@@ -5,7 +5,7 @@ from uuid import uuid4
 from ai_agents.schemas import CampaignBrief, ContractError, validate_campaign
 
 from security import AuthenticationError
-from tenant_store import StorageUnavailable, canonical_uuid
+from tenant_store import StorageUnavailable, canonical_uuid\nfrom draft_api import DraftAPI
 
 
 class HTTPAPI:
@@ -52,6 +52,11 @@ class HTTPAPI:
                     self.failure_store.fail_pending(cid, brief.shop_id, user_id)
                     return 503, {"error": "QUEUE_UNAVAILABLE"}
                 return 202, {"campaign_id": cid, "status": "PLANNING"}
+            if method == "PATCH" and path.startswith("/campaigns/") and "/days/" in path:
+                parts = path.strip("/").split("/")
+                if len(parts) != 4 or parts[0] != "campaigns" or parts[2] != "days":
+                    return 404, {"error": "NOT_FOUND"}
+                return DraftAPI(self.store).save(token, user_id, parts[1], parts[3], body)
             if method == "GET" and path.startswith("/campaigns/"):
                 cid = canonical_uuid(path.removeprefix("/campaigns/"))
                 record = self.store.campaign(token, user_id, cid)
