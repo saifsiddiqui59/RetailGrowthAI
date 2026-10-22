@@ -1,5 +1,6 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import sampleCampaign from './features/campaigns/fixtures/sample-campaign.json'
+import CampaignDashboard from './features/campaigns/CampaignDashboard.jsx'
 import { AuthProvider } from './auth/AuthProvider.jsx'
 import { AccountWorkspace } from './auth/AccountWorkspace.jsx'
 
@@ -32,27 +33,6 @@ function Overview() {
   )
 }
 
-function Campaigns() {
-  return (
-    <>
-      <div className="eyebrow">READ-ONLY SAMPLE</div>
-      <h1>Campaign days</h1>
-      <p className="lead">Contract-compliant mock records for frontend development. Nothing here is saved, rendered or published.</p>
-      <div className="day-grid">
-        {sampleCampaign.days.map((day) => (
-          <article className="day-card" key={day.id}>
-            <div className="day-top"><span>Day {day.day_index}</span><span className="tag">DRAFT · mock</span></div>
-            <h2>{day.topic}</h2>
-            <p className="date">{day.scheduled_date}</p>
-            <p>{day.instagram.caption}</p>
-            <div className="day-footer">LinkedIn draft · Instagram Reel storyboard</div>
-          </article>
-        ))}
-      </div>
-    </>
-  )
-}
-
 function AppShell() {
   return (
     <div className="shell">
@@ -71,7 +51,7 @@ function AppShell() {
         <main className="content">
           <Routes>
             <Route path="/" element={<Overview />} />
-            <Route path="/campaigns" element={<Campaigns />} />
+            <Route path="/campaigns" element={<CampaignDashboard />} />
             <Route path="/account" element={<AccountWorkspace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
