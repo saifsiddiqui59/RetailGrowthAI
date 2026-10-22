@@ -134,3 +134,15 @@ def test_api_ack_depends_on_committed_outbox_not_current_queue_health():
     api = HTTPAPI(lambda token: USER, UserStore(), NeverSend(), failure_store=object(),
                   durable_outbox=True)
     assert api.handle("POST", "/campaigns", "Bearer signed", body)[0] == 202
+
+
+def test_unknown_uuid_messages_are_not_silently_acknowledged():
+    from planning_worker import process_campaign
+    from render_worker import process_render
+    class Unknown:
+        def campaign_status(self, cid): return None
+        def render_status(self, jid): return None
+    with pytest.raises(StorageUnavailable, match="unknown planning job"):
+        process_campaign(JOB, Unknown(), mock_enabled=True)
+    with pytest.raises(StorageUnavailable, match="unknown render job"):
+        process_render(JOB, Unknown(), None)
