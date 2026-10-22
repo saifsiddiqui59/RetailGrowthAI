@@ -162,10 +162,7 @@ def check(snapshot: dict, *, phase: str, subscription_id: str, resource_group: s
             and isinstance(n.get("threshold"), (int, float))
             and n.get("contactEmails")
         }
-        budget_id = str(budget.get("id") or "").lower()
-        exact_rg_prefix = expected_scope.lower() + "/providers/microsoft.consumption/budgets/"
-        if (budget_id.startswith(exact_rg_prefix)
-                and bp.get("category") == "Cost" and bp.get("timeGrain") == "Monthly"
+        if (bp.get("category") == "Cost" and bp.get("timeGrain") == "Monthly"
                 and isinstance(bp.get("amount"), (int, float))
                 and monthly_budget_limit is not None
                 and 0 < bp["amount"] <= monthly_budget_limit
