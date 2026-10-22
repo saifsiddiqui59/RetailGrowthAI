@@ -59,3 +59,7 @@ Sources:
 - [GitHub immutable OIDC subject reference](https://docs.github.com/en/actions/reference/security/oidc)
 - [Microsoft Azure OIDC from GitHub Actions](https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure-openid-connect)
 - [Azure/login action](https://github.com/Azure/login)
+
+## Observed verification failure — 2026-10-22
+- The [manual read-only run #39780713421](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39780713421) **failed** in `azure/login@v3` with `AADSTS70025`: Entra app `retailgrowthai-github-dev` has **no configured federated identity credentials**. The workflow passed its nonempty three-environment-secret guard, so add the **exact** issuer/immutable subject/audience credential above to the correct Entra app. Then verify narrow Reader RBAC and manually re-run from `main`.
+- This is **not** an authenticated Azure connection, not approval to deploy, and not a reason to use an Azure client secret. The four standard CI jobs and PR #28 passing are independent of this failure.
