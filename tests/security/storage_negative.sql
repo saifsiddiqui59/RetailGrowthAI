@@ -49,7 +49,7 @@ end $$;
 
 -- An authenticated editor cannot bypass image registration using arbitrary paths
 -- or types, even under a shop they own.
-do $
+do $$
 declare denied boolean; count_changed integer;
 begin
   denied := false;
@@ -76,7 +76,7 @@ begin
       and name='55555555-5555-4555-8555-555555555555/uploads/cccccccc-cccc-4ccc-8ccc-cccccccccccc.webp';
   get diagnostics count_changed = row_count;
   if count_changed <> 1 then raise exception 'FAIL: orphan cleanup denied'; end if;
-end $;
+end $$;
 
 select set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',true);
 do $$
