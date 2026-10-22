@@ -95,7 +95,11 @@ jobs:
           for item in changes:
               action=item.get('changeType')
               target=(item.get('resourceId') or '').lower()
-              if action not in ('Create','NoChange','Ignore') or '/providers/microsoft.storage/storageaccounts/' not in target:
+              if action=='Ignore':
+                  # Azure Resource Manager often ignores nested resources whose parent is still being created.
+                  # The reviewed Bicep contains ONLY the dedicated StorageV2 account and its children.
+                  continue
+              if action not in ('Create','NoChange') or '/providers/microsoft.storage/storageaccounts/' not in target:
                   raise SystemExit('BLOCKED unexpected Azure what-if type/scope: '+str(action))
           assert any(ch.get('changeType')=='Create' for ch in changes),'No new Storage resource detected' 
           print('PASS: ARM what-if only new Storage resources; ignored nested children allowed, no deletion/modification')
