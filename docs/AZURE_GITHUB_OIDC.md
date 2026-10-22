@@ -1,6 +1,6 @@
 # RetailGrowthAI — GitHub to Azure DEV connection (OIDC)
 
-**Status (2026-10-22):** workflow prepared in source. **NOT CONNECTED OR VERIFIED**. Azure application registration exists according to the owner's Azure portal screenshot, but neither Azure trust/RBAC nor GitHub environment secrets have been verified. No Azure deployment is authorized.
+**Current status (2026-10-22): READ-ONLY GITHUB-TO-AZURE DEV OIDC LOGIN VERIFIED.** The latest attempt of [Azure DEV OIDC workflow run #39780713421](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39780713421) succeeded: the environment-secret checks, `azure/login@v3` federated authentication, and selected-subscription identity check all passed. This verifies authentication/subscription access, **not** resource-group Reader/Contributor scope, infrastructure provisioning, or deployment approval. No Azure deployment is authorized.
 
 This setup is **only** for `saifsiddiqui59/RetailGrowthAI`. Never reference WineShopPOS subscriptions, resource groups, secrets, or production resources.
 
@@ -60,6 +60,11 @@ Sources:
 - [Microsoft Azure OIDC from GitHub Actions](https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure-openid-connect)
 - [Azure/login action](https://github.com/Azure/login)
 
-## Observed verification failure — 2026-10-22
+## Initial verification failure (historical; superseded) — 2026-10-22
 - The [manual read-only run #39780713421](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39780713421) **failed** in `azure/login@v3` with `AADSTS70025`: Entra app `retailgrowthai-github-dev` has **no configured federated identity credentials**. The workflow passed its nonempty three-environment-secret guard, so add the **exact** issuer/immutable subject/audience credential above to the correct Entra app. Then verify narrow Reader RBAC and manually re-run from `main`.
-- This is **not** an authenticated Azure connection, not approval to deploy, and not a reason to use an Azure client secret. The four standard CI jobs and PR #28 passing are independent of this failure.
+- This describes the **initial failed attempt only**, subsequently superseded by a successful rerun. No client secret was needed; neither CI nor OIDC authentication grants deployment approval.
+
+## Successful verification rerun — 2026-10-22
+- Inspected the **latest attempt** of [Azure DEV OIDC workflow run #39780713421](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39780713421): job `Verify federated Azure login only` completed **successfully**. Its `Validate Azure environment secrets are present`, `Authenticate with Azure using GitHub OIDC`, and `Verify selected Azure subscription (no resource changes)` steps all completed successfully.
+- The earlier `AADSTS70025` failure is historical; the latest observed OIDC login succeeds. Exact federated credential and resource-group IAM configuration were not independently enumerated; do not infer a write role from successful subscription lookup.
+- No Functions/queues deployed, no hosted Supabase migration applied, and no WineShopPOS resource touched. Next gates: durable poison/replay/fencing, approved runtime benchmarks, scoped IAM inspection, and **explicit owner authorization** before DEV deployment.
