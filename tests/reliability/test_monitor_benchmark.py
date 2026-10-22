@@ -32,6 +32,11 @@ def test_monitor_counts_stale_risk_without_exposing_identifiers():
     for row in rows:
         assert row["id"] not in text
     assert summarize([], NOW)["requires_operator"] is False
+    poisons = summarize([], NOW, poison_depths={"render": 2, "planning": 0})
+    assert poisons["requires_operator"] is True
+    assert poisons["poison_queue_depths"]["render"] == 2
+    with pytest.raises(ValueError):
+        summarize([], NOW, poison_depths={"render": -1})
 
 
 def test_invalid_monitor_data_fails_without_leaking_payload(monkeypatch, capsys):
