@@ -7,7 +7,7 @@ No network calls, tenant identifiers or personal content in the output.
 import json
 import sys
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from .recovery import Job, decide, utc_time
 
@@ -27,7 +27,7 @@ def summarize(rows, now):
         if decision.action in ("requeue", "mark_failed"):
             actions[kind + "." + decision.action] += 1
         if job.status not in ("DRAFT", "READY", "SUCCEEDED", "FAILED"):
-            if now - job.created_at > __import__("datetime").timedelta(minutes=15):
+            if now - job.created_at > timedelta(minutes=15):
                 delayed[kind] += 1
     return {"total": sum(counts.values()), "statuses": dict(sorted(counts.items())),
             "recoverable": dict(sorted(actions.items())),
