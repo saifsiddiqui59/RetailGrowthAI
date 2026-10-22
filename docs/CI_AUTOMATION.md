@@ -9,6 +9,7 @@ GitHub automatically runs the three independent jobs below on pushes to `main`, 
 | Frontend build + contract tests | Node.js 22, `npm ci` when a reviewed lockfile exists (otherwise `npm install` warning), `npm test`, `npm run build` |
 | Python / uv + campaign contract tests | `uv` 0.13.1, Python 3.13, `uv sync --project ai-agents`, run pytest against `tests/contracts` and optional `tests/ai`, `ai-agents/tests` |
 | FFmpeg codecs + renderer tests | install FFmpeg, encode a **2-second synthetic portrait** H.264/AAC video, verify streams via ffprobe, and call `video-engine/ci.sh` when implemented |
+| Supabase isolation + authentication client tests | Node 22 client unit tests, isolated Supabase CLI Postgres, apply all tenant migrations, execute RLS and private-storage negative SQL tests with assertion failures fatal |
 
 The synthetic MP4 is a **toolchain smoke test**, not evidence that real 30-second commercial Reels render. If renderer code is added without `video-engine/ci.sh`, the media job fails intentionally. Workstream C owns creating an executable `video-engine/ci.sh` that renders fixture inputs offline, validates duration/aspect/codecs/content and returns nonzero on failure. It should write permitted non-sensitive evidence into `ci-artifacts/` if an artifact is useful.
 
@@ -24,10 +25,10 @@ Note: GitHub Actions only runs declared commands. It **does not automatically re
 ## Security, cost, and current gaps
 - Workflow has read-only `contents: read` permissions. No production secrets, service keys, cloud deploys or `pull_request_target` privilege elevation.
 - PR jobs can execute untrusted code, so never inject deployment credentials into them.
-- There are three separate jobs, with timeouts and cancellation for older runs. GitHub-hosted runner minutes/storage depend on current repository plan.
+- The coordinator integration branch adds a fourth independent local Supabase security job; all jobs have timeouts, and redundant runs are cancelled. GitHub-hosted runner minutes/storage depend on current repository plan.
 - The existing frontend uses `npm install` until its reviewed `package-lock.json` is committed. Once committed, workflow uses deterministic `npm ci`.
 - For AI dependencies, commit `ai-agents/uv.lock` when established; until then `uv sync` can resolve current packages.
-- Python `pytest` and renderer harness remain initially thin; add negative cross-tenant and true renderer tests as Part 1 progresses.
+- Workstream A provides cross-tenant RLS/private-media tests, executed on dedicated DEV; the coordinator security job runs them against disposable local Supabase on each push. Python `pytest` and renderer coverage are still being extended by B/C.
 - Read GitHub Actions job logs/artifacts before changing code. Do not assume a successful smoke check proves cloud auth/tenant isolation, FFmpeg quality, model correctness or production readiness.
 - `ci-artifacts/` contains synthetic test output only; artifact retention is 3 days.
 
@@ -40,3 +41,10 @@ If a workflow change is not yet merged, its manual `workflow_dispatch` trigger m
 - PR #1 squash-merged as `6e3627968beb8288afe857adea0238db4fcda862`.
 - [Post-merge GitHub Actions run #39745758948](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39745758948) concluded **success** on `main` with all three jobs successful.
 - This validates the workflow scaffold only. Frontend lockfile, Python behavior tests, tenant isolation and real 30-second MP4 rendering remain for subsequent tasks.
+
+## Proposed coordinator gate — Workstream A dependency
+- Workstream A [PR #5](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/5) must land first. Coordinator integration branch `chore/p1-foundation-auth-ci-integration` then brings the fourth job and account route onto main after CI passes.
+- The fourth job is intentionally isolated: `supabase init --yes`, `supabase db start`, Postgres client `psql -v ON_ERROR_STOP=1` runs `tests/security/rls_negative.sql` and `tests/security/storage_negative.sql`, then `supabase stop --no-backup`. It never links to a remote Supabase project or uses service keys.
+- CI tests are not production/browser Auth end-to-end tests. Validate actual email sign-in, profile editing and session expiry separately with RetailGrowthAI DEV settings before release.
+
+- Verified on coordinator integration branch: [run 39752723276](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39752723276) completed successfully; security step executed Supabase migrations and both negative SQL tests. All four jobs passed. This evidence is from the branch, not post-merge main.

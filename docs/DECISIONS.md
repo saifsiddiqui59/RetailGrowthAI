@@ -40,3 +40,9 @@
 - Merge the read-only, secret-free three-job CI workflow; post-merge run #39745758948 passed all three checks. Workstream chats must provide passing PR-run evidence; the coordinator validates integration on main.
 - A two-second synthetic video test only confirms FFmpeg H.264/AAC toolchain; separate 30-second renderer, RLS denial, and AI behavior tests are mandatory in workstream PRs. A green scaffold check is not production readiness.
 - After coordinator documentation updates, fast-forward the four unchanged feature branches to the same latest main commit before parallel work. Preserve branch ownership and contracts.
+
+## 2026-10-22 — Coordinator Auth route and reusable security gate
+- Keep Workstream A schema/Auth implementation in PR #5; coordinator owns root router and shared CI changes in a separate stacked branch rather than breaking parallel file ownership.
+- Wrap root app with Workstream A AuthProvider, mount AccountWorkspace only under `/account`, and continue labeling campaign data as mock. Live Auth depends on RetailGrowthAI-only VITE publishable settings; never ship service-role or secret keys.
+- Add an independent read-only GitHub Actions security job: Node client tests plus disposable Supabase Postgres and migrations followed by negative SQL tests. No hosted Supabase database or credential is used in CI; do not weaken tests for green status.
+- Dedicated RetailGrowthAI Supabase project `jeearzffnjbvghwjjjrf` is DEV/pilot only; production requires a separate project. No changes to WineShopPOS or existing voice projects.
