@@ -35,3 +35,8 @@
 - Trigger on main/feature branch pushes and main-targeted PRs. Use read-only workflow token, no secrets on PRs and no cloud provisioning. Cancel superseded runs to limit billed minutes.
 - Require each workstream to record actual CI run evidence before requesting coordinator merge. ChatGPT may inspect failures and push fixes during an active chat, but GitHub Actions does not autonomously write fixes.
 - Real 30-second renderer validation is owned by Workstream C; synthetic two-second FFmpeg check only confirms codecs and tool installation. See docs/CI_AUTOMATION.md.
+
+## 2026-10-22 — Approved Part 1 CI integration (PR #1)
+- Merge the read-only, secret-free three-job CI workflow; post-merge run #39745758948 passed all three checks. Workstream chats must provide passing PR-run evidence; the coordinator validates integration on main.
+- A two-second synthetic video test only confirms FFmpeg H.264/AAC toolchain; separate 30-second renderer, RLS denial, and AI behavior tests are mandatory in workstream PRs. A green scaffold check is not production readiness.
+- After coordinator documentation updates, fast-forward the four unchanged feature branches to the same latest main commit before parallel work. Preserve branch ownership and contracts.

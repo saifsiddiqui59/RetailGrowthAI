@@ -35,9 +35,12 @@ Part 1 — AI Campaign Creation. Coordinator bootstrap verified in GitHub Action
 - No model credentials/Foundry deployment or cloud video worker configured.
 - Live publishing is Part 2, Wan is Part 3, and production testing is Part 4.
 
-## CI upgrade integration gate (chore/part1-ci)
-- Coordinator: review/merge the CI upgrade PR only after the **new** three-job workflow passes; existing bootstrap success is not evidence for the upgrade.
-- Workstream C: add `video-engine/ci.sh` to perform real 30-second offline render, ffprobe validation and assertions; synthetic FFmpeg smoke is not a renderer test.
-- Workstream B: add Python tests to `tests/ai` or `ai-agents/tests`; when AI dependencies are settled commit `ai-agents/uv.lock`.
-- Coordinator: generate/review/commit `frontend/package-lock.json` in Git Bash; CI will then use `npm ci`.
-- See docs/CI_AUTOMATION.md for tests, GitHub Actions logging/debugging and security limits.
+## CI upgrade merged — workstreams ready to begin (2026-10-22)
+- PR #1 merged to `main` (`6e3627968beb8288afe857adea0238db4fcda862`). [Post-merge CI](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39745758948) passed all **three** jobs: frontend, Python/uv, FFmpeg smoke.
+- Chats A/B/C/D may begin **after confirming their assigned branch is updated to the latest `main` baseline**. Each chat owns only its paths under `docs/PARALLEL_WORK.md`, reads all canonical docs, and sends a PR without self-merging.
+- Chat A: implement schema/membership/RLS with actual cross-tenant denial tests; dedicated RetailGrowthAI Supabase required before any live configuration.
+- Chat B: add real Python campaign planner/reviewer tests in `tests/ai` or `ai-agents/tests`; commit `ai-agents/uv.lock` after dependencies stabilize.
+- Chat C: add `video-engine/ci.sh` with 30-second fixture render, ffprobe codec/aspect/duration assertions, and test-media rights metadata. Synthetic FFmpeg smoke **does not** validate full rendering.
+- Chat D: build contract-compliant campaign UI in owned directory with clearly labeled mocks.
+- Coordinator follow-up: generate/review/commit `frontend/package-lock.json` using Git Bash; current CI still uses `npm install`. Once a reviewed lock exists CI switches to `npm ci`.
+- See `docs/CI_AUTOMATION.md` for GitHub Actions evidence, three-job test scope, and security limits.
