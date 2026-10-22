@@ -56,7 +56,7 @@ These live SQL tests simulate authenticated database roles/JWT claims directly; 
 ### Code hardening queued for review
 - New `20261022180000_p1_dev_media_integrity.sql` strengthens browser Storage INSERT to canonical `<shop-id>/uploads/<uuid>.png|jpg|webp`, closes browser UPDATE/upsert/rename of Storage objects, prevents user deletion of registered blobs, and revokes browser deletion of `media_assets` registration rows. This removes the two-step bypass where a member first deletes metadata and then replaces previously registered content.
 - Verified frontend contract is upload-only with `x-upsert: false` and server-bound registration; generated video files are backend-managed. The single shared private bucket intentionally retains its existing 50 MB ceiling to accommodate generated MP4 outputs.
-- Expanded disposable Postgres tests in `tests/security/storage_negative.sql` and `tests/security/upload_registration_negative.sql` to exercise canonical paths, malicious browser MP4 upload, orphan cleanup, registered image overwrite/deletion and metadata-delete bypass.
+- Expanded disposable Postgres tests in `tests/security/storage_negative.sql` and `tests/security/upload_registration_negative.sql` to exercise canonical paths, malicious browser MP4 upload, protected update grants/policies and metadata-delete bypass. Direct Storage deletion is not tested with SQL because Supabase requires the Storage API to synchronize object bytes.
 - No incompatible HTTP/JSON interface was changed. Any future user media revocation/delete requires a separate audited server-side workflow.
 
 ### Approval-gated deployment order and checks
