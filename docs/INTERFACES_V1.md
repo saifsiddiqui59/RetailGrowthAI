@@ -65,3 +65,6 @@ Generated days must have consecutive date offsets, exact requested count, distin
 
 ## Definition of contract-ready
 JSON fixture passes validation in Python and JavaScript; exact field names shared between workstreams; RLS tests deny cross-shop reads/writes and attempts at forging shop IDs.
+
+## 2026-10-22 — I/J/K internal reliability integration
+Public v1 request/response schema **unchanged**. A successful authenticated POST still means a durable `202` job accepted, but server-side Azure mode now derives queue delivery from a transactional DB outbox, not a best-effort synchronous send. Internal service-role RPCs add token/attempt-fenced completion and recovery; they are **not user-facing endpoints**. Workstream K tests the existing public contract with network mocks; real hosted compatibility is unverified until an explicitly approved DEV deployment and migrations.
