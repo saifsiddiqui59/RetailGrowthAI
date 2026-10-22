@@ -41,13 +41,21 @@ class FakeStore:
         self.failed.append((token, cid))
 
 
-def api(store, queue=None):
+class FakeAdmin:
+    def __init__(self):
+        self.failed = []
+
+    def fail_pending(self, cid, sid, user_id):
+        self.failed.append((cid, sid, user_id))
+
+
+def api(store, queue=None, failure_store=None):
     def verified(token):
         if token not in ("signed-A", "signed-B"):
             from security import AuthenticationError
             raise AuthenticationError()
         return USER_A if token == "signed-A" else USER_B
-    return HTTPAPI(verified, store, queue)
+    return HTTPAPI(verified, store, queue, failure_store=failure_store or FakeAdmin())
 
 
 def test_requires_auth_even_when_queue_unconfigured():
@@ -93,9 +101,10 @@ def test_queue_failure_marks_failed():
     store = FakeStore()
     class Queue:
         def enqueue(self, cid): raise OSError("queue is down")
-    status, body = api(store, Queue()).handle("POST", "/campaigns", "Bearer signed-A", request())
+    admin = FakeAdmin()
+    status, body = api(store, Queue(), admin).handle("POST", "/campaigns", "Bearer signed-A", request())
     assert status == 503 and body["error"] == "QUEUE_UNAVAILABLE"
-    assert store.failed[0][1] == store.saved[0][2]
+    assert admin.failed == [(store.saved[0][2], SHOP_A, USER_A)]
 
 
 def test_get_foreign_returns_404():
@@ -111,3 +120,10 @@ def test_get_returns_normalized_tenant_campaign():
     store.result = {"id": CID, "shop_id": SHOP_A, "status": "PLANNING", "days": []}
     code, row = api(store).handle("GET", "/campaigns/" + CID, "Bearer signed-A")
     assert code == 200 and row["id"] == CID
+
+def test_no_backend_cleanup_prevents_any_persisted_unqueued_job():
+    store = FakeStore()
+    app = HTTPAPI(lambda token: USER_A, store, planning_queue=object())
+    assert app.handle("POST", "/campaigns", "Bearer signed-A", request()) == (
+        503, {"error": "PLANNING_NOT_CONFIGURED"})
+    assert not store.saved

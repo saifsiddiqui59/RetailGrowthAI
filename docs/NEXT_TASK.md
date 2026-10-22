@@ -41,3 +41,5 @@ Coordinator merged Workstream A PR #5, stacked coordinator PR #6, Workstream B P
 
 ## After frontend wiring
 - Set VITE_CAMPAIGN_API_BASE_URL and RetailGrowthAI-only Supabase publishable settings on an approved deployment; verify browser E2E and CORS. Media upload UI, remote edit/save, production licensing and post approval remain separate work.
+
+- Verify post-merge four-job CI and complete live Auth/queue/render/browser testing before deployment. Fix any orphaned queued jobs with monitored recovery; do not grant user UPDATE on campaigns.status.

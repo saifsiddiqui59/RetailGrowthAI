@@ -26,11 +26,13 @@ def build_api():
     queue = AzurePlanningQueue(connection) if connection else None
     store = TenantStore(url, key)
     admin_key = os.environ.get("RETAIL_SUPABASE_SERVICE_ROLE_KEY")
+    admin = AdminStore(url, admin_key) if admin_key else None
     render_api = (
-        RenderAPI(store, AdminStore(url, admin_key), AzureRenderQueue(connection))
-        if connection and admin_key else None
+        RenderAPI(store, admin, AzureRenderQueue(connection))
+        if connection and admin else None
     )
-    return HTTPAPI(SupabaseJWTVerifier(url), store, queue, render_api)
+    return HTTPAPI(SupabaseJWTVerifier(url), store, queue, render_api,
+                   failure_store=admin)
 
 
 def dispatch(request, path):

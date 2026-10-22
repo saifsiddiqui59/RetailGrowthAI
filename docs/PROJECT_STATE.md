@@ -111,3 +111,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## Live frontend API wiring (branch)
 - React dashboard now supports an explicit authenticated API mode with shop selection from RLS-backed memberships and authorized media IDs, job polling, render status and private signed MP4 links. Absent API configuration it remains a clearly labeled mock editor. No cloud deployment, upload UI or remote edit persistence.
+
+## 2026-10-22 — Coordinator backend authorization hotfix
+- Queue error cleanup is an explicitly scoped backend status update; a missing backend key blocks POST before persistence. Opaque Supabase sb_secret_ keys use apikey only, legacy service JWTs additionally use Bearer. Private media 409 collisions fail closed. Offline tests added; no cloud deployed.

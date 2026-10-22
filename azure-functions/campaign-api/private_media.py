@@ -6,6 +6,7 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from tenant_store import StorageUnavailable, canonical_uuid
+from admin_store import backend_headers
 
 MAX_INPUT = 25 * 1024 * 1024
 MAX_OUTPUT = 80 * 1024 * 1024
@@ -30,7 +31,7 @@ class PrivateMedia:
     def download(self, shop_id, key, destination):
         path = self._path(shop_id, key)
         req = Request(self.origin + "/storage/v1/object/" + BUCKET + "/" + path,
-                      headers={"apikey": self.secret, "Authorization": "Bearer " + self.secret})
+                      headers=backend_headers(self.secret))
         try:
             with self.transport(req, timeout=30) as response:
                 data = response.read(MAX_INPUT + 1)
@@ -52,7 +53,7 @@ class PrivateMedia:
         req = Request(
             self.origin + "/storage/v1/object/" + BUCKET + "/" + path,
             data=media_file.read_bytes(), method="POST",
-            headers={"apikey": self.secret, "Authorization": "Bearer " + self.secret,
+            headers={**backend_headers(self.secret),
                      "Content-Type": "video/mp4", "x-upsert": "false"},
         )
         try:
@@ -60,9 +61,8 @@ class PrivateMedia:
                 if not 200 <= response.status < 300:
                     raise StorageUnavailable("private media upload rejected")
         except HTTPError as exc:
-            # Same deterministic object key can be retried after DB/queue crashes.
-            if exc.code != 409:
-                raise StorageUnavailable("private media upload failed") from exc
+            # A preexisting object is not proven to be our rendered output.
+            raise StorageUnavailable("private output collision requires verification") from exc
         except (URLError, OSError) as exc:
             raise StorageUnavailable("private media upload unavailable") from exc
         return key
