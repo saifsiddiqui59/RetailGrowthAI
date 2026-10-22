@@ -68,3 +68,7 @@ The previous 4-minute lease/host vs 13-minute FFmpeg mismatch must **not** be de
 - **Offline test:** `bash scripts/deploy/check.sh` runs package and infra policy tests; Azure Bicep compilation runs when local Azure CLI is available. Remote Python dependency build and Functions host/trigger startup need later approved live testing.
 
 **No provisioning, deployment, Supabase migration or WineShopPOS changes were performed in Workstream J.**
+
+## Workstream M — read-only release gates
+
+See [RELEASE_READINESS.md](RELEASE_READINESS.md) for scoped OIDC service-principal IAM inspection, hosted Flex/runtime/queue/poison and cost-budget preflight, fail-closed offline security tests, and protected rollback artifacts. Azure CLI checks are **read-only** and not automatically run by PR CI; hosted DEV inventory remains unverified until independently authorized. The code-deployment approval script now also demands an approved first-release designation or a retained, separately validated known-good ZIP for recovery. No deployment or Azure provisioning was performed.

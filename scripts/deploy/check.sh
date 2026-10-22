@@ -13,6 +13,7 @@ else
 fi
 "$py" scripts/deploy/package.py --check
 "$py" -m unittest discover -s scripts/deploy -p 'test_*.py' -v
+"$py" -m unittest discover -s tests/infra -p 'test_*.py' -v
 if command -v az >/dev/null 2>&1; then
   target="$(mktemp -t retailgrowth-azure-XXXXXX.json)"
   trap 'rm -f "$target"' EXIT
