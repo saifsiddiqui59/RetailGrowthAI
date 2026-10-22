@@ -37,3 +37,9 @@ Parallel development rules:
 - Never make incompatible API/schema changes without the coordinator changing docs/INTERFACES_V1.md.
 - Only the coordinator integrates to main and edits shared contracts; worker chats send branch PRs.
 - The coordinator must update all project documentation after integration.
+
+GitHub Actions automation:
+- Read docs/CI_AUTOMATION.md before claiming builds/tests passed.
+- Every branch push or PR runs the Part 1 CI jobs; inspect the actual GitHub Actions run and logs after pushing.
+- Fix failures only inside your owned branch/files; do not bypass or disable a failing test to obtain green CI.
+- The coordinator owns .github/workflows/**; worker chats must propose CI changes rather than modify it directly.

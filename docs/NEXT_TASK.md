@@ -34,3 +34,10 @@ Part 1 — AI Campaign Creation. Coordinator bootstrap verified in GitHub Action
 - Dedicated RetailGrowthAI Supabase DEV/PROD projects absent.
 - No model credentials/Foundry deployment or cloud video worker configured.
 - Live publishing is Part 2, Wan is Part 3, and production testing is Part 4.
+
+## CI upgrade integration gate (chore/part1-ci)
+- Coordinator: review/merge the CI upgrade PR only after the **new** three-job workflow passes; existing bootstrap success is not evidence for the upgrade.
+- Workstream C: add `video-engine/ci.sh` to perform real 30-second offline render, ffprobe validation and assertions; synthetic FFmpeg smoke is not a renderer test.
+- Workstream B: add Python tests to `tests/ai` or `ai-agents/tests`; when AI dependencies are settled commit `ai-agents/uv.lock`.
+- Coordinator: generate/review/commit `frontend/package-lock.json` in Git Bash; CI will then use `npm ci`.
+- See docs/CI_AUTOMATION.md for tests, GitHub Actions logging/debugging and security limits.
