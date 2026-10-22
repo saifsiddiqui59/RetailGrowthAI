@@ -30,6 +30,8 @@ jobs:
           import os,urllib.parse
           url=os.environ.get("RETAIL_SUPABASE_DB_URL") or ""
           if not url: raise SystemExit("BLOCKED: RETAIL_SUPABASE_DB_URL GitHub dev environment secret missing")
+          if "[YOUR-PASSWORD]" in url or "[YOUR_PASSWORD]" in url:
+              raise SystemExit("BLOCKED: database password placeholder is still present; replace it in GitHub dev secret")
           try:
               u=urllib.parse.urlsplit(url)
               project="jeearzffnjbvghwjjjrf"
@@ -49,7 +51,7 @@ jobs:
                   raise SystemExit("BLOCKED: DEV database URI field(s) invalid; fix GitHub secret privately")
               print("PASS: expected RetailGrowthAI DEV Supabase connection URI format (secret masked)")
           except ValueError:
-              raise SystemExit("BLOCKED: invalid URL/port, use Supabase Connect > Session Pooler > URI")
+              raise SystemExit("BLOCKED: database URL parse failed: percent-encode special password characters; use a single Session Pooler URI")
 
           PY
 
