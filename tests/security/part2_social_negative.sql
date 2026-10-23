@@ -365,7 +365,7 @@ begin
       or not public.p2_record_social_poison(job1) then
     raise exception 'FAIL: uncertain external send poison not reconciled';
   end if;
-end $;
+end $$;
 rollback;
 \echo 'PASS: P2 approved content, replay-safe draft, atomic per-period quota and cancel'
 
