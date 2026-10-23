@@ -259,3 +259,8 @@
 
 ## 2026-10-23 — Final verification of no-credential gateway observability
 - Merged source PR #107 with four green feature and post-main jobs, preserving the no-JWT fixed DEV GET sampler as a *manual diagnostic only*. No automatic ping scheduler, unnecessary Azure replicas, identity/tenant policy relaxation, billing flows or social/Wan integrations approved. Further reliability decisions require measured Azure platform and App Insights evidence.
+
+## 2026-10-23 — Final Part 2/3 integration ownership and safety contract
+- Coordinator exclusively owns **final** Part 2/Part 3 PR reconciliation and main merges; each lead independently creates/reviews/merges its own internal PRs on its integration branch. Never require coordinator approval for ordinary intra-part progress. Part 1 DEV Operator 2 changes continue independently.
+- Retain one Supabase JWT/tenant model, canonical private media bucket, Part 1 campaign/render APIs, durable outbox/queue claims and Part 1 server-authoritative subscription/usage reservations. New publishing/premium jobs use disjoint namespaces and additive versioned migrations; no duplicate charging, unsafe replay, false content approval or browser provider secrets. Paid Wan, outbound customer publishing, deployment and billing require explicit separate authorization.
+- Details and exact PR/CI integration gates: [FINAL_INTEGRATION_PARTS_2_3.md](FINAL_INTEGRATION_PARTS_2_3.md). This decision establishes a contract, not feature readiness.
