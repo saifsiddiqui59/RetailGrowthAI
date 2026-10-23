@@ -176,17 +176,17 @@ values('f1000000-0000-4000-8000-000000000004',
        '00000000-0000-0000-0000-000000000000',
        'authenticated','authenticated','new-tenant@example.invalid','!',now(),now());
 update retail_private.onboarding_gate set enforce_approval=true where singleton;
-do $
+do $$
 begin
   if (select status from retail_private.onboarding_requests
       where user_id='f1000000-0000-4000-8000-000000000004') <> 'PENDING' then
     raise exception 'FAIL: signup not enqueued as pending';
   end if;
-end $;
+end $$;
 set local role authenticated;
 select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','f1000000-0000-4000-8000-000000000004',true);
-do $
+do $$
 declare denied boolean:=false;
 declare result jsonb;
 begin
@@ -215,14 +215,14 @@ begin
   exception when insufficient_privilege then denied:=true;
   end;
   if not denied then raise exception 'FAIL: pending user approved themselves'; end if;
-end $;
+end $$;
 reset role;
 update retail_private.platform_admins set active=true
 where user_id='f1000000-0000-4000-8000-000000000001';
 set local role authenticated;
 select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','f1000000-0000-4000-8000-000000000001',true);
-do $
+do $$
 declare rows jsonb;
 declare decision jsonb;
 begin
@@ -235,29 +235,29 @@ begin
       'f1000000-0000-4000-8000-000000000004',true,'Verified new retailer manually');
   if decision->>'status'<>'APPROVED' then
     raise exception 'FAIL: signed-off approval did not persist'; end if;
-end $;
+end $$;
 select set_config('request.jwt.claim.sub','f1000000-0000-4000-8000-000000000004',true);
-do $
+do $$
 declare result jsonb;
 begin
   result:=public.retail_onboarding_status();
   if result->>'status'<>'APPROVED' then
     raise exception 'FAIL: customer not approved after root decision';
   end if;
-end $;
+end $$;
 insert into public.shops(id,owner_user_id,name,slug)
 values('f1000000-0000-4000-8000-000000000021',
        'f1000000-0000-4000-8000-000000000004',
        'Approved retailer','approved-test-shop');
 reset role;
-do $
+do $$
 begin
   if not exists(select 1 from public.shop_subscriptions
     where shop_id='f1000000-0000-4000-8000-000000000021'
       and status='TRIAL') then
     raise exception 'FAIL: approved new shop did not start 7-day trial';
   end if;
-end $;
+end $$;
 
 rollback;
 \echo 'PASS platform root login grant, owner/editor/viewer denial, RLS isolation, audited plan change and immediate revocation'
