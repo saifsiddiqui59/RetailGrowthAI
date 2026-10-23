@@ -5,7 +5,7 @@ on:
   push:
     branches: [main, 'feat/**', 'chore/**']
   pull_request:
-    branches: [main]
+    branches: [main, 'feat/part1-completion']
   workflow_dispatch:
 
 permissions:
@@ -105,7 +105,7 @@ jobs:
           if [ -d tests/reliability ]; then paths+=(tests/reliability); fi
           if [ -d tests/e2e ]; then paths+=(tests/e2e); fi
           if [ -d tests/infra ]; then paths+=(tests/infra); fi
-          uv run --project ai-agents --with pytest --with "PyJWT[crypto]==2.10.1" -- python -m pytest -q "${paths[@]}"
+          uv run --project ai-agents --with pytest --with "PyJWT[crypto]==2.10.1" --with "Pillow==13.0.0" --with "azure-functions==1.24.0" -- python -m pytest -q "${paths[@]}"
       - name: Validate offline Azure packaging and approval gates (when present)
         shell: bash
         run: |
@@ -124,6 +124,16 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Install uv for deterministic poster tests
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: true
+      - name: Install pinned poster image library
+        run: |
+          uv venv .poster-media-venv
+          uv pip install --python .poster-media-venv/bin/python "Pillow==13.0.0"
+          echo "$GITHUB_WORKSPACE/.poster-media-venv/bin" >> "$GITHUB_PATH"
       - name: Verify FFmpeg availability (install only if missing)
         shell: bash
         run: |
@@ -275,6 +285,11 @@ jobs:
           if [ -f tests/security/platform_admin_negative.sql ]; then
             psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f tests/security/platform_admin_negative.sql
           fi
+          for source in tests/security/poster*.sql tests/security/notification*.sql; do
+            if [ -f "$source" ]; then
+              psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f "$source"
+            fi
+          done
       - name: Stop isolated Supabase database
         if: always()
         shell: bash
