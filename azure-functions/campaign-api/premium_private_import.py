@@ -10,6 +10,7 @@ import json
 import re
 import subprocess
 import tempfile
+from time import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse, parse_qs
@@ -28,6 +29,18 @@ class PremiumImportError(RuntimeError):
     """Sanitized; never logs third-party signed URLs or tenant prompt data."""
 
 
+def _valid_signed_expiry(query):
+    """Reject expired, malformed or ambiguous OSS signature expiry values."""
+    try:
+        values = parse_qs(query, keep_blank_values=True)
+        candidates = values.get("Expires", []) + values.get("expires", [])
+        return (len(candidates) == 1 and
+                candidates[0].isdigit() and
+                int(candidates[0]) > int(time()) + 30)
+    except (TypeError, ValueError, OverflowError):
+        return False
+
+
 def validate_vendor_video_url(url):
     if not isinstance(url, str) or len(url) > 2048:
         raise PremiumImportError("Invalid private provider media reference")
@@ -40,8 +53,7 @@ def validate_vendor_video_url(url):
                  not parsed.fragment and parsed.path.lower().endswith(".mp4") and
                  len(parsed.path) <= 500 and
                  not any(x in parsed.path.lower() for x in ("%2f", "%5c", "..")) and
-                 bool(parse_qs(parsed.query).get("Expires") or
-                      parse_qs(parsed.query).get("expires")))
+                 _valid_signed_expiry(parsed.query))
     except ValueError:
         valid = False
     if not valid:
