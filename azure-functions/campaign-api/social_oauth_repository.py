@@ -10,11 +10,17 @@ import json
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 
 from admin_store import backend_headers
 from social_oauth import OAuthDenied
 from tenant_store import canonical_uuid, StorageUnavailable
+
+class _NoRedirect(HTTPRedirectHandler):
+    """Never forward private Supabase keys across OAuth RPC redirects."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
 
 _ALLOWED={
     "p2_issue_oauth_state",
@@ -28,11 +34,12 @@ class SocialOAuthRpcRepository:
     def __init__(self, origin, backend_secret, transport=None):
         p=urlsplit(origin)
         if (p.scheme!="https" or not p.hostname or p.username or p.password
-            or p.query or p.fragment or p.path not in ("", "/")):
+            or p.query or p.fragment or p.path not in ("", "/")
+            or p.port not in (None, 443)):
             raise ValueError("Supabase OAuth repository requires one HTTPS project origin")
         self.origin=origin.rstrip("/")
         self.headers=backend_headers(backend_secret)
-        self.transport=transport or urlopen
+        self.transport=transport or build_opener(_NoRedirect()).open
 
     def _post(self, rpc, payload):
         if rpc not in _ALLOWED:raise ValueError("unsupported social OAuth RPC")
@@ -42,7 +49,11 @@ class SocialOAuthRpcRepository:
             data=json.dumps(payload, separators=(",",":")).encode("utf-8"))
         try:
             with self.transport(req,timeout=10) as response:
-                raw=response.read()
+                if response.geturl() != req.full_url:
+                    raise StorageUnavailable("unexpected private OAuth RPC redirect")
+                raw=response.read(65537)
+                if len(raw)>65536:
+                    raise StorageUnavailable("oversized private OAuth RPC response")
                 return json.loads(raw.decode("utf-8")) if raw else None
         except HTTPError as exc:
             # Never attach PostgREST response body or backend secret to errors.

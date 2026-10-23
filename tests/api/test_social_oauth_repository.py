@@ -14,15 +14,16 @@ USER="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 ACC="20000000-0000-4000-8000-000000000001"
 NOW=datetime.now(timezone.utc)
 class Response:
-    def __init__(self,data):self.data=data
+    def __init__(self,data,url):self.data=data;self.url=url
     def __enter__(self):return self
     def __exit__(self,*args):pass
-    def read(self):return json.dumps(self.data).encode()
+    def geturl(self):return self.url
+    def read(self,limit):return json.dumps(self.data).encode()[:limit]
 class Fake:
     def __init__(self,results):self.results=list(results);self.requests=[]
     def __call__(self,req,timeout):
         self.requests.append((req,timeout))
-        return Response(self.results.pop(0))
+        return Response(self.results.pop(0),req.full_url)
 
 def test_atomic_issue_consume_and_token_ciphertext_only():
     digest=b"a"*32; cipher=b"x"*84
@@ -84,3 +85,55 @@ def test_foreign_response_never_accepted_as_client_state():
     with pytest.raises(m.StorageUnavailable):
         r.consume(digest=b"b"*32,shop_id=SHOP,user_id=USER,
                 provider="linkedin",before=NOW)
+
+
+
+def test_confidential_rpc_never_accepts_redirected_backend_response():
+    class Redirect:
+        def __init__(self):
+            self.reads=0
+        def __enter__(self):return self
+        def __exit__(self,*args):return False
+        def geturl(self):return "https://attacker.example/collect"
+        def read(self,limit):
+            self.reads+=1
+            return b"true"
+    response=Redirect()
+    repository=m.SocialOAuthRpcRepository(
+        "https://example.supabase.co", "sb_secret_not_real",
+        transport=lambda req,timeout:response)
+    with pytest.raises(m.StorageUnavailable,match="redirect"):
+        repository.disconnect_atomic(shop_id=SHOP,account_id=ACC,actor=USER)
+    assert response.reads==0
+
+
+def test_private_rpc_response_size_and_no_redirect_default(monkeypatch):
+    installed=[]
+    class Stub:
+        def open(self,*args,**kwargs):raise AssertionError("no outbound request")
+    def build(handler):
+        installed.append(handler)
+        return Stub()
+    monkeypatch.setattr(m,"build_opener",build)
+    m.SocialOAuthRpcRepository("https://example.supabase.co","sb_secret_not_real")
+    assert isinstance(installed[0],m._NoRedirect)
+    assert installed[0].redirect_request(None,None,302,"redirect",{},
+        "https://attacker.example") is None
+
+    class Huge:
+        def __enter__(self):return self
+        def __exit__(self,*args):return False
+        def geturl(self):return "https://example.supabase.co/rest/v1/rpc/p2_disconnect_social_account"
+        def read(self,limit):
+            assert limit==65537
+            return b"x"*65537
+    repo=m.SocialOAuthRpcRepository("https://example.supabase.co","sb_secret_not_real",
+        transport=lambda req,timeout:Huge())
+    with pytest.raises(m.StorageUnavailable,match="oversized"):
+        repo.disconnect_atomic(shop_id=SHOP,account_id=ACC,actor=USER)
+
+
+def test_private_rpc_rejects_nonstandard_tls_port():
+    with pytest.raises(ValueError):
+        m.SocialOAuthRpcRepository("https://example.supabase.co:444",
+                                  "sb_secret_not_real")
