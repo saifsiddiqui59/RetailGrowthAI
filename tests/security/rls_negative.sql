@@ -8,6 +8,8 @@ values
  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','00000000-0000-0000-0000-000000000000','authenticated','authenticated','rls-b@example.invalid','!',now(),now()),
  ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','00000000-0000-0000-0000-000000000000','authenticated','authenticated','rls-c@example.invalid','!',now(),now());
 set local role authenticated;
+-- Simulate the signed JWT role accurately for auth.role() in guarded triggers.
+select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
 insert into public.shops(id,owner_user_id,name,slug)
 values('10000000-0000-4000-8000-000000000001','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','Shop A','rg-security-shop-a');
@@ -135,6 +137,7 @@ end $$;
 -- Anonymous client with no subject can never read a tenant row.
 reset role;
 set local role anon;
+select set_config('request.jwt.claim.role','anon',true);
 select set_config('request.jwt.claim.sub','',true);
 do $$
 declare denied boolean := false;

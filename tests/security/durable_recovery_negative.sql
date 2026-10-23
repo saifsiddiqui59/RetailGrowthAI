@@ -8,6 +8,8 @@ values ('8a000000-0000-4000-8000-000000000001','00000000-0000-0000-0000-00000000
 'authenticated','authenticated','outbox-owner@example.invalid','!',now(),now());
 
 set local role authenticated;
+-- Simulate the signed JWT role accurately for auth.role() in guarded triggers.
+select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','8a000000-0000-4000-8000-000000000001',true);
 insert into public.shops(id,owner_user_id,name,slug) values
 ('8a000000-0000-4000-8000-000000000002','8a000000-0000-4000-8000-000000000001',
@@ -57,6 +59,8 @@ begin
 end $$;
 
 set local role authenticated;
+-- Simulate the signed JWT role accurately for auth.role() in guarded triggers.
+select set_config('request.jwt.claim.role','authenticated',true);
 do $$
 declare blocked boolean:=false;
 begin

@@ -6,6 +6,8 @@ values
 ('11111111-1111-4111-8111-111111111111','00000000-0000-0000-0000-000000000000','authenticated','authenticated','draft-a@example.invalid','!',now(),now()),
 ('22222222-2222-4222-8222-222222222222','00000000-0000-0000-0000-000000000000','authenticated','authenticated','draft-b@example.invalid','!',now(),now());
 set local role authenticated;
+-- Simulate the signed JWT role accurately for auth.role() in guarded triggers.
+select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
 insert into public.shops(id,owner_user_id,name,slug)
 values('33333333-3333-4333-8333-333333333333','11111111-1111-4111-8111-111111111111','Draft A','rg-draft-shop-a');
@@ -26,6 +28,8 @@ values(
 '{"caption":"Original caption","banner_asset_id":null,"reel":{"duration_seconds":30,"aspect_ratio":"9:16","storyboard":[],"music_asset_id":null,"cta":"Visit"}}'::jsonb
 );
 set local role authenticated;
+-- Simulate the signed JWT role accurately for auth.role() in guarded triggers.
+select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
 do $$
 declare
@@ -80,6 +84,8 @@ values(
 '55555555-5555-4555-8555-555555555555',
 '11111111-1111-4111-8111-111111111111','instagram_reel_30s','test-render-queue');
 set local role authenticated;
+-- Simulate the signed JWT role accurately for auth.role() in guarded triggers.
+select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
 do $$
 begin

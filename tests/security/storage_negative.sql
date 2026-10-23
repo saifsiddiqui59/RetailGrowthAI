@@ -7,6 +7,8 @@ values
 ('22222222-2222-4222-8222-222222222222','00000000-0000-0000-0000-000000000000','authenticated','authenticated','media-b@example.invalid','!',now(),now()),
 ('33333333-3333-4333-8333-333333333333','00000000-0000-0000-0000-000000000000','authenticated','authenticated','media-viewer@example.invalid','!',now(),now());
 set local role authenticated;
+-- Simulate the signed JWT role accurately for auth.role() in guarded triggers.
+select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
 insert into public.shops (id,owner_user_id,name,slug) values
 ('44444444-4444-4444-8444-444444444444','11111111-1111-4111-8111-111111111111','Media shop A','rg-media-tenant-a');
