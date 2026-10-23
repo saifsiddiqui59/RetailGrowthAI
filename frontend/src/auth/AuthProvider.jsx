@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { getRetailClient } from '../lib/supabase.js'
 
 const AuthContext = createContext(null)
@@ -8,20 +8,24 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const sequence = useRef(0)
 
   useEffect(() => {
     let mounted = true
+    const epoch = ++sequence.current
     async function restore() {
       try {
         if (client.configured && client.getStoredSession()) {
           const verified = await client.getUser()
-          if (mounted) setUser(verified)
+          if (mounted && sequence.current === epoch) setUser(verified)
         }
       } catch {
-        if (mounted) setError('Your session expired. Please sign in again.')
-        await client.signOut()
+        if (mounted && sequence.current === epoch) {
+          setError('Your session expired. Please sign in again.')
+          await client.signOut()
+        }
       } finally {
-        if (mounted) setLoading(false)
+        if (mounted && sequence.current === epoch) setLoading(false)
       }
     }
     restore()
@@ -29,10 +33,11 @@ export function AuthProvider({ children }) {
   }, [client])
 
   const signIn = useCallback(async (email, password) => {
+    const epoch = ++sequence.current
     setError('')
     await client.signIn(email, password)
     const verified = await client.getUser()
-    setUser(verified)
+    if (sequence.current === epoch) setUser(verified)
     return verified
   }, [client])
 
@@ -44,6 +49,7 @@ export function AuthProvider({ children }) {
   }, [client])
 
   const signOut = useCallback(async () => {
+    ++sequence.current
     await client.signOut()
     setUser(null)
     setError('')

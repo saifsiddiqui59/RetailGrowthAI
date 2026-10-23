@@ -8,6 +8,8 @@ from ai_agents.providers import AzureFoundryProvider, MockFoundryProvider
 from ai_agents.reviewer import review_campaign
 from ai_agents.schemas import CampaignBrief, validate_campaign
 from tenant_store import StorageUnavailable
+from ai_agents.observability import emit, ms, trace_id
+import time
 
 
 class RetryableJob(Exception):
@@ -16,6 +18,8 @@ class RetryableJob(Exception):
 
 def process_campaign(campaign_id, admin, *, mock_enabled=False, provider=None):
     cid = str(UUID(campaign_id))
+    trace = trace_id()
+    started = time.monotonic()
     current = admin.campaign_status(cid)
     if current is None:
         raise StorageUnavailable("unknown planning job")
@@ -28,6 +32,8 @@ def process_campaign(campaign_id, admin, *, mock_enabled=False, provider=None):
     if row["id"] != cid:
         raise StorageUnavailable("unexpected claim ID")
     if not admin.still_authorized(row):
+        emit("planner.denied", trace=trace, campaign_id=cid, shop_id=row["shop_id"],
+             status="denied", latency_ms=ms(started))
         admin.fail(row, "ACCESS_REVOKED", permanent=True)
         return "DENIED"
     if provider is None:
@@ -39,6 +45,9 @@ def process_campaign(campaign_id, admin, *, mock_enabled=False, provider=None):
         else:
             admin.fail(row, "FOUNDRY_NOT_CONFIGURED", permanent=True)
             return "UNCONFIGURED"
+    mode = "foundry" if isinstance(provider, AzureFoundryProvider) else "dev_mock"
+    emit("planner.start", trace=trace, shop_id=row["shop_id"], campaign_id=cid,
+         status="pending", mode=mode)
     try:
         request = CampaignBrief.from_dict({
             "shop_id": row["shop_id"], "brief": row["brief"],
@@ -58,7 +67,11 @@ def process_campaign(campaign_id, admin, *, mock_enabled=False, provider=None):
         ):
             raise ValueError("review rejected draft")
         admin.finish(row, campaign)
+        emit("planner.complete", trace=trace, shop_id=row["shop_id"], campaign_id=cid,
+             status="ok", latency_ms=ms(started), mode=mode)
         return "DRAFT"
     except Exception:
+        emit("planner.error", trace=trace, shop_id=row["shop_id"], campaign_id=cid,
+             status="failed", latency_ms=ms(started), mode=mode)
         admin.fail(row, "PLANNING_FAILED")
         raise
