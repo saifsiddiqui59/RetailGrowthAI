@@ -119,12 +119,42 @@ def build_oauth_api(environ=None, *, transport=None, verifier=None,
                            rows[0] == {"shop_id": sid, "user_id": uid, "role": "OWNER"}) else None
 
     from social_youtube_oauth import YouTubeOAuth
-    provider = YouTubeOAuth(
-        client_id=config["RETAIL_YOUTUBE_CLIENT_ID"],
-        client_secret=config["RETAIL_YOUTUBE_CLIENT_SECRET"],
-        redirect_uri=config["RETAIL_YOUTUBE_OAUTH_REDIRECT_URI"],
-        transport=transport or google_transport,
-    )
+    from social_provider_oauth_transport import provider_oauth_transport
+
+    providers = {}
+    google_keys = ("RETAIL_YOUTUBE_CLIENT_ID", "RETAIL_YOUTUBE_CLIENT_SECRET",
+                   "RETAIL_YOUTUBE_OAUTH_REDIRECT_URI")
+    if all(config.get(k) for k in google_keys):
+        providers["youtube"] = YouTubeOAuth(
+            client_id=config["RETAIL_YOUTUBE_CLIENT_ID"],
+            client_secret=config["RETAIL_YOUTUBE_CLIENT_SECRET"],
+            redirect_uri=config["RETAIL_YOUTUBE_OAUTH_REDIRECT_URI"],
+            transport=transport or google_transport)
+    elif any(config.get(k) for k in google_keys):
+        raise OAuthDenied("incomplete YouTube confidential app settings")
+
+    if config.get("RETAIL_PART2_LINKEDIN_OAUTH_ENABLED") == "true":
+        from social_linkedin_oauth import LinkedInOAuth
+        providers["linkedin"] = LinkedInOAuth(
+            client_id=config["RETAIL_LINKEDIN_CLIENT_ID"],
+            client_secret=config["RETAIL_LINKEDIN_CLIENT_SECRET"],
+            redirect_uri=config["RETAIL_LINKEDIN_OAUTH_REDIRECT_URI"],
+            transport=transport or provider_oauth_transport)
+
+    if config.get("RETAIL_PART2_META_OAUTH_ENABLED") == "true":
+        from social_meta_oauth import MetaOAuth
+        for provider in ("facebook", "instagram"):
+            providers[provider] = MetaOAuth(
+                provider=provider,
+                app_id=config["RETAIL_META_APP_ID"],
+                app_secret=config["RETAIL_META_APP_SECRET"],
+                redirect_uri=config["RETAIL_META_" +
+                                    provider.upper() + "_REDIRECT_URI"],
+                graph_version=config["RETAIL_META_GRAPH_VERSION"],
+                transport=transport or provider_oauth_transport)
+
+    if not providers:
+        raise OAuthDenied("no reviewed provider confidential apps configured")
     lifecycle = OAuthLifecycle(verify_user=verify, owner_role=owner_role,
-        state_store=rpc, accounts=rpc, vault=vault, providers={"youtube": provider})
+        state_store=rpc, accounts=rpc, vault=vault, providers=providers)
     return OAuthHTTPAPI(lifecycle)
