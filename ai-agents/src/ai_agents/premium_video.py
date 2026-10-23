@@ -204,7 +204,12 @@ class AlibabaWanProvider:
         return {"provider": "alibaba-wan", "model": body["model"],
                 "task_id": value, "status": "PENDING"}
 
-    def poll(self, task_id: str):
+    def poll_private(self, task_id: str):
+        """Worker-only result with private provider URL; NEVER send to browser.
+
+        The importer still must enforce its independently approved exact host
+        allowlist and verify MP4 bytes before registering tenant output.
+        """
         self._check()
         if not isinstance(task_id, str) or not TASK_ID.fullmatch(task_id):
             raise ValueError("Invalid provider task ID")
@@ -216,7 +221,20 @@ class AlibabaWanProvider:
             "PENDING", "RUNNING", "SUCCEEDED", "FAILED", "CANCELED", "UNKNOWN"
         ):
             raise PremiumVideoProviderError("Invalid Wan task result")
-        # Never return a provider-hosted video URL to a browser. Backend worker
-        # must verify its download origin, media bytes/codec, upload privately,
-        # then reveal ONLY a signed RetailGrowthAI storage download.
-        return {"task_id": task_id, "status": output["task_status"]}
+        public = {"task_id": task_id, "status": output["task_status"]}
+        if public["status"] == "SUCCEEDED":
+            link = output.get("video_url")
+            if not isinstance(link, str) or len(link) > 4096:
+                raise PremiumVideoProviderError("Wan output link unavailable")
+            parsed = urlparse(link)
+            if (parsed.scheme != "https" or not parsed.hostname or
+                parsed.username or parsed.password or parsed.fragment or
+                not parsed.path or not parsed.hostname.endswith(".aliyuncs.com")):
+                raise PremiumVideoProviderError("Wan output link untrusted")
+            public["private_provider_url"] = link
+        return public
+
+    def poll(self, task_id: str):
+        result = self.poll_private(task_id)
+        # Public status adapter MUST NOT reveal the signed provider CDN URL.
+        return {"task_id": result["task_id"], "status": result["status"]}
