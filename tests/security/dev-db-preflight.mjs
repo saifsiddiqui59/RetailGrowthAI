@@ -18,7 +18,7 @@ export const REQUIRED_MIGRATIONS = Object.freeze([
   '20261022220000_p1_durable_recovery.sql',
 ]);
 export const FOLLOW_ON_MIGRATIONS = Object.freeze([
-  '20261023140000_p1_subscription_quota.sql',
+  '20261023134701_p1_subscription_quota.sql',
 ]);
 
 const CAPABILITIES = {
@@ -30,7 +30,7 @@ const CAPABILITIES = {
   '20261022173000': [/register_uploaded_image/i],
   '20261022180000': [/storage\.objects/i, /uploads\//i],
   '20261022205000': [/25 minutes/i],
-  '20261023140000': [
+  '20261023134701': [
     /create table public\.shop_subscriptions/i,
     /create table public\.shop_usage_reservations/i,
     /enable row level security/i,

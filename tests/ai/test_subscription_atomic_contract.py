@@ -2,7 +2,7 @@
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[2]
-SQL=(ROOT/"supabase/migrations/20261023140000_p1_subscription_quota.sql").read_text()
+SQL=(ROOT/"supabase/migrations/20261023134701_p1_subscription_quota.sql").read_text()
 
 def test_new_migration_has_transaction_and_private_rls():
     assert SQL.lstrip().startswith("-- RetailGrowthAI-only")
