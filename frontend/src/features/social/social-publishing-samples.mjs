@@ -1,58 +1,85 @@
-// Offline Part 2 publishing previews. These do NOT create content or grant publishing rights.
-// Existing Part 1 media would be supplied separately after rights and codec verification.
+// Offline Part 2 publishing examples, tailored to a user-supplied reference showing three shirts.
+// This repository does NOT store that image, claim ownership of trademarks or create media.
+// Text is an illustrative example; real AI campaigns run in Part 1 with authenticated media.
 export const SOCIAL_PUBLISHING_SAMPLES = Object.freeze([
   {
-    id: 'linkedin-text',
-    provider: 'linkedin',
-    name: 'LinkedIn',
-    mediaKind: 'text',
-    channel: 'Member text post',
-    title: 'Simple ideas for a more useful shopping experience',
-    copy: 'Three small improvements can help shoppers make confident choices: organize products by need, share clear care instructions, and answer common questions. Which one would you try first?\n\n#RetailTips #SmallBusiness',
-    schedule: 'Draft only · sample Asia/Kolkata schedule',
-    required: ['LinkedIn member OAuth + verified w_member_social grant', 'Exact text approval and subscription publish quota', 'Versioned Posts API response and remote post ID'],
-    adapter: 'LinkedIn versioned REST Posts API',
-    warning: 'Text-only example. No company-page privileges are assumed.',
+    "id": "linkedin-text",
+    "provider": "linkedin",
+    "name": "LinkedIn",
+    "mediaKind": "text",
+    "channel": "Member text post",
+    "title": "A small collection, three distinct ways to dress",
+    "copy": "A well-chosen shirt can refresh an everyday wardrobe.\n\nOur demo shirt collection highlights three moods: a crisp black shirt with a contrasting light collar, a soft yellow shirt with a deep green collar, and a rich forest-green shirt with dark detailing.\n\nFor retailers, clear product photography and honest color descriptions help customers compare styles confidently. Which color would you start with?\n\n#Menswear #RetailStyle #SmallBusiness",
+    "schedule": "Draft only · sample Asia/Kolkata schedule",
+    "required": [
+      "LinkedIn member OAuth + verified w_member_social permission",
+      "Business-owner review of exact text, schedule, and publish quota",
+      "Versioned Posts API response and confirmed remote post ID"
+    ],
+    "adapter": "LinkedIn versioned REST Posts API",
+    "warning": "This is an educational text sample, not an affiliated endorsement or a verified inventory listing."
   },
   {
-    id: 'facebook-text',
-    provider: 'facebook',
-    name: 'Facebook',
-    mediaKind: 'text',
-    channel: 'Page feed text post',
-    title: 'Ideas from Demo Boutique',
-    copy: 'Looking for fresh ways to style everyday essentials? Try mixing a favorite color with a neutral, then add one accessory that feels like you. Tell us your favorite combination!\n\n#EverydayStyle',
-    schedule: 'Draft only · sample Asia/Kolkata schedule',
-    required: ['Business-owned Facebook Page and verified Page access', 'Explicit post review, permissions and available publish quota', 'Page feed creation with a reconciled remote post receipt'],
-    adapter: 'Meta Page feed publishing API',
-    warning: 'Page text only. No posting to personal Facebook profiles.',
+    "id": "facebook-text",
+    "provider": "facebook",
+    "name": "Facebook",
+    "mediaKind": "text",
+    "channel": "Page feed text post",
+    "title": "Three shirt colors, three different moods",
+    "copy": "What is your go-to shirt color?\n\n🖤 Black with a light contrast collar\n💛 Soft yellow with a dark-green collar\n💚 Forest green with dark accents\n\nThese are visual ideas for our sample menswear campaign—not a live product offer. Tell us which one matches your style.\n\n#ShirtStyle #Menswear",
+    "schedule": "Draft only · sample Asia/Kolkata schedule",
+    "required": [
+      "Verified shop-owned Facebook Page access and Page publishing permission",
+      "Explicit owner review, publishing quota and approved copy",
+      "Page feed API confirmation plus remote receipt reconciliation"
+    ],
+    "adapter": "Meta Page feed publishing API",
+    "warning": "Facebook Page text only. No personal profile posting, prices or unapproved sales claims."
   },
   {
-    id: 'instagram-reel',
-    provider: 'instagram',
-    name: 'Instagram',
-    mediaKind: 'video',
-    channel: 'Professional account Reel',
-    title: '30 seconds of outfit ideas',
-    copy: 'One piece, three easy styling directions. Which is your favorite? Explore ideas at Demo Boutique.\n\n#StyleIdeas #RetailInspiration',
-    schedule: 'Draft only · sample Asia/Kolkata schedule',
-    required: ['Professional Instagram account and linked Page grant', 'Part 1 rights-cleared portrait MP4 + codec/duration/hosting checks', 'Container creation, FINISHED processing, media_publish and verified receipt'],
-    adapter: 'Instagram Reels container → status → media_publish',
-    warning: 'Video is a placeholder: no MP4 is attached, uploaded or published.',
-    media: { kind: 'video', aspectRatio: '9:16', durationSeconds: 30, source: 'Approved Part 1 private render (not provided in this sample)' },
+    "id": "instagram-reel",
+    "provider": "instagram",
+    "name": "Instagram",
+    "mediaKind": "video",
+    "channel": "Professional account Reel",
+    "title": "3 shirt colors in 30 seconds",
+    "copy": "Which shirt is your mood today? 🖤💛💚\n\nBlack and cream • pale yellow and forest green • deep green and black.\n\nA 30-second product styling concept for our demo menswear brand.\n\n#ShirtStyle #Menswear #ReelIdeas",
+    "schedule": "Draft only · sample Asia/Kolkata schedule",
+    "required": [
+      "Professional Instagram account with verified Page and publishing grant",
+      "Rights-approved tenant-owned 9:16 MP4 from the existing RetailGrowthAI FFmpeg renderer",
+      "Container creation, verified FINISHED status, media_publish and confirmed receipt"
+    ],
+    "adapter": "Instagram Reels container → status → media_publish",
+    "warning": "Product-photo-inspired storyboard only; no MP4 or customer image has been uploaded or generated.",
+    "media": {
+      "kind": "video",
+      "aspectRatio": "9:16",
+      "durationSeconds": 30,
+      "source": "Approved Part 1 private render (not provided in this sample)"
+    }
   },
   {
-    id: 'youtube-short',
-    provider: 'youtube',
-    name: 'YouTube',
-    mediaKind: 'video',
-    channel: 'Portrait video upload / Shorts candidate',
-    title: 'Three ways to style one wardrobe staple',
-    copy: 'A quick 30-second styling guide from Demo Boutique. Try three combinations using one versatile piece.\n\n#Shorts #EverydayStyle',
-    schedule: 'Draft only · sample Asia/Kolkata schedule',
-    required: ['YouTube channel consent and verified upload scope', 'Part 1 licensed MP4 and owner-approved visibility/disclosure', 'Resumable binary upload completion, remote video ID and status check'],
-    adapter: 'YouTube videos.insert resumable upload',
-    warning: 'Sample defaults to private visibility. YouTube, not RetailGrowthAI, determines Shorts classification.',
-    media: { kind: 'video', aspectRatio: '9:16', durationSeconds: 30, source: 'Approved Part 1 private render (not provided in this sample)' },
-  },
+    "id": "youtube-short",
+    "provider": "youtube",
+    "name": "YouTube",
+    "mediaKind": "video",
+    "channel": "Portrait video upload / Shorts candidate",
+    "title": "3 Classic Shirt Colors | 30-Second Style Guide",
+    "copy": "Explore three shirt styling directions from our demo collection: black with a light collar, soft yellow with deep green trim, and forest green with dark details.\n\nVisual product concepts only; no price, stock claim or brand endorsement.\n\n#Shorts #Menswear #StyleGuide",
+    "schedule": "Draft only · sample Asia/Kolkata schedule",
+    "required": [
+      "Verified channel consent and required YouTube upload permission",
+      "Owner-reviewed and commercially cleared portrait MP4 supplied by RetailGrowthAI media workflow",
+      "Completed resumable binary upload, remote video ID and visibility check"
+    ],
+    "adapter": "YouTube videos.insert resumable upload",
+    "warning": "Sample defaults to private visibility. No MP4 attached; YouTube decides Shorts classification.",
+    "media": {
+      "kind": "video",
+      "aspectRatio": "9:16",
+      "durationSeconds": 30,
+      "source": "Approved Part 1 private render (not provided in this sample)"
+    }
+  }
 ])
