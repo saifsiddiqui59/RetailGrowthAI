@@ -26,3 +26,6 @@ All active publishing/OAuth/worker/frontend gates stay OFF. CI covers offline mo
 - Controlled real-provider E2E publishing test and commercial media rights approval
 
 No completed internal PR constitutes any of these approvals.
+
+- [#178](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/178) prevents signed-in retailer JWT leakage via social read endpoint redirects and bounds read replies. Exact [CI 40019859294](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40019859294) **4/4 PASS**; merged P2 integration as `b78cd4d000d48086a7da43cd2dd0494790f01c9b`. Verify its post-merge integration check independently.
+- [#180](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/180) is the pending mocked Playwright social authoring security journey; do not mark green/merged until all four checks actually pass.
