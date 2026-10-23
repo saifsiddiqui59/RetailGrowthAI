@@ -42,7 +42,7 @@ create policy subscription_usage_owner_read on public.shop_usage_reservations
   using (retail_private.has_role(shop_id,array['OWNER']));
 
 -- Grant seven calendar days only when a new RetailGrowthAI shop is created;
--- the initial trial cannot be forged by client JSON or user_metadata.
+-- the initial trial cannot be forged by client-controlled profile claims.
 create function retail_private.bootstrap_trial_subscription()
 returns trigger language plpgsql security definer set search_path = ''
 as $$
