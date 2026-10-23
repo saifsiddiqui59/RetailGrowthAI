@@ -44,7 +44,7 @@ class TenantStore:
         self.transport = transport or urlopen
 
     def _request(self, table, token, *, query=None, method="GET", data=None):
-        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs"}:
+        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts"}:
             raise ValueError("unsupported table")
         url = self.origin + "/rest/v1/" + table
         if query:
@@ -216,3 +216,54 @@ class TenantStore:
         if type(value) is not bool:
             raise StorageUnavailable("unexpected draft save response")
         return value
+
+
+    def create_poster_draft(self, token, fields):
+        """Invoke the rights-gated SQL RPC with the verified user's JWT.
+
+        Never uses service_role. Null result is a deliberate DB authorization
+        denial; missing RPC, schema or a transport error fails closed.
+        """
+        if not isinstance(fields, dict) or set(fields) != {
+            "p_shop_id", "p_campaign_id", "p_day_id", "p_source_asset_id",
+            "p_logo_asset_id", "p_template", "p_format", "p_business_name",
+            "p_accent_color", "p_background_color", "p_offer_text",
+        }:
+            raise ValueError("invalid poster RPC fields")
+        req = Request(
+            self.origin + "/rest/v1/rpc/create_poster_draft",
+            method="POST", data=json.dumps(fields).encode("utf-8"),
+            headers={
+                "apikey": self.key, "Authorization": "Bearer " + token,
+                "Content-Type": "application/json", "Accept": "application/json",
+            },
+        )
+        try:
+            with self.transport(req, timeout=8) as response:
+                value = json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code in (401, 403):
+                raise AuthenticationError("poster draft rights denied") from exc
+            raise StorageUnavailable("poster draft RPC unavailable") from exc
+        except (URLError, OSError, json.JSONDecodeError) as exc:
+            raise StorageUnavailable("poster draft unavailable") from exc
+        if value is None:
+            return None
+        return canonical_uuid(value)
+
+    def poster_draft(self, token, user_id, draft_id):
+        """Read metadata only through shop RLS and current member verification."""
+        pid = canonical_uuid(draft_id)
+        found = self._request("poster_drafts", token, query={
+            "select": "id,shop_id,campaign_id,day_id,status,template,format,"
+                      "business_name,accent_color,background_color,offer_text,"
+                      "source_asset_id,output_asset_id",
+            "id": "eq." + pid, "limit": "1",
+        })
+        if len(found) != 1 or found[0].get("id") != pid:
+            return None
+        row = found[0]
+        sid = canonical_uuid(row["shop_id"])
+        if not self.member(token, user_id, sid):
+            return None
+        return row
