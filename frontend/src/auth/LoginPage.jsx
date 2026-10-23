@@ -25,7 +25,7 @@ export default function LoginPage() {
         if (!result?.access_token) {
           setSignup(false)
           setPassword('')
-          setMessage('Account request submitted. Confirm your email if prompted, then sign in.')
+          setMessage('Registration submitted. If email confirmation is enabled, check your inbox before signing in. Business approval is a separate process.')
         }
       } else {
         await signIn(email.trim(), password)
