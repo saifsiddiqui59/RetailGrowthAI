@@ -44,7 +44,7 @@ class Users:
         return {"id": cid, "shop_id": SID, "status": "DRAFT",
                 "days": [{"id": DID, "shop_id": SID, "topic": "Autumn coats",
                           "instagram": {"reel": {"cta": "Visit us"}},
-                          "review_status": "DRAFT"}]}
+                          "review_status": "APPROVED"}]}
     def member(self, token, user, shop, write=False):
         return self.allow and shop == SID and user == UID
     def asset(self, token, sid, asset):
