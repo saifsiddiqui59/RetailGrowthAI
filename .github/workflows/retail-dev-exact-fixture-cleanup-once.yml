@@ -1,0 +1,32 @@
+name: RetailGrowthAI DEV exact synthetic leftover cleanup (one time)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/retail-dev-exact-fixture-cleanup-once.yml']
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-live-canary
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    env:
+      RGAI_DEV_CLEANUP_APPROVAL: EXACT_20261023_SYNTHETIC_FIXTURE
+      RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Validate exact synthetic cleanup source
+        run: |
+          set -euo pipefail
+          test -n "$RGAI_DEV_SERVICE_KEY"
+          python3 -m py_compile scripts/ops/cleanup_exact_dev_fixture.py
+      - name: Delete only source-verified isolated test account and test media
+        run: python3 scripts/ops/cleanup_exact_dev_fixture.py
