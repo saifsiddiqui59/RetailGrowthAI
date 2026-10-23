@@ -44,6 +44,14 @@ def verify_worker_budget(host, lease_sql, renderer_source):
     """Fail closed if the fixed host, DB lease, or encoder budget drifts."""
     if host.get("functionTimeout") != "00:20:00":
         raise ValueError("Expected bounded 20-minute Flex Functions host timeout")
+    # Azure Storage Queue SDK sends raw UUID text by default. Queue triggers
+    # otherwise assume base64 and reject jobs before Python claims them.
+    bundle = host.get("extensionBundle", {})
+    if bundle.get("id") != "Microsoft.Azure.Functions.ExtensionBundle" or \
+       bundle.get("version") != "[4.0.0, 5.0.0)":
+        raise ValueError("Python queue/timer triggers require Functions extension bundle v4")
+    if host.get("extensions", {}).get("queues", {}).get("messageEncoding") != "none":
+        raise ValueError("Raw UUID queues must use messageEncoding=none, not base64")
     for name in ("claim_campaign_job", "claim_render_job"):
         marker = "create or replace function public." + name + "("
         body = lease_sql.partition(marker)[2].partition("\n$;")[0]
