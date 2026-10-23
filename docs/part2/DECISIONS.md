@@ -41,3 +41,12 @@
 
 ## 2026-10-23 — Context/read secrets and pre-network commit barrier
 The P2 worker is denied credentials unless the DB grants a single valid active attempt/claim token and confirms the same shop/account/provider, current OWNER/EDITOR approval, connected account, subscription period and quota ledger. The private SQL RPC can return only AES-GCM ciphertext to service_role, not any browser or public schema; application decrypt uses exact shop/provider/account AAD and known key version with expiry greater than 90 seconds. Current code allows TEXT Facebook/LinkedIn only; video remains denied. Keep `RETAIL_PART2_PUBLISH_WORKER_ENABLED` OFF and do not attach a hosted Azure queue trigger. Social dispatch does NOT proceed to external provider post unless `p2_mark_social_inflight` confirms true, ensuring duplicate messages cannot bypass the durable pre-send fence. Ambiguous provider completion requires reconciliation before retry.
+
+
+## 2026-10-23 — Confidential RPC transport and immutable draft review
+- OAuth and social authoring service-role PostgREST requests must use explicit no-redirect HTTPS clients, allow only canonical Supabase origin on standard TLS port, reject changed response URLs and fail closed with sanitized errors. OAuth RPC responses must be bounded to 64KiB. Regression evidence: #172 and #174, both four-job green before internal merging.
+- A draft caption or scheduled time change is a **new revision** requiring a fresh explicit human review; any stale approval digest/revision must fail. Editing must be DB-atomic under live OWNER/EDITOR shop membership and only for DRAFT status with no receipt, attempts or quota reservation. Never mutate a possibly outbound/approved job in place. PR #175 completed 4/4 CI and was merged internally; its staged SQL remains unapplied and frontend/backend release switches remain OFF.
+
+- The same strict no-redirect and exact-origin requirement applies to browser user-JWT based RLS social read proxies, not only service-role writes; #178 adds verified negative tests and bounded responses before the frontend can see metadata. Source-only, rollout remains OFF.
+
+- Retailer delivery health must be derived from RLS-scoped server reads, show only per-shop aggregates and allowlisted status/error codes, clearly distinguish stored provider receipts from actual social engagement, and warn that `RECONCILE` outbound jobs must never be blindly retried. Never expose raw provider errors, bearer tokens or foreign-tenant rows. Implementation #183+#184 are source-only, each four-job green.
