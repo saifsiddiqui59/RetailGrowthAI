@@ -3,6 +3,7 @@
 \set ON_ERROR_STOP on
 \ir ../../supabase/part2/pending/20261023190000_p2_social_foundation.sql
 \ir ../../supabase/part2/pending/20261023190100_p2_social_oauth_transactions.sql
+\ir ../../supabase/part2/pending/20261023190200_p2_social_quota_reservation.sql
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -111,3 +112,33 @@ begin
 end $$;
 rollback;
 \echo 'PASS: Part 2 one-use OAuth state, server-only RPC, tenant/account disconnect and private ciphertext'
+
+-- New staged plan ceilings must start EMPTY until explicitly owner-approved.
+begin;
+do $$
+begin
+  if exists(select 1 from retail_private.social_publish_plan_limits) then
+    raise exception 'FAIL: source-only publish quota must not auto-approve a paid or trial plan';
+  end if;
+  if has_function_privilege('authenticated',
+        'public.p2_reserve_social_publish_quota(uuid,uuid)','EXECUTE')
+     or has_function_privilege('anon',
+        'public.p2_reserve_social_publish_quota(uuid,uuid)','EXECUTE')
+     or has_table_privilege('authenticated',
+        'retail_private.social_publish_plan_limits','SELECT')
+     or has_table_privilege('authenticated',
+        'retail_private.social_publish_quota_ledger','INSERT') then
+    raise exception 'FAIL: social quota RPC/ledger exposed to browser actor';
+  end if;
+end $$;
+select set_config('request.jwt.claim.role','service_role',true);
+do $$
+begin
+  if public.p2_reserve_social_publish_quota(
+      '30000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000099') then
+    raise exception 'FAIL: nonexistent approved job consumed a quota unit';
+  end if;
+end $$;
+rollback;
+\echo 'PASS: social quota starts unapproved, RPC service-only, no forged job reservations'
