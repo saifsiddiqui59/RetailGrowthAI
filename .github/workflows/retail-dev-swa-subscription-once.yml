@@ -1,5 +1,5 @@
-name: RetailGrowthAI DEV existing SWA owner subscription status update (one time)
-# Owner-authorized existing Frontend only; no Supabase migrations, no paid resources.
+name: RetailGrowthAI DEV existing SWA Part 1 subscription dashboard refresh (one time)
+# Owner-authorized existing DEV SWA frontend refresh only. Never provision or update Supabase/Azure backend.
 on:
   push:
     branches: [main]
@@ -95,11 +95,11 @@ jobs:
         run: |
           set -euo pipefail
           host="$(az staticwebapp show -g rg-retailgrowth-dev -n retailgrowthai-dev-preview --query defaultHostname -o tsv)"
-          for path in '' campaigns account; do
+          for path in '' campaigns account subscription; do
             curl -fsSL --max-time 25 "https://$host/$path" -o "$RUNNER_TEMP/page"
             grep -Fq 'id="root"' "$RUNNER_TEMP/page"
           done
-          echo "PASS: SWA real-mode Account/Shop bootstrap fix publicly deployed https://$host"
+          echo "PASS: DEV SWA routes /, /campaigns, /account, /subscription publicly deployed https://$host"
       - name: Azure logout
         if: always()
         run: az logout >/dev/null 2>&1 || true
