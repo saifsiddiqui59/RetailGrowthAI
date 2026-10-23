@@ -86,10 +86,19 @@ def main():
                 raise RuntimeError("Unexpected media path/rights; cleanup stopped")
         # Both the original synthetic PNG and actual generated MP4 have to be
         # deleted via Supabase Storage API, not just their SQL metadata rows.
+        if sorted(a["mime_type"] for a in media)!=["image/png","video/mp4"]:
+            raise RuntimeError("Unexpected synthetic fixture asset set")
         for asset in media:
+            # Read-only storage.objects verification found the PNG object was
+            # already deleted by canary cleanup attempt #39954738653. Its
+            # metadata row remained because the shop delete was FK blocked.
+            # Storage DELETE of a non-existent PNG returns HTTP400, not 404.
+            # Only delete the exact persisted GENERATED MP4 through Storage.
+            if asset["mime_type"]=="image/png":
+                continue
             uri="/storage/v1/object/retailgrowth-media/"+urllib.parse.quote(
                 asset["object_path"],safe="/")
-            api("DELETE",uri,allowed=(200,204,404))
+            api("DELETE",uri,allowed=(200,204))
         print("SYNTHETIC_STORAGE_CLEANUP_COUNT="+str(len(media)))
         # Explicit child deletion order avoids cross-FK media/renders restrictions
         # while preserving the shop-scoped foreign-key boundary.
