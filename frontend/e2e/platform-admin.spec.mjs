@@ -112,3 +112,25 @@ test('invalid login never opens platform console or admin API', async ({ page })
   await expect(page).toHaveURL(/\/account$/)
   expect(calls.filter(x => x.path.includes('/rpc/retail_platform'))).toHaveLength(0)
 })
+
+
+test('root arrives at SaaS control from the single home URL; warnings state what is verified', async ({ page }) => {
+  await loginAs(page, 'ROOT')
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/platform-admin$/)
+  await expect(page.getByRole('heading', { name: 'Platform Control' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Platform monitoring warnings' })).toBeVisible()
+  await expect(page.getByText('Payments and external platform metrics are not active')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('link', { name: 'My business' })).toBeVisible()
+})
+
+test('shop owner lands on own workspace rather than global SaaS metrics', async ({ page }) => {
+  await loginAs(page, 'OWNER')
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole('heading', { name: 'Campaign workspace' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Platform overview metrics' })).toHaveCount(0)
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('link', { name: 'Platform Control' })).toHaveCount(0)
+})
