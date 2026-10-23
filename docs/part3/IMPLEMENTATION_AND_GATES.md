@@ -31,4 +31,9 @@
 - Provider PR #109 merged into feat/part3-integration after 2/2 Part 3 and 4/4 existing CI jobs passed.
 - Free-first premium UI PR #115 merged after 2/2 Part 3 and 4/4 existing CI jobs passed.
 - Atomic premium job scaffold PR #113 merged after 2/2 Part 3 and 4/4 existing CI jobs passed. Initial CI failures from cross-branch provider test import and canonical migration whitelist were fixed without weakening either security test: provider contract mock is isolated, SQL proposal is OUTSIDE automatically applied supabase/migrations. No hosted migration executed.
-- Private importer PR #122 pending mocked tests/CI and review before merge. No Azure premium trigger registered; premium remains disabled.
+- Private importer PR #122 **merged** into feat/part3-integration after 2/2 dedicated Part 3 and 4/4 existing Part 1 CI checks passed. No Azure premium trigger registered; premium remains disabled.
+
+## Final Coordinator interface-review boundary
+- The additive premium React panel was mounted on `feat/part3-integration` after the standard FFmpeg RenderStatus. All entitlement/endpoint/enablement props default to false; this is a **disabled informational option**, never a paid request. Final Coordinator must approve shared `CampaignDashboard.jsx` placement and `.github/workflows/frontend-bootstrap.yml` branch target change before main integration.
+- Current work has **no registered premium job REST or Azure queue route**. Staged SQL is **not** in `supabase/migrations` and therefore is not an executable/migrated feature. Do not interpret green mock CI as production or hosted premium video.
+- Main advanced independently during Part 3 work. Final Coordinator must rebase carefully and rerun all existing CI after resolving any merge conflict, retaining later Part 1 subscription/navigation updates and all Part 2 files.
