@@ -253,3 +253,6 @@
 ## 2026-10-23 — Live quota-enabled Part 1 acceptance
 - Declare hosted DEV content plus trial-quota acceptance only after a single genuine end-to-end pass with all steps and cleanup. [#39958569041 attempt 2](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39958569041) meets this: real Foundry, JWT/RLS tenant isolation, shop auto-trial, exactly one campaign and render reservation, safe draft edit, H264 30-second signed private MP4 and teardown. No paid checkout or self-upgrade exists.
 - Intermittent Azure gateway 503 is tracked separately as availability tuning; use guarded reads/CAS/idempotent render retries, not weaker authorization. Read-only audit found all 11 Functions and zero queue backlog.
+
+## 2026-10-23 — Keep DEV gateway diagnostics read-only and finite
+- Investigate HTTP 503 with a manually invoked fixed-target no-JWT GET-only sampler; fixed UUID sentinels, bounded total requests, only aggregate status/timing and presence of request-ID header. An absent header does not prove ingress failure. Do not expose raw telemetry, tenant data, credentials, HTTP bodies or exception details; do not bypass RLS, retry arbitrary writes, create a keep-alive scheduler or increase billable resources based on unverified hypotheses.
