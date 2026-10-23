@@ -1,6 +1,6 @@
 """Part 2 migration contract checks; actual RLS live checks still require disposable SQL CI."""
 from pathlib import Path
-M = (Path(__file__).resolve().parents[2]/"supabase/migrations/20261023190000_p2_social_foundation.sql").read_text()
+M = (Path(__file__).resolve().parents[2]/"supabase/part2/pending/20261023190000_p2_social_foundation.sql").read_text()
 
 def test_public_rows_read_only_for_authenticated_users():
     assert "grant select on public.social_accounts,public.social_publish_jobs,public.social_publish_audit" in M
