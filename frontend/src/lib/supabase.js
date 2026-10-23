@@ -130,6 +130,37 @@ export function createRetailClient({
     if (data?.access_token) setSession(data)
     return data
   }
+  // Supabase Auth owns email recovery and its per-email delivery limits.
+  // Never enumerate whether an address exists or expose a service secret.
+  async function requestPasswordReset(email) {
+    const redirectTo = typeof window === 'undefined' ? undefined
+      : new URL('/account', window.location.origin).toString()
+    return authRequest('recover', {
+      method: 'POST', body: { email },
+      ...(redirectTo ? { query: { redirect_to: redirectTo } } : {}),
+    })
+  }
+  async function acceptEmailLinkSession({ access_token, refresh_token, expires_in, expires_at }) {
+    if (typeof access_token !== 'string' || access_token.length < 10 ||
+        typeof refresh_token !== 'string' || refresh_token.length < 10) {
+      throw new Error('Invalid email verification or recovery session')
+    }
+    setSession({ access_token, refresh_token, expires_in, expires_at })
+    try {
+      return await getUser() // Server validates JWT before the UI trusts this session.
+    } catch (cause) {
+      setSession(null)
+      throw cause
+    }
+  }
+  async function updatePassword(password) {
+    if (typeof password !== 'string' || password.length < 12) {
+      throw new Error('Choose a new password with at least 12 characters.')
+    }
+    return authRequest('user', {
+      method: 'PUT', token: await accessToken(), body: { password },
+    })
+  }
   async function getUser() {
     return authRequest('user', { token: await accessToken() })
   }
@@ -398,7 +429,7 @@ export function createRetailClient({
   }
   return {
     configured, getStoredSession: () => session, getAccessToken: accessToken,
-    signIn, signUp, signOut, getUser,
+    signIn, signUp, signOut, getUser, requestPasswordReset, acceptEmailLinkSession, updatePassword,
     listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
     isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
     getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listMediaAssets, uploadImageAsset,
