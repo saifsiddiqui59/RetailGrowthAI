@@ -100,3 +100,8 @@ If a workflow change is not yet merged, its manual `workflow_dispatch` trigger m
 ## 2026-10-23 — Auth release verification and deployment evidence
 - PR #169 signup redirect and #173 reset/password recovery merged. Latest verified post-#173 main [#40019756401](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40019756401) passed all 4 jobs, including mocked Playwright Supabase Auth tests.
 - Existing Free Azure SWA-only release PR #177 merged as `d590a3cf`. [Release Actions #40020086287](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40020086287) successfully performed Azure OIDC RG/Free SWA audit, static frontend upload, six-route live HTTPS SPA response checks. This is **NOT** proof of SMTP delivery or a real password reset. Independent post-#177 main CI [#40020086263](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40020086263) **PASSED all four jobs**. Duplicate independent release PR #179 was closed without merge.
+
+
+## 2026-10-24 — Mobile login CSS release checks
+- Feature PR #185 tests and 4/4 post-merge main [#40025300703](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40025300703) successful. Scoped one-time Free-SWA deployment PR #186 merged; existing Azure workflow [#40025576766](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40025576766) succeeded with exact DEV RG, tagged Free SWA, six public HTTPS SPA routes and served CSS checks; independent release main [#40025576845](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40025576845) passed 4/4.
+- Playwright mobile viewports and mocked sign-in are automated checks only. Do not report live native/mobile hardware testing or email delivery on the basis of these jobs.
