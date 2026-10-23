@@ -200,3 +200,25 @@ def manage_social_oauth(req: func.HttpRequest) -> func.HttpResponse:
         mimetype="application/json",
         headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
                  "Referrer-Policy": "no-referrer"})
+
+
+@app.route(route="social/jobs/{operation}", methods=["POST"])
+def write_social_job(req: func.HttpRequest) -> func.HttpResponse:
+    """POST-only P2 draft/create, reviewed approval or cancel; default OFF."""
+    if (os.environ.get("RETAIL_PART2_SOCIAL_ENABLED") != "true" or
+            os.environ.get("RETAIL_PART2_AUTHORING_ENABLED") != "true"):
+        return func.HttpResponse('{"error":"NOT_FOUND"}', status_code=404,
+                                 mimetype="application/json")
+    from social_jobs_http import build_social_jobs_api
+    try:
+        body = req.get_json()
+    except ValueError:
+        body = None
+    try:
+        code, payload = build_social_jobs_api().handle(
+            req.route_params["operation"], req.headers.get("Authorization", ""), body)
+    except (KeyError, TypeError, ValueError):
+        code, payload = 503, {"error": "SERVICE_NOT_CONFIGURED"}
+    return func.HttpResponse(json.dumps(payload), status_code=code,
+        mimetype="application/json",
+        headers={"Cache-Control":"no-store", "X-Content-Type-Options":"nosniff"})
