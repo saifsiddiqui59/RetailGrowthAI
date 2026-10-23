@@ -1,0 +1,178 @@
+name: RetailGrowthAI DEV dedicated Foundry GPT-4.1-mini (owner approved)
+# One-time, only on merging this exact file to main. No unrelated resources.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-foundry-provision-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: retailgrowthai-dev-foundry-provision
+  cancel-in-progress: false
+jobs:
+  deploy-model:
+    if: github.ref == 'refs/heads/main' && github.repository == 'saifsiddiqui59/RetailGrowthAI'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-retailgrowth-dev
+      APP: rgai-dev-functions-d4e5ddbd
+      NAME: rgai-dev-openai-d4e5ddbd
+      MODEL: rgai-gpt-41-mini
+      REGION: southindia
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify scoped existing DEV RG and Contributor; never touch other resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          az group show -g "$RG" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1]))
+          t={k.lower():str(v).lower() for k,v in (x.get('tags') or {}).items()}
+          assert x['name']=='rg-retailgrowth-dev'
+          assert x['location'].replace(' ','').lower()=='centralindia'
+          assert t.get('app')=='retailgrowthai' and t.get('environment')=='dev'
+          print('PASS exact RetailGrowthAI tagged DEV resource group')
+          PY
+          rgid="$(az group show -g "$RG" --query id -o tsv)"
+          sp="$(az ad sp show --id "${{ secrets.AZURE_CLIENT_ID }}" --query id -o tsv)"
+          az role assignment list --assignee-object-id "$sp" --scope "$rgid" --include-inherited -o json > "$RUNNER_TEMP/roles.json"
+          python3 - "$RUNNER_TEMP/roles.json" "$rgid" <<'PY'
+          import json,sys
+          a=json.load(open(sys.argv[1]))
+          assert any(x.get('scope','').lower()==sys.argv[2].lower() and
+            x.get('roleDefinitionName','').lower()=='contributor' for x in a)
+          assert all(x.get('roleDefinitionName','').lower()=='reader'
+            for x in a if x.get('scope','').lower()!=sys.argv[2].lower())
+          print('PASS RG-only Contributor, no broader inherited write')
+          PY
+          test "$(az functionapp show -g "$RG" -n "$APP" --query name -o tsv)" = "$APP"
+      - name: Create ONLY dedicated South India OpenAI S0 account if absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          count="$(az cognitiveservices account list -g "$RG" --query "[?name=='$NAME'] | length(@)" -o tsv)"
+          if [ "$count" = 0 ]; then
+            az cognitiveservices account create -g "$RG" -n "$NAME" \
+              --location "$REGION" --kind OpenAI --sku S0 \
+              --custom-domain "$NAME" \
+              --tags app=RetailGrowthAI environment=dev purpose=part1-copy-model -o none
+            echo "NEW_DEDICATED_RETAILGROWTHAI_FOUNDRY_RESOURCE=true"
+          else
+            echo "Existing exact-name DEV OpenAI resource, verifying (no recreate)"
+          fi
+          az cognitiveservices account show -g "$RG" -n "$NAME" -o json > "$RUNNER_TEMP/account.json"
+          python3 - "$RUNNER_TEMP/account.json" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1]))
+          assert x['name']=='rgai-dev-openai-d4e5ddbd'
+          assert x['kind']=='OpenAI'
+          assert x['location'].replace(' ','').lower()=='southindia'
+          assert (x.get('sku') or {}).get('name','').lower()=='s0'
+          assert (x.get('properties') or {}).get('endpoint','').startswith('https://')
+          print('PASS scoped dedicated OpenAI S0 account in India')
+          PY
+      - name: Create only regional pay-per-token GPT-4.1-mini, minimum capacity
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! az cognitiveservices account deployment show -g "$RG" -n "$NAME" \
+               --deployment-name "$MODEL" -o json > "$RUNNER_TEMP/deployment.json" 2>/dev/null; then
+            az cognitiveservices account deployment create -g "$RG" -n "$NAME" \
+              --deployment-name "$MODEL" --model-name gpt-4.1-mini \
+              --model-version '2025-04-14' --model-format OpenAI \
+              --sku-name Standard --sku-capacity 1 -o none
+          fi
+          az cognitiveservices account deployment show -g "$RG" -n "$NAME" \
+            --deployment-name "$MODEL" -o json > "$RUNNER_TEMP/deployment.json"
+          python3 - "$RUNNER_TEMP/deployment.json" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1]))
+          m=d.get('properties',{}).get('model',{})
+          s=d.get('sku') or {}
+          assert m.get('name')=='gpt-4.1-mini' and m.get('version')=='2025-04-14'
+          assert s.get('name')=='Standard' and s.get('capacity')==1
+          print('PASS dedicated GPT-4.1-mini regional Standard deployment capacity 1')
+          PY
+      - name: Prove real Foundry chat completion without logging key or model content
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="$(az cognitiveservices account show -g "$RG" -n "$NAME" --query properties.endpoint -o tsv)"
+          key="$(az cognitiveservices account keys list -g "$RG" -n "$NAME" --query key1 -o tsv)"
+          test -n "$key" && test -n "$endpoint"
+          echo "::add-mask::$key"
+          RGAI_ENDPOINT="$endpoint" RGAI_KEY="$key" python3 - <<'PY'
+          import json,os,urllib.request
+          from urllib.parse import urlparse
+          url=os.environ['RGAI_ENDPOINT'].rstrip('/')+'/openai/v1/chat/completions'
+          p=urlparse(url)
+          assert p.scheme=='https' and p.hostname=='rgai-dev-openai-d4e5ddbd.openai.azure.com'
+          data=json.dumps({'model':'rgai-gpt-41-mini',
+            'messages':[{'role':'system','content':'Reply with valid JSON.'},
+                        {'role':'user','content':'Return exactly one JSON key ok with boolean true.'}],
+            'response_format':{'type':'json_object'},'max_tokens':40}).encode()
+          req=urllib.request.Request(url,data,method='POST',headers={
+            'api-key':os.environ['RGAI_KEY'],'Content-Type':'application/json'})
+          with urllib.request.urlopen(req,timeout=45) as response:
+            result=json.loads(response.read(12000))
+          answer=json.loads(result['choices'][0]['message']['content'])
+          assert answer.get('ok') is True
+          print('REAL_FOUNDRY_COMPLETION_SUCCESS=true')
+          print('MODEL_USAGE_TOTAL_TOKENS=',(result.get('usage') or {}).get('total_tokens','unknown'))
+          PY
+      - name: Switch ONLY existing DEV Function App to real Foundry (server-only settings)
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="$(az cognitiveservices account show -g "$RG" -n "$NAME" --query properties.endpoint -o tsv)"
+          key="$(az cognitiveservices account keys list -g "$RG" -n "$NAME" --query key1 -o tsv)"
+          test -n "$endpoint" && test -n "$key"
+          echo "::add-mask::$key"
+          az functionapp config appsettings set -g "$RG" -n "$APP" -o none --settings \
+            "RETAIL_FOUNDRY_ENDPOINT=${endpoint%/}" \
+            "RETAIL_FOUNDRY_DEPLOYMENT=$MODEL" \
+            "RETAIL_FOUNDRY_API_KEY=$key" \
+            "RETAIL_ENABLE_MOCK_CAMPAIGNS=false"
+          az functionapp config appsettings list -g "$RG" -n "$APP" \
+            --query '[].name' -o tsv > "$RUNNER_TEMP/app-names"
+          for v in RETAIL_FOUNDRY_ENDPOINT RETAIL_FOUNDRY_API_KEY RETAIL_FOUNDRY_DEPLOYMENT; do
+            grep -Fxq "$v" "$RUNNER_TEMP/app-names" || exit 3
+          done
+          echo 'PASS: real Foundry configured server-side; DEV mock explicitly disabled'
+      - name: Verify deployment and HTTPS authentication with no real tenant data
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp function list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/functions.json"
+          python3 - "$RUNNER_TEMP/functions.json" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1]))
+          names={x.get('name','').split('/')[-1] for x in data}
+          assert {'create_campaign','plan_campaign','render_campaign_reel'}<=names
+          print('PASS: existing API and AI/FFmpeg functions indexed')
+          PY
+          code="$(curl -sS --max-time 30 -o /dev/null -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' -d '{}' \
+            "https://$APP.azurewebsites.net/api/campaigns")"
+          test "$code" = 401 || { echo "Expected unauthorized HTTP 401; got $code"; exit 3; }
+          echo 'PASS: unauthenticated campaign creation still denied'
+      - name: Sign out from Azure
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
