@@ -5,7 +5,8 @@ on:
   push:
     branches: [main, 'feat/**', 'chore/**']
   pull_request:
-    branches: [main]
+    # Part 3 internal PRs must pass the existing four security/render/build jobs.
+    branches: [main, 'feat/part3-integration']
   workflow_dispatch:
 
 permissions:
