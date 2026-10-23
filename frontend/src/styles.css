@@ -258,3 +258,88 @@ h2 { letter-spacing: -.025em; }
 .platform-review-buttons { display:flex;gap:9px;flex-wrap:wrap; }
 .platform-review-buttons button { border:1px solid #c6d9d4;color:#174c40;background:#f1f9f5;padding:9px 15px;border-radius:9px;cursor:pointer; }
 .platform-review-buttons button:disabled { opacity:.5;cursor:not-allowed; }
+
+/* Subtle brand-inspired background: all CSS, no asset/third-party network cost.
+   Works behind desktop storytelling and mobile's standalone login form. */
+.login-screen { background:#edf5f2; }
+.login-story {
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  background:
+    radial-gradient(ellipse at 82% 24%, rgba(62,199,153,.31), transparent 39%),
+    radial-gradient(ellipse at 6% 86%, rgba(36,122,148,.37), transparent 45%),
+    linear-gradient(145deg,#091e31 0%,#0d3c43 52%,#12604f 100%);
+}
+.login-story::before {
+  content:"";
+  position:absolute;
+  width:min(68vw,530px);
+  aspect-ratio:1;
+  right:-160px;
+  top:13%;
+  border:1px solid rgba(184,255,218,.18);
+  border-radius:50%;
+  box-shadow:0 0 0 65px rgba(185,250,216,.055),0 0 0 135px rgba(185,250,216,.035),0 0 0 210px rgba(185,250,216,.025);
+  pointer-events:none;
+  z-index:0;
+}
+.login-story::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  background-image:linear-gradient(rgba(229,255,245,.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(229,255,245,.06) 1px,transparent 1px);
+  background-size:48px 48px;
+  mask-image:linear-gradient(130deg,transparent 12%,#000 92%);
+  pointer-events:none;
+  z-index:0;
+}
+.login-story > * {position:relative;z-index:1;}
+.login-form-side {
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  background:
+    radial-gradient(ellipse at 88% 12%,rgba(141,219,177,.32),transparent 46%),
+    radial-gradient(ellipse at 3% 91%,rgba(167,202,231,.27),transparent 45%),
+    linear-gradient(160deg,#f8fcfa,#edf5f5);
+}
+.login-form-side::before {
+  content:"";
+  position:absolute;
+  width:480px;
+  aspect-ratio:1;
+  bottom:-330px;
+  right:-230px;
+  border:1px solid rgba(19,111,93,.12);
+  border-radius:50%;
+  box-shadow:0 0 0 66px rgba(19,111,93,.04),0 0 0 145px rgba(19,111,93,.02);
+  pointer-events:none;
+}
+.login-card {
+  position:relative;
+  z-index:1;
+  background:rgba(255,255,255,.92);
+  border:1px solid rgba(255,255,255,.94);
+  box-shadow:0 22px 65px rgba(17,68,72,.11);
+  border-radius:26px;
+  padding:clamp(24px,3vw,39px);
+}
+.login-card form input {font-size:16px;min-height:49px;}
+.login-card button:focus-visible {outline:3px solid #0e7259;outline-offset:3px;}
+@media(max-width:790px) {
+  .login-form-side {
+    padding:max(22px,env(safe-area-inset-top)) 16px max(22px,env(safe-area-inset-bottom));
+    background:
+      radial-gradient(ellipse at 11% 7%,rgba(105,208,164,.35),transparent 52%),
+      radial-gradient(ellipse at 100% 95%,rgba(124,172,204,.27),transparent 50%),
+      linear-gradient(160deg,#dceee8,#f4f9f7 47%,#e7f2f5);
+  }
+  .login-card {width:min(480px,100%);padding:clamp(20px,5vw,31px);}
+  .login-mobile-brand {margin-bottom:27px;}
+  .login-card h2 {font-size:clamp(27px,7vw,38px);}
+}
+@media(prefers-reduced-motion:reduce) {
+  .login-story,.login-form-side,.login-card {scroll-behavior:auto;}
+}
