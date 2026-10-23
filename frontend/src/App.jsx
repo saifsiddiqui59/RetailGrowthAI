@@ -5,6 +5,7 @@ import { AuthProvider, useRetailAuth } from './auth/AuthProvider.jsx'
 import { AccountWorkspace } from './auth/AccountWorkspace.jsx'
 import DashboardOverview from './features/dashboard/DashboardOverview.jsx'
 import SubscriptionPage from './features/subscription/SubscriptionPage.jsx'
+import PlatformAdmin from './features/platform/PlatformAdmin.jsx'
 import { SocialWorkspace } from './features/social/SocialWorkspace.jsx'
 
 const links = [
@@ -14,8 +15,16 @@ const links = [
   { to: '/subscription', label: 'Subscription', icon: '◈' },
 ]
 
+function PlatformBoundary() {
+  const { user, loading, platformLoading, platformAdmin } = useRetailAuth()
+  if (loading || platformLoading) return <p role="status">Checking platform authorization…</p>
+  if (!user) return <Navigate to="/account" replace />
+  if (!platformAdmin) return <section className="panel" aria-label="Platform access denied"><h1>Platform access denied</h1><p>This account does not have a verified Platform Super Admin grant.</p><Link to="/">Return to workspace</Link></section>
+  return <PlatformAdmin />
+}
+
 function AccountMenu() {
-  const { user, loading, signOut } = useRetailAuth()
+  const { user, loading, signOut, platformAdmin } = useRetailAuth()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState('')
   const ref = useRef(null)
@@ -49,6 +58,7 @@ function AccountMenu() {
         <div className="account-popover-heading"><strong>Signed in</strong><span>{user.email}</span></div>
         <Link role="menuitem" to="/account" onClick={() => setOpen(false)}>Business account &amp; profile</Link>
         <Link role="menuitem" to="/subscription" onClick={() => setOpen(false)}>Plan &amp; usage</Link>
+        {platformAdmin && <Link role="menuitem" to="/platform-admin" onClick={() => setOpen(false)}>Platform Control</Link>}
         <button type="button" role="menuitem" onClick={async () => {
           try {
             setError('')
@@ -66,6 +76,7 @@ function AccountMenu() {
 
 function AppShell() {
   const location = useLocation()
+  const { platformAdmin } = useRetailAuth()
   const [collapsed, setCollapsed] = useState(() => {
     try { return window.localStorage.getItem('rgai-sidebar-collapsed') === '1' } catch { return false }
   })
@@ -81,7 +92,8 @@ function AppShell() {
     return () => window.removeEventListener('keydown', escape)
   }, [])
 
-  const title = links.find((item) => item.to === location.pathname)?.label ||
+  const availableLinks = platformAdmin ? [...links, { to: '/platform-admin', label: 'Platform Control', icon: '⚙' }] : links
+  const title = availableLinks.find((item) => item.to === location.pathname)?.label ||
     (location.pathname === '/account' ? 'Account' : 'Workspace')
   return (
     <div className={'shell retail-shell' + (collapsed ? ' sidebar-collapsed' : '') + (mobileOpen ? ' mobile-open' : '')}>
@@ -92,7 +104,7 @@ function AppShell() {
         </Link>
         <div className="nav-label">WORKSPACE</div>
         <nav aria-label="Main navigation">
-          {links.map((link) => (
+          {availableLinks.map((link) => (
             <NavLink key={link.to} to={link.to} end={link.end}
               title={collapsed ? link.label : undefined}
               className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
@@ -130,6 +142,7 @@ function AppShell() {
             <Route path="/campaigns" element={<CampaignDashboard />} />
             <Route path="/social" element={<SocialWorkspace />} />
             <Route path="/subscription" element={<SubscriptionPage />} />
+            <Route path="/platform-admin" element={<PlatformBoundary />} />
             <Route path="/account" element={<AccountWorkspace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
