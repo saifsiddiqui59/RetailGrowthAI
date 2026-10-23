@@ -7,6 +7,7 @@
 \ir ../../supabase/part2/pending/20261023190300_p2_social_dispatch_claims.sql
 \ir ../../supabase/part2/pending/20261023190400_p2_social_authoring.sql
 \ir ../../supabase/part2/pending/20261023190500_p2_social_claim_context.sql
+\ir ../../supabase/part2/pending/20261023190700_p2_social_token_refresh.sql
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -267,6 +268,7 @@ declare
   created jsonb;
   current_claim jsonb;
   server_context jsonb;
+  refresh_context jsonb;
   denied boolean:=false;
 begin
   created:=public.p2_create_social_draft(
@@ -339,6 +341,32 @@ begin
   if server_context::text like '%PLAINTEXT_PROVIDER_TOKEN%' then
     raise exception 'FAIL: private context leaked plaintext token';
   end if;
+  -- Server-side Google/approved LinkedIn refresh context never returns
+  -- plaintext token; only active claim holder may atomically rotate ciphertext.
+  update retail_private.social_account_credentials
+    set refresh_token_ciphertext=decode(repeat('ef',80),'hex'),
+        expires_at=now()+interval '60 seconds'
+    where social_account_id=account;
+  if public.p2_social_refresh_context(job1,gen_random_uuid()) is not null then
+    raise exception 'FAIL: invalid claim could refresh credentials';
+  end if;
+  refresh_context:=public.p2_social_refresh_context(
+    job1,(current_claim->>'claim_token')::uuid);
+  if refresh_context is null
+     or refresh_context->>'provider'<>'linkedin'
+     or length(refresh_context->>'refresh_ciphertext_hex')<>160 then
+    raise exception 'FAIL: active encrypted refresh context not returned';
+  end if;
+  if not public.p2_rotate_social_access(
+    job1,(current_claim->>'claim_token')::uuid,
+    repeat('cd',80),repeat('ab',80),null,now()+interval '1 hour',1) then
+    raise exception 'FAIL: refresh token rotation CAS rejected valid claim';
+  end if;
+  if public.p2_rotate_social_access(
+    job1,(current_claim->>'claim_token')::uuid,
+    repeat('cd',80),repeat('ac',80),null,now()+interval '1 hour',1) then
+    raise exception 'FAIL: stale ciphertext refresh replay accepted';
+  end if;
   if not public.p2_finish_social_publish(
       job1,(current_claim->>'claim_token')::uuid,'RETRYABLE','NOT_SENT',null) then
     raise exception 'FAIL: definitely-unsent fixture claim did not finish';
@@ -351,3 +379,18 @@ begin
 end $$;
 rollback;
 \echo 'PASS: P2 approved content, replay-safe draft, atomic per-period quota and cancel'
+
+-- The refresh API never grants token reads/rotations to browser RLS roles.
+begin;
+do $$
+begin
+  if has_function_privilege('authenticated',
+      'public.p2_social_refresh_context(uuid,uuid)','EXECUTE')
+     or has_function_privilege('anon',
+      'public.p2_rotate_social_access(uuid,uuid,text,text,text,timestamptz,integer)',
+      'EXECUTE') then
+    raise exception 'FAIL: user role may access encrypted refresh secrets';
+  end if;
+end $$;
+rollback;
+\echo 'PASS: Part2 refresh-only claim, CAS rotation and RLS denial'
