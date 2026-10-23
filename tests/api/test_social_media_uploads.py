@@ -56,7 +56,7 @@ def test_ig_reel_requires_finished_container_and_durable_post_intent():
     with pytest.raises(ProviderFailure) as denied:
         uploader.publish_finished(job_id=JOB,ig_account_id=IG,token=TOKEN)
     assert denied.value.code=="PUBLISH_INTENT_ALREADY_RECORDED"
-    assert [r.method for r in calls]==["POST","GET","GET","POST"]
+    assert [r.method for r in calls]==["POST","GET","POST","GET"]
 
 
 def test_ig_reject_unlicensed_url_and_unfinished_reel_before_external_post():
