@@ -68,7 +68,387 @@ begin
   if (select auth.role()) is distinct from 'service_role' then
     raise exception 'server-only token refresh' using errcode='42501';
   end if;
-  if p_expected_access_hex !~ '^[0-9a-f]{80,16384}$'
+  if p_expected_access_hex !~ '^[0-9a-f]+
+     or p_new_access_hex !~ '^[0-9a-f]+
+     or (p_new_refresh_hex is not null
+       and p_new_refresh_hex !~ '^[0-9a-f]+)
+     or length(p_expected_access_hex)%2<>0
+     or length(p_new_access_hex)%2<>0
+     or (p_new_refresh_hex is not null and length(p_new_refresh_hex)%2<>0)
+     or p_key_version<1
+     or p_expires_at<=now()+interval '2 minutes'
+     or p_expires_at>now()+interval '90 days'
+     then raise exception 'unapproved refresh envelope' using errcode='22023';
+  end if;
+  select * into j from public.social_publish_jobs
+    where id=p_job and status in ('APPROVED','QUEUED','RETRYABLE')
+    for update;
+  if not found or j.approved_by is null or not exists(
+      select 1 from retail_private.social_publish_attempts t
+        where t.job_id=p_job and t.claim_token=p_claim
+          and t.finished_at is null and t.result_code is null
+          and t.started_at>=now()-interval '2 minutes'
+     ) or not exists(
+      select 1 from public.shop_memberships m
+        where m.shop_id=j.shop_id and m.user_id=j.approved_by
+          and m.active and m.role in ('OWNER','EDITOR')
+     ) then return false; end if;
+  select * into a from public.social_accounts
+    where id=j.social_account_id and shop_id=j.shop_id
+      and provider=j.provider and connection_status='CONNECTED'
+      and provider in ('youtube','linkedin');
+  if not found then return false; end if;
+  update retail_private.social_account_credentials
+    set access_token_ciphertext=decode(p_new_access_hex,'hex'),
+        refresh_token_ciphertext=coalesce(
+          decode(p_new_refresh_hex,'hex'),refresh_token_ciphertext),
+        expires_at=p_expires_at,updated_at=now()
+    where social_account_id=a.id
+      and encryption_key_version=p_key_version
+      and access_token_ciphertext=decode(p_expected_access_hex,'hex')
+      and refresh_token_ciphertext is not null;
+  return found;
+end
+$$;
+
+revoke all on function public.p2_social_refresh_context(uuid,uuid)
+  from public,anon,authenticated;
+revoke all on function public.p2_rotate_social_access(
+  uuid,uuid,text,text,text,timestamptz,integer)
+  from public,anon,authenticated;
+grant execute on function public.p2_social_refresh_context(uuid,uuid)
+  to service_role;
+grant execute on function public.p2_rotate_social_access(
+  uuid,uuid,text,text,text,timestamptz,integer)
+  to service_role;
+commit;
+
+       or length(p_expected_access_hex) not between 80 and 16384
+     or p_new_access_hex !~ '^[0-9a-f]{80,16384}$'
+     or (p_new_refresh_hex is not null
+       and p_new_refresh_hex !~ '^[0-9a-f]{80,16384}$')
+     or length(p_expected_access_hex)%2<>0
+     or length(p_new_access_hex)%2<>0
+     or (p_new_refresh_hex is not null and length(p_new_refresh_hex)%2<>0)
+     or p_key_version<1
+     or p_expires_at<=now()+interval '2 minutes'
+     or p_expires_at>now()+interval '90 days'
+     then raise exception 'unapproved refresh envelope' using errcode='22023';
+  end if;
+  select * into j from public.social_publish_jobs
+    where id=p_job and status in ('APPROVED','QUEUED','RETRYABLE')
+    for update;
+  if not found or j.approved_by is null or not exists(
+      select 1 from retail_private.social_publish_attempts t
+        where t.job_id=p_job and t.claim_token=p_claim
+          and t.finished_at is null and t.result_code is null
+          and t.started_at>=now()-interval '2 minutes'
+     ) or not exists(
+      select 1 from public.shop_memberships m
+        where m.shop_id=j.shop_id and m.user_id=j.approved_by
+          and m.active and m.role in ('OWNER','EDITOR')
+     ) then return false; end if;
+  select * into a from public.social_accounts
+    where id=j.social_account_id and shop_id=j.shop_id
+      and provider=j.provider and connection_status='CONNECTED'
+      and provider in ('youtube','linkedin');
+  if not found then return false; end if;
+  update retail_private.social_account_credentials
+    set access_token_ciphertext=decode(p_new_access_hex,'hex'),
+        refresh_token_ciphertext=coalesce(
+          decode(p_new_refresh_hex,'hex'),refresh_token_ciphertext),
+        expires_at=p_expires_at,updated_at=now()
+    where social_account_id=a.id
+      and encryption_key_version=p_key_version
+      and access_token_ciphertext=decode(p_expected_access_hex,'hex')
+      and refresh_token_ciphertext is not null;
+  return found;
+end
+$$;
+
+revoke all on function public.p2_social_refresh_context(uuid,uuid)
+  from public,anon,authenticated;
+revoke all on function public.p2_rotate_social_access(
+  uuid,uuid,text,text,text,timestamptz,integer)
+  from public,anon,authenticated;
+grant execute on function public.p2_social_refresh_context(uuid,uuid)
+  to service_role;
+grant execute on function public.p2_rotate_social_access(
+  uuid,uuid,text,text,text,timestamptz,integer)
+  to service_role;
+commit;
+
+       or length(p_new_access_hex) not between 80 and 16384
+     or (p_new_refresh_hex is not null
+       and p_new_refresh_hex !~ '^[0-9a-f]{80,16384}$')
+     or length(p_expected_access_hex)%2<>0
+     or length(p_new_access_hex)%2<>0
+     or (p_new_refresh_hex is not null and length(p_new_refresh_hex)%2<>0)
+     or p_key_version<1
+     or p_expires_at<=now()+interval '2 minutes'
+     or p_expires_at>now()+interval '90 days'
+     then raise exception 'unapproved refresh envelope' using errcode='22023';
+  end if;
+  select * into j from public.social_publish_jobs
+    where id=p_job and status in ('APPROVED','QUEUED','RETRYABLE')
+    for update;
+  if not found or j.approved_by is null or not exists(
+      select 1 from retail_private.social_publish_attempts t
+        where t.job_id=p_job and t.claim_token=p_claim
+          and t.finished_at is null and t.result_code is null
+          and t.started_at>=now()-interval '2 minutes'
+     ) or not exists(
+      select 1 from public.shop_memberships m
+        where m.shop_id=j.shop_id and m.user_id=j.approved_by
+          and m.active and m.role in ('OWNER','EDITOR')
+     ) then return false; end if;
+  select * into a from public.social_accounts
+    where id=j.social_account_id and shop_id=j.shop_id
+      and provider=j.provider and connection_status='CONNECTED'
+      and provider in ('youtube','linkedin');
+  if not found then return false; end if;
+  update retail_private.social_account_credentials
+    set access_token_ciphertext=decode(p_new_access_hex,'hex'),
+        refresh_token_ciphertext=coalesce(
+          decode(p_new_refresh_hex,'hex'),refresh_token_ciphertext),
+        expires_at=p_expires_at,updated_at=now()
+    where social_account_id=a.id
+      and encryption_key_version=p_key_version
+      and access_token_ciphertext=decode(p_expected_access_hex,'hex')
+      and refresh_token_ciphertext is not null;
+  return found;
+end
+$$;
+
+revoke all on function public.p2_social_refresh_context(uuid,uuid)
+  from public,anon,authenticated;
+revoke all on function public.p2_rotate_social_access(
+  uuid,uuid,text,text,text,timestamptz,integer)
+  from public,anon,authenticated;
+grant execute on function public.p2_social_refresh_context(uuid,uuid)
+  to service_role;
+grant execute on function public.p2_rotate_social_access(
+  uuid,uuid,text,text,text,timestamptz,integer)
+  to service_role;
+commit;
+
+       or length(p_expected_access_hex) not between 80 and 16384
+     or p_new_access_hex !~ '^[0-9a-f]{80,16384}$'
+     or (p_new_refresh_hex is not null
+       and p_new_refresh_hex !~ '^[0-9a-f]{80,16384}$')
+     or length(p_expected_access_hex)%2<>0
+     or length(p_new_access_hex)%2<>0
+     or (p_new_refresh_hex is not null and length(p_new_refresh_hex)%2<>0)
+     or p_key_version<1
+     or p_expires_at<=now()+interval '2 minutes'
+     or p_expires_at>now()+interval '90 days'
+     then raise exception 'unapproved refresh envelope' using errcode='22023';
+  end if;
+  select * into j from public.social_publish_jobs
+    where id=p_job and status in ('APPROVED','QUEUED','RETRYABLE')
+    for update;
+  if not found or j.approved_by is null or not exists(
+      select 1 from retail_private.social_publish_attempts t
+        where t.job_id=p_job and t.claim_token=p_claim
+          and t.finished_at is null and t.result_code is null
+          and t.started_at>=now()-interval '2 minutes'
+     ) or not exists(
+      select 1 from public.shop_memberships m
+        where m.shop_id=j.shop_id and m.user_id=j.approved_by
+          and m.active and m.role in ('OWNER','EDITOR')
+     ) then return false; end if;
+  select * into a from public.social_accounts
+    where id=j.social_account_id and shop_id=j.shop_id
+      and provider=j.provider and connection_status='CONNECTED'
+      and provider in ('youtube','linkedin');
+  if not found then return false; end if;
+  update retail_private.social_account_credentials
+    set access_token_ciphertext=decode(p_new_access_hex,'hex'),
+        refresh_token_ciphertext=coalesce(
+          decode(p_new_refresh_hex,'hex'),refresh_token_ciphertext),
+        expires_at=p_expires_at,updated_at=now()
+    where social_account_id=a.id
+      and encryption_key_version=p_key_version
+      and access_token_ciphertext=decode(p_expected_access_hex,'hex')
+      and refresh_token_ciphertext is not null;
+  return found;
+end
+$$;
+
+revoke all on function public.p2_social_refresh_context(uuid,uuid)
+  from public,anon,authenticated;
+revoke all on function public.p2_rotate_social_access(
+  uuid,uuid,text,text,text,timestamptz,integer)
+  from public,anon,authenticated;
+grant execute on function public.p2_social_refresh_context(uuid,uuid)
+  to service_role;
+grant execute on function public.p2_rotate_social_access(
+  uuid,uuid,text,text,text,timestamptz,integer)
+  to service_role;
+commit;
+
+       or length(p_new_refresh_hex) not between 80 and 16384)
+     or length(p_expected_access_hex)%2<>0
+     or length(p_new_access_hex)%2<>0
+     or (p_new_refresh_hex is not null and length(p_new_refresh_hex)%2<>0)
+     or p_key_version<1
+     or p_expires_at<=now()+interval '2 minutes'
+     or p_expires_at>now()+interval '90 days'
+     then raise exception 'unapproved refresh envelope' using errcode='22023';
+  end if;
+  select * into j from public.social_publish_jobs
+    where id=p_job and status in ('APPROVED','QUEUED','RETRYABLE')
+    for update;
+  if not found or j.approved_by is null or not exists(
+      select 1 from retail_private.social_publish_attempts t
+        where t.job_id=p_job and t.claim_token=p_claim
+          and t.finished_at is null and t.result_code is null
+          and t.started_at>=now()-interval '2 minutes'
+     ) or not exists(
+      select 1 from public.shop_memberships m
+        where m.shop_id=j.shop_id and m.user_id=j.approved_by
+          and m.active and m.role in ('OWNER','EDITOR')
+     ) then return false; end if;
+  select * into a from public.social_accounts
+    where id=j.social_account_id and shop_id=j.shop_id
+      and provider=j.provider and connection_status='CONNECTED'
+      and provider in ('youtube','linkedin');
+  if not found then return false; end if;
+  update retail_private.social_account_credentials
+    set access_token_ciphertext=decode(p_new_access_hex,'hex'),
+        refresh_token_ciphertext=coalesce(
+          decode(p_new_refresh_hex,'hex'),refresh_token_ciphertext),
+        expires_at=p_expires_at,updated_at=now()
+    where social_account_id=a.id
+      and encryption_key_version=p_key_version
+      and access_token_ciphertext=decode(p_expected_access_hex,'hex')
+      and refresh_token_ciphertext is not null;
+  return found;
+end
+$$;
+
+revoke all on function public.p2_social_refresh_context(uuid,uuid)
+  from public,anon,authenticated;
+revoke all on function public.p2_rotate_social_access(
+  uuid,uuid,text,text,text,timestamptz,integer)
+  from public,anon,authenticated;
+grant execute on function public.p2_social_refresh_context(uuid,uuid)
+  to service_role;
+grant execute on function public.p2_rotate_social_access(
+  uuid,uuid,text,text,text,timestamptz,integer)
+  to service_role;
+commit;
+
+       or length(p_expected_access_hex) not between 80 and 16384
+     or p_new_access_hex !~ '^[0-9a-f]{80,16384}$'
+     or (p_new_refresh_hex is not null
+       and p_new_refresh_hex !~ '^[0-9a-f]{80,16384}$')
+     or length(p_expected_access_hex)%2<>0
+     or length(p_new_access_hex)%2<>0
+     or (p_new_refresh_hex is not null and length(p_new_refresh_hex)%2<>0)
+     or p_key_version<1
+     or p_expires_at<=now()+interval '2 minutes'
+     or p_expires_at>now()+interval '90 days'
+     then raise exception 'unapproved refresh envelope' using errcode='22023';
+  end if;
+  select * into j from public.social_publish_jobs
+    where id=p_job and status in ('APPROVED','QUEUED','RETRYABLE')
+    for update;
+  if not found or j.approved_by is null or not exists(
+      select 1 from retail_private.social_publish_attempts t
+        where t.job_id=p_job and t.claim_token=p_claim
+          and t.finished_at is null and t.result_code is null
+          and t.started_at>=now()-interval '2 minutes'
+     ) or not exists(
+      select 1 from public.shop_memberships m
+        where m.shop_id=j.shop_id and m.user_id=j.approved_by
+          and m.active and m.role in ('OWNER','EDITOR')
+     ) then return false; end if;
+  select * into a from public.social_accounts
+    where id=j.social_account_id and shop_id=j.shop_id
+      and provider=j.provider and connection_status='CONNECTED'
+      and provider in ('youtube','linkedin');
+  if not found then return false; end if;
+  update retail_private.social_account_credentials
+    set access_token_ciphertext=decode(p_new_access_hex,'hex'),
+        refresh_token_ciphertext=coalesce(
+          decode(p_new_refresh_hex,'hex'),refresh_token_ciphertext),
+        expires_at=p_expires_at,updated_at=now()
+    where social_account_id=a.id
+      and encryption_key_version=p_key_version
+      and access_token_ciphertext=decode(p_expected_access_hex,'hex')
+      and refresh_token_ciphertext is not null;
+  return found;
+end
+$$;
+
+revoke all on function public.p2_social_refresh_context(uuid,uuid)
+  from public,anon,authenticated;
+revoke all on function public.p2_rotate_social_access(
+  uuid,uuid,text,text,text,timestamptz,integer)
+  from public,anon,authenticated;
+grant execute on function public.p2_social_refresh_context(uuid,uuid)
+  to service_role;
+grant execute on function public.p2_rotate_social_access(
+  uuid,uuid,text,text,text,timestamptz,integer)
+  to service_role;
+commit;
+
+       or length(p_new_access_hex) not between 80 and 16384
+     or (p_new_refresh_hex is not null
+       and p_new_refresh_hex !~ '^[0-9a-f]{80,16384}$')
+     or length(p_expected_access_hex)%2<>0
+     or length(p_new_access_hex)%2<>0
+     or (p_new_refresh_hex is not null and length(p_new_refresh_hex)%2<>0)
+     or p_key_version<1
+     or p_expires_at<=now()+interval '2 minutes'
+     or p_expires_at>now()+interval '90 days'
+     then raise exception 'unapproved refresh envelope' using errcode='22023';
+  end if;
+  select * into j from public.social_publish_jobs
+    where id=p_job and status in ('APPROVED','QUEUED','RETRYABLE')
+    for update;
+  if not found or j.approved_by is null or not exists(
+      select 1 from retail_private.social_publish_attempts t
+        where t.job_id=p_job and t.claim_token=p_claim
+          and t.finished_at is null and t.result_code is null
+          and t.started_at>=now()-interval '2 minutes'
+     ) or not exists(
+      select 1 from public.shop_memberships m
+        where m.shop_id=j.shop_id and m.user_id=j.approved_by
+          and m.active and m.role in ('OWNER','EDITOR')
+     ) then return false; end if;
+  select * into a from public.social_accounts
+    where id=j.social_account_id and shop_id=j.shop_id
+      and provider=j.provider and connection_status='CONNECTED'
+      and provider in ('youtube','linkedin');
+  if not found then return false; end if;
+  update retail_private.social_account_credentials
+    set access_token_ciphertext=decode(p_new_access_hex,'hex'),
+        refresh_token_ciphertext=coalesce(
+          decode(p_new_refresh_hex,'hex'),refresh_token_ciphertext),
+        expires_at=p_expires_at,updated_at=now()
+    where social_account_id=a.id
+      and encryption_key_version=p_key_version
+      and access_token_ciphertext=decode(p_expected_access_hex,'hex')
+      and refresh_token_ciphertext is not null;
+  return found;
+end
+$$;
+
+revoke all on function public.p2_social_refresh_context(uuid,uuid)
+  from public,anon,authenticated;
+revoke all on function public.p2_rotate_social_access(
+  uuid,uuid,text,text,text,timestamptz,integer)
+  from public,anon,authenticated;
+grant execute on function public.p2_social_refresh_context(uuid,uuid)
+  to service_role;
+grant execute on function public.p2_rotate_social_access(
+  uuid,uuid,text,text,text,timestamptz,integer)
+  to service_role;
+commit;
+
+       or length(p_expected_access_hex) not between 80 and 16384
      or p_new_access_hex !~ '^[0-9a-f]{80,16384}$'
      or (p_new_refresh_hex is not null
        and p_new_refresh_hex !~ '^[0-9a-f]{80,16384}$')
