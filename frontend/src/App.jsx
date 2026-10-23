@@ -3,11 +3,13 @@ import sampleCampaign from './features/campaigns/fixtures/sample-campaign.json'
 import CampaignDashboard from './features/campaigns/CampaignDashboard.jsx'
 import { AuthProvider } from './auth/AuthProvider.jsx'
 import { AccountWorkspace } from './auth/AccountWorkspace.jsx'
+import { SocialWorkspace } from './features/social/SocialWorkspace.jsx'
 import { useRetailAuth } from './auth/AuthProvider.jsx'
 
 const links = [
   { to: '/', label: 'Overview', end: true },
   { to: '/campaigns', label: 'Campaigns' },
+  { to: '/social', label: 'Social publishing' },
   { to: '/account', label: 'Account' },
 ]
 
@@ -60,6 +62,7 @@ function AppShell() {
           <Routes>
             <Route path="/" element={<Overview />} />
             <Route path="/campaigns" element={<CampaignDashboard />} />
+            <Route path="/social" element={<SocialWorkspace />} />
             <Route path="/account" element={<AccountWorkspace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
