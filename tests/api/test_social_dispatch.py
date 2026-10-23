@@ -66,9 +66,11 @@ def test_exact_uuid_only_no_secret_exfiltration():
 
 def test_approved_post_writes_inflight_before_provider():
     r=Repo()
-    p=Provider(lambda: (r.events[-1]=="inflight" and d.Delivery("remote-1","PUBLISHED")))
-    assert go(r,p)=="RECONCILE" or r.state=="PUBLISHED"
-    # Boolean payload is intentionally not accepted as a provider receipt.
+    def send():
+        assert r.events[-1]=="inflight"
+        return d.Delivery("remote-1","PUBLISHED")
+    p=Provider(send)
+    assert go(r,p)=="PUBLISHED"
     assert r.events[:2]==["claim","inflight"]
     assert p.called==1
     assert go(r,p)=="SKIPPED" and p.called==1
