@@ -11,3 +11,13 @@
 9. After internal completion and green CI, open one `feat/part2-integration` -> `main` final PR for Coordinator. Do not merge it.
 
 Separate approvals are mandatory before hosted DEV SQL, Azure deployment, provider OAuth installation or any real customer publish.
+
+## Latest checked priority after internal P2 foundations (2026-10-23)
+
+1. Finish/disclose current combined integration-head four-job CI after main refresh and #123, and fix any regressions on P2 only. Existing `main` might continue moving; refresh again before final PR. Do **not** overwrite Part 1's new Account/Subscription shell.
+2. Implement **DB-atomic** OAuth state consume (and rejection of replay/mismatched actor), provider account connect/disconnect + encrypted credentials; backend authorization and refresh must never expose server secrets.
+3. Review pending social SQL in disposable Supabase/Postgres, add negative RLS role/tenant tests, append a uniquely versioned reviewed migration after applied 11. Hosted Supabase application requires separate explicit owner approval. Historical P1 migration preflight is pinned; do not insert unapproved SQL into `supabase/migrations`.
+4. Build durable publication schedule, job/attempt claim token RPC, server-authoritative subscription-quota reservation with no double debit, queue/timer and poisoned/reconciliation workers. Existing Part 1 queue names and usage enums remain untouched.
+5. Implement network transports with current per-provider API requirements; never automatically retry ambiguous external create-post calls. Instagram container FINISHED, YouTube resumable binary completion, Facebook Page and LinkedIn granted author roles must be verified in mocks before live app approval.
+6. End-to-end approval/edit/cancel and cross-tenant, expired account, revoked role, media-rights and quota exhaustion tests. Enable `VITE_PART2_SOCIAL_ENABLED` or `RETAIL_PART2_SOCIAL_ENABLED` only as part of independently approved hosted release.
+7. When **all** internal functionality is implemented and 4/4 final integration CI green, open `feat/part2-integration` → fresh `main` final PR for coordinator. Do not merge it yourself.
