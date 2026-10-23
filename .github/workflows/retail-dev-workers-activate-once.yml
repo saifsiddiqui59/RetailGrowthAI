@@ -1,0 +1,166 @@
+name: RetailGrowthAI DEV protected Supabase worker activation (one-time)
+# Owner confirmed GitHub 'dev' service-role key added. No backups, approvals,
+# new resources, unrelated repositories or production. Fails closed unless the
+# submitted key performs a genuine service-role scoped GET on the exact project.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-workers-activate-once.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-worker-activation
+  cancel-in-progress: false
+
+env:
+  RG: rg-retailgrowth-dev
+  APP: rgai-dev-functions-d4e5ddbd
+  STORAGE: rgaid4e5ddbdf0d21d96
+  API_ORIGIN: https://jeearzffnjbvghwjjjrf.supabase.co
+
+jobs:
+  activate:
+    name: Validate RetailGrowthAI key, enable existing Azure DEV workers
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZ_CLIENT: ${{ secrets.AZURE_CLIENT_ID }}
+    steps:
+      - name: Prove Supabase key has privileged role on exact RetailGrowthAI DEV project without exposing value
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os,urllib.request,urllib.error
+          key=(os.environ.get('SERVICE_KEY') or '').strip()
+          if not key or key.startswith('sb_publishable_'):
+              raise SystemExit('BLOCKED: RETAIL_SUPABASE_SERVICE_ROLE_KEY missing or is a public key')
+          if key.startswith('sb_secret_'):
+              headers={'apikey':key,'User-Agent':'RetailGrowthAI-DEV-server-preflight/1.0',
+                       'Accept':'application/openapi+json'}
+          elif key.startswith('eyJ') and key.count('.')==2:
+              headers={'apikey':key,'Authorization':'Bearer '+key,
+                       'User-Agent':'RetailGrowthAI-DEV-server-preflight/1.0',
+                       'Accept':'application/openapi+json'}
+          else:
+              raise SystemExit('BLOCKED: Unsupported secret format, expected sb_secret_ or actual service-role JWT')
+          url='https://jeearzffnjbvghwjjjrf.supabase.co/rest/v1/'
+          try:
+              with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=20) as res:
+                  status=res.status
+                  _=res.read(300)
+          except urllib.error.HTTPError as exc:
+              print('BLOCKED: RetailGrowthAI-only Supabase secret privilege check rejected; HTTP',exc.code)
+              raise SystemExit(3)
+          except (urllib.error.URLError,OSError) as exc:
+              print('BLOCKED: Could not verify Supabase privileges; no Azure settings changed')
+              raise SystemExit(3)
+          if status!=200:
+              raise SystemExit('BLOCKED: unexpected admin OpenAPI status, no Azure writes')
+          print('PASS: protected service key authenticated as administrator of RetailGrowthAI DEV only; no user/tenant reads or writes')
+          PY
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify exact existing RG, Function host and storage without exposing credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          rgid="$(az group show -g "$RG" --query id -o tsv)"
+          test -n "$rgid"
+          az group show -g "$RG" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          o=json.load(open(sys.argv[1]))
+          t={k.lower():str(v).lower() for k,v in (o.get('tags') or {}).items()}
+          assert o.get('name')=='rg-retailgrowth-dev' and o.get('location','').replace(' ','').lower()=='centralindia'
+          assert t.get('app')=='retailgrowthai' and t.get('environment')=='dev'
+          print('PASS: existing RetailGrowthAI-specific DEV resource group')
+          PY
+          test "$(az functionapp show -g "$RG" -n "$APP" --query name -o tsv)" = "$APP"
+          test "$(az storage account show -g "$RG" -n "$STORAGE" --query name -o tsv)" = "$STORAGE"
+          sp="$(az ad sp show --id "$AZ_CLIENT" --query id -o tsv)"
+          az role assignment list --assignee-object-id "$sp" --scope "$rgid" --include-inherited -o json > "$RUNNER_TEMP/roles.json"
+          python3 - "$RUNNER_TEMP/roles.json" "$rgid" <<'PY'
+          import json,sys
+          items=json.load(open(sys.argv[1]))
+          scope=sys.argv[2].lower()
+          assert any(x.get('scope','').lower()==scope and x.get('roleDefinitionName','').lower()=='contributor' for x in items)
+          assert all(x.get('roleDefinitionName','').lower()=='reader' for x in items if x.get('scope','').lower()!=scope)
+          print('PASS: RG-scoped Contributor, no inherited wider write access')
+          PY
+      - name: Activate only the existing DEV Function app's private Supabase worker settings
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$API_ORIGIN" = "https://jeearzffnjbvghwjjjrf.supabase.co"
+          az functionapp config appsettings list -g "$RG" -n "$APP" --query '[].name' -o tsv > "$RUNNER_TEMP/settings-names"
+          for name in AzureWebJobsStorage RETAIL_STORAGE RETAIL_SUPABASE_PUBLISHABLE_KEY RETAIL_SUPABASE_URL; do
+            grep -Fxq "$name" "$RUNNER_TEMP/settings-names" || { echo "::error::Required existing setting absent: $name"; exit 3; }
+          done
+          # Mock generation is explicitly DEV-only: Foundry live generation is not yet implemented.
+          # Only this existing app is modified. No public VITE_* credentials.
+          az functionapp config appsettings set -g "$RG" -n "$APP" -o none --settings \
+            "RETAIL_SUPABASE_SERVICE_ROLE_KEY=$SERVICE_KEY" \
+            "RETAIL_SUPABASE_URL=$API_ORIGIN" \
+            "RETAIL_ENABLE_MOCK_CAMPAIGNS=true" \
+            "AzureWebJobs.plan_campaign.Disabled=false" \
+            "AzureWebJobs.render_campaign_reel.Disabled=false" \
+            "AzureWebJobs.planning_poison.Disabled=false" \
+            "AzureWebJobs.render_poison.Disabled=false" \
+            "AzureWebJobs.recover_stale_jobs.Disabled=false"
+          echo "PASS: protected RetailGrowthAI key installed in server-only Azure Function settings, DEV demo planner enabled"
+      - name: Verify persisted worker settings, all 11 trigger names, and unauthenticated POST 401
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            az functionapp function list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/functions.json" || true
+            if python3 - "$RUNNER_TEMP/functions.json" <<'PY'
+          import json,sys
+          funcs=json.load(open(sys.argv[1]))
+          names={x.get('name','').split('/')[-1] for x in funcs}
+          needed={'plan_campaign','render_campaign_reel','planning_poison','render_poison',
+                  'recover_stale_jobs','create_campaign','read_campaign','save_campaign_day',
+                  'create_render','get_render','get_render_download'}
+          sys.exit(0 if needed<=names else 1)
+          PY
+            then break; fi
+            if [ "$i" -eq 12 ]; then echo "::error::Expected Functions not indexed"; exit 3; fi
+            sleep 10
+          done
+          az functionapp config appsettings list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/actual.json"
+          python3 - "$RUNNER_TEMP/actual.json" <<'PY'
+          import json,sys
+          items=json.load(open(sys.argv[1]))
+          conf={x['name']:x.get('value') for x in items}
+          assert conf.get('RETAIL_SUPABASE_URL')=='https://jeearzffnjbvghwjjjrf.supabase.co'
+          assert (conf.get('RETAIL_SUPABASE_SERVICE_ROLE_KEY') or '').startswith(('sb_secret_','eyJ'))
+          assert conf.get('RETAIL_ENABLE_MOCK_CAMPAIGNS')=='true'
+          for name in ('plan_campaign','render_campaign_reel','planning_poison','render_poison','recover_stale_jobs'):
+              assert str(conf.get('AzureWebJobs.'+name+'.Disabled','')).lower()=='false',name+' unexpectedly disabled'
+          print('PASS: all five queue/timer worker settings active, protected server key present; no value displayed')
+          PY
+          code="$(curl -sS --connect-timeout 15 --max-time 35 -o "$RUNNER_TEMP/http.json" -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' -d '{}' \
+            "https://$APP.azurewebsites.net/api/campaigns" || true)"
+          echo "DEV_API_POST_WITHOUT_AUTH_HTTP=$code"
+          test "$code" = "401" || { echo "::error::Live HTTP auth check failed"; exit 3; }
+          echo "PASS: deployed API denies unauthenticated campaign writes; no test tenant created"
+      - name: Logout scoped Azure session
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
