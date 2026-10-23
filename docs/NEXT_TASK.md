@@ -308,3 +308,15 @@ Baseline: `main` `84c9b87`, [latest completed 4/4 main CI #39805920327](https://
 - [ ] Priority 3: actual FFmpeg multi-clip media smoke using synthetic licensed fixtures, quality/CTA/music/crossfade review, hybrid free stock fallback and real provider substitution only after independent prices/terms approval.
 - [ ] Priority 4: final cost/rights/provider grants and paid DEV smoke require explicit owner approval; never enable billable requests without it.
 - [ ] Final Coordinator review/rebase and DRAFT PR #125 to main, no direct Part 3 merge to main.
+
+## 2026-10-24 — Part 3 follow-up after independent PRs #193–#196
+- [x] Confirm actual synthetic 30-second H264/AAC composite and decoded clip order; #193 passed standard 4/4 + Part3 2/2, NO provider call.
+- [x] Implement disabled and unaffiliated premium HTTP create/status/private download source adapter with scoped JWT/asset ownership; #194 verified, **not mounted to Function App**.
+- [x] Prevent paid processing of generated unapproved DRAFT day in coordinator + review-only SQL; #195 verified. An authorized human `APPROVED` workflow is STILL missing in Part1 public APIs.
+- [x] Isolate disabled UUID-only premium queue, CAS outbox, poison and recovery source protocol; #196 verified. No actual premium queue or hosted RPC registration.
+- [ ] Finish/independently review atomic billing/idempotency/approval/outbox SQL, implement service-role CAS/claim and lease/finalization with cross-tenant/concurrency/rollback negative tests, then seek separate owner approval before applying any hosted SQL.
+- [ ] Wire disabled-by-default protected premium Function HTTP routes and isolated Azure timers/queue/worker/poller/recovery with verified keys and spending limits ONLY after schema/cloud approvals; source-only modules do not satisfy this.
+- [ ] Implement version-fenced content approval, cancellation/UNKNOWN vendor reconciliation, provider credit quote/real spent cost and safe session concurrency; source Wan2.7 2–15s clips and FFmpeg concat do not constitute live video generation.
+- [ ] Brand overlays/CTA, source image/music rights and signed download end-to-end; optional Wan provider substitution must be separately priced/licensed.
+- [ ] Obtain commercial paid provider workspace/region/legal spend approval for one strictly capped DEV Wan real-world test; do not start paid requests without it.
+- [ ] Final Coordinator PR #125 remains DRAFT, not merged; coordinator reconciles newest Part1/Part2 `main`.
