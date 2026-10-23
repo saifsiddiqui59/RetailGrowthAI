@@ -235,3 +235,42 @@ test('shop onboarding refuses invisible membership without granting broader SELE
   await client.signIn('owner@example.invalid','private')
   await assert.rejects(() => client.createShop({name:'Boutique',slug:'boutique'}), /access verification is pending/)
 })
+
+test('OWNER subscription overview reads tenant RLS row only with user token; cannot edit', async () => {
+  const shop = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  const requests = []
+  const api = fixture(async (url, options) => {
+    requests.push({ url, options })
+    if (url.includes('/auth/v1/token')) return json({
+      access_token: 'user-owner-jwt', refresh_token: 'refresh-owner', expires_in: 3600,
+    })
+    if (url.includes('/rest/v1/shop_subscriptions')) return json([{
+      shop_id: shop, plan_code: 'TRIAL', status: 'TRIAL',
+      valid_until: '2026-10-30T00:00:00Z',
+    }])
+    throw Error('Unexpected request ' + url)
+  })
+  await api.signIn('owner@example.invalid', 'test-password')
+  const state = await api.getShopSubscription(shop)
+  assert.equal(state.plan_code, 'TRIAL')
+  const call = requests.find(x => x.url.includes('/rest/v1/shop_subscriptions'))
+  assert.equal(call.options.method, 'GET')
+  assert.equal(call.options.headers.Authorization, 'Bearer user-owner-jwt')
+  assert.equal(call.options.headers.apikey, 'sb_publishable_example')
+  assert.equal(new URL(call.url).searchParams.get('shop_id'), 'eq.' + shop)
+  assert.doesNotMatch(JSON.stringify(call), /sb_secret_|service_role/i)
+  await assert.rejects(() => api.getShopSubscription('forged-id'), /Invalid selected business/)
+  assert.equal(requests.filter(x => x.url.includes('/rest/v1/shop_subscriptions')).length, 1)
+})
+test('non-owner subscription row invisibility stays a null result, not an upgrade', async () => {
+  const shop = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  const api = fixture(async (url) => {
+    if (url.includes('/auth/v1/token')) return json({
+      access_token: 'viewer-jwt', refresh_token: 'viewer-refresh', expires_in: 3600,
+    })
+    if (url.includes('/rest/v1/shop_subscriptions')) return json([])
+    throw Error('Unexpected request')
+  })
+  await api.signIn('viewer@example.invalid', 'password')
+  assert.equal(await api.getShopSubscription(shop), null)
+})
