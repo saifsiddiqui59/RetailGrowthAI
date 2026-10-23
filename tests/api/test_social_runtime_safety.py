@@ -19,7 +19,7 @@ SHOP = "10000000-0000-4000-8000-000000000001"
 OTHER_SHOP = "10000000-0000-4000-8000-000000000002"
 USER = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 ACCOUNT = "20000000-0000-4000-8000-000000000001"
-NOW = datetime(2026, 10, 23, 12, tzinfo=timezone.utc)
+NOW = datetime(2027, 1, 1, 12, tzinfo=timezone.utc)
 
 
 def test_oauth_nonce_callback_identity_and_replay():
