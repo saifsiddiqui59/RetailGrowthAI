@@ -20,7 +20,7 @@ from tenant_store import canonical_uuid, StorageUnavailable
 MAX_BYTES = 80 * 1024 * 1024
 # Reviewed examples in Alibaba Model Studio Wan API docs (Singapore/Beijing).
 HOST_PATTERN = re.compile(
-    r"^dashscope-result-[a-z0-9-]{1,30}\.oss-(?:accelerate|[a-z0-9-]{2,35})\.aliyuncs\.com$"
+    r"^dashscope-(?:result-)?[a-z0-9-]{1,30}\.oss-(?:accelerate|[a-z0-9-]{2,35})\.aliyuncs\.com$"
 )
 
 
