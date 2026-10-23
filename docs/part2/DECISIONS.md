@@ -7,3 +7,7 @@
 5. **No silent scope upgrades:** provider privileges require app review and user-granted permissions. The live-dispatch worker remains disabled until explicit approval, media provenance, quota and remote receipts are tested.
 6. **Pending-only migration:** P2 social schema is staged under `supabase/part2/pending`, not `supabase/migrations`, to preserve Part 1's pinned migration CI and prevent unapproved hosted application. Review collision/timestamp and disposable SQL negative tests before moving into canonical migration sequence.
 7. **Part 1 preservation:** P2 plans do not alter P1 campaign/render usage or renewal/billing. A separate owner-approved publish quota is needed. No Postiz or Razorpay.
+
+## 2026-10-23 — P1 platform admin vs Part 2 OAuth authorization
+- P1 Platform Super Admin is for platform operations, **not automatic permission to connect accounts or publish another shop's content**. Social connect, approve and schedule require specific shop membership/OWNER or delegated EDITOR role and fresh explicit reviewed content approval; backend must perform current RLS/role lookup on every action. Preserve P1 `platform_admin` policies and separate subscription quota.
+- The 12th **P1** migration `20261023181000_p1_platform_admin.sql` is now canonical; the two later timestamped **P2** pending SQL files must be reconciled/reviewed in migration order before any separately authorized hosted P2 application.
