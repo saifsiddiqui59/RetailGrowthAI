@@ -5,6 +5,7 @@
 \ir ../../supabase/part2/pending/20261023190100_p2_social_oauth_transactions.sql
 \ir ../../supabase/part2/pending/20261023190200_p2_social_quota_reservation.sql
 \ir ../../supabase/part2/pending/20261023190300_p2_social_dispatch_claims.sql
+\ir ../../supabase/part2/pending/20261023190400_p2_social_authoring.sql
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -176,3 +177,37 @@ begin
 end $$;
 rollback;
 \echo 'PASS: P2 due scanner, private attempt fencing and receipt RPC denied by default'
+
+-- Author/approval/revoke transactions are backend-only with zero implicit caps.
+begin;
+do $$
+begin
+  if has_function_privilege('authenticated',
+        'public.p2_create_social_draft(uuid,uuid,uuid,uuid,uuid,text,text,uuid,timestamptz,text,text)',
+        'EXECUTE')
+    or has_function_privilege('authenticated',
+        'public.p2_approve_social_job(uuid,uuid,uuid,integer,text,text,timestamptz,text,uuid)',
+        'EXECUTE')
+    or has_function_privilege('anon',
+        'public.p2_cancel_social_job(uuid,uuid,uuid,integer)','EXECUTE') then
+    raise exception 'FAIL: publishing write RPC callable by browser';
+  end if;
+end $$;
+select set_config('request.jwt.claim.role','service_role',true);
+do $$
+declare nonexistent uuid:='50000000-0000-4000-8000-000000000001';
+begin
+  if public.p2_cancel_social_job(
+     '30000000-0000-4000-8000-000000000001',
+     nonexistent,'dddddddd-dddd-4ddd-8ddd-dddddddddddd',1) then
+    raise exception 'FAIL: wrong-tenant or nonexistent cancel';
+  end if;
+  if public.p2_approve_social_job(
+     '30000000-0000-4000-8000-000000000001',
+     nonexistent,'dddddddd-dddd-4ddd-8ddd-dddddddddddd',1,
+     repeat('ab',32),'fake',now()+interval '2 hours','Asia/Kolkata',null) then
+    raise exception 'FAIL: fabricated job approval';
+  end if;
+end $$;
+rollback;
+\echo 'PASS: service-only social authoring and immutable approval CAS'
