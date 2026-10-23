@@ -179,3 +179,59 @@ test('server-denied metadata registration never claims upload success', async ()
   }), /registration was denied/)
 })
 
+
+test('new shop uses insert-minimal until AFTER INSERT owner membership becomes readable', async () => {
+  const created = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+  const sent = []
+  let inserted = false
+  const client = createRetailClient({
+    url: 'https://rg.example.supabase.co', key: 'sb_publishable_unauthorized',
+    storage: storage(), uuidFactory: () => created,
+    fetchImpl: async (url, options) => {
+      sent.push({ url, options })
+      if (url.includes('/auth/v1/token')) return json({
+        access_token: 'test-user-jwt', refresh_token: 'refresh', expires_in: 3600,
+      })
+      if (url.includes('/auth/v1/user')) return json({ id: uid })
+      if (url.includes('/rest/v1/shops') && options.method === 'POST') {
+        assert.equal(options.headers.Prefer, 'return=minimal')
+        assert.equal(options.headers.Authorization, 'Bearer test-user-jwt')
+        assert.ok(!new URL(url).searchParams.has('select'))
+        assert.deepEqual(JSON.parse(options.body), {
+          id: created, owner_user_id: uid, name: 'Test Boutique',
+          slug: 'test-boutique', timezone: 'Asia/Kolkata',
+        })
+        inserted = true
+        return new Response(null, { status: 201 })
+      }
+      if (url.includes('/rest/v1/shops') && options.method === 'GET') {
+        assert.ok(inserted, 'owner member trigger must have executed before shop is queried')
+        assert.equal(new URL(url).searchParams.get('id'), 'eq.' + created)
+        return json([{ id: created, name: 'Test Boutique', slug: 'test-boutique', timezone: 'Asia/Kolkata' }])
+      }
+      throw Error('Unexpected network request ' + url)
+    },
+  })
+  await client.signIn('test@example.invalid','random-private-password')
+  const shop = await client.createShop({ name: 'Test Boutique', slug: 'test-boutique' })
+  assert.equal(shop.id, created)
+  assert.equal(sent.filter(x => x.url.includes('/rest/v1/shops')).length, 2)
+})
+
+test('shop onboarding refuses invisible membership without granting broader SELECT', async () => {
+  const created = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+  const client = createRetailClient({
+    url: 'https://rg.example.supabase.co', key: 'sb_publishable_only',
+    storage: storage(), uuidFactory: () => created,
+    fetchImpl: async (url, options) => {
+      if (url.includes('/auth/v1/token')) return json({
+        access_token: 'signed', refresh_token: 'refresh', expires_in: 3600,
+      })
+      if (url.includes('/auth/v1/user')) return json({id: uid})
+      if (options.method === 'POST') return new Response(null,{status:201})
+      return json([])
+    },
+  })
+  await client.signIn('owner@example.invalid','private')
+  await assert.rejects(() => client.createShop({name:'Boutique',slug:'boutique'}), /access verification is pending/)
+})

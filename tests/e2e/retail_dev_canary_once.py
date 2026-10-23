@@ -109,12 +109,19 @@ def main():
                 method="POST",payload={"email":email,"password":password},
                 headers={"apikey":pub},expect=(200,))
             bearer={"apikey":pub,"Authorization":"Bearer "+auth["access_token"]}
-            _,shoprows=call(SUPABASE+"/rest/v1/shops?select=id,name",
-                method="POST",payload={"name":"RetailGrowthAI Test "+label,"slug":"rgai-e2e-"+marker+"-"+label,
-                                      "owner_user_id":uid,"timezone":"Asia/Kolkata"},
-                headers={**bearer,"Prefer":"return=representation"},expect=(201,))
-            sid=shoprows[0]["id"]
+            sid=str(uuid.uuid4())
+            # Register for cleanup BEFORE attempting an insert: a partial
+            # commit/network failure must not leave an untracked test shop.
             shops.append(sid)
+            call(SUPABASE+"/rest/v1/shops",
+                method="POST",payload={"id":sid,"name":"RetailGrowthAI Test "+label,
+                    "slug":"rgai-e2e-"+marker+"-"+label,
+                    "owner_user_id":uid,"timezone":"Asia/Kolkata"},
+                headers={**bearer,"Prefer":"return=minimal"},expect=(201,204))
+            _,shoprows=call(SUPABASE+"/rest/v1/shops?id=eq."+sid+"&select=id,name",
+                headers=bearer,expect=(200,))
+            if not isinstance(shoprows,list) or len(shoprows)!=1 or shoprows[0].get("id")!=sid:
+                raise RuntimeError("RLS failed to reveal newly bootstrapped OWNER shop")
             accounts[-1]=(uid,bearer)
         a=accounts[0][1];b=accounts[1][1]
         assetpath=shops[0]+"/uploads/"+str(uuid.uuid4())+".png"

@@ -134,11 +134,11 @@ export function createRetailClient({
       catch { /* Access token will expire; never rehydrate the local session. */ }
     }
   }
-  async function table(name, { method = 'GET', query = {}, body } = {}) {
+  async function table(name, { method = 'GET', query = {}, body, returnMinimal = false } = {}) {
     if (!ALLOWED_TABLES.has(name)) throw new Error('Table is not exposed by RetailGrowthAI foundation client')
     return send('/rest/v1/' + name, {
       method, query, body, token: await accessToken(),
-      headers: method === 'POST' ? { Prefer: 'return=representation' }
+      headers: method === 'POST' ? { Prefer: returnMinimal ? 'return=minimal' : 'return=representation' }
         : method === 'PATCH' ? { Prefer: 'return=representation' } : {},
     })
   }
@@ -156,10 +156,22 @@ export function createRetailClient({
       throw new Error('Enter a business name and a lowercase hyphenated shop slug')
     }
     const user = await getUser()
-    const rows = await table('shops', {
-      method: 'POST', body: { owner_user_id: user.id, name: name.trim(), slug, timezone },
-      query: { select: 'id,name,slug,timezone' },
+    const id = uuidFactory()
+    if (!UUID_V4.test(id)) throw new Error('Unable to generate a valid business ID')
+    // The OWNER membership is created by an AFTER INSERT trigger. Returning
+    // the new row in this same INSERT would require an RLS SELECT before the
+    // membership exists, causing SQLSTATE 42501. Insert with minimal output,
+    // then read through the now-established membership as normal.
+    await table('shops', {
+      method: 'POST', body: { id, owner_user_id: user.id, name: name.trim(), slug, timezone },
+      returnMinimal: true,
     })
+    const rows = await table('shops', {
+      query: { select: 'id,name,slug,timezone', id: 'eq.' + id, limit: '1' },
+    })
+    if (!Array.isArray(rows) || rows.length !== 1 || rows[0].id !== id) {
+      throw new Error('Business created but access verification is pending. Refresh Account before retrying.')
+    }
     return rows[0]
   }
   async function getBusinessProfile(shopId) {
