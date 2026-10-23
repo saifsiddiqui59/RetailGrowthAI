@@ -20,7 +20,7 @@ from tenant_store import canonical_uuid, StorageUnavailable
 MAX_BYTES = 80 * 1024 * 1024
 # Reviewed examples in Alibaba Model Studio Wan API docs (Singapore/Beijing).
 HOST_PATTERN = re.compile(
-    r"^dashscope-result-[a-z0-9-]{1,30}\\.oss-(?:accelerate|[a-z0-9-]{2,35})\\.aliyuncs\\.com$"
+    r"^dashscope-result-[a-z0-9-]{1,30}\.oss-(?:accelerate|[a-z0-9-]{2,35})\.aliyuncs\.com$"
 )
 
 
@@ -148,5 +148,6 @@ def import_to_private_storage(*, provider_url, shop_id, job_id, lease_token,
         result = store.finalize(jid, sid, token, private_path)
         if not isinstance(result, dict) or result.get("status") != "SUCCEEDED":
             raise PremiumImportError("Lease-fenced private completion failed")
+        output_id = canonical_uuid(result.get("output_asset_id"))
         return {"job_id": jid, "status": "SUCCEEDED",
-                "output_asset_id": result.get("output_asset_id")}
+                "output_asset_id": output_id}
