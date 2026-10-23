@@ -1,0 +1,114 @@
+name: RetailGrowthAI DEV subscription quota HTTP release (existing Functions only)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/retail-dev-subscription-backend-release-once.yml']
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-queue-runtime-release
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      RG: rg-retailgrowth-dev
+      APP: rgai-dev-functions-d4e5ddbd
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Validate queue host config against raw SDK messages before packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/deploy/package.py --check
+          python3 - <<'PY'
+          import json
+          p=json.load(open('azure-functions/campaign-api/host.json'))
+          assert p['extensionBundle']['version']=='[4.0.0, 5.0.0)'
+          assert p['extensions']['queues']['messageEncoding']=='none'
+          print('PASS queue trigger v4 extension, raw UUID messageEncoding=none')
+          PY
+          mkdir -p "$RUNNER_TEMP/media" "$RUNNER_TEMP/release"
+          image='mwader/static-ffmpeg@sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822'
+          docker pull "$image"
+          cid="$(docker create "$image" -version)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          docker cp "$cid:/ffmpeg" "$RUNNER_TEMP/media/ffmpeg"
+          docker cp "$cid:/ffprobe" "$RUNNER_TEMP/media/ffprobe"
+          chmod 755 "$RUNNER_TEMP/media/ffmpeg" "$RUNNER_TEMP/media/ffprobe"
+          cat > "$RUNNER_TEMP/media/THIRD_PARTY_NOTICES.txt" <<'NOTICE'
+          FFmpeg/ffprobe GPL static Linux amd64 using libx264 and AAC.
+          License: https://ffmpeg.org/legal.html
+          Corresponding source/build instructions: https://github.com/wader/static-ffmpeg
+          OCI image sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822
+          NOTICE
+          python3 scripts/deploy/package.py --ffmpeg-dir "$RUNNER_TEMP/media" \
+            --output "$RUNNER_TEMP/release/queue-runtime.zip"
+          python3 scripts/deploy/package.py --verify-zip "$RUNNER_TEMP/release/queue-runtime.zip"
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify exact tagged existing DEV resource scope, no provisioning
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          az group show -n "$RG" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          rg=json.load(open(sys.argv[1]))
+          t={k.lower():str(v).lower() for k,v in (rg.get('tags') or {}).items()}
+          assert rg['name']=='rg-retailgrowth-dev'
+          assert t.get('app')=='retailgrowthai' and t.get('environment')=='dev'
+          PY
+          test "$(az functionapp show -g "$RG" -n "$APP" --query name -o tsv)" = "$APP"
+      - name: Republish integrated backend code to existing Flex app, preserve Foundry secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp deployment source config-zip -g "$RG" -n "$APP" \
+            --src "$RUNNER_TEMP/release/queue-runtime.zip" --build-remote true -o none
+          for attempt in $(seq 1 12); do
+            az functionapp function list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/functions.json"
+            if python3 - "$RUNNER_TEMP/functions.json" <<'PY'
+          import json,sys
+          got={x.get('name','').split('/')[-1] for x in json.load(open(sys.argv[1]))}
+          expected={'create_campaign','read_campaign','save_campaign_day','create_render',
+                    'get_render','get_render_download','plan_campaign','render_campaign_reel',
+                    'planning_poison','render_poison','recover_stale_jobs'}
+          print('REMOTE_FUNCTIONS',len(got),'MISSING',sorted(expected-got))
+          sys.exit(0 if expected<=got else 1)
+          PY
+            then break; fi
+            test "$attempt" -lt 12
+            sleep 10
+          done
+          healthy=0
+          for attempt in $(seq 1 7); do
+            code="$(curl -sS --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' \
+              -X POST -H 'Content-Type: application/json' -d '{}' \
+              "https://$APP.azurewebsites.net/api/campaigns")" && rc=0 || rc=$?
+            echo "PROTECTED_API_CHECK attempt=$attempt HTTP=$code transport_status=$rc"
+            if [ "$rc" -eq 0 ] && [ "$code" = "401" ]; then healthy=1; break; fi
+            if [ "$code" != "000" ] && [ "$code" != "502" ] && [ "$code" != "503" ] && [ "$code" != "504" ]; then
+              echo "::error::Unexpected API authentication status"
+              exit 3
+            fi
+            sleep 10
+          done
+          test "$healthy" = 1
+          echo "PASS: Existing RetailGrowthAI protected Functions API 401, 11 indexed."
+      - name: Close Azure session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
