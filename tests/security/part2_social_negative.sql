@@ -7,8 +7,9 @@
 \ir ../../supabase/part2/pending/20261023190300_p2_social_dispatch_claims.sql
 \ir ../../supabase/part2/pending/20261023190400_p2_social_authoring.sql
 \ir ../../supabase/part2/pending/20261023190500_p2_social_claim_context.sql
-\ir ../../supabase/part2/pending/20261023190800_p2_social_media_reviews.sql
 \ir ../../supabase/part2/pending/20261023190600_p2_social_poison_reconciliation.sql
+\ir ../../supabase/part2/pending/20261023190700_p2_social_token_refresh.sql
+\ir ../../supabase/part2/pending/20261023190800_p2_social_media_reviews.sql
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -269,6 +270,7 @@ declare
   created jsonb;
   current_claim jsonb;
   server_context jsonb;
+  refresh_context jsonb;
   denied boolean:=false;
 begin
   created:=public.p2_create_social_draft(
@@ -340,6 +342,31 @@ begin
   -- Never store a plaintext provider token in the public social job.
   if server_context::text like '%PLAINTEXT_PROVIDER_TOKEN%' then
     raise exception 'FAIL: private context leaked plaintext token';
+  end if;
+  -- Only the exact active service-role claim may rotate server ciphertext.
+  update retail_private.social_account_credentials
+    set refresh_token_ciphertext=decode(repeat('ef',80),'hex'),
+        expires_at=now()+interval '60 seconds'
+    where social_account_id=account;
+  if public.p2_social_refresh_context(job1,gen_random_uuid()) is not null then
+    raise exception 'FAIL: unowned claim could refresh account';
+  end if;
+  refresh_context:=public.p2_social_refresh_context(
+    job1,(current_claim->>'claim_token')::uuid);
+  if refresh_context is null
+     or refresh_context->>'provider'<>'linkedin'
+     or length(refresh_context->>'refresh_ciphertext_hex')<>160 then
+    raise exception 'FAIL: private ciphertext refresh context missing';
+  end if;
+  if not public.p2_rotate_social_access(
+    job1,(current_claim->>'claim_token')::uuid,
+    repeat('cd',80),repeat('ab',80),null,now()+interval '1 hour',1) then
+    raise exception 'FAIL: valid private credential rotation rejected';
+  end if;
+  if public.p2_rotate_social_access(
+    job1,(current_claim->>'claim_token')::uuid,
+    repeat('cd',80),repeat('ac',80),null,now()+interval '1 hour',1) then
+    raise exception 'FAIL: stale ciphertext CAS replay succeeded';
   end if;
   if not public.p2_finish_social_publish(
       job1,(current_claim->>'claim_token')::uuid,'RETRYABLE','NOT_SENT',null) then
@@ -441,3 +468,18 @@ begin
 end $$;
 rollback;
 \echo 'PASS: private media rights, FFprobe, expiration and RLS gates'
+
+-- Refresh RPCs never grant any ciphertext access to untrusted client roles.
+begin;
+do $$
+begin
+  if has_function_privilege('authenticated',
+    'public.p2_social_refresh_context(uuid,uuid)','EXECUTE')
+    or has_function_privilege('anon',
+    'public.p2_rotate_social_access(uuid,uuid,text,text,text,timestamptz,integer)',
+    'EXECUTE') then
+    raise exception 'FAIL: unauthenticated OAuth refresh permission';
+  end if;
+end $$;
+rollback;
+\echo 'PASS: claim-only token refresh and no browser credential access'

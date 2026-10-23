@@ -24,6 +24,7 @@ from tenant_store import StorageUnavailable, canonical_uuid
 _RPCS = frozenset({
     "p2_claim_social_publish", "p2_social_claim_context",
     "p2_mark_social_inflight", "p2_finish_social_publish",
+    "p2_social_refresh_context", "p2_rotate_social_access",
     "p2_record_social_poison",
 })
 _REQUIRED_SCOPES = {
@@ -190,6 +191,40 @@ class SocialPublishRpcRepository:
             raise
         except (KeyError, TypeError, ValueError, OAuthDenied):
             raise PublishDenied("MALFORMED_PRIVATE_CONTEXT") from None
+
+    def refresh_context(self, job_id, claim_token):
+        """Claim-bound read: ciphertext only, returned to backend refresher."""
+        raw=self._rpc("p2_social_refresh_context",{
+            "p_job":message_uuid(job_id),"p_claim":canonical_uuid(claim_token)})
+        if raw is not None and not isinstance(raw,dict):
+            raise StorageUnavailable("malformed private refresh context")
+        return raw
+
+    def rotate(self, job_id, claim_token, *, expected_access_ciphertext,
+               new_access_ciphertext, new_refresh_ciphertext,
+               expires_at, key_version):
+        """Strict DB CAS; credentials never leave server except encrypted."""
+        for item in (expected_access_ciphertext,new_access_ciphertext):
+            if not isinstance(item,bytes) or not 40<=len(item)<=8192:
+                raise ValueError("invalid private token envelope")
+        if (new_refresh_ciphertext is not None
+            and (not isinstance(new_refresh_ciphertext,bytes)
+                 or not 40<=len(new_refresh_ciphertext)<=8192)):
+            raise ValueError("invalid private refresh envelope")
+        if not isinstance(expires_at,datetime) or expires_at.tzinfo is None:
+            raise ValueError("invalid access expiry")
+        raw=self._rpc("p2_rotate_social_access",{
+            "p_job":message_uuid(job_id),"p_claim":canonical_uuid(claim_token),
+            "p_expected_access_hex":expected_access_ciphertext.hex(),
+            "p_new_access_hex":new_access_ciphertext.hex(),
+            "p_new_refresh_hex":new_refresh_ciphertext.hex()
+                if new_refresh_ciphertext else None,
+            "p_expires_at":expires_at.isoformat(),
+            "p_key_version":key_version,
+        })
+        if raw not in (True,False):
+            raise StorageUnavailable("unconfirmed private refresh receipt")
+        return raw
 
     def mark_external_inflight(self, job_id, claim_token):
         result = self._rpc("p2_mark_social_inflight", {
