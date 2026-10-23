@@ -1,14 +1,20 @@
 """Offline poster rendering, tenant boundaries and commercial-rights regression."""
 import json
 import sys
+import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "poster-engine"))
-from render import PosterError, PosterOptions, render_poster  # noqa: E402
+# Do not pollute the media-suite sys.path with an unrelated render.py:
+# tests/media/test_renderer.py must still import video-engine/render.py.
+spec = importlib.util.spec_from_file_location("retail_poster_renderer", ROOT / "poster-engine/render.py")
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+PosterError, PosterOptions, render_poster = module.PosterError, module.PosterOptions, module.render_poster
 
 
 class PosterEngineTests(unittest.TestCase):
