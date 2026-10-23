@@ -321,3 +321,10 @@ Baseline: `main` `84c9b87`, [latest completed 4/4 main CI #39805920327](https://
 4. Wire deduplicated Azure social queue and timer/poison reconciliation to service-only claim/receipt RPC. Implement actual Instagram Reels, FB Page text, LinkedIn organic text and YouTube resumable upload transports with receipt verification and no blind retry on ambiguous success; keep disabled until fully tested.
 5. Owner-approved publish quotas: `retail_private.social_publish_plan_limits` starts EMPTY (posting disabled); no arbitrary paid limits. Run mocked browser, media, cross-tenant, quota, CSRF/replay, revoked permission and outbox E2E; require exact integration commit 4/4 Actions before coordinator final PR.
 6. No hosted DEV migrations, Azure resource writes, OAuth app installation or real customer posts without distinct owner approvals. See `docs/part2/NEXT_TASK.md`.
+
+
+## Next after Part 2 retailer authoring #155 and due queue #156
+- Implement and independently test provider credential loader / refresh, media rights and approved content preflight, and the live worker orchestration that binds `social_dispatch.process_publish` to provider receipt, private claim fencing, timer, poison and reconciliation; do not enable the Azure worker until owner-approved provider apps, quotas and hosted P2 migrations exist.
+- Finalize independent source-only text transport [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) only after exact-head 4/4 Actions. LinkedIn/Facebook text does **not** imply Instagram Reels/YouTube Shorts uploading is complete.
+- Expand review panel for safe edit/revision invalidation, video preview, account permission failure, accessible confirmation and mocked E2E. No live browser publishing flags unless separately approved.
+- Refresh current `main` `1c59f981` without overwriting its login-first root dashboard/admin; final Part2→main PR only when full source-side publish lifecycle and CI are ready. No hosted actions in this checkpoint.
