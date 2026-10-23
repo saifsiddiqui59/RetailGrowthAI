@@ -2,7 +2,9 @@ name: RetailGrowthAI DEV exact synthetic leftover cleanup (one time)
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/retail-dev-exact-fixture-cleanup-once.yml']
+    paths:
+      - '.github/workflows/retail-dev-exact-fixture-cleanup-once.yml'
+      - 'scripts/ops/cleanup_exact_dev_fixture.py'
 permissions:
   contents: read
 concurrency:
