@@ -48,6 +48,35 @@ def reconcile_day(original, desired, remote_campaign):
     raise RuntimeError("Concurrent draft edit differs from both original and requested values")
 
 
+def reconcile_render(rows, *, shop_id, campaign_id, day_id, requested_by):
+    """RLS-read authoritative single render job or NONE, reject foreign/ambiguous rows.
+
+    The backend hashes (user, campaign, day, storyboard) into a UNIQUE
+    (shop_id, idempotency_key), so retrying the IDENTICAL authenticated
+    request after confirming no visible job cannot create multiple billed jobs.
+    """
+    if not isinstance(rows, list):
+        raise RuntimeError("Invalid private render readback")
+    if len(rows) > 1:
+        raise RuntimeError("Ambiguous render job readback; no write retry")
+    if not rows:
+        return None
+    job = rows[0]
+    expected = {"shop_id": shop_id, "campaign_id": campaign_id,
+                "day_id": day_id, "requested_by": requested_by,
+                "preset": "instagram_reel_30s"}
+    if any(job.get(k) != v for k, v in expected.items()):
+        raise RuntimeError("Foreign or unexpected render job; no write retry")
+    try:
+        jid = str(uuid.UUID(job["id"]))
+    except (ValueError, TypeError, KeyError, AttributeError) as exc:
+        raise RuntimeError("Invalid persisted render job ID") from exc
+    if jid != job["id"] or job.get("status") not in (
+            "QUEUED", "RUNNING", "SUCCEEDED", "FAILED"):
+        raise RuntimeError("Unrecognized render job status; no retry")
+    return {"job_id": jid, "status": job["status"]}
+
+
 SUPABASE = "https://jeearzffnjbvghwjjjrf.supabase.co"
 API = "https://rgai-dev-functions-d4e5ddbd.azurewebsites.net"
 def api_key_headers(key):
@@ -94,7 +123,9 @@ def call(url, method="GET", payload=None, headers=None, timeout=30, expect=(200,
             time.sleep(4 * (attempt+1))
     if status not in expect:
         # A pre-handler gateway 5xx is an uncertain write. No generic retry.
-        if method == "PATCH" and status in (502,503,504) and source == "gateway_or_supabase":
+        if (method == "PATCH" or (method == "POST" and
+                "/api/campaigns/" in url and url.endswith("/renders"))) and \
+                status in (502,503,504) and source == "gateway_or_supabase":
             raise TransientGateway("Transient pre-handler PATCH response")
         # Only report server-defined error codes (e.g. 42501/PGRST***).
         # Messages can contain private data, SQL parameters, URLs or credentials.
@@ -246,11 +277,41 @@ def main():
         if saved.get("day",{}).get("topic")!=update["topic"]:
             raise RuntimeError("Draft save not persisted")
         print("CANARY_REMOTE_DRAFT_SAVE=true",flush=True)
-        # Render POST is not retried on uncertain delivery. Server-side dedup
-        # exists but this canary deliberately avoids replaying billing writes.
-        _,render=call(API+"/api/campaigns/"+cid+"/renders",method="POST",
-           payload={"day_id":day["id"],"preset":"instagram_reel_30s"},
-           headers=a,timeout=120,expect=(202,))
+        # If the gateway loses a render creation response, do not blindly
+        # repeat a billable write. First read the current user's RLS-scoped
+        # matching job. Backend deterministic idempotency guarantees one
+        # persisted job for this exact user/day/storyboard even under races.
+        def find_existing_render():
+            query=urllib.parse.urlencode({
+                "select":"id,shop_id,campaign_id,day_id,requested_by,preset,status",
+                "shop_id":"eq."+shops[0],
+                "campaign_id":"eq."+cid,
+                "day_id":"eq."+day["id"],
+                "requested_by":"eq."+accounts[0][0],
+                "limit":"2",
+            })
+            _,rows=call(SUPABASE+"/rest/v1/render_jobs?"+query,headers=a,expect=(200,))
+            return reconcile_render(rows,shop_id=shops[0],campaign_id=cid,
+                                    day_id=day["id"],requested_by=accounts[0][0])
+        render=None
+        for attempt in range(3):
+            try:
+                _,render=call(API+"/api/campaigns/"+cid+"/renders",method="POST",
+                    payload={"day_id":day["id"],"preset":"instagram_reel_30s"},
+                    headers=a,timeout=120,expect=(200,202))
+                break
+            except (TransientGateway, TimeoutError, ConnectionResetError):
+                time.sleep(4*(attempt+1))
+                render=find_existing_render()
+                if render is not None:
+                    print("CANARY_RENDER_POST_RESPONSE_RECONCILED=true",flush=True)
+                    break
+                if attempt==2:
+                    raise RuntimeError("Render POST unavailable; no verified job after bounded attempts")
+                print("CANARY_SAFE_IDEMPOTENT_RENDER_RETRY="+str(attempt+1),flush=True)
+        if render is None or not render.get("job_id"):
+            raise RuntimeError("Render creation did not produce a verified private job")
+        print("CANARY_RENDER_JOB_CREATED=true",flush=True)
         job=render["job_id"]
         def statusread():
             return call(API+"/api/render-jobs/"+job,headers=a,expect=(200,))[1]
