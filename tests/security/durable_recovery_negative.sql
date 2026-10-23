@@ -20,6 +20,8 @@ insert into public.campaigns(id,shop_id,created_by,brief,start_date) values
 
 -- Authenticated cannot read, write or execute any service-only durable recovery primitives.
 reset role;
+-- Subsequent DB-owner setup calls simulate the server's service_role JWT.
+select set_config('request.jwt.claim.role','service_role',true);
 do $$
 declare sig text;
 begin
@@ -78,6 +80,8 @@ begin
   if not blocked then raise exception 'FAIL: authenticated client wrote poison receipt'; end if;
 end $$;
 reset role;
+-- Subsequent DB-owner setup calls simulate the server's service_role JWT.
+select set_config('request.jwt.claim.role','service_role',true);
 
 -- Outbox leases are CAS-fenced; wrong, stale or reused acknowledgements fail.
 do $$

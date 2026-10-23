@@ -136,6 +136,8 @@ end $$;
 
 -- Anonymous client with no subject can never read a tenant row.
 reset role;
+-- Subsequent DB-owner setup calls simulate the server's service_role JWT.
+select set_config('request.jwt.claim.role','service_role',true);
 set local role anon;
 select set_config('request.jwt.claim.role','anon',true);
 select set_config('request.jwt.claim.sub','',true);
@@ -153,6 +155,8 @@ begin
   end if;
 end $$;
 reset role;
+-- Subsequent DB-owner setup calls simulate the server's service_role JWT.
+select set_config('request.jwt.claim.role','service_role',true);
 rollback;
 \echo 'PASS: cross-shop read/write, owner forgery, viewer escalation, revocation and anon-denial RLS tests'
 

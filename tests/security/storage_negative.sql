@@ -92,4 +92,6 @@ begin
   if not denied then raise exception 'FAIL: viewer could upload media'; end if;
 end $$;
 reset role;
+-- Subsequent DB-owner setup calls simulate the server's service_role JWT.
+select set_config('request.jwt.claim.role','service_role',true);
 rollback;

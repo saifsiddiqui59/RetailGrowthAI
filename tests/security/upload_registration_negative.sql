@@ -143,6 +143,8 @@ begin
       raise exception 'FAIL: cross-shop registration allowed'; end if;
 end $$;
 reset role;
+-- Subsequent DB-owner setup calls simulate the server's service_role JWT.
+select set_config('request.jwt.claim.role','service_role',true);
 set local role anon;
 select set_config('request.jwt.claim.role','anon',true);
 select set_config('request.jwt.claim.sub','',true);
@@ -159,5 +161,7 @@ begin
   if not denied then raise exception 'FAIL: anonymous RPC execute allowed'; end if;
 end $$;
 reset role;
+-- Subsequent DB-owner setup calls simulate the server's service_role JWT.
+select set_config('request.jwt.claim.role','service_role',true);
 rollback;
 \echo 'PASS: authenticated object binding, owner, tenant, MIME, rights and anon denial'

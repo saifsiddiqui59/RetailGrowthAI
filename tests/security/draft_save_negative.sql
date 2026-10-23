@@ -17,6 +17,8 @@ insert into public.campaigns(id,shop_id,created_by,brief,start_date)
 values('44444444-4444-4444-8444-444444444444','33333333-3333-4333-8333-333333333333',
 '11111111-1111-4111-8111-111111111111','Seven day campaign','2026-11-01');
 reset role;
+-- Subsequent DB-owner setup calls simulate the server's service_role JWT.
+select set_config('request.jwt.claim.role','service_role',true);
 update public.campaigns set status='DRAFT' where id='44444444-4444-4444-8444-444444444444';
 insert into public.campaign_days(id,shop_id,campaign_id,day_index,scheduled_date,topic,linkedin,instagram)
 values(
@@ -76,6 +78,8 @@ begin
 end $$;
 
 reset role;
+-- Subsequent DB-owner setup calls simulate the server's service_role JWT.
+select set_config('request.jwt.claim.role','service_role',true);
 insert into public.render_jobs(id,shop_id,campaign_id,day_id,requested_by,preset,idempotency_key)
 values(
 '66666666-6666-4666-8666-666666666666',
@@ -98,5 +102,7 @@ begin
   ) is not false then raise exception 'FAIL: edit allowed during queued render'; end if;
 end $$;
 reset role;
+-- Subsequent DB-owner setup calls simulate the server's service_role JWT.
+select set_config('request.jwt.claim.role','service_role',true);
 rollback;
 \echo 'PASS: draft save owner, viewer denial, stale-write, direct-bypass and queued-render tests'
