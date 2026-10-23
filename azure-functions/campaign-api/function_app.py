@@ -172,3 +172,31 @@ def read_social_workspace(req: func.HttpRequest) -> func.HttpResponse:
     return func.HttpResponse(json.dumps(data), status_code=status,
             mimetype="application/json",
             headers={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"})
+
+
+@app.route(route="social/oauth/{operation}", methods=["POST"])
+def manage_social_oauth(req: func.HttpRequest) -> func.HttpResponse:
+    """Owner-authenticated OAuth start/complete/disconnect; default OFF.
+
+    No GET callback receives credentials. The SPA removes callback query data
+    and submits same-session POST. Requires separately approved P2 SQL/app grants.
+    """
+    if (os.environ.get("RETAIL_PART2_SOCIAL_ENABLED") != "true" or
+            os.environ.get("RETAIL_PART2_OAUTH_ENABLED") != "true"):
+        return func.HttpResponse('{"error":"NOT_FOUND"}', status_code=404,
+                                 mimetype="application/json")
+    from social_oauth_http import build_oauth_api
+    try:
+        body = req.get_json()
+    except ValueError:
+        body = None
+    try:
+        status, data = build_oauth_api().handle(
+            req.route_params["operation"], req.headers.get("Authorization", ""), body)
+    except (KeyError, ValueError, TypeError):
+        status, data = 503, {"error": "SERVICE_NOT_CONFIGURED"}
+    # OAuth codes and state are never included in application logs.
+    return func.HttpResponse(json.dumps(data), status_code=status,
+        mimetype="application/json",
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+                 "Referrer-Policy": "no-referrer"})
