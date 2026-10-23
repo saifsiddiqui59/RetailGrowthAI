@@ -32,7 +32,8 @@ def _check_input_clip(path, seconds):
         if path.stat().st_size < 1024 or path.stat().st_size > MAX_CLIP_BYTES:
             raise ValueError("invalid clip size")
         result = subprocess.check_output([
-            "ffprobe", "-v", "error", "-show_streams", "-show_format",
+            "ffprobe", "-v", "error", "-protocol_whitelist", "file",
+            "-show_streams", "-show_format",
             "-of", "json", str(path)
         ], text=True, timeout=30)
         info = json.loads(result)
