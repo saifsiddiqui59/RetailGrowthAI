@@ -19,6 +19,7 @@ export const REQUIRED_MIGRATIONS = Object.freeze([
 ]);
 export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261023134701_p1_subscription_quota.sql',
+  '20261023181000_p1_platform_admin.sql',
 ]);
 
 const CAPABILITIES = {
@@ -40,6 +41,17 @@ const CAPABILITIES = {
     /subscription_reserve_render/i,
     /errcode='RG001'/i,
     /errcode='RG002'/i,
+  ],
+  '20261023181000': [
+    /create table retail_private\.platform_admins/i,
+    /create table retail_private\.platform_admin_audit/i,
+    /security definer set search_path = ''/i,
+    /retail_platform_me/i,
+    /retail_platform_summary/i,
+    /retail_platform_shops/i,
+    /retail_platform_set_subscription/i,
+    /assert_platform_admin/i,
+    /revoke all on retail_private\.platform_admins/i,
   ],
   '20261022220000': [
     /create table public\.job_outbox/i, /create table public\.job_poison_events/i,
