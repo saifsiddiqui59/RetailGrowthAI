@@ -385,10 +385,12 @@ def main():
                 safe_paths=set(validate_private_test_paths(media,sid))
                 safe_paths.update(p for p in paths if p.startswith(sid+"/"))
                 for object_path in safe_paths:
-                    uri="/storage/v1/object/retailgrowth-media/"+urllib.parse.quote(
-                         object_path,safe="/")
-                    call(SUPABASE+uri,method="DELETE",
-                         headers=admins,expect=(200,204,404))
+                    # Storage remove() requires the bucket-level DELETE
+                    # with exact paths in JSON prefixes; single-file DELETE
+                    # URLs return HTTP400 even for existing objects.
+                    call(SUPABASE+"/storage/v1/object/retailgrowth-media",
+                         method="DELETE",payload={"prefixes":[object_path]},
+                         headers=admins,expect=(200,204))
                 for table in ("usage_events","render_jobs","campaign_days",
                     "campaigns","brand_kits","business_profiles","media_assets",
                     "audit_logs","shop_memberships"):
