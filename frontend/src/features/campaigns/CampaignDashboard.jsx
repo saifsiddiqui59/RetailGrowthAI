@@ -6,6 +6,7 @@ import {
   buildCampaignRequest, cloneCampaign, formatDayDate, linkedInText,
   serializeDraftDay, timelineErrors, updateCampaignDay, updateScene, withAuthorizedMedia,
 } from './campaign-model.mjs'
+import PremiumVideoPanel from '../premium-video/PremiumVideoPanel.jsx'
 import './CampaignDashboard.css'
 
 const INITIAL_BRIEF = 'Create seven days of helpful style inspiration for my clothing boutique, with LinkedIn posts and Instagram Reel concepts.'
@@ -676,6 +677,7 @@ export default function CampaignDashboard() {
             </div>}
         <RenderStatus day={day} valid={storyErrors.length === 0} live={loaded} dirty={changed || savingDay}
           job={renderJob} onRender={startRender} onDownload={downloadRender} />
+        <PremiumVideoPanel dayId={day.id} authorizedImageIds={assetIds} />
       </section>
       {notice && <p className="rg-session-notice" role="status">{notice}</p>}
       <p className="rg-footnote">{loaded
