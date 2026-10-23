@@ -6,6 +6,7 @@ import {
   buildCampaignRequest, cloneCampaign, formatDayDate, linkedInText,
   serializeDraftDay, timelineErrors, updateCampaignDay, updateScene, withAuthorizedMedia,
 } from './campaign-model.mjs'
+import PosterStudio from '../creative/PosterStudio.jsx'
 import './CampaignDashboard.css'
 
 const INITIAL_BRIEF = 'Create seven days of helpful style inspiration for my clothing boutique, with LinkedIn posts and Instagram Reel concepts.'
@@ -677,6 +678,8 @@ export default function CampaignDashboard() {
         <RenderStatus day={day} valid={storyErrors.length === 0} live={loaded} dirty={changed || savingDay}
           job={renderJob} onRender={startRender} onDownload={downloadRender} />
       </section>
+      <PosterStudio key={shopId || 'demo'} day={day}
+        businessName={shops.find(shop => shop.id === shopId)?.name || 'Your business'} />
       {notice && <p className="rg-session-notice" role="status">{notice}</p>}
       <p className="rg-footnote">{loaded
         ? 'Live drafts and private image uploads use authenticated APIs. Publishing and independent rights verification remain unavailable.'
