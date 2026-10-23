@@ -13,8 +13,8 @@ def load(name):
     sys.modules[name]=m
     spec.loader.exec_module(m)
     return m
-l=load("social_oauth_lifecycle")
 o=load("social_oauth")
+l=load("social_oauth_lifecycle")
 SHOP="10000000-0000-4000-8000-000000000001"
 FOREIGN="10000000-0000-4000-8000-000000000002"
 USER="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
