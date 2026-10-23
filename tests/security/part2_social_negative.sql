@@ -4,6 +4,7 @@
 \ir ../../supabase/part2/pending/20261023190000_p2_social_foundation.sql
 \ir ../../supabase/part2/pending/20261023190100_p2_social_oauth_transactions.sql
 \ir ../../supabase/part2/pending/20261023190200_p2_social_quota_reservation.sql
+\ir ../../supabase/part2/pending/20261023190300_p2_social_dispatch_claims.sql
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -142,3 +143,36 @@ begin
 end $$;
 rollback;
 \echo 'PASS: social quota starts unapproved, RPC service-only, no forged job reservations'
+
+-- Fencing API is server-only; duplicate/nonexistent UUID messages never claim.
+begin;
+do $$
+begin
+  if has_function_privilege('authenticated','public.p2_claim_social_publish(uuid)','EXECUTE')
+     or has_function_privilege('authenticated','public.p2_mark_social_inflight(uuid,uuid)','EXECUTE')
+     or has_function_privilege('anon','public.p2_due_social_job_ids(integer)','EXECUTE')
+     or has_function_privilege('anon','public.p2_finish_social_publish(uuid,uuid,text,text,text)','EXECUTE') then
+    raise exception 'FAIL: public social worker RPC privilege';
+  end if;
+end $$;
+select set_config('request.jwt.claim.role','service_role',true);
+do $$
+declare
+  missing uuid:='40000000-0000-4000-8000-000000000099';
+begin
+  if public.p2_claim_social_publish(missing) is not null then
+    raise exception 'FAIL: nonexistent publish job claimed';
+  end if;
+  if public.p2_mark_social_inflight(missing,gen_random_uuid()) then
+    raise exception 'FAIL: missing attempt marked as external send';
+  end if;
+  if public.p2_finish_social_publish(missing,gen_random_uuid(),
+        'FAILED','NOT_SENT',null) then
+    raise exception 'FAIL: missing claim finalized';
+  end if;
+  if exists(select 1 from public.p2_due_social_job_ids(20)) then
+    raise exception 'FAIL: unapproved social jobs dispatched';
+  end if;
+end $$;
+rollback;
+\echo 'PASS: P2 due scanner, private attempt fencing and receipt RPC denied by default'
