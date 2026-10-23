@@ -439,3 +439,58 @@ test('revoked JWT is rejected by backend after draft load without saving or rend
   expect(state.renders).toHaveLength(0)
   expect(state.signedOpens).toBe(0)
 })
+
+
+test('local Clothing Studio poster uses merchant photo and exports real portrait PNG without uploading', async ({ page }) => {
+  const state = await mockServices(page)
+  await login(page)
+  await business(page)
+  await expect(page.getByRole('heading', { name: 'Your brand, ready to share.' })).toBeVisible()
+  const exportButton = page.getByRole('button', { name: 'Download generated PNG' })
+  await expect(exportButton).toBeDisabled()
+  const encoded = await page.evaluate(() => {
+    const image = document.createElement('canvas')
+    image.width = 320
+    image.height = 420
+    const ctx = image.getContext('2d')
+    ctx.fillStyle = '#355D89'
+    ctx.fillRect(0, 0, 320, 420)
+    ctx.fillStyle = '#E9B79C'
+    ctx.fillRect(40, 70, 230, 250)
+    return image.toDataURL('image/png').split(',')[1]
+  })
+  await page.getByLabel('Poster product photo').setInputFiles({
+    name: 'owned-clothing.png', mimeType: 'image/png', buffer: Buffer.from(encoded, 'base64'),
+  })
+  await expect(exportButton).toBeDisabled()
+  await page.getByRole('checkbox', { name: /commercial rights to use this product image/ }).check()
+  await page.getByLabel('Poster business name').fill('Clothing Studio')
+  await page.getByLabel('Poster template').selectOption('bold')
+  await page.getByLabel('Poster size').selectOption('portrait')
+  const canvas = page.locator('.rg-creative-canvas')
+  await expect(canvas).toBeVisible()
+  await expect.poll(() => canvas.evaluate(element => element.width)).toBe(1080)
+  await expect.poll(() => canvas.evaluate(element => element.height)).toBe(1350)
+  await expect(exportButton).toBeEnabled()
+  const downloadPromise = page.waitForEvent('download')
+  await exportButton.click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe('retailgrowth-day-1-bold-portrait.png')
+  expect(state.uploads).toHaveLength(0)
+  expect(state.registrations).toHaveLength(0)
+})
+
+test('local clothing poster controls fit a narrow mobile viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 })
+  await mockServices(page)
+  await login(page)
+  await business(page)
+  await expect(page.getByRole('heading', { name: 'Your brand, ready to share.' })).toBeVisible()
+  const layout = await page.locator('.rg-creative').evaluate(element => ({
+    right: element.getBoundingClientRect().right,
+    width: window.innerWidth,
+  }))
+  expect(layout.right).toBeLessThanOrEqual(layout.width + 1)
+  await expect(page.getByLabel('Poster product photo')).toBeVisible()
+  await expect(page.getByLabel('Poster template')).toBeVisible()
+})
