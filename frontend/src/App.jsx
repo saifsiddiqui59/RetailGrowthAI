@@ -7,6 +7,7 @@ import DashboardOverview from './features/dashboard/DashboardOverview.jsx'
 import SubscriptionPage from './features/subscription/SubscriptionPage.jsx'
 import PlatformAdmin from './features/platform/PlatformAdmin.jsx'
 import { SocialWorkspace } from './features/social/SocialWorkspace.jsx'
+import { SocialOAuthCallback } from './features/social/SocialOAuthCallback.jsx'
 
 const links = [
   { to: '/', label: 'Overview', icon: '▦', end: true },
@@ -141,6 +142,7 @@ function AppShell() {
             <Route path="/" element={<DashboardOverview />} />
             <Route path="/campaigns" element={<CampaignDashboard />} />
             <Route path="/social" element={<SocialWorkspace />} />
+            <Route path="/social/oauth/callback/:provider" element={<SocialOAuthCallback />} />
             <Route path="/subscription" element={<SubscriptionPage />} />
             <Route path="/platform-admin" element={<PlatformBoundary />} />
             <Route path="/account" element={<AccountWorkspace />} />
