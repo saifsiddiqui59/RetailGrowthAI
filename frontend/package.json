@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test scripts/fixture.test.mjs ../tests/frontend/campaign-dashboard.test.mjs ../tests/frontend/campaign-api.test.mjs ../tests/frontend/subscription-metrics.test.mjs ../tests/frontend/social-api.test.mjs ../tests/frontend/social-status.test.mjs"
+    "test": "node --test scripts/fixture.test.mjs ../tests/frontend/campaign-dashboard.test.mjs ../tests/frontend/campaign-api.test.mjs ../tests/frontend/subscription-metrics.test.mjs ../tests/frontend/social-api.test.mjs ../tests/frontend/social-status.test.mjs ../tests/frontend/social-publishing-samples.test.mjs"
   },
   "dependencies": {
     "react": "19.3.1",
