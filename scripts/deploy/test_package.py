@@ -28,12 +28,17 @@ class PackageTests(unittest.TestCase):
         self.assertIn(b"sys.path.insert", files["function_app.py"])
 
     def test_budget_mismatch_fails_closed(self):
-        host = {"functionTimeout": "00:20:00"}
+        host = json.loads((mod.SERVICE / "host.json").read_text("utf-8"))
         sql = (mod.ROOT / "supabase/migrations/20261022205000_p1_worker_execution_budget.sql").read_text()
         renderer = (mod.RENDER / "render.py").read_text()
         mod.verify_worker_budget(host, sql, renderer)
         with self.assertRaises(ValueError):
             mod.verify_worker_budget({"functionTimeout": "00:04:00"}, sql, renderer)
+        with self.assertRaises(ValueError):
+            mod.verify_worker_budget({**host, "extensionBundle": {}}, sql, renderer)
+        with self.assertRaises(ValueError):
+            mod.verify_worker_budget({**host, "extensions": {"queues": {"messageEncoding": "base64"}}},
+                                     sql, renderer)
         with self.assertRaises(ValueError):
             mod.verify_worker_budget(host, sql.replace("25 minutes", "4 minutes"), renderer)
         with self.assertRaises(ValueError):
