@@ -46,7 +46,7 @@ class Repo:
         self.state="CLAIMED";self.events.append("claim")
         return {"job_id":id,"claim_token":"fixed-lease-123"}
     def load_context(self,*a):return self.context
-    def mark_external_inflight(self,*a):self.state="SENDING";self.events.append("inflight")
+    def mark_external_inflight(self,*a):self.state="SENDING";self.events.append("inflight");return True
     def retry_no_send(self,*a):self.state="RETRYABLE";self.events.append("retry")
     def require_reconciliation(self,*a):self.state="RECONCILE";self.events.append("reconcile")
     def fail_claim(self,*a):self.state="FAILED";self.events.append("fail")
@@ -98,3 +98,27 @@ def test_revoked_or_unapproved_never_reaches_provider():
         p=Provider(lambda:d.Delivery("id","PUBLISHED"))
         assert go(r,p)=="FAILED"
         assert p.called==0 and r.events==["claim","fail"]
+
+
+def test_uncommitted_inflight_barrier_never_calls_provider():
+    class RejectedBarrier(Repo):
+        def mark_external_inflight(self,*args):
+            self.events.append("rejected-barrier")
+            return False
+    repo=RejectedBarrier()
+    provider=Provider(lambda:d.Delivery("remote-should-never-be-created","PUBLISHED"))
+    with pytest.raises(d.DispatchError,match="INFLIGHT_BARRIER_NOT_CONFIRMED"):
+        go(repo,provider)
+    assert provider.called==0
+    assert repo.events == ["claim","rejected-barrier"]
+
+
+def test_server_private_token_does_not_bypass_approval_policy():
+    context=ctx()
+    context["provider_access_token"]="SECRET_PROVIDER_TOKEN"
+    context["job"]["caption"]="tampered without renewed approval"
+    repo=Repo(context)
+    provider=Provider(lambda:d.Delivery("remote-id","PUBLISHED"))
+    assert go(repo,provider)=="FAILED"
+    assert provider.called==0
+    assert "SECRET_PROVIDER_TOKEN" not in str(repo.events)
