@@ -71,5 +71,20 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch })
       { day_id: uuid(dayId), preset: 'instagram_reel_30s' }),
     getRenderJob: (jobId) => request('GET', '/render-jobs/' + uuid(jobId)),
     getDownload: (jobId) => request('GET', '/render-jobs/' + uuid(jobId) + '/download'),
+    createPosterDraft: (campaignId, config) => {
+      if (!config || typeof config !== 'object') throw new Error('Poster configuration is required')
+      return request('POST', '/campaigns/' + uuid(campaignId) + '/posters', {
+        day_id: uuid(config.day_id),
+        source_asset_id: uuid(config.source_asset_id),
+        logo_asset_id: config.logo_asset_id ? uuid(config.logo_asset_id) : null,
+        template: config.template,
+        format: config.format,
+        business_name: config.business_name,
+        accent_color: config.accent_color,
+        background_color: config.background_color,
+        offer_text: config.offer_text ?? null,
+      })
+    },
+    getPosterDraft: (posterId) => request('GET', '/poster-drafts/' + uuid(posterId)),
   }
 }

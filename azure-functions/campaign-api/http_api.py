@@ -10,13 +10,14 @@ from draft_api import DraftAPI
 
 
 class HTTPAPI:
-    def __init__(self, verify_token, store, planning_queue=None, render_api=None, failure_store=None, durable_outbox=False):
+    def __init__(self, verify_token, store, planning_queue=None, render_api=None, failure_store=None, durable_outbox=False, poster_api=None):
         self.verify_token = verify_token
         self.store = store
         self.planning_queue = planning_queue
         self.render_api = render_api
         self.failure_store = failure_store
         self.durable_outbox = durable_outbox
+        self.poster_api = poster_api
 
     def handle(self, method, path, authorization, body=None):
         try:
@@ -24,6 +25,20 @@ class HTTPAPI:
                 raise AuthenticationError("bearer token required")
             token = authorization[7:].strip()
             user_id = self.verify_token(token)
+            if method == "POST" and path.startswith("/campaigns/") and path.endswith("/posters"):
+                if self.poster_api is None:
+                    return 503, {"error": "POSTER_DRAFT_NOT_CONFIGURED"}
+                parts = path.strip("/").split("/")
+                if len(parts) != 3 or parts[0] != "campaigns" or parts[2] != "posters":
+                    return 404, {"error": "NOT_FOUND"}
+                return self.poster_api.create(token, user_id, parts[1], body)
+            if method == "GET" and path.startswith("/poster-drafts/"):
+                if self.poster_api is None:
+                    return 503, {"error": "POSTER_DRAFT_NOT_CONFIGURED"}
+                parts = path.strip("/").split("/")
+                if len(parts) != 2 or parts[0] != "poster-drafts":
+                    return 404, {"error": "NOT_FOUND"}
+                return self.poster_api.get(token, user_id, parts[1])
             if method == "POST" and path.startswith("/campaigns/") and path.endswith("/renders"):
                 if self.render_api is None:
                     return 503, {"error": "RENDER_NOT_CONFIGURED"}

@@ -12,6 +12,7 @@ from queue_adapter import AzurePlanningQueue, AzureRenderQueue
 from admin_store import AdminStore
 from planning_worker import process_campaign
 from render_api import RenderAPI
+from poster_draft_api import PosterDraftAPI
 from render_worker import process_render
 from private_media import PrivateMedia
 from recovery_runtime import dispatch_outbox, record_poison, reconcile_and_dispatch
@@ -33,8 +34,11 @@ def build_api():
         RenderAPI(store, admin, AzureRenderQueue(connection), durable_outbox=True)
         if connection and admin else None
     )
+    poster_api = (PosterDraftAPI(store)
+                  if os.environ.get("RETAIL_ENABLE_POSTER_DRAFTS") == "true" else None)
     return HTTPAPI(SupabaseJWTVerifier(url), store, queue, render_api,
-                   failure_store=admin, durable_outbox=bool(connection and admin))
+                   failure_store=admin, durable_outbox=bool(connection and admin),
+                   poster_api=poster_api)
 
 
 def dispatch(request, path):
@@ -72,6 +76,16 @@ def create_campaign(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="campaigns/{campaign_id}", methods=["GET"])
 def read_campaign(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/campaigns/" + req.route_params["campaign_id"])
+
+
+@app.route(route="campaigns/{campaign_id}/posters", methods=["POST"])
+def create_poster_draft(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/campaigns/" + req.route_params["campaign_id"] + "/posters")
+
+
+@app.route(route="poster-drafts/{draft_id}", methods=["GET"])
+def get_poster_draft(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/poster-drafts/" + req.route_params["draft_id"])
 
 
 @app.queue_trigger(arg_name="message", queue_name="retail-campaign-planning",
