@@ -678,8 +678,10 @@ export default function CampaignDashboard() {
         <RenderStatus day={day} valid={storyErrors.length === 0} live={loaded} dirty={changed || savingDay}
           job={renderJob} onRender={startRender} onDownload={downloadRender} />
       </section>
-      <PosterStudio key={shopId || 'demo'} day={day}
-        businessName={shops.find(shop => shop.id === shopId)?.name || 'Your business'} />
+      {(!client.configured || (shopId && shops.some(shop => shop.id === shopId))) && (
+        <PosterStudio key={shopId || 'demo'} day={day}
+          businessName={shops.find(shop => shop.id === shopId)?.name || 'Your business'} />
+      )}
       {notice && <p className="rg-session-notice" role="status">{notice}</p>}
       <p className="rg-footnote">{loaded
         ? 'Live drafts and private image uploads use authenticated APIs. Publishing and independent rights verification remain unavailable.'
