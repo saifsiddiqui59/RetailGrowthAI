@@ -144,3 +144,37 @@ def test_invalid_input_never_reaches_transport():
         provider.submit(WanRequest("image", "Illustrate", signed_first_frame=FRAME,
                                    shop_id="another-shop"))
     assert calls == []
+
+
+def test_private_poll_returns_vendor_link_only_inside_explicit_worker_method():
+    calls = []
+    provider = make_provider(calls, enabled=True)
+    expected_url = ("https://dashscope-a717.oss-accelerate.aliyuncs.com/"
+                    "clip.mp4?Expires=9999999999")
+
+    def responder(method, url, headers, payload):
+        calls.append((method, url))
+        return {"output": {"task_id": "abc-defghi-123456",
+                           "task_status": "SUCCEEDED",
+                           "video_url": expected_url,
+                           "orig_prompt": "should never leak"}}
+
+    provider.transport = responder
+    public = provider.poll("abc-defghi-123456")
+    private = provider.poll_private("abc-defghi-123456")
+    assert public == {"task_id": "abc-defghi-123456", "status": "SUCCEEDED"}
+    assert private == {**public, "video_url": expected_url}
+    assert "orig_prompt" not in private and "video_url" not in public
+    assert [x[0] for x in calls] == ["GET", "GET"]
+
+
+def test_private_poll_rejects_success_without_media_and_never_leaks_error_text():
+    calls = []
+    provider = make_provider(calls, enabled=True)
+    provider.transport = lambda *args: {
+        "output": {"task_id": "abc-defghi-123456", "task_status": "SUCCEEDED"}}
+    with pytest.raises(PremiumVideoProviderError, match="missing private output"):
+        provider.poll_private("abc-defghi-123456")
+    provider.enabled = False
+    with pytest.raises(PremiumVideoDisabled):
+        provider.poll_private("abc-defghi-123456")
