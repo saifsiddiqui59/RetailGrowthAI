@@ -53,7 +53,7 @@ test('verified recovery link clears fragment, resets password and signs out', as
   await expect(page.getByRole('heading', { name: 'Set a new password' })).toBeVisible()
   expect(page.url()).toBe(new URL('/account', page.url()).href)
   await expect(page.getByRole('heading', { name: 'Platform Control' })).toHaveCount(0)
-  await page.getByLabel('Password').fill('example-only-strong-password')
+  await page.getByLabel('Password', { exact: true }).fill('example-only-strong-password')
   await page.getByLabel('Confirm new password').fill('example-only-strong-password')
   await page.getByRole('button', { name: 'Save new password' }).click()
   await expect(page.getByText('Password updated. Sign in using your new password.')).toBeVisible()
