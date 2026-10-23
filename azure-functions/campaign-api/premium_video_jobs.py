@@ -74,7 +74,6 @@ class PremiumVideoCoordinator:
                     return 403, {"error": "ASSET_RIGHTS_UNVERIFIED"}
             # Only approved (already reviewed) day content enters the provider.
             prompt = campaign_video_prompt(days[0])
-            spec = WanRequest(mode, prompt, duration, resolution)
             canonical = [uid, sid, cid, did, mode, resolution, duration,
                          asset, prompt]
             digest = hashlib.sha256(json.dumps(canonical, sort_keys=True,
