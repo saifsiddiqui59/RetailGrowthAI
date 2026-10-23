@@ -1,3 +1,5 @@
 # Part 3 jobs handoff
 
 Source-only, NOT activated or deployed. New 20261023180000 migration uses original shop_subscriptions and shop_usage_reservations (no second billing), with zero premium seconds/USD defaults. It has not been applied to hosted RetailGrowthAI DEV. Job coordinator and lease-fenced worker are NOT registered with live function_app or existing Azure queue; atomic submission outbox and verified private provider-media importer are incomplete. Never enable the feature switch or run billable jobs until those operations and concurrency tests are complete. Existing FFmpeg path is untouched.
+
+Full existing 4-job Part 1 CI and dedicated 2-job Part 3 CI must pass on this PR before integration merge.
