@@ -10,7 +10,7 @@ import base64
 import json
 import os
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 
 from security import AuthenticationError, SupabaseJWTVerifier
 from tenant_store import StorageUnavailable, TenantStore, canonical_uuid
@@ -68,6 +68,11 @@ class OAuthHTTPAPI:
             return 503, {"error": "SERVICE_UNAVAILABLE"}
 
 
+class _GoogleNoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def google_transport(method, url, *, headers=None, form=None, params=None):
     """Fixed-target, bounded Google calls. No redirects to arbitrary hosts."""
     if method == "POST" and url == TOKEN_URL and isinstance(form, dict) and params is None:
@@ -80,7 +85,7 @@ def google_transport(method, url, *, headers=None, form=None, params=None):
         raise OAuthDenied("unapproved OAuth upstream request")
     try:
         # Auth responses are untrusted. Bound the response and suppress raw errors.
-        with urlopen(request, timeout=10) as response:
+        with build_opener(_GoogleNoRedirect()).open(request, timeout=10) as response:
             if response.geturl().split("?")[0] != request.full_url.split("?")[0]:
                 raise OAuthDenied("unexpected OAuth redirect")
             raw = response.read(65537)
