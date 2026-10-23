@@ -35,7 +35,6 @@ export default function PlatformAdmin() {
     let active = true
     setLoading(true)
     setError('')
-    setMessage('')
     setShops([])
     setTotal(null)
     setSummary(EMPTY)
