@@ -16,7 +16,7 @@ from tenant_store import (
 CAMPAIGN_CREATE = re.compile(r"^/campaigns/([^/]+)/premium-videos$")
 PREMIUM_JOB = re.compile(r"^/premium-video-jobs/([^/]+)(/download)?$")
 PRIVATE_FILE = re.compile(
-    r"^([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\\.mp4$"
+    r"^([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.mp4$"
 )
 
 
