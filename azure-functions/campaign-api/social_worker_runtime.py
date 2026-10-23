@@ -79,3 +79,12 @@ class SocialWorkerRuntime:
         return process_publish(
             message, repository=self.repository,
             provider=self.publisher, clock=self.clock)
+
+    def record_poison(self, message):
+        """Never acknowledge a poison message without the database receipt.
+
+        Invalid messages or database outages raise: a human must inspect the
+        Azure poison queue rather than silently lose a potentially sent post.
+        """
+        from social_dispatch import message_uuid
+        return self.repository.record_poison(message_uuid(message))
