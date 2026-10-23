@@ -75,3 +75,30 @@ def test_store_refuses_foreign_response_even_if_backend_misconfigured():
     store=api.SocialReadStore("https://supabase.example","public-key",transport=lambda *a,**k:Resp())
     with pytest.raises(api.StorageUnavailable):
         store.list_rows("user-token",SHOP,"jobs")
+
+def test_reviewed_campaign_days_and_job_snapshots_read_through_rls_only():
+    class Reader:
+        def __init__(self):self.calls=[]
+        def list_rows(self,token,shop_id,resource):
+            self.calls.append((token,shop_id,resource))
+            if resource=="days":
+                return [{"id":"12000000-0000-4000-8000-000000000001",
+                    "shop_id":SHOP,"review_status":"APPROVED",
+                    "linkedin":{"post_text":"Business-reviewed text"},
+                    "token":"forbidden", "access_token_ciphertext":"private"}]
+            return [{"id":"13000000-0000-4000-8000-000000000001",
+                    "shop_id":SHOP,"provider":"linkedin","revision":1,
+                    "caption":"Exact pending copy",
+                    "access_token_ciphertext":"never-return"}]
+    read=Reader()
+    service=api.SocialReadAPI(lambda t: USER,Members(),read)
+    code,days=service.handle("GET","days","Bearer user-token",SHOP)
+    assert code==200 and days["days"][0]["linkedin"] == {
+        "post_text":"Business-reviewed text"}
+    assert "token" not in days["days"][0]
+    code,jobs=service.handle("GET","jobs","Bearer user-token",SHOP)
+    assert code==200 and jobs["jobs"][0]["revision"]==1
+    assert jobs["jobs"][0]["caption"]=="Exact pending copy"
+    assert "access_token_ciphertext" not in jobs["jobs"][0]
+    assert read.calls==[
+        ("user-token",SHOP,"days"),("user-token",SHOP,"jobs")]
