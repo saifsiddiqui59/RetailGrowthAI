@@ -96,9 +96,11 @@ def main():
             # Only delete the exact persisted GENERATED MP4 through Storage.
             if asset["mime_type"]=="image/png":
                 continue
-            uri="/storage/v1/object/retailgrowth-media/"+urllib.parse.quote(
-                asset["object_path"],safe="/")
-            api("DELETE",uri,allowed=(200,204))
+            # Supabase Storage remove() uses DELETE /object/{bucket}
+            # with JSON {"prefixes": [exact path]}, NOT a single-path URL.
+            # The latter returns HTTP400 and never removes the blob.
+            api("DELETE","/storage/v1/object/retailgrowth-media",
+                allowed=(200,204),body={"prefixes":[asset["object_path"]]})
         print("SYNTHETIC_STORAGE_CLEANUP_COUNT="+str(len(media)))
         # Explicit child deletion order avoids cross-FK media/renders restrictions
         # while preserving the shop-scoped foreign-key boundary.
