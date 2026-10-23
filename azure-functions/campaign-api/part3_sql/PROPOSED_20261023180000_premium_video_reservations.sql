@@ -99,7 +99,7 @@ begin
       join public.campaigns c on c.id=d.campaign_id
     where d.id=new.day_id and d.campaign_id=new.campaign_id
       and d.shop_id=new.shop_id and c.shop_id=new.shop_id
-      and c.status='DRAFT' and d.review_status <> 'REJECTED'
+      and c.status='DRAFT' and d.review_status = 'APPROVED'
   ) then
     raise exception 'Invalid reviewed campaign day' using errcode='42501';
   end if;
