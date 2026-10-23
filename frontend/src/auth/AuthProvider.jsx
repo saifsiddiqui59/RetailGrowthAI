@@ -8,6 +8,9 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [platformAdmin, setPlatformAdmin] = useState(false)
+  const [platformLoading, setPlatformLoading] = useState(false)
+  const [platformError, setPlatformError] = useState('')
   const sequence = useRef(0)
 
   useEffect(() => {
@@ -32,6 +35,30 @@ export function AuthProvider({ children }) {
     return () => { mounted = false }
   }, [client])
 
+  // Platform privilege is checked by the database on each RPC. An unresolved
+  // check never grants UI access, and ordinary shop logins continue to work.
+  useEffect(() => {
+    let active = true
+    setPlatformAdmin(false)
+    setPlatformError('')
+    if (!client.configured || !user) {
+      setPlatformLoading(false)
+      return () => { active = false }
+    }
+    setPlatformLoading(true)
+    client.isPlatformAdmin().then((allowed) => {
+      if (active) setPlatformAdmin(allowed === true)
+    }).catch(() => {
+      if (active) {
+        setPlatformAdmin(false)
+        setPlatformError('Platform access could not be verified.')
+      }
+    }).finally(() => {
+      if (active) setPlatformLoading(false)
+    })
+    return () => { active = false }
+  }, [client, user?.id])
+
   const signIn = useCallback(async (email, password) => {
     const epoch = ++sequence.current
     setError('')
@@ -52,13 +79,15 @@ export function AuthProvider({ children }) {
     ++sequence.current
     await client.signOut()
     setUser(null)
+    setPlatformAdmin(false)
     setError('')
   }, [client])
 
   const value = useMemo(() => ({
     client, configured: client.configured, user, loading, error,
+    platformAdmin, platformLoading, platformError,
     signIn, signUp, signOut,
-  }), [client, user, loading, error, signIn, signUp, signOut])
+  }), [client, user, loading, error, platformAdmin, platformLoading, platformError, signIn, signUp, signOut])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
