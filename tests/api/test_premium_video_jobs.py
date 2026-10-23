@@ -173,3 +173,38 @@ def test_provider_success_not_mistaken_for_private_media_download():
     store, provider = WorkerStore(), Provider()
     assert PremiumSubmissionWorker(store, provider).poll_once(JID) == "SUCCEEDED"
     assert store.calls == [("poll", (JID, LEASE, "IMPORTING"))]
+
+
+@pytest.mark.parametrize("review_status", ["DRAFT", "REJECTED", None, ""])
+def test_paid_provider_cannot_reserve_unapproved_campaign_day(review_status):
+    """A generated DRAFT is not approval to consume money or transmit content."""
+    class NotApprovedUsers(Users):
+        def campaign(self, token, user, cid):
+            result = super().campaign(token, user, cid)
+            result["days"][0]["review_status"] = review_status
+            return result
+
+    store = Store()
+    coordinator = PremiumVideoCoordinator(
+        NotApprovedUsers(), store, Rights(), enabled=True)
+    assert coordinator.create("signed-test-jwt", UID, CID, payload()) == (
+        409, {"error": "DAY_NOT_APPROVED"})
+    assert store.inserted == []
+
+
+def test_review_gate_checked_before_image_rights_and_credit_write():
+    class DraftUsers(Users):
+        def campaign(self, token, user, cid):
+            result = super().campaign(token, user, cid)
+            result["days"][0]["review_status"] = "DRAFT"
+            return result
+
+    class NoRightsShouldBeQueried:
+        def valid_media(self, *args):
+            raise AssertionError("Never inspect or reserve unapproved media")
+
+    store = Store()
+    api = PremiumVideoCoordinator(
+        DraftUsers(), store, NoRightsShouldBeQueried(), enabled=True)
+    assert api.create("signed-test-jwt", UID, CID, payload("image", AID))[0] == 409
+    assert store.inserted == []
