@@ -35,6 +35,7 @@ async function loginAs(page, role, { invalid = false } = {}) {
     if (path === '/auth/v1/user') return fulfill(route, { id: USER, email: role.toLowerCase() + '@example.invalid' })
     if (path === '/auth/v1/logout') return fulfill(route, {})
     if (path === '/rest/v1/rpc/retail_platform_me') return fulfill(route, role === 'ROOT')
+    if (path === '/rest/v1/rpc/retail_onboarding_status') return fulfill(route, {status:'APPROVED',approval_required:false})
     if (path === '/rest/v1/rpc/retail_platform_summary') {
       return role === 'ROOT'
         ? fulfill(route, { retailers: 1, trial_shops: 1, active_paid_shops: 0,

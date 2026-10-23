@@ -167,5 +167,97 @@ begin
   end;
   if not denied then raise exception 'FAIL: anonymous identity probe exposed'; end if;
 end $$;
+
+-- A new retailer becomes pending; cannot self-approve or create a business
+-- when the explicit owner-approved gate is switched on in DEV.
+reset role;
+insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
+values('f1000000-0000-4000-8000-000000000004',
+       '00000000-0000-0000-0000-000000000000',
+       'authenticated','authenticated','new-tenant@example.invalid','!',now(),now());
+update retail_private.onboarding_gate set enforce_approval=true where singleton;
+do $
+begin
+  if (select status from retail_private.onboarding_requests
+      where user_id='f1000000-0000-4000-8000-000000000004') <> 'PENDING' then
+    raise exception 'FAIL: signup not enqueued as pending';
+  end if;
+end $;
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','f1000000-0000-4000-8000-000000000004',true);
+do $
+declare denied boolean:=false;
+declare result jsonb;
+begin
+  result:=public.retail_onboarding_status();
+  if result->>'status' <> 'PENDING' or (result->>'approval_required')::boolean is not true then
+    raise exception 'FAIL: pending registration status inaccurate';
+  end if;
+  begin
+    insert into public.shops(id,owner_user_id,name,slug)
+    values('f1000000-0000-4000-8000-000000000021',
+           'f1000000-0000-4000-8000-000000000004',
+           'Unapproved business','unapproved-test-shop');
+  exception when insufficient_privilege then denied:=true;
+  end;
+  if not denied then raise exception 'FAIL: pending signup created a business'; end if;
+  denied:=false;
+  begin
+    perform public.retail_platform_onboarding_requests();
+  exception when insufficient_privilege then denied:=true;
+  end;
+  if not denied then raise exception 'FAIL: new user saw approval inbox'; end if;
+  denied:=false;
+  begin
+    perform public.retail_platform_review_onboarding(
+      'f1000000-0000-4000-8000-000000000004',true,'Self approval not permitted');
+  exception when insufficient_privilege then denied:=true;
+  end;
+  if not denied then raise exception 'FAIL: pending user approved themselves'; end if;
+end $;
+reset role;
+update retail_private.platform_admins set active=true
+where user_id='f1000000-0000-4000-8000-000000000001';
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','f1000000-0000-4000-8000-000000000001',true);
+do $
+declare rows jsonb;
+declare decision jsonb;
+begin
+  rows:=public.retail_platform_onboarding_requests('PENDING',40);
+  if not exists(
+    select 1 from jsonb_array_elements(rows) r
+    where r->>'email'='new-tenant@example.invalid'
+  ) then raise exception 'FAIL: root missing signup approval request'; end if;
+  decision:=public.retail_platform_review_onboarding(
+      'f1000000-0000-4000-8000-000000000004',true,'Verified new retailer manually');
+  if decision->>'status'<>'APPROVED' then
+    raise exception 'FAIL: signed-off approval did not persist'; end if;
+end $;
+select set_config('request.jwt.claim.sub','f1000000-0000-4000-8000-000000000004',true);
+do $
+declare result jsonb;
+begin
+  result:=public.retail_onboarding_status();
+  if result->>'status'<>'APPROVED' then
+    raise exception 'FAIL: customer not approved after root decision';
+  end if;
+end $;
+insert into public.shops(id,owner_user_id,name,slug)
+values('f1000000-0000-4000-8000-000000000021',
+       'f1000000-0000-4000-8000-000000000004',
+       'Approved retailer','approved-test-shop');
+reset role;
+do $
+begin
+  if not exists(select 1 from public.shop_subscriptions
+    where shop_id='f1000000-0000-4000-8000-000000000021'
+      and status='TRIAL') then
+    raise exception 'FAIL: approved new shop did not start 7-day trial';
+  end if;
+end $;
+
 rollback;
 \echo 'PASS platform root login grant, owner/editor/viewer denial, RLS isolation, audited plan change and immediate revocation'

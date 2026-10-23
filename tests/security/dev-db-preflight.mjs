@@ -20,6 +20,7 @@ export const REQUIRED_MIGRATIONS = Object.freeze([
 export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261023134701_p1_subscription_quota.sql',
   '20261023165300_p1_platform_admin.sql',
+  '20261023210000_p1_onboarding_approval.sql',
 ]);
 
 const CAPABILITIES = {
@@ -52,6 +53,15 @@ const CAPABILITIES = {
     /retail_platform_set_subscription/i,
     /assert_platform_admin/i,
     /revoke all on retail_private\.platform_admins/i,
+  ],
+  '20261023210000': [
+    /create table retail_private\.onboarding_requests/i,
+    /retail_private\.onboarding_gate/i,
+    /create trigger retail_queue_on_auth_signup/i,
+    /retail_platform_onboarding_requests/i,
+    /retail_platform_review_onboarding/i,
+    /shop_onboarding_allowed/i,
+    /revoke all on retail_private\.onboarding_requests/i,
   ],
   '20261022220000': [
     /create table public\.job_outbox/i, /create table public\.job_poison_events/i,
