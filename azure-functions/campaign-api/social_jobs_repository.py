@@ -14,6 +14,7 @@ from tenant_store import StorageUnavailable, SubscriptionDenied, canonical_uuid
 
 _RPCS = {
     "p2_create_social_draft", "p2_approve_social_job", "p2_cancel_social_job",
+    "p2_revise_social_draft",
 }
 _ROW_FIELDS = ("id,shop_id,social_account_id,campaign_day_id,provider,"
                "caption,media_asset_id,scheduled_at,timezone,revision,status")
@@ -86,6 +87,15 @@ class SocialAuthoringRepository:
                     or row.get("shop_id") != sid for row in rows)):
             raise StorageUnavailable("social job tenant read mismatch")
         return rows[0] if rows else None
+
+    def revise(self, *, shop_id, job_id, actor, revision, caption,
+               scheduled_at, timezone_name):
+        return self._rpc("p2_revise_social_draft", {
+            "p_shop":canonical_uuid(shop_id), "p_job":canonical_uuid(job_id),
+            "p_actor":canonical_uuid(actor), "p_revision":revision,
+            "p_caption":caption, "p_scheduled_at":scheduled_at.isoformat(),
+            "p_timezone":timezone_name,
+        })
 
     def approve(self, *, shop_id, job_id, actor, revision, digest,
                 caption, scheduled_at, timezone_name, media_id):
