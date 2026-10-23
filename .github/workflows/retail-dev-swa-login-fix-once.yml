@@ -33,7 +33,7 @@ jobs:
           set -euo pipefail
           grep -Fxq 'VITE_SUPABASE_URL=https://jeearzffnjbvghwjjjrf.supabase.co' .env.production
           grep -Fxq 'VITE_CAMPAIGN_API_BASE_URL=https://rgai-dev-functions-d4e5ddbd.azurewebsites.net' .env.production
-          npm ci --no-audit --no-fund
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
           npm test
           npm run build
           test -s dist/index.html
