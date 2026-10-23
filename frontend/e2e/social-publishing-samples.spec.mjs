@@ -36,5 +36,5 @@ test('the sample gallery stays usable in narrow mobile layout', async ({page}) =
   await expect(gallery.getByRole('img', {
     name:'Vertical video placeholder. No media generated or attached.',
   })).toBeVisible()
-  await expect(gallery.getByText('Container creation, FINISHED processing', {exact:false})).toBeVisible()
+  await expect(gallery.getByText('verified FINISHED status, media_publish', {exact:false})).toBeVisible()
 })
