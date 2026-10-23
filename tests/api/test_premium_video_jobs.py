@@ -5,6 +5,26 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] /
                        "azure-functions" / "campaign-api"))
+# This independently-owned workstream targets the provider interface without
+# copying its implementation. CI on the isolated jobs branch stubs it; once
+# provider PR is merged first, pytest imports the real module automatically.
+import importlib.util
+if importlib.util.find_spec("ai_agents.premium_video") is None:
+    import types
+    module = types.ModuleType("ai_agents.premium_video")
+    class FakeWanRequest:
+        def __init__(self, mode, prompt, duration_seconds=5, resolution="720P",
+                     signed_first_frame=None, shop_id=None):
+            self.mode, self.prompt = mode, prompt
+            self.duration_seconds, self.resolution = duration_seconds, resolution
+    class FakePremiumVideoDisabled(RuntimeError):
+        pass
+    module.WanRequest = FakeWanRequest
+    module.AlibabaWanProvider = object
+    module.PremiumVideoDisabled = FakePremiumVideoDisabled
+    module.campaign_video_prompt = lambda day: "Marketing: " + day["topic"]
+    sys.modules["ai_agents.premium_video"] = module
+
 from premium_video_jobs import PremiumVideoCoordinator, PremiumSubmissionWorker
 
 UID = "123e4567-e89b-42d3-a456-426614174001"
