@@ -39,8 +39,11 @@ export function AuthProvider({ children }) {
               expires_at: Number(fragment.get('expires_at')) || undefined,
             })
             if (mounted && sequence.current === epoch) {
-              setUser(verified)
-              setRecoveryMode(type === 'recovery')
+              // Password recovery never creates an app user session:
+              // only the password update endpoint may use its validated token.
+              // This prevents an intermediate render of tenant/root dashboards.
+              if (type === 'recovery') setRecoveryMode(true)
+              else setUser(verified)
             }
           } else if (client.getStoredSession()) {
             const verified = await client.getUser()
@@ -101,7 +104,7 @@ export function AuthProvider({ children }) {
   }, [client])
 
   const requestPasswordReset = useCallback(async (email) => {
-    if (!email || !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) {
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       throw new Error('Enter a valid email address.')
     }
     await client.requestPasswordReset(email)
