@@ -134,12 +134,12 @@ begin
    for update;
   if not found then return null; end if;
 
-  fingerprint := encode(extensions.digest(
+  fingerprint := encode(pg_catalog.sha256(pg_catalog.convert_to(
     jsonb_build_object('actor',actor,'shop',p_shop_id,'campaign',p_campaign_id,
       'day',p_day_id,'source',p_source_asset_id,'logo',p_logo_asset_id,
       'template',p_template,'format',p_format,'brand',trim(p_business_name),
       'accent',p_accent_color,'background',p_background_color,
-      'offer',nullif(trim(p_offer_text),''))::text, 'sha256'), 'hex');
+      'offer',nullif(trim(p_offer_text),''))::text, 'UTF8')), 'hex');
 
   -- Idempotent previews of the *same* parameters always reuse one draft.
   select id into result_id from public.poster_drafts
