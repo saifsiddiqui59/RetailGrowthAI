@@ -181,14 +181,29 @@ def main():
         print("CANARY_REAL_SEVEN_DAY_DRAFT=true")
         day=draft["days"][0]
         update={"topic":day["topic"]+" (reviewed)","linkedin":day["linkedin"],"instagram":day["instagram"]}
-        _,saved=call(API+"/api/campaigns/"+cid+"/days/"+day["id"],method="PATCH",
-            payload=update,headers=a,expect=(200,))
+        try:
+            _,saved=call(API+"/api/campaigns/"+cid+"/days/"+day["id"],method="PATCH",
+                payload=update,headers=a,timeout=120,expect=(200,))
+        except (TimeoutError, ConnectionResetError):
+            # The write MAY already have committed despite losing its response.
+            # NEVER automatically send a second PATCH: reconcile by an RLS-scoped
+            # authenticated GET and fail if the expected value is not present.
+            state=getcampaign()
+            if state.get("status")!="DRAFT":
+                raise RuntimeError("Cannot reconcile lost draft-save response")
+            existing=[d for d in state.get("days",[]) if d.get("id")==day["id"]]
+            if len(existing)!=1 or existing[0].get("topic")!=update["topic"]:
+                raise RuntimeError("Draft save response lost; no confirmed commit, no retry")
+            saved={"day":existing[0]}
+            print("CANARY_PATCH_RESPONSE_LOST_BUT_COMMIT_VERIFIED=true",flush=True)
         if saved.get("day",{}).get("topic")!=update["topic"]:
             raise RuntimeError("Draft save not persisted")
-        print("CANARY_REMOTE_DRAFT_SAVE=true")
+        print("CANARY_REMOTE_DRAFT_SAVE=true",flush=True)
+        # Render POST is not retried on uncertain delivery. Server-side dedup
+        # exists but this canary deliberately avoids replaying billing writes.
         _,render=call(API+"/api/campaigns/"+cid+"/renders",method="POST",
            payload={"day_id":day["id"],"preset":"instagram_reel_30s"},
-           headers=a,expect=(202,))
+           headers=a,timeout=120,expect=(202,))
         job=render["job_id"]
         def statusread():
             return call(API+"/api/render-jobs/"+job,headers=a,expect=(200,))[1]
