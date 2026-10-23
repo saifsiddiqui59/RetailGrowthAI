@@ -101,6 +101,12 @@ export function createSocialApi({ baseUrl, tokenProvider, fetchImpl = fetch }) {
         timezone: schedule(timezone, 'timezone'),
         idempotency_key: schedule(idempotencyKey, 'idempotency key'),
       }),
+    reviseDraft: ({shopId, jobId, expectedRevision, caption, day, clock, timezone}) =>
+      request('POST', '/jobs/revise', {
+        shop_id: id(shopId), job_id: id(jobId), revision: revision(expectedRevision),
+        caption: captionText(caption), day: schedule(day, 'date'),
+        clock: schedule(clock, 'time'), timezone: schedule(timezone, 'timezone'),
+      }),
     approveDraft: (shopId, jobId, expectedRevision) => request('POST', '/jobs/approve', {
       shop_id: id(shopId), job_id: id(jobId), revision: revision(expectedRevision),
     }),

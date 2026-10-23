@@ -10,6 +10,7 @@
 \ir ../../supabase/part2/pending/20261023190600_p2_social_poison_reconciliation.sql
 \ir ../../supabase/part2/pending/20261023190700_p2_social_token_refresh.sql
 \ir ../../supabase/part2/pending/20261023190800_p2_social_media_reviews.sql
+\ir ../../supabase/part2/pending/20261023190900_p2_social_draft_revision.sql
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -191,6 +192,12 @@ begin
     or has_function_privilege('anon',
         'public.p2_social_claim_context(uuid,uuid)','EXECUTE')
     or has_function_privilege('authenticated',
+        'public.p2_revise_social_draft(uuid,uuid,uuid,integer,text,timestamptz,text)',
+        'EXECUTE')
+     or has_function_privilege('anon',
+        'public.p2_revise_social_draft(uuid,uuid,uuid,integer,text,timestamptz,text)',
+        'EXECUTE')
+     or has_function_privilege('authenticated',
         'public.p2_create_social_draft(uuid,uuid,uuid,uuid,uuid,text,text,uuid,timestamptz,text,text)',
         'EXECUTE')
     or has_function_privilege('authenticated',
@@ -266,8 +273,10 @@ declare
   account uuid:='71000000-0000-4000-8000-000000000001';
   job1 uuid:='61000000-0000-4000-8000-000000000001';
   job2 uuid:='61000000-0000-4000-8000-000000000002';
+  job3 uuid:='61000000-0000-4000-8000-000000000003';
   when_utc timestamptz:=now()+interval '2 hours';
   created jsonb;
+  revised jsonb;
   current_claim jsonb;
   server_context jsonb;
   refresh_context jsonb;
@@ -284,6 +293,29 @@ begin
     'Reviewed promotion',null,when_utc,'Asia/Kolkata','review-fixture-001');
   if created->>'id'<>job1::text then
     raise exception 'FAIL: idempotency replay duplicated job';
+  end if;
+  -- Unapproved edits must bump revision. Neither forged actors nor stale
+  -- approval requests can overwrite newly reviewed text/time.
+  perform public.p2_create_social_draft(
+    job3,shop,actor,day,account,'linkedin',
+    'Unreviewed original',null,when_utc,'Asia/Kolkata','draft-revise-001');
+  if public.p2_revise_social_draft(shop,job3,
+      'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',1,
+      'foreign actor',when_utc,'Asia/Kolkata') is not null then
+    raise exception 'FAIL: foreign actor changed draft';
+  end if;
+  revised:=public.p2_revise_social_draft(shop,job3,actor,1,
+      'Revised safe copy',when_utc+interval '1 hour','Asia/Kolkata');
+  if revised->>'id'<>job3::text or revised->>'revision'<>'2'
+      or (select caption from public.social_publish_jobs where id=job3)
+         <> 'Revised safe copy' then
+    raise exception 'FAIL: draft revision not persisted';
+  end if;
+  if public.p2_revise_social_draft(shop,job3,actor,1,
+       'stale revision',when_utc,'Asia/Kolkata') is not null
+     or public.p2_approve_social_job(shop,job3,actor,1,repeat('aa',32),
+       'Unreviewed original',when_utc,'Asia/Kolkata',null) then
+    raise exception 'FAIL: stale authoring revision/approval was accepted';
   end if;
   if public.p2_approve_social_job(
     shop,job1,actor,1,repeat('ab',32),'changed content',

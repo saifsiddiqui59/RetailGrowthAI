@@ -14,6 +14,7 @@ export function SocialAuthoringPanel({ api, shopId, zone, days, accounts, jobs,
   const [clock, setClock] = useState('10:00')
   const [actionBusy, setActionBusy] = useState(false)
   const [reviewId, setReviewId] = useState('')
+  const [editing, setEditing] = useState(null)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const idempotency = useRef(null)
@@ -23,6 +24,7 @@ export function SocialAuthoringPanel({ api, shopId, zone, days, accounts, jobs,
     setAccountId('')
     setCaption('')
     setReviewId('')
+    setEditing(null)
     setNotice('')
     setError('')
     idempotency.current = null
@@ -65,6 +67,36 @@ export function SocialAuthoringPanel({ api, shopId, zone, days, accounts, jobs,
       })
       idempotency.current = null
       setNotice('Draft saved. Review its exact text before approving a publish quota reservation.')
+      await onUpdated()
+    } catch (failure) {
+      setError(failure.message)
+    } finally {
+      setActionBusy(false)
+    }
+  }
+
+  function beginEdit(job) {
+    if (!canWrite || job.status !== 'DRAFT') return
+    setReviewId('')
+    setNotice('')
+    setError('')
+    setEditing({id: job.id, revision: job.revision,
+      caption: job.caption, day: '', clock: '10:00'})
+  }
+
+  async function saveEdit(event) {
+    event.preventDefault()
+    if (!editing || !canWrite || !api || !shopId) return
+    setActionBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      await api.reviseDraft({shopId, jobId: editing.id,
+        expectedRevision: editing.revision, caption: editing.caption,
+        day: editing.day, clock: editing.clock, timezone: zone})
+      setEditing(null)
+      setReviewId('')
+      setNotice('Draft revised. Review the updated text and time again before approval.')
       await onUpdated()
     } catch (failure) {
       setError(failure.message)
@@ -161,6 +193,30 @@ export function SocialAuthoringPanel({ api, shopId, zone, days, accounts, jobs,
         disabled={!canWrite || actionBusy || reviewId !== job.id}>
         Approve and reserve publishing quota
       </button>}
+      {job.status === 'DRAFT' && <button type="button"
+        onClick={()=>editing?.id === job.id ? setEditing(null) : beginEdit(job)}
+        disabled={!canWrite || actionBusy}>
+        {editing?.id === job.id ? 'Close editor' : 'Edit draft / reschedule'}
+      </button>}
+      {job.status === 'DRAFT' && editing?.id === job.id &&
+        <form onSubmit={saveEdit} style={{display:'grid',gap:8,marginTop:12,maxWidth:650}}>
+          <label htmlFor={'social-revise-caption-' + job.id}>Revised caption</label>
+          <textarea id={'social-revise-caption-' + job.id} required rows={4}
+            maxLength={5000} value={editing.caption} disabled={actionBusy}
+            onChange={event=>setEditing(old=>({...old,caption:event.target.value}))}/>
+          <label htmlFor={'social-revise-date-' + job.id}>New local publish date</label>
+          <input id={'social-revise-date-' + job.id} type="date" required
+            value={editing.day} disabled={actionBusy}
+            onChange={event=>setEditing(old=>({...old,day:event.target.value}))}/>
+          <label htmlFor={'social-revise-time-' + job.id}>New local publish time ({zone})</label>
+          <input id={'social-revise-time-' + job.id} type="time" required
+            value={editing.clock} disabled={actionBusy}
+            onChange={event=>setEditing(old=>({...old,clock:event.target.value}))}/>
+          <p>Saving increases the draft revision and invalidates prior review intent.
+            Approved or possibly sent posts cannot be edited here.</p>
+          <button type="submit" disabled={actionBusy || !editing.day ||
+            !editing.caption.trim()}>Save revised draft</button>
+        </form>}
       {' '}
       <button type="button" onClick={()=>changeJob('cancel',job)}
         disabled={!canWrite || actionBusy}>Cancel unsent job</button>
