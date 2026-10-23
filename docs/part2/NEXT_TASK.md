@@ -66,3 +66,16 @@ Completed, not repeat: PR #140 OAuth routes, #141 LinkedIn adapter, #143 gated U
 3. Add server-authoritative media license/probe review and grant to Instagram/YouTube approval; current P2 staged authoring SQL intentionally returns false for both video providers. Implement Meta and LinkedIn OAuth upstream transports/refresh/revocation with app approvals before registering their OAuth builder providers.
 4. Complete a dedicated Azure queue adapter, due timer, poisoned attempt recovery, fixed provider outbound HTTP clients, token refresh/credential loading and provider receipts; preserve claim-before-send and RECONCILE on ambiguity.
 5. Run real mocked browser and SQL concurrent CAS negative tests; require 4/4 combined P2 integration head, but hosted P2 migrations and actual platform content require separate explicit owner authorization. Keep final PR to main unopened until complete.
+
+
+## After #155 and #156 — highest-priority unfinished work
+1. Review [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) exact four Actions jobs, fix within text-transport branch and self-merge to Part2 integration only if green. Do not silently enable live outbound posts.
+2. Build service-only credential decrypt/refresh and context loader that verifies shop/account role, original approval hash, quota reservation, media rights, current scopes, platform limits and private claim token before publishing.
+3. Wire dedicated social Azure Queue consumer, scheduled due scanner, poison and reconciliation workers only once `social_dispatch.process_publish` and staged RPC safety are fully covered; a possibly successful external create-post must never auto-repeat.
+4. Complete Instagram Reel container processing and `media_publish` receipt and YouTube resumable binary upload completion/verification. Use approved rights/FFprobe/provenance records and no user-supplied public video URL. Include cross-tenant, expired rights, revoked grants and failed provider receipts.
+5. Finish frontend editing, rescheduling/revoking stale approvals and Playwright/mock E2E. The initial reviewed form supports text-only Facebook/LinkedIn drafts; video authoring approval is intentionally denied until media certification exists.
+6. Keep P2 migrations in `supabase/part2/pending`, all browser/backend publishing switches OFF and no live account/content action without specific approval. Reconcile newer `main` `1c59f981`; final Part2->main Coordinator PR remains blocked.
+
+
+## 2026-10-23 — Verified follow-up: text posting source #158
+PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed **4/4** on [Actions #40007522818](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40007522818) and was internally squash-merged into feat/part2-integration as `80805066`. This supersedes any earlier note calling #158 pending. It implements source-only, opt-in Facebook Page text and LinkedIn member text request/receipt checks with uncertainty handled as RECONCILE. **Not yet activated:** real provider publishing, worker connection, hosted P2 migrations, approved OAuth apps, video uploads and independent publishing quotas. Next task is the secure credential loader and server-authoritative job-context worker with test-only provider calls.
