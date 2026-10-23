@@ -96,3 +96,5 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 4. Verify four-job exact integration CI, update part2 handoff and only then offer a final Part2-to-main PR to Coordinator. Separate owner approvals required for hosted SQL, OAuth app reviews, Azure triggers, plan publishing limits and any real posts.
 
 5. Inspect [PR #180](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/180) actual Playwright browser E2E CI, fix test/product regressions without skipping checks, merge only when four jobs green, then recheck exact integration CI. Source-only #178 JWT redirect fix is already 4/4 and merged; no hosted feature flags are enabled.
+
+6. `main` now `d590a3cf` (diverged; 12 ahead/47 behind against P2 `b78cd4d0` as checked). Coordinator compatibility pass must preserve newer P1 onboarding approval SQL, platform admin/auth SPA fixes, main App.jsx and release workflows. No final PR until refreshed safety review.
