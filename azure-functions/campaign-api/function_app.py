@@ -1,6 +1,8 @@
 """Azure Functions v2 HTTP entrypoint; cloud deployment is NOT performed by CI."""
 import json
 import os
+import time
+from ai_agents.observability import emit, ms, trace_id
 
 import azure.functions as func
 
@@ -37,6 +39,8 @@ def build_api():
 
 
 def dispatch(request, path):
+    trace = trace_id()
+    started = time.monotonic()
     try:
         api = build_api()
         try:
@@ -49,9 +53,13 @@ def dispatch(request, path):
         )
     except (KeyError, ValueError):
         code, payload = 503, {"error": "SERVICE_NOT_CONFIGURED"}
+    emit("http.request", trace=trace,
+         status="ok" if code < 400 else ("denied" if code in (401,403) else "failed"),
+         latency_ms=ms(started))
     return func.HttpResponse(
         json.dumps(payload), status_code=code, mimetype="application/json",
-        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+                 "X-Request-ID": trace},
     )
 
 

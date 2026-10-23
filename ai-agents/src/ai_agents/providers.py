@@ -19,6 +19,7 @@ from urllib.request import Request, urlopen
 
 from .planner import generate_campaign
 from .reviewer import review_campaign
+from .observability import emit, ms, trace_id
 from .schemas import CampaignBrief, ContractError, validate_campaign
 
 
@@ -83,7 +84,7 @@ class AzureFoundryProvider:
                 raise FoundryUnavailable("Foundry returned unexpected HTTP status")
             return json.loads(response.read(250_000).decode("utf-8"))
 
-    def _copy(self, request: CampaignBrief) -> list[dict]:
+    def _copy(self, request: CampaignBrief, *, campaign_id: str = '') -> list[dict]:
         url = self._url()
         if len(self.api_key) < 8:
             raise FoundryUnavailable("Foundry API key missing")
@@ -121,7 +122,11 @@ class AzureFoundryProvider:
         }, ensure_ascii=False).encode("utf-8")
         headers = {"Content-Type": "application/json", "api-key": self.api_key,
                    "User-Agent": "RetailGrowthAI-Part1/1.0"}
+        correlation = trace_id()
         for attempt in range(3):
+            started = time.monotonic()
+            emit("foundry.call", trace=correlation, status="pending",
+                 mode="foundry", model=self.deployment, campaign_id=campaign_id, shop_id=request.shop_id)
             try:
                 response = self._transport(url, headers, body)
                 usage = response.get("usage") or {}
@@ -136,11 +141,18 @@ class AzureFoundryProvider:
                 items = payload["days"]
                 if not isinstance(items, list) or len(items) != request.duration_days:
                     raise ValueError("incorrect day count")
+                emit("foundry.response", trace=correlation, status="ok",
+                     mode="foundry", model=self.deployment, campaign_id=campaign_id, shop_id=request.shop_id, latency_ms=ms(started),
+                     total_tokens=usage.get("total_tokens", 0))
                 return items
             except HTTPError as exc:
+                emit("foundry.error", trace=correlation, status="failed",
+                     mode="foundry", model=self.deployment, latency_ms=ms(started))
                 if exc.code not in (429, 500, 502, 503, 504) or attempt == 2:
                     raise FoundryUnavailable("Foundry request rejected (HTTP %s)" % exc.code) from None
             except (TimeoutError, URLError, OSError) as exc:
+                emit("foundry.error", trace=correlation, status="unavailable",
+                     mode="foundry", model=self.deployment, latency_ms=ms(started))
                 if attempt == 2:
                     raise FoundryUnavailable("Foundry network request failed") from exc
             except (KeyError, IndexError, ValueError, TypeError, json.JSONDecodeError) as exc:
@@ -155,7 +167,7 @@ class AzureFoundryProvider:
             if not self.configured:
                 raise RuntimeError("Azure AI Foundry is not configured; use MockFoundryProvider for offline tests")
             result = generate_campaign(request, campaign_id=campaign_id)
-            for day, draft in zip(result["days"], self._copy(request), strict=True):
+            for day, draft in zip(result["days"], self._copy(request, campaign_id=campaign_id), strict=True):
                 if not isinstance(draft, dict) or set(draft) != {
                     "topic", "linkedin_post", "linkedin_hashtags", "instagram_caption"
                 }:
