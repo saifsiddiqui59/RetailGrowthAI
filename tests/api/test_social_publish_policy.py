@@ -57,12 +57,11 @@ def test_approved_reel_requires_verified_provenance_and_exact_digest():
 def test_guards_fail_closed(path,new_value):
     kw=fixture()
     keys=path.split(".")
+    if path.startswith("media.probe."):
+        kw["media"]["probe"]=dict(kw["media"]["probe"])
     current=kw
     for k in keys[:-1]:
         current=current[k]
-    if path.startswith("media.probe"):
-        current["probe"]=dict(current["probe"])
-        current=current["probe"]
     current[keys[-1]]=new_value
     with pytest.raises(p.PublishDenied):
         p.check_approval(**kw)
