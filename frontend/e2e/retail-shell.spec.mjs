@@ -20,6 +20,7 @@ async function mockUser(page, { viewer = false, failMetric = false } = {}) {
     if (request.method() === 'OPTIONS') return response(route, {})
     if (path === '/auth/v1/user') return response(route, { id: USER, email: 'owner@example.test' })
     if (path === '/rest/v1/rpc/retail_platform_me') return response(route, false)
+    if (path === '/rest/v1/rpc/retail_onboarding_status') return response(route, {status:'APPROVED',approval_required:false})
     if (path === '/rest/v1/shop_memberships') return response(route, [{ shop_id: SHOP, active: true,
       role: viewer ? 'VIEWER' : 'OWNER' }])
     if (path === '/rest/v1/shops') return response(route, [{ id: SHOP, name: 'Test Boutique', slug: 'test-boutique' }])

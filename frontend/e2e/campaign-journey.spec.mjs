@@ -82,6 +82,7 @@ async function mockServices(page, options = {}) {
     }
     if (path === '/auth/v1/logout') return payload(200, null, route)
     if (path === '/rest/v1/rpc/retail_platform_me') return payload(200, false, route)
+    if (path === '/rest/v1/rpc/retail_onboarding_status') return payload(200, {status:'APPROVED',approval_required:false},route)
     if (path === '/rest/v1/shop_memberships') return payload(200, [
       { shop_id: SHOP, role: options.viewer ? 'VIEWER' : 'OWNER', active: true },
     ], route)

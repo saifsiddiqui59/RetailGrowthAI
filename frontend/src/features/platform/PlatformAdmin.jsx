@@ -64,6 +64,46 @@ export default function PlatformAdmin() {
   const [reason, setReason] = useState('')
   const [confirmed, setConfirmed] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewRows, setReviewRows] = useState([])
+  const [reviewPending, setReviewPending] = useState(false)
+  const [reviewError, setReviewError] = useState('')
+  const [reviewReason, setReviewReason] = useState('')
+  const [reviewUser, setReviewUser] = useState('')
+  const [reviewConfirm, setReviewConfirm] = useState(false)
+  const [reviewSaving, setReviewSaving] = useState(false)
+  const [reviewVersion, setReviewVersion] = useState(0)
+
+  useEffect(() => {
+    let current = true
+    if (!reviewOpen) return () => { current = false }
+    setReviewPending(true)
+    setReviewError('')
+    client.listPlatformOnboardingRequests('PENDING')
+      .then(rows => { if (current) setReviewRows(rows) })
+      .catch(() => { if (current) setReviewError('Approval requests could not be loaded. Do not assume the queue is empty.') })
+      .finally(() => { if (current) setReviewPending(false) })
+    return () => { current = false }
+  }, [client, reviewOpen, reviewVersion])
+
+  async function reviewRequest(accountId, approve) {
+    if (!reviewConfirm || reviewSaving || reviewUser !== accountId) return
+    setReviewSaving(true)
+    setReviewError('')
+    try {
+      await client.reviewPlatformOnboarding(accountId, approve, reviewReason)
+      setReviewUser('')
+      setReviewConfirm(false)
+      setReviewReason('')
+      setMessage(approve ? 'Retailer onboarding approved.' : 'Retailer onboarding rejected.')
+      setReviewVersion(value => value + 1)
+    } catch {
+      setReviewError('Approval decision was not accepted. Refresh before trying again.')
+    } finally {
+      setReviewSaving(false)
+    }
+  }
+
 
   useEffect(() => {
     let active = true
@@ -161,6 +201,53 @@ export default function PlatformAdmin() {
           <div><strong>{warning.title}</strong><p>{warning.detail}</p></div>
         </div>)}
       </div>}
+    </section>
+    <section className="panel platform-approvals" aria-label="Retailer approval center">
+      <div className="panel-heading"><div><div className="eyebrow">SAAS OWNER ACTIONS</div>
+        <h2>Retailer signup approvals</h2></div>
+        <button className="subtle-button" type="button"
+          onClick={() => setReviewOpen(open => !open)} aria-expanded={reviewOpen}>
+          {reviewOpen ? 'Hide requests' : 'Review requests'}
+        </button>
+      </div>
+      <p>New RetailGrowthAI Auth registrations are queued separately from email verification.
+        Decisions are restricted to Platform Super Admin and stored with an audit reason.
+        Approval does not charge a customer or send an email.</p>
+      {reviewOpen && <>
+        <button className="subtle-button" type="button"
+          onClick={() => setReviewVersion(v => v+1)}>Refresh queue</button>
+        {reviewPending && <p role="status">Loading pending retailer requests…</p>}
+        {reviewError && <p role="alert" className="notice-error">{reviewError}</p>}
+        {!reviewPending && !reviewError && reviewRows.length === 0 &&
+          <p role="status">No pending retailer approval requests.</p>}
+        {!reviewPending && reviewRows.map(entry => <div className="platform-review-item" key={entry.user_id}>
+          <div><strong>{entry.email}</strong><small>Requested {new Date(entry.requested_at).toLocaleString('en-IN')}</small></div>
+          {reviewUser !== entry.user_id
+            ? <button className="subtle-button" onClick={() => {
+              setReviewUser(entry.user_id)
+              setReviewReason('')
+              setReviewConfirm(false)
+            }}>Review account</button>
+            : <div className="platform-review-action">
+              <label>Reason for decision (10–300 characters)
+                <textarea aria-label="Decision reason" maxLength={300} minLength={10}
+                  value={reviewReason} onChange={e => setReviewReason(e.target.value)} />
+              </label>
+              <label className="platform-review-confirm">
+                <input type="checkbox" checked={reviewConfirm}
+                  onChange={e => setReviewConfirm(e.target.checked)}/>
+                I verified this account request and authorize the decision.
+              </label>
+              <div className="platform-review-buttons">
+                <button type="button" disabled={reviewSaving || !reviewConfirm || reviewReason.trim().length < 10}
+                  onClick={() => reviewRequest(entry.user_id,true)}>Approve</button>
+                <button type="button" disabled={reviewSaving || !reviewConfirm || reviewReason.trim().length < 10}
+                  onClick={() => reviewRequest(entry.user_id,false)}>Reject</button>
+                <button type="button" disabled={reviewSaving} onClick={() => setReviewUser('')}>Cancel</button>
+              </div>
+            </div>}
+        </div>)}
+      </>}
     </section>
     <section className="panel">
       <div className="panel-heading">

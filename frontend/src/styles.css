@@ -245,3 +245,16 @@ h2 { letter-spacing: -.025em; }
  .login-form-side { min-height:100dvh; padding:35px 20px; }
  .login-mobile-brand { display:flex; align-items:center; gap:12px; font-size:19px; font-weight:850; margin-bottom:60px; }
 }
+
+/* Distinct SaaS Owner onboarding approval queue; never email credentials in UI. */
+.platform-approvals { margin-bottom:22px; }
+.platform-approvals .platform-review-item { display:flex;gap:18px;align-items:start;justify-content:space-between;flex-wrap:wrap;padding:16px 0;border-top:1px solid #e3e8ec; }
+.platform-review-item strong,.platform-review-item small { display:block;overflow-wrap:anywhere; }
+.platform-review-item small { color:#7b8b98;margin-top:5px; }
+.platform-review-action { flex:1;min-width:min(100%,300px);display:grid;gap:12px; }
+.platform-review-action label { display:grid;gap:8px;font-weight:650;font-size:12px; }
+.platform-review-action textarea { border:1px solid #cbd9df;border-radius:10px;padding:10px;font:inherit;min-height:80px; }
+.platform-review-confirm { display:flex!important;align-items:center;gap:9px; }
+.platform-review-buttons { display:flex;gap:9px;flex-wrap:wrap; }
+.platform-review-buttons button { border:1px solid #c6d9d4;color:#174c40;background:#f1f9f5;padding:9px 15px;border-radius:9px;cursor:pointer; }
+.platform-review-buttons button:disabled { opacity:.5;cursor:not-allowed; }
