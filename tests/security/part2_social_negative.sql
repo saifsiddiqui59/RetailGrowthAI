@@ -6,6 +6,7 @@
 \ir ../../supabase/part2/pending/20261023190200_p2_social_quota_reservation.sql
 \ir ../../supabase/part2/pending/20261023190300_p2_social_dispatch_claims.sql
 \ir ../../supabase/part2/pending/20261023190400_p2_social_authoring.sql
+\ir ../../supabase/part2/pending/20261023190500_p2_social_claim_context.sql
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -183,6 +184,10 @@ begin;
 do $$
 begin
   if has_function_privilege('authenticated',
+        'public.p2_social_claim_context(uuid,uuid)','EXECUTE')
+    or has_function_privilege('anon',
+        'public.p2_social_claim_context(uuid,uuid)','EXECUTE')
+    or has_function_privilege('authenticated',
         'public.p2_create_social_draft(uuid,uuid,uuid,uuid,uuid,text,text,uuid,timestamptz,text,text)',
         'EXECUTE')
     or has_function_privilege('authenticated',
@@ -260,6 +265,8 @@ declare
   job2 uuid:='61000000-0000-4000-8000-000000000002';
   when_utc timestamptz:=now()+interval '2 hours';
   created jsonb;
+  current_claim jsonb;
+  server_context jsonb;
   denied boolean:=false;
 begin
   created:=public.p2_create_social_draft(
@@ -301,6 +308,40 @@ begin
   if not denied or
      (select status from public.social_publish_jobs where id=job2)<>'DRAFT' then
     raise exception 'FAIL: exceeding quota committed approval';
+  end if;
+  -- The private context requires a matching active claim and credentials.
+  insert into retail_private.social_account_credentials(
+    social_account_id,encryption_key_version,access_token_ciphertext,
+    expires_at)
+  values(account,1,decode(repeat('cd',80),'hex'),now()+interval '1 day');
+  -- Move the fixture to due state to exercise the claim; a real worker would
+  -- still independently reject the now-stale content digest before sending.
+  update public.social_publish_jobs
+    set scheduled_at=now()-interval '2 minutes' where id=job1;
+  current_claim:=public.p2_claim_social_publish(job1);
+  if current_claim is null then
+    raise exception 'FAIL: eligible fixture did not create an atomic claim';
+  end if;
+  if public.p2_social_claim_context(job1,gen_random_uuid()) is not null then
+    raise exception 'FAIL: unknown claim can access private credentials';
+  end if;
+  server_context:=public.p2_social_claim_context(
+    job1,(current_claim->>'claim_token')::uuid);
+  if server_context is null
+    or server_context->>'shop_id'<>shop::text
+    or server_context->'account'->>'provider'<>'linkedin'
+    or server_context->'credential'->>'key_version'<>'1'
+    or length(server_context->'credential'->>'access_ciphertext_hex')<>160
+    or server_context->'job'->>'status'<>'APPROVED' then
+    raise exception 'FAIL: server claim context missing or untrusted';
+  end if;
+  -- Never store a plaintext provider token in the public social job.
+  if server_context::text like '%PLAINTEXT_PROVIDER_TOKEN%' then
+    raise exception 'FAIL: private context leaked plaintext token';
+  end if;
+  if not public.p2_finish_social_publish(
+      job1,(current_claim->>'claim_token')::uuid,'RETRYABLE','NOT_SENT',null) then
+    raise exception 'FAIL: definitely-unsent fixture claim did not finish';
   end if;
   if not public.p2_cancel_social_job(shop,job1,actor,1)
      or public.p2_cancel_social_job(shop,job1,actor,1)
