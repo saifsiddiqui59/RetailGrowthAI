@@ -36,7 +36,7 @@ export function SocialWorkspace() {
   const authoringEnabled = enabled && import.meta.env?.VITE_PART2_SOCIAL_AUTHORING_ENABLED === 'true'
   const api = useMemo(() => enabled && user
     ? createSocialApi({baseUrl: import.meta.env?.VITE_CAMPAIGN_API_BASE_URL,
-                        tokenProvider: () => client.accessToken()})
+                        tokenProvider: () => client.getAccessToken()})
     : null, [enabled, user, client])
 
   useEffect(() => {
