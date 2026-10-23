@@ -26,7 +26,7 @@ class SocialJobsAPI:
 
     def handle(self, operation, authorization, body):
         try:
-            if operation not in ("create", "approve", "cancel"):
+            if operation not in ("create", "revise", "approve", "cancel"):
                 return 404, {"error": "NOT_FOUND"}
             if (not isinstance(authorization, str) or
                     not authorization.startswith("Bearer ")):
@@ -40,6 +40,8 @@ class SocialJobsAPI:
                 return 403, {"error": "FORBIDDEN"}
             if operation == "create":
                 return self._create(token, user_id, sid, body)
+            if operation == "revise":
+                return self._revise(user_id, sid, body)
             if operation == "approve":
                 return self._approve(user_id, sid, body)
             return self._cancel(user_id, sid, body)
@@ -100,6 +102,32 @@ class SocialJobsAPI:
             raise StorageUnavailable("invalid database draft receipt")
         jid = canonical_uuid(result.get("id"))
         return 201, {"id": jid, "status": result["status"], "revision": 1}
+
+    def _revise(self, uid, sid, body):
+        if set(body) != {"shop_id", "job_id", "revision", "caption",
+                         "day", "clock", "timezone"}:
+            return 400, {"error": "INVALID_REQUEST"}
+        jid = canonical_uuid(body["job_id"])
+        revision = body["revision"]
+        if type(revision) is not int or not 1 <= revision < 2147483647:
+            return 400, {"error": "INVALID_REVISION"}
+        caption = body["caption"]
+        if (not isinstance(caption, str) or not 1 <= len(caption.strip()) <= 5000
+                or any(ord(char) < 32 for char in caption)):
+            return 400, {"error": "INVALID_CAPTION"}
+        scheduled_at = schedule_utc(day=body["day"], clock=body["clock"],
+                                    zone=body["timezone"], now_utc=self.clock())
+        result = self.repository.revise(
+            shop_id=sid, job_id=jid, actor=uid, revision=revision,
+            caption=caption, scheduled_at=scheduled_at,
+            timezone_name=body["timezone"])
+        if result is None:
+            return 409, {"error": "REVIEWED_CONTENT_CHANGED"}
+        if (not isinstance(result, dict) or result.get("id") != jid
+                or result.get("status") != "DRAFT"
+                or result.get("revision") != revision+1):
+            raise StorageUnavailable("untrusted social revision result")
+        return 200, {"id": jid, "status": "DRAFT", "revision": revision+1}
 
     def _approve(self, uid, sid, body):
         if set(body) != {"shop_id", "job_id", "revision"}:
