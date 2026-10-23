@@ -1,0 +1,53 @@
+name: RetailGrowthAI DEV authenticated-route gateway preflight (no JWT)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/retail-dev-route-probe-once.yml']
+permissions:
+  contents: read
+jobs:
+  gateway-routes:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - name: Exercise only missing-credential protected route surface; no tenant IDs or writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin=https://rgai-dev-functions-d4e5ddbd.azurewebsites.net
+          marker=11111111-1111-4111-8111-111111111111
+          specs=(
+            'POST /api/campaigns'
+            "GET /api/campaigns/$marker"
+            "PATCH /api/campaigns/$marker/days/$marker"
+            "POST /api/campaigns/$marker/renders"
+            "GET /api/render-jobs/$marker"
+          )
+          for item in "${specs[@]}"; do
+            method="${item%% *}"
+            path="${item#* }"
+            passed=0
+            for attempt in 1 2 3 4; do
+              code="$(curl -sS --connect-timeout 10 --max-time 28 \
+                -o /dev/null -w '%{http_code}' \
+                -X "$method" -H 'Content-Type: application/json' -d '{}' \
+                "$origin$path")" && rc=0 || rc=$?
+              echo "ROUTE_PROBE method=$method route=${path//\/$marker/\/{id}} attempt=$attempt status=$code curl_rc=$rc"
+              if [ "$rc" -eq 0 ] && [ "$code" = 401 ]; then
+                passed=1
+                break
+              fi
+              if [[ "$code" != 000 && "$code" != 502 && "$code" != 503 && "$code" != 504 ]]; then
+                echo "::error::Unexpected response for protected route"
+                exit 3
+              fi
+              sleep 8
+            done
+            if [ "$passed" -ne 1 ]; then
+              echo "::error::Protected route could not reach authentication handler"
+              exit 3
+            fi
+            echo "PASS_PROTECTED_ROUTE method=$method path=${path//\/$marker/\/{id}}"
+          done
+          echo 'PASS all five route bindings reach authentication, no real JWT/data supplied'
