@@ -58,3 +58,11 @@ Separate approvals are mandatory before hosted DEV SQL, Azure deployment, provid
 7. Seek **separate explicit approvals** for (a) hosted P2 database migration, (b) Azure backend/worker deployment, (c) installing OAuth apps with required reviews/secrets, (d) test/sandbox content publishing and (e) published plan quotas. None are implied by ordinary internal PR merges.
 
 Completed, not repeat: PR #140 OAuth routes, #141 LinkedIn adapter, #143 gated UI, #144 quota source, #145 Meta account adapter (all 4/4 exact feature-head CI and merged to Part2 integration). Their implementation is not evidence of hosted functionality.
+
+
+## Next executable cross-workstream priority after #150/#152
+1. Review current `main` `a1bac624` Part1 login-first/admin UX against current P2 root `App.jsx`. Coordinator retains final Part2-to-main integration; do not overwrite P1.
+2. Connect browser social draft/approve/cancel UX to flagged `/api/social/jobs/{create,approve,cancel}`; collect customer review intent and selected real campaign days/accounts, show quota/denial errors, support revoke/edit/reschedule invalidating stale hashes.
+3. Add server-authoritative media license/probe review and grant to Instagram/YouTube approval; current P2 staged authoring SQL intentionally returns false for both video providers. Implement Meta and LinkedIn OAuth upstream transports/refresh/revocation with app approvals before registering their OAuth builder providers.
+4. Complete a dedicated Azure queue adapter, due timer, poisoned attempt recovery, fixed provider outbound HTTP clients, token refresh/credential loading and provider receipts; preserve claim-before-send and RECONCILE on ambiguity.
+5. Run real mocked browser and SQL concurrent CAS negative tests; require 4/4 combined P2 integration head, but hosted P2 migrations and actual platform content require separate explicit owner authorization. Keep final PR to main unopened until complete.
