@@ -8,8 +8,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "azure-functions/campaign-api"))
 from social_oauth import OAuthDenied
-from social_oauth_http import OAuthHTTPAPI, build_oauth_api, google_transport
-from social_youtube_oauth import TOKEN_URL
+from social_oauth_http import OAuthHTTPAPI, build_oauth_api, google_transport, TOKEN_URL
 
 
 SHOP = "10000000-0000-4000-8000-000000000001"
