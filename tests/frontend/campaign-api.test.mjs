@@ -108,3 +108,35 @@ test('remote edit conflict returns a 409 rather than silently overwriting', asyn
     topic: 'Test', linkedin: {}, instagram: {},
   }), error => error.status === 409)
 })
+
+test('expired API token never returns a successful draft and a missing session blocks requests', async () => {
+  let calls = 0
+  const expired = createCampaignApi({
+    baseUrl: 'https://retail-api.example.com',
+    tokenProvider: async () => 'expired',
+    fetchImpl: async (_, options) => {
+      calls++
+      assert.equal(options.cache, 'no-store')
+      return { ok: false, status: 401, json: async () => ({ error: 'UNAUTHORIZED' }) }
+    },
+  })
+  await assert.rejects(() => expired.getCampaign(ID), error =>
+    error.status === 401 && /sign in again/.test(error.message))
+  assert.equal(calls, 1)
+  const unauthenticated = createCampaignApi({
+    baseUrl: 'https://retail-api.example.com',
+    tokenProvider: async () => '',
+    fetchImpl: async () => { throw new Error('Should never fetch without JWT') },
+  })
+  await assert.rejects(() => unauthenticated.getCampaign(ID), /sign in again/)
+})
+
+test('frontend rejects origin credentials, query keys and non-HTTPS signed URLs', () => {
+  for (const baseUrl of ['https://user:pass@api.example', 'https://api.example?token=x',
+    'https://api.example/api', 'https://api.example/#fragment']) {
+    assert.throws(() => createCampaignApi({ baseUrl, tokenProvider: async () => 'jwt' }), /HTTPS origin/)
+  }
+  assert.throws(() => validateSignedVideoUrl(
+    'http://my-shop.supabase.co/storage/v1/object/sign/retailgrowth-media/x?token=abc',
+    'https://my-shop.supabase.co'), /private storage/)
+})

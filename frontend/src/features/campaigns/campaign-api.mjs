@@ -30,7 +30,7 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch })
     const token = await tokenProvider()
     if (typeof token !== 'string' || !token) throw new Error('Please sign in again')
     const response = await fetchImpl(origin + '/api' + path, {
-      method, redirect: 'error',
+      method, redirect: 'error', cache: 'no-store',
       headers: {
         Authorization: 'Bearer ' + token,
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
@@ -38,6 +38,11 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch })
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     })
     const data = await response.json().catch(() => null)
+    if (response.status === 401) {
+      const error = new Error('Session expired. Please sign in again from Account.')
+      error.status = 401
+      throw error
+    }
     if (!response.ok) {
       const error = new Error(data?.error || 'Campaign API request failed')
       error.status = response.status
