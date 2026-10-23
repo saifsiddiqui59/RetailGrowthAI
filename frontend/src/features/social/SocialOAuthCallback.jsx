@@ -37,7 +37,7 @@ export function SocialOAuthCallback() {
     try {
       api = createSocialApi({
         baseUrl: import.meta.env?.VITE_CAMPAIGN_API_BASE_URL,
-        tokenProvider: () => client.accessToken(),
+        tokenProvider: () => client.getAccessToken(),
       })
       if (!api) throw new Error('not configured')
     } catch {
