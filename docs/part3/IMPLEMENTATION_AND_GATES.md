@@ -37,3 +37,10 @@
 - The additive premium React panel was mounted on `feat/part3-integration` after the standard FFmpeg RenderStatus. All entitlement/endpoint/enablement props default to false; this is a **disabled informational option**, never a paid request. Final Coordinator must approve shared `CampaignDashboard.jsx` placement and `.github/workflows/frontend-bootstrap.yml` branch target change before main integration.
 - Current work has **no registered premium job REST or Azure queue route**. Staged SQL is **not** in `supabase/migrations` and therefore is not an executable/migrated feature. Do not interpret green mock CI as production or hosted premium video.
 - Main advanced independently during Part 3 work. Final Coordinator must rebase carefully and rerun all existing CI after resolving any merge conflict, retaining later Part 1 subscription/navigation updates and all Part 2 files.
+
+## 2026-10-24 — Latest additive internal milestones (supersedes older pending notes)
+- [#193](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/193): real local synthetic 30s FFmpeg/H264/AAC smoke; not vendor output.
+- [#194](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/194): source-only disabled JWT HTTP premium create/status/private download; not an Azure route.
+- [#195](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/195): exact APPROVED review gate prevents paid transfer of Part1 default DRAFT campaign days; staged SQL not applied, safe approval endpoint pending.
+- [#196](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/196): isolated, source-only premium Azure queue + CAS outbox/poison design, not provisioned nor active.
+- All four internal PRs passed dedicated P3 2/2 and standard 4/4 CI before merge, see `docs/part3/QUALIFICATION.md`. The real data-plane/service-role claims, migrations, worker/HTTP registration and cloud/paid hosted E2E still have NOT happened; premium costs remain ZERO unless the owner explicitly authorizes future activation.
