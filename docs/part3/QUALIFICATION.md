@@ -17,8 +17,9 @@
 | [#194](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/194) | disabled JWT premium create/status/private download HTTP adapter | Dedicated [#40029862503](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40029862503) 2/2; Part 1 [#40029862536](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40029862536) 4/4 | PASS, merged as 4e8a830 |
 | [#195](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/195) | explicitly APPROVED day mandatory before premium credit reservation, Python + staged SQL | Dedicated [#40030136015](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40030136015) 2/2; Part 1 [#40030136005](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40030136005) 4/4 | PASS, merged as 18b5794 |
 | [#196](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/196) | disabled isolated premium UUID-only Azure queue, CAS outbox and poison source scaffold | Dedicated [#40030452145](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40030452145) 2/2; Part 1 [#40030452191](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40030452191) 4/4 | PASS, merged as 62fb30b |
+| [#198](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/198) | exact lease-private output receipt + ffprobe local-only protocol guard | Dedicated [#40031597546](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40031597546) 2/2; Part 1 [#40031597516](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40031597516) 4/4 | PASS, merged as 62100f0 |
 
-The eleven internal feature PRs merge only into `feat/part3-integration`; the final PR #125 is open as **DRAFT**, not merged into `main`.
+The twelve internal feature PRs merge only into `feat/part3-integration`; the final PR #125 is open as **DRAFT**, not merged into `main`.
 
 ## Default-safe integrated behavior
 
@@ -55,3 +56,9 @@ The eleven internal feature PRs merge only into `feat/part3-integration`; the fi
 - #196 source-only `retail-premium-video` queue adapter, CAS outbox dispatcher, poison fingerprinting and reconcile sequence; all disabled by default, **no Azure queue provisioned**. Real service-role SQL RPCs and registered queue/timer triggers still unimplemented.
 - Final integrated verification after documentation commits must be checked separately, rather than assuming prior PR CI proves exact updated integration HEAD.
 - Blocking end-to-end work: atomic reviewed/approved new migration, actual service-role repository/RPCs for claims/outbox/lease/finalize/credits, Azure premium function registration/queue/poison and safe UNKNOWN reconciliation; branding/CTA mixed-media timeline; real JWT/tenant hosted E2E, licensed provider output and protected secrets, owner vendor spend/legal/data-region approval and one bounded paid DEV test. Keep Part3 OFF and PR #125 DRAFT; never merge to main from Part3 Lead.
+
+## 2026-10-24 latest verification and security fix
+
+- Immediately preceding #198, the exact integrated branch head `f88138fe678973240bf99207ec5277140485f4c7` completed dedicated P3 CI [#40030842866](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40030842866) **2/2** and standard CI [#40030842790](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40030842790) **4/4**, **attempt 2**. The initial security job failed before SQL tests because GitHub runner port `54322` was occupied; a rerun passed with all Supabase SQL negative tests intact. Do not cite attempt 1 as a clean pass.
+- [#198](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/198) adds a strict equality check for `{shop}/renders/{job}/{lease}.mp4` provider upload receipts (prevent same-prefix substitutions) and `ffprobe -protocol_whitelist file` for imported files. Regressions proved unsafe paths cannot reach database finalization, and file-only probing prevents remote protocol use. All 6 exact PR-head checks passed before self-merge.
+- The merged branch head will change as this documentation lands; verify new exact HEAD CI separately. The live provider/DB/Azure/rights/cost release gates remain **UNMET** and premium flags remain off.
