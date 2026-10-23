@@ -312,3 +312,8 @@
 ## 2026-10-24 — Mobile-first login visual background
 - Keep login UX one website and one Supabase Auth, with an entirely CSS-rendered brand-inspired gradient/grid rather than remote stock photography, runtime image downloads or new paid storage. Desktop keeps storytelling; at <=790px mobile hides only the decorative story column and shows the same logo and auth form over a dedicated subtle background.
 - Preserve readability, 16px form fields to avoid iOS zoom, safe-area padding, narrow 320px layout and existing responsive dashboard sidebar. Do not alter any authentication, tenant authorization, Part 2/3 or WineShopPOS code.
+
+
+## 2026-10-24 — Background deployment and mobile compatibility
+- Retain one responsive browser-based SaaS on existing Free DEV SWA for desktop, iPhone and Android; neither a native app nor a PWA install requirement is introduced. CSS-only ambient background avoids image hosting, stock-license dependencies and new cloud costs.
+- Deploy Part 1 visual-only enhancement separately from Supabase Auth/backend via exact OIDC-guarded one-time existing-SWA workflow #186. Validate source/build, Free SKU and exact hostname, six public HTTPS SPA routes, and freshly served CSS; record that mocked viewport tests do not prove physical-device behavior.
