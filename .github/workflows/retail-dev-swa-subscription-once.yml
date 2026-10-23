@@ -1,5 +1,5 @@
-name: RetailGrowthAI DEV existing SWA protected Platform Control UI release (one time)
-# Owner-authorized existing DEV SWA FRONTEND-ONLY release. Root backend migration/grant require verified account and separate gate.
+name: RetailGrowthAI DEV existing SWA one-login role-dashboard release (one time)
+# One-site login-first UI frontend-only. Uses existing SWA; root user grant requires verified signup and separate role approval.
 on:
   push:
     branches: [main]
@@ -95,11 +95,11 @@ jobs:
         run: |
           set -euo pipefail
           host="$(az staticwebapp show -g rg-retailgrowth-dev -n retailgrowthai-dev-preview --query defaultHostname -o tsv)"
-          for path in '' campaigns account subscription platform-admin; do
+          for path in '' account campaigns business subscription platform-admin; do
             curl -fsSL --max-time 25 "https://$host/$path" -o "$RUNNER_TEMP/page"
             grep -Fq 'id="root"' "$RUNNER_TEMP/page"
           done
-          echo "PASS: DEV SWA SPA /, /campaigns, /account, /subscription, /platform-admin deployed; protected admin route requires signed-in verified root https://$host"
+          echo "PASS: Single-site DEV login-first SPA routes deployed /, /account, /campaigns, /business, /subscription, /platform-admin https://$host; root access requires verified Auth user and DB grant"
       - name: Azure logout
         if: always()
         run: az logout >/dev/null 2>&1 || true
