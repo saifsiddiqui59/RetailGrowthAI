@@ -36,7 +36,7 @@ create table public.premium_video_jobs (
   idempotency_key text not null check (idempotency_key ~ '^[a-f0-9]{64}$'),
   status text not null default 'QUEUED'
     check (status in ('QUEUED','SUBMITTING','PENDING','RUNNING',
-                     'SUCCEEDED','FAILED','CANCELED','UNKNOWN')),
+                     'IMPORTING','SUCCEEDED','FAILED','CANCELED','UNKNOWN')),
   provider_task_id text,
   output_asset_id uuid references public.media_assets(id),
   error_code text,
