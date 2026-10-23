@@ -1,0 +1,113 @@
+-- Disposable local database ONLY. Source pending migrations are not hosted.
+-- Supabase CLI applies the 11 Part 1 versions; run both P2 staged SQL files here.
+\set ON_ERROR_STOP on
+\ir ../../supabase/part2/pending/20261023190000_p2_social_foundation.sql
+\ir ../../supabase/part2/pending/20261023190100_p2_social_oauth_transactions.sql
+
+begin;
+insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
+values
+('dddddddd-dddd-4ddd-8ddd-dddddddddddd','00000000-0000-0000-0000-000000000000',
+ 'authenticated','authenticated','p2-a@example.invalid','!',now(),now()),
+('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','00000000-0000-0000-0000-000000000000',
+ 'authenticated','authenticated','p2-b@example.invalid','!',now(),now());
+
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','dddddddd-dddd-4ddd-8ddd-dddddddddddd',true);
+insert into public.shops(id,owner_user_id,name,slug)
+values('30000000-0000-4000-8000-000000000001',
+ 'dddddddd-dddd-4ddd-8ddd-dddddddddddd','P2 shop A','p2-mocked-shop-a');
+select set_config('request.jwt.claim.sub','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',true);
+insert into public.shops(id,owner_user_id,name,slug)
+values('30000000-0000-4000-8000-000000000002',
+ 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','P2 shop B','p2-mocked-shop-b');
+
+do $$
+begin
+  if has_function_privilege('authenticated',
+       'public.p2_consume_oauth_state(text,uuid,uuid,text)','EXECUTE') or
+     has_function_privilege('authenticated',
+       'public.p2_disconnect_social_account(uuid,uuid,uuid)','EXECUTE') or
+     has_function_privilege('anon',
+       'public.p2_connect_social_account(uuid,uuid,uuid,text,text,text,text[],text,text,integer,timestamptz)','EXECUTE') then
+    raise exception 'FAIL: public OAuth credential RPC is browser-executable';
+  end if;
+end $$;
+
+reset role;
+select set_config('request.jwt.claim.role','service_role',true);
+do $$
+declare
+  dig text := repeat('ab',32);
+  cipher text := repeat('cd',80);
+  first_claim jsonb;
+  linked uuid := '40000000-0000-4000-8000-000000000001';
+  denied boolean;
+begin
+  -- A's owner can create one 10m state, B's owner cannot steal or consume it.
+  if not public.p2_issue_oauth_state(dig,
+       '30000000-0000-4000-8000-000000000001',
+       'dddddddd-dddd-4ddd-8ddd-dddddddddddd','linkedin',cipher,
+       'https://retail.example/api/social/oauth/callback/linkedin') then
+    raise exception 'FAIL: OAuth state not issued';
+  end if;
+  if public.p2_consume_oauth_state(dig,
+       '30000000-0000-4000-8000-000000000002',
+       'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','linkedin') is not null then
+    raise exception 'FAIL: wrong shop consumed state';
+  end if;
+  first_claim:=public.p2_consume_oauth_state(dig,
+       '30000000-0000-4000-8000-000000000001',
+       'dddddddd-dddd-4ddd-8ddd-dddddddddddd','linkedin');
+  if first_claim is null
+      or first_claim->>'state_digest' <> dig
+      or first_claim->>'consumed_at' is not null
+      or first_claim->>'verifier_ciphertext' <> cipher then
+    raise exception 'FAIL: first atomic state consume';
+  end if;
+  if public.p2_consume_oauth_state(dig,
+       '30000000-0000-4000-8000-000000000001',
+       'dddddddd-dddd-4ddd-8ddd-dddddddddddd','linkedin') is not null then
+    raise exception 'FAIL: OAuth replay allowed';
+  end if;
+  denied:=false;
+  begin
+    perform public.p2_connect_social_account(linked,
+     '30000000-0000-4000-8000-000000000002',
+     'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+     'linkedin','urn:li:person:123','User A',
+     array['w_member_social'],cipher,null,1,null);
+  exception when insufficient_privilege then denied:=true;
+  end;
+  if not denied then raise exception 'FAIL: cross-tenant account connect'; end if;
+
+  if not public.p2_connect_social_account(linked,
+     '30000000-0000-4000-8000-000000000001',
+     'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+     'linkedin','urn:li:person:123','User A',
+     array['w_member_social'],cipher,null,1,null) then
+    raise exception 'FAIL: account not connected';
+  end if;
+  if (select count(*) from retail_private.social_account_credentials
+     where social_account_id=linked)<>1 then
+     raise exception 'FAIL: encrypted credentials missing';
+  end if;
+  if public.p2_disconnect_social_account(
+     '30000000-0000-4000-8000-000000000002',linked,
+     'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee') then
+    raise exception 'FAIL: foreign account disconnected';
+  end if;
+  if not public.p2_disconnect_social_account(
+     '30000000-0000-4000-8000-000000000001',linked,
+     'dddddddd-dddd-4ddd-8ddd-dddddddddddd') then
+    raise exception 'FAIL: disconnect failed';
+  end if;
+  if exists (select 1 from retail_private.social_account_credentials
+             where social_account_id=linked)
+     or (select connection_status from public.social_accounts where id=linked)<>'DISCONNECTED' then
+    raise exception 'FAIL: local token revocation/connection status';
+  end if;
+end $$;
+rollback;
+\echo 'PASS: Part 2 one-use OAuth state, server-only RPC, tenant/account disconnect and private ciphertext'
