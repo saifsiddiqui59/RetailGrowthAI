@@ -34,6 +34,8 @@ revoke all on public.shop_subscriptions from public,anon,authenticated;
 revoke all on public.shop_usage_reservations from public,anon,authenticated;
 grant select on public.shop_subscriptions to authenticated;
 grant select on public.shop_usage_reservations to authenticated;
+grant all on public.shop_subscriptions to service_role;
+grant all on public.shop_usage_reservations to service_role;
 create policy subscription_owner_read on public.shop_subscriptions
   for select to authenticated
   using (retail_private.has_role(shop_id,array['OWNER']));
