@@ -87,3 +87,10 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 3. Add actual Instagram container FINISHED / media_publish and YouTube resumable binary uploads with remote IDs and ambiguous-network reconciliation. Authoritative media tenant/provenance/license and H264/AAC/FFprobe checks are required. Current P2 SQL correctly denies video approval.
 4. Validate entire publisher under offline tenant/role/expired grants, duplicate enqueue, stale hash, revocation, quota rollovers, failed SQL pre-send barrier and ambiguous provider receipts; run 4/4 CI on final exact integration commit.
 5. Six P2 migrations `190000,190100,190200,190300,190400,190500` remain **staged only**, no hosted DEV writes; `social_publish_plan_limits` begins empty. Get distinct owner approvals for hosted SQL, OAuth apps, Azure worker release, test posting and publish plan allowances. Refresh latest P1 `main` (observed `19124243`) only via reviewed coordinator compatibility merge. Do not open incomplete final PR.
+
+
+## 2026-10-23 — Latest actionable queue after #171/#172/#174
+1. Inspect [PR #175](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/175) Python/frontend/FFmpeg/disposable-Supabase checks; repair any failures and merge only if 4/4, then verify new integration-head CI. This is unapproved DRAFT-only edit/rescheduling, not cancellation/refund of externally sent jobs.
+2. Reconcile latest Part 1 main without overwriting platform admin, login/email or subscription changes; keep Part2 SQL staged-only. Refresh migration ordering including `20261023190900_p2_social_draft_revision.sql` if #175 merges.
+3. Implement missing account selection, provider-verified scopes/revocation, safe Instagram/YouTube worker media/session persistence and receipt reconciliation, real-grant uncertainty handling, approved-job cancellation/refund/reschedule policy, security E2E and tested release configuration.
+4. Verify four-job exact integration CI, update part2 handoff and only then offer a final Part2-to-main PR to Coordinator. Separate owner approvals required for hosted SQL, OAuth app reviews, Azure triggers, plan publishing limits and any real posts.
