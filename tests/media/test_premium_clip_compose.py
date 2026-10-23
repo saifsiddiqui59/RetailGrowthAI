@@ -88,11 +88,12 @@ class PremiumAssemblyTests(unittest.TestCase):
                     mock_run.assert_not_called()
 
     def test_real_preflight_rejects_tampered_mp4_instead_of_reencoding(self):
-        with patch("premium_compose.subprocess.run") as mock_run:
-            with self.assertRaises(PremiumComposeError):
-                compose_approved_clips(shop_id=SHOP, clips=self.clips,
-                    asset_root=self.assets, output=self.output)
-            mock_run.assert_not_called()
+        # Exercise the REAL ffprobe; mocking subprocess.run also accidentally
+        # mocks the internal subprocess.check_output helper.
+        with self.assertRaises(PremiumComposeError):
+            compose_approved_clips(shop_id=SHOP, clips=self.clips,
+                asset_root=self.assets, output=self.output)
+        self.assertFalse(self.output.exists())
 
     def test_music_must_be_licensed_and_from_same_shop(self):
         audio = self.assets / "background.wav"
