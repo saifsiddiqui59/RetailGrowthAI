@@ -1,8 +1,7 @@
 """Azure Functions v2 HTTP entrypoint; cloud deployment is NOT performed by CI."""
 import json
 import os
-import time
-from ai_agents.observability import emit, ms, trace_id
+from request_diagnostics import RequestDiagnostics
 
 import azure.functions as func
 
@@ -39,29 +38,31 @@ def build_api():
 
 
 def dispatch(request, path):
-    trace = trace_id()
-    started = time.monotonic()
+    """One sanitized response path, including malformed JSON and server failures.
+
+    Diagnostics never log customer copy, shop IDs, JWTs, signed links or
+    exception details. No automatic POST/PATCH replay is performed.
+    """
+    diagnostics = RequestDiagnostics(request.method, path)
     try:
         api = build_api()
         try:
             body = request.get_json() if request.method in ("POST", "PATCH") else None
         except ValueError:
-            return func.HttpResponse('{"error":"INVALID_REQUEST"}', status_code=400,
-                                     mimetype="application/json")
-        code, payload = api.handle(
-            request.method, path, request.headers.get("Authorization", ""), body
-        )
+            code, payload = 400, {"error": "INVALID_REQUEST"}
+        else:
+            code, payload = api.handle(
+                request.method, path, request.headers.get("Authorization", ""), body
+            )
     except (KeyError, ValueError):
         code, payload = 503, {"error": "SERVICE_NOT_CONFIGURED"}
-    emit("http.request", trace=trace,
-         status="ok" if code < 400 else ("denied" if code in (401,403) else "failed"),
-         latency_ms=ms(started))
+    except Exception:
+        # Return a fixed error code; never expose or log secrets from an exception.
+        code, payload = 500, {"error": "INTERNAL_ERROR"}
     return func.HttpResponse(
         json.dumps(payload), status_code=code, mimetype="application/json",
-        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
-                 "X-Request-ID": trace},
+        headers=diagnostics.complete(code, payload),
     )
-
 
 @app.route(route="campaigns", methods=["POST"])
 def create_campaign(req: func.HttpRequest) -> func.HttpResponse:
