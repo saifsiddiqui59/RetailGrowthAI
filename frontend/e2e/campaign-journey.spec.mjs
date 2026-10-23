@@ -87,6 +87,13 @@ async function mockServices(page, options = {}) {
     if (path === '/rest/v1/shops') return payload(200, [
       { id: SHOP, name: 'Boutique A', slug: 'boutique-a', owner_user_id: USER, timezone: 'Asia/Kolkata' },
     ], route)
+    if (path === '/rest/v1/shop_subscriptions') return payload(200, options.viewer ? [] : [{
+      shop_id: SHOP, plan_code: 'TRIAL', status: 'TRIAL',
+      valid_from: '2026-10-23T00:00:00Z',
+      valid_until: '2026-10-30T00:00:00Z',
+      period_start: '2026-10-23T00:00:00Z',
+      period_end: '2026-10-30T00:00:00Z',
+    }], route)
     if (path === '/rest/v1/business_profiles') return payload(200, [], route)
     if (path === '/rest/v1/media_assets') return payload(200, state.assets, route)
     if (path.startsWith('/storage/v1/object/retailgrowth-media/')) {
