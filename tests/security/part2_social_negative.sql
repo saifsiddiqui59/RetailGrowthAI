@@ -349,7 +349,23 @@ begin
      or public.p2_claim_social_publish(job1) is not null then
     raise exception 'FAIL: canceled or repeat claim was accepted';
   end if;
-end $$;
+  if not public.p2_record_social_poison(job1) or
+      (select status from public.social_publish_jobs where id=job1)<>'CANCELED' then
+    raise exception 'FAIL: poison redelivery changed already canceled job';
+  end if;
+  -- Disposable simulation of a poisoned provider send: never make it
+  -- RETRYABLE or invoke another outbound call after SENDING.
+  update public.social_publish_jobs set status='SENDING' where id=job1;
+  insert into retail_private.social_publish_attempts(job_id,attempt_no,claim_token)
+    values(job1,2,gen_random_uuid());
+  if not public.p2_record_social_poison(job1) or
+      (select status from public.social_publish_jobs where id=job1)<>'RECONCILE'
+      or exists(select 1 from retail_private.social_publish_attempts
+                where job_id=job1 and finished_at is null)
+      or not public.p2_record_social_poison(job1) then
+    raise exception 'FAIL: uncertain external send poison not reconciled';
+  end if;
+end $;
 rollback;
 \echo 'PASS: P2 approved content, replay-safe draft, atomic per-period quota and cancel'
 
