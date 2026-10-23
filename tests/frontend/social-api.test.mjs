@@ -27,5 +27,5 @@ test('rejects insecure origin, wrong IDs and provider error leakage',async()=>{
     assert.doesNotMatch(e.message,/secret-token/)
     return true
   })
-  await assert.rejects(()=>api.listJobs('../escape'),/Invalid shop or job ID/)
+  assert.throws(()=>api.listJobs('../escape'),/Invalid shop or job ID/)
 })
