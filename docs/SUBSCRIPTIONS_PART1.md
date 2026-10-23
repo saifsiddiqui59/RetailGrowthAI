@@ -28,3 +28,10 @@ No Razorpay, checkout, publishing, self-service payment, or pricing claim is imp
 - Event logger is source instrumentation only until actual Azure Application Insights ingestion is demonstrated.
 
 **Do not present subscription enforcement as currently active.**
+
+## DEV enforcement (2026-10-23)
+- 7-day shop trial and fixed candidate per-period spend caps are now **enforced for new RetailGrowthAI DEV shops** by reviewed DB trigger; not a paid subscription system. Source [#102](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/102), live migration `20261023134701_p1_subscription_quota.sql`, with server-only plan/meter changes and OWNER RLS read access.
+- TRIAL: 2 campaigns, 2 rendered MP4s; STARTER: 15/10; GROWTH: 60/45; BUSINESS: 200/150 candidate units. Only TRIAL is auto-granted; paid-tier identifiers cannot be self-selected and no plans can be purchased yet. Plan periods are server-owned and no renewal scheduler is implemented.
+- Database trigger atomically reserves units **before new campaign/render INSERT**, locks the shop entitlement row to fence concurrent requests, uses unique job IDs, and rolls back on rejection. Browser owner can read plan and expiry but cannot alter allowance. HTTP returns sanitized 402 (`SUBSCRIPTION_REQUIRED`) or 429 (`QUOTA_EXCEEDED`).
+- [DEV backend release #39965140549](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39965140549) succeeded; owner-only Account UI [#104](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/104) merged and site deployment is [#39965683074](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39965683074). Deployment #39965683074 is SUCCESS, existing Free SWA HTTPS route checks passed; owner-only plan status display live.
+- **Do not advertise paid billing, prices, renewals or upgrade buttons.** Commercial plan activation requires reviewed operator procedure or future billing integration with separate approval. Never copy WineShopPOS accounts, payment config or entitlement rows.
