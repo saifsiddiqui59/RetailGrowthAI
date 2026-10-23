@@ -94,7 +94,7 @@ def main():
         # Explicit child deletion order avoids cross-FK media/renders restrictions
         # while preserving the shop-scoped foreign-key boundary.
         for child in ("usage_events","render_jobs","campaign_days","campaigns",
-                      "media_assets","audit_logs","brand_kits","business_profiles",
+                      "brand_kits","business_profiles","media_assets","audit_logs",
                       "shop_memberships"):
             scoped_delete(child)
         api("DELETE","/rest/v1/shops?"+urllib.parse.urlencode({
