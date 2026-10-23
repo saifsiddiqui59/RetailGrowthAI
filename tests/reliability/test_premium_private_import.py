@@ -1,5 +1,6 @@
 """Part 3 private media delivery tests; no provider network or real cloud writes."""
 from io import BytesIO
+from unittest.mock import patch
 from pathlib import Path
 import sys
 import pytest
@@ -8,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] /
                        "azure-functions" / "campaign-api"))
 from premium_private_import import (
     NoRedirect, PremiumImportError, validate_vendor_video_url,
-    fetch_signed_video, verify_video, import_to_private_storage, MAX_BYTES,
+    fetch_signed_video, verify_video, probe_mp4, import_to_private_storage, MAX_BYTES,
 )
 
 SID = "123e4567-e89b-42d3-a456-426614174001"
@@ -127,3 +128,44 @@ def test_failed_db_finalization_is_not_misrepresented_as_video_ready():
             expected_seconds=5, media=media, store=store,
             opener=Transport(), probe=probe)
     assert len(media.calls)==1 and len(store.calls)==1
+
+
+@pytest.mark.parametrize("returned_path", [
+    f"{SID}/renders/{JID}/{LEASE}-evil.mp4",
+    f"{SID}/renders/{JID}/{LEASE}.mp4/subdir",
+    f"{SID}/renders/{JID}/{LEASE}.MP4",
+    f"{SID}/renders/{JID}/{LEASE}",
+    f"{SID}/renders/other/{LEASE}.mp4",
+    f"{SID}/renders/{JID}/{LEASE}.mp4?token=malicious",
+])
+def test_private_upload_receipt_must_equal_exact_fenced_object(returned_path):
+    class SuspiciousMedia(Media):
+        def upload(self, shop, job, file, *, lease_token):
+            self.calls.append((shop, job, lease_token))
+            return returned_path
+    media, store = SuspiciousMedia(), Store()
+    with pytest.raises(PremiumImportError, match="receipt mismatch"):
+        import_to_private_storage(
+            provider_url=URL, shop_id=SID, job_id=JID, lease_token=LEASE,
+            expected_seconds=5, media=media, store=store,
+            opener=Transport(), probe=probe)
+    assert len(media.calls) == 1
+    assert store.calls == []
+
+
+def test_ffprobe_cannot_read_remote_protocol_references(tmp_path):
+    """Even a crafted uploaded MP4 cannot make ffprobe open HTTP/HTTPS."""
+    target = tmp_path / "provider-output.mp4"
+    target.write_bytes(MP4)
+    class ProbeResult:
+        stdout = '{"format":{"duration":"5"},"streams":[]}'
+    with patch("premium_private_import.subprocess.run",
+               return_value=ProbeResult()) as execute:
+        assert probe_mp4(target)["format"]["duration"] == "5"
+    args = execute.call_args.args[0]
+    assert args[:5] == [
+        "ffprobe", "-v", "error", "-protocol_whitelist", "file"
+    ]
+    assert args[-1] == str(target)
+    assert execute.call_args.kwargs["timeout"] == 30
+    assert execute.call_args.kwargs["check"] is True
