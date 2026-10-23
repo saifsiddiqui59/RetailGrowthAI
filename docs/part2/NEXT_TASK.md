@@ -90,7 +90,7 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 
 
 ## 2026-10-23 — Latest actionable queue after #171/#172/#174
-1. [PR #175](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/175) passed [four exact jobs #40019171343](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40019171343) and internally merged `362ffd0b`. **Verify post-merge Part2 integration four jobs.** It provides DRAFT-only edit/rescheduling, not cancellation/refund of outbound jobs.
+1. [PR #175](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/175) passed [four exact jobs #40019171343](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40019171343) and internally merged `362ffd0b`. Post-merge Part2 [run #40019649987](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40019649987) **4/4 passed.** It provides DRAFT-only edit/rescheduling, not cancellation/refund of outbound jobs.
 2. Reconcile latest Part 1 main without overwriting platform admin, login/email or subscription changes; keep Part2 SQL staged-only. Refresh migration ordering including `20261023190900_p2_social_draft_revision.sql` if #175 merges.
 3. Implement missing account selection, provider-verified scopes/revocation, safe Instagram/YouTube worker media/session persistence and receipt reconciliation, real-grant uncertainty handling, approved-job cancellation/refund/reschedule policy, security E2E and tested release configuration.
 4. Verify four-job exact integration CI, update part2 handoff and only then offer a final Part2-to-main PR to Coordinator. Separate owner approvals required for hosted SQL, OAuth app reviews, Azure triggers, plan publishing limits and any real posts.
