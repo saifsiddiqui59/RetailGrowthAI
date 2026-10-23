@@ -104,34 +104,30 @@ jobs:
       - name: Verify existing Python source and package constraints
         shell: bash
         run: python3 scripts/deploy/package.py --check
-      - name: Fetch SHA256-pinned John Van Sickle verified Linux x86_64 fully static FFmpeg 7.0.2 and validate binaries
+      - name: Acquire fully static FFmpeg 9.0.2 from versioned hardened Docker image
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/rgai-media" "$RUNNER_TEMP/rgai-bins" "$RUNNER_TEMP/rgai-release"
-          url="https://github.com/publicala/ffmpeg-static/releases/download/v7.0.2/ffmpeg-7.0.2-amd64-static.tar.xz"
-          digest="abda8d77ce8309141f83ab8edf0596834087c52467f6badf376a6a2a4c87cf67"
-          curl -fLsS --retry 3 --connect-timeout 25 --max-time 850 "$url" -o "$RUNNER_TEMP/rgai-release/btbn.tar.xz"
-          printf '%s  %s\n' "$digest" "$RUNNER_TEMP/rgai-release/btbn.tar.xz" | sha256sum -c -
-          echo "PASS: GitHub published asset pinned SHA256 verified"
+          mkdir -p "$RUNNER_TEMP/rgai-bins" "$RUNNER_TEMP/rgai-release"
+          image="mwader/static-ffmpeg:9.0.2-1"
+          docker pull "$image"
+          docker image inspect "$image" --format 'PINNED_MEDIA_IMAGE={{index .RepoDigests 0}}'
+          container="$(docker create "$image" -version)"
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          docker cp "$container:/ffmpeg" "$RUNNER_TEMP/rgai-bins/ffmpeg"
+          docker cp "$container:/ffprobe" "$RUNNER_TEMP/rgai-bins/ffprobe"
+          chmod 755 "$RUNNER_TEMP/rgai-bins/ffmpeg" "$RUNNER_TEMP/rgai-bins/ffprobe"
           python3 - <<'PY'
-          import os,tarfile
-          p=os.environ["RUNNER_TEMP"]+"/rgai-release/btbn.tar.xz"
-          with tarfile.open(p,"r:xz") as t:
-              files=t.getmembers()
-              assert len(files)<4000
-              assert all(not m.name.startswith("/") and ".." not in m.name.split("/") and not m.issym() and not m.islnk() for m in files)
-              assert sum(m.name.endswith("/ffmpeg") for m in files)==1
-              assert sum(m.name.endswith("/ffprobe") for m in files)==1
-          print("PASS: archive path safety, exactly two media executables")
+          import sys
+          sys.path.insert(0,"scripts/deploy")
+          from package import verify_static_linux_elf
+          from pathlib import Path
+          import os
+          for n in ("ffmpeg","ffprobe"):
+            p=Path(os.environ["RUNNER_TEMP"])/"rgai-bins"/n
+            verify_static_linux_elf(p.read_bytes(),n)
+            print("PASS: truly static Linux x86_64 ELF:",n, "bytes:",p.stat().st_size)
           PY
-          tar -xJf "$RUNNER_TEMP/rgai-release/btbn.tar.xz" -C "$RUNNER_TEMP/rgai-media" --no-same-owner
-          for name in ffmpeg ffprobe; do
-            file="$(find "$RUNNER_TEMP/rgai-media" -type f -name "$name" -print -quit)"
-            test -n "$file"
-            cp "$file" "$RUNNER_TEMP/rgai-bins/$name"
-            chmod 755 "$RUNNER_TEMP/rgai-bins/$name"
-          done
           ff="$RUNNER_TEMP/rgai-bins/ffmpeg"
           for enc in libx264 aac; do
             if "$ff" -hide_banner -encoders 2>/dev/null | grep -Eq "[[:space:]]$enc([[:space:]]|$)"; then
@@ -148,24 +144,21 @@ jobs:
             fi
           done
           "$RUNNER_TEMP/rgai-bins/ffprobe" -version >/dev/null
-          echo "PASS: real FFmpeg and ffprobe executable; libx264, AAC, drawtext, xfade present"
           cat > "$RUNNER_TEMP/rgai-bins/THIRD_PARTY_NOTICES.txt" <<'NOTICE'
-          FFmpeg GPL Linux x86_64 static binary provenance and source:
-          https://github.com/publicala/ffmpeg-static
-          Archive at 2026-10-22:
-          https://github.com/publicala/ffmpeg-static/releases/download/v7.0.2/ffmpeg-7.0.2-amd64-static.tar.xz
-          SHA256 pinned GitHub asset: abda8d77ce8309141f83ab8edf0596834087c52467f6badf376a6a2a4c87cf67
-          Includes GPL libraries such as libx264; source, license and obligations:
-          https://ffmpeg.org/legal.html
-          https://github.com/publicala/ffmpeg-static/blob/master/README.md
+          FFmpeg and ffprobe, fully statically linked Linux amd64 binary distribution:
+          https://github.com/wader/static-ffmpeg
+          Container image: docker.io/mwader/static-ffmpeg:9.0.2-1
+          This image is published as GPL software; includes libx264 and LGPL/GPL components.
+          Source and corresponding build instructions: https://github.com/wader/static-ffmpeg
+          FFmpeg license information: https://ffmpeg.org/legal.html
+          The official license terms and corresponding-source obligations apply to redistribution.
+          Docker image content-addressed digest is recorded in GitHub Actions release logs.
           NOTICE
-          python3 scripts/deploy/package.py \
-            --ffmpeg-dir "$RUNNER_TEMP/rgai-bins" \
+          python3 scripts/deploy/package.py --ffmpeg-dir "$RUNNER_TEMP/rgai-bins" \
             --output "$RUNNER_TEMP/rgai-release/retailgrowth-functions.zip"
-          python3 scripts/deploy/package.py \
-            --verify-zip "$RUNNER_TEMP/rgai-release/retailgrowth-functions.zip"
-          sha256sum "$RUNNER_TEMP/rgai-release/retailgrowth-functions.zip"
-          echo "PASS: generated validated first-release Azure Functions ZIP (GPL notice included)"
+          python3 scripts/deploy/package.py --verify-zip "$RUNNER_TEMP/rgai-release/retailgrowth-functions.zip"
+          sha256sum "$RUNNER_TEMP/rgai-bins/ffmpeg" "$RUNNER_TEMP/rgai-bins/ffprobe" "$RUNNER_TEMP/rgai-release/retailgrowth-functions.zip"
+          echo "PASS: validated GPL-noticed static FFmpeg release ZIP; no cloud deployment yet"
       - uses: actions/upload-artifact@v4
         with:
           name: rgai-dev-verified-first-release-zip
