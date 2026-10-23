@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DEV_PROJECT_REF, REQUIRED_MIGRATIONS, verifyPreflight } from './dev-db-preflight.mjs';
+import { DEV_PROJECT_REF, REQUIRED_MIGRATIONS, FOLLOW_ON_MIGRATIONS, verifyPreflight } from './dev-db-preflight.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 export const MAX_HISTORY_AGE_MS = 30 * 60 * 1000;
@@ -29,11 +29,17 @@ export function buildMigrationExecutionPlan({
   const preflight = verifyPreflight({ migrationDir, remoteHistory, requireRemoteHistory: true });
   // The review is for exactly these 10 files and the currently observed 3-applied baseline.
   // Unexpected new files or partial rollout require re-review, not automatic continuation.
-  if (preflight.local.length !== REQUIRED_MIGRATIONS.length) fail('unreviewed migration added');
+  const baseline = preflight.local.slice(0, REQUIRED_MIGRATIONS.length);
+  const followOn = preflight.local.slice(REQUIRED_MIGRATIONS.length).map(x => x.file);
+  if (baseline.map(x => x.file).join(',') !== REQUIRED_MIGRATIONS.join(',') ||
+      followOn.join(',') !== FOLLOW_ON_MIGRATIONS.join(',')) fail('unreviewed migration added');
   if (preflight.appliedCount !== BASELINE_APPLIED_COUNT) {
     fail('baseline changed or partial rollout detected; stop for coordinator review');
   }
-  const pending = preflight.pending.map((item, index) => {
+  // This operator script is a HISTORICAL original-ten baseline executor.
+  // The newer subscription migration has a separate gate and must not be
+  // silently included in a previously approved seven-step migration plan.
+  const pending = preflight.pending.filter(item => REQUIRED_MIGRATIONS.includes(item.file)).map((item, index) => {
     const sql = readFileSync(resolve(migrationDir, item.file), 'utf8');
     const withoutLeadingComments = sql.replace(/^(?:\s*--[^\n]*(?:\n|$))*/, '').trimStart();
     if (!/^begin\s*;/i.test(withoutLeadingComments) || !/\bcommit\s*;\s*$/i.test(sql)) {

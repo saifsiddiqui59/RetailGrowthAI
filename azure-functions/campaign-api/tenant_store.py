@@ -18,6 +18,13 @@ class StorageUnavailable(RuntimeError):
     pass
 
 
+class SubscriptionDenied(PermissionError):
+    """Server-authored SQLSTATE for expired/suspended plan or exhausted meter."""
+    def __init__(self, code):
+        self.code = code
+        super().__init__("Subscription action unavailable")
+
+
 def canonical_uuid(value):
     try:
         parsed = UUID(str(value))
@@ -54,6 +61,13 @@ class TenantStore:
             with self.transport(request, timeout=8) as response:
                 return json.loads(response.read().decode("utf-8"))
         except HTTPError as exc:
+            if exc.code in (400, 402, 409, 429, 500):
+                try:
+                    response_code = json.loads(exc.read(4096)).get("code")
+                except (ValueError, AttributeError, TypeError):
+                    response_code = None
+                if response_code in ("RG001", "RG002"):
+                    raise SubscriptionDenied(response_code) from exc
             if exc.code in (401, 403):
                 raise AuthenticationError("database denied user token") from exc
             raise StorageUnavailable("database request rejected") from exc
