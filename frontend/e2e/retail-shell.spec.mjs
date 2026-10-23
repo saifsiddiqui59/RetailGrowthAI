@@ -48,8 +48,9 @@ async function mockUser(page, { viewer = false, failMetric = false } = {}) {
 }
 
 test('top-right account route, collapsible sidebar, and new subscription link work', async ({ page }) => {
+  await mockUser(page)
   await page.goto('/')
-  await expect(page.getByRole('link', { name: 'Sign in / Create account' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Main navigation' })
     .getByRole('link', { name: 'Subscription' })).toBeVisible()
   await page.getByRole('button', { name: 'Collapse sidebar' }).click()

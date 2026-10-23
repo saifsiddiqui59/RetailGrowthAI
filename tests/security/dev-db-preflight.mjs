@@ -19,7 +19,7 @@ export const REQUIRED_MIGRATIONS = Object.freeze([
 ]);
 export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261023134701_p1_subscription_quota.sql',
-  '20261023181000_p1_platform_admin.sql',
+  '20261023165300_p1_platform_admin.sql',
 ]);
 
 const CAPABILITIES = {
@@ -42,7 +42,7 @@ const CAPABILITIES = {
     /errcode='RG001'/i,
     /errcode='RG002'/i,
   ],
-  '20261023181000': [
+  '20261023165300': [
     /create table retail_private\.platform_admins/i,
     /create table retail_private\.platform_admin_audit/i,
     /security definer set search_path = ''/i,

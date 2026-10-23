@@ -78,3 +78,10 @@ OWNER, EDITOR, VIEWER and invalid credentials. Neither proves a real hosted
 admin has been promoted. The live owner/root login must be verified after
 DEV migration and identity selection; never claim production root readiness
 from source-only tests.
+
+## 2026-10-23 — DEV activation update and safe login-first entry
+
+- The project has only ONE public website and ONE Supabase Auth session. A guest visiting `/` sees a login page; a server-verified root logging in there goes to the protected provider monitoring dashboard, and an ordinary OWNER/EDITOR/VIEWER goes to the tenant dashboard. `/platform-admin` is an internal protected route, NOT a second site or login.
+- The reviewed database migration has been applied to RetailGrowthAI DEV via the connected Supabase project. The provider assigned actual migration history version **20261023165300** to `p1_platform_admin`; the source filename and migration preflight were reconciled to that version to avoid replay. At inspection the hosted Auth project had **zero users** and **zero root grants**.
+- A real root user cannot be safely provisioned as an anonymous/example.invalid test account. The owner should sign up using a controlled reachable email through the ordinary RetailGrowthAI signup form (or operator-managed Supabase Auth Admin `createUser` invitation), confirm ownership, and then have a trusted operator match the exact Auth UUID and apply the grant. Do not add users via SQL inserts to `auth.users`, embed privileged role in JWT `user_metadata`, use a static password, or expose service keys. A temporary test admin must still have a real controllable email and be revocable.
+- The monitoring warning center shows conditions derived from true privileged RPC counts and explicit visibility gaps for payments, Azure latency/cost and social platform health. A blank or unverified source never implies zero failure or zero spend.

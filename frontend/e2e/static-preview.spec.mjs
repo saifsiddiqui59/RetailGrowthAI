@@ -1,38 +1,31 @@
 import { test, expect } from '@playwright/test'
 
-// These checks run only against Vite's local test server. They do not need Azure
-// Static Web Apps, Supabase, a deployed API or production credentials.
-test('direct / navigation displays the existing overview', async ({ page }) => {
+// Configured RetailGrowthAI (even on local test server) is login-first;
+// never expose tenant dashboards to guest users as a navigation shortcut.
+test('single site / starts with login form, not a tenant or root dashboard', async ({ page }) => {
   await page.goto('/')
   await expect(page).toHaveURL(/\/$/)
-  await expect(page.getByRole('heading', { name: 'Campaign workspace' })).toBeVisible()
-  await expect(page.getByText('Mock campaign days')).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Campaigns' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Campaign workspace' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Platform Control' })).toHaveCount(0)
 })
 
-test('direct /campaigns loads the editable seven-day demo without calling external services', async ({ page }) => {
-  const externalRequests = []
-  page.on('request', request => {
-    if (new URL(request.url()).origin !== 'http://127.0.0.1:5173') {
-      externalRequests.push(request.url())
-    }
-  })
-  await page.goto('/campaigns')
-  await expect(page).toHaveURL(/\/campaigns$/)
-  await expect(page.getByRole('heading', { name: /Make every day/ })).toBeVisible()
-  await expect(page.getByText('Demo only · Sample drafts', { exact: false })).toBeVisible()
-  await expect(page.getByRole('button', { name: /Preview campaign request/ })).toBeVisible()
-  await page.getByRole('button', { name: /Preview campaign request/ }).click()
-  await expect(page.getByText('No campaign was generated; the seven sample days below are unchanged.')).toBeVisible()
-  expect(externalRequests).toEqual([])
+test('guest visiting campaign or superadmin route redirects to the same login', async ({ page }) => {
+  for (const route of ['/campaigns', '/platform-admin', '/subscription', '/business']) {
+    await page.goto(route)
+    await expect(page).toHaveURL(/\/account$/)
+    await expect(page.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible()
+  }
 })
 
-test('direct /account loads existing account route and navigation remains client side', async ({ page }) => {
+test('one login offers standard signup without separate administrator credentials', async ({ page }) => {
   await page.goto('/account')
-  await expect(page).toHaveURL(/\/account$/)
-  await expect(page.getByRole('heading', { name: 'Business account' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
-  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Campaigns' }).click()
-  await expect(page).toHaveURL(/\/campaigns$/)
-  await expect(page.getByRole('heading', { name: /Make every day/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible()
+  await page.getByRole('button', { name: 'Create an account' }).click()
+  await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible()
+  await expect(page.getByLabel('Password')).toHaveAttribute('autocomplete', 'new-password')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible()
 })

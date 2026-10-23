@@ -13,6 +13,40 @@ const CARDS = [
 ]
 const VALID_PLANS = ['STARTER', 'GROWTH', 'BUSINESS']
 
+function deriveWarnings(summary, failed) {
+  if (failed) return [{
+    level: 'critical', title: 'Platform monitoring is unavailable',
+    detail: 'The server did not return verified metrics. Inspect admin authorization and DEV service health; values are not estimated.',
+  }]
+  if (!Number.isInteger(summary.retailers) || !Number.isInteger(summary.expired_or_suspended) ||
+      !Number.isInteger(summary.trial_shops) || !Number.isInteger(summary.active_paid_shops) ||
+      !Number.isInteger(summary.campaigns) || !Number.isInteger(summary.reels_completed)) return []
+  const items = []
+  if (summary.retailers === 0) items.push({
+    level: 'attention', title: 'No retailer businesses onboarded',
+    detail: 'Create a retailer through normal signup and shop onboarding before evaluating growth metrics.',
+  })
+  if (summary.expired_or_suspended > 0) items.push({
+    level: 'critical', title: summary.expired_or_suspended + ' expired or suspended subscriptions',
+    detail: 'Review affected retailers and confirm intended entitlement status before making an audited change.',
+  })
+  if (summary.retailers > 0 && summary.active_paid_shops === 0 &&
+      summary.trial_shops === 0) items.push({
+    level: 'attention', title: 'No active trial or paid entitlement',
+    detail: 'Retailers may be unable to start new generation and render jobs. Review their subscription state.',
+  })
+  if (summary.campaigns > 0 && summary.reels_completed === 0) items.push({
+    level: 'info', title: 'No completed video renders recorded',
+    detail: 'Campaigns exist, but no completed reels are counted. This is not evidence that rendering has failed.',
+  })
+  items.push({
+    level: 'info', title: 'Payments and external platform metrics are not active',
+    detail: 'Revenue, publication delivery, reach, Azure spend and error-rate alarms are not verified by this dashboard. Do not treat them as zero.',
+  })
+  return items
+}
+
+
 export default function PlatformAdmin() {
   const { client } = useRetailAuth()
   const [summary, setSummary] = useState(EMPTY)
@@ -92,6 +126,7 @@ export default function PlatformAdmin() {
     }
   }
 
+  const warnings = deriveWarnings(summary, Boolean(error))
   return <div className="platform-page" aria-label="Platform Control dashboard">
     <div className="page-heading">
       <div><div className="eyebrow">RETAILGROWTHAI · PROVIDER OPERATIONS</div>
@@ -112,6 +147,20 @@ export default function PlatformAdmin() {
         <span>{label}</span><strong>{summary[key] ?? '—'}</strong>
         <small>Verified server count</small>
       </div>)}
+    </section>
+    <section className="panel platform-warning-center" aria-label="Platform monitoring warnings">
+      <div className="panel-heading"><div><div className="eyebrow">PLATFORM MONITORING</div>
+        <h2>Warnings &amp; attention needed</h2></div>
+        <span className="tag">{loading ? 'Updating' : warnings.length + ' notices'}</span>
+      </div>
+      <p>Warnings are derived from verified Supabase counts and known DEV feature limitations. They are not automated Azure or social-platform alerts.</p>
+      {!loading && !warnings.length && !error && <p role="status">No count-based issues detected. Provider health monitoring is not yet connected.</p>}
+      {!loading && warnings.length > 0 && <div className="platform-warning-list">
+        {warnings.map((warning) => <div className={'platform-warning '+warning.level} key={warning.title}>
+          <span className="platform-warning-icon" aria-hidden="true">{warning.level === 'critical' ? '!' : warning.level === 'attention' ? '!' : 'i'}</span>
+          <div><strong>{warning.title}</strong><p>{warning.detail}</p></div>
+        </div>)}
+      </div>}
     </section>
     <section className="panel">
       <div className="panel-heading">
