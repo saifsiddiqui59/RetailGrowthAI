@@ -22,7 +22,9 @@ _FIELDS = {
     "accounts": ("social_accounts",
                  "id,shop_id,provider,provider_account_id,display_name,connection_status,connected_at"),
     "jobs": ("social_publish_jobs",
-             "id,shop_id,social_account_id,campaign_day_id,provider,revision,caption,media_asset_id,status,scheduled_at,timezone,remote_post_id"),
+             "id,shop_id,social_account_id,campaign_day_id,provider,revision,caption,media_asset_id,status,scheduled_at,timezone,remote_post_id,attempts,last_error_code"),
+    "audit": ("social_publish_audit",
+              "id,shop_id,job_id,actor_user_id,event_code,recorded_at"),
     "days": ("campaign_days",
              "id,shop_id,campaign_id,day_index,scheduled_date,topic,review_status,linkedin"),
 }
