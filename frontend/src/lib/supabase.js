@@ -246,7 +246,9 @@ export function createRetailClient({
   // retail_private.platform_admins for each call; email/metadata never grant access.
   async function platformRpc(name, body = {}) {
     if (!['retail_platform_me', 'retail_platform_summary',
-          'retail_platform_shops', 'retail_platform_set_subscription'].includes(name)) {
+          'retail_platform_shops', 'retail_platform_set_subscription',
+          'retail_onboarding_status', 'retail_platform_onboarding_requests',
+          'retail_platform_review_onboarding'].includes(name)) {
       throw new Error('Unsupported platform operation')
     }
     return send('/rest/v1/rpc/' + name, {
