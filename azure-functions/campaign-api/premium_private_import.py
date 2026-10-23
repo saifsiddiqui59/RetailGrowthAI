@@ -106,8 +106,9 @@ def fetch_signed_video(url, output, *, opener=None):
 def probe_mp4(path):
     try:
         proc = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_format", "-show_streams",
-             "-of", "json", str(path)], capture_output=True, text=True,
+            ["ffprobe", "-v", "error", "-protocol_whitelist", "file",
+             "-show_format", "-show_streams", "-of", "json", str(path)],
+            capture_output=True, text=True,
             timeout=30, check=True
         )
         return json.loads(proc.stdout)
@@ -153,9 +154,8 @@ def import_to_private_storage(*, provider_url, shop_id, job_id, lease_token,
         # PrivateMedia.upload disables overwriting old output and strictly
         # scopes to sid/renders/jid/token.mp4 in retailgrowth-media bucket.
         private_path = media.upload(sid, jid, target, lease_token=token)
-        if not isinstance(private_path, str) or not private_path.startswith(
-            sid + "/renders/" + jid + "/" + token
-        ):
+        expected_path = sid + "/renders/" + jid + "/" + token + ".mp4"
+        if private_path != expected_path:
             raise PremiumImportError("Private media receipt mismatch")
         result = store.finalize(jid, sid, token, private_path)
         if not isinstance(result, dict) or result.get("status") != "SUCCEEDED":
