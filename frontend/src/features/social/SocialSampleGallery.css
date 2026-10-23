@@ -1,0 +1,43 @@
+.social-samples { margin: 20px 0; }
+.social-samples-header { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; }
+.social-samples-header h2 { margin: 8px 0 6px; }
+.social-samples-header p { margin: 6px 0 20px; }
+.social-samples-eyebrow { color: #337c6b; font-size: 11px; font-weight: 800; letter-spacing: .1em; }
+.social-samples-pill { white-space: nowrap; padding: 7px 11px; border-radius: 999px; background: #f0f5ff; color: #395987; font-size: 11px; font-weight: 800; }
+.social-samples-tabs { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 9px; }
+.social-samples-tab { border: 1px solid #e1e8ed; background: #f9fbfd; text-align: left; padding: 13px 12px; border-radius: 12px; cursor: pointer; color: #3b4b60; }
+.social-samples-tab strong, .social-samples-tab small { display: block; }
+.social-samples-tab strong { font-size: 14px; }
+.social-samples-tab small { margin-top: 5px; font-size: 11px; color: #72849a; }
+.social-samples-tab.selected { background: #e9f7f1; border-color: #368771; color: #176750; box-shadow: inset 0 0 0 1px #368771; }
+.social-samples-tab:focus-visible, .social-samples-copy-button:focus-visible { outline: 3px solid #3a80a6; outline-offset: 3px; }
+.social-samples-details { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 17px; margin-top: 18px; }
+.social-samples-post, .social-samples-review { border: 1px solid #e1e8ed; border-radius: 14px; background: #fff; padding: 22px; min-width: 0; }
+.social-samples-profile { display: flex; gap: 10px; align-items: center; padding-bottom: 18px; border-bottom: 1px solid #edf0f4; }
+.social-samples-avatar { display: grid; place-items: center; flex: 0 0 38px; height: 38px; background: #d8ece5; border-radius: 50%; font-weight: 900; color: #23644f; }
+.social-samples-profile strong, .social-samples-profile small { display: block; }
+.social-samples-profile strong { font-size: 14px; color: #253b50; }
+.social-samples-profile small { color: #708198; margin-top: 4px; font-size: 11px; }
+.social-samples-post h3 { font-size: 17px; margin: 16px 0 0; }
+.social-samples-copy { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; color: #36485b; font-size: 14px; margin-top: 17px; }
+.social-samples-copy-button { cursor: pointer; border: 1px solid #b8d4c8; background: #e7f4ee; color: #226a50; padding: 10px 14px; border-radius: 9px; font-weight: 750; }
+.social-samples-portrait { width: min(100%,220px); aspect-ratio: 9 / 16; margin: 17px auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 15px; text-align: center; color: #fff; background: linear-gradient(145deg,#222d46,#465f70 58%,#2e4f56); border-radius: 16px; }
+.social-samples-portrait strong { font-size: 18px; line-height: 1.2; }
+.social-samples-portrait small { font-size: 10px; color: #dbe7ed; letter-spacing: .03em; }
+.social-samples-play { display: grid; place-items: center; border: 1px solid #f2f5f8a6; border-radius: 50%; width: 48px; height: 48px; }
+.social-samples-review h3 { font-size: 20px; margin: 10px 0 18px; }
+.social-samples-review h4 { font-size: 14px; margin: 23px 0 7px; }
+.social-samples-review p, .social-samples-review li { color: #627589; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.social-samples-review p strong { color: #253b50; }
+.social-samples-review ol { padding-left: 20px; margin: 0 0 15px; }
+.social-samples-review li { margin-bottom: 7px; }
+.social-samples-review .social-samples-warning { border-left: 3px solid #bb8c3a; background: #fff9ed; padding: 10px 12px; color: #715b32; }
+.social-samples-footnote { margin: 18px 0 0; font-size: 12px!important; }
+@media (max-width: 840px) { .social-samples-details { grid-template-columns: 1fr; } }
+@media (max-width: 580px) {
+  .social-samples { padding: 18px 14px; }
+  .social-samples-header { display: block; }
+  .social-samples-pill { display: inline-block; margin-bottom: 12px; }
+  .social-samples-tabs { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .social-samples-post, .social-samples-review { padding: 16px; }
+}

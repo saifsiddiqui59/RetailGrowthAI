@@ -100,3 +100,9 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 6. `main` now `d590a3cf` (diverged; 12 ahead/47 behind against P2 `b78cd4d0` as checked). Coordinator compatibility pass must preserve newer P1 onboarding approval SQL, platform admin/auth SPA fixes, main App.jsx and release workflows. No final PR until refreshed safety review.
 
 7. #183/#184 RLS social audit metadata and dashboard warnings are **complete source milestones**, each 4/4 CI and internally merged. #180 browser mock first failed because the social workspace called a nonexistent Supabase JWT accessor. Corrected in workspace and callback, branch run #40022253485 passed 4/4 and merged `870b6334`. Verify exact integration CI and continue remaining source-only provider/reconciliation work. Then verify integration-head CI and update checkpoint. No production publish flags, hosted migrations or real provider posts.
+
+## 2026-10-24 — After offline four-provider samples
+1. Review the exact-head 4/4 PR and post-merge Part 2 integration CI for offline publisher gallery; mock browser and unit tests must not be skipped.
+2. Keep existing Part 1 poster/video generation out of Part 2: next connect only **authorized, rights-cleared** campaign content to reviewed draft previews, not new media-generation features.
+3. Finish real provider OAuth selection/permissions, Instagram Reels container and YouTube resumable media receipts, publish quota policy and retry/reconciliation; require distinct owner approvals before hosted SQL, deployment, OAuth app install or test social posts.
+4. The gallery is *not* evidence of a real posted LinkedIn/Facebook message, Instagram Reel or YouTube Short. The Final Coordinator owns the last branch-to-main compatibility review.

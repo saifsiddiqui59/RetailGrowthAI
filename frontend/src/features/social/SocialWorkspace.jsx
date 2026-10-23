@@ -3,6 +3,7 @@ import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { createSocialApi, trustedConsentUrl } from './social-api.mjs'
 import { SocialAuthoringPanel } from './SocialAuthoringPanel.jsx'
 import { SocialStatusPanel } from './SocialStatusPanel.jsx'
+import { SocialSampleGallery } from './SocialSampleGallery.jsx'
 
 const PROVIDERS = [
   ['instagram', 'Instagram professional / Reels'],
@@ -118,6 +119,7 @@ export function SocialWorkspace() {
         <h2>Publishing is not enabled</h2>
         <p>This is a preview workspace. No social account is connected, no OAuth permission is granted, and nothing can be published from this screen.</p>
       </section>}
+      <SocialSampleGallery />
       {!user && <p role="status">Sign in through Account to see your authorized businesses.</p>}
       {user && <section className="panel" style={{marginTop:16}}>
         <h2>Authorized business</h2>
