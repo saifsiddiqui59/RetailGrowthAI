@@ -13,6 +13,9 @@ export function AuthProvider({ children }) {
   const [platformError, setPlatformError] = useState('')
   const [recoveryMode, setRecoveryMode] = useState(false)
   const sequence = useRef(0)
+  // React StrictMode replays mount effects in DEV. Retain the already-sanitized
+  // callback across replays; otherwise it would fall through to normal login.
+  const emailLinkRef = useRef(null)
 
   useEffect(() => {
     let mounted = true
@@ -23,10 +26,17 @@ export function AuthProvider({ children }) {
           // A Supabase email link returns implicit-flow tokens in the URL fragment.
           // Remove the entire fragment before any async operation, so tokens do not
           // remain in browser history or get forwarded in navigation.
-          const fragment = new URLSearchParams(window.location.hash.slice(1))
-          if (window.location.pathname === '/account' &&
-              (fragment.has('access_token') || fragment.has('error'))) {
-            window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
+          let fragment = emailLinkRef.current
+          if (!fragment && window.location.pathname === '/account') {
+            const incoming = new URLSearchParams(window.location.hash.slice(1))
+            if (incoming.has('access_token') || incoming.has('error')) {
+              emailLinkRef.current = incoming
+              fragment = incoming
+              window.history.replaceState(window.history.state, '',
+                window.location.pathname + window.location.search)
+            }
+          }
+          if (fragment) {
             if (fragment.has('error')) throw new Error('This email link has expired or is invalid. Request a new link.')
             const type = fragment.get('type')
             if (!['recovery', 'signup', 'email'].includes(type)) {
