@@ -150,3 +150,25 @@ def planning_poison(message: func.QueueMessage):
 def render_poison(message: func.QueueMessage):
     admin, _, _ = _recovery_dependencies()
     record_poison(admin, "render", message.get_body())
+
+
+@app.route(route="social/{resource}", methods=["GET"])
+def read_social_workspace(req: func.HttpRequest) -> func.HttpResponse:
+    """Part 2 metadata-only RLS reads. No OAuth or publishing is enabled."""
+    from social_read_api import SocialReadAPI, SocialReadStore
+    if os.environ.get("RETAIL_PART2_SOCIAL_ENABLED") != "true":
+        return func.HttpResponse('{"error":"NOT_FOUND"}', status_code=404,
+                                 mimetype="application/json")
+    try:
+        origin = os.environ["RETAIL_SUPABASE_URL"]
+        key = os.environ["RETAIL_SUPABASE_PUBLISHABLE_KEY"]
+        api = SocialReadAPI(SupabaseJWTVerifier(origin), TenantStore(origin, key),
+                            SocialReadStore(origin, key))
+        status, data = api.handle("GET", req.route_params["resource"],
+                                  req.headers.get("Authorization", ""),
+                                  req.params.get("shop_id"))
+    except (KeyError, ValueError):
+        status, data = 503, {"error": "SERVICE_NOT_CONFIGURED"}
+    return func.HttpResponse(json.dumps(data), status_code=status,
+            mimetype="application/json",
+            headers={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"})
