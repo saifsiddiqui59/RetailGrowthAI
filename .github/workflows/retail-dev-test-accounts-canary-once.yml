@@ -1,0 +1,38 @@
+name: RetailGrowthAI owner-authorized DEV temporary test accounts + live tenant canary
+# Owner approval of TEST ACCOUNTS + hosted Part 1 run; no broad publish or production.
+# Unlike Playwright hosted browser harness this is a bounded isolated REST canary.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-test-accounts-canary-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-live-canary
+  cancel-in-progress: false
+jobs:
+  canary:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    env:
+      RGAI_DEV_CANARY_APPROVAL: AUTHORIZED_RETAILGROWTHAI_DEV_ONLY
+      RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+      RGAI_DEV_PUBLISHABLE_KEY: sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Confirm no other project endpoints or raw credential logging
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RGAI_DEV_SERVICE_KEY"
+          if command -v ffprobe >/dev/null; then ffprobe -version | head -1; else echo 'ffprobe not preinstalled'; exit 3; fi
+          python3 -m py_compile tests/e2e/retail_dev_canary_once.py
+      - name: Run bounded hosted DEV synthetic image + 2 disposable accounts
+        run: python3 tests/e2e/retail_dev_canary_once.py
