@@ -57,3 +57,8 @@ Using October 23 USD/INR reference **~₹94.9 per USD** (https://wise.com/us/cur
 ## Implementation handoff snapshot
 
 Integration branch: `feat/part3-integration`, internal #109 gated Wan2.7 adapter, #113 zero-default quota/job schema + worker scaffolding, #115 free-first standalone UI. These feature PRs target the integration branch. The current frontend chooser is deliberately **not mounted** in the shared Part 1 dashboard. Premium HTTP routes, queue/outbox wiring, DB RPCs, secure provider-output importer, hosted SQL application, cancellation and live video tests are **unfinished**. Source code is not proof of live Wan generation.
+
+## LATEST Part 3 progress addendum — 2026-10-23
+- The prior handoff snapshot is historical. Dedicated branches for provider (#109), zero-default job/credit scaffolding (#113), disabled chooser (#115), and private output importer (#122) all merged into **feat/part3-integration** after verified six-job mock CI. Importer is code only: no registered live queue worker. The chooser is now mounted disabled, with FFmpeg still default.
+- The original proposed premium SQL was moved outside runnable migration history, pending Coordinator-approved new migration/ledger/security tests. Default quota remains zero. Vendor output CDN hostname compatibility requires checking the official `dashscope-a717.oss-accelerate.aliyuncs.com` example; follow-up PR #126 is under CI/review and should not be claimed merged until confirmed.
+- No paid Wan API request, external media transfer, plan payment or production activation took place.
