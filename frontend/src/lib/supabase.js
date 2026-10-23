@@ -118,7 +118,15 @@ export function createRetailClient({
     return data.user
   }
   async function signUp(email, password) {
-    const data = await authRequest('signup', { method: 'POST', body: { email, password } })
+    // Do not fall back to Supabase's project Site URL (often localhost:3000)
+    // when a retailer signs up from the deployed single-login website.
+    // This destination must also be allowlisted in Auth > URL Configuration.
+    const redirectTo = typeof window === 'undefined' ? undefined
+      : new URL('/account', window.location.origin).toString()
+    const data = await authRequest('signup', {
+      method: 'POST', body: { email, password },
+      ...(redirectTo ? { query: { redirect_to: redirectTo } } : {}),
+    })
     if (data?.access_token) setSession(data)
     return data
   }
