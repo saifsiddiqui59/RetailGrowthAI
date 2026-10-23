@@ -219,3 +219,8 @@
 - Use the two-step shop creation `INSERT Prefer:return=minimal` with client UUID then RLS SELECT after AFTER INSERT owner membership to resolve real PGRST 42501. Do not add broad RLS read policy or use service role in React.
 - Subscription candidate rules can be tested as a pure policy but cannot protect real paid usage without atomic server-authoritative DB usage reservation. Never present limits, checkout or revenue as live.
 - Transient Azure GET 502/503/504 may be retried up to three times only for idempotent reads. Never treat missing tenant data / 503 as an authorization denial or retry non-idempotent POST/PATCH/DELETE. Clean ephemeral owned test resources and prevent raw credentials or signed URLs in CI logs.
+
+## 2026-10-23 — Functions queue encoding, release health and transient gateway behavior
+- Azure queue producer uses `QueueClient.send_message(campaign_id)` with raw ASCII UUID; authoritative Functions host must declare v4 extension bundle and `extensions.queues.messageEncoding=none` for binding parity, verified in package preflight and tests. Do not switch producer messages to unreviewed Base64 or consume via external worker.
+- Four pending queue messages confirmed with **metadata-only**, exact DEV runtime connection. Never delete/peek message bodies while diagnosing. Distinguish CI/package pass or Azure ZIP HTTP202 from actual API responsiveness/worker execution. Retain bounded unauthorized 401 probe and true hosted tenant E2E as separate release gates.
+- A 502/503/504 gateway response may be retried only for safe GET probes; never convert availability errors to authorized-denial PASS and never replay POST/PATCH jobs. Keep RLS tenant scope strict and clean synthetic test accounts.
