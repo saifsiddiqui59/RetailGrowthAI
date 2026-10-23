@@ -22,6 +22,8 @@ export function AccountWorkspace() {
   const [profile, setProfile] = useState(null)
   const [subscription, setSubscription] = useState(null)
   const [subscriptionLoading, setSubscriptionLoading] = useState(false)
+  const [onboarding, setOnboarding] = useState(null)
+  const [onboardingError, setOnboardingError] = useState('')
   const [subscriptionError, setSubscriptionError] = useState('')
   const [newShop, setNewShop] = useState({ name: '', slug: '' })
   const [busy, setBusy] = useState(false)
@@ -43,6 +45,19 @@ export function AccountWorkspace() {
     }).catch((err) => { if (active) setFailure(err.message) })
     return () => { active = false }
   }, [client, user])
+
+  useEffect(() => {
+    let active = true
+    setOnboarding(null)
+    setOnboardingError('')
+    if (!user) return () => { active = false }
+    client.getOnboardingStatus().then(result => {
+      if (active) setOnboarding(result)
+    }).catch(() => {
+      if (active) setOnboardingError('Onboarding approval status is unavailable; access is verified by the server.')
+    })
+    return () => { active = false }
+  }, [user, client])
 
   useEffect(() => {
     let active = true
@@ -99,6 +114,7 @@ export function AccountWorkspace() {
 
   const selected = shops.find((shop) => shop.id === shopId)
   const mayEdit = selected?.membership?.role === 'OWNER' || selected?.membership?.role === 'EDITOR'
+  const pendingApproval = onboarding?.approval_required && onboarding?.status !== 'APPROVED'
 
   return (
     <section className="panel" aria-label="Business account">
@@ -132,6 +148,13 @@ export function AccountWorkspace() {
           <p>Signed in as {user.email}</p>
           <button type="button" disabled={busy} onClick={() => run(signOut, 'Signed out.')}>Sign out</button>
           <h2>Your businesses</h2>
+          {onboardingError && <p role="status">{onboardingError}</p>}
+          {onboarding?.approval_required && <div className="panel" aria-label="Onboarding approval status">
+            <h3>Retailer access request: {onboarding.status}</h3>
+            {onboarding.status === 'PENDING' && <p>Registration received. The SaaS owner reviews onboarding requests in Platform Control. You can sign in, but cannot create a business until approved.</p>}
+            {onboarding.status === 'REJECTED' && <p>Your onboarding request was not approved. Contact the RetailGrowthAI operator for details.</p>}
+            {onboarding.status === 'APPROVED' && <p>Approved. You may create your business and start the trial.</p>}
+          </div>}
           {shops.length ? (
             <label>Choose business
               <select value={shopId} onChange={(event) => setShopId(event.target.value)}>
@@ -180,7 +203,7 @@ export function AccountWorkspace() {
               {!mayEdit && <p>Viewer access is read-only.</p>}
             </form>
           )}
-          <form onSubmit={(event) => {
+          {!pendingApproval && <form onSubmit={(event) => {
             event.preventDefault()
             run(async () => {
               const created = await client.createShop(newShop)
@@ -196,7 +219,7 @@ export function AccountWorkspace() {
             <label>Shop slug <input required pattern="[a-z0-9]+(-[a-z0-9]+)*" minLength={3} maxLength={60}
               value={newShop.slug} onChange={(event) => setNewShop({ ...newShop, slug: event.target.value })} /></label>
             <button type="submit" disabled={busy}>Create business</button>
-          </form>
+          </form>}
         </>
       )}
     </section>
