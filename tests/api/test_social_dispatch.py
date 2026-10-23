@@ -60,7 +60,7 @@ class Provider:
 def go(repo,provider):return d.process_publish(JOB,repository=repo,provider=provider,clock=lambda:NOW)
 
 def test_exact_uuid_only_no_secret_exfiltration():
-    for invalid in (b'{"token":"secret"}',"NOT-AN-ID",JOB.upper(),JOB+"\\n", b"\xff"):
+    for invalid in (b'{"token":"secret"}',"NOT-AN-ID",'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA',JOB+"\\n", b"\xff"):
         with pytest.raises(d.DispatchError):
             d.message_uuid(invalid)
 
