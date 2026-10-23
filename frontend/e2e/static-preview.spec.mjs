@@ -38,10 +38,19 @@ test('signup confirmation requests redirect to this website, never a stale Supab
     if (url.pathname !== '/auth/v1/signup') {
       throw new Error('Unexpected auth route during signup: ' + url.pathname)
     }
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'apikey, content-type',
+      } })
+      return
+    }
     redirectTo = url.searchParams.get('redirect_to')
     await route.fulfill({
       status: 200, contentType: 'application/json',
       headers: { 'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': 'apikey, content-type' },
       body: JSON.stringify({ user: { email: 'test-user@example.invalid' } }),
     })
