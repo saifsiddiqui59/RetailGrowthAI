@@ -21,3 +21,9 @@ def test_publish_is_review_gated_and_idempotent():
     assert "unique(shop_id,social_account_id,idempotency_key)" in M
     assert "social_publish_quota_ledger" in M
     assert "check (status <> 'PUBLISHED' or remote_post_id is not null)" in M
+
+def test_provider_account_and_revision_are_database_bound():
+    assert "unique(shop_id,id,provider)" in M
+    assert "foreign key(shop_id,social_account_id,provider)" in M
+    assert "revision integer not null default 1 check(revision > 0)" in M
+    assert "provider text not null check(provider in ('instagram','facebook','linkedin','youtube'))" in M

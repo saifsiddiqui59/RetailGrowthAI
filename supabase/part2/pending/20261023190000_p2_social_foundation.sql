@@ -17,6 +17,7 @@ create table public.social_accounts (
   disconnected_at timestamptz,
   unique(shop_id,id),
   unique(shop_id,provider,provider_account_id),
+  unique(shop_id,id,provider),
   constraint social_account_disconnect_time check (
     (connection_status <> 'DISCONNECTED' and disconnected_at is null)
     or (connection_status = 'DISCONNECTED' and disconnected_at is not null))
@@ -58,6 +59,8 @@ create table public.social_publish_jobs (
   shop_id uuid not null references public.shops(id) on delete cascade,
   social_account_id uuid not null,
   campaign_day_id uuid not null,
+  provider text not null check(provider in ('instagram','facebook','linkedin','youtube')),
+  revision integer not null default 1 check(revision > 0),
   requested_by uuid not null references auth.users(id),
   approved_by uuid references auth.users(id),
   approved_at timestamptz,
@@ -77,7 +80,7 @@ create table public.social_publish_jobs (
   updated_at timestamptz not null default now(),
   unique(shop_id,id),
   unique(shop_id,social_account_id,idempotency_key),
-  foreign key(shop_id,social_account_id) references public.social_accounts(shop_id,id),
+  foreign key(shop_id,social_account_id,provider) references public.social_accounts(shop_id,id,provider),
   foreign key(shop_id,campaign_day_id) references public.campaign_days(shop_id,id),
   foreign key(shop_id,media_asset_id) references public.media_assets(shop_id,id),
   check (approved_content_sha256 is null or octet_length(approved_content_sha256)=32),
