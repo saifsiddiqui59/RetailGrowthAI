@@ -20,7 +20,7 @@ def make_provider(recorder, *, enabled=False, limit=1):
         if method == "POST":
             return {"output": {"task_id": "abc-defghi-123456", "task_status": "PENDING"}}
         return {"output": {"task_id": "abc-defghi-123456", "task_status": "SUCCEEDED",
-                           "video_url": "https://provider.example/private-token"}}
+                           "video_url": "https://wan-result.oss-ap-southeast-1.aliyuncs.com/video.mp4?token=internal"}}
     return AlibabaWanProvider(workspace_origin=WAN, api_key="fake-test-only-credential",
                               region="singapore", enabled=enabled,
                               approved_max_usd=limit, supabase_origin=ORIGIN,
@@ -144,3 +144,23 @@ def test_invalid_input_never_reaches_transport():
         provider.submit(WanRequest("image", "Illustrate", signed_first_frame=FRAME,
                                    shop_id="another-shop"))
     assert calls == []
+
+
+def test_private_poll_exposes_only_server_side_result():
+    calls = []
+    provider = make_provider(calls, enabled=True)
+    private = provider.poll_private("abc-defghi-123456")
+    assert private["status"] == "SUCCEEDED"
+    assert private["private_provider_url"].startswith("https://wan-result.oss-ap-southeast-1.aliyuncs.com/")
+    public = provider.poll("abc-defghi-123456")
+    assert "private_provider_url" not in public
+
+
+def test_private_poll_rejects_foreign_host():
+    provider = make_provider([], enabled=True)
+    provider.transport = lambda *args: {
+        "output": {"task_id": "abc-defghi-123456", "task_status": "SUCCEEDED",
+                   "video_url": "https://metadata.internal/video.mp4?secret=foo"}
+    }
+    with pytest.raises(PremiumVideoProviderError):
+        provider.poll_private("abc-defghi-123456")
