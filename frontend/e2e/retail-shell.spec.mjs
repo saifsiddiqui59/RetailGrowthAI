@@ -96,3 +96,19 @@ test('viewer subscription usage is inaccessible and unavailable metrics are neve
   expect(requests.some(r => r.path === '/rest/v1/shop_subscriptions')).toBe(false)
   expect(requests.some(r => r.path === '/rest/v1/shop_usage_reservations')).toBe(false)
 })
+
+
+test('mobile business workspace has a usable drawer and subscription navigation', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await mockUser(page)
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: 'Toggle navigation' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Live business metrics' })).toBeVisible()
+  await page.getByRole('button', { name: 'Toggle navigation' }).click()
+  const navigation = page.getByRole('navigation', { name: 'Main navigation' })
+  await expect(navigation.getByRole('link', { name: 'Subscription' })).toBeInViewport()
+  await navigation.getByRole('link', { name: 'Subscription' }).click()
+  await expect(page).toHaveURL(/\/subscription$/)
+  await expect(page.getByRole('heading', { name: 'Subscription & plans' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Toggle navigation' })).toBeVisible()
+})

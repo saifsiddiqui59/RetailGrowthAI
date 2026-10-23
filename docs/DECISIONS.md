@@ -307,3 +307,8 @@
 ## 2026-10-23 — Existing-only Auth frontend release / no duplicate rollout
 - Release email signup redirect and recovery UI through existing DEV Free Azure SWA only, using audited and scoped one-time GitHub Actions workflow #177. Validate exact Azure tags/Free SKU/hostname before upload; keep OIDC and masked short-lived SWA token in protected DEV workflow.
 - Close redundant PR #179 unmerged after #177's existing-SWA release started: multiple Auth deployments can race and are unnecessary. Hosted Supabase Auth provider configuration is *not* schema and must be set through project-specific Auth management; never claim a source PR or an applied PostgreSQL migration changed Site URL, redirect allowlist or SMTP.
+
+
+## 2026-10-24 — Mobile-first login visual background
+- Keep login UX one website and one Supabase Auth, with an entirely CSS-rendered brand-inspired gradient/grid rather than remote stock photography, runtime image downloads or new paid storage. Desktop keeps storytelling; at <=790px mobile hides only the decorative story column and shows the same logo and auth form over a dedicated subtle background.
+- Preserve readability, 16px form fields to avoid iOS zoom, safe-area padding, narrow 320px layout and existing responsive dashboard sidebar. Do not alter any authentication, tenant authorization, Part 2/3 or WineShopPOS code.
