@@ -19,6 +19,35 @@ import urllib.request
 import uuid
 import zlib
 
+class TransientGateway(RuntimeError):
+    """Only a transient pre-handler Azure 502/503/504. Not a business denial."""
+
+
+def reconcile_day(original, desired, remote_campaign):
+    """Return COMMITTED or UNCHANGED, reject foreign/concurrent data.
+
+    The edit is a database optimistic CAS: identical retries cannot double-edit.
+    Only a fresh authorized GET can authorize a repeat after uncertain delivery.
+    """
+    if remote_campaign.get("status") != "DRAFT":
+        raise RuntimeError("Cannot reconcile edit on non-DRAFT campaign")
+    days = remote_campaign.get("days")
+    if not isinstance(days, list):
+        raise RuntimeError("Invalid readback campaign")
+    matches = [d for d in days if d.get("id") == original.get("id")]
+    if len(matches) != 1:
+        raise RuntimeError("Edited day not present in authorized readback")
+    day = matches[0]
+    if any(day.get(k) != original.get(k) for k in ("shop_id", "campaign_id", "day_index")):
+        raise RuntimeError("Edited day identity differs from authorized baseline")
+    fields = ("topic", "linkedin", "instagram")
+    if all(day.get(k) == desired.get(k) for k in fields):
+        return "COMMITTED", day
+    if all(day.get(k) == original.get(k) for k in fields):
+        return "UNCHANGED", day
+    raise RuntimeError("Concurrent draft edit differs from both original and requested values")
+
+
 SUPABASE = "https://jeearzffnjbvghwjjjrf.supabase.co"
 API = "https://rgai-dev-functions-d4e5ddbd.azurewebsites.net"
 def api_key_headers(key):
@@ -64,6 +93,9 @@ def call(url, method="GET", payload=None, headers=None, timeout=30, expect=(200,
             print("CANARY_RETRY_TRANSIENT_READ transport=timeout",flush=True)
             time.sleep(4 * (attempt+1))
     if status not in expect:
+        # A pre-handler gateway 5xx is an uncertain write. No generic retry.
+        if method == "PATCH" and status in (502,503,504) and source == "gateway_or_supabase":
+            raise TransientGateway("Transient pre-handler PATCH response")
         # Only report server-defined error codes (e.g. 42501/PGRST***).
         # Messages can contain private data, SQL parameters, URLs or credentials.
         safe_code = "unknown"
@@ -181,21 +213,36 @@ def main():
         print("CANARY_REAL_SEVEN_DAY_DRAFT=true")
         day=draft["days"][0]
         update={"topic":day["topic"]+" (reviewed)","linkedin":day["linkedin"],"instagram":day["instagram"]}
-        try:
-            _,saved=call(API+"/api/campaigns/"+cid+"/days/"+day["id"],method="PATCH",
-                payload=update,headers=a,timeout=120,expect=(200,))
-        except (TimeoutError, ConnectionResetError):
-            # The write MAY already have committed despite losing its response.
-            # NEVER automatically send a second PATCH: reconcile by an RLS-scoped
-            # authenticated GET and fail if the expected value is not present.
-            state=getcampaign()
-            if state.get("status")!="DRAFT":
-                raise RuntimeError("Cannot reconcile lost draft-save response")
-            existing=[d for d in state.get("days",[]) if d.get("id")==day["id"]]
-            if len(existing)!=1 or existing[0].get("topic")!=update["topic"]:
-                raise RuntimeError("Draft save response lost; no confirmed commit, no retry")
-            saved={"day":existing[0]}
-            print("CANARY_PATCH_RESPONSE_LOST_BUT_COMMIT_VERIFIED=true",flush=True)
+        saved=None
+        # Only an optimistic compare-and-swap draft PATCH is replayable,
+        # and only after a fresh authenticated read proves it did NOT commit.
+        # Arbitrary POSTs (including billable render jobs) remain never retried.
+        for attempt in range(3):
+            try:
+                _,saved=call(API+"/api/campaigns/"+cid+"/days/"+day["id"],method="PATCH",
+                    payload=update,headers=a,timeout=120,expect=(200,))
+                break
+            except (TimeoutError, ConnectionResetError, TransientGateway):
+                remote=getcampaign()
+                state,confirmed=reconcile_day(day,update,remote)
+                if state=="COMMITTED":
+                    saved={"day":confirmed}
+                    print("CANARY_PATCH_RESPONSE_LOST_BUT_COMMIT_VERIFIED=true",flush=True)
+                    break
+                if attempt>=2:
+                    raise RuntimeError("Bounded PATCH retry exhausted; no confirmed commit")
+                print("CANARY_SAFE_CAS_PATCH_RETRY="+str(attempt+1),flush=True)
+                time.sleep(5*(attempt+1))
+            except RuntimeError as error:
+                # A previous in-flight CAS can win and cause a second attempt
+                # to return 409; accept only after authoritative readback.
+                if "DEV HTTP 409 " not in str(error):
+                    raise
+                state,confirmed=reconcile_day(day,update,getcampaign())
+                if state!="COMMITTED":
+                    raise
+                saved={"day":confirmed}
+                break
         if saved.get("day",{}).get("topic")!=update["topic"]:
             raise RuntimeError("Draft save not persisted")
         print("CANARY_REMOTE_DRAFT_SAVE=true",flush=True)
