@@ -1,0 +1,114 @@
+import { test, expect } from '@playwright/test'
+
+const SUPABASE = 'https://e2e.supabase.test'
+const SHOP = 'f1000000-0000-4000-8000-000000000011'
+const USER = 'f1000000-0000-4000-8000-000000000001'
+const roles = ['ROOT', 'OWNER', 'EDITOR', 'VIEWER']
+
+function fulfill(route, body, status = 200) {
+  return route.fulfill({
+    status, contentType: 'application/json',
+    headers: { 'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'apikey, authorization, content-type',
+    }, body: JSON.stringify(body),
+  })
+}
+async function loginAs(page, role, { invalid = false } = {}) {
+  const requests = []
+  await page.route(SUPABASE + '/**', async route => {
+    const req = route.request()
+    const u = new URL(req.url())
+    const path = u.pathname
+    requests.push({ path, method: req.method(), body: req.postDataJSON?.() })
+    if (req.method() === 'OPTIONS') return fulfill(route, {})
+    if (path === '/auth/v1/token' && u.searchParams.get('grant_type') === 'password') {
+      return invalid ? fulfill(route, { error_description: 'Invalid login credentials' }, 400)
+        : fulfill(route, { access_token: 'role-jwt', refresh_token: 'role-refresh',
+            expires_in: 3600, user: { id: USER, email: role.toLowerCase() + '@example.invalid' } })
+    }
+    if (path === '/auth/v1/user') return fulfill(route, { id: USER, email: role.toLowerCase() + '@example.invalid' })
+    if (path === '/auth/v1/logout') return fulfill(route, {})
+    if (path === '/rest/v1/rpc/retail_platform_me') return fulfill(route, role === 'ROOT')
+    if (path === '/rest/v1/rpc/retail_platform_summary') {
+      return role === 'ROOT'
+        ? fulfill(route, { retailers: 1, trial_shops: 1, active_paid_shops: 0,
+            expired_or_suspended: 0, campaigns: 2, reels_completed: 1 })
+        : fulfill(route, { message: 'PLATFORM_ADMIN_REQUIRED' }, 403)
+    }
+    if (path === '/rest/v1/rpc/retail_platform_shops') {
+      return role === 'ROOT'
+        ? fulfill(route, { total: 1, shops: [{ shop_id: SHOP,
+            name: 'Test Retailer', slug: 'test-retailer', plan_code: 'TRIAL',
+            subscription_status: 'TRIAL', campaigns: 2, renders: 1,
+            valid_until: '2099-10-01T00:00:00Z' }] })
+        : fulfill(route, { message: 'PLATFORM_ADMIN_REQUIRED' }, 403)
+    }
+    if (path === '/rest/v1/rpc/retail_platform_set_subscription') {
+      return role === 'ROOT'
+        ? fulfill(route, { shop_id: SHOP, plan_code: 'GROWTH', status: 'ACTIVE' })
+        : fulfill(route, { message: 'PLATFORM_ADMIN_REQUIRED' }, 403)
+    }
+    if (path === '/rest/v1/shop_memberships') return fulfill(route, role === 'ROOT' ? [] : [{
+      shop_id: SHOP, role, active: true,
+    }])
+    if (path === '/rest/v1/shops') return fulfill(route, role === 'ROOT' ? [] : [{
+      id: SHOP, name: 'Test Retailer', slug: 'test-retailer',
+    }])
+    if (path === '/rest/v1/business_profiles') return fulfill(route, [])
+    if (path === '/rest/v1/shop_subscriptions') return fulfill(route, [])
+    throw new Error('Unexpected mock request: ' + req.method() + ' ' + path)
+  })
+  await page.goto('/account')
+  await page.getByLabel('Email').fill(role.toLowerCase() + '@example.invalid')
+  await page.getByLabel('Password').fill(invalid ? 'wrong-password' : 'offline-only-password')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  return requests
+}
+
+test('ROOT uses ordinary login, sees platform menu, cross-retailer metrics, audited change', async ({ page }) => {
+  const calls = await loginAs(page, 'ROOT')
+  await expect(page.getByText('Signed in as root@example.invalid')).toBeVisible()
+  const nav = page.getByRole('navigation', { name: 'Main navigation' })
+  await expect(nav.getByRole('link', { name: 'Platform Control' })).toBeVisible()
+  await page.getByRole('button', { name: 'Open account menu' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Platform Control' })).toBeVisible()
+  await page.getByRole('menuitem', { name: 'Platform Control' }).click()
+  await expect(page.getByRole('heading', { name: 'Platform Control' })).toBeVisible()
+  await expect(page.getByText('Test Retailer')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Platform overview metrics' })
+    .getByText('Total retailers')).toBeVisible()
+  await page.getByRole('button', { name: 'Manage plan' }).click()
+  await page.getByLabel('Subscription tier').selectOption('GROWTH')
+  await page.getByLabel('Access end date').fill('2027-01-01')
+  await page.getByLabel('Audit reason').fill('Approved test change with audit')
+  await page.getByRole('checkbox', { name: /I approve this manual entitlement/ }).check()
+  await page.getByRole('button', { name: 'Apply privileged change' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Audited subscription change saved' })).toBeVisible()
+  const mutation = calls.filter(r => r.path === '/rest/v1/rpc/retail_platform_set_subscription')
+  expect(mutation).toHaveLength(1)
+  expect(mutation[0].body.p_plan_code).toBe('GROWTH')
+  expect(mutation[0].body.p_reason).toBe('Approved test change with audit')
+})
+
+for (const role of roles.filter(x => x !== 'ROOT')) {
+  test(role + ' login cannot see or call root console', async ({ page }) => {
+    const calls = await loginAs(page, role)
+    await expect(page.getByText('Signed in as ' + role.toLowerCase() + '@example.invalid')).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('link', { name: 'Platform Control' })).toHaveCount(0)
+    await page.goto('/platform-admin')
+    await expect(page.getByRole('heading', { name: 'Platform access denied' })).toBeVisible()
+    expect(calls.filter(x => x.path === '/rest/v1/rpc/retail_platform_summary')).toHaveLength(0)
+    expect(calls.filter(x => x.path === '/rest/v1/rpc/retail_platform_set_subscription')).toHaveLength(0)
+  })
+}
+
+test('invalid login never opens platform console or admin API', async ({ page }) => {
+  const calls = await loginAs(page, 'ROOT', { invalid: true })
+  await expect(page.getByRole('alert')).toContainText('Invalid login credentials')
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('link', { name: 'Platform Control' })).toHaveCount(0)
+  await page.goto('/platform-admin')
+  await expect(page).toHaveURL(/\/account$/)
+  expect(calls.filter(x => x.path.includes('/rpc/retail_platform'))).toHaveLength(0)
+})
