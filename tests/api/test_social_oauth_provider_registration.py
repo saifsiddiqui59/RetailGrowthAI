@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 import pytest
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"azure-functions/campaign-api"))
 from social_oauth import OAuthDenied
-from social_oauth_http import build_oauth_api
+from social_oauth_http import build_oauth_api, OAuthDenied as HttpOAuthDenied
 from social_provider_oauth_transport import provider_oauth_transport
 
 SHOP="10000000-0000-4000-8000-000000000001"
@@ -94,7 +94,7 @@ def test_no_provider_registered_denied_even_if_social_switch_enabled():
     for key in ("RETAIL_YOUTUBE_CLIENT_ID","RETAIL_YOUTUBE_CLIENT_SECRET",
                 "RETAIL_YOUTUBE_OAUTH_REDIRECT_URI"):
         config.pop(key)
-    with pytest.raises(OAuthDenied,match="no reviewed provider"):
+    with pytest.raises(HttpOAuthDenied,match="no reviewed provider"):
         build(config)
 
 
