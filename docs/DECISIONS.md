@@ -302,3 +302,8 @@
 ## 2026-10-23 — Email link security and recovery session boundary
 - Client-only Supabase implicit-flow callback is handled on `/account`: strip URL fragment immediately, accept only signup/email or recovery callback types, and confirm the returned access token with Supabase Auth `/user` before creating an application session. Recovery sessions render a dedicated password screen **instead of** privileged/tenant dashboards and sign out after a successful password change. Keep provider-side allowlisting as a required external setting; no service-role keys in browser.
 - Recovery mail uses a separate branded `recovery.html` source template; the SMTP password, verified sender and runtime Auth template settings are never committed. A same mailbox address as WineShopPOS is allowed only with an independently authorized RetailGrowthAI credential and configuration.
+
+
+## 2026-10-23 — Existing-only Auth frontend release / no duplicate rollout
+- Release email signup redirect and recovery UI through existing DEV Free Azure SWA only, using audited and scoped one-time GitHub Actions workflow #177. Validate exact Azure tags/Free SKU/hostname before upload; keep OIDC and masked short-lived SWA token in protected DEV workflow.
+- Close redundant PR #179 unmerged after #177's existing-SWA release started: multiple Auth deployments can race and are unnecessary. Hosted Supabase Auth provider configuration is *not* schema and must be set through project-specific Auth management; never claim a source PR or an applied PostgreSQL migration changed Site URL, redirect allowlist or SMTP.
