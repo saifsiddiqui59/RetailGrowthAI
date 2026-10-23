@@ -320,3 +320,7 @@ Baseline: `main` `84c9b87`, [latest completed 4/4 main CI #39805920327](https://
 - [ ] Brand overlays/CTA, source image/music rights and signed download end-to-end; optional Wan provider substitution must be separately priced/licensed.
 - [ ] Obtain commercial paid provider workspace/region/legal spend approval for one strictly capped DEV Wan real-world test; do not start paid requests without it.
 - [ ] Final Coordinator PR #125 remains DRAFT, not merged; coordinator reconciles newest Part1/Part2 `main`.
+
+## 2026-10-24 — Part 3 media hardening completion
+- [x] PR #198 private import security: exact immutable tenant/job/lease .mp4 receipt required before DB finalization, `ffprobe` local-only protocol whitelist and forged-path tests; merged to `feat/part3-integration` after all six CI successes.
+- [ ] Existing P3 blockers unchanged: approved premium SQL + atomic credit/lease/outbox RPCs and negative concurrent DB tests; actual disabled Azure HTTP and premium queue/timer/poison wiring; approval/consent versioning; billing and UNKNOWN/cancellation reconciliation; branded mixed AI+stock composition and real Wan E2E; owner approval for paid provider/workspace/spending, then final Coordinator reconciliation/merge.
