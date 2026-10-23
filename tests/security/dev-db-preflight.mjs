@@ -21,6 +21,7 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261023134701_p1_subscription_quota.sql',
   '20261023165300_p1_platform_admin.sql',
   '20261023191246_p1_onboarding_approval.sql',
+  '20261024113000_p1_poster_drafts.sql',
 ]);
 
 const CAPABILITIES = {
@@ -62,6 +63,17 @@ const CAPABILITIES = {
     /retail_platform_review_onboarding/i,
     /shop_onboarding_allowed/i,
     /revoke all on retail_private\.onboarding_requests/i,
+  ],
+  '20261024113000': [
+    /create table public\.poster_drafts/i,
+    /enable row level security/i,
+    /revoke all on table public\.poster_drafts from public, anon, authenticated/i,
+    /create policy poster_drafts_member_read/i,
+    /create function public\.create_poster_draft/i,
+    /security definer set search_path = ''/i,
+    /retail_private\.has_role/i,
+    /pg_catalog\.sha256/i,
+    /for update/i,
   ],
   '20261022220000': [
     /create table public\.job_outbox/i, /create table public\.job_poison_events/i,
