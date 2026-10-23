@@ -37,6 +37,7 @@ class PremiumAssemblyTests(unittest.TestCase):
             commands.append(cmd)
             Path(cmd[-1]).write_bytes(b"fake-output")
         with patch("premium_compose._check_input_clip"), \
+             patch("premium_compose.inspect_staged_audio"), \
              patch("premium_compose.subprocess.run", side_effect=fake_run), \
              patch("premium_compose.verify_reel",
                    return_value={"duration_seconds": 30.0, "video_codec": "h264",
@@ -44,7 +45,7 @@ class PremiumAssemblyTests(unittest.TestCase):
             result = compose_approved_clips(
                 shop_id=SHOP, clips=self.clips if clips is None else clips,
                 asset_root=self.assets, output=self.output,
-                licensed_music=music, width=180, height=320,
+                licensed_music=music, width=720, height=1280,
                 fps=12, preset="ultrafast")
         return result, commands
 
