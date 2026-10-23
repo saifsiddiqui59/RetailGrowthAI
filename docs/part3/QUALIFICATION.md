@@ -11,8 +11,10 @@
 | #113 | premium job scaffold, zero-default shared-ledger SQL proposal | Dedicated #39975690745 2/2; existing #39975690715 4/4 | PASS after fixing isolated provider mock and unreviewed-migration conflict, merged to Part3 |
 | #122 | no-redirect, bounded, verified private Wan MP4 output importer | Dedicated #39976479632 2/2; existing #39976479459 4/4 | PASS, merged to Part3 |
 | #126 | vendor official output OSS hostname compatibility fix/regression | Dedicated #39977762809 2/2; existing #39977763357 4/4 | PASS, merged to Part3 |
+| [#188](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/188) | worker-only Wan success URL, lease-fenced private completion + expiry guards | Dedicated [#40027754515](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40027754515) 2/2; Part 1 [#40027754811](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40027754811) 4/4 | PASS, merged to Part3 as 7f31f0ba |
+| [#189](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/189) | offline optional 30-second licensed Wan clip FFmpeg composition, default-free fallback | Dedicated [#40028636020](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40028636020) 2/2; Part 1 [#40028635956](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40028635956) 4/4 | PASS, merged to Part3 as 0680b887 |
 
-The five PRs merge only into `feat/part3-integration`; the final PR #125 is open as **DRAFT**, not merged into `main`.
+The seven internal feature PRs merge only into `feat/part3-integration`; the final PR #125 is open as **DRAFT**, not merged into `main`.
 
 ## Default-safe integrated behavior
 
@@ -33,3 +35,10 @@ The five PRs merge only into `feat/part3-integration`; the final PR #125 is open
 7. Real browser Auth with cross-tenant denials, provider clip MP4/ffprobe and signed download under approved fresh test identities. No live Wan invoice/task/media exists, no paid subscription or checkout activation.
 
 **DO NOT** mistake mocked CI or draft final PR for feature launch. Retain `RETAIL_PREMIUM_VIDEO_ENABLED=false` and no positive premium allowance until the tasks and separate approvals are complete. No WineShopPOS or GenAI Galaxy mutation.
+
+## 2026-10-24 continuation — new source-only milestones
+
+- #188 implements `AlibabaWanProvider.poll_private` returning signed output only to the privileged importer and `PremiumPollCompletion` with an existing database lease/tenant/reservation *contract*, not a hosted implementation. It rejects expired/duplicate Alibaba `Expires`, wrong claim/task, unsafe URL, invalid MP4 and stale finalization. No provider URL enters a customer response.
+- #189 adds `video-engine/premium_compose.py`, a no-shell FFmpeg/H.264/AAC 30-second join for 2-8 **already imported** licensed/rights-verified private Wan clips. It does not modify the existing standard image renderer; `select_render_mode` is strictly free-first. Music must pass existing local audio rights/codec validation; no royalty-free material is bundled.
+- Tests on the exact PR heads are green as recorded above. Private-completion test uses mocked provider/storage DB; new compositor FFmpeg command is unit-tested with fake clip commands, with real rejection of spoofed invalid MP4; **no live provider video or actual 30-second Wan composite E2E was run**. This is not user-ready.
+- Remaining **release blockers**: reviewed/applicable Supabase schema + atomic service-role RPCs, durable Azure premium queues/worker/poison/recovery, JWT-authenticated premium API/download, approved provider/region/rights/credit/rate policy, real signed frame/image consent, actual FFmpeg mixed stock + AI overlays/CTA, cancellation/provider reconciliation, real rendered composition/hosted E2E, final Coordinator merge. Keep all premium flags and allowances OFF. No external social publishing work or WineShopPOS changes.
