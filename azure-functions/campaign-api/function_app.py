@@ -222,3 +222,14 @@ def write_social_job(req: func.HttpRequest) -> func.HttpResponse:
     return func.HttpResponse(json.dumps(payload), status_code=code,
         mimetype="application/json",
         headers={"Cache-Control":"no-store", "X-Content-Type-Options":"nosniff"})
+
+
+# Part 2 publishing worker is NOT indexed/deployed by default. Adding this
+# source file does not activate any timer, Azure queue consumer or provider call.
+# Operator must first approve/apply P2 SQL, caps, OAuth apps, media/privacy
+# compliance and social queue resources. No shared Part 1 triggers are changed.
+if os.environ.get("RETAIL_PART2_FUNCTIONS_REGISTER_ENABLED") == "true":
+    from social_worker_runtime import require_social_release
+    require_social_release(os.environ)
+    from social_worker_blueprint import social_worker_blueprint
+    app.register_functions(social_worker_blueprint)
