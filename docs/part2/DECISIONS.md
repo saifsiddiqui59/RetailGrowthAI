@@ -11,3 +11,8 @@
 ## 2026-10-23 — P1 platform admin vs Part 2 OAuth authorization
 - P1 Platform Super Admin is for platform operations, **not automatic permission to connect accounts or publish another shop's content**. Social connect, approve and schedule require specific shop membership/OWNER or delegated EDITOR role and fresh explicit reviewed content approval; backend must perform current RLS/role lookup on every action. Preserve P1 `platform_admin` policies and separate subscription quota.
 - The 12th **P1** migration `20261023181000_p1_platform_admin.sql` is now canonical; the two later timestamped **P2** pending SQL files must be reconciled/reviewed in migration order before any separately authorized hosted P2 application.
+
+## 2026-10-23 — YouTube connected-channel verification decision
+
+- Consent requests `youtube.upload` for Shorts/video upload and `youtube.readonly` only to verify the linked channel via authorized `channels.list?mine=true`. If the user declines either required scope, does not grant an offline refresh token, or returns zero/multiple ambiguous channels, fail closed rather than guess or silently re-request privileges.
+- Keep Google OAuth client secret and all token transport **server-side**; the authorization URL includes only public client ID, exact approved redirect, state and PKCE challenge. Keep provider transport injected/disabled until explicit installation approval. Store resulting access/refresh credentials encrypted through existing tenant-scoped vault/RPC, never in browser storage or provider debug logs.
