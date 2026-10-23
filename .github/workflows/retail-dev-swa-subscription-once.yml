@@ -1,5 +1,5 @@
-name: RetailGrowthAI DEV existing SWA Part 1 subscription dashboard refresh (one time)
-# Owner-authorized existing DEV SWA frontend refresh only. Never provision or update Supabase/Azure backend.
+name: RetailGrowthAI DEV existing SWA protected Platform Control UI release (one time)
+# Owner-authorized existing DEV SWA FRONTEND-ONLY release. Root backend migration/grant require verified account and separate gate.
 on:
   push:
     branches: [main]
@@ -95,11 +95,11 @@ jobs:
         run: |
           set -euo pipefail
           host="$(az staticwebapp show -g rg-retailgrowth-dev -n retailgrowthai-dev-preview --query defaultHostname -o tsv)"
-          for path in '' campaigns account subscription; do
+          for path in '' campaigns account subscription platform-admin; do
             curl -fsSL --max-time 25 "https://$host/$path" -o "$RUNNER_TEMP/page"
             grep -Fq 'id="root"' "$RUNNER_TEMP/page"
           done
-          echo "PASS: DEV SWA routes /, /campaigns, /account, /subscription publicly deployed https://$host"
+          echo "PASS: DEV SWA SPA /, /campaigns, /account, /subscription, /platform-admin deployed; protected admin route requires signed-in verified root https://$host"
       - name: Azure logout
         if: always()
         run: az logout >/dev/null 2>&1 || true
