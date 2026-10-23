@@ -1,0 +1,235 @@
+name: RetailGrowthAI DEV parallel API configuration and FFmpeg release
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-api-media-parallel-once.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-live-function-release
+  cancel-in-progress: false
+
+env:
+  RG: rg-retailgrowth-dev
+  APP: rgai-dev-functions-d4e5ddbd
+  ACCOUNT: rgaid4e5ddbdf0d21d96
+  PROJECT_URL: https://jeearzffnjbvghwjjjrf.supabase.co
+
+jobs:
+  api-config:
+    name: A — Configure existing DEV Python API host with Azure OIDC
+    runs-on: ubuntu-24.04
+    environment: dev
+    timeout-minutes: 12
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+      PUBLISHABLE_KEY: sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq
+    steps:
+      - name: Login scoped Azure OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify existing dedicated DEV resources; configure only existing Function App
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          rg="$(az group show -g "$RG" -o json)"
+          RG_JSON="$rg" python3 - <<'PY'
+          import os,json
+          o=json.loads(os.environ["RG_JSON"])
+          tags={k.lower():str(v).lower() for k,v in (o.get("tags") or {}).items()}
+          assert o.get("name")=="rg-retailgrowth-dev"
+          assert o.get("location","").replace(" ","").lower()=="centralindia"
+          assert tags.get("app")=="retailgrowthai" and tags.get("environment")=="dev"
+          print("PASS: exact tagged Central India DEV RG")
+          PY
+          test "$(az functionapp show -g "$RG" -n "$APP" --query name -o tsv)" = "$APP"
+          test "$(az storage account show -g "$RG" -n "$ACCOUNT" --query name -o tsv)" = "$ACCOUNT"
+          az functionapp config appsettings list -g "$RG" -n "$APP" --query '[].name' -o tsv > "$RUNNER_TEMP/settings-names"
+          for name in AzureWebJobsStorage RETAIL_STORAGE; do
+            grep -Fxq "$name" "$RUNNER_TEMP/settings-names" || { echo "::error::Missing host storage binding $name"; exit 3; }
+          done
+          test "$PROJECT_URL" = "https://jeearzffnjbvghwjjjrf.supabase.co"
+          test -n "$PUBLISHABLE_KEY"
+          if [ -n "${SERVICE_KEY:-}" ]; then
+            if [[ "$SERVICE_KEY" != sb_secret_* && "$SERVICE_KEY" != eyJ* ]]; then
+              echo "::error::Invalid service-only Supabase secret key format"; exit 3
+            fi
+            az functionapp config appsettings set -g "$RG" -n "$APP" -o none --settings \
+              "RETAIL_SUPABASE_URL=$PROJECT_URL" "RETAIL_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY" \
+              "RETAIL_SUPABASE_SERVICE_ROLE_KEY=$SERVICE_KEY" "RETAIL_ENABLE_MOCK_CAMPAIGNS=true" \
+              "AzureWebJobs.plan_campaign.Disabled=false" \
+              "AzureWebJobs.render_campaign_reel.Disabled=false" \
+              "AzureWebJobs.recover_stale_jobs.Disabled=false" \
+              "AzureWebJobs.planning_poison.Disabled=false" \
+              "AzureWebJobs.render_poison.Disabled=false"
+            echo "PASS: live DEV host config + protected service role set; DEMO mock planning explicitly enabled"
+          else
+            az functionapp config appsettings set -g "$RG" -n "$APP" -o none --settings \
+              "RETAIL_SUPABASE_URL=$PROJECT_URL" "RETAIL_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY" \
+              "RETAIL_ENABLE_MOCK_CAMPAIGNS=false" \
+              "AzureWebJobs.plan_campaign.Disabled=true" \
+              "AzureWebJobs.render_campaign_reel.Disabled=true" \
+              "AzureWebJobs.recover_stale_jobs.Disabled=true" \
+              "AzureWebJobs.planning_poison.Disabled=true" \
+              "AzureWebJobs.render_poison.Disabled=true"
+            echo "::warning::SERVICE_ROLE_KEY_MISSING: worker and timer triggers disabled; protected secret needed for real DB-backed jobs"
+          fi
+          names="$(az functionapp config appsettings list -g "$RG" -n "$APP" --query '[].name' -o tsv)"
+          grep -Fxq "RETAIL_SUPABASE_URL" <<< "$names"
+          grep -Fxq "RETAIL_SUPABASE_PUBLISHABLE_KEY" <<< "$names"
+          echo "PASS: existing Azure Function App settings confirmed, credential values not displayed"
+      - name: Cleanup Azure session
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
+
+  ffmpeg-package:
+    name: B — Verify pinned FFmpeg binary and build Functions release ZIP
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify existing Python source and package constraints
+        shell: bash
+        run: python3 scripts/deploy/package.py --check
+      - name: Fetch SHA256-pinned BtbN Linux x86_64 static FFmpeg GPL and validate binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rgai-media" "$RUNNER_TEMP/rgai-bins" "$RUNNER_TEMP/rgai-release"
+          url="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz"
+          digest="002028f3e81128f0f8ac525092a8dd72b5e7491a787971836287c043cc316ea6"
+          curl -fLsS --retry 3 --connect-timeout 25 --max-time 850 "$url" -o "$RUNNER_TEMP/rgai-release/btbn.tar.xz"
+          printf '%s  %s\n' "$digest" "$RUNNER_TEMP/rgai-release/btbn.tar.xz" | sha256sum -c -
+          echo "PASS: GitHub published asset pinned SHA256 verified"
+          python3 - <<'PY'
+          import os,tarfile
+          p=os.environ["RUNNER_TEMP"]+"/rgai-release/btbn.tar.xz"
+          with tarfile.open(p,"r:xz") as t:
+              files=t.getmembers()
+              assert len(files)<4000
+              assert all(not m.name.startswith("/") and ".." not in m.name.split("/") and not m.issym() and not m.islnk() for m in files)
+              assert sum(m.name.endswith("/bin/ffmpeg") for m in files)==1
+              assert sum(m.name.endswith("/bin/ffprobe") for m in files)==1
+          print("PASS: archive path safety, exactly two media executables")
+          PY
+          tar -xJf "$RUNNER_TEMP/rgai-release/btbn.tar.xz" -C "$RUNNER_TEMP/rgai-media" --no-same-owner
+          for name in ffmpeg ffprobe; do
+            file="$(find "$RUNNER_TEMP/rgai-media" -type f -path "*/bin/$name" -print -quit)"
+            test -n "$file"
+            cp "$file" "$RUNNER_TEMP/rgai-bins/$name"
+            chmod 755 "$RUNNER_TEMP/rgai-bins/$name"
+          done
+          ff="$RUNNER_TEMP/rgai-bins/ffmpeg"
+          "$ff" -hide_banner -encoders 2>/dev/null | grep -Eq 'libx264'
+          "$ff" -hide_banner -encoders 2>/dev/null | grep -Eq ' aac'
+          "$ff" -hide_banner -filters 2>/dev/null | grep -Eq '[[:space:]]drawtext[[:space:]]'
+          "$ff" -hide_banner -filters 2>/dev/null | grep -Eq '[[:space:]]xfade[[:space:]]'
+          "$RUNNER_TEMP/rgai-bins/ffprobe" -version >/dev/null
+          echo "PASS: real FFmpeg and ffprobe executable; libx264, AAC, drawtext, xfade present"
+          cat > "$RUNNER_TEMP/rgai-bins/THIRD_PARTY_NOTICES.txt" <<'NOTICE'
+          FFmpeg GPL Linux x86_64 static binary provenance and source:
+          https://github.com/BtbN/FFmpeg-Builds
+          Archive at 2026-10-22:
+          https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+          Published archive SHA256: 002028f3e81128f0f8ac525092a8dd72b5e7491a787971836287c043cc316ea6
+          Includes GPL libraries such as libx264; source, license and obligations:
+          https://ffmpeg.org/legal.html
+          https://github.com/BtbN/FFmpeg-Builds/blob/master/README.md
+          NOTICE
+          python3 scripts/deploy/package.py \
+            --ffmpeg-dir "$RUNNER_TEMP/rgai-bins" \
+            --output "$RUNNER_TEMP/rgai-release/retailgrowth-functions.zip"
+          python3 scripts/deploy/package.py \
+            --verify-zip "$RUNNER_TEMP/rgai-release/retailgrowth-functions.zip"
+          sha256sum "$RUNNER_TEMP/rgai-release/retailgrowth-functions.zip"
+          echo "PASS: generated validated first-release Azure Functions ZIP (GPL notice included)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rgai-dev-verified-first-release-zip
+          path: ${{ runner.temp }}/rgai-release/retailgrowth-functions.zip
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  deploy-existing:
+    name: C — Deploy verified ZIP only to existing DEV Flex Function App
+    needs: [api-config, ffmpeg-package]
+    if: needs.api-config.result == 'success' && needs.ffmpeg-package.result == 'success'
+    runs-on: ubuntu-24.04
+    environment: dev
+    timeout-minutes: 35
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: rgai-dev-verified-first-release-zip
+          path: ${{ runner.temp }}/rgai-verified
+      - name: Verify the artifact ZIP independently before Azure publish
+        shell: bash
+        run: python3 scripts/deploy/package.py --verify-zip "$RUNNER_TEMP/rgai-verified/retailgrowth-functions.zip"
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Publish only existing DEV Flex app (remote dependency build)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          test "$(az functionapp show -g "$RG" -n "$APP" --query name -o tsv)" = "$APP"
+          echo "Publishing SHA256-verified source ZIP to existing Azure Flex host"
+          az functionapp deployment source config-zip -g "$RG" -n "$APP" \
+            --src "$RUNNER_TEMP/rgai-verified/retailgrowth-functions.zip" \
+            --build-remote true -o none
+          echo "PASS: Flex package publish call completed; verifying remote runtime"
+      - name: Inspect actual Functions trigger indexing and unauthenticated HTTP
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5 6; do
+            az functionapp function list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/funcs.json" || true
+            if python3 - "$RUNNER_TEMP/funcs.json" <<'PY'
+          import json,sys
+          o=json.load(open(sys.argv[1]))
+          names={x.get("name","").split("/")[-1] for x in o}
+          required={"create_campaign","read_campaign","plan_campaign","render_campaign_reel",
+                    "recover_stale_jobs","planning_poison","render_poison"}
+          print("REMOTE_FUNC_COUNT",len(names),"MISSING",sorted(required-names))
+          sys.exit(0 if required<=names else 1)
+          PY
+            then break; fi
+            if [ "$i" -eq 6 ]; then echo "::error::HOST_TRIGGER_INDEXING_INCOMPLETE"; exit 3; fi
+            sleep 15
+          done
+          code="$(curl -ksS --connect-timeout 15 --max-time 30 -o "$RUNNER_TEMP/http.response" -w '%{http_code}' \
+                   "https://$APP.azurewebsites.net/api/campaigns" || true)"
+          echo "UNAUTHENTICATED_HTTP_STATUS=$code (expected not 2xx)"
+          case "$code" in 401|403|405|503) echo "PASS: API does not allow anonymous campaign creation" ;; *) echo "::error::Unexpected HTTP response or host unavailable"; exit 3 ;; esac
+          echo "RELEASE STATUS: verified Azure HTTP and queue/timer indexing; live authenticated Supabase E2E still separate"
+      - name: Cleanup Azure session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
