@@ -21,3 +21,8 @@ Separate approvals are mandatory before hosted DEV SQL, Azure deployment, provid
 5. Implement network transports with current per-provider API requirements; never automatically retry ambiguous external create-post calls. Instagram container FINISHED, YouTube resumable binary completion, Facebook Page and LinkedIn granted author roles must be verified in mocks before live app approval.
 6. End-to-end approval/edit/cancel and cross-tenant, expired account, revoked role, media-rights and quota exhaustion tests. Enable `VITE_PART2_SOCIAL_ENABLED` or `RETAIL_PART2_SOCIAL_ENABLED` only as part of independently approved hosted release.
 7. When **all** internal functionality is implemented and 4/4 final integration CI green, open `feat/part2-integration` → fresh `main` final PR for coordinator. Do not merge it yourself.
+
+## Next after security/schema correction
+- Run **four actual Actions jobs** on the exact final `feat/part2-integration` commit after this doc update; don't infer integration green from the preceding PRs.
+- Before final Part 2-to-main PR, inspect fresh Part 1 main and preserve latest frontend/subscription and any API changes. Current Part 2 main merge baseline was `302ee4ad`; newer coordinator commits may exist.
+- Still no real OAuth code exchange/refresh/disconnect, no publication quota configuration, no durable social dispatcher SQL and Queue trigger, no posted social content or E2E. Implement and test those as separate owner-managed Part 2 branches without requiring coordinator merges.

@@ -57,3 +57,9 @@ Also reconciled current Part 1 `main` `302ee4adf47800ddf6d3e4b84372fe65a65d7fbe`
 | Testing | Four-job CI for component PRs; Python+Node unit denials | Hosted migration, mocked full-browser publish journey, real provider/queue E2E |
 
 **Not implemented:** real account connection, external publish, live scheduling, hosted SQL, actual publishing quota, provider access approval, Azure deployment. Final PR to main is **not ready**. No WineShopPOS / GenAI Galaxy / Postiz / Razorpay modifications.
+
+## 2026-10-23 — Final source-hardening correction checkpoint
+
+- Internal [PR #129](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/129), **4/4** [Actions #39978367904](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39978367904), merged `16490d1e`: exclude provider Authorization headers/signed media bodies and OAuth state/PKCE verifier from automatic object debug representations.
+- Internal [PR #130](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/130), **4/4** [Actions #39978776724](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39978776724), merged `65f52a9c`: pending SQL adds provider/revision and same-shop/actual-provider account composite FK; prevents mismatched connected accounts and makes pure approval digest inputs persistable.
+- Important: these are source changes only; the pending SQL was **not applied**. No actual OAuth connect or provider publishing flow is complete. The two flag-gated social routes remain disabled in hosted DEV. Complete local SQL negative tests, durable claim/quota integration and official app access before considering a final PR to main.
