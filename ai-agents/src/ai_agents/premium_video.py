@@ -204,7 +204,7 @@ class AlibabaWanProvider:
         return {"provider": "alibaba-wan", "model": body["model"],
                 "task_id": value, "status": "PENDING"}
 
-    def poll_private(self, task_id: str):
+    def _poll_result(self, task_id: str, *, include_private=False):
         """Worker-only result with private provider URL; NEVER send to browser.
 
         The importer still must enforce its independently approved exact host
@@ -222,7 +222,7 @@ class AlibabaWanProvider:
         ):
             raise PremiumVideoProviderError("Invalid Wan task result")
         public = {"task_id": task_id, "status": output["task_status"]}
-        if public["status"] == "SUCCEEDED":
+        if public["status"] == "SUCCEEDED" and include_private:
             link = output.get("video_url")
             if not isinstance(link, str) or len(link) > 4096:
                 raise PremiumVideoProviderError("Wan output link unavailable")
@@ -234,7 +234,11 @@ class AlibabaWanProvider:
             public["private_provider_url"] = link
         return public
 
+    def poll_private(self, task_id: str):
+        """Worker-only: returns URL for allowlisted private importer."""
+        return self._poll_result(task_id, include_private=True)
+
     def poll(self, task_id: str):
-        result = self.poll_private(task_id)
-        # Public status adapter MUST NOT reveal the signed provider CDN URL.
+        """Sanitized public status, regardless of any untrusted URL in reply."""
+        result = self._poll_result(task_id, include_private=False)
         return {"task_id": result["task_id"], "status": result["status"]}
