@@ -7,6 +7,7 @@
 \ir ../../supabase/part2/pending/20261023190300_p2_social_dispatch_claims.sql
 \ir ../../supabase/part2/pending/20261023190400_p2_social_authoring.sql
 \ir ../../supabase/part2/pending/20261023190500_p2_social_claim_context.sql
+\ir ../../supabase/part2/pending/20261023190600_p2_social_poison_reconciliation.sql
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -348,6 +349,50 @@ begin
      or public.p2_claim_social_publish(job1) is not null then
     raise exception 'FAIL: canceled or repeat claim was accepted';
   end if;
+  if not public.p2_record_social_poison(job1) or
+      (select status from public.social_publish_jobs where id=job1)<>'CANCELED' then
+    raise exception 'FAIL: poison redelivery changed already canceled job';
+  end if;
+  -- Disposable simulation of a poisoned provider send: never make it
+  -- RETRYABLE or invoke another outbound call after SENDING.
+  update public.social_publish_jobs set status='SENDING' where id=job1;
+  insert into retail_private.social_publish_attempts(job_id,attempt_no,claim_token)
+    values(job1,2,gen_random_uuid());
+  if not public.p2_record_social_poison(job1) then
+    raise exception 'FAIL: poisoned sending job receipt rejected';
+  end if;
+  if (select status from public.social_publish_jobs where id=job1)<>'RECONCILE' then
+    raise exception 'FAIL: poisoned sending job not marked RECONCILE';
+  end if;
+  if exists(select 1 from retail_private.social_publish_attempts
+                where job_id=job1 and finished_at is null) then
+    raise exception 'FAIL: poisoned sending claim remained active';
+  end if;
+  if not public.p2_record_social_poison(job1) then
+    raise exception 'FAIL: duplicate poison receipt was not idempotent';
+  end if;
 end $$;
 rollback;
 \echo 'PASS: P2 approved content, replay-safe draft, atomic per-period quota and cancel'
+
+-- No authenticated actor may acknowledge or alter poison queue statuses.
+begin;
+do $$
+begin
+  if has_function_privilege('authenticated',
+    'public.p2_record_social_poison(uuid)','EXECUTE')
+    or has_function_privilege('anon',
+    'public.p2_record_social_poison(uuid)','EXECUTE') then
+    raise exception 'FAIL: social poison receipt exposed to browser role';
+  end if;
+end $$;
+select set_config('request.jwt.claim.role','service_role',true);
+do $$
+begin
+  if public.p2_record_social_poison(
+      '40000000-0000-4000-8000-000000000099') then
+    raise exception 'FAIL: unknown job poison incorrectly acknowledged';
+  end if;
+end $$;
+rollback;
+\echo 'PASS: poison receipts require an authoritative private job and server-only actor'

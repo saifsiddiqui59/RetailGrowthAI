@@ -24,6 +24,7 @@ from tenant_store import StorageUnavailable, canonical_uuid
 _RPCS = frozenset({
     "p2_claim_social_publish", "p2_social_claim_context",
     "p2_mark_social_inflight", "p2_finish_social_publish",
+    "p2_record_social_poison",
 })
 _REQUIRED_SCOPES = {
     "facebook": frozenset({"pages_manage_posts"}),
@@ -221,6 +222,14 @@ class SocialPublishRpcRepository:
 
     def record_receipt(self, job_id, claim_token, remote_id, status):
         self._finish(job_id, claim_token, status, remote_id=remote_id)
+
+    def record_poison(self, job_id):
+        """Mandatory durable receipt; if DB is down leave Azure poison queued."""
+        result = self._rpc("p2_record_social_poison", {
+            "p_job": message_uuid(job_id)})
+        if result is not True:
+            raise StorageUnavailable("social poison receipt not confirmed")
+        return True
 
 
 def build_social_publish_repository(config=None, *, transport=None, clock=None):
