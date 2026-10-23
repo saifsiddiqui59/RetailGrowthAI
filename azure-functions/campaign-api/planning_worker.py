@@ -1,10 +1,10 @@
 """Queue-triggered, idempotent campaign planner with lease and revocation checks."""
 from __future__ import annotations
 
-from datetime import date
+import os
 from uuid import UUID
 
-from ai_agents.providers import MockFoundryProvider
+from ai_agents.providers import AzureFoundryProvider, MockFoundryProvider
 from ai_agents.reviewer import review_campaign
 from ai_agents.schemas import CampaignBrief, validate_campaign
 from tenant_store import StorageUnavailable
@@ -30,9 +30,15 @@ def process_campaign(campaign_id, admin, *, mock_enabled=False, provider=None):
     if not admin.still_authorized(row):
         admin.fail(row, "ACCESS_REVOKED", permanent=True)
         return "DENIED"
-    if provider is None and not mock_enabled:
-        admin.fail(row, "FOUNDRY_NOT_CONFIGURED", permanent=True)
-        return "UNCONFIGURED"
+    if provider is None:
+        live = AzureFoundryProvider()
+        if live.configured:
+            provider = live
+        elif mock_enabled:
+            provider = MockFoundryProvider()
+        else:
+            admin.fail(row, "FOUNDRY_NOT_CONFIGURED", permanent=True)
+            return "UNCONFIGURED"
     try:
         request = CampaignBrief.from_dict({
             "shop_id": row["shop_id"], "brief": row["brief"],
@@ -41,7 +47,7 @@ def process_campaign(campaign_id, admin, *, mock_enabled=False, provider=None):
             "language": row["language"], "platforms": row["platforms"],
             "media_asset_ids": row["media_asset_ids"], "offer": row["offer"],
         })
-        generator = provider or MockFoundryProvider()
+        generator = provider
         campaign = generator.generate(request, campaign_id=cid)
         validate_campaign(campaign, expected_count=request.duration_days)
         if campaign["id"] != cid or campaign["shop_id"] != request.shop_id:
