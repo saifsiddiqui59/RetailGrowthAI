@@ -19,3 +19,9 @@ Avoid changing `.github/workflows/**`, shared `docs/INTERFACES_V1.md`, existing 
 - `feat/p2-dispatch-fencing` #123 — owns `social_dispatch.py` + `test_social_dispatch.py`; internally merged with 4/4.
 - `feat/p2-final-handoff-docs` — owns `docs/part2/**` only; documents exact sources/CI/remaining tasks and moves through its own internal PR.
 - Integration maintenance: actual `main` two-parent merge `55470665` to reconcile P1 dashboard and P2 social route. This is part-owned integration and is not a final PR to `main`.
+
+## OAuth follow-on workstreams — 2026-10-23
+- `feat/p2-oauth-lifecycle` PR #131 — `social_oauth_lifecycle.py`, scoped unit tests, 4/4 merged.
+- `feat/p2-oauth-repository` PR #133 — `social_oauth_repository.py`, mock backend RPC transport tests, 4/4 merged.
+- `feat/p2-oauth-db-atomic` PR #132 — staged `supabase/part2/pending/**` P2 OAuth SQL, `tests/security/part2_social_negative.sql`, narrow conditional disposable Supabase CI invocation; 4/4 merged, **NOT hosted**.
+- `feat/p2-oauth-handoff-docs` — Part 2-only architecture/next task/decision handoff.

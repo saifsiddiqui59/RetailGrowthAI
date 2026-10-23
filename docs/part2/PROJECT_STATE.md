@@ -63,3 +63,17 @@ Also reconciled current Part 1 `main` `302ee4adf47800ddf6d3e4b84372fe65a65d7fbe`
 - Internal [PR #129](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/129), **4/4** [Actions #39978367904](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39978367904), merged `16490d1e`: exclude provider Authorization headers/signed media bodies and OAuth state/PKCE verifier from automatic object debug representations.
 - Internal [PR #130](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/130), **4/4** [Actions #39978776724](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39978776724), merged `65f52a9c`: pending SQL adds provider/revision and same-shop/actual-provider account composite FK; prevents mismatched connected accounts and makes pure approval digest inputs persistable.
 - Important: these are source changes only; the pending SQL was **not applied**. No actual OAuth connect or provider publishing flow is complete. The two flag-gated social routes remain disabled in hosted DEV. Complete local SQL negative tests, durable claim/quota integration and official app access before considering a final PR to main.
+
+## 2026-10-23 — Additional OAuth lifecycle/persistence implementation (newest)
+
+All PRs target `feat/part2-integration` and were self-reviewed and internally merged, never merged to main:
+
+| PR | Verified 4/4 CI | Internal merge | Contents |
+| --- | --- | --- | --- |
+| [#131](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/131) | [39981003583](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39981003583) | `6dc76aed` | OWNER-bound OAuth start/callback/local disconnect, one-use state, scope and identity checks, encrypted tokens, mocked provider tests |
+| [#133](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/133) | [39981284686](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39981284686) | `1f23312e` | Service-only OAuth RPC repository; HTTPS, fixed RPC allowlist, encrypted payloads, sanitized errors and negative tests |
+| [#132](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/132) | [39982030923](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39982030923) | `537594ab` | **PENDING** atomic OAuth state issue/consume, transactional encrypted connect and disconnect SQL, cross-shop/grant/replay tests executed in **disposable** Supabase |
+
+A separately confirmed integration commit `5c0f1c83` passed [Actions #39979248011](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39979248011) **4/4** before the new OAuth PRs; do not represent it as the final commit's CI.
+
+**Integration gaps still block release:** adapter-level OAuth identity/code exchange must be implemented and verified for each platform, actual HTTP callback/routes must be connected to the service, credentials refresh and provider-side revocation must be implemented, and the staged SQL must be reviewed and separately approved before hosted application. P2 publishing queues, durable claim/reconciliation, plan publish quotas, full media upload/publish flows, approvals UI and hosted E2E are **not complete**. No live customer content posted or hosted changes made.
