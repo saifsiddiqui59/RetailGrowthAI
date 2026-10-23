@@ -141,3 +141,44 @@ test('shop owner lands on own workspace rather than global SaaS metrics', async 
   await expect(page.getByRole('navigation', { name: 'Main navigation' })
     .getByRole('link', { name: 'Platform Control' })).toHaveCount(0)
 })
+
+
+test('root reviews an onboarding request without exposing it to a shop user', async ({ page }) => {
+  const calls = await loginAs(page, 'ROOT')
+  const requested = 'f1000000-0000-4000-8000-000000000005'
+  let approved = false
+  await page.route(SUPABASE + '/rest/v1/rpc/retail_platform_onboarding_requests', route =>
+    fulfill(route, approved ? [] : [{
+      user_id: requested, email: 'new-retailer@example.invalid',
+      status: 'PENDING', requested_at: '2026-10-23T18:00:00Z',
+    }] ))
+  await page.route(SUPABASE + '/rest/v1/rpc/retail_platform_review_onboarding', route => {
+    const body = route.request().postDataJSON()
+    calls.push({ path:'/rest/v1/rpc/retail_platform_review_onboarding', body })
+    approved = true
+    return fulfill(route, {user_id:requested,status:'APPROVED'})
+  })
+  await page.goto('/platform-admin')
+  await page.getByRole('button', { name: 'Review requests' }).click()
+  await expect(page.getByText('new-retailer@example.invalid')).toBeVisible()
+  await page.getByRole('button',{name:'Review account'}).click()
+  await page.getByLabel('Decision reason').fill('Verified retailer in controlled DEV test')
+  await page.getByRole('checkbox',{name:/I verified this account request/}).check()
+  await page.getByRole('button',{name:'Approve',exact:true}).click()
+  await expect(page.getByRole('status').filter({hasText:'Retailer onboarding approved.'})).toBeVisible()
+  await expect(page.getByText('No pending retailer approval requests.')).toBeVisible()
+  const actions = calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_review_onboarding')
+  expect(actions).toHaveLength(1)
+  expect(actions[0].body).toMatchObject({
+    p_user_id:requested,p_approve:true,p_reason:'Verified retailer in controlled DEV test',
+  })
+})
+
+test('unapproved shop user sees pending notice and not Create business action', async ({ page }) => {
+  await loginAs(page, 'OWNER')
+  await page.route(SUPABASE + '/rest/v1/rpc/retail_onboarding_status',
+    route=>fulfill(route,{status:'PENDING',approval_required:true}))
+  await page.goto('/account')
+  await expect(page.getByRole('heading',{name:'Retailer access request: PENDING'})).toBeVisible()
+  await expect(page.getByRole('button',{name:'Create business'})).toHaveCount(0)
+})
