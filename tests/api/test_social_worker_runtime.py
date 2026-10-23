@@ -150,3 +150,33 @@ def test_queue_payload_must_be_single_canonical_uuid():
     with pytest.raises(Exception):
         worker.process_queue_body(b'{"job":"uuid","token":"secret"}')
     assert repo.events==[] and provider.calls==0
+
+
+def test_poison_requires_durable_db_receipt_and_rejects_untrusted_payload():
+    repository=Repository(approval())
+    repository.poison_ids=[]
+    def record_poison(job):
+        repository.poison_ids.append(job)
+        return True
+    repository.record_poison=record_poison
+    worker=runtime(repository,Publisher(repository))
+    assert worker.record_poison(JOB) is True
+    assert repository.poison_ids==[JOB]
+    with pytest.raises(Exception):
+        worker.record_poison('{"access_token":"secret"}')
+    assert repository.poison_ids==[JOB]
+    def failed_receipt(job):raise RuntimeError("database unavailable")
+    repository.record_poison=failed_receipt
+    with pytest.raises(RuntimeError,match="database unavailable"):
+        worker.record_poison(JOB)
+
+
+def test_publishing_blueprint_registration_requires_explicit_host_switch():
+    source=(Path(__file__).resolve().parents[2]/
+            "azure-functions/campaign-api/function_app.py").read_text()
+    assert 'RETAIL_PART2_FUNCTIONS_REGISTER_ENABLED' in source
+    assert 'app.register_functions(social_worker_blueprint)' in source
+    assert 'require_social_release(os.environ)' in source
+    # Blueprints are never registered by a failing config check.
+    assert source.index('require_social_release(os.environ)') < source.index(
+        'app.register_functions(social_worker_blueprint)')
