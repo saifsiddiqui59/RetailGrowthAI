@@ -7,6 +7,7 @@
 \ir ../../supabase/part2/pending/20261023190300_p2_social_dispatch_claims.sql
 \ir ../../supabase/part2/pending/20261023190400_p2_social_authoring.sql
 \ir ../../supabase/part2/pending/20261023190500_p2_social_claim_context.sql
+\ir ../../supabase/part2/pending/20261023190800_p2_social_media_reviews.sql
 \ir ../../supabase/part2/pending/20261023190600_p2_social_poison_reconciliation.sql
 
 begin;
@@ -371,6 +372,34 @@ begin
   if not public.p2_record_social_poison(job1) then
     raise exception 'FAIL: duplicate poison receipt was not idempotent';
   end if;
+  -- License registry is empty by default and must be backed by explicit
+  -- reviewer, object SHA, rights evidence and verified FFprobe.
+  insert into public.media_assets(
+    id,shop_id,created_by,object_path,mime_type,source)
+  values('81000000-0000-4000-8000-000000000001',shop,actor,
+    shop::text||'/renders/p2-evidence-fixture.mp4','video/mp4','GENERATED');
+  if public.p2_social_media_is_reviewed(
+    shop,'81000000-0000-4000-8000-000000000001') then
+    raise exception 'FAIL: unreviewed media was accepted';
+  end if;
+  if not public.p2_record_social_media_review(
+    shop,'81000000-0000-4000-8000-000000000001',actor,
+    repeat('ab',32),repeat('cd',32),'OWNER_ATTESTED',
+    '{"container":"mp4","video_codec":"h264","pixel_format":"yuv420p","width":1080,"height":1920,"duration_seconds":30}'::jsonb,
+    now()+interval '1 day') then
+    raise exception 'FAIL: explicit media review rejected';
+  end if;
+  if not public.p2_social_media_is_reviewed(
+    shop,'81000000-0000-4000-8000-000000000001') then
+    raise exception 'FAIL: verified media evidence unavailable';
+  end if;
+  update retail_private.social_media_reviews
+    set rights_expires_at=now()-interval '1 minute'
+    where shop_id=shop and media_asset_id='81000000-0000-4000-8000-000000000001';
+  if public.p2_social_media_is_reviewed(
+    shop,'81000000-0000-4000-8000-000000000001') then
+    raise exception 'FAIL: expired commercial rights still eligible';
+  end if;
 end $$;
 rollback;
 \echo 'PASS: P2 approved content, replay-safe draft, atomic per-period quota and cancel'
@@ -396,3 +425,19 @@ begin
 end $$;
 rollback;
 \echo 'PASS: poison receipts require an authoritative private job and server-only actor'
+
+-- Rights/ffprobe evidence and eligibility functions are not public API.
+begin;
+do $$
+begin
+  if has_function_privilege('authenticated',
+    'public.p2_record_social_media_review(uuid,uuid,uuid,text,text,text,jsonb,timestamptz)',
+    'EXECUTE') or has_function_privilege('anon',
+    'public.p2_social_media_is_reviewed(uuid,uuid)','EXECUTE')
+    or has_table_privilege('authenticated',
+    'retail_private.social_media_reviews','SELECT') then
+    raise exception 'FAIL: user-role media rights registry access';
+  end if;
+end $$;
+rollback;
+\echo 'PASS: private media rights, FFprobe, expiration and RLS gates'
