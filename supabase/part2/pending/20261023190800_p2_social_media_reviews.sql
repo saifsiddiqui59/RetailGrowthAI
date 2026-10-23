@@ -42,12 +42,12 @@ begin
       or p_probe is null or jsonb_typeof(p_probe)<>'object'
       or length(p_probe::text)>4096
       or (p_expires is not null and p_expires<=now())
-      or p_probe->>'container' not in ('mp4','mov,mp4,m4a,3gp,3g2,mj2')
-      or p_probe->>'video_codec'<>'h264'
-      or p_probe->>'pixel_format'<>'yuv420p'
-      or p_probe->>'width'<>'1080'
-      or p_probe->>'height'<>'1920'
-      or p_probe->>'duration_seconds' !~ '^[0-9]{1,3}([.][0-9]{1,3})?$'
+      or coalesce(p_probe->>'container','') not in ('mp4','mov,mp4,m4a,3gp,3g2,mj2')
+      or coalesce(p_probe->>'video_codec','')<>'h264'
+      or coalesce(p_probe->>'pixel_format','')<>'yuv420p'
+      or coalesce(p_probe->>'width','')<>'1080'
+      or coalesce(p_probe->>'height','')<>'1920'
+      or coalesce(p_probe->>'duration_seconds','') !~ '^[0-9]{1,3}([.][0-9]{1,3})?$'
       then raise exception 'invalid license/ffprobe evidence' using errcode='22023';
   end if;
   n := (p_probe->>'duration_seconds')::numeric;
