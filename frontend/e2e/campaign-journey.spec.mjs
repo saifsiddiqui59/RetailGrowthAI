@@ -268,28 +268,15 @@ test('invalid login, viewer permissions and cross-tenant creation fail closed', 
 test('viewer cannot select a business for a live campaign', async ({ page }) => {
   const state = await mockServices(page, { viewer: true })
   await login(page)
-  await page.goto('/campaigns')
+  // Navigate through the signed-in SPA. A full document refresh during Auth
+  // restoration can otherwise race the initial /campaigns redirect.
+  await page.getByRole('link', { name: 'Campaigns' }).click()
+  await expect(page).toHaveURL(/\/campaigns$/)
+  await expect(page.getByRole('heading', { name: 'What should we create?' })).toBeVisible()
+  await expect(page.locator('.rg-brief')).toHaveCount(1)
   await expect(page.locator('#rg-shop option')).toHaveCount(1)
-  console.log('VIEWER_PRE_CLICK_LAYOUT', JSON.stringify(await page.evaluate(() => ({
-    mains: document.querySelectorAll('main.content').length,
-    roots: document.querySelectorAll('#root').length,
-    briefs: [...document.querySelectorAll('.rg-brief')].map(e => ({
-      parent: e.parentElement?.className,
-      inRoot: Boolean(e.closest('#root')),
-      formCount: e.querySelectorAll('form').length,
-    })),
-  }))))
   await page.getByRole('button', { name: /Preview campaign request/ }).click()
   expect(state.requests).toHaveLength(0)
-  // This test-only assertion keeps the local preview contract observable.
-  console.log('VIEWER_LOCAL_PREVIEW_STATE', JSON.stringify(await page.evaluate(() => ({
-    sections: [...document.querySelectorAll('.rg-brief')].map(e => ({
-      parent: e.parentElement?.className, root: Boolean(e.closest('#root')),
-      hasLocalPreview: Boolean(e.querySelector('.rg-request-preview')),
-      error: e.querySelector('.rg-validation')?.textContent || null,
-    })),
-    mainNodes: document.querySelectorAll('main.content').length,
-  }))))
   await expect(page.getByText(/No campaign was generated/)).toBeVisible()
 })
 
