@@ -5,11 +5,17 @@ nor provider access tokens are ever loaded, returned or logged.
 """
 import json
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.parse import urlencode, urlsplit
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 
 from security import AuthenticationError
 from tenant_store import StorageUnavailable, canonical_uuid
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    """Never send the retailer JWT to another host after a redirect."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 _FIELDS = {
@@ -24,13 +30,16 @@ _FIELDS = {
 
 class SocialReadStore:
     def __init__(self, origin, publishable_key, transport=None):
-        if not isinstance(origin, str) or not origin.startswith("https://"):
-            raise ValueError("HTTPS Supabase origin required")
+        uri = urlsplit(origin) if isinstance(origin, str) else None
+        if (uri is None or uri.scheme != "https" or not uri.hostname
+                or uri.username or uri.password or uri.query or uri.fragment
+                or uri.path not in ("", "/") or uri.port not in (None, 443)):
+            raise ValueError("one HTTPS Supabase origin required")
         if not publishable_key:
             raise ValueError("publishable key required")
         self.origin = origin.rstrip("/")
         self.key = publishable_key
-        self.transport = transport or urlopen
+        self.transport = transport or build_opener(_NoRedirect()).open
 
     def list_rows(self, token, shop_id, resource):
         # Fixed table/field mapping; no caller-controlled query columns or order.
@@ -47,12 +56,17 @@ class SocialReadStore:
         })
         try:
             with self.transport(req, timeout=8) as res:
-                rows = json.loads(res.read().decode("utf-8"))
+                if res.geturl() != req.full_url:
+                    raise StorageUnavailable("unexpected social read redirect")
+                payload = res.read(1048577)
+                if len(payload) > 1048576:
+                    raise StorageUnavailable("oversized tenant read")
+                rows = json.loads(payload.decode("utf-8"))
         except HTTPError as err:
             if err.code in (401, 403):
                 raise AuthenticationError("RLS denied social read") from err
             raise StorageUnavailable("social store unavailable") from err
-        except (URLError, OSError, json.JSONDecodeError) as err:
+        except (URLError, OSError, UnicodeDecodeError, json.JSONDecodeError) as err:
             raise StorageUnavailable("social store unavailable") from err
         if (not isinstance(rows, list) or len(rows) > 100
                 or any(not isinstance(row, dict) or row.get("shop_id") != sid for row in rows)):
