@@ -97,7 +97,7 @@ begin
         'plan_code', x.plan_code, 'subscription_status', x.sub_status,
         'valid_until', x.valid_until, 'campaigns', x.campaigns,
         'renders', x.renders
-      ) order by x.created_at desc, x.id), '[]'::jsonb)
+      ) order by x.created_at desc, x.id)
       from (
         select s.id, s.name, s.slug, s.created_at,
                sub.plan_code, sub.status as sub_status, sub.valid_until,
@@ -108,7 +108,7 @@ begin
         order by s.created_at desc, s.id
         limit p_limit offset p_offset
       ) x
-    )
+    ), '[]'::jsonb)
   ) into result;
   return result;
 end
