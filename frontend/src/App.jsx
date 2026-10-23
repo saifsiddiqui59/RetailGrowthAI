@@ -75,7 +75,7 @@ function AccountMenu() {
 
 function AppShell() {
   const location = useLocation()
-  const { platformAdmin, platformLoading, user, loading, configured } = useRetailAuth()
+  const { platformAdmin, platformLoading, user, loading, configured, recoveryMode } = useRetailAuth()
   const [collapsed, setCollapsed] = useState(() => {
     try { return window.localStorage.getItem('rgai-sidebar-collapsed') === '1' } catch { return false }
   })
@@ -96,6 +96,8 @@ function AppShell() {
     if (location.pathname !== '/' && location.pathname !== '/account') return <Navigate to="/account" replace />
     return <LoginPage />
   }
+  // A verified recovery token must only render password reset, not business/root UI.
+  if (configured && recoveryMode) return <LoginPage />
   if (configured && platformLoading) return <div className="login-loading" role="status">Verifying dashboard access…</div>
   const availableLinks = platformAdmin
     ? [{ to: '/platform-admin', label: 'Platform Control', icon: '⚙' }, { to: '/business', label: 'My business', icon: '▦' },

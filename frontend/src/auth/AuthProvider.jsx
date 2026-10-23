@@ -11,16 +11,54 @@ export function AuthProvider({ children }) {
   const [platformAdmin, setPlatformAdmin] = useState(false)
   const [platformLoading, setPlatformLoading] = useState(false)
   const [platformError, setPlatformError] = useState('')
+  const [recoveryMode, setRecoveryMode] = useState(false)
   const sequence = useRef(0)
+  // React StrictMode replays mount effects in DEV. Retain the already-sanitized
+  // callback across replays; otherwise it would fall through to normal login.
+  const emailLinkRef = useRef(null)
 
   useEffect(() => {
     let mounted = true
     const epoch = ++sequence.current
     async function restore() {
       try {
-        if (client.configured && client.getStoredSession()) {
-          const verified = await client.getUser()
-          if (mounted && sequence.current === epoch) setUser(verified)
+        if (client.configured) {
+          // A Supabase email link returns implicit-flow tokens in the URL fragment.
+          // Remove the entire fragment before any async operation, so tokens do not
+          // remain in browser history or get forwarded in navigation.
+          let fragment = emailLinkRef.current
+          if (!fragment && window.location.pathname === '/account') {
+            const incoming = new URLSearchParams(window.location.hash.slice(1))
+            if (incoming.has('access_token') || incoming.has('error')) {
+              emailLinkRef.current = incoming
+              fragment = incoming
+              window.history.replaceState(window.history.state, '',
+                window.location.pathname + window.location.search)
+            }
+          }
+          if (fragment) {
+            if (fragment.has('error')) throw new Error('This email link has expired or is invalid. Request a new link.')
+            const type = fragment.get('type')
+            if (!['recovery', 'signup', 'email'].includes(type)) {
+              throw new Error('Unrecognized email verification link.')
+            }
+            const verified = await client.acceptEmailLinkSession({
+              access_token: fragment.get('access_token'),
+              refresh_token: fragment.get('refresh_token'),
+              expires_in: Number(fragment.get('expires_in')) || 3600,
+              expires_at: Number(fragment.get('expires_at')) || undefined,
+            })
+            if (mounted && sequence.current === epoch) {
+              // Password recovery never creates an app user session:
+              // only the password update endpoint may use its validated token.
+              // This prevents an intermediate render of tenant/root dashboards.
+              if (type === 'recovery') setRecoveryMode(true)
+              else setUser(verified)
+            }
+          } else if (client.getStoredSession()) {
+            const verified = await client.getUser()
+            if (mounted && sequence.current === epoch) setUser(verified)
+          }
         }
       } catch {
         if (mounted && sequence.current === epoch) {
@@ -75,19 +113,38 @@ export function AuthProvider({ children }) {
     return result
   }, [client])
 
+  const requestPasswordReset = useCallback(async (email) => {
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      throw new Error('Enter a valid email address.')
+    }
+    await client.requestPasswordReset(email)
+    // Deliberately non-enumerating even if the address does not exist.
+  }, [client])
+
+  const updateRecoveredPassword = useCallback(async (password) => {
+    if (!recoveryMode) throw new Error('Open a valid password recovery email link first.')
+    await client.updatePassword(password)
+    ++sequence.current
+    await client.signOut()
+    setUser(null)
+    setPlatformAdmin(false)
+    setRecoveryMode(false)
+  }, [client, recoveryMode])
+
   const signOut = useCallback(async () => {
     ++sequence.current
     await client.signOut()
     setUser(null)
     setPlatformAdmin(false)
+    setRecoveryMode(false)
     setError('')
   }, [client])
 
   const value = useMemo(() => ({
-    client, configured: client.configured, user, loading, error,
+    client, configured: client.configured, user, loading, error, recoveryMode,
     platformAdmin, platformLoading, platformError,
-    signIn, signUp, signOut,
-  }), [client, user, loading, error, platformAdmin, platformLoading, platformError, signIn, signUp, signOut])
+    signIn, signUp, signOut, requestPasswordReset, updateRecoveredPassword,
+  }), [client, user, loading, error, platformAdmin, platformLoading, platformError, recoveryMode, signIn, signUp, signOut, requestPasswordReset, updateRecoveredPassword])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
