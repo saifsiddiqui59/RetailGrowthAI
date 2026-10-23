@@ -14,8 +14,8 @@ test('all four offline platform publishing samples can be inspected without OAut
   await expect(gallery.getByText('No poster or video is generated here', {exact:false})).toBeVisible()
   await expect(gallery.getByText('DRAFT SAMPLE', {exact:false})).toBeVisible()
   for (const [platform, medium, phrase] of [
-    ['LinkedIn', 'Text post', 'Three small improvements'],
-    ['Facebook', 'Text post', 'Looking for fresh ways'],
+    ['LinkedIn', 'Text post', 'well-chosen shirt'],
+    ['Facebook', 'Text post', 'What is your go-to shirt color?'],
     ['Instagram', 'Reel video', 'NO VIDEO ATTACHED'],
     ['YouTube', 'Short video', 'NO VIDEO ATTACHED'],
   ]) {
@@ -36,5 +36,5 @@ test('the sample gallery stays usable in narrow mobile layout', async ({page}) =
   await expect(gallery.getByRole('img', {
     name:'Vertical video placeholder. No media generated or attached.',
   })).toBeVisible()
-  await expect(gallery.getByText('Container creation, FINISHED processing', {exact:false})).toBeVisible()
+  await expect(gallery.getByText('verified FINISHED status, media_publish', {exact:false})).toBeVisible()
 })

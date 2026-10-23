@@ -38,6 +38,14 @@ test('Reels and Shorts only reference media to be supplied by approved Part 1', 
       durationSeconds: 30,
       source: 'Approved Part 1 private render (not provided in this sample)',
     })
-    assert.match(sample.warning, /placeholder|Sample defaults/)
+    assert.match(sample.warning, /no MP4|No MP4/)
   }
+})
+
+
+test('clothing samples describe only photo-visible shirt colors, without fabricated offers', () => {
+  const text = samples.map(sample => sample.copy).join(' ')
+  for (const color of ['black', 'yellow', 'green']) assert.match(text, new RegExp(color, 'i'))
+  assert.doesNotMatch(text, /₹|\$[0-9]|\b[0-9]+%\s*off\b|in stock|guaranteed/i)
+  assert.ok(samples.every(sample => sample.channel && sample.required.length === 3))
 })
