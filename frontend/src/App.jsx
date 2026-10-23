@@ -1,68 +1,135 @@
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
-import sampleCampaign from './features/campaigns/fixtures/sample-campaign.json'
+import { useEffect, useRef, useState } from 'react'
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import CampaignDashboard from './features/campaigns/CampaignDashboard.jsx'
-import { AuthProvider } from './auth/AuthProvider.jsx'
+import { AuthProvider, useRetailAuth } from './auth/AuthProvider.jsx'
 import { AccountWorkspace } from './auth/AccountWorkspace.jsx'
+import DashboardOverview from './features/dashboard/DashboardOverview.jsx'
+import SubscriptionPage from './features/subscription/SubscriptionPage.jsx'
 import { SocialWorkspace } from './features/social/SocialWorkspace.jsx'
-import { useRetailAuth } from './auth/AuthProvider.jsx'
 
 const links = [
-  { to: '/', label: 'Overview', end: true },
-  { to: '/campaigns', label: 'Campaigns' },
-  { to: '/social', label: 'Social publishing' },
-  { to: '/account', label: 'Account' },
+  { to: '/', label: 'Overview', icon: '▦', end: true },
+  { to: '/campaigns', label: 'Campaigns', icon: '▤' },
+  { to: '/social', label: 'Social publishing', icon: '◴' },
+  { to: '/subscription', label: 'Subscription', icon: '◈' },
 ]
 
-function Overview() {
-  const { client, user } = useRetailAuth()
-  const connected = client.configured && Boolean(import.meta.env?.VITE_CAMPAIGN_API_BASE_URL)
+function AccountMenu() {
+  const { user, loading, signOut } = useRetailAuth()
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState('')
+  const ref = useRef(null)
+  const location = useLocation()
+
+  useEffect(() => { setOpen(false) }, [location.pathname])
+  useEffect(() => {
+    const dismiss = (event) => { if (!ref.current?.contains(event.target)) setOpen(false) }
+    const escape = (event) => { if (event.key === 'Escape') setOpen(false) }
+    document.addEventListener('pointerdown', dismiss)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', dismiss)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [])
+
+  if (loading) return <span className="topbar-session" role="status">Checking session…</span>
+  if (!user) return <Link className="topbar-signin" to="/account">Sign in / Create account</Link>
+
+  const initials = (user.email || 'U').slice(0, 1).toUpperCase()
   return (
-    <>
-      <div className="eyebrow">PART 1 · FOUNDATION</div>
-      <h1>Campaign workspace</h1>
-      <p className="lead">{connected
-        ? (user ? 'Connected DEV workspace. Create drafts with your authorized business images; review before downloading.' : 'DEV services configured. Sign in under Account to use real private campaign data.')
-        : 'A starting point for creating multi-day social campaigns. Demo-only until live services are configured.'}</p>
-      <div className="metrics">
-        <div className="metric"><strong>{sampleCampaign.days.length}</strong><span>Mock campaign days</span></div>
-        <div className="metric"><strong>2</strong><span>Planned channels</span></div>
-        <div className="metric"><strong>30s</strong><span>Reel storyboard target</span></div>
-      </div>
-      <section className="panel">
-        <div className="panel-heading">
-          <div><div className="eyebrow">DEVELOPER PREVIEW</div><h2>Shared campaign contract</h2></div>
-          <span className="tag">{connected ? 'DEV connected · Fixture illustration' : 'Fixture only'}</span>
-        </div>
-        <p>The seven-day example follows <code>docs/INTERFACES_V1.md</code>. {connected
-          ? 'The sample is illustrative; live drafts, private media, status and signed downloads require sign-in, a valid shop, backend workers and provider configuration. Publishing is not implemented.'
-          : 'This overview is a fixture. No remote AI generation, rendering or publishing is connected.'}</p>
-        <NavLink className="text-link" to="/campaigns">Inspect sample days →</NavLink>
-      </section>
-    </>
+    <div className="account-menu" ref={ref}>
+      <button type="button" className="account-trigger" onClick={() => setOpen(!open)}
+        aria-label="Open account menu" aria-haspopup="menu" aria-expanded={open}>
+        <span className="avatar" aria-hidden="true">{initials}</span>
+        <span className="account-trigger-copy"><strong>My account</strong><small>{user.email}</small></span>
+        <span aria-hidden="true">⌄</span>
+      </button>
+      {open && <div className="account-popover" role="menu" aria-label="Account options">
+        <div className="account-popover-heading"><strong>Signed in</strong><span>{user.email}</span></div>
+        <Link role="menuitem" to="/account" onClick={() => setOpen(false)}>Business account &amp; profile</Link>
+        <Link role="menuitem" to="/subscription" onClick={() => setOpen(false)}>Plan &amp; usage</Link>
+        <button type="button" role="menuitem" onClick={async () => {
+          try {
+            setError('')
+            await signOut()
+            setOpen(false)
+          } catch {
+            setError('Unable to sign out. Please try again.')
+          }
+        }}>Sign out</button>
+        {error && <p role="alert">{error}</p>}
+      </div>}
+    </div>
   )
 }
 
 function AppShell() {
+  const location = useLocation()
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return window.localStorage.getItem('rgai-sidebar-collapsed') === '1' } catch { return false }
+  })
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  useEffect(() => {
+    try { window.localStorage.setItem('rgai-sidebar-collapsed', collapsed ? '1' : '0') } catch { /* storage unavailable */ }
+  }, [collapsed])
+  useEffect(() => { setMobileOpen(false) }, [location.pathname])
+  useEffect(() => {
+    const escape = (event) => { if (event.key === 'Escape') setMobileOpen(false) }
+    window.addEventListener('keydown', escape)
+    return () => window.removeEventListener('keydown', escape)
+  }, [])
+
+  const title = links.find((item) => item.to === location.pathname)?.label ||
+    (location.pathname === '/account' ? 'Account' : 'Workspace')
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <div className="brand"><div className="brand-mark">R</div><div><strong>RetailGrowthAI</strong><small>Marketing studio</small></div></div>
+    <div className={'shell retail-shell' + (collapsed ? ' sidebar-collapsed' : '') + (mobileOpen ? ' mobile-open' : '')}>
+      <aside className="sidebar" aria-label="Workspace sidebar">
+        <Link to="/" className="brand brand-link">
+          <span className="brand-mark" aria-hidden="true">R</span>
+          <span className="brand-copy"><strong>RetailGrowthAI</strong><small>Marketing studio</small></span>
+        </Link>
         <div className="nav-label">WORKSPACE</div>
         <nav aria-label="Main navigation">
           {links.map((link) => (
-            <NavLink key={link.to} to={link.to} end={link.end} className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>{link.label}</NavLink>
+            <NavLink key={link.to} to={link.to} end={link.end}
+              title={collapsed ? link.label : undefined}
+              className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+              <span className="nav-glyph" aria-hidden="true">{link.icon}</span><span className="nav-text">{link.label}</span>
+            </NavLink>
           ))}
         </nav>
-        <div className="sidebar-bottom">Developer bootstrap <span>v0.1</span></div>
+        <div className="sidebar-bottom"><span className="sidebar-caption">RetailGrowthAI DEV</span>
+          <button type="button" className="collapse-toggle"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!collapsed}
+            onClick={() => setCollapsed(!collapsed)}>
+            <span aria-hidden="true">{collapsed ? '»' : '«'}</span><span className="collapse-text">{collapsed ? '' : 'Collapse'}</span>
+          </button>
+        </div>
       </aside>
+      {mobileOpen && <button type="button" className="sidebar-backdrop"
+        aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
       <div className="page">
-        <header className="topbar"><span>RetailGrowthAI / Part 1</span><span className="environment">{import.meta.env?.VITE_CAMPAIGN_API_BASE_URL && import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY
-          ? 'DEV CONNECTED · SIGN IN FOR LIVE DATA' : 'CAMPAIGNS: MOCK · ACCOUNT: CONFIGURABLE'}</span></header>
+        <header className="topbar">
+          <div className="topbar-context">
+            <button type="button" className="mobile-nav-toggle" aria-label="Toggle navigation"
+              aria-expanded={mobileOpen} onClick={() => setMobileOpen(!mobileOpen)}>☰</button>
+            <div><span className="topbar-kicker">RETAILGROWTHAI / DEV</span><strong>{title}</strong></div>
+          </div>
+          <div className="topbar-right">
+            <span className="environment">{import.meta.env?.VITE_CAMPAIGN_API_BASE_URL && import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY
+              ? 'DEV connected' : 'Demo / setup'}</span>
+            <AccountMenu />
+          </div>
+        </header>
         <main className="content">
           <Routes>
-            <Route path="/" element={<Overview />} />
+            <Route path="/" element={<DashboardOverview />} />
             <Route path="/campaigns" element={<CampaignDashboard />} />
             <Route path="/social" element={<SocialWorkspace />} />
+            <Route path="/subscription" element={<SubscriptionPage />} />
             <Route path="/account" element={<AccountWorkspace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

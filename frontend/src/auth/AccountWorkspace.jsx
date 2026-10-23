@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useRetailAuth } from './AuthProvider.jsx'
 
 const fieldLabels = {
@@ -154,6 +155,7 @@ export function AccountWorkspace() {
                 </>
               )}
               <p>This DEV preview does not accept payments or plan upgrades.</p>
+              <p><Link className="text-link" to="/subscription">See plan, trial usage and remaining quotas →</Link></p>
             </section>
           )}
           {profile && (

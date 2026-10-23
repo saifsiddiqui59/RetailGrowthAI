@@ -253,3 +253,17 @@
 ## 2026-10-23 — Live quota-enabled Part 1 acceptance
 - Declare hosted DEV content plus trial-quota acceptance only after a single genuine end-to-end pass with all steps and cleanup. [#39958569041 attempt 2](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39958569041) meets this: real Foundry, JWT/RLS tenant isolation, shop auto-trial, exactly one campaign and render reservation, safe draft edit, H264 30-second signed private MP4 and teardown. No paid checkout or self-upgrade exists.
 - Intermittent Azure gateway 503 is tracked separately as availability tuning; use guarded reads/CAS/idempotent render retries, not weaker authorization. Read-only audit found all 11 Functions and zero queue backlog.
+
+## 2026-10-23 — Keep DEV gateway diagnostics read-only and finite
+- Investigate HTTP 503 with a manually invoked fixed-target no-JWT GET-only sampler; fixed UUID sentinels, bounded total requests, only aggregate status/timing and presence of request-ID header. An absent header does not prove ingress failure. Do not expose raw telemetry, tenant data, credentials, HTTP bodies or exception details; do not bypass RLS, retry arbitrary writes, create a keep-alive scheduler or increase billable resources based on unverified hypotheses.
+
+## 2026-10-23 — Final verification of no-credential gateway observability
+- Merged source PR #107 with four green feature and post-main jobs, preserving the no-JWT fixed DEV GET sampler as a *manual diagnostic only*. No automatic ping scheduler, unnecessary Azure replicas, identity/tenant policy relaxation, billing flows or social/Wan integrations approved. Further reliability decisions require measured Azure platform and App Insights evidence.
+
+## 2026-10-23 — Final Part 2/3 integration ownership and safety contract
+- Coordinator exclusively owns **final** Part 2/Part 3 PR reconciliation and main merges; each lead independently creates/reviews/merges its own internal PRs on its integration branch. Never require coordinator approval for ordinary intra-part progress. Part 1 DEV Operator 2 changes continue independently.
+- Retain one Supabase JWT/tenant model, canonical private media bucket, Part 1 campaign/render APIs, durable outbox/queue claims and Part 1 server-authoritative subscription/usage reservations. New publishing/premium jobs use disjoint namespaces and additive versioned migrations; no duplicate charging, unsafe replay, false content approval or browser provider secrets. Paid Wan, outbound customer publishing, deployment and billing require explicit separate authorization.
+- Details and exact PR/CI integration gates: [FINAL_INTEGRATION_PARTS_2_3.md](FINAL_INTEGRATION_PARTS_2_3.md). This decision establishes a contract, not feature readiness.
+
+## 2026-10-23 — Part 1 UX and metrics correctness
+- Use the WineShopPOS structural pattern (top-right account menu, compact expandable navigation, subscription status and KPI cards) as inspiration **without copying POS customer data, resources, secrets or mutating POS**. The new RetailGrowthAI `/subscription` route is OWNER-only and reads RLS shop_subscriptions + shop_usage_reservations via user JWT. Treat 7-day TRIAL and 2+2 quota as server-owned; STARTER/GROWTH/BUSINESS numbers are non-purchasable candidates, no prices or checkout. Dashboard counts use authenticated per-shop PostgREST HEAD `count=exact`; missing/denied responses must show unavailable, not zero or fake engagement metrics. Platform reach analytics wait for Part2, no cross-project telemetry.

@@ -188,6 +188,60 @@ export function createRetailClient({
     }
     return rows[0] || null
   }
+  // HEAD + count=exact asks PostgREST to count RLS-visible rows only.
+  // No service key or client-side cross-tenant total is ever supplied.
+  async function countShopRows(name, shopId, additional = {}) {
+    if (!['campaigns', 'render_jobs', 'shop_usage_reservations'].includes(name) ||
+        !UUID_V4.test(shopId || '')) {
+      throw new Error('Invalid shop metrics query')
+    }
+    const params = new URLSearchParams({
+      select: 'id', shop_id: 'eq.' + shopId, ...additional,
+    })
+    // shop_id remains authoritative even if extra filters were supplied.
+    params.set('shop_id', 'eq.' + shopId)
+    // shop_usage_reservations does not have an id column.
+    if (name === 'shop_usage_reservations') params.set('select', 'job_id')
+    const response = await fetchImpl(origin + '/rest/v1/' + name + '?' + params, {
+      method: 'HEAD',
+      headers: { apikey: key, Authorization: 'Bearer ' + await accessToken(),
+        Prefer: 'count=exact' },
+    })
+    if (!response.ok) throw new Error('Your live business metrics are unavailable.')
+    const range = response.headers.get('content-range')
+    const parsed = /^(\d+)-(\d+)\/(\d+)$/.exec(range || '') ||
+      /^\*\/(\d+)$/.exec(range || '')
+    const count = parsed && Number(parsed[parsed.length - 1])
+    if (!Number.isSafeInteger(count) || count < 0) {
+      throw new Error('Verified count was not returned by Supabase.')
+    }
+    return count
+  }
+  async function getShopMetrics(shopId) {
+    if (!UUID_V4.test(shopId || '')) throw new Error('Invalid business')
+    const [campaigns, drafts, reelsReady, rendersProcessing] = await Promise.all([
+      countShopRows('campaigns', shopId),
+      countShopRows('campaigns', shopId, { status: 'eq.DRAFT' }),
+      countShopRows('render_jobs', shopId, { status: 'eq.SUCCEEDED' }),
+      countShopRows('render_jobs', shopId, { status: 'in.(QUEUED,RUNNING)' }),
+    ])
+    return { campaigns, drafts, reelsReady, rendersProcessing }
+  }
+  async function getShopUsage(shopId, periodStart) {
+    if (!UUID_V4.test(shopId || '') || typeof periodStart !== 'string' ||
+        !Number.isFinite(Date.parse(periodStart))) {
+      throw new Error('Invalid subscription usage scope')
+    }
+    const [campaign, render] = await Promise.all([
+      countShopRows('shop_usage_reservations', shopId, {
+        operation: 'eq.campaign', period_start: 'eq.' + periodStart,
+      }),
+      countShopRows('shop_usage_reservations', shopId, {
+        operation: 'eq.render', period_start: 'eq.' + periodStart,
+      }),
+    ])
+    return { campaign, render }
+  }
   async function getBusinessProfile(shopId) {
     const rows = await table('business_profiles', {
       query: { select: '*', shop_id: 'eq.' + shopId, limit: '1' },
@@ -269,7 +323,7 @@ export function createRetailClient({
   return {
     configured, getStoredSession: () => session, getAccessToken: accessToken,
     signIn, signUp, signOut, getUser,
-    listShops, createShop, getShopSubscription, getBusinessProfile, updateBusinessProfile, listMediaAssets, uploadImageAsset,
+    listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage, getBusinessProfile, updateBusinessProfile, listMediaAssets, uploadImageAsset,
   }
 }
 
