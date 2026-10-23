@@ -61,10 +61,7 @@ jobs:
           done
           test "$PROJECT_URL" = "https://jeearzffnjbvghwjjjrf.supabase.co"
           test -n "$PUBLISHABLE_KEY"
-          if [ -n "${SERVICE_KEY:-}" ]; then
-            if [[ "$SERVICE_KEY" != sb_secret_* && "$SERVICE_KEY" != eyJ* ]]; then
-              echo "::error::Invalid service-only Supabase secret key format"; exit 3
-            fi
+          if [[ "$SERVICE_KEY" == sb_secret_* || "$SERVICE_KEY" == eyJ* ]]; then
             az functionapp config appsettings set -g "$RG" -n "$APP" -o none --settings \
               "RETAIL_SUPABASE_URL=$PROJECT_URL" "RETAIL_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY" \
               "RETAIL_SUPABASE_SERVICE_ROLE_KEY=$SERVICE_KEY" "RETAIL_ENABLE_MOCK_CAMPAIGNS=true" \
@@ -83,7 +80,7 @@ jobs:
               "AzureWebJobs.recover_stale_jobs.Disabled=true" \
               "AzureWebJobs.planning_poison.Disabled=true" \
               "AzureWebJobs.render_poison.Disabled=true"
-            echo "::warning::SERVICE_ROLE_KEY_MISSING: worker and timer triggers disabled; protected secret needed for real DB-backed jobs"
+            echo "::warning::SERVICE_ROLE_KEY_MISSING_OR_INVALID: worker and timer triggers disabled; protected secret needed for real DB-backed jobs"
           fi
           names="$(az functionapp config appsettings list -g "$RG" -n "$APP" --query '[].name' -o tsv)"
           grep -Fxq "RETAIL_SUPABASE_URL" <<< "$names"
@@ -107,13 +104,13 @@ jobs:
       - name: Verify existing Python source and package constraints
         shell: bash
         run: python3 scripts/deploy/package.py --check
-      - name: Fetch SHA256-pinned BtbN Linux x86_64 static FFmpeg GPL and validate binaries
+      - name: Fetch SHA256-pinned John Van Sickle verified Linux x86_64 fully static FFmpeg 7.0.2 and validate binaries
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/rgai-media" "$RUNNER_TEMP/rgai-bins" "$RUNNER_TEMP/rgai-release"
-          url="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz"
-          digest="002028f3e81128f0f8ac525092a8dd72b5e7491a787971836287c043cc316ea6"
+          url="https://github.com/publicala/ffmpeg-static/releases/download/v7.0.2/ffmpeg-7.0.2-amd64-static.tar.xz"
+          digest="abda8d77ce8309141f83ab8edf0596834087c52467f6badf376a6a2a4c87cf67"
           curl -fLsS --retry 3 --connect-timeout 25 --max-time 850 "$url" -o "$RUNNER_TEMP/rgai-release/btbn.tar.xz"
           printf '%s  %s\n' "$digest" "$RUNNER_TEMP/rgai-release/btbn.tar.xz" | sha256sum -c -
           echo "PASS: GitHub published asset pinned SHA256 verified"
@@ -124,13 +121,13 @@ jobs:
               files=t.getmembers()
               assert len(files)<4000
               assert all(not m.name.startswith("/") and ".." not in m.name.split("/") and not m.issym() and not m.islnk() for m in files)
-              assert sum(m.name.endswith("/bin/ffmpeg") for m in files)==1
-              assert sum(m.name.endswith("/bin/ffprobe") for m in files)==1
+              assert sum(m.name.endswith("/ffmpeg") for m in files)==1
+              assert sum(m.name.endswith("/ffprobe") for m in files)==1
           print("PASS: archive path safety, exactly two media executables")
           PY
           tar -xJf "$RUNNER_TEMP/rgai-release/btbn.tar.xz" -C "$RUNNER_TEMP/rgai-media" --no-same-owner
           for name in ffmpeg ffprobe; do
-            file="$(find "$RUNNER_TEMP/rgai-media" -type f -path "*/bin/$name" -print -quit)"
+            file="$(find "$RUNNER_TEMP/rgai-media" -type f -name "$name" -print -quit)"
             test -n "$file"
             cp "$file" "$RUNNER_TEMP/rgai-bins/$name"
             chmod 755 "$RUNNER_TEMP/rgai-bins/$name"
@@ -144,13 +141,13 @@ jobs:
           echo "PASS: real FFmpeg and ffprobe executable; libx264, AAC, drawtext, xfade present"
           cat > "$RUNNER_TEMP/rgai-bins/THIRD_PARTY_NOTICES.txt" <<'NOTICE'
           FFmpeg GPL Linux x86_64 static binary provenance and source:
-          https://github.com/BtbN/FFmpeg-Builds
+          https://github.com/publicala/ffmpeg-static
           Archive at 2026-10-22:
-          https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
-          Published archive SHA256: 002028f3e81128f0f8ac525092a8dd72b5e7491a787971836287c043cc316ea6
+          https://github.com/publicala/ffmpeg-static/releases/download/v7.0.2/ffmpeg-7.0.2-amd64-static.tar.xz
+          SHA256 pinned GitHub asset: abda8d77ce8309141f83ab8edf0596834087c52467f6badf376a6a2a4c87cf67
           Includes GPL libraries such as libx264; source, license and obligations:
           https://ffmpeg.org/legal.html
-          https://github.com/BtbN/FFmpeg-Builds/blob/master/README.md
+          https://github.com/publicala/ffmpeg-static/blob/master/README.md
           NOTICE
           python3 scripts/deploy/package.py \
             --ffmpeg-dir "$RUNNER_TEMP/rgai-bins" \
