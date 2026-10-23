@@ -4,6 +4,7 @@ Uses the authenticated user's token for PostgREST RLS; neither client secrets
 nor provider access tokens are ever loaded, returned or logged.
 """
 import json
+import re
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, HTTPRedirectHandler, build_opener
@@ -22,7 +23,9 @@ _FIELDS = {
     "accounts": ("social_accounts",
                  "id,shop_id,provider,provider_account_id,display_name,connection_status,connected_at"),
     "jobs": ("social_publish_jobs",
-             "id,shop_id,social_account_id,campaign_day_id,provider,revision,caption,media_asset_id,status,scheduled_at,timezone,remote_post_id"),
+             "id,shop_id,social_account_id,campaign_day_id,provider,revision,caption,media_asset_id,status,scheduled_at,timezone,remote_post_id,attempts,last_error_code"),
+    "audit": ("social_publish_audit",
+              "id,shop_id,job_id,actor_user_id,event_code,recorded_at"),
     "days": ("campaign_days",
              "id,shop_id,campaign_id,day_index,scheduled_date,topic,review_status,linkedin"),
 }
@@ -95,6 +98,22 @@ class SocialReadAPI:
             # Defense in depth: credentials and ciphertext not allowed in response.
             safe_keys = set(_FIELDS[resource][1].split(","))
             sanitized = [{k: row[k] for k in safe_keys if k in row} for row in rows]
+            if resource == "jobs":
+                for job in sanitized:
+                    code = job.get("last_error_code")
+                    if code is not None and (not isinstance(code, str)
+                            or re.fullmatch(r"[A-Z][A-Z0-9_]{0,63}", code) is None):
+                        job.pop("last_error_code", None)
+                    attempts = job.get("attempts")
+                    if attempts is not None and (type(attempts) is not int
+                            or not 0 <= attempts <= 5):
+                        job.pop("attempts", None)
+            if resource == "audit":
+                for event in sanitized:
+                    name = event.get("event_code")
+                    if (not isinstance(name, str) or
+                            re.fullmatch(r"[A-Z][A-Z0-9_]{0,79}", name) is None):
+                        raise StorageUnavailable("invalid audit event")
             return 200, {resource: sanitized}
         except AuthenticationError:
             return 401, {"error": "UNAUTHORIZED"}

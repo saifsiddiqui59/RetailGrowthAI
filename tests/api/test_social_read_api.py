@@ -164,3 +164,52 @@ def test_social_read_bounded_response_and_default_no_redirect(monkeypatch):
 def test_user_jwt_not_sent_to_unreviewed_supabase_origin(origin):
     with pytest.raises(ValueError):
         api.SocialReadStore(origin,"public-key",transport=lambda *_:None)
+
+
+
+def test_job_status_error_code_sanitization_does_not_leak_provider_raw_errors():
+    class Reader:
+        def list_rows(self,token,shop_id,resource):
+            assert resource == "jobs"
+            return [
+                {"id":"a1000000-0000-4000-8000-000000000001",
+                 "shop_id":SHOP,"status":"RECONCILE","attempts":2,
+                 "last_error_code":"PROVIDER_RESULT_UNCERTAIN",
+                 "access_token":"never return"},
+                {"id":"a1000000-0000-4000-8000-000000000002",
+                 "shop_id":SHOP,"status":"FAILED","attempts":999,
+                 "last_error_code":"Bearer secret-has-leaked",
+                 "credential":"private"},
+            ]
+    svc=api.SocialReadAPI(lambda _: USER,Members(),Reader())
+    code,result=svc.handle("GET","jobs","Bearer user-token",SHOP)
+    assert code==200 and len(result["jobs"])==2
+    assert result["jobs"][0]["last_error_code"]=="PROVIDER_RESULT_UNCERTAIN"
+    assert result["jobs"][0]["attempts"]==2
+    assert "credential" not in result["jobs"][1]
+    assert "access_token" not in result["jobs"][0]
+    assert "attempts" not in result["jobs"][1]
+    assert "last_error_code" not in result["jobs"][1]
+
+
+def test_audit_read_whitelists_fields_and_rejects_untrusted_event_codes():
+    class Reader:
+        def __init__(self):self.invalid=False
+        def list_rows(self,token,shop_id,resource):
+            assert resource=="audit"
+            return [{"id":"c1000000-0000-4000-8000-000000000001",
+                     "shop_id":SHOP,
+                     "event_code":"SOCIAL_CONTENT_APPROVED" if not self.invalid
+                        else "Bearer private client token",
+                     "job_id":"c2000000-0000-4000-8000-000000000001",
+                     "provider_access_token":"secret",
+                     "raw_error":"Never show"}]
+    reader=Reader()
+    svc=api.SocialReadAPI(lambda _:USER,Members(),reader)
+    code,result=svc.handle("GET","audit","Bearer user-token",SHOP)
+    assert code==200 and result["audit"][0]["event_code"]=="SOCIAL_CONTENT_APPROVED"
+    assert "raw_error" not in result["audit"][0]
+    assert "provider_access_token" not in result["audit"][0]
+    reader.invalid=True
+    assert svc.handle("GET","audit","Bearer user-token",SHOP)==(
+        503,{"error":"SERVICE_UNAVAILABLE"})
