@@ -23,11 +23,12 @@ export function trustedConsentUrl(value, provider) {
   providerId(provider)
   if (typeof value !== 'string' || value.length > 4000) throw new Error('Invalid consent URL')
   const url = new URL(value)
+  const metaDialog = new RegExp('^/v[0-9]{1,2}[.][0-9]{1,2}/dialog/oauth' + String.fromCharCode(36))
   const allowed = {
     youtube: url.hostname === 'accounts.google.com' && url.pathname === '/o/oauth2/v2/auth',
     linkedin: url.hostname === 'www.linkedin.com' && url.pathname === '/oauth/v2/authorization',
-    facebook: url.hostname === 'www.facebook.com' && new RegExp('^/v[0-9]{1,2}[.][0-9]{1,2}/dialog/oauth
-    instagram: url.hostname === 'www.facebook.com' && new RegExp('^/v[0-9]{1,2}[.][0-9]{1,2}/dialog/oauth
+    facebook: url.hostname === 'www.facebook.com' && metaDialog.test(url.pathname),
+    instagram: url.hostname === 'www.facebook.com' && metaDialog.test(url.pathname),
   }
   if (url.protocol !== 'https:' || url.username || url.password || url.hash ||
       url.port || !allowed[provider] || !url.searchParams.get('state') ||
