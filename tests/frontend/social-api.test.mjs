@@ -69,3 +69,57 @@ test('consent navigation permits only official OAuth hosts and exact paths',()=>
     'https://www.facebook.com/v26.0/oauth/access_token?state=x&redirect_uri=x',
   ]) assert.throws(()=>trustedConsentUrl(bad, bad.includes('facebook')?'facebook':'youtube'))
 })
+
+test('authenticated retailer publishing draft/approval/cancel never directly posts',async()=>{
+  const calls=[]
+  const api=createSocialApi({baseUrl:'https://api.retail.example',
+    tokenProvider:async()=> 'signed-in-shop-jwt',
+    fetchImpl:async(url,opts)=>{
+      calls.push({url,opts})
+      return {ok:true,async json(){return {id:'ok',status:'DRAFT'}}}
+    }})
+  const day='12000000-0000-4000-8000-000000000001'
+  const account='11000000-0000-4000-8000-000000000001'
+  const job='13000000-0000-4000-8000-000000000001'
+  await api.listDays(SHOP)
+  await api.createDraft({shopId:SHOP,dayId:day,accountId:account,
+    provider:'linkedin',caption:'Reviewed campaign text',
+    day:'2026-10-26',clock:'10:00',timezone:'Asia/Kolkata',
+    idempotencyKey:'review-unique-key-0001'})
+  await api.approveDraft(SHOP,job,1)
+  await api.cancelDraft(SHOP,job,1)
+  assert.deepEqual(calls.map(c=>c.url),[
+    'https://api.retail.example/api/social/days?shop_id='+SHOP,
+    'https://api.retail.example/api/social/jobs/create',
+    'https://api.retail.example/api/social/jobs/approve',
+    'https://api.retail.example/api/social/jobs/cancel',
+  ])
+  assert.deepEqual(calls.map(c=>c.opts.method),['GET','POST','POST','POST'])
+  assert.ok(calls.every(c=>c.opts.headers.Authorization==='Bearer signed-in-shop-jwt'))
+  assert.deepEqual(JSON.parse(calls[1].opts.body),{
+    shop_id:SHOP,day_id:day,account_id:account,provider:'linkedin',
+    caption:'Reviewed campaign text',media_asset_id:null,
+    day:'2026-10-26',clock:'10:00',timezone:'Asia/Kolkata',
+    idempotency_key:'review-unique-key-0001',
+  })
+  assert.deepEqual(JSON.parse(calls[2].opts.body),
+    {shop_id:SHOP,job_id:job,revision:1})
+  assert.equal(api.publish,undefined)
+  assert.equal(api.postToProvider,undefined)
+})
+
+test('authoring client refuses invalid provider, IDs, revision and non-reviewed captions',()=>{
+  const api=createSocialApi({baseUrl:'https://api.retail.example',
+    tokenProvider:async()=> 'test',fetchImpl:async()=>{throw Error('no calls')}})
+  const day='12000000-0000-4000-8000-000000000001'
+  const account='11000000-0000-4000-8000-000000000001'
+  const job='13000000-0000-4000-8000-000000000001'
+  const valid={shopId:SHOP,dayId:day,accountId:account,
+    provider:'facebook',caption:'Post draft',day:'2026-10-26',
+    clock:'10:00',timezone:'Asia/Kolkata',idempotencyKey:'unique-key-123456'}
+  assert.throws(()=>api.createDraft({...valid,provider:'evil'}),/Unsupported/)
+  assert.throws(()=>api.createDraft({...valid,dayId:'../cross-tenant'}),/Invalid/)
+  assert.throws(()=>api.createDraft({...valid,caption:''}),/Invalid/)
+  assert.throws(()=>api.approveDraft(SHOP,job,0),/revision/)
+  assert.throws(()=>api.cancelDraft(SHOP,job,NaN),/revision/)
+})

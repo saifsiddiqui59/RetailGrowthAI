@@ -11,6 +11,21 @@ function providerId(value) {
   if (!PROVIDERS.has(value)) throw new Error('Unsupported social provider')
   return value
 }
+function revision(value) {
+  if (!Number.isSafeInteger(value) || value < 1) throw new Error('Invalid reviewed revision')
+  return value
+}
+function schedule(value, name) {
+  if (typeof value !== 'string' || value.length > 64 || !value) {
+    throw new Error('Invalid ' + name)
+  }
+  return value
+}
+function captionText(value) {
+  if (typeof value !== 'string' || !value.trim() || value.length > 5000 ||
+      /[\x00-\x1f]/.test(value)) throw new Error('Invalid reviewed caption')
+  return value
+}
 function boundedSecret(value, max) {
   if (typeof value !== 'string' || !value || value.length > max) {
     throw new Error('Invalid OAuth callback')
@@ -60,6 +75,7 @@ export function createSocialApi({ baseUrl, tokenProvider, fetchImpl = fetch }) {
       // Never display raw provider responses or token-containing error bodies.
       const message = {
         401: 'Please sign in again.',
+        402: 'Publishing is not included in this business subscription or has not been approved yet.',
         403: 'You do not have permission for this business.',
         404: 'Social publishing is not available on this server.',
         409: 'This publishing request has changed. Reload before trying again.',
@@ -74,6 +90,23 @@ export function createSocialApi({ baseUrl, tokenProvider, fetchImpl = fetch }) {
   return {
     listAccounts: shopId => request('GET', '/accounts?shop_id=' + id(shopId)),
     listJobs: shopId => request('GET', '/jobs?shop_id=' + id(shopId)),
+    listDays: shopId => request('GET', '/days?shop_id=' + id(shopId)),
+    createDraft: ({shopId, dayId, accountId, provider, caption, day, clock,
+                   timezone, idempotencyKey, mediaAssetId = null}) => request(
+      'POST', '/jobs/create', {
+        shop_id: id(shopId), day_id: id(dayId), account_id: id(accountId),
+        provider: providerId(provider), caption: captionText(caption),
+        media_asset_id: mediaAssetId === null ? null : id(mediaAssetId),
+        day: schedule(day, 'date'), clock: schedule(clock, 'time'),
+        timezone: schedule(timezone, 'timezone'),
+        idempotency_key: schedule(idempotencyKey, 'idempotency key'),
+      }),
+    approveDraft: (shopId, jobId, expectedRevision) => request('POST', '/jobs/approve', {
+      shop_id: id(shopId), job_id: id(jobId), revision: revision(expectedRevision),
+    }),
+    cancelDraft: (shopId, jobId, expectedRevision) => request('POST', '/jobs/cancel', {
+      shop_id: id(shopId), job_id: id(jobId), revision: revision(expectedRevision),
+    }),
     startOAuth: (shopId, provider) => request('POST', '/oauth/start',
       {shop_id: id(shopId), provider: providerId(provider)}),
     completeOAuth: (shopId, provider, state, code) => request('POST', '/oauth/complete',

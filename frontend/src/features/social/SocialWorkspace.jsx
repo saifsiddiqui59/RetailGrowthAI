@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { createSocialApi, trustedConsentUrl } from './social-api.mjs'
+import { SocialAuthoringPanel } from './SocialAuthoringPanel.jsx'
 
 const PROVIDERS = [
   ['instagram', 'Instagram professional / Reels'],
@@ -15,18 +16,18 @@ export function SocialWorkspace() {
   const [shopId, setShopId] = useState('')
   const [accounts, setAccounts] = useState([])
   const [jobs, setJobs] = useState([])
+  const [days, setDays] = useState([])
+  const [reloadVersion, setReloadVersion] = useState(0)
   const [busy, setBusy] = useState(false)
   const [oauthBusy, setOAuthBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
-  const [day, setDay] = useState('')
-  const [clock, setClock] = useState('10:00')
-  const [preview, setPreview] = useState('')
 
   // Release guard is only UX; server-side OAuth, approvals and subscription gates
   // remain mandatory regardless of any client-side flag.
   const enabled = import.meta.env?.VITE_PART2_SOCIAL_ENABLED === 'true'
   const oauthEnabled = enabled && import.meta.env?.VITE_PART2_SOCIAL_OAUTH_ENABLED === 'true'
+  const authoringEnabled = enabled && import.meta.env?.VITE_PART2_SOCIAL_AUTHORING_ENABLED === 'true'
   const api = useMemo(() => enabled && user
     ? createSocialApi({baseUrl: import.meta.env?.VITE_CAMPAIGN_API_BASE_URL,
                         tokenProvider: () => client.accessToken()})
@@ -48,29 +49,23 @@ export function SocialWorkspace() {
     let live = true
     setAccounts([])
     setJobs([])
+    setDays([])
     if (!api || !shopId) return
     setBusy(true)
     setError('')
-    Promise.all([api.listAccounts(shopId), api.listJobs(shopId)])
-      .then(([a, j]) => { if (live) {
+    Promise.all([api.listAccounts(shopId), api.listJobs(shopId), api.listDays(shopId)])
+      .then(([a, j, d]) => { if (live) {
         setAccounts(Array.isArray(a?.accounts) ? a.accounts : [])
         setJobs(Array.isArray(j?.jobs) ? j.jobs : [])
+        setDays(Array.isArray(d?.days) ? d.days : [])
       }}).catch(err => { if (live) setError(err.message) })
       .finally(() => { if (live) setBusy(false) })
     return () => { live = false }
-  }, [api, shopId])
+  }, [api, shopId, reloadVersion])
 
   const shop = shops.find(s => s.id === shopId)
   const zone = shop?.timezone || 'Asia/Kolkata'
-  function previewSchedule(event) {
-    event.preventDefault()
-    if (!day || !/^\d{2}:\d{2}$/.test(clock)) {
-      setPreview('Choose a date and a time.')
-      return
-    }
-    setPreview(day + ' at ' + clock + ' (' + zone +
-      '). Preview only: this is not scheduled or approved. Final time and DST validation happen on the server.')
-  }
+  const canWrite = ['OWNER', 'EDITOR'].includes(shop?.membership?.role)
 
 
   async function connectProvider(provider) {
@@ -150,19 +145,15 @@ export function SocialWorkspace() {
           })}
         </div>
       </section>
-      <section className="panel" style={{marginTop:16}}>
-        <h2>Scheduling preview</h2>
-        <p>Plan a local wall-clock time. A server-side DST and entitlement check will be required before a job can actually be scheduled.</p>
-        <form onSubmit={previewSchedule} style={{display:'flex',gap:12,flexWrap:'wrap',alignItems:'end'}}>
-          <label>Date<input type="date" value={day} onChange={e=>setDay(e.target.value)}
-            style={{display:'block',marginTop:6,padding:10}} required /></label>
-          <label>Local time<input type="time" value={clock} onChange={e=>setClock(e.target.value)}
-            style={{display:'block',marginTop:6,padding:10}} required /></label>
-          <button type="submit" style={{padding:'12px 16px'}}>Preview only</button>
-        </form>
-        {preview && <p role="status">{preview}</p>}
-        <p>Scheduled jobs loaded: {jobs.length}. The preview never submits a publishing job.</p>
-      </section>
+      {authoringEnabled && user && shopId && <SocialAuthoringPanel
+        api={api} shopId={shopId} zone={zone} days={days} jobs={jobs}
+        accounts={accounts} canWrite={canWrite}
+        onUpdated={async () => setReloadVersion(v => v + 1)} />}
+      {!authoringEnabled && <section className="panel" style={{marginTop:16}}>
+        <h2>Publishing drafts are disabled</h2>
+        <p>The owner-reviewed scheduling and cancellation features are behind a separate
+          backend release gate. Your DEV workspace does not publish customer posts.</p>
+      </section>}
     </>
   )
 }
