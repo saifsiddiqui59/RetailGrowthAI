@@ -60,9 +60,9 @@ declare
   fingerprint text;
   result_id uuid;
 begin
-  -- Check the active owner/editor JWT, not caller-supplied claimed actor IDs.
-  if (select auth.role()) is distinct from 'authenticated'
-     or actor is null or p_shop_id is null
+  -- Check the actual signed JWT subject and live owner/editor membership,
+  -- not user-editable claims or a caller-supplied actor ID.
+  if actor is null or p_shop_id is null
      or not retail_private.has_role(p_shop_id,array['OWNER','EDITOR']) then
     return null;
   end if;
