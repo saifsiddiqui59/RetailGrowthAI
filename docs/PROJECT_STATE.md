@@ -371,3 +371,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## 2026-10-23 — Operator 2 DEV gateway sampler (source-only)
 - Added ops/gateway_probe.py, its offline reliability/security tests, and ops/GATEWAY_PROBE.md on a dedicated branch. It measures no-JWT fixed-DEV GET latency/HTTP 502/503/504, never touching Auth, quotas, Azure deployment or users. This is an observation aid, NOT a confirmed 503 root cause or mitigation. Existing verified live 7-day Foundry/draft/FFmpeg/private download plus trial/quota results remain unchanged. Merge and 4/4 CI evidence pending.
+
+## 2026-10-23 — Operator 2 gateway diagnostic integrated and verified
+- PR [#107](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/107) merged at `154d82169a559adffdf4bad0e9e7cb8e221bfeef`; four PR CI jobs passed in [#39972014771](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39972014771) and **all four post-merge main jobs passed** in [#39972501578](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39972501578). This is tested *source-only* read-only gateway instrumentation, not a live probe, deployment, evidence of root cause, or a fix for transient 503. No Azure/Supabase hosted modifications and no WineShopPOS/Part2/Part3 changes.

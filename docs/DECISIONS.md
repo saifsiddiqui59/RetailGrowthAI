@@ -256,3 +256,6 @@
 
 ## 2026-10-23 — Keep DEV gateway diagnostics read-only and finite
 - Investigate HTTP 503 with a manually invoked fixed-target no-JWT GET-only sampler; fixed UUID sentinels, bounded total requests, only aggregate status/timing and presence of request-ID header. An absent header does not prove ingress failure. Do not expose raw telemetry, tenant data, credentials, HTTP bodies or exception details; do not bypass RLS, retry arbitrary writes, create a keep-alive scheduler or increase billable resources based on unverified hypotheses.
+
+## 2026-10-23 — Final verification of no-credential gateway observability
+- Merged source PR #107 with four green feature and post-main jobs, preserving the no-JWT fixed DEV GET sampler as a *manual diagnostic only*. No automatic ping scheduler, unnecessary Azure replicas, identity/tenant policy relaxation, billing flows or social/Wan integrations approved. Further reliability decisions require measured Azure platform and App Insights evidence.

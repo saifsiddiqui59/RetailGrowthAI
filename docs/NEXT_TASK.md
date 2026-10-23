@@ -294,3 +294,6 @@ Baseline: `main` `84c9b87`, [latest completed 4/4 main CI #39805920327](https://
 
 ## 2026-10-23 — Operator 2 remaining availability work
 - Review new source-only bounded DEV gateway measurement tool (ops/gateway_probe.py), validate all four CI jobs and post-merge main, then obtain operator-approved manual read-only samples for latency/HTTP 503 correlation with sanitized Azure Application Insights/platform logs. Do not attribute missing HTTP responses to cold start without platform proof. Never schedule recurring keep-warm requests or change Azure capacity without measured cost and owner approval. No Parts 2/3 or paid subscription gateway changes.
+
+## 2026-10-23 — Operator 2 after 4/4 main CI: manual DEV availability evidence remains
+- PR #107 merged, PR 4/4 (#39972014771) and post-merge `main` 4/4 (#39972501578). Use ops/GATEWAY_PROBE.md and ops/gateway_probe.py when conducting a separately authorized bounded manual GET-only sample; correlate timing and error classifications with sanitized App Insights/platform metrics before spending on min replicas or changing configurations. The code has not been executed against Azure by this workstream. Full hosted Foundry/7-day/FFmpeg and DEV trial-quota canary already green, no extra resources needed. Paid upgrades/checkout still gated pending pricing/provider approval; Parts2/3 deferred.
