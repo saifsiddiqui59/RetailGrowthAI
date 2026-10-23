@@ -42,9 +42,9 @@ def test_oauth_nonce_callback_identity_and_replay():
 
 def test_aes_gcm_bound_to_shop_provider_and_account():
     vault = oauth.TokenVault(b"k" * 32, 1)
-    sealed = vault.seal(shop_id=SHOP, provider="linkedin", account_id=ACCOUNT, token="sensitive")
+    sealed = vault.seal(shop_id=SHOP, provider="linkedin", account_id=ACCOUNT, token="sensitive-test-token")
     assert b"sensitive" not in sealed
-    assert vault.open(shop_id=SHOP, provider="linkedin", account_id=ACCOUNT, ciphertext=sealed) == "sensitive"
+    assert vault.open(shop_id=SHOP, provider="linkedin", account_id=ACCOUNT, ciphertext=sealed) == "sensitive-test-token"
     for shop, provider, data in ((OTHER_SHOP, "linkedin", sealed),
                                  (SHOP, "facebook", sealed),
                                  (SHOP, "linkedin", sealed[:-1] + b"x")):
