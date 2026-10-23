@@ -53,6 +53,12 @@ def probe(_):
             "streams":[{"codec_type":"video","codec_name":"h264",
                         "width":720,"height":1280}]}
 
+def test_official_alibaba_video_download_example_is_allowed():
+    # Official Alibaba Wan2.7 I2V API docs return this OSS hostname shape.
+    url = "https://dashscope-a717.oss-accelerate.aliyuncs.com/demo.mp4?Expires=9999999999"
+    assert validate_vendor_video_url(url) == url
+
+
 def test_approved_signed_vendor_origin_is_not_client_storage_url():
     assert validate_vendor_video_url(URL) == URL
     assert NoRedirect().redirect_request(None, None, 302, "", {}, "http://169.254.169.254") is None
