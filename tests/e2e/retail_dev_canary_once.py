@@ -46,7 +46,16 @@ def call(url, method="GET", payload=None, headers=None, timeout=30, expect=(200,
         status=e.code
         body=e.read(4096)
     if status not in expect:
-        raise RuntimeError("DEV operation returned HTTP "+str(status)+" at "+method+" "+urllib.parse.urlparse(url).path)
+        # Only report server-defined error codes (e.g. 42501/PGRST***).
+        # Messages can contain private data, SQL parameters, URLs or credentials.
+        safe_code = "unknown"
+        try:
+            parsed = json.loads(body)
+            candidate = parsed.get("code", "") if isinstance(parsed,dict) else ""
+            if isinstance(candidate,str) and 1 <= len(candidate) <= 20 and candidate.replace("_","").isalnum():
+                safe_code = candidate
+        except (ValueError,TypeError): pass
+        raise RuntimeError("DEV HTTP "+str(status)+" error code "+safe_code+" at "+method+" "+urllib.parse.urlparse(url).path)
     if not body: return status,None
     try: return status,json.loads(body)
     except (ValueError,UnicodeDecodeError): return status,body
