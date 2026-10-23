@@ -357,3 +357,9 @@ NaN
 - Review scoped `feat/p1-login-background-mobile` CSS changes and viewport tests; require four green PR GitHub Actions jobs, merge safely, independently confirm four post-merge main CI jobs. Deploy only the already existing Azure DEV Free SWA via a one-time reviewed release workflow if the user wants this background live; verify HTTPS SPA route and currently served CSS.
 - Mobile support remains **responsive web browser** on Android/iPhone, not a published native app. Real-device manual QA (Safari/Chrome, keyboard scrolling, login, root and retailer dashboard) still pending; never claim native deployment or real-device tests from mocked Chromium.
 - Existing Supabase Auth Site URL/redirect configuration and SMTP/inbox deliverability remain a separate external blocker, unchanged by visual work.
+
+
+## 2026-10-24 — After successful mobile-responsive login release
+- DONE: background feature #185 (4/4 main CI #40025300703); exact existing DEV Free SWA release #186 (Azure release #40025576766 SUCCESS, served CSS and six SPA HTTPS routes); independent #186 post-merge main CI #40025576845 4/4. User can open same single https://purple-dune-06b5da200.2.azurestaticapps.net/ on phone or desktop, no installation.
+- Next optional manual device QA: real iPhone Safari and Android Chrome, 320px/no overflow, mobile keyboard viewport/safe-area, shop user menu, Super Admin warning/approval pages, logout/reload, email-link deep link. These were not validated on real devices; CI uses mocked Chromium/SPA HTTP and cannot claim live mobile authenticated behavior.
+- Auth SMTP, hosted Site URL/redirect allowlist, branded templates and actual mail inbox/recovery delivery still require the separate outstanding Supabase Auth operator tasks listed above. Do not change WineShopPOS or paid infrastructure.
