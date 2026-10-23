@@ -312,3 +312,12 @@ Baseline: `main` `84c9b87`, [latest completed 4/4 main CI #39805920327](https://
 
 ## 2026-10-23 — Root administrator next gates
 - On the open platform admin feature PR, verify the **four real CI checks** including new `tests/security/platform_admin_negative.sql` in disposable Supabase and mocked Playwright login matrix. After integration, apply the versioned migration **only** to dedicated RetailGrowthAI DEV following its own approved hosted gate, identify the *confirmed existing* RetailGrowthAI Supabase Auth user UUID for root, provision `retail_private.platform_admins` via trusted SQL editor, and run real DEV sign-in/logout/revocation and owner/editor/viewer denial tests. See `docs/PLATFORM_ADMIN.md`. No implicit root account or secrets; do not claim live root status before role provisioning + hosted verification. No WineShopPOS or Part2/3 modifications.
+
+
+## Current Part 2 next work after parallel #140–#152 (2026-10-23)
+1. Refresh `main` (latest observed `a1bac624`) into P2 integration with careful reviewed resolution preserving current login-first Part 1 dashboard, subscription/metrics and root admin; do not force-push or open incomplete final P2 PR.
+2. Wire the new authoring `POST /api/social/jobs/{create,approve,cancel}` into approved final browser journey, add CAS edit/reschedule with approval revocation, and provider-specific media provenance/FFprobe checks. P2 SQL files 190000–190400 are staged/disposable only; obtain separate hosted approval first.
+3. Complete provider-specific consent/token refresh, local+remote revocation, Page/channel selection and app review for Meta, LinkedIn, YouTube; only YouTube is configured in guarded OAuth backend. No live apps installed.
+4. Wire deduplicated Azure social queue and timer/poison reconciliation to service-only claim/receipt RPC. Implement actual Instagram Reels, FB Page text, LinkedIn organic text and YouTube resumable upload transports with receipt verification and no blind retry on ambiguous success; keep disabled until fully tested.
+5. Owner-approved publish quotas: `retail_private.social_publish_plan_limits` starts EMPTY (posting disabled); no arbitrary paid limits. Run mocked browser, media, cross-tenant, quota, CSRF/replay, revoked permission and outbox E2E; require exact integration commit 4/4 Actions before coordinator final PR.
+6. No hosted DEV migrations, Azure resource writes, OAuth app installation or real customer posts without distinct owner approvals. See `docs/part2/NEXT_TASK.md`.

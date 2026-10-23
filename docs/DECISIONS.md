@@ -273,3 +273,10 @@
 
 ## 2026-10-23 — Single-login global super admin authorization
 - Reuse the existing RetailGrowthAI Auth/JWT session for provider administration. Keep a separate, server-owned, revocable `retail_private.platform_admins` grant, with no default privileged account and no email/user_metadata/CLIENT role inference. Expose only hard-coded guarded platform RPCs, with reasoned auditable manual paid plan changes and bounded retailer lists; maintain per-shop OWNER/EDITOR/VIEWER RLS and existing subscription quota enforcement. Platform root and ordinary OWNER are distinct roles; no browser service key, payment processing, Part2/3 permissions or WineShopPOS identity sharing.
+
+
+## 2026-10-23 — Part 2 implementation and deployment boundaries
+- Maintain separate `feat/part2-integration` branch and internally reviewed feature PRs; no final Part2->main merge while publishing is incomplete. Newer Part1 `main` login/dashboard changes are authoritative and must be reconciled, never overwritten.
+- Only authenticated OWNER can link shop social accounts. OWNER/EDITOR can draft, explicitly approve or cancel unsent posts after fresh shop-role check. Platform super-admin grants do not imply permission to publish for another shop.
+- Approval SHA-256 is derived from server-fetched canonical content, bound to revision/time/platform/asset/account; SQL performs exact content CAS and subscription quota reservation in the same transaction. Edits invalidate approval. Pending provider media approval is *denied* until rights/ffprobe reviews exist.
+- Publish allowance table begins EMPTY; no inferred trial/paid publishing quota. Keep P1 campaign/render usage unchanged. Stage all P2 migrations `supabase/part2/pending` until independently approved hosted release. Durable SENDING before external posts; ambiguous responses require reconciliation.
