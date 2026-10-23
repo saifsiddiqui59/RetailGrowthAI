@@ -15,6 +15,7 @@ from pathlib import Path
 
 from render import checked_path, validate_rights, RenderError
 from probe import verify_reel
+from asset_preflight import inspect_staged_audio, AssetPreflightError
 
 MP4 = {".mp4"}
 AUDIO = {".mp3", ".wav", ".m4a", ".aac", ".flac"}
@@ -68,7 +69,7 @@ def compose_approved_clips(*, shop_id, clips, asset_root, output,
     if (not isinstance(shop_id, str) or not shop_id or not isinstance(clips, list)
         or not 2 <= len(clips) <= 8):
         raise PremiumComposeError("Invalid premium clip manifest")
-    if ((width, height) not in ((1080, 1920), (720, 1280), (180, 320))
+    if ((width, height) not in ((1080, 1920), (720, 1280))
         or fps not in (12, 15, 24, 25, 30)
         or preset not in ("ultrafast", "superfast", "veryfast", "faster", "fast")):
         raise PremiumComposeError("Unsupported premium output preset")
@@ -106,7 +107,9 @@ def compose_approved_clips(*, shop_id, clips, asset_root, output,
             validate_rights(licensed_music.get("rights"), licensed_music.get("asset_id"))
             music_path = checked_path(root, licensed_music.get("path"),
                                       licensed_music.get("asset_id"), AUDIO)
-    except (OSError, ValueError, TypeError, RenderError, PremiumComposeError):
+            inspect_staged_audio(music_path)
+    except (OSError, ValueError, TypeError, RenderError, AssetPreflightError,
+            PremiumComposeError):
         raise PremiumComposeError("Tenant media, rights or duration preflight failed") from None
 
     with tempfile.TemporaryDirectory(prefix="retail-premium-compose-") as scratch:
