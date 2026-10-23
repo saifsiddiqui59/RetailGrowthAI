@@ -50,3 +50,14 @@ def test_youtube_request_initializes_private_resumable_only():
         social.youtube_upload_location("https://attacker.example/upload/s")
     assert social.youtube_upload_location(
         "https://www.googleapis.com/upload/youtube/v3/videos?upload_id=opaque")
+
+
+def test_provider_request_repr_cannot_leak_token_or_signed_media():
+    r = social.instagram_reel_container_request(
+        ig_user_id="123", token="VERY-SECRET-BEARER", 
+        video_url="https://example.supabase.co/storage/v1/object/sign/retailgrowth-media/x/video.mp4?token=PRIVATE-SIGNED",
+        caption="approved", supabase_origin="https://example.supabase.co", graph_version="v24.0")
+    rendered = repr(r)
+    assert "VERY-SECRET-BEARER" not in rendered
+    assert "PRIVATE-SIGNED" not in rendered
+    assert "headers=" not in rendered and "body=" not in rendered

@@ -10,7 +10,7 @@ import base64
 import hashlib
 import hmac
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 from uuid import UUID
@@ -24,9 +24,9 @@ class OAuthDenied(ValueError):
 
 @dataclass(frozen=True)
 class OAuthStart:
-    state: str
-    state_digest: bytes
-    pkce_verifier: str
+    state: str = field(repr=False)
+    state_digest: bytes = field(repr=False)
+    pkce_verifier: str = field(repr=False)
     pkce_challenge: str
     expires_at: datetime
 
