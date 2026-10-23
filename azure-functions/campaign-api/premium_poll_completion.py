@@ -47,14 +47,15 @@ class PremiumPollCompletion:
         try:
             sid = canonical_uuid(claim["shop_id"])
             token = canonical_uuid(claim["attempt_token"])
-            assert canonical_uuid(claim["id"]) == jid
-            assert claim["status"] == "IMPORTING"
-            assert claim["reservation_confirmed"] is True
             seconds = claim["seconds"]
-            assert type(seconds) is int and 2 <= seconds <= 15
             task_id = claim["provider_task_id"]
-            assert isinstance(task_id, str) and TASK_ID.fullmatch(task_id)
-        except (AssertionError, AttributeError, KeyError, TypeError, ValueError) as exc:
+            if (canonical_uuid(claim["id"]) != jid or
+                claim["status"] != "IMPORTING" or
+                claim["reservation_confirmed"] is not True or
+                type(seconds) is not int or not 2 <= seconds <= 15 or
+                not isinstance(task_id, str) or not TASK_ID.fullmatch(task_id)):
+                raise ValueError("Untrusted premium import claim")
+        except (AttributeError, KeyError, TypeError, ValueError):
             raise PremiumCompletionError("Premium import claim is invalid") from None
 
         # One task GET, not another billable create POST. Provider itself
