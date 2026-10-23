@@ -6,6 +6,7 @@ import { AccountWorkspace } from './auth/AccountWorkspace.jsx'
 import DashboardOverview from './features/dashboard/DashboardOverview.jsx'
 import SubscriptionPage from './features/subscription/SubscriptionPage.jsx'
 import PlatformAdmin from './features/platform/PlatformAdmin.jsx'
+import LoginPage from './auth/LoginPage.jsx'
 
 const links = [
   { to: '/', label: 'Overview', icon: '▦', end: true },
@@ -74,7 +75,7 @@ function AccountMenu() {
 
 function AppShell() {
   const location = useLocation()
-  const { platformAdmin } = useRetailAuth()
+  const { platformAdmin, platformLoading, user, loading, configured } = useRetailAuth()
   const [collapsed, setCollapsed] = useState(() => {
     try { return window.localStorage.getItem('rgai-sidebar-collapsed') === '1' } catch { return false }
   })
@@ -90,7 +91,16 @@ function AppShell() {
     return () => window.removeEventListener('keydown', escape)
   }, [])
 
-  const availableLinks = platformAdmin ? [...links, { to: '/platform-admin', label: 'Platform Control', icon: '⚙' }] : links
+  if (configured && loading) return <div className="login-loading" role="status">Checking your session…</div>
+  if (configured && !user) {
+    if (location.pathname !== '/' && location.pathname !== '/account') return <Navigate to="/account" replace />
+    return <LoginPage />
+  }
+  if (configured && platformLoading) return <div className="login-loading" role="status">Verifying dashboard access…</div>
+  const availableLinks = platformAdmin
+    ? [{ to: '/platform-admin', label: 'Platform Control', icon: '⚙' }, { to: '/business', label: 'My business', icon: '▦' },
+        { to: '/campaigns', label: 'Campaigns', icon: '▤' }, { to: '/subscription', label: 'Subscription', icon: '◈' }]
+    : links
   const title = availableLinks.find((item) => item.to === location.pathname)?.label ||
     (location.pathname === '/account' ? 'Account' : 'Workspace')
   return (
@@ -136,7 +146,8 @@ function AppShell() {
         </header>
         <main className="content">
           <Routes>
-            <Route path="/" element={<DashboardOverview />} />
+            <Route path="/" element={platformAdmin ? <Navigate to="/platform-admin" replace /> : <DashboardOverview />} />
+            <Route path="/business" element={<DashboardOverview />} />
             <Route path="/campaigns" element={<CampaignDashboard />} />
             <Route path="/subscription" element={<SubscriptionPage />} />
             <Route path="/platform-admin" element={<PlatformBoundary />} />
