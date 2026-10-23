@@ -76,13 +76,13 @@ export default function DashboardOverview() {
       {error && <p role="alert" className="notice-error">{error}</p>}
       {!authLoading && live && !shops.length && !error && <p role="status">No accessible businesses yet. <Link to="/account">Create a business in Account.</Link></p>}
       {pending && <p role="status">Loading verified business metrics…</p>}
-      <div className="metrics" aria-label={live ? 'Live business metrics' : 'Illustrative metrics'}>
+      <section className="metrics" aria-label={live ? 'Live business metrics' : 'Illustrative metrics'}>
         {cards.map((item) => <section className="metric" key={item.title}>
           <span>{item.title}</span>
           <strong>{item.value ?? '—'}</strong>
           <small>{item.hint}</small>
         </section>)}
-      </div>
+      </section>
       <div className="dashboard-section-grid">
         <section className="panel">
           <div className="eyebrow">YOUR WORKFLOW</div><h2>From idea to campaign</h2>
