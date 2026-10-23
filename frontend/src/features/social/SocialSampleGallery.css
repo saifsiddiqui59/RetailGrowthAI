@@ -41,3 +41,11 @@
   .social-samples-tabs { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .social-samples-post, .social-samples-review { padding: 16px; }
 }
+
+/* Source-photo-inspired color swatches; never impersonate actual uploaded media. */
+.social-samples-shirt-swatches { display:flex; align-items:center; flex-wrap:wrap; gap:9px; margin-top:15px; }
+.social-shirt-swatch { width:24px; height:24px; display:inline-block; border:1px solid #c9c7c2; border-radius:7px; }
+.swatch-yellow { background:#e8da83; }
+.swatch-black { background:#1b1b1c; }
+.swatch-green { background:#1d4434; }
+.social-samples-shirt-swatches small { font-size:11px; color:#66788d; }
