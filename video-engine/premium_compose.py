@@ -68,7 +68,7 @@ def compose_approved_clips(*, shop_id, clips, asset_root, output,
     if (not isinstance(shop_id, str) or not shop_id or not isinstance(clips, list)
         or not 2 <= len(clips) <= 8):
         raise PremiumComposeError("Invalid premium clip manifest")
-    if (width, height) not in ((1080, 1920), (720, 1280), (180, 320))
+    if ((width, height) not in ((1080, 1920), (720, 1280), (180, 320))
         or fps not in (12, 15, 24, 25, 30)
         or preset not in ("ultrafast", "superfast", "veryfast", "faster", "fast")):
         raise PremiumComposeError("Unsupported premium output preset")
