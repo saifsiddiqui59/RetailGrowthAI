@@ -39,3 +39,10 @@ Separate approvals are mandatory before hosted DEV SQL, Azure deployment, provid
 - Treat `main` `33ee5769` as the latest **reconciled** P1 baseline; any later main commits require another reviewed merge before final Part 2 PR. Do not roll back `/platform-admin`, P1 12th migration or its 4/4 browser/SQL tests.
 - Keep **platform super-admin** and **shop OWNER social-publishing consent** distinct. Neither token holder may silently impersonate or post for another shop.
 - Build the not-yet-wired OAuth provider transports, refresh/disconnect API, social job quota/dispatch/lease and tested scheduling/approval frontend. Do not request Coordinator merge of these internal tasks.
+
+## Follow-up after internally merged #138 (YouTube OAuth)
+
+1. Wire the **authenticated** OAuth start/completion/disconnect API to the existing owner-bound `OAuthLifecycle`, service-only transactional repository and reviewed YouTube adapter through explicit **server-only** environment settings and exact redirect; prevent raw OAuth code/token logging and callback replay. Default disabled.
+2. Add official Meta Facebook/Instagram and LinkedIn identity/code-exchange adapters and safe refresh/revocation; test account-role boundaries and denied permissions. Do not present a connected account from mocked transport alone.
+3. Finish atomic social publish quota, scheduled claim/lease/receipt SQL, queue worker, approval/schedule/cancel UX, real provider transport/media pipeline and mocked E2E. Keep both Part2 staged SQL migrations pending until **separate hosted approval**.
+4. Require exact integration SHA four-job GitHub Actions success after any new internal merge. Final Part2->main PR is **not ready**.
