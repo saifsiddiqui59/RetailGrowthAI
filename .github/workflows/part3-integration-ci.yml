@@ -1,0 +1,62 @@
+name: RetailGrowthAI Part 3 Internal CI
+
+# Additive check isolated to the Part 3 branch. Never use deployment secrets.
+on:
+  pull_request:
+    branches: ['feat/part3-integration']
+  push:
+    branches: ['feat/part3-integration', 'feat/p3-*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p3-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  provider-and-jobs:
+    name: Premium provider and job mocks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
+        with:
+          version: '0.13.1'
+      - run: uv python install 3.13
+      - run: uv sync --project ai-agents
+      - name: Offline provider and durable job tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cases=()
+          [ ! -f ai-agents/tests/test_premium_video.py ] || cases+=(ai-agents/tests/test_premium_video.py)
+          [ ! -f tests/api/test_premium_video_jobs.py ] || cases+=(tests/api/test_premium_video_jobs.py)
+          if [ "${#cases[@]}" -eq 0 ]; then
+            echo "No Part 3 test files in this independently owned branch"
+          else
+            uv run --project ai-agents --with pytest --with "PyJWT[crypto]==2.10.1" -- python -m pytest -q "${cases[@]}"
+          fi
+  premium-frontend:
+    name: Premium control safety test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Offline premium UI security assertions
+        shell: bash
+        run: |
+          if [ -f tests/security/premium_video_ui.test.mjs ]; then
+            node --test tests/security/premium_video_ui.test.mjs
+          else
+            echo "Premium UI test belongs to another task branch"
+          fi
