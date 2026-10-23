@@ -182,7 +182,8 @@ def validate_private_test_paths(media, shop_id):
             (asset.get("mime_type"),asset.get("source")) not in {
                 ("image/png","UPLOAD"),("video/mp4","GENERATED")
             } or not ("/uploads/" in name or "/renders/" in name) or
-            not all(c.isascii() and (c.isalnum() or c in "_./-") for c in name) or\n            any(part in ("", ".", "..") for part in name.split("/"))):
+            not all(c.isascii() and (c.isalnum() or c in "_./-") for c in name) or
+            any(part in ("", ".", "..") for part in name.split("/"))):
             raise RuntimeError("Refusing out-of-shop or unexpected synthetic media cleanup")
         paths.append(name)
     return paths
