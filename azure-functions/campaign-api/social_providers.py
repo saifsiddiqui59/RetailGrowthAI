@@ -4,7 +4,7 @@ A publishing worker must check shop authorization, user approval, subscription
 entitlement, connected account scopes, and a durable idempotency record BEFORE
 calling these helpers. Ambiguous provider writes must not be blindly retried.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 import re
 
@@ -17,8 +17,8 @@ class ProviderRejected(ValueError):
 class ProviderRequest:
     method: str
     url: str
-    headers: dict
-    body: dict
+    headers: dict = field(repr=False)
+    body: dict = field(repr=False)
 
 
 @dataclass(frozen=True)

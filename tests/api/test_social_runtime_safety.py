@@ -76,3 +76,11 @@ def test_no_dispatch_without_approval_quota_or_account():
         assert not schedule.dispatch_eligibility(**(gates | {gate:False}))
     assert schedule.failure_transition(attempts=1, ambiguous=True, retryable=True) == ("RECONCILE", None)
     assert schedule.failure_transition(attempts=5, ambiguous=False, retryable=True) == ("FAILED", None)
+
+
+def test_oauth_start_repr_does_not_log_ephemeral_state_or_verifier():
+    start=oauth.new_oauth_state(now=NOW)
+    text=repr(start)
+    assert start.state not in text
+    assert start.pkce_verifier not in text
+    assert start.state_digest.hex() not in text
