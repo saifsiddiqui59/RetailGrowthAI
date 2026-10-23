@@ -21,6 +21,12 @@ async function loginAs(page, role, { invalid = false } = {}) {
     const path = u.pathname
     requests.push({ path, method: req.method(), body: req.postDataJSON?.() })
     if (req.method() === 'OPTIONS') return fulfill(route, {})
+    if (req.method() === 'HEAD' && ['/rest/v1/campaigns','/rest/v1/render_jobs'].includes(path)) {
+      return route.fulfill({ status: 200, headers: {
+        'Content-Range': '*/0', 'Access-Control-Allow-Origin': '*',
+        'Access-Control-Expose-Headers': 'Content-Range',
+      }, body: '' })
+    }
     if (path === '/auth/v1/token' && u.searchParams.get('grant_type') === 'password') {
       return invalid ? fulfill(route, { error_description: 'Invalid login credentials' }, 400)
         : fulfill(route, { access_token: 'role-jwt', refresh_token: 'role-refresh',
