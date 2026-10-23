@@ -328,3 +328,7 @@ Baseline: `main` `84c9b87`, [latest completed 4/4 main CI #39805920327](https://
 - Finalize independent source-only text transport [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) only after exact-head 4/4 Actions. LinkedIn/Facebook text does **not** imply Instagram Reels/YouTube Shorts uploading is complete.
 - Expand review panel for safe edit/revision invalidation, video preview, account permission failure, accessible confirmation and mocked E2E. No live browser publishing flags unless separately approved.
 - Refresh current `main` `1c59f981` without overwriting its login-first root dashboard/admin; final Part2→main PR only when full source-side publish lifecycle and CI are ready. No hosted actions in this checkpoint.
+
+
+## 2026-10-23 — Verified follow-up: text posting source #158
+PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed **4/4** on [Actions #40007522818](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40007522818) and was internally squash-merged into feat/part2-integration as `80805066`. This supersedes any earlier note calling #158 pending. It implements source-only, opt-in Facebook Page text and LinkedIn member text request/receipt checks with uncertainty handled as RECONCILE. **Not yet activated:** real provider publishing, worker connection, hosted P2 migrations, approved OAuth apps, video uploads and independent publishing quotas. Next task is the secure credential loader and server-authoritative job-context worker with test-only provider calls.
