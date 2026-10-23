@@ -33,7 +33,7 @@ export function SocialSampleGallery() {
         <span className="social-samples-eyebrow">PUBLISHING PREVIEW LAB · OFFLINE</span>
         <h2 id="social-samples-title">Four sample platform posts</h2>
         <p>Inspect what a reviewed publishing draft would look like on each platform.
-          No poster or video is generated here; all account connections, scheduling and
+          Colors and sample copy refer to the supplied three-shirt reference. No poster or video is generated here; all account connections, scheduling and
           publishing are disabled in this sample.</p>
       </div>
       <span className="social-samples-pill">Samples only</span>
@@ -57,6 +57,12 @@ export function SocialSampleGallery() {
         <div className="social-samples-profile">
           <span className="social-samples-avatar" aria-hidden="true">D</span>
           <span><strong>Demo Boutique</strong><small>{sample.name} · {sample.channel} · not published</small></span>
+        </div>
+        <div className="social-samples-shirt-swatches" aria-label="Sample clothing palette: soft yellow, black, forest green">
+          <span className="social-shirt-swatch swatch-yellow" title="Soft yellow shirt" />
+          <span className="social-shirt-swatch swatch-black" title="Black shirt" />
+          <span className="social-shirt-swatch swatch-green" title="Forest green shirt" />
+          <small>Shirt colors from reference · not the uploaded photograph</small>
         </div>
         {sample.mediaKind === 'video' && <div className="social-samples-portrait"
           role="img" aria-label="Vertical video placeholder. No media generated or attached.">
