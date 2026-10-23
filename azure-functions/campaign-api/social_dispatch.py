@@ -64,17 +64,26 @@ def process_publish(raw_message, *, repository, provider, clock):
     if claim.get("job_id") != jid or not isinstance(claim.get("claim_token"), str):
         raise DispatchError("UNTRUSTED_CLAIM")
     claim_token = claim["claim_token"]
-    context = repository.load_context(jid, claim_token)
-    if not isinstance(context, dict):
-        raise DispatchError("MISSING_SERVER_CONTEXT")
     try:
-        check_approval(**context, now_utc=clock())
+        context = repository.load_context(jid, claim_token)
+        if not isinstance(context, dict):
+            raise PublishDenied("MISSING_SERVER_CONTEXT")
+        # Deliberately pass only the seven checked fields. Private decrypted
+        # tokens must not become inputs to or appear in approval-policy errors.
+        preflight = {key: context[key] for key in (
+            "job", "shop_id", "account", "membership", "entitlement",
+            "media", "required_scopes")}
+        check_approval(**preflight, now_utc=clock())
     except PublishDenied as denied:
         repository.fail_claim(jid, claim_token, denied.code)
         return "FAILED"
+    except (KeyError, TypeError):
+        repository.fail_claim(jid, claim_token, "MALFORMED_SERVER_CONTEXT")
+        return "FAILED"
     # This durable transaction MUST commit BEFORE any external provider call.
     # On interruption after this point: reconciliation, never auto-POST.
-    repository.mark_external_inflight(jid, claim_token)
+    if repository.mark_external_inflight(jid, claim_token) is not True:
+        raise DispatchError("INFLIGHT_BARRIER_NOT_CONFIRMED")
     try:
         receipt = provider.publish(jid, context)
     except ProviderFailure as exc:
