@@ -1,0 +1,90 @@
+name: RetailGrowthAI DEV read-only queue trigger activation audit
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/retail-dev-queue-audit-once.yml]
+permissions:
+  contents: read
+jobs:
+  queue-audit:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Inspect only dedicated RetailGrowthAI DEV Functions and existing Storage account
+        shell: bash
+        env:
+          AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          rg=rg-retailgrowth-dev
+          name=rgai-dev-functions-d4e5ddbd
+          storage=rgaid4e5ddbdf0d21d96
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          az group show -g "$rg" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1]))
+          tags={k.lower():str(v).lower() for k,v in (r.get('tags') or {}).items()}
+          assert r['name']=='rg-retailgrowth-dev'
+          assert tags.get('app')=='retailgrowthai' and tags.get('environment')=='dev'
+          PY
+          test "$(az functionapp show -g "$rg" -n "$name" --query name -o tsv)" = "$name"
+          test "$(az storage account show -g "$rg" -n "$storage" --query name -o tsv)" = "$storage"
+          az functionapp config appsettings list -g "$rg" -n "$name" -o json > "$RUNNER_TEMP/app-env.json"
+          python3 - "$RUNNER_TEMP/app-env.json" <<'PY'
+          import json,sys
+          names=('plan_campaign','render_campaign_reel','planning_poison','render_poison',
+                 'recover_stale_jobs','dispatch_outbox')
+          entries={x['name']:x.get('value') for x in json.load(open(sys.argv[1]))}
+          for function in names:
+            key='AzureWebJobs.'+function+'.Disabled'
+            value=entries.get(key,'UNSET')
+            if value not in ('true','false','True','False','UNSET','0','1'):
+              value='INVALID'
+            print('FUNCTION_DISABLED_FLAG',function,value)
+          for k in ('RETAIL_ENABLE_MOCK_CAMPAIGNS','AzureFunctionsJobHost__functionTimeout'):
+            value=entries.get(k,'UNSET')
+            if k=='RETAIL_ENABLE_MOCK_CAMPAIGNS':
+              print('FOUNDATION_MOCK_MODE',value if value in ('true','false') else 'UNVERIFIED')
+          PY
+          az functionapp function list -g "$rg" -n "$name" \
+             --query "[].{name:name,disabled:isDisabled}" -o json > "$RUNNER_TEMP/functions.json"
+          python3 - "$RUNNER_TEMP/functions.json" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1]))
+          print('INDEXED_FUNCTIONS',len(x))
+          for d in x:
+            name=str(d.get('name','')).split('/')[-1]
+            if name in ('plan_campaign','render_campaign_reel','planning_poison',
+                        'render_poison','recover_stale_jobs'):
+              print('TRIGGER_INDEXED',name,'DISABLED',str(d.get('disabled','UNKNOWN')))
+          PY
+          key="$(az storage account keys list -g "$rg" -n "$storage" --query '[0].value' -o tsv)"
+          test -n "$key"
+          echo "::add-mask::$key"
+          for queue in retail-campaign-planning retail-reel-render retail-campaign-planning-poison retail-reel-render-poison; do
+            if az storage queue show --name "$queue" --account-name "$storage" \
+              --account-key "$key" -o json > "$RUNNER_TEMP/queue.json" 2>/dev/null; then
+              python3 - "$RUNNER_TEMP/queue.json" "$queue" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1]))
+          print('QUEUESAFE',sys.argv[2],'COUNT',x.get('approximateMessageCount','unknown'))
+          PY
+            else
+              echo "QUEUESAFE $queue NOT_FOUND_OR_FORBIDDEN"
+            fi
+          done
+          echo 'Read-only queue metadata: no message bodies, credentials or individual tenant jobs displayed.'
+      - name: Logout
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
