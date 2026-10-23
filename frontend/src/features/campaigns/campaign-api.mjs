@@ -44,7 +44,12 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch })
       throw error
     }
     if (!response.ok) {
-      const error = new Error(data?.error || 'Campaign API request failed')
+      const errorCode = data?.error
+      const friendly = {
+        QUOTA_EXCEEDED: 'This business has reached its current campaign or render limit. Existing drafts are still available.',
+        SUBSCRIPTION_REQUIRED: 'This business’s trial or subscription has expired or is inactive. Existing drafts remain available.',
+      }
+      const error = new Error(friendly[errorCode] || errorCode || 'Campaign API request failed')
       error.status = response.status
       throw error
     }

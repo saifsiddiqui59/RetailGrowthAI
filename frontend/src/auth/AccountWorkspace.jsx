@@ -19,6 +19,9 @@ export function AccountWorkspace() {
   const [shops, setShops] = useState([])
   const [shopId, setShopId] = useState('')
   const [profile, setProfile] = useState(null)
+  const [subscription, setSubscription] = useState(null)
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false)
+  const [subscriptionError, setSubscriptionError] = useState('')
   const [newShop, setNewShop] = useState({ name: '', slug: '' })
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -49,6 +52,26 @@ export function AccountWorkspace() {
     }).catch((err) => { if (active) setFailure(err.message) })
     return () => { active = false }
   }, [client, shopId, user])
+
+  useEffect(() => {
+    let active = true
+    setSubscription(null)
+    setSubscriptionError('')
+    const owner = shops.some((s) => s.id === shopId && s.membership?.role === 'OWNER')
+    if (!user || !shopId || !owner) {
+      setSubscriptionLoading(false)
+      return () => { active = false }
+    }
+    setSubscriptionLoading(true)
+    client.getShopSubscription(shopId).then((result) => {
+      if (active) setSubscription(result)
+    }).catch(() => {
+      if (active) setSubscriptionError('Unable to check your subscription. Retry after refreshing Account.')
+    }).finally(() => {
+      if (active) setSubscriptionLoading(false)
+    })
+    return () => { active = false }
+  }, [client, shopId, shops, user])
 
   async function run(action, successText) {
     setBusy(true)
@@ -115,6 +138,24 @@ export function AccountWorkspace() {
               </select>
             </label>
           ) : <p>No businesses yet. Create one below.</p>}
+          {selected?.membership?.role === 'OWNER' && (
+            <section aria-label="Subscription status">
+              <h3>Business subscription</h3>
+              {subscriptionLoading && <p role="status">Checking this business’s plan…</p>}
+              {subscriptionError && <p role="alert">{subscriptionError}</p>}
+              {!subscriptionLoading && !subscriptionError && !subscription &&
+                <p role="status">No subscription is available for this business yet.</p>}
+              {subscription && (
+                <>
+                  <p><strong>{subscription.plan_code}</strong> plan · {subscription.status}</p>
+                  <p>Current access ends {new Date(subscription.valid_until).toLocaleDateString('en-IN')}.</p>
+                  <p>Campaign and render allowances are enforced securely by RetailGrowthAI,
+                    not by the browser. Your existing drafts remain viewable when a trial expires.</p>
+                </>
+              )}
+              <p>This DEV preview does not accept payments or plan upgrades.</p>
+            </section>
+          )}
           {profile && (
             <form onSubmit={(event) => {
               event.preventDefault()

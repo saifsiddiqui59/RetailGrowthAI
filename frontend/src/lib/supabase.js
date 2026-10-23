@@ -2,7 +2,7 @@
 // No service-role keys, no client-side authorization assumptions.
 // Use a publishable key and let PostgreSQL RLS enforce every tenant boundary.
 const STORAGE_KEY = 'retailgrowthai-auth-v1'
-const ALLOWED_TABLES = new Set(['shops', 'shop_memberships', 'business_profiles', 'media_assets'])
+const ALLOWED_TABLES = new Set(['shops', 'shop_memberships', 'business_profiles', 'media_assets', 'shop_subscriptions'])
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const IMAGE_TYPES = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp' }
@@ -174,6 +174,20 @@ export function createRetailClient({
     }
     return rows[0]
   }
+  async function getShopSubscription(shopId) {
+    if (!UUID_V4.test(shopId || '')) throw new Error('Invalid selected business')
+    const rows = await table('shop_subscriptions', {
+      query: {
+        select: 'shop_id,plan_code,status,valid_from,valid_until,period_start,period_end',
+        shop_id: 'eq.' + shopId, limit: '1',
+      },
+    })
+    if (!Array.isArray(rows) || rows.length > 1 ||
+        (rows.length === 1 && rows[0].shop_id !== shopId)) {
+      throw new Error('Subscription information is temporarily unavailable')
+    }
+    return rows[0] || null
+  }
   async function getBusinessProfile(shopId) {
     const rows = await table('business_profiles', {
       query: { select: '*', shop_id: 'eq.' + shopId, limit: '1' },
@@ -255,7 +269,7 @@ export function createRetailClient({
   return {
     configured, getStoredSession: () => session, getAccessToken: accessToken,
     signIn, signUp, signOut, getUser,
-    listShops, createShop, getBusinessProfile, updateBusinessProfile, listMediaAssets, uploadImageAsset,
+    listShops, createShop, getShopSubscription, getBusinessProfile, updateBusinessProfile, listMediaAssets, uploadImageAsset,
   }
 }
 

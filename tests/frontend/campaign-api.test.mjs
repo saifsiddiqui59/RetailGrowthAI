@@ -140,3 +140,22 @@ test('frontend rejects origin credentials, query keys and non-HTTPS signed URLs'
     'http://my-shop.supabase.co/storage/v1/object/sign/retailgrowth-media/x?token=abc',
     'https://my-shop.supabase.co'), /private storage/)
 })
+
+test('subscription and quota errors have accessible, non-secret campaign messages', async () => {
+  for (const [status,code,phrase] of [
+    [402,'SUBSCRIPTION_REQUIRED',/expired|inactive/],
+    [429,'QUOTA_EXCEEDED',/limit/],
+  ]) {
+    const api = createCampaignApi({
+      baseUrl: 'https://rgai.example.azurewebsites.net',
+      tokenProvider: async () => 'user-jwt',
+      fetchImpl: async () => ({ status, ok: false, json: async () => ({ error: code }) }),
+    })
+    await assert.rejects(() => api.createCampaign({}), (error) => {
+      assert.equal(error.status, status)
+      assert.match(error.message, phrase)
+      assert.doesNotMatch(error.message, /service_role|sb_secret_/)
+      return true
+    })
+  }
+})
