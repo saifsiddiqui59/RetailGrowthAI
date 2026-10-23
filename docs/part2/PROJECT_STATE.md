@@ -21,3 +21,39 @@ No P2 connection to an actual provider, app review, hosted SQL, deployed Azure f
 
 ## Planned compatibility with Part 1
 Do not alter `docs/INTERFACES_V1.md`, existing Part 1 endpoint payloads, frozen migration history, P1 campaign/render quota ledger or published deployment. Part 2 endpoints will be under `/api/social/*` and use existing Supabase verified JWT and shop membership, plus separate publish-specific quotas approved later. Tenant-owned storage/object IDs and exact approved content digest bind publishing jobs. A provider remote receipt never substitutes for durable job status reconciliation.
+
+## 2026-10-23 — Verified internal implementation and main refresh (latest; supersedes initial ledger)
+
+The following isolated Part 2 PRs were **internally squash-merged into `feat/part2-integration`**, not main:
+
+| PR | Scope | Pre-merge four-job CI | Internal merge |
+| --- | --- | --- | --- |
+| [#108](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/108) | Official provider request builders | [39973096649](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39973096649) PASS 4/4 | `5598acc9` |
+| [#110](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/110) | Pending tenant-safe social SQL | [39974189120](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39974189120) PASS 4/4 | `6d1ac524` |
+| [#112](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/112) | OAuth vault, state/PKCE, DST scheduler | [39974594552](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39974594552) PASS 4/4 | `1f1eff99` |
+| [#116](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/116) | Part 2 architecture/research docs | [39975095577](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39975095577) PASS 4/4 | `f4990f93` |
+| [#114](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/114) | Social preview route/client/UI | [39975286482](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39975286482) PASS 4/4 | `d7bb2de8` |
+| [#118](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/118) | Exact-content approvals/media preflight | [39975951078](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39975951078) PASS 4/4 | `e8d863ce` |
+| [#119](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/119) | Default-off authenticated social read API | [39976295966](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39976295966) PASS 4/4 | `4c936f65` |
+| [#123](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/123) | Replay-fenced dispatcher protocol | [39977246358](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/39977246358) PASS 4/4 | `6815287a` |
+
+Also reconciled current Part 1 `main` `302ee4adf47800ddf6d3e4b84372fe65a65d7fbe` into integration through genuine two-parent merge commit `55470665249ae4a7faf8ca587aaa8f76373afa8a`. The merge retained the modern P1 overview, Subscription page/metrics, tests and `/social` navigation, and verified all 290 paths in the generated tree. **Integration-head CI after this documentation must be checked independently.**
+
+### Delivered vs remaining capabilities
+
+| Area | Source status | Not yet done |
+| --- | --- | --- |
+| OAuth / disconnection | AES-GCM token vault, state & PKCE primitives | Real provider authorization/code exchange; atomic state consume, refresh, disconnect, token revocation |
+| Instagram | Reels container/status/publish request shapes | Provider transport, media hosting/processing, account checks & App Review |
+| Facebook | Page FEED text request shape | Actual Page OAuth/ownership verification; photo/video/Reels APIs |
+| LinkedIn | Versioned REST text-post request | Actual approved access, organization/member token flow, media posting |
+| YouTube | Private resumable session initialization | Video byte upload, processing reconciliation, Shorts classification, OAuth verification |
+| Scheduling | IANA timezone, DST and retry primitives | Durable DB approved schedule transactions, queue/timer activation |
+| Queue/reconciliation | Fenced pure dispatch protocol | DB claim RPC/lease/outbox/poison, remote provider lookup, queue trigger |
+| Frontend | Disabled-by-default `/social`, account metadata, scheduling preview | Real OAuth controls, approvals, edit/cancel/unschedule interactions |
+| Tokens/isolation | RLS SELECT-only prospective tables, ciphertext vault, secure read route | Disposable SQL RLS negative verification; live DEV grant validation |
+| Media/content review | Exact approved digest and conservative FFmpeg media preflight | Revocation on every campaign edit, post-approval UI, provider-specific supported media |
+| Quota | Isolated pending publishing ledger proposal, dispatch requires reservation | Subscription-based atomic publish quota units + defined owner-approved plan limits |
+| Testing | Four-job CI for component PRs; Python+Node unit denials | Hosted migration, mocked full-browser publish journey, real provider/queue E2E |
+
+**Not implemented:** real account connection, external publish, live scheduling, hosted SQL, actual publishing quota, provider access approval, Azure deployment. Final PR to main is **not ready**. No WineShopPOS / GenAI Galaxy / Postiz / Razorpay modifications.
