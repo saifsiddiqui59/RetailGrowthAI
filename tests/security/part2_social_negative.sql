@@ -7,6 +7,7 @@
 \ir ../../supabase/part2/pending/20261023190300_p2_social_dispatch_claims.sql
 \ir ../../supabase/part2/pending/20261023190400_p2_social_authoring.sql
 \ir ../../supabase/part2/pending/20261023190500_p2_social_claim_context.sql
+\ir ../../supabase/part2/pending/20261023190600_p2_social_poison_reconciliation.sql
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -351,3 +352,25 @@ begin
 end $$;
 rollback;
 \echo 'PASS: P2 approved content, replay-safe draft, atomic per-period quota and cancel'
+
+-- No authenticated actor may acknowledge or alter poison queue statuses.
+begin;
+do $$
+begin
+  if has_function_privilege('authenticated',
+    'public.p2_record_social_poison(uuid)','EXECUTE')
+    or has_function_privilege('anon',
+    'public.p2_record_social_poison(uuid)','EXECUTE') then
+    raise exception 'FAIL: social poison receipt exposed to browser role';
+  end if;
+end $$;
+select set_config('request.jwt.claim.role','service_role',true);
+do $$
+begin
+  if public.p2_record_social_poison(
+      '40000000-0000-4000-8000-000000000099') then
+    raise exception 'FAIL: unknown job poison incorrectly acknowledged';
+  end if;
+end $$;
+rollback;
+\echo 'PASS: poison receipts require an authoritative private job and server-only actor'
