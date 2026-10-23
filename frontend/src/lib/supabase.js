@@ -242,6 +242,44 @@ export function createRetailClient({
     ])
     return { campaign, render }
   }
+  // Platform admin RPCs use the SAME user JWT. The trusted database checks
+  // retail_private.platform_admins for each call; email/metadata never grant access.
+  async function platformRpc(name, body = {}) {
+    if (!['retail_platform_me', 'retail_platform_summary',
+          'retail_platform_shops', 'retail_platform_set_subscription'].includes(name)) {
+      throw new Error('Unsupported platform operation')
+    }
+    return send('/rest/v1/rpc/' + name, {
+      method: 'POST', body, token: await accessToken(),
+    })
+  }
+  async function isPlatformAdmin() {
+    const result = await platformRpc('retail_platform_me')
+    if (typeof result !== 'boolean') throw new Error('Invalid platform identity response')
+    return result
+  }
+  async function getPlatformSummary() {
+    return platformRpc('retail_platform_summary')
+  }
+  async function listPlatformShops(limit = 25, offset = 0) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50 ||
+        !Number.isInteger(offset) || offset < 0 || offset > 5000) {
+      throw new Error('Invalid platform page size')
+    }
+    return platformRpc('retail_platform_shops', { p_limit: limit, p_offset: offset })
+  }
+  async function setPlatformSubscription({ shopId, planCode, status, validUntil, reason }) {
+    if (!UUID_V4.test(shopId || '') || !['STARTER', 'GROWTH', 'BUSINESS'].includes(planCode) ||
+        !['ACTIVE', 'SUSPENDED'].includes(status) ||
+        !Number.isFinite(Date.parse(validUntil)) ||
+        typeof reason !== 'string' || reason.trim().length < 10 || reason.trim().length > 300) {
+      throw new Error('Invalid privileged subscription request')
+    }
+    return platformRpc('retail_platform_set_subscription', {
+      p_shop_id: shopId, p_plan_code: planCode, p_status: status,
+      p_valid_until: new Date(validUntil).toISOString(), p_reason: reason.trim(),
+    })
+  }
   async function getBusinessProfile(shopId) {
     const rows = await table('business_profiles', {
       query: { select: '*', shop_id: 'eq.' + shopId, limit: '1' },
@@ -323,7 +361,8 @@ export function createRetailClient({
   return {
     configured, getStoredSession: () => session, getAccessToken: accessToken,
     signIn, signUp, signOut, getUser,
-    listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage, getBusinessProfile, updateBusinessProfile, listMediaAssets, uploadImageAsset,
+    listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
+    isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription, getBusinessProfile, updateBusinessProfile, listMediaAssets, uploadImageAsset,
   }
 }
 
