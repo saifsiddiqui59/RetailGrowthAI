@@ -17,6 +17,7 @@ if importlib.util.find_spec("ai_agents.premium_video") is None:
                      signed_first_frame=None, shop_id=None):
             self.mode, self.prompt = mode, prompt
             self.duration_seconds, self.resolution = duration_seconds, resolution
+            self.signed_first_frame, self.shop_id = signed_first_frame, shop_id
     class FakePremiumVideoDisabled(RuntimeError):
         pass
     module.WanRequest = FakeWanRequest
