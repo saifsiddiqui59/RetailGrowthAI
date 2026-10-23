@@ -280,6 +280,34 @@ export function createRetailClient({
       p_valid_until: new Date(validUntil).toISOString(), p_reason: reason.trim(),
     })
   }
+  async function getOnboardingStatus() {
+    const result = await platformRpc('retail_onboarding_status')
+    if (!result || !['PENDING','APPROVED','REJECTED'].includes(result.status) ||
+        typeof result.approval_required !== 'boolean') {
+      throw new Error('Unable to verify onboarding status.')
+    }
+    return result
+  }
+  async function listPlatformOnboardingRequests(status = 'PENDING') {
+    if (!['PENDING','APPROVED','REJECTED'].includes(status)) {
+      throw new Error('Invalid review status')
+    }
+    const items = await platformRpc('retail_platform_onboarding_requests', {
+      p_status: status, p_limit: 40,
+    })
+    if (!Array.isArray(items)) throw new Error('Invalid approval queue response')
+    return items
+  }
+  async function reviewPlatformOnboarding(userId, approve, reason) {
+    if (!UUID_V4.test(userId || '') || typeof approve !== 'boolean' ||
+        typeof reason !== 'string' || reason.trim().length < 10 ||
+        reason.trim().length > 300) {
+      throw new Error('Provide a valid account and an audit reason of 10–300 characters')
+    }
+    return platformRpc('retail_platform_review_onboarding', {
+      p_user_id: userId, p_approve: approve, p_reason: reason.trim(),
+    })
+  }
   async function getBusinessProfile(shopId) {
     const rows = await table('business_profiles', {
       query: { select: '*', shop_id: 'eq.' + shopId, limit: '1' },
@@ -362,7 +390,8 @@ export function createRetailClient({
     configured, getStoredSession: () => session, getAccessToken: accessToken,
     signIn, signUp, signOut, getUser,
     listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
-    isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription, getBusinessProfile, updateBusinessProfile, listMediaAssets, uploadImageAsset,
+    isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
+    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listMediaAssets, uploadImageAsset,
   }
 }
 
