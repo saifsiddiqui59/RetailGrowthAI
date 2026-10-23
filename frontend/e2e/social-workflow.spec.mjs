@@ -18,7 +18,7 @@ function reply(route, body, status = 200) {
 }
 
 async function mockSocial(page, { role = 'OWNER', quotaDenied = false } = {}) {
-  const state = { writes: [], jobs: [], external: [] }
+  const state = { writes: [], jobs: [], external: [], reads: [], unexpected: [] }
   page.on('request', request => {
     const host = new URL(request.url()).hostname
     if (!['127.0.0.1', 'e2e.supabase.test', 'api.e2e.retailgrowth.test'].includes(host)) {
@@ -45,6 +45,7 @@ async function mockSocial(page, { role = 'OWNER', quotaDenied = false } = {}) {
     const u = new URL(req.url())
     const path = u.pathname
     const method = req.method()
+    state.reads.push({ path, method, query: u.search, bearer: req.headers().authorization })
     if (method === 'OPTIONS') return reply(route, {})
     if (req.headers().authorization !== 'Bearer offline-social-user-jwt') {
       return reply(route, { error: 'UNAUTHORIZED' }, 401)
@@ -63,7 +64,8 @@ async function mockSocial(page, { role = 'OWNER', quotaDenied = false } = {}) {
       if (path === '/api/social/jobs') return reply(route, { jobs: [...state.jobs] })
     }
     if (method !== 'POST' || !path.startsWith('/api/social/jobs/')) {
-      throw new Error('Unexpected social request ' + method + ' ' + path)
+      state.unexpected.push(method + ' ' + path)
+      return reply(route, {error:'UNEXPECTED_MOCK_BACKEND_ROUTE'}, 500)
     }
     const body = req.postDataJSON()
     state.writes.push({ path, body, authorization: req.headers().authorization })
@@ -109,8 +111,18 @@ async function mockSocial(page, { role = 'OWNER', quotaDenied = false } = {}) {
   return state
 }
 
-async function draft(page) {
+async function draft(page, state) {
   await expect(page.getByRole('heading', { name: 'Review and schedule posts' })).toBeVisible()
+  try {
+    await expect(page.locator('#social-authoring-day option')).toHaveCount(2, {timeout: 12000})
+  } catch (error) {
+    console.log('SOCIAL_MOCK_DIAGNOSTICS', JSON.stringify({
+      reads: state.reads, unexpected: state.unexpected,
+      messages: await page.getByRole('alert').allTextContents(),
+      dayOptions: await page.locator('#social-authoring-day option').allTextContents(),
+    }))
+    throw error
+  }
   await page.locator('#social-authoring-day').selectOption(DAY)
   await page.locator('#social-authoring-account').selectOption(ACCOUNT)
   await page.locator('#social-authoring-date').fill('2027-02-01')
@@ -121,7 +133,7 @@ async function draft(page) {
 test('mock-only retailer creates, revises, explicitly re-reviews, approves; no provider call', async ({ page }) => {
   const state = await mockSocial(page)
   await page.goto('/social')
-  await draft(page)
+  await draft(page, state)
   await expect(page.getByRole('button', { name: 'Approve and reserve publishing quota' })).toBeDisabled()
   await page.getByRole('button', { name: 'Edit draft / reschedule' }).click()
   await page.locator('#social-revise-caption-' + JOB).fill('Revised and checked sale copy')
