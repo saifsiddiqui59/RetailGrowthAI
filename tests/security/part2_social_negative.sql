@@ -358,12 +358,18 @@ begin
   update public.social_publish_jobs set status='SENDING' where id=job1;
   insert into retail_private.social_publish_attempts(job_id,attempt_no,claim_token)
     values(job1,2,gen_random_uuid());
-  if not public.p2_record_social_poison(job1) or
-      (select status from public.social_publish_jobs where id=job1)<>'RECONCILE'
-      or exists(select 1 from retail_private.social_publish_attempts
-                where job_id=job1 and finished_at is null)
-      or not public.p2_record_social_poison(job1) then
-    raise exception 'FAIL: uncertain external send poison not reconciled';
+  if not public.p2_record_social_poison(job1) then
+    raise exception 'FAIL: poisoned sending job receipt rejected';
+  end if;
+  if (select status from public.social_publish_jobs where id=job1)<>'RECONCILE' then
+    raise exception 'FAIL: poisoned sending job not marked RECONCILE';
+  end if;
+  if exists(select 1 from retail_private.social_publish_attempts
+                where job_id=job1 and finished_at is null) then
+    raise exception 'FAIL: poisoned sending claim remained active';
+  end if;
+  if not public.p2_record_social_poison(job1) then
+    raise exception 'FAIL: duplicate poison receipt was not idempotent';
   end if;
 end $$;
 rollback;
