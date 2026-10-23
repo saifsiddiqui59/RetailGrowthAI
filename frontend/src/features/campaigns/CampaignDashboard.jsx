@@ -10,6 +10,13 @@ import './CampaignDashboard.css'
 
 const INITIAL_BRIEF = 'Create seven days of helpful style inspiration for my clothing boutique, with LinkedIn posts and Instagram Reel concepts.'
 const MOCK_NOTICE = 'Demo only · Sample drafts and synthetic asset IDs. No AI, saving, rendering or publishing is connected.'
+const GENERATION_MODE = import.meta.env?.VITE_CAMPAIGN_GENERATION_MODE === 'foundry' ? 'foundry' : 'mock'
+function recentCampaignKey(userId, shopId) {
+  return 'retailgrowthai-last-campaign:' + userId + ':' + shopId
+}
+function isCampaignId(value) {
+  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
 
 function saveLocalFile(filename, contents, mimeType) {
   const url = URL.createObjectURL(new Blob([contents], { type: mimeType }))
@@ -431,6 +438,26 @@ export default function CampaignDashboard() {
       client.listMediaAssets(shopId).then(list => {
         if (!cancelled) setAssets(list)
       }).catch(error => { if (!cancelled) setLiveError(error.message) })
+      // Store only a per-user, per-shop UUID hint. The backend ALWAYS rechecks
+      // JWT, membership and returned tenant before showing any remote content.
+      const saved = window.sessionStorage.getItem(recentCampaignKey(user.id, shopId))
+      if (isCampaignId(saved)) {
+        api.getCampaign(saved).then(result => {
+          if (cancelled || result.shop_id !== shopId || result.id !== saved) return
+          if (result.status === 'DRAFT' && Array.isArray(result.days) && result.days.length) {
+            setBaseline(cloneCampaign(result))
+            setCampaign(cloneCampaign(result))
+            setSelectedId(result.days[0].id)
+          }
+          if (['DRAFT', 'PLANNING', 'FAILED'].includes(result.status)) {
+            setCampaignId(saved)
+            setCampaignStatus(result.status)
+          }
+        }).catch(error => {
+          window.sessionStorage.removeItem(recentCampaignKey(user.id, shopId))
+          if (!cancelled && error.status === 401) setLiveError(error.message)
+        })
+      }
     }
     return () => { cancelled = true }
   }, [shopId, user, client, api])
@@ -484,6 +511,8 @@ export default function CampaignDashboard() {
     try {
       const accepted = await api.createCampaign(request)
       if (accepted.status !== 'PLANNING') throw new Error('Campaign was not queued')
+      if (!isCampaignId(accepted.campaign_id)) throw new Error('Invalid campaign receipt')
+      window.sessionStorage.setItem(recentCampaignKey(user.id, shopId), accepted.campaign_id)
       setCampaignId(accepted.campaign_id)
       setCampaignStatus('PLANNING')
       setNotice('Campaign queued. Waiting for an authorized draft.')
@@ -563,7 +592,11 @@ export default function CampaignDashboard() {
         <div><span className="rg-kicker">RETAILGROWTHAI / CAMPAIGN STUDIO</span>
           <h1>Make every day <span>worth sharing.</span></h1>
           <p>From a simple idea to a seven-day content plan. Shape your story across LinkedIn and Instagram.</p>
-          <span className="rg-demo-notice" role="status">{loaded ? 'Authenticated draft loaded · Not scheduled or published.' : MOCK_NOTICE}</span>
+          <span className="rg-demo-notice" role="status">{loaded
+            ? (GENERATION_MODE === 'foundry'
+              ? 'Authenticated draft · Foundry integration configured · Human review required; not published.'
+              : 'Authenticated DEV mock draft · Not AI-generated, scheduled or published.')
+            : MOCK_NOTICE}</span>
         </div>
         <div className="rg-hero-art" aria-hidden="true"><span>01</span><span>PLAN / CREATE / REVIEW</span><b>↗</b></div>
       </div>
@@ -584,8 +617,13 @@ export default function CampaignDashboard() {
         }} />}
       <CampaignPrompt key={shopId || 'demo'} campaign={campaign} live={live}
         liveShopId={shopId} liveAssetIds={assetIds} onRequest={submitLive} />
+      {live && <p role="status" className="rg-subtle">{GENERATION_MODE === 'foundry'
+        ? 'Azure Foundry inference configured for deployment; confirm runtime settings before treating new drafts as model-generated.'
+        : 'DEV planning mode: explicitly labeled mock generator. These are not AI-written posts.'}</p>}
       {live && campaignStatus === 'PLANNING' && <p role="status">Campaign planning in progress. No new draft is available yet.</p>}
-      {live && campaignStatus === 'FAILED' && <p className="rg-validation" role="alert">Campaign planning failed.</p>}
+      {live && campaignStatus === 'FAILED' && <p className="rg-validation" role="alert">Campaign planning failed. Check the worker and model configuration; no draft was saved.</p>}
+      {api && !user && client.configured && <p className="rg-validation" role="status">Sign in on Account to load your businesses and begin real campaign creation. The sample below is demo only.</p>}
+      {renderJob?.status === 'FAILED' && <p className="rg-validation" role="alert">Render failed ({renderJob.error_code || 'unknown reason'}). Retry only after checking media rights and the saved storyboard.</p>}
       <Calendar days={campaign.days} live={loaded} selectedId={day.id} onSelect={(id) => { setSelectedId(id); setRenderJob(null); setNotice('') }} />
       <section className="rg-editor rg-panel" aria-labelledby="rg-editor-title">
         <div className="rg-inline-title rg-editor-heading">

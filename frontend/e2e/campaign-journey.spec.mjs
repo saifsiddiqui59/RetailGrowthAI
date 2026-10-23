@@ -420,7 +420,7 @@ test('revoked JWT is rejected by backend after draft load without saving or rend
   state.rejectJwt = true
   await page.getByLabel('Post body').fill('Unauthorized after session revocation')
   await page.getByRole('button', { name: 'Save day' }).click()
-  await expect(page.getByRole('alert')).toContainText('UNAUTHORIZED')
+  await expect(page.getByRole('alert')).toContainText('Session expired. Please sign in again from Account.')
   expect(state.saves).toHaveLength(0)
   await expect(page.getByRole('button', { name: 'Render saved Reel' })).toBeDisabled()
   expect(state.renders).toHaveLength(0)
