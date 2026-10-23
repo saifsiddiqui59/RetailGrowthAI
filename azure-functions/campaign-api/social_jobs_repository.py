@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 
 from admin_store import backend_headers
 from tenant_store import StorageUnavailable, SubscriptionDenied, canonical_uuid
@@ -15,6 +15,12 @@ from tenant_store import StorageUnavailable, SubscriptionDenied, canonical_uuid
 _RPCS = {
     "p2_create_social_draft", "p2_approve_social_job", "p2_cancel_social_job",
 }
+class _NoRedirect(HTTPRedirectHandler):
+    """Never forward server service-role headers to a redirected endpoint."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 _ROW_FIELDS = ("id,shop_id,social_account_id,campaign_day_id,provider,"
                "caption,media_asset_id,scheduled_at,timezone,revision,status")
 
@@ -23,15 +29,18 @@ class SocialAuthoringRepository:
     def __init__(self, origin, service_key, *, transport=None):
         uri = urlsplit(origin)
         if (uri.scheme != "https" or not uri.hostname or uri.username or uri.password
-                or uri.path not in ("", "/") or uri.query or uri.fragment):
+                or uri.path not in ("", "/") or uri.query or uri.fragment
+                or uri.port not in (None, 443)):
             raise ValueError("one HTTPS Supabase project origin is required")
         self.origin = origin.rstrip("/")
         self.headers = backend_headers(service_key)
-        self.transport = transport or urlopen
+        self.transport = transport or build_opener(_NoRedirect()).open
 
     def _send(self, request):
         try:
             with self.transport(request, timeout=8) as response:
+                if response.geturl() != request.full_url:
+                    raise StorageUnavailable("unexpected social backend redirect")
                 body = response.read(65537)
                 if len(body) > 65536:
                     raise StorageUnavailable("oversized social API response")
