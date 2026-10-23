@@ -1,0 +1,84 @@
+name: RetailGrowthAI DEV deployed Python API verify (read-only)
+# Deployment ZIP already accepted by Azure and all 11 Functions indexed in
+# release #39920297497; this workflow does not upload or change app settings.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-deployed-api-verify-once.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      RG: rg-retailgrowth-dev
+      APP: rgai-dev-functions-d4e5ddbd
+      SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Read actual deployed Functions and disabled worker flags
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$SUB"
+          test "$(az functionapp show -g "$RG" -n "$APP" --query name -o tsv)" = "$APP"
+          az functionapp function list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/functions.json"
+          python3 - "$RUNNER_TEMP/functions.json" <<'PY'
+          import json,sys
+          funcs=json.load(open(sys.argv[1]))
+          names={f.get('name','').split('/')[-1] for f in funcs}
+          required={'create_campaign','read_campaign','save_campaign_day',
+            'create_render','get_render','get_render_download',
+            'plan_campaign','render_campaign_reel','planning_poison',
+            'render_poison','recover_stale_jobs'}
+          assert required<=names, 'Expected Azure Functions not indexed: '+str(sorted(required-names))
+          print('PASS: all 11 HTTP, planning, rendering, timer and poison Azure Functions indexed')
+          PY
+          az functionapp config appsettings list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/settings.json"
+          python3 - "$RUNNER_TEMP/settings.json" <<'PY'
+          import json,sys
+          entries=json.load(open(sys.argv[1]))
+          cfg={x["name"]:x.get("value") for x in entries}
+          for key in ("AzureWebJobsStorage","RETAIL_STORAGE","RETAIL_SUPABASE_URL","RETAIL_SUPABASE_PUBLISHABLE_KEY"):
+            assert cfg.get(key), "Missing required existing setting: "+key
+          assert cfg["RETAIL_SUPABASE_URL"]=="https://jeearzffnjbvghwjjjrf.supabase.co"
+          secrets=cfg.get("RETAIL_SUPABASE_SERVICE_ROLE_KEY","")
+          valid=secrets.startswith("sb_secret_") or (secrets.startswith("eyJ") and secrets.count(".")==2)
+          workers=['plan_campaign','render_campaign_reel','planning_poison','render_poison','recover_stale_jobs']
+          if not valid:
+            for name in workers:
+              assert cfg.get(f'AzureWebJobs.{name}.Disabled')=='true', "Worker unexpectedly enabled without a valid protected server key"
+            print("WORKER_STATUS: safely DISABLED, protected RETAIL_SUPABASE_SERVICE_ROLE_KEY missing or invalid")
+          else:
+            print("WORKER_STATUS: protected server key format configured; needs real DB-backed E2E")
+          print("PASS: existing storage connection setting names, RetailGrowthAI DEV API origin and publishable key verified")
+          PY
+      - name: Live HTTPS POST without Authorization must return 401
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl -sS --connect-timeout 15 --max-time 45 \
+            -o "$RUNNER_TEMP/unauth-body" -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' -d '{}' \
+            "https://$APP.azurewebsites.net/api/campaigns")"
+          echo "POST_NO_AUTH_STATUS=$code"
+          if [ "$code" != "401" ]; then
+            echo "::error::Unexpected live POST status: $code (expected 401)"; exit 3
+          fi
+          echo "PASS: actual HTTPS POST to deployed Azure API rejects missing bearer token (401)"
+          echo "NO hosted data writes, no new Azure resources, no secret values printed."
+      - name: Logout
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
