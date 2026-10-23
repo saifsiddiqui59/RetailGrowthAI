@@ -26,3 +26,11 @@ Separate approvals are mandatory before hosted DEV SQL, Azure deployment, provid
 - Run **four actual Actions jobs** on the exact final `feat/part2-integration` commit after this doc update; don't infer integration green from the preceding PRs.
 - Before final Part 2-to-main PR, inspect fresh Part 1 main and preserve latest frontend/subscription and any API changes. Current Part 2 main merge baseline was `302ee4ad`; newer coordinator commits may exist.
 - Still no real OAuth code exchange/refresh/disconnect, no publication quota configuration, no durable social dispatcher SQL and Queue trigger, no posted social content or E2E. Implement and test those as separate owner-managed Part 2 branches without requiring coordinator merges.
+
+## Latest next executable development after #131/#132/#133
+
+1. Wire authenticated OAuth start and callback routes to `OAuthLifecycle` with **reviewed official provider adapters**, exact app-owned redirects, configured app credentials only on server, short-lived atomic CSRF state and verified grant scopes; encrypt before persisting. Add disconnect, refresh and provider revocation with tenant/role tests. Current code is isolated orchestration and RPC layers, not a live route.
+2. Review the two `supabase/part2/pending` migration sources for unique hosted version/order; atomic OAuth source passed disposable negative SQL only. **No hosted Supabase write** without fresh explicit approval.
+3. Implement transactional published-content approval and server-authoritative publication quota with existing subscription periods and no Part 1 double debits; platform API limits may differ by account.
+4. Implement social publishing due dispatch, Azure Queue/timer worker, attempt lease fencing, media preflight, reconciliation and poison receipts. Ship no provider writes until all guards and test fixtures are complete.
+5. Extend test coverage to mocked Playwright OAuth/account connect/schedule/revoke/publish, SQL concurrent-claim negative tests, and platform media/license/retry/expiry cases; require final 4/4 integrated commit after main refresh. Final PR to `main` must **not** be opened while incomplete.
