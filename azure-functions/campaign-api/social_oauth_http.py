@@ -17,7 +17,9 @@ from tenant_store import StorageUnavailable, TenantStore, canonical_uuid
 from social_oauth import OAuthDenied, TokenVault
 from social_oauth_lifecycle import OAuthLifecycle
 from social_oauth_repository import SocialOAuthRpcRepository
-from social_youtube_oauth import CHANNEL_URL, TOKEN_URL, YouTubeOAuth
+# Keep provider import lazy: existing lifecycle tests load isolated modules.
+TOKEN_URL = "https://oauth2.googleapis.com/token"
+CHANNEL_URL = "https://www.googleapis.com/youtube/v3/channels"
 
 
 class OAuthHTTPAPI:
@@ -116,6 +118,7 @@ def build_oauth_api(environ=None, *, transport=None, verifier=None,
         return "OWNER" if (isinstance(rows, list) and len(rows) == 1 and
                            rows[0] == {"shop_id": sid, "user_id": uid, "role": "OWNER"}) else None
 
+    from social_youtube_oauth import YouTubeOAuth
     provider = YouTubeOAuth(
         client_id=config["RETAIL_YOUTUBE_CLIENT_ID"],
         client_secret=config["RETAIL_YOUTUBE_CLIENT_SECRET"],
