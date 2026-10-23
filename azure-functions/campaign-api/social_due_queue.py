@@ -9,7 +9,6 @@ import json
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
-from azure.storage.queue import QueueClient
 
 from admin_store import backend_headers
 from social_dispatch import message_uuid
@@ -72,8 +71,11 @@ class AzureSocialQueue:
     def __init__(self, connection, *, client=None):
         if not isinstance(connection, str) or not connection:
             raise ValueError("Azure queue connection required")
-        self.client = client or QueueClient.from_connection_string(
-            connection, queue_name=SOCIAL_QUEUE)
+        if client is None:
+            from azure.storage.queue import QueueClient
+            client = QueueClient.from_connection_string(
+                connection, queue_name=SOCIAL_QUEUE)
+        self.client = client
 
     def enqueue(self, job_id):
         self.client.send_message(message_uuid(job_id))
