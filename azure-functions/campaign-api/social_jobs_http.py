@@ -146,3 +146,21 @@ class SocialJobsAPI:
                 shop_id=sid, job_id=jid, actor=uid, revision=revision) is not True:
             return 409, {"error": "CANNOT_CANCEL_POSSIBLY_SENT"}
         return 200, {"id": jid, "status": "CANCELED"}
+
+
+def build_social_jobs_api(config=None):
+    """Fail closed unless P2 social authoring explicitly enabled on server."""
+    import os
+    from security import SupabaseJWTVerifier
+    from tenant_store import TenantStore
+    from social_jobs_repository import SocialAuthoringRepository
+    env = os.environ if config is None else config
+    if (env.get("RETAIL_PART2_SOCIAL_ENABLED") != "true" or
+            env.get("RETAIL_PART2_AUTHORING_ENABLED") != "true"):
+        raise ValueError("Part 2 authoring disabled")
+    origin = env["RETAIL_SUPABASE_URL"]
+    return SocialJobsAPI(
+        SupabaseJWTVerifier(origin),
+        TenantStore(origin, env["RETAIL_SUPABASE_PUBLISHABLE_KEY"]),
+        SocialAuthoringRepository(origin, env["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]),
+    )
