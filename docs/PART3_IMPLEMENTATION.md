@@ -44,3 +44,8 @@ Do not claim a branch or PR exists unless verified. Independent branches must be
 ## Snapshot and blockers
 
 Verified internal PRs: #109 / #113 / #115, each targeting `feat/part3-integration`. Their source currently includes offline tests, but this document **does not assert the CI runs completed**. The Phase 3 integration is **not complete**: outbox/RPCs, provider output ingestion, Wan3.0 adapter, compiled frontend placement, actual deployment, billing approval, hosted negative tests and live generation remain open. Do not merge any PR or the final branch solely on this documentation.
+
+## LATEST source checkpoint — 2026-10-23 (supersedes earlier pre-merge snapshot)
+- The previous snapshot was a preliminary design. Internal PRs #109, #113, #115, #122 each passed *four existing* and *two additional Part 3* CI checks and were actually merged into **feat/part3-integration** only. A private output importer is now source-implemented, but no live importer worker, provider account or paid calls exist.
+- The premium React panel was mounted **disabled by default** after the existing FFmpeg controls on the Part 3 integration branch; it has no premium POST handler in production. FFmpeg remains the active default.
+- Proposed quota SQL was intentionally MOVED OUT of supabase/migrations to azure-functions/campaign-api/part3_sql/PROPOSED_20261023180000_premium_video_reservations.sql after the strict Part 1 migration whitelist test rejected automatic schema drift. No hosted migration applied. Live queue/outbox/API routes/credit concurrency tests and approved Wan generation remain outstanding. The final Coordinator draft PR #125 → main is NOT ready for merge until these dependencies are reviewed.
