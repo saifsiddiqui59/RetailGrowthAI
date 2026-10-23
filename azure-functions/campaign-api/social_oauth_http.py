@@ -10,7 +10,7 @@ import base64
 import json
 import os
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 
 from security import AuthenticationError, SupabaseJWTVerifier
 from tenant_store import StorageUnavailable, TenantStore, canonical_uuid
@@ -68,6 +68,11 @@ class OAuthHTTPAPI:
             return 503, {"error": "SERVICE_UNAVAILABLE"}
 
 
+class _GoogleNoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def google_transport(method, url, *, headers=None, form=None, params=None):
     """Fixed-target, bounded Google calls. No redirects to arbitrary hosts."""
     if method == "POST" and url == TOKEN_URL and isinstance(form, dict) and params is None:
@@ -80,7 +85,7 @@ def google_transport(method, url, *, headers=None, form=None, params=None):
         raise OAuthDenied("unapproved OAuth upstream request")
     try:
         # Auth responses are untrusted. Bound the response and suppress raw errors.
-        with urlopen(request, timeout=10) as response:
+        with build_opener(_GoogleNoRedirect()).open(request, timeout=10) as response:
             if response.geturl().split("?")[0] != request.full_url.split("?")[0]:
                 raise OAuthDenied("unexpected OAuth redirect")
             raw = response.read(65537)
@@ -119,12 +124,42 @@ def build_oauth_api(environ=None, *, transport=None, verifier=None,
                            rows[0] == {"shop_id": sid, "user_id": uid, "role": "OWNER"}) else None
 
     from social_youtube_oauth import YouTubeOAuth
-    provider = YouTubeOAuth(
-        client_id=config["RETAIL_YOUTUBE_CLIENT_ID"],
-        client_secret=config["RETAIL_YOUTUBE_CLIENT_SECRET"],
-        redirect_uri=config["RETAIL_YOUTUBE_OAUTH_REDIRECT_URI"],
-        transport=transport or google_transport,
-    )
+    from social_provider_oauth_transport import provider_oauth_transport
+
+    providers = {}
+    google_keys = ("RETAIL_YOUTUBE_CLIENT_ID", "RETAIL_YOUTUBE_CLIENT_SECRET",
+                   "RETAIL_YOUTUBE_OAUTH_REDIRECT_URI")
+    if all(config.get(k) for k in google_keys):
+        providers["youtube"] = YouTubeOAuth(
+            client_id=config["RETAIL_YOUTUBE_CLIENT_ID"],
+            client_secret=config["RETAIL_YOUTUBE_CLIENT_SECRET"],
+            redirect_uri=config["RETAIL_YOUTUBE_OAUTH_REDIRECT_URI"],
+            transport=transport or google_transport)
+    elif any(config.get(k) for k in google_keys):
+        raise OAuthDenied("incomplete YouTube confidential app settings")
+
+    if config.get("RETAIL_PART2_LINKEDIN_OAUTH_ENABLED") == "true":
+        from social_linkedin_oauth import LinkedInOAuth
+        providers["linkedin"] = LinkedInOAuth(
+            client_id=config["RETAIL_LINKEDIN_CLIENT_ID"],
+            client_secret=config["RETAIL_LINKEDIN_CLIENT_SECRET"],
+            redirect_uri=config["RETAIL_LINKEDIN_OAUTH_REDIRECT_URI"],
+            transport=transport or provider_oauth_transport)
+
+    if config.get("RETAIL_PART2_META_OAUTH_ENABLED") == "true":
+        from social_meta_oauth import MetaOAuth
+        for provider in ("facebook", "instagram"):
+            providers[provider] = MetaOAuth(
+                provider=provider,
+                app_id=config["RETAIL_META_APP_ID"],
+                app_secret=config["RETAIL_META_APP_SECRET"],
+                redirect_uri=config["RETAIL_META_" +
+                                    provider.upper() + "_REDIRECT_URI"],
+                graph_version=config["RETAIL_META_GRAPH_VERSION"],
+                transport=transport or provider_oauth_transport)
+
+    if not providers:
+        raise OAuthDenied("no reviewed provider confidential apps configured")
     lifecycle = OAuthLifecycle(verify_user=verify, owner_role=owner_role,
-        state_store=rpc, accounts=rpc, vault=vault, providers={"youtube": provider})
+        state_store=rpc, accounts=rpc, vault=vault, providers=providers)
     return OAuthHTTPAPI(lifecycle)

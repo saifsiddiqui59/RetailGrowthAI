@@ -27,6 +27,12 @@ export function SocialWorkspace() {
   // remain mandatory regardless of any client-side flag.
   const enabled = import.meta.env?.VITE_PART2_SOCIAL_ENABLED === 'true'
   const oauthEnabled = enabled && import.meta.env?.VITE_PART2_SOCIAL_OAUTH_ENABLED === 'true'
+  const oauthConnectable = {
+    youtube: oauthEnabled,
+    linkedin: oauthEnabled && import.meta.env?.VITE_PART2_LINKEDIN_OAUTH_ENABLED === 'true',
+    facebook: oauthEnabled && import.meta.env?.VITE_PART2_META_OAUTH_ENABLED === 'true',
+    instagram: oauthEnabled && import.meta.env?.VITE_PART2_META_OAUTH_ENABLED === 'true',
+  }
   const authoringEnabled = enabled && import.meta.env?.VITE_PART2_SOCIAL_AUTHORING_ENABLED === 'true'
   const api = useMemo(() => enabled && user
     ? createSocialApi({baseUrl: import.meta.env?.VITE_CAMPAIGN_API_BASE_URL,
@@ -69,7 +75,7 @@ export function SocialWorkspace() {
 
 
   async function connectProvider(provider) {
-    if (!api || !shopId || !oauthEnabled || provider !== 'youtube') return
+    if (!api || !shopId || !oauthConnectable[provider]) return
     setOauthBusy(true)
     setError('')
     setNotice('')
@@ -126,7 +132,7 @@ export function SocialWorkspace() {
       </section>}
       <section className="panel" style={{marginTop:16}}>
         <h2>Platforms</h2>
-        <p>Only approved integrations can be connected. YouTube starts as the first gated connection; Meta and LinkedIn require separate app credentials and platform permissions.</p>
+        <p>Only approved integrations can be connected. Each provider requires separate backend OAuth app credentials and reviewed permissions before its connect control can be enabled.</p>
         {notice && <p role="status">{notice}</p>}
         <div className="day-grid">
           {PROVIDERS.map(([key,label]) => {
@@ -134,9 +140,9 @@ export function SocialWorkspace() {
             return <div className="day-card" key={key}>
               <div className="day-top">{label}</div>
               <p>{connected.length ? connected.map(a => a.display_name).join(', ') : 'Not connected'}</p>
-              {oauthEnabled && key === 'youtube' && !connected.length &&
+              {oauthConnectable[key] && !connected.length &&
                 <button type="button" disabled={oauthBusy || !shopId || !user}
-                  onClick={() => connectProvider(key)}>Connect YouTube</button>}
+                  onClick={() => connectProvider(key)}>Connect {label}</button>}
               {oauthEnabled && connected.map(a =>
                 <button type="button" key={a.id} disabled={oauthBusy || !shopId}
                   onClick={() => disconnect(a.id)}>Disconnect {a.display_name}</button>)}
