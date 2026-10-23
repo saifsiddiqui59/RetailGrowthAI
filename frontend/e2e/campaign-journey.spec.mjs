@@ -272,6 +272,12 @@ test('viewer cannot select a business for a live campaign', async ({ page }) => 
   // restoration can otherwise race the initial /campaigns redirect.
   await page.getByRole('link', { name: 'Campaigns' }).click()
   await expect(page).toHaveURL(/\/campaigns$/)
+  console.log('VIEWER_MOUNT_TREE', JSON.stringify(await page.evaluate(() => ({
+    rootNodes: document.querySelectorAll('#root').length,
+    rootHtmlChildren: document.getElementById('root')?.children.length,
+    mains: [...document.querySelectorAll('main.content')].map(n => n.parentElement?.className),
+    briefs: [...document.querySelectorAll('.rg-brief')].map(n => n.closest('main')?.parentElement?.className),
+  }))))
   await expect(page.getByRole('heading', { name: 'What should we create?' })).toBeVisible()
   await expect(page.locator('.rg-brief')).toHaveCount(1)
   await expect(page.locator('#rg-shop option')).toHaveCount(1)
