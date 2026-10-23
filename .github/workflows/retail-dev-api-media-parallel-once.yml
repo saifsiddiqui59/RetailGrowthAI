@@ -133,10 +133,20 @@ jobs:
             chmod 755 "$RUNNER_TEMP/rgai-bins/$name"
           done
           ff="$RUNNER_TEMP/rgai-bins/ffmpeg"
-          "$ff" -hide_banner -encoders 2>/dev/null | grep -Eq 'libx264'
-          "$ff" -hide_banner -encoders 2>/dev/null | grep -Eq ' aac'
-          "$ff" -hide_banner -filters 2>/dev/null | grep -Eq '[[:space:]]drawtext[[:space:]]'
-          "$ff" -hide_banner -filters 2>/dev/null | grep -Eq '[[:space:]]xfade[[:space:]]'
+          for enc in libx264 aac; do
+            if "$ff" -hide_banner -encoders 2>/dev/null | grep -Eq "[[:space:]]$enc([[:space:]]|$)"; then
+              echo "PASS: encoder $enc"
+            else
+              echo "::error::MISSING_ENCODER=$enc"; exit 3
+            fi
+          done
+          for filter in drawtext xfade; do
+            if "$ff" -hide_banner -filters 2>/dev/null | grep -Eq "[[:space:]]$filter([[:space:]]|$)"; then
+              echo "PASS: filter $filter"
+            else
+              echo "::error::MISSING_FILTER=$filter"; exit 3
+            fi
+          done
           "$RUNNER_TEMP/rgai-bins/ffprobe" -version >/dev/null
           echo "PASS: real FFmpeg and ffprobe executable; libx264, AAC, drawtext, xfade present"
           cat > "$RUNNER_TEMP/rgai-bins/THIRD_PARTY_NOTICES.txt" <<'NOTICE'
