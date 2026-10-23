@@ -40,20 +40,29 @@ def call(url, method="GET", payload=None, headers=None, timeout=30, expect=(200,
     req=urllib.request.Request(url,data=data,headers=meta,method=method)
     # A read-only GET may be repeated after a transport timeout, but never
     # repeat POST/PATCH/DELETE because those mutations may already have committed.
+    source = "unknown"
     for attempt in range(3 if method=="GET" else 1):
         try:
             with urllib.request.urlopen(req,timeout=(65 if method=="GET" else timeout)) as res:
                 status=res.status
                 body=res.read(1_000_000)
+                source="function" if res.headers.get("X-Request-ID") else "gateway_or_supabase"
             break
         except urllib.error.HTTPError as e:
             status=e.code
             body=e.read(4096)
+            # Only expose that a safe correlation marker exists, never its value.
+            source="function" if e.headers.get("X-Request-ID") else "gateway_or_supabase"
+            if method=="GET" and status in (502,503,504) and attempt < 2:
+                print("CANARY_RETRY_TRANSIENT_READ status="+str(status)+" source="+source,flush=True)
+                time.sleep(4*(attempt+1))
+                continue
             break
         except (TimeoutError, ConnectionResetError):
             if method!="GET" or attempt==2:
                 raise
-            time.sleep(3 * (attempt+1))
+            print("CANARY_RETRY_TRANSIENT_READ transport=timeout",flush=True)
+            time.sleep(4 * (attempt+1))
     if status not in expect:
         # Only report server-defined error codes (e.g. 42501/PGRST***).
         # Messages can contain private data, SQL parameters, URLs or credentials.
@@ -64,7 +73,16 @@ def call(url, method="GET", payload=None, headers=None, timeout=30, expect=(200,
             if isinstance(candidate,str) and 1 <= len(candidate) <= 20 and candidate.replace("_","").isalnum():
                 safe_code = candidate
         except (ValueError,TypeError): pass
-        raise RuntimeError("DEV HTTP "+str(status)+" error code "+safe_code+" at "+method+" "+urllib.parse.urlparse(url).path)
+        # Own error enums are safe; do not print unexpected error payloads.
+        try:
+            parsed = json.loads(body)
+            candidate = parsed.get("error","") if isinstance(parsed,dict) else ""
+            if candidate in ("SERVICE_UNAVAILABLE","RENDER_NOT_CONFIGURED",
+                    "UNAUTHORIZED","INVALID_REQUEST","NOT_FOUND"):
+                safe_code = candidate
+        except (TypeError,ValueError): pass
+        raise RuntimeError("DEV HTTP "+str(status)+" source "+source+
+                           " error code "+safe_code+" at "+method+" "+urllib.parse.urlparse(url).path)
     if not body: return status,None
     try: return status,json.loads(body)
     except (ValueError,UnicodeDecodeError): return status,body
