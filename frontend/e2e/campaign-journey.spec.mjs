@@ -272,6 +272,8 @@ test('viewer cannot select a business for a live campaign', async ({ page }) => 
   await expect(page.locator('#rg-shop option')).toHaveCount(1)
   await page.getByRole('button', { name: /Preview campaign request/ }).click()
   expect(state.requests).toHaveLength(0)
+  // This test-only assertion keeps the local preview contract observable.
+  console.log('VIEWER_LOCAL_PREVIEW_STATE', JSON.stringify(await page.locator('.rg-brief').innerText()))
   await expect(page.getByText(/No campaign was generated/)).toBeVisible()
 })
 
