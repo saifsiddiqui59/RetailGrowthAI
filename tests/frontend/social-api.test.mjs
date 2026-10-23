@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {createSocialApi} from '../../frontend/src/features/social/social-api.mjs'
+import {createSocialApi, trustedConsentUrl} from '../../frontend/src/features/social/social-api.mjs'
 
 const SHOP='10000000-0000-4000-8000-000000000001'
 
@@ -28,4 +28,44 @@ test('rejects insecure origin, wrong IDs and provider error leakage',async()=>{
     return true
   })
   assert.throws(()=>api.listJobs('../escape'),/Invalid shop or job ID/)
+})
+
+test('owner OAuth writes use only authenticated same-origin backend POST',async()=>{
+  const requests=[]
+  const api=createSocialApi({baseUrl:'https://api.retail.example',
+    tokenProvider:async()=> 'signed-in-user-jwt',
+    fetchImpl:async(url,opts)=>{
+      requests.push({url,opts})
+      return {ok:true,async json(){return {connection_status:'CONNECTED'}}}
+    }})
+  await api.startOAuth(SHOP,'youtube')
+  await api.completeOAuth(SHOP,'youtube','state','code')
+  await api.disconnectAccount(SHOP,'11111111-1111-4111-8111-111111111111')
+  assert.deepEqual(requests.map(v=>v.url),[
+    'https://api.retail.example/api/social/oauth/start',
+    'https://api.retail.example/api/social/oauth/complete',
+    'https://api.retail.example/api/social/oauth/disconnect',
+  ])
+  assert.ok(requests.every(v=>v.opts.method==='POST'))
+  assert.ok(requests.every(v=>v.opts.headers.Authorization==='Bearer signed-in-user-jwt'))
+  const payload = JSON.parse(requests[1].opts.body)
+  assert.deepEqual(payload,{shop_id:SHOP,provider:'youtube',state:'state',code:'code'})
+  assert.equal('access_token' in payload,false)
+  assert.equal(api.publish,undefined)
+  assert.throws(()=>api.startOAuth(SHOP,'untrusted'),/Unsupported/)
+  assert.throws(()=>api.completeOAuth(SHOP,'youtube','state',''),/Invalid OAuth/)
+})
+
+test('consent navigation permits only official OAuth hosts and exact paths',()=>{
+  const good='https://accounts.google.com/o/oauth2/v2/auth?state=abc&redirect_uri=https%3A%2F%2Fstudio.example%2Fcallback'
+  assert.equal(trustedConsentUrl(good,'youtube'),good)
+  const page='https://www.facebook.com/v26.0/dialog/oauth?state=abc&redirect_uri=https%3A%2F%2Fstudio.example%2Fcallback'
+  assert.equal(trustedConsentUrl(page,'facebook'),page)
+  for (const bad of [
+    'http://accounts.google.com/o/oauth2/v2/auth?state=abc&redirect_uri=x',
+    'https://accounts.google.com.evil.test/o/oauth2/v2/auth?state=abc&redirect_uri=x',
+    'https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=x',
+    'https://accounts.google.com/o/oauth2/v2/auth?state=abc&redirect_uri=x#fragment',
+    'https://www.facebook.com/v26.0/oauth/access_token?state=x&redirect_uri=x',
+  ]) assert.throws(()=>trustedConsentUrl(bad, bad.includes('facebook')?'facebook':'youtube'))
 })
