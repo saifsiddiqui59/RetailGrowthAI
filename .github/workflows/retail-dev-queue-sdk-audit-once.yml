@@ -1,0 +1,77 @@
+name: RetailGrowthAI DEV exact queue SDK metadata audit (read only)
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/retail-dev-queue-sdk-audit-once.yml]
+permissions:
+  contents: read
+jobs:
+  queue-metadata:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify only tagged RetailGrowthAI DEV app and storage
+        shell: bash
+        env:
+          AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          rg=rg-retailgrowth-dev
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          az group show -n "$rg" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          rg=json.load(open(sys.argv[1]))
+          t={k.lower():str(v).lower() for k,v in (rg.get('tags') or {}).items()}
+          assert rg['name']=='rg-retailgrowth-dev'
+          assert t.get('app')=='retailgrowthai' and t.get('environment')=='dev'
+          PY
+          test "$(az storage account show -g "$rg" -n rgaid4e5ddbdf0d21d96 --query name -o tsv)" = rgaid4e5ddbdf0d21d96
+          test "$(az functionapp show -g "$rg" -n rgai-dev-functions-d4e5ddbd --query name -o tsv)" = rgai-dev-functions-d4e5ddbd
+      - name: Query queue properties with EXACT runtime RETAIL_STORAGE connection and no messages
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --quiet 'azure-storage-queue==12.12.0'
+          secret="$(az functionapp config appsettings list -g rg-retailgrowth-dev \
+            -n rgai-dev-functions-d4e5ddbd \
+            --query "[?name=='RETAIL_STORAGE'].value | [0]" -o tsv)"
+          test -n "$secret"
+          echo "::add-mask::$secret"
+          RGAI_RUNTIME_STORAGE="$secret" python3 - <<'PY'
+          import os
+          from azure.storage.queue import QueueServiceClient
+          from azure.core.exceptions import HttpResponseError,ResourceNotFoundError
+          raw=os.environ['RGAI_RUNTIME_STORAGE']
+          values=dict(part.split('=',1) for part in raw.split(';') if '=' in part)
+          assert values.get('AccountName')=='rgaid4e5ddbdf0d21d96', 'UNEXPECTED_STORAGE_ACCOUNT'
+          print('RUNTIME_QUEUE_ACCOUNT_MATCHED=true')
+          client=QueueServiceClient.from_connection_string(raw)
+          for name in ('retail-campaign-planning','retail-reel-render',
+                       'retail-campaign-planning-poison','retail-reel-render-poison'):
+              try:
+                  props=client.get_queue_client(name).get_queue_properties()
+                  print('QUEUE',name,'approximate_count',props.approximate_message_count)
+              except ResourceNotFoundError:
+                  print('QUEUE',name,'MISSING')
+              except HttpResponseError as exc:
+                  code=str(exc.error_code or 'UNKNOWN')
+                  if code not in {'AuthorizationFailure','AuthenticationFailed',
+                                  'QueueNotFound','ResourceNotFound'}:code='OTHER'
+                  print('QUEUE',name,'UNAVAILABLE',code)
+                  raise
+          print('PASS read-only SDK queue metadata, no message body accessed')
+          PY
+      - name: Logout
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
