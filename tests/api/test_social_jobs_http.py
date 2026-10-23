@@ -131,3 +131,49 @@ def test_server_subscription_quota_errors_are_safe_and_stable():
             429,{"error":"PUBLISH_QUOTA_EXCEEDED"})
     with pytest.raises(ValueError):
         build_social_jobs_api({"RETAIL_PART2_SOCIAL_ENABLED":"false"})
+
+
+
+def test_draft_caption_and_schedule_revision_requires_current_actor_and_version():
+    class RevisionRepo(Repository):
+        def revise(self, **kwargs):
+            self.calls.append(("revise", kwargs))
+            return {"id": kwargs["job_id"], "status": "DRAFT",
+                    "revision": kwargs["revision"] + 1}
+
+    repo=RevisionRepo()
+    body={"shop_id":SHOP,"job_id":JOB,"revision":1,
+          "caption":"Corrected customer-approved text",
+          "day":"2026-10-25","clock":"10:30","timezone":"Asia/Kolkata"}
+    code,result=api(repo=repo).handle("revise","Bearer valid",body)
+    assert (code,result)==(200,{"id":JOB,"status":"DRAFT","revision":2})
+    sent=repo.calls[-1][1]
+    assert sent["scheduled_at"]==datetime(2026,10,25,5,0,tzinfo=timezone.utc)
+    assert sent["actor"]==USER and sent["shop_id"]==SHOP
+    assert sent["caption"]=="Corrected customer-approved text"
+
+    assert api(Tenant(write=False),repo).handle("revise","Bearer valid",body)[0]==403
+    assert api(repo=repo).handle("revise","Bearer valid",
+        {**body,"shop_id":FOREIGN})[0]==403
+    assert api(repo=repo).handle("revise","Bearer valid",
+        {**body,"revision":0})[0]==400
+    assert api(repo=repo).handle("revise","Bearer valid",
+        {**body,"caption":"tampered\ntext"})[0]==400
+    assert api(repo=repo).handle("revise","Bearer valid",
+        {**body,"day":"2026-10-22"})[0]==400
+    assert len([x for x in repo.calls if x[0]=="revise"])==1
+
+
+def test_revise_stale_or_non_draft_result_denied_without_success_receipt():
+    class StaleRepo(Repository):
+        def revise(self,**kwargs):return None
+    body={"shop_id":SHOP,"job_id":JOB,"revision":1,
+          "caption":"Changed draft","day":"2026-10-25",
+          "clock":"10:30","timezone":"Asia/Kolkata"}
+    assert api(repo=StaleRepo()).handle("revise","Bearer valid",body)==(
+        409,{"error":"REVIEWED_CONTENT_CHANGED"})
+    class ForgedRepo(Repository):
+        def revise(self,**kwargs):return {
+            "id":JOB,"status":"APPROVED","revision":2}
+    assert api(repo=ForgedRepo()).handle("revise","Bearer valid",body)==(
+        503,{"error":"SERVICE_UNAVAILABLE"})
