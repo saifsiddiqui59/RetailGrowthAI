@@ -34,3 +34,8 @@ Separate approvals are mandatory before hosted DEV SQL, Azure deployment, provid
 3. Implement transactional published-content approval and server-authoritative publication quota with existing subscription periods and no Part 1 double debits; platform API limits may differ by account.
 4. Implement social publishing due dispatch, Azure Queue/timer worker, attempt lease fencing, media preflight, reconciliation and poison receipts. Ship no provider writes until all guards and test fixtures are complete.
 5. Extend test coverage to mocked Playwright OAuth/account connect/schedule/revoke/publish, SQL concurrent-claim negative tests, and platform media/license/retry/expiry cases; require final 4/4 integrated commit after main refresh. Final PR to `main` must **not** be opened while incomplete.
+
+## After Part 1 platform-admin sync (#134)
+- Treat `main` `33ee5769` as the latest **reconciled** P1 baseline; any later main commits require another reviewed merge before final Part 2 PR. Do not roll back `/platform-admin`, P1 12th migration or its 4/4 browser/SQL tests.
+- Keep **platform super-admin** and **shop OWNER social-publishing consent** distinct. Neither token holder may silently impersonate or post for another shop.
+- Build the not-yet-wired OAuth provider transports, refresh/disconnect API, social job quota/dispatch/lease and tested scheduling/approval frontend. Do not request Coordinator merge of these internal tasks.
