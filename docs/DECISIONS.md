@@ -270,3 +270,6 @@
 
 ## 2026-10-23 — Subscription UI release and analytics evidence boundaries
 - The existing publicly deployed DEV Free SWA may present RLS-authorized per-tenant campaign/draft/render counts and an OWNER-only quota meter, not guessed social impressions, conversion or ROI. Plan cards show non-purchasable STARTER/GROWTH/BUSINESS policy candidates and no payment or upgrade action. WineShopPOS provides only general interface patterns. Changes #117/#120 used existing Azure resources and do not authorize new resources, paid gateways or external integrations. Automated HTTPS SPA route smoke does not substitute for a hosted signed-in cross-role UX test.
+
+## 2026-10-23 — Single-login global super admin authorization
+- Reuse the existing RetailGrowthAI Auth/JWT session for provider administration. Keep a separate, server-owned, revocable `retail_private.platform_admins` grant, with no default privileged account and no email/user_metadata/CLIENT role inference. Expose only hard-coded guarded platform RPCs, with reasoned auditable manual paid plan changes and bounded retailer lists; maintain per-shop OWNER/EDITOR/VIEWER RLS and existing subscription quota enforcement. Platform root and ordinary OWNER are distinct roles; no browser service key, payment processing, Part2/3 permissions or WineShopPOS identity sharing.
