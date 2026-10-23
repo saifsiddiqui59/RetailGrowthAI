@@ -204,7 +204,8 @@ class AlibabaWanProvider:
         return {"provider": "alibaba-wan", "model": body["model"],
                 "task_id": value, "status": "PENDING"}
 
-    def poll(self, task_id: str):
+    def _poll_output(self, task_id: str):
+        """Request exactly one task status; never expose provider payload publicly."""
         self._check()
         if not isinstance(task_id, str) or not TASK_ID.fullmatch(task_id):
             raise ValueError("Invalid provider task ID")
@@ -212,11 +213,33 @@ class AlibabaWanProvider:
             self.origin + "/api/v1/tasks/" + task_id,
             {"Authorization": "Bearer " + self.api_key}, None)
         output = result.get("output", {}) if isinstance(result, dict) else {}
-        if output.get("task_id") != task_id or output.get("task_status") not in (
-            "PENDING", "RUNNING", "SUCCEEDED", "FAILED", "CANCELED", "UNKNOWN"
+        if not isinstance(output, dict) or output.get("task_id") != task_id or (
+            output.get("task_status") not in
+            ("PENDING", "RUNNING", "SUCCEEDED", "FAILED", "CANCELED", "UNKNOWN")
         ):
             raise PremiumVideoProviderError("Invalid Wan task result")
-        # Never return a provider-hosted video URL to a browser. Backend worker
-        # must verify its download origin, media bytes/codec, upload privately,
-        # then reveal ONLY a signed RetailGrowthAI storage download.
+        return output
+
+    def poll(self, task_id: str):
+        """Safe browser/worker-facing status: provider URLs never leave the server."""
+        output = self._poll_output(task_id)
         return {"task_id": task_id, "status": output["task_status"]}
+
+    def poll_private(self, task_id: str):
+        """INTERNAL WORKER ONLY. Return expiring URL solely for private importer.
+
+        Callers MUST check DB-fenced tenant claim, validate the provider URL,
+        download with redirects disabled, probe and upload to private storage.
+        Never include this result in HTTP responses, logs, queue messages or DB.
+        """
+        output = self._poll_output(task_id)
+        status = output["task_status"]
+        safe = {"task_id": task_id, "status": status}
+        if status == "SUCCEEDED":
+            url = output.get("video_url")
+            if not isinstance(url, str) or not 1 <= len(url) <= 2048:
+                raise PremiumVideoProviderError("Wan success missing private output")
+            # Host, signature expiry and media bytes are validated by the
+            # dedicated importer, not trusted from the provider status alone.
+            safe["video_url"] = url
+        return safe
