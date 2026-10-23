@@ -38,13 +38,22 @@ def call(url, method="GET", payload=None, headers=None, timeout=30, expect=(200,
             data=json.dumps(payload).encode()
             meta.setdefault("Content-Type","application/json")
     req=urllib.request.Request(url,data=data,headers=meta,method=method)
-    try:
-        with urllib.request.urlopen(req,timeout=timeout) as res:
-            status=res.status
-            body=res.read(1_000_000)
-    except urllib.error.HTTPError as e:
-        status=e.code
-        body=e.read(4096)
+    # A read-only GET may be repeated after a transport timeout, but never
+    # repeat POST/PATCH/DELETE because those mutations may already have committed.
+    for attempt in range(3 if method=="GET" else 1):
+        try:
+            with urllib.request.urlopen(req,timeout=(65 if method=="GET" else timeout)) as res:
+                status=res.status
+                body=res.read(1_000_000)
+            break
+        except urllib.error.HTTPError as e:
+            status=e.code
+            body=e.read(4096)
+            break
+        except (TimeoutError, ConnectionResetError):
+            if method!="GET" or attempt==2:
+                raise
+            time.sleep(3 * (attempt+1))
     if status not in expect:
         # Only report server-defined error codes (e.g. 42501/PGRST***).
         # Messages can contain private data, SQL parameters, URLs or credentials.
