@@ -32,7 +32,19 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$RGAI_DEV_SERVICE_KEY"
-          if command -v ffprobe >/dev/null; then ffprobe -version | head -1; else echo 'ffprobe not preinstalled'; exit 3; fi
+          # The Ubuntu hosted runner lacks ffprobe on this image: bounded
+          # install from the official Ubuntu archive, never skip MP4 verification.
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            if [ -f /etc/apt/apt-mirrors.txt ]; then
+              printf '%s\n' 'http://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+            fi
+            if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+              sudo sed -i 's#http://azure.archive.ubuntu.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' /etc/apt/sources.list.d/ubuntu.sources
+            fi
+            timeout 180s sudo apt-get update -qq
+            timeout 360s sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ffmpeg
+          fi
+          ffprobe -version | head -n 1
           python3 -m py_compile tests/e2e/retail_dev_canary_once.py
       - name: Run bounded hosted DEV synthetic image + 2 disposable accounts
         run: python3 tests/e2e/retail_dev_canary_once.py
