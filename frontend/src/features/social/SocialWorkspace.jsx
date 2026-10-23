@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { createSocialApi, trustedConsentUrl } from './social-api.mjs'
 import { SocialAuthoringPanel } from './SocialAuthoringPanel.jsx'
+import { SocialStatusPanel } from './SocialStatusPanel.jsx'
 
 const PROVIDERS = [
   ['instagram', 'Instagram professional / Reels'],
@@ -151,6 +152,8 @@ export function SocialWorkspace() {
           })}
         </div>
       </section>
+      {enabled && user && shopId && <SocialStatusPanel shopId={shopId}
+        jobs={jobs} loading={busy} />}
       {authoringEnabled && user && shopId && <SocialAuthoringPanel
         api={api} shopId={shopId} zone={zone} days={days} jobs={jobs}
         accounts={accounts} canWrite={canWrite}
