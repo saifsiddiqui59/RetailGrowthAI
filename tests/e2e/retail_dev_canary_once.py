@@ -170,6 +170,29 @@ def poll(read, statuses, limit):
         time.sleep(8)
     raise TimeoutError("DEV async job exceeded bounded timeout")
 
+def validate_private_test_paths(media, shop_id):
+    """Only first-party canary uploaded PNG and rendered MP4 under its own shop."""
+    if not isinstance(media, list) or len(media)>8:
+        raise RuntimeError("Unsafe synthetic cleanup media collection")
+    paths=[]
+    for asset in media:
+        name=asset.get("object_path","")
+        if (not isinstance(name,str) or not name.startswith(shop_id+"/") or
+            asset.get("storage_bucket")!="retailgrowth-media" or
+            (asset.get("mime_type"),asset.get("source")) not in {
+                ("image/png","UPLOAD"),("video/mp4","GENERATED")
+            } or not ("/uploads/" in name or "/renders/" in name) or
+            ((asset.get("mime_type"),asset.get("source"))==("image/png","UPLOAD") and
+             not (name.startswith(shop_id+"/uploads/") and name.endswith(".png"))) or
+            ((asset.get("mime_type"),asset.get("source"))==("video/mp4","GENERATED") and
+             not (name.startswith(shop_id+"/renders/") and name.endswith(".mp4"))) or
+            not all(c.isascii() and (c.isalnum() or c in "_./-") for c in name) or
+            any(part in ("", ".", "..") for part in name.split("/"))):
+            raise RuntimeError("Refusing out-of-shop or unexpected synthetic media cleanup")
+        paths.append(name)
+    return paths
+
+
 def main():
     if os.getenv("RGAI_DEV_CANARY_APPROVAL")!="AUTHORIZED_RETAILGROWTHAI_DEV_ONLY":
         raise RuntimeError("No explicit RetailGrowthAI DEV authorization")
@@ -341,23 +364,81 @@ def main():
         print("CANARY_PRIVATE_30S_H264_MP4_VERIFIED=true")
         status="PASSED"
     finally:
-        # Clean ONLY explicitly created resources; error if any cleanup denied.
+        # Cleanup MUST remove original synthetic PNG AND FFmpeg-generated MP4
+        # before deleting the owner's campaign/media metadata, otherwise a
+        # render output foreign key can prevent shop/user deletion.
         failures=0
-        for path in paths:
-            try:call(SUPABASE+"/storage/v1/object/retailgrowth-media/"+path,
-                method="DELETE",headers=admins,expect=(200,204))
-            except Exception:failures+=1
-        for sid in shops:
-            try:call(SUPABASE+"/rest/v1/shops?id=eq."+sid,method="DELETE",
-                headers={**admins,"Prefer":"return=minimal"},expect=(200,204))
-            except Exception:failures+=1
-        for item in accounts:
+        for index,sid in enumerate(shops):
+            owner=accounts[index][0] if isinstance(accounts[index],tuple) else accounts[index]
+            expected_slug="rgai-e2e-"+marker+"-"+("a" if index==0 else "b")
+            expected_name="RetailGrowthAI Test "+("a" if index==0 else "b")
+            try:
+                query=urllib.parse.urlencode({"id":"eq."+sid,
+                    "select":"id,owner_user_id,slug,name"})
+                _,items=call(SUPABASE+"/rest/v1/shops?"+query,
+                             headers=admins,expect=(200,))
+                if len(items)>1 or (items and (items[0]["id"]!=sid or
+                    items[0]["owner_user_id"]!=owner or
+                    items[0]["slug"]!=expected_slug or
+                    items[0]["name"]!=expected_name)):
+                    raise RuntimeError("Unexpected shop identity; refusing cleanup")
+                query=urllib.parse.urlencode({"shop_id":"eq."+sid,
+                    "select":"object_path,storage_bucket,mime_type,source"})
+                _,media=call(SUPABASE+"/rest/v1/media_assets?"+query,
+                            headers=admins,expect=(200,))
+                safe_paths=set(validate_private_test_paths(media,sid))
+                safe_paths.update(p for p in paths if p.startswith(sid+"/"))
+                for object_path in safe_paths:
+                    # Storage remove() requires the bucket-level DELETE
+                    # with exact paths in JSON prefixes; single-file DELETE
+                    # URLs return HTTP400 even for existing objects.
+                    call(SUPABASE+"/storage/v1/object/retailgrowth-media",
+                         method="DELETE",payload={"prefixes":[object_path]},
+                         headers=admins,expect=(200,204))
+                for table in ("usage_events","render_jobs","campaign_days",
+                    "campaigns","brand_kits","business_profiles","media_assets",
+                    "audit_logs","shop_memberships"):
+                    query=urllib.parse.urlencode({"shop_id":"eq."+sid})
+                    call(SUPABASE+"/rest/v1/"+table+"?"+query,method="DELETE",
+                         headers={**admins,"Prefer":"return=minimal"},
+                         expect=(200,204))
+                query=urllib.parse.urlencode({"id":"eq."+sid,
+                    "owner_user_id":"eq."+owner,"slug":"eq."+expected_slug})
+                call(SUPABASE+"/rest/v1/shops?"+query,method="DELETE",
+                     headers={**admins,"Prefer":"return=minimal"},expect=(200,204))
+                _,remaining=call(SUPABASE+"/rest/v1/shops?"+
+                    urllib.parse.urlencode({"id":"eq."+sid,"select":"id"}),
+                    headers=admins,expect=(200,))
+                if remaining:
+                    raise RuntimeError("Test shop still exists after scoped delete")
+            except Exception:
+                failures+=1
+                print("CANARY_CLEANUP_FAILURE_KIND=shop_or_media",flush=True)
+        # Every test-created GoTrue Auth user is tied to its own nonce-based
+        # email. Never delete an account based on an unverified broad prefix.
+        for index,item in enumerate(accounts):
             uid=item[0] if isinstance(item,tuple) else item
-            try:call(SUPABASE+"/auth/v1/admin/users/"+uid,method="DELETE",
-                     headers=admins,expect=(200,204))
-            except Exception:failures+=1
-        print("CANARY_TEMP_FIXTURES_CLEANUP=", "PASS" if failures==0 else "NEEDS_OPERATOR_REVIEW")
-        if failures:raise RuntimeError("Temporary DEV fixture cleanup incomplete")
+            expected_email="rgai-canary-"+marker+"-"+("a" if index==0 else "b")+"@example.invalid"
+            try:
+                code,user=call(SUPABASE+"/auth/v1/admin/users/"+uid,
+                    headers=admins,expect=(200,404))
+                if code==200 and (user.get("id")!=uid or
+                                  user.get("email")!=expected_email):
+                    raise RuntimeError("Unexpected Auth user; refusing cleanup")
+                if code==200:
+                    call(SUPABASE+"/auth/v1/admin/users/"+uid,method="DELETE",
+                         headers=admins,expect=(200,204,404))
+                status_code,_=call(SUPABASE+"/auth/v1/admin/users/"+uid,
+                    headers=admins,expect=(200,404))
+                if status_code!=404:
+                    raise RuntimeError("Test user survived cleanup")
+            except Exception:
+                failures+=1
+                print("CANARY_CLEANUP_FAILURE_KIND=auth",flush=True)
+        print("CANARY_TEMP_FIXTURES_CLEANUP=",
+              "PASS" if failures==0 else "NEEDS_OPERATOR_REVIEW",flush=True)
+        if failures:
+            raise RuntimeError("Temporary DEV fixture cleanup incomplete")
     print("RETAILGROWTHAI_CANARY_RESULT="+status)
 
 if __name__=="__main__":
