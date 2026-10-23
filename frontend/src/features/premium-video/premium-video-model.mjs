@@ -15,7 +15,7 @@ export function premiumVideoChoices({ entitlement = false, endpointReady = false
   ]
 }
 
-export function validatePremiumRequest(input, *, entitlement = false,
+export function validatePremiumRequest(input, { entitlement = false,
                                         endpointReady = false, featureEnabled = false } = {}) {
   if (!input || typeof input !== 'object' ||
       !premiumVideoChoices({ entitlement, endpointReady, featureEnabled })[1].available) {
