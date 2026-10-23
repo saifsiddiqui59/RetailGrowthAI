@@ -175,3 +175,25 @@ h2 { letter-spacing: -.025em; }
   .retail-shell .subscription-summary { padding: 18px; }
   .retail-shell .account-popover { right: 0; min-width: min(275px, 85vw); }
 }
+
+
+/* Platform Super Admin: same auth shell, strictly server-authorized operations. */
+.platform-page .platform-security-note { margin-bottom: 24px; background: #f2f8f6; }
+.platform-page .platform-security-note p { margin: 8px 0 0; }
+.platform-page .platform-metrics { grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); }
+.platform-page .platform-table-wrap { overflow-x: auto; margin-top: 18px; }
+.platform-page .platform-table { width: 100%; border-collapse: collapse; min-width: 700px; font-size: 13px; text-align: left; }
+.platform-page .platform-table th { background: #f5f9fb; color: #64768a; text-transform: uppercase; font-size: 10px; letter-spacing: .07em; }
+.platform-page .platform-table th, .platform-page .platform-table td { border-bottom: 1px solid #e9eef2; padding: 13px 12px; }
+.platform-page .platform-table td small { display: block; color: #8190a0; margin-top: 5px; }
+.platform-page .platform-pager { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 20px; }
+.platform-page .subtle-button { border: 1px solid #d3e0e5; border-radius: 9px; padding: 9px 11px; cursor: pointer; background: #fff; color: #1b5345; font-weight: 750; }
+.platform-page .subtle-button:disabled { opacity: .5; cursor: not-allowed; }
+.platform-page .platform-edit { margin: 25px 0; max-width: 700px; }
+.platform-page .platform-edit form { display: grid; gap: 16px; margin-top: 20px; }
+.platform-page .platform-edit form > label:not(.platform-confirm) { display: grid; gap: 7px; color: #445b72; font-size: 13px; font-weight: 750; }
+.platform-page .platform-edit select, .platform-page .platform-edit input[type="date"], .platform-page .platform-edit textarea { width: 100%; font: inherit; border: 1px solid #bacbd7; background: #fff; border-radius: 9px; padding: 10px 12px; }
+.platform-page .platform-edit textarea { min-height: 95px; }
+.platform-page .platform-confirm { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: #3c5b68; }
+.platform-page .platform-form-actions { display: flex; gap: 11px; flex-wrap: wrap; align-items: center; }
+.platform-page .platform-form-actions button { cursor: pointer; }

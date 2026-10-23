@@ -272,6 +272,9 @@ jobs:
           if [ -f tests/security/subscription_quota_negative.sql ]; then
             psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f tests/security/subscription_quota_negative.sql
           fi
+          if [ -f tests/security/platform_admin_negative.sql ]; then
+            psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f tests/security/platform_admin_negative.sql
+          fi
       - name: Stop isolated Supabase database
         if: always()
         shell: bash
