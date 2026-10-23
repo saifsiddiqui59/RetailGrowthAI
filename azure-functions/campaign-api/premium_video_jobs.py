@@ -62,7 +62,7 @@ class PremiumVideoCoordinator:
                 return 403, {"error": "FORBIDDEN"}
             days = [d for d in campaign["days"]
                     if d.get("id") == did and d.get("shop_id") == sid]
-            if len(days) != 1 or days[0].get("review_status") == "REJECTED":
+            if len(days) != 1 or days[0].get("review_status") != "APPROVED":
                 return 409, {"error": "DAY_NOT_APPROVED"}
             if mode == "image":
                 # Existing user-JWT RLS asset check + service-only rights check.
