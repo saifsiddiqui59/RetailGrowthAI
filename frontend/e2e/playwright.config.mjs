@@ -26,6 +26,10 @@ export default defineConfig({
       VITE_SUPABASE_URL: 'https://e2e.supabase.test',
       VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_offline_test_only',
       VITE_CAMPAIGN_API_BASE_URL: 'https://api.e2e.retailgrowth.test',
+      // Offline browser tests exercise guarded UI; never deployed as live flags.
+      VITE_PART2_SOCIAL_ENABLED: 'true',
+      VITE_PART2_SOCIAL_AUTHORING_ENABLED: 'true',
+      VITE_PART2_SOCIAL_OAUTH_ENABLED: 'false',
     },
   },
 })
