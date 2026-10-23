@@ -10,7 +10,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from tenant_store import StorageUnavailable, canonical_uuid
+from tenant_store import StorageUnavailable, SubscriptionDenied, canonical_uuid
 
 
 def backend_headers(secret):
@@ -53,7 +53,15 @@ class AdminStore:
                                 timeout=10) as resp:
                 raw = resp.read()
                 return json.loads(raw.decode()) if raw else None
-        except (HTTPError, URLError, OSError, json.JSONDecodeError) as exc:
+        except HTTPError as exc:
+            try:
+                response_code = json.loads(exc.read(4096)).get("code")
+            except (ValueError, AttributeError, TypeError):
+                response_code = None
+            if response_code in ("RG001", "RG002"):
+                raise SubscriptionDenied(response_code) from exc
+            raise StorageUnavailable("worker database request failed") from exc
+        except (URLError, OSError, json.JSONDecodeError) as exc:
             raise StorageUnavailable("worker database request failed") from exc
 
     def fail_pending(self, campaign_id, shop_id, created_by):

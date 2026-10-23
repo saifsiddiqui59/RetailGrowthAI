@@ -7,6 +7,8 @@ values
 ('b2222222-2222-4222-8222-222222222222','00000000-0000-0000-0000-000000000000','authenticated','authenticated','upload-b@example.invalid','!',now(),now()),
 ('c3333333-3333-4333-8333-333333333333','00000000-0000-0000-0000-000000000000','authenticated','authenticated','upload-viewer@example.invalid','!',now(),now());
 set local role authenticated;
+-- Simulate the signed JWT role accurately for auth.role() in guarded triggers.
+select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','a1111111-1111-4111-8111-111111111111',true);
 insert into public.shops(id,owner_user_id,name,slug)
 values('d4444444-4444-4444-8444-444444444444','a1111111-1111-4111-8111-111111111111','Upload owner A','rg-upload-a');
@@ -141,7 +143,10 @@ begin
       raise exception 'FAIL: cross-shop registration allowed'; end if;
 end $$;
 reset role;
+-- Subsequent DB-owner setup calls simulate the server's service_role JWT.
+select set_config('request.jwt.claim.role','service_role',true);
 set local role anon;
+select set_config('request.jwt.claim.role','anon',true);
 select set_config('request.jwt.claim.sub','',true);
 do $$
 declare denied boolean := false;
@@ -156,5 +161,7 @@ begin
   if not denied then raise exception 'FAIL: anonymous RPC execute allowed'; end if;
 end $$;
 reset role;
+-- Subsequent DB-owner setup calls simulate the server's service_role JWT.
+select set_config('request.jwt.claim.role','service_role',true);
 rollback;
 \echo 'PASS: authenticated object binding, owner, tenant, MIME, rights and anon denial'

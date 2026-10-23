@@ -8,6 +8,8 @@ values ('8a000000-0000-4000-8000-000000000001','00000000-0000-0000-0000-00000000
 'authenticated','authenticated','outbox-owner@example.invalid','!',now(),now());
 
 set local role authenticated;
+-- Simulate the signed JWT role accurately for auth.role() in guarded triggers.
+select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','8a000000-0000-4000-8000-000000000001',true);
 insert into public.shops(id,owner_user_id,name,slug) values
 ('8a000000-0000-4000-8000-000000000002','8a000000-0000-4000-8000-000000000001',
@@ -18,6 +20,8 @@ insert into public.campaigns(id,shop_id,created_by,brief,start_date) values
 
 -- Authenticated cannot read, write or execute any service-only durable recovery primitives.
 reset role;
+-- Subsequent DB-owner setup calls simulate the server's service_role JWT.
+select set_config('request.jwt.claim.role','service_role',true);
 do $$
 declare sig text;
 begin
@@ -57,6 +61,8 @@ begin
 end $$;
 
 set local role authenticated;
+-- Simulate the signed JWT role accurately for auth.role() in guarded triggers.
+select set_config('request.jwt.claim.role','authenticated',true);
 do $$
 declare blocked boolean:=false;
 begin
@@ -74,6 +80,8 @@ begin
   if not blocked then raise exception 'FAIL: authenticated client wrote poison receipt'; end if;
 end $$;
 reset role;
+-- Subsequent DB-owner setup calls simulate the server's service_role JWT.
+select set_config('request.jwt.claim.role','service_role',true);
 
 -- Outbox leases are CAS-fenced; wrong, stale or reused acknowledgements fail.
 do $$

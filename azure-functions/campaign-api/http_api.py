@@ -5,7 +5,7 @@ from uuid import uuid4
 from ai_agents.schemas import CampaignBrief, ContractError, validate_campaign
 
 from security import AuthenticationError
-from tenant_store import StorageUnavailable, canonical_uuid
+from tenant_store import StorageUnavailable, SubscriptionDenied, canonical_uuid
 from draft_api import DraftAPI
 
 
@@ -72,6 +72,10 @@ class HTTPAPI:
                     validate_campaign(record)
                 return 200, record
             return 404, {"error": "NOT_FOUND"}
+        except SubscriptionDenied as exc:
+            if exc.code == "RG002":
+                return 429, {"error": "QUOTA_EXCEEDED"}
+            return 402, {"error": "SUBSCRIPTION_REQUIRED"}
         except AuthenticationError:
             return 401, {"error": "UNAUTHORIZED"}
         except (ContractError, ValueError, TypeError, AttributeError):

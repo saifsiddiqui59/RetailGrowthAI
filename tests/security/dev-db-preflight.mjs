@@ -17,6 +17,9 @@ export const REQUIRED_MIGRATIONS = Object.freeze([
   '20261022205000_p1_worker_execution_budget.sql',
   '20261022220000_p1_durable_recovery.sql',
 ]);
+export const FOLLOW_ON_MIGRATIONS = Object.freeze([
+  '20261023140000_p1_subscription_quota.sql',
+]);
 
 const CAPABILITIES = {
   '20261022085124': [/enable row level security/i, /create table public\.shops/i, /create table public\.shop_memberships/i],
@@ -27,6 +30,17 @@ const CAPABILITIES = {
   '20261022173000': [/register_uploaded_image/i],
   '20261022180000': [/storage\.objects/i, /uploads\//i],
   '20261022205000': [/25 minutes/i],
+  '20261023140000': [
+    /create table public\.shop_subscriptions/i,
+    /create table public\.shop_usage_reservations/i,
+    /enable row level security/i,
+    /for update/i,
+    /reserve_subscription_unit/i,
+    /subscription_reserve_campaign/i,
+    /subscription_reserve_render/i,
+    /errcode='RG001'/i,
+    /errcode='RG002'/i,
+  ],
   '20261022220000': [
     /create table public\.job_outbox/i, /create table public\.job_poison_events/i,
     /alter table public\.job_outbox enable row level security/i,
@@ -60,7 +74,7 @@ export function verifyPreflight({ migrationDir = resolve(root, 'supabase/migrati
     }
     return { version: match[1], name: match[2], file: name };
   });
-  for (const file of REQUIRED_MIGRATIONS) {
+  for (const file of [...REQUIRED_MIGRATIONS, ...FOLLOW_ON_MIGRATIONS]) {
     if (!names.includes(file)) fail('missing canonical migration ' + file);
   }
   for (let i = 1; i < items.length; i++) {
