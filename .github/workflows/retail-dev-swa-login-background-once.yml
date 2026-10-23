@@ -103,7 +103,7 @@ jobs:
           done
           # Inspect the actual CSS returned by Azure, not just the deployment response.
           curl -fsSL --max-time 25 "https://$host/account" -o "$RUNNER_TEMP/account.html"
-          asset="$(grep -oE 'href="/assets/[^"]+\\.css"' "$RUNNER_TEMP/account.html" | head -1 | cut -d'"' -f2)"
+          asset="$(grep -oE 'href="/assets/[^"]+\.css"' "$RUNNER_TEMP/account.html" | head -1 | cut -d'"' -f2)"
           test -n "$asset"
           curl -fsSL --max-time 25 "https://$host$asset" -o "$RUNNER_TEMP/live.css"
           grep -Fq 'login-form-side' "$RUNNER_TEMP/live.css"
