@@ -92,8 +92,8 @@ begin
           case when jsonb_typeof(d.instagram #> '{reel,storyboard}')='array'
                then d.instagram #> '{reel,storyboard}'
                else '[]'::jsonb end
-        ) as segment
-        where segment->>'asset_id'=p_source_asset_id::text
+        ) as segments(asset)
+        where segments.asset->>'asset_id'=p_source_asset_id::text
       )
   ) into allowed;
   if not allowed then return null; end if;
