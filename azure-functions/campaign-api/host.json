@@ -4,7 +4,8 @@
   "extensions": {
     "queues": {
       "maxDequeueCount": 8,
-      "visibilityTimeout": "00:00:45"
+      "visibilityTimeout": "00:00:45",
+      "messageEncoding": "none"
     }
   },
   "logging": {
@@ -13,5 +14,9 @@
         "isEnabled": true
       }
     }
+  },
+  "extensionBundle": {
+    "id": "Microsoft.Azure.Functions.ExtensionBundle",
+    "version": "[4.0.0, 5.0.0)"
   }
 }
