@@ -44,7 +44,7 @@ class TenantStore:
         self.transport = transport or urlopen
 
     def _request(self, table, token, *, query=None, method="GET", data=None):
-        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs"}:
+        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs"}:
             raise ValueError("unsupported table")
         url = self.origin + "/rest/v1/" + table
         if query:
@@ -215,4 +215,164 @@ class TenantStore:
             raise StorageUnavailable("draft save unavailable") from exc
         if type(value) is not bool:
             raise StorageUnavailable("unexpected draft save response")
+        return value
+
+
+    def create_poster_draft(self, token, fields):
+        """Invoke the rights-gated SQL RPC with the verified user's JWT.
+
+        Never uses service_role. Null result is a deliberate DB authorization
+        denial; missing RPC, schema or a transport error fails closed.
+        """
+        if not isinstance(fields, dict) or set(fields) != {
+            "p_shop_id", "p_campaign_id", "p_day_id", "p_source_asset_id",
+            "p_logo_asset_id", "p_template", "p_format", "p_business_name",
+            "p_accent_color", "p_background_color", "p_offer_text",
+        }:
+            raise ValueError("invalid poster RPC fields")
+        req = Request(
+            self.origin + "/rest/v1/rpc/create_poster_draft",
+            method="POST", data=json.dumps(fields).encode("utf-8"),
+            headers={
+                "apikey": self.key, "Authorization": "Bearer " + token,
+                "Content-Type": "application/json", "Accept": "application/json",
+            },
+        )
+        try:
+            with self.transport(req, timeout=8) as response:
+                value = json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code in (401, 403):
+                raise AuthenticationError("poster draft rights denied") from exc
+            raise StorageUnavailable("poster draft RPC unavailable") from exc
+        except (URLError, OSError, json.JSONDecodeError) as exc:
+            raise StorageUnavailable("poster draft unavailable") from exc
+        if value is None:
+            return None
+        return canonical_uuid(value)
+
+    def poster_draft(self, token, user_id, draft_id):
+        """Read metadata only through shop RLS and current member verification."""
+        pid = canonical_uuid(draft_id)
+        found = self._request("poster_drafts", token, query={
+            "select": "id,shop_id,campaign_id,day_id,status,template,format,"
+                      "business_name,accent_color,background_color,offer_text,"
+                      "source_asset_id,output_asset_id",
+            "id": "eq." + pid, "limit": "1",
+        })
+        if len(found) != 1 or found[0].get("id") != pid:
+            return None
+        row = found[0]
+        sid = canonical_uuid(row["shop_id"])
+        if not self.member(token, user_id, sid):
+            return None
+        return row
+
+
+    def posters_for_day(self, token, shop_id, campaign_id, day_id):
+        """Return only RLS-visible, exact-campaign/day poster metadata and job IDs.
+
+        Caller must verify current JWT user membership and campaign/day ownership.
+        This method never returns object keys, signed links or storage credentials.
+        """
+        sid, cid, did = map(canonical_uuid, (shop_id, campaign_id, day_id))
+        rows = self._request("poster_drafts", token, query={
+            "select": "id,shop_id,campaign_id,day_id,status,revision,template,format,"
+                      "business_name,accent_color,background_color,offer_text,"
+                      "source_asset_id,output_asset_id",
+            "shop_id": "eq." + sid, "campaign_id": "eq." + cid,
+            "day_id": "eq." + did, "order": "created_at.desc", "limit": "21",
+        })
+        if not isinstance(rows, list) or len(rows) > 21 or any(
+            row.get("shop_id") != sid or row.get("campaign_id") != cid or
+            row.get("day_id") != did for row in rows
+        ):
+            raise StorageUnavailable("inconsistent private poster records")
+        if not rows:
+            return []
+        ids = [canonical_uuid(row["id"]) for row in rows]
+        if len(ids) != len(set(ids)):
+            raise StorageUnavailable("duplicated private poster records")
+        jobs = self._request("poster_jobs", token, query={
+            "select": "id,shop_id,poster_id,status,output_asset_id",
+            "shop_id": "eq." + sid,
+            "poster_id": "in.(" + ",".join(ids) + ")",
+            "limit": "21",
+        })
+        if not isinstance(jobs, list) or len(jobs) > 21 or any(
+            job.get("shop_id") != sid or job.get("poster_id") not in ids for job in jobs
+        ):
+            raise StorageUnavailable("inconsistent private poster jobs")
+        by_id = {}
+        for job in jobs:
+            pid = canonical_uuid(job["poster_id"])
+            if pid in by_id:
+                raise StorageUnavailable("multiple jobs for same poster revision")
+            by_id[pid] = job
+        return [{**row,
+                 "job_id": by_id.get(row["id"], {}).get("id"),
+                 "job_status": by_id.get(row["id"], {}).get("status")}
+                for row in rows]
+
+
+    def request_poster_job(self, token, poster_id):
+        """User-JWT SQL render intent, atomically persisted with private outbox."""
+        pid = canonical_uuid(poster_id)
+        request = Request(
+            self.origin + "/rest/v1/rpc/request_poster_job",
+            data=json.dumps({"p_poster_id": pid}).encode("utf-8"),
+            method="POST", headers={
+                "apikey": self.key, "Authorization": "Bearer " + token,
+                "Accept": "application/json", "Content-Type": "application/json",
+            })
+        try:
+            with self.transport(request, timeout=8) as response:
+                result = json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code in (401, 403):
+                raise AuthenticationError("poster render authorization denied") from exc
+            raise StorageUnavailable("poster request rejected") from exc
+        except (URLError, OSError, ValueError) as exc:
+            raise StorageUnavailable("poster request unavailable") from exc
+        return canonical_uuid(result) if result is not None else None
+
+    def poster_job(self, token, user_id, job_id):
+        jid = canonical_uuid(job_id)
+        records = self._request("poster_jobs", token, query={
+            "select": "id,shop_id,poster_id,status,output_asset_id,error_code",
+            "id": "eq." + jid, "limit": "1",
+        })
+        if len(records) != 1 or records[0].get("id") != jid:
+            return None
+        job = records[0]
+        if not self.member(token, user_id, job["shop_id"]):
+            return None
+        return job
+
+
+    def select_poster_banner(self, token, poster_id, expected_instagram):
+        """Optimistic reviewed selection, RLS subject checked within SQL RPC."""
+        pid = canonical_uuid(poster_id)
+        if not isinstance(expected_instagram, dict) or set(expected_instagram) != {
+                "caption", "banner_asset_id", "reel"}:
+            raise ValueError("complete expected saved Instagram draft required")
+        request = Request(
+            self.origin + "/rest/v1/rpc/select_poster_banner",
+            method="POST", data=json.dumps({
+                "p_poster_id": pid,
+                "p_expected_instagram": expected_instagram,
+            }).encode("utf-8"),
+            headers={"apikey": self.key, "Authorization": "Bearer " + token,
+                     "Content-Type": "application/json", "Accept": "application/json"})
+        try:
+            with self.transport(request, timeout=8) as response:
+                value = json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code in (401,403):
+                raise AuthenticationError("poster selection denied") from exc
+            raise StorageUnavailable("poster selection unavailable") from exc
+        except (URLError, OSError, ValueError) as exc:
+            raise StorageUnavailable("poster selection unavailable") from exc
+        if type(value) is not bool:
+            raise StorageUnavailable("invalid poster selection response")
         return value

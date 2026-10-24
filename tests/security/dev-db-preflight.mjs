@@ -21,6 +21,10 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261023134701_p1_subscription_quota.sql',
   '20261023165300_p1_platform_admin.sql',
   '20261023191246_p1_onboarding_approval.sql',
+  '20261024113000_p1_poster_drafts.sql',
+  '20261024150000_p1_poster_jobs.sql',
+  '20261024160000_p1_notification_outbox.sql',
+  '20261024170000_p1_poster_banner_selection.sql',
 ]);
 
 const CAPABILITIES = {
@@ -63,6 +67,20 @@ const CAPABILITIES = {
     /shop_onboarding_allowed/i,
     /revoke all on retail_private\.onboarding_requests/i,
   ],
+  '20261024113000': [
+    /create table public\.poster_drafts/i,
+    /enable row level security/i,
+    /revoke all on table public\.poster_drafts from public, anon, authenticated/i,
+    /create policy poster_drafts_member_read/i,
+    /create function public\.create_poster_draft/i,
+    /security definer set search_path = ''/i,
+    /retail_private\.has_role/i,
+    /pg_catalog\.sha256/i,
+    /for update/i,
+  ],
+  '20261024150000': [/create table public\.poster_jobs/i, /create table retail_private\.poster_outbox/i, /request_poster_job/i, /claim_poster_job/i, /complete_poster_job/i, /reconcile_poster_jobs/i, /revoke all on public\.poster_jobs/i],
+  '20261024160000': [/create table retail_private\.notification_outbox/i, /capture_onboarding_notification/i, /claim_notifications/i, /confirm_notification/i, /notification_recipients/i, /revoke all on retail_private\.notification_outbox/i],
+  '20261024170000': [/select_poster_banner/i, /security definer set search_path = ''/i, /retail_private\.has_role/i, /output_asset_id/i, /p_expected_instagram/i, /revoke all on function public\.select_poster_banner/i],
   '20261022220000': [
     /create table public\.job_outbox/i, /create table public\.job_poison_events/i,
     /alter table public\.job_outbox enable row level security/i,
