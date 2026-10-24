@@ -62,3 +62,27 @@ def test_first_party_original_music_and_private_reel_output():
     assert 'videos[0].get("height")!=1920' in src
     assert "shop_id+\"/renders/\"" in src
     assert "if not 2048<len(binary)<=80*1024*1024" in src
+
+
+def test_real_synthetic_shop_insert_is_executable_not_commented():
+    # Earlier DEV run failed with NameError because a literal \\n inside a
+    # Python comment accidentally swallowed inserted=table(...). AST enforces
+    # an actual executable assignment, preventing false green CI.
+    import ast
+    tree=ast.parse(SCRIPT.read_text())
+    main=next(x for x in tree.body if isinstance(x,ast.FunctionDef) and x.name=="main")
+    shop_assigns=[]
+    for item in ast.walk(main):
+        if isinstance(item,ast.Assign) and any(
+            isinstance(target,ast.Name) and target.id=="inserted"
+            for target in item.targets
+        ):
+            if (isinstance(item.value,ast.Call)
+                and isinstance(item.value.func,ast.Name)
+                and item.value.func.id=="table"
+                and item.value.args
+                and isinstance(item.value.args[0],ast.Constant)
+                and item.value.args[0].value=="shops"):
+                shop_assigns.append(item)
+    assert len(shop_assigns)==1, "A real table(shops) call must assign inserted"
+    assert "created_shop=True" in SCRIPT.read_text()

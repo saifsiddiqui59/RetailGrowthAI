@@ -1,5 +1,5 @@
 name: RetailGrowthAI DEV one-time real Azure queue FFmpeg 30s worker acceptance
-# Owner explicitly authorized DEV Part 1 worker verification. Independent of
+# One additional owner-authorized run after first #40135435223 failed before\n# any synthetic shop existed; Python AST now guards the executable insert.\n# Owner explicitly authorized DEV Part 1 worker verification. Independent of
 # broken Azure HTTP ingress; one isolated service-operator shop is created and
 # removed. Does NOT test retailer sign-in/ROOT approval UI and never bypasses it.
 on:
