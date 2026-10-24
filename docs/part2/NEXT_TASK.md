@@ -123,3 +123,8 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 3. Complete approved Meta multi-Page account selection, OAuth scopes and revocation/expiry review; real Meta/Google/LinkedIn app permissions and server secrets require owner authorization.
 4. Finish video receipt reconciliation and quota cancellation/refund policy and exercise cross-tenant, revoked grant, stale hash, poisoned/repeated queue and ambiguous remote create tests.
 5. Final Coordinator must rebase/merge safely against newer P1 `main` preserving login, approvals, subscriptions, platform admin and P3 isolation. Distinct owner authorizations needed for hosted P2 migration, Azure trigger/worker deploy, subscription publishing caps, OAuth app grants and test platform posts. Do not claim preview gallery is live Part1 generation or real publishing.
+
+## 2026-10-24 — Following AAC media review hardening (source-only)
+1. Verify all four GitHub Actions jobs on `feat/p2-media-aac-review-guard`, review and self-merge only to `feat/part2-integration` if green; verify post-merge integration-head CI separately.
+2. Implement a **trusted server-side** media evidence producer that streams the authorized existing Part 1 tenant asset, computes and binds its actual SHA-256, probes real H.264/**AAC** media using FFprobe, and attaches independently checked license/expiry evidence. Do not accept client-submitted FFprobe JSON or arbitrary hashes as a certification.
+3. Add job-bound, lease-CAS Instagram container/YouTube resumable session and receipt persistence, complete reconciliation tests, permissions/account selection and plan-specific quotas. Keep staged P2 SQL, OAuth and all outbound publishing release gates OFF until separately authorized.
