@@ -349,3 +349,7 @@
 
 ## 2026-10-24 — Reproducible, rights-safe creative demonstration
 - To demonstrate genuine RetailGrowthAI media code without falsely claiming live AI/hosted cloud success, render the frozen clothing fixture with the repository's unmodified poster and video engines in isolated GitHub Actions. Use original illustrated test media and music with explicit rights evidence rather than unverified downloaded stock; always label illustrative output as a test, never as actual retailer product photography. Distribute validated PNG/MP4 and fixture captions as expiring CI artifacts; never alter WineShopPOS or turn on providers, SMTP or social posting just to build a demo.
+
+## 2026-10-24 — Test-only DEV canary never auto-runs on merges
+- Live temporary-account tests shall use a manually dispatched GitHub Actions workflow on `main`, with exact approval code, explicit mode choice, existing protected `dev` Environment and RetailGrowthAI DEV-only secrets. No automatic `push` trigger, no bypass of ROOT onboarding or tenant RLS, and never pass a service key into Playwright. This corrects the conflicting original PR #233 workflow implementation.
+- If an external poster-render HTTP write loses its acknowledgement, read the signed-in user's RLS-authorized `poster_jobs` by exact shop/poster/revision/requester, require zero/one validated record, and rely on unique (poster_id, revision) for bounded identical retries. Unrecognized tenant, identity, revision or job status means stop, not duplicate render.
