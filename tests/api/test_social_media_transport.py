@@ -15,7 +15,7 @@ from social_providers import (facebook_page_request, instagram_reel_container_re
 
 
 SESSION = "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&upload_id=opaque"
-MEDIA = "https://demo.supabase.co/storage/v1/object/sign/retailgrowth-social-exports/31000000-0000-4000-8000-000000000001/video/62000000-0000-4000-8000-000000000001/1/abababababababababababababababababababababababababababababababab.mp4?token=signed-secret-long-token-123456"
+MEDIA = "https://demo.supabase.co/storage/v1/object/sign/retailgrowth-media/31000000-0000-4000-8000-000000000001/social-exports/62000000-0000-4000-8000-000000000001/1/abababababababababababababababababababababababababababababababab.mp4?token=signed-secret-long-token-123456"
 
 
 class Response:
