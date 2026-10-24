@@ -42,7 +42,7 @@ def make_store():
     def transport(request,timeout):
         assert timeout==45 and request.get_header("Apikey")=="sb_secret_testing"
         calls.append(request)
-        if request.full_url.endswith(".mp4"):
+        if "/storage/v1/object/retailgrowth-social-exports/" in request.full_url:
             if request.get_method()=="POST":
                 assert request.get_header("X-upsert")=="false"
                 assert request.get_header("Content-type")=="video/mp4"
