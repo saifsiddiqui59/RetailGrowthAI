@@ -63,3 +63,41 @@ def test_fail_closed_but_remembers_uploaded_path_for_cleanup():
                 password="temporary-password-never-logged",
                 image_bytes=module.image(), cleanup_paths=paths)
     assert paths == [PATH]
+
+
+POSTER = "24a080c9-d7f2-46e3-8660-fbdbbc5f1cab"
+JOB = "24a080c9-d7f2-46e3-8660-fbdbbc5f1cad"
+REQUESTER = "24a080c9-d7f2-46e3-8660-fbdbbc5f1cae"
+
+
+def poster_row(**overrides):
+    return dict({"id": JOB, "shop_id": SHOP, "poster_id": POSTER,
+                 "requested_by": REQUESTER, "revision": 1, "status": "QUEUED"},
+                **overrides)
+
+
+def readback(rows):
+    return module.reconcile_poster_job(
+        rows, shop_id=SHOP, poster_id=POSTER,
+        requested_by=REQUESTER, revision=1)
+
+
+def test_poster_write_timeout_reconciles_only_exact_rls_visible_attempt():
+    assert readback([]) is None  # Only a verified empty read allows same RPC retry.
+    assert readback([poster_row()]) == JOB
+    assert readback([poster_row(status="SUCCEEDED")]) == JOB
+
+
+@pytest.mark.parametrize("rows", [
+    None,
+    [poster_row(), poster_row()],
+    [poster_row(shop_id="d1d70a39-ebf4-40cb-9dbc-65f7981200c3")],
+    [poster_row(poster_id="4cda29ab-5802-43dd-8d28-0e4bf017a9b2")],
+    [poster_row(requested_by="d1d70a39-ebf4-40cb-9dbc-65f7981200c3")],
+    [poster_row(revision=2)],
+    [poster_row(status="UNKNOWN")],
+    [poster_row(id="not-a-uuid")],
+])
+def test_poster_write_timeout_denies_ambiguous_or_foreign_readback(rows):
+    with pytest.raises(RuntimeError):
+        readback(rows)
