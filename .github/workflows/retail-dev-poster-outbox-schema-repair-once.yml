@@ -1,0 +1,97 @@
+name: RetailGrowthAI DEV poster outbox service permission repair (one time)
+# Change only this workflow on main to trigger one approved DEV-only migration.
+# DO NOT apply pending platform operations schema as a side effect.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-poster-outbox-schema-repair-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-supabase-one-writer
+  cancel-in-progress: false
+jobs:
+  apply:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PROJECT_REF: jeearzffnjbvghwjjjrf
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.RETAIL_SUPABASE_ACCESS_TOKEN }}
+      REPAIR_APPROVED: ${{ vars.RETAIL_DEV_POSTER_RELEASE_APPROVED }}
+      BACKUP_VERIFIED: ${{ vars.RETAIL_DEV_POSTER_BACKUP_RESTORE_VERIFIED }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Fail closed until RetailGrowthAI DEV owner/operator approval and backup evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PROJECT_REF" = "jeearzffnjbvghwjjjrf"
+          test "$REPAIR_APPROVED" = "true" || { echo "::error::Explicit DEV poster release approval missing"; exit 3; }
+          test "$BACKUP_VERIFIED" = "true" || { echo "::error::DEV backup/restore verification missing"; exit 3; }
+          test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo "::error::RetailGrowthAI Supabase project-scoped PAT missing"; exit 3; }
+          test -s supabase/migrations/20261024180000_p1_poster_dispatch_schema_usage.sql
+          test -s supabase/migrations/20261024190000_p1_platform_operations.sql
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('supabase/migrations/20261024180000_p1_poster_dispatch_schema_usage.sql')
+          body=p.read_text().strip()
+          assert body.lower().endswith('commit;')
+          commands=[x.strip().lower() for x in body.splitlines()
+                    if x.strip() and not x.lstrip().startswith('--')]
+          assert commands == ['begin;',
+                 'grant usage on schema retail_private to service_role;',
+                 'commit;'], commands
+          print('PASS: exactly one schema-USAGE grant, no table/browser/grant broadening, no DML')
+          PY
+      - uses: supabase/setup-cli@v3
+        with:
+          version: '2.121.0'
+      - name: Exact Supabase migration preflight; hold unrelated source-only platform ops migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f supabase/config.toml ]; then supabase init --yes >/dev/null; fi
+          (printf '\n' | timeout 120s supabase link --project-ref "$PROJECT_REF")             >"$RUNNER_TEMP/link.log" 2>"$RUNNER_TEMP/link.err" || {
+            echo "::error::Cannot verify passwordless link to exact DEV project"; exit 3;
+          }
+          test "$(cat supabase/.temp/project-ref)" = "$PROJECT_REF"
+          # The separately owned #232 platform-ops migration is source-only.
+          # Exclude ONLY from this ephemeral runner before CLI dry-run and push.
+          mv supabase/migrations/20261024190000_p1_platform_operations.sql "$RUNNER_TEMP/platform-ops.NOT-APPLIED.sql"
+          timeout 120s supabase db push --linked --dry-run             >"$RUNNER_TEMP/push-dry.log" 2>"$RUNNER_TEMP/push-dry.err" || {
+            echo "::error::Migration dry-run failed. No hosted mutation performed"; exit 3;
+          }
+          python3 - "$RUNNER_TEMP/push-dry.log" "$RUNNER_TEMP/push-dry.err" <<'PY'
+          from pathlib import Path
+          import re,sys
+          log='\n'.join(Path(p).read_text() for p in sys.argv[1:])
+          versions=set(re.findall(r'2026\d{10}',log))
+          if versions != {'20261024180000'}:
+              raise SystemExit('STOP: dry-run does not contain exactly one pending permission repair')
+          print('PASS: isolated exactly one tracked canonical schema privilege migration')
+          PY
+      - name: Apply only approved additive schema USAGE grant and recheck migration history
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 180s supabase db push --linked --yes             >"$RUNNER_TEMP/push.log" 2>"$RUNNER_TEMP/push.err" || {
+            echo "::error::Schema repair migration not confirmed; stop and inspect privately"; exit 3;
+          }
+          timeout 90s supabase migration list --linked             >"$RUNNER_TEMP/migration-list.log" 2>"$RUNNER_TEMP/migration-list.err"
+          python3 - "$RUNNER_TEMP/migration-list.log" <<'PY'
+          from pathlib import Path
+          import sys
+          lines=Path(sys.argv[1]).read_text().splitlines()
+          good=[x for x in lines if '20261024180000' in x]
+          if len(good)!=1 or good[0].count('20261024180000')<2:
+              raise SystemExit('STOP: canonical permission repair migration not installed on both sides')
+          if any('20261024190000' in x for x in lines):
+              raise SystemExit('STOP: platform operations migration unexpectedly appeared')
+          print('PASS: DEV poster schema-USAGE grant committed with canonical migration history')
+          print('NOTE: no Azure resource provisioning or Functions restart; renderer remains existing deployed release')
+          PY
