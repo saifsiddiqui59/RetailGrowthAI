@@ -117,7 +117,79 @@ begin
                 and p_session_hex is null);
   elsif v.provider='youtube' then
     allowed:=(p_from='INITIATED' and p_to='SESSION_KNOWN'
-                and p_remote is null and p_session_hex ~ '^[0-9a-f]{80,16384}$'
+                and p_remote is null and p_session_hex ~ '^[0-9a-f]+
+          or (p_from='SESSION_KNOWN' and p_to='BINARY_INTENT'
+                and p_remote is null and p_session_hex is null)
+          or (p_from='BINARY_INTENT' and p_to='PUBLISHED'
+                and p_remote ~ '^[A-Za-z0-9_-]{11}$'
+                and p_session_hex is null);
+  end if;
+  if not coalesce(allowed,false) then return false; end if;
+  update retail_private.social_video_uploads set
+    stage=p_to,
+    remote_container_id=case when p_to='CONTAINER_KNOWN'
+       then p_remote else remote_container_id end,
+    encrypted_session=case when p_to='SESSION_KNOWN'
+       then decode(p_session_hex,'hex') else encrypted_session end,
+    remote_post_id=case when p_to='PUBLISHED'
+       then p_remote else remote_post_id end,
+    updated_at=now()
+    where job_id=p_job;
+  if p_to='PUBLISHED' then
+    finished:=public.p2_finish_social_publish(
+      p_job,p_claim,'PUBLISHED',null,p_remote);
+    if not finished then
+      raise exception 'receipt CAS refused' using errcode='23514';
+    end if;
+  elsif p_to='RECONCILE' then
+    finished:=public.p2_finish_social_publish(
+      p_job,p_claim,'RECONCILE','AMBIGUOUS_MEDIA',null);
+    if not finished then
+      raise exception 'reconciliation CAS refused' using errcode='23514';
+    end if;
+  end if;
+  return true;
+end
+$$;
+
+-- Only exact live private claim can read encrypted YouTube upload session.
+-- No plaintext URL, signed media URL or browser exposure.
+create function public.p2_video_session_ciphertext(p_job uuid,p_claim uuid)
+returns text language plpgsql security definer set search_path=''
+as $$
+declare c text;
+begin
+  if (select auth.role()) is distinct from 'service_role' then
+    raise exception 'service-only upload session' using errcode='42501';
+  end if;
+  select encode(v.encrypted_session,'hex') into c
+  from retail_private.social_video_uploads v
+  join public.social_publish_jobs j on j.id=v.job_id
+  join retail_private.social_publish_attempts a
+    on a.job_id=v.job_id and a.claim_token=v.claim_token
+  where v.job_id=p_job and v.claim_token=p_claim
+    and v.provider='youtube' and v.stage in ('SESSION_KNOWN','BINARY_INTENT')
+    and j.status='SENDING' and a.finished_at is null
+    and a.result_code='EXTERNAL_INFLIGHT';
+  return c;
+end
+$$;
+
+revoke all on function public.p2_begin_social_video_upload(uuid,uuid,text,bigint)
+  from public,anon,authenticated;
+revoke all on function public.p2_advance_social_video_upload(uuid,uuid,text,text,text,text)
+  from public,anon,authenticated;
+revoke all on function public.p2_video_session_ciphertext(uuid,uuid)
+  from public,anon,authenticated;
+grant execute on function public.p2_begin_social_video_upload(uuid,uuid,text,bigint)
+  to service_role;
+grant execute on function public.p2_advance_social_video_upload(uuid,uuid,text,text,text,text)
+  to service_role;
+grant execute on function public.p2_video_session_ciphertext(uuid,uuid)
+  to service_role;
+commit;
+
+                and length(p_session_hex) between 80 and 16384
                 and length(p_session_hex)%2=0)
           or (p_from='SESSION_KNOWN' and p_to='BINARY_INTENT'
                 and p_remote is null and p_session_hex is null)
