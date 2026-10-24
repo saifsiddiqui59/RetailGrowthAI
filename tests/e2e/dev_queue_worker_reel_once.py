@@ -59,7 +59,7 @@ def https(url, *, method="GET", payload=None, content_type="application/json",
     if len(raw)>80*1024*1024:
         raise RuntimeError("Oversized private media payload")
     if not raw:return status,None
-    if content_type in ("image/png","video/mp4") or url.endswith(".mp4"):
+    if content_type in ("image/png","video/mp4"):
         return status,raw
     try:return status,json.loads(raw)
     except (ValueError,UnicodeDecodeError):return status,raw
@@ -120,7 +120,7 @@ def main():
         # the existing ROOT owner solely inside trusted service-role DEV.
         row={"id":shop_id,"name":"RetailGrowthAI Worker QA "+marker,
              "slug":slug,"owner_user_id":root_owner,"timezone":"Asia/Kolkata"}
-        inserted=table("shops",method="POST",payload=row)
+        # Track exact disposable fixture before network commit; safe on lost ACK.\n        created_shop=True\n        inserted=table("shops",method="POST",payload=row)
         if not isinstance(inserted,list) or len(inserted)!=1 or inserted[0]["id"]!=shop_id:
             raise RuntimeError("Synthetic worker shop insertion unconfirmed")
         created_shop=True
