@@ -14,7 +14,16 @@ values
 insert into retail_private.platform_admins(user_id) values
  ('b1000000-0000-4000-8000-000000000001'),
  ('b1000000-0000-4000-8000-000000000002');
+-- The actual shop-creation trigger requires approved, signed-in owner identity.
+update retail_private.onboarding_requests set
+ status='APPROVED', decided_at=now(),
+ decided_by='b1000000-0000-4000-8000-000000000001',
+ decision_reason='Approved disposable 55-shop fixture'
+where user_id='b1000000-0000-4000-8000-000000000003';
 
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','b1000000-0000-4000-8000-000000000003',true);
 -- Create 55 verified retailer subscriptions, more than 25-row UI page.
 do $$
 declare idx int;
@@ -24,7 +33,9 @@ begin
    values(gen_random_uuid(),'b1000000-0000-4000-8000-000000000003',
     'RGAI Ops Store '||lpad(idx::text,3,'0'),'rg-ops-store-'||idx::text);
  end loop;
-end $$;
+end $;
+reset role;
+select set_config('request.jwt.claim.role','service_role',true);
 update public.shop_subscriptions s set valid_until=now()+interval '60 days'
 from public.shops sh where sh.id=s.shop_id and sh.slug like 'rg-ops-store-%';
 update public.shop_subscriptions s set valid_until=now()+interval '4 days'
