@@ -138,3 +138,8 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - #244 AAC SQL review guard and #245 trusted private file hash/FFprobe primitive are internally merged to `feat/part2-integration` at `9bd5830`. Post-merge four-job Actions #40094490959 all passed.
 - Highest-priority engineering blocker: integrate trusted Part1 tenant media fetch, independently stored source digest, actual FFprobe, license/rights and expiry verification, and immutable approved social job/media/revision context. The preflight helper is NOT an authority to publish.
 - Next complete durable Meta/YouTube session and receipt reconciliation, provider account grant/revocation and published quota/refund policies, then offline adversarial E2E and coordinator compatibility with newer Part1 main. Hosted migration, OAuth app activation, Azure deployment and actual posts require separately explicit approvals; feature flags stay OFF.
+
+## Unsent cancellation quota accounting (staged source change)
+- Verify exact-head and post-merge four-job CI for `feat/p2-cancel-quota-safe-refund` before marking complete.
+- Never refund `SENDING`/`PROCESSING`/`PUBLISHED`/`RECONCILE` or any active-claim job. The staged cancel RPC can release a reserved unit only once for an authorized never-sent cancellation within the same DB transaction.
+- Remaining priorities: job/version-bound licensed video authority from actual Part1 private bytes, provider session/remote receipt reconciliation and app grant lifecycle, safe Azure trigger release after explicit operator gates, eventual Final Coordinator compatibility with newer main.

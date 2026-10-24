@@ -11,6 +11,7 @@
 \ir ../../supabase/part2/pending/20261023190700_p2_social_token_refresh.sql
 \ir ../../supabase/part2/pending/20261023190800_p2_social_media_reviews.sql
 \ir ../../supabase/part2/pending/20261023190900_p2_social_draft_revision.sql
+\ir ../../supabase/part2/pending/20261023191000_p2_social_cancel_quota_refund.sql
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -400,14 +401,49 @@ begin
     repeat('cd',80),repeat('ac',80),null,now()+interval '1 hour',1) then
     raise exception 'FAIL: stale ciphertext CAS replay succeeded';
   end if;
+  -- Active claim (even without SENDING) blocks cancellation and refunds.
+  if public.p2_cancel_social_job(shop,job1,actor,1) then
+    raise exception 'FAIL: active-claim job canceled';
+  end if;
+  if (select count(*) from retail_private.social_publish_quota_ledger
+      where publish_job_id=job1)<>1 then
+    raise exception 'FAIL: active claim released quota';
+  end if;
   if not public.p2_finish_social_publish(
       job1,(current_claim->>'claim_token')::uuid,'RETRYABLE','NOT_SENT',null) then
     raise exception 'FAIL: definitely-unsent fixture claim did not finish';
   end if;
-  if not public.p2_cancel_social_job(shop,job1,actor,1)
-     or public.p2_cancel_social_job(shop,job1,actor,1)
+  -- Execute mutating RPCs in independent statements; PostgreSQL does not
+  -- guarantee short-circuit evaluation/order within one OR expression.
+  if not public.p2_cancel_social_job(shop,job1,actor,1) then
+    raise exception 'FAIL: first never-sent cancellation was denied';
+  end if;
+  if public.p2_cancel_social_job(shop,job1,actor,1)
      or public.p2_claim_social_publish(job1) is not null then
-    raise exception 'FAIL: canceled or repeat claim was accepted';
+    raise exception 'FAIL: canceled job replay accepted';
+  end if;
+  if exists(select 1 from retail_private.social_publish_quota_ledger
+      where publish_job_id=job1) then
+    raise exception 'FAIL: canceled unsent post consumed quota';
+  end if;
+  if not public.p2_approve_social_job(
+      shop,job2,actor,1,repeat('bc',32),'Another reviewed promotion',
+      when_utc,'Asia/Kolkata',null) then
+    raise exception 'FAIL: released quota was not available';
+  end if;
+  if (select count(*) from retail_private.social_publish_quota_ledger
+      where publish_job_id=job2)<>1 then
+    raise exception 'FAIL: released unit was double reserved';
+  end if;
+  if not public.p2_cancel_social_job(shop,job2,actor,1) then
+    raise exception 'FAIL: second never-sent cancellation denied';
+  end if;
+  if public.p2_cancel_social_job(shop,job2,actor,1) then
+    raise exception 'FAIL: repeated cancellation accepted';
+  end if;
+  if exists(select 1 from retail_private.social_publish_quota_ledger
+            where publish_job_id=job2) then
+    raise exception 'FAIL: canceled second job still reserves quota';
   end if;
   if not public.p2_record_social_poison(job1) or
       (select status from public.social_publish_jobs where id=job1)<>'CANCELED' then
