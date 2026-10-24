@@ -26,34 +26,67 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch })
   }
   if (typeof tokenProvider !== 'function') throw new Error('Authenticated token provider required')
   const origin = parsed.origin
+  // Azure Flex DEV has intermittently produced pre-handler 503s after about
+  // 60 seconds, even on protected GETs with no JWT. Browser callers must not
+  // wait indefinitely or replay non-idempotent campaigns, edits or jobs.
+  const READ_TIMEOUT_MS = 12000
+  const READ_ATTEMPTS = 2
   async function request(method, path, body) {
     const token = await tokenProvider()
     if (typeof token !== 'string' || !token) throw new Error('Please sign in again')
-    const response = await fetchImpl(origin + '/api' + path, {
-      method, redirect: 'error', cache: 'no-store',
-      headers: {
-        Authorization: 'Bearer ' + token,
-        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-      },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    })
-    const data = await response.json().catch(() => null)
-    if (response.status === 401) {
-      const error = new Error('Session expired. Please sign in again from Account.')
-      error.status = 401
-      throw error
-    }
-    if (!response.ok) {
-      const errorCode = data?.error
-      const friendly = {
-        QUOTA_EXCEEDED: 'This business has reached its current campaign or render limit. Existing drafts are still available.',
-        SUBSCRIPTION_REQUIRED: 'This business’s trial or subscription has expired or is inactive. Existing drafts remain available.',
+    // Only pure reads can be re-issued. A lost acknowledgement of POST/PATCH
+    // may mean the DB transaction already committed; never blindly replay it.
+    const attempts = method === 'GET' ? READ_ATTEMPTS : 1
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      const controller = method === 'GET' ? new AbortController() : null
+      const timer = controller ? setTimeout(() => controller.abort(), READ_TIMEOUT_MS) : null
+      let response
+      try {
+        response = await fetchImpl(origin + '/api' + path, {
+          method, redirect: 'error', cache: 'no-store',
+          headers: {
+            Authorization: 'Bearer ' + token,
+            ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+          },
+          ...(controller ? { signal: controller.signal } : {}),
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        })
+      } catch (error) {
+        const transientNetwork = error?.name === 'AbortError' || error instanceof TypeError
+        if (method === 'GET' && transientNetwork && attempt + 1 < attempts) continue
+        if (method === 'GET' && transientNetwork) {
+          const unavailable = new Error('Campaign service is temporarily unavailable. Try again.')
+          unavailable.status = 503
+          throw unavailable
+        }
+        throw error
+      } finally {
+        if (timer !== null) clearTimeout(timer)
       }
-      const error = new Error(friendly[errorCode] || errorCode || 'Campaign API request failed')
-      error.status = response.status
-      throw error
+      if (method === 'GET' && [502, 503, 504].includes(response.status) &&
+          attempt + 1 < attempts) continue
+      const data = await response.json().catch(() => null)
+      if (response.status === 401) {
+        const error = new Error('Session expired. Please sign in again from Account.')
+        error.status = 401
+        throw error
+      }
+      if (!response.ok) {
+        const errorCode = data?.error
+        const friendly = {
+          QUOTA_EXCEEDED: 'This business has reached its current campaign or render limit. Existing drafts are still available.',
+          SUBSCRIPTION_REQUIRED: 'This business’s trial or subscription has expired or is inactive. Existing drafts remain available.',
+        }
+        const error = new Error(friendly[errorCode] || errorCode ||
+          (method === 'GET' && [502, 503, 504].includes(response.status)
+            ? 'Campaign service is temporarily unavailable. Try again.'
+            : 'Campaign API request failed'))
+        error.status = response.status
+        throw error
+      }
+      return data
     }
-    return data
+    throw new Error('Campaign read retry budget exhausted')
   }
   return {
     createCampaign: (payload) => request('POST', '/campaigns', payload),
