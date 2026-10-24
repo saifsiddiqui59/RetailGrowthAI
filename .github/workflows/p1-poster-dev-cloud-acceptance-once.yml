@@ -1,0 +1,57 @@
+name: RetailGrowthAI DEV pinned one-time live cloud poster acceptance
+# One-shot owner-authorized test, merges to existing main only. DELETE after run.
+# The executable test script is immutable, pinned from isolated test branch.
+# This workflow does not change the existing DEV Auth gate, schema, Azure or PROD.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p1-poster-dev-cloud-acceptance-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-live-canary
+  cancel-in-progress: false
+jobs:
+  poster:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'test(dev): explicitly run RetailGrowthAI cloud poster acceptance once')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      RGAI_DEV_CANARY_APPROVAL: AUTHORIZED_RETAILGROWTHAI_DEV_ONLY
+      RGAI_DEV_ADMIN_FIXTURE_SEED: AUTHORIZED_OWNER_DEV_POSTER_ONLY
+      RGAI_DEV_POSTER_ONLY: '1'
+      RGAI_DEV_POSTER_ARTIFACT_DIR: output/poster-acceptance
+      RGAI_DEV_PLAYWRIGHT_UPLOAD: '0'
+      RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+      RGAI_DEV_PUBLISHABLE_KEY: sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 4cc443c6cf679bd9e2e04d544c2dea6a070b12ac
+          persist-credentials: false
+      - name: Pin isolated synthetic fixture and fail closed for wrong DEV target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "saifsiddiqui59/RetailGrowthAI"
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$(git rev-parse HEAD)" = "4cc443c6cf679bd9e2e04d544c2dea6a070b12ac"
+          test "$RGAI_DEV_ADMIN_FIXTURE_SEED" = "AUTHORIZED_OWNER_DEV_POSTER_ONLY"
+          test -n "${RGAI_DEV_SERVICE_KEY:-}"
+          python3 -m py_compile tests/e2e/retail_dev_canary_once.py
+          echo "PASS: one-time DEV-only isolated synthetic wardrobe fixture; no WineShopPOS or customer dataset"
+      - name: Exercise signed-in retailer campaign, private worker poster render, signed PNG download and selection
+        shell: bash
+        run: python3 -u tests/e2e/retail_dev_canary_once.py
+      - name: Upload real cloud PNG only after successful acceptance and cleanup
+        uses: actions/upload-artifact@v4
+        with:
+          name: retailgrowthai-live-dev-cloud-poster
+          path: output/poster-acceptance/retailgrowthai-dev-cloud-poster.png
+          retention-days: 7
+          if-no-files-found: error
