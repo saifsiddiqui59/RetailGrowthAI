@@ -116,3 +116,10 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 4. Source-only provider adapters do not authorize live platform tests. Hosted migrations, Azure queue/worker deploy, provider credentials, account grants, quota values and any real post require separate explicit owner approvals.
 
 - 2026-10-24 — Source safety #221: verify all four checks before P2 internal merge and post-merge branch CI. Next unblock server-authoritative licensed media approval and provider remote receipt reconciliation only with separately approved hosted migrations, OAuth grants, quota limits and cloud worker release.
+
+## 2026-10-24 — Verified after #218/#221, actionable remainder
+1. **Do not repeat completed safety work**: #218 and #221 merged into the dedicated integration branch with post-merge four-job CI; #220 closed unmerged, no action.
+2. Finish reviewable, service-owned Instagram/YouTube media certification: only tenant-authorized existing Part1 MP4s with license provenance, expiry and H.264/AAC probe; staged-only SQL must bind media approval and provider session/receipt to shop/job and prevent replay or cross-tenant approval. Transport #218 remains default disabled; do not switch on unapproved live worker.
+3. Complete approved Meta multi-Page account selection, OAuth scopes and revocation/expiry review; real Meta/Google/LinkedIn app permissions and server secrets require owner authorization.
+4. Finish video receipt reconciliation and quota cancellation/refund policy and exercise cross-tenant, revoked grant, stale hash, poisoned/repeated queue and ambiguous remote create tests.
+5. Final Coordinator must rebase/merge safely against newer P1 `main` preserving login, approvals, subscriptions, platform admin and P3 isolation. Distinct owner authorizations needed for hosted P2 migration, Azure trigger/worker deploy, subscription publishing caps, OAuth app grants and test platform posts. Do not claim preview gallery is live Part1 generation or real publishing.
