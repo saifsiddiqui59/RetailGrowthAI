@@ -73,8 +73,7 @@ begin
  second := public.request_poster_job(pid);
  if jid is null or jid is distinct from second then
    raise exception 'non-idempotent poster queue intent'; end if;
- if (select count(*) from public.poster_jobs where poster_id=pid) <> 1
-   or (select count(*) from retail_private.poster_outbox) <> 1 then
+ if (select count(*) from public.poster_jobs where poster_id=pid) <> 1 then
    raise exception 'poster job/outbox not atomically persisted'; end if;
  -- Reject browser-crafted terminal states even for the legitimate owner.
  begin
@@ -113,7 +112,7 @@ do $$
 declare denied boolean:=false;
 begin
  begin
-   perform public.request_poster_job((select id from public.poster_drafts limit 1));
+   perform public.request_poster_job('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid);
  exception when insufficient_privilege then denied:=true; end;
  if not denied then raise exception 'anonymous poster render request allowed'; end if;
 end $$;
@@ -124,6 +123,8 @@ do $$
 declare jid uuid; job jsonb; token uuid; poster uuid; path text; attempted integer;
 begin
  select id,poster_id into jid,poster from public.poster_jobs limit 1;
+ if (select count(*) from retail_private.poster_outbox) <> 1 then
+    raise exception 'poster job outbox not atomically persisted'; end if;
  job:=public.claim_poster_job(jid);
  token:=(job->>'claim_token')::uuid;
  attempted:=(job->>'attempts')::integer;
