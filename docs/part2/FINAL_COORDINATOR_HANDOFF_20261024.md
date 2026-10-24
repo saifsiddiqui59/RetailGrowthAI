@@ -9,7 +9,7 @@ Date: 2026-10-24 · Branch: `feat/part2-integration` · Mode: **source-only, all
 - Instagram 30s and YouTube Shorts review-only backend: private P1 render source, bounded sha256 + real FFprobe H.264/AAC checks, independently verified commercial-rights receipt contract, exact job/media/revision binding, append-only finalized render digest and license evidence ledgers; no video approval grant.
 - Private provider container intent/session/receipt CAS and poison reconciliation; created-media upload adapters and optional claim-scoped PostgREST bridge.
 - `retailgrowth-media/<shop>/social-exports/<job>/<revision>/<sha>.mp4` protected service-only prefix within original Part1 private bucket. **No second media bucket**; do not use the historically superseded early P2 191400 version. Immutable copy-once source writer is disabled by default.
-- Exact PR CI for #271 (run 40133836637), #273 (40134333301), #274 (40134812401), #275 (40135312766), #278 (40135730975), #279 (40136209686), #281 (40136421553) — all four jobs green per PR. #283 service-only upload bridge requires final exact CI and merge verification at handoff.
+- Exact PR CI for #271 (run 40133836637), #273 (40134333301), #274 (40134812401), #275 (40135312766), #278 (40135730975), #279 (40136209686), #281 (40136421553) — all four jobs green per PR. #283 source-only upload bridge internally merged `267bebee` after 4/4 exact-head [Actions #40137590410](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40137590410); post-merge [#40137732617](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40137732617) must be inspected independently.
 
 ## Unhosted migration order
 
@@ -31,7 +31,7 @@ P2 SQL is held under `supabase/part2/pending`, versioned `20261023190000` throug
 - 191300 Part1 finalized render SHA + independent commercial clearance
 - 191400 **same original bucket** protected social-exports prefix, no bucket creation
 - 191500 active Instagram export lease/source/rights/consent predicate
-- 191600 claim-scoped Meta container lookup + AES-256-GCM YouTube session versioned save/read (pending exact final merge evidence)
+- 191600 claim-scoped Meta container lookup + AES-256-GCM YouTube session versioned save/read (source CI 4/4, merged #283 to Part2; NOT hosted)
 
 Never skip the gap/cross-tenant negative tests or assume migration compatibility with advancing Part1 `main`.
 
