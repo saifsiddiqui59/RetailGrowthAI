@@ -25,6 +25,8 @@ begin
     'RGAI Ops Store '||lpad(idx::text,3,'0'),'rg-ops-store-'||idx::text);
  end loop;
 end $$;
+update public.shop_subscriptions s set valid_until=now()+interval '60 days'
+from public.shops sh where sh.id=s.shop_id and sh.slug like 'rg-ops-store-%';
 update public.shop_subscriptions s set valid_until=now()+interval '4 days'
 from public.shops sh where sh.id=s.shop_id
   and sh.name in ('RGAI Ops Store 001','RGAI Ops Store 002','RGAI Ops Store 003',
@@ -71,8 +73,7 @@ end $$;
 
 select set_config('request.jwt.claim.sub','b1000000-0000-4000-8000-000000000001',true);
 do $$
-declare a jsonb; b jsonb; c jsonb; id bigint; count_before bigint;
-declare denied boolean:=false;
+declare a jsonb; b jsonb; c jsonb; id bigint; denied boolean:=false;
 begin
  a:=public.retail_platform_notifications();
  if (a->>'total_active')::int < 10 or (a->>'unread_active')::int < 10 then
@@ -88,8 +89,8 @@ begin
    raise exception 'poison queue receipt unreported'; end if;
  if a->>'azure_telemetry' <> 'NOT_CONNECTED' then
    raise exception 'fabricated Azure infrastructure health'; end if;
- select id into id from retail_private.platform_notifications
-   where event_key='job:campaign:b1000000-0000-4000-8000-000000000004';
+ select (t->>'id')::bigint into id from jsonb_array_elements(a->'items') t
+   where t->>'event_key'='job:campaign:b1000000-0000-4000-8000-000000000004';
  if id is null then raise exception 'missing durable event'; end if;
  if (public.retail_platform_set_notification_read(id,true)->>'read')::boolean<>true then
    raise exception 'root read receipt not persisted'; end if;
@@ -116,9 +117,9 @@ select set_config('request.jwt.claim.sub','b1000000-0000-4000-8000-000000000002'
 do $$
 declare id bigint; a jsonb;
 begin
- select n.id into id from retail_private.platform_notifications n
- where n.event_key='job:campaign:b1000000-0000-4000-8000-000000000004';
  a:=public.retail_platform_notifications('history','job',40,0);
+ select (t->>'id')::bigint into id from jsonb_array_elements(a->'items') t
+ where t->>'event_key'='job:campaign:b1000000-0000-4000-8000-000000000004';
  if not exists(select 1 from jsonb_array_elements(a->'items') t
   where (t->>'id')::bigint=id and t->>'read_at' is null) then
    raise exception 'different root inherited a read receipt'; end if;
