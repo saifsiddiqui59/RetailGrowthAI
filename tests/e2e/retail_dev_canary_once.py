@@ -180,11 +180,11 @@ def image():
                 if 17<=dy<28 and 13<dx<=19:
                     color=collars[idx]
             line.extend(color)
-        rows.append(b"\\x00"+bytes(line))
+        rows.append(b"\x00"+bytes(line))
     raw=b"".join(rows)
     def chunk(kind,data):
         return struct.pack(">I",len(data))+kind+data+struct.pack(">I",zlib.crc32(kind+data)&0xffffffff)
-    return b"\\x89PNG\\r\\n\\x1a\\n"+chunk(b"IHDR",struct.pack(">IIBBBBB",w,h,8,2,0,0,0))+chunk(b"IDAT",zlib.compress(raw,6))+chunk(b"IEND",b"")
+    return b"\x89PNG\r\n\x1a\n"+chunk(b"IHDR",struct.pack(">IIBBBBB",w,h,8,2,0,0,0))+chunk(b"IDAT",zlib.compress(raw,6))+chunk(b"IEND",b"")
 
 
 def poll(read, statuses, limit):
