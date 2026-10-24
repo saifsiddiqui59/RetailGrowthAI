@@ -78,3 +78,7 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 ## 2026-10-24 — No reusable or cross-job video approvals
 - A private AAC/H.264 media review is only evidence about an asset; it cannot authorize a different scheduled job, copy revision, provider account or shop. New P2 service-only review binding keys by job, tenant, media asset and exact draft revision, rechecks successful existing Part1 render origin, active account permissions and future rights expiry.
 - Existing video approval remains denied because verified object immutability, final-byte integrity and provider upload receipts are not yet fully enforced. Code may not silently treat the media binding as a release switch.
+
+## 2026-10-24 — Media side effects require a durable exact job/claim intent
+- Video container creation, resumable upload session initialization, media_publish and final video upload each need independently persisted and lease-fenced state. Session URL ciphertext is private, never in public tables/API/queue. Out-of-order, repeated and foreign claim transitions fail closed; definitive provider remote receipt and job terminal status are one DB transaction; unknown responses require reconciliation rather than automatic replay.
+- This source-only session ledger cannot replace actual provider receipt verification or immobilize mutable Part1 Storage objects. Publish switches stay OFF pending verified app grants and rights-cleared immutable media handoff.
