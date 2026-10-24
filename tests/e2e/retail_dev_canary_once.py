@@ -151,6 +151,7 @@ def call(url, method="GET", payload=None, headers=None, timeout=30, expect=(200,
         if ((method == "PATCH") or
                 (method == "POST" and (
                     ("/api/campaigns/" in url and url.endswith("/renders"))
+                    or ("/api/poster-drafts/" in url and url.endswith("/renders"))
                     or url.endswith("/posters")))) and \
                 status in (502,503,504) and source == "gateway_or_supabase":
             raise TransientGateway("Transient pre-handler write response")
