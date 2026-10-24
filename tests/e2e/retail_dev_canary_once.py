@@ -171,7 +171,7 @@ def poll(read, statuses, limit):
     raise TimeoutError("DEV async job exceeded bounded timeout")
 
 def validate_private_test_paths(media, shop_id):
-    """Only first-party canary uploaded PNG and rendered MP4 under its own shop."""
+    """Only owner-created canary upload, poster PNG and FFmpeg MP4 paths."""
     if not isinstance(media, list) or len(media)>8:
         raise RuntimeError("Unsafe synthetic cleanup media collection")
     paths=[]
@@ -180,12 +180,14 @@ def validate_private_test_paths(media, shop_id):
         if (not isinstance(name,str) or not name.startswith(shop_id+"/") or
             asset.get("storage_bucket")!="retailgrowth-media" or
             (asset.get("mime_type"),asset.get("source")) not in {
-                ("image/png","UPLOAD"),("video/mp4","GENERATED")
-            } or not ("/uploads/" in name or "/renders/" in name) or
+                ("image/png","UPLOAD"),("image/png","GENERATED"),("video/mp4","GENERATED")
+            } or not ("/uploads/" in name or "/renders/" in name or "/posters/" in name) or
             ((asset.get("mime_type"),asset.get("source"))==("image/png","UPLOAD") and
              not (name.startswith(shop_id+"/uploads/") and name.endswith(".png"))) or
             ((asset.get("mime_type"),asset.get("source"))==("video/mp4","GENERATED") and
              not (name.startswith(shop_id+"/renders/") and name.endswith(".mp4"))) or
+            ((asset.get("mime_type"),asset.get("source"))==("image/png","GENERATED") and
+             not (name.startswith(shop_id+"/posters/") and name.endswith(".png"))) or
             not all(c.isascii() and (c.isalnum() or c in "_./-") for c in name) or
             any(part in ("", ".", "..") for part in name.split("/"))):
             raise RuntimeError("Refusing out-of-shop or unexpected synthetic media cleanup")
@@ -300,6 +302,63 @@ def main():
         if saved.get("day",{}).get("topic")!=update["topic"]:
             raise RuntimeError("Draft save not persisted")
         print("CANARY_REMOTE_DRAFT_SAVE=true",flush=True)
+        # New Part 1 Creative Studio: durable poster job from the same licensed
+        # canary image; no third-party media and no paid premium generation.
+        poster_payload={
+            "day_id":day["id"],"source_asset_id":asset,
+            "template":"editorial","format":"portrait",
+            "business_name":"RetailGrowthAI Canary Boutique",
+            "accent_color":"#446677","background_color":"#F8F8F2",
+        }
+        _,pcreated=call(API+"/api/campaigns/"+cid+"/posters",method="POST",
+            payload=poster_payload,headers=a,expect=(201,))
+        poster_id=pcreated["poster_id"]
+        print("CANARY_POSTER_SAVED=true",flush=True)
+        _,foreign_poster=call(API+"/api/poster-drafts/"+poster_id,
+            headers=b,expect=(403,404))
+        print("CANARY_POSTER_CROSS_SHOP_DENIED=true",flush=True)
+        _,history=call(API+"/api/campaigns/"+cid+"/days/"+day["id"]+"/posters",
+            headers=a,expect=(200,))
+        if not any(x.get("poster_id")==poster_id for x in history.get("posters",[])):
+            raise RuntimeError("Cloud-saved poster absent from persisted day history")
+        _,reopened=call(API+"/api/poster-drafts/"+poster_id,headers=a,expect=(200,))
+        if reopened.get("business_name")!=poster_payload["business_name"]:
+            raise RuntimeError("Poster did not survive private reload")
+        print("CANARY_POSTER_HISTORY_REOPENED=true",flush=True)
+        _,poster_request=call(API+"/api/poster-drafts/"+poster_id+"/renders",
+            method="POST",payload={},headers=a,timeout=60,expect=(202,))
+        poster_job=poster_request["job_id"]
+        _,foreign_job=call(API+"/api/poster-jobs/"+poster_job,
+            headers=b,expect=(403,404))
+        print("CANARY_POSTER_JOB_TENANT_DENIED=true",flush=True)
+        def poster_read():
+            return call(API+"/api/poster-jobs/"+poster_job,headers=a,expect=(200,))[1]
+        poster_done=poll(poster_read,{"SUCCEEDED"},450)
+        if not poster_done.get("output_asset_id"):
+            raise RuntimeError("Poster worker completed without registered private asset")
+        print("CANARY_POSTER_WORKER_SUCCEEDED=true",flush=True)
+        _,poster_url=call(API+"/api/poster-jobs/"+poster_job+"/download",
+            headers=a,expect=(200,))
+        parsed_poster=urllib.parse.urlparse(poster_url["url"])
+        if parsed_poster.scheme!="https" or parsed_poster.netloc!="jeearzffnjbvghwjjjrf.supabase.co" or not parsed_poster.path.startswith("/storage/v1/object/sign/retailgrowth-media/"):
+            raise RuntimeError("Poster signed URL is not in private RetailGrowthAI storage")
+        with urllib.request.urlopen(poster_url["url"],timeout=40) as res:
+            png=res.read(16*1024*1024+1)
+        if len(png)>16*1024*1024 or not png.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+            raise RuntimeError("Generated poster is not a bounded PNG")
+        width,height=struct.unpack(">II",png[16:24])
+        if (width,height)!=(1080,1350):
+            raise RuntimeError("Poster generated incorrect portrait dimensions")
+        print("CANARY_PRIVATE_POSTER_PNG_VERIFIED=true",flush=True)
+        expected_instagram=saved["day"]["instagram"]
+        _,chosen=call(API+"/api/poster-drafts/"+poster_id+"/select",method="POST",
+            payload={"expected_instagram":expected_instagram},headers=a,expect=(200,))
+        if chosen.get("banner_asset_id")!=poster_done["output_asset_id"]:
+            raise RuntimeError("Approved poster output not attached")
+        live_day=next(x for x in getcampaign()["days"] if x["id"]==day["id"])
+        if live_day["instagram"].get("banner_asset_id")!=poster_done["output_asset_id"]:
+            raise RuntimeError("Selected poster banner not durably saved")
+        print("CANARY_POSTER_BANNER_ATTACHED=true",flush=True)
         # If the gateway loses a render creation response, do not blindly
         # repeat a billable write. First read the current user's RLS-scoped
         # matching job. Backend deterministic idempotency guarantees one
@@ -395,7 +454,7 @@ def main():
                     call(SUPABASE+"/storage/v1/object/retailgrowth-media",
                          method="DELETE",payload={"prefixes":[object_path]},
                          headers=admins,expect=(200,204))
-                for table in ("usage_events","render_jobs","campaign_days",
+                for table in ("usage_events","render_jobs","poster_jobs","poster_drafts","campaign_days",
                     "campaigns","brand_kits","business_profiles","media_assets",
                     "audit_logs","shop_memberships"):
                     query=urllib.parse.urlencode({"shop_id":"eq."+sid})
