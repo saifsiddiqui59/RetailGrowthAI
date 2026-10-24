@@ -105,3 +105,6 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 
 ## 2026-10-24 — A duplicate provider create intent is never definitely unsent
 - If a container creation or YouTube resumable session-start intent already exists, a lost provider acknowledgement may represent a successful remote side effect. Return a sanitized uncertain error and reconcile; never mark `definitely_not_sent=True` or issue a second creation POST from a duplicated message. This correction preserves the existing disabled provider adapter semantics.
+
+## 2026-10-24 — Provider upload adapter storage is isolated and active-claim-only
+- A code-level uploader cannot maintain a self-asserted durable session: Instagram container lookup and YouTube encrypted resumable Location read are service-only, restricted to the exact current DB attempt, account grant and revision. A YouTube session's key version is committed in the same transaction as its encrypted AAD-bound value; mismatched key version/tenant/provider refuses decryption. Publish receipt commits through the existing CAS SQL barrier and repeated remote intents cannot issue a second external POST. No live provider transport enabled by this feature.
