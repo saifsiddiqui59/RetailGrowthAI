@@ -49,7 +49,8 @@ def test_ig_form_encoded_and_status_get_with_bounded_body():
     transport = MediaNetworkTransport(enabled=True, opener=opener)
     assert transport(instagram_req())[1]["id"] == "987654321"
     assert b"media_type=REELS" in seen[0][1] and b"caption=Reviewed+text" in seen[0][1]
-    assert b"token=signed-secret" in seen[0][1]
+    assert b"token%3Dsigned-secret" in seen[0][1]
+    assert b"share_to_feed=true" in seen[0][1]
     status = instagram_container_status_request(container_id="987654321",
         token="SENSITIVE-TOKEN", graph_version="v26.0")
     assert transport(status)[0] == 200
