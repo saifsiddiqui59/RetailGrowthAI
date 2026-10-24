@@ -169,3 +169,7 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - Verify exact-head and post-merge four-job CI for the service-only export bucket/publisher URL policy. An ordinary P1 tenant media signed URL must now be rejected by Instagram transport.
 - Implement the reviewed copy-once producer from a hash-pinned P1 MP4 into isolated `retailgrowth-social-exports`, check stable bytes before+after storage handoff, strict rights/revision/account/claim CAS and URL TTL. The export uploader may not overwrite or let users edit provider-readable content.
 - Register the consented video worker only after hosted P2 migrations, plan publishing caps, legitimate approved Meta/Google scopes and E2E provider-safe test accounts. Keep provider posting OFF until that release review.
+
+## Signed export writer integration pending
+- Confirm exact feature and integration branch four-job CI for the off-by-default media exporter. Backend `claim_authority.allow_export` must be implemented by a service-role RPC rechecking active approved video job, rights expiry, grant, quota, source SHA, scheduled/revision fence and outbound lease just before both copy and signing. A generic boolean request parameter or browser role is unacceptable.
+- Activate only after explicit hosted P2 migrations + billing/quota caps + OAuth provider app consent, real media rights and Azure queue/poison tests, and Meta/YouTube receipt reconciliation. Browser never receives exporter credential, signed URL or provider token.
