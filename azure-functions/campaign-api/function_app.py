@@ -13,16 +13,12 @@ from admin_store import AdminStore
 from planning_worker import process_campaign
 from render_api import RenderAPI
 from poster_draft_api import PosterDraftAPI
-from render_worker import process_render
-from private_media import PrivateMedia
 from recovery_runtime import dispatch_outbox, record_poison, reconcile_and_dispatch
 from notification_store import NotificationStore
 from notification_worker import dispatch_notifications, SmtpSender
 from poster_render_api import PosterRenderAPI
 from poster_admin import PosterAdmin
-from poster_worker import process_poster, dispatch_posters
 from poster_queue import AzurePosterQueue
-from private_poster_media import PrivatePosterMedia
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -162,6 +158,10 @@ def get_render_download(req: func.HttpRequest) -> func.HttpResponse:
 @app.queue_trigger(arg_name="message", queue_name="retail-reel-render",
                    connection="RETAIL_STORAGE")
 def render_campaign_reel(message: func.QueueMessage):
+    # Import the heavy FFmpeg engine ONLY on real queue invocation. An HTTP cold
+    # start should not import media codecs or the offline renderer.
+    from render_worker import process_render
+    from private_media import PrivateMedia
     # Queue message contains only a validated job UUID. No paths, tokens or URLs.
     origin = os.environ["RETAIL_SUPABASE_URL"]
     key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
@@ -227,6 +227,9 @@ def dispatch_pending_posters(timer: func.TimerRequest):
     admin = PosterAdmin(os.environ["RETAIL_SUPABASE_URL"],
                         os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"])
     queue = AzurePosterQueue(os.environ["RETAIL_STORAGE"])
+    # The poster engine imports Pillow and image fonts; a timer never needs it
+    # on an HTTP instance and must not load it during function indexing.
+    from poster_worker import dispatch_posters
     admin.reconcile_posters()
     dispatch_posters(admin, queue)
 
@@ -237,6 +240,9 @@ def render_campaign_poster(message: func.QueueMessage):
     if os.environ.get("RETAIL_ENABLE_POSTER_RENDERING") != "true":
         # Never acknowledge/delete a legitimate queued event if disabled.
         raise RuntimeError("poster worker is not enabled")
+    # Heavy Pillow/PNG decoding is worker-only; no eager import in HTTP host.
+    from poster_worker import process_poster
+    from private_poster_media import PrivatePosterMedia
     origin = os.environ["RETAIL_SUPABASE_URL"]
     key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
     process_poster(message.get_body().decode("ascii"),
