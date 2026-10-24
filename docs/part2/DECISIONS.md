@@ -62,3 +62,7 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 - Keep the staged Part2 SQL media approval deny-by-default until verified tenant rights/probe/state persistence and approved customer/platform permissions exist. No WineShopPOS or Part 1 runtime modification.
 
 - 2026-10-24 — Credentialed service-role due scanning uses one project HTTPS origin on standard TLS port 443; never follow redirects or admit parser-normalized control characters/nonstandard port authorities. Treat malformed origins as configuration failure before any request.
+
+## 2026-10-24 — AAC audio is mandatory for the initial reviewed MP4 profile
+- Initial P2 Instagram Reel/YouTube Shorts media gate only accepts server-attested H.264 video with AAC audio, yuv420p, 1080x1920 and 29–31s duration; missing audio or other audio codecs fail closed at registration and lookup.
+- The staged record is **not itself** provider certification; do not enable video approval/publishing until actual stored source byte digest, real FFprobe execution, tenant rights/license evidence and lease-safe provider receipts are bound by trusted backend code. No existing hosted DB migration is rewritten.
