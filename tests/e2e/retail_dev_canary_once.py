@@ -760,6 +760,7 @@ def main():
               capture_output=True,text=True,timeout=35,check=True)
             result=json.loads(p.stdout)
             validate_private_reel_ffprobe(result)
+        print("CANARY_PRIVATE_30S_H264_MP4_VERIFIED=true",flush=True)
         print("CANARY_PRIVATE_30S_H264_AAC_MP4_VERIFIED=true",flush=True)
         status="PASSED"
     finally:
