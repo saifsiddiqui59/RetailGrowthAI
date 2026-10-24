@@ -77,6 +77,26 @@ def reconcile_render(rows, *, shop_id, campaign_id, day_id, requested_by):
     return {"job_id": jid, "status": job["status"]}
 
 
+def reconcile_poster_job(rows, *, shop_id, poster_id, requested_by, revision=1):
+    """Only accept an exact one-row RLS-authorized job after an uncertain POST."""
+    if not isinstance(rows, list) or len(rows) > 1:
+        raise RuntimeError("Ambiguous private poster render readback")
+    if not rows:
+        return None
+    row=rows[0]
+    if (row.get("shop_id")!=shop_id or row.get("poster_id")!=poster_id or
+        row.get("requested_by")!=requested_by or row.get("revision")!=revision or
+        row.get("status") not in ("QUEUED","RUNNING","SUCCEEDED","FAILED")):
+        raise RuntimeError("Foreign or invalid poster job in readback")
+    try:
+        jid=str(uuid.UUID(row["id"]))
+    except (ValueError,KeyError,TypeError,AttributeError) as exc:
+        raise RuntimeError("Malformed private poster job ID") from exc
+    if jid!=row["id"]:
+        raise RuntimeError("Noncanonical poster job ID")
+    return jid
+
+
 SUPABASE = "https://jeearzffnjbvghwjjjrf.supabase.co"
 API = "https://rgai-dev-functions-d4e5ddbd.azurewebsites.net"
 def api_key_headers(key):
@@ -388,18 +408,8 @@ def main():
                 "limit":"2",
             })
             _,rows=call(SUPABASE+"/rest/v1/poster_jobs?"+query,headers=a,expect=(200,))
-            if not isinstance(rows,list) or len(rows)>1:
-                raise RuntimeError("Ambiguous private poster render readback")
-            if not rows:
-                return None
-            row=rows[0]
-            if (row.get("shop_id")!=shops[0] or
-                row.get("poster_id")!=poster_id or
-                row.get("requested_by")!=accounts[0][0] or
-                row.get("revision")!=1 or
-                row.get("status") not in ("QUEUED","RUNNING","SUCCEEDED","FAILED")):
-                raise RuntimeError("Foreign or invalid poster job in readback")
-            return str(uuid.UUID(row["id"]))
+            return reconcile_poster_job(rows,shop_id=shops[0],
+                poster_id=poster_id,requested_by=accounts[0][0])
 
         poster_job=None
         for attempt in range(3):
