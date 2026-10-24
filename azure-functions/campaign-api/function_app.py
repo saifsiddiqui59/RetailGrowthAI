@@ -18,6 +18,7 @@ from private_media import PrivateMedia
 from recovery_runtime import dispatch_outbox, record_poison, reconcile_and_dispatch
 from notification_store import NotificationStore
 from notification_worker import dispatch_notifications, SmtpSender
+from poster_render_api import PosterRenderAPI
 from poster_admin import PosterAdmin
 from poster_worker import process_poster, dispatch_posters
 from poster_queue import AzurePosterQueue
@@ -42,9 +43,11 @@ def build_api():
     )
     poster_api = (PosterDraftAPI(store)
                   if os.environ.get("RETAIL_ENABLE_POSTER_DRAFTS") == "true" else None)
+    poster_render_api = (PosterRenderAPI(store)
+                         if os.environ.get("RETAIL_ENABLE_POSTER_RENDERING") == "true" else None)
     return HTTPAPI(SupabaseJWTVerifier(url), store, queue, render_api,
                    failure_store=admin, durable_outbox=bool(connection and admin),
-                   poster_api=poster_api)
+                   poster_api=poster_api, poster_render_api=poster_render_api)
 
 
 def dispatch(request, path):
@@ -92,6 +95,21 @@ def create_poster_draft(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="poster-drafts/{draft_id}", methods=["GET"])
 def get_poster_draft(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/poster-drafts/" + req.route_params["draft_id"])
+
+
+@app.route(route="poster-drafts/{draft_id}/renders", methods=["POST"])
+def request_poster_render(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/poster-drafts/" + req.route_params["draft_id"] + "/renders")
+
+
+@app.route(route="poster-jobs/{job_id}", methods=["GET"])
+def read_poster_render(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/poster-jobs/" + req.route_params["job_id"])
+
+
+@app.route(route="poster-jobs/{job_id}/download", methods=["GET"])
+def download_poster_render(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/poster-jobs/" + req.route_params["job_id"] + "/download")
 
 
 @app.queue_trigger(arg_name="message", queue_name="retail-campaign-planning",
