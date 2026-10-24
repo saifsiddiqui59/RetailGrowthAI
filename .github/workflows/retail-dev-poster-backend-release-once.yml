@@ -79,10 +79,10 @@ jobs:
           timeout 120s supabase db push --linked --dry-run >"$RUNNER_TEMP/migrations.txt" 2>"$RUNNER_TEMP/migrations.err" || {
             echo "::error::Dry-run migrations rejected; no DDL applied"; exit 3;
           }
-          python3 - "$RUNNER_TEMP/migrations.txt" <<'PY'
+          python3 - "$RUNNER_TEMP/migrations.txt" "$RUNNER_TEMP/migrations.err" <<'PY'
           from pathlib import Path
           import re,sys
-          out=Path(sys.argv[1]).read_text()
+          out='\n'.join(Path(x).read_text() for x in sys.argv[1:])
           want={'20261024113000','20261024150000','20261024160000','20261024170000'}
           found=set(re.findall(r'2026\d{10}',out))
           if found!=want:
@@ -141,7 +141,7 @@ jobs:
           test -n "$key"
           echo "::add-mask::$key"
           az storage queue create --name retail-poster-render --account-name "$STORAGE" --account-key "$key" --output none
-          test "$(az storage queue exists --name retail-poster-render --account-name "$STORAGE" --account-key "$key" --query exists -o tsv)" = "True"
+          [ "$(az storage queue exists --name retail-poster-render --account-name "$STORAGE" --account-key "$key" --query exists -o tsv | tr '[:upper:]' '[:lower:]')" = "true" ]
           echo "PASS: dedicated queue in existing DEV Storage account; no new account or Function App"
       - name: Package pinned bounded FFmpeg and private Pillow poster engine
         shell: bash
