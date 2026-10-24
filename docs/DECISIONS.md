@@ -317,3 +317,10 @@
 ## 2026-10-24 — Background deployment and mobile compatibility
 - Retain one responsive browser-based SaaS on existing Free DEV SWA for desktop, iPhone and Android; neither a native app nor a PWA install requirement is introduced. CSS-only ambient background avoids image hosting, stock-license dependencies and new cloud costs.
 - Deploy Part 1 visual-only enhancement separately from Supabase Auth/backend via exact OIDC-guarded one-time existing-SWA workflow #186. Validate source/build, Free SKU and exact hostname, six public HTTPS SPA routes, and freshly served CSS; record that mocked viewport tests do not prove physical-device behavior.
+
+
+## 2026-10-24 — Owner notification and Super Admin parallel architecture
+- Keep email verification/recovery under Supabase Auth, and onboarding approval outcome/admin alerts as a **separate server-only transactional outbox**. Use project-specific TLS SMTP and identity, optional same sender mailbox address but `RetailGrowthAI` From display name/HTML; never reuse WineShopPOS app password or read its production secrets.
+- Sender OFF by default and migration source-only pending safe DEV migration review; fail closed if authentication, recipient confirmation, lease tokens or SMTP configuration are unavailable. SMTP guarantees at-least-once, not exactly-once, in ambiguous acknowledgement failures.
+- Super Admin `/platform-alerts` is not a persistent email inbox. Keep access behind existing database-verified platform-root authorization and drive only honest, read-only verified RPC counts with partial directory coverage disclosed; no browser service-role key or privileged write.
+- `Platform Control` adds page-only subscription warnings/search and reuses existing audited backend changes. No billing gateway, auto-renewals, fake system failure notifications or new paid infrastructure; main/main DEV deploy requires coordinator integration gates.
