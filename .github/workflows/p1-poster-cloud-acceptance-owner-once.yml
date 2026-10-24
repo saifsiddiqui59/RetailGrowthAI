@@ -1,0 +1,50 @@
+name: RetailGrowthAI DEV owner-authorized one-time cloud poster acceptance
+# Only this isolated test-branch workflow creation triggers a run. Never merge to main.
+# Owner expressly requested cloud poster generation and download in DEV.
+on:
+  push:
+    branches: [test/p1-poster-cloud-acceptance-20261024]
+    paths:
+      - '.github/workflows/p1-poster-cloud-acceptance-owner-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-live-canary
+  cancel-in-progress: false
+jobs:
+  poster:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/test/p1-poster-cloud-acceptance-20261024' && github.event.head_commit.message == 'test(dev): explicitly execute owner-authorized isolated poster acceptance once'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      RGAI_DEV_CANARY_APPROVAL: AUTHORIZED_RETAILGROWTHAI_DEV_ONLY
+      RGAI_DEV_ADMIN_FIXTURE_SEED: AUTHORIZED_OWNER_DEV_POSTER_ONLY
+      RGAI_DEV_POSTER_ONLY: '1'
+      RGAI_DEV_POSTER_ARTIFACT_DIR: ${{ runner.temp }}/poster-acceptance
+      RGAI_DEV_PLAYWRIGHT_UPLOAD: '0'
+      RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+      RGAI_DEV_PUBLISHABLE_KEY: sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify isolated release target and owner-approved test boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'saifsiddiqui59/RetailGrowthAI'
+          test "$GITHUB_REF" = 'refs/heads/test/p1-poster-cloud-acceptance-20261024'
+          test -n "${RGAI_DEV_SERVICE_KEY:-}"
+          test "$RGAI_DEV_ADMIN_FIXTURE_SEED" = 'AUTHORIZED_OWNER_DEV_POSTER_ONLY'
+          python3 -m py_compile tests/e2e/retail_dev_canary_once.py
+          echo 'PASS: bounded, original synthetic clothing image; no WineShopPOS, no PROD and no platform publishing'
+      - name: Execute actual authenticated retailer poster save, Azure worker, private PNG download and banner selection
+        run: python3 -u tests/e2e/retail_dev_canary_once.py
+      - name: Upload the actual DEV worker output PNG after successful private download and fixture cleanup
+        uses: actions/upload-artifact@v4
+        with:
+          name: retailgrowthai-real-dev-cloud-poster
+          path: ${{ runner.temp }}/poster-acceptance/retailgrowthai-dev-cloud-poster.png
+          retention-days: 7
+          if-no-files-found: error
