@@ -82,3 +82,7 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 ## 2026-10-24 — Media side effects require a durable exact job/claim intent
 - Video container creation, resumable upload session initialization, media_publish and final video upload each need independently persisted and lease-fenced state. Session URL ciphertext is private, never in public tables/API/queue. Out-of-order, repeated and foreign claim transitions fail closed; definitive provider remote receipt and job terminal status are one DB transaction; unknown responses require reconciliation rather than automatic replay.
 - This source-only session ledger cannot replace actual provider receipt verification or immobilize mutable Part1 Storage objects. Publish switches stay OFF pending verified app grants and rights-cleared immutable media handoff.
+
+## 2026-10-24 — Independent evidence required before social-video review
+- Media source DB authorization, Part1 finalized object SHA receipt, and separately validated commercial-rights clearance are three separate backend authorities. A browser digest or a mutable storage blob by itself cannot establish provenance. Source file is streamed privately, compared to the prior trusted SHA, FFprobed for H264/AAC, then stored under exact shop/job/revision CAS; incomplete evidence fails closed and only yields a non-publishable review state.
+- Publishing the returned MP4 is forbidden until final-byte integrity and immutable provider-readable media and remote receipt reconciliation are enforced; no live release flags change.
