@@ -1,0 +1,17 @@
+
+.subscription-health {margin:24px 0}
+.subscription-health-counts {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:20px 0}
+.subscription-health-counts > div {padding:15px;background:#f2f8f5;border:1px solid #e2eee7;border-radius:11px}
+.subscription-health-counts strong {display:block;font-size:24px;color:#195b4a}
+.subscription-health-counts span {display:block;color:#638274;font-size:11px;margin-top:3px}
+.subscription-health-coverage {font-size:12px;color:#687d89}
+.subscription-health-controls {display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}
+.subscription-health-controls label {display:grid;gap:6px;flex:1;min-width:170px;font-size:12px;font-weight:750}
+.subscription-health-controls select,.subscription-health-controls input {font:inherit;font-size:14px;padding:10px;border-radius:9px;border:1px solid #ccdad9;min-height:44px}
+.subscription-health-rows {display:grid;gap:8px}
+.subscription-health-row {display:flex;align-items:center;gap:16px;justify-content:space-between;flex-wrap:wrap;padding:13px 15px;border:1px solid #e0ebe8;border-radius:11px}
+.subscription-health-row > div {min-width:150px;flex:1}
+.subscription-health-row strong,.subscription-health-row small {display:block;overflow-wrap:anywhere}
+.subscription-health-row small,.subscription-health-row span {font-size:12px;color:#718590}
+.subscription-health-row .subtle-button {border:1px solid #bfd6d0;border-radius:9px;padding:10px 12px;background:#f3faf7;color:#17614f;font:inherit;font-weight:750;cursor:pointer}
+@media(max-width:760px){.subscription-health-counts{grid-template-columns:repeat(2,minmax(0,1fr))}.subscription-health-row>div{min-width:100%}}

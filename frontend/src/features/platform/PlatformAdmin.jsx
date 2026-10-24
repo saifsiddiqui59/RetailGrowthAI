@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
+import SubscriptionHealthPanel from './SubscriptionHealthPanel.jsx'
 
 const EMPTY = { retailers: null, trial_shops: null, active_paid_shops: null,
   expired_or_suspended: null, campaigns: null, reels_completed: null }
@@ -249,6 +250,8 @@ export default function PlatformAdmin() {
         </div>)}
       </>}
     </section>
+    <SubscriptionHealthPanel shops={shops} total={total} offset={offset}
+      loading={loading} error={error} onManage={beginEdit} />
     <section className="panel">
       <div className="panel-heading">
         <div><div className="eyebrow">TENANT DIRECTORY</div><h2>Retailer accounts</h2></div>
