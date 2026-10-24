@@ -15,6 +15,11 @@ SHOP = "0753c503-ce7f-4544-b8fe-609444ebf068"
 ASSET = "019ba3fa-96ed-4b73-8f2a-6108ab317d9b"
 PATH = SHOP + "/uploads/8b38cd1a-4be0-4ceb-b438-cdc937d6f1ef.png"
 
+@pytest.fixture(autouse=True)
+def fake_approval(monkeypatch):
+    # Unit-only approval string; subprocess is mocked, no hosted or browser calls.
+    monkeypatch.setenv("RGAI_DEV_CANARY_APPROVAL", "AUTHORIZED_RETAILGROWTHAI_DEV_ONLY")
+
 def fake_completed(stdout, returncode=0):
     return subprocess.CompletedProcess(args=["node"], returncode=returncode, stdout=stdout, stderr="")
 
