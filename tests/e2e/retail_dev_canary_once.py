@@ -803,6 +803,19 @@ def main():
               capture_output=True,text=True,timeout=35,check=True)
             result=json.loads(p.stdout)
             validate_private_reel_ffprobe(result)
+            # Artifact is opt-in ONLY for the existing protected manual DEV
+            # browser-upload canary. Keep the approved synthetic cloud MP4
+            # bytes after actual signed download + codec proof, independently
+            # of exact database/storage fixture cleanup in finally.
+            artifact_dir=os.environ.get("RGAI_DEV_VIDEO_ARTIFACT_DIR")
+            if artifact_dir:
+                if artifact_dir!="output/video-acceptance":
+                    raise RuntimeError("Untrusted DEV video artifact destination")
+                from pathlib import Path
+                output=Path(artifact_dir)
+                output.mkdir(parents=True,exist_ok=True)
+                (output/"retailgrowthai-dev-cloud-reel.mp4").write_bytes(data)
+                print("CANARY_REAL_CLOUD_REEL_ARTIFACT_READY=true",flush=True)
         print("CANARY_PRIVATE_30S_H264_MP4_VERIFIED=true",flush=True)
         print("CANARY_PRIVATE_30S_H264_AAC_MP4_VERIFIED=true",flush=True)
         status="PASSED"
