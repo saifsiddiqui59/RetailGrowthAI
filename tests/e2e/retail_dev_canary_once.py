@@ -344,7 +344,7 @@ def main():
             raise RuntimeError("Poster signed URL is not in private RetailGrowthAI storage")
         with urllib.request.urlopen(poster_url["url"],timeout=40) as res:
             png=res.read(16*1024*1024+1)
-        if len(png)>16*1024*1024 or not png.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+        if len(png)>16*1024*1024 or not png.startswith(b"\x89PNG\r\n\x1a\n"):
             raise RuntimeError("Generated poster is not a bounded PNG")
         width,height=struct.unpack(">II",png[16:24])
         if (width,height)!=(1080,1350):
