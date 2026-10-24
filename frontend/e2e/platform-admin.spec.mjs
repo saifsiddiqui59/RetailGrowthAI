@@ -182,3 +182,29 @@ test('unapproved shop user sees pending notice and not Create business action', 
   await expect(page.getByRole('heading',{name:'Retailer access request: PENDING'})).toBeVisible()
   await expect(page.getByRole('button',{name:'Create business'})).toHaveCount(0)
 })
+
+
+test('only root can open notifications; pending registrations and expiry are actionable snapshots', async ({ page }) => {
+  const calls = await loginAs(page,'ROOT')
+  await page.route(SUPABASE + '/rest/v1/rpc/retail_platform_onboarding_requests', route =>
+    fulfill(route,[{user_id:'f1000000-0000-4000-8000-000000000009',
+      email:'pending@example.invalid',status:'PENDING',requested_at:'2026-10-24T10:00:00Z'}]))
+  await page.goto('/platform-alerts')
+  await expect(page.getByRole('heading',{name:'Notifications & alerts'})).toBeVisible()
+  await expect(page.getByText('pending@example.invalid')).toBeVisible()
+  await expect(page.getByText('Retailer waiting for approval')).toBeVisible()
+  await expect(page.getByText(/not a persistent message inbox/)).toBeVisible()
+  await page.getByRole('button',{name:'Action required'}).click()
+  await expect(page.getByText('Delivery and cloud failure alerts are not connected')).toHaveCount(0)
+  await page.getByRole('link',{name:'Review retailer'}).click()
+  await expect(page).toHaveURL(/\/platform-admin$/)
+  expect(calls.some(x=>x.path==='/rest/v1/rpc/retail_platform_summary')).toBe(true)
+})
+test('non-root cannot open notifications or make platform alert data requests',async ({ page })=>{
+  const calls=await loginAs(page,'OWNER')
+  await page.goto('/platform-alerts')
+  await expect(page.getByRole('heading',{name:'Platform access denied'})).toBeVisible()
+  await expect(page.getByRole('navigation',{name:'Main navigation'})
+    .getByRole('link',{name:'Notifications'})).toHaveCount(0)
+  expect(calls.filter(x=>x.path==='/rest/v1/rpc/retail_platform_onboarding_requests')).toHaveLength(0)
+})
