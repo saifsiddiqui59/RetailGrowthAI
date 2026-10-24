@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: f5ae3497e67b5adebb0ee40c8fc5f1b81baa25f6
+          ref: caa34f249f2b02a4bd1a1dcbe04ef31b17b95db1
           persist-credentials: false
       - name: Pin isolated synthetic fixture and fail closed for wrong DEV target
         shell: bash
@@ -39,7 +39,7 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REPOSITORY" = "saifsiddiqui59/RetailGrowthAI"
           test "$GITHUB_REF" = "refs/heads/main"
-          test "$(git rev-parse HEAD)" = "f5ae3497e67b5adebb0ee40c8fc5f1b81baa25f6"
+          test "$(git rev-parse HEAD)" = "caa34f249f2b02a4bd1a1dcbe04ef31b17b95db1"
           test -n "${RGAI_DEV_SERVICE_KEY:-}"
           python3 -m py_compile tests/e2e/retail_dev_canary_once.py
           echo "PASS: actual temporary retailer JWT, existing ROOT approval and tenant ownership RLS; no WineShopPOS or customer dataset"
