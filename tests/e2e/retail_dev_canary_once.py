@@ -224,6 +224,23 @@ def main():
                 method="POST",payload={"email":email,"password":password},
                 headers={"apikey":pub},expect=(200,))
             bearer={"apikey":pub,"Authorization":"Bearer "+auth["access_token"]}
+            # RetailGrowthAI requires SaaS ROOT approval before a retailer may
+            # create a shop. The connected DEV operator explicitly approves
+            # ONLY the two newly created example.invalid canary requests.
+            # No test-only auth bypass, privileged browser secret or gate flip.
+            for approval_attempt in range(75):
+                _,onboarding=call(SUPABASE+"/rest/v1/rpc/retail_onboarding_status",
+                    method="POST",payload={},headers=bearer,expect=(200,))
+                if onboarding.get("status")=="APPROVED":
+                    print("CANARY_OPERATOR_APPROVAL_VERIFIED=true",flush=True)
+                    break
+                if onboarding.get("status")!="PENDING":
+                    raise RuntimeError("Temporary retailer onboarding was rejected")
+                if approval_attempt==0:
+                    print("CANARY_WAITING_FOR_EXPLICIT_DEV_OPERATOR_APPROVAL=true",flush=True)
+                time.sleep(4)
+            else:
+                raise RuntimeError("DEV test fixture was not approved by authorized operator")
             sid=str(uuid.uuid4())
             # Register for cleanup BEFORE attempting an insert: a partial
             # commit/network failure must not leave an untracked test shop.
