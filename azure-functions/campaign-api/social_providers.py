@@ -5,7 +5,7 @@ entitlement, connected account scopes, and a durable idempotency record BEFORE
 calling these helpers. Ambiguous provider writes must not be blindly retried.
 """
 from dataclasses import dataclass, field
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 import re
 
 
@@ -51,16 +51,46 @@ def _graph_version(value):
     return value
 
 
+_UUID_PATH = (r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
+              r"[0-9a-f]{4}-[0-9a-f]{12}")
+_EXPORT_PATH = re.compile(
+    r"/storage/v1/object/sign/retailgrowth-social-exports/"
+    + _UUID_PATH + r"/video/" + _UUID_PATH
+    + r"/[1-9][0-9]{0,7}/[0-9a-f]{64}\\.mp4\\Z"
+)
+
+
 def private_media_url(url, supabase_origin):
-    """Only backend-issued signed tenant media URLs, never arbitrary external URLs."""
-    if not isinstance(url, str) or not isinstance(supabase_origin, str):
-        raise ProviderRejected("missing private media URL")
-    a, b = urlsplit(url), urlsplit(supabase_origin)
-    if (a.scheme != "https" or b.scheme != "https" or
-        a.netloc != b.netloc or a.username or a.password or a.fragment or
-        not a.path.startswith("/storage/v1/object/sign/retailgrowth-media/") or
-        not a.query or len(url) > 3500):
-        raise ProviderRejected("private media URL is not issued by this tenant store")
+    """Only an immutable P2 export signed URL, never editable P1 media.
+
+    This validates URL *shape* only. The trusted worker must still verify the
+    bytes/sha and signed token expiry and bind the export to a CAS-approved job
+    before passing the URL here. A syntactically valid URL is not a grant.
+    """
+    if (not isinstance(url, str) or not isinstance(supabase_origin, str)
+            or len(url) > 3500 or url != url.strip()
+            or any(ord(c) <= 32 or ord(c) == 127 for c in url)):
+        raise ProviderRejected("untrusted outbound media URL")
+    try:
+        a, b = urlsplit(url), urlsplit(supabase_origin)
+        token_pairs = parse_qsl(a.query, keep_blank_values=True,
+                                strict_parsing=True)
+        # The final path must be from a dedicated append-only service bucket.
+        valid = (a.scheme == b.scheme == "https"
+            and a.netloc == b.netloc and b.hostname is not None
+            and b.port in (None, 443)
+            and not a.username and not a.password
+            and not b.username and not b.password
+            and b.path in ("", "/") and not b.query and not b.fragment
+            and not a.fragment
+            and _EXPORT_PATH.fullmatch(a.path) is not None
+            and len(token_pairs) == 1 and token_pairs[0][0] == "token"
+            and re.fullmatch(r"[A-Za-z0-9._~=-]{16,2400}",
+                             token_pairs[0][1]) is not None)
+    except (ValueError, TypeError):
+        valid = False
+    if not valid:
+        raise ProviderRejected("untrusted outbound media URL")
     return url
 
 
