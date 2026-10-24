@@ -124,7 +124,8 @@ def call(url, method="GET", payload=None, headers=None, timeout=30, expect=(200,
     if status not in expect:
         # A pre-handler gateway 5xx is an uncertain write. No generic retry.
         if (method == "PATCH" or (method == "POST" and
-                "/api/campaigns/" in url and url.endswith("/renders"))) and \
+                "/api/campaigns/" in url and url.endswith("/renders")) or
+                (method == "POST" and url.endswith("/posters")) and \
                 status in (502,503,504) and source == "gateway_or_supabase":
             raise TransientGateway("Transient pre-handler PATCH response")
         # Only report server-defined error codes (e.g. 42501/PGRST***).
@@ -327,9 +328,40 @@ def main():
             "business_name":"RetailGrowthAI Canary Boutique",
             "accent_color":"#446677","background_color":"#F8F8F2",
         }
-        _,pcreated=call(API+"/api/campaigns/"+cid+"/posters",method="POST",
-            payload=poster_payload,headers=a,expect=(201,))
-        poster_id=pcreated["poster_id"]
+        # Azure may time out after SQL has committed the idempotent draft.
+        # Read only our RLS-scoped saved designs BEFORE any identical retry.
+        # Never retry a different design or an ambiguous persisted result.
+        def persisted_poster():
+            _,rows=call(API+"/api/campaigns/"+cid+"/days/"+day["id"]+"/posters",
+                headers=a,expect=(200,))
+            matches=[p for p in rows.get("posters",[]) if
+                p.get("source_asset_id")==asset and
+                p.get("business_name")==poster_payload["business_name"] and
+                p.get("template")==poster_payload["template"] and
+                p.get("format")==poster_payload["format"] and
+                p.get("accent_color")==poster_payload["accent_color"] and
+                p.get("background_color")==poster_payload["background_color"]]
+            if len(matches)>1:
+                raise RuntimeError("Ambiguous persisted poster after uncertain POST")
+            return matches[0]["poster_id"] if matches else None
+        poster_id=None
+        for attempt in range(3):
+            try:
+                _,pcreated=call(API+"/api/campaigns/"+cid+"/posters",method="POST",
+                    payload=poster_payload,headers=a,timeout=100,expect=(201,))
+                poster_id=pcreated["poster_id"]
+                break
+            except (TimeoutError,ConnectionResetError,TransientGateway):
+                poster_id=persisted_poster()
+                if poster_id:
+                    print("CANARY_POSTER_POST_RECONCILED_AFTER_TIMEOUT=true",flush=True)
+                    break
+                if attempt==2:
+                    raise RuntimeError("Poster save did not commit after bounded readback")
+                print("CANARY_POSTER_SAFE_IDENTICAL_RETRY="+str(attempt+1),flush=True)
+                time.sleep(5*(attempt+1))
+        if not poster_id:
+            raise RuntimeError("Missing verified private poster draft ID")
         print("CANARY_POSTER_SAVED=true",flush=True)
         _,foreign_poster=call(API+"/api/poster-drafts/"+poster_id,
             headers=b,expect=(403,404))
