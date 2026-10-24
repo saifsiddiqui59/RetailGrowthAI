@@ -1,0 +1,94 @@
+name: RetailGrowthAI DEV owner-approved one-time LIVE cloud 30-second Reel acceptance
+# Single-use, explicit owner instruction (2026-10-24): complete Part 1 real
+# hosted FFmpeg video. Existing protected dev Environment and onboarding ROOT
+# approval are MANDATORY. Never enable synthetic-user approval bypass.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p1-dev-owner-cloud-reel-acceptance-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-live-canary
+  cancel-in-progress: false
+jobs:
+  actual-cloud-reel:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'test(dev): owner approves one REAL RetailGrowthAI cloud Reel acceptance')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    env:
+      RGAI_DEV_CANARY_APPROVAL: AUTHORIZED_RETAILGROWTHAI_DEV_ONLY
+      RGAI_DEV_PLAYWRIGHT_UPLOAD: '1'
+      RGAI_DEV_VIDEO_ARTIFACT_DIR: output/video-acceptance
+      RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+      RGAI_DEV_PUBLISHABLE_KEY: sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Scope owner-approved canary to existing DEV only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "saifsiddiqui59/RetailGrowthAI"
+          test "$GITHUB_REF" = "refs/heads/main"
+          test -n "${RGAI_DEV_SERVICE_KEY:-}"
+          grep -Fq 'preflight_dev_http_auth_routes()' tests/e2e/retail_dev_canary_once.py
+          grep -Fq 'CANARY_PRIVATE_30S_H264_AAC_MP4_VERIFIED=true' tests/e2e/retail_dev_canary_once.py
+          grep -Fq 'CANARY_TEMP_FIXTURES_CLEANUP=' tests/e2e/retail_dev_canary_once.py
+          grep -Fq 'RGAI_DEV_VIDEO_ARTIFACT_DIR' tests/e2e/retail_dev_canary_once.py
+          python3 -m py_compile tests/e2e/retail_dev_canary_once.py
+          echo "ONE_SHOT_OWNER_DEV_BROWSER_REEL_SCOPE_OK=true"
+      - name: Install real Chromium and ffprobe for signed cloud media verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix frontend/e2e ci --no-audit --no-fund || npm --prefix frontend/e2e install --no-audit --no-fund
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'http://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+            sudo sed -i 's#http://azure.archive.ubuntu.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' /etc/apt/sources.list.d/ubuntu.sources
+          fi
+          timeout 420s ./frontend/e2e/node_modules/.bin/playwright install --with-deps chromium
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            timeout 180s sudo apt-get update -qq
+            timeout 360s sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ffmpeg
+          fi
+          ffprobe -version | head -n 1
+      - name: Verify existing DEV ingress can return protected 401 before creating accounts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import importlib.util
+          spec=importlib.util.spec_from_file_location("rg_canary", "tests/e2e/retail_dev_canary_once.py")
+          mod=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+          mod.preflight_dev_http_auth_routes()
+          print("ONE_SHOT_DEV_GATEWAY_BEFORE_FIXTURES_PASSED=true",flush=True)
+          PY
+      - name: Generate actual first-party licensed image, signed-in campaign and cloud H264 AAC Reel
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u tests/e2e/retail_dev_canary_once.py
+      - name: Preserve genuine verified signed private MP4 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retailgrowthai-real-dev-cloud-30s-reel-owner-accepted
+          path: output/video-acceptance/retailgrowthai-dev-cloud-reel.mp4
+          retention-days: 7
+          if-no-files-found: warn
