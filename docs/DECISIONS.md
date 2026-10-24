@@ -275,3 +275,7 @@
 ## 2026-10-24 — Part 3 strict media receipt and offline-only probe
 - An imported premium media asset may be finalized ONLY when the actual returned storage path equals `{shop_uuid}/renders/{job_uuid}/{lease_uuid}.mp4`; a shared prefix alone is inadequate. Never report success for a forged object path, even if the media transport upload returned success.
 - Always set the `file`-only FFprobe protocol whitelist when inspecting externally generated MP4; provider output is untrusted data. All premium media remains privately stored, with short-lived, authenticated RetailGrowthAI download links and no direct vendor URL to browsers.
+
+## 2026-10-24 — Premium cancellation is provable only before provider submission
+- Cancellation can automatically release a **premium reservation**, not customer money, only through one database transaction that wins the race against the job's durable `QUEUED → SUBMITTING` CAS, rechecks active tenant write membership, and proves provider submission never started. The receipt must prove exact job/shop, `CANCELED`, no provider task, and ledger credit release. A lost race or partial receipt is a 409/503, never an asserted refund.
+- Once SUBMITTING, PENDING, RUNNING, IMPORTING, UNKNOWN, FAILED or SUCCEEDED, cancellation and any credit reconciliation require reviewed provider usage evidence; never blind POST retry or refund. Source-only boundary remains disabled until a tested service-role SQL RPC is wired. FFmpeg and the existing subscriptions ledger remain authoritative.
