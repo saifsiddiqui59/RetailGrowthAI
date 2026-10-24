@@ -680,7 +680,10 @@ export default function CampaignDashboard() {
       </section>
       {(!client.configured || (shopId && shops.some(shop => shop.id === shopId))) && (
         <PosterStudio key={shopId || 'demo'} day={day}
-          businessName={shops.find(shop => shop.id === shopId)?.name || 'Your business'} />
+          businessName={shops.find(shop => shop.id === shopId)?.name || 'Your business'}
+          api={api} campaignId={campaignId} authorizedAssets={assets}
+          persisted={Boolean(loaded && !changed && !savingDay)}
+          supabaseOrigin={import.meta.env?.VITE_SUPABASE_URL || ''} />
       )}
       {notice && <p className="rg-session-notice" role="status">{notice}</p>}
       <p className="rg-footnote">{loaded
