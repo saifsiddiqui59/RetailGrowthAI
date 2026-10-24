@@ -21,14 +21,14 @@ _ROUTES = (
     ("POST", rf"/campaigns/{_UUID}/renders", "reel.create"),
     ("GET", rf"/render-jobs/{_UUID}", "reel.status"),
     ("GET", rf"/render-jobs/{_UUID}/download", "reel.download"),
-    ("GET", rf"/campaigns/{_UUID}/posters", "poster.list"),
+    ("GET", rf"/campaigns/{_UUID}/days/{_UUID}/posters", "poster.list"),
     ("POST", rf"/campaigns/{_UUID}/posters", "poster.draft.create"),
     ("GET", rf"/poster-drafts/{_UUID}", "poster.draft.read"),
     ("PATCH", rf"/poster-drafts/{_UUID}", "poster.draft.save"),
     ("POST", rf"/poster-drafts/{_UUID}/renders", "poster.render.create"),
     ("GET", rf"/poster-jobs/{_UUID}", "poster.status"),
     ("GET", rf"/poster-jobs/{_UUID}/download", "poster.download"),
-    ("POST", rf"/poster-jobs/{_UUID}/select", "poster.select"),
+    ("POST", rf"/poster-drafts/{_UUID}/select", "poster.select"),
     ("GET", r"/creative/templates", "poster.templates"),
 )
 _METHODS = frozenset({"GET", "HEAD", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"})
