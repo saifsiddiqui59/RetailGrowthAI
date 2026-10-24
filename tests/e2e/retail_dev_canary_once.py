@@ -102,6 +102,41 @@ def reconcile_poster_job(rows, *, shop_id, poster_id, requested_by, revision):
     return jid
 
 
+def reconcile_poster_banner_selection(campaign, *, shop_id, campaign_id,
+                                      day_id, expected_instagram, asset_id):
+    """Interpret an uncertain banner-select POST from fresh authenticated GET.
+
+    The SQL selection function performs an optimistic compare-and-swap using
+    expected_instagram. Only an unchanged, exact same-shop/day DRAFT can
+    authorize a bounded identical retry; any other divergence fails closed.
+    """
+    if not isinstance(expected_instagram, dict) or not isinstance(campaign, dict):
+        raise RuntimeError("Untrusted poster selection readback")
+    if (campaign.get("id") != campaign_id
+        or campaign.get("shop_id") != shop_id
+        or campaign.get("status") != "DRAFT"
+        or not isinstance(campaign.get("days"), list)):
+        raise RuntimeError("Foreign or stale poster selection campaign")
+    days = [d for d in campaign["days"] if isinstance(d, dict)
+            and d.get("id") == day_id]
+    if len(days) != 1:
+        raise RuntimeError("Missing or duplicate poster selection day")
+    selected_day = days[0]
+    if (selected_day.get("shop_id") != shop_id
+        or selected_day.get("campaign_id") != campaign_id
+        or selected_day.get("review_status") != "DRAFT"):
+        raise RuntimeError("Foreign or non-draft poster selection day")
+    observed = selected_day.get("instagram")
+    if not isinstance(observed, dict) or not isinstance(asset_id, str):
+        raise RuntimeError("Invalid poster selection readback fields")
+    desired = {**expected_instagram, "banner_asset_id": asset_id}
+    if observed == desired:
+        return "COMMITTED"
+    if observed == expected_instagram:
+        return "UNCHANGED"
+    raise RuntimeError("Concurrent poster selection edit; no write retry")
+
+
 SUPABASE = "https://jeearzffnjbvghwjjjrf.supabase.co"
 API = "https://rgai-dev-functions-d4e5ddbd.azurewebsites.net"
 def api_key_headers(key):
@@ -151,7 +186,9 @@ def call(url, method="GET", payload=None, headers=None, timeout=30, expect=(200,
         if ((method == "PATCH") or
                 (method == "POST" and (
                     ("/api/campaigns/" in url and url.endswith("/renders"))
-                    or url.endswith("/posters")))) and \
+                    or url.endswith("/posters")
+                    or (url.startswith(API + "/api/poster-drafts/")
+                        and url.endswith("/select"))))) and \
                 status in (502,503,504) and source == "gateway_or_supabase":
             raise TransientGateway("Transient pre-handler write response")
         # Only report server-defined error codes (e.g. 42501/PGRST***).
@@ -571,13 +608,54 @@ def main():
                 raise RuntimeError("Poster generated incorrect portrait dimensions")
             print("CANARY_PRIVATE_POSTER_PNG_VERIFIED=true",flush=True)
             expected_instagram=saved["day"]["instagram"]
-            _,chosen=call(API+"/api/poster-drafts/"+poster_id+"/select",method="POST",
-                payload={"expected_instagram":expected_instagram},headers=a,expect=(200,))
-            if chosen.get("banner_asset_id")!=poster_done["output_asset_id"]:
-                raise RuntimeError("Approved poster output not attached")
-            live_day=next(x for x in getcampaign()["days"] if x["id"]==day["id"])
-            if live_day["instagram"].get("banner_asset_id")!=poster_done["output_asset_id"]:
-                raise RuntimeError("Selected poster banner not durably saved")
+            poster_asset_id=poster_done["output_asset_id"]
+            banner_result=None
+            # The Azure gateway may lose the response even when SQL commits.
+            # Verify exact owned DRAFT state from authenticated API GET before
+            # retrying the same optimistic-CAS payload. Never blindly replay.
+            for attempt in range(3):
+                try:
+                    _,chosen=call(API+"/api/poster-drafts/"+poster_id+"/select",
+                        method="POST",payload={"expected_instagram":expected_instagram},
+                        headers=a,timeout=100,expect=(200,))
+                    if chosen.get("poster_id")!=poster_id or (
+                            chosen.get("banner_asset_id")!=poster_asset_id):
+                        raise RuntimeError("Unexpected poster banner selection response")
+                    banner_result="COMMITTED"
+                    break
+                except (TimeoutError, ConnectionResetError, TransientGateway):
+                    banner_result=reconcile_poster_banner_selection(
+                        getcampaign(),shop_id=shops[0],campaign_id=cid,
+                        day_id=day["id"],expected_instagram=expected_instagram,
+                        asset_id=poster_asset_id)
+                    if banner_result=="COMMITTED":
+                        print("CANARY_POSTER_SELECTION_RESPONSE_RECONCILED=true",
+                              flush=True)
+                        break
+                    if attempt==2:
+                        raise RuntimeError("Poster selection not committed after bounded CAS readback")
+                    print("CANARY_POSTER_SELECTION_SAFE_CAS_RETRY="+str(attempt+1),
+                          flush=True)
+                    time.sleep(5*(attempt+1))
+                except RuntimeError as exc:
+                    if "DEV HTTP 409 " not in str(exc):
+                        raise
+                    banner_result=reconcile_poster_banner_selection(
+                        getcampaign(),shop_id=shops[0],campaign_id=cid,
+                        day_id=day["id"],expected_instagram=expected_instagram,
+                        asset_id=poster_asset_id)
+                    if banner_result!="COMMITTED":
+                        raise
+                    print("CANARY_POSTER_SELECTION_CAS_CONFLICT_RECONCILED=true",
+                          flush=True)
+                    break
+            if banner_result!="COMMITTED":
+                raise RuntimeError("Poster selection has no verified committed result")
+            if reconcile_poster_banner_selection(
+                    getcampaign(),shop_id=shops[0],campaign_id=cid,
+                    day_id=day["id"],expected_instagram=expected_instagram,
+                    asset_id=poster_asset_id)!="COMMITTED":
+                raise RuntimeError("Poster banner not durably saved to exact day")
             print("CANARY_POSTER_BANNER_ATTACHED=true",flush=True)
         else:
             print("CANARY_BROWSER_POSTER_NOT_REQUESTED=true", flush=True)
