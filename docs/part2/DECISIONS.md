@@ -70,3 +70,7 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 ## 2026-10-24 — Service-owned byte and FFprobe preflight, separate from rights approval
 - The media profile for initial 30-second Reel/Shorts eligibility must derive from backend-owned private bytes and a real bounded FFprobe subprocess; never accept client-supplied codec/length JSON or source SHA as verification. Require a previously established trusted storage receipt hash and check file stability around probe. Reject additional unsupported tracks and out-of-root paths.
 - This preparatory module is not callable from authenticated API or an active publish worker, and cannot self-attest commercial rights. An independent explicit license review and job-bound transaction must remain required before enabling any Instagram/YouTube approval.
+
+## 2026-10-24 — Atomic release of unsent social publish quota
+- An authorized cancellation of a `DRAFT` or pre-send `APPROVED`/`QUEUED`/`RETRYABLE` job is serialized on the job row, with shop subscription locking for a previously reserved unit. The status change, private quota-ledger release and sanitized audit all commit together. Never refund an active attempt or anything that may have reached a provider, even if the UI says cancel.
+- No default publishing caps are introduced: the plan limits table remains empty until a separately approved operator value is supplied. Source-only migration is ordered after P2 draft revision; no hosted changes.
