@@ -334,3 +334,8 @@
 ## 2026-10-24 — Fail-closed packaged poster worker and DEV rollout policy
 - The Azure Functions release archive is authoritative; source CI alone is insufficient. Package `poster-engine/render.py` at the repository-root-relative path expected by `poster_worker.py`, and reject deployment ZIPs missing either worker or poster engine. Preserve fixed Function timeout, raw UUID queue encoding, bounded retries, and existing FFmpeg source.
 - Do not enable poster draft/render API or worker until the exact RetailGrowthAI DEV schema migration sequence, recovery evidence, existing-region queue and properly indexed deployed Functions have been verified. Existing Free SWA deployment remains valid; private cloud render is a separate stage. Keep SMTP and Wan/publishing disabled by default. Document operator gates in `docs/part1/POSTER_DEV_RELEASE_GATE.md`.
+
+## 2026-10-24 — Owner-approved outbound-email deferral
+- Do not deploy SMTP providers, activate `RETAIL_NOTIFICATIONS_ENABLED`, activate an email delivery job or apply its outbox migration as a mail feature, copy/recover WineShopPOS credentials or solicit passwords during the current development phase.
+- Retain approved, audited in-app onboarding decisions and root-only read-only notification snapshots as the default notifications. Preserve branded email source for a separate later rollout requiring explicit owner authorization, credentials and delivery testing.
+- Prioritize working Part 1 poster DEV release/hosted verification and Part 2/3 non-email work instead.
