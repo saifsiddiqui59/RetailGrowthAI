@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
-import { PLAN_LIMITS, presentSubscription } from './plan-display.mjs'
+import { PLAN_LIMITS, presentSubscription, subscriptionNotice } from './plan-display.mjs'
 
 const INITIAL_USAGE = { campaign: null, render: null }
 const CANDIDATES = ['STARTER', 'GROWTH', 'BUSINESS']
@@ -125,6 +125,7 @@ export default function SubscriptionPage() {
               <div><span>Usage period ends</span><strong>{formatDate(summary.periodEnd)}</strong></div>
             </div>
           </div>
+          {subscriptionNotice(summary) && <p role={subscriptionNotice(summary).level === 'alert' ? 'alert' : 'status'} className="plan-fineprint">{subscriptionNotice(summary).text}</p>}
           <h3>Current usage · this billing period</h3>
           <Meter label="Campaign jobs" meter={summary.meters.campaign} />
           <Meter label="Video render jobs" meter={summary.meters.render} />
