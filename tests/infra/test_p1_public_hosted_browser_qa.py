@@ -28,7 +28,6 @@ def test_no_tenant_auth_write_mutation_or_backend_configuration():
     for forbidden in (
         "az functionapp", "az staticwebapp", "azure/login",
         "supabase db push", "apply_migration",
-        "RGAI_DEV_SERVICE_KEY", "RETAIL_SUPABASE_SERVICE_ROLE_KEY",
         "workflow_dispatch","create account and submit",
     ):
         assert forbidden not in flow,forbidden
@@ -38,4 +37,7 @@ def test_no_tenant_auth_write_mutation_or_backend_configuration():
         "getByRole('button', { name: 'Create your account' }).click()",
     ):
         assert forbidden not in script,forbidden
+    # The workflow intentionally scans for privileged variable names; this
+    # denylist is not a credential lookup or environment export.
+    assert "! grep -Eq 'RGAI_DEV_SERVICE_KEY|RETAIL_SUPABASE_SERVICE_ROLE_KEY" in flow
     assert "baseURL" not in script or "example.com" not in script
