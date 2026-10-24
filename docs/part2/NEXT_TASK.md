@@ -173,3 +173,8 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 ## Signed export writer integration pending
 - Confirm exact feature and integration branch four-job CI for the off-by-default media exporter. Backend `claim_authority.allow_export` must be implemented by a service-role RPC rechecking active approved video job, rights expiry, grant, quota, source SHA, scheduled/revision fence and outbound lease just before both copy and signing. A generic boolean request parameter or browser role is unacceptable.
 - Activate only after explicit hosted P2 migrations + billing/quota caps + OAuth provider app consent, real media rights and Azure queue/poison tests, and Meta/YouTube receipt reconciliation. Browser never receives exporter credential, signed URL or provider token.
+
+## Active video claim/export authorization remaining bridge
+- Verify feature exact-head 4/4 CI, internal PR merge and post-merge branch CI. Claim-CAS backend authority is now available as a source-only component for the existing disabled export writer.
+- Still must connect finalized P1 render SHA receipt production at trusted render completion, independently reviewed rights evidence, job/media/revision approval, optional provider-fetchable immutable export upload, and the provider-specific remote session state/receipt through a real tested Azure worker. The current live worker deliberately remains TEXT-ONLY; video approval hard-deny stays.
+- Real provider OAuth app grants, licensed test accounts, plan caps, P2 hosted migrations and Azure release/real posts must be verified before enabling anything. Final Coordinator reconciles advancing Part1 main and opens final merged Part2 release.
