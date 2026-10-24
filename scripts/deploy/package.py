@@ -17,6 +17,7 @@ from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 ROOT = Path(__file__).resolve().parents[2]
 SERVICE = ROOT / "azure-functions" / "campaign-api"
 RENDER = ROOT / "video-engine"
+POSTER = ROOT / "poster-engine"
 AGENTS = ROOT / "ai-agents" / "src" / "ai_agents"
 TIMESTAMP = (2026, 1, 1, 0, 0, 0)
 MAX_BINARY_BYTES = 180 * 1024 * 1024
@@ -76,6 +77,7 @@ def source_files():
         SERVICE / "function_app.py", SERVICE / "render_worker.py",
         SERVICE / "requirements.txt", SERVICE / "host.json",
         RENDER / "render.py", RENDER / "probe.py",
+        POSTER / "render.py",
         AGENTS / "__init__.py", AGENTS / "schemas.py",
         AGENTS / "providers.py", AGENTS / "planner.py", AGENTS / "reviewer.py",
     ]
@@ -83,7 +85,7 @@ def source_files():
         if not path.is_file():
             raise ValueError("Required source missing: " + str(path.relative_to(ROOT)))
     entries = {}
-    for folder in (SERVICE, RENDER):
+    for folder in (SERVICE, RENDER, POSTER):
         for path in sorted(folder.glob("*.py")):
             entries[path.relative_to(ROOT).as_posix()] = path.read_bytes()
     for path in sorted(AGENTS.glob("*.py")):
@@ -140,7 +142,9 @@ def verify_zip(path: Path):
         required = {
             "function_app.py", "requirements.txt", "host.json",
             "ai_agents/schemas.py", "azure-functions/campaign-api/render_worker.py",
-            "video-engine/render.py", "bin/ffmpeg", "bin/ffprobe",
+            "video-engine/render.py", "poster-engine/render.py",
+            "azure-functions/campaign-api/poster_worker.py",
+            "bin/ffmpeg", "bin/ffprobe",
             "bin/THIRD_PARTY_NOTICES.txt",
         }
         if not required.issubset(names):
@@ -207,6 +211,7 @@ def main(argv=None):
     if args.check:
         assert "azure-functions/campaign-api/render_worker.py" in entries
         assert "video-engine/render.py" in entries
+        assert "poster-engine/render.py" in entries
         assert "ai_agents/schemas.py" in entries
         print("PASS: source layout, import wrapper, queue settings and lease/timeout checks; no cloud calls")
         return 0
