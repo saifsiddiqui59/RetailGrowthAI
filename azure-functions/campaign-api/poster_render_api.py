@@ -47,3 +47,22 @@ class PosterRenderAPI:
         if not asset["object_path"].startswith(expected):
             return 404, {"error": "OUTPUT_NOT_FOUND"}
         return 200, {"url": self.users.sign_download(token, sid, asset["object_path"])}
+
+
+    def select(self, token, user_id, poster_id, body):
+        pid = canonical_uuid(poster_id)
+        if not isinstance(body, dict) or set(body) != {"expected_instagram"}:
+            return 400, {"error": "INVALID_REQUEST"}
+        expected = body["expected_instagram"]
+        if not isinstance(expected, dict):
+            return 400, {"error": "INVALID_REQUEST"}
+        draft = self.users.poster_draft(token, user_id, pid)
+        if draft is None:
+            return 404, {"error": "NOT_FOUND"}
+        if not self.users.member(token, user_id, draft["shop_id"], write=True):
+            return 403, {"error": "FORBIDDEN"}
+        if draft["status"] != "READY" or not draft.get("output_asset_id"):
+            return 409, {"error": "OUTPUT_NOT_READY"}
+        if not self.users.select_poster_banner(token, pid, expected):
+            return 409, {"error": "POSTER_SELECTION_STALE_OR_DENIED"}
+        return 200, {"poster_id": pid, "banner_asset_id": draft["output_asset_id"]}
