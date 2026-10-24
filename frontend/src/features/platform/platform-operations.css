@@ -1,0 +1,5 @@
+.platform-alert-actions{display:flex;flex-direction:column;align-items:flex-end;gap:12px;margin-left:auto;min-width:112px}
+.platform-alert-actions .subtle-button{padding:9px 12px;border-radius:9px;background:#eff8f4;border:1px solid #bed6c7;color:#175a47;font-weight:700}
+.platform-alert-actions .subtle-button:disabled{opacity:.6}
+.platform-alert-actions .text-link{font-size:12px;white-space:normal;text-align:right}
+@media(max-width:760px){.platform-alert-actions{width:100%;flex-direction:row;align-items:center;margin-left:44px;justify-content:space-between}}
