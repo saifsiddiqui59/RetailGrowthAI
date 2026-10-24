@@ -33,6 +33,13 @@ class HTTPAPI:
                 if len(parts) != 3 or parts[0] != "campaigns" or parts[2] != "posters":
                     return 404, {"error": "NOT_FOUND"}
                 return self.poster_api.create(token, user_id, parts[1], body)
+            if method == "GET" and path.startswith("/campaigns/") and path.endswith("/posters") and "/days/" in path:
+                if self.poster_api is None:
+                    return 503, {"error": "POSTER_DRAFT_NOT_CONFIGURED"}
+                parts = path.strip("/").split("/")
+                if len(parts) != 5 or parts[0] != "campaigns" or parts[2] != "days" or parts[4] != "posters":
+                    return 404, {"error": "NOT_FOUND"}
+                return self.poster_api.list_for_day(token, user_id, parts[1], parts[3])
             if method == "GET" and path.startswith("/poster-drafts/"):
                 if self.poster_api is None:
                     return 503, {"error": "POSTER_DRAFT_NOT_CONFIGURED"}
