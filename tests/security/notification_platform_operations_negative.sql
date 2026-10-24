@@ -35,6 +35,8 @@ update public.shop_subscriptions s set status='SUSPENDED'
 from public.shops sh where sh.id=s.shop_id
   and sh.name in ('RGAI Ops Store 006','RGAI Ops Store 007');
 
+-- Service-owned canary job creation (same trusted role as actual backend).
+select set_config('request.jwt.claim.role','service_role',true);
 -- Real FAILED campaign, delayed queue dispatch, poison receipt, all read from tables.
 insert into public.campaigns(id,shop_id,created_by,brief,start_date)
 select 'b1000000-0000-4000-8000-000000000004',s.id,
