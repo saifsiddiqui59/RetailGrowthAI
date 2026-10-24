@@ -80,3 +80,5 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - 2026-10-24: Added staged-only service-render final SHA + independent review-rights append-only ledgers and scoped PostgREST backend bridge, plus negative disposable SQL/pytest coverage. Does not reconfigure Part1/Part3/WineShopPOS, create provider accounts, apply hosted DB, or turn on social posting. PR/CI evidence to follow.
 
 - 2026-10-24: Added staged-only isolated private social-export Storage bucket + restrictive client RLS, replaced Instagram signed URL contract to reject mutable P1 bucket and require shop/job/revision/SHA path; updated offline adapter fixtures and adversarial URL/SQL tests. No hosted migration, actual copy, provider post, P1/3 or WineShopPOS modification. CI pending.
+
+- 2026-10-24: Created source-only disabled immutable social export writer with create-once Storage POST, digest-protected readback and scoped signed URL checks; mocked denial/positive tests cover revoked claims, tamper, duplicate media and unsafe signatures. No cloud calls or real posts made. CI evidence pending.
