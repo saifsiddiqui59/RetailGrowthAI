@@ -123,11 +123,12 @@ def call(url, method="GET", payload=None, headers=None, timeout=30, expect=(200,
             time.sleep(4 * (attempt+1))
     if status not in expect:
         # A pre-handler gateway 5xx is an uncertain write. No generic retry.
-        if (method == "PATCH" or (method == "POST" and
-                "/api/campaigns/" in url and url.endswith("/renders")) or
-                (method == "POST" and url.endswith("/posters")) and \
+        if ((method == "PATCH") or
+                (method == "POST" and (
+                    ("/api/campaigns/" in url and url.endswith("/renders"))
+                    or url.endswith("/posters")))) and \
                 status in (502,503,504) and source == "gateway_or_supabase":
-            raise TransientGateway("Transient pre-handler PATCH response")
+            raise TransientGateway("Transient pre-handler write response")
         # Only report server-defined error codes (e.g. 42501/PGRST***).
         # Messages can contain private data, SQL parameters, URLs or credentials.
         safe_code = "unknown"
