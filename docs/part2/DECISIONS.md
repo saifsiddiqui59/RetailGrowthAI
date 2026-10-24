@@ -96,3 +96,6 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 
 ## 2026-10-24 — Uploading an immutable export is not a provider post
 - The service-only writer is explicitly off by default and only stages bytes in a restricted P2 bucket. Authorization is checked before copy and again before signing; remote readback SHA is mandatory, no upsert/collision guesses or redirects. The resulting URL is internal/sensitive and the worker must still persist a provider-side-effect intent before making an actual Instagram call.
+
+## 2026-10-24 — A signed export URL requires the exact active remote-send lease
+- A service-only check of current approved Instagram account scopes, subscription+publishing quota, active attempt UUID, immutable output SHA receipt, rights source, expiry and exact revision gates each private export and signed URL; checks must run both before outbound Storage COPY and after readback before signing. No check permits another provider container after remote intent has been recorded. Stale/ambiguous or revoked claims fail closed, not retried.
