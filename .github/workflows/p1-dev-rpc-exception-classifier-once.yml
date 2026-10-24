@@ -1,0 +1,81 @@
+name: RetailGrowthAI DEV one-shot Azure Flex worker RPC classification
+# Evidence-only: never output exception text, prompts, JWTs, customers, IDs or URLs.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p1-dev-rpc-exception-classifier-once.yml'
+permissions:
+  contents: read
+jobs:
+  classify:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'audit(dev): classify RetailGrowthAI Flex RPC exception sources')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-retailgrowth-dev
+      APP: rgai-dev-functions-d4e5ddbd
+      LAW: rgai-dev-law
+      SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify only tagged RetailGrowthAI DEV Azure resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$SUB"
+          az group show -g "$RG" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          o=json.load(open(sys.argv[1]))
+          t={k.lower():str(v).lower() for k,v in (o.get('tags') or {}).items()}
+          assert o['name']=='rg-retailgrowth-dev'
+          assert o['location'].replace(' ','').lower()=='centralindia'
+          assert t.get('app')=='retailgrowthai' and t.get('environment')=='dev'
+          print('P0_RPC_DEV_SCOPE_VERIFIED=true')
+          PY
+          test "$(az functionapp show -g "$RG" -n "$APP" --query name -o tsv)" = "$APP"
+      - name: Query category-only RPC exceptions by trigger and 10-minute interval
+        shell: bash
+        run: |
+          set -euo pipefail
+          workspace="$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query customerId -o tsv)"
+          test -n "$workspace"
+          # Never output raw AppExceptions or AppTraces Message, Detail,
+          # Properties, OperationId or raw request URL.
+          query1="AppExceptions | where TimeGenerated > ago(6h) | extend trigger=case(OperationName contains 'dispatch_pending_posters', 'poster.dispatch', OperationName contains 'render_campaign_poster', 'poster.render', OperationName contains 'render_campaign_reel', 'reel.render', OperationName contains 'recover_stale_jobs', 'job.recovery', OperationName contains 'plan_campaign', 'campaign.planning', OperationName contains 'dispatch_onboarding_emails', 'email.timer', OperationName contains 'read_campaign', 'campaign.read', OperationName contains 'get_render', 'reel.read', OperationName contains 'create_campaign', 'campaign.create', OperationName contains 'Functions.', 'other.function', 'unknown') | summarize n=count() by ExceptionType, trigger | order by n desc"
+          query2="AppExceptions | where TimeGenerated > ago(2h) | summarize n=count() by bucket=bin(TimeGenerated, 10m), ExceptionType | order by bucket asc"
+          query3="AppTraces | where TimeGenerated > ago(6h) | extend category=case(Message contains 'language worker' and Message contains 'fail', 'language.worker.failure', Message contains 'Worker process exited', 'worker.process.exit', Message contains 'RpcException', 'rpc.exception', Message contains 'Worker process started', 'worker.process.started', Message contains 'host startup', 'host.startup', Message contains 'Exception while executing', 'invocation.exception', 'other') | where category != 'other' | summarize n=count() by category, SeverityLevel | order by n desc"
+          query4="AppRequests | where TimeGenerated > ago(2h) | extend function=case(Name contains 'read_campaign', 'campaign.read', Name contains 'create_campaign', 'campaign.create', Name contains 'get_poster_draft', 'poster.read', Name contains 'get_render', 'reel.read', Name contains 'render_campaign_reel', 'reel.render', Name contains 'dispatch_pending_posters', 'poster.dispatch', Name contains 'recover_stale_jobs', 'job.recovery', 'other') | summarize n=count(), p95_ms=percentile(DurationMs,95) by function, ResultCode | order by n desc"
+          queries=("$query1" "$query2" "$query3" "$query4")
+          for idx in 0 1 2 3; do
+            seq=$((idx+1))
+            if az monitor log-analytics query -w "$workspace" --analytics-query "${queries[$idx]}" -o json > "$RUNNER_TEMP/aggregation-$seq.json" 2>/dev/null; then
+              python3 - "$RUNNER_TEMP/aggregation-$seq.json" "$seq" <<'PY'
+          import json,sys
+          obj=json.load(open(sys.argv[1]))
+          if isinstance(obj,dict): obj=obj.get('tables',[])
+          value=obj[:40] if isinstance(obj,list) else []
+          # These query projections contain only allowlisted trigger labels,
+          # Azure exception type names, UTC buckets, counts and timing values.
+          print('P0_RPC_AGGREGATE_'+sys.argv[2]+'='+json.dumps(value,sort_keys=True))
+          PY
+            else
+              echo "P0_RPC_AGGREGATE_${seq}_UNAVAILABLE=true"
+            fi
+          done
+          echo 'P0_NO_RAW_AZURE_LOG_VALUES_EXPORTED=true'
+      - name: End Azure read-only session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
