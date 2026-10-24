@@ -104,3 +104,22 @@ test('hosted-only journey/config parse safely without invoking any hosted networ
     expect(check.status, name + ': ' + check.stderr).toBe(0)
   }
 })
+
+test('temporary DEV Playwright upload helper uses setInputFiles and never receives service-role secrets', async () => {
+  const { readFileSync } = await import('node:fs')
+  const { spawnSync } = await import('node:child_process')
+  const { fileURLToPath } = await import('node:url')
+  const helper = fileURLToPath(new URL('./dev-canary-upload.mjs', import.meta.url))
+  const source = readFileSync(helper, 'utf8')
+  expect(source).toContain('.setInputFiles(')
+  expect(source).toContain('AUTHORIZED_RETAILGROWTHAI_DEV_ONLY')
+  expect(source).toContain('CANARY_PLAYWRIGHT_OBJECT_PATH=')
+  expect(source).toContain('CANARY_PLAYWRIGHT_UPLOAD=')
+  expect(source).not.toContain('RGAI_DEV_SERVICE_KEY')
+  expect(source).not.toContain('RETAIL_SUPABASE_SERVICE_ROLE_KEY')
+  const check = spawnSync(process.execPath, ['--check', helper], {
+    encoding: 'utf8', timeout: 15000,
+  })
+  expect(check.status, check.stderr).toBe(0)
+  expect('dev-canary-upload.mjs'.endsWith('.spec.mjs')).toBe(false)
+})

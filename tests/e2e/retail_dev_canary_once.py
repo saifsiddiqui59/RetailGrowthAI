@@ -77,6 +77,31 @@ def reconcile_render(rows, *, shop_id, campaign_id, day_id, requested_by):
     return {"job_id": jid, "status": job["status"]}
 
 
+def reconcile_poster_job(rows, *, shop_id, poster_id, requested_by, revision):
+    """Reconcile an uncertain POST from user-RLS data; never trust a guessed job.
+
+    PostgreSQL UNIQUE(poster_id, revision) prevents a second actual job.
+    Missing or foreign data cannot authorize an automatic retry.
+    """
+    if not isinstance(rows, list) or len(rows) > 1:
+        raise RuntimeError("Untrusted or ambiguous private poster job readback")
+    if not rows:
+        return None
+    row = rows[0]
+    expected = {"shop_id": shop_id, "poster_id": poster_id,
+                "requested_by": requested_by, "revision": revision}
+    if not isinstance(row, dict) or any(row.get(k) != value for k, value in expected.items()):
+        raise RuntimeError("Foreign or unexpected poster job; never retry")
+    try:
+        jid = str(uuid.UUID(row["id"]))
+    except (KeyError, TypeError, ValueError, AttributeError):
+        raise RuntimeError("Invalid private poster job identifier") from None
+    if jid != row["id"] or row.get("status") not in (
+            "QUEUED", "RUNNING", "SUCCEEDED", "FAILED"):
+        raise RuntimeError("Invalid persisted poster status; never retry")
+    return jid
+
+
 SUPABASE = "https://jeearzffnjbvghwjjjrf.supabase.co"
 API = "https://rgai-dev-functions-d4e5ddbd.azurewebsites.net"
 def api_key_headers(key):
@@ -153,12 +178,39 @@ def call(url, method="GET", payload=None, headers=None, timeout=30, expect=(200,
     except (ValueError,UnicodeDecodeError): return status,body
 
 def image():
-    # Entirely first-party synthetic image: 360x640 flat RGB, no third-party asset.
+    """First-party clothing illustration: three unbranded T-shirt silhouettes.
+
+    No outside photos, trademarked logos, scraped content or uncertain license.
+    The PNG is generated from RGB pixels in the ephemeral test runner itself.
+    """
     w,h=360,640
-    raw=b"".join(b"\x00"+b"\x31\x72\xA3"*w for _ in range(h))
+    bg=(247,246,241)
+    colors=((31,33,36),(234,214,113),(34,81,61))
+    collars=((235,231,220),(30,84,57),(28,31,33))
+    rows=[]
+    for y in range(h):
+        line=bytearray()
+        for x in range(w):
+            color=bg
+            if 125 <= y < 170 and 15 <= x < 345:
+                color=(220,226,223)  # unbranded collection backdrop
+            for idx,center in enumerate((64,180,296)):
+                dx=abs(x-center)
+                dy=y-205
+                # Rectilinear sleeves and body form a simple T-shirt silhouette.
+                if (0<=dy<47 and dx<=48 or 45<=dy<210 and dx<=31):
+                    color=colors[idx]
+                if 0<=dy<20 and dx<=13:
+                    color=bg  # neckline
+                if 17<=dy<28 and 13<dx<=19:
+                    color=collars[idx]
+            line.extend(color)
+        rows.append(b"\x00"+bytes(line))
+    raw=b"".join(rows)
     def chunk(kind,data):
         return struct.pack(">I",len(data))+kind+data+struct.pack(">I",zlib.crc32(kind+data)&0xffffffff)
     return b"\x89PNG\r\n\x1a\n"+chunk(b"IHDR",struct.pack(">IIBBBBB",w,h,8,2,0,0,0))+chunk(b"IDAT",zlib.compress(raw,6))+chunk(b"IEND",b"")
+
 
 def poll(read, statuses, limit):
     end=time.monotonic()+limit
@@ -197,6 +249,62 @@ def validate_private_test_paths(media, shop_id):
     return paths
 
 
+
+def upload_using_playwright(*, shop_id, email, password, image_bytes, cleanup_paths):
+    """Browser media upload with temporary retailer identity only.
+
+    The Node child receives no service role, admin key, or other-shop tokens.
+    It emits only its new object path and the registered UUID, for exact cleanup.
+    """
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    script = root / "frontend" / "e2e" / "dev-canary-upload.mjs"
+    if not script.is_file():
+        raise RuntimeError("DEV Playwright upload helper missing")
+    with tempfile.TemporaryDirectory(prefix="rgai-browser-fixture-") as directory:
+        photo = Path(directory) / "fixture.png"
+        photo.write_bytes(image_bytes)
+        # Never inherit privileged service role, deployment or cloud secrets.
+        env = {name: os.environ[name] for name in ("PATH", "HOME", "TMPDIR")
+               if os.environ.get(name)}
+        env.update({
+            "RGAI_DEV_CANARY_APPROVAL": os.environ["RGAI_DEV_CANARY_APPROVAL"],
+            "RGAI_DEV_PLAYWRIGHT_UPLOAD": "1",
+            "RGAI_BROWSER_SHOP_ID": shop_id,
+            "RGAI_BROWSER_USER_EMAIL": email,
+            "RGAI_BROWSER_USER_PASSWORD": password,
+            "RGAI_BROWSER_PNG_PATH": str(photo),
+        })
+        result = subprocess.run(
+            ["node", str(script)], cwd=str(root), env=env, capture_output=True,
+            text=True, timeout=210, check=False)
+    registered = None
+    for line in result.stdout.splitlines():
+        if line.startswith("CANARY_PLAYWRIGHT_OBJECT_PATH="):
+            path = line.split("=", 1)[1]
+            if (path.startswith(shop_id + "/uploads/") and
+                    path.endswith(".png") and
+                    all(part not in ("", ".", "..") for part in path.split("/")) and
+                    all(ch.isascii() and (ch.isalnum() or ch in "/._-") for ch in path)):
+                if path not in cleanup_paths:
+                    cleanup_paths.append(path)
+            else:
+                raise RuntimeError("Untrusted Playwright upload path")
+        elif line.startswith("CANARY_PLAYWRIGHT_UPLOAD="):
+            registered = json.loads(line.split("=", 1)[1])
+    if result.returncode != 0 or registered is None:
+        # Browser helper logs only a stage label; never log raw stdout,
+        # private tokens, passwords or HTTP response bodies.
+        raise RuntimeError("DEV browser upload failed; check isolated fixture and auth flow")
+    path = registered.get("object_path")
+    asset = registered.get("asset_id")
+    if (path not in cleanup_paths or
+            not isinstance(asset, str) or str(uuid.UUID(asset)) != asset):
+        raise RuntimeError("Playwright upload response identity invalid")
+    print("CANARY_REAL_BROWSER_FILE_UPLOAD=true", flush=True)
+    return asset
+
+
 def main():
     if os.getenv("RGAI_DEV_CANARY_APPROVAL")!="AUTHORIZED_RETAILGROWTHAI_DEV_ONLY":
         raise RuntimeError("No explicit RetailGrowthAI DEV authorization")
@@ -214,9 +322,12 @@ def main():
     paths=[]
     status="NOT_STARTED"
     try:
+        account_password_a = None
         for label in ("a","b"):
             email="rgai-canary-"+marker+"-"+label+"@example.invalid"
             password=secrets.token_urlsafe(30)
+            if label == "a":
+                account_password_a = password
             _,item=call(SUPABASE+"/auth/v1/admin/users",method="POST",
                 payload={"email":email,"password":password,"email_confirm":True},
                 headers=admins,expect=(200,201))
@@ -258,16 +369,23 @@ def main():
                 raise RuntimeError("RLS failed to reveal newly bootstrapped OWNER shop")
             accounts[-1]=(uid,bearer)
         a=accounts[0][1];b=accounts[1][1]
-        assetpath=shops[0]+"/uploads/"+str(uuid.uuid4())+".png"
-        paths.append(assetpath)
-        call(SUPABASE+"/storage/v1/object/retailgrowth-media/"+assetpath,
-            method="POST",payload=image(),headers={**a,"Content-Type":"image/png",
-                "x-upsert":"false"},expect=(200,201))
-        _,asset=call(SUPABASE+"/rest/v1/rpc/register_uploaded_image",
-            method="POST",payload={"p_shop_id":shops[0],"p_object_path":assetpath,
-              "p_license_name":"owned","p_license_url":None,
-              "p_attribution":"Original synthetic RetailGrowthAI DEV canary image; created entirely in Python."},
-            headers=a,expect=(200,))
+        if os.environ.get("RGAI_DEV_PLAYWRIGHT_UPLOAD") == "1":
+            # Real Chromium form interaction: no native OS picker or browser
+            # service-role key. Exact media cleanup is tracked before RPC ACK.
+            asset = upload_using_playwright(
+                shop_id=shops[0], email="rgai-canary-"+marker+"-a@example.invalid",
+                password=account_password_a, image_bytes=image(), cleanup_paths=paths)
+        else:
+            assetpath=shops[0]+"/uploads/"+str(uuid.uuid4())+".png"
+            paths.append(assetpath)
+            call(SUPABASE+"/storage/v1/object/retailgrowth-media/"+assetpath,
+                method="POST",payload=image(),headers={**a,"Content-Type":"image/png",
+                    "x-upsert":"false"},expect=(200,201))
+            _,asset=call(SUPABASE+"/rest/v1/rpc/register_uploaded_image",
+                method="POST",payload={"p_shop_id":shops[0],"p_object_path":assetpath,
+                  "p_license_name":"owned","p_license_url":None,
+                  "p_attribution":"Original synthetic RetailGrowthAI DEV canary image; created entirely in Python."},
+                headers=a,expect=(200,))
         if not isinstance(asset,str): raise RuntimeError("Storage RPC did not return UUID")
         start=(dt.datetime.now(dt.timezone(dt.timedelta(hours=5,minutes=30))).date()
                +dt.timedelta(days=1)).isoformat()
@@ -321,94 +439,148 @@ def main():
         if saved.get("day",{}).get("topic")!=update["topic"]:
             raise RuntimeError("Draft save not persisted")
         print("CANARY_REMOTE_DRAFT_SAVE=true",flush=True)
-        # New Part 1 Creative Studio: durable poster job from the same licensed
-        # canary image; no third-party media and no paid premium generation.
-        poster_payload={
-            "day_id":day["id"],"source_asset_id":asset,
-            "template":"editorial","format":"portrait",
-            "business_name":"RetailGrowthAI Canary Boutique",
-            "accent_color":"#446677","background_color":"#F8F8F2",
-        }
-        # Azure may time out after SQL has committed the idempotent draft.
-        # Read only our RLS-scoped saved designs BEFORE any identical retry.
-        # Never retry a different design or an ambiguous persisted result.
-        def persisted_poster():
-            _,rows=call(API+"/api/campaigns/"+cid+"/days/"+day["id"]+"/posters",
-                headers=a,expect=(200,))
-            matches=[p for p in rows.get("posters",[]) if
-                p.get("source_asset_id")==asset and
-                p.get("business_name")==poster_payload["business_name"] and
-                p.get("template")==poster_payload["template"] and
-                p.get("format")==poster_payload["format"] and
-                p.get("accent_color")==poster_payload["accent_color"] and
-                p.get("background_color")==poster_payload["background_color"]]
-            if len(matches)>1:
-                raise RuntimeError("Ambiguous persisted poster after uncertain POST")
-            return matches[0]["poster_id"] if matches else None
-        poster_id=None
-        for attempt in range(3):
-            try:
-                _,pcreated=call(API+"/api/campaigns/"+cid+"/posters",method="POST",
-                    payload=poster_payload,headers=a,timeout=100,expect=(201,))
-                poster_id=pcreated["poster_id"]
-                break
-            except (TimeoutError,ConnectionResetError,TransientGateway):
-                poster_id=persisted_poster()
-                if poster_id:
-                    print("CANARY_POSTER_POST_RECONCILED_AFTER_TIMEOUT=true",flush=True)
+        # Browser canary verifies input upload + real Foundry + Reel, not
+        # the independently gated Part 1 poster runtime. Default canary
+        # retains the existing poster acceptance exactly as before.
+        if os.environ.get("RGAI_DEV_PLAYWRIGHT_UPLOAD") != "1":
+            # New Part 1 Creative Studio: durable poster job from the same licensed
+            # canary image; no third-party media and no paid premium generation.
+            poster_payload={
+                "day_id":day["id"],"source_asset_id":asset,
+                "template":"editorial","format":"portrait",
+                "business_name":"RetailGrowthAI Canary Boutique",
+                "accent_color":"#446677","background_color":"#F8F8F2",
+            }
+            # Azure may time out after SQL has committed the idempotent draft.
+            # Read only our RLS-scoped saved designs BEFORE any identical retry.
+            # Never retry a different design or an ambiguous persisted result.
+            def persisted_poster():
+                _,rows=call(API+"/api/campaigns/"+cid+"/days/"+day["id"]+"/posters",
+                    headers=a,expect=(200,))
+                matches=[p for p in rows.get("posters",[]) if
+                    p.get("source_asset_id")==asset and
+                    p.get("business_name")==poster_payload["business_name"] and
+                    p.get("template")==poster_payload["template"] and
+                    p.get("format")==poster_payload["format"] and
+                    p.get("accent_color")==poster_payload["accent_color"] and
+                    p.get("background_color")==poster_payload["background_color"]]
+                if len(matches)>1:
+                    raise RuntimeError("Ambiguous persisted poster after uncertain POST")
+                return matches[0]["poster_id"] if matches else None
+            poster_id=None
+            for attempt in range(3):
+                try:
+                    _,pcreated=call(API+"/api/campaigns/"+cid+"/posters",method="POST",
+                        payload=poster_payload,headers=a,timeout=100,expect=(201,))
+                    poster_id=pcreated["poster_id"]
                     break
-                if attempt==2:
-                    raise RuntimeError("Poster save did not commit after bounded readback")
-                print("CANARY_POSTER_SAFE_IDENTICAL_RETRY="+str(attempt+1),flush=True)
-                time.sleep(5*(attempt+1))
-        if not poster_id:
-            raise RuntimeError("Missing verified private poster draft ID")
-        print("CANARY_POSTER_SAVED=true",flush=True)
-        _,foreign_poster=call(API+"/api/poster-drafts/"+poster_id,
-            headers=b,expect=(403,404))
-        print("CANARY_POSTER_CROSS_SHOP_DENIED=true",flush=True)
-        _,history=call(API+"/api/campaigns/"+cid+"/days/"+day["id"]+"/posters",
-            headers=a,expect=(200,))
-        if not any(x.get("poster_id")==poster_id for x in history.get("posters",[])):
-            raise RuntimeError("Cloud-saved poster absent from persisted day history")
-        _,reopened=call(API+"/api/poster-drafts/"+poster_id,headers=a,expect=(200,))
-        if reopened.get("business_name")!=poster_payload["business_name"]:
-            raise RuntimeError("Poster did not survive private reload")
-        print("CANARY_POSTER_HISTORY_REOPENED=true",flush=True)
-        _,poster_request=call(API+"/api/poster-drafts/"+poster_id+"/renders",
-            method="POST",payload={},headers=a,timeout=60,expect=(202,))
-        poster_job=poster_request["job_id"]
-        _,foreign_job=call(API+"/api/poster-jobs/"+poster_job,
-            headers=b,expect=(403,404))
-        print("CANARY_POSTER_JOB_TENANT_DENIED=true",flush=True)
-        def poster_read():
-            return call(API+"/api/poster-jobs/"+poster_job,headers=a,expect=(200,))[1]
-        poster_done=poll(poster_read,{"SUCCEEDED"},450)
-        if not poster_done.get("output_asset_id"):
-            raise RuntimeError("Poster worker completed without registered private asset")
-        print("CANARY_POSTER_WORKER_SUCCEEDED=true",flush=True)
-        _,poster_url=call(API+"/api/poster-jobs/"+poster_job+"/download",
-            headers=a,expect=(200,))
-        parsed_poster=urllib.parse.urlparse(poster_url["url"])
-        if parsed_poster.scheme!="https" or parsed_poster.netloc!="jeearzffnjbvghwjjjrf.supabase.co" or not parsed_poster.path.startswith("/storage/v1/object/sign/retailgrowth-media/"):
-            raise RuntimeError("Poster signed URL is not in private RetailGrowthAI storage")
-        with urllib.request.urlopen(poster_url["url"],timeout=40) as res:
-            png=res.read(16*1024*1024+1)
-        if len(png)>16*1024*1024 or not png.startswith(b"\x89PNG\r\n\x1a\n"):
-            raise RuntimeError("Generated poster is not a bounded PNG")
-        width,height=struct.unpack(">II",png[16:24])
-        if (width,height)!=(1080,1350):
-            raise RuntimeError("Poster generated incorrect portrait dimensions")
-        print("CANARY_PRIVATE_POSTER_PNG_VERIFIED=true",flush=True)
-        expected_instagram=saved["day"]["instagram"]
-        _,chosen=call(API+"/api/poster-drafts/"+poster_id+"/select",method="POST",
-            payload={"expected_instagram":expected_instagram},headers=a,expect=(200,))
-        if chosen.get("banner_asset_id")!=poster_done["output_asset_id"]:
-            raise RuntimeError("Approved poster output not attached")
-        live_day=next(x for x in getcampaign()["days"] if x["id"]==day["id"])
-        if live_day["instagram"].get("banner_asset_id")!=poster_done["output_asset_id"]:
-            raise RuntimeError("Selected poster banner not durably saved")
-        print("CANARY_POSTER_BANNER_ATTACHED=true",flush=True)
+                except (TimeoutError,ConnectionResetError,TransientGateway):
+                    poster_id=persisted_poster()
+                    if poster_id:
+                        print("CANARY_POSTER_POST_RECONCILED_AFTER_TIMEOUT=true",flush=True)
+                        break
+                    if attempt==2:
+                        raise RuntimeError("Poster save did not commit after bounded readback")
+                    print("CANARY_POSTER_SAFE_IDENTICAL_RETRY="+str(attempt+1),flush=True)
+                    time.sleep(5*(attempt+1))
+            if not poster_id:
+                raise RuntimeError("Missing verified private poster draft ID")
+            print("CANARY_POSTER_SAVED=true",flush=True)
+            _,foreign_poster=call(API+"/api/poster-drafts/"+poster_id,
+                headers=b,expect=(403,404))
+            print("CANARY_POSTER_CROSS_SHOP_DENIED=true",flush=True)
+            _,history=call(API+"/api/campaigns/"+cid+"/days/"+day["id"]+"/posters",
+                headers=a,expect=(200,))
+            if not any(x.get("poster_id")==poster_id for x in history.get("posters",[])):
+                raise RuntimeError("Cloud-saved poster absent from persisted day history")
+            _,reopened=call(API+"/api/poster-drafts/"+poster_id,headers=a,expect=(200,))
+            if reopened.get("business_name")!=poster_payload["business_name"]:
+                raise RuntimeError("Poster did not survive private reload")
+            print("CANARY_POSTER_HISTORY_REOPENED=true",flush=True)
+            # A gateway/client timeout does NOT prove the create failed.
+            # Read only the current retailer's scoped job before considering an
+            # identical retry. SQL uniqueness fences poster_id + revision.
+            saved_record = [x for x in history["posters"] if x.get("poster_id") == poster_id]
+            if len(saved_record) != 1 or type(saved_record[0].get("revision")) is not int:
+                raise RuntimeError("Untrusted poster draft revision")
+            poster_revision = saved_record[0]["revision"]
+
+            def existing_poster_job():
+                query = urllib.parse.urlencode({
+                    "select": "id,shop_id,poster_id,requested_by,revision,status",
+                    "shop_id": "eq." + shops[0],
+                    "poster_id": "eq." + poster_id,
+                    "requested_by": "eq." + accounts[0][0],
+                    "limit": "2",
+                })
+                _, rows = call(SUPABASE + "/rest/v1/poster_jobs?" + query,
+                               headers=a, expect=(200,))
+                return reconcile_poster_job(
+                    rows, shop_id=shops[0], poster_id=poster_id,
+                    requested_by=accounts[0][0], revision=poster_revision)
+
+            poster_job = None
+            for attempt in range(3):
+                try:
+                    _,poster_request=call(API+"/api/poster-drafts/"+poster_id+"/renders",
+                        method="POST",payload={},headers=a,timeout=100,expect=(202,))
+                    poster_job = str(uuid.UUID(poster_request["job_id"]))
+                    if poster_job != poster_request["job_id"]:
+                        raise RuntimeError("Malformed poster job response")
+                    break
+                except (TimeoutError, ConnectionResetError, TransientGateway):
+                    poster_job = existing_poster_job()
+                    if poster_job is not None:
+                        print("CANARY_POSTER_JOB_RESPONSE_RECONCILED=true",flush=True)
+                        break
+                    if attempt >= 2:
+                        raise RuntimeError("Poster create uncertain: no confirmed private job")
+                    print("CANARY_POSTER_SAFE_RETRY_AFTER_READBACK=" + str(attempt + 1),
+                          flush=True)
+                    time.sleep(5 * (attempt + 1))
+                except RuntimeError as exc:
+                    if "DEV HTTP 409 " not in str(exc):
+                        raise
+                    poster_job = existing_poster_job()
+                    if poster_job is None:
+                        raise
+                    print("CANARY_POSTER_JOB_EXISTING_AFTER_CONFLICT=true",flush=True)
+                    break
+            if poster_job is None:
+                raise RuntimeError("No verified poster job")
+            _,foreign_job=call(API+"/api/poster-jobs/"+poster_job,
+                headers=b,expect=(403,404))
+            print("CANARY_POSTER_JOB_TENANT_DENIED=true",flush=True)
+            def poster_read():
+                return call(API+"/api/poster-jobs/"+poster_job,headers=a,expect=(200,))[1]
+            poster_done=poll(poster_read,{"SUCCEEDED"},450)
+            if not poster_done.get("output_asset_id"):
+                raise RuntimeError("Poster worker completed without registered private asset")
+            print("CANARY_POSTER_WORKER_SUCCEEDED=true",flush=True)
+            _,poster_url=call(API+"/api/poster-jobs/"+poster_job+"/download",
+                headers=a,expect=(200,))
+            parsed_poster=urllib.parse.urlparse(poster_url["url"])
+            if parsed_poster.scheme!="https" or parsed_poster.netloc!="jeearzffnjbvghwjjjrf.supabase.co" or not parsed_poster.path.startswith("/storage/v1/object/sign/retailgrowth-media/"):
+                raise RuntimeError("Poster signed URL is not in private RetailGrowthAI storage")
+            with urllib.request.urlopen(poster_url["url"],timeout=40) as res:
+                png=res.read(16*1024*1024+1)
+            if len(png)>16*1024*1024 or not png.startswith(b"\x89PNG\r\n\x1a\n"):
+                raise RuntimeError("Generated poster is not a bounded PNG")
+            width,height=struct.unpack(">II",png[16:24])
+            if (width,height)!=(1080,1350):
+                raise RuntimeError("Poster generated incorrect portrait dimensions")
+            print("CANARY_PRIVATE_POSTER_PNG_VERIFIED=true",flush=True)
+            expected_instagram=saved["day"]["instagram"]
+            _,chosen=call(API+"/api/poster-drafts/"+poster_id+"/select",method="POST",
+                payload={"expected_instagram":expected_instagram},headers=a,expect=(200,))
+            if chosen.get("banner_asset_id")!=poster_done["output_asset_id"]:
+                raise RuntimeError("Approved poster output not attached")
+            live_day=next(x for x in getcampaign()["days"] if x["id"]==day["id"])
+            if live_day["instagram"].get("banner_asset_id")!=poster_done["output_asset_id"]:
+                raise RuntimeError("Selected poster banner not durably saved")
+            print("CANARY_POSTER_BANNER_ATTACHED=true",flush=True)
+        else:
+            print("CANARY_BROWSER_POSTER_NOT_REQUESTED=true", flush=True)
         # If the gateway loses a render creation response, do not blindly
         # repeat a billable write. First read the current user's RLS-scoped
         # matching job. Backend deterministic idempotency guarantees one

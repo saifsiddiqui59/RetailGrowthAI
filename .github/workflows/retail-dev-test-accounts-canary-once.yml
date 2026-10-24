@@ -1,12 +1,22 @@
 name: RetailGrowthAI owner-authorized DEV temporary test accounts + live tenant canary
 # Owner approval of TEST ACCOUNTS + hosted Part 1 run; no broad publish or production.
 # Unlike Playwright hosted browser harness this is a bounded isolated REST canary.
+# Never run a hosted admin-account canary as a side effect of a commit.
+# Requires intentional operator dispatch from main plus protected DEV environment.
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/retail-dev-test-accounts-canary-once.yml'
-      - 'tests/e2e/retail_dev_canary_once.py'
+  workflow_dispatch:
+    inputs:
+      approval_code:
+        description: 'Enter AUTHORIZED_RETAILGROWTHAI_DEV_ONLY'
+        required: true
+        type: string
+      mode:
+        description: 'Run one authorized DEV acceptance path'
+        required: true
+        type: choice
+        options:
+          - browser-upload
+          - poster
 permissions:
   contents: read
 concurrency:
@@ -14,7 +24,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   canary:
-    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.approval_code == 'AUTHORIZED_RETAILGROWTHAI_DEV_ONLY'
     environment: dev
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -22,12 +32,25 @@ jobs:
       contents: read
     env:
       RGAI_DEV_CANARY_APPROVAL: AUTHORIZED_RETAILGROWTHAI_DEV_ONLY
+      RGAI_DEV_PLAYWRIGHT_UPLOAD: ${{ inputs.mode == 'browser-upload' && '1' || '0' }}
       RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
       RGAI_DEV_PUBLISHABLE_KEY: sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Set up Node for approved browser-upload mode
+        if: inputs.mode == 'browser-upload'
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Install Chromium only for approved browser-upload mode
+        if: inputs.mode == 'browser-upload'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix frontend/e2e install --no-audit --no-fund
+          ./frontend/e2e/node_modules/.bin/playwright install --with-deps chromium
       - name: Confirm no other project endpoints or raw credential logging
         shell: bash
         run: |
