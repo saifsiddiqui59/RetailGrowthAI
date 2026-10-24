@@ -18,6 +18,11 @@ from private_media import PrivateMedia
 from recovery_runtime import dispatch_outbox, record_poison, reconcile_and_dispatch
 from notification_store import NotificationStore
 from notification_worker import dispatch_notifications, SmtpSender
+from poster_render_api import PosterRenderAPI
+from poster_admin import PosterAdmin
+from poster_worker import process_poster, dispatch_posters
+from poster_queue import AzurePosterQueue
+from private_poster_media import PrivatePosterMedia
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -38,9 +43,11 @@ def build_api():
     )
     poster_api = (PosterDraftAPI(store)
                   if os.environ.get("RETAIL_ENABLE_POSTER_DRAFTS") == "true" else None)
+    poster_render_api = (PosterRenderAPI(store)
+                         if os.environ.get("RETAIL_ENABLE_POSTER_RENDERING") == "true" else None)
     return HTTPAPI(SupabaseJWTVerifier(url), store, queue, render_api,
                    failure_store=admin, durable_outbox=bool(connection and admin),
-                   poster_api=poster_api)
+                   poster_api=poster_api, poster_render_api=poster_render_api)
 
 
 def dispatch(request, path):
@@ -88,6 +95,26 @@ def create_poster_draft(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="poster-drafts/{draft_id}", methods=["GET"])
 def get_poster_draft(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/poster-drafts/" + req.route_params["draft_id"])
+
+
+@app.route(route="poster-drafts/{draft_id}/select", methods=["POST"])
+def select_poster_banner(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/poster-drafts/" + req.route_params["draft_id"] + "/select")
+
+
+@app.route(route="poster-drafts/{draft_id}/renders", methods=["POST"])
+def request_poster_render(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/poster-drafts/" + req.route_params["draft_id"] + "/renders")
+
+
+@app.route(route="poster-jobs/{job_id}", methods=["GET"])
+def read_poster_render(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/poster-jobs/" + req.route_params["job_id"])
+
+
+@app.route(route="poster-jobs/{job_id}/download", methods=["GET"])
+def download_poster_render(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/poster-jobs/" + req.route_params["job_id"] + "/download")
 
 
 @app.queue_trigger(arg_name="message", queue_name="retail-campaign-planning",
@@ -182,3 +209,29 @@ def dispatch_onboarding_emails(timer: func.TimerRequest):
     )
     sender = SmtpSender.from_environment()
     dispatch_notifications(store, sender, enabled=True, limit=8)
+
+
+@app.timer_trigger(schedule="0 */2 * * * *", arg_name="timer",
+                   run_on_startup=False, use_monitor=True)
+def dispatch_pending_posters(timer: func.TimerRequest):
+    # The queue and database migration must be provisioned under separate
+    # RetailGrowthAI DEV authorization before enabling this source-only path.
+    if os.environ.get("RETAIL_ENABLE_POSTER_RENDERING") != "true":
+        return
+    admin = PosterAdmin(os.environ["RETAIL_SUPABASE_URL"],
+                        os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"])
+    queue = AzurePosterQueue(os.environ["RETAIL_STORAGE"])
+    admin.reconcile_posters()
+    dispatch_posters(admin, queue)
+
+
+@app.queue_trigger(arg_name="message", queue_name="retail-poster-render",
+                   connection="RETAIL_STORAGE")
+def render_campaign_poster(message: func.QueueMessage):
+    if os.environ.get("RETAIL_ENABLE_POSTER_RENDERING") != "true":
+        # Never acknowledge/delete a legitimate queued event if disabled.
+        raise RuntimeError("poster worker is not enabled")
+    origin = os.environ["RETAIL_SUPABASE_URL"]
+    key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
+    process_poster(message.get_body().decode("ascii"),
+                   PosterAdmin(origin,key), PrivatePosterMedia(origin,key))

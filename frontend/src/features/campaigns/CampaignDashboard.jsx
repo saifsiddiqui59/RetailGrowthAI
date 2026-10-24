@@ -680,7 +680,18 @@ export default function CampaignDashboard() {
       </section>
       {(!client.configured || (shopId && shops.some(shop => shop.id === shopId))) && (
         <PosterStudio key={shopId || 'demo'} day={day}
-          businessName={shops.find(shop => shop.id === shopId)?.name || 'Your business'} />
+          businessName={shops.find(shop => shop.id === shopId)?.name || 'Your business'}
+          api={api} campaignId={campaignId} authorizedAssets={assets}
+          persisted={Boolean(loaded && !changed && !savingDay)}
+          supabaseOrigin={import.meta.env?.VITE_SUPABASE_URL || ''}
+          onSelected={async () => {
+            if (!loaded || !api) return
+            const refreshed = await api.getCampaign(campaignId)
+            if (refreshed.shop_id !== shopId) throw new Error('Campaign tenant mismatch')
+            setBaseline(cloneCampaign(refreshed))
+            setCampaign(cloneCampaign(refreshed))
+            setNotice('Reviewed promotional poster attached to your saved day. Not published.')
+          }} />
       )}
       {notice && <p className="rg-session-notice" role="status">{notice}</p>}
       <p className="rg-footnote">{loaded

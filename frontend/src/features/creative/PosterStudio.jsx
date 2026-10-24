@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { drawPoster, POSTER_SIZES, POSTER_TEMPLATES } from './poster-canvas.mjs'
+import { validateSignedVideoUrl } from '../campaigns/campaign-api.mjs'
 import './PosterStudio.css'
 
 const MAX_BYTES = 25 * 1024 * 1024
 const SUPPORTED = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
-export default function PosterStudio({ day, businessName = 'Your business' }) {
+export default function PosterStudio({ day, businessName = 'Your business', api = null,
+  campaignId = '', persisted = false, authorizedAssets = [], supabaseOrigin = '', onSelected = null }) {
   const canvas = useRef(null)
   const [brand, setBrand] = useState(businessName || 'Your business')
   const [template, setTemplate] = useState('editorial')
@@ -19,6 +21,12 @@ export default function PosterStudio({ day, businessName = 'Your business' }) {
   const [error, setError] = useState('')
   const [downloadError, setDownloadError] = useState('')
   const [ready, setReady] = useState(false)
+  const [sourceAssetId, setSourceAssetId] = useState('')
+  const [remoteDraft, setRemoteDraft] = useState('')
+  const [remoteJob, setRemoteJob] = useState(null)
+  const [remoteBusy, setRemoteBusy] = useState(false)
+  const [remoteError, setRemoteError] = useState('')
+  const [remoteMessage, setRemoteMessage] = useState('')
 
   useEffect(() => {
     setBrand(businessName || 'Your business')
@@ -28,6 +36,107 @@ export default function PosterStudio({ day, businessName = 'Your business' }) {
     setOffer('')
     setRights(false)
   }, [day.id])
+  // Saved assets are drawn only from the authenticated shop media list AND
+  // from this persisted campaign day's storyboard. No raw user URL or fixture ID.
+  const allowedSources = (day.instagram?.reel?.storyboard || [])
+    .map(scene => scene.asset_id)
+    .filter((id, index, ids) => ids.indexOf(id) === index)
+    .filter(id => authorizedAssets.some(asset => asset.id === id))
+  useEffect(() => {
+    setSourceAssetId('')
+    setRemoteDraft('')
+    setRemoteJob(null)
+    setRemoteMessage('')
+    setRemoteError('')
+  }, [day.id, campaignId])
+  useEffect(() => {
+    setRemoteDraft('')
+    setRemoteJob(null)
+    setRemoteMessage('')
+  }, [template, size, brand, accent, background, offer, sourceAssetId])
+  useEffect(() => {
+    if (!api || !remoteJob || !['QUEUED', 'RUNNING'].includes(remoteJob.status)) return
+    let active = true
+    let count = 0
+    const interval = window.setInterval(async () => {
+      if (!active) return
+      count += 1
+      if (count > 30) {
+        window.clearInterval(interval)
+        setRemoteError('Poster is taking longer than expected. Refresh the job status later.')
+        return
+      }
+      try {
+        const job = await api.getPosterJob(remoteJob.job_id)
+        if (!active) return
+        setRemoteJob(job)
+        if (!['QUEUED', 'RUNNING'].includes(job.status)) window.clearInterval(interval)
+      } catch (problem) {
+        if (active) {
+          setRemoteError(problem.message)
+          window.clearInterval(interval)
+        }
+      }
+    }, 4000)
+    return () => { active = false; window.clearInterval(interval) }
+  }, [api, remoteJob?.job_id, remoteJob?.status])
+
+  async function saveCloudDraft() {
+    if (!api || !persisted || !campaignId || !rights || !allowedSources.includes(sourceAssetId)) return
+    setRemoteBusy(true); setRemoteError(''); setRemoteMessage('')
+    try {
+      const saved = await api.createPosterDraft(campaignId, {
+        day_id: day.id, source_asset_id: sourceAssetId,
+        template, format: size, business_name: brand,
+        accent_color: accent, background_color: background,
+        offer_text: offer.trim() || null,
+      })
+      setRemoteDraft(saved.poster_id)
+      setRemoteJob(null)
+      setRemoteMessage('Poster design saved privately. Start secure rendering to generate its PNG.')
+    } catch (problem) { setRemoteError(problem.message) }
+    finally { setRemoteBusy(false) }
+  }
+
+  async function startCloudRender() {
+    if (!remoteDraft || !api) return
+    setRemoteBusy(true); setRemoteError('')
+    try {
+      setRemoteJob(await api.createPosterRender(remoteDraft))
+      setRemoteMessage('Private poster rendering requested. Checking job status…')
+    } catch (problem) { setRemoteError(problem.message) }
+    finally { setRemoteBusy(false) }
+  }
+
+  async function selectCloudBanner() {
+    if (!api || !persisted || remoteJob?.status !== 'SUCCEEDED' || !remoteDraft) return
+    setRemoteBusy(true); setRemoteError('')
+    try {
+      await api.selectPosterBanner(remoteDraft, day.instagram)
+      if (typeof onSelected === 'function') await onSelected()
+      setRemoteMessage('Reviewed poster attached to this saved campaign day. Publishing is still separate.')
+    } catch (problem) { setRemoteError(problem.message) }
+    finally { setRemoteBusy(false) }
+  }
+
+  async function downloadCloudPoster() {
+    if (remoteJob?.status !== 'SUCCEEDED' || !api) return
+    setRemoteBusy(true); setRemoteError('')
+    try {
+      const result = await api.getPosterDownload(remoteJob.job_id)
+      const url = validateSignedVideoUrl(result.url, supabaseOrigin)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.target = '_blank'
+      anchor.rel = 'noopener noreferrer'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      setRemoteMessage('Opened the short-lived private PNG link.')
+    } catch (problem) { setRemoteError(problem.message) }
+    finally { setRemoteBusy(false) }
+  }
+
   useEffect(() => {
     if (!photoFile) { setPhoto(null); return }
     let active = true
@@ -158,8 +267,35 @@ export default function PosterStudio({ day, businessName = 'Your business' }) {
             disabled={!ready || !photo || !rights} onClick={download}>
             Download generated PNG
           </button>
+          <div className="rg-poster-remote" aria-label="Save poster to RetailGrowthAI">
+            <h3>Save to your business</h3>
+            {!persisted && <p className="rg-subtle">Cloud saving is available only for an authenticated, saved campaign day. Local poster downloads remain available.</p>}
+            {persisted && <p className="rg-subtle">Cloud rendering uses your registered, licensed campaign image—not the temporary local photo preview above.</p>}
+            {persisted && <label className="rg-field"><span>Registered campaign product image</span>
+              <select aria-label="Saved poster source image" value={sourceAssetId}
+                onChange={event => setSourceAssetId(event.target.value)}>
+                <option value="">Select a registered image</option>
+                {allowedSources.map(id => <option value={id} key={id}>{id.slice(0, 8)} · Approved shop media</option>)}
+              </select>
+            </label>}
+            <button className="rg-button rg-secondary" type="button"
+              disabled={!persisted || remoteBusy || !rights || !allowedSources.includes(sourceAssetId)}
+              onClick={saveCloudDraft}>Save design privately</button>
+            <button className="rg-button rg-secondary" type="button"
+              disabled={!remoteDraft || remoteBusy}
+              onClick={startCloudRender}>Generate cloud PNG</button>
+            {remoteJob && <p role="status">Poster job: {remoteJob.status}</p>}
+            <button className="rg-button rg-primary" type="button"
+              disabled={!remoteJob || remoteJob.status !== 'SUCCEEDED' || remoteBusy}
+              onClick={downloadCloudPoster}>Open private PNG download</button>
+            <button className="rg-button rg-secondary" type="button"
+              disabled={!persisted || !remoteJob || remoteJob.status !== 'SUCCEEDED' || remoteBusy}
+              onClick={selectCloudBanner}>Use this poster as campaign banner</button>
+            {remoteMessage && <p role="status">{remoteMessage}</p>}
+            {remoteError && <p role="alert" className="rg-validation">{remoteError}</p>}
+          </div>
           {downloadError && <p className="rg-validation" role="alert">{downloadError}</p>}
-          <p className="rg-subtle">This is a real browser-generated PNG, not a hosted render. Your selected file stays on this device; the design is not saved to your account and is not published.</p>
+          <p className="rg-subtle">The local PNG download remains on this device. Cloud designs are saved only after explicit consent; publishing is a separate process.</p>
         </div>
         <div className="rg-creative-preview">
           <canvas ref={canvas} className="rg-creative-canvas" role="img"
