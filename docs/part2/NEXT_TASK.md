@@ -158,3 +158,9 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 1. Verify four-job CI, reviewed internal merge and post-merge branch CI for `feat/p2-reviewed-video-preflight`.
 2. Provide a real service-side render-finalized SHA receipt and external rights-review ledger (no client-supplied digest or claims); resolve timestamp from tenant-authorized P2 DB source, then bind the existing private record CAS using backend service role.
 3. Re-verify stored media bytes or immutable provider-safe copy immediately before Meta/YouTube upload; integrate claim-fenced encrypted video upload RPC/session state and transport under a separately approved release. No live video approval until this is tested, grant-scoped and gated.
+
+## Part2 finalization after private evidence registry
+1. Confirm exact four-job CI and review/merge of staged render integrity + rights ledger; verify post-merge Part2 branch.
+2. Coordinate with Part1 output finalization to write a server-computed SHA immediately after successful render, before editable Storage content may change; obtain separately reviewed commercial license attestation for each video job and expiry. Browser-provided attestation/digest are forbidden; do not backfill by merely trusting user-editable metadata.
+3. Last blocker for safe real video publishing: immutable provider-fetchable copy for Meta, rehash at final transfer, signed URL expiry, claim-fenced stage RPC→remote adapter with token scope, provider receipt reconciliation and mock-to-hosted security/E2E.
+4. Final Coordinator handles Part2→current main compatibility; hosted migration, app permissions, plan publish caps and actual posts require verified operator configuration and explicit release.

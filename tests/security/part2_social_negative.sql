@@ -14,6 +14,7 @@
 \ir ../../supabase/part2/pending/20261023191000_p2_social_cancel_quota_refund.sql
 \ir ../../supabase/part2/pending/20261023191100_p2_social_video_job_reviews.sql
 \ir ../../supabase/part2/pending/20261023191200_p2_social_video_upload_state.sql
+\ir ../../supabase/part2/pending/20261023191300_p2_render_receipts_rights.sql
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -474,7 +475,7 @@ begin
   insert into public.media_assets(
     id,shop_id,created_by,object_path,mime_type,source)
   values('81000000-0000-4000-8000-000000000001',shop,actor,
-    shop::text||'/renders/p2-evidence-fixture.mp4','video/mp4','GENERATED');
+    shop::text||'/renders/91000000-0000-4000-8000-000000000001.mp4','video/mp4','GENERATED');
   if public.p2_social_media_is_reviewed(
     shop,'81000000-0000-4000-8000-000000000001') then
     raise exception 'FAIL: unreviewed media was accepted';
@@ -542,6 +543,64 @@ begin
       '62000000-0000-4000-8000-000000000001',actor)->>'media_asset_id'
       <> '81000000-0000-4000-8000-000000000001' then
     raise exception 'FAIL: exact render output candidate missing';
+  end if;
+  -- Separate, append-only finalized render source and explicit commercial
+  -- rights approval. Never accept a mutable media_assets row alone as proof.
+  if public.p2_social_video_review_candidate(shop,
+     '62000000-0000-4000-8000-000000000001',actor) is not null then
+    raise exception 'FAIL: missing trusted render SHA allowed candidate';
+  end if;
+  if public.p2_record_finalized_render_digest(shop,
+      '91000000-0000-4000-8000-000000000001',
+      '81000000-0000-4000-8000-000000000001',repeat('a',32))
+      or public.p2_record_finalized_render_digest(shop,gen_random_uuid(),
+      '81000000-0000-4000-8000-000000000001',repeat('ab',32)) then
+    raise exception 'FAIL: invalid/nonfinal render supplied trusted digest';
+  end if;
+  if not public.p2_record_finalized_render_digest(shop,
+      '91000000-0000-4000-8000-000000000001',
+      '81000000-0000-4000-8000-000000000001',repeat('ab',32))
+      or not public.p2_record_finalized_render_digest(shop,
+      '91000000-0000-4000-8000-000000000001',
+      '81000000-0000-4000-8000-000000000001',repeat('ab',32)) then
+    raise exception 'FAIL: strict/idempotent render SHA registration';
+  end if;
+  if public.p2_record_finalized_render_digest(shop,
+      '91000000-0000-4000-8000-000000000001',
+      '81000000-0000-4000-8000-000000000001',repeat('cd',32)) then
+    raise exception 'FAIL: append-only render receipt was overwritten';
+  end if;
+  if public.p2_social_video_review_candidate(shop,
+      '62000000-0000-4000-8000-000000000001',actor)->>'scheduled_at'
+      is null or
+     public.p2_social_video_render_receipt(shop,
+      '62000000-0000-4000-8000-000000000001',actor)->>'source_sha256'
+      <>repeat('ab',32) or
+     public.p2_social_video_render_receipt(shop,
+      '62000000-0000-4000-8000-000000000001',
+      'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee') is not null then
+    raise exception 'FAIL: scoped render proof/SHA not authorized';
+  end if;
+  if public.p2_social_video_rights_for_review(shop,
+      '62000000-0000-4000-8000-000000000001',actor,1) is not null
+      or public.p2_record_social_video_rights(shop,
+      '62000000-0000-4000-8000-000000000001',
+      'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',1,
+      repeat('cd',32),'GENERATED_RIGHTS_VERIFIED',now()+interval '1 day') then
+    raise exception 'FAIL: unapproved/foreign rights verified';
+  end if;
+  if not public.p2_record_social_video_rights(shop,
+      '62000000-0000-4000-8000-000000000001',actor,1,
+      repeat('cd',32),'GENERATED_RIGHTS_VERIFIED',now()+interval '1 day') then
+    raise exception 'FAIL: reviewed rights not persisted';
+  end if;
+  if public.p2_social_video_rights_for_review(shop,
+      '62000000-0000-4000-8000-000000000001',actor,1)
+        ->>'rights_evidence_sha256'<>repeat('cd',32)
+     or public.p2_record_social_video_rights(shop,
+      '62000000-0000-4000-8000-000000000001',actor,1,
+      repeat('ef',32),'GENERATED_RIGHTS_VERIFIED',now()+interval '1 day') then
+    raise exception 'FAIL: rights digest missing or silently modified';
   end if;
   if public.p2_bind_social_video_review(shop,
       '62000000-0000-4000-8000-000000000001',actor,2,repeat('ab',32))
@@ -783,6 +842,27 @@ begin
 end $videoacl$;
 rollback;
 \echo 'PASS: encrypted video upload stages and receipts are service-only'
+
+-- Immutable source receipts and independent licensing attestations
+-- require the server role, even when the user owns the shop.
+begin;
+do $p2evidence$
+begin
+  if has_table_privilege('authenticated',
+      'retail_private.social_render_byte_receipts','SELECT')
+     or has_table_privilege('authenticated',
+      'retail_private.social_video_rights_clearances','SELECT')
+     or has_function_privilege('authenticated',
+      'public.p2_record_finalized_render_digest(uuid,uuid,uuid,text)','EXECUTE')
+     or has_function_privilege('anon',
+      'public.p2_social_video_review_candidate(uuid,uuid,uuid)','EXECUTE')
+     or has_function_privilege('authenticated',
+      'public.p2_record_social_video_rights(uuid,uuid,uuid,integer,text,text,timestamptz)','EXECUTE') then
+    raise exception 'FAIL: sensitive render and rights receipts exposed';
+  end if;
+end $p2evidence$;
+rollback;
+\echo 'PASS: finalized source and rights ledgers are append-only and private'
 
 -- Job-specific reviewed video metadata is also never publicly executable.
 begin;
