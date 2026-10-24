@@ -7,7 +7,7 @@ const MAX_BYTES = 25 * 1024 * 1024
 const SUPPORTED = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 export default function PosterStudio({ day, businessName = 'Your business', api = null,
-  campaignId = '', persisted = false, authorizedAssets = [], supabaseOrigin = '' }) {
+  campaignId = '', persisted = false, authorizedAssets = [], supabaseOrigin = '', onSelected = null }) {
   const canvas = useRef(null)
   const [brand, setBrand] = useState(businessName || 'Your business')
   const [template, setTemplate] = useState('editorial')
@@ -104,6 +104,17 @@ export default function PosterStudio({ day, businessName = 'Your business', api 
     try {
       setRemoteJob(await api.createPosterRender(remoteDraft))
       setRemoteMessage('Private poster rendering requested. Checking job status…')
+    } catch (problem) { setRemoteError(problem.message) }
+    finally { setRemoteBusy(false) }
+  }
+
+  async function selectCloudBanner() {
+    if (!api || !persisted || remoteJob?.status !== 'SUCCEEDED' || !remoteDraft) return
+    setRemoteBusy(true); setRemoteError('')
+    try {
+      await api.selectPosterBanner(remoteDraft, day.instagram)
+      if (typeof onSelected === 'function') await onSelected()
+      setRemoteMessage('Reviewed poster attached to this saved campaign day. Publishing is still separate.')
     } catch (problem) { setRemoteError(problem.message) }
     finally { setRemoteBusy(false) }
   }
@@ -277,6 +288,9 @@ export default function PosterStudio({ day, businessName = 'Your business', api 
             <button className="rg-button rg-primary" type="button"
               disabled={!remoteJob || remoteJob.status !== 'SUCCEEDED' || remoteBusy}
               onClick={downloadCloudPoster}>Open private PNG download</button>
+            <button className="rg-button rg-secondary" type="button"
+              disabled={!persisted || !remoteJob || remoteJob.status !== 'SUCCEEDED' || remoteBusy}
+              onClick={selectCloudBanner}>Use this poster as campaign banner</button>
             {remoteMessage && <p role="status">{remoteMessage}</p>}
             {remoteError && <p role="alert" className="rg-validation">{remoteError}</p>}
           </div>
