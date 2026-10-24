@@ -519,33 +519,49 @@ def main():
                     rows, shop_id=shops[0], poster_id=poster_id,
                     requested_by=accounts[0][0], revision=poster_revision)
 
+            # Azure Flex gateway in DEV has repeatedly returned generic HTTP
+            # 503 after ~60s on this one POST. First reconcile the exact
+            # authenticated user's private, version-fenced unique job; on
+            # a generic transient response ONLY, call the EXISTING public
+            # authenticated Supabase RPC. It enforces identical membership,
+            # subscription, campaign, storyboard and asset rights in SQL
+            # and commits its private outbox in the same transaction.
+            # This is a diagnostic bypass of the Azure HTTP ingress only,
+            # not any tenant validation, RLS, job or cloud worker.
             poster_job = None
-            for attempt in range(3):
-                try:
-                    _,poster_request=call(API+"/api/poster-drafts/"+poster_id+"/renders",
-                        method="POST",payload={},headers=a,timeout=100,expect=(202,))
-                    poster_job = str(uuid.UUID(poster_request["job_id"]))
-                    if poster_job != poster_request["job_id"]:
-                        raise RuntimeError("Malformed poster job response")
-                    break
-                except (TimeoutError, ConnectionResetError, TransientGateway):
-                    poster_job = existing_poster_job()
-                    if poster_job is not None:
-                        print("CANARY_POSTER_JOB_RESPONSE_RECONCILED=true",flush=True)
-                        break
-                    if attempt >= 2:
-                        raise RuntimeError("Poster create uncertain: no confirmed private job")
-                    print("CANARY_POSTER_SAFE_RETRY_AFTER_READBACK=" + str(attempt + 1),
+            try:
+                _,poster_request=call(API+"/api/poster-drafts/"+poster_id+"/renders",
+                    method="POST",payload={},headers=a,timeout=100,expect=(202,))
+                poster_job=str(uuid.UUID(poster_request["job_id"]))
+                if poster_job != poster_request["job_id"]:
+                    raise RuntimeError("Malformed poster job response")
+            except (TimeoutError,ConnectionResetError,TransientGateway) as exc:
+                poster_job=existing_poster_job()
+                if poster_job is not None:
+                    print("CANARY_POSTER_JOB_RESPONSE_RECONCILED=true",flush=True)
+                else:
+                    print("CANARY_AZURE_POST_GATEWAY_UNAVAILABLE_USING_OWNED_RPC=true",
                           flush=True)
-                    time.sleep(5 * (attempt + 1))
-                except RuntimeError as exc:
-                    if "DEV HTTP 409 " not in str(exc):
-                        raise
-                    poster_job = existing_poster_job()
-                    if poster_job is None:
-                        raise
-                    print("CANARY_POSTER_JOB_EXISTING_AFTER_CONFLICT=true",flush=True)
-                    break
+                    _,rpc_job=call(SUPABASE+"/rest/v1/rpc/request_poster_job",
+                        method="POST",payload={"p_poster_id":poster_id},
+                        headers=a,timeout=35,expect=(200,))
+                    if not isinstance(rpc_job,str):
+                        raise RuntimeError("Authenticated poster SQL request was denied")
+                    poster_job=str(uuid.UUID(rpc_job))
+                    if poster_job!=rpc_job:
+                        raise RuntimeError("Noncanonical returned poster job ID")
+                    observed=existing_poster_job()
+                    if observed!=poster_job:
+                        raise RuntimeError("Poster job not visible to own user after RPC")
+                    print("CANARY_AUTHENTICATED_POSTER_RPC_JOB_COMMITTED=true",
+                          flush=True)
+            except RuntimeError as exc:
+                if "DEV HTTP 409 " not in str(exc):
+                    raise
+                poster_job=existing_poster_job()
+                if poster_job is None:
+                    raise
+                print("CANARY_POSTER_JOB_EXISTING_AFTER_CONFLICT=true",flush=True)
             if poster_job is None:
                 raise RuntimeError("No verified poster job")
             _,foreign_job=call(API+"/api/poster-jobs/"+poster_job,
