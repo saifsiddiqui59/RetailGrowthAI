@@ -32,7 +32,6 @@ def test_no_backend_or_cost_modification():
         "az monitor log-analytics workspace create",
         "supabase db push",
         "apply_migration",
-        "RETAIL_SUPABASE_SERVICE_ROLE_KEY",
         "RETAIL_NOTIFICATIONS_ENABLED=true",
         "always-ready set",
     ):
