@@ -83,15 +83,15 @@ const CAPABILITIES = {
   '20261024160000': [/create table retail_private\.notification_outbox/i, /capture_onboarding_notification/i, /claim_notifications/i, /confirm_notification/i, /notification_recipients/i, /revoke all on retail_private\.notification_outbox/i],
   '20261024170000': [/select_poster_banner/i, /security definer set search_path = ''/i, /retail_private\.has_role/i, /output_asset_id/i, /p_expected_instagram/i, /revoke all on function public\.select_poster_banner/i],
   '20261024190000': [
-    /create table retail_private\\.platform_notifications/i,
-    /create table retail_private\\.platform_notification_reads/i,
+    /create table retail_private[.]platform_notifications/i,
+    /create table retail_private[.]platform_notification_reads/i,
     /enable row level security/i,
     /retail_platform_notifications/i,
     /retail_platform_set_notification_read/i,
     /retail_platform_subscription_watch/i,
     /refresh_platform_signals/i,
     /assert_platform_admin/i,
-    /revoke all on retail_private\\.platform_notifications from public,anon,authenticated/i,
+    /revoke all on retail_private[.]platform_notifications from public,anon,authenticated/i,
   ],
   '20261022220000': [
     /create table public\.job_outbox/i, /create table public\.job_poison_events/i,
