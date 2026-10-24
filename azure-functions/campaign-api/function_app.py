@@ -16,6 +16,8 @@ from poster_draft_api import PosterDraftAPI
 from render_worker import process_render
 from private_media import PrivateMedia
 from recovery_runtime import dispatch_outbox, record_poison, reconcile_and_dispatch
+from notification_store import NotificationStore
+from notification_worker import dispatch_notifications, SmtpSender
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -165,3 +167,18 @@ def planning_poison(message: func.QueueMessage):
 def render_poison(message: func.QueueMessage):
     admin, _, _ = _recovery_dependencies()
     record_poison(admin, "render", message.get_body())
+
+
+@app.timer_trigger(schedule="0 */10 * * * *", arg_name="timer",
+                   run_on_startup=False, use_monitor=True)
+def dispatch_onboarding_emails(timer: func.TimerRequest):
+    # Explicitly OFF by default. No SMTP connection unless the dedicated
+    # RetailGrowthAI sender, URL and feature flag have been configured.
+    if os.environ.get("RETAIL_NOTIFICATIONS_ENABLED") != "true":
+        return
+    store = NotificationStore(
+        os.environ["RETAIL_SUPABASE_URL"],
+        os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"],
+    )
+    sender = SmtpSender.from_environment()
+    dispatch_notifications(store, sender, enabled=True, limit=8)
