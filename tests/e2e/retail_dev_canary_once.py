@@ -414,94 +414,100 @@ def main():
         if saved.get("day",{}).get("topic")!=update["topic"]:
             raise RuntimeError("Draft save not persisted")
         print("CANARY_REMOTE_DRAFT_SAVE=true",flush=True)
-        # New Part 1 Creative Studio: durable poster job from the same licensed
-        # canary image; no third-party media and no paid premium generation.
-        poster_payload={
-            "day_id":day["id"],"source_asset_id":asset,
-            "template":"editorial","format":"portrait",
-            "business_name":"RetailGrowthAI Canary Boutique",
-            "accent_color":"#446677","background_color":"#F8F8F2",
-        }
-        # Azure may time out after SQL has committed the idempotent draft.
-        # Read only our RLS-scoped saved designs BEFORE any identical retry.
-        # Never retry a different design or an ambiguous persisted result.
-        def persisted_poster():
-            _,rows=call(API+"/api/campaigns/"+cid+"/days/"+day["id"]+"/posters",
-                headers=a,expect=(200,))
-            matches=[p for p in rows.get("posters",[]) if
-                p.get("source_asset_id")==asset and
-                p.get("business_name")==poster_payload["business_name"] and
-                p.get("template")==poster_payload["template"] and
-                p.get("format")==poster_payload["format"] and
-                p.get("accent_color")==poster_payload["accent_color"] and
-                p.get("background_color")==poster_payload["background_color"]]
-            if len(matches)>1:
-                raise RuntimeError("Ambiguous persisted poster after uncertain POST")
-            return matches[0]["poster_id"] if matches else None
-        poster_id=None
-        for attempt in range(3):
-            try:
-                _,pcreated=call(API+"/api/campaigns/"+cid+"/posters",method="POST",
-                    payload=poster_payload,headers=a,timeout=100,expect=(201,))
-                poster_id=pcreated["poster_id"]
-                break
-            except (TimeoutError,ConnectionResetError,TransientGateway):
-                poster_id=persisted_poster()
-                if poster_id:
-                    print("CANARY_POSTER_POST_RECONCILED_AFTER_TIMEOUT=true",flush=True)
+        # Browser canary verifies input upload + real Foundry + Reel, not
+        # the independently gated Part 1 poster runtime. Default canary
+        # retains the existing poster acceptance exactly as before.
+        if os.environ.get("RGAI_DEV_PLAYWRIGHT_UPLOAD") != "1":
+            # New Part 1 Creative Studio: durable poster job from the same licensed
+            # canary image; no third-party media and no paid premium generation.
+            poster_payload={
+                "day_id":day["id"],"source_asset_id":asset,
+                "template":"editorial","format":"portrait",
+                "business_name":"RetailGrowthAI Canary Boutique",
+                "accent_color":"#446677","background_color":"#F8F8F2",
+            }
+            # Azure may time out after SQL has committed the idempotent draft.
+            # Read only our RLS-scoped saved designs BEFORE any identical retry.
+            # Never retry a different design or an ambiguous persisted result.
+            def persisted_poster():
+                _,rows=call(API+"/api/campaigns/"+cid+"/days/"+day["id"]+"/posters",
+                    headers=a,expect=(200,))
+                matches=[p for p in rows.get("posters",[]) if
+                    p.get("source_asset_id")==asset and
+                    p.get("business_name")==poster_payload["business_name"] and
+                    p.get("template")==poster_payload["template"] and
+                    p.get("format")==poster_payload["format"] and
+                    p.get("accent_color")==poster_payload["accent_color"] and
+                    p.get("background_color")==poster_payload["background_color"]]
+                if len(matches)>1:
+                    raise RuntimeError("Ambiguous persisted poster after uncertain POST")
+                return matches[0]["poster_id"] if matches else None
+            poster_id=None
+            for attempt in range(3):
+                try:
+                    _,pcreated=call(API+"/api/campaigns/"+cid+"/posters",method="POST",
+                        payload=poster_payload,headers=a,timeout=100,expect=(201,))
+                    poster_id=pcreated["poster_id"]
                     break
-                if attempt==2:
-                    raise RuntimeError("Poster save did not commit after bounded readback")
-                print("CANARY_POSTER_SAFE_IDENTICAL_RETRY="+str(attempt+1),flush=True)
-                time.sleep(5*(attempt+1))
-        if not poster_id:
-            raise RuntimeError("Missing verified private poster draft ID")
-        print("CANARY_POSTER_SAVED=true",flush=True)
-        _,foreign_poster=call(API+"/api/poster-drafts/"+poster_id,
-            headers=b,expect=(403,404))
-        print("CANARY_POSTER_CROSS_SHOP_DENIED=true",flush=True)
-        _,history=call(API+"/api/campaigns/"+cid+"/days/"+day["id"]+"/posters",
-            headers=a,expect=(200,))
-        if not any(x.get("poster_id")==poster_id for x in history.get("posters",[])):
-            raise RuntimeError("Cloud-saved poster absent from persisted day history")
-        _,reopened=call(API+"/api/poster-drafts/"+poster_id,headers=a,expect=(200,))
-        if reopened.get("business_name")!=poster_payload["business_name"]:
-            raise RuntimeError("Poster did not survive private reload")
-        print("CANARY_POSTER_HISTORY_REOPENED=true",flush=True)
-        _,poster_request=call(API+"/api/poster-drafts/"+poster_id+"/renders",
-            method="POST",payload={},headers=a,timeout=60,expect=(202,))
-        poster_job=poster_request["job_id"]
-        _,foreign_job=call(API+"/api/poster-jobs/"+poster_job,
-            headers=b,expect=(403,404))
-        print("CANARY_POSTER_JOB_TENANT_DENIED=true",flush=True)
-        def poster_read():
-            return call(API+"/api/poster-jobs/"+poster_job,headers=a,expect=(200,))[1]
-        poster_done=poll(poster_read,{"SUCCEEDED"},450)
-        if not poster_done.get("output_asset_id"):
-            raise RuntimeError("Poster worker completed without registered private asset")
-        print("CANARY_POSTER_WORKER_SUCCEEDED=true",flush=True)
-        _,poster_url=call(API+"/api/poster-jobs/"+poster_job+"/download",
-            headers=a,expect=(200,))
-        parsed_poster=urllib.parse.urlparse(poster_url["url"])
-        if parsed_poster.scheme!="https" or parsed_poster.netloc!="jeearzffnjbvghwjjjrf.supabase.co" or not parsed_poster.path.startswith("/storage/v1/object/sign/retailgrowth-media/"):
-            raise RuntimeError("Poster signed URL is not in private RetailGrowthAI storage")
-        with urllib.request.urlopen(poster_url["url"],timeout=40) as res:
-            png=res.read(16*1024*1024+1)
-        if len(png)>16*1024*1024 or not png.startswith(b"\x89PNG\r\n\x1a\n"):
-            raise RuntimeError("Generated poster is not a bounded PNG")
-        width,height=struct.unpack(">II",png[16:24])
-        if (width,height)!=(1080,1350):
-            raise RuntimeError("Poster generated incorrect portrait dimensions")
-        print("CANARY_PRIVATE_POSTER_PNG_VERIFIED=true",flush=True)
-        expected_instagram=saved["day"]["instagram"]
-        _,chosen=call(API+"/api/poster-drafts/"+poster_id+"/select",method="POST",
-            payload={"expected_instagram":expected_instagram},headers=a,expect=(200,))
-        if chosen.get("banner_asset_id")!=poster_done["output_asset_id"]:
-            raise RuntimeError("Approved poster output not attached")
-        live_day=next(x for x in getcampaign()["days"] if x["id"]==day["id"])
-        if live_day["instagram"].get("banner_asset_id")!=poster_done["output_asset_id"]:
-            raise RuntimeError("Selected poster banner not durably saved")
-        print("CANARY_POSTER_BANNER_ATTACHED=true",flush=True)
+                except (TimeoutError,ConnectionResetError,TransientGateway):
+                    poster_id=persisted_poster()
+                    if poster_id:
+                        print("CANARY_POSTER_POST_RECONCILED_AFTER_TIMEOUT=true",flush=True)
+                        break
+                    if attempt==2:
+                        raise RuntimeError("Poster save did not commit after bounded readback")
+                    print("CANARY_POSTER_SAFE_IDENTICAL_RETRY="+str(attempt+1),flush=True)
+                    time.sleep(5*(attempt+1))
+            if not poster_id:
+                raise RuntimeError("Missing verified private poster draft ID")
+            print("CANARY_POSTER_SAVED=true",flush=True)
+            _,foreign_poster=call(API+"/api/poster-drafts/"+poster_id,
+                headers=b,expect=(403,404))
+            print("CANARY_POSTER_CROSS_SHOP_DENIED=true",flush=True)
+            _,history=call(API+"/api/campaigns/"+cid+"/days/"+day["id"]+"/posters",
+                headers=a,expect=(200,))
+            if not any(x.get("poster_id")==poster_id for x in history.get("posters",[])):
+                raise RuntimeError("Cloud-saved poster absent from persisted day history")
+            _,reopened=call(API+"/api/poster-drafts/"+poster_id,headers=a,expect=(200,))
+            if reopened.get("business_name")!=poster_payload["business_name"]:
+                raise RuntimeError("Poster did not survive private reload")
+            print("CANARY_POSTER_HISTORY_REOPENED=true",flush=True)
+            _,poster_request=call(API+"/api/poster-drafts/"+poster_id+"/renders",
+                method="POST",payload={},headers=a,timeout=60,expect=(202,))
+            poster_job=poster_request["job_id"]
+            _,foreign_job=call(API+"/api/poster-jobs/"+poster_job,
+                headers=b,expect=(403,404))
+            print("CANARY_POSTER_JOB_TENANT_DENIED=true",flush=True)
+            def poster_read():
+                return call(API+"/api/poster-jobs/"+poster_job,headers=a,expect=(200,))[1]
+            poster_done=poll(poster_read,{"SUCCEEDED"},450)
+            if not poster_done.get("output_asset_id"):
+                raise RuntimeError("Poster worker completed without registered private asset")
+            print("CANARY_POSTER_WORKER_SUCCEEDED=true",flush=True)
+            _,poster_url=call(API+"/api/poster-jobs/"+poster_job+"/download",
+                headers=a,expect=(200,))
+            parsed_poster=urllib.parse.urlparse(poster_url["url"])
+            if parsed_poster.scheme!="https" or parsed_poster.netloc!="jeearzffnjbvghwjjjrf.supabase.co" or not parsed_poster.path.startswith("/storage/v1/object/sign/retailgrowth-media/"):
+                raise RuntimeError("Poster signed URL is not in private RetailGrowthAI storage")
+            with urllib.request.urlopen(poster_url["url"],timeout=40) as res:
+                png=res.read(16*1024*1024+1)
+            if len(png)>16*1024*1024 or not png.startswith(b"\x89PNG\r\n\x1a\n"):
+                raise RuntimeError("Generated poster is not a bounded PNG")
+            width,height=struct.unpack(">II",png[16:24])
+            if (width,height)!=(1080,1350):
+                raise RuntimeError("Poster generated incorrect portrait dimensions")
+            print("CANARY_PRIVATE_POSTER_PNG_VERIFIED=true",flush=True)
+            expected_instagram=saved["day"]["instagram"]
+            _,chosen=call(API+"/api/poster-drafts/"+poster_id+"/select",method="POST",
+                payload={"expected_instagram":expected_instagram},headers=a,expect=(200,))
+            if chosen.get("banner_asset_id")!=poster_done["output_asset_id"]:
+                raise RuntimeError("Approved poster output not attached")
+            live_day=next(x for x in getcampaign()["days"] if x["id"]==day["id"])
+            if live_day["instagram"].get("banner_asset_id")!=poster_done["output_asset_id"]:
+                raise RuntimeError("Selected poster banner not durably saved")
+            print("CANARY_POSTER_BANNER_ATTACHED=true",flush=True)
+        else:
+            print("CANARY_BROWSER_POSTER_NOT_REQUESTED=true", flush=True)
         # If the gateway loses a render creation response, do not blindly
         # repeat a billable write. First read the current user's RLS-scoped
         # matching job. Backend deterministic idempotency guarantees one
