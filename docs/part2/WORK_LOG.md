@@ -76,3 +76,5 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - 2026-10-24: Added source-only staged claim-fenced Instagram/YouTube upload intent/session/receipt migration and disposable SQL CAS/nonreplay security tests on `feat/p2-video-durable-upload-state`. Kept social worker disabled, existing video approval fail-closed, no live cloud/migrations/provider calls or WineShopPOS changes. CI pending.
 
 - 2026-10-24: Created Part2-only trusted-video-certification pipeline + adversarial offline Python tests, wiring existing P1 MP4 secure reader and digest/FFprobe primitives behind independent injected source and commercial rights authorities. No source of truth fabricated; explicitly no live publish grant, cloud migration, Azure queue, account OAuth or WineShopPOS change. CI and internal merge to follow.
+
+- 2026-10-24: Added staged-only service-render final SHA + independent review-rights append-only ledgers and scoped PostgREST backend bridge, plus negative disposable SQL/pytest coverage. Does not reconfigure Part1/Part3/WineShopPOS, create provider accounts, apply hosted DB, or turn on social posting. PR/CI evidence to follow.
