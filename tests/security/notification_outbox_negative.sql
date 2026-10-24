@@ -53,9 +53,12 @@ begin
  evt:=batch->0;
  token:=(evt->>'lease_token')::uuid;
  id:=(evt->>'id')::uuid;
- if public.confirm_notification(id,gen_random_uuid(),true,null)
-    or public.confirm_notification(id,token,true,'unsafe-message') then
-   raise exception 'stale token or invalid error code accepted'; end if;
+ if public.confirm_notification(id,gen_random_uuid(),true,null) then
+   raise exception 'stale token accepted'; end if;
+ begin
+   perform public.confirm_notification(id,token,true,'unsafe-message');
+   raise exception 'invalid email error marker accepted';
+ exception when invalid_parameter_value then null; end;
  if not public.confirm_notification(id,token,true,null)
     or public.confirm_notification(id,token,true,null) then
    raise exception 'notification delivery not one-shot'; end if;
