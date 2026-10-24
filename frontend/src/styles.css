@@ -343,3 +343,27 @@ h2 { letter-spacing: -.025em; }
 @media(prefers-reduced-motion:reduce) {
   .login-story,.login-form-side,.login-card {scroll-behavior:auto;}
 }
+
+/* Snapshot-only Platform Super Admin notification center. */
+.platform-alert-page .page-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.platform-alert-page .subtle-button {border:1px solid #b9d4cd;border-radius:11px;padding:12px 18px;font:inherit;color:#185b4d;background:#f1faf5;font-weight:750;cursor:pointer}
+.platform-alert-page .subtle-button:disabled {opacity:.6;cursor:default}
+.platform-alert-disclaimer {padding:16px 20px;background:#eff7f4;color:#44665e;font-size:13px;line-height:1.65}
+.platform-alert-tally {display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap;align-items:center;margin:25px 0 16px;color:#204e44}
+.platform-alert-tally span {font-size:12px;color:#748a91}
+.platform-alert-filters {display:flex;flex-wrap:wrap;gap:8px;margin:0 0 17px}
+.platform-alert-filters button {background:#fff;border:1px solid #d1e0dd;color:#4c6470;border-radius:99px;padding:10px 14px;font:inherit;font-size:12px;font-weight:750;cursor:pointer;min-height:42px}
+.platform-alert-filters button[aria-pressed="true"] {background:#145c4b;color:#fff;border-color:#145c4b}
+.platform-alert-filters button:focus-visible,.platform-alert-page a:focus-visible {outline:3px solid #148167;outline-offset:3px}
+.platform-alert-list {display:grid;gap:12px}
+.platform-alert-item {display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;padding:20px;border:1px solid #deebeb;background:#fff;border-radius:17px;box-shadow:0 6px 22px rgba(23,58,52,.04)}
+.platform-alert-indicator {flex:0 0 32px;height:32px;display:grid;place-items:center;background:#e5f1eb;color:#24664e;border-radius:10px;font-weight:850}
+.platform-alert-item.alert-action {border-left:4px solid #cb7052}
+.platform-alert-item.alert-action .platform-alert-indicator {background:#fff0e8;color:#b55536}
+.platform-alert-item.alert-attention {border-left:4px solid #dfa949}
+.platform-alert-body {flex:1;min-width:min(100%,260px)}
+.platform-alert-body small {font-weight:800;color:#6e8290;font-size:11px}
+.platform-alert-body h2 {font-size:17px;margin:6px 0 7px;color:#173d42}
+.platform-alert-body p {font-size:13px;line-height:1.5;overflow-wrap:anywhere;color:#667987;margin:0}
+.platform-alert-item .text-link {margin:0;align-self:center;white-space:nowrap;font-size:13px}
+@media(max-width:760px){.platform-alert-item{padding:16px;gap:12px}.platform-alert-item .text-link{margin-left:44px}.platform-alert-page .page-heading>button{width:100%}}
