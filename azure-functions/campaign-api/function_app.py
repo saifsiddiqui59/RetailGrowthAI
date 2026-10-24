@@ -92,6 +92,12 @@ def create_poster_draft(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/campaigns/" + req.route_params["campaign_id"] + "/posters")
 
 
+@app.route(route="campaigns/{campaign_id}/days/{day_id}/posters", methods=["GET"])
+def list_saved_posters(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/campaigns/" + req.route_params["campaign_id"]
+                    + "/days/" + req.route_params["day_id"] + "/posters")
+
+
 @app.route(route="poster-drafts/{draft_id}", methods=["GET"])
 def get_poster_draft(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/poster-drafts/" + req.route_params["draft_id"])
