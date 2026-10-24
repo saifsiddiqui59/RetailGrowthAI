@@ -74,7 +74,10 @@ class SocialPrivateRenderReader:
         self.origin = _origin(origin)
         if not isinstance(service_role_key, str) or not service_role_key:
             raise SocialVideoDownloadDenied("VIDEO_SERVICE_CREDENTIAL_MISSING")
-        self._headers = backend_headers(service_role_key)
+        try:
+            self._headers = backend_headers(service_role_key)
+        except (TypeError, ValueError):
+            raise SocialVideoDownloadDenied("VIDEO_SERVICE_CREDENTIAL_MISSING") from None
         self._opener = transport or build_opener(_NoRedirect()).open
 
     def download(self, *, shop_id, object_path, destination, private_root,
@@ -97,6 +100,7 @@ class SocialPrivateRenderReader:
         req = Request(url, method="GET", headers={
             **self._headers, "Accept-Encoding": "identity"})
         created = False
+        complete = False
         count = 0
         digest = sha256()
         try:
@@ -122,6 +126,7 @@ class SocialPrivateRenderReader:
                         dest.write(chunk)
             if count == 0 or not hmac.compare_digest(digest.hexdigest(), expected_sha256):
                 raise SocialVideoDownloadDenied("VIDEO_DIGEST_MISMATCH")
+            complete = True
             return {"source_sha256": digest.hexdigest(),
                     "size_bytes": count, "path": target}
         except SocialVideoDownloadDenied:
@@ -129,6 +134,5 @@ class SocialPrivateRenderReader:
         except (HTTPError, URLError, OSError, ValueError, TypeError):
             raise SocialVideoDownloadDenied("VIDEO_PRIVATE_FETCH_UNAVAILABLE") from None
         finally:
-            if created and (count == 0 or not hmac.compare_digest(
-                    digest.hexdigest(), expected_sha256)):
+            if created and not complete:
                 target.unlink(missing_ok=True)
