@@ -67,6 +67,6 @@ Do not modify WineShopPOS, use its old SMTP app password, or grant root to any s
 
 ## 2026-10-24 — CURRENT OWNER DECISION: email FUTURE WORK
 - Outbound email is **DEFERRED** until owner explicitly reopens this item: new retailer signup notification, approval/rejection outcome mail, custom SMTP/provider credentials, Supabase-branded hosted verification/recovery templates, and real inbox smoke tests.
-- Do **not** reuse, retrieve or reset WineShopPOS SMTP secrets. No Gmail password is needed for current work. Keep `RETAIL_NOTIFICATIONS_ENABLED=false` and do not activate the pending email-only migration for dispatch.
+- Do **not** reuse, retrieve or reset WineShopPOS SMTP secrets. No Gmail password is needed for current work. Keep `RETAIL_NOTIFICATIONS_ENABLED=false` and do not treat an additive, separately approved poster-release migration as authorization to turn on email dispatch. Keep the notification sender disabled even if canonical schema order results in an inert email outbox table.
 - Existing in-app Platform Control → Retailer signup approvals and `/platform-alerts` snapshot notices remain available and are **not** blocked by this decision. Public-facing hosted Auth URL misconfiguration can be fixed in a future independent non-SMTP security task if needed; do not represent emailed verification or recovery as production ready.
 - Resume outbound email later only as a separately reviewed, owner-authorized deliverability workstream with project-specific sender configuration, safe migration and controlled inbox checks.
