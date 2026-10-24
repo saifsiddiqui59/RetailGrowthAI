@@ -90,8 +90,15 @@ def test_email_has_no_token_user_identity_or_unapproved_offer():
                             base_url="https://retail.example")
     assert message["To"] == "shop@example.invalid"
     assert "approved" in message["Subject"].lower()
-    assert "https://retail.example/" in message.get_content()
-    assert "password" not in message.get_content().lower()
+    plain = message.get_body(preferencelist=("plain",)).get_content()
+    html = message.get_body(preferencelist=("html",)).get_content()
+    assert "https://retail.example/" in plain
+    assert "password" not in plain.lower()
+    assert message["From"].addresses[0].display_name == "RetailGrowthAI"
+    assert message["From"].addresses[0].addr_spec == "no-reply@example.invalid"
+    assert "RetailGrowth" in html and "https://retail.example/" in html
+    assert "shop@example.invalid" not in html
+    assert message.get_content_type() == "multipart/alternative"
 
 
 @pytest.mark.parametrize("recipient", ["evil\ninjected@example.invalid", "",
