@@ -108,7 +108,7 @@ returns boolean language plpgsql volatile security invoker set search_path = '' 
 declare updated_id uuid;
 begin
  if p_success is null or (p_error is not null and (length(p_error)>64
-      or p_error !~ '^[A-Z_]+$')) then raise exception 'invalid notification result'; end if;
+      or p_error !~ '^[A-Z_]+$')) then raise exception 'invalid notification result' using errcode='22023'; end if;
  update retail_private.notification_outbox
   set status=case when p_success then 'SENT'
                   when attempts>=8 then 'DEAD' else 'PENDING' end,
