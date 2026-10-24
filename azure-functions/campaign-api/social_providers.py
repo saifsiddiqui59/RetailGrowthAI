@@ -56,7 +56,7 @@ _UUID_PATH = (r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
 _EXPORT_PATH = re.compile(
     r"/storage/v1/object/sign/retailgrowth-social-exports/"
     + _UUID_PATH + r"/video/" + _UUID_PATH
-    + r"/[1-9][0-9]{0,7}/[0-9a-f]{64}\\.mp4\\Z"
+    + r"/[1-9][0-9]{0,7}/[0-9a-f]{64}\.mp4\Z"
 )
 
 
