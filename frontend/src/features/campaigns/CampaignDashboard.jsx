@@ -394,6 +394,8 @@ export default function CampaignDashboard() {
   const api = useMemo(() => createCampaignApi({
     baseUrl: import.meta.env?.VITE_CAMPAIGN_API_BASE_URL || '',
     tokenProvider: () => client.getAccessToken(),
+    supabaseOrigin: import.meta.env?.VITE_SUPABASE_URL || '',
+    supabasePublishableKey: import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY || '',
   }), [client])
   const [shops, setShops] = useState([])
   const [shopId, setShopId] = useState('')
