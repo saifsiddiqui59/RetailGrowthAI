@@ -21,6 +21,10 @@ class DiagnosticsTests(unittest.TestCase):
     def test_route_names_are_fixed_and_do_not_include_ids_or_queries(self):
         self.assertEqual(route_name("PATCH", f"/api/campaigns/{CID}/days/{DID}"), "campaign.day.save")
         self.assertEqual(route_name("GET", f"/poster-jobs/{CID}/download"), "poster.download")
+        self.assertEqual(route_name("GET", f"/api/campaigns/{CID}/days/{DID}/posters"), "poster.list")
+        self.assertEqual(route_name("POST", f"/api/poster-drafts/{DID}/select"), "poster.select")
+        self.assertEqual(route_name("POST", f"/poster-jobs/{DID}/select"), "unknown")
+        self.assertEqual(route_name("GET", f"/campaigns/{CID}/posters"), "unknown")
         for path in ("https://bad.example/a?token=secret", "/campaigns/person@email.test",
                      f"/campaigns/{CID}?token=secret", "/campaigns/../secret", None,
                      "/" + "a" * 513):
