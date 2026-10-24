@@ -15,6 +15,30 @@
 \ir ../../supabase/part2/pending/20261023191100_p2_social_video_job_reviews.sql
 \ir ../../supabase/part2/pending/20261023191200_p2_social_video_upload_state.sql
 \ir ../../supabase/part2/pending/20261023191300_p2_render_receipts_rights.sql
+\ir ../../supabase/part2/pending/20261023191400_p2_social_immutable_export_bucket.sql
+
+-- Service-only, private export bucket must never be exposed by a
+-- permissive global storage.objects policy.
+begin;
+do $p2exports$
+begin
+  if not exists (
+    select 1 from storage.buckets b
+    where b.id='retailgrowth-social-exports'
+      and b.public=false and b.file_size_limit=83886080
+  ) or not exists (
+    select 1 from pg_policies p
+    where p.schemaname='storage' and p.tablename='objects'
+      and p.policyname='p2_social_export_client_denial'
+      and p.permissive='RESTRICTIVE'
+      and 'authenticated'=any(p.roles)
+      and 'anon'=any(p.roles)
+  ) then
+    raise exception 'FAIL: social outbound export bucket not browser-isolated';
+  end if;
+end $p2exports$;
+rollback;
+\echo 'PASS: Instagram outbound exports have isolated server-only bucket'
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)

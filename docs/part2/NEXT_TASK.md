@@ -164,3 +164,8 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 2. Coordinate with Part1 output finalization to write a server-computed SHA immediately after successful render, before editable Storage content may change; obtain separately reviewed commercial license attestation for each video job and expiry. Browser-provided attestation/digest are forbidden; do not backfill by merely trusting user-editable metadata.
 3. Last blocker for safe real video publishing: immutable provider-fetchable copy for Meta, rehash at final transfer, signed URL expiry, claim-fenced stage RPC→remote adapter with token scope, provider receipt reconciliation and mock-to-hosted security/E2E.
 4. Final Coordinator handles Part2→current main compatibility; hosted migration, app permissions, plan publish caps and actual posts require verified operator configuration and explicit release.
+
+## 2026-10-24 — Immutable outbound media export remains gated
+- Verify exact-head and post-merge four-job CI for the service-only export bucket/publisher URL policy. An ordinary P1 tenant media signed URL must now be rejected by Instagram transport.
+- Implement the reviewed copy-once producer from a hash-pinned P1 MP4 into isolated `retailgrowth-social-exports`, check stable bytes before+after storage handoff, strict rights/revision/account/claim CAS and URL TTL. The export uploader may not overwrite or let users edit provider-readable content.
+- Register the consented video worker only after hosted P2 migrations, plan publishing caps, legitimate approved Meta/Google scopes and E2E provider-safe test accounts. Keep provider posting OFF until that release review.
