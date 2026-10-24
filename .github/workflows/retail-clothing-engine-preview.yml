@@ -1,0 +1,94 @@
+name: RetailGrowthAI real-engine clothing post and video preview
+# This is an isolated test-artifact workflow. It does not send credentials or deploy.
+on:
+  push:
+    branches: [test/clothing-post-video-engine-sample]
+    paths:
+      - 'demo/clothing/**'
+      - '.github/workflows/retail-clothing-engine-preview.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: retailgrowthai-clothing-engine-preview
+  cancel-in-progress: true
+jobs:
+  render_preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install offline render prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user --disable-pip-version-check 'Pillow==11.3.0' --break-system-packages
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            timeout 180s sudo apt-get update -qq
+            timeout 240s sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
+          fi
+          ffmpeg -version | head -n 1
+          ffprobe -version | head -n 1
+      - name: Create clothing visuals and post copy from actual RetailGrowthAI fixture
+        run: python3 demo/clothing/generate.py
+      - name: Render poster using unmodified RetailGrowthAI poster-engine
+        run: |
+          python3 poster-engine/render.py \
+            --campaign demo/out/campaign.json \
+            --manifest demo/out/manifest.json \
+            --asset-root demo/out/assets \
+            --day 1 \
+            --output demo/out/clothing-poster.png \
+            --business 'Everyday Edit Clothing' \
+            --template editorial \
+            --size portrait \
+            --accent '#A35F52' \
+            --background '#FBF5ED' \
+            --product-asset-id a1000000-0000-4000-8000-000000000001
+      - name: Render 30-second Reel using unmodified RetailGrowthAI video-engine
+        run: |
+          python3 video-engine/render.py \
+            --campaign demo/out/campaign.json \
+            --manifest demo/out/manifest.json \
+            --asset-root demo/out/assets \
+            --day-index 1 \
+            --output demo/out/clothing-reel-30s.mp4 \
+            --width 540 --height 960 --fps 12 --preset ultrafast
+      - name: Verify MP4 duration/codecs and actual PNG
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffprobe -v error -show_entries format=duration:stream=codec_name,width,height \
+            -of json demo/out/clothing-reel-30s.mp4 > demo/out/media-verification.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from PIL import Image
+          base=Path('demo/out')
+          data=json.loads((base/'media-verification.json').read_text())
+          assert abs(float(data['format']['duration'])-30)<0.45, data
+          video=[s for s in data['streams'] if s.get('codec_name')=='h264']
+          audio=[s for s in data['streams'] if s.get('codec_name')=='aac']
+          assert video and audio, data
+          assert (video[0]['width'],video[0]['height'])==(540,960),data
+          with Image.open(base/'clothing-poster.png') as im:
+            assert im.format=='PNG' and im.size==(1080,1350), im.size
+          assert (base/'linkedin_post.txt').read_text().strip()
+          assert (base/'instagram_caption.txt').read_text().strip()
+          print('PASS: actual clothing promotional poster, 30s H.264/AAC Reel, LinkedIn and Instagram copy')
+          PY
+      - name: Upload ready-to-inspect outputs, not fake claims
+        uses: actions/upload-artifact@v4
+        with:
+          name: RetailGrowthAI-Clothing-Post-Poster-Video-Demo
+          path: |
+            demo/out/clothing-poster.png
+            demo/out/clothing-reel-30s.mp4
+            demo/out/linkedin_post.txt
+            demo/out/instagram_caption.txt
+            demo/out/media-verification.json
+            demo/out/README.txt
+          if-no-files-found: error
+          retention-days: 14
