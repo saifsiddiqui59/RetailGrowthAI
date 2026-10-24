@@ -145,3 +145,8 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - New Node fixture and Playwright mobile/browser no-provider-call checks are included; exact-head CI evidence must be recorded when complete. Part 2 live feature flags remain OFF.
 
 - 2026-10-24 — Clothing-specific source sample: Updated the four offline publisher previews to illustrate the user-supplied reference with black/light-collar, pale-yellow/green-collar and forest-green/dark-collar shirts. Added a color-swatch-only reference with no uploaded image, no Calvin Klein association claim, no stock or sale assertions and no media generation. This is a UI fixture, not Azure Foundry output. Live preview remains blocked by separate coordinator deploy approval.
+
+## 2026-10-24 — Inactive media outbound transport (#218)
+- An explicit opt-in outbound Instagram/YouTube HTTP transport pins provider host, path, TLS and port, refuses redirects, bounds JSON responses and binary payloads, and supports YouTube resumable status-only HTTP 308 reconciliation. Hardened stored YouTube session URL validation. No Azure Function or media worker calls this transport in the normal release path.
+- Offline mock negative tests cover no-send-by-default, form-encoding, session/port/path rejection, redirect/oversized response and status-only probe. The Part 2 SQL currently denies video publishing until authenticated asset licensing and FFprobe evidence are bound to an approved shop job.
+- This is source-only PR #218 evidence; check exact PR and post-merge four-job CI before declaring completion. Never infer a live Reel/Short, hosted deployment or licensed media verification.
