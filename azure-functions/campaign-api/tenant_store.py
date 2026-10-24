@@ -269,6 +269,52 @@ class TenantStore:
         return row
 
 
+    def posters_for_day(self, token, shop_id, campaign_id, day_id):
+        """Return only RLS-visible, exact-campaign/day poster metadata and job IDs.
+
+        Caller must verify current JWT user membership and campaign/day ownership.
+        This method never returns object keys, signed links or storage credentials.
+        """
+        sid, cid, did = map(canonical_uuid, (shop_id, campaign_id, day_id))
+        rows = self._request("poster_drafts", token, query={
+            "select": "id,shop_id,campaign_id,day_id,status,revision,template,format,"
+                      "business_name,accent_color,background_color,offer_text,"
+                      "source_asset_id,output_asset_id",
+            "shop_id": "eq." + sid, "campaign_id": "eq." + cid,
+            "day_id": "eq." + did, "order": "created_at.desc", "limit": "21",
+        })
+        if not isinstance(rows, list) or len(rows) > 21 or any(
+            row.get("shop_id") != sid or row.get("campaign_id") != cid or
+            row.get("day_id") != did for row in rows
+        ):
+            raise StorageUnavailable("inconsistent private poster records")
+        if not rows:
+            return []
+        ids = [canonical_uuid(row["id"]) for row in rows]
+        if len(ids) != len(set(ids)):
+            raise StorageUnavailable("duplicated private poster records")
+        jobs = self._request("poster_jobs", token, query={
+            "select": "id,shop_id,poster_id,status,output_asset_id",
+            "shop_id": "eq." + sid,
+            "poster_id": "in.(" + ",".join(ids) + ")",
+            "limit": "21",
+        })
+        if not isinstance(jobs, list) or len(jobs) > 21 or any(
+            job.get("shop_id") != sid or job.get("poster_id") not in ids for job in jobs
+        ):
+            raise StorageUnavailable("inconsistent private poster jobs")
+        by_id = {}
+        for job in jobs:
+            pid = canonical_uuid(job["poster_id"])
+            if pid in by_id:
+                raise StorageUnavailable("multiple jobs for same poster revision")
+            by_id[pid] = job
+        return [{**row,
+                 "job_id": by_id.get(row["id"], {}).get("id"),
+                 "job_status": by_id.get(row["id"], {}).get("status")}
+                for row in rows]
+
+
     def request_poster_job(self, token, poster_id):
         """User-JWT SQL render intent, atomically persisted with private outbox."""
         pid = canonical_uuid(poster_id)
