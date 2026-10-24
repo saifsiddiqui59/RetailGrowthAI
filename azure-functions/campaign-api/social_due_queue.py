@@ -26,10 +26,22 @@ class NoRedirect(HTTPRedirectHandler):
 
 class SocialDueStore:
     def __init__(self, origin, service_key, *, transport=None):
-        parsed = urlsplit(origin)
-        if (parsed.scheme != "https" or not parsed.hostname or
-                parsed.username or parsed.password or parsed.query or
-                parsed.fragment or parsed.path not in ("", "/")):
+        # Service-role headers must never travel to alternate ports, URL
+        # userinfo, paths, or a parser-normalized CR/LF authority.
+        if (not isinstance(origin, str) or not origin or
+                origin != origin.strip() or
+                any(ord(c) < 32 or ord(c) == 127 for c in origin)):
+            raise ValueError("one trusted HTTPS project origin required")
+        try:
+            parsed = urlsplit(origin)
+            trusted = (parsed.scheme == "https" and bool(parsed.hostname)
+                and not parsed.username and not parsed.password
+                and parsed.port in (None, 443)
+                and not parsed.query and not parsed.fragment
+                and parsed.path in ("", "/"))
+        except ValueError:
+            trusted = False
+        if not trusted:
             raise ValueError("one trusted HTTPS project origin required")
         self.url = origin.rstrip("/") + "/rest/v1/rpc/p2_due_social_job_ids"
         self.headers = backend_headers(service_key)

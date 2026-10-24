@@ -60,3 +60,5 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 - Keep Instagram/YouTube transport a separately injected, default-disabled component, not a new auto-registered worker or unreviewed external call. Enforce exact Meta/Google HTTPS paths and standard TLS port before carrying bearer tokens; refuse 30x redirects, bound remote responses and avoid credential-bearing error messages.
 - Accept HTTP 308 *only* for YouTube status-only resumable probes; never resume byte upload or re-POST a possibly created remote object from an uncertain acknowledgement.
 - Keep the staged Part2 SQL media approval deny-by-default until verified tenant rights/probe/state persistence and approved customer/platform permissions exist. No WineShopPOS or Part 1 runtime modification.
+
+- 2026-10-24 — Credentialed service-role due scanning uses one project HTTPS origin on standard TLS port 443; never follow redirects or admit parser-normalized control characters/nonstandard port authorities. Treat malformed origins as configuration failure before any request.

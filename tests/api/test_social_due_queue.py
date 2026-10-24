@@ -61,6 +61,10 @@ def test_transport_rejects_bad_origin_ids_and_duplication():
       "http://tenant.supabase.co","https://attacker@tenant.supabase.co",
       "https://tenant.supabase.co/path",
       "https://tenant.supabase.co/?x=1",
+      "https://tenant.supabase.co:8443",
+      "https://tenant.supabase.co:invalid",
+      "https://tenant.supabase.co\r\nX-Fake:yes",
+      "https://tenant.supabase.co/#secret",
     ]:
         with pytest.raises(ValueError): SocialDueStore(origin,"sb_secret_x")
     with pytest.raises(StorageUnavailable):
