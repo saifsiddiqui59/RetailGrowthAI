@@ -18,28 +18,33 @@
 \ir ../../supabase/part2/pending/20261023191400_p2_social_immutable_export_bucket.sql
 \ir ../../supabase/part2/pending/20261023191500_p2_social_export_claim_authority.sql
 
--- Service-only, private export bucket must never be exposed by a
--- permissive global storage.objects policy.
+-- Part2 exports reuse Part1 private bucket, with a restrictive deny
+-- policy for the <shop>/social-exports/ namespace even if broad permissive
+-- media policies allow ordinary tenant media updates.
 begin;
 do $p2exports$
 begin
   if not exists (
     select 1 from storage.buckets b
+    where b.id='retailgrowth-media' and b.public=false
+  ) or exists (
+    select 1 from storage.buckets b
     where b.id='retailgrowth-social-exports'
-      and b.public=false and b.file_size_limit=83886080
   ) or not exists (
     select 1 from pg_policies p
     where p.schemaname='storage' and p.tablename='objects'
-      and p.policyname='p2_social_export_client_denial'
+      and p.policyname='p2_social_export_prefix_client_denial'
       and p.permissive='RESTRICTIVE'
       and 'authenticated'=any(p.roles)
       and 'anon'=any(p.roles)
+      and p.qual like '%social-exports%'
+      and p.with_check like '%social-exports%'
   ) then
-    raise exception 'FAIL: social outbound export bucket not browser-isolated';
+    raise exception 'FAIL: single-bucket social export prefix is not isolated';
   end if;
 end $p2exports$;
 rollback;
-\echo 'PASS: Instagram outbound exports have isolated server-only bucket'
+\echo 'PASS: same private bucket with client-denied social-exports prefix'
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
