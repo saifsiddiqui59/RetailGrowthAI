@@ -11,6 +11,8 @@ import re
 import smtplib
 import ssl
 from email.message import EmailMessage
+from email.headerregistry import Address
+from html import escape
 from urllib.parse import urlparse
 
 from tenant_store import StorageUnavailable, canonical_uuid
@@ -40,9 +42,35 @@ def build_message(kind, recipient, sender, *, base_url):
     if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise ValueError("invalid RetailGrowthAI website origin")
     subject, body = _KINDS[kind]
+    website = parsed.scheme + "://" + parsed.netloc + "/"
     msg = EmailMessage()
-    msg["To"], msg["From"], msg["Subject"] = to, from_addr, subject
-    msg.set_content(body + "\n\nOpen your RetailGrowthAI website: " + parsed.scheme + "://" + parsed.netloc + "/\n")
+    msg["To"] = to
+    msg["From"] = Address(display_name="RetailGrowthAI", addr_spec=from_addr)
+    msg["Subject"] = subject
+    msg.set_content(body + "\n\nOpen your RetailGrowthAI website: " + website + "\n")
+    # Multipart alternative retains accessible text and uses only fixed content plus
+    # an HTML-escaped verified site origin (never customer-supplied markup).
+    html_body, html_url = escape(body), escape(website, quote=True)
+    msg.add_alternative(
+        '<!doctype html><html lang="en"><head><meta charset="UTF-8"></head>'
+        '<body style="margin:0;background:#f4f7f9;font-family:Arial,sans-serif;color:#223d44">'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"'
+        ' style="padding:30px 10px;background:#f4f7f9"><tr><td align="center">'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"'
+        ' style="max-width:560px;background:white;border:1px solid #ddebe6;border-radius:14px">'
+        '<tr><td style="background:#133e42;padding:28px;color:white;font-size:22px;font-weight:bold">'
+        'RetailGrowth<span style="color:#8edbb8">AI</span></td></tr>'
+        '<tr><td style="padding:32px;font-size:15px;line-height:1.6">'
+        '<h1 style="color:#173b43;font-size:24px;margin:0 0 16px">' + escape(subject) + '</h1>'
+        '<p>' + html_body + '</p>'
+        '<p style="margin:28px 0"><a href="' + html_url + '"'
+        ' style="background:#176e57;border-radius:9px;padding:14px 22px;color:white;'
+        'font-weight:bold;text-decoration:none">Open RetailGrowthAI</a></p>'
+        '<p style="font-size:12px;color:#6e8390">This notification contains no password or verification token.'
+        ' If it was unexpected, contact RetailGrowthAI support through your usual channel.</p>'
+        '</td></tr></table></td></tr></table></body></html>',
+        subtype="html",
+    )
     return msg
 
 
