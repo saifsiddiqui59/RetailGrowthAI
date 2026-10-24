@@ -1,0 +1,63 @@
+name: RetailGrowthAI DEV one-time real public responsive browser QA
+# Single anonymous/read-only browser check against the already deployed Free SWA.
+# No Auth sign-in, user creation, JWTs, backend mutations or customer media.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p1-dev-public-responsive-browser-once.yml'
+permissions:
+  contents: read
+jobs:
+  public-browser:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'test(dev): verify RetailGrowthAI public login responsive')
+    runs-on: ubuntu-24.04
+    environment: dev
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Verify one exact public Free DEV origin and zero Auth submission
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "https://purple-dune-06b5da200.2.azurestaticapps.net" frontend/e2e/dev-public-login-smoke.mjs
+          grep -Fq "PUBLIC_DEV_BROWSER_SMOKE=PASS" frontend/e2e/dev-public-login-smoke.mjs
+          ! grep -Eq 'RGAI_DEV_SERVICE_KEY|RETAIL_SUPABASE_SERVICE_ROLE_KEY|secret[s]?\.|email_confirm' frontend/e2e/dev-public-login-smoke.mjs
+          test ! -d output/public-login-qa
+          echo 'PUBLIC_BROWSER_AUTH_SECRETS_NONE=true'
+      - name: Install isolated Playwright Chromium on GitHub runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix frontend/e2e install --no-audit --no-fund
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'http://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+            sudo sed -i 's#http://azure.archive.ubuntu.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' /etc/apt/sources.list.d/ubuntu.sources
+          fi
+          timeout 400s ./frontend/e2e/node_modules/.bin/playwright install --with-deps chromium
+      - name: Verify deployed public login, desktop and mobile, no account creation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node frontend/e2e/dev-public-login-smoke.mjs
+      - name: Upload only anonymous public login viewport screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retailgrowthai-dev-public-login-responsive-qa
+          path: output/public-login-qa/*.png
+          retention-days: 7
+          if-no-files-found: warn
