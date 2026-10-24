@@ -25,7 +25,7 @@ def test_facebook_page_only_and_ig_reel_two_step():
     fb = social.facebook_page_request(page_id="123", page_token="opaque", text="Reviewed",
                                       graph_version="v24.0")
     assert fb.url.endswith("/123/feed")
-    url = "https://example.supabase.co/storage/v1/object/sign/retailgrowth-media/s/video.mp4?token=short"
+    url = "https://example.supabase.co/storage/v1/object/sign/retailgrowth-social-exports/31000000-0000-4000-8000-000000000001/video/62000000-0000-4000-8000-000000000001/1/abababababababababababababababababababababababababababababababab.mp4?token=VALIDSIGNEDTOKEN123456789012345"
     ig = social.instagram_reel_container_request(ig_user_id="123", token="opaque",
         video_url=url, caption="Approved", supabase_origin="https://example.supabase.co",
         graph_version="v24.0")
@@ -55,7 +55,7 @@ def test_youtube_request_initializes_private_resumable_only():
 def test_provider_request_repr_cannot_leak_token_or_signed_media():
     r = social.instagram_reel_container_request(
         ig_user_id="123", token="VERY-SECRET-BEARER", 
-        video_url="https://example.supabase.co/storage/v1/object/sign/retailgrowth-media/x/video.mp4?token=PRIVATE-SIGNED",
+        video_url="https://example.supabase.co/storage/v1/object/sign/retailgrowth-social-exports/31000000-0000-4000-8000-000000000001/video/62000000-0000-4000-8000-000000000001/1/abababababababababababababababababababababababababababababababab.mp4?token=PRIVATE-SIGNED-TOKEN-1234567890",
         caption="approved", supabase_origin="https://example.supabase.co", graph_version="v24.0")
     rendered = repr(r)
     assert "VERY-SECRET-BEARER" not in rendered
