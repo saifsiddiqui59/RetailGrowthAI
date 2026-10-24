@@ -16,6 +16,7 @@
 \ir ../../supabase/part2/pending/20261023191200_p2_social_video_upload_state.sql
 \ir ../../supabase/part2/pending/20261023191300_p2_render_receipts_rights.sql
 \ir ../../supabase/part2/pending/20261023191400_p2_social_immutable_export_bucket.sql
+\ir ../../supabase/part2/pending/20261023191500_p2_social_export_claim_authority.sql
 
 -- Service-only, private export bucket must never be exposed by a
 -- permissive global storage.objects policy.
@@ -509,7 +510,7 @@ begin
   begin
     perform public.p2_record_social_media_review(
       shop,'81000000-0000-4000-8000-000000000001',actor,
-      repeat('ab',32),repeat('cd',32),'OWNER_ATTESTED',
+      repeat('ab',32),repeat('cd',32),'GENERATED_RIGHTS_VERIFIED',
       '{"container":"mp4","video_codec":"h264","pixel_format":"yuv420p","width":1080,"height":1920,"duration_seconds":30}'::jsonb,
       now()+interval '1 day');
     raise exception 'FAIL: missing AAC audio passed review';
@@ -518,7 +519,7 @@ begin
   begin
     perform public.p2_record_social_media_review(
       shop,'81000000-0000-4000-8000-000000000001',actor,
-      repeat('ab',32),repeat('cd',32),'OWNER_ATTESTED',
+      repeat('ab',32),repeat('cd',32),'GENERATED_RIGHTS_VERIFIED',
       '{"container":"mp4","video_codec":"h264","audio_codec":"mp3","pixel_format":"yuv420p","width":1080,"height":1920,"duration_seconds":30}'::jsonb,
       now()+interval '1 day');
     raise exception 'FAIL: non-AAC audio passed review';
@@ -526,7 +527,7 @@ begin
   end;
   if not public.p2_record_social_media_review(
     shop,'81000000-0000-4000-8000-000000000001',actor,
-    repeat('ab',32),repeat('cd',32),'OWNER_ATTESTED',
+    repeat('ab',32),repeat('cd',32),'GENERATED_RIGHTS_VERIFIED',
     '{"container":"mp4","video_codec":"h264","audio_codec":"aac","pixel_format":"yuv420p","width":1080,"height":1920,"duration_seconds":30}'::jsonb,
     now()+interval '1 day') then
     raise exception 'FAIL: explicit media review rejected';
@@ -664,6 +665,34 @@ begin
     (current_claim->>'claim_token')::uuid) then
     raise exception 'FAIL: synthetic approved video claim not fenced';
   end if;
+  -- Only an exact active SENDING claim, current connected account,
+  -- licensed SHA, valid subscription and reserved publishing unit may
+  -- create an immutable signed Instagram export.
+  if not public.p2_can_export_social_video(
+      shop,'62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,1,repeat('ab',32)) then
+    raise exception 'FAIL: authorized exact review export refused';
+  end if;
+  if public.p2_can_export_social_video(
+      shop,'62000000-0000-4000-8000-000000000001',
+      gen_random_uuid(),1,repeat('ab',32))
+    or public.p2_can_export_social_video(
+      shop,'62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,2,repeat('ab',32))
+    or public.p2_can_export_social_video(
+      shop,'62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,1,repeat('ef',32)) then
+    raise exception 'FAIL: foreign claim/revision/SHA allowed immutable export';
+  end if;
+  update public.social_accounts set connection_status='REAUTH_REQUIRED'
+    where id='72000000-0000-4000-8000-000000000001';
+  if public.p2_can_export_social_video(
+      shop,'62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,1,repeat('ab',32)) then
+    raise exception 'FAIL: revoked provider grant could still export';
+  end if;
+  update public.social_accounts set connection_status='CONNECTED'
+    where id='72000000-0000-4000-8000-000000000001';
   if public.p2_begin_social_video_upload(
       '62000000-0000-4000-8000-000000000001',gen_random_uuid(),
       repeat('ab',32),1234)
@@ -696,6 +725,12 @@ begin
       (current_claim->>'claim_token')::uuid,
       'INITIATED','CONTAINER_KNOWN','123456',null) then
     raise exception 'FAIL: container receipt not durably accepted';
+  end if;
+
+  if public.p2_can_export_social_video(
+      shop,'62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,1,repeat('ab',32)) then
+    raise exception 'FAIL: remote container already created but export reopened';
   end if;
   if public.p2_advance_social_video_upload(
       '62000000-0000-4000-8000-000000000001',
@@ -866,6 +901,20 @@ begin
 end $videoacl$;
 rollback;
 \echo 'PASS: encrypted video upload stages and receipts are service-only'
+
+-- Even an authenticated shop owner cannot make export approval decisions.
+begin;
+do $p2claimpermissions$
+begin
+  if has_function_privilege('authenticated',
+      'public.p2_can_export_social_video(uuid,uuid,uuid,integer,text)','EXECUTE')
+     or has_function_privilege('anon',
+      'public.p2_can_export_social_video(uuid,uuid,uuid,integer,text)','EXECUTE')
+  then raise exception 'FAIL: video export claim RPC exposed to browser';
+  end if;
+end $p2claimpermissions$;
+rollback;
+\echo 'PASS: social export eligibility is service-only and active claim-bound'
 
 -- Immutable source receipts and independent licensing attestations
 -- require the server role, even when the user owns the shop.
