@@ -38,7 +38,10 @@ async function main() {
     const prefix = '/storage/v1/object/retailgrowth-media/'
     if (req.method() === 'POST' && url.origin === SUPABASE && url.pathname.startsWith(prefix)) {
       const path = decodeURIComponent(url.pathname.slice(prefix.length))
-      if (path.startsWith(SHOP + '/uploads/')) objectPath = path
+      if (path.startsWith(SHOP + '/uploads/')) {
+        objectPath = path
+        console.log('CANARY_PLAYWRIGHT_OBJECT_PATH=' + path)
+      }
     }
   })
   stage = 'signin'
