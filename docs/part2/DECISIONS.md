@@ -93,3 +93,6 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 
 ## 2026-10-24 — Instagram fetch URL must point to a dedicated immutable export
 - Never give Meta the signed URL of editable Part1 `retailgrowth-media` content; an approved owner could mutate bytes between review and Meta fetch. New social export bucket is independent/private and restrictive to all normal user roles; backend writes must be create-once and SHA-verified before a short-lived signed URL is generated. The URL validator requires exact shop/job/revision/SHA path and token, denies other buckets/origins and is never itself publication consent. No runtime release flags change.
+
+## 2026-10-24 — Uploading an immutable export is not a provider post
+- The service-only writer is explicitly off by default and only stages bytes in a restricted P2 bucket. Authorization is checked before copy and again before signing; remote readback SHA is mandatory, no upsert/collision guesses or redirects. The resulting URL is internal/sensitive and the worker must still persist a provider-side-effect intent before making an actual Instagram call.
