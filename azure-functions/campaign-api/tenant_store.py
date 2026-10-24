@@ -302,3 +302,31 @@ class TenantStore:
         if not self.member(token, user_id, job["shop_id"]):
             return None
         return job
+
+
+    def select_poster_banner(self, token, poster_id, expected_instagram):
+        """Optimistic reviewed selection, RLS subject checked within SQL RPC."""
+        pid = canonical_uuid(poster_id)
+        if not isinstance(expected_instagram, dict) or set(expected_instagram) != {
+                "caption", "banner_asset_id", "reel"}:
+            raise ValueError("complete expected saved Instagram draft required")
+        request = Request(
+            self.origin + "/rest/v1/rpc/select_poster_banner",
+            method="POST", data=json.dumps({
+                "p_poster_id": pid,
+                "p_expected_instagram": expected_instagram,
+            }).encode("utf-8"),
+            headers={"apikey": self.key, "Authorization": "Bearer " + token,
+                     "Content-Type": "application/json", "Accept": "application/json"})
+        try:
+            with self.transport(request, timeout=8) as response:
+                value = json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code in (401,403):
+                raise AuthenticationError("poster selection denied") from exc
+            raise StorageUnavailable("poster selection unavailable") from exc
+        except (URLError, OSError, ValueError) as exc:
+            raise StorageUnavailable("poster selection unavailable") from exc
+        if type(value) is not bool:
+            raise StorageUnavailable("invalid poster selection response")
+        return value
