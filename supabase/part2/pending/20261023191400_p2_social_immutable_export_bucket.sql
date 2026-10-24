@@ -1,31 +1,32 @@
--- Part 2 isolated service-owned immutable outbound media staging, SOURCE ONLY.
--- Requires separately authorized P2 hosted migration + private service uploader.
--- Never allow browser writes/updates/deletes or publish from mutable P1 bucket.
+-- Part 2 service-owned immutable exports WITHIN existing Part1 media bucket.
+-- SOURCE ONLY. This pending P2 migration was never hosted and intentionally
+-- REPLACES its earlier second-bucket proposal to preserve the project's
+-- single-bucket contract and existing quota/storage infrastructure.
 begin;
 
-insert into storage.buckets (id,name,public,file_size_limit)
-values('retailgrowth-social-exports','retailgrowth-social-exports',
-       false,83886080)
-on conflict(id) do nothing;
-
--- Fail closed if a previously configured bucket has unsafe public access.
-do $$
+-- Fail closed unless Part1's original bucket remains private.
+do $p2originalbucket$
 begin
   if not exists(
-      select 1 from storage.buckets
-       where id='retailgrowth-social-exports' and name=id and public=false
-         and file_size_limit=83886080
+    select 1 from storage.buckets b
+      where b.id='retailgrowth-media' and b.name='retailgrowth-media'
+        and b.public=false
   ) then
-    raise exception 'unsafe existing social export bucket' using errcode='23514';
+    raise exception 'Part1 private media bucket missing or public'
+      using errcode='23514';
   end if;
-end $$;
+end $p2originalbucket$;
 
--- RESTRICTIVE row policy prevents any other permissive storage policy from
--- accidentally making exports editable/readable to anon or authenticated.
--- Service-role/backend bypass with create-only upload must own every object.
-create policy p2_social_export_client_denial
+-- Existing Part1 authenticated Storage policies permit edits/deletes under a
+-- normal tenant prefix. Restrict the reserved service-only second path
+-- component instead: <shop_uuid>/social-exports/<job_uuid>/<rev>/<sha>.mp4.
+-- RESTRICTIVE policies compose with ALL present/future permissive policies.
+-- Service-role can upload create-only with x-upsert:false and sign internally.
+create policy p2_social_export_prefix_client_denial
   on storage.objects as restrictive for all to anon,authenticated
-  using (bucket_id is distinct from 'retailgrowth-social-exports')
-  with check (bucket_id is distinct from 'retailgrowth-social-exports');
+  using (bucket_id is distinct from 'retailgrowth-media'
+         or split_part(name,'/',2) is distinct from 'social-exports')
+  with check (bucket_id is distinct from 'retailgrowth-media'
+              or split_part(name,'/',2) is distinct from 'social-exports');
 
 commit;
