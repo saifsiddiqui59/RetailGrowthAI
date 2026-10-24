@@ -339,3 +339,9 @@
 - Do not deploy SMTP providers, activate `RETAIL_NOTIFICATIONS_ENABLED`, activate an email delivery job or apply its outbox migration as a mail feature, copy/recover WineShopPOS credentials or solicit passwords during the current development phase.
 - Retain approved, audited in-app onboarding decisions and root-only read-only notification snapshots as the default notifications. Preserve branded email source for a separate later rollout requiring explicit owner authorization, credentials and delivery testing.
 - Prioritize working Part 1 poster DEV release/hosted verification and Part 2/3 non-email work instead.
+
+
+## 2026-10-24 — Poster P0 hosted release operational decisions
+- The existing tagged RetailGrowthAI Central India Azure Storage + Flex Function App remain the sole backend deployment targets. Use a dedicated poster queue, keep previously integrated FFmpeg, packaging integrity and cross-tenant RLS; do not share WineShopPOS credentials/resources or extend Part2/3 queues. Fail closed until poster schema/table checks and function indexing pass; no SMTP activation as a side effect.
+- Migration fidelity: existing 4 source-only poster/notification migrations applied in one guarded, transactional DEV-only operation and registered with their canonical original versions/source statements (not generated timestamps). DB source rollouts and live functionality require separate verification, not just frontend SPA route checks.
+- Real hosted canaries must respect the *existing* SaaS retailer onboarding approval gate. Prefer transient synthetic identities explicitly approved by the authorized DEV database operator, with cleanup and identity guards, over altering RLS, turning the gate off or creating privileged test backdoors.
