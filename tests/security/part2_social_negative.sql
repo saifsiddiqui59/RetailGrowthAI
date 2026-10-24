@@ -441,10 +441,30 @@ begin
     shop,'81000000-0000-4000-8000-000000000001') then
     raise exception 'FAIL: unreviewed media was accepted';
   end if;
+  -- A video without verified AAC audio (silent or another codec) is not
+  -- an eligible Reel/Shorts source, even when the video stream is H.264.
+  begin
+    perform public.p2_record_social_media_review(
+      shop,'81000000-0000-4000-8000-000000000001',actor,
+      repeat('ab',32),repeat('cd',32),'OWNER_ATTESTED',
+      '{"container":"mp4","video_codec":"h264","pixel_format":"yuv420p","width":1080,"height":1920,"duration_seconds":30}'::jsonb,
+      now()+interval '1 day');
+    raise exception 'FAIL: missing AAC audio passed review';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.p2_record_social_media_review(
+      shop,'81000000-0000-4000-8000-000000000001',actor,
+      repeat('ab',32),repeat('cd',32),'OWNER_ATTESTED',
+      '{"container":"mp4","video_codec":"h264","audio_codec":"mp3","pixel_format":"yuv420p","width":1080,"height":1920,"duration_seconds":30}'::jsonb,
+      now()+interval '1 day');
+    raise exception 'FAIL: non-AAC audio passed review';
+  exception when sqlstate '22023' then null;
+  end;
   if not public.p2_record_social_media_review(
     shop,'81000000-0000-4000-8000-000000000001',actor,
     repeat('ab',32),repeat('cd',32),'OWNER_ATTESTED',
-    '{"container":"mp4","video_codec":"h264","pixel_format":"yuv420p","width":1080,"height":1920,"duration_seconds":30}'::jsonb,
+    '{"container":"mp4","video_codec":"h264","audio_codec":"aac","pixel_format":"yuv420p","width":1080,"height":1920,"duration_seconds":30}'::jsonb,
     now()+interval '1 day') then
     raise exception 'FAIL: explicit media review rejected';
   end if;
@@ -452,6 +472,18 @@ begin
     shop,'81000000-0000-4000-8000-000000000001') then
     raise exception 'FAIL: verified media evidence unavailable';
   end if;
+  -- The private review lookup must also fail closed after an invalid
+  -- service-side metadata update, not just during the initial registration.
+  update retail_private.social_media_reviews
+    set ffprobe=jsonb_set(ffprobe,'{audio_codec}','"mp3"')
+    where shop_id=shop and media_asset_id='81000000-0000-4000-8000-000000000001';
+  if public.p2_social_media_is_reviewed(
+    shop,'81000000-0000-4000-8000-000000000001') then
+    raise exception 'FAIL: altered non-AAC review remained eligible';
+  end if;
+  update retail_private.social_media_reviews
+    set ffprobe=jsonb_set(ffprobe,'{audio_codec}','"aac"')
+    where shop_id=shop and media_asset_id='81000000-0000-4000-8000-000000000001';
   update retail_private.social_media_reviews
     set rights_expires_at=now()-interval '1 minute'
     where shop_id=shop and media_asset_id='81000000-0000-4000-8000-000000000001';
