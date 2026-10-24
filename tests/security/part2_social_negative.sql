@@ -570,10 +570,10 @@ begin
     approved_content_sha256=decode(repeat('aa',32),'hex'),
     scheduled_at=now()-interval '2 minutes'
     where id='62000000-0000-4000-8000-000000000001';
-  insert into retail_private.social_publish_quota_ledger(
-    publish_job_id,shop_id,period_start)
-    select '62000000-0000-4000-8000-000000000001',shop,s.period_start
-      from public.shop_subscriptions s where s.shop_id=shop;
+  if not public.p2_reserve_social_publish_quota(
+      shop,'62000000-0000-4000-8000-000000000001') then
+    raise exception 'FAIL: video fixture did not reserve one real quota unit';
+  end if;
   current_claim:=public.p2_claim_social_publish(
     '62000000-0000-4000-8000-000000000001');
   if current_claim is null or not public.p2_mark_social_inflight(
@@ -641,6 +641,77 @@ begin
       (current_claim->>'claim_token')::uuid,
       'PUBLISH_INTENT','PUBLISHED','987654',null) then
     raise exception 'FAIL: repeated or mismatched completed receipt';
+  end if;
+  -- YouTube uses an encrypted resumable session and an uncertain terminal
+  -- result must become RECONCILE rather than a second blind media PUT.
+  insert into public.social_accounts(id,shop_id,provider,provider_account_id,
+    display_name,connected_by,granted_scopes,connection_status)
+  values('73000000-0000-4000-8000-000000000001',shop,'youtube',
+    'channel-fixture-01','Tenant YouTube channel',actor,
+    array['youtube.upload'],'CONNECTED');
+  perform public.p2_create_social_draft(
+    '63000000-0000-4000-8000-000000000001',shop,actor,day,
+    '73000000-0000-4000-8000-000000000001','youtube',
+    'Reviewed video upload','81000000-0000-4000-8000-000000000001',
+    when_utc,'Asia/Kolkata','youtube-review-001');
+  if not public.p2_bind_social_video_review(shop,
+    '63000000-0000-4000-8000-000000000001',actor,1,repeat('ab',32)) then
+    raise exception 'FAIL: YouTube fixture review not bound';
+  end if;
+  update public.social_publish_jobs set
+    status='APPROVED',approved_by=actor,approved_at=now(),
+    approved_content_sha256=decode(repeat('aa',32),'hex'),
+    scheduled_at=now()-interval '2 minutes'
+    where id='63000000-0000-4000-8000-000000000001';
+  update retail_private.social_publish_plan_limits
+    set max_posts_per_period=2 where plan_code='TRIAL';
+  if not public.p2_reserve_social_publish_quota(
+      shop,'63000000-0000-4000-8000-000000000001') then
+    raise exception 'FAIL: YouTube fixture failed second approved quota unit';
+  end if;
+  current_claim:=public.p2_claim_social_publish(
+      '63000000-0000-4000-8000-000000000001');
+  if current_claim is null or not public.p2_mark_social_inflight(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid) then
+    raise exception 'FAIL: YouTube claim pre-send barrier refused';
+  end if;
+  if not public.p2_begin_social_video_upload(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,repeat('ab',32),1234) then
+    raise exception 'FAIL: YouTube init intent not persisted';
+  end if;
+  if not public.p2_advance_social_video_upload(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,
+      'INITIATED','SESSION_KNOWN',null,repeat('cd',80)) then
+    raise exception 'FAIL: encrypted YouTube upload session rejected';
+  end if;
+  if public.p2_video_session_ciphertext(
+      '63000000-0000-4000-8000-000000000001',gen_random_uuid()) is not null
+     or public.p2_video_session_ciphertext(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid)<>repeat('cd',80) then
+    raise exception 'FAIL: YouTube ciphertext exposed or inaccessible';
+  end if;
+  if not public.p2_advance_social_video_upload(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,
+      'SESSION_KNOWN','BINARY_INTENT',null,null) then
+    raise exception 'FAIL: binary intent not recorded before remote PUT';
+  end if;
+  if not public.p2_advance_social_video_upload(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,
+      'BINARY_INTENT','RECONCILE',null,null) then
+    raise exception 'FAIL: uncertain YouTube result was not fenced';
+  end if;
+  if (select status from public.social_publish_jobs
+       where id='63000000-0000-4000-8000-000000000001')<>'RECONCILE'
+     or public.p2_video_session_ciphertext(
+       '63000000-0000-4000-8000-000000000001',
+       (current_claim->>'claim_token')::uuid) is not null then
+    raise exception 'FAIL: reconciled YouTube attempt remained replayable';
   end if;
   update public.social_publish_jobs set revision=2
     where id='62000000-0000-4000-8000-000000000001';
