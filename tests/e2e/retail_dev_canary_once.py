@@ -363,6 +363,46 @@ def upload_using_playwright(*, shop_id, email, password, image_bytes, cleanup_pa
     return asset
 
 
+
+def preflight_dev_http_auth_routes(*, transport=None, clock=None):
+    """Fail BEFORE temp Auth/shop creation when DEV ingress cannot return 401.
+
+    No bearer, user identities, customer data, RPC or account creation is sent.
+    A 60-second Azure pre-invocation 503 must not turn a bounded canary into
+    an orphaned two-user fixture after the protected runner times out.
+    This quick gate is necessary but NOT proof subsequent requests cannot fail.
+    """
+    send=transport or urllib.request.urlopen
+    now=clock or time.monotonic
+    placeholder="11111111-1111-4111-8111-111111111111"
+    checks=[
+        ("GET", "/api/campaigns/"+placeholder),
+        ("GET", "/api/poster-jobs/"+placeholder),
+        ("GET", "/api/render-jobs/"+placeholder),
+        ("POST", "/api/campaigns"),
+    ]
+    for method,path in checks:
+        req=urllib.request.Request(
+            API+path,method=method,
+            headers={"Accept":"application/json",
+                     "Content-Type":"application/json"},
+            data=b"{}" if method=="POST" else None)
+        started=now()
+        try:
+            with send(req,timeout=12) as response:
+                status, headers=response.status, response.headers
+        except urllib.error.HTTPError as exc:
+            status,headers=exc.code,exc.headers
+        except (OSError,TimeoutError,ConnectionResetError) as exc:
+            raise RuntimeError("DEV gateway preflight timed out before test account creation") from exc
+        elapsed=now()-started
+        if (status!=401 or headers.get("X-Request-ID") is None
+                or elapsed<0 or elapsed>12):
+            raise RuntimeError("DEV gateway preflight failed before test account creation")
+    print("CANARY_DEV_GATEWAY_AUTH_PREFLIGHT_PASSED=true",flush=True)
+
+
+
 def main():
     if os.getenv("RGAI_DEV_CANARY_APPROVAL")!="AUTHORIZED_RETAILGROWTHAI_DEV_ONLY":
         raise RuntimeError("No explicit RetailGrowthAI DEV authorization")
@@ -370,6 +410,9 @@ def main():
     pub=os.environ["RGAI_DEV_PUBLISHABLE_KEY"]
     if not key.startswith(("sb_secret_","eyJ")) or not pub.startswith("sb_publishable_"):
         raise RuntimeError("Invalid key type; never use privileged key in browser")
+    # Never create temporary GoTrue accounts if the existing Azure HTTP
+    # authorization boundary is failing its no-JWT preflight.
+    preflight_dev_http_auth_routes()
     admins=api_key_headers(key)
     if key.startswith("sb_secret_"):
         # GoTrue admin API needs a service key, never send publishable.
