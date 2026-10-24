@@ -345,3 +345,7 @@
 - Persist root notification read receipts in private Postgres by verified user UUID, with stable event identity; never localStorage-as-authority or browser service-role credentials. DB reconciles real job/outbox/poison/lease sources on root read, and preserves resolved history. Read/unread does not reset when the same signal recurs.
 - Global expiring/expired/suspended entitlement counts and retailer search must run in root-authorized SQL **before** pagination, rather than extrapolating from a directory page. No renewal charge inferred.
 - Infrastructure health is explicitly unverified until Azure Monitor permissions/ingestion are separately approved and instrumented. Existing email sender remains disabled/deferred.
+
+
+## 2026-10-24 — Reproducible, rights-safe creative demonstration
+- To demonstrate genuine RetailGrowthAI media code without falsely claiming live AI/hosted cloud success, render the frozen clothing fixture with the repository's unmodified poster and video engines in isolated GitHub Actions. Use original illustrated test media and music with explicit rights evidence rather than unverified downloaded stock; always label illustrative output as a test, never as actual retailer product photography. Distribute validated PNG/MP4 and fixture captions as expiring CI artifacts; never alter WineShopPOS or turn on providers, SMTP or social posting just to build a demo.
