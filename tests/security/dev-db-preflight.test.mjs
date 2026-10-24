@@ -29,7 +29,7 @@ test('read-only remote DEV snapshot identifies exact prefix and pending ordered 
   assert.equal(result.appliedCount, 3);
   assert.equal(result.pending.length, known.local.length - 3);
   assert.equal(result.pending[0].file, '20261022100400_p1_durable_planning.sql');
-  assert.equal(result.pending.at(-1).file, '20261024113000_p1_poster_drafts.sql');
+  assert.equal(result.pending.at(-1).file, '20261024150000_p1_poster_jobs.sql');
 });
 test('refuses missing snapshot, wrong project, gaps, duplicates, renamed or newer remote versions', () => {
   assert.throws(() => verifyPreflight({ requireRemoteHistory: true }), /history is required/);
