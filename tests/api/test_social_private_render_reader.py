@@ -58,7 +58,7 @@ def test_authorized_private_render_streams_only_expected_bytes(tmp_path):
     SHOP + "/renders/" + JOB + ".mp4?token=bad",
     SHOP + "/renders/" + JOB + ".mp4/extra",
     SHOP + "/renders/not-a-uuid.mp4",
-    SHOP + "/renders/" + JOB.upper() + ".mp4",
+    SHOP + "/renders/" + "a1000000-0000-4000-8000-000000000001".upper() + ".mp4",
 ])
 def test_non_authoritative_media_path_refused_before_credentialed_request(tmp_path, key):
     calls = []
