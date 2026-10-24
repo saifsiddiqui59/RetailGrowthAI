@@ -482,3 +482,7 @@ NaN
 ## 2026-10-24 — Publish bounded GET UX to existing Free DEV SWA only
 - Following #265, review isolated `ops/p1-dev-swa-safe-read-release-once`: require 4/4 source CI and coordinator gate, then merge with exact commit prefix `release(dev): RetailGrowthAI safe GET 503 UX` for *one-time* protected existing-DEV Free SWA frontend-only deployment. Verify live served bundled JS contains the retry-specific message and all seven public SPA routes, avoid secret leaks or backend changes.
 - After static release, explicitly distinguish basic unauthenticated site smoke from actual signed-in mobile/tenant/poster/MP4 behavior. The Azure 503 #249 and real 30-second cloud MP4 are still open until separate acceptance evidence; never present the new client timeout as an availability cure.
+
+## 2026-10-24 — Public DEV browser viewport smoke independently from private canary
+- Review 4/4 CI and merge `test/p1-live-public-login-mobile-once` only with exact reviewed commit prefix `test(dev): verify RetailGrowthAI public login responsive` to exercise the actual existing Free SWA (anonymous public login/signed-out protected routes) at 320/390/768/1440px using real Chromium, with screenshots as GitHub artifact. Fix any real mobile overflow or signup/reset UX issues before claiming this sub-gate passed.
+- This is **not** the signed-in private two-retailer or actual H264/AAC cloud Reel smoke. Those remain blocked on the deliberate protected manual canary and P0 #249 gateway stability. Never create test accounts automatically from normal CI.
