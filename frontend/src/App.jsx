@@ -6,6 +6,7 @@ import { AccountWorkspace } from './auth/AccountWorkspace.jsx'
 import DashboardOverview from './features/dashboard/DashboardOverview.jsx'
 import SubscriptionPage from './features/subscription/SubscriptionPage.jsx'
 import PlatformAdmin from './features/platform/PlatformAdmin.jsx'
+import PlatformAlerts from './features/platform/PlatformAlerts.jsx'
 import LoginPage from './auth/LoginPage.jsx'
 
 const links = [
@@ -14,12 +15,12 @@ const links = [
   { to: '/subscription', label: 'Subscription', icon: '◈' },
 ]
 
-function PlatformBoundary() {
+function PlatformBoundary({ children }) {
   const { user, loading, platformLoading, platformAdmin } = useRetailAuth()
   if (loading || platformLoading) return <p role="status">Checking platform authorization…</p>
   if (!user) return <Navigate to="/account" replace />
   if (!platformAdmin) return <section className="panel" aria-label="Platform access denied"><h1>Platform access denied</h1><p>This account does not have a verified Platform Super Admin grant.</p><Link to="/">Return to workspace</Link></section>
-  return <PlatformAdmin />
+  return children || <PlatformAdmin />
 }
 
 function AccountMenu() {
@@ -58,6 +59,7 @@ function AccountMenu() {
         <Link role="menuitem" to="/account" onClick={() => setOpen(false)}>Business account &amp; profile</Link>
         <Link role="menuitem" to="/subscription" onClick={() => setOpen(false)}>Plan &amp; usage</Link>
         {platformAdmin && <Link role="menuitem" to="/platform-admin" onClick={() => setOpen(false)}>Platform Control</Link>}
+        {platformAdmin && <Link role="menuitem" to="/platform-alerts" onClick={() => setOpen(false)}>Notifications &amp; alerts</Link>}
         <button type="button" role="menuitem" onClick={async () => {
           try {
             setError('')
@@ -100,7 +102,9 @@ function AppShell() {
   if (configured && recoveryMode) return <LoginPage />
   if (configured && platformLoading) return <div className="login-loading" role="status">Verifying dashboard access…</div>
   const availableLinks = platformAdmin
-    ? [{ to: '/platform-admin', label: 'Platform Control', icon: '⚙' }, { to: '/business', label: 'My business', icon: '▦' },
+    ? [{ to: '/platform-admin', label: 'Platform Control', icon: '⚙' },
+        { to: '/platform-alerts', label: 'Notifications', icon: '◇' },
+        { to: '/business', label: 'My business', icon: '▦' },
         { to: '/campaigns', label: 'Campaigns', icon: '▤' }, { to: '/subscription', label: 'Subscription', icon: '◈' }]
     : links
   const title = availableLinks.find((item) => item.to === location.pathname)?.label ||
@@ -153,6 +157,7 @@ function AppShell() {
             <Route path="/campaigns" element={<CampaignDashboard />} />
             <Route path="/subscription" element={<SubscriptionPage />} />
             <Route path="/platform-admin" element={<PlatformBoundary />} />
+            <Route path="/platform-alerts" element={<PlatformBoundary><PlatformAlerts /></PlatformBoundary>} />
             <Route path="/account" element={<AccountWorkspace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
