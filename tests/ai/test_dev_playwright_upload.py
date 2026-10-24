@@ -31,7 +31,8 @@ def test_playwright_upload_records_exact_shop_scoped_cleanup_path_before_success
     kwargs = run.call_args.kwargs
     assert kwargs["env"]["RGAI_DEV_PLAYWRIGHT_UPLOAD"] == "1"
     assert kwargs["env"]["RGAI_BROWSER_SHOP_ID"] == SHOP
-    assert "RGAI_DEV_SERVICE_KEY" not in kwargs["env"] or kwargs["env"]["RGAI_DEV_SERVICE_KEY"] == kwargs["env"].get("RGAI_DEV_SERVICE_KEY")
+    assert "RGAI_DEV_SERVICE_KEY" not in kwargs["env"]
+    assert "RETAIL_SUPABASE_SERVICE_ROLE_KEY" not in kwargs["env"]
     assert kwargs["capture_output"] is True
 
 @pytest.mark.parametrize("line", [
