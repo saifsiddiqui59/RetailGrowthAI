@@ -339,3 +339,9 @@
 - Do not deploy SMTP providers, activate `RETAIL_NOTIFICATIONS_ENABLED`, activate an email delivery job or apply its outbox migration as a mail feature, copy/recover WineShopPOS credentials or solicit passwords during the current development phase.
 - Retain approved, audited in-app onboarding decisions and root-only read-only notification snapshots as the default notifications. Preserve branded email source for a separate later rollout requiring explicit owner authorization, credentials and delivery testing.
 - Prioritize working Part 1 poster DEV release/hosted verification and Part 2/3 non-email work instead.
+
+
+## 2026-10-24 — Independent DEV Playwright testing without compromising authorization
+- Owner requests Part 2 lead independently implement/test browser file upload, without waiting for the final integration coordinator. Preserve the distinction between **source/CI ownership** and protected **hosted DEV operator execution**: no bypassing Supabase RLS, onboarding ROOT approval, GitHub DEV Environment restrictions or privileged secret isolation.
+- Only generate original unbranded three-shirt visuals for isolated browser tests; do not substitute third-party Calvin Klein product media or assert customer rights. Upload via `setInputFiles` as the disposable authenticated retailer and verify private Storage registration through the application's real RPC. Default non-browser canary remains functionally unchanged.
+- Do not merge source-only PR #233 into main on its own because existing main-push hosted canary would trigger without enabling Chromium; one-time protected execution wiring must be reviewed independently. No social publishing or premium Wan generation.
