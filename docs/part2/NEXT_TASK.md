@@ -128,3 +128,8 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 1. Verify all four GitHub Actions jobs on `feat/p2-media-aac-review-guard`, review and self-merge only to `feat/part2-integration` if green; verify post-merge integration-head CI separately.
 2. Implement a **trusted server-side** media evidence producer that streams the authorized existing Part 1 tenant asset, computes and binds its actual SHA-256, probes real H.264/**AAC** media using FFprobe, and attaches independently checked license/expiry evidence. Do not accept client-submitted FFprobe JSON or arbitrary hashes as a certification.
 3. Add job-bound, lease-CAS Instagram container/YouTube resumable session and receipt persistence, complete reconciliation tests, permissions/account selection and plan-specific quotas. Keep staged P2 SQL, OAuth and all outbound publishing release gates OFF until separately authorized.
+
+## Following trusted private MP4 preflight source PR (2026-10-24)
+1. Check all four CI jobs for `feat/p2-trusted-mp4-preflight`, review/merge to the dedicated Part 2 integration branch only after green; verify integration CI separately.
+2. Connect only a separately reviewed server-owned asset loader: verify signed-in shop membership, Storage object rights, authoritative source SHA (never a browser-supplied hash), registered media ID, FFprobe results, rights evidence, rights expiry and approved revision; persist source digest before granting any new video approval.
+3. Close remaining fail-closed lease-CAS Meta/YouTube remote session/receipt reconciliation, provider grant/revocation, quota/refund policy and E2E. Hosted schema, OAuth grants, worker deploy and actual publishing remain separately owner-gated.
