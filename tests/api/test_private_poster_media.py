@@ -48,7 +48,7 @@ def test_authorized_upload_key_is_private_claim_scoped(tmp_path, preset, size):
     assert request.get_header("Authorization") is None
     assert request.get_header("X-upsert") == "false"
     assert request.get_header("Content-type") == "image/png"
-    assert request.data.startswith(b"\\x89PNG\\r\\n\\x1a\\n")
+    assert request.data.startswith(b"\x89PNG\r\n\x1a\n")
 
 
 @pytest.mark.parametrize("field", ["shop", "poster", "lease"])
@@ -72,7 +72,7 @@ def test_incorrect_aspect_ratio_does_not_upload(tmp_path):
 def test_false_png_or_truncated_png_cannot_upload(tmp_path):
     calls = []
     png = new_png(tmp_path)
-    png.write_bytes(b"\\x89PNG\\r\\n\\x1a\\n" + b"garbage" * 100)
+    png.write_bytes(b"\x89PNG\r\n\x1a\n" + b"garbage" * 100)
     with pytest.raises(StorageUnavailable):
         uploader(calls).upload_png(SID, PID, LEASE, png, format_name="square")
     png = new_png(tmp_path)
@@ -124,7 +124,7 @@ def test_missing_file_and_unsupported_format_rejected(tmp_path):
 
 def test_over_budget_output_rejected_without_network(tmp_path):
     path = tmp_path / "large.png"
-    path.write_bytes(b"\\x89PNG\\r\\n\\x1a\\n" + b"x" * (12 * 1024 * 1024 + 1))
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"x" * (12 * 1024 * 1024 + 1))
     calls = []
     with pytest.raises(StorageUnavailable, match="size out of bounds"):
         uploader(calls).upload_png(SID, PID, LEASE, path, format_name="square")
