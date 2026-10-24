@@ -44,7 +44,7 @@ class TenantStore:
         self.transport = transport or urlopen
 
     def _request(self, table, token, *, query=None, method="GET", data=None):
-        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts"}:
+        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs"}:
             raise ValueError("unsupported table")
         url = self.origin + "/rest/v1/" + table
         if query:
@@ -267,3 +267,38 @@ class TenantStore:
         if not self.member(token, user_id, sid):
             return None
         return row
+
+
+    def request_poster_job(self, token, poster_id):
+        """User-JWT SQL render intent, atomically persisted with private outbox."""
+        pid = canonical_uuid(poster_id)
+        request = Request(
+            self.origin + "/rest/v1/rpc/request_poster_job",
+            data=json.dumps({"p_poster_id": pid}).encode("utf-8"),
+            method="POST", headers={
+                "apikey": self.key, "Authorization": "Bearer " + token,
+                "Accept": "application/json", "Content-Type": "application/json",
+            })
+        try:
+            with self.transport(request, timeout=8) as response:
+                result = json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code in (401, 403):
+                raise AuthenticationError("poster render authorization denied") from exc
+            raise StorageUnavailable("poster request rejected") from exc
+        except (URLError, OSError, ValueError) as exc:
+            raise StorageUnavailable("poster request unavailable") from exc
+        return canonical_uuid(result) if result is not None else None
+
+    def poster_job(self, token, user_id, job_id):
+        jid = canonical_uuid(job_id)
+        records = self._request("poster_jobs", token, query={
+            "select": "id,shop_id,poster_id,status,output_asset_id,error_code",
+            "id": "eq." + jid, "limit": "1",
+        })
+        if len(records) != 1 or records[0].get("id") != jid:
+            return None
+        job = records[0]
+        if not self.member(token, user_id, job["shop_id"]):
+            return None
+        return job
