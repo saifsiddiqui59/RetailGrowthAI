@@ -45,3 +45,25 @@ export function presentSubscription(subscription, usage, nowMs = Date.now()) {
     meters,
   }
 }
+
+
+// Read-only owner guidance. Nothing here renews a plan or changes entitlements.
+export function subscriptionNotice(summary) {
+  if (!summary || !summary.meters || typeof summary.active !== 'boolean') {
+    throw new Error('Verified subscription summary required')
+  }
+  if (!summary.active) {
+    return { level: 'alert', code: 'ACCESS_EXPIRED',
+      text: 'Access has expired or is inactive. New AI jobs are blocked; existing drafts remain accessible. Contact the SaaS administrator for a reviewed entitlement change.' }
+  }
+  if (summary.remainingDays <= 2) {
+    return { level: 'warning', code: 'EXPIRING_SOON',
+      text: 'Your current access period ends soon. No automatic renewal or paid checkout is enabled.' }
+  }
+  const exhausted = Object.entries(summary.meters).filter(([, meter]) => meter.remaining === 0)
+  if (exhausted.length) {
+    return { level: 'warning', code: 'PERIOD_LIMIT_REACHED',
+      text: 'A campaign or render allowance is exhausted. New jobs of that type remain blocked until a server-authorized period or entitlement change.' }
+  }
+  return null
+}
