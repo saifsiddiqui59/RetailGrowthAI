@@ -99,3 +99,6 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 
 ## 2026-10-24 — A signed export URL requires the exact active remote-send lease
 - A service-only check of current approved Instagram account scopes, subscription+publishing quota, active attempt UUID, immutable output SHA receipt, rights source, expiry and exact revision gates each private export and signed URL; checks must run both before outbound Storage COPY and after readback before signing. No check permits another provider container after remote intent has been recorded. Stale/ambiguous or revoked claims fail closed, not retried.
+
+## 2026-10-24 — Superseding the source-only export bucket design
+- Preserve original single private P1 `retailgrowth-media` bucket per `FINAL_INTEGRATION_PARTS_2_3.md`, not the earlier proposed second bucket. A RESTRICTIVE storage.objects policy excludes the `social-exports` second path component from all client-role access, while the service-only create-if-absent writer stores exports under shop/job/revision/content digest path and rechecks bytes. This correction is safe only because the previous migration 191400 was never hosted; do not apply both variants or create a new bucket.

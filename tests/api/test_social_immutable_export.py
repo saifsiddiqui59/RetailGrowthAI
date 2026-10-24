@@ -42,7 +42,7 @@ def make_store():
     def transport(request,timeout):
         assert timeout==45 and request.get_header("Apikey")=="sb_secret_testing"
         calls.append(request)
-        if "/storage/v1/object/retailgrowth-social-exports/" in request.full_url:
+        if "/storage/v1/object/retailgrowth-media/" in request.full_url:
             if request.get_method()=="POST":
                 assert request.get_header("X-upsert")=="false"
                 assert request.get_header("Content-type")=="video/mp4"
@@ -51,7 +51,7 @@ def make_store():
             assert request.get_method()=="GET"
             return Response(request.full_url,media["bytes"])
         assert request.get_method()=="POST"
-        assert "/storage/v1/object/sign/retailgrowth-social-exports/" in request.full_url
+        assert "/storage/v1/object/sign/retailgrowth-media/" in request.full_url
         assert json.loads(request.data)=={"expiresIn":7200}
         if media["malicious"]:
             signed="/object/sign/retailgrowth-media/unsafe.mp4?token=fake"
@@ -77,8 +77,8 @@ def test_exact_copy_once_readback_and_signed_result(tmp_path):
     result=writer.create_signed_export(**kwargs)
     assert result["state"]=="IMMUTABLE_EXPORT_VERIFIED"
     assert result["source_sha256"]==SHA
-    assert result["object_path"]==f"{SHOP}/video/{JOB}/7/{SHA}.mp4"
-    assert result["signed_url"].startswith(ROOT+"/storage/v1/object/sign/retailgrowth-social-exports/")
+    assert result["object_path"]==f"{SHOP}/social-exports/{JOB}/7/{SHA}.mp4"
+    assert result["signed_url"].startswith(ROOT+"/storage/v1/object/sign/retailgrowth-media/")
     assert [r.get_method() for r in calls]==["POST","GET","POST"]
     assert authority.calls==[(SHOP,JOB,7,SHA)]*2
 

@@ -178,3 +178,7 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - Verify feature exact-head 4/4 CI, internal PR merge and post-merge branch CI. Claim-CAS backend authority is now available as a source-only component for the existing disabled export writer.
 - Still must connect finalized P1 render SHA receipt production at trusted render completion, independently reviewed rights evidence, job/media/revision approval, optional provider-fetchable immutable export upload, and the provider-specific remote session state/receipt through a real tested Azure worker. The current live worker deliberately remains TEXT-ONLY; video approval hard-deny stays.
 - Real provider OAuth app grants, licensed test accounts, plan caps, P2 hosted migrations and Azure release/real posts must be verified before enabling anything. Final Coordinator reconciles advancing Part1 main and opens final merged Part2 release.
+
+## Corrected release architecture: one private P1 media bucket
+- The pending-only P2 SQL 191400 now reserves an authenticated-client-inaccessible `<shop>/social-exports/` prefix inside original P1 `retailgrowth-media`; never provision a second bucket. Verify exact four-job CI and post-merge integration branch.
+- Still required: real trusted Part1 final render SHA recording, separately checked commercial-rights evidence, service-only claim/rights validation, copy-once export under single bucket, final upload + remote reconciliation and hosted test. Real publishing remains OFF. Coordinator owns final integration into latest Part1 main.

@@ -25,7 +25,7 @@ from tenant_store import canonical_uuid
 
 _MAX_BYTES = 80 * 1024 * 1024
 _SHA = re.compile(r"[0-9a-f]{64}\Z")
-_BUCKET = "retailgrowth-social-exports"
+_BUCKET = "retailgrowth-media"
 
 
 class ExportDenied(ValueError):
@@ -134,7 +134,7 @@ class ImmutableSocialExportWriter:
         if self.authority.allow_export(sid,jid,revision,sha) is not True:
             raise ExportDenied("EXPORT_CLAIM_DENIED")
         data = _private_bytes(source_path,private_root,sha)
-        key = f"{sid}/video/{jid}/{revision}/{sha}.mp4"
+        key = f"{sid}/social-exports/{jid}/{revision}/{sha}.mp4"
         encoded = quote(key,safe="/")
         object_url = self.origin+f"/storage/v1/object/{_BUCKET}/"+encoded
         self._request(object_url,method="POST",data=data,max_reply=8192,
