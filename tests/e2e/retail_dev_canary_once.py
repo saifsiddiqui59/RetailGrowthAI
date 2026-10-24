@@ -126,6 +126,7 @@ def call(url, method="GET", payload=None, headers=None, timeout=30, expect=(200,
         if ((method == "PATCH") or
                 (method == "POST" and (
                     ("/api/campaigns/" in url and url.endswith("/renders"))
+                    or ("/api/poster-drafts/" in url and url.endswith("/renders"))
                     or url.endswith("/posters")))) and \
                 status in (502,503,504) and source == "gateway_or_supabase":
             raise TransientGateway("Transient pre-handler write response")
@@ -375,9 +376,50 @@ def main():
         if reopened.get("business_name")!=poster_payload["business_name"]:
             raise RuntimeError("Poster did not survive private reload")
         print("CANARY_POSTER_HISTORY_REOPENED=true",flush=True)
-        _,poster_request=call(API+"/api/poster-drafts/"+poster_id+"/renders",
-            method="POST",payload={},headers=a,timeout=60,expect=(202,))
-        poster_job=poster_request["job_id"]
+        # The authenticated POST may reach Postgres and commit even if Azure
+        # loses its response. Read the exact user's RLS-visible unique revision
+        # before any retry; do not create a second job or mask foreign records.
+        def find_persisted_poster_job():
+            query=urllib.parse.urlencode({
+                "select":"id,shop_id,poster_id,requested_by,revision,status",
+                "shop_id":"eq."+shops[0],
+                "poster_id":"eq."+poster_id,
+                "requested_by":"eq."+accounts[0][0],
+                "limit":"2",
+            })
+            _,rows=call(SUPABASE+"/rest/v1/poster_jobs?"+query,headers=a,expect=(200,))
+            if not isinstance(rows,list) or len(rows)>1:
+                raise RuntimeError("Ambiguous private poster render readback")
+            if not rows:
+                return None
+            row=rows[0]
+            if (row.get("shop_id")!=shops[0] or
+                row.get("poster_id")!=poster_id or
+                row.get("requested_by")!=accounts[0][0] or
+                row.get("revision")!=1 or
+                row.get("status") not in ("QUEUED","RUNNING","SUCCEEDED","FAILED")):
+                raise RuntimeError("Foreign or invalid poster job in readback")
+            return str(uuid.UUID(row["id"]))
+
+        poster_job=None
+        for attempt in range(3):
+            try:
+                _,poster_request=call(API+"/api/poster-drafts/"+poster_id+"/renders",
+                    method="POST",payload={},headers=a,timeout=60,expect=(202,))
+                poster_job=str(uuid.UUID(poster_request["job_id"]))
+                break
+            except (TimeoutError,ConnectionResetError,TransientGateway):
+                # Waiting briefly lets an in-flight commit become visible.
+                time.sleep(5*(attempt+1))
+                poster_job=find_persisted_poster_job()
+                if poster_job is not None:
+                    print("CANARY_POSTER_RENDER_POST_RECONCILED=true",flush=True)
+                    break
+                if attempt==2:
+                    raise RuntimeError("Poster render POST not committed after bounded readback")
+                print("CANARY_POSTER_RENDER_SAFE_IDENTICAL_RETRY="+str(attempt+1),flush=True)
+        if not poster_job:
+            raise RuntimeError("No confirmed private poster job after render request")
         _,foreign_job=call(API+"/api/poster-jobs/"+poster_job,
             headers=b,expect=(403,404))
         print("CANARY_POSTER_JOB_TENANT_DENIED=true",flush=True)
