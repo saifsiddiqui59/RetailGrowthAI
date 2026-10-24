@@ -1,0 +1,199 @@
+name: RetailGrowthAI DEV one-time lazy-media Functions ZIP release
+# Owner-authorized DEV code-only release. Existing app/storage/queues; no new
+# resources, database migrations, SMTP, account creation or paid warm instances.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p1-dev-media-lazy-release-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p1-existing-functions-code-release
+  cancel-in-progress: false
+jobs:
+  publish-existing-dev:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'release(dev): RetailGrowthAI P1 lazy media import')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-retailgrowth-dev
+      APP: rgai-dev-functions-d4e5ddbd
+      STORAGE: rgaid4e5ddbdf0d21d96
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify latest reviewed package and lazy-loading invariants offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          source=Path("azure-functions/campaign-api/function_app.py").read_text()
+          tree=ast.parse(source)
+          heavy={"poster_worker","private_poster_media","render_worker","private_media"}
+          top={x.module for x in tree.body if isinstance(x,ast.ImportFrom)}
+          assert not top.intersection(heavy),sorted(top.intersection(heavy))
+          functions={x.name:x for x in tree.body if isinstance(x,ast.FunctionDef)}
+          for name,needed in {
+              "render_campaign_reel":{"render_worker","private_media"},
+              "render_campaign_poster":{"poster_worker","private_poster_media"},
+              "dispatch_pending_posters":{"poster_worker"},
+          }.items():
+              imports={x.module for x in ast.walk(functions[name]) if isinstance(x,ast.ImportFrom)}
+              assert needed.issubset(imports),(name,sorted(needed-imports))
+          print("P1_LAZY_ENGINE_IMPORTS_VERIFIED=true")
+          PY
+          python3 scripts/deploy/package.py --check
+          python3 -m unittest scripts/deploy/test_package.py
+          grep -Fq 'from poster_worker import process_poster' azure-functions/campaign-api/function_app.py
+          grep -Fq 'from render_worker import process_render' azure-functions/campaign-api/function_app.py
+          echo "RELEASE_SCOPE=existing-retailgrowth-dev-azure-functions-code-only"
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify exact tagged DEV resource identities and safe current feature flags
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          az group show -g "$RG" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1]))
+          tags={k.lower():str(v).lower() for k,v in (r.get("tags") or {}).items()}
+          assert r["name"]=="rg-retailgrowth-dev"
+          assert r["location"].replace(" ","").lower()=="centralindia"
+          assert tags.get("app")=="retailgrowthai" and tags.get("environment")=="dev"
+          print("SAFE_DEV_RESOURCE_GROUP=true")
+          PY
+          test "$(az functionapp show -g "$RG" -n "$APP" --query name -o tsv)" = "$APP"
+          test "$(az storage account show -g "$RG" -n "$STORAGE" --query name -o tsv)" = "$STORAGE"
+          az functionapp function list -g "$RG" -n "$APP" --query '[].name' -o tsv > "$RUNNER_TEMP/pre-functions"
+          for f in create_campaign read_campaign render_campaign_reel render_campaign_poster dispatch_pending_posters request_poster_render select_poster_banner; do
+            grep -q "/$f$" "$RUNNER_TEMP/pre-functions" || { echo "MISSING_BEFORE=$f"; exit 3; }
+          done
+          function val() {
+            az functionapp config appsettings list -g "$RG" -n "$APP" --query "[?name=='$1'].value | [0]" -o tsv
+          }
+          test "$(val RETAIL_SUPABASE_URL)" = "https://jeearzffnjbvghwjjjrf.supabase.co"
+          test "$(val RETAIL_ENABLE_POSTER_DRAFTS)" = "true"
+          test "$(val RETAIL_ENABLE_POSTER_RENDERING)" = "true"
+          test "$(val RETAIL_NOTIFICATIONS_ENABLED)" != "true"
+          printf '%s\n' \
+            "RETAIL_ENABLE_POSTER_DRAFTS=$(val RETAIL_ENABLE_POSTER_DRAFTS)" \
+            "RETAIL_ENABLE_POSTER_RENDERING=$(val RETAIL_ENABLE_POSTER_RENDERING)" \
+            "RETAIL_NOTIFICATIONS_ENABLED=$(val RETAIL_NOTIFICATIONS_ENABLED)" \
+            > "$RUNNER_TEMP/safe-before"
+          echo "SAFE_PRIOR_BACKEND_FLAGS_CHECKED=true"
+      - name: Rebuild existing verified Flex ZIP with digest-pinned FFmpeg
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/media" "$RUNNER_TEMP/release"
+          image='mwader/static-ffmpeg@sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822'
+          docker pull "$image"
+          cid="$(docker create "$image" -version)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          docker cp "$cid:/ffmpeg" "$RUNNER_TEMP/media/ffmpeg"
+          docker cp "$cid:/ffprobe" "$RUNNER_TEMP/media/ffprobe"
+          chmod 755 "$RUNNER_TEMP/media/ffmpeg" "$RUNNER_TEMP/media/ffprobe"
+          cat > "$RUNNER_TEMP/media/THIRD_PARTY_NOTICES.txt" <<'NOTICE'
+          FFmpeg and ffprobe GPL static Linux amd64 with libx264/AAC.
+          License: https://ffmpeg.org/legal.html
+          Source/build: https://github.com/wader/static-ffmpeg
+          Digest: sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822
+          NOTICE
+          python3 scripts/deploy/package.py --ffmpeg-dir "$RUNNER_TEMP/media" \
+            --output "$RUNNER_TEMP/release/part1-lazy-media.zip"
+          python3 scripts/deploy/package.py --verify-zip "$RUNNER_TEMP/release/part1-lazy-media.zip"
+          python3 - "$RUNNER_TEMP/release/part1-lazy-media.zip" <<'PY'
+          import sys,zipfile
+          with zipfile.ZipFile(sys.argv[1]) as z:
+              paths=z.namelist()
+              for required in ["function_app.py","poster-engine/render.py","video-engine/render.py"]:
+                  assert any(p==required or p.endswith("/"+required) for p in paths),required
+          print("SAFE_PACKAGE_INCLUDES_REAL_PNG_AND_FFMPEG_ENGINES=true")
+          PY
+      - name: Publish code only to same DEV Flex app and verify trigger indexing
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp deployment source config-zip -g "$RG" -n "$APP" \
+            --src "$RUNNER_TEMP/release/part1-lazy-media.zip" --build-remote true -o none
+          echo "DEV_FUNCTIONS_ZIP_UPLOAD_COMPLETED=true"
+          ready=0
+          for attempt in $(seq 1 12); do
+            az functionapp function list -g "$RG" -n "$APP" --query '[].name' -o tsv > "$RUNNER_TEMP/post-functions" || true
+            if python3 - "$RUNNER_TEMP/post-functions" <<'PY'
+          from pathlib import Path
+          import sys
+          names={line.split("/")[-1] for line in Path(sys.argv[1]).read_text().splitlines()}
+          expected={"create_campaign","read_campaign","create_poster_draft","list_saved_posters",
+                    "get_poster_draft","request_poster_render","read_poster_render",
+                    "download_poster_render","select_poster_banner","dispatch_pending_posters",
+                    "render_campaign_poster","render_campaign_reel","plan_campaign",
+                    "get_render","get_render_download","recover_stale_jobs"}
+          missing=expected-names
+          print("SAFE_INDEXED_COUNT="+str(len(names))+" MISSING="+str(sorted(missing)))
+          raise SystemExit(0 if not missing else 1)
+          PY
+            then ready=1;break;fi
+            sleep 12
+          done
+          test "$ready" = 1 || { echo "::error::Worker or HTTP function missing after code-only update"; exit 3; }
+          function val() {
+            az functionapp config appsettings list -g "$RG" -n "$APP" --query "[?name=='$1'].value | [0]" -o tsv
+          }
+          printf '%s\n' \
+            "RETAIL_ENABLE_POSTER_DRAFTS=$(val RETAIL_ENABLE_POSTER_DRAFTS)" \
+            "RETAIL_ENABLE_POSTER_RENDERING=$(val RETAIL_ENABLE_POSTER_RENDERING)" \
+            "RETAIL_NOTIFICATIONS_ENABLED=$(val RETAIL_NOTIFICATIONS_ENABLED)" \
+            > "$RUNNER_TEMP/safe-after"
+          cmp "$RUNNER_TEMP/safe-before" "$RUNNER_TEMP/safe-after"
+          echo "SAFE_BACKEND_FLAGS_UNCHANGED=true"
+      - name: Read-only three-route direct HTTPS 401 vs gateway 503 probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess
+          origin="https://rgai-dev-functions-d4e5ddbd.azurewebsites.net"
+          tests=[("POST","/api/campaigns"),
+                 ("GET","/api/campaigns/11111111-1111-4111-8111-111111111111"),
+                 ("POST","/api/poster-drafts/11111111-1111-4111-8111-111111111111/select")]
+          observed=[]
+          for method,path in tests:
+              args=["curl","-sS","--connect-timeout","10","--max-time","75",
+                    "-o","/dev/null","-w","%{http_code} %{time_total}", "-X",method,
+                    "-H","Content-Type: application/json",origin+path]
+              if method=="POST":args.extend(["--data","{}"])
+              result=subprocess.run(args,capture_output=True,text=True,timeout=80)
+              fields=result.stdout.split()
+              status=fields[0] if fields else "000"
+              elapsed=float(fields[1]) if len(fields)>1 else 80.0
+              label=path.replace("11111111-1111-4111-8111-111111111111","{id}")
+              print("AFTER_DEPLOY_ROUTE="+method+" "+label+
+                    " HTTP="+status+" SECONDS="+str(round(elapsed,3))+
+                    " CURL_RC="+str(result.returncode))
+              observed.append((status,elapsed,result.returncode))
+          if any(code!="401" or elapsed>10 or rc!=0 for code,elapsed,rc in observed):
+              raise SystemExit("AZURE_GATEWAY_P0_STILL_UNRELIABLE: code deployed but HTTP probe failed")
+          print("AFTER_DEPLOY_ALL_THREE_AUTH_GATES_401_WITHIN_10S=true")
+          PY
+      - name: Logout
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
