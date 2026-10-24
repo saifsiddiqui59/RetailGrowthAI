@@ -182,3 +182,6 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 ## Corrected release architecture: one private P1 media bucket
 - The pending-only P2 SQL 191400 now reserves an authenticated-client-inaccessible `<shop>/social-exports/` prefix inside original P1 `retailgrowth-media`; never provision a second bucket. Verify exact four-job CI and post-merge integration branch.
 - Still required: real trusted Part1 final render SHA recording, separately checked commercial-rights evidence, service-only claim/rights validation, copy-once export under single bucket, final upload + remote reconciliation and hosted test. Real publishing remains OFF. Coordinator owns final integration into latest Part1 main.
+
+## Provider-create duplicate safety
+- Verify four-job exact-head and post-merge CI for `feat/p2-ambiguous-video-retry-guard`. Ensure the publisher treats any failed already-started media initiation as reconciliation, not FAILED or RETRYABLE unsent. Durable remote receipt verification/Instagram status and encrypted YouTube 308 recovery remain release requirements.
