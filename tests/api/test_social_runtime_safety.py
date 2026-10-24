@@ -45,9 +45,13 @@ def test_aes_gcm_bound_to_shop_provider_and_account():
     sealed = vault.seal(shop_id=SHOP, provider="linkedin", account_id=ACCOUNT, token="sensitive-test-token")
     assert b"sensitive" not in sealed
     assert vault.open(shop_id=SHOP, provider="linkedin", account_id=ACCOUNT, ciphertext=sealed) == "sensitive-test-token"
+    # Flip one authentication-tag bit deterministically. Replacing it with a
+    # fixed byte can accidentally leave the ciphertext unchanged (1/256).
+    tampered = sealed[:-1] + bytes([sealed[-1] ^ 1])
+    assert tampered != sealed
     for shop, provider, data in ((OTHER_SHOP, "linkedin", sealed),
                                  (SHOP, "facebook", sealed),
-                                 (SHOP, "linkedin", sealed[:-1] + b"x")):
+                                 (SHOP, "linkedin", tampered)):
         with pytest.raises(oauth.OAuthDenied):
             vault.open(shop_id=shop, provider=provider, account_id=ACCOUNT, ciphertext=data)
 

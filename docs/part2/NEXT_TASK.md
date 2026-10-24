@@ -190,3 +190,6 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - Verify feature exact-head 4/4 CI, internally merge only to `feat/part2-integration`, and confirm independent post-merge branch CI. All Azure media publishing still deliberately unregistered; Part2 must not claim live Instagram/YouTube.
 - Outstanding source integration: trusted Part1 render-finalized SHA writer and externally reviewed commercial-rights process, actual video approval CAS (currently hard-denied), immutable export bytes+signed URL anchored to claim, AAD-key availability/rotation policy, OAuth provider-granted apps, Meta/YouTube remote receipt reconciliation and quota/cancel E2E.
 - Final Coordinator must reconcile latest Part1 main, preserve Part3 source and configure only separately authorized hosted DEV migration/worker release/plan publish quotas. No live posts without a confirmed test account and explicit release switch.
+
+## Quality checkpoint — AES negative test stability
+- Verify exact-head and independent post-merge four-job CI for `feat/p2-deterministic-aes-tamper-test`. This is a negative-test reliability fix only; it does not unblock live social publishing or provider app/rights/hosted gates.

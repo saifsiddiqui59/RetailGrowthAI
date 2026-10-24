@@ -90,3 +90,5 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - 2026-10-24: Corrected duplicate Instagram media container/YouTube session initialization failure classification to ambiguous rather than definitely-not-sent; added mocked lost-ACK/duplicate tests to prove one transport side effect and safe reconciliation. No live provider post. CI pending.
 
 - 2026-10-24: Added source-only staged claim-scoped Meta container and AES-versioned YouTube session RPCs and disabled `ScopedVideoUploadStorage` implementation matching existing IG/YouTube upload interfaces. Added offline fake PostgREST/provider tests for exact durable stage CAS, sessions, revoked claims, replay and no bearer/session leaks; no hosted migrations nor actual media uploads. Four CI and internal merge pending.
+
+- 2026-10-24: Replaced probabilistic fixed-byte ciphertext mutation with a guaranteed bit flip in P2 AES-GCM negative test. Retains hard authentication failure assertion while eliminating intermittent false failure in Python CI. No production code changed. CI pending.
