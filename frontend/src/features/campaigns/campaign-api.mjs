@@ -86,5 +86,10 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch })
       })
     },
     getPosterDraft: (posterId) => request('GET', '/poster-drafts/' + uuid(posterId)),
+    createPosterRender: (posterId) => request('POST',
+      '/poster-drafts/' + uuid(posterId) + '/renders', {}),
+    getPosterJob: (jobId) => request('GET', '/poster-jobs/' + uuid(jobId)),
+    getPosterDownload: (jobId) => request('GET',
+      '/poster-jobs/' + uuid(jobId) + '/download'),
   }
 }
