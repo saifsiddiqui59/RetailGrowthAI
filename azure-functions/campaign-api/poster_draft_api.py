@@ -99,3 +99,29 @@ class PosterDraftAPI:
             "source_asset_id": draft["source_asset_id"],
             "output_asset_id": draft.get("output_asset_id"),
         }
+
+    def list_for_day(self, token, user_id, campaign_id, day_id):
+        """Only saved campaign days visible to the signed-in shop member."""
+        cid, did = canonical_uuid(campaign_id), canonical_uuid(day_id)
+        campaign = self.store.campaign(token, user_id, cid)
+        if campaign is None:
+            return 404, {"error": "NOT_FOUND"}
+        sid = canonical_uuid(campaign["shop_id"])
+        days = [d for d in campaign["days"] if d.get("id") == did and
+                d.get("campaign_id") == cid and d.get("shop_id") == sid]
+        if len(days) != 1 or not self.store.member(token, user_id, sid):
+            return 404, {"error": "NOT_FOUND"}
+        rows = self.store.posters_for_day(token, sid, cid, did)
+        return 200, {"posters": [{
+            "poster_id": row["id"],
+            "status": row["status"], "revision": row["revision"],
+            "template": row["template"], "format": row["format"],
+            "business_name": row["business_name"],
+            "accent_color": row["accent_color"],
+            "background_color": row["background_color"],
+            "offer_text": row.get("offer_text"),
+            "source_asset_id": row["source_asset_id"],
+            "output_asset_id": row.get("output_asset_id"),
+            "job_id": row.get("job_id"), "job_status": row.get("job_status"),
+        } for row in rows]}
+

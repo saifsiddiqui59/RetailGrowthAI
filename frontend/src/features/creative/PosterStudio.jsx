@@ -27,6 +27,8 @@ export default function PosterStudio({ day, businessName = 'Your business', api 
   const [remoteBusy, setRemoteBusy] = useState(false)
   const [remoteError, setRemoteError] = useState('')
   const [remoteMessage, setRemoteMessage] = useState('')
+  const [savedPosters, setSavedPosters] = useState([])
+  const [historyBusy, setHistoryBusy] = useState(false)
 
   useEffect(() => {
     setBrand(businessName || 'Your business')
@@ -48,12 +50,52 @@ export default function PosterStudio({ day, businessName = 'Your business', api 
     setRemoteJob(null)
     setRemoteMessage('')
     setRemoteError('')
+    setSavedPosters([])
   }, [day.id, campaignId])
-  useEffect(() => {
+  // Only intentional edits invalidate the selected cloud draft. Restoring a
+  // saved design must not be erased by its own programmatic field updates.
+  function updateDesign(setter, value) {
+    setter(value)
     setRemoteDraft('')
     setRemoteJob(null)
     setRemoteMessage('')
-  }, [template, size, brand, accent, background, offer, sourceAssetId])
+    setRemoteError('')
+  }
+
+  async function refreshSavedPosters() {
+    if (!api || !persisted || !campaignId || !day.id) return
+    setHistoryBusy(true)
+    setRemoteError('')
+    try {
+      const response = await api.listPosterDrafts(campaignId, day.id)
+      if (!response || !Array.isArray(response.posters) || response.posters.length > 21) {
+        throw new Error('Saved poster history was not verified')
+      }
+      setSavedPosters(response.posters)
+    } catch (problem) {
+      setRemoteError(problem.message)
+    } finally { setHistoryBusy(false) }
+  }
+
+  function restoreSavedPoster(poster) {
+    if (!poster || !allowedSources.includes(poster.source_asset_id)) {
+      setRemoteError('The saved design source is no longer in this campaign day. Choose a licensed image.')
+      return
+    }
+    // Source is checked against live tenant-authorized day media; the server
+    // rechecks RLS and revoked rights again before render or signed download.
+    setTemplate(poster.template)
+    setSize(poster.format)
+    setBrand(poster.business_name)
+    setAccent(poster.accent_color)
+    setBackground(poster.background_color)
+    setOffer(poster.offer_text || '')
+    setSourceAssetId(poster.source_asset_id)
+    setRemoteDraft(poster.poster_id)
+    setRemoteJob(poster.job_id ? {job_id: poster.job_id, status: poster.job_status} : null)
+    setRemoteMessage('Saved design reopened. Cloud output is available only if its job succeeded.')
+    setRemoteError('')
+  }
   useEffect(() => {
     if (!api || !remoteJob || !['QUEUED', 'RUNNING'].includes(remoteJob.status)) return
     let active = true
@@ -93,6 +135,7 @@ export default function PosterStudio({ day, businessName = 'Your business', api 
       })
       setRemoteDraft(saved.poster_id)
       setRemoteJob(null)
+      setSavedPosters(previous => previous.filter(p => p.poster_id !== saved.poster_id))
       setRemoteMessage('Poster design saved privately. Start secure rendering to generate its PNG.')
     } catch (problem) { setRemoteError(problem.message) }
     finally { setRemoteBusy(false) }
@@ -219,7 +262,7 @@ export default function PosterStudio({ day, businessName = 'Your business', api 
           <label className="rg-field">
             <span>Business name</span>
             <input aria-label="Poster business name" value={brand}
-              maxLength={70} onChange={event => setBrand(event.target.value)} />
+              maxLength={70} onChange={event => updateDesign(setBrand, event.target.value)} />
           </label>
           <label className="rg-field">
             <span>Product photo (JPG, PNG or WebP)</span>
@@ -230,14 +273,14 @@ export default function PosterStudio({ day, businessName = 'Your business', api 
           <div className="rg-creative-pairs">
             <label className="rg-field"><span>Layout</span>
               <select aria-label="Poster template" value={template}
-                onChange={event => setTemplate(event.target.value)}>
+                onChange={event => updateDesign(setTemplate, event.target.value)}>
                 {POSTER_TEMPLATES.map(value => <option key={value} value={value}>
                   {value[0].toUpperCase() + value.slice(1)}</option>)}
               </select>
             </label>
             <label className="rg-field"><span>Format</span>
               <select aria-label="Poster size" value={size}
-                onChange={event => setSize(event.target.value)}>
+                onChange={event => updateDesign(setSize, event.target.value)}>
                 <option value="square">Square · 1080 × 1080</option>
                 <option value="portrait">Portrait · 1080 × 1350</option>
               </select>
@@ -246,16 +289,16 @@ export default function PosterStudio({ day, businessName = 'Your business', api 
           <div className="rg-creative-pairs">
             <label className="rg-field"><span>Accent</span>
               <input aria-label="Poster accent color" type="color" value={accent}
-                onChange={event => setAccent(event.target.value)} />
+                onChange={event => updateDesign(setAccent, event.target.value)} />
             </label>
             <label className="rg-field"><span>Background</span>
               <input aria-label="Poster background color" type="color" value={background}
-                onChange={event => setBackground(event.target.value)} />
+                onChange={event => updateDesign(setBackground, event.target.value)} />
             </label>
           </div>
           <label className="rg-field"><span>Approved offer (optional)</span>
             <input aria-label="Poster offer" value={offer} maxLength={110}
-              onChange={event => setOffer(event.target.value)}
+              onChange={event => updateDesign(setOffer, event.target.value)}
               placeholder="e.g. 20% off through Nov 14" />
             <small>Enter only genuine, approved offers; no offer is invented by the app.</small>
           </label>
@@ -273,11 +316,32 @@ export default function PosterStudio({ day, businessName = 'Your business', api 
             {persisted && <p className="rg-subtle">Cloud rendering uses your registered, licensed campaign image—not the temporary local photo preview above.</p>}
             {persisted && <label className="rg-field"><span>Registered campaign product image</span>
               <select aria-label="Saved poster source image" value={sourceAssetId}
-                onChange={event => setSourceAssetId(event.target.value)}>
+                onChange={event => updateDesign(setSourceAssetId, event.target.value)}>
                 <option value="">Select a registered image</option>
                 {allowedSources.map(id => <option value={id} key={id}>{id.slice(0, 8)} · Approved shop media</option>)}
               </select>
             </label>}
+            {persisted && <>
+              <button className="rg-button rg-secondary" type="button"
+                disabled={!api || historyBusy || remoteBusy}
+                onClick={refreshSavedPosters}>Find saved posters</button>
+              {historyBusy && <p role="status">Checking private saved designs…</p>}
+              {savedPosters.length > 0 && <label className="rg-field">
+                <span>Reopen saved design</span>
+                <select aria-label="Reopen saved poster" defaultValue=""
+                  onChange={event => {
+                    const chosen = savedPosters.find(p => p.poster_id === event.target.value)
+                    if (chosen) restoreSavedPoster(chosen)
+                  }}>
+                  <option value="">Select a saved design</option>
+                  {savedPosters.map(p => <option key={p.poster_id} value={p.poster_id}>
+                    {p.template} · {p.format} · {p.status} · {p.poster_id.slice(0, 8)}
+                  </option>)}
+                </select>
+              </label>}
+              {savedPosters.length === 0 && !historyBusy &&
+                <p className="rg-subtle">Select “Find saved posters” to reopen designs saved under this campaign day.</p>}
+            </>}
             <button className="rg-button rg-secondary" type="button"
               disabled={!persisted || remoteBusy || !rights || !allowedSources.includes(sourceAssetId)}
               onClick={saveCloudDraft}>Save design privately</button>
