@@ -617,7 +617,7 @@ rollback;
 
 -- Job-specific reviewed video metadata is also never publicly executable.
 begin;
-do $
+do $p2review$
 begin
   if has_function_privilege('authenticated',
       'public.p2_social_video_source(uuid,uuid,uuid)','EXECUTE')
@@ -629,7 +629,7 @@ begin
       'retail_private.social_video_job_reviews','SELECT') then
     raise exception 'FAIL: private video job review reached client';
   end if;
-end $;
+end $p2review$;
 rollback;
 \echo 'PASS: video evidence tenant/revision binding remains service-only'
 
