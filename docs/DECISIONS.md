@@ -324,3 +324,8 @@
 - Sender OFF by default and migration source-only pending safe DEV migration review; fail closed if authentication, recipient confirmation, lease tokens or SMTP configuration are unavailable. SMTP guarantees at-least-once, not exactly-once, in ambiguous acknowledgement failures.
 - Super Admin `/platform-alerts` is not a persistent email inbox. Keep access behind existing database-verified platform-root authorization and drive only honest, read-only verified RPC counts with partial directory coverage disclosed; no browser service-role key or privileged write.
 - `Platform Control` adds page-only subscription warnings/search and reuses existing audited backend changes. No billing gateway, auto-renewals, fake system failure notifications or new paid infrastructure; main/main DEV deploy requires coordinator integration gates.
+
+
+## 2026-10-24 — Safe Part 1 release scope
+- Merge source-level Part 1 integration only after all 4 PR and post-main CI checks pass. Deliver new administrative routes as frontend-only to the **same tagged existing Free DEV SWA**, validating its exact hostname/Free SKU and public JS/CSS; do not provision new Azure resources.
+- Source merge does **not** imply Supabase Auth sender configuration, transactional outbox migration, cloud poster queues, or live Functions deployment. Keep notification sending and poster runtime OFF until project-specific secrets, safe migration backup/restore and hosted acceptance. Same authorized Gmail address with distinct RetailGrowthAI From branding is permitted; existing WineShopPOS SMTP secret remains private and unchanged.
