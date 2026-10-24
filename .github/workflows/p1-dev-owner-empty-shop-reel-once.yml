@@ -1,0 +1,75 @@
+name: RetailGrowthAI DEV one-time existing approved empty shop FFmpeg 30s acceptance
+# One additional owner-authorized run after first #40135435223 failed before\n# any synthetic shop existed; Python AST now guards the executable insert.\n# Owner explicitly authorized Part 1 DEV video validation. The existing single
+# ROOT-owned shop is currently empty. This test creates only nonce-scoped
+# campaign/media/job CHILD records; it NEVER creates/deletes/updates the shop,
+# its owner, memberships, subscription or onboarding setting.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p1-dev-owner-empty-shop-reel-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-live-canary
+  cancel-in-progress: false
+jobs:
+  azure-queue-worker-real-mp4:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'test(dev): verify RetailGrowthAI FFmpeg in existing empty approved DEV shop')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      RGAI_DEV_REAL_QUEUE_OPERATOR_APPROVAL: OWNER_APPROVED_ONE_SHOT_RENDER_WORKER_ONLY
+      RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Confirm only exact reviewed worker fixture and private media source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "saifsiddiqui59/RetailGrowthAI"
+          test "$GITHUB_REF" = "refs/heads/main"
+          test -n "${RGAI_DEV_SERVICE_KEY:-}"
+          test -f tests/e2e/dev_existing_owner_shop_reel_once.py
+          grep -Fq 'REAL_DEV_AZURE_QUEUE_REEL_ACCEPTANCE=PASSED' tests/e2e/dev_existing_owner_shop_reel_once.py
+          grep -Fq 'WORKER_TEST_EMPTY_APPROVED_DEV_SHOP_VERIFIED=true' tests/e2e/dev_existing_owner_shop_reel_once.py
+          grep -Fq 'WORKER_TEST_ISOLATED_FIXTURE_CLEANUP=' tests/e2e/dev_existing_owner_shop_reel_once.py
+          grep -Fq 'WORKER_TEST_SIGNED_PRIVATE_30S_H264_AAC_BYTES_VERIFIED=true' tests/e2e/dev_existing_owner_shop_reel_once.py
+          python3 -m py_compile tests/e2e/dev_existing_owner_shop_reel_once.py
+          echo "DEV_ONLY_REAL_WORKER_SCOPE_VERIFIED=true"
+      - name: Install only ffprobe for actual signed output validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            if [ -f /etc/apt/apt-mirrors.txt ]; then
+              printf '%s\n' 'http://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+            fi
+            if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+              sudo sed -i 's#http://azure.archive.ubuntu.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' /etc/apt/sources.list.d/ubuntu.sources
+            fi
+            timeout 180s sudo apt-get update -qq
+            timeout 360s sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ffmpeg
+          fi
+          ffprobe -version | head -n 1
+      - name: Exercise actual existing Azure Functions worker and durable outbox on synthetic licensed DEV shop
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u tests/e2e/dev_existing_owner_shop_reel_once.py
+      - name: Upload only private signed 30s H264 AAC MP4 after codec proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retailgrowthai-dev-approved-root-shop-real-ffmpeg-30s-mp4
+          path: output/worker-video/retailgrowthai-real-dev-queue-worker-30s.mp4
+          retention-days: 7
+          if-no-files-found: warn
