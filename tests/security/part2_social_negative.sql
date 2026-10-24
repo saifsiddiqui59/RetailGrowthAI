@@ -623,8 +623,10 @@ begin
   if not public.p2_advance_social_video_upload(
       '62000000-0000-4000-8000-000000000001',
       (current_claim->>'claim_token')::uuid,
-      'CONTAINER_KNOWN','PUBLISH_INTENT',null,null)
-    or not public.p2_advance_social_video_upload(
+      'CONTAINER_KNOWN','PUBLISH_INTENT',null,null) then
+    raise exception 'FAIL: publish intent barrier refused';
+  end if;
+  if not public.p2_advance_social_video_upload(
       '62000000-0000-4000-8000-000000000001',
       (current_claim->>'claim_token')::uuid,
       'PUBLISH_INTENT','PUBLISHED','987654',null) then
