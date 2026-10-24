@@ -153,3 +153,8 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 1. Require all four exact-head and post-merge CI checks before accepting the new private session/receipt source work.
 2. Wire existing Instagram/YouTube staged transport to fixed service-only job/claim RPCs and cryptographic session encryption; ensure the remote account/tenant/media digest, granted scopes and durable intent are verified BEFORE each outbound provider request. Any unknown response -> RECONCILE, no second create/upload.
 3. Finish immutable provider-readable media copies for Meta, real signed URL expiry, rights preflight and job revision CAS. Do not activate video approval or scheduled Azure workers before hosted migrations, approved OAuth app credentials and publish quotas.
+
+## Source-only certification pipeline remaining integration
+1. Verify four-job CI, reviewed internal merge and post-merge branch CI for `feat/p2-reviewed-video-preflight`.
+2. Provide a real service-side render-finalized SHA receipt and external rights-review ledger (no client-supplied digest or claims); resolve timestamp from tenant-authorized P2 DB source, then bind the existing private record CAS using backend service role.
+3. Re-verify stored media bytes or immutable provider-safe copy immediately before Meta/YouTube upload; integrate claim-fenced encrypted video upload RPC/session state and transport under a separately approved release. No live video approval until this is tested, grant-scoped and gated.
