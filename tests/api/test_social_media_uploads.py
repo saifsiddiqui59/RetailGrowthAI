@@ -10,7 +10,7 @@ from social_providers import ProviderRequest
 JOB="13000000-0000-4000-8000-000000000001"
 IG="123456789"
 TOKEN="server-held-private-token"
-URL="https://retail.supabase.co/storage/v1/object/sign/retailgrowth-social-exports/31000000-0000-4000-8000-000000000001/video/62000000-0000-4000-8000-000000000001/1/abababababababababababababababababababababababababababababababab.mp4?token=signed-token-SIGNED-TOKEN-123456"
+URL="https://retail.supabase.co/storage/v1/object/sign/retailgrowth-media/31000000-0000-4000-8000-000000000001/social-exports/62000000-0000-4000-8000-000000000001/1/abababababababababababababababababababababababababababababababab.mp4?token=signed-token-SIGNED-TOKEN-123456"
 SESSION="https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&upload_id=session-123"
 VIDEOID="Abc123_XyZ0"
 
