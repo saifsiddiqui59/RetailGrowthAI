@@ -26,3 +26,9 @@
 - Packaging repair proposal: PR #219. Do not call it a hosted deployment.
 - Current hosted DB verification: 2026-10-24 read-only Supabase project/migration listing and poster object existence query (no poster objects).
 - **Outstanding:** operator backup/restore attestation, tracked migrations, queue creation, backend deploy, feature-flag activation, signed-in acceptance evidence. This document does not itself perform those writes.
+
+
+## 2026-10-24 — Poster schema access correction actually applied
+- Owner approved DEV DB correction. Live post-#235, the optional canonical poster outbox privilege migration `20261024180000` was applied directly as an atomic guarded, source-backed SQL + migration history record, not by the failed #236 release workflow. Supabase remote history now contains **18** versions and browser private access remains revoked.
+- Supabase edge evidence: `claim_poster_outbox` HTTP **403** at 11:00 UTC, then HTTP **200** at 11:02 UTC after the grant. Direct `SET LOCAL ROLE service_role` RPC returned empty JSON array (no pending poster jobs). Azure worker can now claim outbox jobs; actual image-generation outcome not proven.
+- Owner sign-in and ROOT approval still required for protected manual-only canary; tests can only claim full E2E success when an approved live poster completes, the private signed PNG verifies and an edited campaign day references its banner asset. Do not auto-trigger the account-creation canary from a doc/code push.
