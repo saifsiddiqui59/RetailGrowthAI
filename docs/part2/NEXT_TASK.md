@@ -133,3 +133,8 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 1. Check all four CI jobs for `feat/p2-trusted-mp4-preflight`, review/merge to the dedicated Part 2 integration branch only after green; verify integration CI separately.
 2. Connect only a separately reviewed server-owned asset loader: verify signed-in shop membership, Storage object rights, authoritative source SHA (never a browser-supplied hash), registered media ID, FFprobe results, rights evidence, rights expiry and approved revision; persist source digest before granting any new video approval.
 3. Close remaining fail-closed lease-CAS Meta/YouTube remote session/receipt reconciliation, provider grant/revocation, quota/refund policy and E2E. Hosted schema, OAuth grants, worker deploy and actual publishing remain separately owner-gated.
+
+## 2026-10-24 — Verified source merges; do not redo #244/#245
+- #244 AAC SQL review guard and #245 trusted private file hash/FFprobe primitive are internally merged to `feat/part2-integration` at `9bd5830`. Post-merge four-job Actions #40094490959 all passed.
+- Highest-priority engineering blocker: integrate trusted Part1 tenant media fetch, independently stored source digest, actual FFprobe, license/rights and expiry verification, and immutable approved social job/media/revision context. The preflight helper is NOT an authority to publish.
+- Next complete durable Meta/YouTube session and receipt reconciliation, provider account grant/revocation and published quota/refund policies, then offline adversarial E2E and coordinator compatibility with newer Part1 main. Hosted migration, OAuth app activation, Azure deployment and actual posts require separately explicit approvals; feature flags stay OFF.
