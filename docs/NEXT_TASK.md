@@ -406,3 +406,9 @@ NaN
 - Apply new additive `20261024190000_p1_platform_operations.sql` **only after** explicit DEV operator gate: verify actual migration prefix/backup-restore, no parallel schema writer, security advisors and checked RLS. Never include email activation, Part 2/3 or WineShopPOS.
 - Approved frontend-only DEV release to existing Free SWA after schema and main CI; verify root read/unread persistence across sessions, second root isolation, nonroot denial, failed-job/outbox/poison signals, 55+ retailer server-filtered expiry counts. Don't show healthy if the query fails.
 - Future telemetry-specific dependency: connect authorized Azure Monitor Functions/Queue health metrics and latency/depth thresholds. Until verified, label cloud health unavailable; DB-outbox backlog is not Azure Queue depth.
+
+
+## 2026-10-24 — Clothing media test follow-up
+- DONE source-engine smoke: [#40081154973](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40081154973) passed a real 1080×1350 poster + 30.000s H.264/AAC video and caption generation, downloadable GitHub artifact #12555496142 from actual RetailGrowthAI offline engines. Original illustrative media only.
+- Still open for **hosted customer proof**: authenticated merchant photo licensing, seven-day Foundry generation, poster queue HTTP + worker completed result, private signed download and real rendered FFmpeg job. Hosted canary #40079151954 timed out during the poster rendering HTTP request despite successful draft/ownership checks. Retry only after operator verifies safe request reconciliation and cloud backend reliability, with authorized DEV cleanup. Do not enable publishing or SMTP.
+- Separately pending: platform operations source migration `20261024190000_p1_platform_operations.sql` still needs DEV backup/restore evidence, tracked apply and readback; sample video artifact does not cover this.
