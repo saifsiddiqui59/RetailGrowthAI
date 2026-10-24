@@ -131,6 +131,34 @@ def reconcile_poster_banner_selection(campaign, *, shop_id, campaign_id,
     raise RuntimeError("Concurrent poster selection edit; no write retry")
 
 
+def validate_private_reel_ffprobe(result):
+    """Require actual private 30-second 9:16 H.264 *and AAC* media bytes.
+
+    This is not a filename/HTTP-header test. ffprobe inspects the downloaded
+    signed private object. No simulated tracks or silent false success.
+    """
+    if not isinstance(result, dict) or not isinstance(result.get("format"),dict):
+        raise RuntimeError("Invalid private MP4 probe envelope")
+    try:
+        duration=float(result["format"]["duration"])
+    except (TypeError, ValueError, KeyError, OverflowError):
+        raise RuntimeError("Private MP4 duration missing") from None
+    if not 29.0<=duration<=31.0:
+        raise RuntimeError("Invalid private 30-second video duration")
+    streams=result.get("streams")
+    if not isinstance(streams,list) or len(streams)>8:
+        raise RuntimeError("Invalid private MP4 stream list")
+    videos=[s for s in streams if isinstance(s,dict) and s.get("codec_type")=="video"]
+    audios=[s for s in streams if isinstance(s,dict) and s.get("codec_type")=="audio"]
+    if len(videos)!=1 or len(audios)!=1:
+        raise RuntimeError("Private MP4 must contain one video and one audio stream")
+    video,audio=videos[0],audios[0]
+    if (video.get("codec_name")!="h264" or video.get("width")!=1080
+        or video.get("height")!=1920 or audio.get("codec_name")!="aac"):
+        raise RuntimeError("Private MP4 must be portrait H264 with AAC audio")
+    return True
+
+
 SUPABASE = "https://jeearzffnjbvghwjjjrf.supabase.co"
 API = "https://rgai-dev-functions-d4e5ddbd.azurewebsites.net"
 def api_key_headers(key):
@@ -731,12 +759,8 @@ def main():
               "format=duration:stream=codec_type,codec_name,width,height","-of","json",filename],
               capture_output=True,text=True,timeout=35,check=True)
             result=json.loads(p.stdout)
-            duration=float(result["format"]["duration"])
-            video=next(s for s in result["streams"] if s["codec_type"]=="video")
-            if not (29<=duration<=31 and video["codec_name"]=="h264"
-                    and video["width"]==1080 and video["height"]==1920):
-                raise RuntimeError("Invalid rendered MP4 video")
-        print("CANARY_PRIVATE_30S_H264_MP4_VERIFIED=true")
+            validate_private_reel_ffprobe(result)
+        print("CANARY_PRIVATE_30S_H264_AAC_MP4_VERIFIED=true",flush=True)
         status="PASSED"
     finally:
         # Cleanup MUST remove original synthetic PNG AND FFmpeg-generated MP4
