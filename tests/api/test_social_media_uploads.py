@@ -174,3 +174,41 @@ def test_youtube_no_second_binary_transfer_when_first_timeout_uncertain():
     with pytest.raises(ProviderFailure,match="BINARY_SEND_MAY_HAVE_OCCURRED"):
         u.upload_once(job_id=JOB,token=TOKEN,video_bytes=b"video")
     assert len(calls)==1
+
+
+
+def test_ig_second_container_create_intent_is_ambiguous_not_safe_to_retry():
+    state=InstagramState()
+    attempts=[]
+    def timeout(req):
+        attempts.append(req)
+        raise TimeoutError("remote may have accepted container")
+    u=InstagramReelUpload(transport=timeout,storage=state,
+        graph_version="v26.0",supabase_origin="https://retail.supabase.co")
+    with pytest.raises(ProviderFailure,match="CONTAINER_RESULT_UNCERTAIN") as first:
+        u.create_container(job_id=JOB,ig_account_id=IG,token=TOKEN,
+            video_url=URL,caption="Approved video")
+    assert first.value.definitely_not_sent is False
+    with pytest.raises(ProviderFailure,match="CONTAINER_CREATION_MAY_HAVE_OCCURRED") as replay:
+        u.create_container(job_id=JOB,ig_account_id=IG,token=TOKEN,
+            video_url=URL,caption="Approved video")
+    assert replay.value.definitely_not_sent is False
+    assert len(attempts)==1
+
+
+def test_youtube_duplicate_session_init_intent_is_ambiguous_not_safe_to_retry():
+    state=YouTubeState()
+    requests=[]
+    def timeout(req):
+        requests.append(req)
+        raise TimeoutError("YouTube may already have returned a session")
+    u=YouTubeResumableUpload(transport=timeout,storage=state)
+    with pytest.raises(ProviderFailure,match="UPLOAD_INITIALIZATION_UNCERTAIN") as first:
+        u.initialize(job_id=JOB,token=TOKEN,title="Reviewed video",
+            description="Approved",size_bytes=1234)
+    assert first.value.definitely_not_sent is False
+    with pytest.raises(ProviderFailure,match="UPLOAD_SESSION_INIT_MAY_HAVE_OCCURRED") as again:
+        u.initialize(job_id=JOB,token=TOKEN,title="Reviewed video",
+            description="Approved",size_bytes=1234)
+    assert again.value.definitely_not_sent is False
+    assert len(requests)==1
