@@ -22,6 +22,8 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261023165300_p1_platform_admin.sql',
   '20261023191246_p1_onboarding_approval.sql',
   '20261024113000_p1_poster_drafts.sql',
+  '20261024150000_p1_poster_jobs.sql',
+  '20261024160000_p1_notification_outbox.sql',
 ]);
 
 const CAPABILITIES = {
@@ -75,6 +77,8 @@ const CAPABILITIES = {
     /pg_catalog\.sha256/i,
     /for update/i,
   ],
+  '20261024150000': [/create table public\.poster_jobs/i, /create table retail_private\.poster_outbox/i, /request_poster_job/i, /claim_poster_job/i, /complete_poster_job/i, /reconcile_poster_jobs/i, /revoke all on public\.poster_jobs/i],
+  '20261024160000': [/create table retail_private\.notification_outbox/i, /capture_onboarding_notification/i, /claim_notifications/i, /confirm_notification/i, /notification_recipients/i, /revoke all on retail_private\.notification_outbox/i],
   '20261022220000': [
     /create table public\.job_outbox/i, /create table public\.job_poison_events/i,
     /alter table public\.job_outbox enable row level security/i,
