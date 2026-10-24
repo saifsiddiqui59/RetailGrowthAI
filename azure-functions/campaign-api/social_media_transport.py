@@ -88,7 +88,8 @@ def _validated_request(request):
             if (any(not isinstance(k, str) or not isinstance(v, (str, bool))
                     for k, v in request.body.items())):
                 raise ProviderFailure("UNAPPROVED_MEDIA_REQUEST", definitely_not_sent=True)
-            body = urlencode(request.body).encode("utf-8")
+            body = urlencode({k: (str(v).lower() if isinstance(v, bool) else v)
+                              for k, v in request.body.items()}).encode("utf-8")
             method = "POST"
             headers = {**request.headers, "Content-Type": "application/x-www-form-urlencoded"}
         else:
