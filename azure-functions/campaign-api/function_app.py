@@ -97,6 +97,11 @@ def get_poster_draft(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/poster-drafts/" + req.route_params["draft_id"])
 
 
+@app.route(route="poster-drafts/{draft_id}/select", methods=["POST"])
+def select_poster_banner(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/poster-drafts/" + req.route_params["draft_id"] + "/select")
+
+
 @app.route(route="poster-drafts/{draft_id}/renders", methods=["POST"])
 def request_poster_render(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/poster-drafts/" + req.route_params["draft_id"] + "/renders")
