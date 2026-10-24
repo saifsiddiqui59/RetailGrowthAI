@@ -153,12 +153,39 @@ def call(url, method="GET", payload=None, headers=None, timeout=30, expect=(200,
     except (ValueError,UnicodeDecodeError): return status,body
 
 def image():
-    # Entirely first-party synthetic image: 360x640 flat RGB, no third-party asset.
+    """First-party clothing illustration: three unbranded T-shirt silhouettes.
+
+    No outside photos, trademarked logos, scraped content or uncertain license.
+    The PNG is generated from RGB pixels in the ephemeral test runner itself.
+    """
     w,h=360,640
-    raw=b"".join(b"\x00"+b"\x31\x72\xA3"*w for _ in range(h))
+    bg=(247,246,241)
+    colors=((31,33,36),(234,214,113),(34,81,61))
+    collars=((235,231,220),(30,84,57),(28,31,33))
+    rows=[]
+    for y in range(h):
+        line=bytearray()
+        for x in range(w):
+            color=bg
+            if 125 <= y < 170 and 15 <= x < 345:
+                color=(220,226,223)  # unbranded collection backdrop
+            for idx,center in enumerate((64,180,296)):
+                dx=abs(x-center)
+                dy=y-205
+                # Rectilinear sleeves and body form a simple T-shirt silhouette.
+                if (0<=dy<47 and dx<=48 or 45<=dy<210 and dx<=31):
+                    color=colors[idx]
+                if 0<=dy<20 and dx<=13:
+                    color=bg  # neckline
+                if 17<=dy<28 and 13<dx<=19:
+                    color=collars[idx]
+            line.extend(color)
+        rows.append(b"\\x00"+bytes(line))
+    raw=b"".join(rows)
     def chunk(kind,data):
         return struct.pack(">I",len(data))+kind+data+struct.pack(">I",zlib.crc32(kind+data)&0xffffffff)
-    return b"\x89PNG\r\n\x1a\n"+chunk(b"IHDR",struct.pack(">IIBBBBB",w,h,8,2,0,0,0))+chunk(b"IDAT",zlib.compress(raw,6))+chunk(b"IEND",b"")
+    return b"\\x89PNG\\r\\n\\x1a\\n"+chunk(b"IHDR",struct.pack(">IIBBBBB",w,h,8,2,0,0,0))+chunk(b"IDAT",zlib.compress(raw,6))+chunk(b"IEND",b"")
+
 
 def poll(read, statuses, limit):
     end=time.monotonic()+limit
