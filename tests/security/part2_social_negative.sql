@@ -413,10 +413,14 @@ begin
       job1,(current_claim->>'claim_token')::uuid,'RETRYABLE','NOT_SENT',null) then
     raise exception 'FAIL: definitely-unsent fixture claim did not finish';
   end if;
-  if not public.p2_cancel_social_job(shop,job1,actor,1)
-     or public.p2_cancel_social_job(shop,job1,actor,1)
+  -- Execute mutating RPCs in independent statements; PostgreSQL does not
+  -- guarantee short-circuit evaluation/order within one OR expression.
+  if not public.p2_cancel_social_job(shop,job1,actor,1) then
+    raise exception 'FAIL: first never-sent cancellation was denied';
+  end if;
+  if public.p2_cancel_social_job(shop,job1,actor,1)
      or public.p2_claim_social_publish(job1) is not null then
-    raise exception 'FAIL: canceled or repeat claim was accepted';
+    raise exception 'FAIL: canceled job replay accepted';
   end if;
   if exists(select 1 from retail_private.social_publish_quota_ledger
       where publish_job_id=job1) then
@@ -431,11 +435,15 @@ begin
       where publish_job_id=job2)<>1 then
     raise exception 'FAIL: released unit was double reserved';
   end if;
-  if not public.p2_cancel_social_job(shop,job2,actor,1)
-      or public.p2_cancel_social_job(shop,job2,actor,1)
-      or exists(select 1 from retail_private.social_publish_quota_ledger
-                where publish_job_id=job2) then
-    raise exception 'FAIL: quota release or second cancellation not idempotent';
+  if not public.p2_cancel_social_job(shop,job2,actor,1) then
+    raise exception 'FAIL: second never-sent cancellation denied';
+  end if;
+  if public.p2_cancel_social_job(shop,job2,actor,1) then
+    raise exception 'FAIL: repeated cancellation accepted';
+  end if;
+  if exists(select 1 from retail_private.social_publish_quota_ledger
+            where publish_job_id=job2) then
+    raise exception 'FAIL: canceled second job still reserves quota';
   end if;
   if not public.p2_record_social_poison(job1) or
       (select status from public.social_publish_jobs where id=job1)<>'CANCELED' then
