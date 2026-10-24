@@ -197,6 +197,59 @@ def validate_private_test_paths(media, shop_id):
     return paths
 
 
+
+def upload_using_playwright(*, shop_id, email, password, image_bytes, cleanup_paths):
+    """Browser media upload with temporary retailer identity only.
+
+    The Node child receives no service role, admin key, or other-shop tokens.
+    It emits only its new object path and the registered UUID, for exact cleanup.
+    """
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    script = root / "frontend" / "e2e" / "dev-canary-upload.mjs"
+    if not script.is_file():
+        raise RuntimeError("DEV Playwright upload helper missing")
+    with tempfile.TemporaryDirectory(prefix="rgai-browser-fixture-") as directory:
+        photo = Path(directory) / "fixture.png"
+        photo.write_bytes(image_bytes)
+        env = dict(os.environ)
+        env.update({
+            "RGAI_DEV_PLAYWRIGHT_UPLOAD": "1",
+            "RGAI_BROWSER_SHOP_ID": shop_id,
+            "RGAI_BROWSER_USER_EMAIL": email,
+            "RGAI_BROWSER_USER_PASSWORD": password,
+            "RGAI_BROWSER_PNG_PATH": str(photo),
+        })
+        result = subprocess.run(
+            ["node", str(script)], cwd=str(root), env=env, capture_output=True,
+            text=True, timeout=210, check=False)
+    registered = None
+    for line in result.stdout.splitlines():
+        if line.startswith("CANARY_PLAYWRIGHT_OBJECT_PATH="):
+            path = line.split("=", 1)[1]
+            if (path.startswith(shop_id + "/uploads/") and
+                    path.endswith(".png") and
+                    all(part not in ("", ".", "..") for part in path.split("/")) and
+                    all(ch.isascii() and (ch.isalnum() or ch in "/._-") for ch in path)):
+                if path not in cleanup_paths:
+                    cleanup_paths.append(path)
+            else:
+                raise RuntimeError("Untrusted Playwright upload path")
+        elif line.startswith("CANARY_PLAYWRIGHT_UPLOAD="):
+            registered = json.loads(line.split("=", 1)[1])
+    if result.returncode != 0 or registered is None:
+        # Browser helper logs only a stage label; never log raw stdout,
+        # private tokens, passwords or HTTP response bodies.
+        raise RuntimeError("DEV browser upload failed; check isolated fixture and auth flow")
+    path = registered.get("object_path")
+    asset = registered.get("asset_id")
+    if (path not in cleanup_paths or
+            not isinstance(asset, str) or str(uuid.UUID(asset)) != asset):
+        raise RuntimeError("Playwright upload response identity invalid")
+    print("CANARY_REAL_BROWSER_FILE_UPLOAD=true", flush=True)
+    return asset
+
+
 def main():
     if os.getenv("RGAI_DEV_CANARY_APPROVAL")!="AUTHORIZED_RETAILGROWTHAI_DEV_ONLY":
         raise RuntimeError("No explicit RetailGrowthAI DEV authorization")
@@ -214,9 +267,12 @@ def main():
     paths=[]
     status="NOT_STARTED"
     try:
+        account_password_a = None
         for label in ("a","b"):
             email="rgai-canary-"+marker+"-"+label+"@example.invalid"
             password=secrets.token_urlsafe(30)
+            if label == "a":
+                account_password_a = password
             _,item=call(SUPABASE+"/auth/v1/admin/users",method="POST",
                 payload={"email":email,"password":password,"email_confirm":True},
                 headers=admins,expect=(200,201))
@@ -258,16 +314,23 @@ def main():
                 raise RuntimeError("RLS failed to reveal newly bootstrapped OWNER shop")
             accounts[-1]=(uid,bearer)
         a=accounts[0][1];b=accounts[1][1]
-        assetpath=shops[0]+"/uploads/"+str(uuid.uuid4())+".png"
-        paths.append(assetpath)
-        call(SUPABASE+"/storage/v1/object/retailgrowth-media/"+assetpath,
-            method="POST",payload=image(),headers={**a,"Content-Type":"image/png",
-                "x-upsert":"false"},expect=(200,201))
-        _,asset=call(SUPABASE+"/rest/v1/rpc/register_uploaded_image",
-            method="POST",payload={"p_shop_id":shops[0],"p_object_path":assetpath,
-              "p_license_name":"owned","p_license_url":None,
-              "p_attribution":"Original synthetic RetailGrowthAI DEV canary image; created entirely in Python."},
-            headers=a,expect=(200,))
+        if os.environ.get("RGAI_DEV_PLAYWRIGHT_UPLOAD") == "1":
+            # Real Chromium form interaction: no native OS picker or browser
+            # service-role key. Exact media cleanup is tracked before RPC ACK.
+            asset = upload_using_playwright(
+                shop_id=shops[0], email="rgai-canary-"+marker+"-a@example.invalid",
+                password=account_password_a, image_bytes=image(), cleanup_paths=paths)
+        else:
+            assetpath=shops[0]+"/uploads/"+str(uuid.uuid4())+".png"
+            paths.append(assetpath)
+            call(SUPABASE+"/storage/v1/object/retailgrowth-media/"+assetpath,
+                method="POST",payload=image(),headers={**a,"Content-Type":"image/png",
+                    "x-upsert":"false"},expect=(200,201))
+            _,asset=call(SUPABASE+"/rest/v1/rpc/register_uploaded_image",
+                method="POST",payload={"p_shop_id":shops[0],"p_object_path":assetpath,
+                  "p_license_name":"owned","p_license_url":None,
+                  "p_attribution":"Original synthetic RetailGrowthAI DEV canary image; created entirely in Python."},
+                headers=a,expect=(200,))
         if not isinstance(asset,str): raise RuntimeError("Storage RPC did not return UUID")
         start=(dt.datetime.now(dt.timezone(dt.timedelta(hours=5,minutes=30))).date()
                +dt.timedelta(days=1)).isoformat()
