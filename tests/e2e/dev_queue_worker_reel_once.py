@@ -12,6 +12,10 @@ import hashlib
 import importlib.util
 import json
 import os
+import io
+import math
+import struct
+import wave
 from pathlib import Path
 import subprocess
 import time
@@ -103,9 +107,10 @@ def main():
         raise RuntimeError("Existing ROOT shop fixture assumption invalid")
     marker=uuid4().hex[:12]
     shop_id=str(uuid4())
-    cid,did,aid,jid=(str(uuid4()) for _ in range(4))
+    cid,did,aid,jid,music_id=(str(uuid4()) for _ in range(5))
     slug=MARKER+marker
     asset_path=shop_id+"/uploads/"+aid+".png"
+    music_path=shop_id+"/uploads/"+music_id+".wav"
     created_shop=False
     files_created=[]
     finished=False
@@ -147,13 +152,44 @@ def main():
         if len(assets)!=1 or assets[0]["id"]!=aid:
             raise RuntimeError("Isolated owned media metadata missing")
         print("WORKER_TEST_PRIVATE_LICENSED_IMAGE_UPLOADED=true",flush=True)
+        # Deterministic self-authored quiet soundtrack; no third-party music,
+        # platform publishing, paid asset fetch or external music license.
+        wav_buffer=io.BytesIO()
+        with wave.open(wav_buffer,"wb") as audio:
+            audio.setnchannels(1)
+            audio.setsampwidth(2)
+            audio.setframerate(22050)
+            chunk=bytearray()
+            for n in range(22050*30):
+                t=n/22050.0
+                chord=((220.0,277.18,329.63) if t<10 else
+                       (196.0,246.94,293.66) if t<20 else
+                       (174.61,220.0,261.63))
+                amplitude=sum(math.sin(2*math.pi*hz*t) for hz in chord)/3.0
+                envelope=min(1.0,t/0.75,(30.0-t)/0.75)
+                sample=int(max(-1.0,min(1.0,0.19*amplitude*max(0,envelope)))*32767)
+                chunk.extend(struct.pack("<h",sample))
+            audio.writeframes(chunk)
+        https(ORIGIN+"/storage/v1/object/"+BUCKET+"/"+music_path,
+              method="POST",payload=wav_buffer.getvalue(),
+              content_type="audio/wav",expected=(200,201),
+              headers={"x-upsert":"false"})
+        files_created.append(music_path)
+        licensed_audio={"id":music_id,"shop_id":shop_id,"created_by":root_owner,
+          "storage_bucket":BUCKET,"object_path":music_path,
+          "mime_type":"audio/wav","source":"UPLOAD","license_name":"owned",
+          "attribution":"Original self-synthesized RetailGrowthAI DEV worker-only soundtrack"}
+        registered_audio=table("media_assets",method="POST",payload=licensed_audio)
+        if len(registered_audio)!=1 or registered_audio[0]["id"]!=music_id:
+            raise RuntimeError("Isolated soundtrack metadata missing")
+        print("WORKER_TEST_ORIGINAL_LICENSED_AUDIO_UPLOADED=true",flush=True)
         tomorrow=(dt.datetime.now(dt.timezone(dt.timedelta(hours=5,minutes=30))).date()
                   +dt.timedelta(days=1)).isoformat()
         campaign={"id":cid,"shop_id":shop_id,"created_by":root_owner,
           "brief":"One original synthetic clothing styling Reel for service-level QA only.",
           "duration_days":1,"start_date":tomorrow,"timezone":"Asia/Kolkata",
           "language":"en-IN","platforms":["instagram"],"offer":None,
-          "status":"DRAFT","media_asset_ids":[aid]}
+          "status":"DRAFT","media_asset_ids":[aid,music_id]}
         created=table("campaigns",method="POST",payload=campaign)
         if len(created)!=1 or created[0]["id"]!=cid:
             raise RuntimeError("Synthetic DRAFT campaign insert failed")
@@ -162,7 +198,7 @@ def main():
             for n,label in enumerate(("FRESH STYLE","OWN YOUR LOOK","SHOP THE EDIT",
               "EVERYDAY WARDROBE","MADE TO INSPIRE","DISCOVER THE COLLECTION"))]
         reel={"duration_seconds":30,"aspect_ratio":"9:16",
-          "storyboard":storyboard,"music_asset_id":None,"cta":"Explore our new edit"}
+          "storyboard":storyboard,"music_asset_id":music_id,"cta":"Explore our new edit"}
         day={"id":did,"campaign_id":cid,"shop_id":shop_id,"day_index":1,
            "scheduled_date":tomorrow,"topic":"Boutique style, every day",
            "linkedin":{"post_text":"Explore original outfit inspiration.","hashtags":["#Style"]},
@@ -245,6 +281,13 @@ def main():
                               payload={"prefixes":[path]},expected=(200,204))
                     except Exception:
                         errors.append("object")
+                # Reject only exact isolated outbox job IDs, not any other
+                # retailer's queue records.
+                try:
+                    table("job_outbox",method="DELETE",
+                          select={"job_id":"in.("+cid+","+jid+")"})
+                except Exception:
+                    errors.append("outbox")
                 for name in ("usage_events","render_jobs","campaign_days",
                              "campaigns","media_assets","shop_subscriptions",
                              "shop_memberships"):
