@@ -17,6 +17,7 @@
 \ir ../../supabase/part2/pending/20261023191300_p2_render_receipts_rights.sql
 \ir ../../supabase/part2/pending/20261023191400_p2_social_immutable_export_bucket.sql
 \ir ../../supabase/part2/pending/20261023191500_p2_social_export_claim_authority.sql
+\ir ../../supabase/part2/pending/20261023191600_p2_video_upload_rpc_bridge.sql
 
 -- Part2 exports reuse Part1 private bucket, with a restrictive deny
 -- policy for the <shop>/social-exports/ namespace even if broad permissive
@@ -731,6 +732,13 @@ begin
       'INITIATED','CONTAINER_KNOWN','123456',null) then
     raise exception 'FAIL: container receipt not durably accepted';
   end if;
+  if public.p2_video_container_for_claim(
+      '62000000-0000-4000-8000-000000000001',gen_random_uuid()) is not null
+     or public.p2_video_container_for_claim(
+      '62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid)<>'123456' then
+    raise exception 'FAIL: private Meta container leaked across claims';
+  end if;
 
   if public.p2_can_export_social_video(
       shop,'62000000-0000-4000-8000-000000000001',
@@ -804,11 +812,30 @@ begin
       (current_claim->>'claim_token')::uuid,repeat('ab',32),1234) then
     raise exception 'FAIL: YouTube init intent not persisted';
   end if;
-  if not public.p2_advance_social_video_upload(
+  if public.p2_save_youtube_session(
       '63000000-0000-4000-8000-000000000001',
-      (current_claim->>'claim_token')::uuid,
-      'INITIATED','SESSION_KNOWN',null,repeat('cd',80)) then
-    raise exception 'FAIL: encrypted YouTube upload session rejected';
+      gen_random_uuid(),repeat('cd',80),1) then
+    raise exception 'FAIL: foreign YouTube session receipt accepted';
+  end if;
+  if not public.p2_save_youtube_session(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,repeat('cd',80),1) then
+    raise exception 'FAIL: encrypted YouTube session not durably stored';
+  end if;
+  if public.p2_save_youtube_session(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,repeat('cd',80),1) then
+    raise exception 'FAIL: encrypted session replay accepted';
+  end if;
+  if public.p2_youtube_session_for_claim(
+      '63000000-0000-4000-8000-000000000001',gen_random_uuid()) is not null
+     or public.p2_youtube_session_for_claim(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid)->>'key_version'<>'1'
+     or public.p2_youtube_session_for_claim(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid)->>'ciphertext_hex'<>repeat('cd',80)
+  then raise exception 'FAIL: YouTube session key/version unscoped';
   end if;
   if public.p2_video_session_ciphertext(
       '63000000-0000-4000-8000-000000000001',gen_random_uuid()) is not null
@@ -920,6 +947,22 @@ begin
 end $p2claimpermissions$;
 rollback;
 \echo 'PASS: social export eligibility is service-only and active claim-bound'
+
+-- Browser access to private provider IDs or encrypted upload sessions denied.
+begin;
+do $p2videotransfer$
+begin
+  if has_function_privilege('authenticated',
+    'public.p2_video_container_for_claim(uuid,uuid)','EXECUTE')
+   or has_function_privilege('anon',
+    'public.p2_save_youtube_session(uuid,uuid,text,integer)','EXECUTE')
+   or has_function_privilege('authenticated',
+    'public.p2_youtube_session_for_claim(uuid,uuid)','EXECUTE')
+  then raise exception 'FAIL: remote provider sessions exposed to browser';
+  end if;
+end $p2videotransfer$;
+rollback;
+\echo 'PASS: provider video receipt and AES session read remain service-only'
 
 -- Immutable source receipts and independent licensing attestations
 -- require the server role, even when the user owns the shop.
