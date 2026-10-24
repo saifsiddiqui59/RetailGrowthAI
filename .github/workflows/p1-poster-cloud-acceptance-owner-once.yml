@@ -13,7 +13,10 @@ concurrency:
   cancel-in-progress: false
 jobs:
   poster:
-    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/test/p1-poster-cloud-acceptance-20261024' && github.event.head_commit.message == 'test(dev): explicitly execute owner-authorized isolated poster acceptance once'
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/test/p1-poster-cloud-acceptance-20261024' &&
+      github.event.head_commit.message == 'test(dev): explicitly execute owner-authorized isolated poster acceptance once'
     environment: dev
     runs-on: ubuntu-24.04
     timeout-minutes: 35
