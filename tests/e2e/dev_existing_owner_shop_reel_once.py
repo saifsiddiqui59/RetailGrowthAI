@@ -1,0 +1,326 @@
+"""One-shot owner-approved real Azure queue video smoke in existing EMPTY ROOT DEV shop.
+
+No HTTP Functions gateway, account creation, authorization spoofing, shop
+creation, onboarding alteration, or third-party asset. Creates only exact
+synthetic campaign/media/job children in existing approved shop; deletes only
+those child UUIDs. Never removes ROOT shop, membership or subscription.
+"""
+from __future__ import annotations
+import datetime as dt
+import hashlib
+import importlib.util
+import json
+import os
+import io
+import math
+import struct
+import wave
+from pathlib import Path
+import subprocess
+import time
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode, quote
+from urllib.request import Request,urlopen
+from uuid import uuid4,UUID
+
+ORIGIN="https://jeearzffnjbvghwjjjrf.supabase.co"
+BASE=ORIGIN+"/rest/v1/"
+BUCKET="retailgrowth-media"
+MARKER="rgai-worker-test-"
+OUTPUT=Path("output/worker-video/retailgrowthai-real-dev-queue-worker-30s.mp4")
+
+
+def https(url, *, method="GET", payload=None, content_type="application/json",
+          key=None, expected=(200,201,204), timeout=30, headers=None):
+    if not url.startswith(ORIGIN+"/"):
+        raise RuntimeError("Untrusted target outside RetailGrowthAI DEV")
+    secret=key or os.environ["RGAI_DEV_SERVICE_KEY"]
+    if not secret.startswith(("sb_secret_","eyJ")):
+        raise RuntimeError("Missing DEV server-only key")
+    h={"apikey":secret,"Authorization":"Bearer "+secret,"Accept":"application/json"}
+    h.update(headers or {})
+    data=None
+    if payload is not None:
+        if isinstance(payload,bytes):data=payload
+        else:data=json.dumps(payload,separators=(",",":")).encode()
+        h["Content-Type"]=content_type
+    request=Request(url,data=data,method=method,headers=h)
+    try:
+        with urlopen(request,timeout=timeout) as response:
+            status=response.status
+            raw=response.read(80*1024*1024+1)
+    except (HTTPError,URLError,OSError,TimeoutError) as exc:
+        # Never display secret-bearing response body, JWT, SQL values or URLs.
+        raise RuntimeError("RetailGrowthAI DEV service request failed at "+method+
+                           " operation; status "+str(getattr(exc,"code","network"))) from None
+    if status not in expected:
+        raise RuntimeError("Unexpected RetailGrowthAI DEV operation status")
+    if len(raw)>80*1024*1024:
+        raise RuntimeError("Oversized private media payload")
+    if not raw:return status,None
+    if content_type in ("image/png","video/mp4"):
+        return status,raw
+    try:return status,json.loads(raw)
+    except (ValueError,UnicodeDecodeError):return status,raw
+
+
+def table(path, *, select=None, method="GET", payload=None):
+    url=BASE+path
+    if select:url+="?"+urlencode(select)
+    return https(url,method=method,payload=payload,
+                 headers={"Prefer":"return=representation" if method=="POST" else "return=minimal"},
+                 expected=(200,201,204))[1]
+
+
+def exact_uuid(value):
+    if not isinstance(value,str) or str(UUID(value))!=value:
+        raise RuntimeError("Noncanonical isolated identifier")
+    return value
+
+
+def verify_worker_mp4(path):
+    p=subprocess.run(["ffprobe","-v","error",
+        "-show_entries","format=duration:stream=codec_type,codec_name,width,height",
+        "-of","json",str(path)],capture_output=True,text=True,check=True,timeout=40)
+    info=json.loads(p.stdout)
+    length=float(info["format"]["duration"])
+    videos=[s for s in info["streams"] if s.get("codec_type")=="video"]
+    audios=[s for s in info["streams"] if s.get("codec_type")=="audio"]
+    if (not 29<=length<=31 or len(videos)!=1 or len(audios)!=1
+        or videos[0].get("codec_name")!="h264"
+        or videos[0].get("width")!=1080 or videos[0].get("height")!=1920
+        or audios[0].get("codec_name")!="aac"):
+        raise RuntimeError("Invalid worker-origin 30s H264/AAC private MP4")
+    return True
+
+
+def main():
+    if os.environ.get("RGAI_DEV_REAL_QUEUE_OPERATOR_APPROVAL")!="OWNER_APPROVED_ONE_SHOT_RENDER_WORKER_ONLY":
+        raise RuntimeError("Owner did not approve DEV one-shot worker fixture")
+    # Fail if any other new real retailer shop is present; never touch its data.
+    _,existing=https(BASE+"shops?select=id,owner_user_id,slug&limit=3")
+    if not isinstance(existing,list) or len(existing)!=1:
+        raise RuntimeError("Expected exactly one existing DEV ROOT-owned shop")
+    root_owner=exact_uuid(existing[0]["owner_user_id"])
+    if existing[0]["slug"].startswith(("rgai-e2e-","rgai-worker-demo-")):
+        raise RuntimeError("Existing ROOT shop fixture assumption invalid")
+    shop_id=exact_uuid(existing[0]["id"])
+    cid,did,aid,jid,music_id=(str(uuid4()) for _ in range(5))
+    asset_path=shop_id+"/uploads/"+aid+".png"
+    music_path=shop_id+"/uploads/"+music_id+".wav"
+    files_created=[]
+    fixture_active=False
+    finished=False
+    try:
+        # Owner explicitly authorized DEV-only test. Use their existing
+        # already-approved EMPTY DEV shop; NEVER create a fake signed-in
+        # identity or bypass the hard auth.uid() shop owner trigger.
+        # Fail closed if anyone has already used this shop for campaigns/media
+        # to prevent touching a retailer's live data.
+        for name in ("media_assets","campaigns","render_jobs"):
+            _,existing_rows=https(BASE+name+"?"+urlencode({
+                "shop_id":"eq."+shop_id,"select":"id","limit":"1"}))
+            if existing_rows:
+                raise RuntimeError("Existing DEV shop is not empty; refuse real worker smoke")
+        _,members=https(BASE+"shop_memberships?"+urlencode({
+            "select":"shop_id,user_id,role,active","shop_id":"eq."+shop_id}))
+        _,trial=https(BASE+"shop_subscriptions?"+urlencode({
+            "select":"shop_id,status,valid_until","shop_id":"eq."+shop_id}))
+        if (len(members)!=1 or members[0].get("user_id")!=root_owner
+            or members[0].get("role")!="OWNER" or members[0].get("active") is not True
+            or len(trial)!=1 or trial[0]["status"] not in ("TRIAL","ACTIVE")):
+            raise RuntimeError("Original DEV ROOT shop must have normal membership and trial")
+        if dt.datetime.fromisoformat(trial[0]["valid_until"].replace("Z","+00:00")) <= dt.datetime.now(dt.timezone.utc):
+            raise RuntimeError("Existing DEV trial expired; never extend it in a video smoke")
+        fixture_active=True
+        print("WORKER_TEST_EMPTY_APPROVED_DEV_SHOP_VERIFIED=true",flush=True)
+        # Reuse exactly the first-party synthetic canary pixels; no media
+        # download, copyrighted footage, private customer asset or Wan token.
+        spec=importlib.util.spec_from_file_location("original_canary","tests/e2e/retail_dev_canary_once.py")
+        mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
+        pixels=mod.image()
+        https(ORIGIN+"/storage/v1/object/"+BUCKET+"/"+asset_path,
+              method="POST",payload=pixels,content_type="image/png",
+              expected=(200,201),headers={"x-upsert":"false"})
+        files_created.append(asset_path)
+        media={"id":aid,"shop_id":shop_id,"created_by":root_owner,
+          "storage_bucket":BUCKET,"object_path":asset_path,
+          "mime_type":"image/png","source":"UPLOAD","license_name":"owned",
+          "attribution":"First-party RetailGrowthAI isolated worker-only DEV test pixels"}
+        assets=table("media_assets",method="POST",payload=media)
+        if len(assets)!=1 or assets[0]["id"]!=aid:
+            raise RuntimeError("Isolated owned media metadata missing")
+        print("WORKER_TEST_PRIVATE_LICENSED_IMAGE_UPLOADED=true",flush=True)
+        # Deterministic self-authored quiet soundtrack; no third-party music,
+        # platform publishing, paid asset fetch or external music license.
+        wav_buffer=io.BytesIO()
+        with wave.open(wav_buffer,"wb") as audio:
+            audio.setnchannels(1)
+            audio.setsampwidth(2)
+            audio.setframerate(22050)
+            chunk=bytearray()
+            for n in range(22050*30):
+                t=n/22050.0
+                chord=((220.0,277.18,329.63) if t<10 else
+                       (196.0,246.94,293.66) if t<20 else
+                       (174.61,220.0,261.63))
+                amplitude=sum(math.sin(2*math.pi*hz*t) for hz in chord)/3.0
+                envelope=min(1.0,t/0.75,(30.0-t)/0.75)
+                sample=int(max(-1.0,min(1.0,0.19*amplitude*max(0,envelope)))*32767)
+                chunk.extend(struct.pack("<h",sample))
+            audio.writeframes(chunk)
+        https(ORIGIN+"/storage/v1/object/"+BUCKET+"/"+music_path,
+              method="POST",payload=wav_buffer.getvalue(),
+              content_type="audio/wav",expected=(200,201),
+              headers={"x-upsert":"false"})
+        files_created.append(music_path)
+        licensed_audio={"id":music_id,"shop_id":shop_id,"created_by":root_owner,
+          "storage_bucket":BUCKET,"object_path":music_path,
+          "mime_type":"audio/wav","source":"UPLOAD","license_name":"owned",
+          "attribution":"Original self-synthesized RetailGrowthAI DEV worker-only soundtrack"}
+        registered_audio=table("media_assets",method="POST",payload=licensed_audio)
+        if len(registered_audio)!=1 or registered_audio[0]["id"]!=music_id:
+            raise RuntimeError("Isolated soundtrack metadata missing")
+        print("WORKER_TEST_ORIGINAL_LICENSED_AUDIO_UPLOADED=true",flush=True)
+        tomorrow=(dt.datetime.now(dt.timezone(dt.timedelta(hours=5,minutes=30))).date()
+                  +dt.timedelta(days=1)).isoformat()
+        campaign={"id":cid,"shop_id":shop_id,"created_by":root_owner,
+          "brief":"One original synthetic clothing styling Reel for service-level QA only.",
+          "duration_days":1,"start_date":tomorrow,"timezone":"Asia/Kolkata",
+          "language":"en-IN","platforms":["instagram"],"offer":None,
+          "status":"DRAFT","media_asset_ids":[aid,music_id]}
+        created=table("campaigns",method="POST",payload=campaign)
+        if len(created)!=1 or created[0]["id"]!=cid:
+            raise RuntimeError("Synthetic DRAFT campaign insert failed")
+        storyboard=[{"start_seconds":n*5,"duration_seconds":5,
+            "asset_id":aid,"overlay_text":label}
+            for n,label in enumerate(("FRESH STYLE","OWN YOUR LOOK","SHOP THE EDIT",
+              "EVERYDAY WARDROBE","MADE TO INSPIRE","DISCOVER THE COLLECTION"))]
+        reel={"duration_seconds":30,"aspect_ratio":"9:16",
+          "storyboard":storyboard,"music_asset_id":music_id,"cta":"Explore our new edit"}
+        day={"id":did,"campaign_id":cid,"shop_id":shop_id,"day_index":1,
+           "scheduled_date":tomorrow,"topic":"Boutique style, every day",
+           "linkedin":{"post_text":"Explore original outfit inspiration.","hashtags":["#Style"]},
+           "instagram":{"caption":"Find your own everyday style.","banner_asset_id":None,"reel":reel},
+           "review_status":"DRAFT"}
+        saved=table("campaign_days",method="POST",payload=day)
+        if len(saved)!=1 or saved[0]["id"]!=did:
+            raise RuntimeError("Isolated campaign day missing")
+        # Never send a billable POST to the broken Azure HTTP gateway.
+        # Existing DB triggers reserve the real trial quota and persist the
+        # Azure queue delivery outbox in the SAME transaction.
+        digest=hashlib.sha256(json.dumps([root_owner,cid,did,reel],
+            sort_keys=True,separators=(",",":")).encode()).hexdigest()
+        request={"id":jid,"shop_id":shop_id,"campaign_id":cid,"day_id":did,
+           "requested_by":root_owner,"preset":"instagram_reel_30s",
+           "status":"QUEUED","idempotency_key":digest}
+        queued=table("render_jobs",method="POST",payload=request)
+        if len(queued)!=1 or queued[0]["id"]!=jid:
+            raise RuntimeError("Durable trial quota render insert missing")
+        print("WORKER_TEST_REAL_RENDER_OUTBOX_COMMITTED=true",flush=True)
+        final=None
+        deadline=time.monotonic()+780
+        while time.monotonic()<deadline:
+            _,rows=https(BASE+"render_jobs?"+urlencode({"id":"eq."+jid,
+                  "shop_id":"eq."+shop_id,"select":"id,status,error_code,output_asset_id"}))
+            if len(rows)!=1 or rows[0]["id"]!=jid:
+                raise RuntimeError("Private render job disappeared")
+            final=rows[0]
+            if final["status"] in ("SUCCEEDED","FAILED"):break
+            time.sleep(9)
+        if not final or final.get("status")!="SUCCEEDED":
+            raise RuntimeError("Real Azure FFmpeg worker did not SUCCEED (status "+
+                    str(final.get("status") if final else "TIMEOUT")+")")
+        output_id=exact_uuid(final.get("output_asset_id"))
+        _,found=https(BASE+"media_assets?"+urlencode({"id":"eq."+output_id,
+          "shop_id":"eq."+shop_id,"select":"id,shop_id,mime_type,object_path"}))
+        if len(found)!=1 or found[0]["mime_type"]!="video/mp4":
+            raise RuntimeError("Private generated MP4 media not registered")
+        object_path=found[0]["object_path"]
+        if (not object_path.startswith(shop_id+"/renders/")
+            or not object_path.endswith(".mp4") or ".." in object_path.split("/")):
+            raise RuntimeError("Cloud output leaked invalid object path")
+        files_created.append(object_path)
+        print("WORKER_TEST_REAL_AZURE_RENDER_SUCCEEDED=true",flush=True)
+        _,signed=https(ORIGIN+"/storage/v1/object/sign/"+BUCKET+"/"+
+             quote(object_path,safe="/"),method="POST",payload={"expiresIn":120})
+        signed_url=signed.get("signedURL") if isinstance(signed,dict) else None
+        if (not isinstance(signed_url,str) or not signed_url.startswith(
+                "/object/sign/"+BUCKET+"/"+object_path+"?token=")):
+            raise RuntimeError("Private signed link did not match exact tenant object")
+        # Only original verified binary goes to the short-lived Actions artifact.
+        media_url=ORIGIN+"/storage/v1"+signed_url
+        with urlopen(Request(media_url),timeout=60) as response:
+            binary=response.read(80*1024*1024+1)
+        if not 2048<len(binary)<=80*1024*1024:
+            raise RuntimeError("Cloud-generated private video bytes missing")
+        OUTPUT.parent.mkdir(parents=True,exist_ok=True)
+        OUTPUT.write_bytes(binary)
+        verify_worker_mp4(OUTPUT)
+        print("WORKER_TEST_SIGNED_PRIVATE_30S_H264_AAC_BYTES_VERIFIED=true",flush=True)
+        finished=True
+    finally:
+        if fixture_active:
+            # Restrict deletion to exact UUIDs introduced by THIS invocation;
+            # never delete the existing ROOT shop, membership, subscription,
+            # unrelated render or tenant-owned assets.
+            errors=[]
+            try:
+                owned_ids=[aid,music_id]
+                _,job_rows=https(BASE+"render_jobs?"+urlencode({
+                    "id":"eq."+jid,"shop_id":"eq."+shop_id,
+                    "select":"id,output_asset_id"}))
+                if job_rows and job_rows[0].get("output_asset_id"):
+                    owned_ids.append(exact_uuid(job_rows[0]["output_asset_id"]))
+                _,assets=https(BASE+"media_assets?"+urlencode({
+                    "id":"in.("+",".join(owned_ids)+")",
+                    "shop_id":"eq."+shop_id,
+                    "select":"id,object_path,mime_type,source"}))
+                for entry in assets:
+                    path=entry.get("object_path","")
+                    if path not in (asset_path,music_path) and not (
+                        path.startswith(shop_id+"/renders/"+jid+"/") and
+                        path.endswith(".mp4") and ".." not in path.split("/")):
+                        raise RuntimeError("Unexpected asset path; deny cleanup")
+                    files_created.append(path)
+                for path in set(files_created):
+                    try:
+                        https(ORIGIN+"/storage/v1/object/"+BUCKET,
+                              method="DELETE",payload={"prefixes":[path]},
+                              expected=(200,204))
+                    except Exception:
+                        errors.append("storage_object")
+                ordered=[
+                    ("usage_events",{"job_id":"eq."+jid,"shop_id":"eq."+shop_id}),
+                    ("job_outbox",{"job_id":"in.("+cid+","+jid+")"}),
+                    ("render_jobs",{"id":"eq."+jid,"shop_id":"eq."+shop_id}),
+                    ("campaign_days",{"id":"eq."+did,"shop_id":"eq."+shop_id}),
+                    ("campaigns",{"id":"eq."+cid,"shop_id":"eq."+shop_id}),
+                    ("media_assets",{"id":"in.("+",".join(owned_ids)+")",
+                                     "shop_id":"eq."+shop_id}),
+                    ("shop_usage_reservations",
+                     {"job_id":"in.("+cid+","+jid+")",
+                      "shop_id":"eq."+shop_id}),
+                ]
+                for name,selector in ordered:
+                    try:
+                        table(name,method="DELETE",select=selector)
+                    except Exception:
+                        errors.append(name)
+                for name,identity in (("campaigns",cid),
+                                      ("render_jobs",jid),("campaign_days",did)):
+                    _,left=https(BASE+name+"?"+urlencode({
+                        "id":"eq."+identity,"shop_id":"eq."+shop_id,"select":"id"}))
+                    if left: errors.append("leftover_"+name)
+            except Exception:
+                errors.append("unexpected_cleanup")
+            print("WORKER_TEST_ISOLATED_FIXTURE_CLEANUP="+(
+                "PASS" if not errors else "FAIL"),flush=True)
+            if errors: raise RuntimeError("Exact DEV video fixture cleanup failed")
+    if not finished:
+        raise RuntimeError("Cloud worker final verification missing")
+    print("REAL_DEV_AZURE_QUEUE_REEL_ACCEPTANCE=PASSED",flush=True)
+
+
+if __name__=="__main__":
+    main()
