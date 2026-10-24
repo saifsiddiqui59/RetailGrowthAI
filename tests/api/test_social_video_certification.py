@@ -172,7 +172,14 @@ def test_authority_failure_never_downloads_or_persists(mutation):
     mutation(candidates, receipts, rights)
     with pytest.raises(SocialVideoCertificationDenied):
         certify(service)
-    assert reader.calls == [] and probe.calls == []
+    # A well-formed but false trusted SHA can only be disproved by a
+    # bounded private read; it must still fail before FFprobe or persistence.
+    if receipts.receipt["source_sha256"] == "0" * 64:
+        assert len(reader.calls) == 1
+        assert reader.calls[0]["expected_sha256"] == "0" * 64
+    else:
+        assert reader.calls == []
+    assert probe.calls == []
     assert all(call[0] not in ("record", "bind") for call in candidates.calls)
 
 
