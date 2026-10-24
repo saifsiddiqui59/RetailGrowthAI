@@ -91,5 +91,13 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch })
     getPosterJob: (jobId) => request('GET', '/poster-jobs/' + uuid(jobId)),
     getPosterDownload: (jobId) => request('GET',
       '/poster-jobs/' + uuid(jobId) + '/download'),
+    selectPosterBanner: (posterId, expectedInstagram) => {
+      if (!expectedInstagram || typeof expectedInstagram !== 'object' ||
+          !('banner_asset_id' in expectedInstagram)) {
+        throw new Error('Load the complete saved Instagram draft before selection')
+      }
+      return request('POST', '/poster-drafts/' + uuid(posterId) + '/select',
+        { expected_instagram: expectedInstagram })
+    },
   }
 }
