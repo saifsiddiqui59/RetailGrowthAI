@@ -43,6 +43,7 @@ begin
     join retail_private.social_media_reviews review
       on review.shop_id=j.shop_id and review.media_asset_id=v.media_asset_id
         and review.source_sha256=v.source_sha256
+        and review.reviewed_by=v.reviewed_by
         and review.rights_expires_at>now()+interval '6 hours'
         and review.ffprobe->>'video_codec'='h264'
         and review.ffprobe->>'audio_codec'='aac'
@@ -60,6 +61,8 @@ begin
       on rights.job_id=j.id and rights.shop_id=j.shop_id
         and rights.revision=j.revision
         and rights.media_asset_id=v.media_asset_id
+        and rights.reviewed_by=v.reviewed_by
+        and rights.rights_kind=review.rights_kind
         and rights.rights_evidence_sha256=review.rights_evidence_sha256
         and rights.rights_expires_at>now()+interval '6 hours'
     join public.shop_memberships approver
