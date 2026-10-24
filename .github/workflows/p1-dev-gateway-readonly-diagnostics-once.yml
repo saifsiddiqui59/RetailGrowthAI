@@ -1,0 +1,146 @@
+name: RetailGrowthAI DEV P0 Azure gateway read-only diagnosis
+# Owner-authorized single DEV observation. Never deploy or mutate Azure, Supabase or users.
+# Trigger once on coordinator-reviewed merge of THIS workflow to main.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p1-dev-gateway-readonly-diagnostics-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p1-dev-gateway-readonly
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'audit(dev): observe RetailGrowthAI Azure gateway')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      RG: rg-retailgrowth-dev
+      APP: rgai-dev-functions-d4e5ddbd
+      WORKSPACE: rgai-dev-law
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify exact existing DEV only without reading protected settings
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AZ_SUB"
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          az group show -g "$RG" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          g=json.load(open(sys.argv[1]))
+          tags={k.lower():str(v).lower() for k,v in (g.get("tags") or {}).items()}
+          assert g["name"]=="rg-retailgrowth-dev"
+          assert g["location"].replace(" ","").lower()=="centralindia"
+          assert tags.get("app")=="retailgrowthai" and tags.get("environment")=="dev"
+          print("P0_DEV_SCOPE_VERIFIED=true")
+          PY
+          az functionapp show -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/app.json"
+          python3 - "$RUNNER_TEMP/app.json" <<'PY'
+          import json,sys
+          app=json.load(open(sys.argv[1]))
+          assert app["name"]=="rgai-dev-functions-d4e5ddbd"
+          print("P0_HOST_STATE="+str(app.get("state","unknown")))
+          print("P0_HOST_KIND="+str(app.get("kind","unknown")))
+          print("P0_HTTPS_ONLY="+str(app.get("httpsOnly","unknown")))
+          PY
+          az functionapp function list -g "$RG" -n "$APP" --query '[].name' -o tsv > "$RUNNER_TEMP/functions"
+          printf 'P0_INDEXED_FUNCTION_COUNT=%s\n' "$(wc -l < "$RUNNER_TEMP/functions")"
+          for route in create_campaign read_campaign request_poster_render select_poster_banner render_campaign_reel; do
+            if grep -q "/$route$" "$RUNNER_TEMP/functions"; then
+              echo "P0_FUNCTION_INDEXED_$route=true"
+            else
+              echo "P0_FUNCTION_INDEXED_$route=false"
+            fi
+          done
+      - name: Query sanitized six-hour gateway and dependency aggregates only
+        shell: bash
+        run: |
+          set -euo pipefail
+          workspace="$(az monitor log-analytics workspace show -g "$RG" -n "$WORKSPACE" --query customerId -o tsv)"
+          test -n "$workspace"
+          queries=(
+            "AppRequests | where TimeGenerated > ago(6h) | summarize n=count(), p50_ms=percentile(DurationMs,50), p95_ms=percentile(DurationMs,95), p99_ms=percentile(DurationMs,99) by ResultCode | order by n desc"
+            "AppTraces | where TimeGenerated > ago(6h) and Message contains 'http.request' | extend event=parse_json(Message) | where tostring(event.event)=='http.request' | summarize n=count(), p95_ms=percentile(tolong(event.latency_ms),95) by route=tostring(event.route), status=tostring(event.status_code) | order by n desc"
+            "AppExceptions | where TimeGenerated > ago(6h) | summarize exception_count=count()"
+            "AppDependencies | where TimeGenerated > ago(6h) | summarize n=count(),p95_ms=percentile(DurationMs,95) by Success,ResultCode | order by n desc"
+          )
+          i=0
+          for q in "${queries[@]}"; do
+            i=$((i+1))
+            if az monitor log-analytics query -w "$workspace" --analytics-query "$q" -o json > "$RUNNER_TEMP/aggregate-$i.json" 2>"$RUNNER_TEMP/aggregate-err-$i"; then
+              python3 - "$RUNNER_TEMP/aggregate-$i.json" "$i" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1]))
+          if isinstance(data,dict): data=data.get("tables",[])
+          if isinstance(data,list):
+              print("P0_AGGREGATE_"+sys.argv[2]+"="+json.dumps(data[:35],separators=(",",":"),sort_keys=True))
+          else:
+              print("P0_AGGREGATE_"+sys.argv[2]+"_NO_RESULT=true")
+          PY
+            else
+              echo "P0_AGGREGATE_${i}_UNAVAILABLE=true"
+            fi
+          done
+          echo "P0_LOG_QUERY_LIMITS=aggregates_only_no_user_data_no_trace_bodies"
+      - name: Probe bounded anonymous auth-gate HTTP latency versus public Supabase JWKS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess
+          base="https://rgai-dev-functions-d4e5ddbd.azurewebsites.net"
+          routes=[
+              ("POST","/api/campaigns"),
+              ("GET","/api/campaigns/11111111-1111-4111-8111-111111111111"),
+              ("POST","/api/poster-drafts/11111111-1111-4111-8111-111111111111/select"),
+          ]
+          observed_failure=False
+          for method,path in routes:
+              # No credentials, tenant fixture or real resource IDs are used.
+              command=["curl","-ksS","--connect-timeout","10","--max-time","75",
+                       "-X",method,"-H","Content-Type: application/json",
+                       "-o","/dev/null","-w","%{http_code} %{time_total} %{time_starttransfer}",
+                       base+path]
+              if method=="POST": command += ["--data","{}"]
+              try: p=subprocess.run(command,capture_output=True,text=True,timeout=80)
+              except subprocess.TimeoutExpired:
+                  print("P0_AUTH_GATE_ROUTE="+method+" "+path.replace("11111111-1111-4111-8111-111111111111","{id}")+" STATUS=timeout")
+                  observed_failure=True
+                  continue
+              try:
+                  code,elapsed,first=p.stdout.split()
+                  elapsed=float(elapsed);first=float(first)
+              except (ValueError,TypeError):
+                  code,elapsed,first="000",80.0,80.0
+              safe=path.replace("11111111-1111-4111-8111-111111111111","{id}")
+              print(f"P0_AUTH_GATE_ROUTE={method} {safe} STATUS={code} CURL_RC={p.returncode} TOTAL_S={elapsed:.3f} FIRST_BYTE_S={first:.3f}")
+              if code!="401" or p.returncode!=0 or elapsed>10:
+                  observed_failure=True
+          s=subprocess.run(["curl","-ksS","--connect-timeout","10","--max-time","20",
+                            "-o","/dev/null","-w","%{http_code} %{time_total}",
+                            "https://jeearzffnjbvghwjjjrf.supabase.co/auth/v1/.well-known/jwks.json"],
+                           capture_output=True,text=True,timeout=25)
+          print("P0_PUBLIC_SUPABASE_JWKS="+s.stdout.strip()[:40])
+          print("P0_GATEWAY_ANOMALY_OBSERVED="+str(observed_failure).lower())
+          # Diagnostic run finishes after recording errors. Passing the workflow
+          # does NOT certify gateway health; only explicit metrics can do so.
+          PY
+      - name: Logout
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
