@@ -332,6 +332,6 @@
 
 
 ## 2026-10-24 — Owner-approved outbound-email deferral
-- Do not deploy SMTP providers, activate `RETAIL_NOTIFICATIONS_ENABLED`, apply the email-only outbox migration for sending, copy/recover WineShopPOS credentials or solicit passwords during the current development phase.
+- Do not deploy SMTP providers, activate `RETAIL_NOTIFICATIONS_ENABLED`, activate an email delivery job or apply its outbox migration as a mail feature, copy/recover WineShopPOS credentials or solicit passwords during the current development phase.
 - Retain approved, audited in-app onboarding decisions and root-only read-only notification snapshots as the default notifications. Preserve branded email source for a separate later rollout requiring explicit owner authorization, credentials and delivery testing.
 - Prioritize working Part 1 poster DEV release/hosted verification and Part 2/3 non-email work instead.
