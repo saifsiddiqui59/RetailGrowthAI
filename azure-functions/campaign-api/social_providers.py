@@ -149,9 +149,22 @@ def youtube_resumable_init_request(*, token, title, description, size_bytes):
 
 
 def youtube_upload_location(value):
-    parsed = urlsplit(value or "")
-    if (parsed.scheme != "https" or parsed.hostname not in
-        {"www.googleapis.com", "youtube.googleapis.com"}
-        or parsed.username or parsed.password or not parsed.path.startswith("/upload/")):
+    """Strict session URL; used with server bearer token by upload/status PUTs."""
+    if (not isinstance(value, str) or not 1 <= len(value) <= 4096
+            or value != value.strip()
+            or any(ord(char) <= 32 or ord(char) == 127 for char in value)):
+        raise ProviderRejected("untrusted resumable upload session")
+    try:
+        parsed = urlsplit(value)
+        valid = (parsed.scheme == "https" and parsed.hostname in
+            {"www.googleapis.com", "youtube.googleapis.com"}
+            and parsed.port in (None, 443)
+            and not parsed.username and not parsed.password
+            and not parsed.fragment
+            and parsed.path == "/upload/youtube/v3/videos"
+            and bool(parsed.query))
+    except ValueError:
+        valid = False
+    if not valid:
         raise ProviderRejected("untrusted resumable upload session")
     return value
