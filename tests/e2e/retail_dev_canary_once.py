@@ -337,21 +337,32 @@ def main():
                 method="POST",payload={"email":email,"password":password},
                 headers={"apikey":pub},expect=(200,))
             bearer={"apikey":pub,"Authorization":"Bearer "+auth["access_token"]}
-            # Isolated, owner-authorized backend fixture ONLY. In this
-            # branch-specific one-time test, the service account seeds exactly
-            # two newly created example.invalid shops. This does not relax
-            # user-facing onboarding RLS or exercise ROOT approval. Canonical
-            # main canary keeps its mandatory actual ROOT approval path.
-            if os.getenv("RGAI_DEV_ADMIN_FIXTURE_SEED") != "AUTHORIZED_OWNER_DEV_POSTER_ONLY":
-                raise RuntimeError("Refusing unapproved disposable shop seed")
+            # RetailGrowthAI requires SaaS ROOT approval before a retailer may
+            # create a shop. The connected DEV operator explicitly approves
+            # ONLY the two newly created example.invalid canary requests.
+            # No test-only auth bypass, privileged browser secret or gate flip.
+            for approval_attempt in range(75):
+                _,onboarding=call(SUPABASE+"/rest/v1/rpc/retail_onboarding_status",
+                    method="POST",payload={},headers=bearer,expect=(200,))
+                if onboarding.get("status")=="APPROVED":
+                    print("CANARY_OPERATOR_APPROVAL_VERIFIED=true",flush=True)
+                    break
+                if onboarding.get("status")!="PENDING":
+                    raise RuntimeError("Temporary retailer onboarding was rejected")
+                if approval_attempt==0:
+                    print("CANARY_WAITING_FOR_EXPLICIT_DEV_OPERATOR_APPROVAL=true",flush=True)
+                time.sleep(4)
+            else:
+                raise RuntimeError("DEV test fixture was not approved by authorized operator")
             sid=str(uuid.uuid4())
-            shops.append(sid)  # Register BEFORE uncertain insert for cleanup.
+            # Register for cleanup BEFORE attempting an insert: a partial
+            # commit/network failure must not leave an untracked test shop.
+            shops.append(sid)
             call(SUPABASE+"/rest/v1/shops",
                 method="POST",payload={"id":sid,"name":"RetailGrowthAI Test "+label,
                     "slug":"rgai-e2e-"+marker+"-"+label,
                     "owner_user_id":uid,"timezone":"Asia/Kolkata"},
-                headers={**admins,"Prefer":"return=minimal"},expect=(201,204))
-            print("CANARY_ISOLATED_SERVICE_FIXTURE_SEEDED=true",flush=True)
+                headers={**bearer,"Prefer":"return=minimal"},expect=(201,204))
             _,shoprows=call(SUPABASE+"/rest/v1/shops?id=eq."+sid+"&select=id,name",
                 headers=bearer,expect=(200,))
             if not isinstance(shoprows,list) or len(shoprows)!=1 or shoprows[0].get("id")!=sid:
