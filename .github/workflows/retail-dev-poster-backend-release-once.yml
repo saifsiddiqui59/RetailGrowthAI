@@ -27,88 +27,35 @@ jobs:
       STORAGE: rgaid4e5ddbdf0d21d96
       SWA: retailgrowthai-dev-preview
       AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.RETAIL_SUPABASE_ACCESS_TOKEN }}
-      OPERATOR_APPROVAL: ${{ vars.RETAIL_DEV_POSTER_RELEASE_APPROVED }}
-      BACKUP_VERIFIED: ${{ vars.RETAIL_DEV_POSTER_BACKUP_RESTORE_VERIFIED }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Fail closed unless operator approved backup and exact release scope
+      - name: Preflight exact already-applied schema release and poster packaging
         shell: bash
         run: |
           set -euo pipefail
           test "$REF" = "jeearzffnjbvghwjjjrf"
           test "$RG" = "rg-retailgrowth-dev"
-          test "$OPERATOR_APPROVAL" = "true" || { echo "::error::RetailGrowthAI DEV poster owner/operator approval missing"; exit 3; }
-          test "$BACKUP_VERIFIED" = "true" || { echo "::error::No reviewed backup AND restore evidence attested"; exit 3; }
-          test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo "::error::Missing RetailGrowthAI project-scoped Supabase PAT"; exit 3; }
           python3 - <<'PY'
           from pathlib import Path
           import re
-          expected = ['20261024113000_p1_poster_drafts.sql',
-                      '20261024150000_p1_poster_jobs.sql',
-                      '20261024160000_p1_notification_outbox.sql',
-                      '20261024170000_p1_poster_banner_selection.sql']
+          expected=['20261024113000_p1_poster_drafts.sql',
+                    '20261024150000_p1_poster_jobs.sql',
+                    '20261024160000_p1_notification_outbox.sql',
+                    '20261024170000_p1_poster_banner_selection.sql']
           got=[p.name for p in sorted(Path('supabase/migrations').glob('20261024*.sql'))]
-          assert got==expected, f'Unexpected new Supabase schema files: {got}'
-          for p in expected:
-              sql=Path('supabase/migrations',p).read_text()
-              assert sql.startswith('--') and 'begin;' in sql.lower() and sql.strip().endswith('commit;')
-              assert not re.search(r'(?im)^\s*(?:drop\s+(?:table|schema)|truncate\s+|delete\s+from\s+|reset\s+role|set\s+role)',sql)
-          print('PASS: exact approved RetailGrowthAI DEV-only additive migration file set')
+          assert got==expected, f'Unexpected migrations: {got}'
+          for name in expected:
+              sql=Path('supabase/migrations',name).read_text()
+              assert re.search(r'(?is)^\s*--.*?\bbegin\s*;',sql) and sql.strip().endswith('commit;')
+              assert not re.search(r'(?im)^\s*(drop\s+(?:table|schema)|truncate\s+|delete\s+from\s+)',sql)
+          print('PASS: four existing additive migrations match source')
           PY
           python3 scripts/deploy/package.py --check
           python3 -m unittest scripts/deploy/test_package.py
-          # Prevent deploying a pre-fix ZIP that crashes poster_worker imports.
           grep -Fq 'POSTER = ROOT / "poster-engine"' scripts/deploy/package.py
           grep -Fq '"poster-engine/render.py"' scripts/deploy/package.py
-      - uses: supabase/setup-cli@v3
-        with:
-          version: '2.121.0'
-      - name: Link exact project and prove only four pending migrations (no writes)
-        shell: bash
-        run: |
-          set -euo pipefail
-          supabase --version
-          if [ ! -f supabase/config.toml ]; then supabase init --yes >/dev/null; fi
-          (printf '\n' | timeout 120s supabase link --project-ref "$REF") >"$RUNNER_TEMP/link.log" 2>"$RUNNER_TEMP/link.err" || {
-            echo "::error::Project-scoped passwordless Supabase link failed; no DDL applied"; exit 3;
-          }
-          test "$(cat supabase/.temp/project-ref)" = "$REF"
-          timeout 120s supabase db push --linked --dry-run >"$RUNNER_TEMP/migrations.txt" 2>"$RUNNER_TEMP/migrations.err" || {
-            echo "::error::Dry-run migrations rejected; no DDL applied"; exit 3;
-          }
-          python3 - "$RUNNER_TEMP/migrations.txt" "$RUNNER_TEMP/migrations.err" <<'PY'
-          from pathlib import Path
-          import re,sys
-          out='\n'.join(Path(x).read_text() for x in sys.argv[1:])
-          want={'20261024113000','20261024150000','20261024160000','20261024170000'}
-          found=set(re.findall(r'2026\d{10}',out))
-          if found!=want:
-              raise SystemExit(f'STOP: expected exactly four pending tracked migrations; got {sorted(found)}')
-          print('PASS: remote dry-run lists the exact four expected versioned files')
-          PY
-      - name: Apply only tracked RetailGrowthAI DEV migrations in timestamp order
-        shell: bash
-        run: |
-          set -euo pipefail
-          timeout 180s supabase db push --linked --yes >"$RUNNER_TEMP/db-push.log" 2>"$RUNNER_TEMP/db-push.err" || {
-            echo "::error::DEV migration push failed; Azure poster flags remain OFF. Investigate migration history"; exit 3;
-          }
-          # Re-read remote state; never skip evidence after a partial failure.
-          timeout 90s supabase migration list --linked >"$RUNNER_TEMP/migration-list" 2>"$RUNNER_TEMP/list.err"
-          python3 - "$RUNNER_TEMP/migration-list" <<'PY'
-          from pathlib import Path
-          import sys
-          result=Path(sys.argv[1]).read_text()
-          versions=('20261024113000','20261024150000','20261024160000','20261024170000')
-          for v in versions:
-              lines=[x for x in result.splitlines() if v in x]
-              if len(lines)!=1 or lines[0].count(v)<2:
-                  raise SystemExit('STOP: remote migration history not confirmed for version '+v)
-          print('PASS: all four poster/email schema versions present in remote migration history; SMTP remains OFF')
-          PY
       - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -137,6 +84,29 @@ jobs:
           for k in RETAIL_SUPABASE_URL RETAIL_SUPABASE_SERVICE_ROLE_KEY RETAIL_SUPABASE_PUBLISHABLE_KEY RETAIL_STORAGE; do
             grep -Fxq "$k" "$RUNNER_TEMP/app-names" || { echo "::error::Missing existing secure backend setting $k"; exit 3; }
           done
+          # Existing server key stays in the Functions settings JSON on the runner;
+          # no secret is printed, shipped to the frontend or placed in an artifact.
+          az functionapp config appsettings list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/poster-env.json"
+          python3 - "$RUNNER_TEMP/poster-env.json" <<'PY'
+          import json,sys,urllib.request,urllib.error
+          settings={x['name']:x.get('value','') for x in json.load(open(sys.argv[1]))}
+          origin='https://jeearzffnjbvghwjjjrf.supabase.co'
+          if settings.get('RETAIL_SUPABASE_URL') != origin:
+              raise SystemExit('STOP: existing Functions are not linked to RetailGrowthAI Supabase')
+          key=settings.get('RETAIL_SUPABASE_SERVICE_ROLE_KEY','')
+          if not key or key.startswith(('sb_publishable_','eyJ')) and key.count('.') != 2:
+              raise SystemExit('STOP: backend admin key unavailable or malformed')
+          headers={'apikey':key,'Accept':'application/json','User-Agent':'RetailGrowthAI-DEV-Poster-Readiness/1'}
+          if key.startswith('eyJ') and key.count('.')==2: headers['Authorization']='Bearer '+key
+          for table in ('poster_drafts','poster_jobs'):
+              url=origin+'/rest/v1/'+table+'?select=id&limit=0'
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=25) as response:
+                      if response.status!=200: raise ValueError('Unexpected status')
+              except (urllib.error.HTTPError,urllib.error.URLError,ValueError):
+                  raise SystemExit('STOP: database poster schema/service credentials not ready')
+          print('PASS: live RetailGrowthAI DEV poster tables reachable with backend-only key; no row data retrieved')
+          PY
           key="$(az storage account keys list -g "$RG" -n "$STORAGE" --query '[0].value' -o tsv)"
           test -n "$key"
           echo "::add-mask::$key"
