@@ -279,7 +279,8 @@ def main():
                 for entry in assets:
                     path=entry.get("object_path","")
                     if path not in (asset_path,music_path) and not (
-                        path.startswith(shop_id+"/renders/"+jid+"/") and
+                        (path.startswith(shop_id+"/renders/"+jid+"/") or
+                         path==shop_id+"/renders/"+jid+".mp4") and
                         path.endswith(".mp4") and ".." not in path.split("/")):
                         raise RuntimeError("Unexpected asset path; deny cleanup")
                     files_created.append(path)
@@ -293,14 +294,14 @@ def main():
                 ordered=[
                     ("usage_events",{"job_id":"eq."+jid,"shop_id":"eq."+shop_id}),
                     ("job_outbox",{"job_id":"in.("+cid+","+jid+")"}),
+                    ("shop_usage_reservations",
+                     {"job_id":"in.("+cid+","+jid+")",
+                      "shop_id":"eq."+shop_id}),
                     ("render_jobs",{"id":"eq."+jid,"shop_id":"eq."+shop_id}),
                     ("campaign_days",{"id":"eq."+did,"shop_id":"eq."+shop_id}),
                     ("campaigns",{"id":"eq."+cid,"shop_id":"eq."+shop_id}),
                     ("media_assets",{"id":"in.("+",".join(owned_ids)+")",
                                      "shop_id":"eq."+shop_id}),
-                    ("shop_usage_reservations",
-                     {"job_id":"in.("+cid+","+jid+")",
-                      "shop_id":"eq."+shop_id}),
                 ]
                 for name,selector in ordered:
                     try:
