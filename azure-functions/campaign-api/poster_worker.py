@@ -13,9 +13,18 @@ from uuid import UUID
 from tenant_store import StorageUnavailable, canonical_uuid
 from private_poster_media import PrivatePosterMedia
 
+# video-engine also has render.py loaded by tests and workers. Import by an
+# unambiguous private module name rather than whichever "render" was cached.
+import importlib.util
 POSTER_DIR = Path(__file__).resolve().parents[2] / "poster-engine"
-sys.path.insert(0, str(POSTER_DIR))
-from render import PosterOptions, PosterError, render_poster  # noqa: E402
+_spec = importlib.util.spec_from_file_location(
+    "retailgrowth_poster_render", POSTER_DIR / "render.py")
+_poster_module = importlib.util.module_from_spec(_spec)
+sys.modules[_spec.name] = _poster_module  # required by dataclass resolution
+_spec.loader.exec_module(_poster_module)
+PosterOptions = _poster_module.PosterOptions
+PosterError = _poster_module.PosterError
+render_poster = _poster_module.render_poster
 
 MIME_EXT = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
 LICENSES = {"owned", "cc0", "commercial", "royalty_free"}
