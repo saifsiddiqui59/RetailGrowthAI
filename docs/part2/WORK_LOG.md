@@ -72,3 +72,5 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - 2026-10-24: Part2-only `feat/p2-cancel-quota-safe-refund` adds staged service-only atomic pre-send cancellation/refund migration and negative SQL tests for active-claim denial, ledger release, quota reuse and idempotency. No hosted SQL applied, actual social publishing, WineShopPOS change or Part2→main merge. CI verification pending.
 
 - 2026-10-24: Started source-only `feat/p2-media-job-review-bindings` after quota refund merge. Added staged private per-job/revision reviewed render evidence, active grant/tenant check RPCs and disposable SQL negative tests; explicit publishing deny remains. No hosted DB/Azure or external provider activity. CI/merge not yet verified.
+
+- 2026-10-24: Added source-only staged claim-fenced Instagram/YouTube upload intent/session/receipt migration and disposable SQL CAS/nonreplay security tests on `feat/p2-video-durable-upload-state`. Kept social worker disabled, existing video approval fail-closed, no live cloud/migrations/provider calls or WineShopPOS changes. CI pending.

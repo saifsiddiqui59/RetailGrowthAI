@@ -13,6 +13,7 @@
 \ir ../../supabase/part2/pending/20261023190900_p2_social_draft_revision.sql
 \ir ../../supabase/part2/pending/20261023191000_p2_social_cancel_quota_refund.sql
 \ir ../../supabase/part2/pending/20261023191100_p2_social_video_job_reviews.sql
+\ir ../../supabase/part2/pending/20261023191200_p2_social_video_upload_state.sql
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -562,6 +563,156 @@ begin
     '81000000-0000-4000-8000-000000000001') then
     raise exception 'FAIL: video publish activated prematurely';
   end if;
+  -- Simulate an authoritative approved claim ONLY inside this disposable
+  -- transaction. Ordinary authoring still denies all video approvals above.
+  update public.social_publish_jobs set
+    status='APPROVED',approved_by=actor,approved_at=now(),
+    approved_content_sha256=decode(repeat('aa',32),'hex'),
+    scheduled_at=now()-interval '2 minutes'
+    where id='62000000-0000-4000-8000-000000000001';
+  if not public.p2_reserve_social_publish_quota(
+      shop,'62000000-0000-4000-8000-000000000001') then
+    raise exception 'FAIL: video fixture did not reserve one real quota unit';
+  end if;
+  current_claim:=public.p2_claim_social_publish(
+    '62000000-0000-4000-8000-000000000001');
+  if current_claim is null or not public.p2_mark_social_inflight(
+    '62000000-0000-4000-8000-000000000001',
+    (current_claim->>'claim_token')::uuid) then
+    raise exception 'FAIL: synthetic approved video claim not fenced';
+  end if;
+  if public.p2_begin_social_video_upload(
+      '62000000-0000-4000-8000-000000000001',gen_random_uuid(),
+      repeat('ab',32),1234)
+      or public.p2_begin_social_video_upload(
+      '62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,repeat('ff',32),1234) then
+    raise exception 'FAIL: untrusted video claim/digest began transfer';
+  end if;
+  if not public.p2_begin_social_video_upload(
+      '62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,repeat('ab',32),1234) then
+    raise exception 'FAIL: approved service review cannot record first intent';
+  end if;
+  if public.p2_begin_social_video_upload(
+      '62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,repeat('ab',32),1234) then
+    raise exception 'FAIL: duplicate media creation intent accepted';
+  end if;
+  if public.p2_advance_social_video_upload(
+      '62000000-0000-4000-8000-000000000001',gen_random_uuid(),
+      'INITIATED','CONTAINER_KNOWN','123456',null)
+      or public.p2_advance_social_video_upload(
+      '62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,
+      'INITIATED','PUBLISHED','987654',null) then
+    raise exception 'FAIL: foreign claim or illegal transfer skip accepted';
+  end if;
+  if not public.p2_advance_social_video_upload(
+      '62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,
+      'INITIATED','CONTAINER_KNOWN','123456',null) then
+    raise exception 'FAIL: container receipt not durably accepted';
+  end if;
+  if public.p2_advance_social_video_upload(
+      '62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,
+      'INITIATED','CONTAINER_KNOWN','123456',null) then
+    raise exception 'FAIL: second container operation incorrectly accepted';
+  end if;
+  if not public.p2_advance_social_video_upload(
+      '62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,
+      'CONTAINER_KNOWN','PUBLISH_INTENT',null,null) then
+    raise exception 'FAIL: publish intent barrier refused';
+  end if;
+  if not public.p2_advance_social_video_upload(
+      '62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,
+      'PUBLISH_INTENT','PUBLISHED','987654',null) then
+    raise exception 'FAIL: final receipt/atomic terminal status refused';
+  end if;
+  if (select status from public.social_publish_jobs
+      where id='62000000-0000-4000-8000-000000000001')<>'PUBLISHED'
+    or (select remote_post_id from public.social_publish_jobs
+      where id='62000000-0000-4000-8000-000000000001')<>'987654'
+    or public.p2_advance_social_video_upload(
+      '62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,
+      'PUBLISH_INTENT','PUBLISHED','987654',null) then
+    raise exception 'FAIL: repeated or mismatched completed receipt';
+  end if;
+  -- YouTube uses an encrypted resumable session and an uncertain terminal
+  -- result must become RECONCILE rather than a second blind media PUT.
+  insert into public.social_accounts(id,shop_id,provider,provider_account_id,
+    display_name,connected_by,granted_scopes,connection_status)
+  values('73000000-0000-4000-8000-000000000001',shop,'youtube',
+    'channel-fixture-01','Tenant YouTube channel',actor,
+    array['youtube.upload'],'CONNECTED');
+  perform public.p2_create_social_draft(
+    '63000000-0000-4000-8000-000000000001',shop,actor,day,
+    '73000000-0000-4000-8000-000000000001','youtube',
+    'Reviewed video upload','81000000-0000-4000-8000-000000000001',
+    when_utc,'Asia/Kolkata','youtube-review-001');
+  if not public.p2_bind_social_video_review(shop,
+    '63000000-0000-4000-8000-000000000001',actor,1,repeat('ab',32)) then
+    raise exception 'FAIL: YouTube fixture review not bound';
+  end if;
+  update public.social_publish_jobs set
+    status='APPROVED',approved_by=actor,approved_at=now(),
+    approved_content_sha256=decode(repeat('aa',32),'hex'),
+    scheduled_at=now()-interval '2 minutes'
+    where id='63000000-0000-4000-8000-000000000001';
+  update retail_private.social_publish_plan_limits
+    set max_posts_per_period=2 where plan_code='TRIAL';
+  if not public.p2_reserve_social_publish_quota(
+      shop,'63000000-0000-4000-8000-000000000001') then
+    raise exception 'FAIL: YouTube fixture failed second approved quota unit';
+  end if;
+  current_claim:=public.p2_claim_social_publish(
+      '63000000-0000-4000-8000-000000000001');
+  if current_claim is null or not public.p2_mark_social_inflight(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid) then
+    raise exception 'FAIL: YouTube claim pre-send barrier refused';
+  end if;
+  if not public.p2_begin_social_video_upload(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,repeat('ab',32),1234) then
+    raise exception 'FAIL: YouTube init intent not persisted';
+  end if;
+  if not public.p2_advance_social_video_upload(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,
+      'INITIATED','SESSION_KNOWN',null,repeat('cd',80)) then
+    raise exception 'FAIL: encrypted YouTube upload session rejected';
+  end if;
+  if public.p2_video_session_ciphertext(
+      '63000000-0000-4000-8000-000000000001',gen_random_uuid()) is not null
+     or public.p2_video_session_ciphertext(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid)<>repeat('cd',80) then
+    raise exception 'FAIL: YouTube ciphertext exposed or inaccessible';
+  end if;
+  if not public.p2_advance_social_video_upload(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,
+      'SESSION_KNOWN','BINARY_INTENT',null,null) then
+    raise exception 'FAIL: binary intent not recorded before remote PUT';
+  end if;
+  if not public.p2_advance_social_video_upload(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,
+      'BINARY_INTENT','RECONCILE',null,null) then
+    raise exception 'FAIL: uncertain YouTube result was not fenced';
+  end if;
+  if (select status from public.social_publish_jobs
+       where id='63000000-0000-4000-8000-000000000001')<>'RECONCILE'
+     or public.p2_video_session_ciphertext(
+       '63000000-0000-4000-8000-000000000001',
+       (current_claim->>'claim_token')::uuid) is not null then
+    raise exception 'FAIL: reconciled YouTube attempt remained replayable';
+  end if;
   update public.social_publish_jobs set revision=2
     where id='62000000-0000-4000-8000-000000000001';
   if public.p2_social_video_review_bound(shop,
@@ -614,6 +765,24 @@ begin
 end $$;
 rollback;
 \echo 'PASS: poison receipts require an authoritative private job and server-only actor'
+
+-- Video upload intent, encrypted sessions and receipts are never browser RPCs.
+begin;
+do $videoacl$
+begin
+  if has_function_privilege('authenticated',
+      'public.p2_begin_social_video_upload(uuid,uuid,text,bigint)','EXECUTE')
+    or has_function_privilege('anon',
+      'public.p2_advance_social_video_upload(uuid,uuid,text,text,text,text)','EXECUTE')
+    or has_function_privilege('authenticated',
+      'public.p2_video_session_ciphertext(uuid,uuid)','EXECUTE')
+    or has_table_privilege('authenticated',
+      'retail_private.social_video_uploads','SELECT') then
+    raise exception 'FAIL: video transfer state exposed to client';
+  end if;
+end $videoacl$;
+rollback;
+\echo 'PASS: encrypted video upload stages and receipts are service-only'
 
 -- Job-specific reviewed video metadata is also never publicly executable.
 begin;

@@ -148,3 +148,8 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - Check four PR/post-merge CI jobs for `feat/p2-media-job-review-bindings` before marking merged. The video approve SQL hard-deny stays in place.
 - Wire service-only candidate retrieval to existing private Part1 MP4 download and bounded real FFprobe: establish source digest from trusted service-owned bytes; require independent commercial rights evidence. Re-check bytes/object immutability at publish, because Part1 Storage UPDATE/DELETE permissions can alter an old reviewed object.
 - Complete claim-fenced encrypted provider upload session/receipt and definite/ambiguous reconciliation, then review P2-to-main compatibility and separately approved OAuth/quotas/hosted deployment. Never treat a job review binding as final publisher authorization.
+
+## Video upload state (staged source) next
+1. Require all four exact-head and post-merge CI checks before accepting the new private session/receipt source work.
+2. Wire existing Instagram/YouTube staged transport to fixed service-only job/claim RPCs and cryptographic session encryption; ensure the remote account/tenant/media digest, granted scopes and durable intent are verified BEFORE each outbound provider request. Any unknown response -> RECONCILE, no second create/upload.
+3. Finish immutable provider-readable media copies for Meta, real signed URL expiry, rights preflight and job revision CAS. Do not activate video approval or scheduled Azure workers before hosted migrations, approved OAuth app credentials and publish quotas.
