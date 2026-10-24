@@ -58,3 +58,5 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - 2026-10-24 — Created isolated feat/p2-clothing-publishing-showcase with four clothing-specific publishing drafts and a visible unbranded three-color reference. Updated positive/negative fixture and offline browser tests. No product image copied to GitHub; no real Foundry generation, FFmpeg render, provider post, Azure deployment, OAuth credentials or hosted SQL changes.
 
 - **2026-10-24 — Part 2 #218 source safety work:** created feat/p2-media-outbound-safety with new opt-in media HTTP adapter, hardened YouTube resumable Location checks and mock tests. Original Python CI found one test assertion incorrectly expecting an unencoded signed URL; corrected it and normalized Meta boolean form encoding. Final exact-head CI/merge evidence must be inspected separately. No outbound provider test, hosted SQL or Azure deployment performed.
+
+- 2026-10-24 — PR #220 opened against Part2 integration: strict social due-query HTTPS URL/port/control-character validation with negative test cases. No deployed service or published post. CI/merge follow-up to be verified.
