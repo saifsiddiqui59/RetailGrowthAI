@@ -33,7 +33,7 @@ begin
    values(gen_random_uuid(),'b1000000-0000-4000-8000-000000000003',
     'RGAI Ops Store '||lpad(idx::text,3,'0'),'rg-ops-store-'||idx::text);
  end loop;
-end $;
+end $$;
 reset role;
 select set_config('request.jwt.claim.role','service_role',true);
 update public.shop_subscriptions s set valid_until=now()+interval '60 days'
