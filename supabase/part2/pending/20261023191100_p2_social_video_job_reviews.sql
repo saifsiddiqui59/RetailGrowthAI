@@ -52,6 +52,8 @@ begin
        select 1 from public.social_accounts s
          where s.id=j.social_account_id and s.shop_id=p_shop
            and s.provider=j.provider and s.connection_status='CONNECTED'
+           and ((j.provider='instagram' and 'instagram_content_publish'=any(s.granted_scopes))
+             or (j.provider='youtube' and 'youtube.upload'=any(s.granted_scopes)))
      ) then return null; end if;
 
   select * into a from public.media_assets
@@ -133,6 +135,13 @@ begin
       on j.id=v.job_id and j.shop_id=v.shop_id
     join retail_private.social_media_reviews r
       on r.shop_id=v.shop_id and r.media_asset_id=v.media_asset_id
+    join public.social_accounts a
+      on a.shop_id=j.shop_id and a.id=j.social_account_id
+        and a.provider=j.provider and a.connection_status='CONNECTED'
+    join public.render_jobs render
+      on render.shop_id=j.shop_id and render.day_id=j.campaign_day_id
+        and render.output_asset_id=v.media_asset_id
+        and render.status='SUCCEEDED'
     join public.shop_memberships m
       on m.shop_id=v.shop_id and m.user_id=v.reviewed_by
        and m.active and m.role in ('OWNER','EDITOR')
@@ -140,6 +149,8 @@ begin
       and j.status in ('DRAFT','APPROVED','QUEUED','RETRYABLE','SENDING')
       and j.media_asset_id=v.media_asset_id and j.revision=v.revision
       and j.provider in ('instagram','youtube')
+      and ((j.provider='instagram' and 'instagram_content_publish'=any(a.granted_scopes))
+         or (j.provider='youtube' and 'youtube.upload'=any(a.granted_scopes)))
       and v.source_sha256=decode(p_sha,'hex')
       and r.source_sha256=v.source_sha256
       and (r.rights_expires_at is null
