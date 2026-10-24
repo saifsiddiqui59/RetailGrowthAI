@@ -44,6 +44,7 @@ begin
       or (p_expires is not null and p_expires<=now())
       or coalesce(p_probe->>'container','') not in ('mp4','mov,mp4,m4a,3gp,3g2,mj2')
       or coalesce(p_probe->>'video_codec','')<>'h264'
+      or coalesce(p_probe->>'audio_codec','')<>'aac'
       or coalesce(p_probe->>'pixel_format','')<>'yuv420p'
       or coalesce(p_probe->>'width','')<>'1080'
       or coalesce(p_probe->>'height','')<>'1920'
@@ -97,6 +98,7 @@ begin
       and (r.rights_expires_at is null or r.rights_expires_at>now())
       and octet_length(r.rights_evidence_sha256)=32
       and octet_length(r.source_sha256)=32
+      and r.ffprobe->>'audio_codec'='aac'
   );
 end
 $$;
