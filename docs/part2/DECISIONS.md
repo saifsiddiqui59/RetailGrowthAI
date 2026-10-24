@@ -74,3 +74,7 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 ## 2026-10-24 — Atomic release of unsent social publish quota
 - An authorized cancellation of a `DRAFT` or pre-send `APPROVED`/`QUEUED`/`RETRYABLE` job is serialized on the job row, with shop subscription locking for a previously reserved unit. The status change, private quota-ledger release and sanitized audit all commit together. Never refund an active attempt or anything that may have reached a provider, even if the UI says cancel.
 - No default publishing caps are introduced: the plan limits table remains empty until a separately approved operator value is supplied. Source-only migration is ordered after P2 draft revision; no hosted changes.
+
+## 2026-10-24 — No reusable or cross-job video approvals
+- A private AAC/H.264 media review is only evidence about an asset; it cannot authorize a different scheduled job, copy revision, provider account or shop. New P2 service-only review binding keys by job, tenant, media asset and exact draft revision, rechecks successful existing Part1 render origin, active account permissions and future rights expiry.
+- Existing video approval remains denied because verified object immutability, final-byte integrity and provider upload receipts are not yet fully enforced. Code may not silently treat the media binding as a release switch.
