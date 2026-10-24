@@ -86,3 +86,7 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 ## 2026-10-24 — Independent evidence required before social-video review
 - Media source DB authorization, Part1 finalized object SHA receipt, and separately validated commercial-rights clearance are three separate backend authorities. A browser digest or a mutable storage blob by itself cannot establish provenance. Source file is streamed privately, compared to the prior trusted SHA, FFprobed for H264/AAC, then stored under exact shop/job/revision CAS; incomplete evidence fails closed and only yields a non-publishable review state.
 - Publishing the returned MP4 is forbidden until final-byte integrity and immutable provider-readable media and remote receipt reconciliation are enforced; no live release flags change.
+
+## 2026-10-24 — No self-updating render SHA or commercial rights record
+- Source SHA receipt is write-once and scoped to Part1 `render_jobs.status=SUCCEEDED` and its exact `output_asset_id`, file path and tenant. Repeated identical service receipts are idempotent; an altered stored source hash is refused rather than silently resetting approvals.
+- Licensed-video clearance is a separate explicit reviewed document digest, reviewer, job revision and expiry, stored service-only and write-once. It cannot be generated from `media_assets.license_name` or a generated video label. The back office still must actually validate document legality; this migration grants no publishing permissions and the worker stays off.
