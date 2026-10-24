@@ -329,3 +329,9 @@
 ## 2026-10-24 — Safe Part 1 release scope
 - Merge source-level Part 1 integration only after all 4 PR and post-main CI checks pass. Deliver new administrative routes as frontend-only to the **same tagged existing Free DEV SWA**, validating its exact hostname/Free SKU and public JS/CSS; do not provision new Azure resources.
 - Source merge does **not** imply Supabase Auth sender configuration, transactional outbox migration, cloud poster queues, or live Functions deployment. Keep notification sending and poster runtime OFF until project-specific secrets, safe migration backup/restore and hosted acceptance. Same authorized Gmail address with distinct RetailGrowthAI From branding is permitted; existing WineShopPOS SMTP secret remains private and unchanged.
+
+
+## 2026-10-24 — Owner-approved outbound-email deferral
+- Do not deploy SMTP providers, activate `RETAIL_NOTIFICATIONS_ENABLED`, apply the email-only outbox migration for sending, copy/recover WineShopPOS credentials or solicit passwords during the current development phase.
+- Retain approved, audited in-app onboarding decisions and root-only read-only notification snapshots as the default notifications. Preserve branded email source for a separate later rollout requiring explicit owner authorization, credentials and delivery testing.
+- Prioritize working Part 1 poster DEV release/hosted verification and Part 2/3 non-email work instead.
