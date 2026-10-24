@@ -33,7 +33,7 @@ test('invalid IDs, denied JWT and forbidden origin fail before showing history',
     tokenProvider:async()=> '',
     fetchImpl:async()=>{network++;return {ok:true,status:200,json:async()=>({})}},
   })
-  await assert.rejects(()=>api.listPosterDrafts('invalid',DID),/Invalid resource ID/)
+  assert.throws(()=>api.listPosterDrafts('invalid',DID),/Invalid resource ID/)
   await assert.rejects(()=>api.listPosterDrafts(CID,DID),/sign in/i)
   assert.equal(network,0)
   assert.throws(()=>createCampaignApi({
