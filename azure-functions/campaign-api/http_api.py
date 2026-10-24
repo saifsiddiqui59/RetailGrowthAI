@@ -40,6 +40,13 @@ class HTTPAPI:
                 if len(parts) != 2 or parts[0] != "poster-drafts":
                     return 404, {"error": "NOT_FOUND"}
                 return self.poster_api.get(token, user_id, parts[1])
+            if method == "POST" and path.startswith("/poster-drafts/") and path.endswith("/select"):
+                if self.poster_render_api is None:
+                    return 503, {"error": "POSTER_RENDER_NOT_CONFIGURED"}
+                parts = path.strip("/").split("/")
+                if len(parts) != 3 or parts[0] != "poster-drafts" or parts[2] != "select":
+                    return 404, {"error": "NOT_FOUND"}
+                return self.poster_render_api.select(token, user_id, parts[1], body)
             if method == "POST" and path.startswith("/poster-drafts/") and path.endswith("/renders"):
                 if self.poster_render_api is None:
                     return 503, {"error": "POSTER_RENDER_NOT_CONFIGURED"}
