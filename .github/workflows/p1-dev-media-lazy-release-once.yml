@@ -36,7 +36,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pytest -q tests/reliability/test_media_lazy_import_boundaries.py
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          source=Path("azure-functions/campaign-api/function_app.py").read_text()
+          tree=ast.parse(source)
+          heavy={"poster_worker","private_poster_media","render_worker","private_media"}
+          top={x.module for x in tree.body if isinstance(x,ast.ImportFrom)}
+          assert not top.intersection(heavy),sorted(top.intersection(heavy))
+          functions={x.name:x for x in tree.body if isinstance(x,ast.FunctionDef)}
+          for name,needed in {
+              "render_campaign_reel":{"render_worker","private_media"},
+              "render_campaign_poster":{"poster_worker","private_poster_media"},
+              "dispatch_pending_posters":{"poster_worker"},
+          }.items():
+              imports={x.module for x in ast.walk(functions[name]) if isinstance(x,ast.ImportFrom)}
+              assert needed.issubset(imports),(name,sorted(needed-imports))
+          print("P1_LAZY_ENGINE_IMPORTS_VERIFIED=true")
+          PY
           python3 scripts/deploy/package.py --check
           python3 -m unittest scripts/deploy/test_package.py
           grep -Fq 'from poster_worker import process_poster' azure-functions/campaign-api/function_app.py
