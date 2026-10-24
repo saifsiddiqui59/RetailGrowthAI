@@ -12,6 +12,7 @@
 \ir ../../supabase/part2/pending/20261023190800_p2_social_media_reviews.sql
 \ir ../../supabase/part2/pending/20261023190900_p2_social_draft_revision.sql
 \ir ../../supabase/part2/pending/20261023191000_p2_social_cancel_quota_refund.sql
+\ir ../../supabase/part2/pending/20261023191100_p2_social_video_job_reviews.sql
 
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -508,6 +509,67 @@ begin
     shop,'81000000-0000-4000-8000-000000000001') then
     raise exception 'FAIL: verified media evidence unavailable';
   end if;
+  -- A real Part1 SUCCEEDED render is the only eligible social video source.
+  update public.media_assets set license_name='owned',
+    attribution='fixture service-rendered from reviewed rights'
+    where id='81000000-0000-4000-8000-000000000001';
+  insert into public.render_jobs(id,shop_id,campaign_id,day_id,requested_by,
+      preset,status,idempotency_key,output_asset_id)
+  values('91000000-0000-4000-8000-000000000001',shop,
+    '41000000-0000-4000-8000-000000000001',day,actor,
+    'instagram_reel_30s','SUCCEEDED','reviewed-output-01',
+    '81000000-0000-4000-8000-000000000001');
+  insert into public.social_accounts(id,shop_id,provider,provider_account_id,
+    display_name,connected_by,granted_scopes,connection_status)
+  values('72000000-0000-4000-8000-000000000001',shop,'instagram',
+    'instagram-fixture-01','Tenant IG professional',actor,
+    array['instagram_content_publish'],'CONNECTED');
+  perform public.p2_create_social_draft(
+    '62000000-0000-4000-8000-000000000001',shop,actor,day,
+    '72000000-0000-4000-8000-000000000001','instagram',
+    'Reviewed video post','81000000-0000-4000-8000-000000000001',
+    when_utc,'Asia/Kolkata','reel-review-fixture-001');
+  if public.p2_social_video_source(shop,
+      '62000000-0000-4000-8000-000000000001',
+      'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee') is not null or
+     public.p2_social_video_source(
+      '30000000-0000-4000-8000-000000000002',
+      '62000000-0000-4000-8000-000000000001',actor) is not null then
+    raise exception 'FAIL: untrusted actor/shop saw media path';
+  end if;
+  if public.p2_social_video_source(shop,
+      '62000000-0000-4000-8000-000000000001',actor)->>'media_asset_id'
+      <> '81000000-0000-4000-8000-000000000001' then
+    raise exception 'FAIL: exact render output candidate missing';
+  end if;
+  if public.p2_bind_social_video_review(shop,
+      '62000000-0000-4000-8000-000000000001',actor,2,repeat('ab',32))
+      or public.p2_bind_social_video_review(shop,
+      '62000000-0000-4000-8000-000000000001',actor,1,repeat('ef',32)) then
+    raise exception 'FAIL: mismatched draft revision/media hash was bound';
+  end if;
+  if not public.p2_bind_social_video_review(shop,
+      '62000000-0000-4000-8000-000000000001',actor,1,repeat('ab',32))
+      or not public.p2_social_video_review_bound(shop,
+      '62000000-0000-4000-8000-000000000001',repeat('ab',32)) then
+    raise exception 'FAIL: reviewed generated media not bound to draft';
+  end if;
+  -- A bound video review is NOT permission to publish: old video approval
+  -- hard-deny is deliberately preserved until trusted rehash and workers exist.
+  if public.p2_approve_social_job(shop,
+    '62000000-0000-4000-8000-000000000001',actor,1,repeat('aa',32),
+    'Reviewed video post',when_utc,'Asia/Kolkata',
+    '81000000-0000-4000-8000-000000000001') then
+    raise exception 'FAIL: video publish activated prematurely';
+  end if;
+  update public.social_publish_jobs set revision=2
+    where id='62000000-0000-4000-8000-000000000001';
+  if public.p2_social_video_review_bound(shop,
+      '62000000-0000-4000-8000-000000000001',repeat('ab',32)) then
+    raise exception 'FAIL: prior review survived a draft revision';
+  end if;
+  update public.social_publish_jobs set revision=1
+    where id='62000000-0000-4000-8000-000000000001';
   -- The private review lookup must also fail closed after an invalid
   -- service-side metadata update, not just during the initial registration.
   update retail_private.social_media_reviews
@@ -552,6 +614,24 @@ begin
 end $$;
 rollback;
 \echo 'PASS: poison receipts require an authoritative private job and server-only actor'
+
+-- Job-specific reviewed video metadata is also never publicly executable.
+begin;
+do $
+begin
+  if has_function_privilege('authenticated',
+      'public.p2_social_video_source(uuid,uuid,uuid)','EXECUTE')
+     or has_function_privilege('anon',
+      'public.p2_bind_social_video_review(uuid,uuid,uuid,integer,text)','EXECUTE')
+     or has_function_privilege('authenticated',
+      'public.p2_social_video_review_bound(uuid,uuid,text)','EXECUTE')
+     or has_table_privilege('authenticated',
+      'retail_private.social_video_job_reviews','SELECT') then
+    raise exception 'FAIL: private video job review reached client';
+  end if;
+end $;
+rollback;
+\echo 'PASS: video evidence tenant/revision binding remains service-only'
 
 -- Rights/ffprobe evidence and eligibility functions are not public API.
 begin;
