@@ -287,7 +287,9 @@ export function createRetailClient({
     if (!['retail_platform_me', 'retail_platform_summary',
           'retail_platform_shops', 'retail_platform_set_subscription',
           'retail_onboarding_status', 'retail_platform_onboarding_requests',
-          'retail_platform_review_onboarding'].includes(name)) {
+          'retail_platform_review_onboarding','retail_platform_notifications',
+          'retail_platform_set_notification_read',
+          'retail_platform_subscription_watch'].includes(name)) {
       throw new Error('Unsupported platform operation')
     }
     return send('/rest/v1/rpc/' + name, {
@@ -349,6 +351,55 @@ export function createRetailClient({
       p_user_id: userId, p_approve: approve, p_reason: reason.trim(),
     })
   }
+  async function listPlatformNotifications(view = 'active', category = 'all', limit = 40, offset = 0) {
+    if (!['active','unread','history'].includes(view) ||
+        !['all','onboarding','subscription','job','queue'].includes(category) ||
+        !Number.isInteger(limit) || limit < 1 || limit > 50 ||
+        !Number.isInteger(offset) || offset < 0 || offset > 100000) {
+      throw new Error('Invalid Platform Admin inbox query')
+    }
+    const result = await platformRpc('retail_platform_notifications', {
+      p_view:view,p_category:category,p_limit:limit,p_offset:offset,
+    })
+    if (!result || !Array.isArray(result.items) ||
+        !Number.isSafeInteger(result.total_active) ||
+        !Number.isSafeInteger(result.unread_active) ||
+        typeof result.database_checked_at !== 'string') {
+      throw new Error('Platform notification data is not verified')
+    }
+    return result
+  }
+  async function setPlatformNotificationRead(id, read) {
+    if (!Number.isSafeInteger(id) || id < 1 || typeof read !== 'boolean') {
+      throw new Error('Invalid notification read update')
+    }
+    const result = await platformRpc('retail_platform_set_notification_read', {
+      p_notification_id:id,p_read:read,
+    })
+    if (!result || result.id !== id || result.read !== read) {
+      throw new Error('Notification update was not confirmed')
+    }
+    return result
+  }
+  async function listPlatformSubscriptionWatch(status = 'all', search = '', limit = 25, offset = 0) {
+    if (!['all','expiring','expired','suspended','unknown','healthy'].includes(status) ||
+        typeof search !== 'string' || search.length > 80 ||
+        !Number.isInteger(limit) || limit < 1 || limit > 50 ||
+        !Number.isInteger(offset) || offset < 0 || offset > 100000) {
+      throw new Error('Invalid subscription monitoring query')
+    }
+    const result = await platformRpc('retail_platform_subscription_watch', {
+      p_status:status,p_search:search,p_limit:limit,p_offset:offset,
+    })
+    if (!result || !Array.isArray(result.shops) || !result.counts ||
+        !Number.isSafeInteger(result.total) || !Number.isSafeInteger(result.all_retailers) ||
+        ['expiring','expired','suspended','healthy','unknown']
+          .some(k=>!Number.isSafeInteger(result.counts[k]))) {
+      throw new Error('Global subscription monitoring is unavailable')
+    }
+    return result
+  }
+
   async function getBusinessProfile(shopId) {
     const rows = await table('business_profiles', {
       query: { select: '*', shop_id: 'eq.' + shopId, limit: '1' },
@@ -432,6 +483,7 @@ export function createRetailClient({
     signIn, signUp, signOut, getUser, requestPasswordReset, acceptEmailLinkSession, updatePassword,
     listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
     isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
+    listPlatformNotifications, setPlatformNotificationRead, listPlatformSubscriptionWatch,
     getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listMediaAssets, uploadImageAsset,
   }
 }

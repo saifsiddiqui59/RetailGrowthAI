@@ -399,3 +399,10 @@ NaN
 ## 2026-10-24 — Owner reprioritization: defer outbound emails, move to non-email tasks
 - **Future backlog, not current blocker:** SMTP setup/credentials, owner new-signup emails, retailer approval/rejection emails, hosted branded email confirmation/password-reset templates and real inbox validation. Existing source remains disabled; no new credentials requested, no WineShopPOS secrets copied. Normal login and in-app approvals remain priority. Keep essential Auth redirect correctness as a separate security concern, but do not make SMTP setup a prerequisite for poster/social development.
 - **Next active priority:** finish the already-open **Part 1 DEV poster release** and worker packaging review in [PR #219](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/219) and [PR #223](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/223). Inspect heads/CI and their operator gates; do not duplicate or merge unreviewed cloud changes. Part 2/3 integration follows their independent leads.
+
+
+## 2026-10-24 — Super Admin P1/P2 activation gates
+- Review the Super Admin operations source branch/PR and require all four CI jobs plus disposable SQL denial tests and frontend signed-in mock tests, then coordinator-only merge into `main` after checks.
+- Apply new additive `20261024190000_p1_platform_operations.sql` **only after** explicit DEV operator gate: verify actual migration prefix/backup-restore, no parallel schema writer, security advisors and checked RLS. Never include email activation, Part 2/3 or WineShopPOS.
+- Approved frontend-only DEV release to existing Free SWA after schema and main CI; verify root read/unread persistence across sessions, second root isolation, nonroot denial, failed-job/outbox/poison signals, 55+ retailer server-filtered expiry counts. Don't show healthy if the query fails.
+- Future telemetry-specific dependency: connect authorized Azure Monitor Functions/Queue health metrics and latency/depth thresholds. Until verified, label cloud health unavailable; DB-outbox backlog is not Azure Queue depth.

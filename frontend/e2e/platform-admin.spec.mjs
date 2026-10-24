@@ -50,6 +50,13 @@ async function loginAs(page, role, { invalid = false } = {}) {
             valid_until: '2099-10-01T00:00:00Z' }] })
         : fulfill(route, { message: 'PLATFORM_ADMIN_REQUIRED' }, 403)
     }
+    if (path === '/rest/v1/rpc/retail_platform_subscription_watch') {
+      return role === 'ROOT' ? fulfill(route, {
+        total:1,all_retailers:56,counts:{expiring:5,expired:4,suspended:2,unknown:1,healthy:44},
+        shops:[{shop_id:SHOP,name:'Test Retailer',slug:'test-retailer',plan_code:'TRIAL',
+          subscription_status:'TRIAL',health:'healthy',valid_until:'2099-10-01T00:00:00Z'}],
+      }) : fulfill(route,{message:'PLATFORM_ADMIN_REQUIRED'},403)
+    }
     if (path === '/rest/v1/rpc/retail_platform_set_subscription') {
       return role === 'ROOT'
         ? fulfill(route, { shop_id: SHOP, plan_code: 'GROWTH', status: 'ACTIVE' })
@@ -184,27 +191,64 @@ test('unapproved shop user sees pending notice and not Create business action', 
 })
 
 
-test('only root can open notifications; pending registrations and expiry are actionable snapshots', async ({ page }) => {
-  const calls = await loginAs(page,'ROOT')
-  await page.route(SUPABASE + '/rest/v1/rpc/retail_platform_onboarding_requests', route =>
-    fulfill(route,[{user_id:'f1000000-0000-4000-8000-000000000009',
-      email:'pending@example.invalid',status:'PENDING',requested_at:'2026-10-24T10:00:00Z'}]))
+test('root has a persistent inbox, marks a verified signal read and can reverse it', async ({ page }) => {
+  const calls=await loginAs(page,'ROOT')
+  let read=false
+  await page.route(SUPABASE+'/rest/v1/rpc/retail_platform_notifications',route=>{
+    const body=route.request().postDataJSON()
+    calls.push({path:'/rest/v1/rpc/retail_platform_notifications',body})
+    return fulfill(route,{
+      total_active:2,unread_active:read?1:2,database_checked_at:'2026-10-24T08:00:00Z',
+      azure_telemetry:'NOT_CONNECTED',
+      items:body.p_category==='queue'?[]:[{
+        id:101,event_key:'job:campaign:test',category:'job',severity:'critical',
+        title:'Campaign planning failed',detail:'A database-backed job ended FAILED.',
+        first_seen_at:'2026-10-24T07:00:00Z',active:true,read_at:read?'2026-10-24T08:00:00Z':null,
+      }],
+    })
+  })
+  await page.route(SUPABASE+'/rest/v1/rpc/retail_platform_set_notification_read',route=>{
+    const body=route.request().postDataJSON()
+    calls.push({path:'/rest/v1/rpc/retail_platform_set_notification_read',body})
+    read=body.p_read
+    return fulfill(route,{id:101,read})
+  })
   await page.goto('/platform-alerts')
   await expect(page.getByRole('heading',{name:'Notifications & alerts'})).toBeVisible()
-  await expect(page.getByText('pending@example.invalid')).toBeVisible()
-  await expect(page.getByText('Retailer waiting for approval')).toBeVisible()
-  await expect(page.getByText(/not a persistent message inbox/)).toBeVisible()
-  await page.getByRole('button',{name:'Action required'}).click()
-  await expect(page.getByText('Delivery and cloud failure alerts are not connected')).toHaveCount(0)
-  await page.getByRole('link',{name:'Review retailer'}).click()
-  await expect(page).toHaveURL(/\/platform-admin$/)
-  expect(calls.some(x=>x.path==='/rest/v1/rpc/retail_platform_summary')).toBe(true)
+  await expect(page.getByText('2 unread / 2 active alerts')).toBeVisible()
+  await expect(page.getByText('Campaign planning failed')).toBeVisible()
+  await expect(page.getByText(/Azure infrastructure uptime and real queue depths are not connected/)).toBeVisible()
+  await page.getByRole('button',{name:/Mark read — Campaign planning failed/}).click()
+  await expect(page.getByText('1 unread / 2 active alerts')).toBeVisible()
+  await page.getByRole('button',{name:/Mark unread — Campaign planning failed/}).click()
+  await expect(page.getByText('2 unread / 2 active alerts')).toBeVisible()
+  await page.getByRole('button',{name:'Queue health'}).click()
+  await expect(page.getByText('No matching verified notifications.')).toBeVisible()
+  expect(calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_set_notification_read')
+    .map(c=>c.body.p_read)).toEqual([true,false])
 })
-test('non-root cannot open notifications or make platform alert data requests',async ({ page })=>{
+test('subscription watch totals apply to all retailers and search is server-side',async({page})=>{
+  const calls=await loginAs(page,'ROOT')
+  await page.goto('/platform-admin')
+  const health=page.getByRole('region',{name:'Subscription health across all retailers'})
+  await expect(health.getByText('Across all 56 retailers',{exact:false})).toBeVisible()
+  await expect(health.getByText('Due in 7 days')).toBeVisible()
+  await health.getByLabel('Filter status').selectOption('expiring')
+  await expect.poll(()=>calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_subscription_watch')
+    .some(c=>c.body.p_status==='expiring')).toBeTruthy()
+  await health.getByLabel('Search all retailers').fill('boutique')
+  await health.getByRole('button',{name:'Search'}).click()
+  await expect.poll(()=>calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_subscription_watch')
+    .some(c=>c.body.p_search==='boutique')).toBeTruthy()
+})
+test('non-root cannot open persistent inbox or reach privileged API',async ({ page })=>{
   const calls=await loginAs(page,'OWNER')
   await page.goto('/platform-alerts')
   await expect(page.getByRole('heading',{name:'Platform access denied'})).toBeVisible()
   await expect(page.getByRole('navigation',{name:'Main navigation'})
     .getByRole('link',{name:'Notifications'})).toHaveCount(0)
-  expect(calls.filter(x=>x.path==='/rest/v1/rpc/retail_platform_onboarding_requests')).toHaveLength(0)
+  for(const forbidden of ['retail_platform_notifications','retail_platform_subscription_watch',
+    'retail_platform_set_notification_read']){
+    expect(calls.filter(c=>c.path.endsWith('/rpc/'+forbidden))).toHaveLength(0)
+  }
 })

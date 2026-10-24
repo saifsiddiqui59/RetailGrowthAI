@@ -1,76 +1,112 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
-import { derivePlatformAlerts } from './alert-signals.mjs'
+import './platform-operations.css'
 
-// PlatformBoundary in App.jsx enforces database-verified root access before mounting.
+const CATEGORIES = [
+  ['all','All'],['onboarding','Onboarding'],['subscription','Subscriptions'],
+  ['job','Failed jobs'],['queue','Queue health'],
+]
+const VIEWS = [['active','Active'],['unread','Unread'],['history','History']]
+const PAGE_SIZE = 40
+
+// Server owns all alert categories and read state. No localStorage, fake
+// Azure health, browser service key or unauthenticated React-only checks.
 export default function PlatformAlerts() {
   const { client } = useRetailAuth()
-  const [items, setItems] = useState([])
-  const [filter, setFilter] = useState('all')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [reload, setReload] = useState(0)
-  const [checkedAt, setCheckedAt] = useState(null)
+  const [view,setView] = useState('active')
+  const [category,setCategory] = useState('all')
+  const [offset,setOffset] = useState(0)
+  const [version,setVersion] = useState(0)
+  const [loading,setLoading] = useState(true)
+  const [working,setWorking] = useState(null)
+  const [error,setError] = useState('')
+  const [data,setData] = useState(null)
 
   useEffect(() => {
-    let active = true
+    let alive = true
     setLoading(true)
     setError('')
-    setItems([])
-    Promise.all([
-      client.getPlatformSummary(),
-      client.listPlatformOnboardingRequests('PENDING'),
-      client.listPlatformShops(25, 0),
-    ]).then(([summary, requests, listing]) => {
-      if (!active) return
-      setItems(derivePlatformAlerts({summary, requests, listing}))
-      setCheckedAt(new Date())
-    }).catch(() => {
-      if (active) setError('Monitoring could not be verified. Alerts are unavailable, not zero. Check authorization and refresh.')
-    }).finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
-  }, [client, reload])
+    setData(null)
+    client.listPlatformNotifications(view,category,PAGE_SIZE,offset)
+      .then(next => {if(alive) setData(next)})
+      .catch(() => {if(alive) setError('Platform notifications could not be verified. Check the database migration and your root authorization; zero alerts is NOT assumed.')})
+      .finally(() => {if(alive) setLoading(false)})
+    return () => {alive=false}
+  }, [client,view,category,offset,version])
 
-  const displayed = filter === 'all' ? items : items.filter(item => item.level === filter)
-  const actions = items.filter(item => item.level === 'action').length
+  async function toggleRead(item) {
+    if (working!==null) return
+    setWorking(item.id)
+    setError('')
+    try {
+      await client.setPlatformNotificationRead(item.id,!item.read_at)
+      setVersion(value=>value+1)
+    } catch {
+      setError('The read status update was rejected. Refresh before retrying.')
+    } finally {setWorking(null)}
+  }
+
+  function chooseView(next) {setView(next);setOffset(0)}
+  function chooseCategory(next) {setCategory(next);setOffset(0)}
   return <section className="platform-alert-page" aria-label="Super Admin notification center">
     <div className="page-heading">
-      <div><div className="eyebrow">PLATFORM CONTROL / MONITORING</div>
+      <div><div className="eyebrow">RETAILGROWTHAI / SUPER ADMIN</div>
         <h1>Notifications &amp; alerts</h1>
-        <p className="lead">A read-only action center for retailer approvals and subscription signals. Refresh to get the latest server snapshot.</p>
+        <p className="lead">Persistent, per-admin read/unread history from verified RetailGrowthAI database events.</p>
       </div>
       <button type="button" className="subtle-button" disabled={loading}
-        onClick={() => setReload(n => n+1)}>Refresh alerts</button>
+        onClick={()=>setVersion(v=>v+1)}>Refresh alerts</button>
     </div>
     <div className="panel platform-alert-disclaimer">
-      These are <strong>current monitoring signals</strong>, not a persistent message inbox.
-      Automated email delivery, job failure alerts and cloud monitoring are not connected.
+      <strong>Monitoring scope:</strong> database job failures, persisted poison receipts,
+      delayed queue outbox records, stale worker leases, account approvals and
+      subscription dates. <strong>Azure infrastructure uptime and real queue depths are not connected.</strong>
+      No emails or publishing actions are sent.
     </div>
-    {loading && <p role="status">Checking verified platform signals…</p>}
-    {error && <p role="alert" className="notice-error">{error}</p>}
-    {!loading && !error && <>
-      <div className="platform-alert-tally">
-        <strong>{actions} approval or entitlement alerts</strong>
-        <span>Checked {checkedAt?.toLocaleString('en-IN') || '—'} · snapshot, not realtime</span>
+    {loading && <p role="status">Refreshing verified platform notifications…</p>}
+    {error && <p className="notice-error" role="alert">{error}</p>}
+    {data && !loading && <>
+      <div className="platform-alert-tally" aria-label="Notification totals">
+        <strong>{data.unread_active} unread / {data.total_active} active alerts</strong>
+        <span>Database checked {new Date(data.database_checked_at).toLocaleString('en-IN')} · Azure telemetry unavailable</span>
       </div>
-      <div className="platform-alert-filters" role="group" aria-label="Filter alerts">
-        {[
-          ['all','All'], ['action','Action required'],
-          ['attention','Upcoming'], ['info','Information'],
-        ].map(([value,label]) => <button key={value} type="button"
-          aria-pressed={filter===value} onClick={() => setFilter(value)}>{label}</button>)}
+      <div className="platform-alert-filters" role="group" aria-label="Notification view">
+        {VIEWS.map(([value,label])=><button type="button" key={value} aria-pressed={view===value}
+          onClick={()=>chooseView(value)}>{label}</button>)}
+      </div>
+      <div className="platform-alert-filters" role="group" aria-label="Notification category">
+        {CATEGORIES.map(([value,label])=><button type="button" key={value} aria-pressed={category===value}
+          onClick={()=>chooseCategory(value)}>{label}</button>)}
       </div>
       <div className="platform-alert-list">
-        {!displayed.length && <p role="status">No alerts in this category in the latest snapshot.</p>}
-        {displayed.map(item => <article className={'platform-alert-item alert-'+item.level} key={item.id}>
-          <div className="platform-alert-indicator" aria-hidden="true">{item.level==='action' ? '!' : item.level==='attention' ? '◷' : 'i'}</div>
+        {!data.items.length && <p role="status">No matching verified notifications.</p>}
+        {data.items.map(item=><article className={'platform-alert-item alert-'+
+          (item.severity==='critical'?'action':item.severity==='attention'?'attention':'info')} key={item.id}>
+          <div className="platform-alert-indicator" aria-hidden="true">{item.severity==='critical'?'!':item.severity==='attention'?'◷':'i'}</div>
           <div className="platform-alert-body">
-            <small>{item.category} · {item.level==='action' ? 'Action required' : item.level==='attention' ? 'Upcoming' : 'Information'}</small>
+            <small>{item.category} · {item.active?'Active':'Resolved'} · {item.read_at?'Read':'Unread'}</small>
             <h2>{item.title}</h2><p>{item.detail}</p>
+            <small>First seen {new Date(item.first_seen_at).toLocaleString('en-IN')}</small>
           </div>
-          <Link className="text-link" to={item.destination}>{item.action} →</Link>
+          <div className="platform-alert-actions">
+            {['onboarding','subscription'].includes(item.category) &&
+              <Link className="text-link" to="/platform-admin">
+                {item.category==='onboarding'?'Review requests':'Manage subscriptions'} →
+              </Link>}
+            <button type="button" className="subtle-button"
+              disabled={working!==null}
+              aria-label={(item.read_at?'Mark unread':'Mark read')+' — '+item.title}
+              onClick={()=>toggleRead(item)}>{item.read_at?'Mark unread':'Mark read'}</button>
+          </div>
         </article>)}
+      </div>
+      <div className="platform-pager">
+        <button type="button" className="subtle-button" disabled={offset===0}
+          onClick={()=>setOffset(Math.max(0,offset-PAGE_SIZE))}>Previous</button>
+        <span>Page {Math.floor(offset/PAGE_SIZE)+1} · {data.items.length} shown</span>
+        <button type="button" className="subtle-button" disabled={data.items.length<PAGE_SIZE||offset>=100000-PAGE_SIZE}
+          onClick={()=>setOffset(o=>o+PAGE_SIZE)}>Next</button>
       </div>
     </>}
   </section>

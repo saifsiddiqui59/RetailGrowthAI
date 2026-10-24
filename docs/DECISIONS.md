@@ -339,3 +339,9 @@
 - Do not deploy SMTP providers, activate `RETAIL_NOTIFICATIONS_ENABLED`, activate an email delivery job or apply its outbox migration as a mail feature, copy/recover WineShopPOS credentials or solicit passwords during the current development phase.
 - Retain approved, audited in-app onboarding decisions and root-only read-only notification snapshots as the default notifications. Preserve branded email source for a separate later rollout requiring explicit owner authorization, credentials and delivery testing.
 - Prioritize working Part 1 poster DEV release/hosted verification and Part 2/3 non-email work instead.
+
+
+## 2026-10-24 — Root operations inbox and global monitoring boundaries
+- Persist root notification read receipts in private Postgres by verified user UUID, with stable event identity; never localStorage-as-authority or browser service-role credentials. DB reconciles real job/outbox/poison/lease sources on root read, and preserves resolved history. Read/unread does not reset when the same signal recurs.
+- Global expiring/expired/suspended entitlement counts and retailer search must run in root-authorized SQL **before** pagination, rather than extrapolating from a directory page. No renewal charge inferred.
+- Infrastructure health is explicitly unverified until Azure Monitor permissions/ingestion are separately approved and instrumented. Existing email sender remains disabled/deferred.
