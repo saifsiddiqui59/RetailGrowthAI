@@ -1,0 +1,181 @@
+name: RetailGrowthAI DEV poster backend gated activation (one time)
+# Coordinator proposal only. Runs once when the reviewed workflow is merged on main.
+# No PROD, WineShopPOS, premium or social provisioning. No secrets in artifacts.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-poster-backend-release-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-queue-runtime-release
+  cancel-in-progress: false
+jobs:
+  deploy-poster:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      REF: jeearzffnjbvghwjjjrf
+      RG: rg-retailgrowth-dev
+      APP: rgai-dev-functions-d4e5ddbd
+      STORAGE: rgaid4e5ddbdf0d21d96
+      SWA: retailgrowthai-dev-preview
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Preflight exact already-applied schema release and poster packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$REF" = "jeearzffnjbvghwjjjrf"
+          test "$RG" = "rg-retailgrowth-dev"
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          expected=['20261024113000_p1_poster_drafts.sql',
+                    '20261024150000_p1_poster_jobs.sql',
+                    '20261024160000_p1_notification_outbox.sql',
+                    '20261024170000_p1_poster_banner_selection.sql']
+          got=[p.name for p in sorted(Path('supabase/migrations').glob('20261024*.sql'))]
+          assert got==expected, f'Unexpected migrations: {got}'
+          for name in expected:
+              sql=Path('supabase/migrations',name).read_text()
+              assert re.search(r'(?is)^\s*--.*?\bbegin\s*;',sql) and sql.strip().endswith('commit;')
+              assert not re.search(r'(?im)^\s*(drop\s+(?:table|schema)|truncate\s+|delete\s+from\s+)',sql)
+          print('PASS: four existing additive migrations match source')
+          PY
+          python3 scripts/deploy/package.py --check
+          python3 -m unittest scripts/deploy/test_package.py
+          grep -Fq 'POSTER = ROOT / "poster-engine"' scripts/deploy/package.py
+          grep -Fq '"poster-engine/render.py"' scripts/deploy/package.py
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Audit existing tagged Azure DEV-only resources and provision dedicated queue
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          az group show -g "$RG" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1]))
+          t={k.lower():str(v).lower() for k,v in (x.get('tags') or {}).items()}
+          assert x['name']=='rg-retailgrowth-dev'
+          assert x.get('location','').replace(' ','').lower()=='centralindia'
+          assert t.get('app')=='retailgrowthai' and t.get('environment')=='dev'
+          print('PASS: existing tagged Central India RetailGrowthAI DEV group')
+          PY
+          test "$(az functionapp show -g "$RG" -n "$APP" --query name -o tsv)" = "$APP"
+          test "$(az storage account show -g "$RG" -n "$STORAGE" --query name -o tsv)" = "$STORAGE"
+          test "$(az staticwebapp show -g "$RG" -n "$SWA" --query sku.name -o tsv | tr '[:upper:]' '[:lower:]')" = "free"
+          test "$(az staticwebapp show -g "$RG" -n "$SWA" --query defaultHostname -o tsv)" = "purple-dune-06b5da200.2.azurestaticapps.net"
+          az functionapp config appsettings list -g "$RG" -n "$APP" --query '[].name' -o tsv > "$RUNNER_TEMP/app-names"
+          for k in RETAIL_SUPABASE_URL RETAIL_SUPABASE_SERVICE_ROLE_KEY RETAIL_SUPABASE_PUBLISHABLE_KEY RETAIL_STORAGE; do
+            grep -Fxq "$k" "$RUNNER_TEMP/app-names" || { echo "::error::Missing existing secure backend setting $k"; exit 3; }
+          done
+          # Existing server key stays in the Functions settings JSON on the runner;
+          # no secret is printed, shipped to the frontend or placed in an artifact.
+          az functionapp config appsettings list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/poster-env.json"
+          python3 - "$RUNNER_TEMP/poster-env.json" <<'PY'
+          import json,sys,urllib.request,urllib.error
+          settings={x['name']:x.get('value','') for x in json.load(open(sys.argv[1]))}
+          origin='https://jeearzffnjbvghwjjjrf.supabase.co'
+          if settings.get('RETAIL_SUPABASE_URL') != origin:
+              raise SystemExit('STOP: existing Functions are not linked to RetailGrowthAI Supabase')
+          key=settings.get('RETAIL_SUPABASE_SERVICE_ROLE_KEY','')
+          if not key or key.startswith(('sb_publishable_','eyJ')) and key.count('.') != 2:
+              raise SystemExit('STOP: backend admin key unavailable or malformed')
+          headers={'apikey':key,'Accept':'application/json','User-Agent':'RetailGrowthAI-DEV-Poster-Readiness/1'}
+          if key.startswith('eyJ') and key.count('.')==2: headers['Authorization']='Bearer '+key
+          for table in ('poster_drafts','poster_jobs'):
+              url=origin+'/rest/v1/'+table+'?select=id&limit=0'
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=25) as response:
+                      if response.status!=200: raise ValueError('Unexpected status')
+              except (urllib.error.HTTPError,urllib.error.URLError,ValueError):
+                  raise SystemExit('STOP: database poster schema/service credentials not ready')
+          print('PASS: live RetailGrowthAI DEV poster tables reachable with backend-only key; no row data retrieved')
+          PY
+          key="$(az storage account keys list -g "$RG" -n "$STORAGE" --query '[0].value' -o tsv)"
+          test -n "$key"
+          echo "::add-mask::$key"
+          az storage queue create --name retail-poster-render --account-name "$STORAGE" --account-key "$key" --output none
+          [ "$(az storage queue exists --name retail-poster-render --account-name "$STORAGE" --account-key "$key" --query exists -o tsv | tr '[:upper:]' '[:lower:]')" = "true" ]
+          echo "PASS: dedicated queue in existing DEV Storage account; no new account or Function App"
+      - name: Package pinned bounded FFmpeg and private Pillow poster engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/media" "$RUNNER_TEMP/release"
+          image='mwader/static-ffmpeg@sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822'
+          docker pull "$image"
+          cid="$(docker create "$image" -version)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          docker cp "$cid:/ffmpeg" "$RUNNER_TEMP/media/ffmpeg"
+          docker cp "$cid:/ffprobe" "$RUNNER_TEMP/media/ffprobe"
+          chmod 755 "$RUNNER_TEMP/media/ffmpeg" "$RUNNER_TEMP/media/ffprobe"
+          cat >"$RUNNER_TEMP/media/THIRD_PARTY_NOTICES.txt" <<'NOTICE'
+          FFmpeg/ffprobe GPL static Linux amd64 using libx264/AAC.
+          License: https://ffmpeg.org/legal.html
+          Corresponding source/build instructions: https://github.com/wader/static-ffmpeg
+          Image sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822
+          NOTICE
+          python3 scripts/deploy/package.py --ffmpeg-dir "$RUNNER_TEMP/media" --output "$RUNNER_TEMP/release/poster.zip"
+          python3 scripts/deploy/package.py --verify-zip "$RUNNER_TEMP/release/poster.zip"
+      - name: Deploy to existing Flex Functions only; activate after indexed trigger smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Both opt-in flags OFF while code is reindexed. No SMTP changes or billing.
+          az functionapp config appsettings set -g "$RG" -n "$APP" -o none --settings             "RETAIL_ENABLE_POSTER_DRAFTS=false" "RETAIL_ENABLE_POSTER_RENDERING=false"             "RETAIL_NOTIFICATIONS_ENABLED=false"
+          az functionapp deployment source config-zip -g "$RG" -n "$APP"             --src "$RUNNER_TEMP/release/poster.zip" --build-remote true -o none
+          ready=0
+          for i in $(seq 1 12); do
+            az functionapp function list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/functions.json"
+            if python3 - "$RUNNER_TEMP/functions.json" <<'PY'
+          import json,sys
+          functions={x.get('name','').split('/')[-1] for x in json.load(open(sys.argv[1]))}
+          needed={'create_campaign','read_campaign','create_poster_draft',
+                  'list_saved_posters','get_poster_draft','request_poster_render',
+                  'read_poster_render','download_poster_render','select_poster_banner',
+                  'dispatch_pending_posters','render_campaign_poster','plan_campaign',
+                  'render_campaign_reel','recover_stale_jobs'}
+          missing=needed-functions
+          print('INDEXED_FUNCTIONS',len(functions),'MISSING',sorted(missing))
+          sys.exit(0 if not missing else 1)
+          PY
+            then ready=1; break; fi
+            sleep 10
+          done
+          test "$ready" = 1 || { echo "::error::Poster Functions not indexed; flags remain OFF"; exit 3; }
+          # During the transition there are no poster queued jobs; frontend cloud
+          # buttons cannot create work until both feature gates are switched on.
+          az functionapp config appsettings set -g "$RG" -n "$APP" -o none --settings             "RETAIL_ENABLE_POSTER_DRAFTS=true" "RETAIL_ENABLE_POSTER_RENDERING=true"             "AzureWebJobs.render_campaign_poster.Disabled=false"             "AzureWebJobs.dispatch_pending_posters.Disabled=false"
+          ok=0
+          for i in $(seq 1 10); do
+            code="$(curl -sS --connect-timeout 10 --max-time 25 -o /dev/null -w '%{http_code}'               "https://$APP.azurewebsites.net/api/poster-drafts/11111111-1111-4111-8111-111111111111" || true)"
+            if [ "$code" = 401 ]; then ok=1; break; fi
+            sleep 10
+          done
+          if [ "$ok" != 1 ]; then
+            az functionapp config appsettings set -g "$RG" -n "$APP" -o none --settings               "RETAIL_ENABLE_POSTER_DRAFTS=false" "RETAIL_ENABLE_POSTER_RENDERING=false"               "AzureWebJobs.render_campaign_poster.Disabled=true"               "AzureWebJobs.dispatch_pending_posters.Disabled=true"
+            echo "::error::Protected poster API 401 smoke failed; poster runtime disabled again"
+            exit 3
+          fi
+          echo "PASS: poster routes and queue/timer indexed, feature flags enabled, unsigned request denied 401"
+          echo "NOTE: no authenticated merchant campaign/media/render/download E2E in this workflow"
+      - name: Logout Azure session
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
