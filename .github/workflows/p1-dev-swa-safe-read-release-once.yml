@@ -123,7 +123,7 @@ jobs:
           grep -Fq 'platform-alert' "$RUNNER_TEMP/live.css"
           # Verify the live Vite JS, not only a green deployment response.
           curl -fsSL --max-time 25 "https://$host/" -o "$RUNNER_TEMP/live-index.html"
-          js="$(grep -oE 'src="/assets/[^"]+\\.js"' "$RUNNER_TEMP/live-index.html" | head -1 | cut -d'"' -f2)"
+          js="$(grep -oE 'src="/assets/[^"]+[.]js"' "$RUNNER_TEMP/live-index.html" | head -1 | cut -d'"' -f2)"
           test -n "$js"
           curl -fsSL --max-time 30 "https://$host$js" -o "$RUNNER_TEMP/live-frontend.js"
           grep -Fq 'Campaign service is temporarily unavailable. Try again.' "$RUNNER_TEMP/live-frontend.js"
