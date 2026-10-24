@@ -212,8 +212,11 @@ def upload_using_playwright(*, shop_id, email, password, image_bytes, cleanup_pa
     with tempfile.TemporaryDirectory(prefix="rgai-browser-fixture-") as directory:
         photo = Path(directory) / "fixture.png"
         photo.write_bytes(image_bytes)
-        env = dict(os.environ)
+        # Never inherit privileged service role, deployment or cloud secrets.
+        env = {name: os.environ[name] for name in ("PATH", "HOME", "TMPDIR")
+               if os.environ.get(name)}
         env.update({
+            "RGAI_DEV_CANARY_APPROVAL": os.environ["RGAI_DEV_CANARY_APPROVAL"],
             "RGAI_DEV_PLAYWRIGHT_UPLOAD": "1",
             "RGAI_BROWSER_SHOP_ID": shop_id,
             "RGAI_BROWSER_USER_EMAIL": email,
