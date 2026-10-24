@@ -61,3 +61,27 @@ def test_provider_request_repr_cannot_leak_token_or_signed_media():
     assert "VERY-SECRET-BEARER" not in rendered
     assert "PRIVATE-SIGNED" not in rendered
     assert "headers=" not in rendered and "body=" not in rendered
+
+def test_instagram_rejects_mutable_or_foreign_signed_urls():
+    valid = ("https://example.supabase.co/storage/v1/object/sign/"
+        "retailgrowth-social-exports/"
+        "31000000-0000-4000-8000-000000000001/video/"
+        "62000000-0000-4000-8000-000000000001/1/"
+        + "ab"*32 + ".mp4?token=AUTHENTIC-SIGNED-TOKEN-1234567890")
+    assert social.private_media_url(valid,"https://example.supabase.co")==valid
+    invalid = [
+        valid.replace("retailgrowth-social-exports", "retailgrowth-media"),
+        valid.replace("/video/", "/drafts/"),
+        valid.replace("/1/", "/0/"),
+        valid.replace("ab"*32, "xy"*32),
+        valid.replace("token=AUTHENTIC-SIGNED-TOKEN-1234567890", "token=short"),
+        valid + "&token=duplicate",
+        valid.replace("https://example.supabase.co", "http://example.supabase.co"),
+        valid.replace("example.supabase.co", "attacker.invalid"),
+        valid.replace("?token=", "?download=true&token="),
+        valid + "#fragment",
+        valid.replace("example.supabase.co", "example.supabase.co:8443"),
+    ]
+    for url in invalid:
+        with pytest.raises(social.ProviderRejected):
+            social.private_media_url(url, "https://example.supabase.co")
