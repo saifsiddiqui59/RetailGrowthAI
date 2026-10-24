@@ -66,3 +66,7 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 ## 2026-10-24 — AAC audio is mandatory for the initial reviewed MP4 profile
 - Initial P2 Instagram Reel/YouTube Shorts media gate only accepts server-attested H.264 video with AAC audio, yuv420p, 1080x1920 and 29–31s duration; missing audio or other audio codecs fail closed at registration and lookup.
 - The staged record is **not itself** provider certification; do not enable video approval/publishing until actual stored source byte digest, real FFprobe execution, tenant rights/license evidence and lease-safe provider receipts are bound by trusted backend code. No existing hosted DB migration is rewritten.
+
+## 2026-10-24 — Service-owned byte and FFprobe preflight, separate from rights approval
+- The media profile for initial 30-second Reel/Shorts eligibility must derive from backend-owned private bytes and a real bounded FFprobe subprocess; never accept client-supplied codec/length JSON or source SHA as verification. Require a previously established trusted storage receipt hash and check file stability around probe. Reject additional unsupported tracks and out-of-root paths.
+- This preparatory module is not callable from authenticated API or an active publish worker, and cannot self-attest commercial rights. An independent explicit license review and job-bound transaction must remain required before enabling any Instagram/YouTube approval.
