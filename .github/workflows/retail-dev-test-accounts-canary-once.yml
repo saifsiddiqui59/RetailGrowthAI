@@ -33,6 +33,7 @@ jobs:
     env:
       RGAI_DEV_CANARY_APPROVAL: AUTHORIZED_RETAILGROWTHAI_DEV_ONLY
       RGAI_DEV_PLAYWRIGHT_UPLOAD: ${{ inputs.mode == 'browser-upload' && '1' || '0' }}
+      RGAI_DEV_VIDEO_ARTIFACT_DIR: output/video-acceptance
       RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
       RGAI_DEV_PUBLISHABLE_KEY: sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq
     steps:
@@ -72,3 +73,11 @@ jobs:
           python3 -m py_compile tests/e2e/retail_dev_canary_once.py
       - name: Run bounded hosted DEV synthetic image + 2 disposable accounts
         run: python3 tests/e2e/retail_dev_canary_once.py
+      - name: Upload only FFprobe-verified synthetic cloud Reel media after cleanup
+        if: always() && inputs.mode == 'browser-upload'
+        uses: actions/upload-artifact@v4
+        with:
+          name: retailgrowthai-dev-live-cloud-30s-reel
+          path: output/video-acceptance/retailgrowthai-dev-cloud-reel.mp4
+          retention-days: 7
+          if-no-files-found: warn
