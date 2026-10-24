@@ -69,8 +69,10 @@ class InstagramReelUpload:
         except ProviderRejected:
             raise ProviderFailure("UNAUTHORIZED_MEDIA", definitely_not_sent=True) from None
         # Durable CAS state prevents two independent workers creating containers.
+        # A previously durable create intent may already have reached Meta:
+        # never classify replay as definitively unsent or safe to retry.
         if self.storage.begin_container(jid, account) is not True:
-            raise ProviderFailure("CONTAINER_ALREADY_STARTED", definitely_not_sent=True)
+            raise ProviderFailure("CONTAINER_CREATION_MAY_HAVE_OCCURRED")
         try:
             status, body, _ = self.transport(request)
             container = _receipt_or_uncertain(status, body)
@@ -143,8 +145,10 @@ class YouTubeResumableUpload:
                 size_bytes=size_bytes)
         except ProviderRejected:
             raise ProviderFailure("INVALID_MEDIA", definitely_not_sent=True) from None
+        # An earlier init request may have created an active remote session.
+        # Lost ACK/duplicate queue delivery must require reconciliation.
         if self.storage.begin_upload(jid,size_bytes) is not True:
-            raise ProviderFailure("UPLOAD_ALREADY_STARTED", definitely_not_sent=True)
+            raise ProviderFailure("UPLOAD_SESSION_INIT_MAY_HAVE_OCCURRED")
         try:
             status,_,headers = self.transport(req)
             location = headers.get("location") if isinstance(headers,dict) else None
