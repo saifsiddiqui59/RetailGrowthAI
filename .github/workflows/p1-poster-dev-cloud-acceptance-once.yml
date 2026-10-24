@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: caa34f249f2b02a4bd1a1dcbe04ef31b17b95db1
+          ref: cebb526e827c49434db5cbbabef965b10f2d8583
           persist-credentials: false
       - name: Pin isolated synthetic fixture and fail closed for wrong DEV target
         shell: bash
@@ -39,17 +39,18 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REPOSITORY" = "saifsiddiqui59/RetailGrowthAI"
           test "$GITHUB_REF" = "refs/heads/main"
-          test "$(git rev-parse HEAD)" = "caa34f249f2b02a4bd1a1dcbe04ef31b17b95db1"
+          test "$(git rev-parse HEAD)" = "cebb526e827c49434db5cbbabef965b10f2d8583"
           test -n "${RGAI_DEV_SERVICE_KEY:-}"
           python3 -m py_compile tests/e2e/retail_dev_canary_once.py
           echo "PASS: actual temporary retailer JWT, existing ROOT approval and tenant ownership RLS; no WineShopPOS or customer dataset"
       - name: Exercise signed-in retailer campaign, private worker poster render, signed PNG download and selection
         shell: bash
         run: python3 -u tests/e2e/retail_dev_canary_once.py
-      - name: Upload real cloud PNG only after successful acceptance and cleanup
+      - name: Upload verified real cloud PNG, including when banner selection fails
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: retailgrowthai-live-dev-cloud-poster
           path: output/poster-acceptance/retailgrowthai-dev-cloud-poster.png
           retention-days: 7
-          if-no-files-found: error
+          if-no-files-found: warn
