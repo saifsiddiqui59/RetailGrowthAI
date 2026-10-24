@@ -18,6 +18,8 @@ class PackageTests(unittest.TestCase):
         files = mod.source_files()
         self.assertIn("azure-functions/campaign-api/render_worker.py", files)
         self.assertIn("video-engine/render.py", files)
+        self.assertIn("poster-engine/render.py", files)
+        self.assertIn("azure-functions/campaign-api/poster_worker.py", files)
         self.assertIn("ai_agents/schemas.py", files)
         self.assertIn("function_app.py", files)
         host = json.loads(files["host.json"])
@@ -86,6 +88,13 @@ class PackageTests(unittest.TestCase):
             path = Path(tmp) / "approved.zip"
             mod.write_zip(path, entries)
             self.assertTrue(mod.verify_zip(path))
+            # The deployed poster worker imports poster-engine/render.py at startup.
+            # A ZIP without it must never pass the release packaging gate.
+            no_poster = dict(entries)
+            no_poster.pop("poster-engine/render.py")
+            mod.write_zip(path, no_poster)
+            with self.assertRaises(ValueError):
+                mod.verify_zip(path)
             entries["host.json"] = entries["host.json"].replace(b"00:20:00", b"00:30:00")
             mod.write_zip(path, entries)
             with self.assertRaises(ValueError):

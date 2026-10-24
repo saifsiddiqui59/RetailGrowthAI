@@ -329,3 +329,8 @@
 ## 2026-10-24 — Safe Part 1 release scope
 - Merge source-level Part 1 integration only after all 4 PR and post-main CI checks pass. Deliver new administrative routes as frontend-only to the **same tagged existing Free DEV SWA**, validating its exact hostname/Free SKU and public JS/CSS; do not provision new Azure resources.
 - Source merge does **not** imply Supabase Auth sender configuration, transactional outbox migration, cloud poster queues, or live Functions deployment. Keep notification sending and poster runtime OFF until project-specific secrets, safe migration backup/restore and hosted acceptance. Same authorized Gmail address with distinct RetailGrowthAI From branding is permitted; existing WineShopPOS SMTP secret remains private and unchanged.
+
+
+## 2026-10-24 — Fail-closed packaged poster worker and DEV rollout policy
+- The Azure Functions release archive is authoritative; source CI alone is insufficient. Package `poster-engine/render.py` at the repository-root-relative path expected by `poster_worker.py`, and reject deployment ZIPs missing either worker or poster engine. Preserve fixed Function timeout, raw UUID queue encoding, bounded retries, and existing FFmpeg source.
+- Do not enable poster draft/render API or worker until the exact RetailGrowthAI DEV schema migration sequence, recovery evidence, existing-region queue and properly indexed deployed Functions have been verified. Existing Free SWA deployment remains valid; private cloud render is a separate stage. Keep SMTP and Wan/publishing disabled by default. Document operator gates in `docs/part1/POSTER_DEV_RELEASE_GATE.md`.
