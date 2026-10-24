@@ -13,7 +13,7 @@ SHOP = "31000000-0000-4000-8000-000000000001"
 JOB = "91000000-0000-4000-8000-000000000001"
 KEY = SHOP + "/renders/" + JOB + ".mp4"
 LEASE = "91000000-0000-4000-8000-000000000002"
-SECRET = "private-service-key"
+SECRET = "sb_secret_test-only"
 ORIGIN = "https://retail.test.supabase.co"
 DATA = b"private-render-bytes"
 
@@ -46,7 +46,7 @@ def test_authorized_private_render_streams_only_expected_bytes(tmp_path):
     assert result["size_bytes"] == len(DATA)
     assert result["path"].read_bytes() == DATA
     assert "/storage/v1/object/retailgrowth-media/" in requests[0].full_url
-    assert requests[0].get_header("Authorization")
+    assert requests[0].get_header("Apikey") == SECRET
     assert requests[0].get_header("Accept-encoding") == "identity"
     assert len(requests) == 1
 
