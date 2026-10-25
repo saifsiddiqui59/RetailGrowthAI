@@ -25,7 +25,8 @@ begin
     join retail_private.social_publish_quota_ledger l
       on l.publish_job_id=j.id and l.shop_id=j.shop_id
       and l.period_start=s.period_start
-    where j.provider in ('facebook','linkedin')\n      and j.status in ('APPROVED','QUEUED','RETRYABLE')
+    where j.provider in ('facebook','linkedin')
+      and j.status in ('APPROVED','QUEUED','RETRYABLE')
       and j.scheduled_at<=now() and j.attempts<5
       and j.approved_at is not null and j.approved_by is not null
       and j.approved_content_sha256 is not null
