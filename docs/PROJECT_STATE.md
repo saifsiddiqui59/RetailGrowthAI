@@ -433,3 +433,6 @@ Source-only [#161](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/161) st
 
 ## 2026-10-25 — Part 2 offline social video E2E coordinator source
 - Unregistered `ReviewedVideoSendOrchestrator` now composes existing trusted evidence, immutable Instagram storage export and durable provider receipt adapters behind private claim/rights verification. Fake-provider E2E tests cover Instagram container→finish and YouTube encrypted-session→private binary receipt without posting to real accounts. Constructor defaults OFF; real lease context backend, genuine licensed assets, hosted P2 schema, provider OAuth, Azure registration and Final Coordinator latest-main integration remain pending.
+
+## 2026-10-25 — Part 2 private claim context source staged
+- Source-only 191800 SQL and `ScopedVideoClaimAuthority` provide video sender with a server-computed active SENDING lease, licensed P1 media SHA/rights and AES-GCM sealed provider OAuth token; browser and queue cannot supply or read claims. Staged disposable database + fake OAuth tests under feature CI. No live cloud changes, plan cap rows, P1 callback wiring, real licensed provider media or social publish.
