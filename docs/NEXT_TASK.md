@@ -358,3 +358,9 @@ Implement account credential refresh/revocation for reviewed provider grants; wi
 
 ## 2026-10-25 — Part2 render-finalization integration for Coordinator
 - Verify source-only FinalizedRenderReceiptWriter exact CI + merge. Coordinator/Part1 owner must wire it at trusted Part1 successful render completion and validate real storage copy/original SHA/rights evidence, without taking Part2's service role to browser or changing WineShopPOS. Hosted P2 migration, OAuth/scopes and provider posts remain separately gated.
+
+## 2026-10-25 — Verified source improvements; still required for live Part2
+1. Post-merge Part2 run #40169220089 passed 4/4; verify and final 2026-10-25 documentation PR 4/4. Do not repeat green #288/#290/#292 or confuse server-only classes with deployed routes.
+2. Coordinator/Part1 lead must integrate the new `FinalizedRenderReceiptWriter` at trusted original FFmpeg completion; store independently verified legal commercial-rights evidence/expiry. No forged media hash/backfill.
+3. Integrate the disabled video approval/claim/immutable export/upload adapters behind independently approved worker routes only after DB/provider app grants, current plan limits and E2E. Verify ambiguous Meta/YouTube receipt and queue reconciliation, subscription/refund, licensed content and account revocation in real DEV canary. All live publish flags remain OFF.
+4. Final Coordinator only merges Part2 to latest divergent `main` after four-job exact-head + post-merge CI and Part1/Part3 interface reconciliation. No WineShopPOS or unauthorized hosted changes.

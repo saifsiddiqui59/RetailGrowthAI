@@ -426,3 +426,7 @@ Source-only [#161](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/161) st
 
 ## 2026-10-25 — Part2 source-only finalized-render SHA writer contract
 - Added a disabled-by-default service-only callback module to compute and register Part1 FFmpeg private-render output SHA + H.264/AAC evidence against append-only tenant/render/asset DB receipt; bounded transport and negative mock tests. It is **not installed in Part1 renderer**; actual P1 finalization integration and legally reviewed rights/expiry are still required before real video approval or publishing.
+
+## 2026-10-25 — Part2 tested source additions #288/#290/#292 (NO hosted release)
+- Source-only verified integration SHA before this note: `f01f3134abf2bb1734953dde6486bb1d254dcdf1`; exact-head CI #40168290469 (#288), #40168667475 (#290), #40169072335 (#292) **4/4 green**. #288 and #290 independent Part2 post-merge runs #40168434230 and #40168792555 also 4/4 green. #292 post-merge [#40169220089](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40169220089) completed 4/4 success.
+- P2 now has 18 staged SQL migrations 190000–191700, unregistered video-approval+quota CAS, disabled JWT membership-scoped backend video approval, and disabled trusted Part1 FFmpeg SHA registration adapter. Part1 actual render callback not connected. No hosted P2 migration, approved publishing plan caps, verified commercial media rights, authorized provider app OAuth/actual external posts or Coordinator merge to main. Never modify WineShopPOS.
