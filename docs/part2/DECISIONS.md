@@ -147,3 +147,7 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 
 ## 2026-10-26 — Strict provider transport must be explicitly opt-in
 - Require `RETAIL_PART2_VIDEO_NETWORK_TRANSPORT_ENABLED=true` alongside all six existing video social flags and explicit Python factory `enabled=True` for a network transport instance. The built-in transport already forbids non-allowlisted URL, redirects and implicit retries, while the original sender checks server authority/rights prior to external effects. No auto-register Azure or expose browser routes. No hosted/PROD or WineShopPOS changes.
+
+## 2026-10-26 — Dedicated provider-locked text claim, do not share with reviewed video
+- Staged 190300 SQL `p2_due_social_job_ids` now filters `facebook|linkedin`. Introduced `p2_claim_social_text_publish` service-only RPC that acquires job FOR UPDATE, verifies Facebook/LinkedIn, then invokes the existing generic claim within same transaction. Current text worker uses only this dedicated claim. An old/forged IG/YT queue UUID no longer changes video job state. This is a source-only (unhosted) safety fix, not a general-purpose video claim; independently reviewed video-specific due/claim is still required.
+- Review #314 strict private IG container read and #315 7th provider transport gate as safe source foundations, NOT provider posts or authorization. All external release gates remain OFF.
