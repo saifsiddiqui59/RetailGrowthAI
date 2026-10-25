@@ -141,3 +141,6 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 
 ## 2026-10-25 — Read-only provider observation cannot assert a published Reel/Short
 - Bound P2 read-only verification to server-only active SENDING claim, matching stored receipt, scope and current account; no bearer in errors. Allow exactly vetted Google videos.list GET endpoint for known 11-character video ID and current youtube.readonly consent. Check owner channel and PRIVATE processing state without marking content publicly posted. Meta container status is only preliminary, never substitute for remote media_publish final receipt. On denial, mismatch or post-read revocation, preserve uncertain state; never authorize a blind second POST/PUT. Source-only until real approved backend wiring.
+
+## 2026-10-26 — No public P2 receipt read or automatic provider write
+- Reuse existing 191600 strict service-role Instagram container RPC, not a new browser-readable social table, for source-only read-only observation. Require exact current server claim and second claim recheck after receipt load. A container is upload processing evidence only, never a final Meta published-media/account proof. Any failure is reconciliation, not permission to repeat media_publish. This module alone does not register a Functions job, create or send an external post or change live OAuth.
