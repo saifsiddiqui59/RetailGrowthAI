@@ -51,7 +51,11 @@ class Claims:
         return self.ctx
     def allow(self,data):
         self.allow_calls+=1
-        return self.authorized
+        # This fake stands in for the DB: it pins the active claim to the
+        # exact tenant and job, rather than trusting a Python context row.
+        return (self.authorized and data["shop_id"]==SID
+                and data["job_id"]==JOB
+                and data["claim_token"]==LEASE)
 
 
 class Reader:
