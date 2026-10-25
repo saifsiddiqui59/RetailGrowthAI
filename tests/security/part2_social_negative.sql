@@ -902,6 +902,13 @@ begin
     '73000000-0000-4000-8000-000000000001','youtube',
     'Reviewed video upload','81000000-0000-4000-8000-000000000001',
     when_utc,'Asia/Kolkata','youtube-review-001');
+  -- An independently reviewed media source is NOT the same thing as an
+  -- independently licensed job. The new resume RPC demands both ledgers.
+  if not public.p2_record_social_video_rights(
+      shop,'63000000-0000-4000-8000-000000000001',actor,1,
+      repeat('cd',32),'GENERATED_RIGHTS_VERIFIED',now()+interval '1 day') then
+    raise exception 'FAIL: YouTube independently reviewed rights not recorded';
+  end if;
   if not public.p2_bind_social_video_review(shop,
     '63000000-0000-4000-8000-000000000001',actor,1,repeat('ab',32)) then
     raise exception 'FAIL: YouTube fixture review not bound';
