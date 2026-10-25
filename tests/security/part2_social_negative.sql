@@ -20,6 +20,7 @@
 \ir ../../supabase/part2/pending/20261023191600_p2_video_upload_rpc_bridge.sql
 \ir ../../supabase/part2/pending/20261023191700_p2_reviewed_video_approval.sql
 \ir ../../supabase/part2/pending/20261023191800_p2_video_send_claim_context.sql
+\ir ../../supabase/part2/pending/20261023191900_p2_youtube_resume_one_shot.sql
 
 -- Part2 exports reuse Part1 private bucket, with a restrictive deny
 -- policy for the <shop>/social-exports/ namespace even if broad permissive
@@ -891,6 +892,11 @@ begin
   values('73000000-0000-4000-8000-000000000001',shop,'youtube',
     'channel-fixture-01','Tenant YouTube channel',actor,
     array['youtube.upload'],'CONNECTED');
+  insert into retail_private.social_account_credentials(
+    social_account_id,encryption_key_version,access_token_ciphertext,
+    expires_at)
+  values('73000000-0000-4000-8000-000000000001',1,
+    decode(repeat('dc',80),'hex'),now()+interval '1 day');
   perform public.p2_create_social_draft(
     '63000000-0000-4000-8000-000000000001',shop,actor,day,
     '73000000-0000-4000-8000-000000000001','youtube',
@@ -960,6 +966,37 @@ begin
       (current_claim->>'claim_token')::uuid,
       'SESSION_KNOWN','BINARY_INTENT',null,null) then
     raise exception 'FAIL: binary intent not recorded before remote PUT';
+  end if;
+  -- Confirm one-shot reviewed exact SHA/size/active lease CAS before
+  -- any YouTube offset-specific partial binary transfer.
+  if public.p2_begin_youtube_resume(
+      '63000000-0000-4000-8000-000000000001',
+      gen_random_uuid(),5,1234,repeat('ab',32))
+     or public.p2_begin_youtube_resume(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,1234,1234,repeat('ab',32))
+     or public.p2_begin_youtube_resume(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,5,1234,repeat('ff',32))
+     or public.p2_begin_youtube_resume(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,5,999,repeat('ab',32))
+  then raise exception 'FAIL: YouTube untrusted resume lease/offset/SHA/size accepted';
+  end if;
+  if not public.p2_begin_youtube_resume(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,5,1234,repeat('ab',32)) then
+    raise exception 'FAIL: one-shot YouTube offset intent refused';
+  end if;
+  if public.p2_begin_youtube_resume(
+      '63000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid,5,1234,repeat('ab',32)) then
+    raise exception 'FAIL: one-shot YouTube offset intent replay accepted';
+  end if;
+  if (select youtube_resume_next_byte
+       from retail_private.social_video_uploads
+       where job_id='63000000-0000-4000-8000-000000000001')<>5 then
+    raise exception 'FAIL: YouTube recorded offset mismatch';
   end if;
   if not public.p2_advance_social_video_upload(
       '63000000-0000-4000-8000-000000000001',
@@ -1044,6 +1081,20 @@ begin
 end $videoacl$;
 rollback;
 \echo 'PASS: encrypted video upload stages and receipts are service-only'
+
+-- YouTube one-time resumable partial send CAS must remain service-only.
+begin;
+do $youtubeone$
+begin
+  if has_function_privilege('anon',
+      'public.p2_begin_youtube_resume(uuid,uuid,bigint,bigint,text)','EXECUTE')
+     or has_function_privilege('authenticated',
+      'public.p2_begin_youtube_resume(uuid,uuid,bigint,bigint,text)','EXECUTE')
+  then raise exception 'FAIL: YouTube resuming callable via browser';
+  end if;
+end $youtubeone$;
+rollback;
+\echo 'PASS: YouTube resumed upload CAS isolated from browser roles'
 
 -- Backend media claim can never expose encrypted OAuth secrets to clients.
 begin;
