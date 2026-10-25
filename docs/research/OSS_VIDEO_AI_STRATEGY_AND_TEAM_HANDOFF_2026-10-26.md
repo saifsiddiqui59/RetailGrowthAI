@@ -62,3 +62,7 @@ Compare option (a) full upstream app behind a narrow adapter versus (b) importin
 ## Project documentation process
 
 This evaluation lives on a separate documentation-only branch/PR, not a merge to main. It supplements draft #312 without rewriting its research, and it makes no claims that team implementation has started. Coordinator should merge reviewed research and update canonical PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG only upon accepting assignments; no obsolete milestones rewritten.
+
+## 2026-10-26 — Global Top-100 GitHub discovery
+
+A full top-100 globally most-starred public non-fork/non-archived GitHub repository scan, exact ranked 100 names and prioritized OSS candidates are recorded in [GITHUB_TOP100_RELEVANCE_AUDIT_2026-10-26.md](GITHUB_TOP100_RELEVANCE_AUDIT_2026-10-26.md). Strong additions: ComfyUI isolated GPU model workflow, shadcn/ui dashboard components, Apache-2.0 HyperFrames for CPU motion graphics, MIT OpenCut video-editor UI study and Apache-2.0 Diffusers direct-inference alternative. MoneyPrinterTurbo retains independent full-Docker evaluation. ComfyUI GPL-3.0, n8n Sustainable Use, Dify multi-tenant license, OpenMontage AGPL-3.0 and OpenTryOn CC BY-NC restrictions are explicitly recorded; do not copy restricted code into the planned SaaS without approval. No implementation, SaaS integration, GPU resource or paid provider was activated.
