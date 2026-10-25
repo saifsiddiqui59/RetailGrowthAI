@@ -1,5 +1,6 @@
 name: RetailGrowthAI DEV one-shot Flex HTTP host scale correlation
 # One-shot existing DEV read-only diagnostics; no configuration, resource or tenant changes.
+# Second approved protected observation reads allowlisted Flex scale settings via ARM.
 on:
   push:
     branches: [main]

@@ -376,3 +376,6 @@
 ## 2026-10-25 — Evidence-first Flex P0 diagnostics, no speculation-based capacity purchase
 - Instrument one protected **one-time read-only** Azure OIDC check of the exact tagged Central India DEV Functions app, logging only allowlisted configuration, fixed anonymous no-JWT request status/time and application-header presence, supported platform metric aggregates and timestamp-bucketed telemetry. No raw exception messages, secret settings, identities, customer media or JWT. No writes, recurring keep-warm probes, or plan scaling.
 - A successful diagnostics job only proves evidence collection. Keep P0 #249 open until direct gateway behavior and authenticated E2E pass; do not claim worker success or Reel RLS GET mitigation fixes campaign POST ingress.
+
+## 2026-10-25 — Avoid absent Flex config from CLI's shallow response
+- `az functionapp show` returned no `functionAppConfig` in protected #40170248089. To validate exact DEV Flex memory/scale/HTTP always-ready, use an **additional read-only ARM resource fetch** scoped to the previously verified exact Function resource ID and documented `Microsoft.Web/sites@2024-11-01`, printing only runtime/scale counts. A 404, lack of permission, or missing configuration remains explicitly `unavailable`, not evidence of zero. Never emit raw ARM response or appSettings.

@@ -46,3 +46,37 @@ def test_no_privileged_mutations_or_raw_logs():
         "response.read(", "print(error)", "print(app)", "curl -k",
     ):
         assert forbidden not in value
+
+def test_actual_arm_resource_config_not_shallow_cli_stub(monkeypatch, capsys):
+    # az functionapp show can omit functionAppConfig; ARM properties contain it.
+    from ops import flex_ingress_correlation as diag
+
+    app_id = ("/subscriptions/00000000-0000-0000-0000-000000000000"
+              "/resourceGroups/rg-retailgrowth-dev/providers/Microsoft.Web"
+              "/sites/rgai-dev-functions-d4e5ddbd")
+    observed = []
+
+    def fake_azure(*args):
+        observed.append(args)
+        assert args[:2] == ("resource", "show")
+        assert "--api-version" in args and "2024-11-01" in args
+        return {"id": app_id, "properties": {"functionAppConfig": {
+            "runtime": {"name": "python", "version": "3.12"},
+            "scaleAndConcurrency": {"instanceMemoryMB": 2048,
+                                    "maximumInstanceCount": 1,
+                                    "alwaysReady": [{"name": "http", "instanceCount": 0}]}}}}
+
+    monkeypatch.setattr(diag, "azure", fake_azure)
+    config = diag.read_flex_config({"id": app_id})
+    assert config["scaleAndConcurrency"]["instanceMemoryMB"] == 2048
+    assert config["runtime"]["name"] == "python"
+    assert len(observed) == 1
+    assert "P0_FLEX_ARM_CONFIG_VISIBLE=true" in capsys.readouterr().out
+
+
+def test_arm_scope_cannot_read_another_function(monkeypatch):
+    import pytest
+    from ops import flex_ingress_correlation as diag
+    monkeypatch.setattr(diag, "azure", lambda *args: pytest.fail("must reject before querying ARM"))
+    with pytest.raises(RuntimeError, match="Unexpected DEV app resource ID"):
+        diag.read_flex_config({"id": "/subscriptions/x/resourceGroups/another/providers/Microsoft.Web/sites/foreign"})

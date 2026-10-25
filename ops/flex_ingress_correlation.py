@@ -28,6 +28,28 @@ def azure(*args):
     return json.loads(result.stdout)
 
 
+def read_flex_config(app):
+    """Read actual Flex config from ARM; CLI functionapp show omits it on some versions."""
+    app_id = app.get("id", "")
+    expected = ("/resourcegroups/rg-retailgrowth-dev/providers/"
+                "microsoft.web/sites/rgai-dev-functions-d4e5ddbd")
+    if not app_id.lower().endswith(expected):
+        raise RuntimeError("Unexpected DEV app resource ID")
+    try:
+        arm = azure("resource", "show", "--ids", app_id,
+                    "--api-version", "2024-11-01")
+    except (RuntimeError, subprocess.TimeoutExpired, ValueError):
+        print("P0_FLEX_ARM_CONFIG_VISIBLE=unavailable", flush=True)
+        return app.get("functionAppConfig") or {}
+    if arm.get("id", "").lower() != app_id.lower():
+        raise RuntimeError("ARM returned unexpected resource")
+    config = ((arm.get("properties") or {}).get("functionAppConfig")
+              or arm.get("functionAppConfig")
+              or app.get("functionAppConfig") or {})
+    print("P0_FLEX_ARM_CONFIG_VISIBLE=" + str(bool(config)).lower(), flush=True)
+    return config
+
+
 def audit_scope():
     sub = os.environ.get("RGAI_DEV_EXPECTED_SUBSCRIPTION", "")
     if not sub:
@@ -45,8 +67,9 @@ def audit_scope():
             and app.get("name") == APP
             and app.get("location", "").replace(" ", "").lower() == "centralindia"):
         raise RuntimeError("DEV resource identity mismatch")
-    scale = (app.get("functionAppConfig") or {}).get("scaleAndConcurrency") or {}
-    runtime = (app.get("functionAppConfig") or {}).get("runtime") or {}
+    config = read_flex_config(app)
+    scale = config.get("scaleAndConcurrency") or {}
+    runtime = config.get("runtime") or {}
     always_ready = scale.get("alwaysReady")
     http_count = (sum(int(x.get("instanceCount", 0)) for x in always_ready
                       if x.get("name") == "http")
