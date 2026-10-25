@@ -268,3 +268,6 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 
 ## 2026-10-25 — Verified source-only observer and nonactivated rollout criteria
 - #310 merged internal `b479f11d` after exact 4/4 feature CI #40186868537 and post-merge #40187015315 4/4; optional server-claim/receipt-loaded read-only inspection remains UNREGISTERED. Connected RetailGrowthAI DEV project has no hosted P2 social tables; all 20 staged SQL migrations remain unapplied. Detailed G0–G9 tests, consent, quotas, monitor, permission and recovery criteria now drafted in `docs/part2/DEV_VIDEO_PUBLISH_RELEASE_CHECKLIST_20261025.md` for the Coordinator/DEV operator. No real posts or approved cloud activation.
+
+## 2026-10-26 — Existing DB-based IG receipt loader source (not deployed)
+- Service-only `ScopedInstagramReceiptLoader` wraps already staged P2 191600 `p2_video_container_for_claim`, validates active server job/lease + immutable revision, shop, connected IG account, source SHA and scoped permission, and rereads claim after bounded private RPC. Optional adapter feeds #310 read-only remote observer; no new schema, public route or active posting. Source-only fake tests include Meta GET status `PUBLISHED` with conservative `FINAL_POST_RECEIPT_REQUIRED`. No actual Meta final media receipts, OAuth grants, hosted SQL or worker deployments verified.
