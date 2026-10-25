@@ -364,3 +364,6 @@ Implement account credential refresh/revocation for reviewed provider grants; wi
 2. Coordinator/Part1 lead must integrate the new `FinalizedRenderReceiptWriter` at trusted original FFmpeg completion; store independently verified legal commercial-rights evidence/expiry. No forged media hash/backfill.
 3. Integrate the disabled video approval/claim/immutable export/upload adapters behind independently approved worker routes only after DB/provider app grants, current plan limits and E2E. Verify ambiguous Meta/YouTube receipt and queue reconciliation, subscription/refund, licensed content and account revocation in real DEV canary. All live publish flags remain OFF.
 4. Final Coordinator only merges Part2 to latest divergent `main` after four-job exact-head + post-merge CI and Part1/Part3 interface reconciliation. No WineShopPOS or unauthorized hosted changes.
+
+## 2026-10-25 — Part2 after source-only video orchestration
+- Review/test/merge exact CI for `feat/p2-verified-video-send-orchestration` to Part2 branch, then instantiate a real claim-scoped service context (not browser input), integrate FFmpeg finalizer SHA/rights on Part1, permissioned hosted OAuth/social quotas and Azure worker only after owner-approved DEV release. No direct Part2→main merge; Final Coordinator handles latest Part1/Part3 conflicts. No WineShopPOS modification.
