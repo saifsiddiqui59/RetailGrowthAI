@@ -386,3 +386,6 @@ Implement account credential refresh/revocation for reviewed provider grants; wi
 
 ## 2026-10-25 — YouTube source retry safety after #304
 - Verify new P2 191900 one-shot resume CI+internal merge and independent integration CI; then Coordinator/DEV operator must perform separately approved hosted migrations, provider OAuth/plan quota setup, licensed actual rights/P1 render-source SHA and real account E2E before enabling Azure provider worker. Preserve text-only worker and all publish flags OFF, WineShopPOS untouched.
+
+## 2026-10-25 — Meta finish / YouTube recovery source wiring
+- Require feature exact-head four-job CI + internal Part2 merge and independent integration CI. No Azure trigger/public route registration until approved hosted 190000–191900 migrations, independently reviewed P1 render SHA+media rights, plan publishing limits/consented OAuth channels, real test-account receipt E2E and Coordinator main compatibility. WineShopPOS never modified.
