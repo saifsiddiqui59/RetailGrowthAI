@@ -439,3 +439,7 @@ Source-only [#161](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/161) st
 
 ## 2026-10-25 — Source-only guarded video worker assembly
 - Added a disabled-by-default explicit builder for Part2 verified video sender, requiring six operator switches and injected reviewed social outbound transport. Active claim/shop/rights/token are obtained by server-only DB RPC; exact private MP4 file byte size is generated from verified bytes. No Azure HTTP/queue functions registered; no real social posts made.
+
+## 2026-10-25 — Part 2 reviewed video source integration verified, hosted NOT deployed
+- Internal source PRs #297 (disabled reviewed video send E2E), #299 (private active video claim/AES rights context, staged SQL 191800) and #301 (six-switch guarded factory, provider transport injection, actual SHA-verified byte size) merged into `feat/part2-integration` at `757573e3`. Exact feature four-job CI 40174924587, 40175561703 and 40176097637 passed. Post-merge 40175067795 and 40175722429 passed, 40176288777 independently confirmed 4/4 SUCCESS.
+- Read-only connected Supabase RetailGrowthAI check confirmed existing P1 `render_jobs`, but P2 `social_publish_jobs` and private `social_video_uploads` absent; Part2 19 SQL files 190000–191800 remain UNAPPLIED on hosted. Real provider OAuth, publication caps, Part1 finalizer callback, licensed rights and social posts remain unverified. Main has advanced independently; Final Coordinator only handles cross-part release. WineShopPOS untouched.
