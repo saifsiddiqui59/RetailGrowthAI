@@ -7,9 +7,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "azure-functions/campaign-api"))
 
 from social_video_remote_verify import ReadOnlyVideoReceiptObserver, RemoteReceiptDenied
-from social_media_transport import MediaNetworkTransport
+from social_media_transport import MediaNetworkTransport, ProviderRequest as TransportProviderRequest
 from social_dispatch import ProviderFailure
-from social_providers import ProviderRequest
 
 JOB="62000000-0000-4000-8000-000000000001"
 LEASE="92000000-0000-4000-8000-000000000001"
@@ -216,7 +215,7 @@ def test_guarded_https_transport_allows_exact_readonly_google_status_only():
     transport=MediaNetworkTransport(enabled=True,opener=opener)
     v,c,r,calls=verifier()
     # Original record is server-held, not a caller-provided URL.
-    auth_request=ProviderRequest(
+    auth_request=TransportProviderRequest(
         method="GET",
         url=("https://www.googleapis.com/youtube/v3/videos?"
              "part=snippet%2Cstatus%2CprocessingDetails&id="+YT_ID),
@@ -237,7 +236,7 @@ def test_readonly_allowlist_rejects_host_query_or_path_injection(url):
     seen=[]
     transport=MediaNetworkTransport(enabled=True,opener=lambda req,timeout: seen.append(req))
     with pytest.raises(ProviderFailure,match="UNAPPROVED_MEDIA_ENDPOINT"):
-        transport(ProviderRequest("GET",url,{"Authorization":"Bearer secret"},{}))
+        transport(TransportProviderRequest("GET",url,{"Authorization":"Bearer secret"},{}))
     assert seen==[]
 
 
@@ -246,9 +245,9 @@ def test_readonly_allowlist_rejects_post_and_body_without_socket():
     seen=[]
     transport=MediaNetworkTransport(enabled=True,opener=lambda req,timeout:seen.append(req))
     for req in [
-        ProviderRequest("POST",url,{"Authorization":"Bearer secret"},{}),
-        ProviderRequest("GET",url,{"Authorization":"Bearer secret"},{"evil":True}),
-        ProviderRequest("GET",url,{"Authorization":"Bearer secret","X-Extra":"yes"},{}),
+        TransportProviderRequest("POST",url,{"Authorization":"Bearer secret"},{}),
+        TransportProviderRequest("GET",url,{"Authorization":"Bearer secret"},{"evil":True}),
+        TransportProviderRequest("GET",url,{"Authorization":"Bearer secret","X-Extra":"yes"},{}),
     ]:
         with pytest.raises(ProviderFailure,match="UNAPPROVED_MEDIA"):
             transport(req)
