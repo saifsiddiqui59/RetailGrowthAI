@@ -18,6 +18,7 @@
 \ir ../../supabase/part2/pending/20261023191400_p2_social_immutable_export_bucket.sql
 \ir ../../supabase/part2/pending/20261023191500_p2_social_export_claim_authority.sql
 \ir ../../supabase/part2/pending/20261023191600_p2_video_upload_rpc_bridge.sql
+\ir ../../supabase/part2/pending/20261023191700_p2_reviewed_video_approval.sql
 
 -- Part2 exports reuse Part1 private bucket, with a restrictive deny
 -- policy for the <shop>/social-exports/ namespace even if broad permissive
@@ -653,6 +654,71 @@ begin
     '81000000-0000-4000-8000-000000000001') then
     raise exception 'FAIL: video publish activated prematurely';
   end if;
+  -- Even the additional, service-only reviewed-video RPC is inert without
+  -- an explicit licensed render SHA, exact consent and approved publish cap.
+  -- It is NOT registered on any browser/Azure route.
+  if public.p2_approve_reviewed_video_job(
+    shop,'62000000-0000-4000-8000-000000000001',
+    actor,2,repeat('aa',32),'Reviewed video post',when_utc,
+    'Asia/Kolkata','81000000-0000-4000-8000-000000000001',
+    repeat('ab',32))
+  or public.p2_approve_reviewed_video_job(
+    shop,'62000000-0000-4000-8000-000000000001',
+    actor,1,repeat('aa',32),'Changed without review',when_utc,
+    'Asia/Kolkata','81000000-0000-4000-8000-000000000001',
+    repeat('ab',32))
+  or public.p2_approve_reviewed_video_job(
+    shop,'62000000-0000-4000-8000-000000000001',
+    actor,1,repeat('aa',32),'Reviewed video post',when_utc,
+    'Asia/Kolkata','81000000-0000-4000-8000-000000000001',
+    repeat('ee',32))
+  or public.p2_approve_reviewed_video_job(
+    shop,'62000000-0000-4000-8000-000000000001',
+    'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    1,repeat('aa',32),'Reviewed video post',when_utc,
+    'Asia/Kolkata','81000000-0000-4000-8000-000000000001',
+    repeat('ab',32)) then
+    raise exception 'FAIL: unreviewed/stale/cross-tenant video approval succeeded';
+  end if;
+  if (select status from public.social_publish_jobs
+      where id='62000000-0000-4000-8000-000000000001')<>'DRAFT' then
+    raise exception 'FAIL: rejected video attempt changed DRAFT';
+  end if;
+  update public.social_accounts set connection_status='REAUTH_REQUIRED'
+    where id='72000000-0000-4000-8000-000000000001';
+  if public.p2_approve_reviewed_video_job(
+    shop,'62000000-0000-4000-8000-000000000001',
+    actor,1,repeat('aa',32),'Reviewed video post',when_utc,
+    'Asia/Kolkata','81000000-0000-4000-8000-000000000001',
+    repeat('ab',32)) then
+    raise exception 'FAIL: revoked Instagram grant allowed video approval';
+  end if;
+  update public.social_accounts set connection_status='CONNECTED'
+    where id='72000000-0000-4000-8000-000000000001';
+  -- Fixture: one text publish unit already exists; enable a SECOND unit
+  -- in the disposable DB only, never in deployed plan settings.
+  update retail_private.social_publish_plan_limits
+    set max_posts_per_period=2 where plan_code='TRIAL';
+  if not public.p2_approve_reviewed_video_job(
+    shop,'62000000-0000-4000-8000-000000000001',
+    actor,1,repeat('aa',32),'Reviewed video post',when_utc,
+    'Asia/Kolkata','81000000-0000-4000-8000-000000000001',
+    repeat('ab',32)) then
+    raise exception 'FAIL: exact licensed approved video could not reserve quota';
+  end if;
+  if (select count(*) from retail_private.social_publish_quota_ledger
+      where publish_job_id='62000000-0000-4000-8000-000000000001')<>1
+      or (select status from public.social_publish_jobs
+      where id='62000000-0000-4000-8000-000000000001')<>'APPROVED'
+      or public.p2_approve_reviewed_video_job(
+        shop,'62000000-0000-4000-8000-000000000001',
+        actor,1,repeat('aa',32),'Reviewed video post',when_utc,
+        'Asia/Kolkata','81000000-0000-4000-8000-000000000001',
+        repeat('ab',32)) then
+    raise exception 'FAIL: duplicate approval or quota reserved twice';
+  end if;
+  -- Subsequent tests simulate a due claim by moving the approved fixture's
+  -- scheduled instant into the past, never with a provider API side effect.
   -- Simulate an authoritative approved claim ONLY inside this disposable
   -- transaction. Ordinary authoring still denies all video approvals above.
   update public.social_publish_jobs set
@@ -795,7 +861,7 @@ begin
     scheduled_at=now()-interval '2 minutes'
     where id='63000000-0000-4000-8000-000000000001';
   update retail_private.social_publish_plan_limits
-    set max_posts_per_period=2 where plan_code='TRIAL';
+    set max_posts_per_period=3 where plan_code='TRIAL';
   if not public.p2_reserve_social_publish_quota(
       shop,'63000000-0000-4000-8000-000000000001') then
     raise exception 'FAIL: YouTube fixture failed second approved quota unit';
@@ -933,6 +999,20 @@ begin
 end $videoacl$;
 rollback;
 \echo 'PASS: encrypted video upload stages and receipts are service-only'
+
+-- New reviewed-video approval cannot be executed from browser JWT.
+begin;
+do $p2reviewapproval$
+begin
+  if has_function_privilege('authenticated',
+       'public.p2_approve_reviewed_video_job(uuid,uuid,uuid,integer,text,text,timestamptz,text,uuid,text)','EXECUTE')
+    or has_function_privilege('anon',
+       'public.p2_approve_reviewed_video_job(uuid,uuid,uuid,integer,text,text,timestamptz,text,uuid,text)','EXECUTE')
+  then raise exception 'FAIL: conditional video approval leaked to client';
+  end if;
+end $p2reviewapproval$;
+rollback;
+\echo 'PASS: source-only video approval is service-only'
 
 -- Even an authenticated shop owner cannot make export approval decisions.
 begin;
