@@ -1,4 +1,4 @@
-"""No-side-effect composition of the Part2 reviewed video pipeline.
+"""No-provider-side-effect composition of the Part2 reviewed video pipeline.
 
 This factory deliberately has NO Azure registration, no provider HTTP client
 and no default social posting transport. All six explicit server-side release
@@ -7,6 +7,8 @@ provider transport are required; importing the module never does I/O.
 The caller must first obtain the *real* p2_claim_social_publish lease, mark
 it EXTERNAL_INFLIGHT, then use the same job+claim for the entire workflow.
 No browser or queue may provide a token, rights record, URL, or SHA.
+Construction performs one private service-role claim lookup to derive shop scope,
+but never downloads media, registers Azure triggers or sends provider requests.
 """
 from __future__ import annotations
 
@@ -75,7 +77,7 @@ def build_guarded_video_sender(config, *, job_id, claim_token,
                               storage_transport=None,
                               provider_transport=None,
                               probe=None, clock=None):
-    """Create a guarded sender; no job is claimed and no network call occurs.
+    """Create guarded sender: only one private service-role claim lookup.
 
     Requires a reviewed, operator-owned private worker release. The explicit
     provider_transport dependency avoids accidentally enabling real network
@@ -104,9 +106,8 @@ def build_guarded_video_sender(config, *, job_id, claim_token,
         reader=SocialPrivateRenderReader(origin,secret,transport=storage_transport)
     except (KeyError,TypeError,ValueError):
         raise VideoWorkerDisabled("invalid reviewed video worker configuration") from None
-    # This private load is a service-role read of the active verified job,
-    # but is performed only when the operator explicitly invokes the builder.
-    # Construction itself does not post to any social provider.
+    # A private service-role read resolves the shop solely from DB authority.
+    # It never posts to a social provider or mutates public account resources.
     try:
         context=claim.load(job_id,claim_token)
         sid=context["shop_id"]
