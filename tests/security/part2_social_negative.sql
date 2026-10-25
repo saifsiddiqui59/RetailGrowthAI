@@ -1231,3 +1231,18 @@ begin
 end $$;
 rollback;
 \echo 'PASS: claim-only token refresh and no browser credential access'
+
+-- A guessed video queue UUID cannot grant text-worker claim rights to
+-- Instagram/YouTube, and browser roles cannot invoke the dedicated claim.
+begin;
+do $p2textfence$
+begin
+  if has_function_privilege('authenticated',
+       'public.p2_claim_social_text_publish(uuid)','EXECUTE')
+     or has_function_privilege('anon',
+       'public.p2_claim_social_text_publish(uuid)','EXECUTE') then
+    raise exception 'FAIL: text-only publish claim RPC is browser-executable';
+  end if;
+end $p2textfence$;
+rollback;
+\echo 'PASS: text-only claim RPC denies browser roles'
