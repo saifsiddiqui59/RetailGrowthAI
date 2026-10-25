@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 import pytest
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"azure-functions/campaign-api"))
-from social_media_uploads import InstagramReelUpload, YouTubeResumableUpload, BinaryUploadRequest
+from social_media_uploads import InstagramReelUpload, YouTubeResumableUpload, BinaryUploadRequest, YouTubeResumeStatus
 from social_dispatch import ProviderFailure
 from social_providers import ProviderRequest
 
@@ -212,3 +212,72 @@ def test_youtube_duplicate_session_init_intent_is_ambiguous_not_safe_to_retry():
             description="Approved",size_bytes=1234)
     assert again.value.definitely_not_sent is False
     assert len(requests)==1
+
+
+@pytest.mark.parametrize("remote_range, expected",[
+    (None,0),("bytes=0-0",1),("bytes=0-99",100),
+    ("bytes=0-319",320),
+])
+def test_youtube_308_range_is_remote_confirmed_read_only_offset(remote_range,expected):
+    state=YouTubeState();state.url=SESSION
+    seen=[]
+    def transport(req):
+        seen.append(req)
+        assert req.data==b"" and req.method=="PUT"
+        assert req.headers["Content-Range"]=="bytes */321"
+        return 308,{},({} if remote_range is None else {"Range":remote_range})
+    u=YouTubeResumableUpload(transport=transport,storage=state)
+    result=u.probe_interrupted_detail(job_id=JOB,token=TOKEN,size_bytes=321)
+    assert isinstance(result,YouTubeResumeStatus)
+    assert (result.next_byte,result.total_bytes,result.state)==(
+        expected,321,"INCOMPLETE_RECONCILE_REQUIRED")
+    assert TOKEN not in str(result)
+    assert SESSION not in str(result)
+    assert len(seen)==1
+    assert state.receipt is None
+    assert state.intent is False
+
+
+@pytest.mark.parametrize("remote_headers",[
+    {"Range":"bytes=0-320"},    # 308 contradicts full transfer
+    {"Range":"bytes=0-321"},    # larger than file
+    {"Range":"bytes=1-20"},     # not a contiguous prefix
+    {"Range":"bytes=0-01"},     # ambiguous noncanonical range
+    {"Range":"bytes=0--1"},
+    {"Range":"bytes=0-10000000000000000000"},
+    {"range":"bytes=0-10","Range":"bytes=0-99"},
+    {"Range":["bytes=0-99"]},
+    {"Range":"bytes=0-99\r\nInjected: yes"},
+])
+def test_youtube_308_invalid_range_fails_closed_without_upload(remote_headers):
+    state=YouTubeState();state.url=SESSION
+    calls=[]
+    u=YouTubeResumableUpload(
+        transport=lambda req:calls.append(req) or (308,{},remote_headers),
+        storage=state)
+    with pytest.raises(ProviderFailure,match="UPLOAD_STATUS_UNKNOWN") as e:
+        u.probe_interrupted_detail(job_id=JOB,token=TOKEN,size_bytes=321)
+    assert e.value.definitely_not_sent is False
+    assert len(calls)==1 and calls[0].data==b""
+    assert state.intent is False and state.receipt is None
+
+
+def test_youtube_308_detail_completed_response_commits_remote_receipt_once():
+    state=YouTubeState();state.url=SESSION
+    seen=[]
+    uploader=YouTubeResumableUpload(
+        transport=lambda req:seen.append(req) or (201,{"id":VIDEOID},{}),
+        storage=state)
+    found=uploader.probe_interrupted_detail(job_id=JOB,token=TOKEN,size_bytes=321)
+    assert found.remote_id==VIDEOID and found.status=="PUBLISHED"
+    assert state.receipt==VIDEOID
+    assert len(seen)==1 and seen[0].data==b""
+
+
+def test_youtube_probe_status_result_preserves_legacy_contract():
+    state=YouTubeState();state.url=SESSION
+    u=YouTubeResumableUpload(
+        transport=lambda req:(308,{},{"Range":"bytes=0-99"}),
+        storage=state)
+    assert u.probe_interrupted(job_id=JOB,token=TOKEN,size_bytes=321)==(
+        "INCOMPLETE_RECONCILE_REQUIRED")

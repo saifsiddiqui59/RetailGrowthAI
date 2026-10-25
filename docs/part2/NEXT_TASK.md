@@ -229,3 +229,7 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 ## 2026-10-25 — Source finished, handoff to DEV operator and Coordinator
 - Verify post-merge #301 4/4 and this docs checkpoint PR. No unfinished internal Part2 PRs expected afterward.
 - Real next steps are cross-part P1 FFmpeg original-output SHA hook, independent commercial stock/music-rights reviewer, approved Supabase 19-file DEV migration and plan quota config (P2 social tables currently absent), real Meta/Google official OAuth grants, verified provider transport, Azure queue/timer/poison worker rollout and provider receipt/reconciliation sandbox E2E. Keep text-only worker and video platform publish flags OFF until rights/caps/auth/deploy tests prove safety. Final Coordinator merges latest main; never touch WineShopPOS.
+
+## 2026-10-25 — Next YouTube resume gate after safe 308 offset parser
+- Verify 4/4 exact-head CI and internal Part2 merge for `feat/p2-youtube-308-reconcile-offset`; verify independent post-merge CI.
+- P0 release: implement a claim-fenced durable **resume-intent CAS** with independent exact-byte SHA/size proof and provider-confirmed next offset immediately before any partial PUT; never send based solely on in-memory 308 or mutate/restart an ambiguous remote session. Preserve HTTPS Google-only AES-encrypted session and revoke checks. Test real approved test-account 308/201/404/5xx after hosted P2 migration and OAuth/plan/media rights approval.

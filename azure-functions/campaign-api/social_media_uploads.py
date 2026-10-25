@@ -49,6 +49,19 @@ def _receipt_or_uncertain(status, body, *, key="id", provider="instagram"):
     return value
 
 
+@dataclass(frozen=True)
+class YouTubeResumeStatus:
+    """Provider-confirmed next byte, for manual claim-guarded reconciliation.
+
+    Contains no OAuth token, encrypted session URI or media data. This is NOT
+    authorization to resume upload; only a separate, durable operator-owned
+    replay-safe CAS may allow sending further bytes.
+    """
+    next_byte: int
+    total_bytes: int
+    state: str = "INCOMPLETE_RECONCILE_REQUIRED"
+
+
 class InstagramReelUpload:
     """Explicit container stages, durable create-post intent and no duplicate POSTS."""
 
@@ -190,9 +203,24 @@ class YouTubeResumableUpload:
             raise ProviderFailure("YOUTUBE_UPLOAD_UNCERTAIN") from None
 
     def probe_interrupted(self, *, job_id, token, size_bytes):
-        """Status-only request; never send the media again based on a guess."""
+        """Legacy status-only contract. Never auto-resume after a 308."""
+        outcome = self.probe_interrupted_detail(
+            job_id=job_id, token=token, size_bytes=size_bytes)
+        return (outcome.state if isinstance(outcome, YouTubeResumeStatus)
+                else outcome)
+
+    def probe_interrupted_detail(self, *, job_id, token, size_bytes):
+        """Reconcile the exact remote 308 range without resending video bytes.
+
+        Per Google's resumable protocol, absent Range means zero bytes
+        accepted, while Range bytes=0-N means the next byte is N+1. A
+        contradictory full-length Range or malformed/duplicated header denies
+        progress. The caller must independently verify immutable source SHA,
+        lease, active rights and a durable resume-intent CAS before ANY PUT.
+        """
         jid=message_uuid(job_id)
-        if type(size_bytes) is not int or size_bytes<=0:
+        if (type(size_bytes) is not int
+                or not 0 < size_bytes <= 80 * 1024 * 1024):
             raise ProviderFailure("INVALID_MEDIA", definitely_not_sent=True)
         session=youtube_upload_location(self.storage.get_session(jid))
         req=BinaryUploadRequest("PUT",session,{
@@ -205,15 +233,25 @@ class YouTubeResumableUpload:
                 if self.storage.record_upload_receipt(jid,rid) is not True:
                     raise ProviderFailure("UPLOAD_RECEIPT_NOT_DURABLE")
                 return Delivery(remote_id=rid,status="PUBLISHED")
-            if code==308 and isinstance(headers,dict):
-                # Do not auto-send remaining bytes: operator-owned resume path
-                # must verify stored session, offset and exact media digest.
-                remote_range=headers.get("range")
-                if remote_range is not None and not re.fullmatch(
-                    r"bytes=0-[0-9]{1,18}",remote_range):
-                    raise ValueError()
-                return "INCOMPLETE_RECONCILE_REQUIRED"
-            raise ValueError()
+            if code != 308 or not isinstance(headers,dict):
+                raise ValueError()
+            ranges=[value for name,value in headers.items()
+                    if isinstance(name,str) and name.lower()=="range"]
+            if len(ranges)>1:
+                raise ValueError()
+            if not ranges:
+                return YouTubeResumeStatus(next_byte=0,total_bytes=size_bytes)
+            value=ranges[0]
+            if not isinstance(value,str):
+                raise ValueError()
+            match=re.fullmatch(r"bytes=0-(0|[1-9][0-9]{0,17})",value)
+            if match is None:
+                raise ValueError()
+            next_byte=int(match.group(1))+1
+            if not 0 < next_byte < size_bytes:
+                raise ValueError()
+            return YouTubeResumeStatus(next_byte=next_byte,
+                                       total_bytes=size_bytes)
         except ProviderFailure:
             raise
         except Exception:

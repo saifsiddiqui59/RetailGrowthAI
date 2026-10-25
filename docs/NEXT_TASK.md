@@ -380,3 +380,6 @@ Implement account credential refresh/revocation for reviewed provider grants; wi
 3. DEV Operator/Coordinator must approve and safely apply 19 P2 Supabase migrations 190000–191800 in correct order, configure approved subscription publish quotas and legitimate official platform OAuth app scopes/secrets/accounts, then validate hosted RLS/job isolation and rollback; currently P2 social tables are ABSENT from the connected RetailGrowthAI database.
 4. Review real signed, allowlisted provider transport and remote receipt/reconciliation incl Meta FINISHED/media_publish and YouTube 308; wire video timer/queue/poison worker with six release switches OFF by default until explicit canary and licensed accounts. Verify actual approved platform post in DEV, not mocked video alone.
 5. Final Coordinator alone reconciles `feat/part2-integration` with evolving latest Part1 `main` and Part3, requires 4/4 exact-main CI. No WineShopPOS changes.
+
+## 2026-10-25 — Part2 provider 308 recovery follow-up
+- Merge verified 4/4 source-only 308 offset reconciliation internally to `feat/part2-integration` only, confirm post-merge run, then design a strict DB claim+SHA+provider offset resume CAS before any remote partial PUT. Final Coordinator owns Part2→latest main and independently authorized P2 hosted DEV migrations/provider consents. Never modify WineShopPOS.
