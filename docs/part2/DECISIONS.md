@@ -126,3 +126,6 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 
 ## 2026-10-25 — No automatic social network transport in video worker factory
 - Even when config flags are true, build a video worker only with a separately injected, reviewed provider transport; never auto-connect to a social platform from imported code or a queue message. Actual claim and shop scope come from a service-role video claim read; sender obtains exact media size from validated private bytes, not request metadata. Additional safety gates cannot override missing OAuth app consent, trusted render rights, quota approval or staged migration readiness.
+
+## 2026-10-25 — 308 Range is evidence of offset, not permission to re-upload
+- Follow YouTube official resumable protocol: 308 with no Range = 0 accepted bytes; `bytes=0-N` = confirmed next offset N+1, strictly less than total for an INCOMPLETE response. Never infer missing bytes from a timeout; never trust duplicate, overflow, noncontiguous or contradictory headers. Expose only offset metadata to a future durable operator-reviewed resume CAS; do not auto-reissue any video bytes. A 200/201 verified remote ID may still be recorded through the private claim-only provider receipt barrier. Source-only, no real provider posts.
