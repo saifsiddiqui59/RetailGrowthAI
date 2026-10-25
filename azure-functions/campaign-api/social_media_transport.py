@@ -98,12 +98,18 @@ def _validated_request(request):
             url.path == "/upload/youtube/v3/videos" and
             url.query == "uploadType=resumable&part=snippet,status" and
             request.method == "POST")
-        if not (meta_post or meta_status or youtube_start):
+        youtube_check = (
+            url.hostname == "www.googleapis.com" and
+            url.path == "/youtube/v3/videos" and
+            re.fullmatch(r"part=snippet%2Cstatus%2CprocessingDetails&id=[A-Za-z0-9_-]{11}",
+                         url.query) is not None and
+            request.method == "GET")
+        if not (meta_post or meta_status or youtube_start or youtube_check):
             raise ProviderFailure("UNAPPROVED_MEDIA_ENDPOINT", definitely_not_sent=True)
         if not isinstance(request.headers, dict) or not isinstance(request.body, dict):
             raise ProviderFailure("UNAPPROVED_MEDIA_REQUEST", definitely_not_sent=True)
-        if meta_status:
-            if request.body:
+        if meta_status or youtube_check:
+            if request.body or set(request.headers) != {"Authorization"}:
                 raise ProviderFailure("UNAPPROVED_MEDIA_REQUEST", definitely_not_sent=True)
             method, body, headers = "GET", None, request.headers
         elif meta_post:

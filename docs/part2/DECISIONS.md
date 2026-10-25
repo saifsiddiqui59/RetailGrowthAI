@@ -138,3 +138,6 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 
 ## 2026-10-25 — HTTP allowlist must validate a CAS-authorized partial Google PUT
 - Provider HTTP transport recognizes three strictly separate binary shapes: initial whole MP4 (no Range), empty 308 status probe (`bytes */TOTAL`), and one-shot final contiguous remainder (`bytes FIRST-LAST/TOTAL`, H.264/AAC reviewed MP4, exact length). The resumed shape is only valid after the separate reviewed worker durable send-intent CAS. This is an allowlist correction, not unrestricted HTTP or external token exposure; no redirects, arbitrary hosts, malformed offsets, or implicit retry.
+
+## 2026-10-25 — Read-only provider observation cannot assert a published Reel/Short
+- Bound P2 read-only verification to server-only active SENDING claim, matching stored receipt, scope and current account; no bearer in errors. Allow exactly vetted Google videos.list GET endpoint for known 11-character video ID and current youtube.readonly consent. Check owner channel and PRIVATE processing state without marking content publicly posted. Meta container status is only preliminary, never substitute for remote media_publish final receipt. On denial, mismatch or post-read revocation, preserve uncertain state; never authorize a blind second POST/PUT. Source-only until real approved backend wiring.
