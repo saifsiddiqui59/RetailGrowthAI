@@ -26,7 +26,7 @@ def test_readonly_azure_paths_and_no_raw_secret_logging():
                  "P0_READ_ONLY_NO_PROVISION_OR_COST_CHANGE"):
         # Protected variable is wired through the workflow.
         assert item in data or item in WF.read_text()
-    for item in ("--method\", \"post", "Authorization:", "Bearer ",
+    for item in ("--method post", "Authorization:", "Bearer ",
                  "print(result)", "print(result.stdout)", "print(result.stderr)",
                  "service_role", "az deployment", "functionapp config set",
                  "WineShopPOS", "az rest --method post"):
