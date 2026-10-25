@@ -1,3 +1,4 @@
+import { createRenderReadFallback } from './reel-rls-fallback.mjs'
 // Browser-only authenticated API gateway; never sends service keys or synthetic media IDs.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -17,7 +18,8 @@ export function validateSignedVideoUrl(url, supabaseOrigin) {
   return parsed.toString()
 }
 
-export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch }) {
+export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch,
+  supabaseOrigin = '', supabasePublishableKey = '' }) {
   if (!baseUrl || typeof baseUrl !== 'string') return null
   const parsed = new URL(baseUrl)
   if (parsed.protocol !== 'https:' || parsed.username || parsed.password ||
@@ -26,6 +28,22 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch })
   }
   if (typeof tokenProvider !== 'function') throw new Error('Authenticated token provider required')
   const origin = parsed.origin
+  const statusFallback = createRenderReadFallback({
+    supabaseOrigin, publishableKey: supabasePublishableKey,
+    tokenProvider, fetchImpl,
+  })
+  async function withVideoReadFallback(jobId, endpoint, action) {
+    const verified = uuid(jobId)
+    try {
+      return await request('GET', endpoint + verified)
+    } catch (error) {
+      // Only a transient upstream gateway 503 permits a direct tenant-JWT
+      // Supabase READ fallback. Auth 401/403, 404 and other errors remain
+      // denied; never replay a video-create or campaign-edit mutation.
+      if (error?.status !== 503 || !statusFallback) throw error
+      return statusFallback[action](verified)
+    }
+  }
   // Azure Flex DEV has intermittently produced pre-handler 503s after about
   // 60 seconds, even on protected GETs with no JWT. Browser callers must not
   // wait indefinitely or replay non-idempotent campaigns, edits or jobs.
@@ -102,8 +120,16 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch })
     createRender: (campaignId, dayId) => request('POST',
       '/campaigns/' + uuid(campaignId) + '/renders',
       { day_id: uuid(dayId), preset: 'instagram_reel_30s' }),
-    getRenderJob: (jobId) => request('GET', '/render-jobs/' + uuid(jobId)),
-    getDownload: (jobId) => request('GET', '/render-jobs/' + uuid(jobId) + '/download'),
+    getRenderJob: (jobId) => withVideoReadFallback(jobId, '/render-jobs/', 'getRenderJob'),
+    getDownload: async (jobId) => {
+      const id = uuid(jobId)
+      try {
+        return await request('GET', '/render-jobs/' + id + '/download')
+      } catch (error) {
+        if (error?.status !== 503 || !statusFallback) throw error
+        return statusFallback.getDownload(id)
+      }
+    },
     createPosterDraft: (campaignId, config) => {
       if (!config || typeof config !== 'object') throw new Error('Poster configuration is required')
       return request('POST', '/campaigns/' + uuid(campaignId) + '/posters', {
