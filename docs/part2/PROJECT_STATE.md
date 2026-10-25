@@ -274,3 +274,8 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 
 ## 2026-10-26 — Concrete provider network composition (source only, OFF)
 - Optional `social_video_network_factory.build_guarded_video_network_sender` instantiates pre-existing pinned `MediaNetworkTransport` and injects it into existing claim-fenced video factory only with all six social/video worker gates, seventh network gate and explicit opt-in. No Azure blueprint registration, no provider HTTP on construction, and no real customer account/source activation. Automated fake opener tests deny wrong network host/method and missing gates.
+
+## 2026-10-26 — Verified Part2 receipts, provider transport and DB queue separation
+- PR #314 (`d85c4cea`) adds source-only IG private container receipt loader; feature/post-merge 4/4 CI 40229549217 / 40229754322.
+- PR #315 (`196bee0d`) provides explicit seventh release gate for strict provider network injection; feature/post-merge 4/4 40230107497 / 40230644653.
+- PR #316 (`5b352683`) isolates Facebook/LinkedIn due scanning plus service-only `p2_claim_social_text_publish` provider-locked CAS; feature/post-merge 4/4 40230820646 / 40231005962, including disposable P2 SQL negative tests. No video jobs can be taken by the current text worker via its claim RPC. Existing generic claim RPC remains unregistered for any video worker; separate video due/claim and Azure deployment is future operator-gated. None of the 20 staged SQL files are hosted; no real provider post or new cloud resources. All live flags OFF.
