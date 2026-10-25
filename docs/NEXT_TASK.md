@@ -370,3 +370,6 @@ Implement account credential refresh/revocation for reviewed provider grants; wi
 
 ## 2026-10-25 — Video publisher authoritative claims
 - Verify PR containing staged P2 191800 service-only video claim context + scoped backend AES decrypt and four-job CI. After this source foundation, the video worker still requires approved host configuration, consented platform accounts and rights, P1 finalized SHA callback, regulated queue/receipt recovery tests and Final Coordinator integration with latest `main` before any live publishing.
+
+## 2026-10-25 — After guarded Part2 video worker composition
+- Verify exact four-job PR+post-merge CI. Real licensed DEV social publishing still depends on Part1 original render SHA callback and media commercial rights evidence, separately granted provider apps/real account secrets, plan caps/hosted 19 SQL migrations, real provider remote receipt and resume/reconcile E2E and final Coordinator-to-main merge. Do not enable worker purely based on source code.

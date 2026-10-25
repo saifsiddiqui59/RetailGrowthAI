@@ -164,6 +164,12 @@ class ReviewedVideoSendOrchestrator:
         with tempfile.TemporaryDirectory(prefix="retailgrowth-p2-video-") as d:
             root = Path(d)
             source = self._verified_media(data, root)
+            # The upload state CAS must persist the actual verified byte size;
+            # it cannot trust a queue-provided media_size or browser metadata.
+            checked_size = source.stat().st_size
+            if not 0 < checked_size <= _MAX_BYTES:
+                raise VideoSendDenied("VIDEO_SEND_BYTES_DENIED")
+            data = {**data, "media_size": checked_size}
             self._allow(data)
             uploader = self.upload_factory.build(data)
             if data["provider"] == "instagram":

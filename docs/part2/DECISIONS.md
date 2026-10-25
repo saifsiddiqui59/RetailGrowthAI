@@ -123,3 +123,6 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 
 ## 2026-10-25 — Video queue body never supplies media, licensing or OAuth authority
 - Media send context must be returned by private service-only active-claim RPC: approved job/revision, tenant, provider scopes, reserved quota, verified original P1 render SHA, commercial license expiry and encrypted access token. Worker decryption is AES-GCM tenant/provider/account AAD-bound; only the scoped server gets plaintext transiently. Repeat send authorization is a fresh database check, not a cached boolean. Public queues can pass only job ID; no worker route is enabled by source changes.
+
+## 2026-10-25 — No automatic social network transport in video worker factory
+- Even when config flags are true, build a video worker only with a separately injected, reviewed provider transport; never auto-connect to a social platform from imported code or a queue message. Actual claim and shop scope come from a service-role video claim read; sender obtains exact media size from validated private bytes, not request metadata. Additional safety gates cannot override missing OAuth app consent, trusted render rights, quota approval or staged migration readiness.

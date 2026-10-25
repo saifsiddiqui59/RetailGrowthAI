@@ -221,3 +221,7 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 ## 2026-10-25 — Video claim loader integration gate
 - Verify feature 4/4 exact-head CI, internally merge staged SQL 191800 + scoped AES video claim authority to Part2 only, and check post-merge CI.
 - Next: integrate disabled end-to-end video orchestrator with this real service-owned scoped claim-loader and final approved provider factory; wire Part1 trusted FFmpeg finalized SHA and independent rights review, then provider sandbox/receipts, hosted Azure workers, plan caps and OAuth credentials under an explicit operator-approved DEV canary.
+
+## 2026-10-25 — Real DEV activation remains intentionally gated
+- Verify exact feature CI/merge of private video worker composition and independent post-merge Part2 4/4. The factory is a source-only restricted composition API; do NOT import/register it from existing text-only Azure worker without a separate approved release.
+- P0: official Meta/Google video provider network transports and remote reconciliation/canary tests; Part1 finalized MP4 callback, verified rights+licenses; owner-approved publish-plan limits, real OAuth scopes, hosted P2 SQL 190000–191800, Azure queue/timer/poison triggers and full security E2E. Coordinator alone merges Part2 with latest main and preserves Part3/WineShopPOS.
