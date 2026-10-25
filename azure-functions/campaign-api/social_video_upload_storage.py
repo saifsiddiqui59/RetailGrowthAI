@@ -28,6 +28,7 @@ _SAFE_RPC = frozenset({
     "p2_save_youtube_session",
     "p2_video_container_for_claim",
     "p2_youtube_session_for_claim",
+    "p2_begin_youtube_resume",
 })
 
 
@@ -226,6 +227,25 @@ class ScopedVideoUploadStorage:
         if self.provider!="youtube" or type(size) is not int or size!=self.media_size:
             raise VideoUploadStorageDenied("UPLOAD_MEDIA_INVALID")
         return self._advance("SESSION_KNOWN","BINARY_INTENT")
+
+    def record_resume_intent(self,jid,next_byte,size_bytes,source_sha256):
+        """Persist one resume side effect BEFORE reissuing any binary bytes.
+
+        Always fail closed on a previously durable or ambiguous intent.
+        A service-only SQL CAS repeats current claim, consent, rights, quota,
+        immutable finalized SHA and encrypted-session checks.
+        """
+        self._scope(jid)
+        if (self.provider!="youtube"
+                or type(next_byte) is not int or type(size_bytes) is not int
+                or size_bytes!=self.media_size
+                or not 0<=next_byte<size_bytes
+                or source_sha256!=self.source_sha256):
+            raise VideoUploadStorageDenied("UPLOAD_RESUME_SCOPE_DENIED")
+        return self._rpc("p2_begin_youtube_resume",{
+            "p_job":self.job_id,"p_claim":self.claim_token,
+            "p_next_byte":next_byte,"p_size":size_bytes,
+            "p_sha":self.source_sha256}) is True
 
     def record_upload_receipt(self,jid,remote):
         self._scope(jid)
