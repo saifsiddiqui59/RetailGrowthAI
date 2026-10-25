@@ -1,5 +1,6 @@
 name: RetailGrowthAI DEV one-shot Flex HTTP transport correlation
 # Existing tagged DEV only; no customer JWTs/IDs, app configuration, billing or deployment.
+# Safe second observation after Azure CLI aggregate list/table response parser correction.
 on:
   push:
     branches: [main]
