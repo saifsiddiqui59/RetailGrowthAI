@@ -19,6 +19,7 @@
 \ir ../../supabase/part2/pending/20261023191500_p2_social_export_claim_authority.sql
 \ir ../../supabase/part2/pending/20261023191600_p2_video_upload_rpc_bridge.sql
 \ir ../../supabase/part2/pending/20261023191700_p2_reviewed_video_approval.sql
+\ir ../../supabase/part2/pending/20261023191800_p2_video_send_claim_context.sql
 
 -- Part2 exports reuse Part1 private bucket, with a restrictive deny
 -- policy for the <shop>/social-exports/ namespace even if broad permissive
@@ -558,6 +559,12 @@ begin
   values('72000000-0000-4000-8000-000000000001',shop,'instagram',
     'instagram-fixture-01','Tenant IG professional',actor,
     array['instagram_content_publish'],'CONNECTED');
+  -- Disposable encrypted provider credentials only; never actual API secrets.
+  insert into retail_private.social_account_credentials(
+    social_account_id,encryption_key_version,access_token_ciphertext,
+    expires_at)
+  values('72000000-0000-4000-8000-000000000001',1,
+    decode(repeat('cd',80),'hex'),now()+interval '1 day');
   perform public.p2_create_social_draft(
     '62000000-0000-4000-8000-000000000001',shop,actor,day,
     '72000000-0000-4000-8000-000000000001','instagram',
@@ -737,6 +744,44 @@ begin
     (current_claim->>'claim_token')::uuid) then
     raise exception 'FAIL: synthetic approved video claim not fenced';
   end if;
+  -- Server-only video claim must be composed from active SENDING attempt,
+  -- same tenant/approved media/rights/render/quota, never queue payload.
+  if public.p2_video_send_claim_context(
+      '62000000-0000-4000-8000-000000000001',gen_random_uuid()) is not null
+     or public.p2_video_send_claim_valid(
+      '62000000-0000-4000-8000-000000000001',
+      gen_random_uuid(),1,repeat('ab',32)) then
+    raise exception 'FAIL: foreign video claim exposed private account token';
+  end if;
+  server_context:=public.p2_video_send_claim_context(
+      '62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid);
+  if server_context is null
+     or server_context->>'shop_id'<>shop::text
+     or server_context->>'source_sha256'<>repeat('ab',32)
+     or server_context->>'provider'<>'instagram'
+     or server_context->>'key_version'<>'1'
+     or length(server_context->>'access_ciphertext_hex')<>160
+     or not public.p2_video_send_claim_valid(
+         '62000000-0000-4000-8000-000000000001',
+         (current_claim->>'claim_token')::uuid,1,repeat('ab',32))
+     or public.p2_video_send_claim_valid(
+         '62000000-0000-4000-8000-000000000001',
+         (current_claim->>'claim_token')::uuid,2,repeat('ab',32))
+     or public.p2_video_send_claim_valid(
+         '62000000-0000-4000-8000-000000000001',
+         (current_claim->>'claim_token')::uuid,1,repeat('cd',32)) then
+    raise exception 'FAIL: exact private video claim/sha/source unavailable';
+  end if;
+  update public.social_accounts set connection_status='REAUTH_REQUIRED'
+    where id='72000000-0000-4000-8000-000000000001';
+  if public.p2_video_send_claim_context(
+      '62000000-0000-4000-8000-000000000001',
+      (current_claim->>'claim_token')::uuid) is not null then
+    raise exception 'FAIL: revoked provider grant exposed video token';
+  end if;
+  update public.social_accounts set connection_status='CONNECTED'
+    where id='72000000-0000-4000-8000-000000000001';
   -- Only an exact active SENDING claim, current connected account,
   -- licensed SHA, valid subscription and reserved publishing unit may
   -- create an immutable signed Instagram export.
@@ -999,6 +1044,21 @@ begin
 end $videoacl$;
 rollback;
 \echo 'PASS: encrypted video upload stages and receipts are service-only'
+
+-- Backend media claim can never expose encrypted OAuth secrets to clients.
+begin;
+do $p2privatevideoclaim$
+begin
+  if has_function_privilege('authenticated',
+      'public.p2_video_send_claim_context(uuid,uuid)','EXECUTE')
+     or has_function_privilege('anon',
+      'public.p2_video_send_claim_valid(uuid,uuid,integer,text)','EXECUTE')
+  then
+    raise exception 'FAIL: private media send claim callable from browser';
+  end if;
+end $p2privatevideoclaim$;
+rollback;
+\echo 'PASS: private video send account context service-only'
 
 -- New reviewed-video approval cannot be executed from browser JWT.
 begin;
