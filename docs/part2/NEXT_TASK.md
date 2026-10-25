@@ -193,3 +193,8 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 
 ## Quality checkpoint — AES negative test stability
 - Verify exact-head and independent post-merge four-job CI for `feat/p2-deterministic-aes-tamper-test`. This is a negative-test reliability fix only; it does not unblock live social publishing or provider app/rights/hosted gates.
+
+## P2 reviewed video approval CAS — integration boundary
+- Run exact-head 4-job CI, verify disposable Supabase positive/negative evidence and service-role-only access, merge `feat/p2-reviewed-video-approval-cas` internally only when green; confirm post-merge CI.
+- Preserve legacy text-only HTTP `p2_approve_social_job` and outward worker gates until real Part1 finalized SHA receipt and independently validated commercial license documents/expiry exist. The new source-only service RPC is NOT to be exposed through a browser route until approved backend read/computed digest integration, provider account OAuth grants, publishing plan caps and whole-route E2E.
+- Coordinator will reconcile later Part1 `main`, then separately approve hosted migration and release tests. No live social posts performed.
