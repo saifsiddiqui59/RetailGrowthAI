@@ -206,3 +206,9 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 ## Part1 render SHA callback dependency after source adapter
 - Verify exact-head four-job CI, internal merge and post-merge branch checks for `feat/p2-render-finalized-receipt-writer`.
 - Ask Part1/Final Coordinator to integrate this service-only adapter at original FFmpeg render completion while retaining trusted private output bytes, after persisting SUCCEEDED render/asset and before releasing the private scratch. Do not call this as backfill from tenant-editable Storage or expose its method on public HTTP. Verify P1 object bytes and SHA persist at finalization, and separately validate music/stock commercial rights. Only after those prerequisites can the P2 video approval review be used for licensed DEV tests.
+
+## 2026-10-25 — Remaining Part2 release blockers after verified source PRs
+- Verify post-merge #292 CI #40169220089 and docs PR; no open internal source PRs anticipated after checkpoint.
+- Cross-part P0: Part1 renderer must wire trusted finalizer adapter and produce actual immutable original-output digest; independently licensed stock/music reviewer must populate rights evidence (including expiry and commercial permission). This cannot be faked by generated-asset metadata.
+- P0 external: enable real provider OAuth test grants, owner-approved social publication plan limits and consented test accounts; only then coordinate hosted P2 SQL 190000–191700, Azure timer/queue/poison worker and conditional video API activation with explicit owner rollout review, negative E2E and durable remote receipt reconciliation.
+- Coordinator alone handles main compatibility and final PR; do not modify WineShopPOS or disable existing social/Part1 safety guards.
