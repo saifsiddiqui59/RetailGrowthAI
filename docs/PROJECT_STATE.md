@@ -452,3 +452,6 @@ Source-only [#161](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/161) st
 
 ## 2026-10-25 — Part2 guarded video publishing safety source patch
 - Updated isolated `ReviewedVideoSendOrchestrator`: Instagram final publish now recomputes verified media size from original private P1 MP4 instead of lacking required factory context; YouTube recover uses re-hashed private bytes and one-shot 308/resume CAS. Offline E2E only; cloud migrations, commercial rights, real OAuth grants and external provider posts remain blocked.
+
+## 2026-10-25 — Part2 Google partial upload HTTP compatibility
+- Source-only network allowlist now supports CAS-authorized partial YouTube upload `Content-Range` while enforcing exact final contiguous byte range and body length. Previously all resumed binary PUTs would be rejected even after valid 308/SQL authorization. No provider OAuth/live transports configured; standalone source CI only.
