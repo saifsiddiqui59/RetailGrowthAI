@@ -62,6 +62,41 @@ def probe_once(label: str, path: str, expected: int, index: int) -> bool:
         }, sort_keys=True, separators=(",", ":")), flush=True)
         return bad
 
+# Azure CLI can return either a row-list or REST-style tables. Extract only
+# the fixed aggregate fields from both shapes, NEVER raw Kusto data/log content.
+_ALLOWED_FIELDS = frozenset((
+    "bucket", "ResultCode", "requests", "p95_ms", "class", "events",
+    "Level", "ActivityStatusValue", "operations",
+))
+
+def safe_aggregate_rows(result):
+    candidates = []
+    if isinstance(result, list):
+        candidates = result[:18]
+    elif isinstance(result, dict):
+        tables = result.get("tables")
+        if isinstance(tables, list):
+            for table in tables[:2]:
+                if not isinstance(table, dict):
+                    continue
+                cols = [c.get("name") if isinstance(c, dict) else ""
+                        for c in table.get("columns", [])]
+                for entry in table.get("rows", [])[:18]:
+                    if isinstance(entry, list):
+                        candidates.append(dict(zip(cols, entry)))
+        elif isinstance(result.get("value"), list):
+            candidates = result["value"][:18]
+    safe = []
+    for row in candidates[:18]:
+        if not isinstance(row, dict):
+            continue
+        safe.append({
+            key: val for key, val in row.items()
+            if key in _ALLOWED_FIELDS and type(val) in (str, int, float)
+            and len(str(val)) <= 80
+        })
+    return safe
+
 def log_buckets() -> None:
     workspace = azure("monitor", "log-analytics", "workspace", "show",
                       "-g", RG, "-n", LAW).get("customerId")
@@ -95,10 +130,15 @@ def log_buckets() -> None:
         try:
             rows = azure("monitor", "log-analytics", "query", "-w", workspace,
                          "--analytics-query", query)
-            tables = rows.get("tables", []) if isinstance(rows, dict) else []
+            # Azure CLI usually returns a list of row dictionaries, while some
+            # interfaces use {tables:[{columns,rows}]}. Both are sanitized.
+            safe_rows = safe_aggregate_rows(rows)
             print("P0_CORRELATION_" + name.upper() + "="
-                  + json.dumps(tables[:2], separators=(",", ":"), sort_keys=True),
+                  + json.dumps(safe_rows, separators=(",", ":"), sort_keys=True),
                   flush=True)
+            if not safe_rows:
+                print("P0_CORRELATION_" + name.upper()
+                      + "_EMPTY_OR_UNAVAILABLE=true", flush=True)
         except (RuntimeError, ValueError, subprocess.TimeoutExpired):
             print("P0_CORRELATION_" + name.upper() + "=unavailable", flush=True)
     print("P0_TELEMETRY_SAMPLED_AND_INGESTION_LAG_POSSIBLE=true", flush=True)
