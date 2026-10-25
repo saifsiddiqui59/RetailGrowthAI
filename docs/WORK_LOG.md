@@ -182,3 +182,5 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - 2026-10-24: Part 2 post-checkpoint regression hygiene: deterministic AES-256-GCM ciphertext-tag mutation negative test on `feat/p2-deterministic-aes-tamper-test`; old fixture had a 1/256 no-op possibility causing a real 2026-10-24 Python CI false failure. No cryptography implementation/security gate changed or bypassed; check four-job source CI and internal merge separately.
 
 - 2026-10-25: Part2 video-approval follow-up started on `feat/p2-reviewed-video-approval-cas`: additive *staged-only* service-role exact-job/revision/media/rights/finalized-render-SHA approval CAS with atomic publish quota and negative SQL. Existing text-only API denial remains unchanged, no WineShopPOS or hosted resource write. Await exact CI and internal merge evidence.
+
+- 2026-10-25: Added source-only Part2 reviewed-video approval service with JWT membership gate, private server-owned render SHA/licensing receipts and computed content digest; scoped PostgREST repository RPC call. No production route/secret or actual social post. Feature CI still to verify.

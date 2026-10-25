@@ -352,3 +352,6 @@ Implement account credential refresh/revocation for reviewed provider grants; wi
 
 ## 2026-10-25 — Source-only Part 2 video approval CAS follow-up
 - Verify staged migration 191700 + disposable SQL 4/4 CI and internal Part2 merge. Finish server-side authoritative video-digest adapter, final-byte immutable export binding and claim-fenced Meta/Google remote receipt reconciliation **before** any video approval API/worker exposure. Real licensing evidence, provider OAuth grants, plan caps and hosted DEV release remain explicit blockers, not inferred from offline tests. Coordinator-only final Part2→main.
+
+## 2026-10-25 — Part2 backend video approval adapter follow-up
+- Require exact-head four-job CI and merge only internally after green; preserve no public video authoring route. Coordinate real P1 finalized SHA and licensed audio rights, provider grants/plan caps and remote receipt reconciliation before any independently authorized hosted E2E or Final Coordinator merge into `main`.

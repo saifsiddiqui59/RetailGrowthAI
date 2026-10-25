@@ -420,3 +420,6 @@ Source-only [#161](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/161) st
 
 ## 2026-10-25 — Part 2 conditional reviewed-video approval staged, release OFF
 - Source-only migration `20261023191700_p2_reviewed_video_approval.sql` introduces an unregistered service-only conditional Instagram/YouTube approval transaction binding exact authorized draft revision and canonical digest, separate immutable finalized render SHA, media FFprobe and independently recorded commercial rights+expiry, current channel grants and atomically reserved publish quota. Existing live/authoring text-only `p2_approve_social_job` remains unchanged and denies video. No hosted SQL application or real external publish. Internal Part2 PR and four-job CI evidence tracked separately.
+
+## 2026-10-25 — Unregistered Part2 backend video approval adapter
+- In Part2 source, `social_reviewed_video_approval.py` binds user membership and current approved draft to independently verified private render SHA/rights service reads, recomputes immutable canonical approval digest without accepting browser hashes and calls staged `p2_approve_reviewed_video_job` transaction. Explicit server-only disabled-by-default constructor; no route, posted media, hosted changes or Part1/3/WineShopPOS edits. Tests and internal PR status recorded separately.

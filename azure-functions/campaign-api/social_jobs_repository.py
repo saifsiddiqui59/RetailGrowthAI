@@ -14,7 +14,7 @@ from tenant_store import StorageUnavailable, SubscriptionDenied, canonical_uuid
 
 _RPCS = {
     "p2_create_social_draft", "p2_approve_social_job", "p2_cancel_social_job",
-    "p2_revise_social_draft",
+    "p2_revise_social_draft", "p2_approve_reviewed_video_job",
 }
 class _NoRedirect(HTTPRedirectHandler):
     """Never forward server service-role headers to a redirected endpoint."""
@@ -117,6 +117,31 @@ class SocialAuthoringRepository:
             "p_scheduled_at":scheduled_at.isoformat(),
             "p_timezone":timezone_name,
             "p_media":canonical_uuid(media_id) if media_id else None,
+        })
+
+    def approve_reviewed_video(self, *, shop_id, job_id, actor, revision,
+                               digest, caption, scheduled_at, timezone_name,
+                               media_id, source_sha256):
+        """Staged server-only video approval; never called by text authoring API.
+
+        The caller MUST obtain the source SHA from the independently trusted
+        service-role finalized-render receipt, not HTTP/browser input.
+        SQL revalidates exact job/revision/media/rights/receipts and reserves
+        current approved publishing quota atomically, failing closed.
+        """
+        import re
+        if (not isinstance(digest, bytes) or len(digest) != 32
+                or not isinstance(source_sha256, str)
+                or re.fullmatch(r"[0-9a-f]{64}", source_sha256) is None):
+            raise ValueError("invalid trusted reviewed-video evidence")
+        return self._rpc("p2_approve_reviewed_video_job", {
+            "p_shop":canonical_uuid(shop_id), "p_job":canonical_uuid(job_id),
+            "p_actor":canonical_uuid(actor), "p_revision":revision,
+            "p_digest_hex":digest.hex(), "p_caption":caption,
+            "p_scheduled_at":scheduled_at.isoformat(),
+            "p_timezone":timezone_name,
+            "p_media":canonical_uuid(media_id),
+            "p_source_sha":source_sha256,
         })
 
     def cancel(self, *, shop_id, job_id, actor, revision):
