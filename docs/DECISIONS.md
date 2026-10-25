@@ -379,3 +379,7 @@
 
 ## 2026-10-25 — Avoid absent Flex config from CLI's shallow response
 - `az functionapp show` returned no `functionAppConfig` in protected #40170248089. To validate exact DEV Flex memory/scale/HTTP always-ready, use an **additional read-only ARM resource fetch** scoped to the previously verified exact Function resource ID and documented `Microsoft.Web/sites@2024-11-01`, printing only runtime/scale counts. A 404, lack of permission, or missing configuration remains explicitly `unavailable`, not evidence of zero. Never emit raw ARM response or appSettings.
+
+## 2026-10-25 — Keep configured Flex scale unchanged pending platform-origin proof
+- Protected read-only ARM proof #40170746627 found Python 3.12, 2,048 MB and `maximumInstanceCount=1`; platform AlwaysReadyUnits was sampled 0, but explicit HTTP always-ready and concurrency fields were absent/unknown. Two independently approved diagnostic rounds had 4/8 18.7-second anonymous request timeouts (including nonexistent routes) without app marker. This is **not** enough to assert single-instance saturation or solve host ingress by increasing replicas.
+- Preserve current resource/plan and tenant JWT/RLS/quota protections. Seek Azure platform correlation/support before evaluating a paid always-ready setting, app resize, or host split. A diagnostic SUCCESS outcome can include failures and is not equivalent to service reliability or signed-in E2E.
