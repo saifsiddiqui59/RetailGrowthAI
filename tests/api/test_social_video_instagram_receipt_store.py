@@ -64,7 +64,7 @@ def setup(*, behavior=None):
         return Response()
     store = ScopedInstagramReceiptLoader(
         origin="https://retail.supabase.co",
-        service_key="TEST_SERVICE_ONLY",
+        service_key="sb_secret_TEST_SERVICE_ONLY",
         claims=claims, job_id=JOB, claim_token=LEASE,
         enabled=True, transport=transport)
     return store, claims, seen
@@ -74,7 +74,7 @@ def test_constructor_disabled_never_reads_db():
     seen=[]
     with pytest.raises(InstagramReceiptDenied,match="RELEASE_DISABLED"):
         ScopedInstagramReceiptLoader(
-            origin="https://retail.supabase.co",service_key="TEST_KEY",
+            origin="https://retail.supabase.co",service_key="sb_secret_TEST_KEY",
             claims=Claims(),job_id=JOB,claim_token=LEASE,
             transport=lambda req,timeout:seen.append(req))
     assert seen==[]
@@ -174,7 +174,7 @@ def test_host_redirect_and_untrusted_server_origin_fail_before_request():
                    "https://retail.supabase.co:9999"):
         with pytest.raises(InstagramReceiptDenied,match="CONFIG_DENIED"):
             ScopedInstagramReceiptLoader(
-                origin=origin,service_key="TEST_KEY",claims=Claims(),
+                origin=origin,service_key="sb_secret_TEST_KEY",claims=Claims(),
                 job_id=JOB,claim_token=LEASE,enabled=True)
 
 
