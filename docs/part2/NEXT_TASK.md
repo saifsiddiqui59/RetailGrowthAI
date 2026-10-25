@@ -237,3 +237,7 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 ## 2026-10-25 — Remaining after one-shot YouTube recovery source
 - Verify exact-head 4/4 CI and internal merge for `feat/p2-youtube-resume-one-shot-cas`, then independent post-merge 4/4. Reconcile staged SQL 191900 with Coordinator migration order; no hosted writes.
 - Release blockers unchanged: Part1 finalized SHA callback and independently verified commercial license/expiry, real Meta/Google app grants, owner-approved publish caps, all staged P2 SQL on approved DEV, Azure worker/poison queue rollout and real licensed test-account provider receipt/308 canary. Video publishing remains OFF and may not be exposed on current text worker or frontend.
+
+## 2026-10-25 — Guarded video finalization/recovery follow-up
+- Verify exact feature 4/4 CI, internally merge `feat/p2-guarded-finalize-and-resume-wiring` only after green; inspect independent Part2 post-merge 4/4. Do not register this orchestrator with existing text-only Azure trigger before hosted P2 migrations 190000–191900, independently approved plan caps and real provider OAuth account-grant/rights/test canary.
+- Remaining: Part1 actual FFmpeg finalized render SHA callback, verified commercial rights evidence, scope/revocation and secure credential refresh in hosted DEV, provider remote 404/5xx/308/success receipts under consented test accounts, poison/reconcile/retry operations and Final Coordinator latest main integration. Keep outbound OFF.

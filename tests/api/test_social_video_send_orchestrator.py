@@ -105,6 +105,12 @@ class Uploader:
         self.stage="PUBLISH_INTENT"
         self.stage="PUBLISHED"
         return Delivery(remote_id="123456789",status="PUBLISHED")
+    def resume_verified(self,**params):
+        self.calls.append(("resume_verified",params))
+        if self.stage!="BINARY_INTENT":
+            raise ProviderFailure("UPLOAD_RESUME_INTENT_MAY_HAVE_OCCURRED")
+        self.stage="PUBLISHED"
+        return Delivery(remote_id="Abc123_XyZ0",status="PUBLISHED")
     def initialize(self,**params):
         self.calls.append(("initialize",params))
         if self.stage!="NEW":
@@ -252,3 +258,62 @@ def test_disabled_without_explicit_release_and_wrong_claim_denied():
     with pytest.raises(VideoSendDenied):
         worker.start(job_id=JOB,claim_token="not-a-uuid")
     assert factory.calls==[]
+
+
+def test_youtube_recovery_reverifies_media_and_calls_only_resume_not_init():
+    worker,claims,reader,export,factory=fixture("youtube")
+    factory.uploader.stage="BINARY_INTENT"
+    output=worker.recover_youtube(job_id=JOB,claim_token=LEASE)
+    assert output=={"job_id":JOB,"state":"PUBLISHED"}
+    assert [step for step,_ in factory.uploader.calls]==["resume_verified"]
+    assert factory.uploader.calls[0][1]["video_bytes"]==BYTES
+    assert factory.calls[0]["media_size"]==len(BYTES)
+    assert len(reader.calls)==1 and export.calls==[]
+    with pytest.raises(ProviderFailure,match="RESUME_INTENT_MAY_HAVE_OCCURRED"):
+        worker.recover_youtube(job_id=JOB,claim_token=LEASE)
+    assert [step for step,_ in factory.uploader.calls]==[
+        "resume_verified","resume_verified"]
+
+
+def test_youtube_recovery_revoked_rights_and_changed_bytes_fail_before_provider():
+    worker,claims,reader,export,factory=fixture("youtube")
+    factory.uploader.stage="BINARY_INTENT"
+    claims.authorized=False
+    with pytest.raises(VideoSendDenied,match="CLAIM_REVOKED"):
+        worker.recover_youtube(job_id=JOB,claim_token=LEASE)
+    assert factory.calls==[] and reader.calls==[]
+    worker,claims,reader,export,factory=fixture("youtube")
+    factory.uploader.stage="BINARY_INTENT"
+    reader.content=b"wrong-media-after-review"
+    with pytest.raises(VideoSendDenied,match="BYTES_DENIED"):
+        worker.recover_youtube(job_id=JOB,claim_token=LEASE)
+    assert factory.calls==[]
+
+
+def test_instagram_final_publish_rechecks_fresh_private_bytes_and_media_size():
+    worker,claims,reader,export,factory=fixture("instagram")
+    factory.uploader.stage="CONTAINER_KNOWN"
+    result=worker.finish_instagram(job_id=JOB,claim_token=LEASE)
+    assert result=={"job_id":JOB,"state":"PUBLISHED"}
+    assert factory.calls[0]["media_size"]==len(BYTES)
+    assert len(reader.calls)==1
+    assert [step for step,_ in factory.uploader.calls]==["publish_finished"]
+    assert export.calls==[]
+
+
+def test_instagram_final_publish_stale_private_media_fails_before_meta():
+    worker,claims,reader,export,factory=fixture("instagram")
+    factory.uploader.stage="CONTAINER_KNOWN"
+    reader.content=b"tampered-after-container-ready"
+    with pytest.raises(VideoSendDenied,match="BYTES_DENIED"):
+        worker.finish_instagram(job_id=JOB,claim_token=LEASE)
+    assert factory.calls==[] and factory.uploader.calls==[]
+
+
+def test_video_resume_and_instagram_finalization_are_provider_isolated():
+    worker,claims,reader,export,factory=fixture("youtube")
+    with pytest.raises(VideoSendDenied,match="PROVIDER_DENIED"):
+        worker.finish_instagram(job_id=JOB,claim_token=LEASE)
+    worker,claims,reader,export,factory=fixture("instagram")
+    with pytest.raises(VideoSendDenied,match="PROVIDER_DENIED"):
+        worker.recover_youtube(job_id=JOB,claim_token=LEASE)

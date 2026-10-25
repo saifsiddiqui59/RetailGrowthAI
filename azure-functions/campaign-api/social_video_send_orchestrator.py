@@ -154,6 +154,19 @@ class ReviewedVideoSendOrchestrator:
         # YouTube bytes are rehashed after read and before sending.
         return target
 
+    @staticmethod
+    def _trusted_bytes(context, source):
+        """Re-hash exact private MP4 bytes after ffprobe, before any side effect."""
+        try:
+            video=source.read_bytes()
+        except OSError:
+            raise VideoSendDenied("VIDEO_SEND_BYTES_UNAVAILABLE") from None
+        if (not 0<len(video)<=_MAX_BYTES or
+                not hmac.compare_digest(
+                    sha256(video).hexdigest(),context["source_sha256"])):
+            raise VideoSendDenied("VIDEO_SEND_BYTES_CHANGED")
+        return video
+
     def start(self, *, job_id, claim_token):
         """Start IG container or private YouTube upload from one reviewed claim.
 
@@ -192,11 +205,7 @@ class ReviewedVideoSendOrchestrator:
                     raise VideoSendDenied("VIDEO_SEND_RECEIPT_DENIED")
                 return {"job_id":data["job_id"],"state":"CONTAINER_PROCESSING"}
             # YouTube: persisted AES-GCM session before any binary PUT.
-            video = source.read_bytes()
-            if (len(video) > _MAX_BYTES or
-                    not hmac.compare_digest(sha256(video).hexdigest(),
-                                             data["source_sha256"])):
-                raise VideoSendDenied("VIDEO_SEND_BYTES_CHANGED")
+            video = self._trusted_bytes(data,source)
             self._allow(data)
             uploader.initialize(
                 job_id=data["job_id"], token=data["access_token"],
@@ -211,16 +220,49 @@ class ReviewedVideoSendOrchestrator:
             return {"job_id":data["job_id"],"state":"PUBLISHED"}
 
     def finish_instagram(self, *, job_id, claim_token):
-        """Status-check only, then CAS publish intent before one remote POST."""
-        data = self._context(job_id, claim_token)
-        if data["provider"] != "instagram":
+        """Claim-check again and revalidate private MP4 before final Meta POST.
+
+        Actual guarded factory demands the ORIGINAL verified byte size even
+        during final container publication. Re-download and inspect the exact
+        tenant render rather than infer size from browser, queue, or remote ID.
+        """
+        data=self._context(job_id,claim_token)
+        if data["provider"]!="instagram":
             raise VideoSendDenied("VIDEO_SEND_PROVIDER_DENIED")
-        self._allow(data)
-        uploader = self.upload_factory.build(data)
-        receipt = uploader.publish_finished(
-            job_id=data["job_id"],
-            ig_account_id=data["provider_account_id"],
-            token=data["access_token"])
-        if receipt.status != "PUBLISHED" or not receipt.remote_id:
-            raise VideoSendDenied("VIDEO_SEND_RECEIPT_DENIED")
-        return {"job_id":data["job_id"],"state":"PUBLISHED"}
+        with tempfile.TemporaryDirectory(prefix="retailgrowth-p2-video-") as d:
+            source=self._verified_media(data,Path(d))
+            video=self._trusted_bytes(data,source)
+            data={**data,"media_size":len(video)}
+            self._allow(data)
+            uploader=self.upload_factory.build(data)
+            receipt=uploader.publish_finished(
+                job_id=data["job_id"],
+                ig_account_id=data["provider_account_id"],
+                token=data["access_token"])
+            if receipt.status!="PUBLISHED" or not receipt.remote_id:
+                raise VideoSendDenied("VIDEO_SEND_RECEIPT_DENIED")
+            return {"job_id":data["job_id"],"state":"PUBLISHED"}
+
+    def recover_youtube(self, *, job_id, claim_token):
+        """One claim-fenced YouTube 308 probe and at most one verified resume.
+
+        This requires an existing session/BINARY_INTENT; NEVER starts another
+        Google upload session. The uploader enforces fresh status-only 308
+        offset, immutable SHA and its durable one-time SQL resume CAS before
+        issuing remaining bytes. No retry after an ambiguous provider result.
+        """
+        data=self._context(job_id,claim_token)
+        if data["provider"]!="youtube":
+            raise VideoSendDenied("VIDEO_SEND_PROVIDER_DENIED")
+        with tempfile.TemporaryDirectory(prefix="retailgrowth-p2-video-") as d:
+            source=self._verified_media(data,Path(d))
+            video=self._trusted_bytes(data,source)
+            data={**data,"media_size":len(video)}
+            self._allow(data)
+            uploader=self.upload_factory.build(data)
+            receipt=uploader.resume_verified(
+                job_id=data["job_id"],token=data["access_token"],
+                video_bytes=video)
+            if receipt.status!="PUBLISHED" or not receipt.remote_id:
+                raise VideoSendDenied("VIDEO_SEND_RECEIPT_DENIED")
+            return {"job_id":data["job_id"],"state":"PUBLISHED"}
