@@ -80,8 +80,14 @@ def test_wrong_shop_render_asset_and_path_refused_before_backend(tmp_path):
 
 def test_mutated_source_and_false_inspection_do_not_record_digest(tmp_path):
     writer,req,calls,seen,data=fixture(tmp_path)
-    req["source_path"].write_bytes(b"changed source")
-    with pytest.raises(RenderReceiptDenied):
+    # Change the file after the writer's first SHA, during the inspector.
+    # The writer must catch the modified inode stat/digest BEFORE DB write.
+    def mutating_inspector(**kwargs):
+        req["source_path"].write_bytes(b"changed during inspection")
+        return {"source_sha256":kwargs["expected_sha256"],
+                "ffprobe":{"video_codec":"h264","audio_codec":"aac"}}
+    writer.inspector=mutating_inspector
+    with pytest.raises(RenderReceiptDenied,match="SOURCE_CHANGED"):
         writer.record_from_trusted_render(**req)
     assert calls==[]
     writer,req,calls,seen,data=fixture(tmp_path)
