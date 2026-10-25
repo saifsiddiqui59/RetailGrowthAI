@@ -114,7 +114,7 @@ def test_positive_approval_uses_backend_digest_and_render_receipt_only():
   lambda r,s:s.candidate.update(shop_id="31000000-0000-4000-8000-000000000002"),
   lambda r,s:s.candidate.update(object_path="other.mp4"),
   lambda r,s:s.candidate.update(scheduled_at=SCHEDULE+timedelta(minutes=1)),
-  lambda r,s:s.receipt.update(source_sha256="00"*32),
+  lambda r,s:s.receipt.update(source_sha256="not-a-sha"),
   lambda r,s:s.receipt.update(object_path="changed/after/review.mp4"),
   lambda r,s:s.clearance.update(revision=4),
   lambda r,s:s.clearance.update(reviewed_by="31000000-0000-4000-8000-000000000002"),
