@@ -198,3 +198,7 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - Run exact-head 4-job CI, verify disposable Supabase positive/negative evidence and service-role-only access, merge `feat/p2-reviewed-video-approval-cas` internally only when green; confirm post-merge CI.
 - Preserve legacy text-only HTTP `p2_approve_social_job` and outward worker gates until real Part1 finalized SHA receipt and independently validated commercial license documents/expiry exist. The new source-only service RPC is NOT to be exposed through a browser route until approved backend read/computed digest integration, provider account OAuth grants, publishing plan caps and whole-route E2E.
 - Coordinator will reconcile later Part1 `main`, then separately approve hosted migration and release tests. No live social posts performed.
+
+## Video approval service next integration gate
+- Verify exact-head feature CI for the source-only, disabled backend approval adapter, internally merge only after 4/4 and inspect post-merge P2 CI. Do NOT register it as a public route without a separately approved release contract and real hosted license+render SHA and OAuth app/plan cap checks.
+- Remaining P0: legitimate P1 finalized-render service receipt, real commercial music/stock-use clearance, immutable same-bucket export & final hash at transfer, SQL claim/receipt state reconciliation under real provider sandbox tests. Only Final Coordinator integrates Part2 with latest P1 `main`.
