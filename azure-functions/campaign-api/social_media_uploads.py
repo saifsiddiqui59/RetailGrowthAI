@@ -8,6 +8,7 @@ successful media_publish or final binary PUT without remote reconciliation.
 from __future__ import annotations
 from dataclasses import dataclass, field
 import re
+from hashlib import sha256
 
 from social_dispatch import Delivery, ProviderFailure, message_uuid
 from social_providers import (
@@ -201,6 +202,54 @@ class YouTubeResumableUpload:
             raise
         except Exception:
             raise ProviderFailure("YOUTUBE_UPLOAD_UNCERTAIN") from None
+
+    def resume_verified(self, *, job_id, token, video_bytes):
+        """One source-SHA-verified partial resume, guarded by durable SQL CAS.
+
+        Probe Google's current 308 status, independently hash immutable bytes
+        against the server-held finalized-render SHA, and persist ONE exact
+        offset send-intent before a partial PUT. An ambiguous retry remains
+        RECONCILE, never a second automatic send. No blind re-init/PUT.
+        """
+        jid=message_uuid(job_id)
+        if (not isinstance(video_bytes,bytes) or
+                not 0<len(video_bytes)<=80*1024*1024):
+            raise ProviderFailure("INVALID_MEDIA", definitely_not_sent=True)
+        expected=getattr(self.storage,"source_sha256",None)
+        if (not isinstance(expected,str)
+                or not re.fullmatch(r"[0-9a-f]{64}",expected)
+                or sha256(video_bytes).hexdigest()!=expected):
+            raise ProviderFailure("UNTRUSTED_VIDEO_BYTES", definitely_not_sent=True)
+        detail=self.probe_interrupted_detail(
+            job_id=jid,token=token,size_bytes=len(video_bytes))
+        if isinstance(detail,Delivery):
+            # The provider already completed this exact session; the private
+            # terminal CAS has persisted its remote ID. Send no more bytes.
+            return detail
+        if not isinstance(detail,YouTubeResumeStatus):
+            raise ProviderFailure("UPLOAD_STATUS_UNKNOWN")
+        if self.storage.record_resume_intent(
+                jid,detail.next_byte,len(video_bytes),expected) is not True:
+            raise ProviderFailure("UPLOAD_RESUME_INTENT_MAY_HAVE_OCCURRED")
+        try:
+            session=youtube_upload_location(self.storage.get_session(jid))
+            remaining=video_bytes[detail.next_byte:]
+            req=BinaryUploadRequest(
+                method="PUT",url=session,
+                headers={"Authorization":"Bearer "+token,
+                         "Content-Length":str(len(remaining)),
+                         "Content-Type":"video/mp4",
+                         "Content-Range":f"bytes {detail.next_byte}-{len(video_bytes)-1}/{len(video_bytes)}"},
+                data=remaining)
+            status,body,_=self.transport(req)
+            rid=_receipt_or_uncertain(status,body,provider="youtube")
+            if self.storage.record_upload_receipt(jid,rid) is not True:
+                raise ProviderFailure("UPLOAD_RECEIPT_NOT_DURABLE")
+            return Delivery(remote_id=rid,status="PUBLISHED")
+        except ProviderFailure:
+            raise
+        except Exception:
+            raise ProviderFailure("YOUTUBE_RESUME_UNCERTAIN") from None
 
     def probe_interrupted(self, *, job_id, token, size_bytes):
         """Legacy status-only contract. Never auto-resume after a 308."""

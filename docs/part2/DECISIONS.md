@@ -129,3 +129,6 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 
 ## 2026-10-25 — 308 Range is evidence of offset, not permission to re-upload
 - Follow YouTube official resumable protocol: 308 with no Range = 0 accepted bytes; `bytes=0-N` = confirmed next offset N+1, strictly less than total for an INCOMPLETE response. Never infer missing bytes from a timeout; never trust duplicate, overflow, noncontiguous or contradictory headers. Expose only offset metadata to a future durable operator-reviewed resume CAS; do not auto-reissue any video bytes. A 200/201 verified remote ID may still be recorded through the private claim-only provider receipt barrier. Source-only, no real provider posts.
+
+## 2026-10-25 — One-shot YouTube resume requires fresh provider proof and durable DB intent
+- A 308 status response is evidence of bytes received, not authority to send. Before one final remaining-byte PUT, independently verify the ORIGINAL authorized SHA over immutable source bytes, re-probe encrypted YouTube session for exact offset, record one exclusive active lease/revision/quota/rights/consent CAS in private SQL, and fail closed on ambiguity or replay. No automated retry loop and no fresh session initialization on a lost ACK. Do not log OAuth bearer/session URI or report a mock transfer as live posting.

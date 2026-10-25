@@ -1,6 +1,7 @@
 """Mock-only media upload state machines: no live Meta/Google requests."""
 import sys
 from pathlib import Path
+from hashlib import sha256
 import pytest
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"azure-functions/campaign-api"))
 from social_media_uploads import InstagramReelUpload, YouTubeResumableUpload, BinaryUploadRequest, YouTubeResumeStatus
@@ -281,3 +282,95 @@ def test_youtube_probe_status_result_preserves_legacy_contract():
         storage=state)
     assert u.probe_interrupted(job_id=JOB,token=TOKEN,size_bytes=321)==(
         "INCOMPLETE_RECONCILE_REQUIRED")
+
+
+class ResumeState(YouTubeState):
+    def __init__(self, payload):
+        super().__init__()
+        self.url=SESSION
+        self.source_sha256=sha256(payload).hexdigest()
+        self.resume_offset=None
+        self.authorized=True
+        self.resume_checks=0
+    def record_resume_intent(self,jid,next_byte,size,source_sha):
+        self.resume_checks+=1
+        if (not self.authorized or self.resume_offset is not None
+                or source_sha!=self.source_sha256
+                or not 0<=next_byte<size):
+            return False
+        self.resume_offset=next_byte
+        return True
+
+
+def test_youtube_one_shot_resume_revalidates_sha_offset_and_terminal_receipt():
+    body=b"private-reviewed-bytes"
+    state=ResumeState(body)
+    requests=[]
+    def provider(req):
+        requests.append(req)
+        if req.data==b"":
+            assert req.headers["Content-Range"]==f"bytes */{len(body)}"
+            return 308,{},{"Range":"bytes=0-6"}
+        assert req.data==body[7:]
+        assert req.headers["Content-Range"]==f"bytes 7-{len(body)-1}/{len(body)}"
+        assert req.headers["Content-Length"]==str(len(body)-7)
+        assert state.resume_offset==7
+        return 201,{"id":VIDEOID},{}
+    upload=YouTubeResumableUpload(transport=provider,storage=state)
+    result=upload.resume_verified(job_id=JOB,token=TOKEN,video_bytes=body)
+    assert result.status=="PUBLISHED" and result.remote_id==VIDEOID
+    assert state.receipt==VIDEOID and state.resume_checks==1
+    assert [req.data for req in requests]==[b"",body[7:]]
+    # Any replay may issue a harmless status-only probe, but NEVER a second PUT.
+    with pytest.raises(ProviderFailure,match="RESUME_INTENT_MAY_HAVE_OCCURRED"):
+        upload.resume_verified(job_id=JOB,token=TOKEN,video_bytes=body)
+    assert [req.data for req in requests]==[b"",body[7:],b""]
+
+
+def test_youtube_resume_rejects_mutated_source_and_revoked_db_before_bytes():
+    body=b"trusted-binary"
+    state=ResumeState(body)
+    requests=[]
+    uploader=YouTubeResumableUpload(
+        transport=lambda req:requests.append(req) or
+            (308,{},{"Range":"bytes=0-3"}), storage=state)
+    with pytest.raises(ProviderFailure,match="UNTRUSTED_VIDEO_BYTES") as err:
+        uploader.resume_verified(job_id=JOB,token=TOKEN,video_bytes=body+b"tampered")
+    assert err.value.definitely_not_sent is True
+    assert requests==[] and state.resume_checks==0
+    state.authorized=False
+    with pytest.raises(ProviderFailure,match="RESUME_INTENT_MAY_HAVE_OCCURRED"):
+        uploader.resume_verified(job_id=JOB,token=TOKEN,video_bytes=body)
+    assert len(requests)==1 and requests[0].data==b""
+    assert state.resume_offset is None
+
+
+def test_youtube_uncertain_resumed_put_never_blind_retries_binary():
+    body=b"abcdefghi"
+    state=ResumeState(body)
+    requests=[]
+    def provider(req):
+        requests.append(req)
+        if req.data==b"": return 308,{},{"Range":"bytes=0-2"}
+        raise TimeoutError("secret session or bearer token DO_NOT_LOG")
+    uploader=YouTubeResumableUpload(transport=provider,storage=state)
+    with pytest.raises(ProviderFailure,match="YOUTUBE_RESUME_UNCERTAIN") as err:
+        uploader.resume_verified(job_id=JOB,token=TOKEN,video_bytes=body)
+    assert "DO_NOT_LOG" not in str(err.value)
+    assert state.resume_offset==3 and len(requests)==2
+    with pytest.raises(ProviderFailure,match="RESUME_INTENT_MAY_HAVE_OCCURRED"):
+        uploader.resume_verified(job_id=JOB,token=TOKEN,video_bytes=body)
+    assert [r.data for r in requests]==[b"",body[3:],b""]
+
+
+def test_youtube_resume_completed_during_status_probe_sends_no_binary():
+    body=b"abcdefgh"
+    state=ResumeState(body)
+    requests=[]
+    uploader=YouTubeResumableUpload(
+        transport=lambda req:requests.append(req) or (200,{"id":VIDEOID},{}),
+        storage=state)
+    result=uploader.resume_verified(job_id=JOB,token=TOKEN,video_bytes=body)
+    assert result.status=="PUBLISHED" and result.remote_id==VIDEOID
+    assert len(requests)==1 and requests[0].data==b""
+    assert state.resume_checks==0 and state.receipt==VIDEOID

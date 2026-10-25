@@ -383,3 +383,6 @@ Implement account credential refresh/revocation for reviewed provider grants; wi
 
 ## 2026-10-25 — Part2 provider 308 recovery follow-up
 - Merge verified 4/4 source-only 308 offset reconciliation internally to `feat/part2-integration` only, confirm post-merge run, then design a strict DB claim+SHA+provider offset resume CAS before any remote partial PUT. Final Coordinator owns Part2→latest main and independently authorized P2 hosted DEV migrations/provider consents. Never modify WineShopPOS.
+
+## 2026-10-25 — YouTube source retry safety after #304
+- Verify new P2 191900 one-shot resume CI+internal merge and independent integration CI; then Coordinator/DEV operator must perform separately approved hosted migrations, provider OAuth/plan quota setup, licensed actual rights/P1 render-source SHA and real account E2E before enabling Azure provider worker. Preserve text-only worker and all publish flags OFF, WineShopPOS untouched.

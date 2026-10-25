@@ -233,3 +233,7 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 ## 2026-10-25 — Next YouTube resume gate after safe 308 offset parser
 - Verify 4/4 exact-head CI and internal Part2 merge for `feat/p2-youtube-308-reconcile-offset`; verify independent post-merge CI.
 - P0 release: implement a claim-fenced durable **resume-intent CAS** with independent exact-byte SHA/size proof and provider-confirmed next offset immediately before any partial PUT; never send based solely on in-memory 308 or mutate/restart an ambiguous remote session. Preserve HTTPS Google-only AES-encrypted session and revoke checks. Test real approved test-account 308/201/404/5xx after hosted P2 migration and OAuth/plan/media rights approval.
+
+## 2026-10-25 — Remaining after one-shot YouTube recovery source
+- Verify exact-head 4/4 CI and internal merge for `feat/p2-youtube-resume-one-shot-cas`, then independent post-merge 4/4. Reconcile staged SQL 191900 with Coordinator migration order; no hosted writes.
+- Release blockers unchanged: Part1 finalized SHA callback and independently verified commercial license/expiry, real Meta/Google app grants, owner-approved publish caps, all staged P2 SQL on approved DEV, Azure worker/poison queue rollout and real licensed test-account provider receipt/308 canary. Video publishing remains OFF and may not be exposed on current text worker or frontend.

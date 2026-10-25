@@ -446,3 +446,6 @@ Source-only [#161](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/161) st
 
 ## 2026-10-25 — Part2 source-only YouTube incomplete upload reconciliation
 - Source P2 YouTube uploader can parse provider-confirmed 308 next-byte offset without sending more bytes; malformed, conflicting or fully-consumed 308 ranges are denied. The provider-side state machine and encrypted session remain guarded by the private DB claim. This is not a release of video partial resume, social account posting or hosted Supabase/Azure.
+
+## 2026-10-25 — P2 one-shot YouTube partial recovery staged only
+- Source-only YouTube upload path now has 308 status verification followed by an independent SHA-checked durable one-time recovery intent and exact remaining bytes. New 20th staged P2 SQL migration `20261023191900` enforces active claim, rights, credential/plan/consent, hash/size, and replay denial. No hosted P2 schema, OAuth, Azure worker, licensed test-account uploads or Part2→main integration performed.
