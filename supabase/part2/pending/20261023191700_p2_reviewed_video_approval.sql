@@ -81,7 +81,8 @@ begin
          and rights.reviewed_by=v.reviewed_by
          and rights.rights_kind=proof.rights_kind
          and rights.rights_evidence_sha256=proof.rights_evidence_sha256
-         and rights.rights_expires_at=proof.rights_expires_at
+         and rights.rights_expires_at>now()+interval '6 hours'
+         and rights.rights_expires_at>j.scheduled_at+interval '6 hours'
        join public.shop_memberships reviewer
          on reviewer.shop_id=v.shop_id and reviewer.user_id=v.reviewed_by
          and reviewer.active and reviewer.role in ('OWNER','EDITOR')
