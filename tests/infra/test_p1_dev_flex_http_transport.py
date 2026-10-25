@@ -73,3 +73,25 @@ def test_transport_timeout_not_mislabeled_http503(monkeypatch, capsys):
     output = capsys.readouterr().out
     assert '"status":0' in output and '"transport":"curl_failure"' in output
     assert '"anomalous":true' in output
+
+
+def test_azure_cli_row_list_is_preserved_only_as_allowlisted_aggregates(monkeypatch, capsys):
+    monkeypatch.syspath_prepend(str(ROOT / "ops"))
+    import flex_http_transport_correlation as diag
+    raw = [{"bucket": "2026-10-25T08:10:00Z", "ResultCode": "401",
+            "requests": 3, "p95_ms": 104.25,
+            "Message": "SECRET SHOULD NEVER LEAK",
+            "url": "https://private.invalid?token=DO_NOT_LOG"}]
+    safe = diag.safe_aggregate_rows(raw)
+    assert safe == [{"bucket": "2026-10-25T08:10:00Z",
+                     "ResultCode": "401", "requests": 3, "p95_ms": 104.25}]
+    assert "SECRET" not in repr(safe)
+
+def test_rest_style_table_columns_rows_are_decoded_without_other_fields(monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT / "ops"))
+    import flex_http_transport_correlation as diag
+    src = {"tables": [{"columns": [{"name": "bucket"}, {"name": "events"},
+                                   {"name": "RawPrivateMessage"}],
+                       "rows": [["2026-10-25T08:15:00Z", 7, "private body"]]}]}
+    assert diag.safe_aggregate_rows(src) == [
+        {"bucket": "2026-10-25T08:15:00Z", "events": 7}]
