@@ -45,19 +45,41 @@ def _validated_request(request):
                 raise ValueError()
         except (ProviderRejected, ValueError):
             raise ProviderFailure("UNAPPROVED_MEDIA_ENDPOINT", definitely_not_sent=True) from None
-        if (not isinstance(request.data, bytes) or len(request.data) > _MAX_BINARY
-                or set(request.headers) not in (
-                    {"Authorization", "Content-Length", "Content-Type"},
-                    {"Authorization", "Content-Length", "Content-Range"})):
+        if (not isinstance(request.data, bytes)
+                or len(request.data) > _MAX_BINARY):
             raise ProviderFailure("UNAPPROVED_MEDIA_REQUEST", definitely_not_sent=True)
-        if request.headers.get("Content-Length") != str(len(request.data)):
+        provided=set(request.headers)
+        base={"Authorization","Content-Length"}
+        full=base|{"Content-Type"}
+        probe=base|{"Content-Range"}
+        partial=base|{"Content-Type","Content-Range"}
+        if provided not in (full,probe,partial):
             raise ProviderFailure("UNAPPROVED_MEDIA_REQUEST", definitely_not_sent=True)
-        if "Content-Range" in request.headers:
-            if (request.data or
-                    not re.fullmatch(r"bytes [*]/[1-9][0-9]{0,17}",
-                                     request.headers["Content-Range"])):
+        if request.headers.get("Content-Length")!=str(len(request.data)):
+            raise ProviderFailure("UNAPPROVED_MEDIA_REQUEST", definitely_not_sent=True)
+        if provided==probe:
+            # Empty, status-only Google PUT; no binary bytes or file restart.
+            match=re.fullmatch(r"bytes [*]/([1-9][0-9]{0,17})",
+                               request.headers["Content-Range"])
+            if (request.data or not match
+                    or int(match.group(1))>80*1024*1024):
                 raise ProviderFailure("UNAPPROVED_MEDIA_REQUEST", definitely_not_sent=True)
-        elif request.headers.get("Content-Type") != "video/mp4" or not request.data:
+        elif provided==partial:
+            # One reviewed SHA/lease-scoped final remainder, after 308 probe
+            # and a separate durable one-shot resume-intent CAS. The transport
+            # only validates bytes/headers; never grants sending authority.
+            if request.headers.get("Content-Type")!="video/mp4" or not request.data:
+                raise ProviderFailure("UNAPPROVED_MEDIA_REQUEST", definitely_not_sent=True)
+            match=re.fullmatch(
+                r"bytes (0|[1-9][0-9]{0,17})-(0|[1-9][0-9]{0,17})/([1-9][0-9]{0,17})",
+                request.headers["Content-Range"])
+            if match is None:
+                raise ProviderFailure("UNAPPROVED_MEDIA_REQUEST", definitely_not_sent=True)
+            first,last,total=map(int,match.groups())
+            if (total>80*1024*1024 or first>last
+                    or last!=total-1 or len(request.data)!=total-first):
+                raise ProviderFailure("UNAPPROVED_MEDIA_REQUEST", definitely_not_sent=True)
+        elif request.headers.get("Content-Type")!="video/mp4" or not request.data:
             raise ProviderFailure("UNAPPROVED_MEDIA_REQUEST", definitely_not_sent=True)
         method, body, headers = "PUT", request.data, request.headers
     elif isinstance(request, ProviderRequest):

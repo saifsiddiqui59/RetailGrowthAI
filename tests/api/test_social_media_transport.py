@@ -126,3 +126,58 @@ def test_binary_payload_length_and_range_are_checked_before_network():
             transport(BinaryUploadRequest("PUT",SESSION,headers,body))
         assert exc.value.definitely_not_sent
     assert calls == []
+
+
+def test_guarded_youtube_partial_binary_put_keeps_exact_content_range():
+    """The current approved worker may send only final contiguous bytes."""
+    seen=[]
+    def opener(req,timeout):
+        seen.append(req)
+        assert req.get_method()=="PUT" and req.data==b"second"
+        assert timeout==30
+        assert req.full_url==SESSION
+        assert req.get_header("Content-range")=="bytes 5-10/11"
+        assert req.get_header("Content-length")=="6"
+        assert req.get_header("Content-type")=="video/mp4"
+        return Response(req.full_url,201,b'{"id":"Abc123_XyZ0"}')
+    transport=MediaNetworkTransport(enabled=True,opener=opener)
+    request=BinaryUploadRequest(method="PUT",url=SESSION,
+        headers={"Authorization":"Bearer SENSITIVE-TOKEN",
+                 "Content-Length":"6","Content-Type":"video/mp4",
+                 "Content-Range":"bytes 5-10/11"},data=b"second")
+    code,body,headers=transport(request)
+    assert code==201 and body["id"]=="Abc123_XyZ0"
+    assert len(seen)==1 and headers["range"] is None
+
+
+@pytest.mark.parametrize("data,headers",[
+    (b"second",{"Content-Length":"6","Content-Type":"video/mp4",
+                "Content-Range":"bytes 5-10/12"}), # end not last
+    (b"second",{"Content-Length":"6","Content-Type":"video/mp4",
+                "Content-Range":"bytes 6-10/11"}), # body too long
+    (b"second",{"Content-Length":"6","Content-Type":"video/mp4",
+                "Content-Range":"bytes 10-5/11"}), # decreasing range
+    (b"second",{"Content-Length":"6","Content-Type":"video/mp4",
+                "Content-Range":"bytes 05-10/11"}), # noncanonical
+    (b"second",{"Content-Length":"6","Content-Type":"video/mp4",
+                "Content-Range":"bytes 5-10/83886081"}), # >80 MB
+    (b"second",{"Content-Length":"6","Content-Type":"text/plain",
+                "Content-Range":"bytes 5-10/11"}), # unsafe codec
+    (b"second",{"Content-Length":"6",
+                "Content-Range":"bytes 5-10/11"}), # missing media type
+    (b"second",{"Content-Length":"6","Content-Type":"video/mp4",
+                "Content-Range":"bytes */11"}), # probe not a payload
+    (b"second",{"Content-Length":"7","Content-Type":"video/mp4",
+                "Content-Range":"bytes 5-10/11"}), # declared size wrong
+    (b"",{"Content-Length":"0","Content-Type":"video/mp4",
+          "Content-Range":"bytes 5-10/11"}), # empty partial
+])
+def test_partial_resumption_bad_range_never_reaches_provider(data,headers):
+    calls=[]
+    transport=MediaNetworkTransport(enabled=True,opener=lambda req,timeout:
+                                    calls.append(req))
+    with pytest.raises(ProviderFailure,match="UNAPPROVED_MEDIA_REQUEST") as error:
+        transport(BinaryUploadRequest("PUT",SESSION,
+            {"Authorization":"Bearer SENSITIVE-TOKEN",**headers},data))
+    assert error.value.definitely_not_sent is True
+    assert calls==[]

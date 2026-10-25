@@ -202,3 +202,5 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - 2026-10-25: P2 follow-on staged migration 191900 authorizes at most one YouTube partial retry per active claim after immutable SHA/size and 308-offset verification, with exact-body partial PUT and terminal receipt CAS. Added security/pytest regression cases; no live remote posts or hosted migration. Exact-head CI/merge separate.
 
 - 2026-10-25: Part2 added source-only claim/rights/verified-byte-bound Meta finalization and one-shot YouTube resume integration to guarded worker. Fixes concrete required media size in Instagram publish and adds a backend-only recovery path; negative mock tests cover revoked credentials/tenant and modified media. No hosted migrations, provider accounts or WineShopPOS changed. CI pending.
+
+- 2026-10-25: Extended guarded media transport accept-list to support only authenticated, exact-length contiguous final YouTube partial MP4 PUTs following one-shot active-claim resume CAS; preserved empty 308 probe and full upload semantics, and added fake-provider denial tests. No hosted/social account traffic.

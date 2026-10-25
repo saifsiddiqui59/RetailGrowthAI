@@ -135,3 +135,6 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 
 ## 2026-10-25 — Final remote publication cannot use an inferred media size
 - The guarded factory requires a server-verified private MP4 `media_size` even after Instagram container creation; re-fetching and SHA/FFprobe-checking original media before `media_publish` protects against changed source and binds the true size for state CAS. The same check precedes YouTube recovery. No stage can infer byte size or video SHA from a client/queue/context asset label; all remote effects remain protected by service-role claim CAS and provider receipts.
+
+## 2026-10-25 — HTTP allowlist must validate a CAS-authorized partial Google PUT
+- Provider HTTP transport recognizes three strictly separate binary shapes: initial whole MP4 (no Range), empty 308 status probe (`bytes */TOTAL`), and one-shot final contiguous remainder (`bytes FIRST-LAST/TOTAL`, H.264/AAC reviewed MP4, exact length). The resumed shape is only valid after the separate reviewed worker durable send-intent CAS. This is an allowlist correction, not unrestricted HTTP or external token exposure; no redirects, arbitrary hosts, malformed offsets, or implicit retry.
