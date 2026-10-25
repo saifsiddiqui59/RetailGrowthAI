@@ -372,3 +372,7 @@
 
 ## 2026-10-25 — Verified rollout boundary for private Reel RLS GET resilience
 - The two-stage approved delivery is now live: #284 cost-neutral current-user-JWT read-only private video fallback, and #287 one-shot existing Free DEV SWA release [#40168267800](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40168267800) PASS with actual served bundle verified. This is a safe read-availability mitigation, not a substitute for root-causing Function host 503 P0 #249. Keep signed-in RLS, source-of-truth JWT, exact shop/job-bound short-lived Storage signed URL; never replay non-idempotent POST/PATCH or claim public API E2E until separately proven.
+
+## 2026-10-25 — Evidence-first Flex P0 diagnostics, no speculation-based capacity purchase
+- Instrument one protected **one-time read-only** Azure OIDC check of the exact tagged Central India DEV Functions app, logging only allowlisted configuration, fixed anonymous no-JWT request status/time and application-header presence, supported platform metric aggregates and timestamp-bucketed telemetry. No raw exception messages, secret settings, identities, customer media or JWT. No writes, recurring keep-warm probes, or plan scaling.
+- A successful diagnostics job only proves evidence collection. Keep P0 #249 open until direct gateway behavior and authenticated E2E pass; do not claim worker success or Reel RLS GET mitigation fixes campaign POST ingress.
