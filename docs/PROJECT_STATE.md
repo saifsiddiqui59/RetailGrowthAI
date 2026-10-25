@@ -436,3 +436,6 @@ Source-only [#161](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/161) st
 
 ## 2026-10-25 — Part 2 private claim context source staged
 - Source-only 191800 SQL and `ScopedVideoClaimAuthority` provide video sender with a server-computed active SENDING lease, licensed P1 media SHA/rights and AES-GCM sealed provider OAuth token; browser and queue cannot supply or read claims. Staged disposable database + fake OAuth tests under feature CI. No live cloud changes, plan cap rows, P1 callback wiring, real licensed provider media or social publish.
+
+## 2026-10-25 — Source-only guarded video worker assembly
+- Added a disabled-by-default explicit builder for Part2 verified video sender, requiring six operator switches and injected reviewed social outbound transport. Active claim/shop/rights/token are obtained by server-only DB RPC; exact private MP4 file byte size is generated from verified bytes. No Azure HTTP/queue functions registered; no real social posts made.
