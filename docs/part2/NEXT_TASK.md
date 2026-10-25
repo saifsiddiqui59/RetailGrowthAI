@@ -212,3 +212,8 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - Cross-part P0: Part1 renderer must wire trusted finalizer adapter and produce actual immutable original-output digest; independently licensed stock/music reviewer must populate rights evidence (including expiry and commercial permission). This cannot be faked by generated-asset metadata.
 - P0 external: enable real provider OAuth test grants, owner-approved social publication plan limits and consented test accounts; only then coordinate hosted P2 SQL 190000–191700, Azure timer/queue/poison worker and conditional video API activation with explicit owner rollout review, negative E2E and durable remote receipt reconciliation.
 - Coordinator alone handles main compatibility and final PR; do not modify WineShopPOS or disable existing social/Part1 safety guards.
+
+## 2026-10-25 — Video workflow orchestration next stage
+- Verify feature exact-head four GitHub Actions jobs, merge only into Part2 integration branch after green, then verify post-merge 4/4. Do not activate the source-only video workflow by importing it from current text-only Azure worker.
+- P0: implement real scoped `claims.load/allow` from reviewed active job/claim SQL and independently checked rights, returned server-only; wire Part1 trusted SHA producer at final render completion and real license evidence; add encrypted provider token scope/refresh, immutable source transfer and provider remote reconciliation/canary E2E before enabling any video worker.
+- Deployment/cross-part: owner-approved hosted migrations 190000–191700, provider OAuth app grants and plans, Azure release switches, Final Coordinator only for latest main. No user-facing posting claim from mocked tests.
