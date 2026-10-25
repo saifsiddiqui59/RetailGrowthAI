@@ -90,7 +90,7 @@ class RPCMock:
         assert timeout==10
         assert req.get_method()=="POST"
         assert req.headers["Apikey"].startswith("sb_secret_")
-        if name=="p2_claim_social_publish":
+        if name=="p2_claim_social_text_publish":
             value={"job_id":JOB,"claim_token":CLAIM}
         elif name=="p2_social_claim_context":
             assert payload == {"p_job":JOB,"p_claim":CLAIM}
@@ -122,7 +122,7 @@ def test_only_claimed_account_can_decrypt_credentials():
     assert context["job"]["scheduled_at"]<NOW
     assert ACCESS not in repr(fake.calls)
     assert [n for n,_,_ in fake.calls]==[
-        "p2_claim_social_publish","p2_social_claim_context"]
+        "p2_claim_social_text_publish","p2_social_claim_context"]
     assert all("access_token" not in str(call[1]) for call in fake.calls)
 
 
@@ -186,7 +186,7 @@ def test_complete_offline_dispatch_honors_barrier_receipt_and_no_duplicate():
                            clock=lambda:NOW)=="PUBLISHED"
     assert writes==[(JOB,ACCESS)]
     assert [n for n,_,_ in fake.calls]==[
-        "p2_claim_social_publish","p2_social_claim_context",
+        "p2_claim_social_text_publish","p2_social_claim_context",
         "p2_mark_social_inflight","p2_finish_social_publish"]
     receipt=fake.calls[-1][1]
     assert receipt["p_remote"]=="123456789_555"
@@ -203,7 +203,7 @@ def test_stale_content_fails_without_network_or_inflight_barrier():
     assert process_publish(JOB,repository=repository,provider=NeverPublish(),
                            clock=lambda:NOW)=="FAILED"
     assert [n for n,_,_ in fake.calls]==[
-        "p2_claim_social_publish","p2_social_claim_context",
+        "p2_claim_social_text_publish","p2_social_claim_context",
         "p2_finish_social_publish"]
     assert fake.calls[-1][1]["p_outcome"]=="FAILED"
     assert fake.calls[-1][1]["p_error"]=="APPROVAL_STALE"
@@ -219,7 +219,7 @@ def test_failed_barrier_blocks_network_side_effect():
         process_publish(JOB,repository=repository,provider=NeverPublish(),
                         clock=lambda:NOW)
     assert [n for n,_,_ in fake.calls]==[
-        "p2_claim_social_publish","p2_social_claim_context",
+        "p2_claim_social_text_publish","p2_social_claim_context",
         "p2_mark_social_inflight"]
 
 
