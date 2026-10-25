@@ -25,7 +25,7 @@ begin
     join retail_private.social_publish_quota_ledger l
       on l.publish_job_id=j.id and l.shop_id=j.shop_id
       and l.period_start=s.period_start
-    where j.status in ('APPROVED','QUEUED','RETRYABLE')
+    where j.provider in ('facebook','linkedin')\n      and j.status in ('APPROVED','QUEUED','RETRYABLE')
       and j.scheduled_at<=now() and j.attempts<5
       and j.approved_at is not null and j.approved_by is not null
       and j.approved_content_sha256 is not null
@@ -80,6 +80,28 @@ begin
   insert into retail_private.social_publish_attempts(job_id,attempt_no,claim_token)
     values(p_job,j.attempts+1,token);
   return jsonb_build_object('job_id',p_job,'claim_token',token);
+end
+$$;
+
+-- The already-deployed text-only timer/queue must NEVER claim a future
+-- Instagram/YouTube reviewed media job. A queue UUID may be old, duplicated
+-- or injected: enforce the provider fence inside the DB, not just scanner.
+-- This function locks the job in the SAME transaction as the generic claim,
+-- so the provider cannot change between the check and the CAS.
+create function public.p2_claim_social_text_publish(p_job uuid)
+returns jsonb language plpgsql security definer set search_path=''
+as $$
+declare v_provider text;
+begin
+  if (select auth.role()) is distinct from 'service_role' then
+    raise exception 'service only text publish claim' using errcode='42501';
+  end if;
+  select j.provider into v_provider
+    from public.social_publish_jobs j where j.id=p_job for update;
+  if v_provider is null or v_provider not in ('facebook','linkedin') then
+    return null;
+  end if;
+  return public.p2_claim_social_publish(p_job);
 end
 $$;
 
@@ -165,12 +187,16 @@ revoke all on function public.p2_due_social_job_ids(integer)
   from public,anon,authenticated;
 revoke all on function public.p2_claim_social_publish(uuid)
   from public,anon,authenticated;
+revoke all on function public.p2_claim_social_text_publish(uuid)
+  from public,anon,authenticated;
 revoke all on function public.p2_mark_social_inflight(uuid,uuid)
   from public,anon,authenticated;
 revoke all on function public.p2_finish_social_publish(uuid,uuid,text,text,text)
   from public,anon,authenticated;
 grant execute on function public.p2_due_social_job_ids(integer) to service_role;
 grant execute on function public.p2_claim_social_publish(uuid) to service_role;
+grant execute on function public.p2_claim_social_text_publish(uuid)
+  to service_role;
 grant execute on function public.p2_mark_social_inflight(uuid,uuid) to service_role;
 grant execute on function public.p2_finish_social_publish(uuid,uuid,text,text,text) to service_role;
 commit;
