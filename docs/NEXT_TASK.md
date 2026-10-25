@@ -389,3 +389,6 @@ Implement account credential refresh/revocation for reviewed provider grants; wi
 
 ## 2026-10-25 — Meta finish / YouTube recovery source wiring
 - Require feature exact-head four-job CI + internal Part2 merge and independent integration CI. No Azure trigger/public route registration until approved hosted 190000–191900 migrations, independently reviewed P1 render SHA+media rights, plan publishing limits/consented OAuth channels, real test-account receipt E2E and Coordinator main compatibility. WineShopPOS never modified.
+
+## 2026-10-25 — Part2 YouTube partial transport compatibility
+- Verify exact feature four-job tests, internal P2 merge and independent post-merge CI. Real approved Azure P2 SQL 190000–191900, P1 trusted hash callback, commercial licensing, OAuth scopes/plan caps and provider account canary E2E remain release gates. Do not register any live HTTP provider worker until those proofs exist; Final Coordinator handles latest main.
