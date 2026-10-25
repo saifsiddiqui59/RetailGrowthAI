@@ -449,3 +449,6 @@ Source-only [#161](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/161) st
 
 ## 2026-10-25 — P2 one-shot YouTube partial recovery staged only
 - Source-only YouTube upload path now has 308 status verification followed by an independent SHA-checked durable one-time recovery intent and exact remaining bytes. New 20th staged P2 SQL migration `20261023191900` enforces active claim, rights, credential/plan/consent, hash/size, and replay denial. No hosted P2 schema, OAuth, Azure worker, licensed test-account uploads or Part2→main integration performed.
+
+## 2026-10-25 — Part2 guarded video publishing safety source patch
+- Updated isolated `ReviewedVideoSendOrchestrator`: Instagram final publish now recomputes verified media size from original private P1 MP4 instead of lacking required factory context; YouTube recover uses re-hashed private bytes and one-shot 308/resume CAS. Offline E2E only; cloud migrations, commercial rights, real OAuth grants and external provider posts remain blocked.
