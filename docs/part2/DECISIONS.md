@@ -144,3 +144,6 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 
 ## 2026-10-26 — No public P2 receipt read or automatic provider write
 - Reuse existing 191600 strict service-role Instagram container RPC, not a new browser-readable social table, for source-only read-only observation. Require exact current server claim and second claim recheck after receipt load. A container is upload processing evidence only, never a final Meta published-media/account proof. Any failure is reconciliation, not permission to repeat media_publish. This module alone does not register a Functions job, create or send an external post or change live OAuth.
+
+## 2026-10-26 — Strict provider transport must be explicitly opt-in
+- Require `RETAIL_PART2_VIDEO_NETWORK_TRANSPORT_ENABLED=true` alongside all six existing video social flags and explicit Python factory `enabled=True` for a network transport instance. The built-in transport already forbids non-allowlisted URL, redirects and implicit retries, while the original sender checks server authority/rights prior to external effects. No auto-register Azure or expose browser routes. No hosted/PROD or WineShopPOS changes.
