@@ -271,3 +271,6 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 
 ## 2026-10-26 — Existing DB-based IG receipt loader source (not deployed)
 - Service-only `ScopedInstagramReceiptLoader` wraps already staged P2 191600 `p2_video_container_for_claim`, validates active server job/lease + immutable revision, shop, connected IG account, source SHA and scoped permission, and rereads claim after bounded private RPC. Optional adapter feeds #310 read-only remote observer; no new schema, public route or active posting. Source-only fake tests include Meta GET status `PUBLISHED` with conservative `FINAL_POST_RECEIPT_REQUIRED`. No actual Meta final media receipts, OAuth grants, hosted SQL or worker deployments verified.
+
+## 2026-10-26 — Concrete provider network composition (source only, OFF)
+- Optional `social_video_network_factory.build_guarded_video_network_sender` instantiates pre-existing pinned `MediaNetworkTransport` and injects it into existing claim-fenced video factory only with all six social/video worker gates, seventh network gate and explicit opt-in. No Azure blueprint registration, no provider HTTP on construction, and no real customer account/source activation. Automated fake opener tests deny wrong network host/method and missing gates.
