@@ -375,7 +375,7 @@ Implement account credential refresh/revocation for reviewed provider grants; wi
 - Verify exact four-job PR+post-merge CI. Real licensed DEV social publishing still depends on Part1 original render SHA callback and media commercial rights evidence, separately granted provider apps/real account secrets, plan caps/hosted 19 SQL migrations, real provider remote receipt and resume/reconcile E2E and final Coordinator-to-main merge. Do not enable worker purely based on source code.
 
 ## 2026-10-25 — Final Part 2 release blockers after source orchestration
-1. Verify #301 post-merge Part2 Actions #40176288777 4/4 and checkpoint PR; don't repeat completed #297/#299/#301 source work.
+1. #301 post-merge Part2 Actions #40176288777 passed 4/4; verify checkpoint PR without repeating #297/#299/#301 source work.
 2. Part1 lead/Coordinator must wire trusted finalized SHA writer on original FFmpeg output; separately establish verified commercial stock music/video/brand rights and expiry, not a browser claim.
 3. DEV Operator/Coordinator must approve and safely apply 19 P2 Supabase migrations 190000–191800 in correct order, configure approved subscription publish quotas and legitimate official platform OAuth app scopes/secrets/accounts, then validate hosted RLS/job isolation and rollback; currently P2 social tables are ABSENT from the connected RetailGrowthAI database.
 4. Review real signed, allowlisted provider transport and remote receipt/reconciliation incl Meta FINISHED/media_publish and YouTube 308; wire video timer/queue/poison worker with six release switches OFF by default until explicit canary and licensed accounts. Verify actual approved platform post in DEV, not mocked video alone.
