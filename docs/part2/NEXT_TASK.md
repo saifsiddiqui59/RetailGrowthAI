@@ -202,3 +202,7 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 ## Video approval service next integration gate
 - Verify exact-head feature CI for the source-only, disabled backend approval adapter, internally merge only after 4/4 and inspect post-merge P2 CI. Do NOT register it as a public route without a separately approved release contract and real hosted license+render SHA and OAuth app/plan cap checks.
 - Remaining P0: legitimate P1 finalized-render service receipt, real commercial music/stock-use clearance, immutable same-bucket export & final hash at transfer, SQL claim/receipt state reconciliation under real provider sandbox tests. Only Final Coordinator integrates Part2 with latest P1 `main`.
+
+## Part1 render SHA callback dependency after source adapter
+- Verify exact-head four-job CI, internal merge and post-merge branch checks for `feat/p2-render-finalized-receipt-writer`.
+- Ask Part1/Final Coordinator to integrate this service-only adapter at original FFmpeg render completion while retaining trusted private output bytes, after persisting SUCCEEDED render/asset and before releasing the private scratch. Do not call this as backfill from tenant-editable Storage or expose its method on public HTTP. Verify P1 object bytes and SHA persist at finalization, and separately validate music/stock commercial rights. Only after those prerequisites can the P2 video approval review be used for licensed DEV tests.

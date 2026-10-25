@@ -355,3 +355,6 @@ Implement account credential refresh/revocation for reviewed provider grants; wi
 
 ## 2026-10-25 — Part2 backend video approval adapter follow-up
 - Require exact-head four-job CI and merge only internally after green; preserve no public video authoring route. Coordinate real P1 finalized SHA and licensed audio rights, provider grants/plan caps and remote receipt reconciliation before any independently authorized hosted E2E or Final Coordinator merge into `main`.
+
+## 2026-10-25 — Part2 render-finalization integration for Coordinator
+- Verify source-only FinalizedRenderReceiptWriter exact CI + merge. Coordinator/Part1 owner must wire it at trusted Part1 successful render completion and validate real storage copy/original SHA/rights evidence, without taking Part2's service role to browser or changing WineShopPOS. Hosted P2 migration, OAuth/scopes and provider posts remain separately gated.

@@ -114,3 +114,6 @@ The social preview gallery uses four offline fixtures: LinkedIn and Facebook tex
 
 ## 2026-10-25 — Never accept browser-provided video approval SHA
 - Keep conditional reviewed-video approval behind an unregistered backend service. Caller submits only shop/job/revision after verified user JWT; trusted server fetches current draft, independently approved commercial rights and finalized Part1 SHA receipt, then calculates canonical digest from current DB fields. SQL independently rechecks exact evidence and performs approval+quota atomically. Backend service still cannot assert rights merely because a review-row hash exists; the real rights reviewer and P1 SHA producer must supply independent verified records before hosted enablement.
+
+## 2026-10-25 — Finalized SHA must originate inside trusted Part1 renderer
+- A completed render asset path or client-supplied checksum is not authoritative. Provide a service-only, off-by-default finalization callback that reads bytes from the same trusted Part1 FFmpeg output, hashes and FFprobes before write-once registered SHA in the P2 private ledger. Only the Part1 owner/Coordinator may wire it into their render lifecycle; do not overwrite P1 runtime or attach it as public media backfill. The initial reviewed-video publishing workflow remains disabled until separate rights proof exists.

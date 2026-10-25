@@ -184,3 +184,5 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - 2026-10-25: Part2 video-approval follow-up started on `feat/p2-reviewed-video-approval-cas`: additive *staged-only* service-role exact-job/revision/media/rights/finalized-render-SHA approval CAS with atomic publish quota and negative SQL. Existing text-only API denial remains unchanged, no WineShopPOS or hosted resource write. Await exact CI and internal merge evidence.
 
 - 2026-10-25: Added source-only Part2 reviewed-video approval service with JWT membership gate, private server-owned render SHA/licensing receipts and computed content digest; scoped PostgREST repository RPC call. No production route/secret or actual social post. Feature CI still to verify.
+
+- 2026-10-25: Implemented P2-owned service-only Part1 render-finalized SHA producer adapter with strict FFprobe, private path/byte integrity and append-only P2 RPC. Added offline denial/success tests; original P1 render worker not modified and no hosted/cloud posts. CI evidence tracked by PR.
