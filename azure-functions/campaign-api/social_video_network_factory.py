@@ -30,6 +30,8 @@ def build_guarded_video_network_sender(
             or any(config.get(flag) != "true" for flag in
                    (*_REQUIRED_SWITCHES, _NETWORK_SWITCH))):
         raise VideoWorkerDisabled("Part2 video provider network remains disabled")
+    if provider_opener is not None and not callable(provider_opener):
+        raise VideoWorkerDisabled("invalid reviewed provider opener")
     # The transport has a host/path/method/header allowlist, HTTPS only,
     # no redirects, bounded bodies and no automatic 5xx/timeout replay.
     provider_transport = MediaNetworkTransport(
