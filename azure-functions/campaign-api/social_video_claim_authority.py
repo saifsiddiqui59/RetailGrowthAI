@@ -120,7 +120,12 @@ class ScopedVideoClaimAuthority:
                     or row["source"]!="PART1_RENDER_FINALIZED"
                     or row["storage_bucket"]!="retailgrowth-media"
                     or row["connection_status"]!="CONNECTED"
+                    or not isinstance(row["granted_scopes"],list)
+                    or any(not isinstance(scope,str)
+                           for scope in row["granted_scopes"])
                     or _SCOPES[provider] not in row["granted_scopes"]
+                    or _uuid(row["media_asset_id"]) != row["media_asset_id"]
+                    or _uuid(row["social_account_id"]) != row["social_account_id"]
                     or type(row["revision"]) is not int or row["revision"]<1
                     or type(row["key_version"]) is not int
                     or row["key_version"]!=self.vault.version
