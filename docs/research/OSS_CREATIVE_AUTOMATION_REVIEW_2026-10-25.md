@@ -85,3 +85,32 @@ A GitHub MIT/BSD license covers project **code**, not necessarily bundled fonts,
 5. Only afterward decide if ShortGPT/editly declarative timeline adds enough value to warrant extra dependencies.
 
 **No implementations, OSS installs, license approvals, provider activations, Azure changes, customer posts, hosted migrations or WineShopPOS modifications are included in this review.**
+
+
+## Owner follow-up — prefer *actual compatible code reuse* and explicitly include Wan
+
+**Decision proposal:** The point of evaluating MIT/BSD dependencies is to avoid reinventing functioning modules. Run a real compile/test/benchmark *porting spike*, not merely a conceptual analysis. Retain a narrow module boundary around our own tenant authorization, staged asset IDs, subscriptions, Azure queues, worker claims and private media.
+
+### Exact candidates to reuse, with observed seams
+
+1. **Video (team A)** — MoneyPrinterTurbo is **MIT** and its `app/services/video.py` is approximately 2,044 lines with MoviePy, NumPy and many sibling app imports; `app/services/subtitle.py` is roughly 353 lines and depends on `app.config`, constants and proprietary service wiring. Its `pyproject.toml` pins `moviepy==2.2.1`, `edge-tts==7.3.1`, `faster-whisper==1.1.0`, Streamlit/FastAPI and numerous provider clients. **Do not copy an entire 2,044-line script unchanged.** Extract well-defined caption animation, fitting, audio ducking or clip-selection routines with attribution and slim imports; compare their output/runtime against the existing Python/FFmpeg worker. Alternative PurffleShorts `purffle_shorts/overlays.py` is about 1,004 lines, with Pillow caption renderers and ASS writing helpers but is tied to `.config/.timing/.ffmpeg`; port the discrete subtitle overlay functions and necessary pure helpers after focused license/dependency/security review.
+2. **Poster (team B)** — prefer installing **MIT `react-konva`/`konva` as published dependencies**, not copying their internals. Upstream checked `react-konva` peer requires React `^19.3.0`; our current frontend `react`/`react-dom` are `19.3.1`, so a compatible integration is plausible, subject to npm/pin/build tests. Consider Fabric.js as the *alternative*, not both. Retain RetailGrowthAI's Pillow poster worker for server-authoritative output; don't add a new backend by importing Tela or Lumio.
+3. **Media (team C)** — use **BSD PySceneDetect or MIT faster-whisper as installed dependencies** only if needed for an approved use case and after CPU/memory/runtime measurement; extract asset-matching/cache helpers only when license/rights provenance and host/SSRF controls are maintained. Do not bulk copy footage, fonts, example prompts or third-party audio.
+4. **Wan premium (team A with existing Part 3 lead)** — Wan is **part of the video product**, but **Part 3 already owns** `feat/part3-integration` and draft integration PR #125. Reuse its existing provider adapter, queued job/cost cap and approved asset interfaces, rather than building a new provider pipeline in team A. Team A owns the unified free FFmpeg + optional premium Wan *UX/output composition*. Part 3 lead alone owns its existing paid provider implementation and internal PRs; final Coordinator reconciles. No real model calls, migration activation or premium billing without explicit operator gates.
+
+### Revised division for independent execution
+
+- **A — Video Studio (free + premium)**: import/port selected permissive-licensed video/TTS/subtitle modules, storyboard/audio, safe 30-second composition, and integrate the **existing Part 3 Wan** premium adapter only across reviewed contracts. Avoid changing Part 3 active feature branch.
+- **B — Poster Studio**: published React Konva (or Fabric) library integration, brand-kit templates, editing, serialized design and existing Pillow-backed secure export.
+- **C — Licensed Media and Enrichment**: stock API adapter, provenance/right-to-advertise review, controlled source download, scene segmentation and optional recorded-footage ASR, secure caching; can build independently.
+- **Final Coordinator**: freezes shared campaign/media JSON boundaries, reviews provenance/license notices, dependency scans, six-way tenant/role/rights/timeout/cost/clip quality checks and integrates A/B/C with current Part 1 and already independent Part 2/Part 3. Final coordinator, not A/B/C, merges to main.
+
+### Proof required before transplanting code
+
+- Pin upstream commit/release and record the exact file/function, license/copyright and third-party notices.
+- Demonstrate reproducible imported module works with Python 3.12 Flex or React 19.3.1/Vite, including no new always-on worker.
+- Reject tenant-crossing IDs, arbitrary URLs, unlicensed media, oversized resources, expired grants and hidden third-party credential downloads.
+- Compare output quality, duration/resolution/codec, startup time, CPU/peak RSS, dependency tree, mobile poster touch/edit and cost against current baseline. Add offline fixtures and four existing CI jobs; do not waive security tests.
+- Propose a narrow PR with a clear upstream link and copied-license attribution before code joins the proprietary hosted SaaS.
+
+**This follow-up supersedes wording implying that we should merely take inspiration: implement actual permissively licensed functionality where evidence supports it; preserve source boundaries where whole-app imports are unsafe or incompatible.**
