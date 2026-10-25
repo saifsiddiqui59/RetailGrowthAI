@@ -1,0 +1,43 @@
+name: RetailGrowthAI DEV one-shot Azure Resource Health audit
+# Read-only OIDC: exact existing DEV resource; no customer data or resource modifications.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p1-dev-resource-health-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-resource-health-audit-once
+  cancel-in-progress: false
+jobs:
+  audit:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'audit(dev): RetailGrowthAI resource health')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Read exact DEV Resource Health and subscription scoped incident metadata
+        shell: bash
+        env:
+          RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          python3 -u ops/p1_dev_resource_health_once.py
+      - name: End read-only DEV Azure session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
