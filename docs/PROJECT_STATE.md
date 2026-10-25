@@ -423,3 +423,6 @@ Source-only [#161](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/161) st
 
 ## 2026-10-25 — Unregistered Part2 backend video approval adapter
 - In Part2 source, `social_reviewed_video_approval.py` binds user membership and current approved draft to independently verified private render SHA/rights service reads, recomputes immutable canonical approval digest without accepting browser hashes and calls staged `p2_approve_reviewed_video_job` transaction. Explicit server-only disabled-by-default constructor; no route, posted media, hosted changes or Part1/3/WineShopPOS edits. Tests and internal PR status recorded separately.
+
+## 2026-10-25 — Part2 source-only finalized-render SHA writer contract
+- Added a disabled-by-default service-only callback module to compute and register Part1 FFmpeg private-render output SHA + H.264/AAC evidence against append-only tenant/render/asset DB receipt; bounded transport and negative mock tests. It is **not installed in Part1 renderer**; actual P1 finalization integration and legally reviewed rights/expiry are still required before real video approval or publishing.
