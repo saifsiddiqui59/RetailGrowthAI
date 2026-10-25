@@ -22,7 +22,7 @@ from social_publish_policy import PublishDenied
 from tenant_store import StorageUnavailable, canonical_uuid
 
 _RPCS = frozenset({
-    "p2_claim_social_publish", "p2_social_claim_context",
+    "p2_claim_social_text_publish", "p2_social_claim_context",
     "p2_mark_social_inflight", "p2_finish_social_publish",
     "p2_social_refresh_context", "p2_rotate_social_access",
     "p2_record_social_poison",
@@ -94,7 +94,7 @@ class SocialPublishRpcRepository:
 
     def claim(self, job_id):
         jid = message_uuid(job_id)
-        result = self._rpc("p2_claim_social_publish", {"p_job": jid})
+        result = self._rpc("p2_claim_social_text_publish", {"p_job": jid})
         if result is None:
             return None
         if (not isinstance(result, dict) or set(result) != {"job_id", "claim_token"}

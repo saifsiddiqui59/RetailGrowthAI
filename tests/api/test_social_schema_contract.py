@@ -27,3 +27,18 @@ def test_provider_account_and_revision_are_database_bound():
     assert "foreign key(shop_id,social_account_id,provider)" in M
     assert "revision integer not null default 1 check(revision > 0)" in M
     assert "provider text not null check(provider in ('instagram','facebook','linkedin','youtube'))" in M
+
+def test_text_worker_never_selects_or_claims_video_provider_jobs():
+    q = (Path(__file__).resolve().parents[2] /
+         "supabase/part2/pending/20261023190300_p2_social_dispatch_claims.sql").read_text()
+    assert "where j.provider in ('facebook','linkedin')" in q
+    assert "create function public.p2_claim_social_text_publish(p_job uuid)" in q
+    assert "v_provider not in ('facebook','linkedin')" in q
+    assert "from public.social_publish_jobs j where j.id=p_job for update" in q
+    assert "return public.p2_claim_social_publish(p_job);" in q
+    assert "revoke all on function public.p2_claim_social_text_publish(uuid)" in q
+    assert "grant execute on function public.p2_claim_social_text_publish(uuid)" in q
+    source = (Path(__file__).resolve().parents[2] /
+              "azure-functions/campaign-api/social_worker_repository.py").read_text()
+    assert '"p2_claim_social_text_publish"' in source
+    assert '"p2_claim_social_publish"' not in source
