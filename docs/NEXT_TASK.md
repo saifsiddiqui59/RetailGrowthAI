@@ -367,3 +367,6 @@ Implement account credential refresh/revocation for reviewed provider grants; wi
 
 ## 2026-10-25 — Part2 after source-only video orchestration
 - Review/test/merge exact CI for `feat/p2-verified-video-send-orchestration` to Part2 branch, then instantiate a real claim-scoped service context (not browser input), integrate FFmpeg finalizer SHA/rights on Part1, permissioned hosted OAuth/social quotas and Azure worker only after owner-approved DEV release. No direct Part2→main merge; Final Coordinator handles latest Part1/Part3 conflicts. No WineShopPOS modification.
+
+## 2026-10-25 — Video publisher authoritative claims
+- Verify PR containing staged P2 191800 service-only video claim context + scoped backend AES decrypt and four-job CI. After this source foundation, the video worker still requires approved host configuration, consented platform accounts and rights, P1 finalized SHA callback, regulated queue/receipt recovery tests and Final Coordinator integration with latest `main` before any live publishing.

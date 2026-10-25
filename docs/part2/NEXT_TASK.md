@@ -217,3 +217,7 @@ PR [#158](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/158) completed *
 - Verify feature exact-head four GitHub Actions jobs, merge only into Part2 integration branch after green, then verify post-merge 4/4. Do not activate the source-only video workflow by importing it from current text-only Azure worker.
 - P0: implement real scoped `claims.load/allow` from reviewed active job/claim SQL and independently checked rights, returned server-only; wire Part1 trusted SHA producer at final render completion and real license evidence; add encrypted provider token scope/refresh, immutable source transfer and provider remote reconciliation/canary E2E before enabling any video worker.
 - Deployment/cross-part: owner-approved hosted migrations 190000–191700, provider OAuth app grants and plans, Azure release switches, Final Coordinator only for latest main. No user-facing posting claim from mocked tests.
+
+## 2026-10-25 — Video claim loader integration gate
+- Verify feature 4/4 exact-head CI, internally merge staged SQL 191800 + scoped AES video claim authority to Part2 only, and check post-merge CI.
+- Next: integrate disabled end-to-end video orchestrator with this real service-owned scoped claim-loader and final approved provider factory; wire Part1 trusted FFmpeg finalized SHA and independent rights review, then provider sandbox/receipts, hosted Azure workers, plan caps and OAuth credentials under an explicit operator-approved DEV canary.
