@@ -73,3 +73,5 @@ jobs:
           path: supabase/migrations/*_p0_249_reel_render_intent.sql
           if-no-files-found: ignore
           retention-days: 2
+
+# Monotonic migration version generation rechecked after 2026-10-26 15:20 UTC.
