@@ -92,6 +92,43 @@ test('media library filters business-owned records without public blob URLs', as
   await expect(page.locator('a[href*="/storage/v1/object"]')).toHaveCount(0)
 })
 
+test('calendar verifies last campaign against JWT shop and denies cross-tenant days', async ({ page }) => {
+  await signedIn(page)
+  const CAMPAIGN = 'c1000000-0000-4000-8000-000000000001'
+  let foreign = false
+  const apiCalls = []
+  await page.route('https://api.e2e.retailgrowth.test/**', route => {
+    const req = route.request()
+    apiCalls.push({ method: req.method(), url: req.url(), auth: req.headers()['authorization'] })
+    const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization,content-type' }
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers, body:'' })
+    return route.fulfill({ status: 200, headers, contentType: 'application/json',
+      body: JSON.stringify({id: CAMPAIGN,
+        shop_id: foreign ? 'a1000000-0000-4000-8000-000000000002' : SHOP,
+        status: 'DRAFT', days: [{
+          id: 'd1000000-0000-4000-8000-000000000001',campaign_id: CAMPAIGN,
+          shop_id: foreign ? 'a1000000-0000-4000-8000-000000000002' : SHOP,
+          day_index: 1, scheduled_date:'2026-11-07',topic:'Approved draft example',
+          review_status: 'DRAFT'
+        }] })
+    })
+  })
+  await page.addInitScript(({user,shop,campaign}) => sessionStorage.setItem(
+    'retailgrowthai-last-campaign:' + user + ':' + shop, campaign
+  ), {user:USER,shop:SHOP,campaign:CAMPAIGN})
+  await page.goto('/calendar')
+  expect(apiCalls).toHaveLength(0)
+  await page.getByRole('button', { name: 'Load recent campaign' }).click()
+  await expect(page.getByText('Approved draft example')).toBeVisible()
+  await expect(page.getByText('Not published')).toBeVisible()
+  expect(apiCalls.filter(x=>x.method==='GET')).toHaveLength(1)
+  expect(apiCalls.some(x=>x.method==='GET' && x.auth==='Bearer offline-test-JWT')).toBe(true)
+  foreign = true
+  await page.getByRole('button', { name: 'Load recent campaign' }).click()
+  await expect(page.getByRole('alert')).toContainText('No dates or posts are assumed')
+  await expect(page.getByText('Approved draft example')).toHaveCount(0)
+})
+
 test('unverified guest cannot deep-link to dashboard subroutes', async ({ page }) => {
   await page.goto('/connections')
   await expect(page).toHaveURL(/\/account$/)
