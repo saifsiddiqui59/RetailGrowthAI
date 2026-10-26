@@ -16,7 +16,7 @@ from .contracts import MotionError
 
 @dataclass(frozen=True)
 class LowCostMotionDecision:
-    route: str   # EXISTING_FFMPEG, GPU_PERMITTED, DEFER
+    route: str   # EXISTING_FFMPEG, GPU_BUDGET_ELIGIBLE, DEFER
     max_premium_usd: Decimal
     reserved_quote_usd: Decimal | None
     reason: str
@@ -68,5 +68,5 @@ def plan_lowest_cost_delivery(*, requires_realistic_ai_motion: bool,
         return LowCostMotionDecision(
             "DEFER", ceiling, quote, "Worst-case GPU bill exceeds approved per-job budget")
     return LowCostMotionDecision(
-        "GPU_PERMITTED", ceiling, quote,
+        "GPU_BUDGET_ELIGIBLE", ceiling, quote,
         "Budget preflight only; licence, media rights, tenant reservation, region and actual runner approval still required")
