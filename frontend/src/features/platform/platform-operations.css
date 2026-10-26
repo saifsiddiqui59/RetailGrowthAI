@@ -25,3 +25,21 @@
  .platform-alert-page .platform-alert-actions{margin-left:0;min-width:0;justify-content:flex-start;flex-wrap:wrap}
  .platform-page .platform-pager>[data-slot="button"],.platform-alert-page .platform-pager>[data-slot="button"]{min-height:44px}
 }
+
+/* Constrain provider operations inside a 320px viewport. Any wide business
+   directory must scroll *within* the table wrapper, not the whole document. */
+@media(max-width:560px){
+  .platform-page{box-sizing:border-box;max-width:100%;min-width:0;overflow-x:clip}
+  .platform-page>*{box-sizing:border-box;min-width:0;max-width:100%}
+  .platform-page .platform-metrics{grid-template-columns:minmax(0,1fr)}
+  .platform-page .metric,.platform-page .panel{min-width:0;max-width:100%;box-sizing:border-box}
+  .platform-page .platform-table-wrap{width:100%;max-width:100%;min-width:0;overflow-x:auto}
+  .platform-page .platform-table{min-width:660px}
+  .platform-page .subscription-health{min-width:0;max-width:100%;overflow-wrap:anywhere}
+  .platform-page .subscription-health-controls{min-width:0}
+  .platform-page .subscription-health-controls form,
+  .platform-page .subscription-health-controls label{min-width:0;max-width:100%;flex:1 1 100%}
+  .platform-page .subscription-health-controls :is(select,input){box-sizing:border-box;min-width:0;max-width:100%;width:100%}
+  .platform-page .platform-warning,.platform-page .platform-review-item{min-width:0}
+  .platform-page .platform-warning>div,.platform-page .platform-review-item>div{min-width:0;overflow-wrap:anywhere}
+}
