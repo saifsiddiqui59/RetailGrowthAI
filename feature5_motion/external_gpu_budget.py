@@ -75,6 +75,7 @@ class ExternalGpuQuoteEstimate:
     region: str
     country: str
     max_seconds: int
+    provider_termination_after_seconds: int
     cost_ceiling_usd: Decimal
     approved_ceiling_usd: Decimal
     status: str = "QUOTE_ONLY_NOT_EXECUTION_AUTHORIZATION"
@@ -82,6 +83,7 @@ class ExternalGpuQuoteEstimate:
 
 def assess_external_gpu_quote(quote: dict, *,
                               max_seconds: int,
+                              provider_termination_after_seconds: int,
                               ancillary_allowance_usd: str,
                               approved_ceiling_usd: str,
                               now: datetime | None = None) -> ExternalGpuQuoteEstimate:
@@ -123,7 +125,10 @@ def assess_external_gpu_quote(quote: dict, *,
     if not (quoted <= now <= expiry and expiry > quoted and expiry - quoted <= timedelta(hours=24)):
         raise ExternalQuoteError("Price quote expired, future-dated or too long-lived")
     if type(max_seconds) is not int or not 60 <= max_seconds <= 1800:
-        raise ExternalQuoteError("Single billable run must be bounded to <=1800 seconds")
+        raise ExternalQuoteError("Single CUDA attempt must be bounded to <=1800 seconds")
+    if (type(provider_termination_after_seconds) is not int or
+        not max_seconds + 60 <= provider_termination_after_seconds <= 3600):
+        raise ExternalQuoteError("Provider must auto-terminate within one hour, after a safe exit margin")
     minimum = quote["minimum_billable_seconds"]
     if type(minimum) is not int or not 0 <= minimum <= 1800:
         raise ExternalQuoteError("Invalid provider minimum billing period")
@@ -133,7 +138,9 @@ def assess_external_gpu_quote(quote: dict, *,
     ancillary = _money(ancillary_allowance_usd, name="ancillary allowance")
     cap = _money(approved_ceiling_usd, name="operator ceiling",
                  min_value=Decimal("0.01"))
-    billed = max(max_seconds, minimum)
+    # Pod rent can continue AFTER the Python subprocess finishes or fails.
+    # Price the provider-side auto-termination bound, not the script timeout.
+    billed = max(provider_termination_after_seconds, minimum)
     worst = ((rate + storage) * Decimal(billed) / Decimal(3600) + ancillary)
     worst = worst.quantize(Decimal("0.0001"), rounding=ROUND_UP)
     if worst > cap:
@@ -141,7 +148,9 @@ def assess_external_gpu_quote(quote: dict, *,
     return ExternalGpuQuoteEstimate(
         provider=quote["provider"], sku=quote["sku"],
         region=quote["region"], country=quote["country"],
-        max_seconds=max_seconds, cost_ceiling_usd=worst,
+        max_seconds=max_seconds,
+        provider_termination_after_seconds=provider_termination_after_seconds,
+        cost_ceiling_usd=worst,
         approved_ceiling_usd=cap,
     )
 
