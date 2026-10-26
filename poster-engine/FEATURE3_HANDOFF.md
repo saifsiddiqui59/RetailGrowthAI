@@ -315,3 +315,64 @@ previous baseline only.
   requires approved snapshot+GPU pricing/quota. Neither is enabled.
 - No change to PROD/WineShopPOS/other feature workers, and no paid services.
 
+
+## 2026-10-26 — Strict minimum-cost CPU delivery (Feature #3 owned files)
+
+**Implemented, source-tested; no new billable cloud resources or dependencies:**
+
+1. `studio_v2.py` now has private `_prepare_authorized_images` and
+   `_render_prepared`: rights-verified staged images are opened/decoded
+   **once per individual render job**, including if an image appears in
+   several layers. `animate_v2.py` uses the same in-memory source image
+   for every GIF/MP4 frame (up to 60), eliminating redundant file and decode
+   operations. No cross-job or cross-tenant cache exists: revoked rights
+   are rechecked for each new render job. Regression assertions in
+   `tests/media/test_feature3_low_cost.py` count source reads.
+2. `preview_v2.py` renders a **quarter-width/height draft PNG**, roughly
+   **1/16 of full output pixels**, with an injected server-owned,
+   idempotent per-tenant preview quota callback. It is **not pixel-parity
+   evidence** and cannot replace the existing immutable full-resolution
+   final + downsampled approval copy in `review_export_v2.py`. No GPU,
+   network fetch, additional packages, new database or disk cache.
+   `tests/media/test_feature3_preview.py` covers all 3 formats,
+   budget rejection, revoked media, cross-shop denial and overwrites.
+3. `Feature3CpuEditor.jsx`: basic layer/text/colour/placement/image-selector,
+   undo/redo and local editable JSON workflow using **existing React
+   only**. It is the default within `Feature3StudioPanel.jsx`;
+   the optional advanced `Feature3KonvaEditor.jsx` remains unmounted
+   pending coordinator-owned pins/QA. No canvas preview is represented
+   as approved Pillow output.
+4. The already mounted Part 1 `PosterStudio.jsx` now offers an opt-in
+   **local CPU v2 Text-to-Poster editor** solely for authenticated/persisted
+   days with well-formed shop/campaign/day IDs. It does not override the
+   existing authorized v1 cloud save, queue, banner selection, download
+   or mock-mode fallback. The editor correctly blocks Image-to-Poster
+   until the host supplies authenticated loaded media; no unregistered
+   photo or arbitrary external URL is trusted. Local JSON is **not**
+   a cloud-saved or published poster. Mounting the offline editor is a
+   bridge, not completion of secure v2 backend integration.
+
+**Operational savings:** No always-on GPU, no paid FLUX/FASHN inference,
+no new app/dependency, no new cache server. One image decode per job and
+~6.25% preview pixel count target lower CPU/storage work; **no measured
+cloud billing savings or Azure quote yet**. Keep price/offer from approved
+retailer records, not prompt text.
+
+**Still coordinator-owned / do not mark complete:**
+- Add RLS-secured v2 draft+revision persistence and render/preview
+  endpoints to existing DEV infrastructure; securely deliver licensed
+  media imageMap to React and quota callback.
+- Connect final server image review, signed downloads, approved variation
+  selection, quota ledger and tenant/VIEWER/access-expiry hosted tests.
+- Optionally mount Konva after cost/quality justification. It is NOT
+  necessary for initial CPU poster editing.
+- Verify live cloud E2E and current post-merge CI. Real FLUX and virtual
+  try-on remain rights/GPU blocked until separate explicit approval.
+
+**Branch** `feat/feature3-ai-poster-studio`, PR
+[#321](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/321)
+and coordinator issue
+[#325](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/325).
+Canonical `docs/PROJECT_STATE.md`, `docs/NEXT_TASK.md`,
+`docs/DECISIONS.md` and `docs/WORK_LOG.md` are coordinator-owned;
+this handoff requests those updates at review/merge.
