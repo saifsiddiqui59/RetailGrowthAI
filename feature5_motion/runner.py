@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import os
+import hashlib
 from pathlib import Path
 import signal
 import subprocess
@@ -13,6 +14,37 @@ import sys
 
 from .contracts import MotionError, MotionSpec
 from .license_gate import HunyuanLicensePolicy
+
+
+# Independently fetched from Tencent-Hunyuan/HunyuanVideo-1.5 GitHub
+# commit 60783e704160023913bee78f0b47036d393d4dfa, generate.py Git blob:
+# ba18ce85661d2cc2ebfe5a7fe4ad80994899d07d (2026-10-26).
+# This attests script bytes ONLY; model weights still need separately
+# licensed version/checksum evidence before true inference activation.
+OFFICIAL_COMMIT = "60783e704160023913bee78f0b47036d393d4dfa"
+OFFICIAL_GENERATE_BLOB = "ba18ce85661d2cc2ebfe5a7fe4ad80994899d07d"
+
+
+def git_blob_sha1(path: Path) -> str:
+    """Git-object digest of a small local script, no git subprocess/network.
+
+    SHA1 is Git's legacy blob addressing scheme, not model-weight integrity
+    proof. The expected blob is fixed at code review, not read from checkout.
+    """
+    candidate = Path(path)
+    if candidate.is_symlink() or not candidate.is_file():
+        raise MotionError("Untrusted local model script")
+    size = candidate.stat().st_size
+    if not 0 < size <= 200_000:
+        raise MotionError("Unapproved local inference script size")
+    data = candidate.read_bytes()
+    return hashlib.sha1(b"blob " + str(len(data)).encode("ascii") +
+                        b"\\0" + data).hexdigest()
+
+
+def verify_official_script(path: Path) -> None:
+    if git_blob_sha1(path) != OFFICIAL_GENERATE_BLOB:
+        raise MotionError("Hunyuan inference script is not pinned Tencent source")
 
 
 class HunyuanLocalRunner:
@@ -58,6 +90,7 @@ class HunyuanLocalRunner:
         script = (self.checkout / "generate.py").resolve()
         if not (script.is_file() and self.weights.is_dir()):
             raise MotionError("Preinstalled licensed Hunyuan runtime/weights missing")
+        verify_official_script(script)  # Before any billable CUDA/model initialization.
         if Path(workdir).is_symlink():
             raise MotionError("Symlinked working directory is not permitted")
         wd = Path(workdir).resolve(strict=True)
