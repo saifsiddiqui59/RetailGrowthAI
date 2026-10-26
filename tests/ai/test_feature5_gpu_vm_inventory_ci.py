@@ -32,9 +32,10 @@ class TestFeature5AlternativeGpuInventory(unittest.TestCase):
         self.assertNotIn("az role assignment create", source)
         self.assertNotIn("az rest --method", source)
         self.assertNotIn("client-secret:", source)
-        commands = re.findall(r"^\s*az\s+[a-z-]+(?:\s+[a-z-]+){1,4}", source, re.M)
-        self.assertTrue(any("vm list-usage" in cmd for cmd in commands))
-        self.assertTrue(any("vm list-skus" in cmd for cmd in commands))
+        # Read-only calls occur in guarded "if az ..." branches, not
+        # necessarily at the beginning of a shell line.
+        self.assertRegex(source, r"\\baz vm list-usage\\b")
+        self.assertRegex(source, r"\\baz vm list-skus\\b")
 
 
 if __name__ == "__main__":
