@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from urllib.parse import urlparse
 
-from .trend_intelligence import Trend, _clean, _stamp, _trend
+from .trend_intelligence import _clean
 
 def verified_event_rows(records: list[dict], now: datetime) -> list[dict]:
     if now.tzinfo is None or not isinstance(records, list) or len(records) > 120:
@@ -31,7 +31,13 @@ def verified_event_rows(records: list[dict], now: datetime) -> list[dict]:
                 continue
         except (ValueError, TypeError):
             continue
-        if not title or not row.get("source_reviewed_at"):
+        try:
+            reviewed = date.fromisoformat(row["source_reviewed_at"])
+            if reviewed > today or reviewed < today - timedelta(days=120):
+                continue
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not title:
             continue
         category = row.get("category", "general")
         if category not in ("clothing", "restaurant", "technology", "general"):
