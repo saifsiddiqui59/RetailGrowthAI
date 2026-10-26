@@ -41,12 +41,12 @@ def make_sample() -> dict:
         "category": "clothing",
         "city": "Nagpur",
         "language": "en-IN",
-        "brand_voice": "warm and practical",
-        "products": ["cotton kurtis"],
-        "audience": "local shoppers exploring everyday outfits",
-        "objective": "inspire styling ideas",
+        "brand_voice": "warm, elegant and approachable",
+        "products": ["cotton kurtis", "everyday Indian outfits"],
+        "audience": "local fashion shoppers",
+        "objective": "product discovery and styling education",
         "platforms": ["instagram", "facebook", "linkedin", "youtube"],
-        "cta": "Ask the studio about styling ideas",
+        "cta": "Ask the studio for styling guidance",
     }
     retailer = RetailerProfile.from_authorized(business)
     feed = collect(
