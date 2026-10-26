@@ -70,10 +70,24 @@ def jwt_claims_for_local_shape_only(jwt):
 
 
 def owner_only_cleanup(key, marker, created_uid):
-    if created_uid is None:
-        raise RuntimeError("CANNOT_SAFE_CLEANUP_UNKNOWN_AUTH_USER")
     if not marker.startswith(CANARY_PREFIX) or len(marker) > 64:
         raise RuntimeError("UNSAFE_AUTH_CLEANUP_SCOPE")
+    if created_uid is None:
+        # Reconcile uncertain admin-create ACK by an EXACT synthetic email
+        # search. Never delete any real user or replay a possibly committed POST.
+        _, page, _, _ = request(
+            SUPABASE + "/auth/v1/admin/users?page=1&per_page=100",
+            headers=admin_headers(key), expected=(200,), timeout=20
+        )
+        users = page.get("users", []) if isinstance(page, dict) else []
+        matches = [u for u in users
+                   if isinstance(u, dict) and u.get("email") == marker + "@example.invalid"]
+        if len(matches) > 1:
+            raise RuntimeError("AMBIGUOUS_SYNTHETIC_AUTH_FIXTURE")
+        if not matches:
+            print("P0249_DISPOSABLE_AUTH_ACCOUNT_NOT_CREATED=true", flush=True)
+            return
+        created_uid = matches[0].get("id")
     request(
         SUPABASE + "/auth/v1/admin/users/" + str(uuid.UUID(created_uid)),
         method="DELETE", headers=admin_headers(key), expected=(200, 204), timeout=20
@@ -144,8 +158,10 @@ def main():
         if job_missing != {"error": "NOT_FOUND"}:
             raise RuntimeError("PRIVATE_RENDER_JOB_RLS_NOT_ENFORCED")
         print("P0249_GENUINE_SIGNED_JWT_PRIVATE_JOB_DENIED=PASSED", flush=True)
-        sig = signed[-1]
-        forged = signed[:-1] + ("A" if sig != "A" else "B")
+        pieces = signed.split(".")
+        signature = pieces[2]
+        pieces[2] = ("A" if signature[0] != "A" else "B") + signature[1:]
+        forged = ".".join(pieces)
         _, forged_response, _, _ = request(path,
             headers={"x-rgai-supabase-jwt":forged}, expected=(401,))
         if forged_response != {"error":"UNAUTHORIZED"}:
