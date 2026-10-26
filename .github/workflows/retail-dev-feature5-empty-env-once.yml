@@ -105,6 +105,15 @@ jobs:
           import json,sys
           data=json.load(open(sys.argv[1]))
           rows=data.get("changes",(data.get("properties") or {}).get("changes"))
+          # Public-safe diagnostic: print action + resource type/name only.
+          # Do not dump full ARM what-if data (subscription IDs or values).
+          print("ARM what-if envelope keys:",sorted(data.keys()))
+          print("ARM what-if change count:",len(rows) if isinstance(rows,list) else "not-a-list")
+          if isinstance(rows,list):
+              for r in rows[:10]:
+                  identifier=str(r.get("resourceId") or "")
+                  print("ARM what-if change:",r.get("changeType"),
+                        "/".join(identifier.split("/")[-2:]))
           assert isinstance(rows,list) and len(rows)==1, "BLOCKED: ARM what-if not exactly one create"
           expected=("/subscriptions/"+sys.argv[2]+"/resourceGroups/"+sys.argv[3]+
                     "/providers/Microsoft.App/managedEnvironments/"+sys.argv[4]).lower()
