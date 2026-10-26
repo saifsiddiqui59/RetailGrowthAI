@@ -38,3 +38,40 @@
 - [ ] Complete shadcn migration, visual QA and uncontracted social/publishing/inbox screens.
 - [ ] Coordinator reconciling shared PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG after PR integration; Feature 1 ownership deliberately avoids those concurrently edited docs.
 - [ ] Hosted, signed-in DEV acceptance remains separately blocked by Azure HTTP #249; offline browser mocks and local Supabase negative SQL are not hosted proof.
+
+## Follow-up after coordinator Feature 1 + 2 integration — 2026-10-26
+
+- Coordinator merged PR #328 to main. Feature #1 work now branches from the resulting main, not PR #319's older base. Do not merge duplicate old PR #319 over the combined Feature #2 route.
+- Feature #1's Overview, Media Library, recent Calendar and Settings share the last selected business in **sessionStorage only**, scoped by signed-in user UUID. Every read resolves the preference through current RLS-backed member shops; forged, removed, inactive, unrecognized-role, missing storage or different-user choices are not accepted. No new API, migration, background timer, paid service, or token persistence. Feature #2's owned TrendWorkspace remains untouched.
+- Added pure preference/invalid-membership tests and browser navigation/reload coverage. Coordinator handles the original shared docs (PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG) since feature chats must not overwrite those.
+- Known boundaries: this does not provide universal browser-tab synchronization, full cross-platform history, or hosted Azure E2E. PR CI remains offline.
+
+## Accessibility follow-up on integrated Feature #1 main
+
+- The mobile offscreen sidebar is now actually `visibility:hidden` and noninteractive while closed (320px-760px), rather than remaining in keyboard/screen-reader navigation after a CSS translate. Opening the existing hamburger restores the sidebar. The desktop nav, user-auth boundary, overlay and Escape behavior are unchanged.
+- Added mocked Chromium tests for 320px hidden/open/navigation-close/Escape and 1280px desktop visibility. No new accessibility runtime or cloud cost.
+- Source-only UI improvement; no hosted device or assistive-technology testing claim. Coordinator owns canonical shared docs and merges.
+
+## Feature #1 follow-up — real-profile Creative Studio launchpad (2026-10-26)
+- A new guided `/creative-studio` entry uses existing authenticated Supabase `listShops()` and `getBusinessProfile(shopId)` (no new API or resource) to show **five clearly described profile details** helpful for regional trend and brand context. Completion is a local, informational checklist, **not** a campaign/publishing/onboarding approval score.
+- Fail-closed checks reject business profiles whose `shop_id` does not match an RLS-accessible shop. No generated result, private blob URL, OAuth state, AI credit usage, scheduled post or published item is invented.
+- Existing routes are linked in a single creation flow: Trend Intelligence, Media Library, Campaign Studio and recent draft calendar. Guide points to Settings for edits. Negative cross-tenant browser and malformed-context unit tests added; desktop/320px responsive styles within feature-owned CSS. No changes to existing Feature #2, #3, #4, #5, backend, migrations or Azure Functions.
+- Open coordination: PR #337 (shared business selector) may later unify the launchpad selector; PR #340 mobile navigation and old PR #319 remain unmerged. Independent new branch starts at current main rather than stacking on those PRs. The canonical four docs remain coordinator-owned. Hosted signed-in E2E still subject to #249.
+
+## 2026-10-26 — Admin directory request-cost optimization (Feature #1)
+- Split verified platform-wide summary RPC from paginated retailer directory RPC. Directory page changes now trigger only `retail_platform_shops` (25 rows); global `retail_platform_summary` runs on dashboard mount, manual Refresh and after an audited subscription change. No interval polling, background timers, extra infrastructure, third-party telemetry, new dependency or RLS bypass.
+- Directory errors no longer discard valid summary counts or misclassify all monitoring as unavailable; summary-specific errors explicitly hide counts. Two mocked ROOT browser tests assert exact request counts and page-failure isolation. ROOT gating and original subscription audit RPC are unchanged.
+- PR #337 business selection, #340 mobile nav and #343 Creative launchpad remain separate coordinator-owned integration decisions. Original PR #319 is already substantially integrated via coordinator #328; do not merge blindly. Shared `docs/**` remain coordinator-owned.
+- Cost impact: avoids one global metrics RPC per retailer page navigation, with no Azure/Supabase plan change. No cloud release or real hosted E2E in this source-only slice.
+
+## 2026-10-26 — Super Admin notification read-cost reduction (Feature #1)
+- Existing persistent `PlatformAlerts` server RPC is now read through the already-installed TanStack Query. The cache is keyed by **verified signed-in user UUID + view + category + page**, is fresh for only 20s, and is garbage-collected after 60s. Rapid return to a viewed category/page avoids an identical database RPC; no new endpoint, paid resource or polling.
+- Manual Refresh explicitly re-reads the active view. After authorized mark-read/unread RPC, all cached views for that root principal are invalidated, and the active view is reloaded before the button re-enables. RPC denial/stale refresh fails closed; old cached rows are not displayed as fresh on query error.
+- Added mocked ROOT browser assertions that revisit a filter without an extra RPC and manual refresh does issue a request; existing OWNER denial and read/unread browser tests remain. No new dependencies, schema, Azure changes, email, subscription entitlement or GPU. Coordinator owns merge and shared canonical docs.
+- This is **short-lived UI read caching only**, not real-time Azure telemetry; source CI is not hosted private-session acceptance. Separate Feature #1 follow-ups #337/#340/#343/#349 still need coordinator reconciliation. 
+
+## One-PR Feature #1 consolidation candidate — 2026-10-26
+- This source-only branch recombines Feature #1-owned PRs #337, #340, #343, #349 and #354 on the current `main` baseline. It includes all five prior changes and adds **shared business selection to Creative Studio** (the original #337 only covered Overview, Media, Calendar and Settings). It reconciles the originally overlapping dashboard tests, platform-admin tests, mobile/creative CSS and this handoff instead of dropping changes.
+- **One review and one set of complete CI checks:** coordinator can integrate the consolidated delta after exact-head 4/4 CI, then close older Feature #1 PRs as superseded only once each underlying behavior is independently confirmed. Do not also merge old #319 on top of existing #328 integrated main.
+- **Operating costs:** no new service, infrastructure, subscription plan, paid API, model inference, GPU, cron, forced refresh or database migration. Reduced unnecessary Super Admin summary and alert reads; existing tenant-scoped Supabase GET/PATCH and server-side JWT/RLS remain authoritative. Alerts cache is a 20s in-memory read optimization, not realtime telemetry.
+- **QA and scope:** test the unified 320px mobile closed-sidebar behavior, session-scoped authorized business selection across all five relevant workspace views, real-profile cross-shop denial, Super Admin pagination warnings and cache refresh/read state. Mock Playwright, disposable SQL security and FFmpeg CI do not prove signed-in hosted Azure #249 reliability or third-party publishing; root docs/production and deployment remain coordinator-owned.
