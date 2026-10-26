@@ -9,6 +9,7 @@ import os
 import subprocess
 import tempfile
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 RG = "rg-retailgrowth-dev"
@@ -68,7 +69,7 @@ def probe(label, path):
             result = classify(run.returncode, code, *vals, marker)
         except subprocess.TimeoutExpired:
             result = classify(28, "000", 0, 0, 15)
-    print("P0_249_SAFE_PROBE=" + json.dumps({"label":label, **result}, sort_keys=True), flush=True)
+    print("P0_249_SAFE_PROBE=" + json.dumps({"label":label, "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"), **result}, sort_keys=True), flush=True)
     return result
 
 def run_probe(*, sender=probe, sleeper=time.sleep, idle=300):
