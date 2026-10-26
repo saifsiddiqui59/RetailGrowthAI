@@ -227,8 +227,11 @@ def create_ai_content_draft(
     # Full canonical v1 + cross-channel review after replacing copy.
     validate_campaign(campaign, expected_count=brief.duration_days)
     check = review_campaign(campaign, brief)
-    additional = [value for d in days for key, value in d.items()
-                  if isinstance(value, str) and key != "hook"]
+    # Reusable layout subheadlines/CTAs are allowed to repeat. Detect only
+    # duplicated substantive per-day marketing copy across output channels.
+    unique_copy = {"topic", "linkedin_post", "instagram_caption", "facebook_post",
+                   "youtube_title", "youtube_description", "poster_headline"}
+    additional = [d[key] for d in days for key in unique_copy]
     issues = list(check.issues) + list(_review_extra(additional, retailer, brief))
     if issues:
         raise ContractError("Real AI copy did not pass complete campaign editorial review")
