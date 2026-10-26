@@ -32,9 +32,20 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261026152102_p0_249_reel_render_intent.sql',
   // Source-only, not applied to DEV; Feature3 v2 catalog and CAS drafts.
   '20261026173000_feature3_model_catalog_drafts.sql',
+  '20261026194000_feature2_ai_cost_ledger.sql',
 ]);
 
 const CAPABILITIES = {
+  '20261026194000': [
+    /create table public[.]shop_ai_budget_controls/i,
+    /create table public[.]shop_ai_spend_reservations/i,
+    /enable row level security/i,
+    /ai_unique_request_per_shop unique[(]shop_id,request_id[)]/i,
+    /pg_catalog[.]ceil[(]p_upper_cost_usd/i,
+    /AI_REQUEST_ALREADY_RESERVED/i,
+    /security definer set search_path = ''/i,
+    /grant execute on function public[.]feature2_reserve_ai_budget[(]uuid,uuid,text,numeric,uuid[)]/i,
+  ],
   '20261026173000': [
     /create table public[.]feature3_models/i,
     /create table public[.]feature3_poster_designs/i,
