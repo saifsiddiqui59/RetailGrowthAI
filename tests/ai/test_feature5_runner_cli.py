@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from feature5_motion.contracts import MotionError, MotionSpec
 from feature5_motion.runner import HunyuanLocalRunner
+from feature5_motion.license_gate import HunyuanLicensePolicy
 
 
 def uid():
@@ -28,9 +29,21 @@ class TestOfficialHunyuanCLI(unittest.TestCase):
         for p in (self.checkout, self.weights, self.workdir):
             p.mkdir()
         (self.checkout / "generate.py").write_text("# stub - never executed\n")
+        # Synthetic operator approval fixture: NOT an actual Tencent approval.
+        policy = HunyuanLicensePolicy(
+            deployment_country="US", retailer_country="IN",
+            intended_publication_countries=("IN",),
+            actual_provider_legal_name="RetailGrowthAI DEV Test",
+            tencent_no_endorsement_notice=True,
+            full_license_terms_available_to_users=True,
+            acceptable_use_and_local_law_checked=True,
+            commercial_media_rights_checked=True,
+            operator_terms_reviewed=True, monthly_active_users_at_model_release=0,
+        )
         self.runner = HunyuanLocalRunner(
             checkout=self.checkout, weights=self.weights, enabled=True,
             license_approved=True, gpu_budget_approved=True, timeout_seconds=30,
+            license_policy=policy,
         )
         # CPU-only mock test: never discover or rent actual GPU hardware.
         self.gpu_preflight = patch.object(HunyuanLocalRunner, "_require_supported_gpu")
@@ -92,6 +105,13 @@ class TestOfficialHunyuanCLI(unittest.TestCase):
             with self.assertRaisesRegex(MotionError, "timeout"):
                 self.runner.run(self.spec(), source_file=None, workdir=self.workdir)
             kill.assert_called_once()
+
+    def test_no_legal_context_blocks_before_any_gpu_call(self):
+        self.runner.license_policy = None
+        with patch("feature5_motion.runner.subprocess.Popen") as popen:
+            with self.assertRaisesRegex(MotionError, "license activation"):
+                self.runner.run(self.spec(), source_file=None, workdir=self.workdir)
+            popen.assert_not_called()
 
     def test_unsupported_cuda_hardware_cannot_launch(self):
         with patch.object(self.runner, "_require_supported_gpu",
