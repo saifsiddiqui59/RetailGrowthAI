@@ -37,10 +37,12 @@ class HunyuanLocalRunner:
         script = (self.checkout / "generate.py").resolve()
         if not (script.is_file() and self.weights.is_dir()):
             raise MotionError("Preinstalled licensed Hunyuan runtime/weights missing")
+        if Path(workdir).is_symlink():
+            raise MotionError("Symlinked working directory is not permitted")
         wd = Path(workdir).resolve(strict=True)
-        if not wd.is_dir() or wd.is_symlink():
+        if not wd.is_dir():
             raise MotionError("Invalid private working directory")
-        frame = "none"
+        frame = None
         if source_file is not None:
             source = Path(source_file).resolve(strict=True)
             if not source.is_file() or not source.is_relative_to(wd) or source.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp"):
@@ -56,22 +58,41 @@ class HunyuanLocalRunner:
                     (source.suffix.lower() in (".jpg", ".jpeg") and is_jpeg) or
                     (source.suffix.lower() == ".webp" and is_webp)):
                 raise MotionError("Staged image signature mismatch")
+            # Signatures are insufficient: verify actual image decoding and size
+            # before a potentially billable GPU launch. Do not mutate original.
+            try:
+                from PIL import Image, ImageOps
+                with Image.open(source) as image:
+                    w, h = image.size
+                    if not (128 <= w <= 4096 and 128 <= h <= 4096 and w * h <= 16_000_000):
+                        raise MotionError("Unapproved image dimensions")
+                    ImageOps.exif_transpose(image).load()
+            except (OSError, ValueError, Image.DecompressionBombError) as exc:
+                raise MotionError("Staged source image cannot be decoded safely") from exc
             frame = str(source)
         output = wd / "motion.mp4"
         if output.exists():  # Never overwrite a previous successful/maybe-billable result.
             raise MotionError("Motion output already exists")
         # Explicitly disable external prompt rewriting and superresolution.
         # Upstream generate.py must be version-pinned and verified before activation.
+        # Tencent's generate.py selects image mode if --image_path is present.
+        # Never pass the literal string "none" for text-to-video.
         args = [sys.executable, str(script), "--prompt", spec.prompt.strip(),
-                "--image_path", frame, "--model_path", str(self.weights.resolve()),
+                "--model_path", str(self.weights.resolve()),
                 "--resolution", spec.resolution, "--aspect_ratio", spec.aspect_ratio,
+                "--video_length", "121", "--offloading", "true",
                 "--seed", str(spec.seed), "--rewrite", "false", "--sr", "false",
                 "--output_path", str(output)]
+        if frame is not None:
+            args.extend(["--image_path", frame])
+        # Environment restricts automatic model/code downloads. Never capture
+        # unbounded child stdout/stderr (may contain sensitive prompts).
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("RETAIL_WAN_API_KEY", "SUPABASE_SERVICE_ROLE_KEY")}
+        env.update({"HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"})
         proc = subprocess.Popen(args, cwd=str(self.checkout.resolve()),
-                                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE, start_new_session=True,
-                                env={k: v for k, v in os.environ.items()
-                                     if k not in ("RETAIL_WAN_API_KEY", "SUPABASE_SERVICE_ROLE_KEY")})
+                                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL, start_new_session=True, env=env)
         try:
             proc.communicate(timeout=self.timeout_seconds)
         except subprocess.TimeoutExpired as exc:
