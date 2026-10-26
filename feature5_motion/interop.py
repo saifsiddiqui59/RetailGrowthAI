@@ -14,6 +14,7 @@ from typing import Protocol
 from uuid import UUID
 
 from .contracts import MotionError, MotionSpec, canonical_uuid
+from .quality_review import VisualReview
 
 HUNYUAN_MODEL = "hunyuanvideo-1.5-480p"
 FEATURE4_VERSION = "creative_reel_v1"
@@ -110,7 +111,10 @@ class ApprovedMotionClip:
 
 
 def feature4_asset_entry(clip: ApprovedMotionClip, *,
-                         shop_id: str, local_staged_path: str, rights: dict) -> tuple[str, dict]:
+                         shop_id: str, local_staged_path: str, rights: dict,
+                         review: VisualReview | None = None,
+                         actual_media_sha256: str | None = None,
+                         reviewer_has_write_role: bool = False) -> tuple[str, dict]:
     """Mint Feature4's SERVER-TRUSTED manifest entry; never accept browser data.
 
     Feature4 still independently validates staged bytes, rights, signatures,
@@ -123,6 +127,17 @@ def feature4_asset_entry(clip: ApprovedMotionClip, *,
         clip.quality_status != "APPROVED" or clip.rights_approved is not True or
         clip.output_codec != "h264" or not 4.5 <= clip.duration_seconds <= 5.5):
         raise MotionError("Premium clip has not passed private and visual approval")
+    # A status bit from a media row alone is insufficient. Require the
+    # coordinator's independently loaded, immutable human review bound
+    # to the exact stored clip hash and an authenticated reviewer role.
+    if (not isinstance(review, VisualReview) or review.job_id != clip.job_id
+        or review.output_asset_id != clip.clip_asset_id):
+        raise MotionError("Matching authoritative visual review is required")
+    review.approved_for_feature4(
+        authoritative_shop_id=shop_id,
+        actual_media_sha256=actual_media_sha256,
+        reviewer_has_write_role=reviewer_has_write_role,
+    )
     # Matches Feature4's actual render.validate_rights contract exactly.
     if (not isinstance(rights, dict) or rights.get("commercial_use") is not True or
         rights.get("license") not in {"owned", "cc0", "royalty_free", "commercial"} or
