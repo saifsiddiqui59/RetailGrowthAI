@@ -5,7 +5,7 @@ from pathlib import Path
 from decimal import Decimal
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from feature5_motion.contracts import MotionError
-from feature5_motion.azure_pricing import extract_rates, estimate_execution_usd
+from feature5_motion.azure_pricing import extract_rates, estimate_execution_usd, MotionSpendGuard
 
 
 def row(region, meter, price, unit):
@@ -51,6 +51,25 @@ class TestAzureRetailPriceVerification(unittest.TestCase):
         with self.assertRaises(MotionError):
             extract_rates({"BillingCurrency": "USD", "Items": bad},
                           region="eastus", gpu="A100")
+
+    def test_maximum_inference_cost_includes_time_and_reserve_buffer(self):
+        rates = extract_rates({"BillingCurrency": "USD", "Items": self.items},
+                              region="eastus", gpu="A100")
+        guard = MotionSpendGuard(
+            rates, max_billable_seconds=600, vcpus=4, gib_memory=16,
+            ancillary_allowance_usd=Decimal("0.0500"),
+        )
+        self.assertEqual(guard.minimum_reservation_usd(), Decimal("0.4538"))
+
+    def test_invalid_maximum_runtime_and_allowance_fail_closed(self):
+        rates = extract_rates({"BillingCurrency": "USD", "Items": self.items},
+                              region="eastus", gpu="A100")
+        for seconds in (0, 1801, True):
+            with self.subTest(seconds=seconds), self.assertRaises(MotionError):
+                MotionSpendGuard(rates, seconds, 4, 16, Decimal("0.01")).minimum_reservation_usd()
+        for extra in (float("nan"), -1, float("inf")):
+            with self.subTest(extra=extra), self.assertRaises(MotionError):
+                MotionSpendGuard(rates, 600, 4, 16, extra).minimum_reservation_usd()
 
     def test_bad_capacity_and_currency_rejected(self):
         for sec in (0, 3601, True):
