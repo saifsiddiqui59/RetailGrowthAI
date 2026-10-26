@@ -119,3 +119,72 @@ contract/license state to `docs/PROJECT_STATE.md`,
 and revise `docs/INTERFACES_V1.md`/`docs/PARALLEL_WORK.md` only
 after coordinated API/schema ownership review. The feature branch must
 NOT directly alter those shared contracts. Keep #249 as distinct P0.
+
+## 2026-10-26 — Continued implementation beyond initial PR checkpoint
+
+- **Animation effects expanded (CPU only):** `animate_v2.py` now accepts
+  allowlisted `flash`, `pulse`, `fade`, `slide`, `zoom`, `sparkle`,
+  `reveal` (up to three concurrently, max 60 frames, max four seconds,
+  bounded FFmpeg process, no untrusted filter expressions). The saved design
+  is not overwritten. Exact approved promotional text remains server-rendered
+  through Pillow, not a generative model.
+- **Deterministic text protection:** `studio_v2.py` now shrinks and wraps
+  each text layer to fit; it throws rather than silently trimming approved
+  prices, offers, SKUs, conditions or calls-to-action. Tests include
+  impossible clipping limits.
+- **Fashion image review:** `garment_review_v2.py` produces a private
+  authorized original-vs-try-on review sheet and validates explicit human
+  checks for colour, pattern, neckline, sleeves, length and embroidery.
+  It never auto-approves publishing. Synthetic fixture comparison is explicitly
+  labeled unverified, not actual VTON model output.
+- **Browser/server contract:** `feature3-compose.mjs` mirrors the
+  CPU-Pillow composition contract; tests compare exact JSON across Node and
+  Python. Authorized source IDs are required by browser composition, with
+  server-side RLS/rights checks still mandatory for final rendering.
+- **Editor surface:** React Konva source now supports add/remove image/text/
+  promotional badge, replace registered private product photos, cover-crop
+  product placement, layer reorder, transforms, undo/redo and local JSON
+  download/reopen after shop/asset checks. Editor is still deliberately
+  *unmounted*; coordinator must pin npm dependencies and deliver auth-scoped
+  v2 persistence + visual parity.
+- **Provider-cost hardening:** No configured/verified hourly GPU rate or
+  per-job ceiling means provider remains disabled even if an operator flips
+  a GPU switch. Enabled runners require transactional tenant-scoped usage
+  reservation/finalization callbacks, a verified single-frame PNG under
+  25 MB and bounded execution. These callback interfaces are not a
+  deployed Supabase ledger yet; coordinator must implement actual claims,
+  quotas and usage RPCs before enabling any inference.
+- **Feature #2 approval sidecar:** `content_bridge_v2.py` rejects
+  unapproved versions, wrong shop/campaign/day, unauthorized asset IDs
+  and incomplete business brand kit. It only uses approved offers; a free
+  prompt saying "80% OFF" does not create a discount. It is a source-only
+  adapter until coordinator integrates feature-owned Part 2 and 3 interfaces.
+- **Offline fixtures and proof:** five synthetic/non-AI sample assets via
+  `sample_feature3.py`: retail PNG, text-only PNG, flashing GIF/MP4,
+  unverified garment side-by-side review sheet. Exact newest four-job CI
+  run must still be verified on the final head before review/merge.
+- **Shared integration tracked:** [coordinator issue #325](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/325).
+  No shared migration, backend route, global npm file or coordinator docs
+  were edited on this branch.
+
+### Current public-source license and region findings (not billable approval)
+
+- Official [FLUX.2 repository](https://github.com/black-forest-labs/flux2)
+  explicitly lists *Klein 4B* and *4B Base* Apache-2.0; 9B and dev carry
+  noncommercial terms. Use exact 4B snapshot only after dependency/weights
+  audit, no automatic HuggingFace code loading from browser or Azure HTTP app.
+- [FASHN VTON 1.5](https://github.com/fashn-AI/fashn-vton-1.5)
+  lists `fashn-human-parser` as third-party, downloaded at first run.
+  Continue to block unmodified parser for commercial use.
+- [rembg README](https://github.com/danielgatis/rembg)
+  states current default BRIA RMBG-2.0 weights require a paid agreement for
+  commercial use. The rembg MIT source license alone is NOT sufficient.
+- [Microsoft serverless GPU region table](https://learn.microsoft.com/en-us/azure/container-apps/gpu-serverless-overview)
+  lists **Central India: T4 supported, A100 not supported**; **East US:
+  both T4 and A100 supported**. Consumption GPU billing is per-second with
+  scale-to-zero, but container boot/warmup and CPU/RAM can cost extra.
+  The [public price page](https://azure.microsoft.com/en-in/pricing/details/container-apps/)
+  does not expose a reliable numeric regional rate in unauthenticated text
+  (rendered placeholders). Cost scenarios above are **NOT quotes**. Acquire
+  subscription-specific quote, region privacy approval, max monthly rupee
+  ceiling and measured startup before any paid GPU activation.
