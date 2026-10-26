@@ -14,6 +14,7 @@ from PIL import Image, ImageDraw
 from studio_v2 import compose_poster, render_design
 from animate_v2 import export_animation
 from garment_review_v2 import build_review_sheet
+from review_export_v2 import create_review_pair
 
 SHOP = "00000000-0000-4000-8000-000000000a33"
 ASSET = "00000000-0000-4000-8000-000000000a34"
@@ -78,6 +79,9 @@ def samples(destination):
         cta="Visit our boutique", template="fashion", format="portrait",
     )
     render_design(sale, manifest, root, root / "sample-clothing-20-off.png")
+    # Pixel-identical full-size authoritative output and a smaller review
+    # thumbnail downsampled from THAT exact binary, not rerendered in browser.
+    create_review_pair(sale, manifest, root, root, preview_long_edge=432)
     render_design(plain, {"shop_id": SHOP, "assets": {}}, root, root / "sample-text-to-poster.png")
     export_animation(sale, manifest, root, root / "sample-flashing-20-off.gif",
                      fps=4, duration=2, scale=.5)
@@ -87,6 +91,7 @@ def samples(destination):
         "sample-clothing-20-off.png", "sample-text-to-poster.png",
         "sample-flashing-20-off.gif", "sample-flashing-20-off.mp4",
         "sample-synthetic-garment-review.png",
+        "poster-final.png", "poster-review-preview.png",
     )]
 
 
