@@ -149,14 +149,15 @@ class CreativeReelTests(unittest.TestCase):
                     x=20+index*43
                     d.polygon([(x,166),(x+21,166),(x+29,252),(x-9,252)],fill=color)
                 garment(d,160+int(math.sin(t*1.8)*13),293,1.27,(70,150,146),t*2)
-                d.text((20,27),"SYNTHETIC FASHION CLIP",font=f(14),fill=(239,193,115))
+                d.text((20,78),"SYNTHETIC FASHION CLIP",font=f(14),fill=(239,193,115))
                 pic.save(frames/f"f{i:03d}.png")
             subprocess.run([
                 "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
                 "-framerate", "12", "-i", str(frames/"f%03d.png"),
                 "-f", "lavfi", "-i", "sine=frequency=480:duration=8",
-                "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
-                "-c:a", "aac", "-shortest", str(self.assets/"fixture_clip.mp4")
+                "-c:v", "libx264", "-preset", "ultrafast", "-g", "12", "-keyint_min", "12",
+                "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest",
+                str(self.assets/"fixture_clip.mp4")
             ], check=True, capture_output=True, timeout=45)
             self.add("walk_clip", "fixture_clip.mp4", "video", "feature5")
 
@@ -171,6 +172,8 @@ class CreativeReelTests(unittest.TestCase):
         self.assertIn("20% OFF", page)
         self.assertIn("Fixture Clothing Store", page)
         self.assertIn('id="brand-logo"', page)
+        self.assertIn('class="hero-logo"', page)
+        self.assertNotIn('id="cta"', page)  # Final reviewed CTA is already the headline
         self.assertIn("poster-overlay", page)
         self.assertLess(page.index("Diwali Fashion"), page.index("Luxury Boutique"))
         self.assertLess(page.index("New Season Styles"), page.index("Diwali Sale"))
