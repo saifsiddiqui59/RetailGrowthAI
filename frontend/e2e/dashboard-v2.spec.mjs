@@ -40,7 +40,7 @@ test('desktop routes show honest unavailable contracts, not invented data', asyn
   const calls = await signedIn(page)
   await page.goto('/')
   for (const [path, heading] of [
-    ['/calendar', 'Campaign calendar'], ['/creative-studio', 'Creative Studio'],
+    ['/creative-studio', 'Creative Studio'],
     ['/connections', 'Connected accounts'],
     ['/publishing', 'Publishing calendar & history'], ['/notifications', 'Notifications'],
     ['/settings', 'Workspace settings'],
@@ -49,6 +49,9 @@ test('desktop routes show honest unavailable contracts, not invented data', asyn
     await expect(page.getByRole('heading', { name: heading })).toBeVisible()
     await expect(page.getByText('No fabricated live data')).toBeVisible()
   }
+  await page.goto('/calendar')
+  await expect(page.getByRole('heading', { name: 'Campaign calendar' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Load recent campaign' })).toBeVisible()
   await page.goto('/media-library')
   await expect(page.getByRole('heading', { name: 'Media library' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Authorized media records' }).getByText('Image a1000000')).toBeVisible()
