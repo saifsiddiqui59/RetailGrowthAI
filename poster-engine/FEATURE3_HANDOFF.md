@@ -710,3 +710,10 @@ rights, residency and cost quota gates are satisfied.
 **Current exact-head CI:** check the newest Actions run after these
 commits. No claim of completed deployment, genuine upstream import,
 hosted browser E2E or production readiness.
+
+
+## 2026-10-26 — FLUX GPU source continuation, operator gating
+
+- #420 real offline FLUX one-shot source worker and #426 complete v3 checkpoint digest attestation are integrated, not live.
+- #430 merged `d376518cf247c46256bd67c4a6960259b4ae6974` after exact 4/4 CI #40390460968. The worker checks post-inference torch CUDA synchronization/allocated device memory and **refuses to write a success receipt when the runner is mocked**. Docker entrypoint has 900s GNU timeout. One-shot billing admission requires protected operator `RETAIL_FLUX_PAID_ONE_SHOT_APPROVED=1`, verified all-in rate `RETAIL_FLUX_TOTAL_RATE_USD_PER_SECOND` and explicit maximum `RETAIL_FLUX_MAX_USD_PER_RUN`. None is enabled in hosted DEV.
+- CUDA compatibility, Docker build, paid inference, model private mount, signed tenant/ledger/outbox and actual fashion sample remain unverified; only fake CUDA modules/synthetic PNG are tested offline. Azure last audited T4 managed-environment quota = 0 and no running GPU. Request **1 Managed Environment Consumption T4 GPU** on existing Feature5 `rgai-f5-gpu-canary-eastus`; verify positive quota, exact pricing and owner cap before any GPU start. Defer third-party image licensing and hosted browser E2E per owner sprint instructions without waiving production restrictions. WineShopPOS untouched.
