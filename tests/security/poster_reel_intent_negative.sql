@@ -1,0 +1,206 @@
+-- GitHub Actions disposable local Supabase Postgres ONLY, never hosted DEV/PROD.
+-- Existing CI executes tests/security/poster*.sql inside a disposable database.
+-- Everything, including the PROPOSED SQL functions and fixtures, ROLLS BACK.
+\set ON_ERROR_STOP on
+begin;
+\i experiments/secure-node-http/sql/request_reel_render_job.proposal.sql
+
+-- The Python hash serializer must match ensure_ascii=True (incl. emoji/Hindi).
+do $$
+declare serialised text;
+begin
+  serialised:=retail_private.python_json_v1('{"z":"हिंदी","a":"🎉"}'::jsonb);
+  if serialised <> '{"a":"\ud83c\udf89","z":"\u0939\u093f\u0902\u0926\u0940"}' then
+    raise exception 'Python Unicode/sorted-key canonicalization mismatch: %',serialised;
+  end if;
+  if has_function_privilege('anon','public.request_reel_render_job(uuid,uuid)','EXECUTE') then
+    raise exception 'anonymous can execute privileged Reel SQL RPC';
+  end if;
+  if not has_function_privilege('authenticated','public.request_reel_render_job(uuid,uuid)','EXECUTE') then
+    raise exception 'authenticated cannot execute narrowed Reel SQL RPC';
+  end if;
+  if has_table_privilege('authenticated','public.render_jobs','INSERT') then
+    raise exception 'unreviewed broad authenticated render_jobs INSERT grant';
+  end if;
+end $$;
+
+insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
+values
+('11111111-1111-4111-8111-111111111111','00000000-0000-0000-0000-000000000000',
+ 'authenticated','authenticated','reel-rpc-owner@example.invalid','!',now(),now()),
+('22222222-2222-4222-8222-222222222222','00000000-0000-0000-0000-000000000000',
+ 'authenticated','authenticated','reel-rpc-viewer@example.invalid','!',now(),now()),
+('99999999-9999-4999-8999-999999999999','00000000-0000-0000-0000-000000000000',
+ 'authenticated','authenticated','reel-rpc-foreign@example.invalid','!',now(),now());
+
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
+insert into public.shops(id,owner_user_id,name,slug) values
+('33333333-3333-4333-8333-333333333333',
+ '11111111-1111-4111-8111-111111111111','Reel RPC isolated shop','rg-reel-rpc-ci');
+insert into public.shop_memberships(shop_id,user_id,role) values
+('33333333-3333-4333-8333-333333333333',
+ '22222222-2222-4222-8222-222222222222','VIEWER');
+
+reset role;
+select set_config('request.jwt.claim.role','service_role',true);
+insert into public.campaigns(id,shop_id,created_by,brief,start_date) values
+('44444444-4444-4444-8444-444444444444',
+ '33333333-3333-4333-8333-333333333333',
+ '11111111-1111-4111-8111-111111111111',
+ 'Disposable test, no actual video generation','2026-11-01');
+update public.campaigns set status='DRAFT'
+ where id='44444444-4444-4444-8444-444444444444';
+insert into public.media_assets(id,shop_id,created_by,object_path,mime_type,source,
+   license_name,attribution) values
+('55555555-5555-4555-8555-555555555555',
+ '33333333-3333-4333-8333-333333333333',
+ '11111111-1111-4111-8111-111111111111',
+ '33333333-3333-4333-8333-333333333333/uploads/55555555-5555-4555-8555-555555555555.png',
+ 'image/png','UPLOAD','owned','Retail owner-created and reviewed'),
+('66666666-6666-4666-8666-666666666666',
+ '33333333-3333-4333-8333-333333333333',
+ '11111111-1111-4111-8111-111111111111',
+ '33333333-3333-4333-8333-333333333333/uploads/66666666-6666-4666-8666-666666666666.png',
+ 'image/png','UPLOAD',null,'Unreviewed media');
+
+insert into public.campaign_days(id,campaign_id,shop_id,day_index,scheduled_date,
+  topic,linkedin,instagram) values
+('88888888-8888-4888-8888-888888888888',
+ '44444444-4444-4444-8444-444444444444',
+ '33333333-3333-4333-8333-333333333333',
+ 1,'2026-11-01','Fashion sale',
+ '{"post_text":"Shop Diwali","hashtags":["#Diwali"]}'::jsonb,
+ '{"caption":"Diwali Sale","banner_asset_id":null,"reel":{"duration_seconds":30,"aspect_ratio":"9:16","storyboard":[{"asset_id":"55555555-5555-4555-8555-555555555555","overlay_text":"Festival 🎉 हिंदी","start_seconds":0,"duration_seconds":30}],"music_asset_id":null,"cta":"आज Shop now"}}'::jsonb);
+
+-- Worker-side legacy job from Python's exact SHA-256 compact sorted JSON
+-- must be FOUND, not charged again or duplicated, on Node/client request.
+insert into public.render_jobs(id,shop_id,campaign_id,day_id,requested_by,preset,
+  status,idempotency_key) values
+('77777777-7777-4777-8777-777777777777',
+ '33333333-3333-4333-8333-333333333333',
+ '44444444-4444-4444-8444-444444444444',
+ '88888888-8888-4888-8888-888888888888',
+ '11111111-1111-4111-8111-111111111111',
+ 'instagram_reel_30s','QUEUED',
+ '73593202305f3dec115aaf8e851e5aac9045fb751b3587641b9ec5713efcb3c6');
+
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
+do $$
+declare result jsonb;
+begin
+  result:=public.request_reel_render_job(
+   '44444444-4444-4444-8444-444444444444',
+   '88888888-8888-4888-8888-888888888888');
+  if result->>'job_id'<>'77777777-7777-4777-8777-777777777777' or
+     result->>'status'<>'QUEUED' then
+    raise exception 'legacy Python digest not reused: %',result;
+  end if;
+  result:=public.request_reel_render_job(
+   '44444444-4444-4444-8444-444444444444',
+   '88888888-8888-4888-8888-888888888888');
+  if result->>'job_id'<>'77777777-7777-4777-8777-777777777777' then
+    raise exception 'same Reel input double queued despite Python key';
+  end if;
+  if (select count(*) from public.render_jobs)<>1 or
+     (select count(*) from public.shop_usage_reservations
+        where operation='render')<>1 or
+     (select count(*) from public.job_outbox where kind='render')<>1 then
+    raise exception 'legacy identical request double billed/outboxed';
+  end if;
+end $$;
+
+-- Forbidden VIEWER/foreign user cannot cause any additional job or usage.
+select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',true);
+do $$
+begin
+  if public.request_reel_render_job(
+     '44444444-4444-4444-8444-444444444444',
+     '88888888-8888-4888-8888-888888888888') is not null then
+    raise exception 'VIEWER requested a privileged Reel job';
+  end if;
+end $$;
+select set_config('request.jwt.claim.sub','99999999-9999-4999-8999-999999999999',true);
+do $$
+begin
+  if public.request_reel_render_job(
+     '44444444-4444-4444-8444-444444444444',
+     '88888888-8888-4888-8888-888888888888') is not null then
+    raise exception 'foreign shop requested private render';
+  end if;
+end $$;
+
+-- One edited storyboard produces ONE fresh job/reservation/outbox.
+reset role;
+select set_config('request.jwt.claim.role','service_role',true);
+update public.campaign_days set instagram=jsonb_set(instagram,
+  '{reel,cta}','"Edited CTA"'::jsonb)
+ where id='88888888-8888-4888-8888-888888888888';
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
+do $$
+declare a jsonb; b jsonb;
+begin
+  a:=public.request_reel_render_job(
+    '44444444-4444-4444-8444-444444444444',
+    '88888888-8888-4888-8888-888888888888');
+  b:=public.request_reel_render_job(
+    '44444444-4444-4444-8444-444444444444',
+    '88888888-8888-4888-8888-888888888888');
+  if a->>'job_id' is null or a->>'job_id'='77777777-7777-4777-8777-777777777777'
+     or b->>'job_id' is distinct from a->>'job_id' then
+    raise exception 'edited Reel job not new-and-idempotent';
+  end if;
+  if (select count(*) from public.render_jobs)<>2 or
+     (select count(*) from public.shop_usage_reservations where operation='render')<>2 or
+     (select count(*) from public.job_outbox where kind='render')<>2 then
+    raise exception 'not exactly one subscription unit and outbox per job';
+  end if;
+end $$;
+
+-- Editing to unlicensed (but same-shop) source cannot bypass rights.
+reset role;
+select set_config('request.jwt.claim.role','service_role',true);
+update public.campaign_days set instagram=jsonb_set(instagram,
+  '{reel,storyboard,0,asset_id}',
+  '"66666666-6666-4666-8666-666666666666"'::jsonb)
+ where id='88888888-8888-4888-8888-888888888888';
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
+do $$
+begin
+  if public.request_reel_render_job(
+    '44444444-4444-4444-8444-444444444444',
+    '88888888-8888-4888-8888-888888888888') is not null then
+    raise exception 'unlicensed source allowed new render';
+  end if;
+end $$;
+
+-- Validate strict SQL privileges: no anonymous entry or direct user inserts.
+set local role anon;
+select set_config('request.jwt.claim.role','anon',true);
+select set_config('request.jwt.claim.sub','',true);
+do $$
+declare denied boolean:=false;
+begin
+  begin
+    perform public.request_reel_render_job(
+      '44444444-4444-4444-8444-444444444444',
+      '88888888-8888-4888-8888-888888888888');
+  exception when insufficient_privilege then denied:=true; end;
+  if not denied then raise exception 'anonymous render RPC reachable'; end if;
+end $$;
+
+reset role;
+do $$
+begin
+  if (select count(*) from public.render_jobs)<>2 then
+    raise exception 'denied source bypass inserted another job'; end if;
+end $$;
+rollback;
+\echo 'PASS: Python SHA256 Unicode parity, legacy Reel deduplication, user/tenant denial, one quota/outbox per new job, no hosted writes'
