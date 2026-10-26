@@ -85,3 +85,24 @@ test('recent draft list uses JWT and RLS path without sending POST or leaking cr
   await assert.rejects(client.listDrafts('not-uuid'))
   assert.equal(calls.length, 1)
 })
+
+
+test('optional submission nonce crosses signed POST exactly once and never on GET', async () => {
+  const nonce = '30000000-0000-4000-8000-000000000003'
+  const calls = []
+  const client = api(async (url, options) => {
+    calls.push({url,options})
+    return {ok:true,status:201,json:async()=>({shop_id:SHOP,status:'DRAFT',draft_id:SHOP})}
+  })
+  const campaign = {shop_id:SHOP,brief:'Seven safe styling ideas',media_asset_ids:[OTHER]}
+  assert.throws(() => client.createDraft(SHOP,TREND,campaign,'bad-nonce'))
+  assert.equal(calls.length,0)
+  const created = await client.createDraft(SHOP,TREND,campaign,nonce)
+  assert.equal(created.status,'DRAFT')
+  assert.equal(calls.length,1)
+  assert.deepEqual(JSON.parse(calls[0].options.body),{
+    trend_id:TREND,campaign,submission_id:nonce,
+  })
+  assert.equal(calls[0].options.headers.Authorization,'Bearer verified-shop-jwt')
+  assert.equal(calls[0].options.method,'POST')
+})

@@ -146,3 +146,31 @@ def test_saved_drafts_use_user_jwt_even_when_source_and_profile_are_unavailable(
     assert adapter.list_drafts(SHOP, "")[0] == 401
     assert make_adapter().list_drafts(SHOP, "Bearer signed-1") == (
         503, {"error": "CONTENT_DRAFT_STORE_NOT_CONFIGURED"})
+
+
+
+def test_optional_submission_nonce_is_validated_and_durable_without_publish_permission():
+    drafts = Drafts()
+    api = make_adapter(drafts)
+    nonce = str(uuid4())
+    payload = {"trend_id": S["trends"][0]["trend_id"], "campaign": campaign(),
+               "submission_id": nonce}
+    status, body = api.handle("POST", SHOP, "Bearer signed-1", payload)
+    assert status == 201 and body["status"] == "DRAFT"
+    assert len(drafts.saved) == 1
+    persisted = drafts.saved[0][-1]
+    assert persisted["submission_id"] == nonce
+    assert persisted["campaign"]["shop_id"] == SHOP
+    assert persisted["review"]["can_publish"] is False
+    assert len(persisted["content_days"]) == 7
+
+    for invalid in ("not-a-uuid", "00000000-0000-0000-0000-000000000000/evil", 17, None):
+        response, _ = api.handle("POST", SHOP, "Bearer signed-1",
+                                 {**payload, "submission_id": invalid})
+        assert response == 400
+    assert api.handle("POST", str(uuid4()), "Bearer signed-1", payload)[0] == 404
+    assert api.handle("POST", SHOP, "Bearer expired-token", payload)[0] == 401
+    assert len(drafts.saved) == 1
+
+    unsupported = {**payload, "supply_chain_override": True}
+    assert api.handle("POST", SHOP, "Bearer signed-1", unsupported)[0] == 400
