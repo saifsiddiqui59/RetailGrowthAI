@@ -42,6 +42,15 @@ jobs:
         run: |
           set -euo pipefail
           grep -Fxq 'VITE_CAMPAIGN_API_BASE_URL=https://rgai-dev-functions-d4e5ddbd.azurewebsites.net' .env.production
+          # Modify the ephemeral runner's PREVIEW build only; never commit config changes to live SPA.
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const path='public/staticwebapp.config.json';
+          const c=JSON.parse(fs.readFileSync(path,'utf8'));
+          c.platform={...(c.platform||{}),apiRuntime:'node:22'};
+          fs.writeFileSync(path,JSON.stringify(c,null,2)+'\n');
+          console.log('P0_249_PREVIEW_ONLY_NODE22_RUNTIME_SELECTED=true');
+          NODE
           if test -f package-lock.json; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
           npm test
           npm run build
