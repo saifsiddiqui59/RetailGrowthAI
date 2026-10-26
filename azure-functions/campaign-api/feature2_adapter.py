@@ -48,6 +48,17 @@ class TrendFeatureAdapter:
             profile_source = self.profile_reader(token, user_id, sid)
             if not isinstance(profile_source, dict) or profile_source.get("shop_id") != sid:
                 return 404, {"error": "NOT_FOUND"}
+            # A just-created business has city='' until onboarding is completed.
+            # Never infer its location from the device, a model, or the national trend feed.
+            city = profile_source.get("city")
+            if not isinstance(city, str) or not city.strip():
+                if method == "GET":
+                    return 200, {
+                        "shop_id": sid, "profile_required": True,
+                        "recommendations": [], "sources": [], "complete": False,
+                        "observed_at": None,
+                    }
+                return 422, {"error": "BUSINESS_PROFILE_INCOMPLETE"}
             retailer = RetailerProfile.from_authorized(profile_source)
             snapshot = self.snapshot_store.load("IN")
             if not isinstance(snapshot, dict):
