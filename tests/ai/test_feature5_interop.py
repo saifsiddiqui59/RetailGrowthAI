@@ -75,17 +75,26 @@ class TestPart3Bridge(unittest.TestCase):
             Part3MotionStoreAdapter(ledger).claim(self.job)
 
     def test_duplicate_key_for_same_request_and_separate_tenants(self):
-        one = planned_motion_key(self.shop, uid(), self.source, "feature5-v1", "image", HUNYUAN_MODEL)
+        one = planned_motion_key(self.shop, uid(), self.source, "feature5-v1", "image", HUNYUAN_MODEL, approved_prompt_sha256="b" * 64)
         # same inputs deterministic
         day = uid()
-        a = planned_motion_key(self.shop, day, self.source, "feature5-v1", "image", HUNYUAN_MODEL)
-        b = planned_motion_key(self.shop, day, self.source, "feature5-v1", "image", HUNYUAN_MODEL)
-        c = planned_motion_key(uid(), day, self.source, "feature5-v1", "image", HUNYUAN_MODEL)
+        a = planned_motion_key(self.shop, day, self.source, "feature5-v1", "image", HUNYUAN_MODEL, approved_prompt_sha256="b" * 64)
+        b = planned_motion_key(self.shop, day, self.source, "feature5-v1", "image", HUNYUAN_MODEL, approved_prompt_sha256="b" * 64)
+        c = planned_motion_key(uid(), day, self.source, "feature5-v1", "image", HUNYUAN_MODEL, approved_prompt_sha256="b" * 64)
         self.assertNotEqual(one, a)
         self.assertEqual(a, b)
         self.assertNotEqual(a, c)
+        revised = planned_motion_key(self.shop, day, self.source, "feature5-v1",
+                                     "image", HUNYUAN_MODEL, approved_prompt_sha256="c" * 64)
+        reseeded = planned_motion_key(self.shop, day, self.source, "feature5-v1",
+                                      "image", HUNYUAN_MODEL, approved_prompt_sha256="b" * 64, seed=2)
+        self.assertNotEqual(a, revised)
+        self.assertNotEqual(a, reseeded)
         with self.assertRaises(MotionError):
-            planned_motion_key(self.shop, day, self.source, "feature5-v1", "image", "unknown-model")
+            planned_motion_key(self.shop, day, self.source, "feature5-v1",
+                               "image", HUNYUAN_MODEL, approved_prompt_sha256="invalid")
+        with self.assertRaises(MotionError):
+            planned_motion_key(self.shop, day, self.source, "feature5-v1", "image", "unknown-model", approved_prompt_sha256="b" * 64)
 
     def test_text_claim_rejects_image_attachment(self):
         row = dict(self.row, mode="text", source_asset_id=None)
