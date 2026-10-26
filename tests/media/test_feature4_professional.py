@@ -174,7 +174,8 @@ class ProfessionalVideoTests(unittest.TestCase):
         self.audio()
         page = (compile_composition(self.plan, self.manifest, self.media, self.output) /
                 "index.html").read_text()
-        self.assertIn('<video class="footage"', page)
+        self.assertIn('<video class="footage clip"', page)
+        self.assertIn('data-has-audio="true"', page)
         self.assertNotIn('playsinline muted', page)
         self.assertIn('data-volume="0.15"', page)
         self.assertIn('data-media-start="0"', page)
