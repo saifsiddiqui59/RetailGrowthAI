@@ -14,8 +14,9 @@ import unicodedata
 import xml.etree.ElementTree as ET
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlencode, urlparse
-from urllib.request import Request, urlopen
+from email.utils import parsedate_to_datetime
+from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 UTC = timezone.utc
 GOOGLE_RSS = "https://trends.google.com/trending/rss?geo=IN"
@@ -84,6 +85,7 @@ class Trend:
     evidence_url: str
     popularity_value: int | None = None
     popularity_kind: str | None = None
+    source_published_at: str | None = None
 
     def public(self) -> dict:
         return asdict(self)
@@ -100,7 +102,8 @@ class SourceState:
 
 def _trend(source: str, title: str, category: str, language: str, url: str,
            now: datetime, *, popularity: int | None = None,
-           popularity_kind: str | None = None, ttl_hours: int = 30) -> Trend | None:
+           popularity_kind: str | None = None, ttl_hours: int = 30,
+           source_published_at: datetime | None = None) -> Trend | None:
     cleaned = _clean(title, limit=140)
     evidence = _evidence_url(url, source)
     if not cleaned or not evidence or category not in CATEGORY_TERMS:
@@ -108,14 +111,35 @@ def _trend(source: str, title: str, category: str, language: str, url: str,
     trend_id = hashlib.sha256(f"{source}|IN|{cleaned.casefold()}".encode()).hexdigest()[:32]
     return Trend(trend_id, source, cleaned, category, "IN", language,
                  _stamp(now), _stamp(now + timedelta(hours=ttl_hours)), evidence,
-                 popularity, popularity_kind)
+                 popularity, popularity_kind,
+                 _stamp(source_published_at) if source_published_at else None)
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    """Do not follow redirects (especially when URL contains a server-side key)."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 def _default_get(url: str, *, headers: dict | None = None, timeout: int = 8) -> bytes:
-    # Fixed allowlisted endpoints only; refuse arbitrary endpoints or redirects.
-    with urlopen(Request(url, headers=headers or {"User-Agent": "RetailGrowthAI-Trends/1.0"}),
-                 timeout=timeout) as response:
-        if response.status != 200 or response.url.split("?")[0] != url.split("?")[0]:
+    # Fixed allowlisted endpoints only; reject redirects BEFORE making a second
+    # network request, so a YouTube API key cannot leak to a redirect target.
+    parsed = urlparse(url)
+    if url != GOOGLE_RSS:
+        values = parse_qs(parsed.query, strict_parsing=True)
+        if (parsed.scheme != "https" or parsed.netloc != "www.googleapis.com" or
+                parsed.path != "/youtube/v3/videos" or parsed.params or parsed.fragment or
+                set(values) != {"part", "chart", "regionCode", "maxResults", "key"} or
+                values.get("part") != ["snippet,statistics"] or
+                values.get("chart") != ["mostPopular"] or
+                values.get("regionCode") != ["IN"] or
+                values.get("maxResults") != ["25"] or not values.get("key", [""])[0]):
+            raise ValueError("unexpected provider endpoint")
+    with build_opener(_NoRedirect()).open(
+        Request(url, headers=headers or {"User-Agent": "RetailGrowthAI-Trends/1.0"}),
+        timeout=timeout,
+    ) as response:
+        if response.status != 200 or response.url != url:
             raise ValueError("unexpected provider response/redirect")
         data = response.read(262145)
         if len(data) > 262144:
@@ -133,12 +157,23 @@ def parse_google_rss(payload: bytes, now: datetime) -> list[Trend]:
         title = item.findtext("title", "")
         link = item.findtext("link", "").strip()
         raw_traffic = item.findtext(ns + "approx_traffic", "")
+        published = None
+        pub_date = item.findtext("pubDate")
+        if pub_date:
+            try:
+                published = _utc(parsedate_to_datetime(pub_date))
+            except (TypeError, ValueError, IndexError):
+                pass
+        if published and (published > now + timedelta(minutes=5) or
+                          published < now - timedelta(days=2)):
+            continue  # stale/future-dated RSS item cannot be promoted as fresh
         # Approximate lower-bound bucket, not an exact observed search count.
         m = re.fullmatch(r"(\d{1,9})([KM])?\+", raw_traffic.replace(",", "").strip())
         approx = int(m.group(1)) * {"K": 1000, "M": 1000000, None: 1}[m.group(2)] if m else None
         category = classify(title)
         trend = _trend("google_rss", title, category, "und", link, now,
-                       popularity=approx, popularity_kind="approx_searches_lower_bound" if approx else None)
+                       popularity=approx, popularity_kind="approx_searches_lower_bound" if approx else None,
+                       source_published_at=published)
         if trend:
             found.append(trend)
     return found
@@ -172,9 +207,19 @@ def parse_youtube(payload: bytes, now: datetime) -> list[Trend]:
         views_int = int(views) if isinstance(views, str) and views.isdecimal() and len(views) <= 18 else None
         title = snippet.get("title", "")
         language = _clean(snippet.get("defaultLanguage") or "und", limit=20) or "und"
+        published = None
+        raw_date = snippet.get("publishedAt")
+        if isinstance(raw_date, str):
+            try:
+                published = _utc(datetime.fromisoformat(raw_date.replace("Z", "+00:00")))
+            except ValueError:
+                pass
+        if published and published > now + timedelta(minutes=5):
+            continue
         trend = _trend("youtube", title, classify(title), language,
                        "https://www.youtube.com/watch?v=" + video_id, now,
-                       popularity=views_int, popularity_kind="lifetime_video_views" if views_int is not None else None)
+                       popularity=views_int, popularity_kind="lifetime_video_views" if views_int is not None else None,
+                       source_published_at=published)
         if trend:
             found.append(trend)
     return found
@@ -271,6 +316,7 @@ def recommendations(snapshot: dict, profile: dict, now: datetime, *, limit: int 
             "trend_id": trend.trend_id, "title": trend.title, "category": trend.category,
             "city": profile["city"][:80], "language": language,
             "source": trend.source, "observed_at": trend.observed_at,
+            "source_published_at": trend.source_published_at,
             "expires_at": trend.expires_at, "evidence_url": trend.evidence_url,
             "popularity_value": trend.popularity_value, "popularity_kind": trend.popularity_kind,
             "score": score, "confidence": "medium" if category_match else "low",
