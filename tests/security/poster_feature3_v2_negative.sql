@@ -39,7 +39,7 @@ select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','a3000000-0000-4000-8000-000000000001',true);
 do $$
 declare design jsonb;
-        id uuid;
+        saved_id uuid;
         v jsonb;
         rejected boolean:=false;
 begin
@@ -51,21 +51,21 @@ begin
  'a3000000-0000-4000-8000-000000000011','a3000000-0000-4000-8000-000000000012',
  'a3000000-0000-4000-8000-000000000013', design);
  if v is null or v->>'revision'<>'1' then raise exception 'FAIL: valid owner v2 draft rejected'; end if;
- id := (v->>'design_id')::uuid;
- if not exists (select 1 from public.feature3_poster_designs where id=id) then
+ saved_id := (v->>'design_id')::uuid;
+ if not exists (select 1 from public.feature3_poster_designs pd where pd.id=saved_id) then
     raise exception 'FAIL: owner cannot see new draft'; end if;
  if public.save_feature3_poster_design(
  'a3000000-0000-4000-8000-000000000011','a3000000-0000-4000-8000-000000000012',
- 'a3000000-0000-4000-8000-000000000013',design,id,0) is not null then
+ 'a3000000-0000-4000-8000-000000000013',design,saved_id,0) is not null then
     raise exception 'FAIL: stale compare-and-swap overwrote draft'; end if;
  v := public.save_feature3_poster_design(
  'a3000000-0000-4000-8000-000000000011','a3000000-0000-4000-8000-000000000012',
- 'a3000000-0000-4000-8000-000000000013',design,id,1);
+ 'a3000000-0000-4000-8000-000000000013',design,saved_id,1);
  if v->>'revision'<>'2' then raise exception 'FAIL: valid compare-and-swap update denied'; end if;
  if public.save_feature3_poster_design(
  'a3000000-0000-4000-8000-000000000011','a3000000-0000-4000-8000-000000000012',
  'a3000000-0000-4000-8000-000000000013',
- jsonb_set(design,'{layers,0,text}',to_jsonb('Forged offer'::text)),id,1)
+ jsonb_set(design,'{layers,0,text}',to_jsonb('Forged offer'::text)),saved_id,1)
  is not null then raise exception 'FAIL: stale edit accepted'; end if;
  if public.save_feature3_poster_design(
  'a3000000-0000-4000-8000-000000000011','a3000000-0000-4000-8000-000000000012',
@@ -88,7 +88,7 @@ begin
  if not rejected then raise exception 'FAIL: self-issued platform model approval'; end if;
  rejected:=false;
  begin
-   update public.feature3_poster_designs set status='APPROVED' where id=id;
+   update public.feature3_poster_designs set status='APPROVED' where id=saved_id;
  exception when insufficient_privilege then rejected:=true; end;
  if not rejected then raise exception 'FAIL: client promoted draft'; end if;
 end $$;
