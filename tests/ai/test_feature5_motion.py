@@ -1,5 +1,6 @@
 """Feature #5 offline tests. No GPUs, model downloads, Azure or provider billing."""
 import json
+from decimal import Decimal
 from pathlib import Path
 import subprocess
 import sys
@@ -14,6 +15,7 @@ sys.path.insert(0, str(ROOT))
 from feature5_motion.contracts import AssetGrant, MotionSpec, MotionError, estimate_cost, validate_source
 from feature5_motion.runner import HunyuanLocalRunner
 from feature5_motion.worker import MotionWorker, validate_clip
+from feature5_motion.azure_pricing import VerifiedAzureRates, MotionSpendGuard
 
 
 def uid():
@@ -159,6 +161,14 @@ class TestMotionWorker(unittest.TestCase):
         self.store = Mock()
         self.media = Mock()
         self.runner = Mock()
+        self.runner.timeout_seconds = 30
+        rates = VerifiedAzureRates("eastus", "A100", Decimal("0.000529"),
+                                   Decimal("0.000024"), Decimal("0.000003"),
+                                   "2026-04-01T00:00:00Z")
+        self.guard = MotionSpendGuard(
+            rates, max_billable_seconds=30, vcpus=4, gib_memory=16,
+            ancillary_allowance_usd=Decimal("0.005"),
+        )
         self.store.claim.return_value = {"attempt_token": self.token, "spec": self.spec,
                                          "reserved_usd": 0.1, "review_status": "APPROVED"}
         self.store.complete.return_value = True
@@ -175,14 +185,14 @@ class TestMotionWorker(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             self.store.claim.return_value = None
             worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
-                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
+                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1, cost_guard=self.guard)
             self.assertEqual(worker.execute(self.job), "NOT_CLAIMED")
             self.runner.run.assert_not_called()
 
     def test_no_budget_or_approval_fails_closed(self):
         with tempfile.TemporaryDirectory() as temp:
             worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
-                                  workdir_root=Path(temp), enabled=False, credit_cap_usd=1)
+                                  workdir_root=Path(temp), enabled=False, credit_cap_usd=1, cost_guard=self.guard)
             with self.assertRaises(MotionError):
                 worker.execute(self.job)
             self.store.claim.assert_not_called()
@@ -196,7 +206,7 @@ class TestMotionWorker(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             self.media.grant.return_value = AssetGrant(self.asset, uid(), True, True, True, "image/png")
             worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
-                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
+                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1, cost_guard=self.guard)
             self.assertEqual(worker.execute(self.job), "FAILED")
             self.runner.run.assert_not_called()
             self.media.upload_private.assert_not_called()
@@ -211,7 +221,7 @@ class TestMotionWorker(unittest.TestCase):
                 return out
             self.runner.run.side_effect = fake_run
             worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
-                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
+                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1, cost_guard=self.guard)
             with patch("feature5_motion.worker.validate_clip", return_value={
                 "codec": "h264", "duration_seconds": 5, "fps": 24}):
                 self.assertEqual(worker.execute(self.job), "SUCCEEDED")
@@ -229,7 +239,7 @@ class TestMotionWorker(unittest.TestCase):
             self.runner.run.side_effect = lambda spec, *, source_file, workdir: workdir / "motion.mp4"
             self.store.complete.return_value = False
             worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
-                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
+                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1, cost_guard=self.guard)
             with patch("feature5_motion.worker.validate_clip", return_value={"codec": "h264"}):
                 self.assertEqual(worker.execute(self.job), "UNKNOWN")
             self.store.mark_unknown.assert_called_once()
@@ -241,7 +251,7 @@ class TestMotionWorker(unittest.TestCase):
             self.runner.run.side_effect = lambda spec, *, source_file, workdir: workdir / "motion.mp4"
             self.store.complete.side_effect = TimeoutError("unknown database commit")
             worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
-                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
+                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1, cost_guard=self.guard)
             with patch("feature5_motion.worker.validate_clip", return_value={"codec": "h264"}):
                 self.assertEqual(worker.execute(self.job), "UNKNOWN")
             self.store.mark_unknown.assert_called_once_with(self.job, self.token, "FINALIZE_UNCERTAIN")
@@ -253,7 +263,7 @@ class TestMotionWorker(unittest.TestCase):
             self.runner.run.side_effect = lambda spec, *, source_file, workdir: workdir / "motion.mp4"
             self.media.upload_private.return_value = {"shop_id": uid(), "job_id": self.job}
             worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
-                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
+                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1, cost_guard=self.guard)
             with patch("feature5_motion.worker.validate_clip", return_value={"codec": "h264"}):
                 self.assertEqual(worker.execute(self.job), "UNKNOWN")
             self.store.complete.assert_not_called()
@@ -281,7 +291,7 @@ class TestMotionWorker(unittest.TestCase):
                 self.media.upload_private.return_value = receipt
                 self.runner.run.side_effect = lambda spec, *, source_file, workdir: workdir / "motion.mp4"
                 worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
-                                      workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
+                                      workdir_root=Path(temp), enabled=True, credit_cap_usd=1, cost_guard=self.guard)
                 with patch("feature5_motion.worker.validate_clip", return_value={"codec": "h264"}):
                     self.assertEqual(worker.execute(self.job), "UNKNOWN")
                 self.store.complete.assert_not_called()
@@ -293,7 +303,7 @@ class TestMotionWorker(unittest.TestCase):
             self.runner.run.side_effect = lambda spec, *, source_file, workdir: workdir / "motion.mp4"
             self.media.upload_private.side_effect = TimeoutError("sensitive vendor information")
             worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
-                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
+                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1, cost_guard=self.guard)
             with patch("feature5_motion.worker.validate_clip", return_value={"codec": "h264"}):
                 self.assertEqual(worker.execute(self.job), "UNKNOWN")
             self.store.complete.assert_not_called()
@@ -307,18 +317,48 @@ class TestMotionWorker(unittest.TestCase):
             with tempfile.TemporaryDirectory() as temp:
                 self.store.reset_mock()
                 worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
-                                      workdir_root=Path(temp), enabled=True, credit_cap_usd=cap)
+                                      workdir_root=Path(temp), enabled=True, credit_cap_usd=cap, cost_guard=self.guard)
                 with self.assertRaises(MotionError):
                     worker.execute(self.job)
                 self.store.claim.assert_not_called()
                 self.runner.run.assert_not_called()
+
+    def test_missing_gpu_cost_ceiling_fails_before_claim(self):
+        with tempfile.TemporaryDirectory() as temp:
+            worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
+                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
+            with self.assertRaisesRegex(MotionError, "cost ceiling"):
+                worker.execute(self.job)
+            self.store.claim.assert_not_called()
+            self.runner.run.assert_not_called()
+
+    def test_insufficient_reservation_cannot_start_gpu(self):
+        with tempfile.TemporaryDirectory() as temp:
+            self.store.claim.return_value["reserved_usd"] = "0.001"
+            worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
+                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1,
+                                  cost_guard=self.guard)
+            with self.assertRaisesRegex(MotionError, "worst-case GPU spend"):
+                worker.execute(self.job)
+            self.runner.run.assert_not_called()
+
+    def test_runner_timeout_above_approved_spend_denied(self):
+        with tempfile.TemporaryDirectory() as temp:
+            self.runner.timeout_seconds = 1800
+            worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
+                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1,
+                                  cost_guard=self.guard)
+            with self.assertRaisesRegex(MotionError, "spending ceiling"):
+                worker.execute(self.job)
+            self.store.claim.assert_not_called()
+            self.runner.run.assert_not_called()
 
     def test_nonfinite_db_reservation_denied(self):
         for bad in (float("nan"), float("inf"), True, -1, "invalid"):
             with tempfile.TemporaryDirectory() as temp:
                 self.store.claim.return_value["reserved_usd"] = bad
                 worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
-                                      workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
+                                      workdir_root=Path(temp), enabled=True, credit_cap_usd=1, cost_guard=self.guard)
                 with self.assertRaises(MotionError):
                     worker.execute(self.job)
                 self.runner.run.assert_not_called()
