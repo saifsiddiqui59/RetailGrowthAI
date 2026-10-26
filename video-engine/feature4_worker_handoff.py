@@ -18,6 +18,7 @@ from professional import VideoPlanError
 BUCKET = "retailgrowth-media"
 PRESET = "feature4_reel_v1"
 MAX_SOURCE_ASSETS = 36
+MAX_TOTAL_STAGED_BYTES = 300 * 1024 * 1024
 LICENSES = {"owned", "cc0", "royalty_free", "commercial"}
 SOURCE_MIME = {
     "image": {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"},
@@ -149,9 +150,15 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
             output = root / "out"
             staging.mkdir()
             output.mkdir()
+            staged_bytes = 0
             for asset_id, key in objects.items():
                 path = staging / manifest["assets"][asset_id]["path"]
                 media.download(claim["shop_id"], key, path)
+                if not path.is_file() or path.is_symlink():
+                    raise Feature4HandoffError("Private media source was not staged safely")
+                staged_bytes += path.stat().st_size
+                if staged_bytes > MAX_TOTAL_STAGED_BYTES:
+                    raise Feature4HandoffError("Total staged media exceeds the private worker budget")
             result = render_fn(request, manifest, staging, output)
             result_path = Path(result["file_path"]).resolve(strict=True)
             if (result["render_job_id"] != jid or
