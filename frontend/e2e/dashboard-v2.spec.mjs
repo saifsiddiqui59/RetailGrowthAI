@@ -16,6 +16,7 @@ async function signedIn(page) {
       '/rest/v1/rpc/retail_onboarding_status': { status: 'APPROVED', approval_required: false },
       '/rest/v1/shop_memberships': [{ shop_id: SHOP, active: true, role: 'OWNER' }],
       '/rest/v1/shops': [{ id: SHOP, name: 'Example Boutique', slug: 'example-boutique' }],
+      '/rest/v1/business_profiles': [],
       '/rest/v1/media_assets': [
         {id: 'a1000000-0000-4000-8000-000000000010', shop_id: SHOP, license_name: 'owned', mime_type:'image/png'},
         {id: 'a1000000-0000-4000-8000-000000000020', shop_id: 'a1000000-0000-4000-8000-000000000002', license_name:'owned',mime_type:'image/jpeg'}
