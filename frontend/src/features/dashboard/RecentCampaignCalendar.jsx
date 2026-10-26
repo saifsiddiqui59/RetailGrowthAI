@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
@@ -13,6 +13,8 @@ export default function RecentCampaignCalendar() {
   const [campaign, setCampaign] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const requestEpoch = useRef(0)
+  useEffect(() => () => { requestEpoch.current += 1 }, [])
   const shopsQuery = useQuery({
     queryKey: ['recent-calendar', 'shops', user?.id],
     queryFn: () => client.listShops(),
@@ -41,17 +43,18 @@ export default function RecentCampaignCalendar() {
       return
     }
     setLoading(true)
+    const epoch = ++requestEpoch.current
     try {
       const result = await api.getCampaign(hint)
       if (!result || result.shop_id !== shopId || result.id !== hint ||
           !['DRAFT', 'PLANNING', 'FAILED'].includes(result.status)) {
         throw new Error('Campaign access or status could not be verified.')
       }
-      setCampaign(result)
+      if (requestEpoch.current === epoch) setCampaign(result)
     } catch {
-      setError('Recent campaign could not be verified through the authenticated API. No dates or posts are assumed. Azure DEV API may be unavailable.')
+      if (requestEpoch.current === epoch) setError('Recent campaign could not be verified through the authenticated API. No dates or posts are assumed. Azure DEV API may be unavailable.')
     } finally {
-      setLoading(false)
+      if (requestEpoch.current === epoch) setLoading(false)
     }
   }
 
@@ -66,7 +69,7 @@ export default function RecentCampaignCalendar() {
         <div className="rg-library-tools">
           <label>Business
             <select aria-label="Calendar business" value={shopId}
-              onChange={event=>{setRequestedShopId(event.target.value);setCampaign(null);setError('')}}>
+              onChange={event=>{requestEpoch.current += 1;setLoading(false);setRequestedShopId(event.target.value);setCampaign(null);setError('')}}>
               {shops.map(shop=><option value={shop.id} key={shop.id}>{shop.name}</option>)}
             </select>
           </label>
