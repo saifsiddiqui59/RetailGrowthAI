@@ -247,3 +247,76 @@ def render_campaign_poster(message: func.QueueMessage):
     key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
     process_poster(message.get_body().decode("ascii"),
                    PosterAdmin(origin,key), PrivatePosterMedia(origin,key))
+
+
+
+# Feature #2 routes are additive to v1 and OFF by default. Keep handler
+# authorization independent of the other campaign API endpoints.
+def build_feature2_api():
+    if os.environ.get("RETAIL_ENABLE_FEATURE2") != "true":
+        return None
+    from feature2_adapter import TrendFeatureAdapter
+    from feature2_store import TrendSnapshotStore, TenantDraftStore, authorized_profile_reader
+    origin = os.environ["RETAIL_SUPABASE_URL"]
+    key = os.environ["RETAIL_SUPABASE_PUBLISHABLE_KEY"]
+    service_key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
+    tenant = TenantStore(origin, key)
+    admin = AdminStore(origin, service_key)
+    shared = TrendSnapshotStore(admin)
+    return TrendFeatureAdapter(
+        SupabaseJWTVerifier(origin), tenant,
+        profile_reader=authorized_profile_reader(tenant),
+        snapshot_store=shared, draft_store=TenantDraftStore(admin),
+    )
+
+
+def dispatch_feature2(request, shop_id, *, method):
+    path = "/shops/{shop_id}/" + ("trend-recommendations" if method == "GET" else "content-drafts")
+    diagnostics = RequestDiagnostics(method, path)
+    try:
+        handler = build_feature2_api()
+        if handler is None:
+            code, body = 503, {"error": "FEATURE2_DISABLED"}
+        else:
+            try:
+                payload = request.get_json() if method == "POST" else None
+            except ValueError:
+                code, body = 400, {"error": "INVALID_REQUEST"}
+            else:
+                code, body = handler.handle(
+                    method, shop_id, request.headers.get("Authorization", ""), payload)
+    except (KeyError, ValueError):
+        code, body = 503, {"error": "TREND_STORAGE_NOT_CONFIGURED"}
+    except Exception:
+        code, body = 500, {"error": "INTERNAL_ERROR"}
+    return func.HttpResponse(
+        json.dumps(body), status_code=code, mimetype="application/json",
+        headers=diagnostics.complete(code, body),
+    )
+
+
+@app.route(route="shops/{shop_id}/trend-recommendations", methods=["GET"])
+def get_retailer_trends(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch_feature2(req, req.route_params["shop_id"], method="GET")
+
+
+@app.route(route="shops/{shop_id}/content-drafts", methods=["POST"])
+def create_retailer_trend_draft(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch_feature2(req, req.route_params["shop_id"], method="POST")
+
+
+@app.timer_trigger(schedule="0 15 5 * * *", arg_name="timer",
+                   run_on_startup=False, use_monitor=True)
+def feature2_collect_india_trends(timer: func.TimerRequest):
+    # Once daily, 05:15 UTC (10:45 India). Leased Supabase claim is also
+    # mandatory across host restarts and scale-out. Not per-shop, no GPU/LLM.
+    if os.environ.get("RETAIL_FEATURE2_COLLECTION_ENABLED") != "true":
+        return
+    from datetime import datetime, timezone
+    from feature2_store import TrendSnapshotStore
+    from ai_agents.trend_runtime import run_daily_collection
+    store = TrendSnapshotStore(AdminStore(
+        os.environ["RETAIL_SUPABASE_URL"],
+        os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"],
+    ))
+    run_daily_collection(datetime.now(timezone.utc), store)

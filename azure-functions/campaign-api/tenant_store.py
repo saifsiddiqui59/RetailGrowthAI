@@ -44,7 +44,7 @@ class TenantStore:
         self.transport = transport or urlopen
 
     def _request(self, table, token, *, query=None, method="GET", data=None):
-        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs"}:
+        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs", "business_profiles"}:
             raise ValueError("unsupported table")
         url = self.origin + "/rest/v1/" + table
         if query:

@@ -27,6 +27,7 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261024170000_p1_poster_banner_selection.sql',
   '20261024180000_p1_poster_dispatch_schema_usage.sql',
   '20261024190000_p1_platform_operations.sql',
+  '20261026152000_feature2_trends_drafts.sql',
 ]);
 
 const CAPABILITIES = {
