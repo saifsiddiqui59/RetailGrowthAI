@@ -718,3 +718,15 @@ NaN
 2. Trigger the pre-existing `retail-feature2-fictional-sample.yml` generator after integration (main push touching demo path). Inspect actual generated artifacts and surface links; this confirms code execution only, not hosted Auth, real trends, or licensed customer imagery.
 3. DEV deployment is only via the existing protected main release pipeline after reviewing the new additive Azure Function route/package and deploying the current frontend. Run real signed-in preview/edited draft flows with disposable ROOT-approved test shops, genuine rights-reviewed media and source freshness; no false clothing category from general RSS. A no-trend prompt can be improved without accessing provider RSS; **Generate Content** still needs actual approved trend or the ordinary `/campaigns` fallback.
 4. Test signed OWNER/EDITOR/VIEWER, cross-tenant, expired JWT, single-POST lost-ACK reconciliation, mobile, code/media contract, cold/warm Flex #249 independently. No migration or paid provider activation required for prompt preview.
+
+
+## Remaining hosted Feature2 acceptance after PR #391 integration (2026-10-26)
+1. Inspect existing protected DEV deployment [#40360459131](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40360459131) backend + Free SWA jobs; confirm `improve_retailer_prompt` indexed, static lazy chunk has `Improve Prompt with AI`, and bounded anonymous denial. Keep Azure Flex #249 diagnostics distinct.
+2. A real signed-in Prompt Improver canary requires explicit protected main workflow `workflow_dispatch`/ROOT disposable account authorization, authorized owner-saved business profile, two-tenant/VIEWER and expired JWT negative checks, no service-role browser access, read-only/cleanup audit. No automatic dispatch or modification of the one existing retailer profile.
+3. The existing full Feature2 recommendation->signed draft->saved review canary requires a genuinely current clothing signal and an authorized registered test image. As of 2026-10-26 latest snapshot has zero category-matched signals, and dedicated DEV has no registered media. Do not seed fake trends or treat a placeholder UUID as licensed media. Follow approved ROOT/protected workflow and media cleanup only after prerequisites are true.
+4. Keep optional paid provider disabled until explicit capped subscription quota, cost approval and safe provider. Offline checked preview remains deterministic, editable, reviewed, with no automatic publish.
+
+
+### Release result update
+- DONE: protected existing-resource backend+Free SWA deployment [#40360459131](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40360459131): both jobs passed, 25 Functions indexed, anonymous trend JWT denial 401, all four SPA routes including /trends served.
+- STILL BLOCKED: protected ROOT-authorized disposable canary and real signed-in `POST /improve-prompt`/draft workflow, 0 real clothing trends, 0 registered test media, expired JWT/VIEWER/cross-tenant & lost ACK hosted evidence; Flex gateway #249 cold/warm runs independent. Do not run a fake data workaround or confuse 401 no-token smoke with signed E2E.
