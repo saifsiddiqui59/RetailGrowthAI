@@ -251,8 +251,8 @@ def recommendations(snapshot: dict, profile: dict, now: datetime, *, limit: int 
             expiry = datetime.fromisoformat(trend.expires_at)
             if observed > now + timedelta(minutes=5) or expiry <= now or (now - observed) > timedelta(days=2):
                 continue
-            if trend.region != "IN" or not _evidence_url(trend.evidence_url, trend.source) or
-                    not _clean(trend.title, limit=140):
+            if (trend.region != "IN" or not _evidence_url(trend.evidence_url, trend.source) or
+                    not _clean(trend.title, limit=140)):
                 continue
         except (ValueError, TypeError, KeyError):
             continue
