@@ -141,6 +141,6 @@ export default function Feature3StudioPanel({
       {error && <p role="alert">{error}</p>}
     </fieldset>
     {design && designContext === currentContext && <Feature3CpuEditor key={version} initialDesign={design}
-      imageMap={imageMap} onSaveDraft={onSaveDesign} />}
+      imageMap={imageMap} context={context} onSaveDraft={onSaveDesign} />}
   </section>
 }
