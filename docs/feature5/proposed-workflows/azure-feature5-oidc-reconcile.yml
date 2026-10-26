@@ -44,9 +44,9 @@ jobs:
           test -n "${EXPECTED_SUB:-}"
           test "$(az account show --query id -o tsv)" = "$EXPECTED_SUB"
           test "$(az account show --query state -o tsv)" = "Enabled"
-          test "$(az group show -g "$RG" --query location -o tsv)" = "centralindia"
-          test "$(az group show -g "$RG" --query tags.environment -o tsv)" = "dev"
-          test "$(az group show -g "$RG" --query tags.app -o tsv | tr '[:upper:]' '[:lower:]')" = "retailgrowthai"
+          test "$(az group show -n "$RG" --query location -o tsv)" = "centralindia"
+          test "$(az group show -n "$RG" --query tags.environment -o tsv)" = "dev"
+          test "$(az group show -n "$RG" --query tags.app -o tsv | tr '[:upper:]' '[:lower:]')" = "retailgrowthai"
           echo "PASS: the intended RetailGrowthAI DEV identity and RG (IDs withheld)"
           echo "Microsoft.App registration:"
           az provider show --namespace Microsoft.App --query registrationState -o tsv
