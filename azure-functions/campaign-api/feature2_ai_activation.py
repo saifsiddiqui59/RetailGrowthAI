@@ -36,14 +36,14 @@ class Feature2AiActivation:
             or not 0 < approved_max_cost_usd <= 0.05):
             raise ValueError("Real AI cap must be positive and at most USD 0.05")
 
-    def _reserve_factory(self, shop_id: str, actor_id: str, operation: str, receipt: list[str]):
+    def _reserve_factory(self, shop_id: str, actor_id: str, operation: str, receipt: list[str], request_id: str | None = None):
         sid, uid = canonical_uuid(shop_id), canonical_uuid(actor_id)
         def reserve(max_cost_usd: float) -> str:
             if receipt:
                 raise RuntimeError("Cannot reserve twice for one AI attempt")
             token = self.budget.reserve(
                 shop_id=sid, actor_id=uid, operation=operation,
-                max_cost_usd=max_cost_usd)
+                max_cost_usd=max_cost_usd, request_id=request_id)
             receipt.append(token)
             return token
         return reserve
@@ -86,11 +86,11 @@ class Feature2AiActivation:
             # fails. Settlement is based on usage, not UI acceptance.
             self._settle_if_billed(model, receipt)
 
-    def draft(self, *, brief, retailer, campaign_id, now, trend, shop_id, actor_id):
+    def draft(self, *, brief, retailer, campaign_id, now, trend, shop_id, actor_id, request_id=None):
         receipt = []
         model = AzureFeature2ContentLLM(
             **self.options,
-            reserve_cost=self._reserve_factory(shop_id, actor_id, "campaign_copy", receipt))
+            reserve_cost=self._reserve_factory(shop_id, actor_id, "campaign_copy", receipt, request_id))
         try:
             result = create_ai_content_draft(
                 brief, retailer, campaign_id=campaign_id, now=now, trend=trend,
