@@ -4,12 +4,13 @@
  * v2 authenticated draft/queue APIs. All generated images and virtual try-on
  * require backend approval; this CPU panel only composes versioned layers.
  */
-import { useMemo, useState } from 'react'
+import { Suspense, lazy, useMemo, useState } from 'react'
 import { FEATURE3_FORMATS, FEATURE3_TEMPLATES } from './feature3-design.mjs'
 import { composeFeature3Poster } from './feature3-compose.mjs'
 import { approvedFeature3Inputs, feature3ContextKey } from './feature3-context.mjs'
 import Feature3CpuEditor from './Feature3CpuEditor.jsx'
 import Feature3ModelLibraryReview from './Feature3ModelLibraryReview.jsx'
+const Feature3KonvaEditor = lazy(() => import('./Feature3KonvaEditor.jsx'))
 import { availableApprovedModels, selectedApprovedModel } from './feature3-approved-models.mjs'
 
 const fieldStyle = { display: 'grid', gap: 6, minWidth: 0 }
@@ -18,7 +19,7 @@ const rootStyle = { display: 'grid', gap: 16, width: '100%', minWidth: 0 }
 
 export default function Feature3StudioPanel({
   shopId, campaignId, dayId, brandKit, imageMap = {}, approvedContent = null,
-  onSaveDesign = null, approvedModels = [], disabled = false,
+  onSaveDesign = null, approvedModels = [], restoredDesign = null, disabled = false,
 }) {
   const [mode, setMode] = useState('text')
   const [prompt, setPrompt] = useState('')
@@ -27,10 +28,12 @@ export default function Feature3StudioPanel({
   const [assetId, setAssetId] = useState('')
   const [modelId, setModelId] = useState('')
   const [designModelRef, setDesignModelRef] = useState(null)
-  const [version, setVersion] = useState(0)
-  const [design, setDesign] = useState(null)
+  const [version, setVersion] = useState(restoredDesign?.revision || 0)
+  const [design, setDesign] = useState(() => restoredDesign?.design || null)
   const [showModelLibrary, setShowModelLibrary] = useState(false)
-  const [designContext, setDesignContext] = useState('')
+  const [advanced, setAdvanced] = useState(false)
+  const [designContext, setDesignContext] = useState(() =>
+    restoredDesign ? feature3ContextKey({shopId,campaignId,dayId}) : '')
   const [error, setError] = useState('')
 
   // These are pre-authorized/private media previews supplied by the
@@ -182,10 +185,24 @@ export default function Feature3StudioPanel({
     {!designModelStillReady &&
       <p role="alert">The saved model is no longer accessible. This local model draft is hidden;
         select another approved model.</p>}
-    {design && designContext === currentContext &&
-      designModelStillReady &&
-      <Feature3CpuEditor key={version} initialDesign={design}
-      imageMap={imageMap} context={context} onSaveDraft={onSaveDesign} />}
+    {design && designContext === currentContext && designModelStillReady && <>
+      <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+        <button type="button" disabled={disabled}
+          aria-pressed={advanced}
+          onClick={() => setAdvanced(value => !value)}>
+          {advanced ? 'Use simple CPU editor' : 'Advanced drag-and-resize editor (local)'}
+        </button>
+        <span role="note">Unreviewed local preview only. Authoritative server-rendered
+          artwork must be verified before publishing.</span>
+      </div>
+      {advanced
+        ? <Suspense fallback={<p role="status">Loading local advanced editor…</p>}>
+            <Feature3KonvaEditor key={version} initialDesign={design}
+              imageMap={imageMap} context={context} />
+          </Suspense>
+        : <Feature3CpuEditor key={version} initialDesign={design}
+            imageMap={imageMap} context={context} onSaveDraft={onSaveDesign} disabled={disabled}/>}
+    </>}
     <section aria-label="Reusable AI fashion models">
       <button type="button" disabled={disabled}
         aria-expanded={showModelLibrary}
