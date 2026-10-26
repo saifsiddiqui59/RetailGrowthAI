@@ -6,7 +6,7 @@
  * shop media; this module never fetches URLs or accepts image src strings.
  */
 import { useEffect, useRef, useState } from 'react'
-import { Stage, Layer, Rect, Text, Image as KonvaImage, Transformer } from 'react-konva'
+import { Stage, Layer, Group, Rect, Text, Image as KonvaImage, Transformer } from 'react-konva'
 import {
   FEATURE3_FORMATS, newFeature3History, editFeature3, updateFeature3Layer,
   moveFeature3Layer, undoFeature3, redoFeature3,
@@ -169,6 +169,18 @@ export default function Feature3KonvaEditor({
                 if (!authorizedIds.includes(layer.asset_id)) return null
                 // Use the SAME center-cover crop rule as Pillow ImageOps.fit,
                 // rather than stretching retail products out of proportion.
+                if (layer.id === 'logo') {
+                  const fit = Math.min(pos.width / image.naturalWidth,
+                                       pos.height / image.naturalHeight)
+                  const innerW = image.naturalWidth * fit
+                  const innerH = image.naturalHeight * fit
+                  return <Group {...props}>
+                    <Rect x={0} y={0} width={pos.width} height={pos.height}
+                      opacity={0} listening={false}/>
+                    <KonvaImage image={image} width={innerW} height={innerH}
+                      x={(pos.width - innerW) / 2} y={(pos.height - innerH) / 2}/>
+                  </Group>
+                }
                 const ratio = Math.max(pos.width / image.naturalWidth,
                                        pos.height / image.naturalHeight)
                 const cropWidth = pos.width / ratio
