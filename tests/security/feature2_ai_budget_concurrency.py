@@ -122,7 +122,8 @@ def check():
     if (result_json["count"]!=1 or float(result_json["sum"])!=0.003
         or float(result_json["period_cap"])!=0.004):
         raise AssertionError("Concurrent calls bypassed period budget: "+str(result_json))
-    again=call(req,application="f2-budget-race-lost-ack",allowed=(0,1))
+    # psql with ON_ERROR_STOP returns 3 for a deliberate SQL quota rejection.
+    again=call(req,application="f2-budget-race-lost-ack",allowed=(0,3))
     if again.returncode==0 or "AI_QUOTA_EXCEEDED" not in again.stderr:
         raise AssertionError("Repeated paid model POST after lost acknowledgement double-reserved")
     print("FEATURE2_AI_BUDGET_CONCURRENT_CAP_AND_LOST_ACK=PASS",flush=True)
