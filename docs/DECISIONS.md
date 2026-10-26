@@ -415,3 +415,6 @@
 
 ## 2026-10-26 — Exact actual preview hostname includes Azure region
 - Microsoft named preview URL formatting includes an extra regional subdomain in this deployed environment: `purple-dune-06b5da200-p0249node.eastasia.2.azurestaticapps.net`, as reported by protected deployment #40294163365. Avoid deriving test host by simply appending a suffix to the production host. Preserve strict hostname allowlisting with the **actual trusted returned hostname**, then observe read-only HTTP 200/401/404/200 before deciding whether Node managed API is a viable HTTP execution alternative. No further deployment or new cost required for this read-only test.
+
+## 2026-10-26 — Synthetic Node gateway responses must not rely on forwarded Authorization
+- Static Web Apps managed Node control must return **401 for every fake customer-resource GET**, even with an inbound Authorization header, because it does not implement cryptographic JWT verification or RLS. The earlier intentional 503 for Bearer-like headers appeared in real p0249node hosted probe #40295092212 with handler marker; don't confuse it with #249's **pre-handler** Flex gateway 503. Never log/consume test header values or route real users to this control. Preserve real Python JWT/RLS and queue workflow.
