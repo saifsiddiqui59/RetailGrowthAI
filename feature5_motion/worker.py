@@ -17,6 +17,10 @@ from .contracts import MotionError, MotionSpec, AssetGrant, canonical_uuid, vali
 from .azure_pricing import MotionSpendGuard
 
 
+class ReconciliationRequired(MotionError):
+    """Unknown paid outcome: never convert to FAILED or automatically refund."""
+
+
 class JobStore(Protocol):
     def claim(self, job_id: str) -> dict | None: ...
     def complete(self, job_id: str, attempt_token: str, media_record: dict) -> bool: ...
@@ -126,7 +130,7 @@ class MotionWorker:
             if model_elapsed > self.cost_guard.max_billable_seconds:
                 # An unexpectedly costly operation must never be auto retried.
                 if not self.store.mark_unknown(jid, token, "GPU_RUNTIME_OVER_CAP"):
-                    raise MotionError("GPU overrun reconciliation required")
+                    raise ReconciliationRequired("GPU overrun reconciliation required")
                 return "UNKNOWN"
             inferred_cost = self.cost_guard.estimated_spend_for_observed_inference_usd(
                 model_elapsed
@@ -148,7 +152,7 @@ class MotionWorker:
                 receipt = self.media.upload_private(spec.shop_id, jid, token, output, info)
             except Exception:
                 if not self.store.mark_unknown(jid, token, "PRIVATE_UPLOAD_UNCERTAIN"):
-                    raise MotionError("Private upload reconciliation required")
+                    raise ReconciliationRequired("Private upload reconciliation required")
                 return "UNKNOWN"
             expected_path = f"{spec.shop_id}/renders/{jid}/{token}.mp4"
             # Same exact, lease-scoped tenant-private path required by Part3 importer.
@@ -164,8 +168,12 @@ class MotionWorker:
             )
             if not receipt_ok:
                 if not self.store.mark_unknown(jid, token, "PRIVATE_RECEIPT_INVALID"):
-                    raise MotionError("Private output receipt reconciliation required")
+                    raise ReconciliationRequired("Private output receipt reconciliation required")
                 return "UNKNOWN"
+        except ReconciliationRequired:
+            # Store cannot persist UNKNOWN; fail closed rather than falsifying
+            # billability or allowing another costly provider invocation.
+            raise
         except Exception:
             # Failed local inference may consume real GPU; caller reconciles actual cost,
             # not an unconditional refund. Never publish raw prompt/private stack traces.
