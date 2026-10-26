@@ -77,7 +77,7 @@ def test_expired_or_cross_category_trends_denied():
     with pytest.raises(ValueError):
         create_content_draft(brief(), retailer(), campaign_id=CAMPAIGN, now=NOW, trend=stale)
     with pytest.raises(ValueError):
-        create_content_draft(brief(), retailer(category="restaurant"), campaign_id=CAMPAIGN,
+        create_content_draft(brief(), retailer(category="restaurant", products=["pizza"]), campaign_id=CAMPAIGN,
                              now=NOW, trend=trend)
 
 
