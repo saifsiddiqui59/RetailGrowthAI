@@ -107,6 +107,9 @@ class MotionWorker:
             or claim.get("review_status") != "APPROVED"):
             raise MotionError("Existing ledger reservation cannot cover worst-case GPU spend")
         workdir = None
+        # Once the runner is invoked, even an exception may follow a charged
+        # GPU subprocess. A retry/refund must wait for durable reconciliation.
+        generation_attempted = False
         try:
             grant = self.media.grant(spec.shop_id, spec.source_asset_id) if spec.source_asset_id else None
             validate_source(spec, grant)
@@ -125,6 +128,7 @@ class MotionWorker:
             workdir.mkdir(mode=0o700, exist_ok=False)
             source = self.media.stage(spec.shop_id, spec.source_asset_id, workdir) if grant else None
             started = monotonic()
+            generation_attempted = True
             output = self.runner.run(spec, source_file=source, workdir=workdir)
             model_elapsed = max(0.0, monotonic() - started)
             if model_elapsed > self.cost_guard.max_billable_seconds:
@@ -175,10 +179,24 @@ class MotionWorker:
             # billability or allowing another costly provider invocation.
             raise
         except Exception:
-            # Failed local inference may consume real GPU; caller reconciles actual cost,
-            # not an unconditional refund. Never publish raw prompt/private stack traces.
-            if not self.store.fail(jid, token, "LOCAL_MOTION_FAILURE"):
-                raise MotionError("Unknown outcome: manual reconciliation required")
+            # A subprocess can have spent money before failing, timing out, or
+            # producing an invalid MP4. Such attempts MUST NOT be recorded as
+            # refundable FAILED or replayed by a queue worker automatically.
+            # Validation and staging failures before launch are safely FAILED.
+            if generation_attempted:
+                try:
+                    persisted = self.store.mark_unknown(jid, token, "GPU_ATTEMPT_UNCERTAIN")
+                except Exception as exc:
+                    raise ReconciliationRequired(
+                        "GPU attempt requires manual reconciliation"
+                    ) from exc
+                if not persisted:
+                    raise ReconciliationRequired(
+                        "GPU attempt requires manual reconciliation"
+                    )
+                return "UNKNOWN"
+            if not self.store.fail(jid, token, "PRE_GPU_VALIDATION_FAILURE"):
+                raise MotionError("Pre-GPU failure state cannot be recorded")
             return "FAILED"
         finally:
             if workdir is not None and workdir.is_dir() and not workdir.is_symlink():
