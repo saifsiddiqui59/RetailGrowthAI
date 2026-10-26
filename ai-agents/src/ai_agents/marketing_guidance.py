@@ -61,7 +61,7 @@ def build_editorial_guidance(
             or any(not isinstance(x, str) or x not in ALLOWED_CHANNELS
                    for x in channel_names)):
         raise ValueError("Unknown or duplicated publishing channel")
-    if RESTRICTED.search(profile.category):
+    if RESTRICTED.search(profile.category + " " + " ".join(profile.products)):
         raise PermissionError("Restricted-industry editorial plan needs policy review")
     # The profile was read with signed caller RLS, but is NOT proof of offers,
     # promotions, price, stock, licensed media or trend popularity. Do not
