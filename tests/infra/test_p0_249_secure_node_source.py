@@ -31,7 +31,8 @@ class SecureNodeParitySource(unittest.TestCase):
         self.assertIn('"shop_memberships"', store)
         self.assertIn('active: "eq.true"', store)
         self.assertIn('Authorization: "Bearer " + token', store)
-        self.assertNotIn('sb_secret_', store)
+        self.assertIn('publishableKey.startsWith("sb_secret_")', store)
+        self.assertNotIn('RETAIL_SUPABASE_SERVICE_ROLE_KEY', store)
         self.assertNotIn('method: "POST"', store)
 
 if __name__ == "__main__":
