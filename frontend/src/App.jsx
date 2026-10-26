@@ -1,17 +1,29 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import CampaignDashboard from './features/campaigns/CampaignDashboard.jsx'
+
 import { AuthProvider, useRetailAuth } from './auth/AuthProvider.jsx'
-import { AccountWorkspace } from './auth/AccountWorkspace.jsx'
-import DashboardOverview from './features/dashboard/DashboardOverview.jsx'
-import SubscriptionPage from './features/subscription/SubscriptionPage.jsx'
-import PlatformAdmin from './features/platform/PlatformAdmin.jsx'
-import PlatformAlerts from './features/platform/PlatformAlerts.jsx'
+
+
+
+
+
 import LoginPage from './auth/LoginPage.jsx'
-import WorkspacePage from './features/dashboard/WorkspacePages.jsx'
-import MediaLibrary from './features/dashboard/MediaLibrary.jsx'
-import RecentCampaignCalendar from './features/dashboard/RecentCampaignCalendar.jsx'
+
+
+
 import './features/dashboard/dashboard-v2.css'
+
+// Download only the authenticated workspace the user opens. This keeps the
+// public login small and avoids loading video editor and Chart.js on entry.
+const CampaignDashboard = lazy(() => import('./features/campaigns/CampaignDashboard.jsx'))
+const AccountWorkspace = lazy(() => import('./auth/AccountWorkspace.jsx').then(m => ({ default: m.AccountWorkspace })))
+const DashboardOverview = lazy(() => import('./features/dashboard/DashboardOverview.jsx'))
+const SubscriptionPage = lazy(() => import('./features/subscription/SubscriptionPage.jsx'))
+const PlatformAdmin = lazy(() => import('./features/platform/PlatformAdmin.jsx'))
+const PlatformAlerts = lazy(() => import('./features/platform/PlatformAlerts.jsx'))
+const WorkspacePage = lazy(() => import('./features/dashboard/WorkspacePages.jsx'))
+const MediaLibrary = lazy(() => import('./features/dashboard/MediaLibrary.jsx'))
+const RecentCampaignCalendar = lazy(() => import('./features/dashboard/RecentCampaignCalendar.jsx'))
 
 const links = [
   { to: '/', label: 'Overview', icon: '▦', end: true, group: 'WORKSPACE' },
@@ -177,6 +189,7 @@ function AppShell() {
           </div>
         </header>
         <main className="content">
+          <Suspense fallback={<div className="rg-route-loading" role="status">Loading workspace…</div>}>
           <Routes>
             <Route path="/" element={platformAdmin ? <Navigate to="/platform-admin" replace /> : <DashboardOverview />} />
             <Route path="/business" element={<DashboardOverview />} />
@@ -194,6 +207,7 @@ function AppShell() {
             <Route path="/account" element={<AccountWorkspace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
         </main>
       </div>
     </div>
