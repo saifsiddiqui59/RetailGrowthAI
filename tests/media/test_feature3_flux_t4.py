@@ -48,6 +48,9 @@ class FluxT4Tests(unittest.TestCase):
             get_device_capability=lambda:cap,
             is_bf16_supported=lambda:bf16,
             get_device_properties=lambda idx:SimpleNamespace(total_memory=vram*1024**3),
+            synchronize=lambda idx:None,
+            max_memory_allocated=lambda idx:1024, # fake CUDA allocation evidence
+
         )
         diffusers=ModuleType("diffusers")
         diffusers.Flux2KleinPipeline=FakePipeline
@@ -58,6 +61,7 @@ class FluxT4Tests(unittest.TestCase):
             worker=OfflineFluxKlein4B(tmp,height=512,width=512)
             png=worker(InferenceJob(SHOP,JOB,"human_model",prompt="adult clothing catalog"),{})
             self.assertTrue(png.startswith(b"\x89PNG"))
+            self.assertTrue(worker.actual_cuda_verified) # fake torch only, not actual hardware acceptance
             self.assertEqual(FakePipeline.used["dtype"],"fp16")
             self.assertTrue(worker.pipeline.cpu_offload)
             self.assertFalse(worker.pipeline.cuda)
@@ -72,6 +76,15 @@ class FluxT4Tests(unittest.TestCase):
             self.assertEqual(FakePipeline.used["dtype"],"bf16")
             self.assertTrue(worker.pipeline.cuda)
             self.assertFalse(worker.pipeline.cpu_offload)
+
+    def test_cuda_allocation_must_be_real_before_attestation(self):
+        fake=self.make_modules()
+        fake["torch"].cuda.max_memory_allocated=lambda idx:0
+        with TemporaryDirectory() as tmp,patch.dict(sys.modules,fake):
+            worker=OfflineFluxKlein4B(tmp,height=512,width=512)
+            with self.assertRaisesRegex(ProviderBlocked, "did not allocate device memory"):
+                worker(InferenceJob(SHOP,JOB,"human_model",prompt="adult fashion item"),{})
+            self.assertFalse(worker.actual_cuda_verified)
 
     def test_bad_cuda_and_under_14gb_rejected_before_loading_model(self):
         for cap,vram in (((6,0),16),((7,5),12)):

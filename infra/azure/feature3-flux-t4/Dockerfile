@@ -21,7 +21,10 @@ RUN python -m pip install --no-cache-dir \
     "huggingface-hub==0.36.0" \
     "Pillow==13.0.0"
 COPY poster-engine/ /opt/retailgrowthai/poster-engine/
+# Linux coreutils watchdog kills hung CUDA kernels after a bounded wall time.
+# Azure Container Apps Job replicaTimeout must ALSO be <= 900s on deployment.
+RUN test -x /usr/bin/timeout
 # Current GPU Container Apps runtime disallows root.
 USER 10001:10001
-ENTRYPOINT ["python", "/opt/retailgrowthai/poster-engine/flux_t4_container_entrypoint.py"]
+ENTRYPOINT ["/usr/bin/timeout", "--signal=TERM", "--kill-after=15s", "900s", "python", "/opt/retailgrowthai/poster-engine/flux_t4_container_entrypoint.py"]
 CMD ["--weights", "/mnt/private/models/FLUX.2-klein-4B", "--approval", "/mnt/private/models/approval-manifest.json", "--request", "/mnt/private/jobs/input.json", "--output", "/mnt/private/jobs/unreviewed-output"]

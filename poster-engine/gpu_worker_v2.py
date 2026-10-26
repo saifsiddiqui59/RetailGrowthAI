@@ -42,8 +42,11 @@ class OfflineFluxKlein4B:
             or steps != 4):
             raise ProviderBlocked("Only approved preinstalled FLUX.2 Klein 4B weights allowed")
         self.pipeline = None
+        # Runtime proof is never inferred merely from a configured CUDA Docker image.
+        self.actual_cuda_verified = False
 
     def __call__(self, job, inputs):
+        self.actual_cuda_verified = False
         if job.capability not in ("text_to_image", "image_edit", "human_model", "background"):
             raise ProviderBlocked("Unsupported FLUX worker mode")
         if job.capability == "image_edit" and len(inputs) != 1:
@@ -96,6 +99,12 @@ class OfflineFluxKlein4B:
         if inputs:
             kwargs["image"] = _image_bytes(next(iter(inputs.values())))
         output = self.pipeline(**kwargs).images[0]
+        # Synchronize kernels before recording a real-GPU receipt. Merely importing
+        # torch or returning valid Pillow bytes does not prove CUDA inference.
+        torch.cuda.synchronize(0)
+        if int(torch.cuda.max_memory_allocated(0)) <= 0:
+            raise ProviderBlocked("CUDA pipeline did not allocate device memory")
+        self.actual_cuda_verified = True
         if not isinstance(output, Image.Image):
             raise ProviderBlocked("FLUX failed to return an image")
         buffer = BytesIO()
