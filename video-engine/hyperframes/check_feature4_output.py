@@ -49,6 +49,13 @@ def check_artifact(media_dir):
         if ImageStat.Stat(im.convert("L")).stddev[0] < 15:
             raise AssertionError(f"Frame {t}s is blank or visually near-uniform")
         frames.append(im)
+    # Catch invisible hero logo in the real six-scene synthetic video.
+    intro_region = frames[0].crop((155, 170, 385, 540)).convert("L")
+    hero_luma = ImageStat.Stat(intro_region).stddev[0]
+    if hero_luma < 14:
+        raise AssertionError(
+            f"Opening brand hero is invisible or near-uniform ({hero_luma:.1f})"
+        )
     changes=[
         ImageStat.Stat(ImageChops.difference(a,b).convert("L")).mean[0]
         for a,b in zip(frames,frames[1:])
@@ -59,7 +66,8 @@ def check_artifact(media_dir):
     without_motion=tone_amplitude(clip,12)
     if not (with_motion >= 30 and with_motion > 8 * max(1,without_motion)):
         raise AssertionError("Feature #5 fixture source audio lost in the composition mix")
-    return {"scene_delta": [round(n,2) for n in changes],
+    return {"intro_logo_luma_stddev": round(hero_luma, 2),
+            "scene_delta": [round(n,2) for n in changes],
             "source_tone_amplitude": round(with_motion,2),
             "nonclip_tone_amplitude": round(without_motion,2)}
 
