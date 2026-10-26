@@ -1,7 +1,7 @@
-"""Opt-in Feature #2 API boundary, NOT registered in the global Functions router.
+"""Feature #2 JWT/tenant-gated Azure Functions boundary.
 
-Coordinator must first approve an RLS-backed profile/snapshot/draft persistence
-contract. No routes/timers or paid provider calls are activated by this module.
+Shared trends and protected shop drafts are deployed in RetailGrowthAI DEV.
+All writes require server-side shop, media, and source checks and stay DRAFT.
 """
 from __future__ import annotations
 
@@ -105,3 +105,29 @@ class TrendFeatureAdapter:
             return 403, {"error": "FORBIDDEN"}
         except StorageUnavailable:
             return 503, {"error": "TREND_STORAGE_UNAVAILABLE"}
+
+    def list_drafts(self, shop_id: str, authorization: str) -> tuple[int, dict]:
+        """Read saved drafts with the *user's* RLS identity, even when RSS is down."""
+        try:
+            sid = canonical_uuid(shop_id)
+            if not isinstance(authorization, str) or not authorization.startswith("Bearer "):
+                return 401, {"error": "UNAUTHORIZED"}
+            token = authorization[7:].strip()
+            if not token:
+                return 401, {"error": "UNAUTHORIZED"}
+            try:
+                uid = canonical_uuid(self.verify_token(token))
+            except (AuthenticationError, ValueError, TypeError):
+                return 401, {"error": "UNAUTHORIZED"}
+            if not self.tenant_store.member(token, uid, sid, write=False):
+                return 404, {"error": "NOT_FOUND"}
+            if not self.draft_store:
+                return 503, {"error": "CONTENT_DRAFT_STORE_NOT_CONFIGURED"}
+            rows = self.draft_store.list_drafts(token, sid, limit=5)
+            return 200, {"shop_id": sid, "drafts": rows}
+        except AuthenticationError:
+            return 401, {"error": "UNAUTHORIZED"}
+        except (ValueError, TypeError, KeyError):
+            return 400, {"error": "INVALID_REQUEST"}
+        except StorageUnavailable:
+            return 503, {"error": "CONTENT_DRAFT_READ_UNAVAILABLE"}
