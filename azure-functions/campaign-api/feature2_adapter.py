@@ -32,7 +32,12 @@ class TrendFeatureAdapter:
             if not isinstance(authorization, str) or not authorization.startswith("Bearer "):
                 return 401, {"error": "UNAUTHORIZED"}
             token = authorization[7:].strip()
-            user_id = self.verify_token(token)
+            if not token:
+                return 401, {"error": "UNAUTHORIZED"}
+            try:
+                user_id = canonical_uuid(self.verify_token(token))
+            except (AuthenticationError, ValueError, TypeError):
+                return 401, {"error": "UNAUTHORIZED"}
             if method not in ("GET", "POST"):
                 return 405, {"error": "METHOD_NOT_ALLOWED"}
             if not self.tenant_store.member(token, user_id, sid, write=method == "POST"):
