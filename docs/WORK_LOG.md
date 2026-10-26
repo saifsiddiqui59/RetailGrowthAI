@@ -420,3 +420,8 @@ Use scripts/checkpoint.sh after completing a task.
 ## Feature2 2026-10-26 — Recorded user consent and fresh no-write DEV evidence
 - User explicitly approved a **US$0.20 total isolated one-time text-model test** while separate protected hosted migration and paid-resource deployment remained excluded. Issue #403 has consent clarification; no tokens billed or configured here.
 - Latest previously merged main 0805b238, 4/4 CI #40394477895. Rechecked only RetailGrowthAI DEV migration history (21 versions) and absence of Feature2 budget tables/media/drafts by read-only Supabase calls. Added a one-shot read-only Microsoft meter/OIDC probe and no-network parser tests; no model calls, Azure settings or live DDL touched.
+
+
+## 2026-10-26 — Feature2 20-cent authorization and official Microsoft price evidence
+- User's scoped USD0.20 one-time isolated paid test consent recorded on issue #403 (#6426816815). Merged source-only #435 authorization/read-only OIDC+price probe, #436 public meter family diagnostic, #437 unit USD/1K→USD/1M normalization. Tests #40400620562 4/4 before #437 merge. Genuine protected read-only Azure [#40401262949](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40401262949) success: exact existing South India GPT-4.1-mini S0/Standard, no key read/model call, regional public input/output $0.44/$1.76 per 1M tokens, effective Nov 1 2025. Published price may differ from customer's contracted rate. Main CI #40401262835 must be independently confirmed.
+- Fresh connected RetailGrowthAI DEV: 21 applied SQL versions, neither AI spend table exists, media assets=0 and drafts=0. No hosted DDL, model request, customer spend, PROD/WineShopPOS action. Pending protected migration/ROOT, expiring budget and signed model response.
