@@ -462,7 +462,8 @@ h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.01
     )
     (workspace / "index.html").write_text(page, encoding="utf-8")
     (workspace / "render-config.json").write_text(json.dumps(
-        {"fps": plan["output"]["fps"], "quality": "standard", "format": "mp4",
+        {"fps": plan["output"]["fps"], "width": width, "height": height,
+         "quality": "standard", "format": "mp4",
          "duration_seconds": duration, "template": plan["template"], "mode": plan["mode"],
          "renderer": "hyperframes", "contract_version": VERSION}, indent=2) + "\n")
     return workspace
