@@ -15,8 +15,10 @@ FEATURES = ("color", "pattern", "neckline", "sleeves", "length", "embroidery")
 
 
 def build_review_sheet(*, shop_id, garment_asset_id, model_asset_id,
-                       manifest, staged_root, output_path):
+                       manifest, staged_root, output_path, inference_verified=False):
     """Only staged server-authorized garment and synthetic try-on source IDs."""
+    if type(inference_verified) is not bool:
+        raise DesignError("AI inference verification must be server-derived")
     if not isinstance(manifest, dict) or manifest.get("shop_id") != shop_id:
         raise DesignError("Cross-tenant comparison denied")
     if garment_asset_id == model_asset_id:
@@ -32,7 +34,8 @@ def build_review_sheet(*, shop_id, garment_asset_id, model_asset_id,
         raise DesignError("DejaVu fonts required for compare sheet") from exc
     for i, (image, heading_text) in enumerate((
         (garment, "UPLOADED GARMENT"),
-        (model, "AI TRY-ON OUTPUT — REVIEW"),
+        (model, "VERIFIED AI OUTPUT — REVIEW" if inference_verified
+         else "SYNTHETIC / UNVERIFIED IMAGE"),
     )):
         x = 30 + i * 600
         draw.rounded_rectangle((x, 20, x + 540, 790),
@@ -51,7 +54,8 @@ def build_review_sheet(*, shop_id, garment_asset_id, model_asset_id,
     return {"path": str(path), "shop_id": shop_id,
             "source_asset_id": garment_asset_id,
             "try_on_asset_id": model_asset_id,
-            "requires_human_review": True, "features": list(FEATURES)}
+            "requires_human_review": True, "inference_verified": inference_verified,
+            "features": list(FEATURES)}
 
 
 def validate_review(*, review, shop_id, source_asset_id, output_asset_id):
