@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 CANDIDATES = {
- "Standard_NC4as_T4_v3": {"vcpus": 4, "family": ("ncast4", "nc4ast4")},
+ "Standard_NC4as_T4_v3": {"vcpus": 4, "family": ("ncast4",)},
  "Standard_NV6ads_A10_v5": {"vcpus": 6, "family": ("nvads", "a10")},
 }
 
