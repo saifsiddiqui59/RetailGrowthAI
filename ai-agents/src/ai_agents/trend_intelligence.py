@@ -62,8 +62,11 @@ def _evidence_url(url: str, source: str) -> str:
     try:
         parsed = urlparse(url)
         hosts = {"google_rss": {"trends.google.com", "www.google.com"},
-                 "youtube": {"www.youtube.com"}}[source]
-        if (parsed.scheme != "https" or parsed.hostname not in hosts or
+                 "youtube": {"www.youtube.com"}}[source] if source != "festival_calendar" else None
+        valid_host = ((parsed.hostname in hosts) if hosts is not None
+                      else (parsed.hostname == "gov.in" or
+                            (parsed.hostname or "").endswith(".gov.in")))
+        if (parsed.scheme != "https" or not valid_host or
                 parsed.username or parsed.password or parsed.port or
                 len(url) > 600 or any(ord(c) < 32 for c in url)):
             return ""
@@ -86,6 +89,7 @@ class Trend:
     popularity_value: int | None = None
     popularity_kind: str | None = None
     source_published_at: str | None = None
+    event_date: str | None = None
 
     def public(self) -> dict:
         return asdict(self)
@@ -103,7 +107,8 @@ class SourceState:
 def _trend(source: str, title: str, category: str, language: str, url: str,
            now: datetime, *, popularity: int | None = None,
            popularity_kind: str | None = None, ttl_hours: int = 30,
-           source_published_at: datetime | None = None) -> Trend | None:
+           source_published_at: datetime | None = None,
+           event_date: str | None = None) -> Trend | None:
     cleaned = _clean(title, limit=140)
     evidence = _evidence_url(url, source)
     if not cleaned or not evidence or category not in CATEGORY_TERMS:
@@ -112,7 +117,8 @@ def _trend(source: str, title: str, category: str, language: str, url: str,
     return Trend(trend_id, source, cleaned, category, "IN", language,
                  _stamp(now), _stamp(now + timedelta(hours=ttl_hours)), evidence,
                  popularity, popularity_kind,
-                 _stamp(source_published_at) if source_published_at else None)
+                 _stamp(source_published_at) if source_published_at else None,
+                 event_date)
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -229,7 +235,8 @@ def _enabled(name: str, environ: dict) -> bool:
     return environ.get(name, "").lower() in ("1", "true", "yes")
 
 
-def collect(now: datetime, *, environ: dict | None = None, get=None, regions=("IN",)) -> dict:
+def collect(now: datetime, *, environ: dict | None = None, get=None, regions=("IN",),
+            festival_records: list[dict] | None = None) -> dict:
     """Once-per-day shared collector; storage/scheduling are separate reviewed adapters.
 
     Never caches API credentials or tenant profile. Every source has an explicit status,
@@ -268,8 +275,22 @@ def collect(now: datetime, *, environ: dict | None = None, get=None, regions=("I
             # Exceptions, API payload and URL may include credentials; never include details.
             status = "quota_limited" if getattr(exc, "code", None) == 403 and source == "youtube" else "unavailable"
             statuses.append(SourceState(source, status, None, 0, "Provider fetch/parse failed; no results inferred"))
-    statuses.append(SourceState("festival_calendar", "disabled", None, 0,
-                                "Verified-date registry not configured; no event dates inferred"))
+    if festival_records is None:
+        statuses.append(SourceState("festival_calendar", "disabled", None, 0,
+                                    "Verified-date registry not configured; no event dates inferred"))
+    else:
+        from .seasonal_calendar import verified_event_rows
+        events = verified_event_rows(festival_records, now)
+        event_trends = [
+            _trend("festival_calendar", row["event"], row["category"],
+                   row["language"], row["source"], now, event_date=row["date"])
+            for row in events
+        ]
+        accepted = [event for event in event_trends if event is not None]
+        signals.extend(accepted)
+        statuses.append(SourceState(
+            "festival_calendar", "ok" if accepted else "incomplete",
+            _stamp(now), len(accepted), "Source-reviewed government events only"))
     by_key: dict[tuple[str, str], Trend] = {}
     for item in signals:
         key = (item.region, item.title.casefold())
@@ -317,6 +338,7 @@ def recommendations(snapshot: dict, profile: dict, now: datetime, *, limit: int 
             "city": profile["city"][:80], "language": language,
             "source": trend.source, "observed_at": trend.observed_at,
             "source_published_at": trend.source_published_at,
+            "event_date": trend.event_date,
             "expires_at": trend.expires_at, "evidence_url": trend.evidence_url,
             "popularity_value": trend.popularity_value, "popularity_kind": trend.popularity_kind,
             "score": score, "confidence": "medium" if category_match else "low",
