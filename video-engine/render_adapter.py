@@ -53,6 +53,8 @@ def verify_mp4(path, *, duration, width, height, fps):
         return {"bytes": file.stat().st_size, "duration_seconds": actual_seconds,
                 "width": width, "height": height, "fps": fps,
                 "video_codec": "h264", "audio_codec": "aac"}
+    except CreativeRenderError:
+        raise
     except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired,
             ValueError, ZeroDivisionError, TypeError, KeyError, OverflowError) as exc:
         raise CreativeRenderError("Corrupt or unavailable MP4 metadata") from exc
