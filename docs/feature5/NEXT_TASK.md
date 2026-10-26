@@ -12,3 +12,7 @@
 - **Completed offline:** official CLI T2V omission of `--image_path`; I2V source flag, bounded model args, preflight image decode, timeout and CUDA gate, immutable lease-scoped private output receipt, nonfinite quota rejection and post-upload unknown-state handling. Corresponding automated mocked tests added to the standard Python CI.
 - **Still blocked:** verified licensed GPU/device and actual Hunyuan output, pinned weights+runtime digest, real 480p/frame aspect/FPS verification, actual garment quality, managed/private media adapters, transactional reservation and claim RPC wiring, Azure service and real preview.
 - **Hardware:** Central India T4 has native BF16 compatibility risk (CUDA compute capability 7.5); default Hunyuan BF16 runner rejects unsuitable GPU. Coordinator should review whether a consented A100 region is permissible or keep dormant Wan vendor choice. No cross-region transfer without approval.
+
+## Real GPU acceptance harness prepared, not executed
+- Optional `tests/gpu/test_feature5_local_acceptance.py` provides real T2V and I2V paths only after three explicit environment approvals (real test, GPU spend, and reviewed license) plus pinned local checkout and weights. The separate I2V test requires a rights-approved source image.
+- The standard GitHub CI does not discover or run `tests/gpu/`; local manual execution must never be described as a successful test until real GPU output, ffprobe, side-by-side garment review and captured measured costs exist.

@@ -14,3 +14,5 @@
 - Strengthened source image size/decode, subprocess output/timeout, offline-only model flags, BF16 CUDA/VRAM preflight, prevention of NaN/Infinity budget bypass, private scratch cleanup, exact private blob lease receipt, and UNKNOWN on ambiguous uploads.
 - Fixed a mock-fixture timing defect detected by CI (fixture created output before start). Did not disable tests or modify workflow.
 - Code and docs remain isolated to Feature5-owned folders/tests. Production and paid GPUs are untouched.
+
+- Added separate MANUAL-ONLY real local GPU acceptance harness gated on operator cost/license approval and existing on-disk official weights. No tests executed against GPU or billable APIs.
