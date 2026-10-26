@@ -43,7 +43,6 @@ test('desktop routes show honest unavailable contracts, not invented data', asyn
     ['/creative-studio', 'Creative Studio'],
     ['/connections', 'Connected accounts'],
     ['/publishing', 'Publishing calendar & history'], ['/notifications', 'Notifications'],
-    ['/settings', 'Workspace settings'],
   ]) {
     await page.goto(path)
     await expect(page.getByRole('heading', { name: heading })).toBeVisible()
@@ -127,6 +126,73 @@ test('calendar verifies last campaign against JWT shop and denies cross-tenant d
   await page.getByRole('button', { name: 'Load recent campaign' }).click()
   await expect(page.getByRole('alert')).toContainText('No dates or posts are assumed')
   await expect(page.getByText('Approved draft example')).toHaveCount(0)
+})
+
+test('business settings saves only validated fields with JWT and real server confirmation', async ({ page }) => {
+  await signedIn(page)
+  const profile = { shop_id: SHOP, business_name: 'Example Boutique', category:'Clothing',
+    description:'Sample description', brand_voice:'Warm', city:'Nagpur',
+    website_url:'', contact_email:'' }
+  const writes = []
+  await page.route(HOST + '/rest/v1/business_profiles**', route => {
+    const req = route.request()
+    if (req.method() === 'PATCH') {
+      writes.push({body: JSON.parse(req.postData() || '{}'), auth:req.headers()['authorization']})
+      return route.fulfill({status:200,contentType:'application/json',
+        headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+        body:JSON.stringify([{...profile,...writes.at(-1).body}])})
+    }
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify([profile])})
+  })
+  await page.goto('/settings')
+  const editor = page.getByRole('form', {name:'Business profile settings'})
+  await expect(editor.getByLabel('Business name')).toHaveValue('Example Boutique')
+  await expect(editor.getByRole('button',{name:'Save business profile'})).toBeDisabled()
+  await editor.getByLabel('City').fill('Pune')
+  await editor.getByRole('button',{name:'Save business profile'}).click()
+  await expect(page.getByText('Business profile saved and verified for this business.')).toBeVisible()
+  expect(writes).toHaveLength(1)
+  expect(writes[0]).toEqual({body:{city:'Pune'},auth:'Bearer offline-test-JWT'})
+})
+
+test('settings shows VIEWER profile without issuing any mutation', async ({ page }) => {
+  await signedIn(page)
+  const profile = {shop_id:SHOP,business_name:'Viewer Business',category:'Retail',
+    description:'',brand_voice:'',city:'',website_url:'',contact_email:''}
+  const methods = []
+  await page.route(HOST + '/rest/v1/shop_memberships**',route => route.fulfill({
+    status:200,contentType:'application/json',
+    headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+    body:JSON.stringify([{shop_id:SHOP,active:true,role:'VIEWER'}])
+  }))
+  await page.route(HOST + '/rest/v1/business_profiles**',route => {
+    methods.push(route.request().method())
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify([profile])})
+  })
+  await page.goto('/settings')
+  const editor=page.getByRole('form',{name:'Business profile settings'})
+  await expect(editor.getByLabel('Business name')).toHaveValue('Viewer Business')
+  await expect(editor.getByLabel('Business name')).toHaveAttribute('readonly','')
+  await expect(editor.getByRole('button',{name:'Save business profile'})).toBeDisabled()
+  expect(methods).toEqual(['GET'])
+})
+
+test('settings refuses cross-tenant profile response and never shows foreign data', async ({page})=>{
+  await signedIn(page)
+  await page.route(HOST + '/rest/v1/business_profiles**',route=>route.fulfill({
+    status:200,contentType:'application/json',
+    headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+    body:JSON.stringify([{shop_id:'a1000000-0000-4000-8000-000000000002',
+      business_name:'Foreign Retailer',category:'Other'}])
+  }))
+  await page.goto('/settings')
+  await expect(page.getByRole('alert')).toContainText('Profile cannot be verified')
+  await expect(page.getByText('Foreign Retailer')).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'Save business profile'})).toHaveCount(0)
 })
 
 test('unverified guest cannot deep-link to dashboard subroutes', async ({ page }) => {

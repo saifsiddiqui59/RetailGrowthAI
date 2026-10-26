@@ -96,3 +96,22 @@
 .rg-calendar-day span{font-size:12px;color:#6b7f88}
 :root[data-rg-theme="dark"] .rg-calendar-day{background:#233846;border-color:#466471}
 :root[data-rg-theme="dark"] .rg-calendar-day span{color:#a7c1c6}
+
+/* Feature 1 authenticated account/business settings. No external UI runtime. */
+.rg-settings .rg-settings-card {max-width:940px}
+.rg-settings-top{display:flex;justify-content:space-between;gap:16px;align-items:start;flex-wrap:wrap}
+.rg-settings-top h2{margin:0 0 6px}
+.rg-settings-top p{margin:0 0 18px}
+.rg-settings-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.rg-settings-fields label{display:grid;gap:7px;min-width:0;font-size:13px;font-weight:730;color:#395466}
+.rg-settings-fields label:has(textarea){grid-column:1/-1}
+.rg-settings-fields input,.rg-settings-fields textarea{box-sizing:border-box;width:100%;min-width:0;border:1px solid #cedcdd;border-radius:10px;padding:11px 12px;background:#fff;color:#1d3444;font:inherit;line-height:1.5}
+.rg-settings-fields input:read-only,.rg-settings-fields textarea:read-only{background:#eef3f4;color:#435a68}
+.rg-settings-fields :is(input,textarea):focus-visible{outline:2px solid #159b76;outline-offset:2px}
+.rg-settings-actions{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:20px}
+.rg-settings-hint{margin-top:16px;color:#9e4c21}
+.rg-settings-foot{margin-top:18px;max-width:940px}
+.rg-settings-foot h2{margin:0 0 6px}
+:root[data-rg-theme="dark"] .rg-settings-fields label{color:#c3d9e3}
+:root[data-rg-theme="dark"] .rg-settings-fields input:read-only,:root[data-rg-theme="dark"] .rg-settings-fields textarea:read-only{background:#263b4a;color:#aec4d0}
+@media(max-width:560px){.rg-settings-fields{grid-template-columns:minmax(0,1fr)}.rg-settings-fields label:has(textarea){grid-column:1}}

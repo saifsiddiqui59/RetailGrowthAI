@@ -24,6 +24,7 @@ const PlatformAlerts = lazy(() => import('./features/platform/PlatformAlerts.jsx
 const WorkspacePage = lazy(() => import('./features/dashboard/WorkspacePages.jsx'))
 const MediaLibrary = lazy(() => import('./features/dashboard/MediaLibrary.jsx'))
 const RecentCampaignCalendar = lazy(() => import('./features/dashboard/RecentCampaignCalendar.jsx'))
+const BusinessSettings = lazy(() => import('./features/dashboard/BusinessSettings.jsx'))
 
 const links = [
   { to: '/', label: 'Overview', icon: '▦', end: true, group: 'WORKSPACE' },
@@ -201,7 +202,7 @@ function AppShell() {
             <Route path="/connections" element={<WorkspacePage section="connections" />} />
             <Route path="/publishing" element={<WorkspacePage section="publishing" />} />
             <Route path="/notifications" element={<WorkspacePage section="notifications" />} />
-            <Route path="/settings" element={<WorkspacePage section="settings" />} />
+            <Route path="/settings" element={<BusinessSettings />} />
             <Route path="/platform-admin" element={<PlatformBoundary />} />
             <Route path="/platform-alerts" element={<PlatformBoundary><PlatformAlerts /></PlatformBoundary>} />
             <Route path="/account" element={<AccountWorkspace />} />

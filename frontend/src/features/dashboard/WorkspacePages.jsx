@@ -41,12 +41,7 @@ const pages = {
     note: 'The existing persisted notifications RPC is reserved for verified Platform Super Admins, not retailer sessions. Unread counts are unavailable, not zero.',
     actions: [['Check rendering status', '/campaigns']],
   },
-  settings: {
-    eyebrow: 'ACCOUNT & SECURITY', title: 'Workspace settings',
-    summary: 'Your business profile, personal account and session controls are managed in the existing account workspace.',
-    note: 'Settings are limited to supported RetailGrowthAI features. No credentials or cross-tenant access are shared with other products.',
-    actions: [['Manage business & account', '/account'], ['Plan and usage', '/subscription']],
-  },
+
 }
 
 export const WORKSPACE_PAGES = Object.freeze(pages)
