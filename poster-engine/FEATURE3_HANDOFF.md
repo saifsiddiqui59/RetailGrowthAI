@@ -445,3 +445,63 @@ this handoff requests those updates at review/merge.
   React mobile/browser interaction, v2 durable save/reopen and
   genuine signed immutable production PNG/GIF/MP4 downloads.
   Human approval and licensing still mandatory before publishing.
+
+## 2026-10-26 — Assigned real fashion model/product visual integration actively resumed
+
+The user's original requirement **"generate posters, fashion models and
+product visuals" is NOT fully met by CPU template fixtures**. Continue until
+actual FLUX 4B CUDA inference and a reviewed, private output is proven.
+
+**Implemented this sprint (isolated feature-owned code, no cloud spend):**
+
+- Reviewed official upstream [BFL FLUX.2](https://github.com/black-forest-labs/flux2),
+  specifically commercial-use **FLUX.2 Klein 4B Apache-2.0**.
+  Do not substitute 9B/dev or call 4B Base with distilled 4-step settings.
+  Model card estimates ~13GB VRAM for local 4B inference.
+- New `real_visual_demo_v2.py` invokes **real existing**
+  `OfflineFluxKlein4B` with two local GPU calls when a compatible
+  licensed, preinstalled 4B Diffusers snapshot and CUDA are available:
+  synthetic adult fashion model; product visual (optionally locally
+  reference-conditioned using explicitly owned garment image); then
+  `studio_v2` renders a real 1080×1350 branded portrait poster using
+  the model output. Writes verifiable SHA-256 and non-approval flags.
+  NO fake model preview or virtual try-on is claimed.
+- New `gpu_preflight_v2.py` checks exact source repo identity,
+  40-character pinned revision, Apache-2.0, human-review approval of
+  dependencies, hash of `model_index.json` and Klein pipeline class
+  before any CUDA/model import. Shard hashes are NOT all audited yet,
+  so this is a minimum local operator gate, not a full supply-chain
+  audit or automatic customer deployment permission.
+- Added `tests/media/test_feature3_real_visual_demo.py` exercising
+  the actual Pillow composition stage and conditional image-edit route
+  with an *explicit synthetic fake model runner*; negative tests cover
+  cleanup on OOM, unsafe reference, wrong 9B/noncommercial manifest,
+  invalid dependency rights, and changed pipeline index. Mock tests
+  are not real CUDA inference evidence.
+- `FEATURE3_REAL_MODELS.md` contains executable operator commands
+  and exact no-network safeguards; no model downloads at runtime, no
+  keys, paid external API, Azure GPU, PROD, WineShopPOS, or schema writes.
+- FASHN VTON 1.5 remains disabled for commercial use until parser
+  license clearance/replacement. Official upstream includes
+  `fashn-human-parser` trained with NVIDIA SegFormer and a separate
+  license; being segmentation-free for *user input* does not eliminate
+  that parser dependency.
+
+**Feature3 definition of done still pending:**
+1. Fully review SHA-pinned 4B snapshot files/weights and run **actual**
+   GPU inference on approved machine with approved 4B, save fashion
+   model/product visual/real CPU-composed poster and visually evaluate.
+   No CUDA or Diffusers runtime exists in this active build environment.
+2. Confirm generated clothing accuracy; image editing is NOT a
+   deterministic substitute for validated original garment virtual
+   try-on. VTON parser clearance plus genuine try-on evaluation pending.
+3. Wire provider to existing tenant/RLS, cost/usage ledger, retries,
+   private media, authorized shop uploads and cloud dashboard under
+   coordinator #325. Real signed-in hosted E2E and cost benchmark pending.
+4. Coordinator integrates PR #321 and canonical docs after 4/4 exact
+   head and post-merge main CI, never feature-worker self-merge.
+
+**Current demos:** Existing artifact bundles demonstrate seven
+*synthetic/CPU* outputs from the actual Pillow/FFmpeg engine (geometric
+garment, not AI human); real fashion model sample MUST NOT be declared
+available until an actual GPU run succeeds.
