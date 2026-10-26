@@ -132,7 +132,7 @@ def validate(plan, manifest, asset_root, allow_test_media=False):
     source_audio = False
     for i, scene in enumerate(scenes):
         fields(scene, {"start", "duration", "asset_id", "headline", "offer", "trim_start", "mute_source",
-                       "poster_overlay_asset_id", "animation_preset", "transition"},
+                       "poster_overlay_asset_id", "animation_preset", "transition", "sfx_asset_id"},
                {"start", "duration", "headline"}, f"scene {i}")
         start = number(scene["start"], "scene start", 0, 60)
         length = number(scene["duration"], "scene duration", 0.5, 60)
@@ -146,6 +146,19 @@ def validate(plan, manifest, asset_root, allow_test_media=False):
             raise VideoPlanError("Unknown approved animation preset")
         if scene.get("transition", "fade") not in ("fade", "slide", "cut"):
             raise VideoPlanError("Unknown reviewed transition")
+        sfx_id = scene.get("sfx_asset_id")
+        if sfx_id is not None:
+            if (not isinstance(sfx_id, str) or not ASSET_ID.fullmatch(sfx_id)
+                    or sfx_id not in assets):
+                raise VideoPlanError("Unknown approved sound effect")
+            sfx = assets[sfx_id]
+            fields(sfx, {"kind", "path", "rights"}, {"kind", "path", "rights"}, "sound effect entry")
+            if sfx["kind"] != "audio":
+                raise VideoPlanError("Sound effect must be audio")
+            validate_rights(sfx["rights"], sfx_id, allow_test_media)
+            sfx_path = checked_path(asset_root, sfx["path"], sfx_id, AUDIO)
+            inspect_staged_audio(sfx_path)
+            ordered[sfx_id] = (sfx_path, "audio")
         overlay_id = scene.get("poster_overlay_asset_id")
         if overlay_id is not None:
             if (not isinstance(overlay_id, str) or not ASSET_ID.fullmatch(overlay_id)
@@ -297,6 +310,12 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
         title_font = max(24, width // (10 if title_length <= 32 else 15 if title_length <= 70 else 20))
         offer = clean_text(scene.get("offer"), "offer", optional=True)
         offer_markup = f'<p class="offer">{offer}</p>' if offer else ""
+        if scene.get("sfx_asset_id"):
+            src = names[scene["sfx_asset_id"]]
+            components.append(
+                f'<audio id="sfx{i}" src="{src}" data-start="{start}" '
+                f'data-duration="{min(2, length)}" data-track-index="6" data-volume="0.25"></audio>'
+            )
         animation = scene.get("animation_preset", "subtle_zoom")
         transition = scene.get("transition", "fade")
         leading_video = media_markup if aid and ordered[aid][1] == "video" else ""
