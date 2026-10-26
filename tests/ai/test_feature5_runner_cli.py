@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT))
 from feature5_motion.contracts import MotionError, MotionSpec
 from feature5_motion.runner import HunyuanLocalRunner, git_blob_sha1, verify_official_script, OFFICIAL_GENERATE_BLOB
 from feature5_motion.license_gate import HunyuanLicensePolicy
+from feature5_motion.artifact_lock import ArtifactLock
 
 
 def uid():
@@ -44,6 +45,7 @@ class TestOfficialHunyuanCLI(unittest.TestCase):
             checkout=self.checkout, weights=self.weights, enabled=True,
             license_approved=True, gpu_budget_approved=True, timeout_seconds=30,
             license_policy=policy,
+            artifact_lock=ArtifactLock(self.root / "reviewed-artifact-lock.json", "a" * 64),
         )
         # CPU-only mock test: never discover or rent actual GPU hardware.
         self.gpu_preflight = patch.object(HunyuanLocalRunner, "_require_supported_gpu")
@@ -55,6 +57,9 @@ class TestOfficialHunyuanCLI(unittest.TestCase):
         self.pinned_script = patch("feature5_motion.runner.verify_official_script")
         self.pinned_script.start()
         self.addCleanup(self.pinned_script.stop)
+        self.verified_weights = patch.object(ArtifactLock, "verify", return_value="a" * 64)
+        self.verified_weights.start()
+        self.addCleanup(self.verified_weights.stop)
 
     def spec(self, mode="text"):
         return MotionSpec(job_id=uid(), shop_id=uid(), prompt="Adult model in boutique",
@@ -118,6 +123,20 @@ class TestOfficialHunyuanCLI(unittest.TestCase):
             with self.assertRaisesRegex(MotionError, "license activation"):
                 self.runner.run(self.spec(), source_file=None, workdir=self.workdir)
             popen.assert_not_called()
+
+    def test_missing_model_weight_lock_blocks_paid_gpu(self):
+        self.runner.artifact_lock = None
+        with patch("feature5_motion.runner.subprocess.Popen") as popen:
+            with self.assertRaisesRegex(MotionError, "weights manifest"):
+                self.runner.run(self.spec(), source_file=None, workdir=self.workdir)
+            popen.assert_not_called()
+
+    def test_rejected_model_manifest_blocks_gpu_before_cuda(self):
+        with patch.object(ArtifactLock, "verify", side_effect=MotionError("Unreviewed shard digest")):
+            with patch("feature5_motion.runner.subprocess.Popen") as popen:
+                with self.assertRaisesRegex(MotionError, "shard digest"):
+                    self.runner.run(self.spec(), source_file=None, workdir=self.workdir)
+                popen.assert_not_called()
 
     def test_unsupported_cuda_hardware_cannot_launch(self):
         with patch.object(self.runner, "_require_supported_gpu",
