@@ -140,12 +140,16 @@ def create_real_visual_sample(*, runner, output_root, shop_id=DEMO_SHOP,
             "product_visual_png": product_hash,
             "poster_png": sha256(poster_path.read_bytes()).hexdigest(),
         }
+        real_flux = isinstance(runner, OfflineFluxKlein4B) and runner.pipeline is not None
         receipt = {
-            "provider": "FLUX.2 Klein 4B via locally preinstalled Diffusers",
+            "provider": ("FLUX.2 Klein 4B via locally preinstalled Diffusers"
+                         if real_flux else "UNVERIFIED_INJECTED_TEST_RUNNER"),
             "shop_id": shop_id, "assets": [
                 fashion_path.name, product_path.name, poster_path.name,
             ], "hashes": hashes,
-            "model_inference_executed_by_runner": True,
+            "model_inference_verified": real_flux,
+            "model_inference_executed_by_runner": real_flux,
+            "inference_claim_requires_real_cuda_run": True,
             "model_output_reviewed": False, "actual_try_on": False,
             "reference_product_fidelity_verified": False,
             "commercial_model_release_gate": "requires operator review",
