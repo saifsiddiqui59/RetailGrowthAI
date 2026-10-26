@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from feature5_motion import MotionSpec, validate_clip
 from feature5_motion.runner import HunyuanLocalRunner
+from feature5_motion.license_gate import HunyuanLicensePolicy
 
 APPROVED = (
     os.environ.get("RETAIL_FEATURE5_REAL_GPU_TEST", "").lower() == "true"
@@ -23,6 +24,9 @@ APPROVED = (
     and os.environ.get("RETAIL_FEATURE5_LICENSE_APPROVED", "").lower() == "true"
     and bool(os.environ.get("RETAIL_FEATURE5_PINNED_CHECKOUT"))
     and bool(os.environ.get("RETAIL_FEATURE5_PINNED_WEIGHTS"))
+    and os.environ.get("RETAIL_FEATURE5_TENCENT_TERMS_REVIEWED") == "true"
+    and bool(os.environ.get("RETAIL_FEATURE5_PROVIDER_LEGAL_NAME"))
+    and bool(os.environ.get("RETAIL_FEATURE5_PUBLICATION_COUNTRIES"))
 )
 
 
@@ -32,13 +36,32 @@ class TestHunyuanLocalGPU(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="feature5-real-gpu-")
         self.addCleanup(self.temp.cleanup)
         self.folder = Path(self.temp.name)
+        # Requires operator-reviewed country, actual legal provider name,
+        # notices and rights in addition to owner spend consent.
+        # Env flags are not a substitute for genuine legal verification.
+        countries = tuple(
+            code.strip() for code in os.environ["RETAIL_FEATURE5_PUBLICATION_COUNTRIES"].split(",")
+        )
+        policy = HunyuanLicensePolicy(
+            deployment_country=os.environ.get("RETAIL_FEATURE5_DEPLOYMENT_COUNTRY", ""),
+            retailer_country=os.environ.get("RETAIL_FEATURE5_RETAILER_COUNTRY", ""),
+            intended_publication_countries=countries,
+            actual_provider_legal_name=os.environ["RETAIL_FEATURE5_PROVIDER_LEGAL_NAME"],
+            tencent_no_endorsement_notice=True,
+            full_license_terms_available_to_users=True,
+            acceptable_use_and_local_law_checked=True,
+            commercial_media_rights_checked=True,
+            operator_terms_reviewed=True,
+            monthly_active_users_at_model_release=int(os.environ.get("RETAIL_FEATURE5_RELEASE_MAU", "-1")),
+            separate_tencent_license_if_required=os.environ.get("RETAIL_FEATURE5_EXTRA_TENCENT_LICENSE") == "true",
+        )
+        policy.assert_allowed()
         self.runner = HunyuanLocalRunner(
             checkout=Path(os.environ["RETAIL_FEATURE5_PINNED_CHECKOUT"]),
             weights=Path(os.environ["RETAIL_FEATURE5_PINNED_WEIGHTS"]),
-            enabled=True,
-            license_approved=True,
-            gpu_budget_approved=True,
-            timeout_seconds=1800,
+            enabled=True, license_approved=True,
+            gpu_budget_approved=True, timeout_seconds=1800,
+            license_policy=policy,
         )
 
     def test_text_to_video_real_gpu(self):
