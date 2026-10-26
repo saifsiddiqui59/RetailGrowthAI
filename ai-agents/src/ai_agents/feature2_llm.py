@@ -81,10 +81,19 @@ class AzureFeature2PromptLLM:
         if not self._client.configured or len(self._client.api_key) < 8:
             raise FoundryUnavailable("Real model deployment not configured")
         url = self._client._url()  # Existing Azure-origin and deployment allowlist.
-        # Worst-case upper bound: <=1 token per user/system character, plus
-        # protocol overhead. Real token consumption is checked separately.
-        input_bound = len(canonical_prompt.encode('utf-8')) + len(_SYSTEM.encode('utf-8')) + 256
         output_bound = 550
+        body = json.dumps({
+            "model": self._client.deployment,
+            "messages": [{"role": "system", "content": _SYSTEM},
+                         {"role": "user", "content": canonical_prompt}],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.35,
+            "max_tokens": output_bound,
+        }, ensure_ascii=False).encode("utf-8")
+        # Exact serialized UTF-8 request bytes also count JSON escaping,
+        # multilingual text and API envelope. One token per byte plus the
+        # protocol margin conservatively reserves the maximum prompt charge.
+        input_bound = len(body) + 256
         max_cost = ((Decimal(input_bound) * self._input_rate +
                      Decimal(output_bound) * self._output_rate) / 1_000_000)
         if max_cost > self._cap:
@@ -94,14 +103,7 @@ class AzureFeature2PromptLLM:
         if not isinstance(reservation, str) or not reservation.strip():
             raise PermissionError("Authoritative tenant cost reservation rejected")
 
-        body = json.dumps({
-            "model": self._client.deployment,
-            "messages": [{"role": "system", "content": _SYSTEM},
-                         {"role": "user", "content": canonical_prompt}],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.35,
-            "max_tokens": output_bound,
-        }, ensure_ascii=False).encode("utf-8")
+
         # Never forward retailer JWTs, reservation ids, business identifiers or
         # stored secrets into logs. API key only in server-to-Azure HTTP header.
         headers = {"Content-Type": "application/json",
