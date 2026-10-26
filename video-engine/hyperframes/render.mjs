@@ -21,7 +21,7 @@ async function main() {
   }
   const html = await readFile(join(project, 'index.html'), 'utf8')
   if (!html.includes('data-composition-id="main"') || !html.includes('data-no-timeline') ||
-      /<script\b|<iframe\b|https?:\/\/|javascript:|onerror\s*=|onload\s*=/i.test(html)) {
+      /<script\b|<iframe\b|(?:src|href)\s*=\s*["']\s*(?:https?:|javascript:)|@import\b|onerror\s*=|onload\s*=/i.test(html)) {
     throw Error('Untrusted composition markup')
   }
   if ((await stat(project)).isSymbolicLink()) throw Error('Symlink project forbidden')
