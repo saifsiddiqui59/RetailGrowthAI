@@ -11,12 +11,14 @@ or registers an unapproved user as the platform curator.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha1
 from pathlib import Path
 import re
 
 from model_library_v2 import ModelCandidate, ModelLibraryDenied, import_model_image
 
 _REVISIONS = re.compile(r"^[a-f0-9]{40}$")
+_BLOB_SHA = re.compile(r"^[a-f0-9]{40}$")
 _PERSON = re.compile(r"^P[0-9]{3}$")
 _ASSETS = {
     "studio_posture": ("studio_posture.jpg", "full_body"),
@@ -34,6 +36,7 @@ class OpenPeopleSelection:
     source_revision: str
     person_id: str
     image_kind: str = "studio_posture"
+    expected_image_git_blob_sha: str = ""
 
 
 def import_openpeople_still(*, selection, owner_shop_id, scope,
@@ -47,7 +50,9 @@ def import_openpeople_still(*, selection, owner_shop_id, scope,
         or not isinstance(selection.person_id, str)
         or not _PERSON.fullmatch(selection.person_id)
         or not 1 <= int(selection.person_id[1:]) <= 100
-        or selection.image_kind not in _ASSETS):
+        or selection.image_kind not in _ASSETS
+        or not isinstance(selection.expected_image_git_blob_sha, str)
+        or not _BLOB_SHA.fullmatch(selection.expected_image_git_blob_sha)):
         raise ModelLibraryDenied("Invalid pinned OpenPeople identity or approved still type")
     if source_rights_reviewed is not True:
         raise ModelLibraryDenied("Independent asset license/attribution review required")
@@ -68,6 +73,12 @@ def import_openpeople_still(*, selection, owner_shop_id, scope,
     if not full_path.is_file() or full_path.stat().st_size > MAX_INPUT_BYTES:
         raise ModelLibraryDenied("Pinned OpenPeople photo is missing or oversized")
     content = full_path.read_bytes()
+    # Exact Git object-byte check against independently reviewed upstream
+    # tree: pinned COMMIT ALONE does not authenticate loose local JPG bytes.
+    git_blob = sha1(b"blob " + str(len(content)).encode("ascii") +
+                    b"\\0" + content).hexdigest()
+    if git_blob != selection.expected_image_git_blob_sha:
+        raise ModelLibraryDenied("Staged source image differs from pinned Git blob")
     source = ("https://github.com/Prompt-Haus/OpenPeople/blob/" +
               selection.source_revision + "/" + relative.as_posix())
     model = ModelCandidate(
