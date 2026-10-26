@@ -13,6 +13,7 @@ from feature5_motion.artifact_lock import (
     ArtifactLock, construct_manifest, MAX_FILE_BYTES,
 )
 from feature5_motion.contracts import MotionError
+from feature5_motion.seal_artifacts import create_candidate
 
 
 class TestHunyuanModelArtifactLock(unittest.TestCase):
@@ -33,6 +34,20 @@ class TestHunyuanModelArtifactLock(unittest.TestCase):
         candidate = construct_manifest(self.checkout, self.weights)
         self.lock.write_bytes(candidate)
         return ArtifactLock(self.lock, hashlib.sha256(candidate).hexdigest())
+
+    def test_operator_candidate_file_is_exclusive_and_unapproved(self):
+        out = self.base / "operator.lock.json"
+        reviewed_sha = create_candidate(
+            checkout=self.checkout, weights=self.weights, destination=out,
+        )
+        self.assertEqual(reviewed_sha, hashlib.sha256(out.read_bytes()).hexdigest())
+        self.assertEqual(out.stat().st_mode & 0o077, 0)
+        self.assertEqual(ArtifactLock(out, reviewed_sha).verify(
+            checkout=self.checkout, weights=self.weights), reviewed_sha)
+        with self.assertRaises(FileExistsError):
+            create_candidate(checkout=self.checkout, weights=self.weights,
+                             destination=out)
+        self.assertEqual(hashlib.sha256(out.read_bytes()).hexdigest(), reviewed_sha)
 
     def test_reviewed_exact_manifest_checks_code_and_weights(self):
         approved = self.seal()
