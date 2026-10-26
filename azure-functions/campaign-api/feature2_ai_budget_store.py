@@ -5,7 +5,7 @@ signed JWT and shop OWNER/EDITOR role, then the SQL RPC independently checks
 membership/subscription/approved cap under a serialized row lock.
 """
 from decimal import Decimal, InvalidOperation, ROUND_UP
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from tenant_store import StorageUnavailable, canonical_uuid
 
@@ -31,14 +31,16 @@ class Feature2BudgetStore:
             raise ValueError("Invalid USD spend amount") from exc
 
     def reserve(self, *, shop_id: str, actor_id: str, operation: str,
-                max_cost_usd: float) -> str:
+                max_cost_usd: float, request_id: str | None = None) -> str:
         if operation not in ("prompt", "campaign_copy"):
             raise ValueError("Invalid AI operation")
         sid, uid = canonical_uuid(shop_id), canonical_uuid(actor_id)
+        rid = canonical_uuid(request_id) if request_id is not None else str(uuid4())
         amt = self._usd(max_cost_usd)
         receipt = self.admin.request("rpc/feature2_reserve_ai_budget", method="POST",
             data={"p_shop_id": sid, "p_actor_id": uid,
-                  "p_operation": operation, "p_upper_cost_usd": amt})
+                  "p_operation": operation, "p_upper_cost_usd": amt,
+                  "p_request_id": rid})
         try:
             return canonical_uuid(receipt)
         except (ValueError, TypeError) as exc:
