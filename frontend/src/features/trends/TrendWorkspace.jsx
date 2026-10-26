@@ -40,7 +40,9 @@ export default function TrendWorkspace() {
   const [promptError, setPromptError] = useState('')
   const [chosenTrendId, setChosenTrendId] = useState('')
   const latestShopRef = useRef(shopId)
+  const latestAiModeRef = useRef(realAiEnabled)
   useEffect(() => { latestShopRef.current = shopId }, [shopId])
+  useEffect(() => { latestAiModeRef.current = realAiEnabled }, [realAiEnabled])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -118,7 +120,7 @@ export default function TrendWorkspace() {
         ? await api.improvePromptWithAI(shopId, brief, promptFormats, promptLanguage)
         : await api.improvePrompt(shopId, brief, promptFormats, promptLanguage)
       // A slow response for shop A must never render after switching to B.
-      if (latestShopRef.current !== shopId) return
+      if (latestShopRef.current !== shopId || latestAiModeRef.current !== realAiEnabled) return
       if (response.shop_id !== shopId || response.original_prompt !== brief ||
           response.can_publish !== false || response.review_status !== 'NEEDS_REVIEW' ||
           response.provider_mode !== (realAiEnabled ? 'approved_llm' : 'deterministic') ||
@@ -259,6 +261,7 @@ export default function TrendWorkspace() {
         <h2>Prompt Improver</h2>
         <label className="feature2-check">
           <input type="checkbox" checked={realAiEnabled} onChange={event => {
+            latestAiModeRef.current = event.target.checked
             setRealAiEnabled(event.target.checked)
             setPromptPreview(null)
             setAppliedPrompt('')
