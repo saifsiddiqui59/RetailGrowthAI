@@ -1,0 +1,89 @@
+// Feature #4 UI-only plan helpers. Never treat these as backend authorization.
+export const VIDEO_MODES = Object.freeze([
+  ['text', 'Text-to-video'],
+  ['image', 'Product image animation'],
+  ['poster', 'Poster-to-video'],
+  ['media', 'Uploaded clips + photos'],
+  ['music_sync', 'Music-synchronized Reel'],
+])
+export const VIDEO_TEMPLATES = Object.freeze([
+  ['streetwear', 'Streetwear Beat Cut'],
+  ['cinematic', 'Cinematic Fashion'],
+  ['festival', 'Festival Sale'],
+])
+const LIMITS = { text: null, image: ['image'], poster: ['poster'], media: ['image', 'poster', 'video'], music_sync: ['image', 'poster', 'video'] }
+const valid = (n) => typeof n === 'number' && Number.isFinite(n)
+
+export function compatibleMedia(mode, assets) {
+  return (Array.isArray(assets) ? assets : []).filter(item =>
+    item && item.authorized === true && typeof item.id === 'string' &&
+    /^[a-zA-Z0-9_-]{1,100}$/.test(item.id) && LIMITS[mode]?.includes(item.kind))
+}
+
+export function makeVideoDraft({ shopId, mode = 'image', template = 'streetwear',
+  duration = 15, mediaAssets = [] }) {
+  if (!VIDEO_MODES.some(([key]) => key === mode) || !VIDEO_TEMPLATES.some(([key]) => key === template) ||
+      ![15, 30, 60].includes(duration)) throw Error('Invalid video configuration')
+  const media = compatibleMedia(mode, mediaAssets)
+  return {
+    version: 'rg_video_v2', shop_id: shopId, mode, template, duration_seconds: duration,
+    output: { width: 1080, height: 1920, fps: 30 },
+    scenes: Array.from({ length: 3 }, (_, i) => ({
+      start: i * duration / 3, duration: duration / 3,
+      headline: ['Your brand story', 'Discover the collection', 'Visit us today'][i],
+      ...(mode !== 'text' && media.length ? { asset_id: media[i % media.length].id } : {}),
+    })),
+    cta: 'Visit our store', music_asset_id: null,
+  }
+}
+
+export function recalculateScenes(scenes) {
+  let elapsed = 0
+  return scenes.map(scene => {
+    const next = { ...scene, start: elapsed }
+    elapsed += Number(scene.duration)
+    return next
+  })
+}
+
+export function shiftVideoScene(scenes, from, move) {
+  if (!Array.isArray(scenes) || !Number.isInteger(from) || ![-1, 1].includes(move) ||
+      from < 0 || from >= scenes.length || from + move < 0 || from + move >= scenes.length) return scenes
+  const copy = scenes.map(scene => ({ ...scene }))
+  const [selected] = copy.splice(from, 1)
+  copy.splice(from + move, 0, selected)
+  return recalculateScenes(copy)
+}
+
+export function validateVideoDraft(plan, mediaAssets = [], musicAssets = []) {
+  const errors = []
+  if (!plan || plan.version !== 'rg_video_v2') return ['Unsupported timeline version']
+  if (!VIDEO_MODES.some(([key]) => key === plan.mode)) errors.push('Choose a video mode')
+  if (!VIDEO_TEMPLATES.some(([key]) => key === plan.template)) errors.push('Choose a template')
+  if (![15, 30, 60].includes(plan.duration_seconds)) errors.push('Duration must be 15, 30 or 60 seconds')
+  if (!Array.isArray(plan.scenes) || !plan.scenes.length || plan.scenes.length > 12) return [...errors, 'Expected 1–12 scenes']
+  const allowed = new Set(compatibleMedia(plan.mode, mediaAssets).map(media => media.id))
+  let time = 0
+  for (const [index, scene] of plan.scenes.entries()) {
+    if (!valid(scene.start) || !valid(scene.duration) || scene.duration < .5 ||
+        Math.abs(scene.start - time) > .001) errors.push('Scenes must be sequential and at least half a second')
+    if (typeof scene.headline !== 'string' || !scene.headline.trim() || scene.headline.length > 110) {
+      errors.push('Every scene needs an approved headline (max 110 characters)')
+    }
+    if (plan.mode !== 'text' && !allowed.has(scene.asset_id)) errors.push('Scene ' + (index + 1) + ' needs authorized media')
+    if (scene.offer != null && (typeof scene.offer !== 'string' || scene.offer.length > 70)) {
+      errors.push('Offer text must be approved (max 70 characters)')
+    }
+    time += Number(scene.duration)
+  }
+  if (Math.abs(time - plan.duration_seconds) > .001) errors.push('Scenes must fill the selected duration')
+  if (typeof plan.cta !== 'string' || !plan.cta.trim() || plan.cta.length > 110) errors.push('Enter an approved CTA')
+  if (plan.music_asset_id != null && !musicAssets.some(m => m.id === plan.music_asset_id && m.authorized === true)) {
+    errors.push('Select a rights-cleared music track')
+  }
+  if (plan.mode === 'music_sync' &&
+      (!plan.music_asset_id || !Array.isArray(plan.beats) || plan.beats.length < 2)) {
+    errors.push('Beat-sync requires an approved soundtrack and server-derived beats')
+  }
+  return [...new Set(errors)]
+}
