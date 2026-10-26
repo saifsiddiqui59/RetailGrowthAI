@@ -16,6 +16,7 @@ async function main() {
   const config = JSON.parse(await readFile(join(project, 'render-config.json'), 'utf8'))
   if (config.contract_version !== 'rg_video_v2' || config.renderer !== 'hyperframes' ||
       ![15, 30, 60].includes(config.duration_seconds) || ![24, 30].includes(config.fps) ||
+      ![[540, 960], [1080, 1920]].some(([w, h]) => config.width === w && config.height === h) ||
       config.format !== 'mp4' || config.quality !== 'standard') {
     throw Error('Unapproved composition config')
   }
@@ -38,11 +39,16 @@ async function main() {
   const video = info.streams.filter(s => s.codec_type === 'video')
   const audio = info.streams.filter(s => s.codec_type === 'audio')
   const seconds = Number(info.format.duration)
+  const fpsParts = String(video[0]?.avg_frame_rate ?? '').split('/')
+  const measuredFps = fpsParts.length === 2
+    ? Number(fpsParts[0]) / Number(fpsParts[1]) : NaN
   if (video.length !== 1 || audio.length !== 1 ||
       video[0].codec_name !== 'h264' || audio[0].codec_name !== 'aac' ||
-      video[0].width * 16 !== video[0].height * 9 ||
+      video[0].width !== config.width || video[0].height !== config.height ||
+      video[0].pix_fmt !== 'yuv420p' ||
+      !Number.isFinite(measuredFps) || Math.abs(measuredFps - config.fps) > .1 ||
       !Number.isFinite(seconds) || Math.abs(seconds - config.duration_seconds) > .3) {
-    throw Error('Output invalid: duration, streams, codec or aspect ratio')
+    throw Error('Output invalid: duration, streams, codec, pixel format, exact resolution or fps')
   }
   process.stdout.write(JSON.stringify({ status: 'VALIDATED', duration: seconds,
     width: video[0].width, height: video[0].height, fps: config.fps, output }) + '\n')
