@@ -23,7 +23,7 @@ app.http("campaignReadControl", {
   methods: ["GET"], authLevel: "anonymous", route: "campaigns/{campaignId}",
   handler: async (req) => respond(
     "GET", "/api/campaigns/" + req.params.campaignId,
-    req.headers.get("authorization") || ""
+    "" // Do not pass Azure/SWA-proxy auth headers into a synthetic tenantless control
   ),
 });
 
