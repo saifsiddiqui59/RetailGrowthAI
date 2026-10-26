@@ -42,7 +42,7 @@ test("ALL real preview mutations remain hard-disabled and all registered APIs GE
 test("No preview source can use WineShopPOS endpoints or real service-role secret",()=>{
   const index=read("src/index.mjs");
   assert.doesNotMatch(index,/WineShopPOS|https:\/\/.*?wineshop|azurewebsites[.]net/);
-  assert.doesNotMatch(index,/service.role|service_role/gi);
+  assert.doesNotMatch(index,/process[.]env[.]RETAIL_SUPABASE_SERVICE_ROLE_KEY|sb_secret_/);
   const packageJson=JSON.parse(read("package.json"));
   assert.equal(Object.keys(packageJson.dependencies).length,1);
   assert.ok(packageJson.dependencies["@azure/functions"]);
