@@ -27,6 +27,21 @@ class HunyuanLocalRunner:
             raise MotionError("Invalid bounded GPU timeout")
         self.timeout_seconds = timeout_seconds
 
+    @staticmethod
+    def _require_supported_gpu():
+        """Official default dtype is BF16, not native to older T4 hardware."""
+        try:
+            import torch
+            if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
+                raise MotionError("Approved CUDA BF16 GPU is unavailable")
+            memory = torch.cuda.get_device_properties(0).total_memory
+            if memory < 14 * 1024**3:
+                raise MotionError("Available GPU VRAM below model minimum")
+        except ImportError as exc:
+            raise MotionError("Pinned CUDA PyTorch runtime missing") from exc
+        except (RuntimeError, AttributeError) as exc:
+            raise MotionError("CUDA hardware cannot be verified safely") from exc
+
     def run(self, spec: MotionSpec, *, source_file: Path | None, workdir: Path) -> Path:
         if not (self.enabled and self.license_approved and self.gpu_budget_approved):
             raise MotionError("Premium inference is disabled pending approvals")
@@ -73,6 +88,8 @@ class HunyuanLocalRunner:
         output = wd / "motion.mp4"
         if output.exists():  # Never overwrite a previous successful/maybe-billable result.
             raise MotionError("Motion output already exists")
+        # Fail before subprocess launch on older T4/non-BF16/missing CUDA GPUs.
+        self._require_supported_gpu()
         # Explicitly disable external prompt rewriting and superresolution.
         # Upstream generate.py must be version-pinned and verified before activation.
         # Tencent's generate.py selects image mode if --image_path is present.
