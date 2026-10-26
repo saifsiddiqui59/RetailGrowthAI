@@ -321,15 +321,15 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
         leading_video = media_markup if aid and ordered[aid][1] == "video" else ""
         video_layer = " has-video" if leading_video else ""
         scene_image = media_markup if aid and ordered[aid][1] != "video" else ""
-        intro_logo_markup = ""
-        if i == 0 and plan.get("logo_asset_id"):
-            logo_src = names[plan["logo_asset_id"]]
-            intro_logo_markup = f'<img class="hero-logo" src="{logo_src}" alt="">'
+        # Promote intro logo to a root-level timed image. Nested images in
+        # a timed scene were missing from the actual Chromium render.
+        is_poster = bool(aid and ordered[aid][1] == "poster")
+        poster_layer = " has-poster" if is_poster else ""
         components.append(
-            f'{leading_video}<section id="scene{i}" class="clip scene s{i%3}{video_layer} anim-{animation} trans-{transition}" '
+            f'{leading_video}<section id="scene{i}" class="clip scene s{i%3}{video_layer}{poster_layer} anim-{animation} trans-{transition}" '
             f'data-start="{start}" data-duration="{length}" data-track-index="1" '
             f'style="--span:{length}s">'
-            f'<div class="halo"></div><div class="photo-wrap">{scene_image}</div>{poster_markup}{intro_logo_markup}'
+            f'<div class="halo"></div><div class="photo-wrap">{scene_image}</div>{poster_markup}'
             f'<div class="glass"><p class="kicker">{k} / {i+1:02d}</p>'
             f'<h1 style="font-size:{title_font}px">{headline}</h1>{offer_markup}</div>'
             f'<p class="index">RG · {i+1:02d} / {len(plan["scenes"]):02d}</p></section>'
@@ -346,7 +346,11 @@ html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background
 .product-photo{{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 26px 35px #0009);animation:photoFloat var(--span) ease-in-out both}}
  .footage{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}}
 .poster-overlay{{position:absolute;right:5%;top:15%;height:38%;max-width:60%;object-fit:contain;filter:drop-shadow(0 8px 24px #000a);animation:cardRise var(--span) ease-in-out both}}
-.hero-logo{{position:absolute;top:21%;left:34%;width:32%;height:32%;object-fit:contain;filter:drop-shadow(0 18px 42px #000a);animation:popIn var(--span) ease-out both}}
+/* Actual poster is approved finished artwork. Keep its entire canvas above the
+   lower-third title instead of obscuring embedded price, discount and terms. */
+.has-poster .photo-wrap{{top:14%;height:50%;left:3%;width:94%}}
+.has-poster .product-photo{{object-fit:contain;animation:none}}
+.hero-logo{{position:absolute;top:23%;left:31%;width:38%;height:28%;z-index:5;object-fit:contain;filter:drop-shadow(0 18px 34px #0008)}}
 .anim-pop .glass{{animation:popIn var(--span) ease both}}
 .anim-glow .offer{{text-shadow:0 0 16px {accent},0 0 25px {accent}}}
 .anim-slide .photo-wrap{{animation:slideIn var(--span) ease both}}
@@ -365,6 +369,11 @@ h1{{font-weight:900;font-size:{width//10}px;line-height:1.04;letter-spacing:-.01
     if plan.get("logo_asset_id"):
         # This is a timed overlay on the root; the logo source is a trusted, staged asset.
         logo_src = names[plan["logo_asset_id"]]
+        intro_seconds = min(3, plan["scenes"][0]["duration"])
+        components.append(
+            f'<img id="intro-logo" class="clip hero-logo" src="{logo_src}" alt="" '
+            f'data-start="0" data-duration="{intro_seconds}" data-track-index="2">'
+        )
         components.append(
             f'<img id="brand-logo" class="clip" src="{logo_src}" alt="" '
             f'data-start="0" data-duration="{duration}" data-track-index="4" '
