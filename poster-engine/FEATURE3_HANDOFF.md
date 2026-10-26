@@ -637,3 +637,29 @@ Feature worker must NOT deploy, edit canonical docs or self-merge PR #321.
 Update PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG on integration. Actual
 FLUX model generation, FASHN VTON licensed try-on and Feature5 video
 remain independent GPU/quality/licensing gates.
+
+
+### 2026-10-26 — Private source-image pilot QA (feature-owned; unmerged)
+
+- Added \`openpeople_pilot_qa_v2.py\` to turn 1–3 **genuine, locally staged
+  pinned OpenPeople JPGs** into a private 0600-mode, visibly
+  UNAPPROVED contact sheet and an SHA256/provenance JSON receipt.
+  The operator's 0700 private review folder must be new and is never
+  overwritten. Source candidate, review packet, Git blob and symlink
+  integrity are checked before rendering any preview.
+- Added \`tests/media/test_feature3_pilot_review.py\` negative/positive
+  **synthetic-image** tests. These cannot substitute for visual inspection
+  of actual upstream people. No upstream image bytes were downloaded,
+  imported into Azure or published to any SaaS tenant.
+- The audit receipt permanently defaults rights, likeness, fashion quality,
+  import eligibility and production-readiness to FALSE; no browser packet
+  or script can bestow curator approval. Commercial source-image/provider
+  rights and exact locally supplied genuine JPGs remain external blockers.
+- Updated the owned Indian pilot runbook. Main integration still belongs
+  to the coordinator; no canonical docs, migrations, shared APIs, WineShopPOS,
+  Azure GPU or production infrastructure were touched.
+- Cost: review and CPU thumbnails only, zero inference GPU calls; local
+  private storage has ordinary disk costs. Full online catalog still
+  needs coordinator-owned authenticated private Blob/RLS/signed preview.
+- CI evidence for this addition must be checked at its **new exact SHA**;
+  do not reuse the prior PASS 4/4 for \`86b341d\`.
