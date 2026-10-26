@@ -105,14 +105,23 @@ begin
   if result->>'job_id'<>'77777777-7777-4777-8777-777777777777' then
     raise exception 'same Reel input double queued despite Python key';
   end if;
-  if (select count(*) from public.render_jobs)<>1 or
-     (select count(*) from public.shop_usage_reservations
-        where operation='render')<>1 or
-     (select count(*) from public.job_outbox where kind='render')<>1 then
-    raise exception 'legacy identical request double billed/outboxed';
+  if (select count(*) from public.render_jobs)<>1 then
+    raise exception 'legacy identical request created a duplicate render row';
   end if;
 end $$;
 
+-- Private quota and outbox are intentionally INVISIBLE to authenticated users.
+-- Assert under disposable-test postgres identity only; never grant them SELECT.
+reset role;
+do $
+begin
+  if (select count(*) from public.shop_usage_reservations where operation='render')<>1 or
+     (select count(*) from public.job_outbox where kind='render')<>1 then
+    raise exception 'legacy identical request double billed/outboxed';
+  end if;
+end $;
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
 -- Forbidden VIEWER/foreign user cannot cause any additional job or usage.
 select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',true);
 do $$
@@ -155,13 +164,19 @@ begin
      or b->>'job_id' is distinct from a->>'job_id' then
     raise exception 'edited Reel job not new-and-idempotent';
   end if;
-  if (select count(*) from public.render_jobs)<>2 or
-     (select count(*) from public.shop_usage_reservations where operation='render')<>2 or
-     (select count(*) from public.job_outbox where kind='render')<>2 then
-    raise exception 'not exactly one subscription unit and outbox per job';
+  if (select count(*) from public.render_jobs)<>2 then
+    raise exception 'same modified Reel inserted duplicate jobs';
   end if;
 end $$;
 
+reset role;
+do $
+begin
+  if (select count(*) from public.shop_usage_reservations where operation='render')<>2 or
+     (select count(*) from public.job_outbox where kind='render')<>2 then
+    raise exception 'not exactly one subscription unit and outbox per edited job';
+  end if;
+end $;
 -- Editing to unlicensed (but same-shop) source cannot bypass rights.
 reset role;
 select set_config('request.jwt.claim.role','service_role',true);
