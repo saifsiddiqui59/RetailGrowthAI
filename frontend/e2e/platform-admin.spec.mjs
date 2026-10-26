@@ -220,9 +220,18 @@ test('root console mobile layout uses shared cards and no subscription mutations
   const layout = await page.evaluate(() => ({
     document: [document.documentElement.scrollWidth,document.documentElement.clientWidth],
     body: [document.body.scrollWidth,document.body.clientWidth],
+    ancestors: ['html','body','.shell','.retail-shell','.page','.content','.platform-page','.platform-table-wrap'].map(selector => {
+      const node = document.querySelector(selector)
+      if (!node) return {selector,missing:true}
+      const bounds = node.getBoundingClientRect()
+      return {selector,left:Math.round(bounds.left),right:Math.round(bounds.right),
+        width:Math.round(bounds.width),scroll:node.scrollWidth,client:node.clientWidth,
+        overflowX:getComputedStyle(node).overflowX}
+    }),
     overflow: Array.from(document.querySelectorAll('body *')).filter(element =>
-      element.getBoundingClientRect().right > window.innerWidth + 2 &&
-      getComputedStyle(element).visibility !== 'hidden').slice(0,15).map(element => ({
+      !element.closest('.platform-table-wrap') &&
+      element.getBoundingClientRect().right > window.innerWidth - 3 &&
+      getComputedStyle(element).visibility !== 'hidden').slice(0,30).map(element => ({
         element: element.tagName.toLowerCase(), className:element.getAttribute('class')?.slice(0,90),
         left:Math.round(element.getBoundingClientRect().left),
         right:Math.round(element.getBoundingClientRect().right),
