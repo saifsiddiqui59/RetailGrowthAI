@@ -132,6 +132,40 @@ test('media library filters business-owned records without public blob URLs', as
   await expect(page.locator('a[href*="/storage/v1/object"]')).toHaveCount(0)
 })
 
+test('Media Library pages 27 RLS-verified records locally and resets on filters without more calls', async ({page})=>{
+  const calls=await signedIn(page)
+  const rows=Array.from({length:27},(_,i)=>({
+    id:'a1000000-0000-4000-8000-'+String(i+100).padStart(12,'0'),
+    shop_id:SHOP,license_name:i===26?'owned-special':'owned',mime_type:i===26?'image/webp':'image/png'
+  }))
+  await page.route(HOST+'/rest/v1/media_assets**',route=>route.fulfill({
+    status:200,contentType:'application/json',
+    headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+    body:JSON.stringify([...rows,{...rows[0],shop_id:'a1000000-0000-4000-8000-000000000002'}])
+  }))
+  await page.setViewportSize({width:320,height:740})
+  await page.goto('/media-library')
+  const list=page.getByRole('region',{name:'Authorized media records'})
+  await expect(list.locator('[data-slot="card"]')).toHaveCount(12)
+  await expect(page.getByRole('status',{name:''}).filter({hasText:'Page 1 of 3'})).toBeVisible()
+  await page.getByRole('button',{name:'Next images'}).click()
+  await expect(list.locator('[data-slot="card"]')).toHaveCount(12)
+  await expect(page.getByText('Page 2 of 3')).toBeVisible()
+  await page.getByRole('button',{name:'Next images'}).click()
+  await expect(list.locator('[data-slot="card"]')).toHaveCount(3)
+  await expect(page.getByText('Page 3 of 3')).toBeVisible()
+  await page.getByLabel('Search media').fill('owned-special')
+  await expect(page.getByText('1 matching registered images')).toBeVisible()
+  await expect(list.locator('[data-slot="card"]')).toHaveCount(1)
+  await expect(page.getByRole('button',{name:'Next images'})).toHaveCount(0)
+  await page.getByLabel('Search media').fill('')
+  await expect(page.getByText('Page 1 of 3')).toBeVisible()
+  await expect(list.locator('[data-slot="card"]')).toHaveCount(12)
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
+  expect(calls.filter(path=>path==='/rest/v1/media_assets')).toHaveLength(1)
+  await expect(page.locator('a[href*="/storage/v1/object"]')).toHaveCount(0)
+})
+
 test('calendar verifies last campaign against JWT shop and denies cross-tenant days', async ({ page }) => {
   await signedIn(page)
   const CAMPAIGN = 'c1000000-0000-4000-8000-000000000001'

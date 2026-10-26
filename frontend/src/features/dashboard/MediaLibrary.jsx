@@ -8,12 +8,13 @@ import { Card } from '../../components/ui/card.jsx'
 import { Button } from '../../components/ui/button.jsx'
 import { Badge } from '../../components/ui/badge.jsx'
 import { Skeleton } from '../../components/ui/skeleton.jsx'
-import { filterAssets, mediaLabel } from './media-library-model.mjs'
+import { filterAssets, mediaLabel, paginateVerifiedAssets } from './media-library-model.mjs'
 
 export default function MediaLibrary() {
   const { client, configured, user } = useRetailAuth()
   const [filter, setFilter] = useState('')
   const [type, setType] = useState('all')
+  const [paging, setPaging] = useState({scope:'',page:1})
   const shopsQuery = useAuthorizedShops({ client, user, configured })
   const shops = shopsQuery.data || []
   // Never fetch from an arbitrary user-supplied shop ID: resolve from RLS-backed memberships.
@@ -27,6 +28,9 @@ export default function MediaLibrary() {
   })
   const assets = useMemo(() => filterAssets(assetsQuery.data || [], shopId, filter, type),
     [assetsQuery.data, shopId, filter, type])
+  const scope = user?.id + ':' + shopId + ':' + filter + ':' + type
+  const view = paginateVerifiedAssets(assets, paging.scope === scope ? paging.page : 1)
+  const movePage = next => setPaging({scope,page:next})
   const hasError = shopsQuery.isError || assetsQuery.isError
   const fetching = shopsQuery.isFetching || assetsQuery.isFetching
   const hasShops = !shopsQuery.isPending && shops.length > 0
@@ -66,11 +70,11 @@ export default function MediaLibrary() {
       {configured && !fetching && !hasError && !hasShops && <p role="status">No accessible businesses. <Link to="/account">Create or join a business in Account.</Link></p>}
       {configured && hasShops && !fetching && !hasError && <>
         <div className="rg-library-summary"><strong>{assets.length} matching registered images</strong>
-          <Badge>Showing up to 100 newest per business</Badge></div>
+          <Badge>Searching only the 100 newest records; older images may not appear</Badge></div>
         {assets.length === 0
           ? <p role="status">No matching registered images in this business. Upload licensed images through Campaign Studio.</p>
           : <div className="rg-library-grid" role="region" aria-label="Authorized media records">
-              {assets.map(asset => <Card className="rg-library-record" key={asset.id}>
+              {view.items.map(asset => <Card className="rg-library-record" key={asset.id}>
                 <div className="rg-library-icon" aria-hidden="true">▧</div>
                 <div><strong>{mediaLabel(asset.id)}</strong>
                   <p>{asset.mime_type || 'Image type unavailable'}</p>
@@ -78,6 +82,13 @@ export default function MediaLibrary() {
                 </div>
               </Card>)}
             </div>}
+        {assets.length > 12 && <nav className="rg-library-pager" aria-label="Media library pages">
+          <Button variant="outline" size="sm" disabled={view.page === 1}
+            onClick={()=>movePage(view.page-1)}>Previous images</Button>
+          <span role="status" aria-live="polite">Page {view.page} of {view.pages} · Showing {view.first}–{view.last} of {view.total} matching images</span>
+          <Button variant="outline" size="sm" disabled={view.page === view.pages}
+            onClick={()=>movePage(view.page+1)}>Next images</Button>
+        </nav>}
       </>}
       <p className="rg-library-safety">Files remain private. Metadata is not a signed image URL; no direct blob links, public sharing, delete operations or unverified rights are offered here.</p>
     </Card>

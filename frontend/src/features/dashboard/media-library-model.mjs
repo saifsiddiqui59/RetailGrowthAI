@@ -18,3 +18,21 @@ export function filterAssets(rows, shopId, search = '', type = 'all') {
     (requestedType === 'all' || row.mime_type === requestedType) &&
     (!term || (row.id + ' ' + row.license_name + ' ' + row.mime_type).toLowerCase().includes(term)))
 }
+
+/**
+ * Paginate only already tenant-validated media records. The backend currently
+ * reads at most the newest 100 rows; this MUST NOT claim full library totals.
+ * Client-only navigation adds no Supabase requests, exposure of object paths,
+ * signed URLs, or extra RLS access.
+ */
+export function paginateVerifiedAssets(assets, page, size = 12) {
+  const rows = Array.isArray(assets) ? assets : []
+  const pageSize = Number.isSafeInteger(size) && size > 0 && size <= 24 ? size : 12
+  const count = rows.length
+  const pages = Math.max(1, Math.ceil(count / pageSize))
+  const requested = Number.isSafeInteger(page) ? page : 1
+  const current = Math.min(Math.max(requested, 1), pages)
+  const start = (current - 1) * pageSize
+  return { page: current, pages, total: count, first: count ? start+1 : 0,
+    last: Math.min(start+pageSize, count), items: rows.slice(start,start+pageSize) }
+}
