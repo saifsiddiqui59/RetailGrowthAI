@@ -319,9 +319,10 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
         animation = scene.get("animation_preset", "subtle_zoom")
         transition = scene.get("transition", "fade")
         leading_video = media_markup if aid and ordered[aid][1] == "video" else ""
+        video_layer = " has-video" if leading_video else ""
         scene_image = media_markup if aid and ordered[aid][1] != "video" else ""
         components.append(
-            f'{leading_video}<section id="scene{i}" class="clip scene s{i%3} anim-{animation} trans-{transition}" '
+            f'{leading_video}<section id="scene{i}" class="clip scene s{i%3}{video_layer} anim-{animation} trans-{transition}" '
             f'data-start="{start}" data-duration="{length}" data-track-index="1" '
             f'style="--span:{length}s">'
             f'<div class="halo"></div><div class="photo-wrap">{scene_image}</div>{poster_markup}'
@@ -334,7 +335,8 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
 *{{box-sizing:border-box}}
 html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background:{bg};font-family:Arial,'Helvetica Neue',sans-serif}}
 #main{{position:relative;width:{width}px;height:{height}px;overflow:hidden;background:radial-gradient(ellipse at 77% 30%,{accent}42,{bg} 62%)}}
-.scene{{position:absolute;inset:0;overflow:hidden;color:{fg};background:linear-gradient(152deg,{bg} 6%,transparent 85%)}}
+ .scene{{position:absolute;inset:0;overflow:hidden;color:{fg};background:linear-gradient(152deg,{bg} 6%,transparent 85%)}}
+.scene.has-video{{background:transparent}}
 .halo{{position:absolute;width:90%;height:55%;left:20%;top:12%;border-radius:50%;background:{accent};opacity:.16;filter:blur({width//10}px)}}
 .photo-wrap{{position:absolute;top:15%;height:61%;width:96%;left:2%;display:grid;place-items:center}}
 .product-photo{{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 26px 35px #0009);animation:photoFloat var(--span) ease-in-out both}}
@@ -345,10 +347,10 @@ html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background
 .anim-slide .photo-wrap{{animation:slideIn var(--span) ease both}}
 @keyframes popIn{{0%{{transform:scale(.80);opacity:0}}18%{{transform:scale(1);opacity:1}}90%{{opacity:1}}100%{{opacity:0}}}}
 @keyframes slideIn{{0%{{transform:translateX(15%);opacity:0}}18%{{transform:translateX(0);opacity:1}}90%{{opacity:1}}100%{{opacity:0}}}}
-.glass{{position:absolute;left:5.5%;right:5.5%;bottom:10%;min-height:23%;padding:5%;background:#050506cf;border-left:{width//70}px solid {accent};box-shadow:0 14px 60px #0008;animation:cardRise var(--span) ease-out both}}
+.glass{{position:absolute;left:5.5%;right:5.5%;bottom:10%;min-height:23%;padding:5%;background:#050506c9;backdrop-filter:blur(7px);border-left:{width//70}px solid {accent};box-shadow:0 14px 60px #0008;animation:cardRise var(--span) ease-out both}}
 .kicker{{font-size:{width//37}px;letter-spacing:.25em;font-weight:700;color:{accent};margin:0 0 5%}}
-h1{{font-weight:900;font-size:{width//10}px;line-height:1.04;letter-spacing:-.05em;text-transform:uppercase;margin:0;overflow-wrap:anywhere}}
-.offer{{font-weight:900;font-size:{width//16}px;color:{accent};margin:4% 0 0}}
+h1{{font-weight:900;font-size:{width//10}px;line-height:1.04;letter-spacing:-.015em;text-transform:uppercase;margin:0;overflow-wrap:anywhere}}
+.offer{{font-weight:900;font-size:{width//12}px;color:{accent};margin:4% 0 0}}
 .index{{position:absolute;bottom:3%;right:6%;font-size:{width//38}px;letter-spacing:.23em;font-weight:700;opacity:.75}}
 .s1 .photo-wrap{{transform:rotate(-4deg)}}
 .s2 .glass{{border-left-color:{fg}}}
@@ -377,7 +379,7 @@ h1{{font-weight:900;font-size:{width//10}px;line-height:1.04;letter-spacing:-.05
     cta_start = max(0, duration - min(3, last["duration"]))
     components.append(
         f'<div id="cta" class="clip" data-start="{cta_start}" data-duration="{duration-cta_start}" '
-        f'data-track-index="3" style="position:absolute;top:5%;left:5%;right:5%;'
+        f'data-track-index="3" style="position:absolute;top:16%;left:12%;right:12%;z-index:9;'
         f'background:{accent};color:{bg};padding:2%;text-align:center;font-size:{width//22}px;'
         f'font-weight:900;border-radius:12px">{cta}</div>'
     )
