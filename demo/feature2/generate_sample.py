@@ -167,12 +167,12 @@ def write_synthetic_test_png(path: Path) -> None:
                     for scale_y in range(2):
                         for scale_x in range(2):
                             pixels[7 + dy * 2 + scale_y][36 + i * 15 + dx * 2 + scale_x] = (12, 26, 39)
-    raw = b"".join(b"\\x00" + b"".join(bytes(pixel) for pixel in row) for row in pixels)
+    raw = b"".join(b"\x00" + b"".join(bytes(pixel) for pixel in row) for row in pixels)
     def chunk(name, data):
         return struct.pack(">I", len(data)) + name + data + struct.pack(
             ">I", zlib.crc32(name + data) & 0xffffffff)
-    label = b"Description\\x00SYNTHETIC TEST ONLY - original coded pixels; no hosted licensed media"
-    path.write_bytes(b"\\x89PNG\\r\\n\\x1a\\n" + chunk(b"IHDR", struct.pack(
+    label = b"Description\x00SYNTHETIC TEST ONLY - original coded pixels; no hosted licensed media"
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(
         ">IIBBBBB", width, height, 8, 2, 0, 0, 0)) +
         chunk(b"tEXt", label) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
 
@@ -182,10 +182,10 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     sample = make_sample()
     write_synthetic_test_png(output / "synthetic-test-image.png")
-    (output / "original-prompt.txt").write_text(sample["original_prompt"] + "\\n", encoding="utf-8")
-    (output / "improved-prompt.txt").write_text(sample["improved_prompt"] + "\\n", encoding="utf-8")
+    (output / "original-prompt.txt").write_text(sample["original_prompt"] + "\n", encoding="utf-8")
+    (output / "improved-prompt.txt").write_text(sample["improved_prompt"] + "\n", encoding="utf-8")
     (output / "campaign-7-days.json").write_text(
-        json.dumps(sample, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+        json.dumps(sample, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     metrics = {
         "status": "OFFLINE_SAMPLE_VALIDATED", "shop": "FICTIONAL",
         "market_trend_source": "SYNTHETIC_TEST_NOT_LIVE",
@@ -201,7 +201,7 @@ def main():
         "review": "DRAFT / HUMAN APPROVAL REQUIRED",
     }
     (output / "sample-test-results.json").write_text(
-        json.dumps(metrics, indent=2) + "\\n", encoding="utf-8")
+        json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
     preview = [
         "# Thread & Loom Studio — Seven-day fictional sample",
         "",
@@ -231,7 +231,7 @@ def main():
             "**Review:** PENDING_RETAILER; source trend is synthetic test data only.",
             "",
         ])
-    (output / "campaign-preview.md").write_text("\\n".join(preview), encoding="utf-8")
+    (output / "campaign-preview.md").write_text("\n".join(preview), encoding="utf-8")
     (output / "feature2-sample.json").write_text(
         json.dumps(sample, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     text = [
