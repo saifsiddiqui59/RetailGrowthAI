@@ -2,7 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FEATURE3_SCHEMA, FEATURE3_TEMPLATES, validateFeature3Design,
   newFeature3History, updateFeature3Layer, moveFeature3Layer,
-  undoFeature3, redoFeature3 } from '../../frontend/src/features/creative/feature3-design.mjs'
+  undoFeature3, redoFeature3, addFeature3Layer, removeFeature3Layer,
+  replaceFeature3Image } from '../../frontend/src/features/creative/feature3-design.mjs'
 
 const design = {
   schema: FEATURE3_SCHEMA, shop_id: 'shop_alpha',
@@ -36,4 +37,24 @@ test('poster browser contract blocks arbitrary urls, cross-layer overflow and un
     asset_id: 'other_shop',
   }))
   assert.throws(() => updateFeature3Layer(newFeature3History(design), 'missing', { x: .1 }))
+})
+
+test('add, remove, replace authorized image, and undo without overriding previous draft', () => {
+  let history = newFeature3History(design)
+  history = addFeature3Layer(history, 'text')
+  assert.equal(history.present.layers.at(-1).text, 'Your headline')
+  history = addFeature3Layer(history, 'rect')
+  assert.equal(history.present.layers.at(-1).type, 'rect')
+  history = addFeature3Layer(history, 'image', 'shop-safe-img', ['shop-safe-img'])
+  assert.equal(history.present.layers.at(-1).asset_id, 'shop-safe-img')
+  assert.throws(() => replaceFeature3Image(
+    history, 'product', 'other-shop-image', ['shop-safe-img']), /registered/)
+  history = replaceFeature3Image(history, 'product', 'shop-safe-img', ['shop-safe-img'])
+  assert.equal(history.present.layers[0].asset_id, 'shop-safe-img')
+  const oldCount = history.present.layers.length
+  history = removeFeature3Layer(history, 'custom-3')
+  assert.equal(history.present.layers.length, oldCount - 1)
+  assert.equal(undoFeature3(history).present.layers.length, oldCount)
+  assert.throws(() => addFeature3Layer(history, 'image',
+    'external://photo', ['shop-safe-img']), /registered/)
 })
