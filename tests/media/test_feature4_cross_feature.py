@@ -176,7 +176,7 @@ class CreativeReelTests(unittest.TestCase):
         self.assertIn('data-duration="3" data-track-index="2"', page)
         self.assertIn("has-poster", page)
         self.assertIn(".has-poster .photo-wrap{top:14%;height:50%", page)
-        self.assertIn('class="hero-logo"', page)
+        self.assertIn('class="clip hero-logo"', page)
         self.assertNotIn('id="cta"', page)  # Final reviewed CTA is already the headline
         self.assertIn("poster-overlay", page)
         self.assertLess(page.index("Diwali Fashion"), page.index("Luxury Boutique"))
