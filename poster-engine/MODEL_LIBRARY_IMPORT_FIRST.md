@@ -115,3 +115,43 @@ The source-only tests use synthetic Pillow images; they do not import
 real models from MakeHuman, download datasets, prove CDN terms or perform
 GPU work. Canonical docs, shared API/schema and deployments are owned
 by coordinator #325; this feature branch must not edit them directly.
+
+
+### Explicit pre-generated human image candidate — OpenPeople
+
+[Prompt-Haus/OpenPeople](https://github.com/Prompt-Haus/OpenPeople)
+contains up to 100 pre-generated synthetic people with studio portraits,
+full-body studio postures, casual poses and character sheets. Its README
+declares **images CC-BY 4.0**, while the repository's separate software
+`LICENSE` is **MIT**. Do not accidentally cite the code MIT license
+as the image license. Upstream README also describes the dataset as
+testing/development assets and disclaims likeness guarantees, so have
+our independent commercial curator confirm desired **SaaS redistribution,
+advertising and reference-generation rights**, attribution and any
+provider-specific restrictions before populating the public catalog.
+Individual faces should be checked for accidental real-person likeness.
+
+Added `openpeople_import_v2.py` to select an already locally staged,
+40-character commit-pinned snapshot of:
+`openpeople/data/curated/P001..P100/assets/studio_posture.jpg`,
+`studio_portrait.jpg`, `amateur_posture.jpg` or
+`amateur_selfie.jpg`. It refuses symlinks, forged person IDs,
+unlisted paths, missing local files, missing curator verification
+and invalid licensed image receipts. No clone/download or cloud API.
+
+`tests/media/test_feature3_openpeople_import.py` performs a real
+PRIVATE JPG->PNG normalization and all-three-feature reuse with
+synthetic local JPEG fixture only. No upstream binary has yet been
+downloaded, shipped in GitHub, added to Azure storage, or approved
+as a reusable commercial model.
+
+**Never seed from StyleGAN-Human SHHQ** despite attractive full-body
+examples: its dataset agreement explicitly restricts use to
+**non-commercial research** and forbids redistribution.
+https://github.com/stylegan-human/StyleGAN-Human/blob/main/docs/Dataset.md
+
+Pilot after rights review: selectively stage **2–3 genuine source
+images** with their source commit and license evidence, require private
+owner/curator approval, then grow to 6–10 accepted shared models.
+Only then wire consumer UX and paid try-on. If quality is unsuitable,
+retain import functionality and use optional custom FLUX generation.
