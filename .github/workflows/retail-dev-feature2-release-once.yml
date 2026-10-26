@@ -287,3 +287,6 @@ jobs:
 # trigger now serves GET and POST under independently verified user JWT + RLS.
 # This comment-only workflow revision re-runs the previous reviewed existing-resource
 # release after Feature #2's tested saved-DRAFT review source is integrated.
+
+# 2026-10-26 coordinator one-shot re-release for Feature2 lost-ACK draft safety.
+# Exact existing DEV Functions/Free SWA/FFmpeg/scope checks and costs unchanged.
