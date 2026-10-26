@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create deterministic rights-safe 30s Feature4 Diwali source package for render CI.
+"""Create deterministic rights-safe 15/30/60s Feature4 Diwali source package for render CI.
 
 This imports the deliberately small synthetic media fixture used by the real
 cross-feature tests; never downloads photos/music or claims true AI model motion.
@@ -20,7 +20,7 @@ from creative_contract import compile_creative_reel  # noqa: E402
 def main():
     parser = argparse.ArgumentParser(description="Authorized synthetic demo only; never real retail media")
     parser.add_argument("project", help="New empty private output directory")
-    parser.add_argument("--seconds", type=int, default=30, choices=(15, 30))
+    parser.add_argument("--seconds", type=int, default=30, choices=(15, 30, 60))
     parser.add_argument("--width", type=int, default=540, choices=(540, 1080))
     args = parser.parse_args()
     project = Path(args.project)
@@ -47,6 +47,16 @@ def main():
                 trimmed["start_time"] = start
                 trimmed["duration"] = length
                 fixture.request["scenes"].append(trimmed)
+        if args.seconds == 60:
+            # One full-minute stress timeline. The only source video is still an
+            # original 8s synthetic fixture; no real fashion inference implied.
+            duration_by_scene = (5, 7, 10, 14, 14, 10)
+            start = 0
+            for i, (scene, length) in enumerate(zip(fixture.request["scenes"], duration_by_scene)):
+                scene["order"] = i
+                scene["start_time"] = start
+                scene["duration"] = length
+                start += length
         # The synthetic soundtrack/SFX are original deterministic wave synthesis:
         # no third-party songs, sample packs or purported trending-music rights.
         import math
@@ -56,13 +66,13 @@ def main():
             w.setnchannels(1)
             w.setsampwidth(2)
             w.setframerate(22050)
-            for i in range(30 * 22050):
+            for i in range(args.seconds * 22050):
                 t=i/22050
                 note=(196,246.94,293.66,392)[int(t/2)%4]
                 pulse=0.12 if t % .5 < .065 else 0.0
                 sample=int(7000*(.20*math.sin(2*math.pi*note*t)+
                                   .08*math.sin(2*math.pi*note*2*t)+
-                                  pulse*math.sin(2*math.pi*90*t))*min(1,t/.6)*min(1,(30-t)/1))
+                                  pulse*math.sin(2*math.pi*90*t))*min(1,t/.6)*min(1,(args.seconds-t)/1))
                 w.writeframesraw(struct.pack("<h",max(-32768,min(32767,sample))))
         with wave.open(str(fixture.assets/"original_demo_sfx.wav"), "wb") as w:
             w.setnchannels(1)
