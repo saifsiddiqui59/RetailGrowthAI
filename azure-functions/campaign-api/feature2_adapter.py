@@ -103,9 +103,15 @@ class TrendFeatureAdapter:
             if ai_mode:
                 if self.ai_service is None:
                     return 503, {"error": "AI_NOT_ENABLED_OR_NOT_APPROVED"}
-                draft = self.ai_service.draft(
+                # Signed shop/actor and server-validated submission ID pin
+                # the billable ledger request across a lost HTTP acknowledgement.
+                # Replays get RG005 before network egress; never auto-retry.
+                ai_kwargs = dict(
                     brief=brief, retailer=retailer, campaign_id=campaign_id,
                     now=now, trend=chosen, shop_id=sid, actor_id=user_id)
+                if submission_id is not None:
+                    ai_kwargs["request_id"] = submission_id
+                draft = self.ai_service.draft(**ai_kwargs)
             else:
                 draft = create_content_draft(brief, retailer, campaign_id=campaign_id,
                                              now=now, trend=chosen)

@@ -137,6 +137,9 @@ def test_live_model_path_preserves_one_draft_and_authenticated_media_gate():
     code,result=handler.handle("POST",SHOP,"Bearer owner-token",payload,ai_mode=True)
     assert code==201 and result["status"]=="DRAFT"
     assert len(model.calls)==len(drafts.saved)==1
+    assert model.calls[0][1]["request_id"] == payload["submission_id"]
+    assert model.calls[0][1]["shop_id"] == SHOP
+    assert model.calls[0][1]["actor_id"] == USER
     saved=drafts.saved[0]
     assert saved["generation_mode"]=="approved_llm"
     assert saved["submission_id"]==payload["submission_id"]
@@ -184,3 +187,6 @@ def test_real_foundry_prompt_produces_actual_model_content_and_settles_authored_
     assert admin.calls[0][1]["data"]["p_shop_id"]==SHOP
     assert admin.calls[0][1]["data"]["p_actor_id"]==USER
     assert admin.calls[0][1]["data"]["p_operation"]=="prompt"
+    # For a fresh prompt preview, the authoritative server generates a UUID.
+    from uuid import UUID
+    UUID(admin.calls[0][1]["data"]["p_request_id"])
