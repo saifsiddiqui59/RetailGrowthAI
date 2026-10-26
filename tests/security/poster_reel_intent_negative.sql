@@ -243,7 +243,7 @@ update public.campaign_days set instagram=
 where id='88888888-8888-4888-8888-888888888888';
 set local role authenticated;
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-4111-8111-111111111111","is_anonymous":false}',true);
-do $
+do $$
 begin
   begin
     perform public.request_reel_render_job(
@@ -252,16 +252,16 @@ begin
     raise exception 'fresh third Reel bypassed exhausted trial quota';
   exception when sqlstate 'RG002' then null;
   end;
-end $;
+end $$;
 reset role;
-do $
+do $$
 begin
   if (select count(*) from public.render_jobs)<>2
      or (select count(*) from public.shop_usage_reservations where operation='render')<>2
      or (select count(*) from public.job_outbox where kind='render')<>2 then
     raise exception 'quota denial changed jobs, usage or outbox';
   end if;
-end $;
+end $$;
 
 -- Account expiry must deny NEW distinct render intents before billing.
 select set_config('request.jwt.claims','{"role":"service_role","sub":"11111111-1111-4111-8111-111111111111"}',true);
@@ -271,7 +271,7 @@ update public.shop_subscriptions set status='EXPIRED',
 where shop_id='33333333-3333-4333-8333-333333333333';
 set local role authenticated;
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-4111-8111-111111111111","is_anonymous":false}',true);
-do $
+do $$
 begin
   begin
     perform public.request_reel_render_job(
@@ -280,7 +280,7 @@ begin
     raise exception 'expired subscription requested new Reel';
   exception when sqlstate 'RG001' then null;
   end;
-end $;
+end $$;
 
 -- Revoke the OWNER membership: claimed JWT alone must not authorize writes.
 reset role;
@@ -290,14 +290,14 @@ update public.shop_memberships set active=false
  and user_id='11111111-1111-4111-8111-111111111111';
 set local role authenticated;
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-4111-8111-111111111111","is_anonymous":false}',true);
-do $
+do $$
 begin
   if public.request_reel_render_job(
     '44444444-4444-4444-8444-444444444444',
     '88888888-8888-4888-8888-888888888888') is not null then
     raise exception 'revoked OWNER membership allowed render';
   end if;
-end $;
+end $$;
 
 -- Force existing AFTER INSERT outbox trigger to fail. BEFORE INSERT quota
 -- reservation MUST roll back in the same statement: no orphaned usage.
@@ -314,7 +314,7 @@ alter table public.job_outbox
   add constraint disposable_render_outbox_failure check (kind <> 'render') not valid;
 set local role authenticated;
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-4111-8111-111111111111","is_anonymous":false}',true);
-do $
+do $$
 begin
   begin
     perform public.request_reel_render_job(
@@ -323,30 +323,30 @@ begin
     raise exception 'render returned success while outbox INSERT blocked';
   exception when check_violation then null;
   end;
-end $;
+end $$;
 reset role;
-do $
+do $$
 begin
   if (select count(*) from public.render_jobs)<>2
      or (select count(*) from public.shop_usage_reservations where operation='render')<>2
      or (select count(*) from public.job_outbox where kind='render')<>2 then
     raise exception 'failed outbox persisted orphaned job or quota reservation';
   end if;
-end $;
+end $$;
 alter table public.job_outbox drop constraint disposable_render_outbox_failure;
 -- Final stale state: planner has reclaimed the campaign, no Reel mutation.
 update public.campaigns set status='PLANNING'
  where id='44444444-4444-4444-8444-444444444444';
 set local role authenticated;
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-4111-8111-111111111111","is_anonymous":false}',true);
-do $
+do $$
 begin
   if public.request_reel_render_job(
     '44444444-4444-4444-8444-444444444444',
     '88888888-8888-4888-8888-888888888888') is not null then
     raise exception 'non-DRAFT campaign allowed stale render';
   end if;
-end $;
+end $$;
 
 rollback;
 \echo 'PASS: Python SHA256, legacy reuse, 2-session gate separate, tenant/VIEWER/license denial, quota exhaustion, expired subscription, revoked membership, outbox-rollback atomicity, non-DRAFT denial'
