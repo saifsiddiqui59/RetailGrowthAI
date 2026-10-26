@@ -57,3 +57,16 @@ test('unregistered images and arbitrary template/network inputs fail closed', ()
     ...approved, businessName: '\u0000bad',
   }), /Invalid required/)
 })
+
+test('optional shop-approved brand logo is preserved as a separate image layer', () => {
+  const logo = '00000000-0000-4000-8000-000000000a35'
+  const result = composeFeature3Poster({
+    ...approved, logoAssetId: logo,
+    authorizedAssetIds: [...approved.authorizedAssetIds, logo],
+  })
+  assert.equal(result.layers.find(l => l.id === 'logo').asset_id, logo)
+  assert.equal(result.layers.find(l => l.id === 'brand').w, .68)
+  assert.throws(() => composeFeature3Poster({
+    ...approved, logoAssetId: logo,
+  }), /Unregistered brand logo/)
+})
