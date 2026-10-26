@@ -4,12 +4,14 @@
  * v2 authenticated draft/queue APIs. All generated images and virtual try-on
  * require backend approval; this CPU panel only composes versioned layers.
  */
-import { useMemo, useState } from 'react'
+import { Suspense, lazy, useMemo, useState } from 'react'
 import { FEATURE3_FORMATS, FEATURE3_TEMPLATES } from './feature3-design.mjs'
 import { composeFeature3Poster } from './feature3-compose.mjs'
 import { approvedFeature3Inputs, feature3ContextKey } from './feature3-context.mjs'
 import Feature3CpuEditor from './Feature3CpuEditor.jsx'
 import Feature3ModelLibraryReview from './Feature3ModelLibraryReview.jsx'
+// Pay the advanced editor bundle cost only after an explicit user choice.
+const Feature3KonvaEditor = lazy(() => import('./Feature3KonvaEditor.jsx'))
 import { availableApprovedModels, selectedApprovedModel } from './feature3-approved-models.mjs'
 
 const fieldStyle = { display: 'grid', gap: 6, minWidth: 0 }
@@ -30,6 +32,7 @@ export default function Feature3StudioPanel({
   const [version, setVersion] = useState(0)
   const [design, setDesign] = useState(null)
   const [showModelLibrary, setShowModelLibrary] = useState(false)
+  const [advanced, setAdvanced] = useState(false)
   const [designContext, setDesignContext] = useState('')
   const [error, setError] = useState('')
 
@@ -182,10 +185,24 @@ export default function Feature3StudioPanel({
     {!designModelStillReady &&
       <p role="alert">The saved model is no longer accessible. This local model draft is hidden;
         select another approved model.</p>}
-    {design && designContext === currentContext &&
-      designModelStillReady &&
-      <Feature3CpuEditor key={version} initialDesign={design}
-      imageMap={imageMap} context={context} onSaveDraft={onSaveDesign} />}
+    {design && designContext === currentContext && designModelStillReady && <>
+      <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+        <button type="button" disabled={disabled}
+          aria-pressed={advanced}
+          onClick={() => setAdvanced(value => !value)}>
+          {advanced ? 'Use simple CPU editor' : 'Advanced drag-and-resize editor (local)'}
+        </button>
+        <span role="note">Unreviewed local preview only. An authoritative server
+          render is required before publishing.</span>
+      </div>
+      {advanced
+        ? <Suspense fallback={<p role="status">Loading local advanced editor…</p>}>
+            <Feature3KonvaEditor key={version} initialDesign={design}
+              imageMap={imageMap} context={context} />
+          </Suspense>
+        : <Feature3CpuEditor key={version} initialDesign={design}
+            imageMap={imageMap} context={context} onSaveDraft={onSaveDesign} />}
+    </>}
     <section aria-label="Reusable AI fashion models">
       <button type="button" disabled={disabled}
         aria-expanded={showModelLibrary}
