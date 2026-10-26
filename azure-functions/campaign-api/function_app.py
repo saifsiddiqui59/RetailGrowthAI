@@ -271,7 +271,7 @@ def build_feature2_api():
 
 
 def dispatch_feature2(request, shop_id, *, method, resource="trends"):
-    path = "/shops/{shop_id}/" + ("trend-recommendations" if resource == "trends" else "content-drafts")
+    path = "/shops/{shop_id}/" + ({"trends": "trend-recommendations", "drafts": "content-drafts", "prompt": "improve-prompt"}[resource])
     diagnostics = RequestDiagnostics(method, path)
     try:
         handler = build_feature2_api()
@@ -283,7 +283,10 @@ def dispatch_feature2(request, shop_id, *, method, resource="trends"):
             except ValueError:
                 code, body = 400, {"error": "INVALID_REQUEST"}
             else:
-                if resource == "drafts" and method == "GET":
+                if resource == "prompt" and method == "POST":
+                    code, body = handler.improve(
+                        shop_id, request.headers.get("Authorization", ""), payload)
+                elif resource == "drafts" and method == "GET":
                     code, body = handler.list_drafts(
                         shop_id, request.headers.get("Authorization", ""))
                 else:
@@ -310,6 +313,12 @@ def create_retailer_trend_draft(req: func.HttpRequest) -> func.HttpResponse:
     # avoid duplicate Azure route definitions during Flex Functions indexing.
     return dispatch_feature2(req, req.route_params["shop_id"],
                              method=req.method.upper(), resource="drafts")
+
+
+@app.route(route="shops/{shop_id}/improve-prompt", methods=["POST"])
+def improve_retailer_prompt(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch_feature2(req, req.route_params["shop_id"],
+                             method="POST", resource="prompt")
 
 
 @app.timer_trigger(schedule="0 15 5 * * *", arg_name="timer",
