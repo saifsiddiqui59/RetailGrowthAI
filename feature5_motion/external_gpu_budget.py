@@ -101,9 +101,9 @@ def assess_external_gpu_quote(quote: dict, *,
     }
     if set(quote) != required:
         raise ExternalQuoteError("Missing or unexpected quote fields")
-    if quote["provider"] not in PROVIDERS:
+    if not isinstance(quote["provider"], str) or quote["provider"] not in PROVIDERS:
         raise ExternalQuoteError("Unreviewed GPU provider")
-    if quote["sku"] not in BF16_GPU_FAMILIES:
+    if not isinstance(quote["sku"], str) or quote["sku"] not in BF16_GPU_FAMILIES:
         raise ExternalQuoteError("Unreviewed GPU architecture/VRAM")
     if type(quote["gpu_count"]) is not int or quote["gpu_count"] != 1:
         raise ExternalQuoteError("Only one GPU is permissible")
