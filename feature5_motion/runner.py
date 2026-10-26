@@ -14,6 +14,7 @@ import sys
 
 from .contracts import MotionError, MotionSpec
 from .license_gate import HunyuanLicensePolicy
+from .artifact_lock import ArtifactLock
 
 
 # Independently fetched from Tencent-Hunyuan/HunyuanVideo-1.5 GitHub
@@ -51,8 +52,10 @@ class HunyuanLocalRunner:
     def __init__(self, *, checkout: Path, weights: Path, enabled: bool = False,
                  license_approved: bool = False, gpu_budget_approved: bool = False,
                  timeout_seconds: int = 1800,
-                 license_policy: HunyuanLicensePolicy | None = None):
+                 license_policy: HunyuanLicensePolicy | None = None,
+                 artifact_lock: ArtifactLock | None = None):
         self.license_policy = license_policy
+        self.artifact_lock = artifact_lock
         self.checkout = Path(checkout)
         self.weights = Path(weights)
         self.enabled = enabled
@@ -91,6 +94,9 @@ class HunyuanLocalRunner:
         if not (script.is_file() and self.weights.is_dir()):
             raise MotionError("Preinstalled licensed Hunyuan runtime/weights missing")
         verify_official_script(script)  # Before any billable CUDA/model initialization.
+        if not isinstance(self.artifact_lock, ArtifactLock):
+            raise MotionError("Review-locked model and weights manifest required")
+        self.artifact_lock.verify(checkout=self.checkout, weights=self.weights)
         if Path(workdir).is_symlink():
             raise MotionError("Symlinked working directory is not permitted")
         wd = Path(workdir).resolve(strict=True)
