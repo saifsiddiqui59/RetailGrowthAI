@@ -38,3 +38,9 @@
 
 ## 2026-10-26 live DEV metadata verification
 - Queried read-only PostgreSQL information_schema/pg_constraint of dedicated RetailGrowthAI DEV (existing shop/user data not read or modified): `shop_subscriptions` has no premium budget, `shop_usage_reservations` accepts campaign/render only with no units, `job_outbox` accepts planning/render only, `premium_video_jobs` does not exist. Recorded exact coordinator-owned single-ledger reconciliation proposal and negative test plan in `PART3_DEV_SCHEMA_RECONCILIATION_20261026.md`; no schema changes, no live calls to a GPU.
+
+## 2026-10-26 — Remaining model authenticity and quality evidence work
+- Verified GitHub feature branch/PR #323 and separate Part3 #125/Feature4 #322 still open; read latest AGENTS and canonical project docs; stayed within Feature5-owned paths. Previous PR head `45fc91ed1` had two complete 4/4 CI runs (#40307095552, #40307083961).
+- Implemented deterministic full code+weight SHA256 manifest preflight, operator-only candidate generator, trusted digest passed separately to `HunyuanLocalRunner`, and negative CPU-only tests against synthetic code/shard fixtures. No real weights downloaded or licensed; official source commit still independently pinned by existing code.
+- Reworked manual GPU harness to preserve verified actual MP4/reference imagery + contact-sheet frame hashes in a private operator-owned evidence location instead of destroying temporary test media. Added CPU-real FFmpeg acceptance-export fixture tests; no actual Hunyuan generation or real garment visual acceptance was performed.
+- Kept feature flags OFF, no real model/GPU/queue/cloud/Supabase writes, no new ledger, no PROD or WineShopPOS changes. Final exact-head CI status must be inspected after docs commit.

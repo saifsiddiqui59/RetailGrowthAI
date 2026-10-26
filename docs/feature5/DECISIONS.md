@@ -33,3 +33,8 @@
 
 ## Hosted DB reality check — 2026-10-26
 - Read-only inspection of dedicated RetailGrowthAI DEV subscription/usage/outbox catalog confirms the provider-aware premium ledger is **not deployed**. Existing quotas and outbox cannot store premium jobs in their present CHECKs. Never claim Part3/Feature5 live subscription ledger integration until coordinator migration and E2E prove it. Source-only adapter design remains intentionally backward-compatible and default-disabled.
+
+## 2026-10-26 — Weight code integrity and retained real inference evidence
+- A pinned `generate.py` Git blob is insufficient to approve GPU spend. **Require a complete enumerated SHA256 manifest of materialized clean source files and licensed model weight shards**, with independently reviewed top-level SHA256 passed into the runner. Reject extra/missing/modified files and symlinks before CUDA. Keep lock generation local/offline and exclusive so no silently overwritten prior candidate.
+- A manifest file in the same download folder is not an independent trust root. The reviewed `approved_manifest_sha256` must be protected in separate operator configuration, and origin/model-license/dependency checks still require human/operator diligence.
+- A manual GPU test that deletes the generated video cannot provide real human visual sign-off. Require a separately protected `RETAIL_FEATURE5_MANUAL_EVIDENCE_ROOT` and preserve the original MP4, side-by-side source reference for I2V, review frames and clip SHA256 with **PENDING_HUMAN_REVIEW** status only. Actual quality must be approved by a reviewer, never inferred from video codec/duration checks.

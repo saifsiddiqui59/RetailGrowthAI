@@ -34,3 +34,14 @@ Even with `enabled=True`, `MotionWorker` refuses to claim/launch without a `Moti
 The optional runner hard-codes `HunyuanVideo-1.5` upstream `generate.py` Git blob `ba18ce85661d2cc2ebfe5a7fe4ad80994899d07d` at Tencent commit `60783e704160023913bee78f0b47036d393d4dfa` and rejects altered/symlinked code before CUDA. It does **not** verify complete model weight shards or dependencies; operator must separately record immutable licensed weight revision/checksums and pin deployment artifacts. Changing upstream versions requires a reviewed source-and-model change.
 `prepare_visual_review(clip, private_new_output_dir)` provides CPU-generated six-frame PNG sampling, 3×2 contact sheet and SHA256 manifest from an already validated tenant-private H.264 MP4. Existing service must authenticate tenant, provide private staging, dispose of artifacts and obtain an independently persisted human `VisualReview`; this utility never automatically passes quality or publishing approval.
 `tests/ai/test_feature5_real_ffmpeg_media.py` makes **real synthetic FFmpeg clips**, verifies the exact 5s/24FPS/480p bytes and checks negative profiles. This is not AI motion, not an Azure end-to-end test and not evidence of garment fidelity.
+
+## Complete model/weights integrity and real manual acceptance (2026-10-26)
+`HunyuanLocalRunner` requires **both** official `generate.py` Git blob identity and an `ArtifactLock` for every installed runtime code file + every licensed weight file. Source tree must be a **clean materialized** copy, no `.git`, symlinks or temp cache. Reviewer generates a CANDIDATE locally, for example:
+
+```bash
+python -m feature5_motion.seal_artifacts --checkout /private/hunyuan-clean-checkout --weights /private/licensed-hunyuan-model --out /private/operator/feature5-model.lock.json
+```
+
+Operator must verify Tencent license/territories, model supplier, model revision, full shard SHA256 list, dependency versions and exact manifest, then store the candidate's SHA256 in a **separate trusted deployment configuration**. The manifest cannot approve itself. Neither generator nor verification downloads any model or starts CUDA; a model lock merely detects mutations and is not licensing proof.
+
+Manual genuine GPU acceptance `tests/gpu/test_feature5_local_acceptance.py` now ALSO requires `RETAIL_FEATURE5_ARTIFACT_LOCK_PATH`, independently reviewed `RETAIL_FEATURE5_APPROVED_LOCK_SHA256`, and an **existing owner-controlled mode-0700** `RETAIL_FEATURE5_MANUAL_EVIDENCE_ROOT`. Preserve all previous legal/region/spend/license/rights environment gates documented above. Once a real GPU succeeds, it retains the original validated clip + source still for I2V and six-frame contact sheet + SHA256 under a new output folder. Evidence stays `PENDING_HUMAN_REVIEW` and must be checked by a real authorized reviewer before Feature4 can compose it. No customer data should be sent to an unapproved region.
