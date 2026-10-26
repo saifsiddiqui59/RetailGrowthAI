@@ -29,13 +29,13 @@ jobs:
           python3 -m pytest -q tests/infra/test_p0_249_cold_warm_probe.py
       - uses: azure/login@v3
         with:
-          client-id: \${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: \${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: \${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Six synthetic unauthenticated GETs with post-inactivity comparison
         shell: bash
         env:
-          RGAI_DEV_EXPECTED_SUBSCRIPTION: \${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           set -euo pipefail
           python3 -u ops/p0_249_cold_warm_http_probe.py
