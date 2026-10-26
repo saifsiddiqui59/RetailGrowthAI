@@ -139,7 +139,7 @@ def test_full_seven_day_copy_only_merge_preserves_shop_assets_dates_scene_timing
 
 
 @pytest.mark.parametrize("replacement", [
-    {"topic": "Another style", "hook": "Different tip"},
+    {"topic": "Helpful kurti styling lesson 2", "hook": "Start with wardrobe idea 2"},
     {"poster_headline": "Guaranteed ₹500 discount"},
     {"youtube_description": "Visit https://example.com/sale"},
     {"scene_scripts": ["one", "two"]},
