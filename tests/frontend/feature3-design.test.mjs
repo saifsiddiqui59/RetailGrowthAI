@@ -48,7 +48,7 @@ test('add, remove, replace authorized image, and undo without overriding previou
   history = addFeature3Layer(history, 'image', 'shop-safe-img', ['shop-safe-img'])
   assert.equal(history.present.layers.at(-1).asset_id, 'shop-safe-img')
   assert.throws(() => replaceFeature3Image(
-    history, 'product', 'other-shop-image', ['shop-safe-img']), /registered/)
+    history, 'product', 'other-shop-image', ['shop-safe-img']), /[Rr]egistered/)
   history = replaceFeature3Image(history, 'product', 'shop-safe-img', ['shop-safe-img'])
   assert.equal(history.present.layers[0].asset_id, 'shop-safe-img')
   const oldCount = history.present.layers.length
