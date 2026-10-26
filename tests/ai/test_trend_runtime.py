@@ -45,3 +45,43 @@ def test_seasonal_source_is_opt_in_and_requires_government_evidence():
     items = verified_event_rows(rows, NOW)
     assert len(items) == 1 and items[0]["event"] == "A documented event"
     assert verified_event_rows([], NOW) == []
+
+
+def test_verified_events_flow_into_ranked_tenant_recommendations_without_invented_dates():
+    from ai_agents.trend_intelligence import collect, recommendations
+    approved = [{
+        "event_id": "event-reviewed-1",
+        "event": "Saree fashion festival",
+        "date": "2026-11-01",
+        "official_source_url": "https://dopt.gov.in/verified-release",
+        "source_reviewed_at": "2026-10-25",
+        "verification": "reviewed",
+        "category": "clothing",
+        "language": "mr-IN",
+    }]
+    snapshot = collect(NOW, environ={}, festival_records=approved)
+    assert snapshot["sources"][-1]["status"] == "ok"
+    assert len(snapshot["trends"]) == 1
+    assert snapshot["trends"][0]["event_date"] == "2026-11-01"
+    ranking = recommendations(snapshot, {
+        "category": "clothing", "city": "Pune", "language": "mr-IN",
+        "products": ["saree"],
+    }, NOW)
+    assert ranking[0]["event_date"] == "2026-11-01"
+    assert ranking[0]["evidence_url"].startswith("https://dopt.gov.in/")
+    assert ranking[0]["approval_status"] == "DRAFT"
+    fake = [{**approved[0], "official_source_url": "https://fake.gov.in.evil.com/festival"}]
+    rejected = collect(NOW, environ={}, festival_records=fake)
+    assert rejected["trends"] == []
+    assert rejected["sources"][-1]["status"] == "incomplete"
+
+
+def test_calendar_dates_without_recent_verified_review_are_never_promoted():
+    base = {
+        "event_id": "event-1", "event": "Saree fashion festival",
+        "date": "2026-11-01", "official_source_url": "https://dopt.gov.in/file",
+        "verification": "reviewed", "category": "clothing",
+    }
+    assert verified_event_rows([{**base, "source_reviewed_at": "bad"}], NOW) == []
+    assert verified_event_rows([{**base, "source_reviewed_at": "2027-01-01"}], NOW) == []
+    assert verified_event_rows([{**base, "source_reviewed_at": "2025-01-01"}], NOW) == []
