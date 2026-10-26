@@ -36,7 +36,7 @@ def verify_dev():
     print("P0_249_SAFE_EXISTING_DEV_SCOPE=true", flush=True)
 
 def classify(returncode, status, tls, first_byte, elapsed, marker=False):
-    if returncode == 0 and status in ("401", "404") and elapsed <= 10:
+    if returncode == 0 and status in ("401", "404") and elapsed <= 10 and (status == "404" or marker):
         category = "EXPECTED_401_OR_404"
     elif returncode == 0 and status == "503":
         category = "CONFIRMED_HTTP_503"
