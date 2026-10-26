@@ -77,6 +77,15 @@ class FluxT4Tests(unittest.TestCase):
             self.assertTrue(worker.pipeline.cuda)
             self.assertFalse(worker.pipeline.cpu_offload)
 
+    def test_cuda_allocation_must_be_real_before_attestation(self):
+        fake=self.make_modules()
+        fake["torch"].cuda.max_memory_allocated=lambda idx:0
+        with TemporaryDirectory() as tmp,patch.dict(sys.modules,fake):
+            worker=OfflineFluxKlein4B(tmp,height=512,width=512)
+            with self.assertRaisesRegex(ProviderBlocked, "did not allocate device memory"):
+                worker(InferenceJob(SHOP,JOB,"human_model",prompt="adult fashion item"),{})
+            self.assertFalse(worker.actual_cuda_verified)
+
     def test_bad_cuda_and_under_14gb_rejected_before_loading_model(self):
         for cap,vram in (((6,0),16),((7,5),12)):
             with self.subTest(cap=cap,vram=vram):
