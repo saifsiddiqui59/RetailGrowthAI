@@ -14,7 +14,7 @@ jobs:
     if: >-
       github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
       github.ref == 'refs/heads/main' &&
-      startsWith(github.event.head_commit.message, 'test(dev): RetailGrowthAI P0 249 six signed JWT write negatives')
+      startsWith(github.event.head_commit.message, 'test(dev): RetailGrowthAI P0 249 signed write denial HTTP diagnostic')
     environment: dev
     runs-on: ubuntu-24.04
     timeout-minutes: 12
@@ -40,6 +40,7 @@ jobs:
           grep -Fq 'P0249_REAL_JWT_DEV_ALL_SIX_UNOWNED_WRITES_DENIED=PASSED' tests/e2e/p0249_dev_signed_write_negative_once.py
           grep -Fq 'P0249_CROSS_SITE_SIGNED_JWT_MUTATION_BLOCKED=true' tests/e2e/p0249_dev_signed_write_negative_once.py
           grep -Fq 'P0249_FORGED_SIGNED_WRITE_JWT_DENIED=true' tests/e2e/p0249_dev_signed_write_negative_once.py
+          grep -Fq 'P0249_WRITE_DENIAL_MISMATCH_CASE=' tests/e2e/p0249_dev_signed_write_negative_once.py
           echo 'P0249_DEV_SIGNED_WRITE_NEGATIVE_SOURCE_GUARDS=true'
       - name: Exercise genuine signed JWT denial on six isolated DEV write paths
         shell: bash
