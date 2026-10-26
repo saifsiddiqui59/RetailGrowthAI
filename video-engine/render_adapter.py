@@ -74,7 +74,10 @@ def run_compiled_reel(request, manifest, asset_root, private_output_dir, *,
     bound = render_inputs(request, manifest, allow_synthetic_test=allow_synthetic_test)
     job_id = bound.audit["video_job_id"]
     # Already rendered paths must never be silently replaced or billed again.
-    base = Path(private_output_dir).resolve(strict=True)
+    raw_base = Path(private_output_dir)
+    if raw_base.is_symlink():
+        raise CreativeRenderError("Private artifact directory cannot be a symlink")
+    base = raw_base.resolve(strict=True)
     dest = base / (job_id + ".mp4")
     if dest.exists() or dest.is_symlink():
         raise CreativeRenderError("Existing logical output requires ledger reconciliation, not overwrite")
@@ -111,7 +114,18 @@ def run_compiled_reel(request, manifest, asset_root, private_output_dir, *,
         # attempt token, registers a service-only media row, then issues signed URLs.
         if dest.exists() or dest.is_symlink():
             raise CreativeRenderError("Concurrent logical output exists; abort without overwrite")
-        scratch_out.replace(dest)
+        # Atomic no-clobber publication inside the same private volume; EXDEV
+        # fails closed rather than falling back to a risky overwrite.
+        staged = base / ("." + job_id + ".staged-" + str(os.getpid()))
+        try:
+            import shutil
+            with staged.open("xb") as target, scratch_out.open("rb") as source:
+                shutil.copyfileobj(source, target, length=1024*1024)
+            os.link(staged, dest)  # raises FileExistsError on another claimed attempt
+        except (OSError, FileExistsError) as exc:
+            raise CreativeRenderError("Atomic private output publication failed") from exc
+        finally:
+            staged.unlink(missing_ok=True)
     return {"file_path": str(dest), "render_job_id": job_id,
             "idempotency_key": bound.audit["idempotency_key"],
             "rendered_as": bound.audit["rendered_as"],
