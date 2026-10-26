@@ -125,13 +125,13 @@ end $$;
 -- Private quota and outbox are intentionally INVISIBLE to authenticated users.
 -- Assert under disposable-test postgres identity only; never grant them SELECT.
 reset role;
-do $
+do $$
 begin
   if (select count(*) from public.shop_usage_reservations where operation='render')<>1 or
      (select count(*) from public.job_outbox where kind='render')<>1 then
     raise exception 'legacy identical request double billed/outboxed';
   end if;
-end $;
+end $$;
 set local role authenticated;
 select set_config('request.jwt.claim.role','authenticated',true);
 -- Forbidden VIEWER/foreign user cannot cause any additional job or usage.
@@ -182,13 +182,13 @@ begin
 end $$;
 
 reset role;
-do $
+do $$
 begin
   if (select count(*) from public.shop_usage_reservations where operation='render')<>2 or
      (select count(*) from public.job_outbox where kind='render')<>2 then
     raise exception 'not exactly one subscription unit and outbox per edited job';
   end if;
-end $;
+end $$;
 -- Editing to unlicensed (but same-shop) source cannot bypass rights.
 reset role;
 select set_config('request.jwt.claim.role','service_role',true);
