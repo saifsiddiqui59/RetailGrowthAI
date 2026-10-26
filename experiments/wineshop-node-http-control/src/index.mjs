@@ -21,10 +21,7 @@ app.http("healthLite", {
 
 app.http("campaignReadControl", {
   methods: ["GET"], authLevel: "anonymous", route: "campaigns/{campaignId}",
-  handler: async (req) => respond(
-    "GET", "/api/campaigns/" + req.params.campaignId,
-    req.headers.get("authorization") || ""
-  ),
+  handler: async (req) => respond("GET", "/api/campaigns/" + req.params.campaignId),
 });
 
 app.http("unknownRouteControl", {
