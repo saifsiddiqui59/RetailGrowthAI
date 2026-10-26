@@ -24,14 +24,14 @@ def prompt_reservation(text):
     llm = AzureFeature2PromptLLM(
         endpoint="https://test.openai.azure.com", deployment="test-model",
         api_key="FAKE_MODEL_KEY_ONLY_FOR_TEST",
-        input_usd_per_million=100, output_usd_per_million=100,
+        input_usd_per_million=25, output_usd_per_million=25,
         approved_max_cost_usd=0.24, reserve_cost=lambda cost: observed["reservations"].append(cost) or "reserved",
         transport=fake_transport,
     )
     llm("Retailer request (preserve its intent verbatim): Hello.\n" + text)
     assert len(observed["reservations"]) == len(observed["bodies"]) == 1
     body = observed["bodies"][0]
-    required_upper = (len(body) + 256 + 550) * 100 / 1_000_000
+    required_upper = (len(body) + 256 + 550) * 25 / 1_000_000
     assert observed["reservations"][0] >= required_upper - 1e-12
     return observed["reservations"][0]
 
@@ -64,14 +64,14 @@ def content_reservation(text):
     llm = AzureFeature2ContentLLM(
         endpoint="https://test.openai.azure.com", deployment="test-model",
         api_key="FAKE_MODEL_KEY_ONLY_FOR_TEST",
-        input_usd_per_million=100, output_usd_per_million=100,
+        input_usd_per_million=25, output_usd_per_million=25,
         approved_max_cost_usd=0.24, reserve_cost=lambda cost: observed["reservations"].append(cost) or "reserved",
         transport=fake_transport,
     )
     result = llm("Authorized business objective and style: " + text, 1)
     assert result == generated
     assert len(observed["bodies"]) == len(observed["reservations"]) == 1
-    required_upper = (len(observed["bodies"][0]) + 256 + 4000) * 100 / 1_000_000
+    required_upper = (len(observed["bodies"][0]) + 256 + 4000) * 25 / 1_000_000
     assert observed["reservations"][0] >= required_upper - 1e-12
     return observed["reservations"][0]
 
