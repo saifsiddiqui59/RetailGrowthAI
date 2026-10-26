@@ -550,3 +550,31 @@ cross-tenant leakage. Do not promote platform assets on self-declared
 rights. Update canonical PROJECT_STATE, NEXT_TASK, DECISIONS and WORK_LOG
 when PR reviewed/merged. **Cost default: zero GPU** for imports and
 reuse; on-demand model creation still available when approved.
+
+
+### 2026-10-26 — Pre-generated OpenPeople candidate for import-first AI avatar library
+- Reviewed [OpenPeople](https://github.com/Prompt-Haus/OpenPeople) as
+  closer match to the user's precise request than generating new people
+  or MakeHuman 3D renders. Upstream claims 100 ready-made synthetic
+  people (portraits/full-body) under **CC-BY-4.0 IMAGE licensing**.
+  Its GitHub LICENSE is MIT **for code only**; README's development-only
+  disclaimer and provider image rights still require independent legal
+  review for a Redistributable SaaS catalog.
+- Added `openpeople_import_v2.py`, an **offline-only**, commit-pinned,
+  no-download adapter for `P001`–`P100` selected studio and
+  casual JPEG stills into the generic
+  `retailgrowth.model-library.v1` model rights/storage/review contract.
+  Explicit signed-off license evidence, platform-curator approval and
+  private immutable blob receipt remain mandatory. It refuses symlinked
+  input, traversal, non-allowlisted kinds and malformed IDs. No model
+  weights, GPU inference or CDN fetch needed to import.
+- Added `tests/media/test_feature3_openpeople_import.py` with real
+  local synthetic JPEG->PNG encoding, attribution, source lineage,
+  rights/foreign-shop denies and try-on/poster/video reuse tests.
+  **These tests do not load actual OpenPeople JPEGs.**
+- No complete set of upstream images has been vetted or seeded in
+  DEV. To be complete, coordinator must approve a small exact-source
+  pilot, implement shop/global RLS catalog and private storage/preview,
+  importer+approval UI and real browser/asset cross-feature test.
+  Retain existing FLUX `Create New Model` separately as optional
+  user-initiated paid generation.
