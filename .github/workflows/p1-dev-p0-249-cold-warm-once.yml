@@ -2,6 +2,10 @@ name: RetailGrowthAI DEV one-time P0 249 warm vs post-idle check
 # Existing DEV only, no user tokens, writes, config mutation, or paid capacity.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p1-dev-p0-249-cold-warm-once.yml'
 permissions:
   contents: read
 concurrency:
@@ -9,7 +13,11 @@ concurrency:
   cancel-in-progress: false
 jobs:
   probe:
-    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       startsWith(github.event.head_commit.message, 'audit(dev): RetailGrowthAI P0 249 cold-versus-warm'))
     environment: dev
     runs-on: ubuntu-24.04
     timeout-minutes: 14
