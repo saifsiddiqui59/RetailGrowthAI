@@ -35,3 +35,6 @@
 - Fetched official Tencent upstream `generate.py` at commit `60783e704160023913bee78f0b47036d393d4dfa`; added exact Git-blob integrity gate and fake/tampered/symlinked script tests. Did not download model weights or start CUDA.
 - Added true FFmpeg/libx264 5s H264/24FPS media validation test with real 30FPS and 4s rejection fixtures, rather than relying only on `ffprobe` mocks. Added private six-frame review contact sheet and clip SHA256 manifest; real garment visual assessment remains unperformed.
 - No Part3/Feature4/shared-main edits, Azure/Supabase/PROD changes, GPU spend or WineShopPOS modification.
+
+## 2026-10-26 live DEV metadata verification
+- Queried read-only PostgreSQL information_schema/pg_constraint of dedicated RetailGrowthAI DEV (existing shop/user data not read or modified): `shop_subscriptions` has no premium budget, `shop_usage_reservations` accepts campaign/render only with no units, `job_outbox` accepts planning/render only, `premium_video_jobs` does not exist. Recorded exact coordinator-owned single-ledger reconciliation proposal and negative test plan in `PART3_DEV_SCHEMA_RECONCILIATION_20261026.md`; no schema changes, no live calls to a GPU.

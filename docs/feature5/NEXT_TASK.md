@@ -35,3 +35,7 @@
 - **P0 real model authenticity remains:** obtain explicitly licensed *actual* `HunyuanVideo-1.5` weights and record their immutable release revision/complete shard SHA-256 checksums, runtime dependencies, and GPU execution environment; no model weights were downloaded or attested here.
 - **P0 real human visual acceptance remains:** make a real 5s I2V clothing/retailer demonstration on an approved GPU and reviewed geography, generate review evidence, then require human approval of motion, faces, exact outfit colors/prints, temporal smoothness and disclosure before Feature4 assembly.
 - **P0 coordinator remains:** Part3's current Wan-only reservations SQL/queue/ledger needs additive provider-aware versioning and real service-role adapters; Feature4's `creative_reel_v1` must be integrated by coordinator. Never merge or deploy behind another team.
+
+## Actual hosted DEV evidence and coordinator acceptance (2026-10-26)
+- DONE: read-only catalog verification of RetailGrowthAI DEV confirms **no** `premium_video_jobs`, no premium shop allowance/budget columns, and only `campaign|render` usage / `planning|render` outbox kinds. Feature5 is **not production/billing integrated**, regardless of green offline CI.
+- Coordinator must first reconcile Part3's Wan-only draft and Feature5 480p/A100 total wall-time tariff in a **single existing ledger/outbox**; use `PART3_DEV_SCHEMA_RECONCILIATION_20261026.md` for additive contract and DB-negative acceptance plan. Do not apply migrations independently in Feature5 branch.

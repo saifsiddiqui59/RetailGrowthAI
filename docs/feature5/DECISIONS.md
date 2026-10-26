@@ -30,3 +30,6 @@
 - Pin official Tencent HunyuanVideo-1.5 `generate.py` from upstream commit `60783e704160023913bee78f0b47036d393d4dfa` by Git-object SHA1 blob `ba18ce85661d2cc2ebfe5a7fe4ad80994899d07d`. SHA1 is Git's blob identity and cannot substitute for SHA256 checks of model weights/dependency provenance; pin still needs actual tested runtime and licensed source evidence.
 - A cheap real FFmpeg-encoded 5-second MP4 fixture is appropriate to verify Feature5 machine media validation without pretending a text/image-to-video model ran. Do not treat it as cinematographic acceptance.
 - Human visual QA will examine private PNG samples and contact sheet tied to the exact MP4 SHA256. Only tenant-authorized reviewer state stored in the existing service backend can later authorize Feature4; generated review sheets alone confer no right to publish.
+
+## Hosted DB reality check — 2026-10-26
+- Read-only inspection of dedicated RetailGrowthAI DEV subscription/usage/outbox catalog confirms the provider-aware premium ledger is **not deployed**. Existing quotas and outbox cannot store premium jobs in their present CHECKs. Never claim Part3/Feature5 live subscription ledger integration until coordinator migration and E2E prove it. Source-only adapter design remains intentionally backward-compatible and default-disabled.
