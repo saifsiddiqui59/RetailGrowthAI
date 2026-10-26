@@ -5,6 +5,7 @@ import VerifiedMetricsChart from '../dashboard/VerifiedMetricsChart.jsx'
 import { Card } from '../../components/ui/card.jsx'
 import { Button } from '../../components/ui/button.jsx'
 import { Badge } from '../../components/ui/badge.jsx'
+import './platform-operations.css'
 
 const EMPTY = { retailers: null, trial_shops: null, active_paid_shops: null,
   expired_or_suspended: null, campaigns: null, reels_completed: null }
