@@ -28,3 +28,17 @@ test('fallback is navigation to existing campaign editor, not an unverified sour
   assert.match(page, /It will not claim that your topic is trending/)
   assert.doesNotMatch(page, /trend_id: ['"]evergreen['"]/)
 })
+
+test('existing DEV Free SWA release remains one-shot, protected and resource-scoped', () => {
+  const workflow = readFileSync(new URL('../../.github/workflows/retail-dev-feature2-evergreen-fallback-swa-once.yml', import.meta.url), 'utf8')
+  assert.match(workflow, /branches: \[main\]/)
+  assert.match(workflow, /environment: dev/)
+  assert.match(workflow, /release\(dev\): publish Feature2 honest no-trend Free SWA/)
+  assert.match(workflow, /retailgrowthai-dev-preview/)
+  assert.match(workflow, /static-web-apps-deploy/)
+  assert.match(workflow, /FEATURE2_FREE_SWA_NO_TREND_FALLBACK=PASS/)
+  for (const forbidden of ['workflow_dispatch:', 'az group create', 'az staticwebapp create',
+    'az functionapp create', 'az containerapp', 'az vm create', 'supabase db push']) {
+    assert.equal(workflow.includes(forbidden), false)
+  }
+})
