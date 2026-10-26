@@ -38,11 +38,14 @@ class TestOfficialHunyuanCLI(unittest.TestCase):
                           mode=mode, source_asset_id=uid() if mode != "text" else None)
 
     def _fake_launch(self, popen):
-        (self.workdir / "motion.mp4").write_bytes(b"MOCK OUTPUT NOT REAL AI MEDIA")
-        proc = Mock()
-        proc.communicate.return_value = (None, None)
-        proc.returncode = 0
-        popen.return_value = proc
+        def launch(*args, **kwargs):
+            # Only create the fixture after the runner passes its no-overwrite check.
+            (self.workdir / "motion.mp4").write_bytes(b"MOCK OUTPUT NOT REAL AI MEDIA")
+            proc = Mock()
+            proc.communicate.return_value = (None, None)
+            proc.returncode = 0
+            return proc
+        popen.side_effect = launch
 
     def test_text_mode_does_not_pass_image_path(self):
         with patch("feature5_motion.runner.subprocess.Popen") as popen:
