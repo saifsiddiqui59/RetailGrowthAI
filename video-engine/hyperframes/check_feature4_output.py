@@ -35,6 +35,12 @@ def tone_amplitude(mp4, t, hz=480, sample_rate=8000):
     return math.hypot(re_part, im_part) / len(samples)
 
 
+
+def soundtrack_bed_magnitude(mp4, t):
+    """Synthetic soundtrack plays 293.66Hz at both 5s and 12s in this test."""
+    return tone_amplitude(mp4,t,hz=293.66)
+
+
 def check_artifact(media_dir):
     root = Path(media_dir)
     clip = root/"feature4-30s-hyperframes-synthetic.mp4"
@@ -64,12 +70,20 @@ def check_artifact(media_dir):
         raise AssertionError("Scene changes missing or near-identical")
     with_motion=tone_amplitude(clip,5)
     without_motion=tone_amplitude(clip,12)
+    # Audibly duck the APPROVED bed only during source-audio scenes.
+    music_during_source=soundtrack_bed_magnitude(clip,5)
+    music_after_source=soundtrack_bed_magnitude(clip,12)
+    if not (music_after_source > 45 and
+            music_after_source > 2.2 * max(1, music_during_source)):
+        raise AssertionError("Approved soundtrack was not ducked during source clip")
     if not (with_motion >= 30 and with_motion > 8 * max(1,without_motion)):
         raise AssertionError("Feature #5 fixture source audio lost in the composition mix")
     return {"intro_logo_luma_stddev": round(hero_luma, 2),
             "scene_delta": [round(n,2) for n in changes],
             "source_tone_amplitude": round(with_motion,2),
-            "nonclip_tone_amplitude": round(without_motion,2)}
+            "nonclip_tone_amplitude": round(without_motion,2),
+            "bed_ducked_source_amplitude": round(music_during_source, 2),
+            "bed_nonvoice_amplitude": round(music_after_source, 2)}
 
 
 def check_fullres_artifact(media_dir):

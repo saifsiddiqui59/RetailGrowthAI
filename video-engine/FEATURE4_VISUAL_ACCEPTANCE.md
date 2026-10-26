@@ -34,3 +34,9 @@ The owner rejected the original 30-second synthetic animation as basic. A techni
 ## Release ownership and blocker boundaries
 
 Feature #4 may change `video-engine/**`, `tests/media/**` and `frontend/src/features/video/**` only. Main, coordinator-owned `docs/**`, shared routes/API, deployment, private storage and subscription ledger remain under coordinator control. No production changes, new billable Azure resources or WineShopPOS modifications. PR #322 stays **draft** until approved real photos/Feature #5 media, human QA and hosted integration tests are available.
+
+## Full-minute CPU proof and pending realistic media gate
+
+A real **60.000-second, 1080×1920, H.264/AAC** synthetic output and six QA frames were verified in [CI #40318231205](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40318231205). This proves format/time feasibility on GitHub CPU, not Azure costs or photoreal human motion. The visual frames show a simple illustrated kurti silhouette, so the owner-level fashion quality gate remains unaccepted.
+
+The coordinator must adopt the additive trusted source-only worker callback contract in [FEATURE4_AZURE_HANDOFF.md](FEATURE4_AZURE_HANDOFF.md), reviewing actual DB claim/lease/media/ledger semantics before any hosted v2 enablement. No cost-bearing resource changes are authorized by this handoff. All commercial filming/music/garment media must remain explicitly licensed and merchant-reviewed.

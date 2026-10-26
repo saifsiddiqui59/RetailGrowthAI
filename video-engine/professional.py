@@ -445,12 +445,30 @@ h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.01
             f'background:{accent};color:{bg};padding:2%;text-align:center;font-size:{width//22}px;'
             f'font-weight:900;border-radius:12px">{cta}</div>'
         )
-    gain = "0.15" if source_audio else "0.55"
-    components.append(
-        f'<audio id="soundtrack" src="{soundtrack}" data-start="0" '
-        f'data-duration="{duration}" data-track-index="5" data-volume="{gain}" '
-        f'data-fade-in="0.35" data-fade-out="1.0"></audio>'
-    )
+    # Duck ONLY the licensed bed beneath clips retaining their original sound.
+    # This is deterministic scene-level gain, not transcription/VAD/AI speech QA.
+    # Keep the original single-track path for music-free and silent-video Reels.
+    if source_audio and plan.get("music_asset_id") is not None:
+        for i, scene in enumerate(plan["scenes"]):
+            aid = scene.get("asset_id")
+            is_source_sound = bool(aid and ordered[aid][1] == "video"
+                                   and not scene.get("mute_source", False))
+            gain = "0.12" if is_source_sound else "0.55"
+            start, length = scene["start"], scene["duration"]
+            fade = min(0.12, length / 6)
+            components.append(
+                f'<audio id="soundtrack{i}" src="{soundtrack}" data-start="{start}" '
+                f'data-duration="{length}" data-media-start="{start}" '
+                f'data-track-index="5" data-volume="{gain}" '
+                f'data-fade-in="{fade}" data-fade-out="{fade}"></audio>'
+            )
+    else:
+        gain = "0.15" if source_audio else "0.55"
+        components.append(
+            f'<audio id="soundtrack" src="{soundtrack}" data-start="0" '
+            f'data-duration="{duration}" data-track-index="5" data-volume="{gain}" '
+            f'data-fade-in="0.35" data-fade-out="1.0"></audio>'
+        )
     page = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         f'<meta name="viewport" content="width={width},height={height}">'

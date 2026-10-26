@@ -200,7 +200,8 @@ class ProfessionalVideoTests(unittest.TestCase):
         self.assertIn('<video class="footage clip"', page)
         self.assertIn('data-has-audio="true"', page)
         self.assertNotIn('playsinline muted', page)
-        self.assertIn('data-volume="0.15"', page)
+        self.assertIn('data-volume="0.12"', page)
+        self.assertIn('id="soundtrack0"', page)
         self.assertIn('data-media-start="0"', page)
 
 

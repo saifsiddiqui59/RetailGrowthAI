@@ -69,7 +69,7 @@ python3 "$ROOT/video-engine/hyperframes/check_feature4_output.py" "$ROOT/ci-arti
 # Explicit full-minute qualification (full 1080p, CPU, no GPU/provider charges).
 # Once the first source benchmark is recorded, keep this as an opt-in gate to
 # avoid paying a 60s full-resolution encode on every unrelated branch change.
-if [[ "${FEATURE4_FULL_MINUTE_CI:-1}" == "1" ]]; then
+if [[ "${FEATURE4_FULL_MINUTE_CI:-0}" == "1" ]]; then
   PROJECT_60="$TEMP/diwali-60s-1080p"
   OUTPUT_60="$ROOT/ci-artifacts/feature4-60s-1080p-hyperframes-synthetic.mp4"
   python3 "$ROOT/video-engine/demo_feature4_diwali.py" "$PROJECT_60" --seconds 60 --width 1080
