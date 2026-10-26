@@ -58,7 +58,7 @@ insert into public.shop_memberships(shop_id,user_id,role) values
  '22222222-2222-4222-8222-222222222222','VIEWER');
 
 reset role;
-select set_config('request.jwt.claims','{"role":"service_role"}',true);
+select set_config('request.jwt.claims','{"role":"service_role","sub":"11111111-1111-4111-8111-111111111111"}',true);
 insert into public.campaigns(id,shop_id,created_by,brief,start_date) values
 ('44444444-4444-4444-8444-444444444444',
  '33333333-3333-4333-8333-333333333333',
@@ -158,7 +158,7 @@ end $$;
 
 -- One edited storyboard produces ONE fresh job/reservation/outbox.
 reset role;
-select set_config('request.jwt.claims','{"role":"service_role"}',true);
+select set_config('request.jwt.claims','{"role":"service_role","sub":"11111111-1111-4111-8111-111111111111"}',true);
 update public.campaign_days set instagram=jsonb_set(instagram,
   '{reel,cta}','"Edited CTA"'::jsonb)
  where id='88888888-8888-4888-8888-888888888888';
@@ -193,7 +193,7 @@ begin
 end $$;
 -- Editing to unlicensed (but same-shop) source cannot bypass rights.
 reset role;
-select set_config('request.jwt.claims','{"role":"service_role"}',true);
+select set_config('request.jwt.claims','{"role":"service_role","sub":"11111111-1111-4111-8111-111111111111"}',true);
 update public.campaign_days set instagram=jsonb_set(instagram,
   '{reel,storyboard,0,asset_id}',
   '"66666666-6666-4666-8666-666666666666"'::jsonb)
