@@ -470,6 +470,29 @@ export function createRetailClient({
       license_name: licenseName, object_path: objectPath }
   }
 
+  // Existing campaign_days RLS already checks active shop membership.
+  // One read-only, bounded month query; NOT a social posting history endpoint.
+  async function listShopCalendarMonth(shopId, month) {
+    if (!UUID_V4.test(shopId || '') || !/^\\d{4}-(0[1-9]|1[0-2])$/.test(month || '')) {
+      throw new Error('Invalid business calendar scope')
+    }
+    const [year, number] = month.split('-').map(Number)
+    if (year < 2000 || year > 2099) throw new Error('Invalid business calendar month')
+    const start = month + '-01'
+    const end = new Date(Date.UTC(year, number, 1, 12)).toISOString().slice(0, 10)
+    const records = await send('/rest/v1/campaign_days', {
+      query: { select: 'id,shop_id,campaign_id,scheduled_date,topic,review_status',
+        shop_id: 'eq.' + shopId,
+        and: '(scheduled_date.gte.' + start + ',scheduled_date.lt.' + end + ')',
+        order: 'scheduled_date.asc', limit: '201' },
+      token: await accessToken(),
+    })
+    if (!Array.isArray(records) || records.length > 200 ||
+        records.some(row => !row || row.shop_id !== shopId)) {
+      throw new Error('Business calendar data could not be verified')
+    }
+    return records
+  }
   async function listMediaAssets(shopId) {
     if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/.test(shopId || '')) throw new Error('Invalid shop ID')
     const rows = await table('media_assets', {
@@ -484,7 +507,7 @@ export function createRetailClient({
     listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
     isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
     listPlatformNotifications, setPlatformNotificationRead, listPlatformSubscriptionWatch,
-    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listMediaAssets, uploadImageAsset,
+    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, uploadImageAsset,
   }
 }
 

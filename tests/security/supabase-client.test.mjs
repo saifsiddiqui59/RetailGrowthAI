@@ -274,3 +274,31 @@ test('non-owner subscription row invisibility stays a null result, not an upgrad
   await api.signIn('viewer@example.invalid', 'password')
   assert.equal(await api.getShopSubscription(shop), null)
 })
+
+test('read-only shop-wide draft month requires JWT, shop/date filters, rejects foreign rows and oversize',async()=>{
+  const shop='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  const cross='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+  const calls=[]
+  let response=[]
+  const api=fixture(async(url,options)=>{
+    calls.push({url,options})
+    if(url.includes('/auth/v1/token'))return json({access_token:'user-access',refresh_token:'user-refresh',expires_in:3600})
+    if(url.includes('/rest/v1/campaign_days'))return json(response)
+    throw new Error('Unexpected request '+url)
+  })
+  await api.signIn('test@example.test','secret12')
+  await assert.rejects(()=>api.listShopCalendarMonth(shop,'2026-13'),/Invalid/)
+  assert.equal(calls.filter(c=>c.url.includes('campaign_days')).length,0)
+  assert.deepEqual(await api.listShopCalendarMonth(shop,'2026-12'),[])
+  const call=calls.find(c=>c.url.includes('campaign_days'))
+  const params=new URL(call.url).searchParams
+  assert.equal(params.get('shop_id'),'eq.'+shop)
+  assert.equal(params.get('and'),'(scheduled_date.gte.2026-12-01,scheduled_date.lt.2027-01-01)')
+  assert.equal(params.get('limit'),'201')
+  assert.equal(call.options.headers.Authorization,'Bearer user-access')
+  assert.ok(!JSON.stringify(call).includes('service_role'))
+  response=[{shop_id:cross}]
+  await assert.rejects(()=>api.listShopCalendarMonth(shop,'2026-12'),/could not be verified/)
+  response=Array(201).fill({shop_id:shop})
+  await assert.rejects(()=>api.listShopCalendarMonth(shop,'2026-12'),/could not be verified/)
+})
