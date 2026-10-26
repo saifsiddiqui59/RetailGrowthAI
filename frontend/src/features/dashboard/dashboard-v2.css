@@ -164,3 +164,28 @@
 :root[data-rg-theme="dark"] .rg-creative-stages li{border-color:#3a5262}
 @media(max-width:900px){.rg-creative-layout{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:360px){.rg-creative-launchpad .panel{padding:17px}.rg-creative-stages li{gap:9px}.rg-creative-number{width:34px;flex-basis:34px;height:34px}}
+
+/* Feature #1: accessible, responsive shadcn-compatible Overview migration.
+   Pure CSS/UI changes; metrics remain backend-verified and on-demand. */
+.rg-overview-primary {display:inline-flex;align-items:center;gap:8px;text-decoration:none;white-space:normal;min-height:42px}
+.rg-overview-metric{min-width:0;position:relative;isolation:isolate;overflow:hidden;transition:border-color .18s ease,box-shadow .18s ease}
+.rg-overview-metric::before{content:"";display:block;width:34px;height:4px;border-radius:20px;background:linear-gradient(90deg,#166a54,#6cbea1);margin-bottom:13px}
+.rg-overview-metric strong{font-variant-numeric:tabular-nums;font-size:clamp(1.7rem,2.5vw,2.35rem);line-height:1.12;overflow-wrap:anywhere}
+.rg-overview-metric small{line-height:1.45}
+.rg-overview-actions>.rg-overview-action-card{min-width:0}
+.rg-overview-action-card .text-link{display:inline-block;max-width:100%;overflow-wrap:anywhere;min-height:27px}
+.overview .dashboard-filter-row{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+.overview .dashboard-filter-row select{min-height:42px;max-width:100%}
+.overview .dashboard-filter-row [data-slot="button"]{min-height:42px}
+:root[data-rg-theme="dark"] .rg-overview-metric::before{background:linear-gradient(90deg,#80dbb7,#b2ecda)}
+:root[data-rg-theme="dark"] .rg-overview-primary{color:#fff}
+@media(max-width:560px){
+  .overview .page-heading{gap:15px}
+  .overview .rg-overview-primary{width:100%;justify-content:center}
+  .overview .dashboard-filter-row>label{flex:1 1 100%;min-width:0}
+  .overview .dashboard-filter-row>label select{width:100%}
+  .overview .dashboard-filter-row [data-slot="button"]{flex:1 1 auto}
+  .overview .dashboard-section-grid{grid-template-columns:minmax(0,1fr)}
+  .overview .rg-overview-action-card{padding:18px}
+}
+@media(prefers-reduced-motion:reduce){.rg-overview-metric{transition:none}}

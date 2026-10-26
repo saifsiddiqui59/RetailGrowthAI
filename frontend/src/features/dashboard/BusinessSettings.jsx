@@ -61,6 +61,10 @@ function ProfileEditor({ client, userId, shop }) {
       const result = await client.updateBusinessProfile(shopId, patch)
       if (!result || result.shop_id !== shopId) throw new Error('Saved profile scope could not be verified.')
       queryClient.setQueryData(key, result)
+      // Creative Studio only reads verified, per-shop context. A successful
+      // profile PATCH invalidates its matching view so returning from Settings
+      // cannot continue to display a stale brand-readiness checklist.
+      await queryClient.invalidateQueries({ queryKey: ['creative-launchpad', 'profile', userId, shopId] })
       setMessage('Business profile saved and verified for this business.')
     } catch {
       setError('Profile update was rejected or unavailable. Your changes were not confirmed.')

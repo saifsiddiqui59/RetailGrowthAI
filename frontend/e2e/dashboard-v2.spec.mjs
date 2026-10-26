@@ -79,6 +79,24 @@ test('320px mobile drawer, new navigation, and dark mode persist without overflo
   await expect(page.locator('html')).toHaveAttribute('data-rg-theme', 'light')
 })
 
+test('mobile Overview uses existing UI primitives and only refreshes metrics on demand', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 })
+  const calls = await signedIn(page)
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Campaign workspace' })).toBeVisible()
+  const metrics = page.getByRole('region', { name: 'Live business metrics' })
+  await expect(metrics.locator('[data-slot="card"]')).toHaveCount(4)
+  await expect(page.getByRole('link', { name: 'Open campaign studio' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Refresh business metrics' })).toBeEnabled()
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  const firstReads = calls.filter(path=>path==='/rest/v1/campaigns' || path==='/rest/v1/render_jobs').length
+  await page.getByRole('button',{name:'Refresh business metrics'}).click()
+  await expect(page.getByRole('button', { name:'Refresh business metrics' })).toBeEnabled()
+  await expect.poll(() => calls.filter(path=>path==='/rest/v1/campaigns' ||
+    path==='/rest/v1/render_jobs').length).toBeGreaterThan(firstReads)
+})
+
 test('media library filters business-owned records without public blob URLs', async ({ page }) => {
   const calls = await signedIn(page)
   await page.goto('/media-library')
