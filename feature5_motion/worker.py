@@ -93,7 +93,10 @@ class MotionWorker:
             if not isinstance(receipt, dict) or receipt.get("shop_id") != spec.shop_id or receipt.get("job_id") != jid:
                 raise MotionError("Private upload receipt mismatch")
             if not self.store.complete(jid, token, receipt):
-                raise MotionError("Finalization lease mismatch; reconcile without resubmission")
+                # A private output may already exist; do NOT mark refundable FAILED.
+                if not self.store.mark_unknown(jid, token, "FINALIZE_UNCERTAIN"):
+                    raise MotionError("Finalization unknown; manual ledger reconciliation required")
+                return "UNKNOWN"
             return "SUCCEEDED"
         except Exception:
             # Failed local inference may consume real GPU; caller reconciles actual cost,
