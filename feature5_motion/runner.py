@@ -43,11 +43,11 @@ class HunyuanLocalRunner:
         frame = "none"
         if source_file is not None:
             source = Path(source_file).resolve(strict=True)
-            if not source.is_file() or not source.is_relative_to(wd) or source.suffix.lower() not in (".png", ".jpg", ".jpeg"):
+            if not source.is_file() or not source.is_relative_to(wd) or source.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp"):
                 raise MotionError("Source must be validated and staged inside private job directory")
             if not 0 < source.stat().st_size <= 20 * 1024 * 1024:
                 raise MotionError("Source media exceeds approved staging size")
-            frame = str(source)
+            with source.open("rb") as stream:\n                signature = stream.read(16)\n            is_png = signature.startswith(b"\\x89PNG\\r\\n\\x1a\\n")\n            is_jpeg = signature.startswith(b"\\xff\\xd8\\xff")\n            is_webp = signature.startswith(b"RIFF") and signature[8:12] == b"WEBP"\n            if not ((source.suffix.lower() == ".png" and is_png) or\n                    (source.suffix.lower() in (".jpg", ".jpeg") and is_jpeg) or\n                    (source.suffix.lower() == ".webp" and is_webp)):\n                raise MotionError("Staged image signature mismatch")\n            frame = str(source)
         output = wd / "motion.mp4"
         if output.exists():  # Never overwrite a previous successful/maybe-billable result.
             raise MotionError("Motion output already exists")

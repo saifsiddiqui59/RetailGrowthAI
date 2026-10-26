@@ -7,3 +7,4 @@
 - Added contract, gated local CLI runner and separate injected worker; added offline tests and cost/rollout proposal.
 - No real GPU test, paid API call, subscription adjustment, Azure resource, migration, production edit or WineShopPOS edit.
 - The exact CI status and pull-request outcome must be added only after inspecting actual runs; no unverified PASS claimed.
+\n- Strengthened image-byte signature checks (PNG/JPEG/WEBP) and DB claim token canonicalization; ambiguous post-upload DB completion remains UNKNOWN for reconciliation, not a duplicate bill or automatic refund.\n

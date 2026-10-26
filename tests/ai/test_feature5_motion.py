@@ -162,7 +162,7 @@ class TestMotionWorker(unittest.TestCase):
         self.store.claim.return_value = {"attempt_token": self.token, "spec": self.spec,
                                          "reserved_usd": 0.1, "review_status": "APPROVED"}
         self.store.complete.return_value = True
-        self.store.fail.return_value = True
+        self.store.fail.return_value = True\n        self.store.mark_unknown.return_value = True
         self.media.grant.return_value = self.grant
         self.media.upload_private.return_value = {"shop_id": self.shop, "job_id": self.job}
 
@@ -215,7 +215,7 @@ class TestMotionWorker(unittest.TestCase):
             self.assertTrue(metadata["quality_review_required"])
             self.assertEqual(metadata["source_asset_id"], self.asset)
 
-    def test_non_private_receipt_rejected(self):
+    def test_atomic_completion_failure_is_unknown_not_refund(self):\n        with tempfile.TemporaryDirectory() as temp:\n            self.media.stage.side_effect = lambda shop, asset, wd: wd / "source.png"\n            self.runner.run.side_effect = lambda spec, *, source_file, workdir: workdir / "motion.mp4"\n            self.store.complete.return_value = False\n            worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,\n                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1)\n            with patch("feature5_motion.worker.validate_clip", return_value={"codec": "h264"}):\n                self.assertEqual(worker.execute(self.job), "UNKNOWN")\n            self.store.mark_unknown.assert_called_once()\n            self.store.fail.assert_not_called()\n\n    def test_non_private_receipt_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             self.runner.run.side_effect = lambda spec, *, source_file, workdir: workdir / "motion.mp4"
             self.media.upload_private.return_value = {"shop_id": uid(), "job_id": self.job}

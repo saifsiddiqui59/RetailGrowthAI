@@ -16,7 +16,7 @@ from .contracts import MotionError, MotionSpec, AssetGrant, canonical_uuid, vali
 class JobStore(Protocol):
     def claim(self, job_id: str) -> dict | None: ...
     def complete(self, job_id: str, attempt_token: str, media_record: dict) -> bool: ...
-    def fail(self, job_id: str, attempt_token: str, category: str) -> bool: ...
+    def fail(self, job_id: str, attempt_token: str, category: str) -> bool: ...\n    def mark_unknown(self, job_id: str, attempt_token: str, category: str) -> bool: ...
 
 
 class TenantMedia(Protocol):
@@ -67,7 +67,7 @@ class MotionWorker:
         claim = self.store.claim(jid)  # Must be atomic DB lease + existing reserved quota.
         if claim is None:
             return "NOT_CLAIMED"
-        token = claim["attempt_token"]  # Store owns this value; never caller input.
+        token = canonical_uuid(claim["attempt_token"])  # DB-owned fenced claim, no traversal.
         spec = claim["spec"]
         if not isinstance(spec, MotionSpec) or spec.job_id != jid:
             raise MotionError("Invalid authoritative job claim")
