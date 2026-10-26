@@ -399,3 +399,49 @@ this handoff requests those updates at review/merge.
   and signed download; only then promote v2 from local JSON to cloud.
   Not necessary to add Konva, GPU or additional always-on capacity to
   deliver basic CPU poster editing.
+
+### 2026-10-26 — Browser-only no-GPU PNG draft and context-locked backups
+
+- Added `frontend/src/features/creative/feature3-local-png.mjs`, a
+  bounded 1080x1080/1350/1920 **local Canvas PNG draft** renderer.
+  It draws real editable text, background/badge layers, rights-limited
+  preloaded private image layers, alpha-preserving logo contain and
+  product-image center cover. All text is wrapped to fit or export
+  is blocked; it never truncates a shop name, offer or disclaimer.
+  No URLs are fetched; no GPU, cloud queue or additional npm dependency
+  is used. Browser output file explicitly says `unreviewed-local-draft`.
+  This is a convenient local/fixture output, **NOT** the final reviewed
+  Pillow render, approved media object, campaign banner or production
+  publishing receipt.
+- `Feature3CpuEditor.jsx` has a clearly labeled
+  `Download local draft PNG (unreviewed)` button in addition to
+  editable JSON backup. Offline standalone contract tests cover all
+  required 1080 layout formats, image/brand placement, text-preserving
+  rejection, unregistered image denial, excessive image dimensions
+  and no prompt-invented discount (`feature3-local-png.test.mjs`).
+- `feature3-local-backup.mjs` now binds every local JSON backup
+  to the **exact original shop/campaign/day** and
+  `approved=false, cloud_saved=false`; importing a backup from
+  another day, shop, campaign, or from a media ID no longer allowed
+  is rejected. Legacy raw v2 design-only JSON backups are not
+  imported under the stricter day binding; such designs can still be
+  reconstructed manually, but old raw backup migration requires
+  explicit review. Negative tests in `feature3-local-backup.test.mjs`.
+- Existing secure Part 1 cloud APIs are not modified; the CPU
+  editor remains local until coordinator issue #325 provisions the
+  reviewed versioned Supabase/RLS API and private output workflow.
+  `feature3-local-png.mjs` is not an alternative secure server.
+- **Exact confirmed CI on feature head `087ac10dffc13241b07ea674db2a40034cd14dd2`:**
+  [PR run #40320930298](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40320930298)
+  and [push run #40320924298](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40320924298)
+  both **4/4 PASS** (existing frontend fixture contract/build,
+  Python/uv, FFmpeg/media, disposable local Supabase isolation).
+  Live React browser click-and-download tests on authenticated,
+  hosted customers are **not** covered; do not claim they passed.
+- **Cost**: zero new Azure/Supabase service, dependency, external
+  model call, GPU or inference charges. Download uses retailer's
+  local browser CPU. Actual cloud savings are not priced or benchmarked.
+- **Next coordinator gates**: private-media imageMap, verified
+  React mobile/browser interaction, v2 durable save/reopen and
+  genuine signed immutable production PNG/GIF/MP4 downloads.
+  Human approval and licensing still mandatory before publishing.
