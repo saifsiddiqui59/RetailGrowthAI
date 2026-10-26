@@ -13,6 +13,7 @@ import subprocess
 from typing import Protocol
 
 from .contracts import MotionError, MotionSpec, AssetGrant, canonical_uuid, validate_source
+from .azure_pricing import MotionSpendGuard
 
 
 class JobStore(Protocol):
@@ -68,17 +69,27 @@ def _valid_amount(amount):
 
 class MotionWorker:
     def __init__(self, *, store: JobStore, media: TenantMedia, runner, workdir_root: Path,
-                 enabled: bool = False, credit_cap_usd: float = 0):
+                 enabled: bool = False, credit_cap_usd: float = 0,
+                 cost_guard: MotionSpendGuard | None = None):
         self.store, self.media, self.runner = store, media, runner
         self.root = Path(workdir_root)
         self.enabled = enabled
         self.credit_cap_usd = credit_cap_usd
+        self.cost_guard = cost_guard
 
     def execute(self, job_id: str) -> str:
         jid = canonical_uuid(job_id)
         cap = _valid_amount(self.credit_cap_usd)
         if not self.enabled or cap is None:
             raise MotionError("Premium motion worker disabled")
+        if not isinstance(self.cost_guard, MotionSpendGuard):
+            raise MotionError("GPU cost ceiling must be reviewed before any claim")
+        maximum_cost = self.cost_guard.minimum_reservation_usd()
+        runner_limit = getattr(self.runner, "timeout_seconds", None)
+        if (type(runner_limit) is not int or
+            runner_limit > self.cost_guard.max_billable_seconds or
+            maximum_cost > cap):
+            raise MotionError("GPU runtime exceeds reserved spending ceiling")
         claim = self.store.claim(jid)  # Must be atomic DB lease + existing reserved quota.
         if claim is None:
             return "NOT_CLAIMED"
@@ -87,8 +98,9 @@ class MotionWorker:
         if not isinstance(spec, MotionSpec) or spec.job_id != jid:
             raise MotionError("Invalid authoritative job claim")
         reservation = _valid_amount(claim.get("reserved_usd"))
-        if reservation is None or reservation > cap or claim.get("review_status") != "APPROVED":
-            raise MotionError("Missing approved ledger reservation")
+        if (reservation is None or reservation > cap or reservation < maximum_cost
+            or claim.get("review_status") != "APPROVED"):
+            raise MotionError("Existing ledger reservation cannot cover worst-case GPU spend")
         workdir = None
         try:
             grant = self.media.grant(spec.shop_id, spec.source_asset_id) if spec.source_asset_id else None
@@ -115,7 +127,8 @@ class MotionWorker:
                          "source_asset_id": spec.source_asset_id, "provider": "hunyuan-video-1.5",
                          "prompt_version": spec.prompt_version, "seed": spec.seed,
                          "license_status": "PENDING_FINAL_REVIEW", "quality_review_required": True,
-                         "reserved_usd": str(reservation), "compute_seconds_measured": None})
+                         "reserved_usd": str(reservation), "compute_seconds_measured": None,
+                         "maximum_compute_budget_usd": str(maximum_cost)})
             # An upload timeout may happen AFTER private bytes were accepted.
             # Never declare refundable FAILED or start inference again.
             try:
