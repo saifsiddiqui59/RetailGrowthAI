@@ -127,19 +127,57 @@ def compose_poster(*, shop_id, mode, prompt, business_name, headline=None,
         }.items() if any(word in words for word in hints)), "fashion")
     if template not in TEMPLATES or format not in FORMATS:
         raise DesignError("Invalid template or format")
+    # Distinct art direction without 10 competing raster implementations.
+    # The retailer's approved brand colors take precedence over these defaults.
+    palettes = {
+        "fashion": ("#C05F43", "#FCF4EC"),
+        "luxury": ("#A98A4B", "#F5F0E5"),
+        "streetwear": ("#F4511E", "#F2F2F2"),
+        "ethnic": ("#A93E4A", "#FFF1DB"),
+        "festival": ("#CE8831", "#FFF3DB"),
+        "restaurant": ("#B54A28", "#FCF2E5"),
+        "general": ("#286B6A", "#F2F7F6"),
+        "new_arrivals": ("#4469A3", "#F5F7FF"),
+        "clearance": ("#D63E32", "#FFF1EE"),
+        "seasonal": ("#55744E", "#F5F7EA"),
+    }
+    if accent == "#C05F43" and background == "#FCF4EC":
+        accent, background = palettes[template]
+    image_rects = {
+        "luxury": (.12, .17, .76, .43), "streetwear": (0, .15, 1, .48),
+        "ethnic": (.08, .16, .84, .46), "festival": (.07, .19, .86, .43),
+        "restaurant": (.07, .16, .86, .48), "clearance": (0, .15, 1, .48),
+    }
+    ix, iy, iw, ih = image_rects.get(template, (.07, .16, .86, .47))
+    headline_size = 58 if template in ("streetwear", "clearance") else 48 if template == "luxury" else 52
+    label = {
+        "fashion": "THE STYLE EDIT", "luxury": "THE EDIT",
+        "streetwear": "BOLD STYLE", "ethnic": "THE ETHNIC EDIT",
+        "festival": "FESTIVE EDIT", "restaurant": "MENU SPOTLIGHT",
+        "general": "DISCOVER MORE", "new_arrivals": "THE LATEST EDIT",
+        "clearance": "SHOP THE EDIT", "seasonal": "SEASONAL EDIT",
+    }[template]
     layers = [
         {"id": "brand", "type": "text", "x": .07, "y": .055, "w": .86, "h": .07,
          "text": name.upper(), "color": "#23232B", "font_size": 37, "bold": True},
+        {"id": "accent-rule", "type": "rect",
+         "x": .07 if template != "streetwear" else 0, "y": .135,
+         "w": .23 if template != "clearance" else .86, "h": .008, "color": accent},
     ]
     if source_asset_id:
-        layers.append({"id": "product", "type": "image", "x": .07, "y": .16,
-                       "w": .86, "h": .47, "asset_id": source_asset_id})
+        layers.append({"id": "product", "type": "image", "x": ix, "y": iy,
+                       "w": iw, "h": ih, "asset_id": source_asset_id})
     else:
-        layers.append({"id": "decorative", "type": "rect", "x": .07, "y": .16,
-                       "w": .86, "h": .47, "color": accent})
+        layers += [
+            {"id": "decorative", "type": "rect", "x": ix, "y": iy,
+             "w": iw, "h": ih, "color": accent},
+            {"id": "concept-label", "type": "text", "x": .13, "y": .38,
+             "w": .74, "h": .12, "text": label, "color": "#FFFFFF",
+             "font_size": 62, "bold": True},
+        ]
     layers += [
         {"id": "headline", "type": "text", "x": .07, "y": .665, "w": .86, "h": .12,
-         "text": title, "color": "#23232B", "font_size": 52, "bold": True},
+         "text": title, "color": "#23232B", "font_size": headline_size, "bold": True},
     ]
     if approved_offer is not None:
         # This parameter must originate from an approved campaign/merchant record,
