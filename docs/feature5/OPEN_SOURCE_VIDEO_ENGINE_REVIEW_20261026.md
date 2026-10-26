@@ -45,3 +45,30 @@
 - RetailGrowthAI current source-only Feature5 PR #323: https://github.com/saifsiddiqui59/RetailGrowthAI/pull/323
 
 **Acceptance:** only claim production model selection after live licensed CUDA 5s and 60s content is privately generated, FFprobed/hashed, visually reviewed and priced from actual Azure usage. Until then, all three candidates are *evaluated upstream projects*, not deployed RetailGrowthAI workers.
+
+## 2026-10-26 decision aid — costs for FULL original Git repositories on Azure
+
+**Customer instruction:** run the original upstream software (full ComfyUI and its model extensions, with genuine full video-model checkpoints), not a reimplementation or mock generator. Do not replace working upstream workflows with hand-built approximations. Integration to RetailGrowthAI should be a thin authenticated wrapper, not a rewrite of the generator.
+
+### Route 1: the whole Microsoft Azure Samples project, unchanged first
+
+- Official full repository: https://github.com/Azure-Samples/comfyui-on-azure
+- It provisions an **Azure Linux H100 GPU VM**, NVIDIA CUDA, complete ComfyUI and Wan2.2/LTX-2 model installations via its Terraform runbook. Upstream VM example publicly exposes an HTTP :8188 URI; *for RetailGrowthAI*, close/public-restrict that raw UI and restrict it to trusted operators and the private Azure network before using any customer content.
+- The `Standard_NC40ads_H100_v5` is **40 vCPUs, 320 GiB RAM, 1x H100 GPU**. Observed public East US Linux PAYG rate **$6.98/hour** (2026-10; source: https://azurehub.org/tools/vm-pricing/Standard_NC40ads_H100_v5/ and https://cloudprice.net/vm/Standard_NC40ads_H100_v5).
+- Approximate INR at October 26, 2026 spot ~₹95.38/USD: **₹666/hour**, **₹15,980/24h**, **₹486,000 per 730-hour month** in VM compute alone, excluding persistent disks, Azure Blob, IP/network, model licensing and tax.
+- VM compute bills when allocated **even while idle**; **stop/deallocate** the VM between operator sessions to stop VM compute, while disk may keep billing. Do not leave Terraform resources running 24/7 for a one-off proof.
+- **BLOCKER:** actual DEV East US VM quota audited at 10 regional vCPU by OIDC #40355181214, below this exact VM's 40 vCPUs. A VM quota increase and SKU/account stock would be necessary. Azure Samples code does not bypass account quota.
+
+### Route 2: entire ORIGINAL video engine inside existing Azure serverless GPU worker
+
+- Clone/fetch and pin **full official source repositories**, install exact compatible ComfyUI extensions and LTX weights; do not copy a minimal imitation generator. Deploy in an Azure Container Apps GPU-enabled image with private model storage and restricted job invocation. The Azure Samples H100 *Terraform* itself is **not directly deployable** to serverless ACA without different resource/container deployment packaging, networking, model-weight storage and warm-start considerations.
+- Verified official Azure Retail Prices API for **East US on 2026-10-26**: https://prices.azure.com/api/retail/prices?%24filter=serviceName%20eq%20%27Azure%20Container%20Apps%27%20and%20armRegionName%20eq%20%27eastus%27 : A100 NCv4 GPU **$0.000529/active second**, standard active vCPU **$0.000024/vCPU-second**, active RAM **$0.000003/GiB-second**. An explicitly **illustrative** 4 vCPU + 16 GiB allocation totals **$0.000673 per second** = **$2.4228/hour** = **~₹231/hour**. Actual full LTX/ComfyUI worker may require higher CPU/RAM, affecting total cost.
+- Illustrative billable active runtime: 0.5h ₹116; 1h ₹231; 2h ₹462; 4h ₹924; 8h ₹1,849. **These are not per 60s output reel.** Model downloads, cold start, multi-window LTX long-shot generation, failed attempts and retries remain unbenchmarked; quote only once a real licensed private run is profiled.
+- Serverless GPU can scale to **zero** when inactive per https://learn.microsoft.com/en-us/azure/container-apps/gpu-serverless-overview; other Azure resources/storage still cost money. Treat UI availability/response to cold start, large disk read and model init as unproven.
+- **BLOCKER:** the already created East US `rgai-f5-gpu-canary-eastus` has **ManagedEnvironmentConsumptionNCA100Gpus limit=0** according to Azure OIDC #40347841764. The user has navigated Azure's support-form submission but no support case receipt or approval readback has been verified. Azure cannot schedule the GPU until that quota is nonzero.
+
+### Real deployment and acceptance approach
+
+1. Prefer route 2 for cost ***after quota approval***, but first test whether full upstream ComfyUI+LTX workflow and its checkpoint/config actually fit and perform on A100, with exact source and weight versions pinned, independent license review, all external ports secured and no public sample portal.
+2. If operator insists on using Microsoft Samples as-is to immediately get the original project with minimal integration engineering, route 1 is the reproducible H100 VM option, **but requires a 40-vCPU quota** and costs roughly 3x per active hour, plus ongoing bills until deallocation. Neither option is free of Azure quota hurdles under the observed DEV limits.
+3. The first billable action must be an explicitly capped synthetic DEV run; record **real measured GPU billable seconds** for a long-shot 60-second output, original model output, hash, ffprobe, visual/garment continuity review and proof that the workload used the upstream engine. *Do not sell cost or output quality guarantees without that benchmark.*
