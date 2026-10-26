@@ -9,7 +9,7 @@ const MARKER = Object.freeze({
   "X-Content-Type-Options": "nosniff",
 });
 
-function respond(method, path, bearer = "") {
+function respond(method, path) {
   const response = routeControl(method, path, bearer);
   return { ...response, headers: MARKER };
 }
