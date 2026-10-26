@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { createTrendApi } from './trend-api.mjs'
+import { reconcileSubmittedDraft } from './trend-draft-reconcile.mjs'
 import TrendRecommendations from './TrendRecommendations.jsx'
 
 const tomorrowIndia = () => {
@@ -89,20 +90,32 @@ export default function TrendWorkspace() {
     setSaving(true)
     setError('')
     setSaved(null)
+    const targetShop = shopId
+    const submissionId = crypto.randomUUID()
+    let postAttempted = false
     try {
-      const data = await api.createDraft(shopId, trend.trend_id, {
-        shop_id: shopId, brief, duration_days: 7, start_date: startDate,
+      // GET must work before attempting an irreversible POST. This protects
+      // against blind retries when the Azure #249 gateway loses an ACK.
+      const before = await api.listDrafts(targetShop)
+      if (before.shop_id !== targetShop || !Array.isArray(before.drafts)) {
+        throw new Error('Recent draft readback unavailable')
+      }
+      const campaign = {
+        shop_id: targetShop, brief, duration_days: 7, start_date: startDate,
         timezone: 'Asia/Kolkata', language: 'en-IN',
         platforms: ['linkedin', 'instagram'],
         media_asset_ids: [assetId], offer: null,
-      })
-      if (data.shop_id !== shopId || data.status !== 'DRAFT') {
-        throw new Error('Unexpected draft response')
+      }
+      postAttempted = true
+      // Once attempted, never automatically send this POST a second time.
+      const data = await api.createDraft(targetShop, trend.trend_id, campaign, submissionId)
+      if (data.shop_id !== targetShop || data.status !== 'DRAFT') {
+        throw new Error('Unconfirmed draft acknowledgement')
       }
       setSaved(data.draft_id)
       try {
-        const recent = await api.listDrafts(shopId)
-        if (recent.shop_id === shopId && Array.isArray(recent.drafts)) {
+        const recent = await api.listDrafts(targetShop)
+        if (recent.shop_id === targetShop && Array.isArray(recent.drafts)) {
           setDrafts(recent.drafts)
           setDraftError('')
         }
@@ -110,7 +123,31 @@ export default function TrendWorkspace() {
         setDraftError('Draft saved, but the review list could not refresh.')
       }
     } catch {
-      setError('Draft could not be saved. Verify your business profile, image license and source availability.')
+      if (!postAttempted) {
+        setError('Saved draft history could not be verified. No new draft was submitted.')
+      } else {
+        // A failed HTTP response is NOT evidence that Azure did not commit.
+        // Re-read using the signed-in user's RLS view; no mutation/retry.
+        try {
+          const recent = await api.listDrafts(targetShop)
+          if (recent.shop_id !== targetShop || !Array.isArray(recent.drafts)) {
+            throw new Error('Invalid readback shop')
+          }
+          const recoveredId = reconcileSubmittedDraft(recent.drafts, {
+            shopId: targetShop, trendId: trend.trend_id, submissionId,
+          })
+          setDrafts(recent.drafts)
+          if (recoveredId) {
+            setSaved(recoveredId)
+            setDraftError('')
+            setError('Azure interrupted the response, but this draft was confirmed in your saved history. It was not submitted again.')
+          } else {
+            setError('The save outcome is not confirmed. Check Saved drafts before starting another request; no automatic retry was made.')
+          }
+        } catch {
+          setError('The save outcome is unknown because the signed-in read-back failed. Do not retry until you can check Saved drafts.')
+        }
+      }
     } finally { setSaving(false) }
   }, [api, canWrite, assetId, brief, startDate, saving, shopId])
   if (!configured || !api) return (
