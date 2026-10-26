@@ -19,6 +19,18 @@ begin
   if not has_function_privilege('authenticated','public.request_reel_render_job(uuid,uuid)','EXECUTE') then
     raise exception 'authenticated cannot execute narrowed Reel SQL RPC';
   end if;
+  if exists (
+    select 1 from pg_catalog.pg_proc p
+    join pg_catalog.pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.proname='request_reel_render_job'
+      and p.prosecdef
+  ) then raise exception 'exposed public Reel RPC must NOT be security definer'; end if;
+  if not exists (
+    select 1 from pg_catalog.pg_proc p
+    join pg_catalog.pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='retail_private' and p.proname='request_reel_render_job_internal'
+      and p.prosecdef
+  ) then raise exception 'private implementation needs scoped definer for DB INSERT'; end if;
   if has_table_privilege('authenticated','public.render_jobs','INSERT') then
     raise exception 'unreviewed broad authenticated render_jobs INSERT grant';
   end if;
