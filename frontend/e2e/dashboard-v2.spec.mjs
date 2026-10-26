@@ -97,6 +97,28 @@ test('mobile Overview uses existing UI primitives and only refreshes metrics on 
     path==='/rest/v1/render_jobs').length).toBeGreaterThan(firstReads)
 })
 
+test('retailer media, calendar and settings share responsive cards and preserve private routes', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 })
+  const calls = await signedIn(page)
+  await page.goto('/media-library')
+  await expect(page.getByRole('heading', {name:'Media library'})).toBeVisible()
+  await expect(page.getByRole('link', {name:'Upload an image'})).toBeVisible()
+  await expect(page.getByRole('button', {name:'Refresh assets'})).toBeEnabled()
+  await expect(page.getByRole('region', {name:'Authorized media records'}).locator('[data-slot="card"]')).toHaveCount(1)
+  for (const route of ['/media-library','/calendar','/settings']) {
+    await page.goto(route)
+    await expect.poll(() => page.evaluate(() =>
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  }
+  await expect(page.getByRole('link',{name:'Account & security'})).toBeVisible()
+  await page.setViewportSize({width:768,height:900})
+  await page.goto('/calendar')
+  await expect(page.getByRole('button',{name:'Load recent campaign'})).toBeVisible()
+  await expect(page.getByRole('link',{name:'Open campaign studio'})).toBeVisible()
+  expect(calls.some(path=>path.includes('/retail_platform_notifications'))).toBe(false)
+  expect(calls.some(path=>path.includes('/social_accounts'))).toBe(false)
+})
+
 test('media library filters business-owned records without public blob URLs', async ({ page }) => {
   const calls = await signedIn(page)
   await page.goto('/media-library')

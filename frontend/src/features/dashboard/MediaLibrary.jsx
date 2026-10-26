@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { Card } from '../../components/ui/card.jsx'
+import { Button } from '../../components/ui/button.jsx'
 import { Badge } from '../../components/ui/badge.jsx'
 import { Skeleton } from '../../components/ui/skeleton.jsx'
 import { filterAssets, mediaLabel } from './media-library-model.mjs'
@@ -34,7 +35,7 @@ export default function MediaLibrary() {
     <div className="page-heading">
       <div><div className="eyebrow">AUTHORIZED BUSINESS ASSETS</div><h1>Media library</h1>
         <p className="lead">Browse the latest registered images for one business. All results are returned through your Supabase session and tenant RLS.</p></div>
-      <Link className="primary-action" to="/campaigns">Upload an image</Link>
+      <Button asChild className="primary-action rg-workspace-cta"><Link to="/campaigns">Upload an image</Link></Button>
     </div>
     <Card className="panel">
       {!configured && <p role="status">Connect RetailGrowthAI DEV Supabase to browse your private image records. No demo images are presented as uploads.</p>}
@@ -55,12 +56,12 @@ export default function MediaLibrary() {
             <option value="image/jpeg">JPEG</option><option value="image/webp">WebP</option>
           </select>
         </label>
-        <button type="button" className="subtle-button" disabled={!shopId || fetching}
-          onClick={() => assetsQuery.refetch()}>Refresh assets</button>
+        <Button type="button" variant="outline" className="subtle-button" disabled={!shopId || fetching}
+          onClick={() => assetsQuery.refetch()}>Refresh assets</Button>
       </div>}
       {fetching && <div role="status" aria-label="Loading media"><Skeleton className="rg-skeleton" />Loading registered images…</div>}
       {hasError && <p role="alert">Private media metadata could not be verified. No files or totals are estimated.
-        <button className="subtle-button" type="button" onClick={() => shopsQuery.isError ? shopsQuery.refetch() : assetsQuery.refetch()}>Retry</button>
+        <Button variant="outline" size="sm" onClick={() => shopsQuery.isError ? shopsQuery.refetch() : assetsQuery.refetch()}>Retry</Button>
       </p>}
       {configured && !fetching && !hasError && !hasShops && <p role="status">No accessible businesses. <Link to="/account">Create or join a business in Account.</Link></p>}
       {configured && hasShops && !fetching && !hasError && <>
@@ -69,13 +70,13 @@ export default function MediaLibrary() {
         {assets.length === 0
           ? <p role="status">No matching registered images in this business. Upload licensed images through Campaign Studio.</p>
           : <div className="rg-library-grid" role="region" aria-label="Authorized media records">
-              {assets.map(asset => <article className="rg-library-record" key={asset.id}>
+              {assets.map(asset => <Card className="rg-library-record" key={asset.id}>
                 <div className="rg-library-icon" aria-hidden="true">▧</div>
                 <div><strong>{mediaLabel(asset.id)}</strong>
                   <p>{asset.mime_type || 'Image type unavailable'}</p>
                   <span>Licence: {asset.license_name}</span>
                 </div>
-              </article>)}
+              </Card>)}
             </div>}
       </>}
       <p className="rg-library-safety">Files remain private. Metadata is not a signed image URL; no direct blob links, public sharing, delete operations or unverified rights are offered here.</p>

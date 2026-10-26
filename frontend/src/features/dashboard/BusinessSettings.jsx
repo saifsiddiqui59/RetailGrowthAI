@@ -113,7 +113,7 @@ export default function BusinessSettings() {
     <div className="page-heading"><div><div className="eyebrow">BUSINESS / ACCOUNT</div>
       <h1>Workspace settings</h1>
       <p className="lead">Update your own retailer context; PostgreSQL still enforces role and tenant permissions for every change.</p></div>
-      <Link to="/account" className="primary-action">Account &amp; security</Link>
+      <Button asChild className="primary-action rg-workspace-cta"><Link to="/account">Account &amp; security</Link></Button>
     </div>
     {!configured && <Card className="panel"><p role="status">Connect the dedicated RetailGrowthAI Supabase project. Settings never use demo credentials.</p></Card>}
     {configured && user && <>

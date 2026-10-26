@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { createCampaignApi } from '../campaigns/campaign-api.mjs'
 import { Card } from '../../components/ui/card.jsx'
+import { Button } from '../../components/ui/button.jsx'
 import { Badge } from '../../components/ui/badge.jsx'
 import { recentCampaignHint, verifiedCampaignDays } from './recent-calendar-model.mjs'
 
@@ -24,14 +25,22 @@ export default function RecentCampaignCalendar() {
     supabaseOrigin: import.meta.env?.VITE_SUPABASE_URL || '',
     supabasePublishableKey: import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY || '',
   }), [client])
-  const days = campaign ? verifiedCampaignDays(campaign, shopId) : []
+  // A membership refresh can switch the authorized shop while the page stays
+  // mounted. Never render status or draft dates from the previous business.
+  const verifiedCampaign = campaign?.shop_id === shopId ? campaign : null
+  const days = verifiedCampaign ? verifiedCampaignDays(verifiedCampaign, shopId) : []
   const eligible = Boolean(user && configured && shopId && api)
 
   async function fetchRecent() {
     if (!eligible || loading) return
     setError('')
     setCampaign(null)
-    const hint = recentCampaignHint(window.sessionStorage, user.id, shopId)
+    let hint
+    try { hint = recentCampaignHint(window.sessionStorage, user.id, shopId) }
+    catch {
+      setError('Recent campaign preference could not be accessed in this browser. Open Campaign Studio to review an authorized draft.')
+      return
+    }
     if (!hint) {
       setError('No recent campaign is saved in this browser session for this business. Open Campaign Studio to create or review one.')
       return
@@ -56,7 +65,7 @@ export default function RecentCampaignCalendar() {
     <div className="page-heading"><div><div className="eyebrow">RECENT CAMPAIGN / DRAFT SCHEDULE</div>
       <h1>Campaign calendar</h1>
       <p className="lead">Review verified dates from your latest campaign in this browser session. Draft dates are not social publishing confirmations.</p>
-    </div><Link to="/campaigns" className="primary-action">Open campaign studio</Link></div>
+    </div><Button asChild className="primary-action rg-workspace-cta"><Link to="/campaigns">Open campaign studio</Link></Button></div>
     <Card className="panel">
       {!eligible && <p role="status">Sign in and select a business with the RetailGrowthAI DEV campaign API configured to view authorized campaign dates.</p>}
       {eligible && <>
@@ -67,22 +76,22 @@ export default function RecentCampaignCalendar() {
               {shops.map(shop=><option value={shop.id} key={shop.id}>{shop.name}</option>)}
             </select>
           </label>
-          <button className="subtle-button" type="button" disabled={loading}
-            onClick={fetchRecent}>{loading ? 'Checking…' : 'Load recent campaign'}</button>
+          <Button variant="outline" className="subtle-button" disabled={loading}
+            onClick={fetchRecent}>{loading ? 'Checking…' : 'Load recent campaign'}</Button>
         </div>
         {error && <p role="alert">{error}</p>}
-        {campaign && <div className="rg-library-summary" role="status">
-          <Badge>Verified campaign: {campaign.status}</Badge>
+        {verifiedCampaign && <div className="rg-library-summary" role="status">
+          <Badge>Verified campaign: {verifiedCampaign.status}</Badge>
           <span>{days.length} verified draft dates in this campaign</span>
         </div>}
         {!!days.length && <div className="rg-calendar-grid" aria-label="Verified campaign day schedule">
-          {days.map(day=><article className="rg-calendar-day" key={day.id}>
+          {days.map(day=><Card className="rg-calendar-day" key={day.id}>
             <div className="rg-calendar-date"><strong>{day.scheduled_date}</strong>
               <Badge>{day.review_status}</Badge></div>
             <h2>{day.topic}</h2><span>Day {day.day_index} · Not published</span>
-          </article>)}
+          </Card>)}
         </div>}
-        {campaign && !days.length && <p role="status">No verified draft schedule is available. Campaign status: {campaign.status}.</p>}
+        {verifiedCampaign && !days.length && <p role="status">No verified draft schedule is available. Campaign status: {verifiedCampaign.status}.</p>}
       </>}
       <p className="rg-library-safety">This is the most recent per-user/per-shop campaign hint, not a cross-campaign calendar. No publishing or media job is triggered. Global calendars remain part of Feature #6 integration.</p>
     </Card>
