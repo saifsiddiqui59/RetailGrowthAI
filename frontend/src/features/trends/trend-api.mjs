@@ -44,8 +44,31 @@ export function createTrendApi({ baseUrl, tokenProvider, fetchImpl = fetch }) {
         original_prompt: originalPrompt, output_formats: outputFormats, language,
       })
     },
+    // Explicitly selected real model; the server STILL requires an active
+    // JWT shop writer role and a durable approved subscription cost budget.
+    improvePromptWithAI: (shopId, originalPrompt, outputFormats, language = 'en-IN') => {
+      if (typeof originalPrompt !== 'string' || !originalPrompt.trim() ||
+          originalPrompt.length > 1500 || !Array.isArray(outputFormats) ||
+          !outputFormats.length || !['en-IN', 'hi-IN', 'mr-IN'].includes(language)) {
+        throw new Error('Enter a valid prompt, supported language and output formats')
+      }
+      return request('POST', shopId, 'improve-prompt-ai', {
+        original_prompt: originalPrompt, output_formats: outputFormats, language,
+      })
+    },
     getRecommendations: (shopId) => request('GET', shopId, 'trend-recommendations'),
     listDrafts: (shopId) => request('GET', shopId, 'content-drafts'),
+    createDraftWithAI: (shopId, trendId, campaign, submissionId = null) => {
+      if (!/^[a-f0-9]{32}$/.test(trendId || '') ||
+          !campaign || typeof campaign !== 'object' || campaign.shop_id !== shopId ||
+          (submissionId !== null && !UUID.test(submissionId))) {
+        throw new Error('Choose a verified trend, authorized shop and submission ID')
+      }
+      return request('POST', shopId, 'content-drafts-ai', {
+        trend_id: trendId, campaign,
+        ...(submissionId === null ? {} : { submission_id: submissionId }),
+      })
+    },
     createDraft: (shopId, trendId, campaign, submissionId = null) => {
       if (!/^[a-f0-9]{32}$/.test(trendId || '') ||
           !campaign || typeof campaign !== 'object' || campaign.shop_id !== shopId ||
