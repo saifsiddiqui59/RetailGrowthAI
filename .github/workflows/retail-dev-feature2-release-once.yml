@@ -46,6 +46,10 @@ jobs:
           grep -Fq 'def get_retailer_trends' azure-functions/campaign-api/function_app.py
           grep -Fq 'def create_retailer_trend_draft' azure-functions/campaign-api/function_app.py
           grep -Fq 'def feature2_collect_india_trends' azure-functions/campaign-api/function_app.py
+          grep -Fq 'def improve_retailer_prompt' azure-functions/campaign-api/function_app.py
+          grep -Fq 'def improve(self, shop_id:' azure-functions/campaign-api/feature2_adapter.py
+          grep -Fq 'def improve_prompt(' ai-agents/src/ai_agents/prompt_improver.py
+          python3 -m py_compile ai-agents/src/ai_agents/prompt_improver.py azure-functions/campaign-api/feature2_adapter.py
           python3 scripts/deploy/package.py --check
           mkdir -p "$RUNNER_TEMP/media" "$RUNNER_TEMP/release"
           IMAGE="mwader/static-ffmpeg@sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822"
@@ -138,7 +142,8 @@ jobs:
                     'get_render','get_render_download','plan_campaign','render_campaign_reel',
                     'planning_poison','render_poison','recover_stale_jobs',
                     'render_campaign_poster','dispatch_pending_posters',
-                    'get_retailer_trends','create_retailer_trend_draft','feature2_collect_india_trends'}
+                    'get_retailer_trends','create_retailer_trend_draft','feature2_collect_india_trends',
+                    'improve_retailer_prompt'}
           print('REMOTE_FUNCTIONS',len(have),'MISSING',sorted(expected-have))
           sys.exit(0 if expected<=have else 1)
           PY
@@ -223,10 +228,12 @@ jobs:
           set -euo pipefail
           grep -Fxq "VITE_SUPABASE_URL=https://jeearzffnjbvghwjjjrf.supabase.co" .env.production
           grep -Fxq "VITE_CAMPAIGN_API_BASE_URL=https://rgai-dev-functions-d4e5ddbd.azurewebsites.net" .env.production
+          grep -Fq 'Improve Prompt with AI' src/features/trends/TrendWorkspace.jsx
           if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
           npm test
           npm run build
           test -s dist/index.html && test -s dist/staticwebapp.config.json
+          grep -FRq 'Improve Prompt with AI' dist/assets/
           if grep -REq 'sb_secret_|RETAIL_SUPABASE_SERVICE_ROLE_KEY|RETAIL_FOUNDRY_API_KEY' dist; then
             echo "::error::Privileged setting name or secret marker detected in public artifact"; exit 3
           fi
@@ -290,3 +297,10 @@ jobs:
 
 # 2026-10-26 coordinator one-shot re-release for Feature2 lost-ACK draft safety.
 # Exact existing DEV Functions/Free SWA/FFmpeg/scope checks and costs unchanged.
+
+# 2026-10-26: Feature2 reviewed Prompt Improver DEV source integration is
+# 8da0f4583f562a835629e72f51c33261a5efbc03 (PR #391; four checks passed).
+# Re-arm ONLY via explicit reviewed release(dev) squash title and protected
+# DEV environment. Retain exact existing resource/OIDC/tags/Free-tier guards.
+# Add strict source, Cloud Functions indexing and built lazy UI assertions.
+# This release makes no paid inference calls and does not bypass Azure #249.
