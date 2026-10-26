@@ -233,7 +233,7 @@ test('calendar verifies last campaign against JWT shop and denies cross-tenant d
   expect(apiCalls).toHaveLength(0)
   await page.getByRole('button', { name: 'Load recent campaign' }).click()
   await expect(page.getByText('Approved draft example')).toBeVisible()
-  await expect(page.getByText('Not published')).toBeVisible()
+  await expect(page.getByText('Day 1 · Not published',{exact:true})).toBeVisible()
   expect(apiCalls.filter(x=>x.method==='GET')).toHaveLength(1)
   expect(apiCalls.some(x=>x.method==='GET' && x.auth==='Bearer offline-test-JWT')).toBe(true)
   foreign = true
