@@ -45,3 +45,8 @@ Azure documents A100 serverless in East US and T4-only in Central India, but **n
 - Official CLI: https://github.com/Tencent-Hunyuan/HunyuanVideo-1.5/blob/main/generate.py
 - GPU architecture: https://developer.nvidia.com/cuda/gpus
 - Regional inventory: https://learn.microsoft.com/en-us/azure/container-apps/gpu-serverless-overview
+
+## Important reservation-bound design update
+- `MotionSpendGuard` now **requires** pricing/resource profile for every enabled Feature5 worker run (source code). At the verified East US Retail Prices snapshot: A100 $0.000529/s + 4 vCPUs × $0.000024/s + 16 GiB × $0.000003/GiB-s = $0.000673/s active model job assumption.
+- Worst-case 600s costs about **$0.4038** active compute. With a separately reviewed $0.05 storage/network overhead reserve, require **at least $0.4538** existing shop premium credit for that one job. A 30s mocked test maximum is $0.02019 + $0.005 = $0.0252.
+- This is a **budget estimate**, not an Azure itemized invoice or Hunyuan benchmark. Startup, GPU model pull/load, other platform meters, network and actual runtime might exceed the assumptions. Any case beyond approved duration stays UNKNOWN for reconciliation rather than automatic retry.

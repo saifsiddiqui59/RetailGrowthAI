@@ -25,3 +25,7 @@
 - Versioned deterministic idempotency key to include source image, approved prompt digest and seed.
 - Implemented reviewed territory/hosted-commercial license policy and negative tests for EU/UK/Korea, missing notices and >100m release-date MAU threshold. Real GPU test harness requires additional operator fields.
 - No actual real GPU inference, azure deployment, licensed sample outputs or human garment acceptance was possible. Next coordinator integration and real GPU blockers documented without pretending all assigned tasks completed.
+
+## 2026-10-26 follow-up — GPU budget ceiling and measured usage
+- Added `MotionSpendGuard` in `feature5_motion/azure_pricing.py`, integrated into `MotionWorker` before durable claim, and required existing reservation >= total worst-case billable approved CPU/RAM/A100 time and ancillary allowance. Added offline negative tests for missing quote/underfunded reservation/runner timeout.
+- Added monotonic subprocess elapsed-time and Azure-rate estimate to private output metadata for later existing ledger reconciliation. Enforced `UNKNOWN` on over-budget runtime; fixed an edge case where failure persisting UNKNOWN could be incorrectly downgraded to FAILED. No GPU was actually run.
