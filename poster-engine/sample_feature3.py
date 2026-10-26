@@ -13,9 +13,11 @@ from PIL import Image, ImageDraw
 
 from studio_v2 import compose_poster, render_design
 from animate_v2 import export_animation
+from garment_review_v2 import build_review_sheet
 
 SHOP = "00000000-0000-4000-8000-000000000a33"
 ASSET = "00000000-0000-4000-8000-000000000a34"
+MOCKED = "00000000-0000-4000-8000-000000000a35"
 
 
 def samples(destination):
@@ -46,6 +48,24 @@ def samples(destination):
             },
         },
     }
+    # Comparison is a synthetic fixture to demonstrate REQUIRED human review.
+    # No fashion model or virtual try-on network/model inference is executed.
+    fake = root / "synthetic-unverified-review-image.png"
+    Image.new("RGB", (660, 840), "#B29E8E").save(fake)
+    manifest["assets"][MOCKED] = {
+        "kind": "image", "shop_id": SHOP, "path": fake.name,
+        "rights": {
+            "license": "owned", "commercial_use": True,
+            "source": "CI_SYNTHETIC_PILLOW",
+            "evidence": "Deterministic unverified comparison test fixture",
+        },
+    }
+    build_review_sheet(
+        shop_id=SHOP, garment_asset_id=ASSET, model_asset_id=MOCKED,
+        manifest=manifest, staged_root=root,
+        output_path=root / "sample-synthetic-garment-review.png",
+        inference_verified=False,
+    )
     sale = compose_poster(
         shop_id=SHOP, mode="image", prompt="Diwali premium ethnic clothing",
         business_name="Sample Fashion House", headline="Celebrate in style",
@@ -66,6 +86,7 @@ def samples(destination):
     return [root / name for name in (
         "sample-clothing-20-off.png", "sample-text-to-poster.png",
         "sample-flashing-20-off.gif", "sample-flashing-20-off.mp4",
+        "sample-synthetic-garment-review.png",
     )]
 
 
