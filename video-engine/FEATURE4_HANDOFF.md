@@ -6,9 +6,12 @@ Branch: feat/feature4-professional-video-studio (based on main 140a9f8617). This
 
 Added:
 - video-engine/professional.py: strict rg_video_v2 compiler producing a private HyperFrames HTML project from tenant-bound, trusted, staged, rights-approved media IDs. Supports text, image, poster, media and beat-grid synchronized modes as a **source contract** (15/30/60 seconds, 540/1080 portrait, 24/30 FPS), three styled templates, approved offer/title/CTA escaping, finite contiguous scenes, trim ranges, an authorized music ID, no raw customer HTML/CSS/JS/remote media.
+- video-engine/audio_catalog.py and empty audio_catalog.json: operator-curated fail-closed rights/territory/platform/usage/expiry guard; no commercial music or SFX approved or bundled. This is a local policy gate, not a claim of third-party license review.
+- video-engine/beat_grid.py: bounded CPU-only onset estimates for trusted PCM16 WAV (source must already pass backend audio authorization and FFmpeg normalization). This is approximate transient detection, not source-aware voice ducking or a professional rhythmic transcription.
 - video-engine/hyperframes/: pinned versioned Node producer adapter with local MP4 render and ffprobe checks; no hosted API, no provisioning and no activation in Azure.
 - frontend/src/features/video/{video-model.mjs, VideoStudio.jsx, VideoStudio.css}: isolated responsive video-specific draft editor, mode/template/media/music selectors, scene reordering, mobile storyboard mock, guarded render callback and signed output slot (not mounted into shared routes).
 - tests/frontend/video-model.test.mjs: React-independent video plan controls and authorization-flag tests under existing frontend tests.
+- tests/media/test_feature4_audio_catalog.py and test_feature4_beat_grid.py: offline rights restrictions and synthetic percussion timing.
 - tests/media/test_feature4_professional.py: compiler authorization, modes, source-audio behavior and injection regressions under existing FFmpeg CI job.
 - Legacy video-engine/render.py, queue/outbox, DB/Auth, React root app and Part 2/3 source all deliberately unchanged.
 
@@ -46,7 +49,7 @@ Producer integration follows current @hyperframes/producer 0.8.x JavaScript crea
 ## Explicit pending work (not claimed complete)
 
 1. Run a real pinned HyperFrames/Chromium CPU MP4 on authorized original clothing fixtures. Verify frame screenshots, animated products/crops, scene timing, H.264/AAC, source video speech/audio mix, typography safe zones and 15/30/60 outputs. Perform repeatable wall-clock RSS/CPU/cost comparisons against existing FFmpeg and Feature #5 premium clips; current numbers are unknown.
-2. Improve three templates visually and verify real rendering behavior, not just HTML source/CSS. Add true fade/audio duck automation, beat detection (librosa if needed), transition timing and sound effects; currently the user-provided beat grid is validated, not extracted automatically.
+2. Improve three templates visually and verify real rendering behavior, not just HTML source/CSS. Improve true fade/audio duck automation and sound effects; source-only PCM16 beat-onset detection now exists, but real source-licensed mix, automatic binding to video plan and quality-checked beat sync remain outstanding.
 3. Curate and individually audit license evidence for Mixkit/Pixabay assets including SaaS redistribution; currently there is **no third-party music bundled or cleared**. Audio requires a preapproved manifest.
 4. Coordinator-approved v2 transport, central quotas/claim-fenced worker/private storage/subscription usage and Azure Container Apps Jobs cost gate. **Do not change shared APIs, migrations, Functions ingress or #249 settings without review.**
 5. Feature #1 layout review, video-specific React editor, live status/preview/history/private signed download, review/save/approval, signed-in browser E2E, invalid media, job idempotency/timeouts/retries and tenant negative integration.
