@@ -92,6 +92,29 @@ class PrivatePilotReviewTests(unittest.TestCase):
         with self.assertRaisesRegex(ModelLibraryDenied, 'immutable pilot allowlist'):
             pilot.read_verified_still(invalid)
 
+    def test_exact_catalog_selection_denies_substituted_real_path_bytes(self):
+        from openpeople_indian_review_v2 import parse_review_packet_file
+        selection = parse_review_packet_file(self.json_packet, dataset_root=self.root)
+        path = (self.root / 'openpeople/data/curated/P009/assets/studio_posture.jpg')
+        path.parent.mkdir(parents=True)
+        path.write_bytes(self.synthetic_jpg)
+        with self.assertRaisesRegex(ModelLibraryDenied, 'does not match pinned'):
+            pilot.read_verified_still(selection)
+
+    def test_symlinked_upstream_image_is_never_read(self):
+        from openpeople_indian_review_v2 import parse_review_packet_file
+        selection = parse_review_packet_file(self.json_packet, dataset_root=self.root)
+        path = (self.root / 'openpeople/data/curated/P009/assets/studio_posture.jpg')
+        path.parent.mkdir(parents=True)
+        raw = self.root / 'other-person.jpg'
+        raw.write_bytes(self.synthetic_jpg)
+        try:
+            path.symlink_to(raw)
+        except (OSError, NotImplementedError):
+            self.skipTest('Symlinks unavailable')
+        with self.assertRaisesRegex(ModelLibraryDenied, 'Symlinked'):
+            pilot.read_verified_still(selection)
+
     def test_output_reuse_refused_without_overwriting(self):
         out = self.root / 'source-review'
         with patch.object(pilot, 'read_verified_still', return_value=self.synthetic_jpg):
