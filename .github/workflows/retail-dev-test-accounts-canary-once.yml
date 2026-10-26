@@ -17,6 +17,7 @@ on:
         options:
           - browser-upload
           - poster
+          - feature2
 permissions:
   contents: read
 concurrency:
@@ -33,6 +34,7 @@ jobs:
     env:
       RGAI_DEV_CANARY_APPROVAL: AUTHORIZED_RETAILGROWTHAI_DEV_ONLY
       RGAI_DEV_PLAYWRIGHT_UPLOAD: ${{ inputs.mode == 'browser-upload' && '1' || '0' }}
+      RGAI_DEV_FEATURE2_CANARY: ${{ inputs.mode == 'feature2' && '1' || '0' }}
       RGAI_DEV_VIDEO_ARTIFACT_DIR: output/video-acceptance
       RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
       RGAI_DEV_PUBLISHABLE_KEY: sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq
