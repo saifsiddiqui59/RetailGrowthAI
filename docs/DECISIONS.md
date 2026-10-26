@@ -581,3 +581,8 @@
 ## Feature2 2026-10-26 — User authorized isolated 20-cent test only
 - Explicit user "do it" approval applies only to **US$0.20 maximum TOTAL one-time isolated DEV GPT-4.1-mini text test**, not new services, hosted DDL, identity creation, app setting enablement, PROD/WineShopPOS, or standing recurring spend. Cap source and scope recorded in `docs/feature2/APPROVED_DEV_USD_020_TEST_GATE.md` and issue #403.
 - Retain per-call hard max USD0.05, default-OFF feature and separately signed/shop-approved expiring quota. Never use inferred/third-party price as authoritative contractual rate, or bypass the absent hosted budget tables.
+
+
+## Feature2 2026-10-26 — Published Azure GPT4 pricing unit conversion
+- Verified through protected public Microsoft Azure Retail Prices run #40401262949, with exact existing South India GPT-4.1-mini Standard: `gpt 4.1 mini Inp regnl` USD0.00044 per **1K** tokens = USD0.44 per **1M**, `gpt 4.1 mini Outp regnl` USD0.00176 per **1K** = USD1.76 per **1M**. Public retail list price only, not account contract. Parser in merged #437 accepts 1K and 1M and rejects unknown units.
+- User authorized USD0.20 total isolated DEV test, NOT hosted SQL, identities, Azure secret release or PROD. Atomic, disabled-by-default hosted spending gate remains prerequisite; no actual model calls yet.
