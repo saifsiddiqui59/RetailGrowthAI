@@ -97,39 +97,11 @@ jobs:
           output_location: dist
           app_build_command: npm run build
           production_branch: main
-      - name: Verify actual Free SWA HTTPS campaign and trends routes and new JS fallback text
+      - name: Verify actual public SPA and hashed lazy Feature2 route chunk
         shell: bash
         run: |
           set -euo pipefail
-          host=purple-dune-06b5da200.2.azurestaticapps.net
-          for path in trends campaigns; do
-            pass=0
-            for i in $(seq 1 12); do
-              if curl -fsSL --max-time 20 "https://$host/$path" -o "$RUNNER_TEMP/$path.html" \
-                 && grep -Fq 'id="root"' "$RUNNER_TEMP/$path.html"; then
-                pass=1; break
-              fi
-              sleep 5
-            done
-            test "$pass" = 1 || { echo "::error::DEV SPA route /$path unavailable"; exit 3; }
-          done
-          python3 - "$RUNNER_TEMP/trends.html" "$RUNNER_TEMP/bundlepath" <<'PY'
-          import pathlib,re,sys
-          content=pathlib.Path(sys.argv[1]).read_text()
-          js=re.findall(r'(?:src)="(/assets/[^"]+\.js)"',content)
-          assert len(js)==1 and js[0].startswith('/assets/')
-          pathlib.Path(sys.argv[2]).write_text(js[0])
-          PY
-          asset="$(cat "$RUNNER_TEMP/bundlepath")"
-          pass=0
-          for i in $(seq 1 12); do
-            if curl -fsSL --max-time 25 "https://$host$asset" -o "$RUNNER_TEMP/main.js" \
-               && grep -Fq 'Create a standard campaign without a trend' "$RUNNER_TEMP/main.js"; then
-              pass=1; break
-            fi
-            sleep 5
-          done
-          test "$pass" = 1 || { echo '::error::New Feature2 fallback not served in live JS'; exit 3; }
+          python3 scripts/deploy/verify_feature2_lazy_swa.py
           echo "FEATURE2_FREE_SWA_NO_TREND_FALLBACK=PASS source_sha=$GITHUB_SHA"
       - name: Clear Azure session
         if: always()
