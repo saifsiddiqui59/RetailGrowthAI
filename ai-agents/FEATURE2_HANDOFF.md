@@ -42,3 +42,12 @@ After integration, coordinator should append actual status, known blockers and C
 
 - Production-grade fully integrated feature remains blocked until authorized shared Supabase snapshot/RLS migration, provider key configuration/coverage verification, scheduled Azure timer binding, secured API contract + React route integration and hosted DEV E2E. Existing intermittent Azure Flex HTTP ingress issue #249 can independently block live APIs.
 - Never call a source mock verification, a frontend isolated component, or four offline Actions checks **live end-to-end completion**.
+
+## 2026-10-26 — Continued development (after initial PR #320)
+
+- Hardened `feature2_adapter.py`: reject invalid/empty bearer tokens with **401**, before member/profile/cache calls; tested GET/POST invalid-token denial.
+- Tightened official provider transport: fixed allowlisted Google RSS and YouTube `videos.list` URL shapes; reject untrusted network destinations and disallow HTTP redirects before credentials can be forwarded. No new packages or paid infrastructure.
+- Normalized explicit `source_published_at` separately from `observed_at`. Reject RSS items with published timestamps older than 48h or more than 5m in the future. YouTube publication timestamps remain historical metadata, never reinterpreted as current video view velocity.
+- Wired only **externally supplied, recently source-reviewed `*.gov.in` calendar records** into shared trend snapshots, with explicit `event_date` and ranked evidence; no fictional festival events seeded and no calendar scraping.
+- Added tests for provider destinations, source timestamps, stale/future event denials, evidence-host restrictions and authorized store interactions. Check the latest exact PR head 4-job CI before declaring these changes validated.
+- Still not activated: global Azure timer/HTTP registration, RLS migration, real persistent cache and review state, authenticated React navigation and live source/host E2E. These stay coordinator-approved additive interfaces.
