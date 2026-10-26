@@ -3,6 +3,7 @@
 Assets are synthetic local fixtures, not AI model inference or licensed media.
 """
 import importlib.util
+import json
 import shutil
 import sys
 import tempfile
