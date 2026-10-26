@@ -9,6 +9,7 @@ import PlatformAdmin from './features/platform/PlatformAdmin.jsx'
 import PlatformAlerts from './features/platform/PlatformAlerts.jsx'
 import LoginPage from './auth/LoginPage.jsx'
 import WorkspacePage from './features/dashboard/WorkspacePages.jsx'
+import MediaLibrary from './features/dashboard/MediaLibrary.jsx'
 import './features/dashboard/dashboard-v2.css'
 
 const links = [
@@ -182,7 +183,7 @@ function AppShell() {
             <Route path="/subscription" element={<SubscriptionPage />} />
             <Route path="/calendar" element={<WorkspacePage section="calendar" />} />
             <Route path="/creative-studio" element={<WorkspacePage section="creative" />} />
-            <Route path="/media-library" element={<WorkspacePage section="media" />} />
+            <Route path="/media-library" element={<MediaLibrary />} />
             <Route path="/connections" element={<WorkspacePage section="connections" />} />
             <Route path="/publishing" element={<WorkspacePage section="publishing" />} />
             <Route path="/notifications" element={<WorkspacePage section="notifications" />} />
