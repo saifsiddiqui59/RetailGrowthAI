@@ -1,9 +1,11 @@
 -- GitHub Actions disposable local Supabase Postgres ONLY, never hosted DEV/PROD.
--- Existing CI executes tests/security/poster*.sql inside a disposable database.
--- Everything, including the PROPOSED SQL functions and fixtures, ROLLS BACK.
+-- Existing CI applies the versioned migration, then runs this SQL transaction.
+-- This test's fixtures ROLLBACK. The migrated schema lives only in disposable CI Postgres.
 \set ON_ERROR_STOP on
 begin;
-\i experiments/secure-node-http/sql/request_reel_render_job.proposal.sql
+-- Canonical migration is applied by disposable `supabase db start` first.
+-- Abort if the versioned RPC is missing; never load a second proposal copy.
+select 'public.request_reel_render_job(uuid,uuid)'::regprocedure;
 
 -- Runtime fixture must use current PostgREST request.jwt.claims JSON, NOT the
 -- legacy request.jwt.claim.role/sub GUCs (removed on PostgreSQL 14+).

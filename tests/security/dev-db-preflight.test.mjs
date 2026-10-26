@@ -29,8 +29,9 @@ test('read-only remote DEV snapshot identifies exact prefix and pending ordered 
   assert.equal(result.appliedCount, 3);
   assert.equal(result.pending.length, known.local.length - 3);
   assert.equal(result.pending[0].file, '20261022100400_p1_durable_planning.sql');
-  assert.equal(result.pending.at(-2).file, '20261024190000_p1_platform_operations.sql');
-  assert.equal(result.pending.at(-1).file, '20261026152000_feature2_trends_drafts.sql');
+  assert.equal(result.pending.at(-3).file, '20261024190000_p1_platform_operations.sql');
+  assert.equal(result.pending.at(-2).file, '20261026152000_feature2_trends_drafts.sql');
+  assert.equal(result.pending.at(-1).file, '20261026152102_p0_249_reel_render_intent.sql');
 });
 test('refuses missing snapshot, wrong project, gaps, duplicates, renamed or newer remote versions', () => {
   assert.throws(() => verifyPreflight({ requireRemoteHistory: true }), /history is required/);
@@ -61,5 +62,11 @@ test('rejects gaps, duplicate version files and stripped service-only migration 
   temporaryMigrationCopy(dir => {
     renameSync(resolve(dir, '20261022180000_p1_dev_media_integrity.sql'), resolve(dir, 'broken.sql'));
     assert.throws(() => verifyPreflight({ migrationDir: dir }), /invalid migration file name|missing canonical/);
+  });
+  temporaryMigrationCopy(dir => {
+    const path = resolve(dir, '20261026152102_p0_249_reel_render_intent.sql');
+    const sql = readFileSync(path, 'utf8').replace('if music = any(ids) then return null; end if;', '-- removed mixed media rights denial');
+    writeFileSync(path, sql);
+    assert.throws(() => verifyPreflight({ migrationDir: dir }), /missing required SQL capability/);
   });
 });
