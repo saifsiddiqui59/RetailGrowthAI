@@ -417,6 +417,10 @@ def main():
     if key.startswith("sb_secret_"):
         # GoTrue admin API needs a service key, never send publishable.
         admins["Authorization"]="Bearer "+key
+    if os.environ.get("RGAI_DEV_FEATURE2_CANARY") == "1":
+        # Guarded live source evidence check occurs BEFORE creating either user.
+        from feature2_dev_live_canary import preflight_live_source
+        preflight_live_source(call, SUPABASE, admins, dt.datetime.now(dt.timezone.utc))
     marker=uuid.uuid4().hex[:12]
     accounts=[]
     shops=[]
@@ -488,6 +492,14 @@ def main():
                   "p_attribution":"Original synthetic RetailGrowthAI DEV canary image; created entirely in Python."},
                 headers=a,expect=(200,))
         if not isinstance(asset,str): raise RuntimeError("Storage RPC did not return UUID")
+        if os.environ.get("RGAI_DEV_FEATURE2_CANARY") == "1":
+            from feature2_dev_live_canary import run_live_feature2
+            run_live_feature2(call, api=API, supabase=SUPABASE,
+                              owner=a, outsider=b, shops=shops,
+                              accounts=accounts, asset=asset)
+            status="PASSED"
+            print("RETAILGROWTHAI_CANARY_RESULT="+status,flush=True)
+            return  # Shared finally still cleans exact media/users/shops.
         start=(dt.datetime.now(dt.timezone(dt.timedelta(hours=5,minutes=30))).date()
                +dt.timedelta(days=1)).isoformat()
         request={"shop_id":shops[0],"brief":"Create seven distinct daily educational clothing styling ideas for a small boutique; no special offers.",
@@ -867,6 +879,12 @@ def main():
                     headers=admins,expect=(200,))
                 if remaining:
                     raise RuntimeError("Test shop still exists after scoped delete")
+                if os.environ.get("RGAI_DEV_FEATURE2_CANARY") == "1":
+                    query=urllib.parse.urlencode({"shop_id":"eq."+sid,"select":"id"})
+                    _,orphan_drafts=call(SUPABASE+"/rest/v1/shop_content_drafts?"+query,
+                        headers=admins,expect=(200,))
+                    if orphan_drafts:
+                        raise RuntimeError("Feature2 draft survived scoped cascade cleanup")
             except Exception:
                 failures+=1
                 print("CANARY_CLEANUP_FAILURE_KIND=shop_or_media",flush=True)
