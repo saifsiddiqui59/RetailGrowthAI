@@ -5,6 +5,7 @@ import App from './App.jsx'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false, gcTime: 0 } } })
+import './shadcn.css'
 import './styles.css'
 
 createRoot(document.getElementById('root')).render(
