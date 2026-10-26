@@ -76,7 +76,7 @@ def import_openpeople_still(*, selection, owner_shop_id, scope,
     # Exact Git object-byte check against independently reviewed upstream
     # tree: pinned COMMIT ALONE does not authenticate loose local JPG bytes.
     git_blob = sha1(b"blob " + str(len(content)).encode("ascii") +
-                    b"\\0" + content).hexdigest()
+                    bytes([0]) + content).hexdigest()
     if git_blob != selection.expected_image_git_blob_sha:
         raise ModelLibraryDenied("Staged source image differs from pinned Git blob")
     source = ("https://github.com/Prompt-Haus/OpenPeople/blob/" +
