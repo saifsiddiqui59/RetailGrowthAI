@@ -43,3 +43,13 @@
 .feature2-prompt-actions label{display:grid;gap:.4rem;min-width:0;max-width:100%}
 .feature2-prompt-actions select{max-width:100%;padding:.6rem;border:1px solid #aeb9c6;border-radius:8px}
 @media(max-width:620px){.feature2-prompt-pair{grid-template-columns:1fr}.feature2-prompt-actions{align-items:stretch;flex-direction:column}.feature2-prompt-actions>*{max-width:100%}}
+
+/* Prevent flex/grid min-content from expanding the 320px mobile viewport. */
+.feature2-prompt-workspace,.feature2-prompt-workspace *{box-sizing:border-box}
+.feature2-prompt-workspace{width:100%;max-width:100%;min-width:0;overflow-wrap:anywhere}
+.feature2-prompt-workspace fieldset{min-width:0;max-width:100%;width:100%;overflow-wrap:anywhere}
+.feature2-prompt-workspace .feature2-prompt-actions{min-width:0;max-width:100%}
+.feature2-prompt-workspace .feature2-prompt-actions label,
+.feature2-prompt-workspace .feature2-prompt-actions select{min-width:0;max-width:100%;width:100%}
+.feature2-prompt-workspace button{max-width:100%;overflow-wrap:anywhere}
+.feature2-prompt-workspace .feature2-check{max-width:100%;min-width:0;white-space:normal}
