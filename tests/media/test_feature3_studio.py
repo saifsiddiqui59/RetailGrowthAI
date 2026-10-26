@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "poster-engine"))
 from studio_v2 import (SCHEMA, DesignError, compose_poster,
                        render_design, validate_design)
 from animate_v2 import export_animation
+from gpu_worker_v2 import OfflineFluxKlein4B, ReviewedTryOn, ReviewedBackgroundRemoval
 from ai_providers_v2 import (OptionalGPUProvider, ProviderBlocked,
                              FLUX_KLEIN_4B, FASHN_VTON_15, InferenceJob,
                              ProviderConfig)
@@ -140,6 +141,31 @@ class Feature3Tests(unittest.TestCase):
         with self.assertRaises(ProviderBlocked):
             InferenceJob(shop_id=self.shop, job_id=str(uuid4()), capability="human_model",
                          prompt="underage model").validate(FLUX_KLEIN_4B)
+
+    def test_gpu_disabled_without_local_weights_or_licensed_parser(self):
+        with self.assertRaises(ProviderBlocked):
+            OfflineFluxKlein4B(self.root / "missing-gpu-weights")
+        with self.assertRaises(ProviderBlocked):
+            ReviewedTryOn(lambda: None, parser_approval={"commercial_use_approved": False})
+        with self.assertRaises(ProviderBlocked):
+            ReviewedBackgroundRemoval(lambda image: image, model_provenance={
+                "model_name": "BRIA-default", "commercial_use_approved": False,
+                "weight_sha256": "not-licensed",
+            })
+
+    def test_reviewed_background_is_not_default_rembg_download(self):
+        from io import BytesIO
+        from PIL import Image
+        adapter = ReviewedBackgroundRemoval(
+            lambda image: image.convert("RGBA"),
+            model_provenance={"commercial_use_approved": True,
+                              "model_name": "injected_fixture", "weight_sha256": "fixture-hash"},
+        )
+        original = (self.root / "cloth.png").read_bytes()
+        result = adapter(InferenceJob(self.shop, str(uuid4()), "background_remove",
+                                      (self.asset,)), {self.asset: original})
+        with Image.open(BytesIO(result)) as png:
+            self.assertEqual(png.mode, "RGBA")
 
     def test_fake_runner_does_not_bypass_tenant_scoping(self):
         cfg = ProviderConfig("fixture", "test-1", frozenset({"image_edit"}),
