@@ -12,9 +12,10 @@ import {
   moveFeature3Layer, undoFeature3, redoFeature3,
   addFeature3Layer, removeFeature3Layer, replaceFeature3Image, validateFeature3Design,
 } from './feature3-design.mjs'
+import { encodeFeature3LocalBackup, decodeFeature3LocalBackup } from './feature3-local-backup.mjs'
 
 export default function Feature3KonvaEditor({
-  initialDesign, imageMap = {}, onSaveDraft = null,
+  initialDesign, imageMap = {}, onSaveDraft = null, context = null,
 }) {
   const [history, setHistory] = useState(() => newFeature3History(initialDesign))
   // A ref ensures synchronous rapid drags/key presses cannot overwrite a
@@ -74,12 +75,20 @@ export default function Feature3KonvaEditor({
     updateFeature3Layer(current, id, patch))
 
   function downloadLocalVersion() {
-    // Optional local backup, not cloud persistence or approval.
-    const blob = new Blob([JSON.stringify(design, null, 2)], {type:'application/json'})
+    // Day-bound, explicitly unapproved local JSON backup only.
+    // Never treat a local file as an authenticated cloud version.
+    let payload
+    try {
+      payload = encodeFeature3LocalBackup(design, context)
+    } catch {
+      setError('A verified shop, campaign and day are required for local backup.')
+      return
+    }
+    const blob = new Blob([payload], {type:'application/json'})
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = 'retailgrowth-poster-local-design-v2.json'
+    anchor.download = 'retailgrowth-poster-day-bound-unreviewed-v2.json'
     document.body.appendChild(anchor)
     anchor.click()
     anchor.remove()
@@ -91,23 +100,19 @@ export default function Feature3KonvaEditor({
     if (!file) return
     if (file.size < 1 || file.size > 25_000 || file.type &&
         !['application/json', 'text/plain'].includes(file.type)) {
-      setError('Choose a local poster JSON design under 25 KB')
+      setError('Choose a day-bound local poster JSON under 25 KB')
       return
     }
     try {
-      const parsed = validateFeature3Design(JSON.parse(await file.text()))
-      if (parsed.shop_id !== initialDesign.shop_id ||
-          parsed.layers.some(layer => layer.type === 'image' &&
-            !authorizedIds.includes(layer.asset_id))) {
-        throw Error('Draft tenant or image authorization has changed')
-      }
+      const parsed = decodeFeature3LocalBackup(
+        await file.text(), context, authorizedIds)
       const restored = newFeature3History(parsed)
       historyRef.current = restored
       setHistory(restored)
       setSelected(null)
       setError('')
-    } catch (problem) {
-      setError('Could not verify this local design for the selected shop')
+    } catch {
+      setError('Local draft rejected: shop/day, version or private media access changed.')
     } finally {
       event.target.value = ''
     }

@@ -3,6 +3,7 @@ import { drawPoster, POSTER_SIZES, POSTER_TEMPLATES } from './poster-canvas.mjs'
 import { validateSignedVideoUrl } from '../campaigns/campaign-api.mjs'
 import './PosterStudio.css'
 import Feature3StudioPanel from './Feature3StudioPanel.jsx'
+import Feature3SecureDraftWorkspace from './Feature3SecureDraftWorkspace.jsx'
 import { feature3ContextKey } from './feature3-context.mjs'
 
 const MAX_BYTES = 25 * 1024 * 1024
@@ -10,7 +11,7 @@ const SUPPORTED = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 export default function PosterStudio({ day, businessName = 'Your business', api = null,
   campaignId = '', persisted = false, authorizedAssets = [], supabaseOrigin = '', onSelected = null,
-  approvedModels = [], authenticatedModelImageMap = {} }) {
+  approvedModels = [], authenticatedModelImageMap = {}, feature3Api = null }) {
   const canvas = useRef(null)
   const [brand, setBrand] = useState(businessName || 'Your business')
   const [template, setTemplate] = useState('editorial')
@@ -385,15 +386,19 @@ export default function PosterStudio({ day, businessName = 'Your business', api 
           no new dependency or GPU. This v2 editor is local-only:
           its JSON is not a saved campaign poster, and the live private
           v1 save/render/select controls above remain separate.</p>
-        {showCpuStudio && <Feature3StudioPanel
-          key={day.id + ':' + campaignId}
-          shopId={day.shop_id}
-          campaignId={campaignId}
-          dayId={day.id}
-          brandKit={{shopId: day.shop_id, businessName: brand}}
-          imageMap={authenticatedModelImageMap}
-          approvedModels={approvedModels}
-        />}
+        {showCpuStudio && (feature3Api
+          ? <Feature3SecureDraftWorkspace
+              key={day.id + ':' + campaignId}
+              shopId={day.shop_id} campaignId={campaignId} dayId={day.id}
+              brandKit={{shopId: day.shop_id, businessName: brand}}
+              imageMap={authenticatedModelImageMap}
+              approvedModels={approvedModels} feature3Api={feature3Api} />
+          : <Feature3StudioPanel
+              key={day.id + ':' + campaignId}
+              shopId={day.shop_id} campaignId={campaignId} dayId={day.id}
+              brandKit={{shopId: day.shop_id, businessName: brand}}
+              imageMap={authenticatedModelImageMap}
+              approvedModels={approvedModels} />)}
       </div>}
     </section>
   )

@@ -7,6 +7,7 @@ import {
   serializeDraftDay, timelineErrors, updateCampaignDay, updateScene, withAuthorizedMedia,
 } from './campaign-model.mjs'
 import PosterStudio from '../creative/PosterStudio.jsx'
+import Feature3PosterHost from '../creative/Feature3PosterHost.jsx'
 import './CampaignDashboard.css'
 
 const INITIAL_BRIEF = 'Create seven days of helpful style inspiration for my clothing boutique, with LinkedIn posts and Instagram Reel concepts.'
@@ -681,6 +682,7 @@ export default function CampaignDashboard() {
           job={renderJob} onRender={startRender} onDownload={downloadRender} />
       </section>
       {(!client.configured || (shopId && shops.some(shop => shop.id === shopId))) && (
+        <Feature3PosterHost client={client} shopId={shopId}>
         <PosterStudio key={shopId || 'demo'} day={day}
           businessName={shops.find(shop => shop.id === shopId)?.name || 'Your business'}
           api={api} campaignId={campaignId} authorizedAssets={assets}
@@ -694,6 +696,7 @@ export default function CampaignDashboard() {
             setCampaign(cloneCampaign(refreshed))
             setNotice('Reviewed promotional poster attached to your saved day. Not published.')
           }} />
+        </Feature3PosterHost>
       )}
       {notice && <p className="rg-session-notice" role="status">{notice}</p>}
       <p className="rg-footnote">{loaded
