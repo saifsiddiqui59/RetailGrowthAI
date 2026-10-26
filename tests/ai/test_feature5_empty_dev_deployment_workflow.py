@@ -24,7 +24,7 @@ class TestFeature5EmptyEnvDeploymentPolicy(unittest.TestCase):
                 "feature": "feature5", "purpose": "zero-compute-gpu-quota-probe",
             },
             "properties": {
-                "appLogsConfiguration": {"destination": "none"},
+                "appLogsConfiguration": {},
                 "workloadProfiles": [{"name": "Consumption", "workloadProfileType": "Consumption"}],
             },
         })
