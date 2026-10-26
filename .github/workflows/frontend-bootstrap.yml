@@ -290,6 +290,17 @@ jobs:
               psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f "$source"
             fi
           done
+      - name: Verify concurrent Reel intents in two real SQL sessions (disposable only)
+        shell: bash
+        env:
+          PGPASSWORD: postgres
+          PGHOST: 127.0.0.1
+          PGPORT: '54322'
+          PGDATABASE: postgres
+          PGUSER: postgres
+          RETAIL_DISPOSABLE_POSTGRES: '1'
+        run: python3 tests/security/poster_reel_intent_concurrency.py
+
       - name: Stop isolated Supabase database
         if: always()
         shell: bash
