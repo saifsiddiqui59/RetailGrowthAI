@@ -91,7 +91,7 @@ test("cross-shop poster drafts and revoked membership return indistinguishable 4
     const {reader}=fixture(options);
     const result=await handleFor(reader)("GET","/api/poster-jobs/"+PJOB,authenticated);
     if(options.revoked)assert.equal(result.status,404);
-    else assert.equal(result.status,503,"mis-scoped duplicated cross-shop job must never be returned");
+    else assert.equal(result.status,404,"foreign job must never be returned");
   }
 });
 test("poster job GET exposes status only after RLS membership",async()=>{
