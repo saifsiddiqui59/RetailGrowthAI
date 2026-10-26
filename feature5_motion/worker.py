@@ -92,15 +92,16 @@ class MotionWorker:
             receipt = self.media.upload_private(spec.shop_id, jid, token, output, info)
             if not isinstance(receipt, dict) or receipt.get("shop_id") != spec.shop_id or receipt.get("job_id") != jid:
                 raise MotionError("Private upload receipt mismatch")
-            if not self.store.complete(jid, token, receipt):
-                # A private output may already exist; do NOT mark refundable FAILED.
-                if not self.store.mark_unknown(jid, token, "FINALIZE_UNCERTAIN"):
-                    raise MotionError("Finalization unknown; manual ledger reconciliation required")
-                return "UNKNOWN"
-            return "SUCCEEDED"
         except Exception:
             # Failed local inference may consume real GPU; caller reconciles actual cost,
             # not an unconditional refund. Never publish raw prompt/private stack traces.
             if not self.store.fail(jid, token, "LOCAL_MOTION_FAILURE"):
                 raise MotionError("Unknown outcome: manual reconciliation required")
             return "FAILED"
+        # Finalization is outside the generic failure handler: a private output
+        # was already uploaded and its status/charges must be reconciled.
+        if not self.store.complete(jid, token, receipt):
+            if not self.store.mark_unknown(jid, token, "FINALIZE_UNCERTAIN"):
+                raise MotionError("Finalization unknown; manual ledger reconciliation required")
+            return "UNKNOWN"
+        return "SUCCEEDED"
