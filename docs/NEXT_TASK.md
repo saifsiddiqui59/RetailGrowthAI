@@ -725,3 +725,8 @@ NaN
 2. A real signed-in Prompt Improver canary requires explicit protected main workflow `workflow_dispatch`/ROOT disposable account authorization, authorized owner-saved business profile, two-tenant/VIEWER and expired JWT negative checks, no service-role browser access, read-only/cleanup audit. No automatic dispatch or modification of the one existing retailer profile.
 3. The existing full Feature2 recommendation->signed draft->saved review canary requires a genuinely current clothing signal and an authorized registered test image. As of 2026-10-26 latest snapshot has zero category-matched signals, and dedicated DEV has no registered media. Do not seed fake trends or treat a placeholder UUID as licensed media. Follow approved ROOT/protected workflow and media cleanup only after prerequisites are true.
 4. Keep optional paid provider disabled until explicit capped subscription quota, cost approval and safe provider. Offline checked preview remains deterministic, editable, reviewed, with no automatic publish.
+
+
+### Release result update
+- DONE: protected existing-resource backend+Free SWA deployment [#40360459131](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40360459131): both jobs passed, 25 Functions indexed, anonymous trend JWT denial 401, all four SPA routes including /trends served.
+- STILL BLOCKED: protected ROOT-authorized disposable canary and real signed-in `POST /improve-prompt`/draft workflow, 0 real clothing trends, 0 registered test media, expired JWT/VIEWER/cross-tenant & lost ACK hosted evidence; Flex gateway #249 cold/warm runs independent. Do not run a fake data workaround or confuse 401 no-token smoke with signed E2E.
