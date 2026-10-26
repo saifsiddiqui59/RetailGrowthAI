@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { createTrendApi } from './trend-api.mjs'
 import { reconcileSubmittedDraft } from './trend-draft-reconcile.mjs'
 import { offerStandardCampaignFallback } from './trend-empty-state.mjs'
 import TrendRecommendations from './TrendRecommendations.jsx'
+
+const PROMPT_FORMATS = [
+  'instagram_caption', 'facebook_post', 'linkedin_post',
+  'youtube_shorts_description', 'poster_brief', 'reel_storyboard',
+]
 
 const tomorrowIndia = () => {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -24,6 +29,17 @@ export default function TrendWorkspace() {
   const [results, setResults] = useState(null)
   const [brief, setBrief] = useState('Write seven days of practical marketing content using my licensed product photos.')
   const [startDate, setStartDate] = useState(tomorrowIndia)
+  const [improveEnabled, setImproveEnabled] = useState(false)
+  const [promptLanguage, setPromptLanguage] = useState('en-IN')
+  const [promptFormats, setPromptFormats] = useState(PROMPT_FORMATS)
+  const [promptPreview, setPromptPreview] = useState(null)
+  const [editedPrompt, setEditedPrompt] = useState('')
+  const [appliedPrompt, setAppliedPrompt] = useState('')
+  const [promptLoading, setPromptLoading] = useState(false)
+  const [promptError, setPromptError] = useState('')
+  const [chosenTrendId, setChosenTrendId] = useState('')
+  const latestShopRef = useRef(shopId)
+  useEffect(() => { latestShopRef.current = shopId }, [shopId])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -54,6 +70,10 @@ export default function TrendWorkspace() {
     setAssetId('')
     setSaved(null)
     setError('')
+    setPromptPreview(null)
+    setAppliedPrompt('')
+    setChosenTrendId('')
+    setPromptError('')
     Promise.all([api.getRecommendations(shopId), client.listMediaAssets(shopId)])
       .then(([data, media]) => {
         if (!active) return
@@ -86,6 +106,48 @@ export default function TrendWorkspace() {
   }, [shopId, api])
   const member = shops.find(shop => shop.id === shopId)?.membership
   const canWrite = member?.active && ['OWNER', 'EDITOR'].includes(member.role)
+  const improve = useCallback(async () => {
+    if (!api || !canWrite || !improveEnabled || !shopId || promptLoading) return
+    setPromptError('')
+    setPromptPreview(null)
+    setAppliedPrompt('')
+    setPromptLoading(true)
+    try {
+      const response = await api.improvePrompt(shopId, brief, promptFormats, promptLanguage)
+      // A slow response for shop A must never render after switching to B.
+      if (latestShopRef.current !== shopId) return
+      if (response.shop_id !== shopId || response.original_prompt !== brief ||
+          response.can_publish !== false || response.review_status !== 'NEEDS_REVIEW' ||
+          response.provider_mode !== 'deterministic' ||
+          typeof response.improved_prompt !== 'string' ||
+          response.improved_prompt.length > 1500) {
+        throw new Error('Invalid or stale prompt response')
+      }
+      setPromptPreview(response)
+      setEditedPrompt(response.improved_prompt)
+    } catch {
+      setPromptError('Prompt improvement was unavailable. Your original request is preserved; no content was generated or saved.')
+    } finally {
+      setPromptLoading(false)
+    }
+  }, [api, canWrite, improveEnabled, shopId, promptLoading, brief, promptFormats, promptLanguage])
+  const originalChanged = value => {
+    setBrief(value)
+    setAppliedPrompt('')
+    setPromptPreview(null)
+    setPromptError('')
+  }
+  const restoreOriginal = () => {
+    setAppliedPrompt('')
+    setEditedPrompt(promptPreview?.original_prompt || brief)
+  }
+  const applyImproved = () => {
+    if (promptPreview && editedPrompt.trim() && editedPrompt.length <= 1500 &&
+        promptPreview.original_prompt === brief) {
+      setAppliedPrompt(editedPrompt.trim())
+      setPromptError('')
+    }
+  }
   const createDraft = useCallback(async trend => {
     if (!api || !canWrite || !assetId || saving) return
     setSaving(true)
@@ -102,7 +164,7 @@ export default function TrendWorkspace() {
         throw new Error('Recent draft readback unavailable')
       }
       const campaign = {
-        shop_id: targetShop, brief, duration_days: 7, start_date: startDate,
+        shop_id: targetShop, brief: appliedPrompt || brief, duration_days: 7, start_date: startDate,
         timezone: 'Asia/Kolkata', language: 'en-IN',
         platforms: ['linkedin', 'instagram'],
         media_asset_ids: [assetId], offer: null,
@@ -150,7 +212,7 @@ export default function TrendWorkspace() {
         }
       }
     } finally { setSaving(false) }
-  }, [api, canWrite, assetId, brief, startDate, saving, shopId])
+  }, [api, canWrite, assetId, brief, appliedPrompt, startDate, saving, shopId])
   if (!configured || !api) return (
     <section className="feature2-trends" aria-label="Trends unavailable">
       <h1>Trend Intelligence</h1>
@@ -165,7 +227,7 @@ export default function TrendWorkspace() {
       <p>Daily, source-linked India insights for your own business. Drafts require retailer review; publishing is never automatic.</p>
       <div className="feature2-filters">
         <label>Business
-          <select value={shopId} onChange={event => setShopId(event.target.value)}>
+          <select value={shopId} onChange={event => { latestShopRef.current = event.target.value; setShopId(event.target.value) }}>
             {shops.map(shop => <option key={shop.id} value={shop.id}>{shop.name}</option>)}
           </select>
         </label>
@@ -182,9 +244,101 @@ export default function TrendWorkspace() {
         </label>
       </div>
       <label className="feature2-brief">Content brief
-        <textarea rows={3} maxLength={2000} minLength={10} value={brief}
-          onChange={event => setBrief(event.target.value)} />
+        <textarea rows={3} maxLength={1500} minLength={10} value={brief}
+          onChange={event => originalChanged(event.target.value)} />
       </label>
+      <section className="feature2-prompt-workspace" aria-label="AI prompt improver">
+        <h2>Prompt Improver</h2>
+        <label className="feature2-check">
+          <input type="checkbox" checked={improveEnabled}
+            onChange={event => {
+              setImproveEnabled(event.target.checked)
+              if (!event.target.checked) { setAppliedPrompt(''); setPromptPreview(null); }
+            }} />
+          Improve Prompt with AI
+        </label>
+        <p>Optional, deterministic AI-style guidance with no paid inference. It never starts content generation.</p>
+        {improveEnabled && <>
+          <div className="feature2-filters">
+            <label>Prompt language
+              <select value={promptLanguage} onChange={event => {
+                setPromptLanguage(event.target.value); setPromptPreview(null); setAppliedPrompt('')
+              }}>
+                <option value="en-IN">English (India)</option>
+                <option value="hi-IN">Hindi</option>
+                <option value="mr-IN">Marathi</option>
+              </select>
+            </label>
+          </div>
+          <fieldset className="feature2-output-formats">
+            <legend>Requested creative outputs</legend>
+            {PROMPT_FORMATS.map(fmt => <label key={fmt} className="feature2-check">
+              <input type="checkbox" checked={promptFormats.includes(fmt)}
+                onChange={event => {
+                  setPromptFormats(rows => event.target.checked ?
+                    [...rows, fmt] : rows.filter(row => row !== fmt))
+                  setPromptPreview(null); setAppliedPrompt('')
+                }} />
+              {fmt.replaceAll('_', ' ')}
+            </label>)}
+          </fieldset>
+          <button type="button" onClick={improve} disabled={!canWrite || promptLoading ||
+            !brief.trim() || !promptFormats.length}>
+            {promptLoading ? 'Improving…' : 'Improve Prompt'}
+          </button>
+        </>}
+        {promptError && <p role="alert">{promptError}</p>}
+        {promptPreview && improveEnabled && (
+          <div aria-label="Original and improved prompt preview">
+            <div className="feature2-prompt-pair">
+              <label>Original prompt
+                <textarea readOnly value={promptPreview.original_prompt} rows={8} />
+              </label>
+              <label>Improved prompt (editable)
+                <textarea value={editedPrompt} maxLength={1500} rows={8}
+                  onChange={event => { setEditedPrompt(event.target.value); setAppliedPrompt('') }} />
+              </label>
+            </div>
+            <h3>What changed and why</h3>
+            <ul>{promptPreview.improvement_suggestions.map((point, index) =>
+              <li key={index}>{point}</li>)}</ul>
+            <p>Business context used: {Object.entries(promptPreview.business_context_used)
+              .filter(([, value]) => typeof value === 'string' && value)
+              .map(([key, value]) => key.replaceAll('_', ' ') + ': ' + value).join('; ')}.</p>
+            <p>Provider: {promptPreview.provider_mode}; paid calls: {promptPreview.usage.paid_inference_calls}.
+              Status: Human review required. Outputs: {promptPreview.output_formats.join(', ')}.</p>
+            <div className="feature2-prompt-actions">
+              <button type="button" onClick={applyImproved}
+                disabled={!editedPrompt.trim() || editedPrompt.length > 1500}>Use Improved Prompt</button>
+              <button type="button" onClick={restoreOriginal}>Restore Original</button>
+            </div>
+          </div>
+        )}
+        <p role="status">{appliedPrompt ? 'Improved prompt selected for the next draft.' :
+          'Original request selected. Improvement never runs automatically.'}</p>
+        {promptLanguage !== 'en-IN' && <p>Current canonical v1 campaigns remain English.
+          This language selection prepares prompt guidance only; it does not claim translated output.</p>}
+        <div className="feature2-prompt-actions">
+          <label>Verified trend for this draft
+            <select value={chosenTrendId} onChange={event => setChosenTrendId(event.target.value)}>
+              <option value="">Select a relevant current trend</option>
+              {(results?.recommendations || []).map(t =>
+                <option value={t.trend_id} key={t.trend_id}>{t.title}</option>)}
+            </select>
+          </label>
+          <button type="button" disabled={!canWrite || !assetId || saving ||
+            !chosenTrendId || (appliedPrompt || brief).trim().length < 10 ||
+            startDate < tomorrowIndia()}
+            onClick={() => {
+              const t = (results?.recommendations || []).find(x => x.trend_id === chosenTrendId)
+              if (t) createDraft(t)
+            }}>
+            Generate Content
+          </button>
+        </div>
+        {!chosenTrendId && <p>Generating a trend-backed draft requires a verified matching trend.
+          For an ordinary, nontrend campaign use <Link to="/campaigns">Campaign Studio</Link>.</p>}
+      </section>
       {!assets.length && <p><Link to="/campaigns">Upload a licensed image in Campaigns</Link> before creating a draft.</p>}
       {!canWrite && shops.length > 0 && <p>Viewer access: you can read trends but cannot create drafts.</p>}
       {loading && <p role="status">Loading authorized recommendations…</p>}

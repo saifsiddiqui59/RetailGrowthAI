@@ -106,3 +106,29 @@ test('optional submission nonce crosses signed POST exactly once and never on GE
   assert.equal(calls[0].options.headers.Authorization,'Bearer verified-shop-jwt')
   assert.equal(calls[0].options.method,'POST')
 })
+
+test('AI prompt improvement is signed, preview-only, no content draft mutation', async () => {
+  const calls=[]
+  const client=api(async(url, options)=>{
+    calls.push({url,options})
+    return {ok:true,status:200,json:async()=>({
+      shop_id:SHOP,original_prompt:'Seven days of styling ideas',
+      improved_prompt:'Seven days of styling ideas with safe business context',
+      review_status:'NEEDS_REVIEW',can_publish:false,provider_mode:'deterministic',
+      usage:{paid_inference_calls:0},
+    })}
+  })
+  const result=await client.improvePrompt(SHOP,'Seven days of styling ideas',
+    ['instagram_caption','reel_storyboard'],'mr-IN')
+  assert.equal(result.can_publish,false)
+  assert.equal(calls.length,1)
+  assert.equal(calls[0].url,'https://example.azurewebsites.net/api/shops/'+SHOP+'/improve-prompt')
+  assert.equal(calls[0].options.method,'POST')
+  assert.equal(calls[0].options.headers.Authorization,'Bearer verified-shop-jwt')
+  assert.deepEqual(JSON.parse(calls[0].options.body),{
+    original_prompt:'Seven days of styling ideas',output_formats:['instagram_caption','reel_storyboard'],language:'mr-IN',
+  })
+  assert.throws(()=>client.improvePrompt(SHOP,'',[]))
+  assert.throws(()=>client.improvePrompt(SHOP,'Brief',['instagram_caption'],'fr-FR'))
+  assert.equal(calls.length,1)
+})

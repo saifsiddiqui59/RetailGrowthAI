@@ -37,3 +37,20 @@ def test_real_feature2_planner_produces_full_7_day_fictional_campaign(tmp_path):
     assert (tmp_path / "feature2-sample.json").is_file()
     assert (tmp_path / "feature2-sample.txt").is_file()
     assert "FICTIONAL" in (tmp_path / "feature2-sample.txt").read_text()
+    assert (tmp_path / "original-prompt.txt").read_text().strip() == sample["original_prompt"]
+    assert sample["original_prompt"] in (tmp_path / "improved-prompt.txt").read_text()
+    assert (tmp_path / "campaign-7-days.json").is_file()
+    assert (tmp_path / "campaign-preview.md").is_file()
+    assert "## Day 7:" in (tmp_path / "campaign-preview.md").read_text()
+    assert "SYNTHETIC" in (tmp_path / "campaign-preview.md").read_text()
+    import json
+    results = json.loads((tmp_path / "sample-test-results.json").read_text())
+    assert results["day_count"] == 7
+    assert results["unique_poster_headlines"] == 7
+    assert results["paid_calls"] == 0
+    assert results["real_hosted_authorization"] == "NOT_TESTED"
+    image = (tmp_path / "synthetic-test-image.png").read_bytes()
+    assert image.startswith(bytes.fromhex("89504e470d0a1a0a"))
+    assert b"SYNTHETIC TEST ONLY" in image
+    assert "original-prompt.txt" not in sample  # metadata is distinct from disk artifacts
+

@@ -55,5 +55,11 @@ jobs:
           path: |
             demo/feature2/out/feature2-sample.json
             demo/feature2/out/feature2-sample.txt
+            demo/feature2/out/original-prompt.txt
+            demo/feature2/out/improved-prompt.txt
+            demo/feature2/out/campaign-7-days.json
+            demo/feature2/out/campaign-preview.md
+            demo/feature2/out/sample-test-results.json
+            demo/feature2/out/synthetic-test-image.png
           retention-days: 14
           if-no-files-found: error
