@@ -1,15 +1,8 @@
 import { Bar } from 'react-chartjs-2'
+import { verifiedCounts } from './chart-model.mjs'
 import { BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Tooltip } from 'chart.js'
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend)
-
-export function verifiedCounts(values, labels) {
-  if (!Array.isArray(values) || !Array.isArray(labels) || values.length !== labels.length ||
-      !values.length || !values.every(v => Number.isSafeInteger(v) && v >= 0)) return null
-  return { labels, datasets: [{ label: 'Verified records', data: values,
-    backgroundColor: ['#168467', '#4d8fc2', '#e2ab57', '#647d9a', '#7f6db7', '#62aaa6'].slice(0, values.length),
-    borderRadius: 8, maxBarThickness: 46 }] }
-}
 
 export default function VerifiedMetricsChart({ values, labels, title }) {
   const data = verifiedCounts(values, labels)
