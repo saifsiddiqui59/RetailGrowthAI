@@ -76,6 +76,27 @@ class ProfessionalVideoTests(unittest.TestCase):
         self.assertTrue((output / "assets/silence.wav").is_file())
         self.assertEqual(json.loads((output / "render-config.json").read_text())["renderer"], "hyperframes")
 
+    def test_full_hd_compiler_records_exact_dimensions_and_fps(self):
+        self.plan["output"] = {"width": 1080, "height": 1920, "fps": 30}
+        output = compile_composition(self.plan, self.manifest, self.media, self.output)
+        config = json.loads((output / "render-config.json").read_text())
+        page = (output / "index.html").read_text()
+        self.assertEqual((config["width"], config["height"], config["fps"]),
+                         (1080, 1920, 30))
+        self.assertIn('data-width="1080" data-height="1920"', page)
+        self.assertIn('data-fps="30"', page)
+        self.assertIn("role-intro", page)
+        self.assertIn("role-outro", page)
+
+    def test_sixty_second_script_acceptance_without_expensive_render(self):
+        self.plan["duration_seconds"] = 60
+        for index, scene in enumerate(self.plan["scenes"]):
+            scene["start"] = index * 20
+            scene["duration"] = 20
+        ordered, has_source_audio = validate(self.plan, self.manifest, self.media)
+        self.assertEqual(ordered, {})
+        self.assertFalse(has_source_audio)
+
     def test_mode_b_image_to_video_reuses_actual_media(self):
         self.image()
         self.plan["mode"] = "image"
