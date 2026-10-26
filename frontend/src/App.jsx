@@ -20,7 +20,7 @@ const links = [
   { to: '/connections', label: 'Social accounts', icon: '◎', group: 'PUBLISH' },
   { to: '/publishing', label: 'Publishing history', icon: '◷' },
   { to: '/subscription', label: 'Subscription', icon: '◈', group: 'ACCOUNT' },
-  { to: '/notifications', label: 'My notifications', icon: '◇' },
+  { to: '/notifications', label: 'My inbox', icon: '◇' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ]
 
