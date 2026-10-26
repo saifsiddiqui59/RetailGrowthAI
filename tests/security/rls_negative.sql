@@ -160,3 +160,6 @@ select set_config('request.jwt.claim.role','service_role',true);
 rollback;
 \echo 'PASS: cross-shop read/write, owner forgery, viewer escalation, revocation and anon-denial RLS tests'
 
+
+-- Feature #2 additive RLS checks execute in the existing disposable security CI job.
+\i tests/security/feature2_trends_negative.sql
