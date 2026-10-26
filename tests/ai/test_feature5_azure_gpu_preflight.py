@@ -15,12 +15,13 @@ RG = {"name": "rg-retailgrowth-dev", "location": "centralindia",
       "tags": {"app": "retailgrowthai", "environment": "dev"}}
 ACCOUNT = {"id": SUB, "state": "Enabled"}
 SUPPORTED = [{"name": "Consumption-GPU-NC24-A100"}]
-ENVS = [{"name": "rgai-dev-a100-eastus", "location": "eastus",
+ENVS = [{"name": "rgai-f5-gpu-canary-eastus", "location": "eastus",
          "provisioningState": "Succeeded",
+         "tags": {"app": "RetailGrowthAI", "environment": "dev", "feature": "feature5"},
          "properties": {"workloadProfiles": [
-             {"name": "rgai-a100", "workloadProfileType": "Consumption-GPU-NC24-A100"}
+             {"name": "Consumption", "workloadProfileType": "Consumption"}
          ]}}]
-QUOTA = {"rgai-dev-a100-eastus": [
+QUOTA = {"rgai-f5-gpu-canary-eastus": [
     {"name": {"value": "Managed Environment Consumption NCA100 GPUs"},
      "limit": 1, "currentValue": 0}]}
 
@@ -37,7 +38,7 @@ class TestAzureGPUReadOnlyPreflight(unittest.TestCase):
     def test_matching_dev_identity_a100_profile_and_one_quota_are_inventory_only(self):
         result = check()
         self.assertEqual(result.status, "INSPECTION_PASS_ONLY")
-        self.assertEqual(result.eligible_environment, "rgai-dev-a100-eastus")
+        self.assertEqual(result.eligible_environment, "rgai-f5-gpu-canary-eastus")
         self.assertIn("No GPU has been created", " ".join(result.reasons))
 
     def test_wrong_subscription_or_prod_group_never_proceed(self):
@@ -58,17 +59,26 @@ class TestAzureGPUReadOnlyPreflight(unittest.TestCase):
         self.assertEqual(check(environments=e).status, "BLOCKED")
 
     def test_no_env_or_duplicates_or_exhausted_quota_block(self):
-        self.assertEqual(check(environments=[]).status, "BLOCKED")
+        self.assertEqual(check(environments=[]).status, "ENVIRONMENT_REQUIRED")
         self.assertEqual(check(environments=ENVS + ENVS).status, "BLOCKED")
         self.assertEqual(check(usage_by_environment={}).status, "BLOCKED")
-        exhausted = {"rgai-dev-a100-eastus": [
+        exhausted = {"rgai-f5-gpu-canary-eastus": [
             {"name": {"value": "Managed Environment Consumption NCA100 GPUs"},
              "limit": 1, "currentValue": 1}]}
         self.assertEqual(check(usage_by_environment=exhausted).status, "BLOCKED")
 
+    def test_wrong_env_tags_or_paid_gpu_profile_cannot_pass(self):
+        foreign = __import__("copy").deepcopy(ENVS)
+        foreign[0]["tags"]["environment"] = "prod"
+        self.assertEqual(check(environments=foreign).status, "BLOCKED")
+        paid = __import__("copy").deepcopy(ENVS)
+        paid[0]["properties"]["workloadProfiles"].append(
+            {"name": "A100", "workloadProfileType": "Consumption-GPU-NC24-A100"})
+        self.assertEqual(check(environments=paid).status, "BLOCKED")
+
     def test_nonpositive_or_invalid_quota_blocks(self):
         for value in ("nan", "junk", -1, 1):
-            usage = {"rgai-dev-a100-eastus": [
+            usage = {"rgai-f5-gpu-canary-eastus": [
                 {"name": {"value": "Managed Environment Consumption NCA100 GPUs"},
                  "limit": 1, "currentValue": value}]}
             self.assertEqual(check(usage_by_environment=usage).status, "BLOCKED")
@@ -84,7 +94,7 @@ class TestAzureGPUReadOnlyPreflight(unittest.TestCase):
             run.assert_not_called()
 
     def test_cli_inventory_uses_only_five_allowed_az_calls(self):
-        docs = [ACCOUNT, RG, SUPPORTED, ENVS, QUOTA["rgai-dev-a100-eastus"]]
+        docs = [ACCOUNT, RG, SUPPORTED, ENVS, QUOTA["rgai-f5-gpu-canary-eastus"]]
         calls = []
         def fake_run(cmd, **kwargs):
             calls.append(cmd)
