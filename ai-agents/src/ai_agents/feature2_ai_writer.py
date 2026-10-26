@@ -82,7 +82,7 @@ class AzureFeature2ContentLLM:
             raise FoundryUnavailable("Approved real AI model not configured")
         url = self._client._url()
         output_bound = 4000
-        input_bound = len(SYSTEM) + len(editorial_brief) + 256
+        input_bound = len(SYSTEM.encode('utf-8')) + len(editorial_brief.encode('utf-8')) + 256
         bound_usd = ((Decimal(input_bound) * self._input_rate +
                       Decimal(output_bound) * self._output_rate) / 1_000_000)
         if bound_usd > self._cap:
