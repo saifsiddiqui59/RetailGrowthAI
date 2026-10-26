@@ -176,8 +176,8 @@ def validate(plan, manifest, asset_root, allow_test_media=False):
             raise VideoPlanError("mute_source must be boolean")
         aid = scene.get("asset_id")
         if aid is None:
-            if plan["mode"] != "text":
-                raise VideoPlanError("Image/poster/media modes require actual authorized media")
+            if plan["mode"] != "text" and not plan.get("brand"):
+                raise VideoPlanError("Media mode text-only scenes require approved brand identity")
             if "trim_start" in scene or "mute_source" in scene:
                 raise VideoPlanError("Cannot trim or mute a text-only scene")
             continue
