@@ -26,6 +26,9 @@ export default function TrendWorkspace() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(null)
+  const [drafts, setDrafts] = useState([])
+  const [draftError, setDraftError] = useState('')
+  const [draftLoading, setDraftLoading] = useState(false)
   const api = useMemo(() => createTrendApi({
     baseUrl: import.meta.env?.VITE_CAMPAIGN_API_BASE_URL,
     tokenProvider: () => client.getAccessToken(),
@@ -62,6 +65,23 @@ export default function TrendWorkspace() {
       }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [shopId, api, client])
+  useEffect(() => {
+    if (!shopId || !api) return
+    let active = true
+    setDrafts([])
+    setDraftError('')
+    setDraftLoading(true)
+    api.listDrafts(shopId).then(data => {
+      if (!active) return
+      if (data.shop_id !== shopId || !Array.isArray(data.drafts)) {
+        throw new Error('Invalid saved draft response')
+      }
+      setDrafts(data.drafts.filter(item => item.shop_id === shopId))
+    }).catch(() => {
+      if (active) setDraftError('Saved drafts could not be loaded; trend recommendations are unaffected.')
+    }).finally(() => { if (active) setDraftLoading(false) })
+    return () => { active = false }
+  }, [shopId, api])
   const member = shops.find(shop => shop.id === shopId)?.membership
   const canWrite = member?.active && ['OWNER', 'EDITOR'].includes(member.role)
   const createDraft = useCallback(async trend => {
@@ -80,6 +100,15 @@ export default function TrendWorkspace() {
         throw new Error('Unexpected draft response')
       }
       setSaved(data.draft_id)
+      try {
+        const recent = await api.listDrafts(shopId)
+        if (recent.shop_id === shopId && Array.isArray(recent.drafts)) {
+          setDrafts(recent.drafts)
+          setDraftError('')
+        }
+      } catch {
+        setDraftError('Draft saved, but the review list could not refresh.')
+      }
     } catch {
       setError('Draft could not be saved. Verify your business profile, image license and source availability.')
     } finally { setSaving(false) }
@@ -132,6 +161,23 @@ export default function TrendWorkspace() {
         sources={results.sources}
         onDraft={canWrite && assetId && !saving && brief.trim().length >= 10 && startDate >= tomorrowIndia()
           ? createDraft : null} />}
+      <section aria-label="Saved content drafts" className="feature2-saved-drafts">
+        <h2>Saved drafts for review</h2>
+        <p>Five most recent drafts for this shop. These are not published or approved.</p>
+        {draftLoading && <p role="status">Loading saved drafts…</p>}
+        {draftError && <p role="alert">{draftError}</p>}
+        {!draftLoading && !draftError && !drafts.length && <p>No saved drafts for this shop.</p>}
+        {drafts.map(item => <details key={item.id}>
+          <summary>Draft {item.id.slice(0, 8)} · {item.review_state} · {item.created_at || 'No date'}</summary>
+          <p>Verified trend reference: {item.trend_id}. Retailer approval is still required.</p>
+          <ol>{(item.content?.campaign?.days || []).slice(0, 7).map((day, index) =>
+            <li key={day.id || index}>
+              <strong>Day {index + 1}: {day.topic}</strong>
+              <p>{day.linkedin?.post_text || 'LinkedIn copy unavailable'}</p>
+              <p>{day.instagram?.caption || 'Instagram caption unavailable'}</p>
+            </li>)}</ol>
+        </details>)}
+      </section>
     </section>
   )
 }

@@ -35,6 +35,7 @@ export function createTrendApi({ baseUrl, tokenProvider, fetchImpl = fetch }) {
   }
   return {
     getRecommendations: (shopId) => request('GET', shopId, 'trend-recommendations'),
+    listDrafts: (shopId) => request('GET', shopId, 'content-drafts'),
     createDraft: (shopId, trendId, campaign) => {
       if (!/^[a-f0-9]{32}$/.test(trendId || '') ||
           !campaign || typeof campaign !== 'object' || campaign.shop_id !== shopId) {

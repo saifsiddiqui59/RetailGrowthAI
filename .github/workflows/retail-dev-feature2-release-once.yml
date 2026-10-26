@@ -282,3 +282,8 @@ jobs:
       - name: Clear Azure session
         if: always()
         run: az logout >/dev/null 2>&1 || true
+
+# 2026-10-26 DEV-only review release: the existing /shops/{shop_id}/content-drafts
+# trigger now serves GET and POST under independently verified user JWT + RLS.
+# This comment-only workflow revision re-runs the previous reviewed existing-resource
+# release after Feature #2's tested saved-DRAFT review source is integrated.
