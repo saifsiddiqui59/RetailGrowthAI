@@ -1,0 +1,25 @@
+# Feature #2 — actual code-generated fictional retailer artifact audit (2026-10-26)
+
+This is a **read-only inspection** of the **actual GitHub Actions-produced ZIP** from [run #40325237693](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40325237693), [artifact #12651066476](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40325237693/artifacts/12651066476). Files: `feature2-sample.json` (15,526 bytes) and `feature2-sample.txt` (6,625 bytes), extracted and inspected directly. No manually written substitutes or fictitious HTTP responses were accepted as output.
+
+## Verified existing integration
+- Sample generator is already merged via [coordinator PR #358](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/358) (merge commit `23a93baf0ee26e13fac07d398f79f47f079d2ad4`). Do not remerge the closed PR or replace current source.
+- Exact Feature branch [CI #40324871751](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40324871751) **four successes**; coordinator [#40325237686](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40325237686) **four successes**; post-merge main [#40326163649](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40326163649) **four successes**; later main [#40327507349](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40327507349) **four successes**; sample generator [#40325237693](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40325237693) SUCCESS.
+- Called actual `ai_agents.trend_intelligence.collect` and `recommendations`, `ai_agents.content_intelligence.create_content_draft`, default `MockFoundryProvider.generate` -> original `planner.generate_campaign`; the frozen `CampaignBrief` / `validate_campaign` / `review_campaign` contract remains.
+- Real `Thread & Loom Studio (FICTIONAL TEST SHOP)` fixture, Nagpur, cotton kurtis, English India, 2026-10-27 through 2026-11-02 inclusive. Seven days, each with LinkedIn/Instagram/Facebook copy, YouTube title, poster headline/subheadline/CTA and **three 10-second storyboard segments totaling 30 seconds**. `PENDING_RETAILER` each; `can_publish=false`.
+- **Strict provenance:** `Kurti clothing styling ideas` came from a **synthetic RSS XML fixture**, not a Google Trends observation. Its source URL is a test reference, not proof of live fashion interest. `aa000000-0000-4000-8000-000000000022` is an unregistered test asset ID, not licensed uploaded media. Zero images/videos were rendered by this workflow; no hosted Supabase/Azure writes and no paid inference.
+
+## Measured editorial defects, not a production-quality pass
+1. Generated YouTube titles on **days 3, 4, 5 and 7** are visibly truncated at the 100-character cutoff inside the fictional shop suffix, occasionally mid-word. Shorten/recompose with whole-word limits before publishing.
+2. All seven storyboard sidecars use the same generic scripts: `Introduce the idea` (0–10s), `Show your approved product images` (10–20s), `Invite a conversation` (20–30s). This tests the **timing contract**, not creative visual quality or actual footage.
+3. Days 2–7 LinkedIn/Instagram use boilerplate and largely repeat the same CTA. Require distinctive product-grounded education, substantive platform-specific copy and honest media sourcing before quality acceptance.
+4. This fixture contains a placeholder identifier but **no licensed image** and no rendered poster or MP4. Never present those as delivered creative assets.
+
+## Hosted DEV acceptance remains separate
+- Prior genuine Feature2 DEV deployment [#40319956057](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40319956057) passed backend and Free SWA jobs; still **not** a signed-in 7-day fictional tenant E2E.
+- The existing protected `.github/workflows/retail-dev-test-accounts-canary-once.yml` requires a manual, gated main-branch `workflow_dispatch` with protected `dev` approval and supports only `browser-upload` or `poster` modes, **not Feature2 trend->draft->history**. Its implementation explicitly awaits root/operator approval for newly created test accounts. Do not auto-dispatch it or suggest that it proves Feature2.
+- Feature2 hosted synthetic workflow would require a separately reviewed Feature2 mode, exact protected approval, disposable accounts/shops, approved test-source image, real signed JWT and RLS behavior, source-observed trend matching, draft save/reopen, unauthorized/viewer/expired-JWT rejection, and reliable cleanup even after partial failures. Existing #249 HTTP issue can prevent acceptance.
+- This audit itself created **zero** cloud resources, DB rows, users, media, billing, provider requests or cross-project changes. No WineShopPOS, PROD or another feature branch modified.
+
+## Next work
+Keep offline artifact as reproducible QA evidence. First fix titles/boilerplate/creative specificity in separate Feature2-owned reviewed tests without changing v1 campaign schema or introducing paid calls. Then design protected Feature2-only hosted canary and independently verify its approved run/cleanup before claiming genuine DEV acceptance.
