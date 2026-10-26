@@ -1,0 +1,128 @@
+name: RetailGrowthAI DEV isolated Free SWA Node HTTP control (one-shot)
+# A named preview only. NEVER publishes to production or changes Python Functions.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p1-dev-p0-249-node-swa-preview-once.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0-249-free-node-preview
+  cancel-in-progress: false
+jobs:
+  control:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.head_commit.message, 'release(dev): RetailGrowthAI P0 249 isolated Node preview'))
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Prove synthetic API tests, static config and source safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/security/p0_node_http_control.test.mjs
+          python3 -m unittest discover -s tests/infra -p 'test_p0_249_swa_preview.py'
+          test -f experiments/wineshop-node-http-control/site/staticwebapp.config.json
+          node --check experiments/wineshop-node-http-control/src/index.mjs
+          ! grep -R -E 'service_role|sb_secret_|customer[_-]?token' experiments/wineshop-node-http-control/src experiments/wineshop-node-http-control/site
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify exact tagged Central India DEV and existing Free SWA preview capacity
+        shell: bash
+        env:
+          EXPECTED_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$EXPECTED_SUB"
+          az group show -g rg-retailgrowth-dev -o json > "$RUNNER_TEMP/p0-rg.json"
+          az staticwebapp show -g rg-retailgrowth-dev -n retailgrowthai-dev-preview -o json > "$RUNNER_TEMP/p0-swa.json"
+          az staticwebapp environment list -g rg-retailgrowth-dev -n retailgrowthai-dev-preview -o json > "$RUNNER_TEMP/p0-env.json"
+          python3 - "$RUNNER_TEMP/p0-rg.json" "$RUNNER_TEMP/p0-swa.json" "$RUNNER_TEMP/p0-env.json" <<'PY'
+          import json,sys
+          rg,swa,env=(json.load(open(path)) for path in sys.argv[1:])
+          tags={str(k).lower():str(v).lower() for k,v in (rg.get("tags") or {}).items()}
+          assert rg["name"]=="rg-retailgrowth-dev"
+          assert str(rg["location"]).replace(" ","").lower()=="centralindia"
+          assert tags.get("app")=="retailgrowthai" and tags.get("environment")=="dev"
+          assert swa["name"]=="retailgrowthai-dev-preview"
+          assert (swa.get("sku") or {}).get("name","").lower()=="free"
+          assert swa.get("defaultHostname")=="purple-dune-06b5da200.2.azurestaticapps.net"
+          assert isinstance(env,list), "environment listing unavailable"
+          names={str(item.get("name") or item.get("environmentName") or "").lower() for item in env}
+          if "p0249" not in names:
+              nonprod={x for x in names if x and x!="default" and x!="production"}
+              assert len(nonprod)<3,"all Free staging slots occupied"
+          print("P0_249_EXISTING_FREE_SWA_VERIFIED=true")
+          print("P0_249_NAMED_PREVIEW_ONLY=p0249")
+          PY
+      - name: Obtain masked deployment credential for this exact existing SWA
+        id: token
+        shell: bash
+        run: |
+          set -euo pipefail
+          t="$(az staticwebapp secrets list -g rg-retailgrowth-dev -n retailgrowthai-dev-preview --query 'properties.apiKey' -o tsv)"
+          test -n "$t"
+          echo "::add-mask::$t"
+          echo "token=$t" >> "$GITHUB_OUTPUT"
+      - name: Publish synthetic site and Node API to named preview ONLY
+        id: deploy
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9
+        with:
+          azure_static_web_apps_api_token: ${{ steps.token.outputs.token }}
+          action: upload
+          app_location: experiments/wineshop-node-http-control/site
+          api_location: experiments/wineshop-node-http-control
+          output_location: ''
+          skip_app_build: true
+          deployment_environment: p0249
+          production_branch: main
+      - name: Probe only verified p0249 preview, never customer host
+        shell: bash
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.static_web_app_url }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os,subprocess,urllib.parse
+          expected="purple-dune-06b5da200-p0249.2.azurestaticapps.net"
+          url=os.environ.get("PREVIEW_URL","").strip().rstrip("/")
+          info=urllib.parse.urlsplit(url)
+          assert info.scheme=="https" and info.hostname==expected and not info.path and not info.query,"unexpected deployment URL: abort before HTTP"
+          print("P0_249_PREVIEW_HOST_VALIDATED=true")
+          tests=[("/api/p0-health-lite","200"),("/api/campaigns/11111111-1111-4111-8111-111111111111","401"),
+                 ("/api/p0-249-missing","404"),("/api/p0-health-lite","200")]
+          for i,(path,want) in enumerate(tests):
+              result=subprocess.run(["curl","-sS","-D","-","-o","/dev/null","--connect-timeout","3","--max-time","15",
+                                     "-w","\n%{http_code} %{time_total}",url+path],capture_output=True,text=True,timeout=18)
+              lines=result.stdout.splitlines()
+              last=lines[-1].split() if lines else []
+              code=last[0] if last else "000"
+              elapsed=last[1] if len(last)>1 else "NA"
+              marker=any(line.lower().startswith("x-p0-control: node-v4") for line in lines[:-1])
+              print(f"P0_249_NODE_PREVIEW_TEST={i} HTTP={code} seconds={elapsed} marker={marker} curl_rc={result.returncode}")
+              assert result.returncode==0 and code==want and marker,(i,code,marker)
+          print("P0_249_NODE_MANAGED_FREE_PREVIEW_HTTP_ACCEPTANCE=PASSED")
+          PY
+      - name: Azure logout
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
