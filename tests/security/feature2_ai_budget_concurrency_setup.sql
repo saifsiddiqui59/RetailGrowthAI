@@ -2,7 +2,7 @@
 -- The companion Python test pins localhost:54322 and opt-in marker to avoid
 -- accidentally running against any hosted DEV/PROD instance.
 \set ON_ERROR_STOP on
-select 'public.feature2_reserve_ai_budget(uuid,uuid,text,numeric)'::regprocedure;
+select 'public.feature2_reserve_ai_budget(uuid,uuid,text,numeric,uuid)'::regprocedure;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
 values('f2a00000-0000-4000-8000-000000000011',
        '00000000-0000-0000-0000-000000000000',
