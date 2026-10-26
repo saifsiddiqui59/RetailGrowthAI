@@ -33,9 +33,9 @@ jobs:
           set -euo pipefail
           node --test tests/security/p0249_secure_node_preview.test.mjs tests/security/p0249_secure_dispatch.test.mjs
           for src in experiments/secure-node-http/src/*.mjs; do node --check "$src"; done
-          grep -Fq 'writesEnabled: false' experiments/secure-node-http/src/index.mjs
-          grep -Fq 'renderWritesEnabled: false' experiments/secure-node-http/src/index.mjs
-          ! grep -REq 'RETAIL_SUPABASE_SERVICE_ROLE_KEY|sb_secret_' experiments/secure-node-http/src/index.mjs
+          grep -Fq 'writesEnabled: false' experiments/secure-node-http/src/dev-preview-index.mjs
+          grep -Fq 'renderWritesEnabled: false' experiments/secure-node-http/src/dev-preview-index.mjs
+          ! grep -REq 'RETAIL_SUPABASE_SERVICE_ROLE_KEY|sb_secret_' experiments/secure-node-http/src/dev-preview-index.mjs
           grep -Fxq 'VITE_CAMPAIGN_API_BASE_URL=https://rgai-dev-functions-d4e5ddbd.azurewebsites.net' frontend/.env.production
       - uses: azure/login@v3
         with:
@@ -77,6 +77,21 @@ jobs:
           test -n "$value"
           echo "::add-mask::$value"
           echo "token=$value" >> "$GITHUB_OUTPUT"
+      - name: Stage approved DEV-only handler exclusively in ephemeral runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          source=experiments/secure-node-http/src/dev-preview-index.mjs
+          target=experiments/secure-node-http/src/index.mjs
+          test -s "$source"
+          test -s "$target"
+          test "$(node -p "require('./experiments/secure-node-http/package.json').main")" = 'src/index.mjs'
+          cp -- "$source" "$target"
+          node --check "$target"
+          grep -Fq 'writesEnabled: false' "$target"
+          grep -Fq 'renderWritesEnabled: false' "$target"
+          ! grep -Eq 'RETAIL_SUPABASE_SERVICE_ROLE_KEY|sb_secret_' "$target"
+          echo 'P0249_ISOLATED_RUNNER_ONLY_DEV_PREVIEW_HANDLER_STAGED=true'
       - name: Deploy NEW NAMED DEV PREVIEW ONLY (never customer or production)
         id: release
         uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9
