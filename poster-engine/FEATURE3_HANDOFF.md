@@ -578,3 +578,62 @@ reuse; on-demand model creation still available when approved.
   importer+approval UI and real browser/asset cross-feature test.
   Retain existing FLUX `Create New Model` separately as optional
   user-initiated paid generation.
+
+
+## 2026-10-26 — Actual source-pinned Indian-profile library review slice
+
+**User-approved strategy:** Start work importing pre-generated synthetic
+Indian/South Asian-themed human stills from source repositories; keep
+Create New AI Model optional, with the same saved model library for poster,
+try-on and video references. No new Azure/GPU spend for this slice.
+
+**Verified actual OpenPeople GitHub source:** pinned exact upstream commit
+`231f73aa43b32a38001759944baa01d7d154ce26`; confirmed eight
+metadata profiles and their two JPEG files each in the exact upstream
+tree (P009, P006, P079, P033, P054, P059, P025, P016). Read and stored
+Git blob hashes for all 16 image stills and eight metadata JSON files.
+Descriptions like '80% South Indian' are fictional dataset prompt profiles,
+not verified human origins. OpenPeople README says images CC BY 4.0 and
+code MIT, but its testing disclaimer and external image/model rights still
+need independent commercial advertising/SaaS redistribution review.
+
+**Implemented inside Feature3-owned paths:**
+- `feature3-indian-model-review.mjs`: immutable 8-character candidate
+  metadata, full-body/portrait SHA pins, exact source GitHub links,
+  and noncommercial/nonapproved, nonimported, zero-GPU review packet.
+- `Feature3ModelLibraryReview.jsx`: accessible React 8-character selector
+  for five female-presenting/three male-presenting source profiles,
+  view immutable original links, download JSON packet locally. It
+  never fetches/imports/upload/publishes media, performs no GPU work and
+  preserves a separately disabled 'Create New AI Model' CTA.
+- `Feature3StudioPanel.jsx`: mounts the opt-in model library reviewer
+  through existing authenticated poster studio rather than modifying
+  root App global routing or coordinator-owned source.
+- `openpeople_import_v2.py`: for any locally staged approved source JPG,
+  verify **Git blob SHA of physical source file bytes** against the
+  independently pinned reviewed SHA before private PNG upload; rejects
+  a fake same-named JPG and symlinked file paths. Existing tenant/curator
+  role, licensing and immutable storage callbacks remain mandatory.
+- `openpeople_indian_review_v2.py`: independent server-side 8-candidate
+  and 16-image hash allowlist; fail-closed parse of client review packet
+  with exact static status/permission/source fields and no extra keys.
+  Never accept browser `approved:true` as business license evidence.
+- Tests `feature3-indian-model-review.test.mjs`,
+  `test_feature3_indian_source_review.py` and extended
+  `test_feature3_openpeople_import.py` cover JSX compile, no browser
+  imports, cross-language exact 16 packets, source replacements/rights
+  spoofing, local source bytes Git-object mismatch, prior tenant gates.
+  These test samples are offline and **do not contain actual upstream JPG
+  bytes** or prove commercial rights/real model image appearance.
+- `INDIAN_OPENPEOPLE_IMPORT_PILOT.md` is operator/curator runbook.
+
+**Coordinator P0 outstanding:** real consent/license-cleared upstream
+source image selection and 2–3 asset pilot on privately staged images;
+catalog RLS/migrations/platform-curator role/private signed assets;
+server API for authenticated rights review/import; real blob uploads;
+visual QA, rights revocation and cross-feature integration to try-on
+and video; signed-in owner/VIEWER/other-shop/expired-token E2E.
+Feature worker must NOT deploy, edit canonical docs or self-merge PR #321.
+Update PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG on integration. Actual
+FLUX model generation, FASHN VTON licensed try-on and Feature5 video
+remain independent GPU/quality/licensing gates.
