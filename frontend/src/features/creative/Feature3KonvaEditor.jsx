@@ -10,6 +10,7 @@ import { Stage, Layer, Rect, Text, Image as KonvaImage, Transformer } from 'reac
 import {
   FEATURE3_FORMATS, newFeature3History, editFeature3, updateFeature3Layer,
   moveFeature3Layer, undoFeature3, redoFeature3,
+  addFeature3Layer, removeFeature3Layer, replaceFeature3Image, validateFeature3Design,
 } from './feature3-design.mjs'
 
 export default function Feature3KonvaEditor({
@@ -20,6 +21,12 @@ export default function Feature3KonvaEditor({
   const [viewport, setViewport] = useState(480)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [imageChoice, setImageChoice] = useState('')
+  const authorizedIds = Object.keys(imageMap).filter(key =>
+    /^[a-zA-Z0-9_-]{1,100}$/.test(key) &&
+    imageMap[key]?.complete && imageMap[key]?.naturalWidth > 0 &&
+    imageMap[key]?.naturalHeight > 0)
+
   const hostRef = useRef(null)
   const refs = useRef({})
   const transformerRef = useRef(null)
@@ -45,14 +52,56 @@ export default function Feature3KonvaEditor({
     transformerRef.current.getLayer()?.batchDraw()
   }, [selected, design])
 
-  const edit = callback => {
-    setHistory(current => editFeature3(current, callback))
-    setError('')
+  const apply = mutation => {
+    try {
+      setHistory(mutation(history))
+      setError('')
+    } catch (problem) {
+      setError(problem.message || 'Poster change was rejected')
+    }
   }
-  const setLayer = (id, patch) => {
-    setHistory(current => updateFeature3Layer(current, id, patch))
-    setError('')
+  const edit = callback => apply(current => editFeature3(current, callback))
+  const setLayer = (id, patch) => apply(current =>
+    updateFeature3Layer(current, id, patch))
+
+  function downloadLocalVersion() {
+    // Optional local backup, not cloud persistence or approval.
+    const blob = new Blob([JSON.stringify(design, null, 2)], {type:'application/json'})
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'retailgrowth-poster-local-design-v2.json'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
+
+  async function restoreLocalVersion(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (file.size < 1 || file.size > 25_000 || file.type &&
+        !['application/json', 'text/plain'].includes(file.type)) {
+      setError('Choose a local poster JSON design under 25 KB')
+      return
+    }
+    try {
+      const parsed = validateFeature3Design(JSON.parse(await file.text()))
+      if (parsed.shop_id !== initialDesign.shop_id ||
+          parsed.layers.some(layer => layer.type === 'image' &&
+            !authorizedIds.includes(layer.asset_id))) {
+        throw Error('Draft tenant or image authorization has changed')
+      }
+      setHistory(newFeature3History(parsed))
+      setSelected(null)
+      setError('')
+    } catch (problem) {
+      setError('Could not verify this local design for the selected shop')
+    } finally {
+      event.target.value = ''
+    }
+  }
+
   const place = (layer, node) => {
     const normalized = {
       x: Math.max(0, Math.min(1 - layer.w, node.x() / (width * scale))),
@@ -117,8 +166,17 @@ export default function Feature3KonvaEditor({
                 // Never construct or load a URL here. A missing auth-scoped
                 // image is intentionally invisible rather than fetched.
                 const image = imageMap[layer.asset_id]
-                return image && typeof image === 'object' && image.complete
-                  ? <KonvaImage {...props} image={image}/> : null
+                if (!authorizedIds.includes(layer.asset_id)) return null
+                // Use the SAME center-cover crop rule as Pillow ImageOps.fit,
+                // rather than stretching retail products out of proportion.
+                const ratio = Math.max(pos.width / image.naturalWidth,
+                                       pos.height / image.naturalHeight)
+                const cropWidth = pos.width / ratio
+                const cropHeight = pos.height / ratio
+                return <KonvaImage {...props} image={image}
+                  cropX={(image.naturalWidth - cropWidth) / 2}
+                  cropY={(image.naturalHeight - cropHeight) / 2}
+                  cropWidth={cropWidth} cropHeight={cropHeight}/>
               })}
               <Transformer ref={transformerRef} rotateEnabled={false}
                 flipEnabled={false} keepRatio={false}
@@ -133,10 +191,35 @@ export default function Feature3KonvaEditor({
               disabled={!history.past.length}>Undo</button>
             <button type="button" onClick={() => {setHistory(h => redoFeature3(h));setError('')}}
               disabled={!history.future.length}>Redo</button>
-            <button type="button" onClick={() => setHistory(h => moveFeature3Layer(h, selected, 1))}
+            <button type="button" onClick={() => apply(h => moveFeature3Layer(h, selected, 1))}
               disabled={!active}>Bring forward</button>
-            <button type="button" onClick={() => setHistory(h => moveFeature3Layer(h, selected, -1))}
+            <button type="button" onClick={() => apply(h => moveFeature3Layer(h, selected, -1))}
               disabled={!active}>Send backward</button>
+            <button type="button" onClick={() => {
+              apply(h => removeFeature3Layer(h, selected)); setSelected(null)
+            }} disabled={!active || design.layers.length <= 1}>Remove layer</button>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button type="button" disabled={design.layers.length >= 24}
+              onClick={() => apply(h => addFeature3Layer(h, 'text'))}>Add text</button>
+            <button type="button" disabled={design.layers.length >= 24}
+              onClick={() => apply(h => addFeature3Layer(h, 'rect'))}>Add promo badge</button>
+          </div>
+          <label>Approved product image
+            <select value={imageChoice} onChange={e => setImageChoice(e.target.value)}>
+              <option value="">Select authorized shop media</option>
+              {authorizedIds.map(id =>
+                <option key={id} value={id}>{id.slice(0, 8)} · Registered</option>)}
+            </select>
+          </label>
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            <button type="button" disabled={!imageChoice || design.layers.length >= 24}
+              onClick={() => apply(h => addFeature3Layer(h, 'image',
+                imageChoice, authorizedIds))}>Add photo</button>
+            <button type="button"
+              disabled={!imageChoice || active?.type !== 'image'}
+              onClick={() => apply(h => replaceFeature3Image(
+                h, selected, imageChoice, authorizedIds))}>Replace selected photo</button>
           </div>
           <label>Selected layer
             <select value={selected || ''} onChange={e => setSelected(e.target.value || null)}>
@@ -171,7 +254,14 @@ export default function Feature3KonvaEditor({
           <button type="button" onClick={save} disabled={!onSaveDraft || saving}>
             {saving ? 'Saving…' : 'Save private draft'}
           </button>
-          {!onSaveDraft && <p>Awaiting authenticated versioned save API integration.</p>}
+          <button type="button" onClick={downloadLocalVersion}>
+            Download local editable JSON
+          </button>
+          <label>Reopen local draft
+            <input type="file" accept=".json,application/json" onChange={restoreLocalVersion}/>
+          </label>
+          {!onSaveDraft && <p>Local draft only. Authenticated versioned cloud save requires
+            the coordinator-owned v2 API; existing v1 cloud drafts are unchanged.</p>}
           {error && <p role="alert">{error}</p>}
         </div>
       </div>
