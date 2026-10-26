@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTROL = ROOT / "experiments/wineshop-node-http-control"
-WORKFLOW = ROOT / ".github/workflows/p1-dev-p0-249-node-swa-preview-once.yml"
+WORKFLOW = ROOT / ".github/workflows/p0-dev-free-swa-node-preview-once.yml"
 
 
 class FreeSwaPreviewSafety(unittest.TestCase):
@@ -39,7 +39,7 @@ class FreeSwaPreviewSafety(unittest.TestCase):
 
     def test_named_preview_deployment_never_replaces_production(self):
         workflow = WORKFLOW.read_text()
-        self.assertIn("deployment_environment: p0249", workflow)
+        self.assertIn("deployment_environment: p0249node", workflow)
         self.assertIn("production_branch: main", workflow)
         self.assertIn("skip_app_build: true", workflow)
         self.assertIn("app_location: experiments/wineshop-node-http-control/site", workflow)
@@ -55,14 +55,14 @@ class FreeSwaPreviewSafety(unittest.TestCase):
 
     def test_credentialed_job_cannot_activate_outside_release_gate(self):
         workflow = WORKFLOW.read_text()
-        self.assertIn("startsWith(github.event.head_commit.message, 'release(dev): RetailGrowthAI P0 249 isolated Node preview')", workflow)
+        self.assertIn("startsWith(github.event.head_commit.message, 'experiment(dev): RetailGrowthAI P0 249 Free SWA Node preview')", workflow)
         self.assertIn("contents: read", workflow)
         self.assertIn("id-token: write", workflow)
         self.assertNotIn("az functionapp deployment", workflow)
         self.assertNotIn("az staticwebapp create", workflow)
         self.assertNotIn("az group create", workflow)
         self.assertNotIn("alwaysReady", workflow)
-        self.assertIn("P0_249_NODE_MANAGED_FREE_PREVIEW_HTTP_ACCEPTANCE=PASSED", workflow)
+        self.assertIn("P0_249_NODE_FREE_PREVIEW_ACCEPTED=true", workflow)
 
 if __name__ == "__main__":
     unittest.main()
