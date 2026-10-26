@@ -247,11 +247,13 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
         headline = clean_text(scene["headline"], "headline")
         offer = clean_text(scene.get("offer"), "offer", optional=True)
         offer_markup = f'<p class="offer">{offer}</p>' if offer else ""
+        leading_video = media_markup if aid and ordered[aid][1] == "video" else ""
+        scene_image = media_markup if aid and ordered[aid][1] != "video" else ""
         components.append(
-            f'{media_markup}<section id="scene{i}" class="clip scene s{i%3}" '
+            f'{leading_video}<section id="scene{i}" class="clip scene s{i%3}" '
             f'data-start="{start}" data-duration="{length}" data-track-index="1" '
             f'style="--span:{length}s">'
-            f'<div class="halo"></div><div class="photo-wrap">{"" if aid and ordered[aid][1] == "video" else media_markup}</div>'
+            f'<div class="halo"></div><div class="photo-wrap">{scene_image}</div>'
             f'<div class="glass"><p class="kicker">{k} / {i+1:02d}</p>'
             f'<h1>{headline}</h1>{offer_markup}</div>'
             f'<p class="index">RG · {i+1:02d} / {len(plan["scenes"]):02d}</p></section>'
