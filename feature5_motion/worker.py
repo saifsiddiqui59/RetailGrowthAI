@@ -6,7 +6,9 @@ reservation MUST be provided by the coordinator's EXISTING ledger/RLS subsystem.
 from __future__ import annotations
 
 import json
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
+import shutil
 import subprocess
 from typing import Protocol
 
@@ -53,6 +55,17 @@ def validate_clip(path: Path, *, ffprobe="ffprobe", max_bytes=80 * 1024 * 1024) 
         raise MotionError("Generated clip did not pass local media validation") from exc
 
 
+def _valid_amount(amount):
+    """A NaN/Infinity/bool must never disable a monetary approval ceiling."""
+    if isinstance(amount, bool):
+        return None
+    try:
+        value = Decimal(str(amount))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    return value if value.is_finite() and value > 0 else None
+
+
 class MotionWorker:
     def __init__(self, *, store: JobStore, media: TenantMedia, runner, workdir_root: Path,
                  enabled: bool = False, credit_cap_usd: float = 0):
@@ -63,7 +76,8 @@ class MotionWorker:
 
     def execute(self, job_id: str) -> str:
         jid = canonical_uuid(job_id)
-        if not self.enabled or self.credit_cap_usd <= 0:
+        cap = _valid_amount(self.credit_cap_usd)
+        if not self.enabled or cap is None:
             raise MotionError("Premium motion worker disabled")
         claim = self.store.claim(jid)  # Must be atomic DB lease + existing reserved quota.
         if claim is None:
@@ -72,13 +86,26 @@ class MotionWorker:
         spec = claim["spec"]
         if not isinstance(spec, MotionSpec) or spec.job_id != jid:
             raise MotionError("Invalid authoritative job claim")
-        if claim.get("reserved_usd", 0) <= 0 or claim["reserved_usd"] > self.credit_cap_usd or claim.get("review_status") != "APPROVED":
+        reservation = _valid_amount(claim.get("reserved_usd"))
+        if reservation is None or reservation > cap or claim.get("review_status") != "APPROVED":
             raise MotionError("Missing approved ledger reservation")
+        workdir = None
         try:
             grant = self.media.grant(spec.shop_id, spec.source_asset_id) if spec.source_asset_id else None
             validate_source(spec, grant)
-            workdir = (self.root.resolve(strict=True) / jid / token)
-            workdir.mkdir(parents=True, exist_ok=False)
+            if self.root.is_symlink():
+                raise MotionError("Private job root must not be a symlink")
+            root = self.root.resolve(strict=True)
+            if not root.is_dir():
+                raise MotionError("Private job root is missing")
+            job_dir = root / jid
+            if job_dir.is_symlink():
+                raise MotionError("Symlinked job directory rejected")
+            job_dir.mkdir(mode=0o700, exist_ok=True)
+            if not job_dir.is_dir():
+                raise MotionError("Invalid job directory")
+            workdir = job_dir / token
+            workdir.mkdir(mode=0o700, exist_ok=False)
             source = self.media.stage(spec.shop_id, spec.source_asset_id, workdir) if grant else None
             output = self.runner.run(spec, source_file=source, workdir=workdir)
             if not Path(output).resolve().is_relative_to(workdir.resolve()):
@@ -87,17 +114,32 @@ class MotionWorker:
             info.update({"motion_job_id": jid, "shop_id": spec.shop_id,
                          "source_asset_id": spec.source_asset_id, "provider": "hunyuan-video-1.5",
                          "prompt_version": spec.prompt_version, "seed": spec.seed,
-                         "license_status": "PENDING_FINAL_REVIEW",
-                         "quality_review_required": True})
-            receipt = self.media.upload_private(spec.shop_id, jid, token, output, info)
+                         "license_status": "PENDING_FINAL_REVIEW", "quality_review_required": True,
+                         "reserved_usd": str(reservation), "compute_seconds_measured": None})
+            # An upload timeout may happen AFTER private bytes were accepted.
+            # Never declare refundable FAILED or start inference again.
+            try:
+                receipt = self.media.upload_private(spec.shop_id, jid, token, output, info)
+            except Exception:
+                if not self.store.mark_unknown(jid, token, "PRIVATE_UPLOAD_UNCERTAIN"):
+                    raise MotionError("Private upload reconciliation required")
+                return "UNKNOWN"
             if not isinstance(receipt, dict) or receipt.get("shop_id") != spec.shop_id or receipt.get("job_id") != jid:
-                raise MotionError("Private upload receipt mismatch")
+                if not self.store.mark_unknown(jid, token, "PRIVATE_RECEIPT_INVALID"):
+                    raise MotionError("Private output receipt reconciliation required")
+                return "UNKNOWN"
         except Exception:
             # Failed local inference may consume real GPU; caller reconciles actual cost,
             # not an unconditional refund. Never publish raw prompt/private stack traces.
             if not self.store.fail(jid, token, "LOCAL_MOTION_FAILURE"):
                 raise MotionError("Unknown outcome: manual reconciliation required")
             return "FAILED"
+        finally:
+            if workdir is not None and workdir.is_dir() and not workdir.is_symlink():
+                # No source photo or motion clip left on warm/idle worker disk.
+                # Only sanitized DB receipts survive; ephemeral worker runtime
+                # must also enforce automatic disk disposal on termination.
+                shutil.rmtree(workdir, ignore_errors=True)
         # Finalization is outside the generic failure handler: a private output
         # was already uploaded and its status/charges must be reconciled.
         if not self.store.complete(jid, token, receipt):
