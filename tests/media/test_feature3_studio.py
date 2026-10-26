@@ -80,6 +80,37 @@ class Feature3Tests(unittest.TestCase):
                 doc = self.design(template=template, format="story")
                 self.assertEqual(validate_design(doc)["format"], "story")
 
+    def test_registered_brand_logo_preserves_transparency(self):
+        from PIL import ImageDraw
+        logo_id = str(uuid4())
+        image = Image.new("RGBA", (100, 100), (0, 0, 0, 0))
+        ImageDraw.Draw(image).ellipse((15, 15, 85, 85), fill=(40, 150, 75, 255))
+        image.save(self.root / "logo.png")
+        self.manifest["assets"][logo_id] = {
+            "kind": "image", "shop_id": self.shop, "path": "logo.png",
+            "rights": {"license": "owned", "commercial_use": True,
+                       "source": "merchant-owned-fixture",
+                       "evidence": "Generated synthetic local PNG"},
+        }
+        design = compose_poster(
+            shop_id=self.shop, mode="image", prompt="Festive fashion",
+            business_name="Boutique", source_asset_id=self.asset,
+            logo_asset_id=logo_id,
+        )
+        self.assertEqual(next(x for x in design["layers"]
+                              if x["id"] == "logo")["asset_id"], logo_id)
+        result = render_design(design, self.manifest, self.root,
+                               self.root / "brand.png", scale=.25)
+        with Image.open(result["path"]) as final:
+            self.assertEqual(final.size, (270, 270))
+            # Registered logo is visible in the top-right but the alpha
+            # corners retain the approved business background.
+            self.assertEqual(final.getpixel((214, 10)), (252, 244, 236))
+        self.manifest["assets"][logo_id]["rights"]["commercial_use"] = False
+        with self.assertRaisesRegex(DesignError, "rights"):
+            render_design(design, self.manifest, self.root,
+                          self.root / "denied-brand.png", scale=.25)
+
     def test_all_ten_templates_produce_visually_distinct_pixels(self):
         import hashlib
         styles = ("fashion", "luxury", "streetwear", "ethnic", "festival",
