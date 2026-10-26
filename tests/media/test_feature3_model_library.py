@@ -199,6 +199,22 @@ class LibraryTests(unittest.TestCase):
             self.store(image_bytes=gif.getvalue())
         self.assertEqual(len(self.assets), 0)
 
+    def test_bogus_model_key_or_malformed_permission_list_cannot_be_reused(self):
+        saved = self.store()
+        reviewed = {**saved, "status": "APPROVED"}
+        with self.assertRaisesRegex(ModelLibraryDenied, "storage lineage"):
+            checked_model_for_use(
+                model={**reviewed, "storage_key":
+                       "shops/" + self.shop + "/model-library/other/" +
+                       saved["image_sha256"] + ".png"},
+                requesting_shop_id=self.shop, usage="poster",
+                authorize_use=lambda *_: True)
+        with self.assertRaisesRegex(ModelLibraryDenied, "unreviewed"):
+            checked_model_for_use(
+                model={**reviewed, "approved_uses": None},
+                requesting_shop_id=self.shop, usage="poster",
+                authorize_use=lambda *_: True)
+
     def test_newly_created_ai_model_uses_same_library_contract_no_second_schema(self):
         generated = replace(
             self.candidate, source_kind="created_ai",
