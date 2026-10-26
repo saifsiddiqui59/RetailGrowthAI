@@ -95,7 +95,7 @@ test('optional submission nonce crosses signed POST exactly once and never on GE
     return {ok:true,status:201,json:async()=>({shop_id:SHOP,status:'DRAFT',draft_id:SHOP})}
   })
   const campaign = {shop_id:SHOP,brief:'Seven safe styling ideas',media_asset_ids:[OTHER]}
-  await assert.rejects(client.createDraft(SHOP,TREND,campaign,'bad-nonce'))
+  assert.throws(() => client.createDraft(SHOP,TREND,campaign,'bad-nonce'))
   assert.equal(calls.length,0)
   const created = await client.createDraft(SHOP,TREND,campaign,nonce)
   assert.equal(created.status,'DRAFT')
