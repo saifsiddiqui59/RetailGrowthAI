@@ -101,7 +101,7 @@ class TestFeature4Handoff(unittest.TestCase):
         self.token = uid()
         self.clip = uid()
         self.path = f"{self.shop}/renders/{self.job}/{self.token}.mp4"
-        self.rights = {"commercial": True, "redistribution": True, "license": "retailer-approved"}
+        self.rights = {"commercial_use": True, "license": "owned", "evidence": "Approved retailer-owned licensed footage", "source": "RetailGrowthAI generated motion"}
         self.row = {
             "job_id": self.job, "shop_id": self.shop, "clip_asset_id": self.clip,
             "attempt_token": self.token, "storage_path": self.path,
@@ -149,7 +149,7 @@ class TestFeature4Handoff(unittest.TestCase):
         with self.assertRaises(MotionError):
             feature4_asset_entry(self.ready(), shop_id=self.shop,
                                  local_staged_path="clips/fashion.mp4",
-                                 rights={"commercial": True, "redistribution": False})
+                                 rights={"commercial_use": True, "license": "unreviewed", "source": "retailer", "evidence": "none"})
 
 
 if __name__ == "__main__":
