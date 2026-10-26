@@ -22,6 +22,12 @@ class Admin:
 
     def request(self, path, *, method="GET", query=None, data=None):
         self.calls.append((path, method, query, data))
+        if path == "shop_content_drafts":
+            assert method == "POST"
+            assert data["shop_id"] == SHOP and data["created_by"] == USER
+            assert data["content"]["review"]["can_publish"] is False
+            assert data["trend_id"] == "b" * 32
+            return [{"id": str(uuid4()), "shop_id": SHOP, "created_by": USER}]
         if path == "trend_snapshots":
             return ([{"region": "IN", "expires_at": "2026-10-27T10:00:00+00:00",
                       "snapshot": {"trends": [], "sources": [], "complete": False}}]
@@ -88,14 +94,15 @@ def test_profile_reads_only_rls_business_row_without_claiming_a_product_catalog(
 
 
 def test_draft_save_requires_verified_shop_and_returns_rls_insert_ack():
-    tenant = RlsTenant()
+    admin = Admin()
     draft = {"campaign": {"shop_id": SHOP}, "content_days": [{"trend_id": "b" * 32}],
              "review": {"can_publish": False, "status": "DRAFT"}}
-    saved = TenantDraftStore(tenant).save_draft("signed-user-JWT", USER, SHOP, draft)
+    saved = TenantDraftStore(admin).save_draft("signed-user-JWT", USER, SHOP, draft)
     assert saved
+    assert admin.calls[0][0:2] == ("shop_content_drafts", "POST")
     with pytest.raises(PermissionError):
-        TenantDraftStore(tenant).save_draft("signed-user-JWT", USER, str(uuid4()), draft)
+        TenantDraftStore(admin).save_draft("signed-user-JWT", USER, str(uuid4()), draft)
     with pytest.raises(ValueError):
-        TenantDraftStore(tenant).save_draft(
+        TenantDraftStore(admin).save_draft(
             "signed-user-JWT", USER, SHOP,
             {"campaign": {"shop_id": SHOP}, "content_days": [], "review": {}})
