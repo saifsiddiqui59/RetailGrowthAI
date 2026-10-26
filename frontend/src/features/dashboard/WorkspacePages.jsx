@@ -3,6 +3,7 @@ import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { Button } from '../../components/ui/button.jsx'
 import { Card } from '../../components/ui/card.jsx'
 import { Badge } from '../../components/ui/badge.jsx'
+import CreativeLaunchpad from './CreativeLaunchpad.jsx'
 
 const pages = {
   calendar: {
@@ -49,6 +50,7 @@ export const WORKSPACE_PAGES = Object.freeze(pages)
 export default function WorkspacePage({ section }) {
   const page = pages[section]
   const { user, configured } = useRetailAuth()
+  if (section === 'creative') return <CreativeLaunchpad />
   if (!page) return null
   return <div className="rg-workspace-page">
     <div className="page-heading">

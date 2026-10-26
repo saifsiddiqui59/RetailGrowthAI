@@ -38,3 +38,9 @@
 - [ ] Complete shadcn migration, visual QA and uncontracted social/publishing/inbox screens.
 - [ ] Coordinator reconciling shared PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG after PR integration; Feature 1 ownership deliberately avoids those concurrently edited docs.
 - [ ] Hosted, signed-in DEV acceptance remains separately blocked by Azure HTTP #249; offline browser mocks and local Supabase negative SQL are not hosted proof.
+
+## Feature #1 follow-up — real-profile Creative Studio launchpad (2026-10-26)
+- A new guided `/creative-studio` entry uses existing authenticated Supabase `listShops()` and `getBusinessProfile(shopId)` (no new API or resource) to show **five clearly described profile details** helpful for regional trend and brand context. Completion is a local, informational checklist, **not** a campaign/publishing/onboarding approval score.
+- Fail-closed checks reject business profiles whose `shop_id` does not match an RLS-accessible shop. No generated result, private blob URL, OAuth state, AI credit usage, scheduled post or published item is invented.
+- Existing routes are linked in a single creation flow: Trend Intelligence, Media Library, Campaign Studio and recent draft calendar. Guide points to Settings for edits. Negative cross-tenant browser and malformed-context unit tests added; desktop/320px responsive styles within feature-owned CSS. No changes to existing Feature #2, #3, #4, #5, backend, migrations or Azure Functions.
+- Open coordination: PR #337 (shared business selector) may later unify the launchpad selector; PR #340 mobile navigation and old PR #319 remain unmerged. Independent new branch starts at current main rather than stacking on those PRs. The canonical four docs remain coordinator-owned. Hosted signed-in E2E still subject to #249.

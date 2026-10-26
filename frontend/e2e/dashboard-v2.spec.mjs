@@ -216,6 +216,44 @@ test('rapid workspace navigation reuses principal-scoped shop list without extra
   expect(calls.filter(path=>path==='/rest/v1/shops')).toHaveLength(1)
 })
 
+test('Creative Studio shows only real shop-scoped marketing context and links to existing tools', async ({page})=>{
+  await signedIn(page)
+  const requests=[]
+  await page.route(HOST + '/rest/v1/business_profiles**',route=>{
+    requests.push({method:route.request().method(),url:route.request().url()})
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify([{shop_id:SHOP,business_name:'Example Boutique',category:'Clothing',
+        city:'Nagpur',description:'Local ethnic clothing for families',brand_voice:''}])})
+  })
+  await page.goto('/creative-studio')
+  await expect(page.getByRole('heading',{name:'Creative Studio'})).toBeVisible()
+  await expect(page.getByText('4 of 5')).toBeVisible()
+  await expect(page.getByRole('list',{name:'Business content checklist'}).getByText('Brand voice')).toBeVisible()
+  for (const label of ['Open Trend Intelligence','View Media Library',
+    'Open Campaign Studio','Open Draft Calendar','Edit profile']) {
+    await expect(page.getByRole('link',{name:label})).toBeVisible()
+  }
+  expect(requests).toHaveLength(1)
+  expect(requests[0].method).toBe('GET')
+  expect(new URL(requests[0].url).searchParams.get('shop_id')).toBe('eq.'+SHOP)
+  await expect(page.getByText('No fabricated live data')).toBeVisible()
+})
+
+test('Creative Studio rejects foreign profile response without showing its content', async ({page})=>{
+  await signedIn(page)
+  await page.route(HOST + '/rest/v1/business_profiles**',route=>route.fulfill({
+    status:200,contentType:'application/json',
+    headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+    body:JSON.stringify([{shop_id:'a1000000-0000-4000-8000-000000000002',
+      business_name:'Foreign competitor',category:'Retail',city:'Other city'}])
+  }))
+  await page.goto('/creative-studio')
+  await expect(page.getByRole('alert')).toContainText('could not be verified')
+  await expect(page.getByText('Foreign competitor')).toHaveCount(0)
+  await expect(page.getByText('of 5')).toHaveCount(0)
+})
+
 test('unverified guest cannot deep-link to dashboard subroutes', async ({ page }) => {
   await page.goto('/connections')
   await expect(page).toHaveURL(/\/account$/)
