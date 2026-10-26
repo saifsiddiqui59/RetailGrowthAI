@@ -106,3 +106,41 @@ def test_draft_save_requires_verified_shop_and_returns_rls_insert_ack():
         TenantDraftStore(admin).save_draft(
             "signed-user-JWT", USER, SHOP,
             {"campaign": {"shop_id": SHOP}, "content_days": [], "review": {}})
+
+
+def test_rls_saved_draft_reads_are_shop_scoped_review_only_and_bounded():
+    content = {"campaign": {"shop_id": SHOP, "days": []}, "content_days": [],
+               "review": {"status": "DRAFT", "can_publish": False}}
+    fixture = {"id": str(uuid4()), "shop_id": SHOP, "trend_id": "b" * 32,
+               "created_at": NOW.isoformat(), "review_state": "DRAFT", "content": content}
+
+    class UserOnlyReader:
+        def __init__(self, rows):
+            self.rows = rows
+            self.calls = []
+        def _request(self, table, token, *, query):
+            self.calls.append((table, token, query))
+            assert token == "signed-user-JWT"
+            return self.rows
+
+    reader = UserOnlyReader([fixture])
+    result = TenantDraftStore(Admin(), reader).list_drafts("signed-user-JWT", SHOP)
+    assert result[0]["id"] == fixture["id"] and result[0]["content"] == content
+    assert reader.calls[0][0] == "shop_content_drafts"
+    assert reader.calls[0][2]["shop_id"] == "eq." + SHOP
+    assert reader.calls[0][2]["order"] == "created_at.desc"
+    assert reader.calls[0][2]["limit"] == "5"
+    with pytest.raises(StorageUnavailable):
+        TenantDraftStore(Admin()).list_drafts("signed-user-JWT", SHOP)
+    with pytest.raises(ValueError):
+        TenantDraftStore(Admin(), reader).list_drafts("signed-user-JWT", SHOP, limit=20)
+    for invalid in (
+        {**fixture, "shop_id": str(uuid4())},
+        {**fixture, "review_state": "APPROVED"},
+        {**fixture, "content": {"campaign": {"shop_id": str(uuid4())},
+                               "content_days": [], "review": content["review"]}},
+        {**fixture, "content": {"campaign": {"shop_id": SHOP}, "content_days": [],
+                               "review": {"status": "DRAFT", "can_publish": True}}},
+    ):
+        with pytest.raises(StorageUnavailable):
+            TenantDraftStore(Admin(), UserOnlyReader([invalid])).list_drafts("signed-user-JWT", SHOP)
