@@ -663,3 +663,50 @@ remain independent GPU/quality/licensing gates.
   needs coordinator-owned authenticated private Blob/RLS/signed preview.
 - CI evidence for this addition must be checked at its **new exact SHA**;
   do not reuse the prior PASS 4/4 for `86b341d`.
+
+## 2026-10-26 — Owner-approved reduced scope, and no-GPU model reuse
+
+User removed genuine upstream Indian model-image inspection, independent
+third-party license verification investigation, and live Hosted DEV/browser
+E2E from the **current sprint work list**, not from commercial-release
+safety gates. Explicit separate status and integration contract:
+[`FEATURE3_REDUCED_SCOPE.md`](FEATURE3_REDUCED_SCOPE.md).
+
+**Code now committed on Feature #3 only:**
+
+- `feature3-approved-models.mjs`: zero-fetch UI filtering of authenticated
+  server-provided model-list rows; no private Blob paths/URLs, no unreviewed
+  source-review candidates. OWNER/EDITOR/VIEWER server checks still required.
+- `Feature3StudioPanel.jsx` adds Saved AI model poster (CPU), composed
+  from an already authorized, loaded registered image, not fake try-on.
+  Tracks image SHA and registered asset on draft creation so an altered
+  or revoked model source hides that draft until reselected.
+- `PosterStudio.jsx` now passes optional `approvedModels` and
+  `authenticatedModelImageMap` from its signed-in host; both default to
+  empty so v1 customer poster workflows remain unchanged.
+- `model_catalog_projection_v2.py`: backend-owned model + private media
+  reauthorization adapter to produce limited browser picker metadata.
+  **This adapter is not an authenticated HTTP endpoint or live RLS.**
+- `model_reference_v2.py`: tenant-scoped, rights-revision-fenced private
+  reference/cache key contract for poster, Feature4/5 video-reference
+  and try-on integrations. No paid inference, garment try-on or moving
+  video is executed.
+- Test files `tests/frontend/feature3-approved-models.test.mjs`,
+  `tests/media/test_feature3_model_reference.py` and
+  `tests/media/test_feature3_model_catalog_projection.py` cover
+  duplicates, private-asset availability, revoked rights, foreign shop
+  selection, supplier-grant spoofing, and cache fingerprint changes.
+  **Only synthetic mock-authorizer/source fixtures.**
+
+**Coordinator to integrate when ready:** add durable model registry/RLS
+and current-rights RPC, private media registration and imageMap preview
+service, authenticated model list API to mounted PosterStudio, versioned
+server v2 draft persistence and secure poster outputs, plus optional
+Feature4/5 private reference consumer approval. This handoff does not
+change global docs/contracts or the coordinator-owned migrations/APIs.
+Model creation and actual VTON remain disabled unless license, provider,
+rights, residency and cost quota gates are satisfied.
+
+**Current exact-head CI:** check the newest Actions run after these
+commits. No claim of completed deployment, genuine upstream import,
+hosted browser E2E or production readiness.
