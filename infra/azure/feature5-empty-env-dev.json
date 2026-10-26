@@ -14,9 +14,7 @@
         "purpose": "zero-compute-gpu-quota-probe"
       },
       "properties": {
-        "appLogsConfiguration": {
-          "destination": "none"
-        },
+        "appLogsConfiguration": {},
         "workloadProfiles": [
           {
             "name": "Consumption",
