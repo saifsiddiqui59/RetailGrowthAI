@@ -46,7 +46,13 @@ def choose_meters(items, *, now=None):
         if row.get("type") not in (None, "Consumption"):
             continue
         unit = normalize(str(row.get("unitOfMeasure", "")))
-        if "1m" not in unit and "1 million" not in unit:
+        # Azure OpenAI GPT-4 meters often publish USD/1K tokens while
+        # newer models publish USD/1M. Normalize BEFORE budget comparison.
+        if unit in ("1k", "1k tokens"):
+            factor = Decimal("1000")
+        elif unit in ("1m", "1m tokens", "1 million", "1 million tokens"):
+            factor = Decimal("1")
+        else:
             continue
         direction = ("input" if "input" in sku.split() or "inp" in sku.split()
                      else "output" if "output" in sku.split() or "outp" in sku.split()
@@ -54,7 +60,7 @@ def choose_meters(items, *, now=None):
         if direction is None:
             continue
         try:
-            rate = Decimal(str(row["retailPrice"]))
+            rate = Decimal(str(row["retailPrice"])) * factor
             when = datetime.fromisoformat(row["effectiveStartDate"].replace("Z", "+00:00"))
         except (KeyError, ValueError, TypeError, InvalidOperation):
             continue

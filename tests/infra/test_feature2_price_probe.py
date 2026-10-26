@@ -26,12 +26,19 @@ class TestFeature2PriceProbe(unittest.TestCase):
           rec("gpt 4.1 mini cached Inp", "0.11"),
           rec("gpt 4.1 mini Inp", "0.99", date="2027-01-01T00:00:00Z"),
           rec("gpt 4.1 mini Inp", "0.20", region="eastus"),
-          rec("gpt 4.1 mini Outp", "0.50", unit="1K Tokens"),
+          rec("gpt 4.1 mini Outp", "0.50", unit="1 Token"),
         ]
         meters = choose(items, now=NOW)
         self.assertEqual(meters["input"]["usd_per_million"], "0.44")
         self.assertEqual(meters["output"]["usd_per_million"], "1.76")
         self.assertEqual(meters["input"]["unitOfMeasure"], "1M Tokens")
+
+    def test_exact_azure_public_one_thousand_token_meter_conversion(self):
+        rows=[rec("gpt 4.1 mini Inp", "0.00044",unit="1K"),
+              rec("gpt 4.1 mini Outp", "0.00176",unit="1K")]
+        meters=choose(rows, now=NOW)
+        self.assertEqual(meters["input"]["usd_per_million"],"0.44000")
+        self.assertEqual(meters["output"]["usd_per_million"],"1.76000")
 
     def test_known_azure_openai_product_family_preserved(self):
         rows=[rec("gpt 4.1 mini Inp", "0.44",product="Azure OpenAI GPT4"),
