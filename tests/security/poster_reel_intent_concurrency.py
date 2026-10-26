@@ -69,7 +69,7 @@ def result_job_id(output: str) -> str:
     for line in output.splitlines():
         if line.startswith("RGA_RESULT:"):
             data = json.loads(line.removeprefix("RGA_RESULT:"))
-            if data.get("status") not in {"QUEUED", "RUNNING", "COMPLETED"}:
+            if data.get("status") not in {"QUEUED", "RUNNING", "SUCCEEDED", "FAILED"}:
                 raise AssertionError(f"unexpected returned job state: {data}")
             return data["job_id"]
     raise AssertionError(f"Reel RPC did not return a job: {output[-500:]}")
