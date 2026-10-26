@@ -66,10 +66,13 @@ def run_one(*, weights, approval, request, output):
     job = _read_job(Path(request))
     dest = _private_dir(output)
     t0 = monotonic()
-    payload = _verified_png(OfflineFluxKlein4B(weights, height=512, width=512)(
-        job, {},
-    ))
+    worker = OfflineFluxKlein4B(weights, height=512, width=512)
+    payload = _verified_png(worker(job, {}))
     seconds = monotonic() - t0
+    # A mocked Pillow PNG is NOT real inference. Fail closed unless the
+    # concrete CUDA worker confirmed actual GPU execution and synchronization.
+    if getattr(worker, "actual_cuda_verified", False) is not True:
+        raise ProviderBlocked("FLUX runtime CUDA inference has not been verified")
     if seconds > MAX_SECONDS:
         raise ProviderBlocked("FLUX exceeded the approved per-execution time")
     output_file = dest / "flux-unreviewed.png"
