@@ -34,6 +34,7 @@ jobs:
           set -euo pipefail
           node --test tests/security/p0_node_http_control.test.mjs experiments/wineshop-node-http-control/test/routes.test.mjs
           node --check experiments/wineshop-node-http-control/src/index.mjs
+          grep -Fq 'if (path.startsWith("/api/campaigns/")) return {status:401,jsonBody:{error:"AUTH_REQUIRED"}};' experiments/wineshop-node-http-control/src/routes.mjs
           test "$(node -p "require('./experiments/wineshop-node-http-control/package.json').main")" = "src/index.mjs"
           ! grep -REq 'RETAIL_SUPABASE_SERVICE_ROLE_KEY|sb_secret_|createClient|POST.*campaigns' experiments/wineshop-node-http-control/src
       - name: Audit isolated preview shell and unchanged production frontend origin
