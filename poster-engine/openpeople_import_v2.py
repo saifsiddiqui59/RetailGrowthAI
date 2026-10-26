@@ -17,7 +17,7 @@ import re
 from model_library_v2 import ModelCandidate, ModelLibraryDenied, import_model_image
 
 _REVISIONS = re.compile(r"^[a-f0-9]{40}$")
-_PERSON = re.compile(r"^P(?:0[0-9][1-9]|0[1-9]0|[1-9][0-9]{2})$")
+_PERSON = re.compile(r"^P[0-9]{3}$")
 _ASSETS = {
     "studio_posture": ("studio_posture.jpg", "full_body"),
     "studio_portrait": ("studio_portrait.jpg", "portrait"),
@@ -46,6 +46,7 @@ def import_openpeople_still(*, selection, owner_shop_id, scope,
         or not _REVISIONS.fullmatch(selection.source_revision)
         or not isinstance(selection.person_id, str)
         or not _PERSON.fullmatch(selection.person_id)
+        or not 1 <= int(selection.person_id[1:]) <= 100
         or selection.image_kind not in _ASSETS):
         raise ModelLibraryDenied("Invalid pinned OpenPeople identity or approved still type")
     if source_rights_reviewed is not True:
