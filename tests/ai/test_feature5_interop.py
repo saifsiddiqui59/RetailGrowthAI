@@ -7,6 +7,7 @@ from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from feature5_motion.contracts import MotionError
+from feature5_motion.quality_review import VisualReview, review_template
 from feature5_motion.interop import (
     ApprovedMotionClip, FEATURE4_VERSION, HUNYUAN_MODEL,
     Part3MotionStoreAdapter, feature4_asset_entry, feature4_scene,
@@ -109,6 +110,21 @@ class TestFeature4Handoff(unittest.TestCase):
             "quality_status": "APPROVED", "output_codec": "h264",
             "rights_approved": True, "duration_seconds": 5.0,
         }
+        # Synthetic fixture only; a real approval must be loaded from audited DB.
+        self.clip_sha = "f" * 64
+        self.review = VisualReview(
+            shop_id=self.shop, job_id=self.job, source_asset_id=None,
+            output_asset_id=self.clip, reviewer_user_id=uid(),
+            reviewed_sha256=self.clip_sha,
+            checks={key: True for key in review_template()},
+            decision="APPROVED",
+            notes="Synthetic contract fixture, not a real assessment.",
+            ai_disclosure_approved=True,
+        )
+        self.review_kwargs = {
+            "review": self.review, "actual_media_sha256": self.clip_sha,
+            "reviewer_has_write_role": True,
+        }
 
     def ready(self, **overrides):
         return ApprovedMotionClip(**dict(self.row, **overrides))
@@ -116,7 +132,7 @@ class TestFeature4Handoff(unittest.TestCase):
     def test_feature4_trusted_video_manifest(self):
         asset_id, entry = feature4_asset_entry(
             self.ready(), shop_id=self.shop, local_staged_path="clips/fashion.mp4",
-            rights=self.rights)
+            rights=self.rights, **self.review_kwargs)
         self.assertEqual(asset_id, self.clip)
         self.assertEqual(FEATURE4_VERSION, "creative_reel_v1")
         self.assertEqual(entry["source_feature"], "feature5")
@@ -140,16 +156,43 @@ class TestFeature4Handoff(unittest.TestCase):
                 feature4_asset_entry(self.ready(**value), shop_id=self.shop,
                                      local_staged_path="clips/fashion.mp4", rights=self.rights)
 
+    def test_forged_or_missing_visual_review_never_publishes(self):
+        with self.assertRaises(MotionError):
+            feature4_asset_entry(self.ready(), shop_id=self.shop,
+                                 local_staged_path="clips/fashion.mp4", rights=self.rights)
+        for changes in [
+            {"actual_media_sha256": "a" * 64},
+            {"reviewer_has_write_role": False},
+            {"review": VisualReview(
+                shop_id=self.shop, job_id=uid(), source_asset_id=None,
+                output_asset_id=self.clip, reviewer_user_id=uid(),
+                reviewed_sha256=self.clip_sha,
+                checks={key: True for key in review_template()},
+                decision="APPROVED", notes="Mock mismatch only, not real review.",
+                ai_disclosure_approved=True)},
+            {"review": VisualReview(
+                shop_id=self.shop, job_id=self.job, source_asset_id=None,
+                output_asset_id=self.clip, reviewer_user_id=uid(),
+                reviewed_sha256=self.clip_sha,
+                checks=review_template(), decision="REJECTED",
+                notes="Garment fails quality inspection; reject.",
+                ai_disclosure_approved=True)},
+        ]:
+            with self.subTest(changes=tuple(changes)), self.assertRaises(MotionError):
+                feature4_asset_entry(
+                    self.ready(), shop_id=self.shop, local_staged_path="clips/fashion.mp4",
+                    rights=self.rights, **dict(self.review_kwargs, **changes))
+
     def test_foreign_path_or_unlicensed_clips_denied(self):
         for staged in ("/tmp/secret.mp4", "../escape.mp4", "http://host/video.mp4",
                        "clips/../escape.mp4", "clips\\evil.mp4"):
             with self.subTest(path=staged), self.assertRaises(MotionError):
                 feature4_asset_entry(self.ready(), shop_id=self.shop, local_staged_path=staged,
-                                     rights=self.rights)
+                                     rights=self.rights, **self.review_kwargs)
         with self.assertRaises(MotionError):
             feature4_asset_entry(self.ready(), shop_id=self.shop,
                                  local_staged_path="clips/fashion.mp4",
-                                 rights={"commercial_use": True, "license": "unreviewed", "source": "retailer", "evidence": "none"})
+                                 rights={"commercial_use": True, "license": "unreviewed", "source": "retailer", "evidence": "none"}, **self.review_kwargs)
 
 
 if __name__ == "__main__":
