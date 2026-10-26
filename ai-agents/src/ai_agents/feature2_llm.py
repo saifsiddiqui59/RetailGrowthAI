@@ -83,7 +83,7 @@ class AzureFeature2PromptLLM:
         url = self._client._url()  # Existing Azure-origin and deployment allowlist.
         # Worst-case upper bound: <=1 token per user/system character, plus
         # protocol overhead. Real token consumption is checked separately.
-        input_bound = len(canonical_prompt) + len(_SYSTEM) + 256
+        input_bound = len(canonical_prompt.encode('utf-8')) + len(_SYSTEM.encode('utf-8')) + 256
         output_bound = 550
         max_cost = ((Decimal(input_bound) * self._input_rate +
                      Decimal(output_bound) * self._output_rate) / 1_000_000)
