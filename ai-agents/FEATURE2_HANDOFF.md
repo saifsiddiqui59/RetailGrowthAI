@@ -51,3 +51,29 @@ After integration, coordinator should append actual status, known blockers and C
 - Wired only **externally supplied, recently source-reviewed `*.gov.in` calendar records** into shared trend snapshots, with explicit `event_date` and ranked evidence; no fictional festival events seeded and no calendar scraping.
 - Added tests for provider destinations, source timestamps, stale/future event denials, evidence-host restrictions and authorized store interactions. Check the latest exact PR head 4-job CI before declaring these changes validated.
 - Still not activated: global Azure timer/HTTP registration, RLS migration, real persistent cache and review state, authenticated React navigation and live source/host E2E. These stay coordinator-approved additive interfaces.
+
+## 2026-10-26 — Database, Azure timer and dashboard source integration
+
+Feature #2's original branch/PR now includes the following additive integration. MAIN AND LIVE DEV ARE NOT YET UPDATED.
+
+### Database (unapplied, tested proposal)
+- Review candidate: ai-agents/sql/feature2_ready_migration_COORDINATOR_REVIEW.sql. Shared service-only trend_collection_claims and trend_snapshots with ten-minute fenced lease, max 3 claims/day and 30h cache. Retailer shop_content_drafts has RLS SELECT for active OWNER/EDITOR/VIEWER; all direct authenticated INSERT/UPDATE/DELETE are denied. Verified backend inserts after JWT membership, source and media validation. Legacy schema sketch is deprecated.
+- The isolated CI tests/security/rls_negative.sql sources the proposal and tests/security/feature2_trends_negative.sql against disposable Supabase. It checks foreign-shop invisibility, viewer writes denied, OWNER direct inserts denied and backend claim RPC unavailable to browsers.
+- Attempt to add an unreviewed supabase/migrations file triggered the existing fingerprinted DEV migration-plan guard (CI failure); removed it rather than bypass the review gate. Read-only hosted DEV inspection confirmed RetailGrowthAI-only ref jeearzffnjbvghwjjjrf is healthy and migrations currently end at 20261024180000_p1_poster_dispatch_schema_usage. Current main additionally contains 20261024190000_p1_platform_operations.sql, still pending on hosted DEV. The new migration must follow that predecessor in an approved versioned update. No hosted DB write performed.
+
+### Azure Functions (source only; both activation flags default OFF)
+- Added JWT/RLS routes GET /api/shops/{shop_id}/trend-recommendations and POST /api/shops/{shop_id}/content-drafts. Uses existing SupabaseJWTVerifier/TenantStore/AdminStore; no existing campaigns or poster/video routes replaced.
+- Added one Azure timer at 05:15 UTC daily with run_on_startup=False and use_monitor=True. The shared database lease is required across workers. RETAIL_ENABLE_FEATURE2=true controls HTTP routes and RETAIL_FEATURE2_COLLECTION_ENABLED=true controls collection; Google RSS and YouTube source flags also stay off unless separately configured, with API keys on the server only.
+- Existing Flex ingress issue #249 may still block real HTTP calls. No Azure change or paid provider activation performed.
+
+### Dashboard (source integrated; not deployed)
+- Added authenticated /trends route to the existing React sidebar (including platform admin), a mobile-responsive workspace, business chooser from RLS-backed listShops, licensed media selector from listMediaAssets, campaign brief/start date and manually triggered DRAFT creation.
+- Browser uses HTTPS-only signed user token; no raw source claims or unauthenticated mock trends. Viewer access is read-only; a draft is saved separately and still needs human approval. No auto publishing, LLM/GPU calls or consumption billing.
+
+### Required coordinator acceptance and hosted checks
+1. Reconcile changed shared App.jsx, function_app.py, TenantStore/AdminStore and RLS SQL with concurrent Feature #1 and platform work; validate migration order and fingerprint manifest through normal review, never weaken the safety gate.
+2. Apply any pending predecessor migration to RetailGrowthAI DEV under existing release checks, then apply the reviewed Feature #2 migration and run real RLS negative tests and security advisors. Do not modify WineShopPOS or PROD.
+3. Ensure Azure function package includes these files and ai_agents; enable only reviewed DEV config, run signed JWT/tenant and once-daily claim E2E, verify Google/YouTube source coverage and quotas, debug Flex issue #249 if it blocks.
+4. Merge and deploy /trends frontend, confirm signed shop profile and licensed media flows, real persisted DRAFT read/write and deny forged tenant or unreviewed evidence. A curated product catalog and actual AI Foundry use remain future reviewed work.
+
+Conclusion: three integration code paths exist and are offline testable. Hosted Supabase schema activation, Azure deployment/flags, and live UI browser testing remain not done.
