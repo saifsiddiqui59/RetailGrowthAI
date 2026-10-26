@@ -8,7 +8,7 @@ import { useMemo, useState } from 'react'
 import { FEATURE3_FORMATS, FEATURE3_TEMPLATES } from './feature3-design.mjs'
 import { composeFeature3Poster } from './feature3-compose.mjs'
 import { approvedFeature3Inputs, feature3ContextKey } from './feature3-context.mjs'
-import Feature3KonvaEditor from './Feature3KonvaEditor.jsx'
+import Feature3CpuEditor from './Feature3CpuEditor.jsx'
 
 const fieldStyle = { display: 'grid', gap: 6, minWidth: 0 }
 const inputStyle = { width: '100%', maxWidth: '100%', boxSizing: 'border-box' }
@@ -136,7 +136,7 @@ export default function Feature3StudioPanel({
       </button>
       {error && <p role="alert">{error}</p>}
     </fieldset>
-    {design && designContext === currentContext && <Feature3KonvaEditor key={version} initialDesign={design}
+    {design && designContext === currentContext && <Feature3CpuEditor key={version} initialDesign={design}
       imageMap={imageMap} onSaveDraft={onSaveDesign} />}
   </section>
 }
