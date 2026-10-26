@@ -124,7 +124,11 @@ export default function TrendWorkspace() {
       {error && <p role="alert">{error}</p>}
       {saved && <p role="status">Content draft saved for retailer review: {saved}. It has not been published or added to an existing campaign.</p>}
       {saving && <p role="status">Saving draft…</p>}
-      {results && <TrendRecommendations recommendations={results.recommendations}
+      {results?.profile_required && <p role="status">
+        Complete your business city in <Link to="/account">Business account &amp; profile</Link> to enable relevant trend recommendations.
+        We do not guess a shop's location or create promotional drafts from incomplete business information.
+      </p>}
+      {results && !results.profile_required && <TrendRecommendations recommendations={results.recommendations}
         sources={results.sources}
         onDraft={canWrite && assetId && !saving && brief.trim().length >= 10 && startDate >= tomorrowIndia()
           ? createDraft : null} />}
