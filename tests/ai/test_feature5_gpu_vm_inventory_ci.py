@@ -34,8 +34,8 @@ class TestFeature5AlternativeGpuInventory(unittest.TestCase):
         self.assertNotIn("client-secret:", source)
         # Read-only calls occur in guarded "if az ..." branches, not
         # necessarily at the beginning of a shell line.
-        self.assertRegex(source, r"\\baz vm list-usage\\b")
-        self.assertRegex(source, r"\\baz vm list-skus\\b")
+        self.assertRegex(source, r"\baz vm list-usage\b")
+        self.assertRegex(source, r"\baz vm list-skus\b")
 
 
 if __name__ == "__main__":
