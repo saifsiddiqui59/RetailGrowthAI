@@ -56,5 +56,5 @@ test('add, remove, replace authorized image, and undo without overriding previou
   assert.equal(history.present.layers.length, oldCount - 1)
   assert.equal(undoFeature3(history).present.layers.length, oldCount)
   assert.throws(() => addFeature3Layer(history, 'image',
-    'external://photo', ['shop-safe-img']), /registered/)
+    'external://photo', ['shop-safe-img']), /[Rr]egistered/)
 })
