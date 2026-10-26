@@ -99,7 +99,7 @@ def validate_design(raw):
 
 def compose_poster(*, shop_id, mode, prompt, business_name, headline=None,
                    cta="Visit our store", approved_offer=None, source_asset_id=None,
-                   template=None, format="square", accent="#C05F43",
+                   template=None, format="square", logo_asset_id=None, accent="#C05F43",
                    background="#FCF4EC"):
     """Deterministic text/image-to-poster; no offer or price is inferred from a prompt."""
     _text(prompt, 800)
@@ -113,6 +113,9 @@ def compose_poster(*, shop_id, mode, prompt, business_name, headline=None,
     if source_asset_id is not None and (not isinstance(source_asset_id, str)
                                         or not ID.fullmatch(source_asset_id)):
         raise DesignError("Image must use a trusted asset ID")
+    if logo_asset_id is not None and (not isinstance(logo_asset_id, str)
+                                     or not ID.fullmatch(logo_asset_id)):
+        raise DesignError("Logo must be a registered image asset ID")
     if template is None:
         words = prompt.lower()
         template = next((key for key, hints in {
@@ -164,6 +167,12 @@ def compose_poster(*, shop_id, mode, prompt, business_name, headline=None,
          "x": .07 if template != "streetwear" else 0, "y": .135,
          "w": .23 if template != "clearance" else .86, "h": .012, "color": accent},
     ]
+    if logo_asset_id:
+        # An optional registered brand logo is a contain-fit alpha layer at
+        # upper right. Keep the brand caption clear of the logo plate.
+        layers[0]["w"] = .68
+        layers.append({"id": "logo", "type": "image", "x": .79, "y": .03,
+                       "w": .14, "h": .085, "asset_id": logo_asset_id})
     if source_asset_id:
         layers.append({"id": "product", "type": "image", "x": ix, "y": iy,
                        "w": iw, "h": ih, "asset_id": source_asset_id})
@@ -275,8 +284,14 @@ def render_design(design, manifest, staged_root, output_path, *, scale=1,
             d.rectangle((x, y, x + width, y + height), fill=layer["color"])
         elif layer["type"] == "image":
             photo = _assets(manifest, staged_root, design["shop_id"], layer["asset_id"])
-            image = ImageOps.fit(photo.convert("RGB"), (width, height), Image.Resampling.LANCZOS)
-            canvas.paste(image, (x, y))
+            if layer["id"] == "logo":
+                thumb = ImageOps.contain(photo, (width, height), Image.Resampling.LANCZOS)
+                ox = x + (width - thumb.width) // 2
+                oy = y + (height - thumb.height) // 2
+                canvas.paste(thumb.convert("RGB"), (ox, oy), mask=thumb.getchannel("A"))
+            else:
+                image = ImageOps.fit(photo.convert("RGB"), (width, height), Image.Resampling.LANCZOS)
+                canvas.paste(image, (x, y))
         else:
             color = layer["color"]
             size = layer["font_size"]
