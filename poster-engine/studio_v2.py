@@ -162,7 +162,7 @@ def compose_poster(*, shop_id, mode, prompt, business_name, headline=None,
          "text": name.upper(), "color": "#23232B", "font_size": 37, "bold": True},
         {"id": "accent-rule", "type": "rect",
          "x": .07 if template != "streetwear" else 0, "y": .135,
-         "w": .23 if template != "clearance" else .86, "h": .008, "color": accent},
+         "w": .23 if template != "clearance" else .86, "h": .012, "color": accent},
     ]
     if source_asset_id:
         layers.append({"id": "product", "type": "image", "x": ix, "y": iy,
