@@ -64,6 +64,9 @@ def test_get_uses_membership_and_never_exposes_other_shops():
     assert body["recommendations"][0]["approval_status"] == "DRAFT"
     assert api.handle("GET", str(uuid4()), "Bearer signed-1")[0] == 404
     assert api.handle("GET", SHOP, "")[0] == 401
+    assert api.handle("GET", SHOP, "Bearer invalid-user-token")[0] == 401
+    assert api.handle("POST", SHOP, "Bearer invalid-user-token",
+                      {"trend_id": S["trends"][0]["trend_id"], "campaign": campaign()})[0] == 401
 
 
 def test_post_requires_persistence_and_server_verified_media():
