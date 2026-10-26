@@ -868,3 +868,8 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 ## Feature2 2026-10-26 — Explicit owner USD0.20 isolated model-test authorization, protected DDL excluded
 - In an explicit scope question, owner replied "do it" authorizing **USD0.20 TOTAL** for ONE existing South India GPT-4.1-mini DEV text acceptance exercise. **This does not authorize protected Supabase DDL, accounts, Azure config changes, PROD or WineShopPOS**; see `docs/feature2/APPROVED_DEV_USD_020_TEST_GATE.md` and #403.
 - Fresh connected DEV read-only: 21 migrations through 20261026152102, budget tables absent, media_assets=0, drafts=0. No spend/hosted write in this checkpoint. A new one-shot protected Azure retail-pricing lookup reads only existing model and public price meters; it never executes inference. Separate DB/fixture approval must precede any billable request.
+
+
+## Feature2 2026-10-26 — Microsoft public meter verification after owner USD0.20 approval
+- Existing South India Azure GPT-4.1-mini Standard S0 proven by protected read-only OIDC [#40401262949](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40401262949), with NO credential reads or inference. Microsoft public pricing API effective 2025-11-01: 1K-token input meter $0.00044 (USD **$0.44 per 1M**) and 1K output $0.00176 (USD **$1.76 per 1M**). This is PUBLIC pricing, not verified tenant contract invoice.
+- #435, #436, #437 merged source-only; #437 `07c9d8f4` fixed pricing normalization. One-time total USD0.20 isolated model test approved, but hosted migration/ROOT account NOT approved. Hosted DEV 21 migrations, AI budget tables absent. Actual inference calls=0, spend=$0.00; no PROD/WineShopPOS.
