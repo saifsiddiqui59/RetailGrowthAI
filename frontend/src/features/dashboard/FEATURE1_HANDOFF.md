@@ -38,3 +38,9 @@
 - [ ] Complete shadcn migration, visual QA and uncontracted social/publishing/inbox screens.
 - [ ] Coordinator reconciling shared PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG after PR integration; Feature 1 ownership deliberately avoids those concurrently edited docs.
 - [ ] Hosted, signed-in DEV acceptance remains separately blocked by Azure HTTP #249; offline browser mocks and local Supabase negative SQL are not hosted proof.
+
+## 2026-10-26 — Super Admin notification read-cost reduction (Feature #1)
+- Existing persistent `PlatformAlerts` server RPC is now read through the already-installed TanStack Query. The cache is keyed by **verified signed-in user UUID + view + category + page**, is fresh for only 20s, and is garbage-collected after 60s. Rapid return to a viewed category/page avoids an identical database RPC; no new endpoint, paid resource or polling.
+- Manual Refresh explicitly re-reads the active view. After authorized mark-read/unread RPC, all cached views for that root principal are invalidated, and the active view is reloaded before the button re-enables. RPC denial/stale refresh fails closed; old cached rows are not displayed as fresh on query error.
+- Added mocked ROOT browser assertions that revisit a filter without an extra RPC and manual refresh does issue a request; existing OWNER denial and read/unread browser tests remain. No new dependencies, schema, Azure changes, email, subscription entitlement or GPU. Coordinator owns merge and shared canonical docs.
+- This is **short-lived UI read caching only**, not real-time Azure telemetry; source CI is not hosted private-session acceptance. Separate Feature #1 follow-ups #337/#340/#343/#349 still need coordinator reconciliation. 

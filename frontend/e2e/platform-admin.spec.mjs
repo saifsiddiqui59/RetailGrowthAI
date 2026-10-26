@@ -235,6 +235,36 @@ test('root has a persistent inbox, marks a verified signal read and can reverse 
   expect(calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_set_notification_read')
     .map(c=>c.body.p_read)).toEqual([true,false])
 })
+test('super admin alert filter revisits reuse short-lived verified reads, manual refresh re-queries',async({page})=>{
+  const calls=await loginAs(page,'ROOT')
+  const notified=[]
+  await page.route(SUPABASE+'/rest/v1/rpc/retail_platform_notifications',route=>{
+    const p=route.request().postDataJSON()
+    notified.push(p)
+    return fulfill(route,{
+      total_active:2,unread_active:2,database_checked_at:'2026-10-24T08:00:00Z',
+      azure_telemetry:'NOT_CONNECTED',
+      items:p.p_category==='queue'?[]:[{
+        id:101,event_key:'job:campaign:cached',category:'job',severity:'critical',
+        title:'Cached job warning',detail:'Server-recorded job status',
+        first_seen_at:'2026-10-24T07:00:00Z',active:true,read_at:null,
+      }],
+    })
+  })
+  await page.goto('/platform-alerts')
+  await expect(page.getByText('Cached job warning')).toBeVisible()
+  const activeReads=notified.filter(p=>p.p_category==='all').length
+  expect(activeReads).toBeGreaterThan(0)
+  await page.getByRole('button',{name:'Queue health'}).click()
+  await expect(page.getByText('No matching verified notifications.')).toBeVisible()
+  await page.getByRole('button',{name:'All',exact:true}).click()
+  await expect(page.getByText('Cached job warning')).toBeVisible()
+  expect(notified.filter(p=>p.p_category==='all')).toHaveLength(activeReads)
+  await page.getByRole('button',{name:'Refresh alerts'}).click()
+  await expect.poll(()=>notified.filter(p=>p.p_category==='all').length).toBe(activeReads+1)
+  expect(calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_set_notification_read')).toHaveLength(0)
+})
+
 test('subscription watch totals apply to all retailers and search is server-side',async({page})=>{
   const calls=await loginAs(page,'ROOT')
   await page.goto('/platform-admin')
