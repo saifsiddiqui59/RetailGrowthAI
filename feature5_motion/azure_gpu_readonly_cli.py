@@ -13,7 +13,7 @@ import subprocess
 
 from .azure_gpu_preflight import (
     DEV_GROUP, REGION, assess_azure_a100_preflight,
-    A100Readiness, _a100_profile,
+    A100Readiness, CANARY_ENV,
 )
 from .contracts import MotionError
 
@@ -62,10 +62,10 @@ def inspect_current_dev(*, expected_subscription_id: str) -> A100Readiness:
         if not isinstance(env, dict):
             continue
         name = env.get("name")
+        # Environment-level consumption GPU quota is visible before adding
+        # the first GPU workload profile; only read our exact owned canary.
         if (str(env.get("location", "")).lower().replace(" ", "") != REGION or
-            not isinstance(name, str) or not _VALID_ENV.fullmatch(name) or
-            not any(_a100_profile(p) for p in
-                    ((env.get("properties") or {}).get("workloadProfiles") or []))):
+            name != CANARY_ENV or not _VALID_ENV.fullmatch(name)):
             continue
         value = _read_az("containerapp", "env", "list-usages",
                          "--resource-group", DEV_GROUP, "--name", name)
