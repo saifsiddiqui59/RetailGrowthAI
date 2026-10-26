@@ -10,6 +10,7 @@ import { composeFeature3Poster } from './feature3-compose.mjs'
 import { approvedFeature3Inputs, feature3ContextKey } from './feature3-context.mjs'
 import Feature3CpuEditor from './Feature3CpuEditor.jsx'
 import Feature3ModelLibraryReview from './Feature3ModelLibraryReview.jsx'
+import { availableApprovedModels, selectedApprovedModel } from './feature3-approved-models.mjs'
 
 const fieldStyle = { display: 'grid', gap: 6, minWidth: 0 }
 const inputStyle = { width: '100%', maxWidth: '100%', boxSizing: 'border-box' }
@@ -17,13 +18,15 @@ const rootStyle = { display: 'grid', gap: 16, width: '100%', minWidth: 0 }
 
 export default function Feature3StudioPanel({
   shopId, campaignId, dayId, brandKit, imageMap = {}, approvedContent = null,
-  onSaveDesign = null, disabled = false,
+  onSaveDesign = null, approvedModels = [], disabled = false,
 }) {
   const [mode, setMode] = useState('text')
   const [prompt, setPrompt] = useState('')
   const [template, setTemplate] = useState('auto')
   const [format, setFormat] = useState('square')
   const [assetId, setAssetId] = useState('')
+  const [modelId, setModelId] = useState('')
+  const [designModelId, setDesignModelId] = useState('')
   const [version, setVersion] = useState(0)
   const [design, setDesign] = useState(null)
   const [showModelLibrary, setShowModelLibrary] = useState(false)
@@ -38,6 +41,10 @@ export default function Feature3StudioPanel({
     imageMap[id]?.naturalWidth > 0 &&
     imageMap[id]?.naturalHeight > 0
   ), [imageMap])
+  // Catalog rows are signed-in host data only. They never authorize saving or
+  // spending by themselves; private media and server rights must be rechecked.
+  const readyModels = availableApprovedModels(approvedModels, shopId, imageMap)
+  const selectedModel = selectedApprovedModel(readyModels, modelId)
   const context = { shopId, campaignId, dayId }
   const currentContext = feature3ContextKey(context)
   const checked = approvedFeature3Inputs(approvedContent, context, brandKit)
@@ -55,16 +62,21 @@ export default function Feature3StudioPanel({
       if (mode === 'image' && !authorized.includes(assetId)) {
         throw Error('Choose a registered shop product photo')
       }
+      if (mode === 'model' && !selectedModel) {
+        throw Error('Select an approved, currently accessible saved AI model')
+      }
+      const sourceAssetId = mode === 'model' ? selectedModel.mediaAssetId :
+        mode === 'image' ? assetId : null
       // Caller-provided merchant-side approval is only a UX hint.
       // The server MUST separately reload and validate original approved
       // campaign copy and merchant offers, then reconcile the design hash.
       const next = composeFeature3Poster({
-        shopId, mode, prompt,
+        shopId, mode: mode === 'model' ? 'image' : mode, prompt,
         businessName,
         headline: approved ? approved.headline : null,
         cta: approved ? approved.cta : 'Visit our store',
         approvedOffer: approved ? approved.offer_text : null,
-        sourceAssetId: mode === 'image' ? assetId : null,
+        sourceAssetId,
         authorizedAssetIds: authorized,
         logoAssetId: brandLogo,
         template: template === 'auto' ? null : template,
@@ -73,6 +85,7 @@ export default function Feature3StudioPanel({
         background: checked.brand?.backgroundColor || '#FCF4EC',
       })
       setDesign(next)
+      setDesignModelId(mode === 'model' ? selectedModel.modelId : '')
       setDesignContext(currentContext)
       setVersion(v => v + 1)
     } catch (cause) {
@@ -95,6 +108,9 @@ export default function Feature3StudioPanel({
         <label><input type="radio" name="feature3-mode" checked={mode === 'image'}
           disabled={!authorized.length}
           onChange={() => {setMode('image'); setError('')}}/> Image-to-Poster</label>
+        <label><input type="radio" name="feature3-mode" checked={mode === 'model'}
+          disabled={!readyModels.length}
+          onChange={() => {setMode('model'); setError('')}}/> Saved AI model poster (CPU)</label>
       </div>
       <label style={fieldStyle}>Describe the advertisement
         <textarea style={inputStyle} maxLength={800} rows={3} value={prompt}
@@ -104,6 +120,19 @@ export default function Feature3StudioPanel({
       {!authorized.length && <p role="note">Image-to-Poster requires the host to
         supply an already-authorized, loaded private product image. This local
         mode cannot register uploads or fetch remote product URLs.</p>}
+      {mode === 'model' && <label style={fieldStyle}>Approved saved fashion model
+        <select style={inputStyle} value={selectedModel ? modelId : ''}
+          onChange={event => setModelId(event.target.value)}>
+          <option value="">Choose an approved model</option>
+          {readyModels.map(model => <option key={model.modelId} value={model.modelId}>
+            {model.label} · {model.scope === 'platform' ? 'Shared catalog' : 'Shop private'}
+          </option>)}
+        </select>
+        <small>Uses an already-approved still image. It does not change the model's clothes,
+          generate try-on or spend GPU credits. Server must revalidate media and model rights.</small>
+      </label>}
+      {!readyModels.length && <p role="note">No approved, currently accessible saved models are
+        supplied by the authenticated library. Source-review candidates are not selectable.</p>}
       {mode === 'image' && <label style={fieldStyle}>Registered product image
         <select style={inputStyle} value={assetId}
           onChange={event => setAssetId(event.target.value)}>
@@ -137,12 +166,18 @@ export default function Feature3StudioPanel({
       {approved && <p role="status">Using retailer-approved campaign headline and offer.
         AI-generated imagery is not included.</p>}
       <button type="button" onClick={create}
-        disabled={!currentContext || !prompt.trim() || !businessName || (mode === 'image' && !assetId)}>
+        disabled={!currentContext || !prompt.trim() || !businessName ||
+          (mode === 'image' && !assetId) || (mode === 'model' && !selectedModel)}>
         Generate editable poster
       </button>
       {error && <p role="alert">{error}</p>}
     </fieldset>
-    {design && designContext === currentContext && <Feature3CpuEditor key={version} initialDesign={design}
+    {designModelId && !readyModels.some(model => model.modelId === designModelId) &&
+      <p role="alert">The saved model is no longer accessible. This local model draft is hidden;
+        select another approved model.</p>}
+    {design && designContext === currentContext &&
+      (!designModelId || readyModels.some(model => model.modelId === designModelId)) &&
+      <Feature3CpuEditor key={version} initialDesign={design}
       imageMap={imageMap} context={context} onSaveDraft={onSaveDesign} />}
     <section aria-label="Reusable AI fashion models">
       <button type="button" disabled={disabled}
