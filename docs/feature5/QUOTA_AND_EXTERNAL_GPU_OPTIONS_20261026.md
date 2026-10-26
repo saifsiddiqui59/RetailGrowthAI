@@ -67,3 +67,20 @@ Quote SHA256 must be kept *outside* the quote file and confirmed against the cho
 ## Acceptance needed before real sample can be claimed
 
 For **one** red-and-gold kurti T2V: licensed pinned Tencent runtime+model shards, independently reviewed `ArtifactLock`, provider-specific CUDA BF16 result, true 5s/480p portrait/24fps H264 MP4, `ffprobe` and SHA256, six-frame contact sheet, private review packet, actual wall-clock and account invoice, confirmed stop/deletion, and human garment/face/hands review. There is **no MP4 from this work**, and a synthetic FFmpeg clip does not satisfy this gate.
+
+## Provider-side termination guard (required for actual rental)
+
+Runpod's [official Pod CLI reference](https://docs.runpod.io/runpodctl/reference/runpodctl-remove-pods) documents `--terminate-after 1h` on Pod creation and states it **permanently deletes the Pod**, unlike `--stop-after`. For a one-shot demo, provisioned Pod settings must confirm one GPU, Secure Cloud where available, explicit permitted country, image digest, no public inference port, **automatic termination within one hour**, and later API readback that the Pod is actually terminated. Persistent separately purchased network volumes may remain billable even after a Pod is deleted; avoid them for the pilot or independently delete and reconcile. This is **research, not executed**.
+
+The new quote checker requires `provider_termination_after_seconds` at least 60 seconds beyond the process timeout and at most 3600. Its estimate is based on the **whole provider auto-termination window**, including minimum billing, not only CUDA subprocess time. Example: the illustrative Runpod RTX 4090 quote at $0.89/hour + $0.02/hour disk and $0.05 ancillary reserve with a 1-hour auto-termination bound is **$0.9600**, versus just $0.2017 if one naively counted a 10-minute Python timeout. It is still not a guaranteed upper limit on a malfunctioning provider, currency conversion, taxes or retained network storage. A real rental needs an approved prepaid/account cap and verified stop/delete readback.
+
+`runpodctl` is **not installed or connected** here, and no Runpod account, GPU region/stock, credit balance or provider API credential was inspected. A safe illustrative command is deliberately not executable without operator-supplied vetted values:
+
+```sh
+# OPERATOR REVIEW ONLY — DO NOT EXECUTE BEFORE LICENSE, COST, REGION & CREDIT GATES
+runpodctl pod create --image '<PINNED_APPROVED_IMAGE>' \
+  --gpu-id '<EXACT_ACCOUNT_AVAILABLE_48GB_A40>' --gpu-count 1 \
+  --cloud-type SECURE --country-code US --terminate-after 1h
+```
+
+A provider-side teardown option does not replace on-instance CUDA 1800s maximum timeout or independent verification of actual post-job termination. Operator must copy the genuine local MP4 and private evidence **before** deletion, avoiding public URLs and GitHub CI artifacts.
