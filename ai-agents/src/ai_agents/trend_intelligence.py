@@ -39,6 +39,8 @@ SPACE = re.compile(r"\s+")
 def _clean(value: object, *, limit: int = 160) -> str:
     if not isinstance(value, str):
         return ""
+    if "<" in value or ">" in value:
+        return ""
     value = SPACE.sub(" ", TAG.sub(" ", unicodedata.normalize("NFKC", value))).strip()
     if len(value) > limit or INJECTION.search(value) or any(ord(c) < 32 for c in value):
         return ""
