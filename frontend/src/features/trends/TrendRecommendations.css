@@ -22,3 +22,6 @@
 .feature2-brief{display:grid;gap:.4rem;font-size:.88rem;font-weight:600;margin:1rem 0}
 .feature2-brief textarea{width:100%;padding:.75rem;resize:vertical;border-radius:10px;border:1px solid #aeb9c6;background:var(--panel,#fff);color:inherit;font:inherit}
 .feature2-trends select,.feature2-trends input{font:inherit}
+.feature2-evergreen-fallback{border:1px solid var(--border,#d9e0e6);border-radius:12px;padding:1rem;margin:1rem 0;background:var(--panel,#fff)}
+.feature2-evergreen-fallback p{margin:0 0 .5rem}
+.feature2-evergreen-fallback a{display:inline-block;font-weight:700;overflow-wrap:anywhere}
