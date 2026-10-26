@@ -18,10 +18,10 @@ declare
   ch pg_catalog.text;
   key pg_catalog.text;
   item pg_catalog.jsonb;
-  cp pg_catalog.integer;
-  hi pg_catalog.integer;
-  lo pg_catalog.integer;
-  i pg_catalog.integer;
+  cp pg_catalog.int4;
+  hi pg_catalog.int4;
+  lo pg_catalog.int4;
+  i pg_catalog.int4;
   sep pg_catalog.text := '';
 begin
   if p_value is null then return null; end if;
@@ -103,9 +103,9 @@ declare
   music pg_catalog.uuid;
   ids pg_catalog.uuid[] := array[]::pg_catalog.uuid[];
   media public.media_assets%rowtype;
-  offset_secs pg_catalog.integer := 0;
-  duration pg_catalog.integer;
-  n pg_catalog.integer := 0;
+  offset_secs pg_catalog.int4 := 0;
+  duration pg_catalog.int4;
+  n pg_catalog.int4 := 0;
   key pg_catalog.text;
   job_id pg_catalog.uuid;
   job_state pg_catalog.text;
@@ -136,10 +136,12 @@ begin
      pg_catalog.char_length(reel->>'cta') not between 1 and 100 then
     return null;
   end if;
+  if (reel ?& array['duration_seconds','aspect_ratio','storyboard','music_asset_id','cta']) is not true then return null; end if;
   scenes := reel->'storyboard';
   if pg_catalog.jsonb_array_length(scenes) not between 1 and 30 then return null; end if;
   for shot in select value from pg_catalog.jsonb_array_elements(scenes) loop
-    if pg_catalog.jsonb_typeof(shot)<>'object' or
+    if (shot ?& array['start_seconds','duration_seconds','asset_id','overlay_text']) is not true or
+       pg_catalog.jsonb_typeof(shot)<>'object' or
        (select count(*) from pg_catalog.jsonb_object_keys(shot))<>4 or
        pg_catalog.jsonb_typeof(shot->'start_seconds')<>'number' or
        pg_catalog.jsonb_typeof(shot->'duration_seconds')<>'number' or
@@ -149,8 +151,8 @@ begin
        pg_catalog.char_length(shot->>'overlay_text') not between 1 and 100 then
       return null;
     end if;
-    duration := (shot->>'duration_seconds')::pg_catalog.integer;
-    if (shot->>'start_seconds')::pg_catalog.integer <> offset_secs or
+    duration := (shot->>'duration_seconds')::pg_catalog.int4;
+    if (shot->>'start_seconds')::pg_catalog.int4 <> offset_secs or
        duration<1 or duration>30 then return null; end if;
     if (shot->>'asset_id') !~
       '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then return null; end if;
@@ -179,7 +181,7 @@ begin
     if not found or media.storage_bucket<>'retailgrowth-media' or
        media.object_path not like campaign.shop_id::pg_catalog.text || '/%' or
        media.license_name not in ('owned','cc0','royalty_free','commercial') or
-       pg_catalog.length(pg_catalog.trim(pg_catalog.coalesce(media.attribution,'')))<10 or
+       pg_catalog.length(pg_catalog.btrim(coalesce(media.attribution,'')))<10 or
        (media.license_name<>'owned' and
          (media.license_url is null or media.license_url !~ '^https://[^[:space:]]{4,}$')) or
        (aid=music and media.mime_type not in
