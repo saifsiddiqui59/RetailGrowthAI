@@ -80,7 +80,7 @@ class TrendFeatureAdapter:
                                      {"trend_id", "campaign", "submission_id"})):
                 return 400, {"error": "INVALID_REQUEST"}
             submission_id = payload.get("submission_id")
-            if submission_id is not None:
+            if "submission_id" in payload:
                 try:
                     canonical_uuid(submission_id)
                 except (ValueError, TypeError):
