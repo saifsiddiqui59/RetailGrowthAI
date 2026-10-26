@@ -14,6 +14,8 @@ test('manual rights-scoped Feature3 host compiles, defaults off and never fetche
   assert.match(host,/VITE_FEATURE3_V2_ENABLED === 'true'/)
   assert.match(host,/MAX_MODEL_PREVIEWS = 5/)
   assert.match(host,/client\.downloadPrivateImage\(shopId, model\.media_asset_id\)/)
+  assert.match(host,/crypto\.subtle\.digest\('SHA-256'/)
+  assert.match(host,/fingerprint !== model\.image_sha256/)
   assert.match(host,/api\.listModels\(shopId\)/)
   assert.match(host,/nonce\.current/)
   assert.match(host,/URL\.revokeObjectURL/)
