@@ -380,7 +380,7 @@ h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.01
 .role-motion h1{{font-family:Georgia,'Times New Roman',serif;font-size:{width//11}px!important;
   font-weight:500;letter-spacing:-.02em;text-transform:none}}
 .role-motion .editorial-rule{{top:16%;left:8%;width:16%}}
-.role-product .photo-wrap{{top:6%;height:74%;left:7%;width:86%}}
+.role-product .photo-wrap{{top:6%;height:66%;left:7%;width:86%}}
 .role-product .glass{{bottom:7%;left:10%;right:10%;background:#11131ae6;border-left:2px solid {accent};border-top:0}}
 .role-product h1{{font-family:Georgia,'Times New Roman',serif;font-weight:500;text-transform:none;
   font-size:{width//12}px!important}}

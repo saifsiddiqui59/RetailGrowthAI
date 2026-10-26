@@ -11,6 +11,8 @@ export const VIDEO_TEMPLATES = Object.freeze([
   ['cinematic', 'Cinematic Fashion'],
   ['festival', 'Festival Sale'],
 ])
+export const VIDEO_ANIMATIONS = Object.freeze(['subtle_zoom', 'pop', 'fade', 'slide', 'glow'])
+export const VIDEO_TRANSITIONS = Object.freeze(['fade', 'slide', 'cut'])
 const LIMITS = { text: null, image: ['image'], poster: ['poster'], media: ['image', 'poster', 'video'], music_sync: ['image', 'poster', 'video'] }
 const valid = (n) => typeof n === 'number' && Number.isFinite(n)
 
@@ -31,6 +33,7 @@ export function makeVideoDraft({ shopId, mode = 'image', template = 'streetwear'
     scenes: Array.from({ length: 3 }, (_, i) => ({
       start: i * duration / 3, duration: duration / 3,
       headline: ['Your brand story', 'Discover the collection', 'Visit us today'][i],
+      animation_preset: 'subtle_zoom', transition: 'fade',
       ...(mode !== 'text' && media.length ? { asset_id: media[i % media.length].id } : {}),
     })),
     cta: 'Visit our store', music_asset_id: null,
@@ -90,6 +93,19 @@ export function validateVideoDraft(plan, mediaAssets = [], musicAssets = []) {
       errors.push('Every scene needs an approved headline (max 110 characters)')
     }
     if (plan.mode !== 'text' && !allowed.has(scene.asset_id)) errors.push('Scene ' + (index + 1) + ' needs authorized media')
+    if (scene.animation_preset != null && !VIDEO_ANIMATIONS.includes(scene.animation_preset)) {
+      errors.push('Scene ' + (index + 1) + ' has an unapproved motion preset')
+    }
+    if (scene.transition != null && !VIDEO_TRANSITIONS.includes(scene.transition)) {
+      errors.push('Scene ' + (index + 1) + ' has an unapproved transition')
+    }
+    if (scene.poster_overlay_asset_id != null) {
+      const poster = mediaAssets.find(item => item?.authorized === true &&
+        item?.kind === 'poster' && item?.id === scene.poster_overlay_asset_id)
+      if (!poster || poster.id === scene.asset_id) {
+        errors.push('Scene ' + (index + 1) + ' needs a distinct authorized promotional poster')
+      }
+    }
     if (scene.offer != null && (typeof scene.offer !== 'string' || scene.offer.length > 70)) {
       errors.push('Offer text must be approved (max 70 characters)')
     }

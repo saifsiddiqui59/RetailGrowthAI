@@ -86,3 +86,18 @@ test('retiming never silently drops a short scene', () => {
   }))
   assert.throws(() => retimeVideoDraft(draft, 15), /shorter than half a second/)
 })
+
+test('scene motion and separate poster overlays are allowlisted, never custom expressions', () => {
+  const draft = makeVideoDraft({ shopId, mode: 'media', mediaAssets: media })
+  draft.scenes[1].animation_preset = 'pop'
+  draft.scenes[1].transition = 'slide'
+  draft.scenes[1].poster_overlay_asset_id = 'poster1'
+  assert.deepEqual(validateVideoDraft(draft, media, tracks), [])
+  draft.scenes[1].transition = 'url(javascript:alert(1))'
+  assert.match(validateVideoDraft(draft, media, tracks).join(' '), /unapproved transition/)
+  draft.scenes[1].transition = 'cut'
+  draft.scenes[1].poster_overlay_asset_id = 'denied_photo'
+  assert.match(validateVideoDraft(draft, media, tracks).join(' '), /authorized promotional poster/)
+  draft.scenes[1].poster_overlay_asset_id = draft.scenes[1].asset_id
+  assert.match(validateVideoDraft(draft, media, tracks).join(' '), /distinct authorized/)
+})

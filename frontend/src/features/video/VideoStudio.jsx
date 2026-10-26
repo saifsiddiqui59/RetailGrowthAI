@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  VIDEO_MODES, VIDEO_TEMPLATES, compatibleMedia, makeVideoDraft,
+  VIDEO_MODES, VIDEO_TEMPLATES, VIDEO_ANIMATIONS, VIDEO_TRANSITIONS, compatibleMedia, makeVideoDraft,
   shiftVideoScene, retimeVideoDraft, validateVideoDraft,
 } from './video-model.mjs'
 import './VideoStudio.css'
@@ -25,6 +25,8 @@ export default function VideoStudio({
     setError('')
   }, [shopId])
   const assets = useMemo(() => compatibleMedia(draft.mode, mediaAssets), [draft.mode, mediaAssets])
+  const approvedPosters = useMemo(() => (Array.isArray(mediaAssets) ? mediaAssets : [])
+    .filter(asset => asset?.authorized === true && asset?.kind === 'poster'), [mediaAssets])
   const issues = useMemo(
     () => validateVideoDraft(draft, mediaAssets, musicAssets),
     [draft, mediaAssets, musicAssets],
@@ -131,6 +133,30 @@ export default function VideoStudio({
                 <label>Animated headline
                   <input value={scene.headline} maxLength={110} onChange={e => patchScene(index, { headline: e.target.value })} />
                 </label>
+                <div className="f4-two">
+                  <label>Motion
+                    <select value={scene.animation_preset || 'subtle_zoom'}
+                      onChange={e => patchScene(index, { animation_preset: e.target.value })}>
+                      {VIDEO_ANIMATIONS.map(value => <option key={value} value={value}>{value.replace('_', ' ')}</option>)}
+                    </select>
+                  </label>
+                  <label>Scene transition
+                    <select value={scene.transition || 'fade'}
+                      onChange={e => patchScene(index, { transition: e.target.value })}>
+                      {VIDEO_TRANSITIONS.map(value => <option key={value} value={value}>{value}</option>)}
+                    </select>
+                  </label>
+                </div>
+                {draft.mode !== 'text' && approvedPosters.length > 0 && (
+                  <label>Reviewed promotion poster overlay (optional)
+                    <select value={scene.poster_overlay_asset_id || ''}
+                      onChange={e => patchScene(index, { poster_overlay_asset_id: e.target.value || undefined })}>
+                      <option value="">No poster on this scene</option>
+                      {approvedPosters.filter(poster => poster.id !== scene.asset_id).map(poster =>
+                        <option key={poster.id} value={poster.id}>{poster.name || poster.id}</option>)}
+                    </select>
+                  </label>
+                )}
                 <label>Approved offer (optional)
                   <input value={scene.offer || ''} maxLength={70}
                     placeholder="Only real retailer-approved claims"

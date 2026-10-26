@@ -87,6 +87,8 @@ class ProfessionalVideoTests(unittest.TestCase):
         self.assertIn('data-fps="30"', page)
         self.assertIn("role-intro", page)
         self.assertIn("role-outro", page)
+        # On portrait export the product artwork must stop before the lower-third copy.
+        self.assertIn(".role-product .photo-wrap{top:6%;height:66%", page)
 
     def test_sixty_second_script_acceptance_without_expensive_render(self):
         self.plan["duration_seconds"] = 60
