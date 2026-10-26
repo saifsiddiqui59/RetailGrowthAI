@@ -135,6 +135,7 @@ jobs:
           expected={'create_campaign','read_campaign','save_campaign_day','create_render',
                     'get_render','get_render_download','plan_campaign','render_campaign_reel',
                     'planning_poison','render_poison','recover_stale_jobs',
+                    'render_campaign_poster','dispatch_pending_posters',
                     'get_retailer_trends','create_retailer_trend_draft','feature2_collect_india_trends'}
           print('REMOTE_FUNCTIONS',len(have),'MISSING',sorted(expected-have))
           sys.exit(0 if expected<=have else 1)
@@ -156,6 +157,41 @@ jobs:
           else
             echo "::warning::Azure Flex HTTP issue #249 persists or indexing is delayed, route code $code; signed-in E2E remains unverified."
           fi
+      - name: Seed first free daily India RSS snapshot (backend only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp config appsettings list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/feature2-settings.json"
+          PYTHONPATH="$GITHUB_WORKSPACE/ai-agents/src" python3 - "$RUNNER_TEMP/feature2-settings.json" <<'PY'
+          import datetime,json,sys,urllib.request
+          from ai_agents.trend_intelligence import collect
+          values={a['name']:a.get('value','') for a in json.load(open(sys.argv[1]))}
+          origin='https://jeearzffnjbvghwjjjrf.supabase.co'
+          assert values.get('RETAIL_SUPABASE_URL')==origin
+          key=values.get('RETAIL_SUPABASE_SERVICE_ROLE_KEY','')
+          assert key.startswith('sb_secret_') or (key.startswith('eyJ') and key.count('.')==2)
+          headers={'apikey':key,'Content-Type':'application/json','Accept':'application/json'}
+          if key.startswith('eyJ'): headers['Authorization']='Bearer '+key
+          def rpc(name,payload):
+              req=urllib.request.Request(origin+'/rest/v1/rpc/'+name,headers=headers,
+                  method='POST',data=json.dumps(payload).encode())
+              with urllib.request.urlopen(req,timeout=25) as resp:
+                  assert resp.status in (200,201,204)
+                  return json.loads(resp.read())
+          now=datetime.datetime.now(datetime.timezone.utc)
+          day=now.date().isoformat()
+          token=rpc('feature2_claim_collection',{'p_region':'IN','p_day':day})
+          if token is None:
+              print('COLLECTOR already claimed UTC day; no duplicate external fetch.')
+          else:
+              snapshot=collect(now,environ={'RETAIL_TRENDS_GOOGLE_RSS_ENABLED':'true',
+                                            'RETAIL_TRENDS_YOUTUBE_ENABLED':'false'})
+              assert rpc('feature2_finish_collection',{
+                  'p_region':'IN','p_day':day,'p_token':token,'p_snapshot':snapshot}) is True
+              print('SAVED shared India snapshot; source health (no customer titles):')
+              for source in snapshot['sources']:
+                  print(source['source'],source['status'],source['count'])
+          PY
       - name: Clear Azure session
         if: always()
         run: az logout >/dev/null 2>&1 || true
