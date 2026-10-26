@@ -103,7 +103,7 @@ class Feature3Tests(unittest.TestCase):
         with self.assertRaisesRegex(DesignError, "coordinate"):
             validate_design({**doc, "layers": bad})
         bad = [dict(x) for x in doc["layers"]]
-        bad[1]["asset_id"] = "../another-shop.png"
+        next(layer for layer in bad if layer["type"] == "image")["asset_id"] = "../another-shop.png"
         with self.assertRaisesRegex(DesignError, "asset"):
             validate_design({**doc, "layers": bad})
 
