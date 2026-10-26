@@ -30,6 +30,7 @@ export default function TrendWorkspace() {
   const [brief, setBrief] = useState('Write seven days of practical marketing content using my licensed product photos.')
   const [startDate, setStartDate] = useState(tomorrowIndia)
   const [improveEnabled, setImproveEnabled] = useState(false)
+  const [realAiEnabled, setRealAiEnabled] = useState(false)
   const [promptLanguage, setPromptLanguage] = useState('en-IN')
   const [promptFormats, setPromptFormats] = useState(PROMPT_FORMATS)
   const [promptPreview, setPromptPreview] = useState(null)
@@ -113,12 +114,17 @@ export default function TrendWorkspace() {
     setAppliedPrompt('')
     setPromptLoading(true)
     try {
-      const response = await api.improvePrompt(shopId, brief, promptFormats, promptLanguage)
+      const response = realAiEnabled
+        ? await api.improvePromptWithAI(shopId, brief, promptFormats, promptLanguage)
+        : await api.improvePrompt(shopId, brief, promptFormats, promptLanguage)
       // A slow response for shop A must never render after switching to B.
       if (latestShopRef.current !== shopId) return
       if (response.shop_id !== shopId || response.original_prompt !== brief ||
           response.can_publish !== false || response.review_status !== 'NEEDS_REVIEW' ||
-          response.provider_mode !== 'deterministic' ||
+          response.provider_mode !== (realAiEnabled ? 'approved_llm' : 'deterministic') ||
+          response.usage?.paid_inference_calls !== (realAiEnabled ? 1 : 0) ||
+          (realAiEnabled && (!Number.isFinite(response.usage?.actual_paid_cost_usd) ||
+            response.usage.actual_paid_cost_usd < 0 || response.usage.actual_paid_cost_usd > 0.05)) ||
           typeof response.improved_prompt !== 'string' ||
           response.improved_prompt.length > 1500) {
         throw new Error('Invalid or stale prompt response')
@@ -130,7 +136,7 @@ export default function TrendWorkspace() {
     } finally {
       setPromptLoading(false)
     }
-  }, [api, canWrite, improveEnabled, shopId, promptLoading, brief, promptFormats, promptLanguage])
+  }, [api, canWrite, improveEnabled, realAiEnabled, shopId, promptLoading, brief, promptFormats, promptLanguage])
   const originalChanged = value => {
     setBrief(value)
     setAppliedPrompt('')
@@ -171,7 +177,9 @@ export default function TrendWorkspace() {
       }
       postAttempted = true
       // Once attempted, never automatically send this POST a second time.
-      const data = await api.createDraft(targetShop, trend.trend_id, campaign, submissionId)
+      const data = realAiEnabled
+        ? await api.createDraftWithAI(targetShop, trend.trend_id, campaign, submissionId)
+        : await api.createDraft(targetShop, trend.trend_id, campaign, submissionId)
       if (data.shop_id !== targetShop || data.status !== 'DRAFT') {
         throw new Error('Unconfirmed draft acknowledgement')
       }
@@ -212,7 +220,7 @@ export default function TrendWorkspace() {
         }
       }
     } finally { setSaving(false) }
-  }, [api, canWrite, assetId, brief, appliedPrompt, startDate, saving, shopId])
+  }, [api, canWrite, assetId, brief, appliedPrompt, realAiEnabled, startDate, saving, shopId])
   if (!configured || !api) return (
     <section className="feature2-trends" aria-label="Trends unavailable">
       <h1>Trend Intelligence</h1>
@@ -250,6 +258,19 @@ export default function TrendWorkspace() {
       <section className="feature2-prompt-workspace" aria-label="AI prompt improver">
         <h2>Prompt Improver</h2>
         <label className="feature2-check">
+          <input type="checkbox" checked={realAiEnabled} onChange={event => {
+            setRealAiEnabled(event.target.checked)
+            setPromptPreview(null)
+            setAppliedPrompt('')
+            setEditedPrompt('')
+            setPromptError('')
+          }} />
+          Use real Azure AI model (requires approved shop budget)
+        </label>
+        <p>{realAiEnabled
+          ? 'Real AI is explicitly selected. Model calls require a separately approved server-side shop spending limit; unavailable or rejected calls do not silently use a mock.'
+          : 'Free local template mode selected. No paid AI model calls.'}</p>
+        <label className="feature2-check">
           <input type="checkbox" checked={improveEnabled}
             onChange={event => {
               setImproveEnabled(event.target.checked)
@@ -257,7 +278,7 @@ export default function TrendWorkspace() {
             }} />
           Improve Prompt with AI
         </label>
-        <p>Optional, deterministic AI-style guidance with no paid inference. It never starts content generation.</p>
+        <p>Optional prompt improvement. Template mode is free; selected real AI requires approved budget. Neither automatically starts content generation.</p>
         {improveEnabled && <>
           <div className="feature2-filters">
             <label>Prompt language
@@ -306,6 +327,8 @@ export default function TrendWorkspace() {
               .filter(([, value]) => typeof value === 'string' && value)
               .map(([key, value]) => key.replaceAll('_', ' ') + ': ' + value).join('; ')}.</p>
             <p>Provider: {promptPreview.provider_mode}; paid calls: {promptPreview.usage.paid_inference_calls}.
+              {promptPreview.usage.actual_paid_cost_usd != null &&
+                <> Actual model cost: USD {promptPreview.usage.actual_paid_cost_usd.toFixed(6)}.</>}
               Status: Human review required. Outputs: {promptPreview.output_formats.join(', ')}.</p>
             <div className="feature2-prompt-actions">
               <button type="button" onClick={applyImproved}
@@ -333,7 +356,7 @@ export default function TrendWorkspace() {
               const t = (results?.recommendations || []).find(x => x.trend_id === chosenTrendId)
               if (t) createDraft(t)
             }}>
-            Generate Content
+            {realAiEnabled ? 'Generate with real AI' : 'Generate Content'}
           </button>
         </div>
         {!chosenTrendId && <p>Generating a trend-backed draft requires a verified matching trend.
