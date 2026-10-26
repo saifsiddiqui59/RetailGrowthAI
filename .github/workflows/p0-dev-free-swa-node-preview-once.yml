@@ -65,7 +65,8 @@ jobs:
           test "$(az account show --query id -o tsv)" = "$EXPECTED_SUB"
           az group show -n rg-retailgrowth-dev -o json > "$RUNNER_TEMP/rg.json"
           az staticwebapp show -g rg-retailgrowth-dev -n retailgrowthai-dev-preview -o json > "$RUNNER_TEMP/site.json"
-          python3 - "$RUNNER_TEMP/rg.json" "$RUNNER_TEMP/site.json" <<'PY'
+          az staticwebapp environment list -g rg-retailgrowth-dev -n retailgrowthai-dev-preview -o json > "$RUNNER_TEMP/p0-env.json"
+          python3 - "$RUNNER_TEMP/rg.json" "$RUNNER_TEMP/site.json" "$RUNNER_TEMP/p0-env.json" <<'PY'
           import json,sys
           r=json.load(open(sys.argv[1]))
           t={k.lower():str(v).lower() for k,v in (r.get("tags") or {}).items()}
@@ -75,6 +76,13 @@ jobs:
           assert s["name"]=="retailgrowthai-dev-preview"
           assert (s.get("sku") or {}).get("name","").lower()=="free"
           assert s["defaultHostname"]=="purple-dune-06b5da200.2.azurestaticapps.net"
+          env=json.load(open(sys.argv[3]))
+          assert isinstance(env,list), "unable to verify Free preview slots"
+          names={str(item.get("name") or item.get("environmentName") or "").lower() for item in env}
+          if "p0249node" not in names:
+              occupied={name for name in names if name and name not in ("production","default")}
+              assert len(occupied)<3, "Free SWA preview environment capacity exhausted"
+          print("P0_249_FREE_PREVIEW_SLOT_VERIFIED=true")
           print("P0_249_VERIFIED_EXISTING_FREE_SWA=true")
           PY
       - name: Obtain masked deployment token for exact existing DEV SWA
@@ -110,14 +118,16 @@ jobs:
           import sys
           p=urlparse(sys.argv[1])
           assert p.scheme=="https" and p.hostname.endswith(".azurestaticapps.net")
-          assert "p0249node" in p.hostname and "purple-dune-06b5da200" in p.hostname
+          assert p.hostname=="purple-dune-06b5da200-p0249node.2.azurestaticapps.net"
           assert not p.username and not p.password and not p.query and not p.fragment
           print("P0_249_PREVIEW_ENV_ONLY=true")
           PY
-          for pair in 'p0-health-lite:200' 'campaigns/11111111-1111-4111-8111-111111111111:401' 'p0-249-missing:404'; do
+          for pair in 'p0-health-lite:200' 'campaigns/11111111-1111-4111-8111-111111111111:401' 'p0-249-missing:404' 'p0-health-lite:200'; do
             IFS=: read -r path expected <<< "$pair"
-            got="$(curl -sS --max-time 15 -D "$RUNNER_TEMP/control-headers" -o /dev/null -w '%{http_code}' "$PREVIEW/api/$path")"
-            echo "P0_249_NODE_ROUTE=$path HTTP=$got"
+            observation="$(curl -sS --connect-timeout 3 --max-time 15 -D "$RUNNER_TEMP/control-headers" -o /dev/null -w '%{http_code} %{time_total}' "$PREVIEW/api/$path")"
+            got="${observation%% *}"
+            seconds="${observation#* }"
+            echo "P0_249_NODE_ROUTE=$path HTTP=$got seconds=$seconds"
             test "$got" = "$expected"
             grep -iq '^x-p0-control: node-v4' "$RUNNER_TEMP/control-headers"
           done
