@@ -161,5 +161,7 @@ rollback;
 \echo 'PASS: cross-shop read/write, owner forgery, viewer escalation, revocation and anon-denial RLS tests'
 
 
--- Feature #2 additive RLS checks execute in the existing disposable security CI job.
+-- Feature #2 DDL remains UNAPPLIED: execute proposed schema ONLY in this
+-- disposable security CI database after all reviewed foundational migrations.
+\i ai-agents/sql/feature2_ready_migration_COORDINATOR_REVIEW.sql
 \i tests/security/feature2_trends_negative.sql
