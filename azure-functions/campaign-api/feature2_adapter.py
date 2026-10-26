@@ -92,3 +92,5 @@ class TrendFeatureAdapter:
             return 400, {"error": "INVALID_REQUEST"}
         except PermissionError:
             return 403, {"error": "FORBIDDEN"}
+        except StorageUnavailable:
+            return 503, {"error": "TREND_STORAGE_UNAVAILABLE"}
