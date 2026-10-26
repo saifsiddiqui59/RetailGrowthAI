@@ -60,10 +60,31 @@ class OfflineFluxKlein4B:
         if not torch.cuda.is_available():
             raise ProviderBlocked("CUDA GPU not available")
         if self.pipeline is None:
-            self.pipeline = Flux2KleinPipeline.from_pretrained(
-                str(self.weights), torch_dtype=torch.bfloat16,
+            # Feature5 A100 was never provisioned. Feature3 prefers cheaper T4.
+            # Tesla T4 (SM 7.5) has FP16 but NO native BF16: never hardcode BF16.
+            capability = torch.cuda.get_device_capability()
+            if not isinstance(capability, tuple) or capability[0] < 7:
+                raise ProviderBlocked("Unsupported CUDA compute capability")
+            has_bf16 = (capability[0] >= 8 and
+                        bool(getattr(torch.cuda, "is_bf16_supported", lambda: False)()))
+            gpu_dtype = torch.bfloat16 if has_bf16 else torch.float16
+            available_vram = torch.cuda.get_device_properties(0).total_memory
+            if available_vram < 14 * 1024 ** 3:
+                raise ProviderBlocked("Insufficient CUDA memory for reviewed FLUX.2 Klein 4B")
+            pipe = Flux2KleinPipeline.from_pretrained(
+                str(self.weights), torch_dtype=gpu_dtype,
                 local_files_only=True,
-            ).to("cuda")
+            )
+            if available_vram < 20 * 1024 ** 3:
+                # T4's 16GB budget needs verified Accelerate CPU offload.
+                # Do NOT attempt a risky full GPU .to() as fallback.
+                try:
+                    pipe.enable_model_cpu_offload()
+                except (AttributeError, ImportError, RuntimeError) as exc:
+                    raise ProviderBlocked("T4 requires compatible CPU offload setup") from exc
+            else:
+                pipe.to("cuda")
+            self.pipeline = pipe
         brief = job.prompt.strip()
         if job.capability == "human_model":
             brief = "Photorealistic adult fashion model, professional clothing advertisement. " + brief
