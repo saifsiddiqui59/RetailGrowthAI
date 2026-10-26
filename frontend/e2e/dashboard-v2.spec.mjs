@@ -154,7 +154,11 @@ test('business settings saves only validated fields with JWT and real server con
   await editor.getByRole('button',{name:'Save business profile'}).click()
   await expect(page.getByText('Business profile saved and verified for this business.')).toBeVisible()
   expect(writes).toHaveLength(1)
-  expect(writes[0]).toEqual({body:{city:'Pune'},auth:'Bearer offline-test-JWT'})
+  expect(writes[0].auth).toBe('Bearer offline-test-JWT')
+  expect(writes[0].body.city).toBe('Pune')
+  // Existing Supabase client always includes updated_at on profile edits.
+  expect(Object.keys(writes[0].body).sort()).toEqual(['city','updated_at'])
+  expect(Number.isFinite(Date.parse(writes[0].body.updated_at))).toBe(true)
 })
 
 test('settings shows VIEWER profile without issuing any mutation', async ({ page }) => {
