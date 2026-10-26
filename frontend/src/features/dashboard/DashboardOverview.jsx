@@ -10,7 +10,6 @@ const EMPTY = { campaigns: null, drafts: null, reelsReady: null, rendersProcessi
 
 export default function DashboardOverview() {
   const { client, configured, user, loading: authLoading } = useRetailAuth()
-  const connected = configured && Boolean(import.meta.env?.VITE_CAMPAIGN_API_BASE_URL)
   const [selectedShop, setSelectedShop] = useState('')
   // Keep query keys scoped to an authenticated principal. No stale counts are
   // shared with another user or business; the backend still enforces RLS.
@@ -21,7 +20,7 @@ export default function DashboardOverview() {
   })
   const shops = shopsQuery.data || []
   const shopId = shops.some(s => s.id === selectedShop) ? selectedShop : (shops[0]?.id || '')
-  const live = connected && Boolean(user)
+  const live = configured && Boolean(user)
   const metricsQuery = useQuery({
     queryKey: ['dashboard', 'shop-metrics', user?.id, shopId],
     queryFn: () => client.getShopMetrics(shopId),
