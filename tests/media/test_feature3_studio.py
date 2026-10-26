@@ -149,7 +149,7 @@ class Feature3Tests(unittest.TestCase):
         # Produce inspectable CI evidence without any customer data or AI.
         from sample_feature3 import samples
         outputs = samples(ROOT / "ci-artifacts" / "feature3")
-        self.assertEqual(len(outputs), 4)
+        self.assertEqual(len(outputs), 5)
         for path in outputs:
             self.assertTrue(path.is_file())
             self.assertGreater(path.stat().st_size, 200)
