@@ -81,7 +81,7 @@ test('Studio preserves source-review-only browser catalog but adds approved stil
   assert.match(jsx, /availableApprovedModels\(approvedModels, shopId, imageMap\)/)
   assert.match(jsx, /mode === 'model' \? 'image' : mode/)
   assert.match(jsx, /sourceAssetId/)
-  assert.match(jsx, /server must recheck/i)
+  assert.match(jsx, /Server must revalidate media and model rights/i)
   assert.ok(!jsx.includes('http://'))
   assert.ok(!jsx.includes('fetch('))
 })
