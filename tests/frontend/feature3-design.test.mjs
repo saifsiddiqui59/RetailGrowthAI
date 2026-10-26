@@ -27,7 +27,7 @@ test('poster editing is versioned, immutable and supports undo redo', () => {
 
 test('poster browser contract blocks arbitrary urls, cross-layer overflow and unverified IDs', () => {
   assert.throws(() => validateFeature3Design({ ...design,
-    layers: [{ ...design.layers[0], image_url: 'https://evil.example' }] }),
+    layers: [{ ...design.layers[0], image_url: 'https://evil.example' }] }))
   assert.throws(() => validateFeature3Design({ ...design, shop_id: '../evil' }))
   assert.throws(() => validateFeature3Design({ ...design, layers: [
     { ...design.layers[0], x: .9 },
