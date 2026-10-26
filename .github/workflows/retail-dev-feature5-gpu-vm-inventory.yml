@@ -1,0 +1,102 @@
+name: RetailGrowthAI Feature5 Azure alternative GPU VM quota check (read-only)
+
+# One-time OIDC inventory on workflow introduction to main; no cloud writes.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature5-gpu-vm-inventory.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retailgrowth-feature5-gpu-vm-inventory
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    name: Check A10/A100 VM quota and SKU restrictions without provisioning
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      EXPECTED_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RG: rg-retailgrowth-dev
+    steps:
+      - name: Authenticate existing Azure DEV OIDC credentials
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read-only compute GPU family quota and offered SKUs
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "${EXPECTED_SUB:-}"
+          test "$(az account show --query id -o tsv)" = "$EXPECTED_SUB"
+          test "$(az account show --query state -o tsv)" = Enabled
+          test "$(az group show --name "$RG" --query location -o tsv)" = centralindia
+          test "$(az group show --name "$RG" --query tags.environment -o tsv | tr '[:upper:]' '[:lower:]')" = dev
+          test "$(az group show --name "$RG" --query tags.app -o tsv | tr '[:upper:]' '[:lower:]')" = retailgrowthai
+          echo "PASS: authenticated exact isolated RetailGrowthAI Azure DEV subscription"
+          for region in centralindia eastus; do
+            echo "::group::Existing GPU VM quota in $region (READ ONLY)"
+            # Do not expand billing services, create VMs or print subscription IDs.
+            if az vm list-usage --location "$region" -o json > "$RUNNER_TEMP/vm-usage-$region.json" 2>/dev/null; then
+              python3 - "$RUNNER_TEMP/vm-usage-$region.json" "$region" <<'PY'
+          import json,sys
+          region=sys.argv[2]
+          values=json.load(open(sys.argv[1]))
+          assert isinstance(values,list), "Unexpected Azure VM usage payload"
+          selected=[]
+          for item in values:
+              name=item.get("name") or {}
+              text=(name.get("localizedValue") or name.get("value") or "") if isinstance(name,dict) else str(name)
+              v=text.lower()
+              if any(x in v for x in ("gpu","a10","a100","h100","h200","nc","nd","nv","regional vcpu","regional cores")):
+                  selected.append((text,item.get("limit"),item.get("currentValue")))
+          for name,limit,used in selected[:50]:
+              print(f"{region} quota family {name!r}: limit={limit} used={used}")
+          if not selected: print(f"{region}: GPU VM family quota not surfaced (NOT evidence of availability)")
+          PY
+            else
+              echo "$region: VM quota inventory not readable (not zero)"
+            fi
+            # SKU catalog does not prove available quota, capacity or permission.
+            if az vm list-skus --location "$region" --resource-type virtualMachines \
+                --all --output json > "$RUNNER_TEMP/vm-skus-$region.json" 2>/dev/null; then
+              python3 - "$RUNNER_TEMP/vm-skus-$region.json" "$region" <<'PY'
+          import json,sys
+          rows=json.load(open(sys.argv[1]))
+          assert isinstance(rows,list)
+          selected=[]
+          for r in rows:
+              name=r.get("name") or ""
+              low=name.lower()
+              if any(x in low for x in ("a10","a100","h100","h200")) and name.startswith("Standard_"):
+                  restrictions=r.get("restrictions") or []
+                  selected.append((name,[(x.get("type"),x.get("reasonCode")) for x in restrictions]))
+          for name,restrictions in selected[:45]:
+              print(f"{sys.argv[2]} SKU {name}: restrictions={restrictions!r}")
+          if not selected: print(f"{sys.argv[2]}: A10/A100/H100/H200 GPU VM SKUs not listed; availability UNKNOWN")
+          PY
+            else
+              echo "$region: VM GPU SKU inventory not readable (not proof of unavailability)"
+            fi
+            echo "::endgroup::"
+          done
+          echo "READ-ONLY COMPLETE. No new Azure VM, GPU, disk, network or charges started."
+
+      - name: Clear Azure OIDC session
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
