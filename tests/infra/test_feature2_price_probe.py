@@ -33,6 +33,11 @@ class TestFeature2PriceProbe(unittest.TestCase):
         self.assertEqual(meters["output"]["usd_per_million"], "1.76")
         self.assertEqual(meters["input"]["unitOfMeasure"], "1M Tokens")
 
+    def test_known_azure_openai_product_family_preserved(self):
+        rows=[rec("gpt 4.1 mini Inp", "0.44",product="Azure OpenAI GPT4"),
+              rec("gpt 4.1 mini Outp", "1.76",product="Azure OpenAI GPT4")]
+        self.assertEqual(choose(rows,now=NOW)["output"]["usd_per_million"],"1.76")
+
     def test_missing_direction_ambiguous_or_wrong_region_fails_closed(self):
         a=rec("gpt 4.1 mini Inp", "0.44")
         b=rec("gpt 4.1 mini Outp", "1.76")
