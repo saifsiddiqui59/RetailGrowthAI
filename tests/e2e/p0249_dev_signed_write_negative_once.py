@@ -87,14 +87,38 @@ def run():
                 "day_id":fake_day,"preset":"instagram_reel_30s",
             },(404,)),
         ]
-        for method,path,payload,expected in write_cases:
-            code,body,_,duration=common.request(DEV_WRITE_PREVIEW+path,method=method,
-                data=payload,headers=hdr,expected=expected,timeout=20)
+        for case_number,(method,path,payload,expected) in enumerate(write_cases,1):
+            if case_number == 4:
+                # Differentiate an HTTP router/body failure from RLS SELECT on
+                # an absent poster. Output contains ONLY safe HTTP status/case.
+                try:
+                    check,view,_,_=common.request(
+                        DEV_WRITE_PREVIEW+"/api/poster-drafts/"+fake_poster,
+                        headers=hdr,expected=(404,),timeout=20)
+                    if view != {"error":"NOT_FOUND"}:
+                        raise RuntimeError("POSTER_GET_WRONG_ERROR_SHAPE")
+                    print("P0249_POSTER_PRIVATE_ABSENT_GET_HTTP="+str(check),flush=True)
+                except RuntimeError as exc:
+                    value=str(exc)
+                    safe=value if value.startswith("DEV_TEST_UNEXPECTED_HTTP_") else type(exc).__name__
+                    print("P0249_WRITE_DENIAL_MISMATCH_CASE=poster_get error="+safe,flush=True)
+                    raise
+            try:
+                code,body,_,duration=common.request(DEV_WRITE_PREVIEW+path,method=method,
+                    data=payload,headers=hdr,expected=expected,timeout=20)
+            except RuntimeError as exc:
+                value=str(exc)
+                safe=value if value.startswith("DEV_TEST_UNEXPECTED_HTTP_") else type(exc).__name__
+                print("P0249_WRITE_DENIAL_MISMATCH_CASE="+str(case_number)+
+                      " error="+safe,flush=True)
+                raise
             if not isinstance(body,dict) or body.get("error") not in (
                "FORBIDDEN","NOT_FOUND"):
+                print("P0249_WRITE_DENIAL_UNEXPECTED_BODY_CASE="+str(case_number),flush=True)
                 raise RuntimeError("UNAUTHORIZED_WRITE_NOT_DENIED")
-            print("P0249_SIGNED_NO_SHOP_WRITE_DENIED method="+method+
-                " status="+str(code)+" seconds="+str(round(duration,3)),flush=True)
+            print("P0249_SIGNED_NO_SHOP_WRITE_DENIED case="+str(case_number)+
+                " method="+method+" status="+str(code)+
+                " seconds="+str(round(duration,3)),flush=True)
         # Cross-site scripting cannot mutate even if the signed access token
         # is stolen and passed in a malicious browser-origin request.
         _,blocked,_,_=common.request(
