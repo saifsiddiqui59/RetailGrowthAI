@@ -34,6 +34,16 @@ export function createTrendApi({ baseUrl, tokenProvider, fetchImpl = fetch }) {
     return data
   }
   return {
+    improvePrompt: (shopId, originalPrompt, outputFormats, language = 'en-IN') => {
+      if (typeof originalPrompt !== 'string' || !originalPrompt.trim() ||
+          originalPrompt.length > 1500 || !Array.isArray(outputFormats) ||
+          !outputFormats.length || !['en-IN', 'hi-IN', 'mr-IN'].includes(language)) {
+        throw new Error('Enter a valid prompt, supported language and output formats')
+      }
+      return request('POST', shopId, 'improve-prompt', {
+        original_prompt: originalPrompt, output_formats: outputFormats, language,
+      })
+    },
     getRecommendations: (shopId) => request('GET', shopId, 'trend-recommendations'),
     listDrafts: (shopId) => request('GET', shopId, 'content-drafts'),
     createDraft: (shopId, trendId, campaign, submissionId = null) => {
