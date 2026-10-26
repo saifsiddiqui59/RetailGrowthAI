@@ -28,8 +28,9 @@ def quote():
 
 
 def assess(q=None, **kwargs):
-    args = dict(max_seconds=600, ancillary_allowance_usd="0.05",
-                approved_ceiling_usd="0.25", now=NOW)
+    args = dict(max_seconds=600, provider_termination_after_seconds=3600,
+                ancillary_allowance_usd="0.05",
+                approved_ceiling_usd="1.10", now=NOW)
     args.update(kwargs)
     return assess_external_gpu_quote(quote() if q is None else q, **args)
 
@@ -37,14 +38,16 @@ def assess(q=None, **kwargs):
 class TestExternalGpuBudget(unittest.TestCase):
     def test_valid_quote_is_not_authorization(self):
         result = assess()
-        self.assertEqual(str(result.cost_ceiling_usd), "0.2017")
+        self.assertEqual(str(result.cost_ceiling_usd), "0.9600")
         self.assertEqual(result.status, "QUOTE_ONLY_NOT_EXECUTION_AUTHORIZATION")
         self.assertEqual(result.max_seconds, 600)
+        self.assertEqual(result.provider_termination_after_seconds, 3600)
 
     def test_minimum_billing_is_included(self):
         q = quote()
         q["minimum_billable_seconds"] = 900
-        self.assertEqual(str(assess(q, approved_ceiling_usd="0.30").cost_ceiling_usd), "0.2775")
+        self.assertEqual(str(assess(q, provider_termination_after_seconds=720,
+                                    approved_ceiling_usd="0.30").cost_ceiling_usd), "0.2775")
 
     def test_expired_and_future_quotes_denied(self):
         q = quote()
@@ -85,6 +88,10 @@ class TestExternalGpuBudget(unittest.TestCase):
             assess(approved_ceiling_usd="0.15")
         with self.assertRaises(ExternalQuoteError):
             assess(max_seconds=1801)
+        with self.assertRaises(ExternalQuoteError):
+            assess(provider_termination_after_seconds=600)
+        with self.assertRaises(ExternalQuoteError):
+            assess(provider_termination_after_seconds=3601)
 
     def test_price_region_currency_and_schema(self):
         for key, value in (("region", ""), ("country", "USA"),
