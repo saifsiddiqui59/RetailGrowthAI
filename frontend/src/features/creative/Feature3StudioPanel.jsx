@@ -18,7 +18,7 @@ const rootStyle = { display: 'grid', gap: 16, width: '100%', minWidth: 0 }
 
 export default function Feature3StudioPanel({
   shopId, campaignId, dayId, brandKit, imageMap = {}, approvedContent = null,
-  onSaveDesign = null, approvedModels = [], disabled = false,
+  onSaveDesign = null, approvedModels = [], restoredDesign = null, disabled = false,
 }) {
   const [mode, setMode] = useState('text')
   const [prompt, setPrompt] = useState('')
@@ -27,10 +27,11 @@ export default function Feature3StudioPanel({
   const [assetId, setAssetId] = useState('')
   const [modelId, setModelId] = useState('')
   const [designModelRef, setDesignModelRef] = useState(null)
-  const [version, setVersion] = useState(0)
-  const [design, setDesign] = useState(null)
+  const [version, setVersion] = useState(restoredDesign?.revision || 0)
+  const [design, setDesign] = useState(() => restoredDesign?.design || null)
   const [showModelLibrary, setShowModelLibrary] = useState(false)
-  const [designContext, setDesignContext] = useState('')
+  const [designContext, setDesignContext] = useState(() =>
+    restoredDesign ? feature3ContextKey({shopId,campaignId,dayId}) : '')
   const [error, setError] = useState('')
 
   // These are pre-authorized/private media previews supplied by the
