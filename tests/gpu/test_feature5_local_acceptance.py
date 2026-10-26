@@ -18,6 +18,7 @@ from feature5_motion import MotionSpec, validate_clip
 from feature5_motion.runner import HunyuanLocalRunner
 from feature5_motion.license_gate import HunyuanLicensePolicy
 from feature5_motion.artifact_lock import ArtifactLock
+from feature5_motion.acceptance import export_pending_review
 
 APPROVED = (
     os.environ.get("RETAIL_FEATURE5_REAL_GPU_TEST", "").lower() == "true"
@@ -30,6 +31,7 @@ APPROVED = (
     and bool(os.environ.get("RETAIL_FEATURE5_PUBLICATION_COUNTRIES"))
     and bool(os.environ.get("RETAIL_FEATURE5_ARTIFACT_LOCK_PATH"))
     and bool(os.environ.get("RETAIL_FEATURE5_APPROVED_LOCK_SHA256"))
+    and bool(os.environ.get("RETAIL_FEATURE5_MANUAL_EVIDENCE_ROOT"))
 )
 
 
@@ -39,6 +41,10 @@ class TestHunyuanLocalGPU(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="feature5-real-gpu-")
         self.addCleanup(self.temp.cleanup)
         self.folder = Path(self.temp.name)
+        self.evidence_root = Path(os.environ["RETAIL_FEATURE5_MANUAL_EVIDENCE_ROOT"])
+        if (self.evidence_root.is_symlink() or not self.evidence_root.resolve(strict=True).is_dir()
+            or self.evidence_root.stat().st_mode & 0o077):
+            self.fail("Real GPU evidence directory must be existing, private mode 0700")
         # Requires operator-reviewed country, actual legal provider name,
         # notices and rights in addition to owner spend consent.
         # Env flags are not a substitute for genuine legal verification.
@@ -79,6 +85,14 @@ class TestHunyuanLocalGPU(unittest.TestCase):
         metadata = validate_clip(out)
         self.assertEqual(metadata["codec"], "h264")
         self.assertTrue(4.5 <= metadata["duration_seconds"] <= 5.5)
+        # Preserve the actual clip + six-frame human reviewer materials OUTSIDE
+        # the temporary job directory, never automatically approve visual QA.
+        exported = export_pending_review(
+            out, self.evidence_root / ("t2v-" + str(uuid4())),
+            mode="text",
+            approved_model_manifest_sha256=os.environ["RETAIL_FEATURE5_APPROVED_LOCK_SHA256"],
+        )
+        self.assertEqual(exported["status"], "PENDING_HUMAN_REVIEW")
 
     @unittest.skipUnless(
         os.environ.get("RETAIL_FEATURE5_RIGHTS_APPROVED_IMAGE"),
@@ -95,6 +109,12 @@ class TestHunyuanLocalGPU(unittest.TestCase):
                           mode="image", source_asset_id=str(uuid4()))
         out = self.runner.run(spec, source_file=original, workdir=self.folder)
         self.assertEqual(validate_clip(out)["codec"], "h264")
+        exported = export_pending_review(
+            out, self.evidence_root / ("i2v-" + str(uuid4())),
+            mode="image", source_image=original,
+            approved_model_manifest_sha256=os.environ["RETAIL_FEATURE5_APPROVED_LOCK_SHA256"],
+        )
+        self.assertEqual(exported["status"], "PENDING_HUMAN_REVIEW")
 
 
 if __name__ == "__main__":
