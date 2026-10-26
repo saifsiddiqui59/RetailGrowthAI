@@ -115,3 +115,52 @@
 :root[data-rg-theme="dark"] .rg-settings-fields label{color:#c3d9e3}
 :root[data-rg-theme="dark"] .rg-settings-fields input:read-only,:root[data-rg-theme="dark"] .rg-settings-fields textarea:read-only{background:#263b4a;color:#aec4d0}
 @media(max-width:560px){.rg-settings-fields{grid-template-columns:minmax(0,1fr)}.rg-settings-fields label:has(textarea){grid-column:1}}
+
+
+/* A translated sidebar is still keyboard-focusable unless hidden. Keep the
+   collapsed mobile drawer out of the tab/screen-reader tree until opened.
+   Desktop navigation remains visible and unchanged. */
+@media (max-width:760px) {
+  .retail-shell:not(.mobile-open) .sidebar {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .retail-shell.mobile-open .sidebar {
+    visibility: visible;
+    pointer-events: auto;
+  }
+}
+
+/* Feature #1 no-cost, verified-context Creative Studio entry. */
+.rg-creative-launchpad .rg-creative-tools{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:0 0 20px}
+.rg-creative-tools>span:last-child{color:#556e7b;font-size:13px}
+.rg-creative-layout{display:grid;grid-template-columns:minmax(290px,0.88fr) minmax(360px,1.12fr);gap:18px;align-items:start}
+.rg-creative-layout>.panel{min-width:0;margin:0}
+.rg-creative-shop{display:grid;gap:8px;font-weight:700;font-size:13px;color:#385361;margin:8px 0 20px}
+.rg-creative-shop select{width:100%;min-height:42px;border:1px solid #c9dadb;padding:9px;border-radius:9px;background:#fff;color:#233b48}
+.rg-creative-score{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:12px 0!important}
+.rg-creative-score strong{font-size:24px;font-weight:800;color:#196b50}
+.rg-creative-readiness progress{width:100%;height:12px;accent-color:#168564}
+.rg-creative-checklist{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:12px}
+.rg-creative-checklist li{display:flex;align-items:flex-start;gap:12px}
+.rg-creative-checklist li>div{display:grid;gap:3px;min-width:0}
+.rg-creative-checklist li strong{font-size:13px}
+.rg-creative-checklist li div>span{font-size:12px;color:#5c7583;line-height:1.5}
+.rg-creative-check{width:25px;height:25px;border:1px solid #cbd4df;border-radius:50%;display:grid;place-items:center;flex:0 0 25px;font-weight:800;color:#6d7c88}
+.rg-creative-check.done{background:#dbf4e9;color:#137b54;border-color:#8bd0b2}
+.rg-creative-stages{list-style:none;padding:0;margin:19px 0 0;display:grid;gap:13px}
+.rg-creative-stages li{display:flex;gap:14px;padding:0 0 17px;border-bottom:1px solid #d8e5e7;min-width:0}
+.rg-creative-stages li:last-child{border-bottom:0;padding-bottom:0}
+.rg-creative-number{width:40px;height:40px;display:grid;place-items:center;background:#e0f3ec;color:#156349;border-radius:11px;flex:0 0 40px;font-weight:800}
+.rg-creative-stages h3{margin:0 0 4px;font-size:16px;line-height:1.4}
+.rg-creative-stages p{margin:0 0 11px!important;line-height:1.55;font-size:13px}
+.rg-creative-notice{margin:18px 0 0;max-width:none}
+.rg-creative-notice p{margin:8px 0 0}
+:root[data-rg-theme="dark"] .rg-creative-tools>span:last-child,
+:root[data-rg-theme="dark"] .rg-creative-checklist li div>span{color:#b2c9d4}
+:root[data-rg-theme="dark"] .rg-creative-shop{color:#ccdee8}
+:root[data-rg-theme="dark"] .rg-creative-number{background:#214a3d;color:#a7e8c5}
+:root[data-rg-theme="dark"] .rg-creative-score strong{color:#9ee2c4}
+:root[data-rg-theme="dark"] .rg-creative-stages li{border-color:#3a5262}
+@media(max-width:900px){.rg-creative-layout{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:360px){.rg-creative-launchpad .panel{padding:17px}.rg-creative-stages li{gap:9px}.rg-creative-number{width:34px;flex-basis:34px;height:34px}}

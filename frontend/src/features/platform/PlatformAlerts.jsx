@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import './platform-operations.css'
@@ -13,37 +14,43 @@ const PAGE_SIZE = 40
 // Server owns all alert categories and read state. No localStorage, fake
 // Azure health, browser service key or unauthenticated React-only checks.
 export default function PlatformAlerts() {
-  const { client } = useRetailAuth()
+  const { client, user } = useRetailAuth()
+  const queryClient = useQueryClient()
   const [view,setView] = useState('active')
   const [category,setCategory] = useState('all')
   const [offset,setOffset] = useState(0)
-  const [version,setVersion] = useState(0)
-  const [loading,setLoading] = useState(true)
   const [working,setWorking] = useState(null)
-  const [error,setError] = useState('')
-  const [data,setData] = useState(null)
-
-  useEffect(() => {
-    let alive = true
-    setLoading(true)
-    setError('')
-    setData(null)
-    client.listPlatformNotifications(view,category,PAGE_SIZE,offset)
-      .then(next => {if(alive) setData(next)})
-      .catch(() => {if(alive) setError('Platform notifications could not be verified. Check the database migration and your root authorization; zero alerts is NOT assumed.')})
-      .finally(() => {if(alive) setLoading(false)})
-    return () => {alive=false}
-  }, [client,view,category,offset,version])
+  const [actionError,setActionError] = useState('')
+  // Never share a root inbox cache across authenticated principals. Keeping
+  // previous filters/pages for only 20 seconds avoids redundant per-page
+  // database RPCs while preserving an explicit server-refresh control.
+  const queryRoot = ['platform-notifications', user?.id || null]
+  const alertsQuery = useQuery({
+    queryKey: [...queryRoot, view, category, offset],
+    queryFn: () => client.listPlatformNotifications(view,category,PAGE_SIZE,offset),
+    enabled: Boolean(user?.id),
+    staleTime: 20_000,
+    gcTime: 60_000,
+    retry: false,
+  })
+  const loading = alertsQuery.isFetching || alertsQuery.isPending
+  const error = alertsQuery.isError
+    ? 'Platform notifications could not be verified. Check the database migration and your root authorization; zero alerts is NOT assumed.'
+    : actionError
+  // A failed refresh must never display older notification records as live.
+  const data = alertsQuery.isError ? null : alertsQuery.data
 
   async function toggleRead(item) {
     if (working!==null) return
     setWorking(item.id)
-    setError('')
+    setActionError('')
     try {
       await client.setPlatformNotificationRead(item.id,!item.read_at)
-      setVersion(value=>value+1)
+      // Invalidate every cached filter/view for this root. The active query
+      // refetches now; other filter views refetch when selected later.
+      await queryClient.invalidateQueries({ queryKey: queryRoot })
     } catch {
-      setError('The read status update was rejected. Refresh before retrying.')
+      setActionError('The read status update or refresh could not be verified. Refresh before retrying.')
     } finally {setWorking(null)}
   }
 
@@ -56,7 +63,7 @@ export default function PlatformAlerts() {
         <p className="lead">Persistent, per-admin read/unread history from verified RetailGrowthAI database events.</p>
       </div>
       <button type="button" className="subtle-button" disabled={loading}
-        onClick={()=>setVersion(v=>v+1)}>Refresh alerts</button>
+        onClick={()=>{setActionError('');alertsQuery.refetch()}}>Refresh alerts</button>
     </div>
     <div className="panel platform-alert-disclaimer">
       <strong>Monitoring scope:</strong> database job failures, persisted poison receipts,

@@ -57,6 +57,8 @@ export default function PlatformAdmin() {
   const [offset, setOffset] = useState(0)
   const [reload, setReload] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [summaryLoading, setSummaryLoading] = useState(true)
+  const [summaryError, setSummaryError] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [editing, setEditing] = useState(null)
@@ -107,29 +109,49 @@ export default function PlatformAdmin() {
   }
 
 
+  // The platform-wide summary is independent of the tenant directory page.
+  // Fetch it on first render, an explicit Refresh, or after an audited plan
+  // change only. Changing pages must not call the cross-tenant summary RPC.
+  useEffect(() => {
+    let active = true
+    setSummaryLoading(true)
+    setSummaryError('')
+    setSummary(EMPTY)
+    client.getPlatformSummary().then(metrics => {
+      if (!metrics || !CARDS.every(([key]) =>
+          Number.isSafeInteger(metrics[key]) && metrics[key] >= 0)) {
+        throw new Error('Invalid platform summary')
+      }
+      if (active) setSummary(metrics)
+    }).catch(() => {
+      if (active) {
+        setSummary(EMPTY)
+        setSummaryError('Platform metrics could not be verified. No totals are estimated.')
+      }
+    }).finally(() => { if (active) setSummaryLoading(false) })
+    return () => { active = false }
+  }, [client, reload])
+
+  // Directory pagination uses one bounded per-page RPC. Failure here must
+  // not blank separately verified platform-wide metrics or warnings.
   useEffect(() => {
     let active = true
     setLoading(true)
     setError('')
     setShops([])
     setTotal(null)
-    setSummary(EMPTY)
-    Promise.all([client.getPlatformSummary(), client.listPlatformShops(25, offset)]).then(
-      ([metrics, listing]) => {
-        if (!active) return
-        if (!metrics || !listing || !Array.isArray(listing.shops) ||
-            !Number.isSafeInteger(listing.total) || listing.total < 0) {
-          throw new Error('Invalid platform reporting data')
-        }
-        setSummary(metrics)
+    client.listPlatformShops(25, offset).then(listing => {
+      if (!listing || !Array.isArray(listing.shops) ||
+          !Number.isSafeInteger(listing.total) || listing.total < 0) {
+        throw new Error('Invalid retailer directory')
+      }
+      if (active) {
         setShops(listing.shops)
         setTotal(listing.total)
       }
-    ).catch(() => {
-      if (active) setError('Unable to verify platform access or load retailer data. No figures are estimated.')
-    }).finally(() => {
-      if (active) setLoading(false)
-    })
+    }).catch(() => {
+      if (active) setError('Retailer directory could not be verified. No directory rows are assumed.')
+    }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [client, offset, reload])
 
@@ -168,7 +190,7 @@ export default function PlatformAdmin() {
     }
   }
 
-  const warnings = deriveWarnings(summary, Boolean(error))
+  const warnings = deriveWarnings(summary, Boolean(summaryError))
   return <div className="platform-page" aria-label="Platform Control dashboard">
     <div className="page-heading">
       <div><div className="eyebrow">RETAILGROWTHAI · PROVIDER OPERATIONS</div>
@@ -181,7 +203,9 @@ export default function PlatformAdmin() {
       <strong>Privileged access, same login.</strong>
       <p>Shop OWNER rights remain restricted to that shop. This platform console uses separately verified service-side RPCs with audited changes; it does not expose service-role credentials or bypass campaign authorization.</p>
     </div>
-    {loading && <p role="status">Verifying platform reports…</p>}
+    {summaryLoading && <p role="status">Verifying platform summary…</p>}
+    {loading && <p role="status">Loading retailer directory page…</p>}
+    {summaryError && <p role="alert" className="notice-error">{summaryError}</p>}
     {error && <p role="alert" className="notice-error">{error}</p>}
     {message && <p role="status">{message}</p>}
     <section className="metrics platform-metrics" aria-label="Platform overview metrics">
@@ -200,11 +224,11 @@ export default function PlatformAdmin() {
     <section className="panel platform-warning-center" aria-label="Platform monitoring warnings">
       <div className="panel-heading"><div><div className="eyebrow">PLATFORM MONITORING</div>
         <h2>Warnings &amp; attention needed</h2></div>
-        <span className="tag">{loading ? 'Updating' : warnings.length + ' notices'}</span>
+        <span className="tag">{summaryLoading ? 'Updating' : warnings.length + ' notices'}</span>
       </div>
-      <p>Warnings are derived from verified Supabase counts and known DEV feature limitations. They are not automated Azure or social-platform alerts.</p>
-      {!loading && !warnings.length && !error && <p role="status">No count-based issues detected. Provider health monitoring is not yet connected.</p>}
-      {!loading && warnings.length > 0 && <div className="platform-warning-list">
+      <p>Warnings are derived from verified Supabase counts and known DEV feature limitations. They are not automated Azure or social-platform alerts. Summary refreshes only on opening, manual Refresh or an audited plan change; retailer paging does not refresh it.</p>
+      {!summaryLoading && !warnings.length && !summaryError && <p role="status">No count-based issues detected. Provider health monitoring is not yet connected.</p>}
+      {!summaryLoading && warnings.length > 0 && <div className="platform-warning-list">
         {warnings.map((warning) => <div className={'platform-warning '+warning.level} key={warning.title}>
           <span className="platform-warning-icon" aria-hidden="true">{warning.level === 'critical' ? '!' : warning.level === 'attention' ? '!' : 'i'}</span>
           <div><strong>{warning.title}</strong><p>{warning.detail}</p></div>
