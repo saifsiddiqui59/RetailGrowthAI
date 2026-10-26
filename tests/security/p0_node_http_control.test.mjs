@@ -13,7 +13,7 @@ test("control package discovers Node v4 Functions main entrypoint", () => {
 test("protected reads deny anonymous and nonvalidated bearer tokens", () => {
   const path="/api/campaigns/not-a-customer-id";
   assert.equal(routeControl("GET",path).status,401);
-  assert.equal(routeControl("GET",path,"Bearer invalid").status,503);
+  assert.equal(routeControl("GET",path,"Bearer invalid").status,401);
 });
 test("no customer write path and expected benign control responses", () => {
   assert.equal(routeControl("POST","/api/campaigns/test").status,405);
