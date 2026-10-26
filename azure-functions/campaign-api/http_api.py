@@ -10,7 +10,7 @@ from draft_api import DraftAPI
 
 
 class HTTPAPI:
-    def __init__(self, verify_token, store, planning_queue=None, render_api=None, failure_store=None, durable_outbox=False, poster_api=None, poster_render_api=None):
+    def __init__(self, verify_token, store, planning_queue=None, render_api=None, failure_store=None, durable_outbox=False, poster_api=None, poster_render_api=None, feature3_api=None):
         self.verify_token = verify_token
         self.store = store
         self.planning_queue = planning_queue
@@ -19,6 +19,7 @@ class HTTPAPI:
         self.durable_outbox = durable_outbox
         self.poster_api = poster_api
         self.poster_render_api = poster_render_api
+        self.feature3_api = feature3_api
 
     def handle(self, method, path, authorization, body=None):
         try:
@@ -26,6 +27,21 @@ class HTTPAPI:
                 raise AuthenticationError("bearer token required")
             token = authorization[7:].strip()
             user_id = self.verify_token(token)
+            # Feature3 is additive and OFF unless specifically configured.
+            if path.startswith("/shops/") and path.endswith("/feature3-models"):
+                if self.feature3_api is None:
+                    return 503, {"error": "FEATURE3_V2_DISABLED"}
+                parts = path.strip("/").split("/")
+                if method != "GET" or len(parts) != 3 or parts[0] != "shops":
+                    return 404, {"error": "NOT_FOUND"}
+                return self.feature3_api.models(token, user_id, parts[1])
+            if "/feature3-designs" in path:
+                if self.feature3_api is None:
+                    return 503, {"error": "FEATURE3_V2_DISABLED"}
+                parts = path.strip("/").split("/")
+                if len(parts) != 5 or parts[0] != "campaigns" or parts[2] != "days" or parts[4] != "feature3-designs":
+                    return 404, {"error": "NOT_FOUND"}
+                return self.feature3_api.day(token, user_id, parts[1], parts[3], method, body)
             if method == "POST" and path.startswith("/campaigns/") and path.endswith("/posters"):
                 if self.poster_api is None:
                     return 503, {"error": "POSTER_DRAFT_NOT_CONFIGURED"}
