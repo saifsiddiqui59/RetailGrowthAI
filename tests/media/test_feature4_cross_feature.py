@@ -74,23 +74,90 @@ class CreativeReelTests(unittest.TestCase):
         }
 
     def make_assets(self, with_video=False):
-        for filename, color in (("product.png", "red"), ("sale.png", "blue"),
-                                ("logo.png", "yellow")):
-            subprocess.run(["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
-                            "-f", "lavfi", "-i", "color=c=" + color + ":s=160x160",
-                            "-frames:v", "1", "-update", "1", "-y", str(self.assets / filename)],
-                           check=True, capture_output=True, timeout=25)
+        # Fully original illustrated clothing fixtures, not a real photographed
+        # product or genuine AI fashion-model clip. Better visual QA than color cards.
+        from PIL import Image, ImageDraw, ImageFont
+        import math
+
+        def f(size):
+            try:
+                return ImageFont.truetype("DejaVuSans-Bold.ttf", size)
+            except OSError:
+                return ImageFont.load_default()
+
+        def garment(draw, x, y, scale=1.0, color=(64, 151, 149), movement=0):
+            def pos(px, py):
+                return (int(x + px * scale), int(y + py * scale))
+            draw.ellipse((pos(-48, 160), pos(48, 174)), fill=(10, 13, 22, 200))
+            swing = math.sin(movement) * 11
+            draw.line((pos(-14, 90), pos(-22+swing, 154)), fill=(214, 169, 136), width=max(2,int(11*scale)))
+            draw.line((pos(14, 90), pos(22-swing, 154)), fill=(214, 169, 136), width=max(2,int(11*scale)))
+            draw.ellipse((pos(-21, -102), pos(21, -57)), fill=(210, 166, 136))
+            draw.polygon([pos(-26,-57),pos(26,-57),pos(47,90),pos(-48,90)], fill=color)
+            draw.polygon([pos(-26,-57),pos(-53,-23),pos(-46,33),pos(-30,22)], fill=color)
+            draw.polygon([pos(26,-57),pos(53,-23),pos(46,33),pos(30,22)], fill=color)
+            draw.polygon([pos(-26,-57),pos(0,-35),pos(26,-57),pos(0,-45)], fill=(33,27,49))
+            draw.line((pos(-35,90),pos(35,90)),fill=(244,190,103),width=3)
+            for yy in range(-28,66,19):
+                draw.ellipse((pos(-3,yy-3),pos(3,yy+3)),fill=(249,201,119))
+
+        product = Image.new("RGBA", (540,960), (0,0,0,0))
+        d = ImageDraw.Draw(product)
+        d.rounded_rectangle((35,90,505,872),radius=50,fill=(31,24,48,242),
+                            outline=(190,155,99),width=4)
+        d.ellipse((105,140,435,600),fill=(64,56,80,200))
+        garment(d,270,445,2.0,(64,153,150),0)
+        d.text((98,779),"KURTI / ORIGINAL FIXTURE",font=f(22),fill=(255,223,158))
+        product.save(self.assets/"product.png")
+
+        sale = Image.new("RGBA", (540,960), (43,18,49,255))
+        d = ImageDraw.Draw(sale)
+        d.rounded_rectangle((30,70,510,890),radius=55,outline=(250,187,97),width=12)
+        d.text((77,194),"DIWALI SALE",font=f(53),fill=(248,201,114))
+        d.ellipse((55,350,485,780),fill=(109,40,79),outline=(255,202,107),width=9)
+        d.text((104,460),"20%",font=f(110),fill=(255,246,223))
+        d.text((177,626),"OFF",font=f(71),fill=(251,205,113))
+        for i in range(18):
+            theta=i*math.tau/18
+            x,y=int(270+218*math.cos(theta)),int(565+240*math.sin(theta))
+            d.line((x-7,y,x+7,y),fill=(246,208,139),width=2)
+            d.line((x,y-7,x,y+7),fill=(246,208,139),width=2)
+        sale.save(self.assets/"sale.png")
+
+        logo = Image.new("RGBA",(260,260),(0,0,0,0))
+        d=ImageDraw.Draw(logo)
+        d.ellipse((14,14,246,246),fill=(47,30,65,235),outline=(253,195,109),width=12)
+        d.ellipse((31,31,229,229),outline=(172,129,78),width=3)
+        d.text((58,82),"RG",font=f(78),fill=(255,227,166))
+        logo.save(self.assets/"logo.png")
+
         self.add("product_image", "product.png", "image", "feature3")
         self.add("sale_poster", "sale.png", "poster", "feature3")
         self.add("store_logo", "logo.png", "logo", "retailer")
         if with_video:
+            frames = self.assets/"walk_frames"
+            frames.mkdir()
+            for i in range(96):
+                t=i/12
+                pic=Image.new("RGB",(320,570),(24,17,42))
+                d=ImageDraw.Draw(pic)
+                d.rectangle((8,96,85,415),outline=(171,132,92),width=4)
+                d.rectangle((240,96,310,415),outline=(171,132,92),width=4)
+                d.line((0,430,320,430),fill=(104,78,76),width=4)
+                d.polygon([(0,570),(105,430),(215,430),(320,570)],fill=(66,46,71))
+                for index,color in enumerate(((98,113,138),(163,110,119),(209,148,92))):
+                    x=20+index*43
+                    d.polygon([(x,166),(x+21,166),(x+29,252),(x-9,252)],fill=color)
+                garment(d,160+int(math.sin(t*1.8)*13),293,1.27,(70,150,146),t*2)
+                d.text((20,27),"SYNTHETIC FASHION CLIP",font=f(14),fill=(239,193,115))
+                pic.save(frames/f"f{i:03d}.png")
             subprocess.run([
                 "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
-                "-f", "lavfi", "-i", "color=c=purple:s=120x200:r=12:d=8",
+                "-framerate", "12", "-i", str(frames/"f%03d.png"),
                 "-f", "lavfi", "-i", "sine=frequency=480:duration=8",
                 "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
-                "-c:a", "aac", "-shortest", str(self.assets / "fixture_clip.mp4")
-            ], check=True, capture_output=True, timeout=35)
+                "-c:a", "aac", "-shortest", str(self.assets/"fixture_clip.mp4")
+            ], check=True, capture_output=True, timeout=45)
             self.add("walk_clip", "fixture_clip.mp4", "video", "feature5")
 
     def test_diwali_30s_brand_logo_motion_poster_exact_offer(self):
