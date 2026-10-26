@@ -45,17 +45,17 @@ export default function MediaLibrary() {
       {!configured && <p role="status">Connect RetailGrowthAI DEV Supabase to browse your private image records. No demo images are presented as uploads.</p>}
       {configured && user && <div className="rg-library-tools">
         <label>Business
-          <select aria-label="Media library business" value={shopId} onChange={event => selectShop(event.target.value)}>
+          <select aria-label="Media library business" value={shopId} onChange={event => {setPaging({scope:'',page:1});selectShop(event.target.value)}}>
             {!shops.length && <option value="">No accessible business</option>}
             {shops.map(shop => <option key={shop.id} value={shop.id}>{shop.name}</option>)}
           </select>
         </label>
         <label>Search asset ID or licence
           <input aria-label="Search media" type="search" maxLength={80} value={filter}
-            onChange={event => setFilter(event.target.value)} placeholder="Filter current business" />
+            onChange={event => {setPaging({scope:'',page:1});setFilter(event.target.value)}} placeholder="Filter current business" />
         </label>
         <label>Type
-          <select aria-label="Media file type" value={type} onChange={event => setType(event.target.value)}>
+          <select aria-label="Media file type" value={type} onChange={event => {setPaging({scope:'',page:1});setType(event.target.value)}}>
             <option value="all">All images</option><option value="image/png">PNG</option>
             <option value="image/jpeg">JPEG</option><option value="image/webp">WebP</option>
           </select>
