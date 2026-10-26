@@ -304,14 +304,12 @@ def get_retailer_trends(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch_feature2(req, req.route_params["shop_id"], method="GET")
 
 
-@app.route(route="shops/{shop_id}/content-drafts", methods=["POST"])
+@app.route(route="shops/{shop_id}/content-drafts", methods=["GET", "POST"])
 def create_retailer_trend_draft(req: func.HttpRequest) -> func.HttpResponse:
-    return dispatch_feature2(req, req.route_params["shop_id"], method="POST", resource="drafts")
-
-
-@app.route(route="shops/{shop_id}/content-drafts", methods=["GET"])
-def list_retailer_trend_drafts(req: func.HttpRequest) -> func.HttpResponse:
-    return dispatch_feature2(req, req.route_params["shop_id"], method="GET", resource="drafts")
+    # Same registered route, distinct signed-in READ and verified WRITE methods;
+    # avoid duplicate Azure route definitions during Flex Functions indexing.
+    return dispatch_feature2(req, req.route_params["shop_id"],
+                             method=req.method.upper(), resource="drafts")
 
 
 @app.timer_trigger(schedule="0 15 5 * * *", arg_name="timer",
