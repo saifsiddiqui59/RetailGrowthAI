@@ -29,7 +29,9 @@ begin
         where n.nspname='public' and
           p.proname in ('feature2_reserve_ai_budget','feature2_settle_ai_budget')
           and p.prosecdef and p.provolatile='v'
-          and p.proconfig @> array['search_path='])<>2 then
+          and exists (select 1 from pg_catalog.unnest(p.proconfig) as cfg(setting)
+           where pg_catalog.split_part(cfg.setting,'=',1)='search_path'
+             and pg_catalog.btrim(pg_catalog.split_part(cfg.setting,'=',2),'"')=''))<>2 then
     raise exception 'Missing volatile security definer or isolated search path';
   end if;
 end
