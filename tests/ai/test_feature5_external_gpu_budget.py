@@ -43,6 +43,17 @@ class TestExternalGpuBudget(unittest.TestCase):
         self.assertEqual(result.max_seconds, 600)
         self.assertEqual(result.provider_termination_after_seconds, 3600)
 
+    def test_low_cost_a40_quote_one_hour_provider_termination(self):
+        q = quote()
+        q["sku"] = "A40_48GB"
+        q["system_ram_gib"] = 50
+        q["compute_usd_per_hour"] = "0.59"
+        result = assess(q, approved_ceiling_usd="0.75")
+        self.assertEqual(str(result.cost_ceiling_usd), "0.6600")
+        self.assertEqual(result.status, "QUOTE_ONLY_NOT_EXECUTION_AUTHORIZATION")
+        with self.assertRaises(ExternalQuoteError):
+            assess(q, approved_ceiling_usd="0.65")
+
     def test_minimum_billing_is_included(self):
         q = quote()
         q["minimum_billable_seconds"] = 900
