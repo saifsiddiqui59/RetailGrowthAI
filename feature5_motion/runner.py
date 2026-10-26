@@ -12,12 +12,15 @@ import subprocess
 import sys
 
 from .contracts import MotionError, MotionSpec
+from .license_gate import HunyuanLicensePolicy
 
 
 class HunyuanLocalRunner:
     def __init__(self, *, checkout: Path, weights: Path, enabled: bool = False,
                  license_approved: bool = False, gpu_budget_approved: bool = False,
-                 timeout_seconds: int = 1800):
+                 timeout_seconds: int = 1800,
+                 license_policy: HunyuanLicensePolicy | None = None):
+        self.license_policy = license_policy
         self.checkout = Path(checkout)
         self.weights = Path(weights)
         self.enabled = enabled
@@ -45,6 +48,9 @@ class HunyuanLocalRunner:
     def run(self, spec: MotionSpec, *, source_file: Path | None, workdir: Path) -> Path:
         if not (self.enabled and self.license_approved and self.gpu_budget_approved):
             raise MotionError("Premium inference is disabled pending approvals")
+        if not isinstance(self.license_policy, HunyuanLicensePolicy):
+            raise MotionError("Reviewed Hunyuan license activation context missing")
+        self.license_policy.assert_allowed()
         if spec.mode == "text" and source_file is not None:
             raise MotionError("Unexpected text-mode source")
         if spec.mode != "text" and source_file is None:
