@@ -36,3 +36,31 @@ done
 python3 "$ROOT/video-engine/hyperframes/check_feature4_output.py" "$ROOT/ci-artifacts"
 # Capture resolved dependency lock for review; later pin it to repo and use npm ci.
 cp "$ROOT/video-engine/hyperframes/package-lock.json" "$ROOT/ci-artifacts/feature4-review-package-lock.json"
+
+# Acceptance-stage output contract: exercise real 1080x1920 frames, not just
+# 540p upscaling or an HTML plan. Fifteen seconds limits free CI runner costs.
+# All materials are original synthetic fixtures, NEVER customer media.
+PROJECT_HD="$TEMP/diwali-1080p"
+OUTPUT_HD="$ROOT/ci-artifacts/feature4-15s-1080p-hyperframes-synthetic.mp4"
+python3 "$ROOT/video-engine/demo_feature4_diwali.py" "$PROJECT_HD" --seconds 15 --width 1080
+if (( NODE_MAJOR >= 22 )); then
+  timeout --signal=TERM --kill-after=10s 420s node "$ROOT/video-engine/hyperframes/render.mjs" "$PROJECT_HD" "$OUTPUT_HD"
+else
+  timeout --signal=TERM --kill-after=10s 420s npm exec --yes --package=node@22 -- node "$ROOT/video-engine/hyperframes/render.mjs" "$PROJECT_HD" "$OUTPUT_HD"
+fi
+python3 - "$OUTPUT_HD" <<'PY'
+import json,subprocess,sys
+from pathlib import Path
+sys.path.insert(0,str(Path("video-engine").resolve()))
+from render_adapter import verify_mp4
+proof=verify_mp4(sys.argv[1],duration=15,width=1080,height=1920,fps=24)
+info=json.loads(subprocess.check_output(
+    ["ffprobe","-v","error","-show_streams","-of","json",sys.argv[1]],text=True))
+v=next(s for s in info["streams"] if s.get("codec_type")=="video")
+assert v.get("pix_fmt")=="yuv420p", v.get("pix_fmt")
+assert int(v.get("nb_frames",360)) in range(358,363),v.get("nb_frames")
+print("PASS: actual 1080x1920/24fps/15s HyperFrames encode",proof)
+PY
+for sec in 1 4 8 11 14; do
+ ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$sec" -i "$OUTPUT_HD" -frames:v 1 "$ROOT/ci-artifacts/feature4-fullres-frame-$sec.jpg"
+done
