@@ -12,6 +12,7 @@ from typing import Any
 from .contracts import MotionError
 
 DEV_GROUP = "rg-retailgrowth-dev"
+CANARY_ENV = "rgai-f5-gpu-canary-eastus"
 REGION = "eastus"
 PROFILE_MATCH = "NCA100"
 
@@ -61,20 +62,29 @@ def assess_azure_a100_preflight(*, account: dict, resource_group: dict,
         raise MotionError("Malformed Azure GPU inventory response")
     if not any(_a100_profile(x) for x in supported_profiles):
         return A100Readiness("BLOCKED", ("No A100 consumption profile verified in East US",), None)
-    eligible = []
-    for e in environments:
-        if not isinstance(e, dict):
-            continue
-        if (str(e.get("location", "")).lower().replace(" ", "") != REGION or
-            e.get("provisioningState") != "Succeeded"):
-            continue
-        # The actual environment must have a Consumption A100 workload profile.
-        profiles = (e.get("properties") or {}).get("workloadProfiles", [])
-        if any(_a100_profile(p) for p in profiles):
-            eligible.append(e.get("name"))
-    if len(eligible) != 1 or not isinstance(eligible[0] if eligible else None, str):
-        return A100Readiness("BLOCKED", ("No unique existing East US A100 DEV environment",), None)
-    target = eligible[0]
+    # Azure's managed-environment A100 quota can ONLY be read once a v2
+    # workload-profiles environment exists in a supported region. It does
+    # NOT need to contain a billable A100 workload profile yet.
+    matching = [e for e in environments if isinstance(e, dict)
+                and e.get("name") == CANARY_ENV]
+    if not matching:
+        return A100Readiness("ENVIRONMENT_REQUIRED", (
+            "Create reviewed, EMPTY East US workload-profiles DEV environment before quota read",
+            "Missing environment does not mean A100 quota is zero",
+        ), None)
+    if len(matching) != 1:
+        return A100Readiness("BLOCKED", ("Ambiguous dedicated DEV environment",), None)
+    e = matching[0]
+    tags = {str(k).lower(): str(v).lower()
+            for k, v in (e.get("tags") or {}).items()}
+    profiles = (e.get("properties") or {}).get("workloadProfiles") or []
+    if (str(e.get("location", "")).lower().replace(" ", "") != REGION or
+        e.get("provisioningState") != "Succeeded" or
+        tags.get("app") != "retailgrowthai" or tags.get("environment") != "dev" or
+        tags.get("feature") != "feature5" or
+        profiles != [{"name": "Consumption", "workloadProfileType": "Consumption"}]):
+        return A100Readiness("BLOCKED", ("Unexpected environment, tags or paid profile",), CANARY_ENV)
+    target = CANARY_ENV
     rows = usage_by_environment.get(target)
     if not isinstance(rows, list):
         return A100Readiness("BLOCKED", ("GPU quota not readable for selected environment",), target)
