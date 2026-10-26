@@ -20,7 +20,7 @@ const links = [
   { to: '/connections', label: 'Social accounts', icon: '◎', group: 'PUBLISH' },
   { to: '/publishing', label: 'Publishing history', icon: '◷' },
   { to: '/subscription', label: 'Subscription', icon: '◈', group: 'ACCOUNT' },
-  { to: '/notifications', label: 'Notifications', icon: '◇' },
+  { to: '/notifications', label: 'My notifications', icon: '◇' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ]
 
@@ -168,7 +168,7 @@ function AppShell() {
           <div className="topbar-right">
             <button className="rg-theme-button" type="button" onClick={() => setTheme(value => value === 'dark' ? 'light' : 'dark')}
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              aria-pressed={theme === 'dark'}>{theme === 'dark' ? '☀ Light' : '☾ Dark'}</button>
+              aria-pressed={theme === 'dark'}><span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span><span className="rg-theme-copy">{theme === 'dark' ? 'Light' : 'Dark'}</span></button>
             <span className="environment">{import.meta.env?.VITE_CAMPAIGN_API_BASE_URL && import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY
               ? 'DEV connected' : 'Demo / setup'}</span>
             <AccountMenu />
