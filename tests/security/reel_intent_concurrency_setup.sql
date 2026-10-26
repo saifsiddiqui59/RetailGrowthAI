@@ -20,7 +20,7 @@ values ('a3333333-3333-4333-8333-333333333333',
 commit;
 
 -- Match existing disposable fixture semantics for backend-only campaign writes.
-select set_config('request.jwt.claims','{"role":"service_role"}',false);
+select set_config('request.jwt.claims','{"role":"service_role","sub":"a1111111-1111-4111-8111-111111111111"}',false);
 
 insert into public.campaigns(id,shop_id,created_by,brief,start_date)
 values ('a4444444-4444-4444-8444-444444444444',
