@@ -80,6 +80,20 @@ class Feature3Tests(unittest.TestCase):
                 doc = self.design(template=template, format="story")
                 self.assertEqual(validate_design(doc)["format"], "story")
 
+    def test_product_alpha_cutout_respects_poster_brand_background(self):
+        from PIL import ImageDraw
+        cutout = Image.new("RGBA", (160, 220), (0, 0, 0, 0))
+        ImageDraw.Draw(cutout).rectangle((45, 55, 115, 180),
+                                        fill=(185, 40, 55, 255))
+        cutout.save(self.root / "cutout.png")
+        self.manifest["assets"][self.asset]["path"] = "cutout.png"
+        design = self.design(template="festival")
+        info = render_design(design, self.manifest, self.root,
+                             self.root / "cutout-poster.png", scale=.25)
+        with Image.open(info["path"]) as rendered:
+            self.assertEqual(rendered.getpixel((22, 54)), (255, 243, 219))
+            self.assertEqual(rendered.getpixel((135, 110)), (185, 40, 55))
+
     def test_registered_brand_logo_preserves_transparency(self):
         from PIL import ImageDraw
         logo_id = str(uuid4())
