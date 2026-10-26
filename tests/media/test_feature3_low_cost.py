@@ -74,7 +74,7 @@ class CPUCostTests(unittest.TestCase):
     def test_same_private_asset_in_two_layers_is_decoded_only_once(self):
         duplicate = dict(self.doc["layers"][2])
         duplicate["id"] = "product-copy"
-        duplicate["x"], duplicate["y"] = .25, .24
+        duplicate["x"], duplicate["y"] = .10, .24
         self.doc["layers"].insert(3, duplicate)
         with patch.object(studio_v2, "_assets", wraps=studio_v2._assets) as checked:
             render_design(self.doc, self.manifest, self.root,
