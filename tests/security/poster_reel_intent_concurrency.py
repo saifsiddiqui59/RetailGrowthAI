@@ -104,8 +104,8 @@ def main() -> None:
 
     request = (
         "begin; set local role authenticated; "
-        "select set_config('request.jwt.claim.role','authenticated',true); "
-        f"select set_config('request.jwt.claim.sub','{ACTOR}',true); "
+        f"select set_config('request.jwt.claims',"
+        f"'{{\"role\":\"authenticated\",\"sub\":\"{ACTOR}\",\"is_anonymous\":false}}',true); "
         "select 'RGA_RESULT:' || "
         f"public.request_reel_render_job('{CAMPAIGN}','{DAY}')::text; "
         "commit;"
