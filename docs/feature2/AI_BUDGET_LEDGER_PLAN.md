@@ -1,8 +1,7 @@
 # Feature2 real AI cost reservation gate — source only
 
 PR/issue: Feature #2 integration [#403](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/403).
-This is a **new migration proposal and backend facade**, not a hosted database
-change. Do not apply to RetailGrowthAI DEV or PROD without normal migration
+This is a **SQL proposal and backend facade** kept outside executable\n\`supabase/migrations\` to preserve the coordinator-reviewed manifest. It is not a hosted database change. Do not apply to RetailGrowthAI DEV or PROD without normal migration
 review, disposable Supabase CI and protected DEV approval.
 
 ## Contract and strict zero-spend default
@@ -45,3 +44,5 @@ review, disposable Supabase CI and protected DEV approval.
 
 **Result claimed here:** source implementation and offline tests, NOT
 real paid inference, production readiness or hosted quota/RLS evidence.
+
+**Important manifest gate:** Reviewed SQL is stored only under `docs/feature2/sql/PROPOSED_20261026_feature2_ai_cost_ledger.sql`. Future coordinator-approved migration integration must choose a nonconflicting version number, update the immutable manifest deliberately, run full disposable DB security tests and obtain protected DEV migration approval before enabling any model calls.
