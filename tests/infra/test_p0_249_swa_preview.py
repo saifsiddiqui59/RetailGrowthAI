@@ -31,6 +31,8 @@ class FreeSwaPreviewSafety(unittest.TestCase):
         self.assertIn('route: "campaigns/{campaignId}"', index)
         self.assertIn('route: "p0-249-missing"', index)
         self.assertIn('"X-P0-Control": "node-v4"', index)
+        self.assertNotIn("req.headers.get(\"authorization\")", index)
+        self.assertIn("tenantless control", index)
         self.assertRegex(index, r'methods:\s*\["GET"\]')
         self.assertNotRegex(index, r'methods:\s*\["(?:POST|PUT|PATCH|DELETE)"\]')
         for source in (index, routes):
