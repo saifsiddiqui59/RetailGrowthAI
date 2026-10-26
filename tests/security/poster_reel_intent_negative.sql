@@ -144,14 +144,14 @@ update public.campaign_days set instagram=
 where id='88888888-8888-4888-8888-888888888888';
 set local role authenticated;
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-4111-8111-111111111111","is_anonymous":false}',true);
-do $
+do $p0249_music_frame$
 begin
   if public.request_reel_render_job(
     '44444444-4444-4444-8444-444444444444',
     '88888888-8888-4888-8888-888888888888') is not null then
     raise exception 'audio file reused in storyboard image slot got a render job';
   end if;
-end $;
+end $p0249_music_frame$;
 reset role;
 select set_config('request.jwt.claims','{"role":"service_role","sub":"11111111-1111-4111-8111-111111111111"}',true);
 update public.campaign_days set instagram=
