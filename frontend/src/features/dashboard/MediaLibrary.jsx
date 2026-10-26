@@ -73,7 +73,7 @@ export default function MediaLibrary() {
           <Badge>Showing up to 100 newest per business</Badge></div>
         {assets.length === 0
           ? <p role="status">No matching registered images in this business. Upload licensed images through Campaign Studio.</p>
-          : <div className="rg-library-grid" aria-label="Authorized media records">
+          : <div className="rg-library-grid" role="region" aria-label="Authorized media records">
               {assets.map(asset => <article className="rg-library-record" key={asset.id}>
                 <div className="rg-library-icon" aria-hidden="true">▧</div>
                 <div><strong>{mediaLabel(asset.id)}</strong>
