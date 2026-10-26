@@ -1,0 +1,61 @@
+name: RetailGrowthAI Feature3 FLUX GPU VM quota verification (read-only)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature3-flux-vm-quota-once.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: retailgrowth-feature3-flux-vm-quota-readonly
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RG: rg-retailgrowth-dev
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Read-only Azure DEV GPU VM family and region capacity
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$AZ_SUB"
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          test "$(az account show --query state -o tsv)" = Enabled
+          test "$(az group show -n "$RG" --query location -o tsv)" = centralindia
+          test "$(az group show -n "$RG" --query tags.environment -o tsv | tr '[:upper:]' '[:lower:]')" = dev
+          test "$(az group show -n "$RG" --query tags.app -o tsv | tr '[:upper:]' '[:lower:]')" = retailgrowthai
+          for region in eastus centralindia; do
+            echo "::group::Exact GPU VM quotas $region"
+            az vm list-usage --location "$region" -o json > "$RUNNER_TEMP/f3-vm-usage-$region.json"
+            az vm list-skus --location "$region" --all --resource-type virtualMachines -o json > "$RUNNER_TEMP/f3-vm-skus-$region.json"
+            python3 scripts/ci/feature3_vm_gpu_probe.py \
+              --region "$region" \
+              --usage "$RUNNER_TEMP/f3-vm-usage-$region.json" \
+              --skus "$RUNNER_TEMP/f3-vm-skus-$region.json"
+            echo "::endgroup::"
+          done
+          echo "READ_ONLY_COMPLETE: no GPU VM/storage/network/profiles/resources provisioned."
+      - name: Clear short-lived Azure OIDC session
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
