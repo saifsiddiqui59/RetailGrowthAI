@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useAuthorizedShops } from './useAuthorizedShops.js'
+import { useSelectedShop } from './useSelectedShop.js'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
@@ -10,14 +11,12 @@ import { filterAssets, mediaLabel } from './media-library-model.mjs'
 
 export default function MediaLibrary() {
   const { client, configured, user } = useRetailAuth()
-  const [requestedShopId, setRequestedShopId] = useState('')
   const [filter, setFilter] = useState('')
   const [type, setType] = useState('all')
   const shopsQuery = useAuthorizedShops({ client, user, configured })
   const shops = shopsQuery.data || []
   // Never fetch from an arbitrary user-supplied shop ID: resolve from RLS-backed memberships.
-  const shopId = shops.some(shop => shop.id === requestedShopId)
-    ? requestedShopId : shops[0]?.id || ''
+  const { shopId, selectShop } = useSelectedShop({ user, shops })
   const assetsQuery = useQuery({
     queryKey: ['media-library', 'assets', user?.id, shopId],
     queryFn: () => client.listMediaAssets(shopId),
@@ -41,7 +40,7 @@ export default function MediaLibrary() {
       {!configured && <p role="status">Connect RetailGrowthAI DEV Supabase to browse your private image records. No demo images are presented as uploads.</p>}
       {configured && user && <div className="rg-library-tools">
         <label>Business
-          <select aria-label="Media library business" value={shopId} onChange={event => setRequestedShopId(event.target.value)}>
+          <select aria-label="Media library business" value={shopId} onChange={event => selectShop(event.target.value)}>
             {!shops.length && <option value="">No accessible business</option>}
             {shops.map(shop => <option key={shop.id} value={shop.id}>{shop.name}</option>)}
           </select>
