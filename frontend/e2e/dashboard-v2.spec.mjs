@@ -17,7 +17,8 @@ async function signedIn(page) {
       '/rest/v1/shop_memberships': [{ shop_id: SHOP, active: true, role: 'OWNER' }],
       '/rest/v1/shops': [{ id: SHOP, name: 'Example Boutique', slug: 'example-boutique' }],
     }
-    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, body: '' })
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, body: '',
+      headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' } })
     if (request.method() === 'HEAD') return route.fulfill({ status: 200,
       headers: { 'Content-Range': '*/0', 'Access-Control-Allow-Origin': '*' }, body: '' })
     if (!(url.pathname in responses)) throw Error('Unexpected API request ' + url.pathname)
