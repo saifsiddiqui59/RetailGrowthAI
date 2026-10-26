@@ -89,7 +89,16 @@ def improve_prompt(
         "audience": retailer.audience, "goal": retailer.objective,
         "call_to_action": retailer.cta,
     }
-    # Every item is already bounded and cleaned by RetailerProfile.from_authorized.
+    # Tenant RLS authorizes profile ownership; it does NOT establish that an
+    # offer or price is true. Never promote claim-like profile fields as facts.
+    flagged_fields = [
+        key for key, value in context.items()
+        if (UNVERIFIED_CLAIM.search(" ".join(value) if isinstance(value, list) else value)
+            or UNSUPPORTED.search(" ".join(value) if isinstance(value, list) else value))
+    ]
+    for key in flagged_fields:
+        context[key] = [] if key == "products" else ""
+    context["products"] = context["products"][:4]
     verified = [
         "business " + context["business_name"],
         "category " + context["industry"],
@@ -116,6 +125,8 @@ def improve_prompt(
     flags = []
     if UNVERIFIED_CLAIM.search(original) or UNSUPPORTED.search(original):
         flags.append("Original request includes a claim requiring retailer verification; do not assert it as fact.")
+    if flagged_fields:
+        flags.append("Offer-like claims in profile fields were excluded until independently verified.")
     warnings = [
         "Business context comes from the server-authorized retailer profile, not typed browser fields.",
         "Exact user request is retained; additional copy instructions are editorial guidance only.",
@@ -123,6 +134,8 @@ def improve_prompt(
     ]
     result_prompt = base
     usage = {"paid_inference_calls": 0, "estimated_paid_cost_usd": 0, "provider": "local_templates"}
+    if len(base) > 1500 and provider_mode == "approved_llm":
+        raise ValueError("The canonical brief is too long for approved inference")
     if provider_mode == "approved_llm":
         settings = os.environ if environ is None else environ
         if not (settings.get("RETAIL_PROMPT_LLM_ENABLED") == "true" and
@@ -142,6 +155,7 @@ def improve_prompt(
         # The canonical CampaignBrief cap is 1500, so never produce an
         # improved value that downstream services reject.
         result_prompt = original
+        context = {}
         warnings.append("Original request kept: enhancement exceeds the v1 brief limit.")
     return {
         "original_prompt": original_prompt,
