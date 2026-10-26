@@ -113,3 +113,34 @@ def test_normalization_classification_never_assumes_all_trends_retail_relevant()
     assert classify("Today's celebrity scandal") == "general"
     assert classify("Latest restaurant recipe") == "restaurant"
     assert classify("developer software conference") == "technology"
+
+
+def test_rss_source_published_date_expires_and_cannot_be_rewritten_as_fresh():
+    recent = b"""<rss><channel><item><title>Saree clothing fashion</title>
+    <link>https://trends.google.com/trending?geo=IN</link>
+    <pubDate>Mon, 26 Oct 2026 06:00:00 GMT</pubDate></item></channel></rss>"""
+    good = parse_google_rss(recent, NOW)
+    assert len(good) == 1
+    assert good[0].source_published_at == "2026-10-26T06:00:00+00:00"
+    stale = recent.replace(b"26 Oct 2026", b"21 Oct 2026")
+    future = recent.replace(b"26 Oct 2026 06:00:00", b"27 Oct 2026 06:00:00")
+    assert parse_google_rss(stale, NOW) == []
+    assert parse_google_rss(future, NOW) == []
+
+
+def test_youtube_source_video_publish_timestamp_is_separate_from_collection_timestamp():
+    data = b"""{"items":[{"id":"dQw4w9WgXcQ",
+    "snippet":{"title":"Saree outfit ideas","publishedAt":"2026-10-25T12:00:00Z"},
+    "statistics":{"viewCount":"1200"}}]}"""
+    trends = parse_youtube(data, NOW)
+    assert trends[0].source_published_at == "2026-10-25T12:00:00+00:00"
+    assert trends[0].observed_at == "2026-10-26T06:30:00+00:00"
+    assert trends[0].popularity_kind == "lifetime_video_views"
+
+
+def test_network_fetch_denies_unlisted_endpoint_before_outbound_request():
+    from ai_agents.trend_intelligence import _default_get
+    with pytest.raises(ValueError, match="endpoint"):
+        _default_get("https://attacker.example/collect?key=secret")
+    with pytest.raises(ValueError, match="endpoint"):
+        _default_get("https://www.googleapis.com/youtube/v3/videos?key=secret")
