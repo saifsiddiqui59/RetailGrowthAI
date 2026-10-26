@@ -7,6 +7,7 @@ region availability, actual vCPU/RAM allocation, VAT, egress and model latency.
 from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation, ROUND_UP
+from math import ceil, isfinite
 from .contracts import MotionError
 
 METERS = {
@@ -108,3 +109,20 @@ class MotionSpendGuard:
             self.rates, billable_seconds=self.max_billable_seconds,
             vcpus=self.vcpus, gib_memory=self.gib_memory)
         return (base + allowance).quantize(Decimal("0.0001"), rounding=ROUND_UP)
+
+    def estimated_spend_for_observed_inference_usd(self, observed_seconds: float) -> Decimal:
+        """Approximation for claim reconciliation, never a provider invoice.
+
+        Includes configured ancillary allowance; billed Azure container time
+        may additionally include image pull, boot, model load and teardown.
+        """
+        if (type(observed_seconds) not in (int, float) or
+            not isfinite(observed_seconds) or observed_seconds < 0 or
+            observed_seconds > self.max_billable_seconds):
+            raise MotionError("Invalid observed GPU runtime")
+        seconds = max(1, ceil(observed_seconds))
+        return (estimate_execution_usd(
+            self.rates, billable_seconds=seconds,
+            vcpus=self.vcpus, gib_memory=self.gib_memory) +
+            Decimal(str(self.ancillary_allowance_usd))).quantize(
+                Decimal("0.0001"), rounding=ROUND_UP)
