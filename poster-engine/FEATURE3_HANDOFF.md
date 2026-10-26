@@ -188,3 +188,20 @@ NOT directly alter those shared contracts. Keep #249 as distinct P0.
   (rendered placeholders). Cost scenarios above are **NOT quotes**. Acquire
   subscription-specific quote, region privacy approval, max monthly rupee
   ceiling and measured startup before any paid GPU activation.
+
+### Final CPU/UI continuation checkpoint (source only)
+
+- Added optional **registered shop logo** to Python and browser v2
+  composition, with top-right alpha-preserving contain-fit instead of
+  distorting/cropping logos. Feature #2 approved bridge may pass a verified
+  brand-kit `logo_asset_id`. Legacy Part 1 API and its poster format
+  are unchanged.
+- Added deterministic visual uniqueness checks for all 10 actual Pillow
+  raster templates, end-to-end JS/Python structured parity tests, private
+  logo rights negative tests, and seven animation effect regression cases.
+- `Feature3KonvaEditor.jsx` is syntactically testable via the existing
+  Vite JSX transformer, but this is not a true React rendering/mobility
+  acceptance until the coordinator pins/installs Konva and mounts it.
+- Optional GPU license/cost/usage integration remains OFF. Do not
+  characterize fixture-backed output as a live fashion model, live FLUX or
+  real garment try-on.
