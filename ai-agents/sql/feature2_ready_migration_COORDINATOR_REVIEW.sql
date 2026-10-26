@@ -113,18 +113,14 @@ create table public.shop_content_drafts (
 create index shop_content_drafts_recent on public.shop_content_drafts(shop_id,created_at desc);
 alter table public.shop_content_drafts enable row level security;
 revoke all on public.shop_content_drafts from public,anon,authenticated;
-grant select,insert(shop_id,created_by,trend_id,content) on public.shop_content_drafts to authenticated;
+grant select on public.shop_content_drafts to authenticated;
+grant select,insert on public.shop_content_drafts to service_role;
 create policy feature2_draft_read on public.shop_content_drafts
   for select to authenticated
   using (retail_private.has_role(shop_id,array['OWNER','EDITOR','VIEWER']::text[]));
-create policy feature2_draft_create on public.shop_content_drafts
-  for insert to authenticated
-  with check (
-    created_by=(select auth.uid())
-    and retail_private.has_role(shop_id,array['OWNER','EDITOR']::text[])
-    and content->'campaign'->>'shop_id'=shop_id::text
-    and content->'content_days'->0->>'trend_id'=trend_id
-  );
+-- No authenticated INSERT: a direct client could forge trend evidence.
+-- The verified backend checks JWT membership and source ID, then makes the
+-- single service-role INSERT. RLS remains mandatory for tenant-facing reads.
 -- No UPDATE/DELETE, no approval or publishing RPC. Human approval comes later
 -- with a separately reviewed immutable version/usage contract.
 commit;
