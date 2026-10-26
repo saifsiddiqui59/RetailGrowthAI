@@ -266,12 +266,12 @@ def build_feature2_api():
     return TrendFeatureAdapter(
         SupabaseJWTVerifier(origin), tenant,
         profile_reader=authorized_profile_reader(tenant),
-        snapshot_store=shared, draft_store=TenantDraftStore(admin),
+        snapshot_store=shared, draft_store=TenantDraftStore(admin, tenant),
     )
 
 
-def dispatch_feature2(request, shop_id, *, method):
-    path = "/shops/{shop_id}/" + ("trend-recommendations" if method == "GET" else "content-drafts")
+def dispatch_feature2(request, shop_id, *, method, resource="trends"):
+    path = "/shops/{shop_id}/" + ("trend-recommendations" if resource == "trends" else "content-drafts")
     diagnostics = RequestDiagnostics(method, path)
     try:
         handler = build_feature2_api()
@@ -283,8 +283,12 @@ def dispatch_feature2(request, shop_id, *, method):
             except ValueError:
                 code, body = 400, {"error": "INVALID_REQUEST"}
             else:
-                code, body = handler.handle(
-                    method, shop_id, request.headers.get("Authorization", ""), payload)
+                if resource == "drafts" and method == "GET":
+                    code, body = handler.list_drafts(
+                        shop_id, request.headers.get("Authorization", ""))
+                else:
+                    code, body = handler.handle(
+                        method, shop_id, request.headers.get("Authorization", ""), payload)
     except (KeyError, ValueError):
         code, body = 503, {"error": "TREND_STORAGE_NOT_CONFIGURED"}
     except Exception:
@@ -302,7 +306,12 @@ def get_retailer_trends(req: func.HttpRequest) -> func.HttpResponse:
 
 @app.route(route="shops/{shop_id}/content-drafts", methods=["POST"])
 def create_retailer_trend_draft(req: func.HttpRequest) -> func.HttpResponse:
-    return dispatch_feature2(req, req.route_params["shop_id"], method="POST")
+    return dispatch_feature2(req, req.route_params["shop_id"], method="POST", resource="drafts")
+
+
+@app.route(route="shops/{shop_id}/content-drafts", methods=["GET"])
+def list_retailer_trend_drafts(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch_feature2(req, req.route_params["shop_id"], method="GET", resource="drafts")
 
 
 @app.timer_trigger(schedule="0 15 5 * * *", arg_name="timer",
