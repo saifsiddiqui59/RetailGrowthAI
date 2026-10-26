@@ -36,3 +36,12 @@ Sources:
 - https://learn.microsoft.com/en-us/azure/container-apps/gpu-serverless-overview
 - https://azure.microsoft.com/en-in/pricing/details/container-apps/
 - Existing RetailGrowthAI Part3 docs `docs/part3/PROVIDERS_AND_COSTS.md`
+
+## 2026-10-26 additional hardware qualification
+**Default BF16 restriction matters more than nominal VRAM.** Tencent official `generate.py` defaults to BF16 or FP32 (not an unrestricted FP16 selector). NVIDIA lists T4 as CUDA capability 7.5, versus A100 at 8.0, and BF16 hardware capability is not generally available on T4. Feature5's default local runner now rejects GPUs for which `torch.cuda.is_bf16_supported()` is false, including typical T4 configurations. An explicit FP32/T4 experiment requires a new reviewed memory/performance/quality profile; do **not** silently assume it fits.
+
+Azure documents A100 serverless in East US and T4-only in Central India, but **no automatic cross-region forwarding** is authorized. Check residency, contractual permissions, provider licensing and subscription quota before proposing a real East US A100 trial; the original DEV platform remains Central India. No fabricated all-in A100/T4 price is provided until Azure's actual GPU + vCPU + RAM rate and cold load times are measured.
+
+- Official CLI: https://github.com/Tencent-Hunyuan/HunyuanVideo-1.5/blob/main/generate.py
+- GPU architecture: https://developer.nvidia.com/cuda/gpus
+- Regional inventory: https://learn.microsoft.com/en-us/azure/container-apps/gpu-serverless-overview

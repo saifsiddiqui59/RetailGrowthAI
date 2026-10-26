@@ -7,3 +7,8 @@
 5. **Operational gates (P1):** secure job image staging cleanup, GPU subprocess/child-group timeout, workload profile idle scale-zero, GPU OOM telemetry and retry policy, amount-spent reconciliation and non-billable fallback to Feature4 static animations.
 6. **Cross-feature acceptance (P1):** Coordinator Feature4 assembles a branded fashion Reel; Feature6 ensures human approval before publishing.
 7. **CI:** inspect exact PR-head GitHub Actions after push; no mock implies real GPU output.
+
+## Updated 2026-10-26 progress
+- **Completed offline:** official CLI T2V omission of `--image_path`; I2V source flag, bounded model args, preflight image decode, timeout and CUDA gate, immutable lease-scoped private output receipt, nonfinite quota rejection and post-upload unknown-state handling. Corresponding automated mocked tests added to the standard Python CI.
+- **Still blocked:** verified licensed GPU/device and actual Hunyuan output, pinned weights+runtime digest, real 480p/frame aspect/FPS verification, actual garment quality, managed/private media adapters, transactional reservation and claim RPC wiring, Azure service and real preview.
+- **Hardware:** Central India T4 has native BF16 compatibility risk (CUDA compute capability 7.5); default Hunyuan BF16 runner rejects unsuitable GPU. Coordinator should review whether a consented A100 region is permissible or keep dormant Wan vendor choice. No cross-region transfer without approval.
