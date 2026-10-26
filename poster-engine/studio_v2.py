@@ -282,8 +282,13 @@ def _prepare_authorized_images(design, manifest, staged_root):
     return images
 
 
-def _render_prepared(design, images, output_path, *, scale=1, pulse_offer=False):
-    """Draw a single canvas with per-job preauthorized in-memory images."""
+def _render_prepared(design, images, output_path, *, scale=1, pulse_offer=False,
+                     image_transform_cache=None):
+    """Draw one canvas using prepared images; optional tiny job-local transform cache.
+
+    Cache is scoped to a single render job, NEVER shared between shops or
+    persisted beyond its private TemporaryDirectory. No external URLs.
+    """
     if type(scale) not in (int, float) or not .2 <= scale <= 1:
         raise DesignError("Invalid output scale")
     w0, h0 = FORMATS[design["format"]]
@@ -297,18 +302,31 @@ def _render_prepared(design, images, output_path, *, scale=1, pulse_offer=False)
             d.rectangle((x, y, x + width, y + height), fill=layer["color"])
         elif layer["type"] == "image":
             photo = images[layer["asset_id"]]
-            if layer["id"] == "logo":
-                thumb = ImageOps.contain(photo, (width, height), Image.Resampling.LANCZOS)
-                ox = x + (width - thumb.width) // 2
-                oy = y + (height - thumb.height) // 2
-                canvas.paste(thumb.convert("RGB"), (ox, oy), mask=thumb.getchannel("A"))
+            is_logo = layer["id"] == "logo"
+            key = (layer["asset_id"], width, height, is_logo)
+            transformed = None if image_transform_cache is None else image_transform_cache.get(key)
+            if transformed is None:
+                if is_logo:
+                    transformed = ImageOps.contain(photo.convert("RGBA"), (width, height),
+                                                  Image.Resampling.LANCZOS)
+                else:
+                    # Preserve transparent garment PNGs and exact cover crop.
+                    transformed = ImageOps.fit(photo.convert("RGBA"), (width, height),
+                                               Image.Resampling.LANCZOS)
+                if image_transform_cache is not None:
+                    # Keep at most four converted RGBA images in this single
+                    # job; no global cache, unbounded RAM or rights staleness.
+                    if len(image_transform_cache) >= 4:
+                        image_transform_cache.pop(next(iter(image_transform_cache)))
+                    image_transform_cache[key] = transformed
+            if is_logo:
+                ox = x + (width - transformed.width) // 2
+                oy = y + (height - transformed.height) // 2
+                canvas.paste(transformed.convert("RGB"), (ox, oy),
+                             mask=transformed.getchannel("A"))
             else:
-                # Preserve product PNG/WebP transparency so legitimate shop
-                # cutouts keep their clean background, matching Konva canvas.
-                image = ImageOps.fit(photo.convert("RGBA"), (width, height),
-                                     Image.Resampling.LANCZOS)
-                canvas.paste(image.convert("RGB"), (x, y),
-                             mask=image.getchannel("A"))
+                canvas.paste(transformed.convert("RGB"), (x, y),
+                             mask=transformed.getchannel("A"))
         else:
             color = layer["color"]
             size = layer["font_size"]
