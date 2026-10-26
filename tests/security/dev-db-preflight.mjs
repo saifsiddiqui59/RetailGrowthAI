@@ -42,7 +42,7 @@ const CAPABILITIES = {
     /if music = any[(]ids[)] then return null/i,
     /revoke all on function public[.]request_reel_render_job/i,
     /grant execute on function public[.]request_reel_render_job/i,
-    /subscription/i,
+    /insert into public[.]render_jobs/i,
     /idempotency_key/i,
   ],
   '20261022085124': [/enable row level security/i, /create table public\.shops/i, /create table public\.shop_memberships/i],
