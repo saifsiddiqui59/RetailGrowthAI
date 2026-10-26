@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import sampleCampaign from '../campaigns/fixtures/sample-campaign.json'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import VerifiedMetricsChart from './VerifiedMetricsChart.jsx'
+import { Skeleton } from '../../components/ui/skeleton.jsx'
 
 const EMPTY = { campaigns: null, drafts: null, reelsReady: null, rendersProcessing: null }
 
@@ -68,7 +69,7 @@ export default function DashboardOverview() {
       <section className="metrics" aria-label={live ? 'Live business metrics' : 'Illustrative metrics'}>
         {cards.map((item) => <section className="metric" key={item.title}>
           <span>{item.title}</span>
-          {pending && live ? <div className="rg-skeleton" aria-hidden="true" /> : <strong>{item.value ?? '—'}</strong>}
+          {pending && live ? <Skeleton className="rg-skeleton" aria-hidden="true" /> : <strong>{item.value ?? '—'}</strong>}
           <small>{item.hint}</small>
         </section>)}
       </section>
