@@ -13,7 +13,7 @@ _BRIEF_KEYS = frozenset({
     "shop_id", "campaign_id", "day_id", "approved_version",
     "review_state", "headline", "cta", "offer_text", "visual_brief",
 })
-_CONTEXT_KEYS = frozenset({
+_REQUIRED_CONTEXT_KEYS = frozenset({
     "shop_id", "campaign_id", "day_id", "business_name",
     "accent_color", "background_color", "authorized_asset_ids",
 })
@@ -21,7 +21,9 @@ _CONTEXT_KEYS = frozenset({
 
 def compose_approved_content(context, approved_brief, *, mode, asset_id=None,
                              template=None, format="square"):
-    if (not isinstance(context, dict) or set(context) != _CONTEXT_KEYS
+    if (not isinstance(context, dict)
+        or not _REQUIRED_CONTEXT_KEYS <= set(context)
+        or set(context) - _REQUIRED_CONTEXT_KEYS - {"logo_asset_id"}
         or not isinstance(approved_brief, dict)
         or set(approved_brief) != _BRIEF_KEYS):
         raise DesignError("Approved v2 content bridge needs exact server-owned fields")
@@ -42,13 +44,17 @@ def compose_approved_content(context, approved_brief, *, mode, asset_id=None,
         raise DesignError("Photo not authorized in this approved shop")
     if asset_id is not None and asset_id not in ids:
         raise DesignError("Unapproved source media")
+    logo_asset_id = context.get("logo_asset_id")
+    if logo_asset_id is not None and logo_asset_id not in ids:
+        raise DesignError("Unapproved brand logo")
     design = compose_poster(
         shop_id=context["shop_id"], mode=mode,
         prompt=approved_brief["visual_brief"],
         business_name=context["business_name"],
         headline=approved_brief["headline"], cta=approved_brief["cta"],
         approved_offer=approved_brief["offer_text"], source_asset_id=asset_id,
-        template=template, format=format, accent=context["accent_color"],
+        template=template, format=format, logo_asset_id=logo_asset_id,
+        accent=context["accent_color"],
         background=context["background_color"],
     )
     return validate_design(design)
