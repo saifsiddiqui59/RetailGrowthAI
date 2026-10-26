@@ -79,3 +79,8 @@ Keep Azure authentication within reviewed GitHub Actions using existing `dev` fe
 
 ## 2026-10-26 — A40 exact screening support
 - A40 is included only as one BF16-capable, 48GB VRAM **provisional** candidate in SHA-locked price screening. Its $0.59/hr Runpod published Pod price is not guaranteed account capacity or a true provider-enforced ceiling. A 1-hour rental at $0.59/hr plus illustrative $0.02/hr storage and $0.05 reserve screens at $0.66, explicitly including provider termination, not just inference time.
+
+## 2026-10-26 — Do not equate complete open-source engine with a deployed SaaS
+- Reassess Feature5 with **official, runnable GitHub upstreams** rather than another paid video API: prioritize LTX-Video 13B v0.9.8 as **conditional** long-form/60s extension candidate, Part3 Wan2.2 as Apache-2.0 baseline, existing Hunyuan code preserved. ComfyUI offers an internal authoring/runtime engine but its GPL-3.0 and model licenses are separately reviewed. Azure-Samples ComfyUI H100 Terraform is a hardware-expensive example, not an approved deployment plan.
+- No false claim that 60 seconds is generated in one cheap pass: recommended model operating windows are smaller, require continued model inference and continuity evaluation. Code and checkpoints have distinct licensing; LTX's 0.X weights have USD 10m revenue threshold and AI-disclosure/use restrictions.
+- No change to final approved model/provider, paid GPU authorization, quota limit or cross-feature contracts without coordinator approval and verified CUDA quality/cost pilot.
