@@ -266,3 +266,52 @@ previous baseline only.
   mounts the route, implements secure v2 draft RPC and runs real browser E2E.
 - Added isolated Vite JSX transform/approval-path tests. These do NOT
   replace Playwright mobile or snapshot parity acceptance.
+
+## 2026-10-26 — Latest P0 source completion: trustworthy preview, safe editing, CPU packshots
+
+- `review_export_v2.py`: a **single authoritative full-size Pillow PNG**
+  is rendered once, and the browser-review thumbnail is downsampled from its
+  exact pixels, not separately re-typeset in browser JS. Both output files
+  carry SHA-256 hashes; a frozen binary hash and shop/design digest must match
+  before a separately authenticated reviewer can approve it. This helper
+  does not sign, publish or upload assets. Visual discrepancy is intentionally
+  blocked rather than silently accepted. Four negative/positive media tests
+  verify review parity, hash tampering, rights revocation and file overwrites.
+- `Feature3KonvaEditor.jsx`: rapid repeated layer changes now use a live
+  history ref instead of a stale React closure, avoiding lost undo/redo state
+  under batched updates. Adds a bounded ResizeObserver fallback for mobile
+  and older browsers. Browser mounted/Playwright parity remains untested until
+  the coordinator installs/pins Konva and mounts the component.
+- `feature3-context.mjs` and `Feature3StudioPanel.jsx`: approved
+  offers/brand inputs must match the exact authenticated
+  **shop + campaign + day**, not just shop. Same-shop stale day and
+  cross-tenant brand kits are discarded. Switching the selected day/shop
+  suppresses previously composed edit panels before they can be saved
+  against the new context. Browser fixture tests cover these denials.
+- `cpu_background_v2.py`: optional, zero-GPU Pillow **flat-backdrop
+  product cutout** for simple uniform packshots, with conservative corner
+  colour rejection, bounded images, rights + tenant checks, alpha output,
+  immutable file paths and mandatory manual review/registration. It is
+  explicitly **not AI segmentation/rembg**, and is unsuitable for complex
+  hairstyle/fabric/studio scenes. Negative fixture tests cover rejection,
+  cross-tenant access, expired rights and overwrite attempts.
+- `sample_feature3.py` now adds the original full-size authoritative
+  PNG + exact pixel-derived review thumbnail to synthetic CI outputs;
+  sample evidence now contains **seven non-AI artifacts**. Feature media
+  unit tests assert successful generation. CI evidence must correspond
+  to the exact final head after rebasing latest `main`.
+
+### Still blocked by coordinator/system ownership
+
+- Coordinator [#325](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/325):
+  actual versioned Supabase migration, tenant-validated authenticated save
+  route, private cloud job/preview/download, `react-konva`/Konva pin and
+  mounted route, hosted auth/mobile E2E. Feature-owned source seam exists,
+  but none of those shared integrations was deployed or fabricated.
+- Azure HTTP ingress [#249](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/249)
+  remains independently open.
+- Real commercial FASHN VTON requires a separately licensed approved
+  parser/model stack and an authorized GPU; FLUX actual model generation
+  requires approved snapshot+GPU pricing/quota. Neither is enabled.
+- No change to PROD/WineShopPOS/other feature workers, and no paid services.
+
