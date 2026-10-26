@@ -119,6 +119,41 @@ test('retailer media, calendar and settings share responsive cards and preserve 
   expect(calls.some(path=>path.includes('/social_accounts'))).toBe(false)
 })
 
+test('shop-wide month reads two campaigns only after click with user JWT and one scoped GET',async({page})=>{
+  const calls=await signedIn(page)
+  let calendarCalls=0
+  await page.route(HOST+'/rest/v1/campaign_days**',route=>{
+    calendarCalls++
+    const u=new URL(route.request().url())
+    expect(u.searchParams.get('shop_id')).toBe('eq.'+SHOP)
+    expect(route.request().headers().authorization).toBe('Bearer offline-test-JWT')
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*'},
+      body:JSON.stringify([
+        {id:'d1000000-0000-4000-8000-000000000001',shop_id:SHOP,
+          campaign_id:'c1000000-0000-4000-8000-000000000001',
+          scheduled_date:'2026-10-20',topic:'Autumn collection',review_status:'DRAFT'},
+        {id:'d1000000-0000-4000-8000-000000000002',shop_id:SHOP,
+          campaign_id:'c1000000-0000-4000-8000-000000000002',
+          scheduled_date:'2026-10-21',topic:'Product care',review_status:'APPROVED'}
+      ])})
+  })
+  await page.setViewportSize({width:320,height:740})
+  await page.goto('/calendar')
+  await expect(page.getByRole('region',{name:'All campaigns planning calendar'})).toBeVisible()
+  expect(calendarCalls).toBe(0)
+  await page.getByLabel('Business calendar month').fill('2026-10')
+  await page.getByRole('button',{name:'Load business month'}).click()
+  await expect(page.getByText('2 verified planned days in 2026-10. No delivery confirmation.')).toBeVisible()
+  await expect(page.getByText('Autumn collection')).toBeVisible()
+  await expect(page.getByText('Product care')).toBeVisible()
+  await expect(page.getByText('APPROVED · not published')).toBeVisible()
+  expect(calendarCalls).toBe(1)
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=
+    document.documentElement.clientWidth)).toBe(true)
+  expect(calls.some(url=>url.includes('retail_platform_notifications'))).toBe(false)
+})
+
 test('media library filters business-owned records without public blob URLs', async ({ page }) => {
   const calls = await signedIn(page)
   await page.goto('/media-library')
@@ -198,7 +233,7 @@ test('calendar verifies last campaign against JWT shop and denies cross-tenant d
   expect(apiCalls).toHaveLength(0)
   await page.getByRole('button', { name: 'Load recent campaign' }).click()
   await expect(page.getByText('Approved draft example')).toBeVisible()
-  await expect(page.getByText('Not published')).toBeVisible()
+  await expect(page.getByText('Day 1 · Not published',{exact:true})).toBeVisible()
   expect(apiCalls.filter(x=>x.method==='GET')).toHaveLength(1)
   expect(apiCalls.some(x=>x.method==='GET' && x.auth==='Bearer offline-test-JWT')).toBe(true)
   foreign = true

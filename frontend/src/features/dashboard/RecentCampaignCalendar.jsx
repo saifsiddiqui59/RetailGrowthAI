@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { createCampaignApi } from '../campaigns/campaign-api.mjs'
 import { Card } from '../../components/ui/card.jsx'
+import ShopMonthCalendar from './ShopMonthCalendar.jsx'
 import { Button } from '../../components/ui/button.jsx'
 import { Badge } from '../../components/ui/badge.jsx'
 import { recentCampaignHint, verifiedCampaignDays, verifiedDraftMonths, draftMonthCells } from './recent-calendar-model.mjs'
@@ -121,5 +122,6 @@ export default function RecentCampaignCalendar() {
       </>}
       <p className="rg-library-safety">This is the most recent per-user/per-shop campaign hint, not a cross-campaign calendar. No publishing or media job is triggered. Global calendars remain part of Feature #6 integration.</p>
     </Card>
+    <ShopMonthCalendar client={client} configured={configured} user={user} shopId={shopId}/>
   </div>
 }
