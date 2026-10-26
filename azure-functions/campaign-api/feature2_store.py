@@ -89,8 +89,8 @@ def authorized_profile_reader(tenant_store):
 
 
 class TenantDraftStore:
-    def __init__(self, tenant_store):
-        self.tenant_store = tenant_store
+    def __init__(self, admin):
+        self.admin = admin
 
     def save_draft(self, token, user_id, shop_id, draft: dict):
         sid, uid = canonical_uuid(shop_id), canonical_uuid(user_id)
@@ -99,7 +99,7 @@ class TenantDraftStore:
             raise ValueError("a selected verified trend is required")
         if draft["campaign"].get("shop_id") != sid:
             raise PermissionError("cross-tenant draft denied")
-        result = self.tenant_store._request("shop_content_drafts", token, method="POST", data={
+        result = self.admin.request("shop_content_drafts", method="POST", data={
             "shop_id": sid, "created_by": uid,
             "trend_id": content_days[0]["trend_id"],
             "content": draft,
