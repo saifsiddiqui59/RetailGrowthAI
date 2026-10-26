@@ -26,3 +26,8 @@ An operator must independently compare the existing Azure subscription's actual 
 
 ## Actual result
 **Total model requests executed under this approval here: 0. USD spent: $0.00.** Future real token usage, cost and seven distinct generated topics must be recorded from Azure's actual response before status can change. CI/mock output must never be mislabelled.
+
+
+## 2026-10-26 — Public meter rates independently verified; no spending yet
+- Microsoft actual REST public price data confirmed in protected read-only OIDC [#40401262949](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40401262949): South India GPT-4.1-mini Regional Standard $0.44 input and $1.76 output per 1 million (converted from Azure's USD/1K meters). No secret was read, no model API called. This is not evidence of applicable account contracted rate. Limit remains **US$0.20 TOTAL** across single isolated DEV synthetic test, **US$0.05 max per call**, no standing spend authority.
+- Separate protected hosted migration+rollback, exact-root-approved synthetic accounts, service-owned budget grant and expiry are still missing; keep real model disabled with **0** requests and **USD0.00** actual spend so far. No WineShopPOS/PROD.
