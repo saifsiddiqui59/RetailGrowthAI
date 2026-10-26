@@ -473,7 +473,7 @@ export function createRetailClient({
   // Existing campaign_days RLS already checks active shop membership.
   // One read-only, bounded month query; NOT a social posting history endpoint.
   async function listShopCalendarMonth(shopId, month) {
-    if (!UUID_V4.test(shopId || '') || !/^\\d{4}-(0[1-9]|1[0-2])$/.test(month || '')) {
+    if (!UUID_V4.test(shopId || '') || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month || '')) {
       throw new Error('Invalid business calendar scope')
     }
     const [year, number] = month.split('-').map(Number)
