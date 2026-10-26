@@ -9,6 +9,7 @@ import { FEATURE3_FORMATS, FEATURE3_TEMPLATES } from './feature3-design.mjs'
 import { composeFeature3Poster } from './feature3-compose.mjs'
 import { approvedFeature3Inputs, feature3ContextKey } from './feature3-context.mjs'
 import Feature3CpuEditor from './Feature3CpuEditor.jsx'
+import Feature3ModelLibraryReview from './Feature3ModelLibraryReview.jsx'
 
 const fieldStyle = { display: 'grid', gap: 6, minWidth: 0 }
 const inputStyle = { width: '100%', maxWidth: '100%', boxSizing: 'border-box' }
@@ -25,6 +26,7 @@ export default function Feature3StudioPanel({
   const [assetId, setAssetId] = useState('')
   const [version, setVersion] = useState(0)
   const [design, setDesign] = useState(null)
+  const [showModelLibrary, setShowModelLibrary] = useState(false)
   const [designContext, setDesignContext] = useState('')
   const [error, setError] = useState('')
 
@@ -142,5 +144,13 @@ export default function Feature3StudioPanel({
     </fieldset>
     {design && designContext === currentContext && <Feature3CpuEditor key={version} initialDesign={design}
       imageMap={imageMap} context={context} onSaveDraft={onSaveDesign} />}
+    <section aria-label="Reusable AI fashion models">
+      <button type="button" disabled={disabled}
+        aria-expanded={showModelLibrary}
+        onClick={() => setShowModelLibrary(value => !value)}>
+        {showModelLibrary ? 'Hide model library review' : 'Explore existing AI fashion models (no GPU)'}
+      </button>
+      {showModelLibrary && <Feature3ModelLibraryReview disabled={disabled} />}
+    </section>
   </section>
 }
