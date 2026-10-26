@@ -325,11 +325,17 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
         # a timed scene were missing from the actual Chromium render.
         is_poster = bool(aid and ordered[aid][1] == "poster")
         poster_layer = " has-poster" if is_poster else ""
+        # Application-selected editorial scene roles. Never derive CSS from user text.
+        role = ("intro" if i == 0 and not aid else
+                "outro" if i == len(plan["scenes"]) - 1 else
+                "sale" if offer else "motion" if leading_video else
+                "poster" if is_poster else "product")
         components.append(
-            f'{leading_video}<section id="scene{i}" class="clip scene s{i%3}{video_layer}{poster_layer} anim-{animation} trans-{transition}" '
+            f'{leading_video}<section id="scene{i}" class="clip scene s{i%3}{video_layer}{poster_layer} role-{role} anim-{animation} trans-{transition}" '
             f'data-start="{start}" data-duration="{length}" data-track-index="1" '
             f'style="--span:{length}s">'
-            f'<div class="halo"></div><div class="photo-wrap">{scene_image}</div>{poster_markup}'
+            f'<div class="halo"></div><div class="editorial-rule"></div>' 
+            f'<div class="photo-wrap">{scene_image}</div>{poster_markup}'
             f'<div class="glass"><p class="kicker">{k} / {i+1:02d}</p>'
             f'<h1 style="font-size:{title_font}px">{headline}</h1>{offer_markup}</div>'
             f'<p class="index">RG · {i+1:02d} / {len(plan["scenes"]):02d}</p></section>'
@@ -338,34 +344,75 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
     css = f"""
 *{{box-sizing:border-box}}
 html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background:{bg};font-family:Arial,'Helvetica Neue',sans-serif}}
-#main{{position:relative;width:{width}px;height:{height}px;overflow:hidden;background:radial-gradient(ellipse at 77% 30%,{accent}42,{bg} 62%)}}
- .scene{{position:absolute;inset:0;overflow:hidden;color:{fg};background:linear-gradient(152deg,{bg} 6%,transparent 85%)}}
-.scene.has-video{{background:transparent}}
-.halo{{position:absolute;width:90%;height:55%;left:20%;top:12%;border-radius:50%;background:{accent};opacity:.16;filter:blur({width//10}px)}}
-.photo-wrap{{position:absolute;top:15%;height:61%;width:96%;left:2%;display:grid;place-items:center}}
-.product-photo{{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 26px 35px #0009);animation:photoFloat var(--span) ease-in-out both}}
- .footage{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}}
-.poster-overlay{{position:absolute;right:5%;top:15%;height:38%;max-width:60%;object-fit:contain;filter:drop-shadow(0 8px 24px #000a);animation:cardRise var(--span) ease-in-out both}}
-/* Actual poster is approved finished artwork. Keep its entire canvas above the
-   lower-third title instead of obscuring embedded price, discount and terms. */
-.has-poster .photo-wrap{{top:14%;height:50%;left:3%;width:94%}}
-.has-poster .product-photo{{object-fit:contain;animation:none}}
-.hero-logo{{position:absolute;top:23%;left:31%;width:38%;height:28%;z-index:5;object-fit:contain;filter:drop-shadow(0 18px 34px #0008)}}
-.anim-pop .glass{{animation:popIn var(--span) ease both}}
-.anim-glow .offer{{text-shadow:0 0 16px {accent},0 0 25px {accent}}}
-.anim-slide .photo-wrap{{animation:slideIn var(--span) ease both}}
-@keyframes popIn{{0%{{transform:scale(.80);opacity:0}}18%{{transform:scale(1);opacity:1}}90%{{opacity:1}}100%{{opacity:0}}}}
-@keyframes slideIn{{0%{{transform:translateX(15%);opacity:0}}18%{{transform:translateX(0);opacity:1}}90%{{opacity:1}}100%{{opacity:0}}}}
-.glass{{position:absolute;left:5.5%;right:5.5%;bottom:10%;min-height:23%;padding:5%;background:#050506c9;backdrop-filter:blur(7px);border-left:{width//70}px solid {accent};box-shadow:0 14px 60px #0008;animation:cardRise var(--span) ease-out both}}
-.kicker{{font-size:{width//37}px;letter-spacing:.25em;font-weight:700;color:{accent};margin:0 0 5%}}
-h1{{font-weight:900;font-size:{width//10}px;line-height:1.04;letter-spacing:-.015em;text-transform:uppercase;margin:0;overflow-wrap:anywhere}}
-.offer{{font-weight:900;font-size:{width//12}px;color:{accent};margin:4% 0 0}}
-.index{{position:absolute;bottom:3%;right:6%;font-size:{width//38}px;letter-spacing:.23em;font-weight:700;opacity:.75}}
-.s1 .photo-wrap{{transform:rotate(-4deg)}}
-.s2 .glass{{border-left-color:{fg}}}
-@keyframes photoFloat{{0%{{transform:scale(1.02) translate3d(-2%,2%,0)}}100%{{transform:scale(1.20) translate3d(2%,-2%,0)}}}}
-@keyframes cardRise{{0%{{opacity:0;transform:translateY(13%)}}17%{{opacity:1;transform:translateY(0)}}85%{{opacity:1}}100%{{opacity:0}}}}
+#main{{position:relative;width:{width}px;height:{height}px;overflow:hidden;background:linear-gradient(128deg,{bg},#0b0d15 60%,{bg})}}
+.scene{{position:absolute;inset:0;overflow:hidden;color:{fg};
+  background:radial-gradient(ellipse 85% 65% at 65% 28%,{accent}20,transparent 78%),
+  linear-gradient(152deg,{bg},#10111d 83%)}}
+.scene.has-video{{background:linear-gradient(0deg,#0b0b13a8,transparent 26%,transparent 80%,#0b0b130f)}}
+.scene.trans-fade{{animation:editorialFade var(--span) linear both}}
+.scene.trans-slide{{animation:editorialSlide var(--span) ease-in-out both}}
+.scene.trans-cut{{animation:none}}
+.halo{{position:absolute;width:110%;height:58%;left:12%;top:6%;border-radius:50%;background:{accent};opacity:.09;filter:blur({width//8}px);pointer-events:none}}
+.editorial-rule{{position:absolute;top:13%;left:7%;width:20%;height:1px;background:{accent};opacity:.8}}
+.photo-wrap{{position:absolute;top:10%;height:72%;width:100%;left:0;display:grid;place-items:center;overflow:hidden}}
+.product-photo{{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 24px 48px #0009);animation:editorialDrift var(--span) ease-in-out both}}
+.footage{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}}
+.poster-overlay{{position:absolute;right:4%;top:15%;height:32%;max-width:45%;object-fit:contain;filter:drop-shadow(0 10px 28px #000a);animation:posterReveal var(--span) ease-out both}}
+.glass{{position:absolute;left:6%;right:6%;bottom:8%;padding:4.5% 5%;min-height:17%;
+  background:linear-gradient(105deg,#090912ed,#171625ba);border-top:1px solid {accent}83;
+  box-shadow:0 17px 42px #0007;animation:copyLift var(--span) ease-in-out both}}
+.kicker{{font-size:{max(12,width//43)}px;letter-spacing:.27em;font-weight:700;color:{accent};margin:0 0 4%;text-transform:uppercase}}
+h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.015em;text-transform:uppercase;margin:0;overflow-wrap:anywhere}}
+.offer{{font-weight:900;font-size:{width//8}px;letter-spacing:-.055em;color:{accent};line-height:1;margin:4% 0 0}}
+.index{{position:absolute;bottom:2%;right:6%;font-size:{max(11,width//48)}px;letter-spacing:.22em;font-weight:700;opacity:.58}}
+.s2 .glass{{border-top-color:{fg}66}}
+.hero-logo{{position:absolute;top:20%;left:28%;width:44%;height:32%;z-index:5;object-fit:contain;
+ filter:drop-shadow(0 15px 42px #0008)}}
+/* A distinct editorial composition for each semantic scene; no user HTML. */
+.role-intro{{background:radial-gradient(ellipse 64% 49% at 50% 35%,{accent}29,transparent 78%),linear-gradient(160deg,{bg},#0c0b13)}}
+.role-intro .editorial-rule{{left:39%;width:22%;top:16%}}
+.role-intro .glass{{left:7%;right:7%;bottom:10%;text-align:center;background:none;border:0;box-shadow:none;min-height:13%;padding:2%}}
+.role-intro h1{{font-family:Georgia,'Times New Roman',serif;font-size:{width//11}px!important;
+  font-weight:500;letter-spacing:-.025em;line-height:1.06;text-transform:none}}
+.role-intro .kicker{{letter-spacing:.4em}}
+.role-motion .glass{{left:0;right:0;bottom:0;min-height:28%;border:0;padding:9% 8% 12%;
+ background:linear-gradient(0deg,#080a14f2,#10111aa8 66%,transparent);box-shadow:none}}
+.role-motion h1{{font-family:Georgia,'Times New Roman',serif;font-size:{width//11}px!important;
+  font-weight:500;letter-spacing:-.02em;text-transform:none}}
+.role-motion .editorial-rule{{top:16%;left:8%;width:16%}}
+.role-product .photo-wrap{{top:6%;height:74%;left:7%;width:86%}}
+.role-product .glass{{bottom:7%;left:10%;right:10%;background:#11131ae6;border-left:2px solid {accent};border-top:0}}
+.role-product h1{{font-family:Georgia,'Times New Roman',serif;font-weight:500;text-transform:none;
+  font-size:{width//12}px!important}}
+.role-sale .photo-wrap{{top:7%;height:69%;left:-6%;width:78%;filter:brightness(.84)}}
+.role-sale .poster-overlay{{right:3%;top:11%;max-width:35%;height:26%}}
+.role-sale .glass{{left:5%;right:5%;bottom:6%;min-height:29%;padding:4.5%;
+  background:linear-gradient(112deg,#160b25f0,#35122fe0);border:1px solid {accent}70}}
+.role-sale h1{{font-family:Georgia,'Times New Roman',serif;font-weight:500;font-size:{width//14}px!important;
+  text-transform:none}}
+.role-sale .offer{{font-size:{width//6}px;font-weight:900;text-shadow:0 0 22px {accent}60}}
+.role-poster .photo-wrap{{top:6%;height:73%}}
+.role-outro{{background:radial-gradient(ellipse at 50% 30%,{accent}28,transparent 75%),#11111b}}
+.role-outro .photo-wrap{{top:4%;left:12%;width:76%;height:67%}}
+.role-outro .product-photo{{object-fit:contain;animation:outroReveal var(--span) ease-out both}}
+.role-outro .glass{{bottom:7%;left:7%;right:7%;padding:3.5%;min-height:16%;
+  border-top:2px solid {accent};background:#0b0c16f0;text-align:center}}
+.role-outro .glass h1{{font-family:Georgia,'Times New Roman',serif;text-transform:none;
+  font-weight:500;font-size:{width//12}px!important}}
+.role-outro .kicker{{margin:0 0 2%}}
+.role-outro .editorial-rule{{display:none}}
+.anim-pop .glass{{animation:promoPop var(--span) ease-in-out both}}
+.anim-glow .offer{{text-shadow:0 0 15px {accent},0 0 30px {accent}75}}
+.anim-slide .photo-wrap{{animation:editorialDrift var(--span) ease both}}
+@keyframes editorialFade{{0%{{opacity:0}}7%{{opacity:1}}96%{{opacity:1}}100%{{opacity:.98}}}}
+@keyframes editorialSlide{{0%{{opacity:0;transform:translate3d(7%,0,0)}}14%{{opacity:1;transform:translate3d(0,0,0)}}100%{{opacity:1;transform:translate3d(0,0,0)}}}}
+@keyframes editorialDrift{{0%{{transform:scale(1.025) translate3d(-1%,1%,0)}}100%{{transform:scale(1.12) translate3d(1%,-1%,0)}}}}
+@keyframes copyLift{{0%{{opacity:0;transform:translateY(9%)}}15%{{opacity:1;transform:translateY(0)}}92%{{opacity:1}}100%{{opacity:.95}}}}
+@keyframes posterReveal{{0%{{opacity:0;transform:scale(.88) rotate(3deg)}}18%{{opacity:1;transform:scale(1) rotate(0deg)}}100%{{opacity:1}}}}
+@keyframes outroReveal{{0%{{opacity:0;transform:scale(.94)}}16%{{opacity:1;transform:scale(1)}}100%{{opacity:1}}}}
+@keyframes promoPop{{0%{{transform:scale(.91);opacity:0}}15%{{transform:scale(1);opacity:1}}95%{{opacity:1}}100%{{opacity:1}}}}
 """
+
     if plan.get("logo_asset_id"):
         # This is a timed overlay on the root; the logo source is a trusted, staged asset.
         logo_src = names[plan["logo_asset_id"]]
