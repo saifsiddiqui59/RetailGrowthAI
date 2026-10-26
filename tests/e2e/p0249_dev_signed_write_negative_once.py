@@ -104,8 +104,17 @@ def run():
                     print("P0249_WRITE_DENIAL_MISMATCH_CASE=poster_get error="+safe,flush=True)
                     raise
             try:
+                # Only for the known failed poster-render route, capture a
+                # bounded *server error enum* from 400 WITHOUT treating it as
+                # an accepted denial. Keep 404 as the sole pass criterion.
+                diagnostic_expected=(400,404) if case_number==4 else expected
                 code,body,_,duration=common.request(DEV_WRITE_PREVIEW+path,method=method,
-                    data=payload,headers=hdr,expected=expected,timeout=20)
+                    data=payload,headers=hdr,expected=diagnostic_expected,timeout=20)
+                if case_number==4 and code!=404:
+                    value=body.get("error") if isinstance(body,dict) else None
+                    safe=value if value in ("INVALID_REQUEST","INVALID_JSON_BODY","UNAUTHORIZED","SERVICE_UNAVAILABLE") else "UNRECOGNIZED_ERROR"
+                    print("P0249_POSTER_RENDER_400_SAFE_ERROR="+safe,flush=True)
+                    raise RuntimeError("POSTER_RENDER_WRONG_HTTP_400")
             except RuntimeError as exc:
                 value=str(exc)
                 safe=value if value.startswith("DEV_TEST_UNEXPECTED_HTTP_") else type(exc).__name__
