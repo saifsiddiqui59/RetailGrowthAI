@@ -82,14 +82,6 @@ class AzureFeature2ContentLLM:
             raise FoundryUnavailable("Approved real AI model not configured")
         url = self._client._url()
         output_bound = 4000
-        input_bound = len(SYSTEM.encode('utf-8')) + len(editorial_brief.encode('utf-8')) + 256
-        bound_usd = ((Decimal(input_bound) * self._input_rate +
-                      Decimal(output_bound) * self._output_rate) / 1_000_000)
-        if bound_usd > self._cap:
-            raise PermissionError("Insufficient cost cap for complete 7-day writing")
-        reservation = self._reserve_cost(float(bound_usd))
-        if not isinstance(reservation, str) or not reservation.strip():
-            raise PermissionError("No durable per-shop budget reservation")
         body = json.dumps({
             "model": self._client.deployment,
             "messages": [{"role": "system", "content": SYSTEM},
@@ -99,6 +91,18 @@ class AzureFeature2ContentLLM:
             "response_format": {"type": "json_object"},
             "temperature": 0.5, "max_tokens": output_bound,
         }, ensure_ascii=False).encode("utf-8")
+        # Exact serialized UTF-8 request bytes also count JSON escaping,
+        # multilingual text and API envelope. One token per byte plus the
+        # protocol margin conservatively reserves the maximum prompt charge.
+        input_bound = len(body) + 256
+        bound_usd = ((Decimal(input_bound) * self._input_rate +
+                      Decimal(output_bound) * self._output_rate) / 1_000_000)
+        if bound_usd > self._cap:
+            raise PermissionError("Insufficient cost cap for complete 7-day writing")
+        reservation = self._reserve_cost(float(bound_usd))
+        if not isinstance(reservation, str) or not reservation.strip():
+            raise PermissionError("No durable per-shop budget reservation")
+
         try:
             result = self._client._transport(
                 url, {"Content-Type": "application/json",
