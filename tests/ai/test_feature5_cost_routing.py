@@ -62,10 +62,10 @@ class TestCostAwareDelivery(unittest.TestCase):
         selected = plan_lowest_cost_delivery(
             requires_realistic_ai_motion=True, existing_media_approved=False,
             allow_paid_gpu=True, max_premium_usd=str(expected), guard=quote())
-        self.assertEqual(selected.route, "GPU_PERMITTED")
+        self.assertEqual(selected.route, "GPU_BUDGET_ELIGIBLE")
         self.assertEqual(selected.reserved_quote_usd, expected)
         self.assertIn("licence", selected.reason)
-        # GPU_PERMITTED is not a paid launch: the DB/rights/license gate still blocks by default.
+        # GPU_BUDGET_ELIGIBLE is not a paid launch: the DB/rights/license gate still blocks by default.
 
     def test_fails_closed_on_negative_nan_bool_and_invalid_intent(self):
         for bad in (-1, "NaN", "Infinity", True, None, "unknown"):
