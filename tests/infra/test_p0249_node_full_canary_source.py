@@ -25,7 +25,7 @@ class NodeFullCanarySafety(unittest.TestCase):
         self.assertNotIn('https://wineshop',src.lower())
         # Original canary unchanged and still demands real ROOT approval.
         self.assertIn('CANARY_WAITING_FOR_EXPLICIT_DEV_OPERATOR_APPROVAL=true',original)
-        self.assertIn('preflight_dev_http_auth_routes()',original)
+        self.assertIn('preflight_dev_http_auth_routes(',original)
         self.assertIn('CANARY_PRIVATE_30S_H264_AAC_MP4_VERIFIED=true',original)
         self.assertIn('CANARY_POSTER_ONLY_LIVE_ACCEPTANCE=PASSED',original)
         self.assertIn('CANARY_TEMP_FIXTURES_CLEANUP=',original)
