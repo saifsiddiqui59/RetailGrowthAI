@@ -165,7 +165,11 @@ class TestMotionWorker(unittest.TestCase):
         self.store.fail.return_value = True
         self.store.mark_unknown.return_value = True
         self.media.grant.return_value = self.grant
-        self.media.upload_private.return_value = {"shop_id": self.shop, "job_id": self.job}
+        self.media.upload_private.return_value = {
+            "shop_id": self.shop, "job_id": self.job, "attempt_token": self.token,
+            "bucket": "retailgrowth-media",
+            "path": f"{self.shop}/renders/{self.job}/{self.token}.mp4", "private": True,
+        }
 
     def test_no_claim_no_generation(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -242,6 +246,34 @@ class TestMotionWorker(unittest.TestCase):
             self.store.complete.assert_not_called()
             self.store.fail.assert_not_called()
             self.store.mark_unknown.assert_called_once()
+
+    def test_wrong_private_path_or_lease_is_unknown_not_success(self):
+        with tempfile.TemporaryDirectory() as temp:
+            expected = f"{self.shop}/renders/{self.job}/{self.token}.mp4"
+            variations = [
+                {"path": expected + ".backup"},
+                {"path": f"{self.shop}/renders/{self.job}/{uid()}.mp4"},
+                {"attempt_token": uid()},
+                {"bucket": "public"},
+                {"private": False},
+            ]
+            for overrides in variations:
+                self.store.reset_mock()
+                self.store.claim.return_value = {"attempt_token": self.token, "spec": self.spec,
+                                                 "reserved_usd": 0.1, "review_status": "APPROVED"}
+                self.store.mark_unknown.return_value = True
+                receipt = {"shop_id": self.shop, "job_id": self.job, "attempt_token": self.token,
+                           "bucket": "retailgrowth-media", "path": expected, "private": True}
+                receipt.update(overrides)
+                self.media.upload_private.return_value = receipt
+                self.runner.run.side_effect = lambda spec, *, source_file, workdir: workdir / "motion.mp4"
+                worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
+                                      workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
+                with patch("feature5_motion.worker.validate_clip", return_value={"codec": "h264"}):
+                    self.assertEqual(worker.execute(self.job), "UNKNOWN")
+                self.store.complete.assert_not_called()
+                self.store.fail.assert_not_called()
+                self.store.mark_unknown.assert_called_once()
 
     def test_upload_uncertainty_never_causes_retry_or_refund(self):
         with tempfile.TemporaryDirectory() as temp:
