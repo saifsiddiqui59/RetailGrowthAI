@@ -87,3 +87,12 @@
 :root[data-rg-theme="dark"] .rg-library-record{background:#213647;border-color:#446374}
 :root[data-rg-theme="dark"] .rg-library-tools label{color:#d1e3eb}
 @media(max-width:360px){.rg-library .panel{padding:16px}.rg-library-tools{display:grid;grid-template-columns:minmax(0,1fr)}}
+
+.rg-calendar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:12px}
+.rg-calendar-day{min-width:0;border:1px solid #d9e6e4;border-radius:13px;padding:17px;background:#f7fbfa}
+.rg-calendar-date{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.rg-calendar-date strong{font-size:12px;color:#20745d}
+.rg-calendar-day h2{font-size:16px;line-height:1.4;margin:14px 0;overflow-wrap:anywhere}
+.rg-calendar-day span{font-size:12px;color:#6b7f88}
+:root[data-rg-theme="dark"] .rg-calendar-day{background:#233846;border-color:#466471}
+:root[data-rg-theme="dark"] .rg-calendar-day span{color:#a7c1c6}
