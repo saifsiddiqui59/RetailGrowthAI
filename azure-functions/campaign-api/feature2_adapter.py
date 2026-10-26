@@ -12,7 +12,7 @@ from ai_agents.content_intelligence import RetailerProfile, create_content_draft
 from ai_agents.schemas import CampaignBrief, ContractError
 from ai_agents.trend_intelligence import recommendations
 from security import AuthenticationError
-from tenant_store import canonical_uuid
+from tenant_store import StorageUnavailable, canonical_uuid
 
 
 class TrendFeatureAdapter:
