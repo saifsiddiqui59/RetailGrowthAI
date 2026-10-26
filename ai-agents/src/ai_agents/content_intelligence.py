@@ -203,13 +203,19 @@ def create_content_draft(
     category = retailer.category
     subject = retailer.products[0] if retailer.products else category
     context = f"{subject} in {retailer.city}"
-    hashtag = [_tag(category), _tag(retailer.city.replace(" ", ""))]
+    # Daily second hashtag varies with the educational angle, avoiding seven
+    # identical hashtag pairs or unverified event/popularity claims.
+    daily_topics = (
+        "Layering", "ColourPairing", "FootwearStyling", "DayToEvening",
+        "Accessories", "CareLabels", "OutfitComparison",
+    )
     source = selected["title"] if selected is not None else ""
     if selected and len(source) > 80:
         source = source[:80].rstrip()
     by_day = []
     reviewer_texts: list[str] = []
     for index, day in enumerate(campaign["days"]):
+        hashtag = [_tag(category), _tag(daily_topics[index % len(daily_topics)])]
         theme = source if selected and index == 0 else day["topic"]
         # The external title is evidence context, not a popularity guarantee.
         # Never generate unverified price, stock, material-performance or offer claims.
