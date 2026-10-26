@@ -497,3 +497,6 @@
 
 ## 2026-10-26 — No log sink in ARM API means omitted destination, not literal none
 - Azure CLI accepts `--logs-destination none` but Microsoft.App/managedEnvironments ARM preflight rejected JSON `appLogsConfiguration.destination: "none"` (exact error in run #40341400486). Use `appLogsConfiguration: {}` as the reviewed ARM representation of an unset logging destination; this creates no Log Analytics resource. Permit a fresh run only because the prior one definitively failed before any Create, still requiring exact DEV identity, absence, and one ARM what-if Create.
+
+## 2026-10-26 — Accept Azure Incremental what-if Ignore entries only if explicitly approved
+- Azure what-if includes other existing resource-group members as `Ignore` under incremental mode. These resources are unchanged, per Microsoft documentation; requiring `len(changes)==1` was too strict and blocked safe creation. Allow **exactly one Create for `rgai-f5-gpu-canary-eastus` and eight specific existing DEV Ignore entries**, with each resource ID tied to the exact intended subscription/RG. Reject all Modifies, Deletes, Deploys, NoChange/Unsupported, additional Creates, foreign or unknown Ignores, errors and other potential changes. The pinned single-resource ARM template and preexisting-target denial remain unchanged. No production/WineShopPOS/voice modifications.
