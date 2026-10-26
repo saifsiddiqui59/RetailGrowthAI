@@ -36,25 +36,21 @@ jobs:
           node --check experiments/wineshop-node-http-control/src/index.mjs
           test "$(node -p "require('./experiments/wineshop-node-http-control/package.json').main")" = "src/index.mjs"
           ! grep -REq 'RETAIL_SUPABASE_SERVICE_ROLE_KEY|sb_secret_|createClient|POST.*campaigns' experiments/wineshop-node-http-control/src
-      - name: Verify original frontend config, build and tests
-        working-directory: frontend
+      - name: Audit isolated preview shell and unchanged production frontend origin
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fxq 'VITE_CAMPAIGN_API_BASE_URL=https://rgai-dev-functions-d4e5ddbd.azurewebsites.net' .env.production
-          # Modify the ephemeral runner's PREVIEW build only; never commit config changes to live SPA.
+          grep -Fxq 'VITE_CAMPAIGN_API_BASE_URL=https://rgai-dev-functions-d4e5ddbd.azurewebsites.net' frontend/.env.production
+          test -s experiments/wineshop-node-http-control/site/index.html
+          test -s experiments/wineshop-node-http-control/site/staticwebapp.config.json
           node - <<'NODE'
           const fs=require('node:fs');
-          const path='public/staticwebapp.config.json';
+          const path='experiments/wineshop-node-http-control/site/staticwebapp.config.json';
           const c=JSON.parse(fs.readFileSync(path,'utf8'));
-          c.platform={...(c.platform||{}),apiRuntime:'node:22'};
-          fs.writeFileSync(path,JSON.stringify(c,null,2)+'\n');
-          console.log('P0_249_PREVIEW_ONLY_NODE22_RUNTIME_SELECTED=true');
+          if(c.platform?.apiRuntime!=='node:22')throw new Error('Control must use managed Node 22');
+          if(!String(c.globalHeaders?.['X-Robots-Tag']).includes('noindex'))throw new Error('Public preview must not be indexed');
+          console.log('P0_249_SEPARATE_PREVIEW_ONLY_SHELL_VERIFIED=true');
           NODE
-          if test -f package-lock.json; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
-          npm test
-          npm run build
-          test -s dist/index.html
       - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -96,10 +92,10 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ steps.token.outputs.token }}
           action: upload
-          app_location: frontend
+          app_location: experiments/wineshop-node-http-control/site
           api_location: experiments/wineshop-node-http-control
-          output_location: dist
-          app_build_command: npm run build
+          output_location: ''
+          skip_app_build: true
           production_branch: main
           deployment_environment: p0249node
       - name: Verify returned preview and synthetic HTTP routes
