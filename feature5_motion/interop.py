@@ -33,7 +33,8 @@ def _money(value) -> Decimal:
 
 
 def planned_motion_key(shop_id: str, campaign_day_id: str, source_asset_id: str | None,
-                       prompt_version: str, mode: str, model_id: str) -> str:
+                       prompt_version: str, mode: str, model_id: str, *,
+                       approved_prompt_sha256: str, seed: int = 1) -> str:
     """Deterministic key for coordinator's EXISTING shop-scoped reservation.
 
     Does not create any reservation, and never contains private media URLs.
@@ -46,7 +47,15 @@ def planned_motion_key(shop_id: str, campaign_day_id: str, source_asset_id: str 
         raise MotionError("Unapproved premium model or mode")
     if prompt_version != "feature5-v1":
         raise MotionError("Unreviewed prompt version")
-    values = [shop_id, campaign_day_id, source_asset_id, prompt_version, mode, model_id]
+    if (type(approved_prompt_sha256) is not str or len(approved_prompt_sha256) != 64
+        or any(c not in "0123456789abcdef" for c in approved_prompt_sha256)):
+        raise MotionError("Approved creative prompt hash required for idempotency")
+    if type(seed) is not int or not 0 <= seed < 2 ** 32:
+        raise MotionError("Invalid generation seed")
+    # Changing approved copy, seed or source creates a NEW logical request;
+    # retries of the same approved creative reuse the existing job/reservation.
+    values = ["feature5-lease-v2", shop_id, campaign_day_id, source_asset_id,
+              prompt_version, mode, model_id, approved_prompt_sha256, seed]
     return hashlib.sha256(json.dumps(values, separators=(",", ":")).encode()).hexdigest()
 
 
