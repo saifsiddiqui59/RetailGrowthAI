@@ -215,8 +215,21 @@ test('root console mobile layout uses shared cards and no subscription mutations
     .locator('[data-slot="card"]')).toHaveCount(6)
   await expect(page.getByRole('region',{name:'Retailer approval center'}))
     .toHaveAttribute('data-slot','card')
-  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth <=
-    document.documentElement.clientWidth)).toBe(true)
+  // Keep the hard no-overflow assertion and record the offending layout
+  // geometry if the browser finds a regression at 320px.
+  const layout = await page.evaluate(() => ({
+    document: [document.documentElement.scrollWidth,document.documentElement.clientWidth],
+    body: [document.body.scrollWidth,document.body.clientWidth],
+    overflow: Array.from(document.querySelectorAll('body *')).filter(element =>
+      element.getBoundingClientRect().right > window.innerWidth + 2 &&
+      getComputedStyle(element).visibility !== 'hidden').slice(0,15).map(element => ({
+        element: element.tagName.toLowerCase(), className:element.getAttribute('class')?.slice(0,90),
+        left:Math.round(element.getBoundingClientRect().left),
+        right:Math.round(element.getBoundingClientRect().right),
+        scroll:element.scrollWidth,client:element.clientWidth,
+      })),
+  }))
+  expect(layout.document[0], JSON.stringify(layout)).toBeLessThanOrEqual(layout.document[1])
   expect(calls.filter(x=>x.path.includes('retail_platform_set_subscription'))).toHaveLength(0)
 })
 
