@@ -114,12 +114,9 @@ jobs:
                   identifier=str(r.get("resourceId") or "")
                   print("ARM what-if change:",r.get("changeType"),
                         "/".join(identifier.split("/")[-2:]))
-          assert isinstance(rows,list) and len(rows)==1, "BLOCKED: ARM what-if not exactly one create"
-          expected=("/subscriptions/"+sys.argv[2]+"/resourceGroups/"+sys.argv[3]+
-                    "/providers/Microsoft.App/managedEnvironments/"+sys.argv[4]).lower()
-          row=rows[0]
-          assert row.get("changeType")=="Create" and str(row.get("resourceId","")).lower()==expected, "BLOCKED: ARM what-if would touch another resource"
-          print("PASS: Azure what-if showed ONE new empty RetailGrowthAI DEV managedEnvironment only")
+          from scripts.ci.feature5_arm_whatif_policy import validate_what_if
+          result=validate_what_if(data,sys.argv[2],sys.argv[3],sys.argv[4])
+          print("PASS: Azure what-if permits",result["creates"],"Create and",result["ignored"],"known unchanged DEV resources")
           PY
 
       - name: One approved empty environment creation, no GPU or app
