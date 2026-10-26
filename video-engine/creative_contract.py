@@ -159,12 +159,18 @@ def render_inputs(request, media_manifest, *, allow_synthetic_test=False):
         if scene.get("animation_preset", "subtle_zoom") not in ANIMATIONS or scene.get("transition", "fade") not in TRANSITIONS:
             raise CreativeContractError("Unapproved animation/transition")
         asset_id, kind, origin = scene.get("asset_id"), scene.get("asset_type"), scene.get("source_feature")
+        motion_status = scene.get("motion_status")
         if asset_id is None:
-            if kind is not None or origin is not None or request.get("mode") != "text":
+            if kind is not None or origin is not None:
                 raise CreativeContractError("Missing authorized scene asset")
+        elif origin == "feature5" and motion_status == "failed":
+            # A failed premium producer has NO valid clip. It must not be
+            # fabricated in storage merely to satisfy the normal clip gate.
+            safe_ref(asset_id, "failed motion request ID")
+            if kind != "video":
+                raise CreativeContractError("Failed AI motion request must be typed video")
         else:
             selected_media(asset_id, kind, origin, media_manifest, shop_id)
-        motion_status = scene.get("motion_status")
         if origin == "feature5":
             if motion_status not in ("ready", "failed"):
                 raise CreativeContractError("Feature #5 motion status must be explicit")
