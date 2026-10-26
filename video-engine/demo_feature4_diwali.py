@@ -25,6 +25,35 @@ def main():
     fixture.setUp()
     try:
         fixture.make_assets(with_video=True)
+        # The synthetic soundtrack/SFX are original deterministic wave synthesis:
+        # no third-party songs, sample packs or purported trending-music rights.
+        import math
+        import struct
+        import wave
+        with wave.open(str(fixture.assets/"original_demo_music.wav"), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(22050)
+            for i in range(30 * 22050):
+                t=i/22050
+                note=(196,246.94,293.66,392)[int(t/2)%4]
+                pulse=0.12 if t % .5 < .065 else 0.0
+                sample=int(7000*(.20*math.sin(2*math.pi*note*t)+
+                                  .08*math.sin(2*math.pi*note*2*t)+
+                                  pulse*math.sin(2*math.pi*90*t))*min(1,t/.6)*min(1,(30-t)/1))
+                w.writeframesraw(struct.pack("<h",max(-32768,min(32767,sample))))
+        with wave.open(str(fixture.assets/"original_demo_sfx.wav"), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(22050)
+            for i in range(22050):
+                t=i/22050
+                pulse=int(11000*math.sin(2*math.pi*(210+300*t)*t)*math.exp(-7*t))
+                w.writeframesraw(struct.pack("<h",pulse))
+        fixture.add("original_demo_music", "original_demo_music.wav", "audio", "retailer")
+        fixture.add("original_demo_sfx", "original_demo_sfx.wav", "audio", "retailer")
+        fixture.request["music_asset_id"] = "original_demo_music"
+        fixture.request["scenes"][3]["sfx_asset_id"] = "original_demo_sfx"
         output = compile_creative_reel(fixture.request, fixture.manifest, fixture.assets, project)
         print(json.dumps({"status": "COMPILED_SYNTHETIC_TEST_ONLY",
                           "duration_seconds": fixture.request["duration_seconds"],
