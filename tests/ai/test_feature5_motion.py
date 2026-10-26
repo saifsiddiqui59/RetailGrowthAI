@@ -235,6 +235,19 @@ class TestMotionWorker(unittest.TestCase):
             self.store.mark_unknown.assert_called_once()
             self.store.fail.assert_not_called()
 
+    def test_db_completion_timeout_after_upload_is_unknown(self):
+        with tempfile.TemporaryDirectory() as temp:
+            self.media.stage.side_effect = lambda shop, asset, wd: wd / "source.png"
+            self.runner.run.side_effect = lambda spec, *, source_file, workdir: workdir / "motion.mp4"
+            self.store.complete.side_effect = TimeoutError("unknown database commit")
+            worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
+                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
+            with patch("feature5_motion.worker.validate_clip", return_value={"codec": "h264"}):
+                self.assertEqual(worker.execute(self.job), "UNKNOWN")
+            self.store.mark_unknown.assert_called_once_with(self.job, self.token, "FINALIZE_UNCERTAIN")
+            self.store.fail.assert_not_called()
+            self.runner.run.assert_called_once()
+
     def test_non_private_receipt_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             self.runner.run.side_effect = lambda spec, *, source_file, workdir: workdir / "motion.mp4"
