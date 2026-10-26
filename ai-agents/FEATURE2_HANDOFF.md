@@ -152,3 +152,8 @@ React Trends workspace now displays saved 7-day copy for manual review even if t
 ## Feature2 user consent 2026-10-26 — USD0.20 one-time test approved, DDL not approved
 - User answered "do it" to a scoped USD0.20 maximum total **isolated existing GPT-4.1-mini DEV inference** test proposal, explicitly NOT approving protected hosted schema migration. Actual billed requests still 0; flags remain off.
 - Source document: `docs/feature2/APPROVED_DEV_USD_020_TEST_GATE.md`; price checker: `scripts/ci/feature2_price_probe.py` (public Retail Prices API only, not billable). Fresh hosted DEV still 21 applied versions with Feature3 + AI ledger source migrations not applied. Get separate DB/ROOT/restore authorization before inference.
+
+
+## 2026-10-26 — Real-model budget approval and official price
+- User approved **US$0.20 TOTAL** for ONE isolated DEV GPT-4.1-mini text test only; not hosted DDL, ROOT identities or live rollout. Protected read-only [#40401262949](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40401262949) verified South India S0 Standard model and Microsoft public regional GPT-4.1-mini input/output USD0.44/USD1.76 per million (Azure source bills these meters per 1K; normalized x1000), model credentials not read, paid calls=0. Contracted Azure rates not independently proven.
+- Source merged #435–#437; no hosted AI spend tables (21 applied versions), no media/drafts, and Feature3 source SQL pending before Feature2. Separate protected exact-version migration/backups/restore/ROOT approval, expiring shop cap, secure Function settings required BEFORE actual signed sample. Preserve strict DRAFT/no auto-publish/no blind retry.

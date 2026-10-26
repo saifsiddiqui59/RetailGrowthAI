@@ -21,3 +21,9 @@ The Microsoft dynamic Azure OpenAI pricing webpage renders placeholders when its
 5. A single real text-only prompt/7-day model sample with real provider request/response, usage and USD accounting is still blocked until steps 1–4. Authenticated saved marketing DRAFT additionally requires rights-cleared media and authentic clothing trend.
 
 No model inference, hosted migration, Azure setting mutation, new paid infrastructure, PROD or WineShopPOS operation was done by this readiness work.
+
+
+## 2026-10-26 — VERIFIED official Azure public Retail Prices meters
+- Protected Azure OIDC run [#40401262949](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40401262949) **SUCCESS**: existing `rgai-gpt-41-mini` South India Regional Standard S0 verified, `FEATURE2_MODEL_CREDENTIALS_READ=NO`, `FEATURE2_OFFICIAL_RETAIL_METER_LOOKUP=PASS`, `azure_inference_attempted=false`.
+- Source Azure Retail Prices API effective **2025-11-01** returns input SKU `gpt 4.1 mini Inp regnl`, meter ID `7ca44ee4-48c4-5fae-9880-e880a3015337`, unit **1K**, rate $0.00044 / 1K = **$0.44 / 1M**; output `gpt 4.1 mini Outp regnl`, meter ID `3eb7aea7-33d2-5be3-a87d-04be825c632d`, unit **1K**, rate $0.00176 / 1K = **$1.76 / 1M**. These are PUBLIC retail prices, not proven account contracted rates or a paid bill. Source #437 fixed 1K conversion with tests.
+- Owner **US$0.20 TOTAL** one-time isolated paid text test authorization does NOT permit protected hosted SQL, ROOT account creation or uncapped server configuration; no paid call has occurred. Existing ledger tables remain absent; real seven-day Thread & Loom Studio content still gated.
