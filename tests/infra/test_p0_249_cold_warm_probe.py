@@ -20,7 +20,7 @@ def test_actual_503_distinct():
 
 def test_expected_statuses():
     for status in ("401", "404"):
-        assert probe.classify(0, status, .6, .8, .85)["category"] == "EXPECTED_401_OR_404"
+        assert probe.classify(0, status, .6, .8, .85, marker=(status == "401"))["category"] == "EXPECTED_401_OR_404"
 
 def test_sends_exactly_six_read_only_requests_and_one_idle():
     calls, idle = [], []
@@ -43,3 +43,6 @@ def test_anomaly_fails_diagnostic_acceptance():
 def test_rejects_arbitrary_customer_route():
     with unittest.TestCase().assertRaises(ValueError):
         probe.probe("fake", "/api/shop/real-id")
+
+def test_anonymous_401_without_application_marker_is_not_healthy():
+    assert probe.classify(0, "401", .6, .8, .85)["category"] == "OTHER_UNEXPECTED"
