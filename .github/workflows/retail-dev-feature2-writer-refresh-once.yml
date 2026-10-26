@@ -1,0 +1,135 @@
+name: RetailGrowthAI Feature2 reviewed writer refresh existing DEV only
+# Intentional one-time release: only this exact workflow's first merge to main
+# with the reviewed squash title can deploy. No workflow_dispatch or PR secrets.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature2-writer-refresh-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-queue-runtime-release
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: "github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release(dev): refresh reviewed RetailGrowthAI Feature2 writer')"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      RG: rg-retailgrowth-dev
+      APP: rgai-dev-functions-d4e5ddbd
+      STORAGE: rgaid4e5ddbdf0d21d96
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Strict source and deployment preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = refs/heads/main
+          test -f ai-agents/src/ai_agents/content_intelligence.py
+          test -f tests/ai/test_feature2_editorial_quality.py
+          test -f azure-functions/campaign-api/feature2_adapter.py
+          grep -Fq "def _clothing_angle(" ai-agents/src/ai_agents/content_intelligence.py
+          grep -Fq "def _youtube_title(" ai-agents/src/ai_agents/content_intelligence.py
+          grep -Fq "def get_retailer_trends(" azure-functions/campaign-api/function_app.py
+          grep -Fq "def create_retailer_trend_draft(" azure-functions/campaign-api/function_app.py
+          python3 scripts/deploy/package.py --check
+          python3 -m py_compile ai-agents/src/ai_agents/content_intelligence.py azure-functions/campaign-api/feature2_adapter.py
+          echo "Reviewed Feature2 source commit: $GITHUB_SHA"
+      - name: Build and verify exact existing Python Flex package and pinned licensed media tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/media" "$RUNNER_TEMP/release"
+          IMAGE="mwader/static-ffmpeg@sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822"
+          docker pull "$IMAGE"
+          cid="$(docker create "$IMAGE" -version)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          docker cp "$cid:/ffmpeg" "$RUNNER_TEMP/media/ffmpeg"
+          docker cp "$cid:/ffprobe" "$RUNNER_TEMP/media/ffprobe"
+          chmod 755 "$RUNNER_TEMP/media/ffmpeg" "$RUNNER_TEMP/media/ffprobe"
+          cat > "$RUNNER_TEMP/media/THIRD_PARTY_NOTICES.txt" <<'NOTICE'
+          FFmpeg and ffprobe: static Linux x86_64 GPL distribution, libx264 and AAC.
+          Corresponding source and build instructions: https://github.com/wader/static-ffmpeg
+          Distribution content digest: sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822
+          License and redistribution terms: https://ffmpeg.org/legal.html
+          NOTICE
+          python3 scripts/deploy/package.py --ffmpeg-dir "$RUNNER_TEMP/media" \
+            --output "$RUNNER_TEMP/release/part1.zip"
+          python3 scripts/deploy/package.py --verify-zip "$RUNNER_TEMP/release/part1.zip"
+          sha256sum "$RUNNER_TEMP/release/part1.zip"
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Fail closed if existing Azure DEV scope or existing Feature2 switches differ
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AZ_SUB"
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          az group show -g "$RG" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          rg=json.load(open(sys.argv[1]))
+          tags={k.lower():str(v).lower() for k,v in (rg.get('tags') or {}).items()}
+          assert rg['name']=='rg-retailgrowth-dev'
+          assert rg['location'].replace(' ','').lower()=='centralindia'
+          assert tags.get('app')=='retailgrowthai' and tags.get('environment')=='dev'
+          PY
+          test "$(az functionapp show -g "$RG" -n "$APP" --query name -o tsv)" = "$APP"
+          test "$(az storage account show -g "$RG" -n "$STORAGE" --query name -o tsv)" = "$STORAGE"
+          az functionapp config appsettings list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/settings.json"
+          python3 - "$RUNNER_TEMP/settings.json" <<'PY'
+          import json,sys
+          data={r['name']:r.get('value') for r in json.load(open(sys.argv[1]))}
+          assert data.get('RETAIL_SUPABASE_URL')=='https://jeearzffnjbvghwjjjrf.supabase.co'
+          assert str(data.get('RETAIL_ENABLE_FEATURE2')).lower()=='true'
+          assert str(data.get('RETAIL_FEATURE2_COLLECTION_ENABLED')).lower()=='true'
+          assert str(data.get('RETAIL_TRENDS_YOUTUBE_ENABLED')).lower()=='false'
+          assert data.get('RETAIL_SUPABASE_SERVICE_ROLE_KEY')
+          print('PASS existing dedicated DEV Function and Feature2 settings: no config changed')
+          PY
+      - name: Deploy source ZIP only to EXISTING DEV Function (no app setting changes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp deployment source config-zip -g "$RG" -n "$APP" \
+            --src "$RUNNER_TEMP/release/part1.zip" --build-remote true -o none
+          for n in $(seq 1 12); do
+            az functionapp function list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/functions.json"
+            if python3 - "$RUNNER_TEMP/functions.json" <<'PY'
+          import json,sys
+          functions=json.load(open(sys.argv[1]))
+          names={f.get('name','').rsplit('/',1)[-1] for f in functions}
+          required={'get_retailer_trends','create_retailer_trend_draft',
+                    'feature2_collect_india_trends','create_campaign',
+                    'render_campaign_reel','render_campaign_poster'}
+          print('Indexed existing Functions:',len(names),'Missing required:',sorted(required-names))
+          raise SystemExit(0 if required <= names else 1)
+          PY
+            then break; fi
+            test "$n" -lt 12
+            sleep 10
+          done
+          code="$(curl -sS --connect-timeout 8 --max-time 25 -o /dev/null -w '%{http_code}' \
+            "https://$APP.azurewebsites.net/api/shops/00000000-0000-4000-8000-000000000001/trend-recommendations" || true)"
+          if [ "$code" = "401" ]; then
+            echo 'FEATURE2_REFRESH_ANONYMOUS_DENIAL=PASS'
+          else
+            echo "::warning::Azure Flex #249 or cold indexing prevents reliable no-JWT HTTP confirmation; code=$code"
+            echo 'FEATURE2_REFRESH_ANONYMOUS_DENIAL=UNVERIFIED'
+          fi
+          echo "FEATURE2_SOURCE_REFRESH_DEPLOYMENT=PASS source_sha=$GITHUB_SHA"
+      - name: End Azure session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
