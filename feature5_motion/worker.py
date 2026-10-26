@@ -124,7 +124,19 @@ class MotionWorker:
                 if not self.store.mark_unknown(jid, token, "PRIVATE_UPLOAD_UNCERTAIN"):
                     raise MotionError("Private upload reconciliation required")
                 return "UNKNOWN"
-            if not isinstance(receipt, dict) or receipt.get("shop_id") != spec.shop_id or receipt.get("job_id") != jid:
+            expected_path = f"{spec.shop_id}/renders/{jid}/{token}.mp4"
+            # Same exact, lease-scoped tenant-private path required by Part3 importer.
+            # A matching prefix is insufficient: disallow wrong lease, bucket or owner.
+            receipt_ok = (
+                isinstance(receipt, dict)
+                and receipt.get("shop_id") == spec.shop_id
+                and receipt.get("job_id") == jid
+                and receipt.get("attempt_token") == token
+                and receipt.get("bucket") == "retailgrowth-media"
+                and receipt.get("path") == expected_path
+                and receipt.get("private") is True
+            )
+            if not receipt_ok:
                 if not self.store.mark_unknown(jid, token, "PRIVATE_RECEIPT_INVALID"):
                     raise MotionError("Private output receipt reconciliation required")
                 return "UNKNOWN"
