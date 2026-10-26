@@ -80,6 +80,22 @@ class Feature3Tests(unittest.TestCase):
                 doc = self.design(template=template, format="story")
                 self.assertEqual(validate_design(doc)["format"], "story")
 
+    def test_all_ten_templates_produce_visually_distinct_pixels(self):
+        import hashlib
+        styles = ("fashion", "luxury", "streetwear", "ethnic", "festival",
+                  "restaurant", "general", "new_arrivals", "clearance", "seasonal")
+        digests = set()
+        for style in styles:
+            with self.subTest(style=style):
+                doc = self.design(template=style, approved_offer="20% OFF")
+                output = self.root / ("preview-" + style + ".png")
+                render_design(doc, self.manifest, self.root, output, scale=.2)
+                with Image.open(output) as image:
+                    self.assertEqual(image.size, (216, 216))
+                    self.assertGreater(len(image.getcolors(maxcolors=1000000) or []), 3)
+                digests.add(hashlib.sha256(output.read_bytes()).hexdigest())
+        self.assertEqual(len(digests), len(styles))
+
     def test_cross_tenant_revocation_and_unsafe_media(self):
         doc = self.design()
         other = dict(self.manifest, shop_id=str(uuid4()))
