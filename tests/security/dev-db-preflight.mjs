@@ -30,9 +30,25 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261026152000_feature2_trends_drafts.sql',
   // CLI-generated, 2026-10-26T15:21:02Z, reviewed P0 #249 Reel RPC source.
   '20261026152102_p0_249_reel_render_intent.sql',
+  // Source-only, not applied to DEV; Feature3 v2 catalog and CAS drafts.
+  '20261026173000_feature3_model_catalog_drafts.sql',
 ]);
 
 const CAPABILITIES = {
+  '20261026173000': [
+    /create table public[.]feature3_models/i,
+    /create table public[.]feature3_poster_designs/i,
+    /enable row level security/i,
+    /revoke all on table public[.]feature3_models from public,anon,authenticated/i,
+    /revoke all on table public[.]feature3_poster_designs from public,anon,authenticated/i,
+    /feature3_valid_design/i,
+    /create function public[.]save_feature3_poster_design/i,
+    /security definer set search_path=''/i,
+    /retail_private[.]has_role/i,
+    /for update/i,
+    /check[(]status in [(]'DRAFT','APPROVED','REJECTED'[)]/i,
+    /grant execute on function public[.]save_feature3_poster_design/i,
+  ],
   '20261026152102': [
     /create function retail_private[.]python_json_v1/i,
     /create function retail_private[.]request_reel_render_job_internal/i,
