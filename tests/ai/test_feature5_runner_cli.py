@@ -10,7 +10,7 @@ from uuid import uuid4
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from feature5_motion.contracts import MotionError, MotionSpec
-from feature5_motion.runner import HunyuanLocalRunner
+from feature5_motion.runner import HunyuanLocalRunner, git_blob_sha1, verify_official_script, OFFICIAL_GENERATE_BLOB
 from feature5_motion.license_gate import HunyuanLicensePolicy
 
 
@@ -49,6 +49,12 @@ class TestOfficialHunyuanCLI(unittest.TestCase):
         self.gpu_preflight = patch.object(HunyuanLocalRunner, "_require_supported_gpu")
         self.gpu_preflight.start()
         self.addCleanup(self.gpu_preflight.stop)
+        # Fixture generate.py is deliberately not the vendor's 19KB source.
+        # These argument tests patch integrity; independent integrity tests
+        # below assert that the real gate rejects stub/tampered code.
+        self.pinned_script = patch("feature5_motion.runner.verify_official_script")
+        self.pinned_script.start()
+        self.addCleanup(self.pinned_script.stop)
 
     def spec(self, mode="text"):
         return MotionSpec(job_id=uid(), shop_id=uid(), prompt="Adult model in boutique",
@@ -127,6 +133,37 @@ class TestOfficialHunyuanCLI(unittest.TestCase):
             with self.assertRaises(MotionError):
                 self.runner.run(self.spec(), source_file=None, workdir=self.workdir)
             popen.assert_not_called()
+
+
+class TestOfficialScriptPin(unittest.TestCase):
+    def test_git_blob_header_uses_single_nul_and_content_bytes(self):
+        from hashlib import sha1
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "generate.py"
+            source.write_bytes(b"print('ok')\\n")
+            blob = b"blob 12\\0" + b"print('ok')\\n"
+            self.assertEqual(git_blob_sha1(source), sha1(blob).hexdigest())
+            self.assertNotEqual(git_blob_sha1(source), OFFICIAL_GENERATE_BLOB)
+
+    def test_unpinned_or_tampered_source_rejected_before_gpu(self):
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / "generate.py"
+            script.write_text("# untrusted test fixture, never execute\\n")
+            with self.assertRaisesRegex(MotionError, "not pinned Tencent source"):
+                verify_official_script(script)
+            script.write_text("# tampered with arbitrary bytes\\n")
+            with self.assertRaises(MotionError):
+                verify_official_script(script)
+
+    def test_symlinked_runtime_entrypoint_denied(self):
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory)
+            target = folder / "target.py"
+            target.write_text("# fixture")
+            link = folder / "generate.py"
+            link.symlink_to(target)
+            with self.assertRaisesRegex(MotionError, "Untrusted local model script"):
+                verify_official_script(link)
 
 
 if __name__ == "__main__":
