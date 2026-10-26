@@ -56,7 +56,10 @@ class TestAzureGPUReadOnlyPreflight(unittest.TestCase):
         e = [{"name": "rgai-centralindia", "location": "centralindia",
               "provisioningState": "Succeeded", "properties": {"workloadProfiles": [
                   {"workloadProfileType": "Consumption-GPU-T4"}]}}]
-        self.assertEqual(check(environments=e).status, "BLOCKED")
+        # A T4-only environment in India does not supply the required
+        # East US A100 environment; region-supported quota inspection still
+        # needs a new, empty East US workload-profiles environment.
+        self.assertEqual(check(environments=e).status, "ENVIRONMENT_REQUIRED")
 
     def test_no_env_or_duplicates_or_exhausted_quota_block(self):
         self.assertEqual(check(environments=[]).status, "ENVIRONMENT_REQUIRED")
