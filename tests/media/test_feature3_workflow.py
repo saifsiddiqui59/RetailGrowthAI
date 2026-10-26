@@ -89,7 +89,7 @@ class CPUWorkerTests(unittest.TestCase):
         self.events.append("failed-fenced")
         self.assertEqual(code, "POSTER_V2_CPU_RENDER_FAILED")
 
-    def run(self, job=None, **changes):
+    def execute_ticket(self, job=None, **changes):
         params = dict(
             claim_job=self.claim, authorize_staged_assets=self.authorize,
             write_private_media=self.writer, complete_job=self.complete,
@@ -99,7 +99,7 @@ class CPUWorkerTests(unittest.TestCase):
         return execute_cpu_poster(job or self.ticket, self.doc, **params)
 
     def test_private_png_and_fenced_order(self):
-        info = self.run()
+        info = self.execute_ticket()
         self.assertEqual(info["status"], "SUCCEEDED")
         self.assertEqual(info["output_format"], "png")
         self.assertEqual(self.events,
@@ -107,30 +107,30 @@ class CPUWorkerTests(unittest.TestCase):
         self.assertEqual(list(self.scratch.iterdir()), [])
 
     def test_retry_same_job_does_not_duplicate_storage(self):
-        self.run()
+        self.execute_ticket()
         self.events.clear()
         with self.assertRaisesRegex(PosterJobBlocked, "lease unavailable"):
-            self.run()
+            self.execute_ticket()
         self.assertEqual(self.events, [])
 
     def test_stale_draft_foreign_shop_and_wrong_hash_are_preclaim_denied(self):
         other = replace(self.ticket, shop_id=str(uuid4()))
         with self.assertRaisesRegex(PosterJobBlocked, "Cross-tenant"):
-            self.run(other)
+            self.execute_ticket(other)
         wrong = replace(self.ticket, design_sha256="f" * 64)
         with self.assertRaisesRegex(PosterJobBlocked, "fingerprint"):
-            self.run(wrong)
+            self.execute_ticket(wrong)
         older = replace(self.ticket, draft_revision=0)
         with self.assertRaisesRegex(PosterJobBlocked, "revision"):
-            self.run(older)
+            self.execute_ticket(older)
         unknown = replace(self.ticket, output_format="svg")
         with self.assertRaisesRegex(PosterJobBlocked, "format"):
-            self.run(unknown)
+            self.execute_ticket(unknown)
         self.assertEqual(self.events, [])
 
     def test_forged_manifest_and_revoked_rights_are_rejected(self):
         with self.assertRaisesRegex(PosterJobBlocked, "manifest"):
-            self.run(authorize_staged_assets=lambda *_: ({
+            self.execute_ticket(authorize_staged_assets=lambda *_: ({
                 "shop_id": str(uuid4()), "assets": {}
             }, self.stage))
         self.assertEqual(self.events, ["claim", "failed-fenced"])
@@ -138,12 +138,12 @@ class CPUWorkerTests(unittest.TestCase):
         self.claimed.clear()
         self.manifest["assets"][self.asset]["rights"]["commercial_use"] = False
         with self.assertRaisesRegex(DesignError, "rights"):
-            self.run()
+            self.execute_ticket()
         self.assertEqual(self.events, ["claim", "rights-rechecked", "failed-fenced"])
 
     def test_bad_object_receipt_does_not_commit(self):
         with self.assertRaisesRegex(PosterJobBlocked, "receipt"):
-            self.run(write_private_media=lambda *_: {
+            self.execute_ticket(write_private_media=lambda *_: {
                 "asset_id": str(uuid4()), "object_key": "another-shop/public.png",
             })
         self.assertIn("failed-fenced", self.events)
@@ -153,18 +153,18 @@ class CPUWorkerTests(unittest.TestCase):
     def test_bounded_animated_mp4_through_private_worker(self):
         ticket = replace(self.ticket, output_format="mp4",
                          duration_seconds=1, fps=3)
-        info = self.run(ticket)
+        info = self.execute_ticket(ticket)
         self.assertEqual(info["output_format"], "mp4")
         self.assertEqual(info["status"], "SUCCEEDED")
 
     def test_bounded_gif_and_reject_excessive_animation(self):
         ticket = replace(self.ticket, output_format="gif",
                          duration_seconds=1, fps=3)
-        info = self.run(ticket)
+        info = self.execute_ticket(ticket)
         self.assertEqual(info["output_format"], "gif")
         oversize = replace(ticket, fps=15, duration_seconds=5)
         with self.assertRaisesRegex(PosterJobBlocked, "quota"):
-            self.run(oversize)
+            self.execute_ticket(oversize)
 
 
 if __name__ == "__main__":
