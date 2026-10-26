@@ -169,6 +169,10 @@ begin
       return null;
     end if;
     music := (reel->>'music_asset_id')::pg_catalog.uuid;
+    -- A single asset cannot simultaneously be an IMAGE storyboard frame and
+    -- an AUDIO music source; the old combined ID loop otherwise classified
+    -- that shared source by music MIME and could accept audio as an image.
+    if music = any(ids) then return null; end if;
     ids := pg_catalog.array_append(ids,music);
   end if;
 
