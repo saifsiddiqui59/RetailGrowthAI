@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { createTrendApi } from './trend-api.mjs'
@@ -38,6 +38,8 @@ export default function TrendWorkspace() {
   const [promptLoading, setPromptLoading] = useState(false)
   const [promptError, setPromptError] = useState('')
   const [chosenTrendId, setChosenTrendId] = useState('')
+  const latestShopRef = useRef(shopId)
+  useEffect(() => { latestShopRef.current = shopId }, [shopId])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -112,6 +114,8 @@ export default function TrendWorkspace() {
     setPromptLoading(true)
     try {
       const response = await api.improvePrompt(shopId, brief, promptFormats, promptLanguage)
+      // A slow response for shop A must never render after switching to B.
+      if (latestShopRef.current !== shopId) return
       if (response.shop_id !== shopId || response.original_prompt !== brief ||
           response.can_publish !== false || response.review_status !== 'NEEDS_REVIEW' ||
           response.provider_mode !== 'deterministic' ||
@@ -135,7 +139,7 @@ export default function TrendWorkspace() {
   }
   const restoreOriginal = () => {
     setAppliedPrompt('')
-    setEditedPrompt(promptPreview?.improved_prompt || '')
+    setEditedPrompt(promptPreview?.original_prompt || brief)
   }
   const applyImproved = () => {
     if (promptPreview && editedPrompt.trim() && editedPrompt.length <= 1500 &&
@@ -223,7 +227,7 @@ export default function TrendWorkspace() {
       <p>Daily, source-linked India insights for your own business. Drafts require retailer review; publishing is never automatic.</p>
       <div className="feature2-filters">
         <label>Business
-          <select value={shopId} onChange={event => setShopId(event.target.value)}>
+          <select value={shopId} onChange={event => { latestShopRef.current = event.target.value; setShopId(event.target.value) }}>
             {shops.map(shop => <option key={shop.id} value={shop.id}>{shop.name}</option>)}
           </select>
         </label>
