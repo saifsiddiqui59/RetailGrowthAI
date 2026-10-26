@@ -7,6 +7,8 @@ Branch: feat/feature4-professional-video-studio (based on main 140a9f8617). This
 Added:
 - video-engine/professional.py: strict rg_video_v2 compiler producing a private HyperFrames HTML project from tenant-bound, trusted, staged, rights-approved media IDs. Supports text, image, poster, media and beat-grid synchronized modes as a **source contract** (15/30/60 seconds, 540/1080 portrait, 24/30 FPS), three styled templates, approved offer/title/CTA escaping, finite contiguous scenes, trim ranges, an authorized music ID, no raw customer HTML/CSS/JS/remote media.
 - video-engine/hyperframes/: pinned versioned Node producer adapter with local MP4 render and ffprobe checks; no hosted API, no provisioning and no activation in Azure.
+- frontend/src/features/video/{video-model.mjs, VideoStudio.jsx, VideoStudio.css}: isolated responsive video-specific draft editor, mode/template/media/music selectors, scene reordering, mobile storyboard mock, guarded render callback and signed output slot (not mounted into shared routes).
+- tests/frontend/video-model.test.mjs: React-independent video plan controls and authorization-flag tests under existing frontend tests.
 - tests/media/test_feature4_professional.py: compiler authorization, modes, source-audio behavior and injection regressions under existing FFmpeg CI job.
 - Legacy video-engine/render.py, queue/outbox, DB/Auth, React root app and Part 2/3 source all deliberately unchanged.
 
