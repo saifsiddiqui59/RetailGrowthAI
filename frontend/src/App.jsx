@@ -184,7 +184,7 @@ function AppShell() {
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               aria-pressed={theme === 'dark'}><span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span><span className="rg-theme-copy">{theme === 'dark' ? 'Light' : 'Dark'}</span></button>
             <span className="environment">{import.meta.env?.VITE_CAMPAIGN_API_BASE_URL && import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY
-              ? 'DEV connected' : 'Demo / setup'}</span>
+              ? 'API configured' : configured && user ? 'Supabase only' : 'Demo / setup'}</span>
             <AccountMenu />
           </div>
         </header>
