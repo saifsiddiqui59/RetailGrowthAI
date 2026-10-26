@@ -64,3 +64,4 @@ PY
 for sec in 1 4 8 11 14; do
  ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$sec" -i "$OUTPUT_HD" -frames:v 1 "$ROOT/ci-artifacts/feature4-fullres-frame-$sec.jpg"
 done
+python3 "$ROOT/video-engine/hyperframes/check_feature4_output.py" "$ROOT/ci-artifacts" --fullres
