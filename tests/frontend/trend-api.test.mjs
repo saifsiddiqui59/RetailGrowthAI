@@ -42,8 +42,8 @@ test('draft creation validates tenant and trend before sending exactly one authe
   })
   const payload = { shop_id: SHOP, brief: 'Seven days of store styling',
     media_asset_ids: [OTHER] }
-  await assert.rejects(client.createDraft(SHOP, 'not-signal', payload))
-  await assert.rejects(client.createDraft(SHOP, TREND, { ...payload, shop_id: OTHER }))
+  assert.throws(() => client.createDraft(SHOP, 'not-signal', payload))
+  assert.throws(() => client.createDraft(SHOP, TREND, { ...payload, shop_id: OTHER }))
   assert.equal(calls.length, 0)
   assert.equal((await client.createDraft(SHOP, TREND, payload)).status, 'DRAFT')
   assert.equal(calls.length, 1)
