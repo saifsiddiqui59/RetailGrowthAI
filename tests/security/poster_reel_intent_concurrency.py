@@ -115,7 +115,12 @@ def main() -> None:
     deadline = time.monotonic() + 11
     while count_waiters() < 2 and time.monotonic() < deadline:
         if first.poll() is not None or second.poll() is not None:
-            raise AssertionError("a contender completed before both were blocked")
+            culprit = first if first.poll() is not None else second
+            output, error = culprit.communicate(timeout=2)
+            raise AssertionError(
+                "a contender completed before both were blocked "
+                f"(exit={culprit.returncode}, stdout={output[-350:]!r}, stderr={error[-350:]!r})"
+            )
         time.sleep(0.4)
     if count_waiters() < 2:
         raise AssertionError("did not observe TWO actual DB connections waiting on the row lock")
