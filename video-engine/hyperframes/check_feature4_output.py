@@ -72,7 +72,36 @@ def check_artifact(media_dir):
             "nonclip_tone_amplitude": round(without_motion,2)}
 
 
+def check_fullres_artifact(media_dir):
+    """Gate actual 1080p scene diversity; never equate synthetic visuals with fashion realism."""
+    root = Path(media_dir)
+    expected = (1, 4, 8, 11, 14)
+    pictures = []
+    for time in expected:
+        p = root / f"feature4-fullres-frame-{time}.jpg"
+        with Image.open(p) as image:
+            picture = image.convert("RGB")
+        if picture.size != (1080, 1920):
+            raise AssertionError(f"Incorrect full-resolution screenshot at {time}s")
+        variation = ImageStat.Stat(picture.convert("L")).stddev[0]
+        if variation < 12:
+            raise AssertionError(f"1080p scene at {time}s visually blank ({variation:.1f})")
+        pictures.append(picture.resize((270, 480)))
+    scene_changes = [
+        ImageStat.Stat(ImageChops.difference(a, b).convert("L")).mean[0]
+        for a, b in zip(pictures, pictures[1:])
+    ]
+    if sum(d > 8 for d in scene_changes) < 3:
+        raise AssertionError(f"1080p scenes not distinguishable: {scene_changes}")
+    return {"resolution": "1080x1920", "frames_sampled": len(pictures),
+            "scene_deltas": [round(x, 2) for x in scene_changes],
+            "commercial_fashion_realism_accepted": False}
+
+
 if __name__=="__main__":
-    if len(sys.argv) != 2:
-        raise SystemExit("usage: python check_feature4_output.py <ci-artifacts-folder>")
-    print("PASS: real HyperFrames frame diversity + synthetic source audio", check_artifact(sys.argv[1]))
+    if len(sys.argv) not in (2, 3) or (len(sys.argv) == 3 and sys.argv[2] != "--fullres"):
+        raise SystemExit("usage: python check_feature4_output.py <ci-artifacts-folder> [--fullres]")
+    if len(sys.argv) == 3:
+        print("PASS: actual 1080p visual diversity only", check_fullres_artifact(sys.argv[1]))
+    else:
+        print("PASS: real HyperFrames frame diversity + synthetic source audio", check_artifact(sys.argv[1]))
