@@ -123,7 +123,11 @@ def feature4_asset_entry(clip: ApprovedMotionClip, *,
         clip.quality_status != "APPROVED" or clip.rights_approved is not True or
         clip.output_codec != "h264" or not 4.5 <= clip.duration_seconds <= 5.5):
         raise MotionError("Premium clip has not passed private and visual approval")
-    if not isinstance(rights, dict) or rights.get("commercial") is not True or rights.get("redistribution") is not True:
+    # Matches Feature4's actual render.validate_rights contract exactly.
+    if (not isinstance(rights, dict) or rights.get("commercial_use") is not True or
+        rights.get("license") not in {"owned", "cc0", "royalty_free", "commercial"} or
+        not isinstance(rights.get("evidence"), str) or not rights["evidence"].strip() or
+        not isinstance(rights.get("source"), str) or not rights["source"].strip()):
         raise MotionError("Motion rights do not permit campaign composition")
     # A local path is produced only by the existing private, server-side media
     # importer. Reject absolute paths, traversal, URL schemes, and weird chars.
