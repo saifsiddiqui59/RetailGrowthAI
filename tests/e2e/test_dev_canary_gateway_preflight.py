@@ -65,6 +65,6 @@ def test_preflight_latency_over_budget_fails_closed():
 def test_real_main_runs_gateway_probe_before_deleting_or_creating_test_users():
     src=SOURCE.read_text()
     main=src.split("\ndef main():\n",1)[1]
-    assert main.index("preflight_dev_http_auth_routes()") < main.index(
+    assert main.index("preflight_dev_http_auth_routes(include_prompt=prompt_only)") < main.index(
         '"/auth/v1/admin/users"')
     assert "CANARY_DEV_GATEWAY_AUTH_PREFLIGHT_PASSED=true" in src
