@@ -19,8 +19,10 @@ PROFILE_MATCH = "NCA100"
 def _a100_profile(item: Any) -> bool:
     if not isinstance(item, dict):
         return False
-    profile = item.get("name") or item.get("workloadProfileType") or item.get("type") or ""
-    return isinstance(profile, str) and PROFILE_MATCH in profile.upper()
+    names = [item.get("name"), item.get("workloadProfileType"), item.get("type")]
+    return any(isinstance(v, str) and
+               ("NCA100" in v.upper() or "NC24-A100" in v.upper() or
+                "GPU-A100" in v.upper()) for v in names)
 
 
 def _name(value: Any) -> str:
