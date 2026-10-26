@@ -7,6 +7,7 @@
 import { useMemo, useState } from 'react'
 import { FEATURE3_FORMATS, FEATURE3_TEMPLATES } from './feature3-design.mjs'
 import { composeFeature3Poster } from './feature3-compose.mjs'
+import { approvedFeature3Inputs, feature3ContextKey } from './feature3-context.mjs'
 import Feature3KonvaEditor from './Feature3KonvaEditor.jsx'
 
 const fieldStyle = { display: 'grid', gap: 6, minWidth: 0 }
@@ -14,7 +15,7 @@ const inputStyle = { width: '100%', maxWidth: '100%', boxSizing: 'border-box' }
 const rootStyle = { display: 'grid', gap: 16, width: '100%', minWidth: 0 }
 
 export default function Feature3StudioPanel({
-  shopId, brandKit, imageMap = {}, approvedContent = null,
+  shopId, campaignId, dayId, brandKit, imageMap = {}, approvedContent = null,
   onSaveDesign = null, disabled = false,
 }) {
   const [mode, setMode] = useState('text')
@@ -24,6 +25,7 @@ export default function Feature3StudioPanel({
   const [assetId, setAssetId] = useState('')
   const [version, setVersion] = useState(0)
   const [design, setDesign] = useState(null)
+  const [designContext, setDesignContext] = useState('')
   const [error, setError] = useState('')
 
   // These are pre-authorized/private media previews supplied by the
@@ -34,19 +36,20 @@ export default function Feature3StudioPanel({
     imageMap[id]?.naturalWidth > 0 &&
     imageMap[id]?.naturalHeight > 0
   ), [imageMap])
-  const approved = !!(approvedContent?.review_state === 'APPROVED' &&
-    approvedContent?.shop_id === shopId &&
-    Number.isInteger(approvedContent?.approved_version) &&
-    approvedContent.approved_version >= 1)
-  const businessName = brandKit?.businessName || ''
-  const brandLogo = brandKit?.logoAssetId && authorized.includes(brandKit.logoAssetId)
-    ? brandKit.logoAssetId : null
+  const context = { shopId, campaignId, dayId }
+  const currentContext = feature3ContextKey(context)
+  const checked = approvedFeature3Inputs(approvedContent, context, brandKit)
+  const approved = checked.approved
+  const businessName = checked.brand?.businessName || ''
+  const brandLogo = checked.brand?.logoAssetId &&
+    authorized.includes(checked.brand.logoAssetId)
+    ? checked.brand.logoAssetId : null
 
   const create = () => {
     setError('')
     if (disabled) return
     try {
-      if (!shopId || !businessName) throw Error('Select an authorized business first')
+      if (!currentContext || !businessName) throw Error('Select a verified business and campaign day first')
       if (mode === 'image' && !authorized.includes(assetId)) {
         throw Error('Choose a registered shop product photo')
       }
@@ -56,18 +59,19 @@ export default function Feature3StudioPanel({
       const next = composeFeature3Poster({
         shopId, mode, prompt,
         businessName,
-        headline: approved ? approvedContent.headline : null,
-        cta: approved ? approvedContent.cta : 'Visit our store',
-        approvedOffer: approved ? approvedContent.offer_text : null,
+        headline: approved ? approved.headline : null,
+        cta: approved ? approved.cta : 'Visit our store',
+        approvedOffer: approved ? approved.offer_text : null,
         sourceAssetId: mode === 'image' ? assetId : null,
         authorizedAssetIds: authorized,
         logoAssetId: brandLogo,
         template: template === 'auto' ? null : template,
         format,
-        accent: brandKit?.accentColor || '#C05F43',
-        background: brandKit?.backgroundColor || '#FCF4EC',
+        accent: checked.brand?.accentColor || '#C05F43',
+        background: checked.brand?.backgroundColor || '#FCF4EC',
       })
       setDesign(next)
+      setDesignContext(currentContext)
       setVersion(v => v + 1)
     } catch (cause) {
       setError(cause.message || 'Could not prepare this poster')
@@ -127,12 +131,12 @@ export default function Feature3StudioPanel({
       {approved && <p role="status">Using retailer-approved campaign headline and offer.
         AI-generated imagery is not included.</p>}
       <button type="button" onClick={create}
-        disabled={!prompt.trim() || !businessName || (mode === 'image' && !assetId)}>
+        disabled={!currentContext || !prompt.trim() || !businessName || (mode === 'image' && !assetId)}>
         Generate editable poster
       </button>
       {error && <p role="alert">{error}</p>}
     </fieldset>
-    {design && <Feature3KonvaEditor key={version} initialDesign={design}
+    {design && designContext === currentContext && <Feature3KonvaEditor key={version} initialDesign={design}
       imageMap={imageMap} onSaveDraft={onSaveDesign} />}
   </section>
 }
