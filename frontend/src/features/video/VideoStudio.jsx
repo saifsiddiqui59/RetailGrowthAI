@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   VIDEO_MODES, VIDEO_TEMPLATES, compatibleMedia, makeVideoDraft,
-  shiftVideoScene, recalculateScenes, validateVideoDraft,
+  shiftVideoScene, retimeVideoDraft, validateVideoDraft,
 } from './video-model.mjs'
 import './VideoStudio.css'
 
@@ -16,12 +16,29 @@ export default function VideoStudio({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [selectedSceneIndex, setSelectedSceneIndex] = useState(0)
+  // A login/shop switch cannot retain the previous tenant's composition draft.
+  useEffect(() => {
+    setDraft(makeVideoDraft({ shopId, mediaAssets }))
+    setSelectedSceneIndex(0)
+    setSubmitted(false)
+    setError('')
+  }, [shopId])
   const assets = useMemo(() => compatibleMedia(draft.mode, mediaAssets), [draft.mode, mediaAssets])
   const issues = useMemo(
     () => validateVideoDraft(draft, mediaAssets, musicAssets),
     [draft, mediaAssets, musicAssets],
   )
   const patch = (changes) => { setDraft(prev => ({ ...prev, ...changes })); setSubmitted(false) }
+  const selectedScene = draft.scenes[Math.min(selectedSceneIndex, draft.scenes.length - 1)]
+  function changeDuration(next) {
+    try {
+      patch(retimeVideoDraft(draft, next))
+      setError('')
+    } catch (exc) {
+      setError(exc.message || 'This timeline cannot be retimed safely')
+    }
+  }
   const patchScene = (index, changes) => patch({ scenes: draft.scenes.map((item, i) =>
     i === index ? { ...item, ...changes } : item,
   ) })
@@ -30,6 +47,7 @@ export default function VideoStudio({
     setDraft(makeVideoDraft({ shopId, mode, template, duration, mediaAssets }))
     setError('')
     setSubmitted(false)
+    setSelectedSceneIndex(0)
   }
   async function submit(event) {
     event.preventDefault()
@@ -45,7 +63,10 @@ export default function VideoStudio({
       setBusy(false)
     }
   }
-  const ready = renderStatus?.status === 'SUCCEEDED' && typeof signedVideoUrl === 'string'
+  // The coordinator must return the trusted tenant identity with an output.
+  // Never show a previously selected shop's signed video after a shop switch.
+  const ready = renderStatus?.status === 'SUCCEEDED' && renderStatus?.shop_id === shopId &&
+    typeof signedVideoUrl === 'string' && signedVideoUrl.length > 0
   return (
     <section className="f4-studio" aria-labelledby="f4-title">
       <header className="f4-head">
@@ -65,14 +86,14 @@ export default function VideoStudio({
               </select>
             </label>
             <label>Professional style
-              <select value={draft.template} onChange={e => newDraft({ template: e.target.value })}>
+              <select value={draft.template} onChange={e => patch({ template: e.target.value })}>
                 {VIDEO_TEMPLATES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
               </select>
             </label>
           </div>
           <div className="f4-two">
             <label>Duration
-              <select value={draft.duration_seconds} onChange={e => newDraft({ duration: Number(e.target.value) })}>
+              <select value={draft.duration_seconds} onChange={e => changeDuration(Number(e.target.value))}>
                 {[15, 30, 60].map(n => <option key={n} value={n}>{n} seconds</option>)}
               </select>
             </label>
@@ -145,6 +166,15 @@ export default function VideoStudio({
           <p className="f4-fine">Visual preview is a storyboard mock, not a rendered MP4. Nothing here bypasses backend shop access, media rights, usage limits or human approval.</p>
         </form>
         <aside className="f4-view" aria-label="Video storyboard preview">
+          <nav className="f4-timeline" aria-label="Choose a storyboard scene to preview">
+            {draft.scenes.map((scene, index) => (
+              <button key={index} type="button" className={index === selectedSceneIndex ? 'f4-selected' : ''}
+                aria-pressed={index === selectedSceneIndex} onClick={() => setSelectedSceneIndex(index)}
+                style={{ flexGrow: scene.duration }} title={scene.headline}>
+                {String(index + 1).padStart(2, '0')}
+              </button>
+            ))}
+          </nav>
           {ready ? (
             <>
               <video controls playsInline preload="metadata" src={signedVideoUrl} aria-label="Signed private rendered video" />
@@ -155,9 +185,9 @@ export default function VideoStudio({
               <span className="f4-kicker">{VIDEO_TEMPLATES.find(([id]) => id === draft.template)?.[1]}</span>
               <div className="f4-mock-motion" aria-hidden="true"><span /><span /><span /></div>
               <div className="f4-preview-copy">
-                <span>{draft.mode.replace('_', ' ').toUpperCase()} / 9:16</span>
-                <strong>{draft.scenes[0]?.headline || 'Your product story'}</strong>
-                <em>{draft.scenes[0]?.offer || draft.cta}</em>
+                <span>SCENE {selectedSceneIndex + 1} / {draft.scenes.length} · {selectedScene?.start ?? 0}–{(selectedScene?.start ?? 0) + (selectedScene?.duration ?? 0)}s</span>
+                <strong>{selectedScene?.headline || 'Your product story'}</strong>
+                <em>{selectedScene?.offer || (selectedSceneIndex === draft.scenes.length - 1 ? draft.cta : 'Approved media storyboard')}</em>
               </div>
               <span className="f4-mock-label">STORYBOARD ONLY · NO VIDEO GENERATED</span>
             </div>

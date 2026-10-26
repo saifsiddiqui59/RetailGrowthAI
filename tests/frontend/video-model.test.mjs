@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  compatibleMedia, makeVideoDraft, shiftVideoScene, recalculateScenes, validateVideoDraft,
+  compatibleMedia, makeVideoDraft, shiftVideoScene, retimeVideoDraft, recalculateScenes, validateVideoDraft,
 } from '../../frontend/src/features/video/video-model.mjs'
 
 const shopId = '11111111-1111-4111-8111-111111111111'
@@ -58,4 +58,31 @@ test('invalid lengths and unlicensed art reject submit', () => {
   plan.scenes[0].duration = 5
   plan.scenes[0].headline = ''
   assert.match(validateVideoDraft(plan, media, tracks).join(' '), /headline/)
+})
+
+test('duration changes preserve the drafted professional story and authorized media', () => {
+  const draft = makeVideoDraft({ shopId, mode: 'media', duration: 30, mediaAssets: media })
+  draft.scenes[1].headline = 'Our actual approved kurti'
+  draft.scenes[1].offer = '20% OFF'
+  const longer = retimeVideoDraft(draft, 60)
+  assert.deepEqual(longer.scenes.map(s => s.start), [0, 20, 40])
+  assert.deepEqual(longer.scenes.map(s => s.duration), [20, 20, 20])
+  assert.equal(longer.scenes[1].headline, 'Our actual approved kurti')
+  assert.equal(longer.scenes[1].offer, '20% OFF')
+  assert.equal(longer.scenes[1].asset_id, draft.scenes[1].asset_id)
+  assert.deepEqual(validateVideoDraft(longer, media, tracks), [])
+  const shorter = retimeVideoDraft(longer, 15)
+  assert.deepEqual(shorter.scenes.map(s => s.start), [0, 5, 10])
+  assert.deepEqual(validateVideoDraft(shorter, media, tracks), [])
+  assert.equal(draft.duration_seconds, 30)
+})
+
+test('retiming never silently drops a short scene', () => {
+  const draft = makeVideoDraft({ shopId, mode: 'text', duration: 60 })
+  draft.scenes = Array.from({ length: 12 }, (_, i) => ({
+    start: i === 0 ? 0 : i < 11 ? i - 1 : 10,
+    duration: i < 11 ? .5 : 54.5,
+    headline: 'Approved',
+  }))
+  assert.throws(() => retimeVideoDraft(draft, 15), /shorter than half a second/)
 })

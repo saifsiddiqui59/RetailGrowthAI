@@ -46,6 +46,25 @@ export function recalculateScenes(scenes) {
   })
 }
 
+// Retiming is a pure draft edit: preserve approved text, asset IDs, offers and order.
+export function retimeVideoDraft(plan, duration) {
+  if (!plan || !Array.isArray(plan.scenes) || !plan.scenes.length ||
+      ![15, 30, 60].includes(duration) || ![15, 30, 60].includes(plan.duration_seconds) ||
+      plan.scenes.some(scene => !valid(scene.duration) || scene.duration < .5)) {
+    throw Error('Invalid timeline for retiming')
+  }
+  let elapsed = 0
+  const scenes = plan.scenes.map((scene, index) => {
+    const length = index === plan.scenes.length - 1 ? duration - elapsed
+      : Math.round(scene.duration * duration / plan.duration_seconds * 1000) / 1000
+    if (length < .5) throw Error('Scenes would be shorter than half a second')
+    const copy = { ...scene, start: elapsed, duration: length }
+    elapsed = Math.round((elapsed + length) * 1000) / 1000
+    return copy
+  })
+  return { ...plan, duration_seconds: duration, scenes }
+}
+
 export function shiftVideoScene(scenes, from, move) {
   if (!Array.isArray(scenes) || !Number.isInteger(from) || ![-1, 1].includes(move) ||
       from < 0 || from >= scenes.length || from + move < 0 || from + move >= scenes.length) return scenes

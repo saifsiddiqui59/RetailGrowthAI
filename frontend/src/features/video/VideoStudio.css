@@ -28,3 +28,9 @@
 .f4-view-note{max-width:360px;text-align:center;font-size:12px;line-height:1.6;color:#aeb8c8}
 @media(max-width:900px){.f4-layout{grid-template-columns:minmax(0,1fr)}.f4-view{grid-row:1}.f4-phone{width:min(65%,270px)}}
 @media(max-width:520px){.f4-studio{border-radius:0;padding:16px}.f4-two{grid-template-columns:1fr;gap:0}.f4-phone{width:min(82%,270px)}.f4-head h2{font-size:27px}}
+
+/* Accessible scene scrubber: the mock must reflect the selected storyboard, not only scene 1. */
+.f4-timeline{display:flex;width:min(100%,350px);gap:5px;align-items:stretch;padding:5px;min-height:42px;background:#0a101c;border-radius:12px}
+.f4-timeline button{flex-basis:0;min-width:0;border:1px solid #50617d;border-radius:6px;background:#1c2b3b;color:#c7d4e2;font-size:11px;font-weight:800;cursor:pointer}
+.f4-timeline button.f4-selected{color:#1a1c22;background:#f0c88d;border-color:#f0c88d}
+.f4-timeline button:focus-visible{outline:3px solid #f0c88d;outline-offset:2px}
