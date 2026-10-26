@@ -69,3 +69,19 @@ test('401 and unavailable source failures never fall back to anonymous reads or 
   }, async () => '')
   await assert.rejects(noSession.getRecommendations(SHOP), /sign in/i)
 })
+
+
+test('recent draft list uses JWT and RLS path without sending POST or leaking credentials', async () => {
+  const calls = []
+  const client = api(async (url, options) => {
+    calls.push({ url, options })
+    return { ok: true, status: 200, json: async () => ({ shop_id: SHOP, drafts: [] }) }
+  })
+  assert.deepEqual((await client.listDrafts(SHOP)).drafts, [])
+  assert.equal(calls[0].url, 'https://example.azurewebsites.net/api/shops/' + SHOP + '/content-drafts')
+  assert.equal(calls[0].options.method, 'GET')
+  assert.equal(calls[0].options.headers.Authorization, 'Bearer verified-shop-jwt')
+  assert.equal(calls[0].options.body, undefined)
+  await assert.rejects(client.listDrafts('not-uuid'))
+  assert.equal(calls.length, 1)
+})

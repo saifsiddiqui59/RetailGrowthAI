@@ -126,3 +126,23 @@ def test_new_retailer_missing_city_is_guided_without_fabricating_trends_or_savin
     assert drafts.saved == []
     assert api.handle("GET", SHOP, "Bearer forged")[0] == 401
     assert api.handle("GET", str(uuid4()), "Bearer signed-1")[0] == 404
+
+
+def test_saved_drafts_use_user_jwt_even_when_source_and_profile_are_unavailable():
+    drafts = Drafts()
+
+    def only_signed_user_read(token, sid, limit=5):
+        assert token == "signed-1" and sid == SHOP and limit == 5
+        return [{"id": str(uuid4()), "shop_id": SHOP, "review_state": "DRAFT"}]
+
+    drafts.list_drafts = only_signed_user_read
+    adapter = make_adapter(drafts)
+    adapter.profile_reader = None
+    adapter.snapshot_store = None
+    code, body = adapter.list_drafts(SHOP, "Bearer signed-1")
+    assert code == 200 and body["shop_id"] == SHOP and len(body["drafts"]) == 1
+    assert adapter.list_drafts(SHOP, "Bearer bad-token")[0] == 401
+    assert adapter.list_drafts(str(uuid4()), "Bearer signed-1")[0] == 404
+    assert adapter.list_drafts(SHOP, "")[0] == 401
+    assert make_adapter().list_drafts(SHOP, "Bearer signed-1") == (
+        503, {"error": "CONTENT_DRAFT_STORE_NOT_CONFIGURED"})

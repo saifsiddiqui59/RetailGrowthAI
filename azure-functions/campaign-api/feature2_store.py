@@ -1,7 +1,7 @@
-"""Feature #2 PostgREST persistence adapters; caller supplies already vetted credentials.
+"""Feature #2 storage: service-only shared data/writes and original JWT RLS reads.
 
-Shared trend data is accessed only with a backend key. Tenant content uses the
-verified *user* JWT and database RLS. No browser receives a service-role key.
+No browser ever sees the service role key. Membership is checked by the API before
+any tenant draft reads, and PostgREST independently enforces shop RLS.
 """
 from __future__ import annotations
 
@@ -89,8 +89,41 @@ def authorized_profile_reader(tenant_store):
 
 
 class TenantDraftStore:
-    def __init__(self, admin):
+    def __init__(self, admin, tenant_store=None):
         self.admin = admin
+        self.tenant_store = tenant_store
+
+    def list_drafts(self, token, shop_id, *, limit=5):
+        sid = canonical_uuid(shop_id)
+        if not 1 <= limit <= 5:
+            raise ValueError("invalid limit")
+        if self.tenant_store is None:
+            raise StorageUnavailable("RLS draft reader unavailable")
+        rows = self.tenant_store._request("shop_content_drafts", token, query={
+            "select": "id,shop_id,trend_id,review_state,created_at,content",
+            "shop_id": "eq." + sid, "order": "created_at.desc", "limit": str(limit),
+        })
+        if not isinstance(rows, list) or len(rows) > limit:
+            raise StorageUnavailable("invalid draft response")
+        result = []
+        for row in rows:
+            if not isinstance(row, dict) or row.get("shop_id") != sid or row.get("review_state") != "DRAFT":
+                raise StorageUnavailable("draft tenant or approval state mismatch")
+            content = row.get("content")
+            if not isinstance(content, dict) or not isinstance(content.get("campaign"), dict) or (
+                content["campaign"].get("shop_id") != sid
+            ) or not isinstance(content.get("content_days"), list):
+                raise StorageUnavailable("persisted draft contract mismatch")
+            review = content.get("review")
+            if not isinstance(review, dict) or review.get("status") != "DRAFT" or review.get("can_publish") is not False:
+                raise StorageUnavailable("draft requires retailer approval")
+            trend_id = row.get("trend_id")
+            if not isinstance(trend_id, str) or len(trend_id) != 32:
+                raise StorageUnavailable("invalid saved trend reference")
+            result.append({"id": canonical_uuid(row["id"]), "shop_id": sid,
+                           "trend_id": trend_id, "created_at": row.get("created_at"),
+                           "review_state": "DRAFT", "content": content})
+        return result
 
     def save_draft(self, token, user_id, shop_id, draft: dict):
         sid, uid = canonical_uuid(shop_id), canonical_uuid(user_id)
