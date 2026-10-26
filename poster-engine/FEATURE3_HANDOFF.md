@@ -43,6 +43,10 @@ handoff deliberately lives under Feature 3 ownership, not coordinator-owned
 - New synthetic tests exercise prompt->layout, no fabricated offer,
   PNG, cross-tenant and unauthorized image denial, provider gates,
   GIF/MP4, version/schema and browser undo/redo.
+- `sample_feature3.py` generates four clearly marked **synthetic/non-AI**
+  evidence outputs (retail garment PNG, text-only PNG, flashing discount GIF,
+  flashing discount MP4). The media test populates `ci-artifacts/feature3/`
+  for the existing CI artifact upload; it is not a real fashion model or try-on.
 
 ## P0/P1 gaps before product-ready or hosted demo
 
