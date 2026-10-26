@@ -38,3 +38,10 @@
 - [ ] Complete shadcn migration, visual QA and uncontracted social/publishing/inbox screens.
 - [ ] Coordinator reconciling shared PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG after PR integration; Feature 1 ownership deliberately avoids those concurrently edited docs.
 - [ ] Hosted, signed-in DEV acceptance remains separately blocked by Azure HTTP #249; offline browser mocks and local Supabase negative SQL are not hosted proof.
+
+## Follow-up after coordinator Feature 1 + 2 integration — 2026-10-26
+
+- Coordinator merged PR #328 to main. Feature #1 work now branches from the resulting main, not PR #319's older base. Do not merge duplicate old PR #319 over the combined Feature #2 route.
+- Feature #1's Overview, Media Library, recent Calendar and Settings share the last selected business in **sessionStorage only**, scoped by signed-in user UUID. Every read resolves the preference through current RLS-backed member shops; forged, removed, inactive, unrecognized-role, missing storage or different-user choices are not accepted. No new API, migration, background timer, paid service, or token persistence. Feature #2's owned TrendWorkspace remains untouched.
+- Added pure preference/invalid-membership tests and browser navigation/reload coverage. Coordinator handles the original shared docs (PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG) since feature chats must not overwrite those.
+- Known boundaries: this does not provide universal browser-tab synchronization, full cross-platform history, or hosted Azure E2E. PR CI remains offline.

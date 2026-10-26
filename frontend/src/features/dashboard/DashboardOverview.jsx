@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { useAuthorizedShops } from './useAuthorizedShops.js'
+import { useSelectedShop } from './useSelectedShop.js'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import sampleCampaign from '../campaigns/fixtures/sample-campaign.json'
@@ -11,12 +11,11 @@ const EMPTY = { campaigns: null, drafts: null, reelsReady: null, rendersProcessi
 
 export default function DashboardOverview() {
   const { client, configured, user, loading: authLoading } = useRetailAuth()
-  const [selectedShop, setSelectedShop] = useState('')
   // Keep query keys scoped to an authenticated principal. No stale counts are
   // shared with another user or business; the backend still enforces RLS.
   const shopsQuery = useAuthorizedShops({ client, user, configured })
   const shops = shopsQuery.data || []
-  const shopId = shops.some(s => s.id === selectedShop) ? selectedShop : (shops[0]?.id || '')
+  const { shopId, selectShop } = useSelectedShop({ user, shops })
   const live = configured && Boolean(user)
   const metricsQuery = useQuery({
     queryKey: ['dashboard', 'shop-metrics', user?.id, shopId],
@@ -51,7 +50,7 @@ export default function DashboardOverview() {
       </div>
       <div className="dashboard-filter-row">
         {live && shops.length > 0 && <label>Business
-          <select aria-label="Dashboard business" value={shopId} onChange={(event) => setSelectedShop(event.target.value)}>
+          <select aria-label="Dashboard business" value={shopId} onChange={(event) => selectShop(event.target.value)}>
             {shops.map((shop) => <option key={shop.id} value={shop.id}>{shop.name}</option>)}
           </select></label>}
         <span className={'data-mode ' + (live ? 'is-live' : 'is-demo')}>{live ? 'LIVE · Tenant-secured' : 'DEMO · Sample data'}</span>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuthorizedShops } from './useAuthorizedShops.js'
+import { useSelectedShop } from './useSelectedShop.js'
 import { Link } from 'react-router-dom'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { createCampaignApi } from '../campaigns/campaign-api.mjs'
@@ -9,7 +10,6 @@ import { recentCampaignHint, verifiedCampaignDays } from './recent-calendar-mode
 
 export default function RecentCampaignCalendar() {
   const { client, configured, user } = useRetailAuth()
-  const [requestedShopId, setRequestedShopId] = useState('')
   const [campaign, setCampaign] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -17,8 +17,7 @@ export default function RecentCampaignCalendar() {
   useEffect(() => () => { requestEpoch.current += 1 }, [])
   const shopsQuery = useAuthorizedShops({ client, user, configured })
   const shops = shopsQuery.data || []
-  const shopId = shops.some(shop => shop.id === requestedShopId)
-    ? requestedShopId : shops[0]?.id || ''
+  const { shopId, selectShop } = useSelectedShop({ user, shops })
   const api = useMemo(() => createCampaignApi({
     baseUrl: import.meta.env?.VITE_CAMPAIGN_API_BASE_URL || '',
     tokenProvider: () => client.getAccessToken(),
@@ -64,7 +63,7 @@ export default function RecentCampaignCalendar() {
         <div className="rg-library-tools">
           <label>Business
             <select aria-label="Calendar business" value={shopId}
-              onChange={event=>{requestEpoch.current += 1;setLoading(false);setRequestedShopId(event.target.value);setCampaign(null);setError('')}}>
+              onChange={event=>{requestEpoch.current += 1;setLoading(false);selectShop(event.target.value);setCampaign(null);setError('')}}>
               {shops.map(shop=><option value={shop.id} key={shop.id}>{shop.name}</option>)}
             </select>
           </label>
