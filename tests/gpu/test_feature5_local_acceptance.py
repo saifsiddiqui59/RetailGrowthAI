@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT))
 from feature5_motion import MotionSpec, validate_clip
 from feature5_motion.runner import HunyuanLocalRunner
 from feature5_motion.license_gate import HunyuanLicensePolicy
+from feature5_motion.artifact_lock import ArtifactLock
 
 APPROVED = (
     os.environ.get("RETAIL_FEATURE5_REAL_GPU_TEST", "").lower() == "true"
@@ -27,6 +28,8 @@ APPROVED = (
     and os.environ.get("RETAIL_FEATURE5_TENCENT_TERMS_REVIEWED") == "true"
     and bool(os.environ.get("RETAIL_FEATURE5_PROVIDER_LEGAL_NAME"))
     and bool(os.environ.get("RETAIL_FEATURE5_PUBLICATION_COUNTRIES"))
+    and bool(os.environ.get("RETAIL_FEATURE5_ARTIFACT_LOCK_PATH"))
+    and bool(os.environ.get("RETAIL_FEATURE5_APPROVED_LOCK_SHA256"))
 )
 
 
@@ -62,6 +65,10 @@ class TestHunyuanLocalGPU(unittest.TestCase):
             enabled=True, license_approved=True,
             gpu_budget_approved=True, timeout_seconds=1800,
             license_policy=policy,
+            artifact_lock=ArtifactLock(
+                Path(os.environ["RETAIL_FEATURE5_ARTIFACT_LOCK_PATH"]),
+                os.environ["RETAIL_FEATURE5_APPROVED_LOCK_SHA256"],
+            ),
         )
 
     def test_text_to_video_real_gpu(self):
