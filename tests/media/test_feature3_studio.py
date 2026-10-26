@@ -142,6 +142,24 @@ class Feature3Tests(unittest.TestCase):
             InferenceJob(shop_id=self.shop, job_id=str(uuid4()), capability="human_model",
                          prompt="underage model").validate(FLUX_KLEIN_4B)
 
+    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg missing on local runner")
+    def test_synthetic_sample_posters_and_animation_artifacts(self):
+        # Media CI already runs unittest discovery and uploads ci-artifacts/.
+        # Produce inspectable CI evidence without any customer data or AI.
+        from sample_feature3 import samples
+        outputs = samples(ROOT / "ci-artifacts" / "feature3")
+        self.assertEqual(len(outputs), 4)
+        for path in outputs:
+            self.assertTrue(path.is_file())
+            self.assertGreater(path.stat().st_size, 200)
+        with Image.open(outputs[0]) as image:
+            self.assertEqual(image.size, (1080, 1080))
+        with Image.open(outputs[1]) as image:
+            self.assertEqual(image.size, (1080, 1350))
+        with Image.open(outputs[2]) as gif:
+            self.assertEqual(gif.format, "GIF")
+            self.assertGreaterEqual(gif.n_frames, 2)
+
     def test_gpu_disabled_without_local_weights_or_licensed_parser(self):
         with self.assertRaises(ProviderBlocked):
             OfflineFluxKlein4B(self.root / "missing-gpu-weights")
