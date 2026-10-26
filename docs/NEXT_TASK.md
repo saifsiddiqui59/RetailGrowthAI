@@ -805,3 +805,9 @@ NaN
 2. Verify protected official South India Standard GPT-4.1-mini input/output Microsoft Retail Prices in the new read-only price probe; compare real subscription contract before price settings. Never call inference from a pricing probe.
 3. Existing DEV has 21 migrations and no AI budget tables; coordinator must obtain **separate hosted schema/backups/restore/migration-order** approval. Feature3 migration precedes ledger, so no blanket Supabase push. Synthetic ROOT/user approval and true JWT acceptance also separate.
 4. After protected gates, execute one real prompt and one real seven-day Thread & Loom Studio TEXT-ONLY test; record usage/cost, DRAFT and no publishing, verify USD0.20 cumulative. Hosted saved draft still needs authenticated clothing trends and licensed registered images. Current real call count **0**.
+
+
+## Feature2 2026-10-26 — Paid-model test authorized, separate protected schema/identity blocked
+1. Microsoft public South India GPT-4.1-mini Standard meters verified via read-only OIDC #40401262949 at $0.44 input / $1.76 output USD per million. Independently confirm account billing contract before changing Function settings.
+2. User approved USD0.20 TOTAL once for isolated DEV text model tests, max USD0.05 per call. Hosted RetailGrowthAI DEV still has only 21 applied versions, AI ledger tables absent, and Feature3 migration precedes Feature2. Do NOT bulk push; obtain separate reviewed DDL/backup/restore authorization and ROOT-approved test identities.
+3. After protected gates: enable only existing model and expiring one-shop atomic budget, run one real prompt and one real 7-day Thread & Loom Studio TEXT-ONLY sample, log actual Azure tokens/spend, review DRAFT and no auto-publish. Actual paid calls so far ZERO. Licensed private media+authentic fashion trend separately gate hosted saved drafts.
