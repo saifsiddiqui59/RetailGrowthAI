@@ -10,7 +10,7 @@ const MARKER = Object.freeze({
 });
 
 function respond(method, path) {
-  const response = routeControl(method, path, bearer);
+  const response = routeControl(method, path);
   return { ...response, headers: MARKER };
 }
 
