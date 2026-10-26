@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/retail-dev-feature2-pricing-readonly-once.yml
+      - scripts/ci/feature2_price_probe.py
 
 permissions:
   contents: read
