@@ -49,7 +49,7 @@ class TestFeature5EmptyEnvDeploymentPolicy(unittest.TestCase):
         self.assertEqual(len(actual), 1)
         self.assertIn("what-if", w)
         self.assertIn("from scripts.ci.feature5_arm_whatif_policy import validate_what_if", w)
-        self.assertIn("len(rows)==1", w)
+        self.assertIn("result=validate_what_if(data,sys.argv[2],sys.argv[3],sys.argv[4])", w)
         self.assertIn("rgai-f5-empty-env-20261026", w)
         for phrase in ("az containerapp job create", "az containerapp create", "az containerapp env create",
                        "az role assignment create", "az provider register", "az deployment group delete",
