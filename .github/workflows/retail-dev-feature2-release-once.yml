@@ -24,7 +24,7 @@ env:
 jobs:
   backend:
     name: Publish existing Functions with licensed FFmpeg and Feature2 trends
-    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release(dev): activate reviewed RetailGrowthAI Feature2')
+    if: "github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release(dev): activate reviewed RetailGrowthAI Feature2')"
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment: dev
