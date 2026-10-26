@@ -87,6 +87,8 @@ jobs:
           test "$(az functionapp show -g "$RG" -n "$APP" --query name -o tsv)" = "$APP"
           test "$(az storage account show -g "$RG" -n "$STORAGE" --query name -o tsv)" = "$STORAGE"
           test "$(az staticwebapp show -g "$RG" -n "$SWA" --query name -o tsv)" = "$SWA"
+          test "$(az staticwebapp show -g "$RG" -n "$SWA" --query defaultHostname -o tsv)" = "purple-dune-06b5da200.2.azurestaticapps.net"
+          test "$(az staticwebapp show -g "$RG" -n "$SWA" --query sku.name -o tsv | tr '[:upper:]' '[:lower:]')" = "free"
           az functionapp config appsettings list -g "$RG" -n "$APP" --query '[].name' -o tsv > "$RUNNER_TEMP/names"
           for name in RETAIL_SUPABASE_URL RETAIL_SUPABASE_SERVICE_ROLE_KEY RETAIL_SUPABASE_PUBLISHABLE_KEY RETAIL_STORAGE; do
             grep -Fxq "$name" "$RUNNER_TEMP/names" || { echo "::error::Missing existing server-only setting: $name"; exit 3; }
