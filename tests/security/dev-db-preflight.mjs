@@ -28,9 +28,23 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261024180000_p1_poster_dispatch_schema_usage.sql',
   '20261024190000_p1_platform_operations.sql',
   '20261026152000_feature2_trends_drafts.sql',
+  // CLI-generated, 2026-10-26T15:21:02Z, reviewed P0 #249 Reel RPC source.
+  '20261026152102_p0_249_reel_render_intent.sql',
 ]);
 
 const CAPABILITIES = {
+  '20261026152102': [
+    /create function retail_private[.]python_json_v1/i,
+    /create function retail_private[.]request_reel_render_job_internal/i,
+    /security definer set search_path = ''/i,
+    /create function public[.]request_reel_render_job/i,
+    /security invoker set search_path = ''/i,
+    /if music = any[(]ids[)] then return null/i,
+    /revoke all on function public[.]request_reel_render_job/i,
+    /grant execute on function public[.]request_reel_render_job/i,
+    /subscription/i,
+    /idempotency_key/i,
+  ],
   '20261022085124': [/enable row level security/i, /create table public\.shops/i, /create table public\.shop_memberships/i],
   '20261022085132': [/storage\.buckets/i, /retailgrowth-media/i],
   '20261022100400': [/claim_campaign_job/i],
