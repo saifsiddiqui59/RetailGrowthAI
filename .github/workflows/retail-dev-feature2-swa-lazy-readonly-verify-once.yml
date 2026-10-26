@@ -21,6 +21,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pytest -q tests/ai/test_feature2_swa_lazy_chunk_verify.py
+          # Offline unit tests run in the mandatory Python CI job; no network pip install here.
           python3 scripts/deploy/verify_feature2_lazy_swa.py
           echo "FEATURE2_EXISTING_FREE_SWA_LIVE_READONLY_VERIFIED=true"
