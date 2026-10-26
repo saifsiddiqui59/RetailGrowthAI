@@ -86,7 +86,7 @@ test("strict origin and canonical UUID rules",()=>{
     assert.throws(()=>createSupabaseVerifier({origin}));
   }
   assert.equal(canonicalUuid(USER),USER);
-  for(const bad of [USER.toUpperCase(),"../other","not-uuid","",null]) assert.throws(()=>canonicalUuid(bad));
+  for(const bad of ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa".toUpperCase(),"../other","not-uuid","",null]) assert.throws(()=>canonicalUuid(bad));
 });
 function tenantFetch({rows={},rejectMembership=false,badCrossShop=false}={}){
   const calls=[];
