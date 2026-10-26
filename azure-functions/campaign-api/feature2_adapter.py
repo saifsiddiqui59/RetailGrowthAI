@@ -10,6 +10,7 @@ from uuid import UUID
 
 from ai_agents.content_intelligence import RetailerProfile, create_content_draft
 from ai_agents.schemas import CampaignBrief, ContractError
+from ai_agents.providers import FoundryUnavailable
 from ai_agents.trend_intelligence import recommendations
 from security import AuthenticationError
 from tenant_store import StorageUnavailable, canonical_uuid
@@ -17,16 +18,17 @@ from tenant_store import StorageUnavailable, canonical_uuid
 
 class TrendFeatureAdapter:
     def __init__(self, verify_token, tenant_store, profile_reader=None,
-                 snapshot_store=None, draft_store=None, clock=None):
+                 snapshot_store=None, draft_store=None, clock=None, ai_service=None):
         self.verify_token = verify_token
         self.tenant_store = tenant_store
         self.profile_reader = profile_reader
         self.snapshot_store = snapshot_store
         self.draft_store = draft_store
+        self.ai_service = ai_service
         self.clock = clock or (lambda: datetime.now(timezone.utc))
 
     def handle(self, method: str, shop_id: str, authorization: str,
-               payload: dict | None = None) -> tuple[int, dict]:
+               payload: dict | None = None, *, ai_mode=False) -> tuple[int, dict]:
         try:
             sid = canonical_uuid(shop_id)
             if not isinstance(authorization, str) or not authorization.startswith("Bearer "):
@@ -98,8 +100,15 @@ class TrendFeatureAdapter:
             # existing live model and expensive jobs require coordinator gates.
             from uuid import uuid4
             campaign_id = str(uuid4())
-            draft = create_content_draft(brief, retailer, campaign_id=campaign_id,
-                                         now=now, trend=chosen)
+            if ai_mode:
+                if self.ai_service is None:
+                    return 503, {"error": "AI_NOT_ENABLED_OR_NOT_APPROVED"}
+                draft = self.ai_service.draft(
+                    brief=brief, retailer=retailer, campaign_id=campaign_id,
+                    now=now, trend=chosen, shop_id=sid, actor_id=user_id)
+            else:
+                draft = create_content_draft(brief, retailer, campaign_id=campaign_id,
+                                             now=now, trend=chosen)
             # Non-sensitive correlation nonce for read-after-uncertain-POST.
             # Not a DB idempotency lock: clients MUST NOT replay a POST just
             # because Azure timed out before returning the insert acknowledgement.
@@ -118,9 +127,11 @@ class TrendFeatureAdapter:
             return 403, {"error": "FORBIDDEN"}
         except StorageUnavailable:
             return 503, {"error": "TREND_STORAGE_UNAVAILABLE"}
+        except FoundryUnavailable:
+            return 503, {"error": "AI_MODEL_UNAVAILABLE"}
 
     def improve(self, shop_id: str, authorization: str,
-                payload: dict | None) -> tuple[int, dict]:
+                payload: dict | None, *, ai_mode=False) -> tuple[int, dict]:
         """Zero-paid-inference editorial preview. No trends, media or DB writes.
 
         Only authenticated OWNER/EDITOR, with server-read RLS business context.
@@ -150,11 +161,20 @@ class TrendFeatureAdapter:
                 return 404, {"error": "NOT_FOUND"}
             if not isinstance(row.get("city"), str) or not row["city"].strip():
                 return 422, {"error": "BUSINESS_PROFILE_INCOMPLETE"}
-            from ai_agents.prompt_improver import improve_prompt
-            result = improve_prompt(
-                payload["original_prompt"], RetailerProfile.from_authorized(row),
-                output_formats=payload["output_formats"], language=payload["language"],
-            )
+            profile = RetailerProfile.from_authorized(row)
+            if ai_mode:
+                if self.ai_service is None:
+                    return 503, {"error": "AI_NOT_ENABLED_OR_NOT_APPROVED"}
+                result = self.ai_service.improve(
+                    original_prompt=payload["original_prompt"], retailer=profile,
+                    output_formats=payload["output_formats"],
+                    language=payload["language"], shop_id=sid, actor_id=uid)
+            else:
+                from ai_agents.prompt_improver import improve_prompt
+                result = improve_prompt(
+                    payload["original_prompt"], profile,
+                    output_formats=payload["output_formats"], language=payload["language"],
+                )
             return 200, {"shop_id": sid, **result}
         except AuthenticationError:
             return 401, {"error": "UNAUTHORIZED"}
@@ -164,6 +184,8 @@ class TrendFeatureAdapter:
             return 403, {"error": "FORBIDDEN"}
         except StorageUnavailable:
             return 503, {"error": "PROFILE_UNAVAILABLE"}
+        except FoundryUnavailable:
+            return 503, {"error": "AI_MODEL_UNAVAILABLE"}
 
     def list_drafts(self, shop_id: str, authorization: str) -> tuple[int, dict]:
         """Read saved drafts with the *user's* RLS identity, even when RSS is down."""

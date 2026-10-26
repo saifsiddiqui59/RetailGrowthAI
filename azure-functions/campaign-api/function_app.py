@@ -281,15 +281,46 @@ def build_feature2_api():
     tenant = TenantStore(origin, key)
     admin = AdminStore(origin, service_key)
     shared = TrendSnapshotStore(admin)
+    # Real paid AI is an independent, strictly OFF-by-default server feature.
+    # A valid configuration is not cost approval: the database RPC still
+    # checks operator-enabled per-shop budgets/roles/subscriptions atomically.
+    ai_service = None
+    if os.environ.get("RETAIL_FEATURE2_REAL_AI_ENABLED") == "true":
+        required = ("RETAIL_FOUNDRY_ENDPOINT", "RETAIL_FOUNDRY_DEPLOYMENT",
+                    "RETAIL_FOUNDRY_API_KEY", "RETAIL_FEATURE2_INPUT_USD_PER_MILLION",
+                    "RETAIL_FEATURE2_OUTPUT_USD_PER_MILLION",
+                    "RETAIL_FEATURE2_MAX_CALL_USD")
+        if all(os.environ.get(name) for name in required):
+            from feature2_ai_activation import Feature2AiActivation
+            try:
+                ai_service = Feature2AiActivation(
+                    admin,
+                    endpoint=os.environ["RETAIL_FOUNDRY_ENDPOINT"],
+                    deployment=os.environ["RETAIL_FOUNDRY_DEPLOYMENT"],
+                    api_key=os.environ["RETAIL_FOUNDRY_API_KEY"],
+                    input_usd_per_million=float(os.environ["RETAIL_FEATURE2_INPUT_USD_PER_MILLION"]),
+                    output_usd_per_million=float(os.environ["RETAIL_FEATURE2_OUTPUT_USD_PER_MILLION"]),
+                    approved_max_cost_usd=float(os.environ["RETAIL_FEATURE2_MAX_CALL_USD"]),
+                )
+            except ValueError:
+                # A bad optional model configuration cannot disable ordinary
+                # deterministic Feature2 endpoints. Paid AI continues OFF.
+                ai_service = None
     return TrendFeatureAdapter(
         SupabaseJWTVerifier(origin), tenant,
         profile_reader=authorized_profile_reader(tenant),
         snapshot_store=shared, draft_store=TenantDraftStore(admin, tenant),
+        ai_service=ai_service,
     )
 
 
 def dispatch_feature2(request, shop_id, *, method, resource="trends"):
-    path = "/shops/{shop_id}/" + ({"trends": "trend-recommendations", "drafts": "content-drafts", "prompt": "improve-prompt"}[resource])
+    path = "/shops/{shop_id}/" + ({
+        "trends": "trend-recommendations", "drafts": "content-drafts",
+        "prompt": "improve-prompt", "prompt_ai": "improve-prompt-ai",
+        "draft_ai": "content-drafts-ai",
+    }[resource])
+    ai_mode = resource in ("prompt_ai", "draft_ai")
     diagnostics = RequestDiagnostics(method, path)
     try:
         handler = build_feature2_api()
@@ -301,15 +332,17 @@ def dispatch_feature2(request, shop_id, *, method, resource="trends"):
             except ValueError:
                 code, body = 400, {"error": "INVALID_REQUEST"}
             else:
-                if resource == "prompt" and method == "POST":
+                if resource in ("prompt", "prompt_ai") and method == "POST":
                     code, body = handler.improve(
-                        shop_id, request.headers.get("Authorization", ""), payload)
+                        shop_id, request.headers.get("Authorization", ""), payload,
+                        ai_mode=ai_mode)
                 elif resource == "drafts" and method == "GET":
                     code, body = handler.list_drafts(
                         shop_id, request.headers.get("Authorization", ""))
                 else:
                     code, body = handler.handle(
-                        method, shop_id, request.headers.get("Authorization", ""), payload)
+                        method, shop_id, request.headers.get("Authorization", ""), payload,
+                        ai_mode=ai_mode)
     except (KeyError, ValueError):
         code, body = 503, {"error": "TREND_STORAGE_NOT_CONFIGURED"}
     except Exception:
@@ -337,6 +370,20 @@ def create_retailer_trend_draft(req: func.HttpRequest) -> func.HttpResponse:
 def improve_retailer_prompt(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch_feature2(req, req.route_params["shop_id"],
                              method="POST", resource="prompt")
+
+
+# Both new model endpoints are additive; original template routes remain
+# backwards-compatible and free. No model call without JWT/RLS plus DB budget.
+@app.route(route="shops/{shop_id}/improve-prompt-ai", methods=["POST"])
+def improve_retailer_prompt_with_ai(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch_feature2(req, req.route_params["shop_id"],
+                             method="POST", resource="prompt_ai")
+
+
+@app.route(route="shops/{shop_id}/content-drafts-ai", methods=["POST"])
+def create_retailer_trend_draft_with_ai(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch_feature2(req, req.route_params["shop_id"],
+                             method="POST", resource="draft_ai")
 
 
 @app.timer_trigger(schedule="0 15 5 * * *", arg_name="timer",
