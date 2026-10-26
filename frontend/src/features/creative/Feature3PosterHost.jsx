@@ -3,8 +3,7 @@
  * without a user action, signed JWT, same-shop RLS media checks and private
  * Storage binary validation. No public images, inferred rights or paid GPU.
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
-import PosterStudio from './PosterStudio.jsx'
+import { cloneElement, useEffect, useMemo, useRef, useState } from 'react'
 import { createFeature3Api } from './feature3-api.mjs'
 
 const enabled = import.meta.env?.VITE_FEATURE3_V2_ENABLED === 'true'
@@ -21,7 +20,7 @@ function decodeObjectUrl(url) {
   })
 }
 
-export default function Feature3PosterHost({ client, shopId, ...posterProps }) {
+export default function Feature3PosterHost({ client, shopId, children }) {
   const api = useMemo(() => enabled && client?.configured &&
     import.meta.env?.VITE_CAMPAIGN_API_BASE_URL
     ? createFeature3Api({
@@ -80,8 +79,11 @@ export default function Feature3PosterHost({ client, shopId, ...posterProps }) {
         ? 'Private shop models loaded for local preview. Server approval and rights are rechecked on save.'
         : 'No currently accessible approved shop models. Other shops’ media remains private.')
     } catch {
-      if (request === nonce.current)
+      if (request === nonce.current) {
+        opened.forEach(url => URL.revokeObjectURL(url))
+        urls.current = []
         setMessage('Private model library unavailable; existing poster tools remain usable.')
+      }
     } finally {
       if (request !== nonce.current) {
         opened.forEach(url => URL.revokeObjectURL(url))
@@ -91,7 +93,7 @@ export default function Feature3PosterHost({ client, shopId, ...posterProps }) {
     }
   }
 
-  if (!api || !shopId) return <PosterStudio {...posterProps}/>
+  if (!api || !shopId) return children
   return <section aria-label="Feature3 private poster workspace">
     <div style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:8}}>
       <button type="button" disabled={busy} onClick={loadPrivateModels}>
@@ -100,7 +102,7 @@ export default function Feature3PosterHost({ client, shopId, ...posterProps }) {
       <small>No paid AI or background downloads. Limited to five private previews.</small>
     </div>
     {message && <p role="status">{message}</p>}
-    <PosterStudio {...posterProps} feature3Api={api}
-      approvedModels={models} authenticatedModelImageMap={imageMap}/>
+    {cloneElement(children, {feature3Api:api, approvedModels:models,
+      authenticatedModelImageMap:imageMap})}
   </section>
 }
