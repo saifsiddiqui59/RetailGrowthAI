@@ -205,8 +205,10 @@ test('a failed directory page does not invent zero platform metrics or warnings'
 })
 
 test('root console mobile layout uses shared cards and no subscription mutations on view',async ({page})=>{
-  await page.setViewportSize({width:320,height:740})
+  // The shared login helper asserts desktop sidebar visibility; verify it
+  // before narrowing to the intentionally collapsed mobile navigation.
   const calls=await loginAs(page,'ROOT')
+  await page.setViewportSize({width:320,height:740})
   await page.goto('/platform-admin')
   await expect(page.getByRole('heading',{name:'Platform Control'})).toBeVisible()
   await expect(page.getByRole('region',{name:'Platform overview metrics'})
