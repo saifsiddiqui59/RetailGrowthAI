@@ -1,6 +1,5 @@
--- Feature2 proposed AI ledger acceptance, strictly CI disposable PostgreSQL.
--- CI has first applied ALL canonical migrations and then only the reviewed
--- PROPOSAL SQL (not a canonical migration or hosted DEV schema change).
+-- Feature2 canonical AI ledger acceptance, strictly CI disposable PostgreSQL.
+-- CI has applied canonical migrations only in the disposable DB.
 -- This file has no effect on persistent data: every fixture rolls back.
 \set ON_ERROR_STOP on
 begin;
@@ -9,7 +8,7 @@ do $preflight$
 begin
   if to_regclass('public.shop_ai_budget_controls') is null or
      to_regclass('public.shop_ai_spend_reservations') is null then
-    raise exception 'Feature2 AI proposed cost schema missing in disposable DB';
+    raise exception 'Feature2 AI canonical cost schema missing in disposable DB';
   end if;
   if has_table_privilege('anon','public.shop_ai_budget_controls','SELECT') or
      has_table_privilege('authenticated','public.shop_ai_budget_controls','INSERT') or
@@ -18,10 +17,10 @@ begin
      has_table_privilege('authenticated','public.shop_ai_spend_reservations','UPDATE') then
     raise exception 'Browser role can see/forge AI spend or approve budget';
   end if;
-  if has_function_privilege('anon','public.feature2_reserve_ai_budget(uuid,uuid,text,numeric)','EXECUTE') or
-     has_function_privilege('authenticated','public.feature2_reserve_ai_budget(uuid,uuid,text,numeric)','EXECUTE') or
+  if has_function_privilege('anon','public.feature2_reserve_ai_budget(uuid,uuid,text,numeric,uuid)','EXECUTE') or
+     has_function_privilege('authenticated','public.feature2_reserve_ai_budget(uuid,uuid,text,numeric,uuid)','EXECUTE') or
      has_function_privilege('authenticated','public.feature2_settle_ai_budget(uuid,numeric)','EXECUTE') or
-     not has_function_privilege('service_role','public.feature2_reserve_ai_budget(uuid,uuid,text,numeric)','EXECUTE') then
+     not has_function_privilege('service_role','public.feature2_reserve_ai_budget(uuid,uuid,text,numeric,uuid)','EXECUTE') then
     raise exception 'Cost RPC is not strict service-role only';
   end if;
   if (select count(*) from pg_catalog.pg_proc p
@@ -61,7 +60,7 @@ begin
   begin
     perform public.feature2_reserve_ai_budget(
       'f2b00000-0000-4000-8000-000000000001',
-      'f2a00000-0000-4000-8000-000000000001','prompt',0.001);
+      'f2a00000-0000-4000-8000-000000000001','prompt',0.001,'f2d00000-0000-4000-8000-000000000001');
     raise exception 'Authenticated user executed privileged spend RPC';
   exception when insufficient_privilege then null;
   end;
@@ -83,7 +82,7 @@ begin
   begin
     perform public.feature2_reserve_ai_budget(
       'f2b00000-0000-4000-8000-000000000001',
-      'f2a00000-0000-4000-8000-000000000001','prompt',0.001);
+      'f2a00000-0000-4000-8000-000000000001','prompt',0.001,'f2d00000-0000-4000-8000-000000000001');
     raise exception 'No approved budget unexpectedly enabled a paid model';
   exception when sqlstate 'RG003' then null;
   end;
@@ -98,7 +97,7 @@ begin
   begin
     perform public.feature2_reserve_ai_budget(
       'f2b00000-0000-4000-8000-000000000001',
-      'f2a00000-0000-4000-8000-000000000001','prompt',0.001);
+      'f2a00000-0000-4000-8000-000000000001','prompt',0.001,'f2d00000-0000-4000-8000-000000000001');
     raise exception 'Explicit disabled budget row permitted paid inference';
   exception when sqlstate 'RG003' then null;
   end;
@@ -112,28 +111,28 @@ begin
   begin
     perform public.feature2_reserve_ai_budget(
       'f2b00000-0000-4000-8000-000000000001',
-      'f2a00000-0000-4000-8000-000000000002','prompt',0.001);
+      'f2a00000-0000-4000-8000-000000000002','prompt',0.001,'f2d00000-0000-4000-8000-000000000001');
     raise exception 'VIEWER was permitted to spend tenant budget';
   exception when insufficient_privilege then null;
   end;
   begin
     perform public.feature2_reserve_ai_budget(
       'f2b00000-0000-4000-8000-000000000001',
-      'f2a00000-0000-4000-8000-000000000003','prompt',0.001);
+      'f2a00000-0000-4000-8000-000000000003','prompt',0.001,'f2d00000-0000-4000-8000-000000000001');
     raise exception 'Foreign actor was permitted to spend tenant budget';
   exception when insufficient_privilege then null;
   end;
   begin
     perform public.feature2_reserve_ai_budget(
       'f2b00000-0000-4000-8000-000000000001',
-      'f2a00000-0000-4000-8000-000000000001','unknown',0.001);
+      'f2a00000-0000-4000-8000-000000000001','unknown',0.001,'f2d00000-0000-4000-8000-000000000001');
     raise exception 'Unknown operation reached model ledger';
   exception when invalid_parameter_value then null;
   end;
   begin
     perform public.feature2_reserve_ai_budget(
       'f2b00000-0000-4000-8000-000000000001',
-      'f2a00000-0000-4000-8000-000000000001','prompt',0.051);
+      'f2a00000-0000-4000-8000-000000000001','prompt',0.051,'f2d00000-0000-4000-8000-000000000001');
     raise exception 'Over-USD0.05 attempt bypassed hard cap';
   exception when invalid_parameter_value then null;
   end;
@@ -145,7 +144,7 @@ create temp table feature2_test_receipt (id uuid) on commit drop;
 insert into feature2_test_receipt
  select public.feature2_reserve_ai_budget(
    'f2b00000-0000-4000-8000-000000000001',
-   'f2a00000-0000-4000-8000-000000000001','prompt',0.003);
+   'f2a00000-0000-4000-8000-000000000001','prompt',0.003,'f2d00000-0000-4000-8000-000000000001');
 
 do $settlement$
 declare
@@ -173,7 +172,14 @@ begin
   begin
     perform public.feature2_reserve_ai_budget(
       'f2b00000-0000-4000-8000-000000000001',
-      'f2a00000-0000-4000-8000-000000000001','prompt',0.001);
+      'f2a00000-0000-4000-8000-000000000001','prompt',0.003,'f2d00000-0000-4000-8000-000000000001');
+    raise exception 'Same request nonce was permitted to bill twice';
+  exception when sqlstate 'RG005' then null;
+  end;
+  begin
+    perform public.feature2_reserve_ai_budget(
+      'f2b00000-0000-4000-8000-000000000001',
+      'f2a00000-0000-4000-8000-000000000001','prompt',0.001,'f2d00000-0000-4000-8000-000000000002');
     raise exception 'Trial quota permitted second model request despite used-count';
   exception when sqlstate 'RG004' then null;
   end;
@@ -187,7 +193,7 @@ begin
   begin
     perform public.feature2_reserve_ai_budget(
       'f2b00000-0000-4000-8000-000000000001',
-      'f2a00000-0000-4000-8000-000000000001','campaign_copy',0.001);
+      'f2a00000-0000-4000-8000-000000000001','campaign_copy',0.001,'f2d00000-0000-4000-8000-000000000001');
     raise exception 'Expired budget silently reactivated';
   exception when sqlstate 'RG003' then null;
   end;
