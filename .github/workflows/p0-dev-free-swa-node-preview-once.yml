@@ -135,6 +135,36 @@ jobs:
           curl -fsSL --max-time 15 'https://purple-dune-06b5da200.2.azurestaticapps.net/account' -o "$RUNNER_TEMP/live.html"
           grep -Fq 'id="root"' "$RUNNER_TEMP/live.html"
           echo "P0_249_NODE_FREE_PREVIEW_ACCEPTED=true"
+      - name: Prove custom JWT transport header reaches named Free preview (SYNTHETIC ONLY)
+        shell: bash
+        env:
+          PREVIEW: ${{ steps.preview.outputs.static_web_app_url }}
+        run: |
+          set -euo pipefail
+          # No Supabase JWT, credentials, customer data or write route is used.
+          test -n "$PREVIEW"
+          test "$PREVIEW" = "https://purple-dune-06b5da200-p0249node.eastasia.2.azurestaticapps.net"
+          route="$PREVIEW/api/p0-jwt-transport-lite"
+          no_header="$(curl -sS --connect-timeout 3 --max-time 15 -o "$RUNNER_TEMP/no-header.json" -w '%{http_code}' "$route")"
+          test "$no_header" = "401"
+          bearer_only="$(curl -sS --connect-timeout 3 --max-time 15 -H 'Authorization: Bearer synthetic-not-a-real-token' -o "$RUNNER_TEMP/bearer-only.json" -w '%{http_code}' "$route")"
+          test "$bearer_only" = "401"
+          verified="$(curl -sS --connect-timeout 3 --max-time 15 -D "$RUNNER_TEMP/header-proof-headers" -o "$RUNNER_TEMP/header-proof.json" -w '%{http_code} %{time_total}' -H 'x-rgai-supabase-jwt: p0249-public-synthetic-header-proof' "$route")"
+          read -r status duration <<< "$verified"
+          test "$status" = "200"
+          grep -iq '^x-p0-control: node-v4' "$RUNNER_TEMP/header-proof-headers"
+          python3 - "$RUNNER_TEMP/header-proof.json" <<'PY'
+          import json,sys
+          value=json.load(open(sys.argv[1]))
+          assert value=={"transport":"CUSTOM_HEADER_DELIVERED_SYNTHETIC_ONLY"}
+          assert "p0249-public-synthetic-header-proof" not in json.dumps(value)
+          print("P0_249_HEADER_VALUE_NOT_REFLECTED=true")
+          PY
+          echo "P0_249_SYNTHETIC_CUSTOM_HEADER_FORWARDED=true HTTP=$status seconds=$duration"
+          # This only proves custom-header forwarding to a synthetic Node handler.
+          # It is NOT Supabase JWT verification, signed-in E2E or Node cutover.
+          echo "P0_249_REAL_JWT_E2E=UNVERIFIED"
+
       - name: Azure logout
         if: always()
         run: az logout >/dev/null 2>&1 || true
