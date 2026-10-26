@@ -31,9 +31,9 @@ def test_azure_cli_is_read_only_and_never_reads_key_values():
     permitted={"show","list","logout"}
     assert all((line.split()[2] if line.startswith("az account ") else
                 line.split()[2] if line.startswith("az group ") else
-                line.split()[3] if line.startswith("az cognitiveservices account deployment ") else
+                line.split()[4] if line.startswith("az cognitiveservices account deployment ") else
                 line.split()[3] if line.startswith("az cognitiveservices account ") else
-                line.split()[3] if line.startswith("az functionapp config appsettings ") else
+                line.split()[4] if line.startswith("az functionapp config appsettings ") else
                 line.split()[2] if line.startswith("az functionapp ") else
                 line.split()[1]) in permitted for line in commands)
     assert not any(re.search(r"\baz\s+.*\b(create|delete|update|set|keys)\b",line)
