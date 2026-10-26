@@ -10,6 +10,7 @@ import PlatformAlerts from './features/platform/PlatformAlerts.jsx'
 import LoginPage from './auth/LoginPage.jsx'
 import WorkspacePage from './features/dashboard/WorkspacePages.jsx'
 import MediaLibrary from './features/dashboard/MediaLibrary.jsx'
+import RecentCampaignCalendar from './features/dashboard/RecentCampaignCalendar.jsx'
 import './features/dashboard/dashboard-v2.css'
 
 const links = [
@@ -181,7 +182,7 @@ function AppShell() {
             <Route path="/business" element={<DashboardOverview />} />
             <Route path="/campaigns" element={<CampaignDashboard />} />
             <Route path="/subscription" element={<SubscriptionPage />} />
-            <Route path="/calendar" element={<WorkspacePage section="calendar" />} />
+            <Route path="/calendar" element={<RecentCampaignCalendar />} />
             <Route path="/creative-studio" element={<WorkspacePage section="creative" />} />
             <Route path="/media-library" element={<MediaLibrary />} />
             <Route path="/connections" element={<WorkspacePage section="connections" />} />
