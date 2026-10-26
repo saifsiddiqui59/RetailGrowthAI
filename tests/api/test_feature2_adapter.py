@@ -95,3 +95,34 @@ def test_cross_shop_profile_leak_is_denied():
         p["shop_id"] = str(uuid4())
         return p
     assert make_adapter(reader=evil).handle("GET", SHOP, "Bearer signed-1")[0] == 404
+
+
+def test_new_retailer_missing_city_is_guided_without_fabricating_trends_or_saving():
+    def incomplete(token, user, sid):
+        record = profile(token, user, sid)
+        record["city"] = ""
+        record["category"] = "general"
+        record["products"] = []
+        return record
+
+    class MustNotLoad:
+        def load(self, region):
+            raise AssertionError("An incomplete business must not load or personalize trends")
+
+    drafts = Drafts()
+    api = make_adapter(drafts, incomplete)
+    api.snapshot_store = MustNotLoad()
+    status, body = api.handle("GET", SHOP, "Bearer signed-1")
+    assert status == 200
+    assert body == {
+        "shop_id": SHOP, "profile_required": True,
+        "recommendations": [], "sources": [], "complete": False,
+        "observed_at": None,
+    }
+    status, body = api.handle("POST", SHOP, "Bearer signed-1", {
+        "trend_id": S["trends"][0]["trend_id"], "campaign": campaign(),
+    })
+    assert (status, body) == (422, {"error": "BUSINESS_PROFILE_INCOMPLETE"})
+    assert drafts.saved == []
+    assert api.handle("GET", SHOP, "Bearer forged")[0] == 401
+    assert api.handle("GET", str(uuid4()), "Bearer signed-1")[0] == 404
