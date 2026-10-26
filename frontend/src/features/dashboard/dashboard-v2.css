@@ -57,3 +57,15 @@
 :root[data-rg-theme="dark"] .retail-shell .rg-state-label {color:#a9ebd7;background:#173f35;border-color:#336a5e}
 :root[data-rg-theme="dark"] .retail-shell .rg-skeleton {background:#283a4b}
 @media(prefers-reduced-motion:reduce){.retail-shell .sidebar,.retail-shell *{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+@media(max-width:360px){
+ .retail-shell .topbar {gap:7px;padding-inline:8px}
+ .retail-shell .topbar-context {gap:7px;flex:1;min-width:0}
+ .retail-shell .topbar-context > div {min-width:0}
+ .retail-shell .topbar-context strong {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+ .retail-shell .topbar-right {gap:5px;flex:0 0 auto}
+ .retail-shell .rg-theme-copy {display:none}
+ .retail-shell .rg-theme-button {width:34px;height:34px;min-height:34px;display:grid;place-items:center;padding:0}
+ .retail-shell .account-trigger {padding:4px;border-radius:9px}
+ .retail-shell .account-trigger .avatar {width:30px;height:30px;flex-basis:30px}
+}
