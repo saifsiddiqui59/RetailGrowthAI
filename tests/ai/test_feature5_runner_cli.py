@@ -32,6 +32,10 @@ class TestOfficialHunyuanCLI(unittest.TestCase):
             checkout=self.checkout, weights=self.weights, enabled=True,
             license_approved=True, gpu_budget_approved=True, timeout_seconds=30,
         )
+        # CPU-only mock test: never discover or rent actual GPU hardware.
+        self.gpu_preflight = patch.object(HunyuanLocalRunner, "_require_supported_gpu")
+        self.gpu_preflight.start()
+        self.addCleanup(self.gpu_preflight.stop)
 
     def spec(self, mode="text"):
         return MotionSpec(job_id=uid(), shop_id=uid(), prompt="Adult model in boutique",
@@ -88,6 +92,14 @@ class TestOfficialHunyuanCLI(unittest.TestCase):
             with self.assertRaisesRegex(MotionError, "timeout"):
                 self.runner.run(self.spec(), source_file=None, workdir=self.workdir)
             kill.assert_called_once()
+
+    def test_unsupported_cuda_hardware_cannot_launch(self):
+        with patch.object(self.runner, "_require_supported_gpu",
+                          side_effect=MotionError("Approved CUDA BF16 GPU is unavailable")):
+            with patch("feature5_motion.runner.subprocess.Popen") as popen:
+                with self.assertRaisesRegex(MotionError, "BF16"):
+                    self.runner.run(self.spec(), source_file=None, workdir=self.workdir)
+                popen.assert_not_called()
 
     def test_reject_output_overwrite_before_launch(self):
         (self.workdir / "motion.mp4").write_bytes(b"already generated")
