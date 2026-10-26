@@ -128,9 +128,11 @@ def improve_prompt(
     if flagged_fields:
         flags.append("Offer-like claims in profile fields were excluded until independently verified.")
     warnings = [
-        "Business context comes from the server-authorized retailer profile, not typed browser fields.",
-        "Exact user request is retained; additional copy instructions are editorial guidance only.",
-        "Marketing claims and media rights require separate human approval.",
+        "Added the server-authorized business name and city so copy can refer to the correct retailer.",
+        "Added the authorized audience, brand voice, objective and CTA for more relevant hooks.",
+        "Expanded the selected channels into their own creative brief styles instead of one generic post.",
+        "Requested distinct day themes, restrained hashtags and DRAFT review to reduce repetition and unsupported claims.",
+        "The original request is unchanged; offers, media rights and product claims still require approval.",
     ]
     result_prompt = base
     usage = {"paid_inference_calls": 0, "estimated_paid_cost_usd": 0, "provider": "local_templates"}
