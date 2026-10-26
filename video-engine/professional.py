@@ -245,6 +245,9 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
             else:
                 media_markup = f'<img class="product-photo" src="{src}" alt="" decoding="sync">'
         headline = clean_text(scene["headline"], "headline")
+        # Bound headline typography for the narrow 9:16 canvas; preserve all approved text.
+        title_length = len(scene["headline"].strip())
+        title_font = max(24, width // (10 if title_length <= 32 else 15 if title_length <= 70 else 20))
         offer = clean_text(scene.get("offer"), "offer", optional=True)
         offer_markup = f'<p class="offer">{offer}</p>' if offer else ""
         leading_video = media_markup if aid and ordered[aid][1] == "video" else ""
@@ -255,7 +258,7 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
             f'style="--span:{length}s">'
             f'<div class="halo"></div><div class="photo-wrap">{scene_image}</div>'
             f'<div class="glass"><p class="kicker">{k} / {i+1:02d}</p>'
-            f'<h1>{headline}</h1>{offer_markup}</div>'
+            f'<h1 style="font-size:{title_font}px">{headline}</h1>{offer_markup}</div>'
             f'<p class="index">RG · {i+1:02d} / {len(plan["scenes"]):02d}</p></section>'
         )
     # The only JavaScript is HyperFrames' own runtime. No client HTML, JS, URL or CSS enters this file.
@@ -291,7 +294,8 @@ h1{{font-weight:900;font-size:{width//10}px;line-height:1.04;letter-spacing:-.05
     gain = "0.15" if source_audio else "0.55"
     components.append(
         f'<audio id="soundtrack" src="{soundtrack}" data-start="0" '
-        f'data-duration="{duration}" data-track-index="5" data-volume="{gain}"></audio>'
+        f'data-duration="{duration}" data-track-index="5" data-volume="{gain}" '
+        f'data-fade-in="0.35" data-fade-out="1.0"></audio>'
     )
     page = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
