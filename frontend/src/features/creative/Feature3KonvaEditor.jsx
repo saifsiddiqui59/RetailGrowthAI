@@ -17,6 +17,9 @@ export default function Feature3KonvaEditor({
   initialDesign, imageMap = {}, onSaveDraft = null,
 }) {
   const [history, setHistory] = useState(() => newFeature3History(initialDesign))
+  // A ref ensures synchronous rapid drags/key presses cannot overwrite a
+  // pending React batch with a previously captured history snapshot.
+  const historyRef = useRef(history)
   const [selected, setSelected] = useState(null)
   const [viewport, setViewport] = useState(480)
   const [saving, setSaving] = useState(false)
@@ -38,11 +41,15 @@ export default function Feature3KonvaEditor({
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
-    const observer = new ResizeObserver(entries => {
-      setViewport(Math.max(220, Math.floor(entries[0].contentRect.width)))
-    })
-    observer.observe(host)
-    return () => observer.disconnect()
+    const measure = () => setViewport(Math.max(220, Math.floor(host.getBoundingClientRect().width)))
+    measure()
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(measure)
+      observer.observe(host)
+      return () => observer.disconnect()
+    }
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
   }, [])
 
   useEffect(() => {
@@ -54,7 +61,9 @@ export default function Feature3KonvaEditor({
 
   const apply = mutation => {
     try {
-      setHistory(mutation(history))
+      const updated = mutation(historyRef.current)
+      historyRef.current = updated
+      setHistory(updated)
       setError('')
     } catch (problem) {
       setError(problem.message || 'Poster change was rejected')
@@ -92,7 +101,9 @@ export default function Feature3KonvaEditor({
             !authorizedIds.includes(layer.asset_id))) {
         throw Error('Draft tenant or image authorization has changed')
       }
-      setHistory(newFeature3History(parsed))
+      const restored = newFeature3History(parsed)
+      historyRef.current = restored
+      setHistory(restored)
       setSelected(null)
       setError('')
     } catch (problem) {
@@ -199,9 +210,9 @@ export default function Feature3KonvaEditor({
         </div>
         <div style={{ display: 'grid', alignContent: 'start', gap: 12 }}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => {setHistory(h => undoFeature3(h));setError('')}}
+            <button type="button" onClick={() => apply(undoFeature3)}
               disabled={!history.past.length}>Undo</button>
-            <button type="button" onClick={() => {setHistory(h => redoFeature3(h));setError('')}}
+            <button type="button" onClick={() => apply(redoFeature3)}
               disabled={!history.future.length}>Redo</button>
             <button type="button" onClick={() => apply(h => moveFeature3Layer(h, selected, 1))}
               disabled={!active}>Bring forward</button>
