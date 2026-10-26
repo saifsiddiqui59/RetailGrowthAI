@@ -6,6 +6,8 @@ Passing ffprobe DOES NOT establish human/garment/likeness quality approval.
 """
 from pathlib import Path
 import os
+import json
+from decimal import Decimal, InvalidOperation
 import shutil
 import sys
 import tempfile
@@ -19,6 +21,8 @@ from feature5_motion.runner import HunyuanLocalRunner
 from feature5_motion.license_gate import HunyuanLicensePolicy
 from feature5_motion.artifact_lock import ArtifactLock
 from feature5_motion.acceptance import export_pending_review
+from feature5_motion.azure_pricing import extract_rates, MotionSpendGuard
+from feature5_motion.demo_fashion import fashion_motion_spec
 
 APPROVED = (
     os.environ.get("RETAIL_FEATURE5_REAL_GPU_TEST", "").lower() == "true"
@@ -32,6 +36,10 @@ APPROVED = (
     and bool(os.environ.get("RETAIL_FEATURE5_ARTIFACT_LOCK_PATH"))
     and bool(os.environ.get("RETAIL_FEATURE5_APPROVED_LOCK_SHA256"))
     and bool(os.environ.get("RETAIL_FEATURE5_MANUAL_EVIDENCE_ROOT"))
+    and os.environ.get("RETAIL_FEATURE5_ACCEPTANCE_MODE") in ("text", "image")
+    and bool(os.environ.get("RETAIL_FEATURE5_AZURE_PRICE_SNAPSHOT"))
+    and bool(os.environ.get("RETAIL_FEATURE5_MAX_TOTAL_GPU_USD"))
+    and bool(os.environ.get("RETAIL_FEATURE5_MAX_BILLABLE_SECONDS"))
 )
 
 
@@ -65,11 +73,34 @@ class TestHunyuanLocalGPU(unittest.TestCase):
             separate_tencent_license_if_required=os.environ.get("RETAIL_FEATURE5_EXTRA_TENCENT_LICENSE") == "true",
         )
         policy.assert_allowed()
+        # One and only one optional paid inference: do not run both T2V
+        # and I2V from a single unittest discover invocation. Check a
+        # verified Azure retail snapshot and preauthorized overall cost cap
+        # BEFORE either GPU or model-weight preflight.
+        try:
+            snapshot = Path(os.environ["RETAIL_FEATURE5_AZURE_PRICE_SNAPSHOT"])
+            if snapshot.is_symlink() or not snapshot.is_file() or snapshot.stat().st_size > 1_000_000:
+                self.fail("Reviewed Azure price snapshot required")
+            region = os.environ.get("RETAIL_FEATURE5_GPU_REGION", "")
+            rate = extract_rates(json.loads(snapshot.read_text()), region=region, gpu="A100")
+            seconds = int(os.environ["RETAIL_FEATURE5_MAX_BILLABLE_SECONDS"])
+            self.guard = MotionSpendGuard(
+                rate, max_billable_seconds=seconds,
+                vcpus=int(os.environ.get("RETAIL_FEATURE5_GPU_VCPUS", "4")),
+                gib_memory=int(os.environ.get("RETAIL_FEATURE5_GPU_MEMORY_GIB", "16")),
+                ancillary_allowance_usd=Decimal(os.environ.get("RETAIL_FEATURE5_ANCILLARY_USD", "0.05")),
+            )
+            quoted = self.guard.minimum_reservation_usd()
+            approved_cap = Decimal(os.environ["RETAIL_FEATURE5_MAX_TOTAL_GPU_USD"])
+            if not approved_cap.is_finite() or approved_cap <= 0 or quoted > approved_cap:
+                self.fail("One-shot GPU maximum quote exceeds operator-approved USD cap")
+        except (ValueError, TypeError, InvalidOperation, KeyError, OSError) as exc:
+            self.fail("Reviewed GPU pricing inputs invalid: " + type(exc).__name__)
         self.runner = HunyuanLocalRunner(
             checkout=Path(os.environ["RETAIL_FEATURE5_PINNED_CHECKOUT"]),
             weights=Path(os.environ["RETAIL_FEATURE5_PINNED_WEIGHTS"]),
             enabled=True, license_approved=True,
-            gpu_budget_approved=True, timeout_seconds=1800,
+            gpu_budget_approved=True, timeout_seconds=seconds,
             license_policy=policy,
             artifact_lock=ArtifactLock(
                 Path(os.environ["RETAIL_FEATURE5_ARTIFACT_LOCK_PATH"]),
@@ -77,10 +108,10 @@ class TestHunyuanLocalGPU(unittest.TestCase):
             ),
         )
 
+    @unittest.skipUnless(os.environ.get("RETAIL_FEATURE5_ACCEPTANCE_MODE") == "text",
+                         "One-shot GPU demo explicitly selected image instead of text")
     def test_text_to_video_real_gpu(self):
-        spec = MotionSpec(job_id=str(uuid4()), shop_id=str(uuid4()),
-                          prompt="An adult fashion model walks naturally through a luxury boutique",
-                          mode="text")
+        spec = fashion_motion_spec(job_id=str(uuid4()), shop_id=str(uuid4()))
         out = self.runner.run(spec, source_file=None, workdir=self.folder)
         metadata = validate_clip(out)
         self.assertEqual(metadata["codec"], "h264")
@@ -95,8 +126,9 @@ class TestHunyuanLocalGPU(unittest.TestCase):
         self.assertEqual(exported["status"], "PENDING_HUMAN_REVIEW")
 
     @unittest.skipUnless(
-        os.environ.get("RETAIL_FEATURE5_RIGHTS_APPROVED_IMAGE"),
-        "No authorized local source image specified for genuine I2V",
+        os.environ.get("RETAIL_FEATURE5_ACCEPTANCE_MODE") == "image"
+        and os.environ.get("RETAIL_FEATURE5_RIGHTS_APPROVED_IMAGE"),
+        "Image mode not explicitly selected with licensed image",
     )
     def test_image_to_video_real_gpu(self):
         source = Path(os.environ["RETAIL_FEATURE5_RIGHTS_APPROVED_IMAGE"])
