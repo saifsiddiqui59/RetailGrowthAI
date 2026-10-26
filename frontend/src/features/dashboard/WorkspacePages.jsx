@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
+import { Button } from '../../components/ui/button.jsx'
+import { Card } from '../../components/ui/card.jsx'
+import { Badge } from '../../components/ui/badge.jsx'
 
 const pages = {
   calendar: {
@@ -56,21 +59,21 @@ export default function WorkspacePage({ section }) {
     <div className="page-heading">
       <div><div className="eyebrow">{page.eyebrow}</div><h1>{page.title}</h1>
         <p className="lead">{page.summary}</p></div>
-      <span className="rg-state-label">{configured && user ? 'Authorized workspace' : 'Demo / setup'}</span>
+      <Badge className="rg-state-label">{configured && user ? 'Authorized workspace' : 'Demo / setup'}</Badge>
     </div>
-    <section className="panel rg-availability-panel" aria-label={page.title + ' availability'}>
+    <Card className="panel rg-availability-panel" aria-label={page.title + ' availability'}>
       <span className="rg-availability-mark" aria-hidden="true">◇</span>
       <div><h2>Integration status</h2><p>{page.note}</p>
-        <span className="rg-state-label">No fabricated live data</span>
+        <Badge className="rg-state-label">No fabricated live data</Badge>
       </div>
-    </section>
-    <section className="panel rg-next-actions" aria-label="Available actions">
+    </Card>
+    <Card className="panel rg-next-actions" aria-label="Available actions">
       <h2>Continue working</h2><div className="rg-action-list">
         {page.actions.map(([label, to]) =>
-          <Link className="rg-action-tile" to={to} key={to}>
-            <span>{label}</span><span aria-hidden="true">→</span>
-          </Link>)}
+          <Button asChild variant="outline" className="rg-action-tile" key={to}>
+            <Link to={to}><span>{label}</span><span aria-hidden="true">→</span></Link>
+          </Button>)}
       </div>
-    </section>
+    </Card>
   </div>
 }
