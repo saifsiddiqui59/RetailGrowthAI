@@ -9,7 +9,8 @@ const MAX_BYTES = 25 * 1024 * 1024
 const SUPPORTED = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 export default function PosterStudio({ day, businessName = 'Your business', api = null,
-  campaignId = '', persisted = false, authorizedAssets = [], supabaseOrigin = '', onSelected = null }) {
+  campaignId = '', persisted = false, authorizedAssets = [], supabaseOrigin = '', onSelected = null,
+  approvedModels = [], authenticatedModelImageMap = {} }) {
   const canvas = useRef(null)
   const [brand, setBrand] = useState(businessName || 'Your business')
   const [template, setTemplate] = useState('editorial')
@@ -390,7 +391,8 @@ export default function PosterStudio({ day, businessName = 'Your business', api 
           campaignId={campaignId}
           dayId={day.id}
           brandKit={{shopId: day.shop_id, businessName: brand}}
-          imageMap={{}}
+          imageMap={authenticatedModelImageMap}
+          approvedModels={approvedModels}
         />}
       </div>}
     </section>
