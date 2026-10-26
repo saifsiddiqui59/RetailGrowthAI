@@ -97,7 +97,7 @@ def checked_video(path):
 
 def validate(plan, manifest, asset_root, allow_test_media=False):
     fields(plan, {"version", "shop_id", "mode", "template", "duration_seconds", "output",
-                  "scenes", "cta", "music_asset_id", "beats"},
+                  "scenes", "cta", "music_asset_id", "beats", "brand", "logo_asset_id"},
            {"version", "shop_id", "mode", "template", "duration_seconds", "output", "scenes", "cta"}, "plan")
     fields(manifest, {"shop_id", "assets"}, {"shop_id", "assets"}, "manifest")
     if plan["version"] != VERSION or plan["shop_id"] != manifest["shop_id"] or not UUID.fullmatch(str(plan["shop_id"])):
@@ -112,6 +112,15 @@ def validate(plan, manifest, asset_root, allow_test_media=False):
     if (out["width"], out["height"]) not in ((540, 960), (1080, 1920)) or out["fps"] not in (24, 30):
         raise VideoPlanError("Only portrait 540p/1080p, 24/30 FPS is supported")
     clean_text(plan["cta"], "approved CTA", 110)
+    brand = plan.get("brand")
+    if brand is not None:
+        fields(brand, {"name", "primary_color", "secondary_color"},
+               {"name", "primary_color"}, "approved brand kit")
+        clean_text(brand["name"], "shop name", 85)
+        for color in ("primary_color", "secondary_color"):
+            if color in brand and (not isinstance(brand[color], str)
+                                   or not re.fullmatch(r"#[0-9a-fA-F]{6}", brand[color])):
+                raise VideoPlanError("Brand colors must be six-digit hex")
     scenes = plan["scenes"]
     if not isinstance(scenes, list) or not 1 <= len(scenes) <= 12:
         raise VideoPlanError("Expected 1-12 bounded scenes")
@@ -122,7 +131,8 @@ def validate(plan, manifest, asset_root, allow_test_media=False):
     previous_end = 0.0
     source_audio = False
     for i, scene in enumerate(scenes):
-        fields(scene, {"start", "duration", "asset_id", "headline", "offer", "trim_start", "mute_source"},
+        fields(scene, {"start", "duration", "asset_id", "headline", "offer", "trim_start", "mute_source",
+                       "poster_overlay_asset_id", "animation_preset", "transition"},
                {"start", "duration", "headline"}, f"scene {i}")
         start = number(scene["start"], "scene start", 0, 60)
         length = number(scene["duration"], "scene duration", 0.5, 60)
@@ -132,6 +142,23 @@ def validate(plan, manifest, asset_root, allow_test_media=False):
         clean_text(scene["headline"], "approved headline", 110)
         if "offer" in scene:
             clean_text(scene["offer"], "approved offer", 70)
+        if scene.get("animation_preset", "subtle_zoom") not in ("subtle_zoom", "pop", "fade", "slide", "glow"):
+            raise VideoPlanError("Unknown approved animation preset")
+        if scene.get("transition", "fade") not in ("fade", "slide", "cut"):
+            raise VideoPlanError("Unknown reviewed transition")
+        overlay_id = scene.get("poster_overlay_asset_id")
+        if overlay_id is not None:
+            if (not isinstance(overlay_id, str) or not ASSET_ID.fullmatch(overlay_id)
+                    or overlay_id not in assets or overlay_id == scene.get("asset_id")):
+                raise VideoPlanError("Unknown approved poster overlay")
+            poster = assets[overlay_id]
+            fields(poster, {"kind", "path", "rights"}, {"kind", "path", "rights"}, "poster entry")
+            if poster["kind"] != "poster":
+                raise VideoPlanError("Poster overlay must be a reviewed poster")
+            validate_rights(poster["rights"], overlay_id, allow_test_media)
+            overlay_path = checked_path(asset_root, poster["path"], overlay_id, IMAGES)
+            inspect_staged_image(overlay_path)
+            ordered[overlay_id] = (overlay_path, "poster")
         if "mute_source" in scene and type(scene["mute_source"]) is not bool:
             raise VideoPlanError("mute_source must be boolean")
         aid = scene.get("asset_id")
@@ -164,6 +191,18 @@ def validate(plan, manifest, asset_root, allow_test_media=False):
         ordered[aid] = (path, kind)
     if abs(previous_end - duration) > .001:
         raise VideoPlanError("Scenes must fill total duration")
+    logo_id = plan.get("logo_asset_id")
+    if logo_id is not None:
+        if not isinstance(logo_id, str) or not ASSET_ID.fullmatch(logo_id) or logo_id not in assets:
+            raise VideoPlanError("Unknown verified store logo")
+        logo = assets[logo_id]
+        fields(logo, {"kind", "path", "rights"}, {"kind", "path", "rights"}, "logo entry")
+        if logo["kind"] != "logo":
+            raise VideoPlanError("Brand logo must have logo kind")
+        validate_rights(logo["rights"], logo_id, allow_test_media)
+        logo_path = checked_path(asset_root, logo["path"], logo_id, IMAGES)
+        inspect_staged_image(logo_path)
+        ordered[logo_id] = (logo_path, "logo")
     music_id = plan.get("music_asset_id")
     if music_id is not None:
         if not isinstance(music_id, str) or not ASSET_ID.fullmatch(music_id) or music_id not in assets:
@@ -225,6 +264,9 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
     duration = plan["duration_seconds"]
     width, height = plan["output"]["width"], plan["output"]["height"]
     bg, accent, fg, kicker = STYLES[plan["template"]]
+    brand = plan.get("brand") or {}
+    if brand.get("primary_color"):
+        accent = brand["primary_color"]
     k = html.escape(kicker)
     components = []
     for i, scene in enumerate(plan["scenes"]):
@@ -237,26 +279,33 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
             if kind == "video":
                 mute = " muted" if scene.get("mute_source", False) else ""
                 trim = scene.get("trim_start", 0)
+                original_audio = " data-has-audio=\"true\"" if not scene.get("mute_source", False) else ""
                 media_markup = (
-                    f'<video class="footage" id="video{i}" src="{src}" '
+                    f'<video class="footage clip" id="video{i}" src="{src}" '
                     f'data-start="{start}" data-duration="{length}" data-media-start="{trim}" '
-                    f'data-track-index="0" data-volume="1" playsinline{mute}></video>'
+                    f'data-track-index="0" data-volume="1" playsinline{original_audio}{mute}></video>'
                 )
             else:
                 media_markup = f'<img class="product-photo" src="{src}" alt="" decoding="sync">'
+        poster_markup = ""
+        if scene.get("poster_overlay_asset_id"):
+            poster_src = names[scene["poster_overlay_asset_id"]]
+            poster_markup = f'<img class="poster-overlay" src="{poster_src}" alt="">'
         headline = clean_text(scene["headline"], "headline")
         # Bound headline typography for the narrow 9:16 canvas; preserve all approved text.
         title_length = len(scene["headline"].strip())
         title_font = max(24, width // (10 if title_length <= 32 else 15 if title_length <= 70 else 20))
         offer = clean_text(scene.get("offer"), "offer", optional=True)
         offer_markup = f'<p class="offer">{offer}</p>' if offer else ""
+        animation = scene.get("animation_preset", "subtle_zoom")
+        transition = scene.get("transition", "fade")
         leading_video = media_markup if aid and ordered[aid][1] == "video" else ""
         scene_image = media_markup if aid and ordered[aid][1] != "video" else ""
         components.append(
-            f'{leading_video}<section id="scene{i}" class="clip scene s{i%3}" '
+            f'{leading_video}<section id="scene{i}" class="clip scene s{i%3} anim-{animation} trans-{transition}" '
             f'data-start="{start}" data-duration="{length}" data-track-index="1" '
             f'style="--span:{length}s">'
-            f'<div class="halo"></div><div class="photo-wrap">{scene_image}</div>'
+            f'<div class="halo"></div><div class="photo-wrap">{scene_image}</div>{poster_markup}'
             f'<div class="glass"><p class="kicker">{k} / {i+1:02d}</p>'
             f'<h1 style="font-size:{title_font}px">{headline}</h1>{offer_markup}</div>'
             f'<p class="index">RG · {i+1:02d} / {len(plan["scenes"]):02d}</p></section>'
@@ -270,7 +319,13 @@ html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background
 .halo{{position:absolute;width:90%;height:55%;left:20%;top:12%;border-radius:50%;background:{accent};opacity:.16;filter:blur({width//10}px)}}
 .photo-wrap{{position:absolute;top:15%;height:61%;width:96%;left:2%;display:grid;place-items:center}}
 .product-photo{{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 26px 35px #0009);animation:photoFloat var(--span) ease-in-out both}}
-.footage{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}}
+ .footage{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}}
+.poster-overlay{{position:absolute;right:5%;top:15%;height:38%;max-width:60%;object-fit:contain;filter:drop-shadow(0 8px 24px #000a);animation:cardRise var(--span) ease-in-out both}}
+.anim-pop .glass{{animation:popIn var(--span) ease both}}
+.anim-glow .offer{{text-shadow:0 0 16px {accent},0 0 25px {accent}}}
+.anim-slide .photo-wrap{{animation:slideIn var(--span) ease both}}
+@keyframes popIn{{0%{{transform:scale(.80);opacity:0}}18%{{transform:scale(1);opacity:1}}90%{{opacity:1}}100%{{opacity:0}}}}
+@keyframes slideIn{{0%{{transform:translateX(15%);opacity:0}}18%{{transform:translateX(0);opacity:1}}90%{{opacity:1}}100%{{opacity:0}}}}
 .glass{{position:absolute;left:5.5%;right:5.5%;bottom:10%;min-height:23%;padding:5%;background:#050506cf;border-left:{width//70}px solid {accent};box-shadow:0 14px 60px #0008;animation:cardRise var(--span) ease-out both}}
 .kicker{{font-size:{width//37}px;letter-spacing:.25em;font-weight:700;color:{accent};margin:0 0 5%}}
 h1{{font-weight:900;font-size:{width//10}px;line-height:1.04;letter-spacing:-.05em;text-transform:uppercase;margin:0;overflow-wrap:anywhere}}
@@ -281,6 +336,22 @@ h1{{font-weight:900;font-size:{width//10}px;line-height:1.04;letter-spacing:-.05
 @keyframes photoFloat{{0%{{transform:scale(1.02) translate3d(-2%,2%,0)}}100%{{transform:scale(1.20) translate3d(2%,-2%,0)}}}}
 @keyframes cardRise{{0%{{opacity:0;transform:translateY(13%)}}17%{{opacity:1;transform:translateY(0)}}85%{{opacity:1}}100%{{opacity:0}}}}
 """
+    if plan.get("logo_asset_id"):
+        # This is a timed overlay on the root; the logo source is a trusted, staged asset.
+        logo_src = names[plan["logo_asset_id"]]
+        components.append(
+            f'<img id="brand-logo" class="clip" src="{logo_src}" alt="" '
+            f'data-start="0" data-duration="{duration}" data-track-index="4" '
+            f'style="position:absolute;top:3%;right:5%;width:16%;height:10%;object-fit:contain;z-index:8">'
+        )
+    if brand.get("name"):
+        shop_name = clean_text(brand["name"], "shop name", 85)
+        components.append(
+            f'<div id="brand-name" class="clip" data-start="0" data-duration="{duration}" '
+            f'data-track-index="4" style="position:absolute;left:5%;top:3%;z-index:8;'
+            f'font-size:{width//22}px;font-weight:900;color:{fg};text-shadow:0 1px 9px #000;'
+            f'max-width:70%;overflow-wrap:anywhere">{shop_name}</div>'
+        )
     # The final CTA remains sourced from approved input and is displayed throughout the last scene.
     cta = clean_text(plan["cta"], "CTA", 110)
     last = plan["scenes"][-1]
