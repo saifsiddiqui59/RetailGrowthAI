@@ -215,6 +215,9 @@ class TestMotionWorker(unittest.TestCase):
             metadata = self.media.upload_private.call_args.args[4]
             self.assertTrue(metadata["quality_review_required"])
             self.assertEqual(metadata["source_asset_id"], self.asset)
+            self.assertEqual(metadata["reserved_usd"], "0.1")
+            self.assertFalse((Path(temp) / self.job / self.token).exists(),
+                             "private original and clip must be deleted after import")
 
     def test_atomic_completion_failure_is_unknown_not_refund(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -235,8 +238,45 @@ class TestMotionWorker(unittest.TestCase):
             worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
                                   workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
             with patch("feature5_motion.worker.validate_clip", return_value={"codec": "h264"}):
-                self.assertEqual(worker.execute(self.job), "FAILED")
+                self.assertEqual(worker.execute(self.job), "UNKNOWN")
             self.store.complete.assert_not_called()
+            self.store.fail.assert_not_called()
+            self.store.mark_unknown.assert_called_once()
+
+    def test_upload_uncertainty_never_causes_retry_or_refund(self):
+        with tempfile.TemporaryDirectory() as temp:
+            self.runner.run.side_effect = lambda spec, *, source_file, workdir: workdir / "motion.mp4"
+            self.media.upload_private.side_effect = TimeoutError("sensitive vendor information")
+            worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
+                                  workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
+            with patch("feature5_motion.worker.validate_clip", return_value={"codec": "h264"}):
+                self.assertEqual(worker.execute(self.job), "UNKNOWN")
+            self.store.complete.assert_not_called()
+            self.store.fail.assert_not_called()
+            self.store.mark_unknown.assert_called_once_with(
+                self.job, self.token, "PRIVATE_UPLOAD_UNCERTAIN")
+            self.assertFalse((Path(temp) / self.job / self.token).exists())
+
+    def test_nonfinite_budget_must_not_authorize_inference(self):
+        for cap in (float("nan"), float("inf"), float("-inf"), True, "not-money", 0):
+            with tempfile.TemporaryDirectory() as temp:
+                self.store.reset_mock()
+                worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
+                                      workdir_root=Path(temp), enabled=True, credit_cap_usd=cap)
+                with self.assertRaises(MotionError):
+                    worker.execute(self.job)
+                self.store.claim.assert_not_called()
+                self.runner.run.assert_not_called()
+
+    def test_nonfinite_db_reservation_denied(self):
+        for bad in (float("nan"), float("inf"), True, -1, "invalid"):
+            with tempfile.TemporaryDirectory() as temp:
+                self.store.claim.return_value["reserved_usd"] = bad
+                worker = MotionWorker(store=self.store, media=self.media, runner=self.runner,
+                                      workdir_root=Path(temp), enabled=True, credit_cap_usd=1)
+                with self.assertRaises(MotionError):
+                    worker.execute(self.job)
+                self.runner.run.assert_not_called()
 
 
 if __name__ == "__main__":
