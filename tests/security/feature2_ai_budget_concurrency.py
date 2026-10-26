@@ -106,8 +106,8 @@ def check():
     losses=[o for o in outcomes if o[0]!=0]
     if len(wins)!=1 or len(losses)!=1:
         raise AssertionError("Expected exactly one allowed reservation, one rejected")
-    if "F2_RECEIPT:" not in wins[0][1] or
-       "AI_QUOTA_EXCEEDED" not in losses[0][2]:
+    if ("F2_RECEIPT:" not in wins[0][1] or
+        "AI_QUOTA_EXCEEDED" not in losses[0][2]):
         raise AssertionError("Unexpected budget race winner/loser contract")
     result=call(
         "select json_build_object("
