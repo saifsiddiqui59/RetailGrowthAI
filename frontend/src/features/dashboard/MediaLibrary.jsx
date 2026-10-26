@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuthorizedShops } from './useAuthorizedShops.js'
 import { useSelectedShop } from './useSelectedShop.js'
 import { Link } from 'react-router-dom'
@@ -15,10 +15,43 @@ export default function MediaLibrary() {
   const [filter, setFilter] = useState('')
   const [type, setType] = useState('all')
   const [paging, setPaging] = useState({scope:'',page:1})
+  const [preview, setPreview] = useState(null)
+  const previewUrl = useRef(null)
+  const previewScope = useRef('')
+  const requestEpoch = useRef(0)
   const shopsQuery = useAuthorizedShops({ client, user, configured })
   const shops = shopsQuery.data || []
   // Never fetch from an arbitrary user-supplied shop ID: resolve from RLS-backed memberships.
   const { shopId, selectShop } = useSelectedShop({ user, shops })
+  const activeScope = (user?.id || '') + ':' + (shopId || '')
+  previewScope.current = activeScope
+  useEffect(() => {
+    requestEpoch.current += 1
+    if (previewUrl.current) { URL.revokeObjectURL(previewUrl.current); previewUrl.current = null }
+    setPreview(null)
+  }, [activeScope])
+  useEffect(() => () => {
+    requestEpoch.current += 1
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current)
+  }, [])
+  async function showPrivateImage(asset) {
+    if (!shopId || !user || asset.source !== 'UPLOAD') return
+    const epoch = ++requestEpoch.current
+    const scope = activeScope
+    setPreview({scope,id:asset.id,loading:true})
+    try {
+      const {blob, filename} = await client.downloadPrivateImage(shopId,asset.id)
+      if (requestEpoch.current !== epoch || previewScope.current !== scope) return
+      const url = URL.createObjectURL(blob)
+      if (previewUrl.current) URL.revokeObjectURL(previewUrl.current)
+      previewUrl.current = url
+      setPreview({scope,id:asset.id,url,filename,loading:false})
+    } catch {
+      if (requestEpoch.current === epoch && previewScope.current === scope) {
+        setPreview({scope,id:asset.id,error:'Private image could not be verified or accessed.',loading:false})
+      }
+    }
+  }
   const assetsQuery = useQuery({
     queryKey: ['media-library', 'assets', user?.id, shopId],
     queryFn: () => client.listMediaAssets(shopId),
@@ -79,9 +112,23 @@ export default function MediaLibrary() {
                 <div><strong>{mediaLabel(asset.id)}</strong>
                   <p>{asset.mime_type || 'Image type unavailable'}</p>
                   <span>Licence: {asset.license_name}</span>
+                  {asset.source === 'UPLOAD'
+                    ? <Button variant="outline" size="sm" disabled={preview?.loading}
+                        onClick={()=>showPrivateImage(asset)}>Preview {mediaLabel(asset.id)}</Button>
+                    : <span>Preview requires a verified private upload</span>}
                 </div>
               </Card>)}
             </div>}
+        {preview?.scope === activeScope && <Card className="rg-private-preview" aria-label="Verified private image preview">
+          {preview.loading && <p role="status">Reading private image with your current session…</p>}
+          {preview.error && <p role="alert">{preview.error}</p>}
+          {preview.url && <>
+            <img src={preview.url} alt={'Authorized private image ' + mediaLabel(preview.id)}
+              referrerPolicy="no-referrer"/>
+            <Button asChild variant="outline"><a href={preview.url} download={preview.filename}
+              referrerPolicy="no-referrer">Save private image</a></Button>
+          </>}
+        </Card>}
         {assets.length > 12 && <nav className="rg-library-pager" aria-label="Media library pages">
           <Button variant="outline" size="sm" disabled={view.page === 1}
             onClick={()=>movePage(view.page-1)}>Previous images</Button>
@@ -90,7 +137,7 @@ export default function MediaLibrary() {
             onClick={()=>movePage(view.page+1)}>Next images</Button>
         </nav>}
       </>}
-      <p className="rg-library-safety">Files remain private. Metadata is not a signed image URL; no direct blob links, public sharing, delete operations or unverified rights are offered here.</p>
+      <p className="rg-library-safety">Registered uploads can be previewed on demand through your signed-in JWT and private Storage RLS. Images use temporary in-browser blob URLs, never public links or permanent signed URLs. Other source types require separate rights verification.</p>
     </Card>
   </div>
 }

@@ -288,3 +288,10 @@
 .rg-shop-month-list li span{font-size:12px}
 :root[data-rg-theme="dark"] .rg-shop-month-list li{border-color:#4b6970}
 @media(max-width:560px){.rg-shop-month-list li{flex-wrap:wrap}.rg-shop-month-controls label,.rg-shop-month-controls [data-slot="button"]{flex:1 1 100%;width:100%}.rg-shop-month-controls input{width:100%}}
+
+/* Feature #1 private-user-JWT image preview: no public or signed Storage URL. */
+.rg-private-preview{display:grid;justify-items:start;gap:12px;min-width:0;margin-top:18px;padding:16px}
+.rg-private-preview img{max-width:min(100%,480px);max-height:360px;width:auto;height:auto;object-fit:contain;border-radius:8px;border:1px solid #cadad7;background:transparent}
+.rg-private-preview [data-slot="button"]{min-height:42px}
+.rg-library-record [data-slot="button"]{max-width:100%;white-space:normal;margin-top:10px}
+@media(max-width:560px){.rg-private-preview{padding:12px}.rg-private-preview [data-slot="button"]{width:100%}}
