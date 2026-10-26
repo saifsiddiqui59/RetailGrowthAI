@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { createTrendApi } from './trend-api.mjs'
 import { reconcileSubmittedDraft } from './trend-draft-reconcile.mjs'
+import { offerStandardCampaignFallback } from './trend-empty-state.mjs'
 import TrendRecommendations from './TrendRecommendations.jsx'
 
 const tomorrowIndia = () => {
@@ -188,6 +189,13 @@ export default function TrendWorkspace() {
       {!canWrite && shops.length > 0 && <p>Viewer access: you can read trends but cannot create drafts.</p>}
       {loading && <p role="status">Loading authorized recommendations…</p>}
       {error && <p role="alert">{error}</p>}
+      {offerStandardCampaignFallback({ loading, error, results }) && (
+        <div className="feature2-evergreen-fallback" role="status">
+          <p>No verified, relevant trend is needed for a regular campaign. Use your own approved media
+            to create a standard seven-day draft instead. It will not claim that your topic is trending.</p>
+          <Link to="/campaigns">Create a standard campaign without a trend</Link>
+        </div>
+      )}
       {saved && <p role="status">Content draft saved for retailer review: {saved}. It has not been published or added to an existing campaign.</p>}
       {saving && <p role="status">Saving draft…</p>}
       {results?.profile_required && <p role="status">
