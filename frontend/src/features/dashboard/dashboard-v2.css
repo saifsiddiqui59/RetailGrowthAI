@@ -215,3 +215,21 @@
   .rg-library .rg-library-record{padding:12px;gap:10px}
   .rg-calendar .rg-calendar-day{padding:14px}
 }
+
+/* Feature #1 static integration guidance: no mock account/post/notification
+   status, no new API requests or polling before backend contracts are approved. */
+.rg-integration-guide{margin:0 0 18px;max-width:950px;min-width:0}
+.rg-integration-guide h2{margin:7px 0 15px}
+.rg-integration-steps{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;padding:0;margin:0 0 15px}
+.rg-integration-steps li{min-width:0;display:flex;align-items:flex-start;gap:10px;padding:14px;border:1px solid #d9e5e3;border-radius:12px;background:#f8fcfa}
+.rg-integration-number{display:grid;place-items:center;width:27px;height:27px;flex:0 0 27px;border-radius:9px;background:#e3f5ed;color:#176750;font-weight:800}
+.rg-integration-steps li div{min-width:0;overflow-wrap:anywhere}
+.rg-integration-steps strong{font-size:13px;color:#284e45}
+.rg-integration-steps p{font-size:12px;line-height:1.55;margin:6px 0 0}
+.rg-integration-safety{font-size:12px!important;margin:15px 0 0!important;color:#54766b}
+:root[data-rg-theme="dark"] .rg-integration-steps li{background:#223a40;border-color:#48646c}
+:root[data-rg-theme="dark"] .rg-integration-number{background:#245745;color:#caf3dd}
+:root[data-rg-theme="dark"] .rg-integration-steps strong{color:#e1f7ec}
+:root[data-rg-theme="dark"] .rg-integration-safety{color:#a1cdbd}
+@media(max-width:900px){.rg-integration-steps{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:360px){.rg-integration-guide{padding:16px}.rg-integration-steps li{padding:12px}}

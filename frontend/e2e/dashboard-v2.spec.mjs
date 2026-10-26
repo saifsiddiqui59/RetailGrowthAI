@@ -352,6 +352,28 @@ test('Creative Studio rejects foreign profile response without showing its conte
   await expect(page.getByText('of 5')).toHaveCount(0)
 })
 
+test('external integration pages show explicit requirements, not fictional account or delivery state', async ({page})=>{
+  const calls=await signedIn(page)
+  await page.setViewportSize({width:320,height:740})
+  const pages=[
+    ['/connections','Connected accounts'],
+    ['/publishing','Publishing calendar & history'],
+    ['/notifications','Notifications'],
+  ]
+  for(const [route,heading] of pages) {
+    await page.goto(route)
+    await expect(page.getByRole('heading',{name:heading,exact:true})).toBeVisible()
+    const requirements=page.getByRole('region',{name:heading+' integration requirements'})
+    await expect(requirements.getByRole('listitem')).toHaveCount(3)
+    await expect(page.getByText('No fabricated live data')).toBeVisible()
+    await expect(requirements.getByText('No connection, message, post, payment or scheduled delivery is created by viewing this guide.')).toBeVisible()
+    await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth <=
+      document.documentElement.clientWidth)).toBe(true)
+  }
+  expect(calls.some(path=>path.includes('/social_accounts') ||
+    path.includes('/retail_platform_notifications') || path.includes('/publishing'))).toBe(false)
+})
+
 test('unverified guest cannot deep-link to dashboard subroutes', async ({ page }) => {
   await page.goto('/connections')
   await expect(page).toHaveURL(/\/account$/)
