@@ -92,3 +92,36 @@ export function moveFeature3Layer(history, id, delta) {
     return doc
   })
 }
+
+export function addFeature3Layer(history, type, assetId = null, authorizedAssetIds = []) {
+  if (!['text', 'rect', 'image'].includes(type)) throw Error('Unsupported layer type')
+  const number = Array.from({ length: 25 }, (_, i) => 'custom-' + (i + 1))
+    .find(id => history.present.layers.every(layer => layer.id !== id))
+  if (!number || history.present.layers.length >= 24) throw Error('Layer limit exceeded')
+  const placement = { id: number, type, x: .12, y: .33, w: .76, h: .10 }
+  let layer
+  if (type === 'text') layer = { ...placement, text: 'Your headline',
+    color: '#171921', font_size: 42, bold: true }
+  else if (type === 'rect') layer = { ...placement, y: .48, h: .08,
+    color: '#C05F43' }
+  else {
+    if (typeof assetId !== 'string' || !Array.isArray(authorizedAssetIds) ||
+      !authorizedAssetIds.includes(assetId)) throw Error('Registered private media required')
+    layer = { ...placement, y: .17, h: .48, asset_id: assetId }
+  }
+  return editFeature3(history, doc => ({ ...doc,
+    layers: [...doc.layers, layer] }))
+}
+export function removeFeature3Layer(history, id) {
+  if (history.present.layers.length <= 1) throw Error('Cannot remove last layer')
+  if (!history.present.layers.some(layer => layer.id === id)) throw Error('Unknown layer')
+  return editFeature3(history, doc => ({ ...doc,
+    layers: doc.layers.filter(layer => layer.id !== id) }))
+}
+export function replaceFeature3Image(history, id, assetId, authorizedAssetIds) {
+  if (typeof assetId !== 'string' || !Array.isArray(authorizedAssetIds) ||
+    !authorizedAssetIds.includes(assetId)) throw Error('Only registered, authorized images')
+  const layer = history.present.layers.find(item => item.id === id)
+  if (!layer || layer.type !== 'image') throw Error('Select an image layer first')
+  return updateFeature3Layer(history, id, { asset_id: assetId })
+}
