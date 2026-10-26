@@ -66,7 +66,7 @@ jobs:
             "location":"eastus",
             "tags":{"app":"RetailGrowthAI","environment":"dev","feature":"feature5",
                     "purpose":"zero-compute-gpu-quota-probe"},
-            "properties":{"appLogsConfiguration":{"destination":"none"},
+            "properties":{"appLogsConfiguration":{},
                           "workloadProfiles":[{"name":"Consumption","workloadProfileType":"Consumption"}]},
           }
           assert (d.get("$schema")=="https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
@@ -94,7 +94,7 @@ jobs:
           print("PASS: no preexisting target in exact DEV resource group")
           PY
 
-      - name: Require Azure what-if of exactly one new empty resource
+      - name: Require Azure what-if of exactly one new empty resource (fixed no-log destination)
         shell: bash
         run: |
           set -euo pipefail
