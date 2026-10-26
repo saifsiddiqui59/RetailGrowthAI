@@ -26,7 +26,7 @@ export default function Feature3StudioPanel({
   const [format, setFormat] = useState('square')
   const [assetId, setAssetId] = useState('')
   const [modelId, setModelId] = useState('')
-  const [designModelId, setDesignModelId] = useState('')
+  const [designModelRef, setDesignModelRef] = useState(null)
   const [version, setVersion] = useState(0)
   const [design, setDesign] = useState(null)
   const [showModelLibrary, setShowModelLibrary] = useState(false)
@@ -45,6 +45,10 @@ export default function Feature3StudioPanel({
   // spending by themselves; private media and server rights must be rechecked.
   const readyModels = availableApprovedModels(approvedModels, shopId, imageMap)
   const selectedModel = selectedApprovedModel(readyModels, modelId)
+  const designModelStillReady = !designModelRef || readyModels.some(model =>
+    model.modelId === designModelRef.modelId &&
+    model.mediaAssetId === designModelRef.mediaAssetId &&
+    model.imageSha256 === designModelRef.imageSha256)
   const context = { shopId, campaignId, dayId }
   const currentContext = feature3ContextKey(context)
   const checked = approvedFeature3Inputs(approvedContent, context, brandKit)
@@ -85,7 +89,10 @@ export default function Feature3StudioPanel({
         background: checked.brand?.backgroundColor || '#FCF4EC',
       })
       setDesign(next)
-      setDesignModelId(mode === 'model' ? selectedModel.modelId : '')
+      setDesignModelRef(mode === 'model' ? {
+        modelId: selectedModel.modelId, mediaAssetId: selectedModel.mediaAssetId,
+        imageSha256: selectedModel.imageSha256,
+      } : null)
       setDesignContext(currentContext)
       setVersion(v => v + 1)
     } catch (cause) {
@@ -172,11 +179,11 @@ export default function Feature3StudioPanel({
       </button>
       {error && <p role="alert">{error}</p>}
     </fieldset>
-    {designModelId && !readyModels.some(model => model.modelId === designModelId) &&
+    {!designModelStillReady &&
       <p role="alert">The saved model is no longer accessible. This local model draft is hidden;
         select another approved model.</p>}
     {design && designContext === currentContext &&
-      (!designModelId || readyModels.some(model => model.modelId === designModelId)) &&
+      designModelStillReady &&
       <Feature3CpuEditor key={version} initialDesign={design}
       imageMap={imageMap} context={context} onSaveDraft={onSaveDesign} />}
     <section aria-label="Reusable AI fashion models">
