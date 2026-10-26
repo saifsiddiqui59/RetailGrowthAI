@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuthorizedShops } from './useAuthorizedShops.js'
+import { useSelectedShop } from './useSelectedShop.js'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
@@ -60,6 +61,10 @@ function ProfileEditor({ client, userId, shop }) {
       const result = await client.updateBusinessProfile(shopId, patch)
       if (!result || result.shop_id !== shopId) throw new Error('Saved profile scope could not be verified.')
       queryClient.setQueryData(key, result)
+      // Creative Studio only reads verified, per-shop context. A successful
+      // profile PATCH invalidates its matching view so returning from Settings
+      // cannot continue to display a stale brand-readiness checklist.
+      await queryClient.invalidateQueries({ queryKey: ['creative-launchpad', 'profile', userId, shopId] })
       setMessage('Business profile saved and verified for this business.')
     } catch {
       setError('Profile update was rejected or unavailable. Your changes were not confirmed.')
@@ -99,16 +104,16 @@ function ProfileEditor({ client, userId, shop }) {
 
 export default function BusinessSettings() {
   const { client, configured, user } = useRetailAuth()
-  const [requestedShopId, setRequestedShopId] = useState('')
   const shopsQuery = useAuthorizedShops({ client, user, configured })
   const shops = shopsQuery.data || []
   // Shop scope always derives from RLS-verified memberships, never a URL param.
-  const shop = shops.find(row => row.id === requestedShopId) || shops[0]
+  const { shopId, selectShop } = useSelectedShop({ user, shops })
+  const shop = shops.find(row => row.id === shopId)
   return <div className="rg-workspace-page rg-settings">
     <div className="page-heading"><div><div className="eyebrow">BUSINESS / ACCOUNT</div>
       <h1>Workspace settings</h1>
       <p className="lead">Update your own retailer context; PostgreSQL still enforces role and tenant permissions for every change.</p></div>
-      <Link to="/account" className="primary-action">Account &amp; security</Link>
+      <Button asChild className="primary-action rg-workspace-cta"><Link to="/account">Account &amp; security</Link></Button>
     </div>
     {!configured && <Card className="panel"><p role="status">Connect the dedicated RetailGrowthAI Supabase project. Settings never use demo credentials.</p></Card>}
     {configured && user && <>
@@ -117,7 +122,7 @@ export default function BusinessSettings() {
         <Button variant="outline" onClick={() => shopsQuery.refetch()}>Retry</Button></p></Card>}
       {shopsQuery.isSuccess && !shops.length && <Card className="panel"><p role="status">You have no accessible businesses. <Link to="/account">Create a business</Link>.</p></Card>}
       {shop && <div className="rg-library-tools"><label>Business
-        <select aria-label="Settings business" value={shop.id} onChange={e => setRequestedShopId(e.target.value)}>
+        <select aria-label="Settings business" value={shop.id} onChange={e => selectShop(e.target.value)}>
           {shops.map(row => <option key={row.id} value={row.id}>{row.name}</option>)}
         </select>
       </label></div>}

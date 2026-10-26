@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { filterAssets, mediaLabel } from '../../frontend/src/features/dashboard/media-library-model.mjs'
+import { filterAssets, mediaLabel, paginateVerifiedAssets } from '../../frontend/src/features/dashboard/media-library-model.mjs'
 
 const OWN='a1000000-0000-4000-8000-000000000001'
 const OTHER='a1000000-0000-4000-8000-000000000002'
@@ -20,4 +20,26 @@ test('media filtering never renders cross-tenant and unverified records',()=>{
   assert.equal(filterAssets(null,OWN).length,0)
   assert.match(mediaLabel(ID),/Image a1000000/)
   assert.equal(mediaLabel('bad'),'Image record')
+})
+
+test('paging is bounded to the already tenant-filtered capped collection',()=>{
+  const ownRows=Array.from({length:27},(_,i)=>({
+    id:'a1000000-0000-4000-8000-'+String(i+100).padStart(12,'0'),
+    shop_id:OWN, license_name:'owned', mime_type:'image/png'
+  }))
+  const filtered=filterAssets([...ownRows,items[1]],OWN)
+  const first=paginateVerifiedAssets(filtered,1)
+  const second=paginateVerifiedAssets(filtered,2)
+  const last=paginateVerifiedAssets(filtered,3)
+  assert.deepEqual([first.pages,first.first,first.last,first.items.length],[3,1,12,12])
+  assert.deepEqual([second.first,second.last,second.items.length],[13,24,12])
+  assert.deepEqual([last.first,last.last,last.items.length],[25,27,3])
+  assert.equal(paginateVerifiedAssets(filtered,999).page,3)
+  assert.equal(paginateVerifiedAssets(filtered,-1).page,1)
+  assert.equal(paginateVerifiedAssets(filtered,2,100).items.length,12)
+  assert.deepEqual(paginateVerifiedAssets([],2),{
+    page:1,pages:1,total:0,first:0,last:0,items:[]
+  })
+  assert.ok(first.items.every(a=>a.shop_id===OWN))
+  assert.equal(filtered.some(a=>a.shop_id===OTHER),false)
 })

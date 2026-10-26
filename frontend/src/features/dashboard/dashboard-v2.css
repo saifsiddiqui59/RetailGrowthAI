@@ -115,3 +115,160 @@
 :root[data-rg-theme="dark"] .rg-settings-fields label{color:#c3d9e3}
 :root[data-rg-theme="dark"] .rg-settings-fields input:read-only,:root[data-rg-theme="dark"] .rg-settings-fields textarea:read-only{background:#263b4a;color:#aec4d0}
 @media(max-width:560px){.rg-settings-fields{grid-template-columns:minmax(0,1fr)}.rg-settings-fields label:has(textarea){grid-column:1}}
+
+
+/* A translated sidebar is still keyboard-focusable unless hidden. Keep the
+   collapsed mobile drawer out of the tab/screen-reader tree until opened.
+   Desktop navigation remains visible and unchanged. */
+@media (max-width:760px) {
+  .retail-shell:not(.mobile-open) .sidebar {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .retail-shell.mobile-open .sidebar {
+    visibility: visible;
+    pointer-events: auto;
+  }
+}
+
+/* Feature #1 no-cost, verified-context Creative Studio entry. */
+.rg-creative-launchpad .rg-creative-tools{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:0 0 20px}
+.rg-creative-tools>span:last-child{color:#556e7b;font-size:13px}
+.rg-creative-layout{display:grid;grid-template-columns:minmax(290px,0.88fr) minmax(360px,1.12fr);gap:18px;align-items:start}
+.rg-creative-layout>.panel{min-width:0;margin:0}
+.rg-creative-shop{display:grid;gap:8px;font-weight:700;font-size:13px;color:#385361;margin:8px 0 20px}
+.rg-creative-shop select{width:100%;min-height:42px;border:1px solid #c9dadb;padding:9px;border-radius:9px;background:#fff;color:#233b48}
+.rg-creative-score{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:12px 0!important}
+.rg-creative-score strong{font-size:24px;font-weight:800;color:#196b50}
+.rg-creative-readiness progress{width:100%;height:12px;accent-color:#168564}
+.rg-creative-checklist{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:12px}
+.rg-creative-checklist li{display:flex;align-items:flex-start;gap:12px}
+.rg-creative-checklist li>div{display:grid;gap:3px;min-width:0}
+.rg-creative-checklist li strong{font-size:13px}
+.rg-creative-checklist li div>span{font-size:12px;color:#5c7583;line-height:1.5}
+.rg-creative-check{width:25px;height:25px;border:1px solid #cbd4df;border-radius:50%;display:grid;place-items:center;flex:0 0 25px;font-weight:800;color:#6d7c88}
+.rg-creative-check.done{background:#dbf4e9;color:#137b54;border-color:#8bd0b2}
+.rg-creative-stages{list-style:none;padding:0;margin:19px 0 0;display:grid;gap:13px}
+.rg-creative-stages li{display:flex;gap:14px;padding:0 0 17px;border-bottom:1px solid #d8e5e7;min-width:0}
+.rg-creative-stages li:last-child{border-bottom:0;padding-bottom:0}
+.rg-creative-number{width:40px;height:40px;display:grid;place-items:center;background:#e0f3ec;color:#156349;border-radius:11px;flex:0 0 40px;font-weight:800}
+.rg-creative-stages h3{margin:0 0 4px;font-size:16px;line-height:1.4}
+.rg-creative-stages p{margin:0 0 11px!important;line-height:1.55;font-size:13px}
+.rg-creative-notice{margin:18px 0 0;max-width:none}
+.rg-creative-notice p{margin:8px 0 0}
+:root[data-rg-theme="dark"] .rg-creative-tools>span:last-child,
+:root[data-rg-theme="dark"] .rg-creative-checklist li div>span{color:#b2c9d4}
+:root[data-rg-theme="dark"] .rg-creative-shop{color:#ccdee8}
+:root[data-rg-theme="dark"] .rg-creative-number{background:#214a3d;color:#a7e8c5}
+:root[data-rg-theme="dark"] .rg-creative-score strong{color:#9ee2c4}
+:root[data-rg-theme="dark"] .rg-creative-stages li{border-color:#3a5262}
+@media(max-width:900px){.rg-creative-layout{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:360px){.rg-creative-launchpad .panel{padding:17px}.rg-creative-stages li{gap:9px}.rg-creative-number{width:34px;flex-basis:34px;height:34px}}
+
+/* Feature #1: accessible, responsive shadcn-compatible Overview migration.
+   Pure CSS/UI changes; metrics remain backend-verified and on-demand. */
+.rg-overview-primary {display:inline-flex;align-items:center;gap:8px;text-decoration:none;white-space:normal;min-height:42px}
+.rg-overview-metric{min-width:0;position:relative;isolation:isolate;overflow:hidden;transition:border-color .18s ease,box-shadow .18s ease}
+.rg-overview-metric::before{content:"";display:block;width:34px;height:4px;border-radius:20px;background:linear-gradient(90deg,#166a54,#6cbea1);margin-bottom:13px}
+.rg-overview-metric strong{font-variant-numeric:tabular-nums;font-size:clamp(1.7rem,2.5vw,2.35rem);line-height:1.12;overflow-wrap:anywhere}
+.rg-overview-metric small{line-height:1.45}
+.rg-overview-actions>.rg-overview-action-card{min-width:0}
+.rg-overview-action-card .text-link{display:inline-block;max-width:100%;overflow-wrap:anywhere;min-height:27px}
+.overview .dashboard-filter-row{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+.overview .dashboard-filter-row select{min-height:42px;max-width:100%}
+.overview .dashboard-filter-row [data-slot="button"]{min-height:42px}
+:root[data-rg-theme="dark"] .rg-overview-metric::before{background:linear-gradient(90deg,#80dbb7,#b2ecda)}
+:root[data-rg-theme="dark"] .rg-overview-primary{color:#fff}
+@media(max-width:560px){
+  .overview .page-heading{gap:15px}
+  .overview .rg-overview-primary{width:100%;justify-content:center}
+  .overview .dashboard-filter-row>label{flex:1 1 100%;min-width:0}
+  .overview .dashboard-filter-row>label select{width:100%}
+  .overview .dashboard-filter-row [data-slot="button"]{flex:1 1 auto}
+  .overview .dashboard-section-grid{grid-template-columns:minmax(0,1fr)}
+  .overview .rg-overview-action-card{padding:18px}
+}
+@media(prefers-reduced-motion:reduce){.rg-overview-metric{transition:none}}
+
+/* Complete Feature #1 remaining retailer-view shadcn-compatible migration:
+   license metadata only, session-verified drafts, and RLS-edited profiles. */
+.rg-workspace-cta{display:inline-flex;align-items:center;justify-content:center;min-height:42px;text-decoration:none;white-space:normal;text-align:center}
+.rg-library-record[data-slot="card"],.rg-calendar-day[data-slot="card"]{min-width:0;box-sizing:border-box}
+.rg-library-record>div:last-child{min-width:0;overflow-wrap:anywhere}
+.rg-library-record>div:last-child strong,.rg-library-record>div:last-child span{overflow-wrap:anywhere}
+.rg-library .rg-library-tools,.rg-calendar .rg-library-tools{min-width:0}
+.rg-library .rg-library-tools [data-slot="button"],.rg-calendar .rg-library-tools [data-slot="button"]{min-height:42px}
+.rg-calendar .rg-calendar-day h2{overflow-wrap:anywhere}
+.rg-settings .page-heading{align-items:flex-start}
+.rg-workspace-page .rg-workspace-cta:focus-visible{outline:2px solid #15966f;outline-offset:3px}
+:root[data-rg-theme="dark"] .rg-workspace-page .rg-workspace-cta{background:#176b59;color:#fff}
+:root[data-rg-theme="dark"] .rg-library-record strong,:root[data-rg-theme="dark"] .rg-calendar-day h2{color:#ecf7f7}
+:root[data-rg-theme="dark"] .rg-calendar-date strong{color:#a6ecd4}
+@media(max-width:560px){
+  .rg-library .page-heading,.rg-calendar .page-heading,.rg-settings .page-heading{gap:14px}
+  .rg-library .rg-workspace-cta,.rg-calendar .rg-workspace-cta,.rg-settings .rg-workspace-cta{width:100%}
+  .rg-library .rg-library-tools,.rg-calendar .rg-library-tools{display:grid;grid-template-columns:minmax(0,1fr);align-items:stretch}
+  .rg-library .rg-library-tools label,.rg-calendar .rg-library-tools label{min-width:0;width:100%}
+  .rg-library .rg-library-tools select,.rg-library .rg-library-tools input,
+  .rg-calendar .rg-library-tools select{box-sizing:border-box;min-width:0}
+  .rg-library .rg-library-tools [data-slot="button"],.rg-calendar .rg-library-tools [data-slot="button"]{width:100%}
+  .rg-library .rg-library-record{padding:12px;gap:10px}
+  .rg-calendar .rg-calendar-day{padding:14px}
+}
+
+/* Feature #1 static integration guidance: no mock account/post/notification
+   status, no new API requests or polling before backend contracts are approved. */
+.rg-integration-guide{margin:0 0 18px;max-width:950px;min-width:0}
+.rg-integration-guide h2{margin:7px 0 15px}
+.rg-integration-steps{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;padding:0;margin:0 0 15px}
+.rg-integration-steps li{min-width:0;display:flex;align-items:flex-start;gap:10px;padding:14px;border:1px solid #d9e5e3;border-radius:12px;background:#f8fcfa}
+.rg-integration-number{display:grid;place-items:center;width:27px;height:27px;flex:0 0 27px;border-radius:9px;background:#e3f5ed;color:#176750;font-weight:800}
+.rg-integration-steps li div{min-width:0;overflow-wrap:anywhere}
+.rg-integration-steps strong{font-size:13px;color:#284e45}
+.rg-integration-steps p{font-size:12px;line-height:1.55;margin:6px 0 0}
+.rg-integration-safety{font-size:12px!important;margin:15px 0 0!important;color:#54766b}
+:root[data-rg-theme="dark"] .rg-integration-steps li{background:#223a40;border-color:#48646c}
+:root[data-rg-theme="dark"] .rg-integration-number{background:#245745;color:#caf3dd}
+:root[data-rg-theme="dark"] .rg-integration-steps strong{color:#e1f7ec}
+:root[data-rg-theme="dark"] .rg-integration-safety{color:#a1cdbd}
+@media(max-width:900px){.rg-integration-steps{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:360px){.rg-integration-guide{padding:16px}.rg-integration-steps li{padding:12px}}
+
+/* Verified recent-draft monthly calendar; client-only UTC date layout.
+   No scheduled/published values beyond authorized DRAFT API content. */
+.rg-calendar-month{margin:17px 0 24px;min-width:0;max-width:100%}
+.rg-calendar-month-toolbar{display:flex;justify-content:space-between;align-items:end;gap:13px;flex-wrap:wrap;margin-bottom:12px}
+.rg-calendar-month-toolbar h2{font-size:18px;margin:0 0 5px}
+.rg-calendar-month-toolbar p{font-size:12px;line-height:1.55;margin:0}
+.rg-calendar-month-toolbar label{display:grid;gap:5px;min-width:0;font-weight:700;font-size:12px}
+.rg-calendar-month-toolbar select{box-sizing:border-box;border:1px solid #cbdbd5;border-radius:9px;background:#fff;color:#213e34;padding:9px;min-height:42px;max-width:100%}
+.rg-calendar-month-table{border-collapse:separate;border-spacing:3px;width:100%;table-layout:fixed}
+.rg-calendar-month-table th{text-align:center;color:#667c75;font-size:11px;padding:9px 2px}
+.rg-calendar-month-table td{vertical-align:top;background:#f7fbf9;border:1px solid #dcebe4;border-radius:8px;min-width:0;height:67px;padding:7px 4px;overflow-wrap:anywhere}
+.rg-calendar-month-table td.is-outside{background:#f4f5f6;color:#899a96}
+.rg-month-date{display:block;font-size:12px;font-weight:800;text-align:right;padding-right:2px}
+.rg-month-count{display:block;color:#15533c;background:#dbf3e6;text-align:center;border-radius:5px;padding:4px 1px;margin-top:6px;font-size:10px;line-height:1.3;font-weight:800}
+:root[data-rg-theme="dark"] .rg-calendar-month-table td{background:#1c3040;border-color:#3e5b63;color:#d7f3ed}
+:root[data-rg-theme="dark"] .rg-calendar-month-table td.is-outside{background:#172633;color:#97a8ac}
+:root[data-rg-theme="dark"] .rg-month-count{background:#245943;color:#d5f8e7}
+:root[data-rg-theme="dark"] .rg-calendar-month-toolbar label{color:#c9dfe4}
+@media(max-width:560px){
+ .rg-calendar-month-table{border-spacing:1px}
+ .rg-calendar-month-table td{height:53px;padding:4px 1px;border-radius:5px}
+ .rg-calendar-month-table th{font-size:10px;padding:6px 0}
+ .rg-month-date{font-size:11px;padding-right:2px}
+ .rg-month-count{font-size:9px;padding:3px 0;margin-top:4px}
+ .rg-calendar-month-toolbar label{width:100%}
+ .rg-calendar-month-toolbar select{width:100%}
+}
+
+/* Feature #1: zero-request page navigation for 100-record RLS metadata slice. */
+.rg-library-pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:18px;min-width:0}
+.rg-library-pager [data-slot="button"]{min-height:42px}
+.rg-library-pager span{font-size:12px;color:#506c66;overflow-wrap:anywhere}
+:root[data-rg-theme="dark"] .rg-library-pager span{color:#badbd0}
+@media(max-width:560px){
+  .rg-library-pager{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rg-library-pager span{grid-column:1/-1;grid-row:1;text-align:center}
+  .rg-library-pager [data-slot="button"]{min-width:0}
+}
