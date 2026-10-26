@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from io import BytesIO
+from hashlib import sha256
 import json
 from pathlib import Path
 import sys
@@ -17,6 +18,7 @@ sys.path.insert(0, str(ROOT / "poster-engine"))
 
 from ai_providers_v2 import ProviderBlocked
 from real_visual_demo_v2 import create_real_visual_sample, main
+from gpu_preflight_v2 import verify_local_flux_snapshot, MANIFEST_NAME, MODEL_REPO
 
 
 def synthetic_png(background, *, dimensions=(768, 768)):
@@ -67,6 +69,8 @@ class SampleTests(unittest.TestCase):
         self.assertFalse(receipt["actual_try_on"])
         self.assertFalse(receipt["model_output_reviewed"])
         self.assertFalse(receipt["server_cloud_deployed"])
+        self.assertFalse(receipt["model_inference_verified"])
+        self.assertEqual(receipt["provider"], "UNVERIFIED_INJECTED_TEST_RUNNER")
         self.assertFalse(receipt["reference_product_fidelity_verified"])
         with Image.open(self.root / "images/fashion-poster-cpu-composed.png") as img:
             self.assertEqual(img.size, (1080, 1350))
@@ -110,6 +114,43 @@ class SampleTests(unittest.TestCase):
         self.assertFalse(list(dest.glob("*.png")))
         self.assertFalse(list(dest.glob("*.json")))
 
+    def test_operator_pins_exact_apache_4b_model_and_index_digest(self):
+        weights = self.root / "weights"
+        weights.mkdir()
+        index = {"_class_name": "Flux2KleinPipeline"}
+        (weights / "model_index.json").write_text(json.dumps(index))
+        manifest = {
+            "schema": MANIFEST_NAME,
+            "repository": MODEL_REPO,
+            "revision_sha": "a" * 40,
+            "weight_license": "Apache-2.0",
+            "model_index_sha256": sha256(
+                (weights / "model_index.json").read_bytes()).hexdigest(),
+            "commercial_operator_approved": True,
+            "dependencies_operator_approved": True,
+        }
+        approval = self.root / "approval.json"
+        approval.write_text(json.dumps(manifest))
+        result = verify_local_flux_snapshot(weights, approval)
+        self.assertEqual(result["repository"], MODEL_REPO)
+        self.assertFalse(result["weight_shards_sha256_verified"])
+        self.assertFalse(result["saas_deployment_authorized"])
+        manifest["repository"] = "black-forest-labs/FLUX.2-klein-9B"
+        approval.write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ProviderBlocked, "Unapproved FLUX"):
+            verify_local_flux_snapshot(weights, approval)
+        manifest["repository"] = MODEL_REPO
+        manifest["dependencies_operator_approved"] = False
+        approval.write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ProviderBlocked, "Unapproved FLUX"):
+            verify_local_flux_snapshot(weights, approval)
+        manifest["dependencies_operator_approved"] = True
+        approval.write_text(json.dumps(manifest))
+        (weights / "model_index.json").write_text(
+            json.dumps({"_class_name": "Flux2Pipeline"}))
+        with self.assertRaisesRegex(ProviderBlocked, "Unapproved FLUX"):
+            verify_local_flux_snapshot(weights, approval)
+
     def test_existing_files_never_overwritten_and_no_hidden_model_download(self):
         folder = self.root / "existing"
         folder.mkdir()
@@ -118,9 +159,10 @@ class SampleTests(unittest.TestCase):
             create_real_visual_sample(
                 runner=FakeInference(), output_root=folder, shop_id=self.shop)
         self.assertEqual((folder / "customer.png").read_bytes(), b"do not delete")
-        with self.assertRaisesRegex(ProviderBlocked, "weights missing"):
+        with self.assertRaisesRegex(ProviderBlocked, "snapshot/manifest required"):
             main(["--weights", str(self.root / "none"), "--out",
-                  str(self.root / "must-stay-empty")])
+                  str(self.root / "must-stay-empty"),
+                  "--approval-manifest", str(self.root / "missing.json")])
         self.assertFalse((self.root / "must-stay-empty").exists())
 
 
