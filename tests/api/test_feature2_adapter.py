@@ -68,7 +68,8 @@ def test_get_uses_membership_and_never_exposes_other_shops():
 
 def test_post_requires_persistence_and_server_verified_media():
     no_store = make_adapter()
-    assert no_store.handle("POST", SHOP, "Bearer signed-1", {})[0] == 503
+    assert no_store.handle("POST", SHOP, "Bearer signed-1", {
+        "trend_id": S["trends"][0]["trend_id"], "campaign": campaign()})[0] == 503
     drafts = Drafts()
     api = make_adapter(drafts)
     trend_id = S["trends"][0]["trend_id"]
