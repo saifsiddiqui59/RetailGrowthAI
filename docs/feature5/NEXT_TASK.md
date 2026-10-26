@@ -108,3 +108,8 @@
 - **Before paid deployment:** independently review LTX 0.X checkpoint commercial license and AI disclosure/hosted SaaS constraints, pin exact code/weights/ComfyUI legacy workflow version plus checksums, ensure DEV Azure `ManagedEnvironmentConsumptionNCA100Gpus` limit >= 1, then operator cost ceiling.
 - **Acceptance:** genuine private synthetic 5s pilot and controlled 60s model-extension clip at target portrait FPS, original SHA/FFprobe, garment/face visual reviewer and actual measured Azure GPU billing; until then neither performance nor cost is proven.
 - Source/architecture comparison: `docs/feature5/OPEN_SOURCE_VIDEO_ENGINE_REVIEW_20261026.md`. No H100 Terraform apply, no new worker deployment and no PR merge independently.
+
+## 2026-10-26 — Full upstream deployment priority
+- User wants **real complete upstream project**, not replacement Feature5 generator code. When Azure quota supports it, use pinned, full ComfyUI plus official LTX-Video engine/models and their genuine long-shot workflow in private serverless A100; H100 Microsoft sample only if the owner accepts its ~3x active cost and separate 40-vCPU VM quota.
+- Gate all paid deployment on operator-approved total budget, exact committed source/weight manifest, license acceptance, secured ComfyUI API, private Azure networking, one-run/no-retry and real visual quality benchmark. Stop/deallocate H100 VM when inactive; serverless A100 scale-to-zero.
+- Detailed Azure USD/INR comparisons and blockers in `docs/feature5/OPEN_SOURCE_VIDEO_ENGINE_REVIEW_20261026.md`. No switch to paid hosted APIs or mock output as proof.
