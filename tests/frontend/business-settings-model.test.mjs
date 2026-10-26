@@ -24,5 +24,6 @@ test('invalid profile data cannot cause a PATCH',()=>{
 })
 test('empty optional fields become null and extra keys are ignored',()=>{
   const changed={...profileDraft(base),city:'  ',owner_user_id:'spoofed'}
-  assert.deepEqual(profilePatch(base,changed),{city:null})
+  assert.deepEqual(profilePatch(base,changed),{city:''})
+  assert.deepEqual(profilePatch({...base,contact_email:'shop@example.test'}, {...profileDraft(base),contact_email:''}),{contact_email:null})
 })

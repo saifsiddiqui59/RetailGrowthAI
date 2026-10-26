@@ -34,7 +34,9 @@ export function profilePatch(original, draft) {
       }
     }
     const before = typeof original[key] === 'string' ? original[key].trim() : ''
-    if (value !== before) result[key] = value || null
+    // Four text columns are NOT NULL in foundation migration. Only nullable
+    // contact_email and website_url may be cleared as SQL NULL.
+    if (value !== before) result[key] = value || ((kind === 'email' || kind === 'url') ? null : '')
   }
   return result
 }
