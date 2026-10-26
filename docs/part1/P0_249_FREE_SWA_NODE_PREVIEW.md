@@ -10,7 +10,7 @@
 
 ## Scope of this initial safe test
 
-`experiments/wineshop-node-http-control/` is deliberately **not a customer backend**. It exposes only `GET /api/p0-health-lite` (200), a *fake-id protected campaign GET* (401 without JWT, 503 for an unverified Bearer to fail closed) and `GET /api/p0-249-missing` (404). Responses include a synthetic `X-P0-Control: node-v4` marker, which confirms that Azure routed the request to the actual Node handler. A random unknown path without a registered handler may return a platform 404 without this marker.
+`experiments/wineshop-node-http-control/` is deliberately **not a customer backend**. It exposes only `GET /api/p0-health-lite` (200), a *fake-id protected campaign GET* (401 for all callers because this control deliberately does not implement JWT verification) and `GET /api/p0-249-missing` (404). Responses include a synthetic `X-P0-Control: node-v4` marker, which confirms that Azure routed the request to the actual Node handler. A random unknown path without a registered handler may return a platform 404 without this marker.
 
 It has no real user, JWT validation, Supabase RLS calls, service_role credentials, Stripe/payment keys, Queue permissions, publishing or other writes. The preview static HTML is a simple noindex test notice; neither the retailer SPA nor an actual customer session is included.
 
@@ -32,3 +32,8 @@ It has no real user, JWT validation, Supabase RLS calls, service_role credential
 - A full signed-in ROOT-approved, negative cross-tenant, create→poster→video→download browser acceptance is required before changing `VITE_CAMPAIGN_API_BASE_URL`. Continue using existing Python queue + FFmpeg workers; don't move expensive rendering into the 45-second managed API.
 
 **Issue #249 remains P0 OPEN** until a real secure, reliable HTTP interface and E2E are demonstrated.
+
+## 2026-10-26 — First hosted synthetic route finding and fail-closed correction
+- Azure Free SWA managed Node API **deployed** (run #40294163365) to named preview `p0249node.eastasia.2.azurestaticapps.net`; this is not a customer backend.
+- First read-only acceptance [#40295092212](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40295092212): Node `GET /api/p0-health-lite` HTTP **200 in 0.712s** with `X-P0-Control`; synthetic campaign read HTTP **503 in 0.687s** with the **same marker**. This is a Node-handler response, **not** an Azure pre-handler gateway 503. The previous synthetic implementation intentionally returned 503 when it saw an authorization value beginning with Bearer; the source of that value is not yet proven.
+- Changed the **synthetic control only** so **all fake campaign reads return 401**, with or without incoming headers. The control no longer consumes an Authorization header. Real JWT/RLS, membership and write APIs remain unimplemented and no real customer data flows through Node. The adjusted named preview requires independent hosted retest; do not report full acceptance before its actual evidence.
