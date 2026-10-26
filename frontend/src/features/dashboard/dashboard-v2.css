@@ -115,3 +115,18 @@
 :root[data-rg-theme="dark"] .rg-settings-fields label{color:#c3d9e3}
 :root[data-rg-theme="dark"] .rg-settings-fields input:read-only,:root[data-rg-theme="dark"] .rg-settings-fields textarea:read-only{background:#263b4a;color:#aec4d0}
 @media(max-width:560px){.rg-settings-fields{grid-template-columns:minmax(0,1fr)}.rg-settings-fields label:has(textarea){grid-column:1}}
+
+
+/* A translated sidebar is still keyboard-focusable unless hidden. Keep the
+   collapsed mobile drawer out of the tab/screen-reader tree until opened.
+   Desktop navigation remains visible and unchanged. */
+@media (max-width:760px) {
+  .retail-shell:not(.mobile-open) .sidebar {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .retail-shell.mobile-open .sidebar {
+    visibility: visible;
+    pointer-events: auto;
+  }
+}

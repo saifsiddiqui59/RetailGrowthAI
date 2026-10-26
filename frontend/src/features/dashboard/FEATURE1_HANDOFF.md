@@ -38,3 +38,9 @@
 - [ ] Complete shadcn migration, visual QA and uncontracted social/publishing/inbox screens.
 - [ ] Coordinator reconciling shared PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG after PR integration; Feature 1 ownership deliberately avoids those concurrently edited docs.
 - [ ] Hosted, signed-in DEV acceptance remains separately blocked by Azure HTTP #249; offline browser mocks and local Supabase negative SQL are not hosted proof.
+
+## Accessibility follow-up on integrated Feature #1 main
+
+- The mobile offscreen sidebar is now actually `visibility:hidden` and noninteractive while closed (320px-760px), rather than remaining in keyboard/screen-reader navigation after a CSS translate. Opening the existing hamburger restores the sidebar. The desktop nav, user-auth boundary, overlay and Escape behavior are unchanged.
+- Added mocked Chromium tests for 320px hidden/open/navigation-close/Escape and 1280px desktop visibility. No new accessibility runtime or cloud cost.
+- Source-only UI improvement; no hosted device or assistive-technology testing claim. Coordinator owns canonical shared docs and merges.
