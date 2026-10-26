@@ -15,7 +15,7 @@ from time import monotonic
 from uuid import UUID
 
 from ai_providers_v2 import InferenceJob, ProviderBlocked, _verified_png
-from gpu_preflight_v2 import verify_local_flux_snapshot
+from flux_t4_snapshot import verify_reviewed_flux_snapshot
 from gpu_worker_v2 import OfflineFluxKlein4B
 
 MAX_JOB_BYTES = 4096
@@ -60,11 +60,9 @@ def run_one(*, weights, approval, request, output):
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     os.environ["DIFFUSERS_OFFLINE"] = "1"
-    manifest = verify_local_flux_snapshot(weights, approval)
+    manifest = verify_reviewed_flux_snapshot(weights, approval)
     if manifest.get("weight_shards_sha256_verified") is not True:
         raise ProviderBlocked("All FLUX shard digests must be verified before GPU billing")
-    # The existing v2 operator preflight does not claim per-shard verification:
-    # reject by default until a new audited full snapshot attestation is added.
     job = _read_job(Path(request))
     dest = _private_dir(output)
     t0 = monotonic()
