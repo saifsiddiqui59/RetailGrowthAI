@@ -108,6 +108,7 @@ def export_animation(design, manifest, staged_root, output_path, *, duration=2,
     # a reveal frame that may initially hide a product. Never cache images
     # across tenants/jobs or after rights might have been revoked.
     prepared = _prepare_authorized_images(design, manifest, staged_root)
+    resized_cache = {}  # bounded to four entries, one render job only
     frames = []
     with tempfile.TemporaryDirectory(prefix="retailgrowth-animation-") as work:
         root = Path(work)
@@ -115,7 +116,8 @@ def export_animation(design, manifest, staged_root, output_path, *, duration=2,
         for index in range(count):
             path = root / ("frame-%04d.png" % index)
             frame_doc = _frame_document(design, index, count, set(effects))
-            _render_prepared(frame_doc, prepared, path, scale=scale)
+            _render_prepared(frame_doc, prepared, path, scale=scale,
+                             image_transform_cache=resized_cache)
             _finish_frame(path, design, index, count, set(effects), scale)
             if kind == "gif":
                 with Image.open(path) as frame:
