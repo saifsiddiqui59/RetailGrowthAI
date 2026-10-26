@@ -36,12 +36,16 @@ export function createTrendApi({ baseUrl, tokenProvider, fetchImpl = fetch }) {
   return {
     getRecommendations: (shopId) => request('GET', shopId, 'trend-recommendations'),
     listDrafts: (shopId) => request('GET', shopId, 'content-drafts'),
-    createDraft: (shopId, trendId, campaign) => {
+    createDraft: (shopId, trendId, campaign, submissionId = null) => {
       if (!/^[a-f0-9]{32}$/.test(trendId || '') ||
-          !campaign || typeof campaign !== 'object' || campaign.shop_id !== shopId) {
-        throw new Error('Choose a verified trend and an authorized shop')
+          !campaign || typeof campaign !== 'object' || campaign.shop_id !== shopId ||
+          (submissionId !== null && !UUID.test(submissionId))) {
+        throw new Error('Choose a verified trend, authorized shop and submission ID')
       }
-      return request('POST', shopId, 'content-drafts', { trend_id: trendId, campaign })
+      return request('POST', shopId, 'content-drafts', {
+        trend_id: trendId, campaign,
+        ...(submissionId === null ? {} : { submission_id: submissionId }),
+      })
     },
   }
 }
