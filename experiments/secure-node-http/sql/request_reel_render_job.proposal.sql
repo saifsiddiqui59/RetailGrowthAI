@@ -87,9 +87,9 @@ revoke all on function retail_private.python_json_v1(pg_catalog.jsonb)
 
 -- Hardened caller RPC. Caller supplies ONLY two UUIDs. The database resolves
 -- all identities, shop, saved storyboard, source licensing and Python digest.
--- Privileged definer needed because render_jobs INSERT is service-only.
+-- Privileged definer lives ONLY in non-exposed retail_private, because render_jobs INSERT is service-only.
 -- PostgreSQL quota BEFORE INSERT and outbox AFTER INSERT remain unchanged.
-create function public.request_reel_render_job(p_campaign_id pg_catalog.uuid,p_day_id pg_catalog.uuid)
+create function retail_private.request_reel_render_job_internal(p_campaign_id pg_catalog.uuid,p_day_id pg_catalog.uuid)
 returns pg_catalog.jsonb language plpgsql volatile security definer set search_path = ''
 as $function$
 declare
@@ -213,6 +213,20 @@ begin
   return pg_catalog.jsonb_build_object('job_id',job_id,'status',job_state);
 end
 $function$;
+
+-- The privileged implementation is in NON-EXPOSED retail_private only.
+-- Authenticated callers can execute it through the narrow public SECURITY
+-- INVOKER wrapper, which carries no elevated privilege of its own.
+revoke all on function retail_private.request_reel_render_job_internal(pg_catalog.uuid,pg_catalog.uuid)
+  from public, anon, authenticated;
+grant execute on function retail_private.request_reel_render_job_internal(pg_catalog.uuid,pg_catalog.uuid)
+  to authenticated;
+
+create function public.request_reel_render_job(p_campaign_id pg_catalog.uuid,p_day_id pg_catalog.uuid)
+returns pg_catalog.jsonb language sql volatile security invoker set search_path = ''
+as $wrapper$
+  select retail_private.request_reel_render_job_internal(p_campaign_id,p_day_id)
+$wrapper$;
 
 revoke all on function public.request_reel_render_job(pg_catalog.uuid,pg_catalog.uuid)
   from public, anon, authenticated;
