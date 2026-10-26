@@ -154,7 +154,12 @@ class MotionWorker:
                 shutil.rmtree(workdir, ignore_errors=True)
         # Finalization is outside the generic failure handler: a private output
         # was already uploaded and its status/charges must be reconciled.
-        if not self.store.complete(jid, token, receipt):
+        try:
+            completed = self.store.complete(jid, token, receipt)
+        except Exception:
+            # DB timeout may mean the completion transaction actually committed.
+            completed = False
+        if not completed:
             if not self.store.mark_unknown(jid, token, "FINALIZE_UNCERTAIN"):
                 raise MotionError("Finalization unknown; manual ledger reconciliation required")
             return "UNKNOWN"
