@@ -249,3 +249,20 @@ output and real FASHN inference remain **unverified/unavailable**.
 **CI:** The exact latest PR-head SHA and 4/4 job evidence must be verified
 after all continuation commits. Earlier run #40291353845 applies to the
 previous baseline only.
+
+### Feature-owned creation UI, after worker checkpoint
+
+- `frontend/src/features/creative/Feature3StudioPanel.jsx` now supplies an
+  isolated, responsive and keyboard-accessible **Text-to-Poster /
+  Image-to-Poster** creator: prompt, mode, source image, auto or selected
+  retail template and Instagram format, then the versioned Konva editor.
+  It supports approved business colours and optional logo, distinguishes
+  source-authorized images from user-entered URLs, and never turns a
+  prompt-mentioned discount into an offer unless approved copy is supplied.
+- The new panel is **source implementation, NOT a mounted SaaS screen**.
+  The connected host must supply only verified tenant/brand/media/approved
+  content and must revalidate all fields at the server before saving or
+  rendering. The coordinator pins/install `react-konva` and `konva`,
+  mounts the route, implements secure v2 draft RPC and runs real browser E2E.
+- Added isolated Vite JSX transform/approval-path tests. These do NOT
+  replace Playwright mobile or snapshot parity acceptance.
