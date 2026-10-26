@@ -230,6 +230,9 @@ class TestMotionWorker(unittest.TestCase):
             self.assertTrue(metadata["quality_review_required"])
             self.assertEqual(metadata["source_asset_id"], self.asset)
             self.assertEqual(metadata["reserved_usd"], "0.1")
+            self.assertGreaterEqual(metadata["compute_seconds_measured"], 0)
+            self.assertIn("estimated_observed_compute_usd", metadata)
+            self.assertIn("maximum_compute_budget_usd", metadata)
             self.assertFalse((Path(temp) / self.job / self.token).exists(),
                              "private original and clip must be deleted after import")
 
@@ -352,6 +355,37 @@ class TestMotionWorker(unittest.TestCase):
                 worker.execute(self.job)
             self.store.claim.assert_not_called()
             self.runner.run.assert_not_called()
+
+    def test_elapsed_gpu_runtime_over_cap_requires_unknown_reconciliation(self):
+        with tempfile.TemporaryDirectory() as temp:
+            self.runner.run.side_effect = lambda spec, *, source_file, workdir: workdir / "motion.mp4"
+            worker = MotionWorker(
+                store=self.store, media=self.media, runner=self.runner,
+                workdir_root=Path(temp), enabled=True, credit_cap_usd=1,
+                cost_guard=self.guard,
+            )
+            with patch("feature5_motion.worker.monotonic", side_effect=[100.0, 131.0]):
+                self.assertEqual(worker.execute(self.job), "UNKNOWN")
+            self.store.mark_unknown.assert_called_once_with(
+                self.job, self.token, "GPU_RUNTIME_OVER_CAP")
+            self.store.fail.assert_not_called()
+            self.media.upload_private.assert_not_called()
+
+    def test_failed_unknown_persistence_never_downgrades_to_refundable_failed(self):
+        from feature5_motion.worker import ReconciliationRequired
+        with tempfile.TemporaryDirectory() as temp:
+            self.runner.run.side_effect = lambda spec, *, source_file, workdir: workdir / "motion.mp4"
+            self.store.mark_unknown.return_value = False
+            worker = MotionWorker(
+                store=self.store, media=self.media, runner=self.runner,
+                workdir_root=Path(temp), enabled=True, credit_cap_usd=1,
+                cost_guard=self.guard,
+            )
+            with patch("feature5_motion.worker.monotonic", side_effect=[100.0, 131.0]):
+                with self.assertRaises(ReconciliationRequired):
+                    worker.execute(self.job)
+            self.store.fail.assert_not_called()
+            self.store.complete.assert_not_called()
 
     def test_nonfinite_db_reservation_denied(self):
         for bad in (float("nan"), float("inf"), True, -1, "invalid"):
