@@ -61,6 +61,13 @@ export default function Feature3PosterHost({ client, shopId, children }) {
           const result = await client.downloadPrivateImage(shopId, model.media_asset_id)
           if (!result?.blob || !IMAGE_TYPES.has(result.blob.type) ||
               result.blob.size < 100 || result.blob.size > 25*1024*1024) continue
+          // Detect revoked/replaced bytes before displaying an approved model.
+          // Never fall back to trusting registry-only hashes or arbitrary URLs.
+          if (!crypto?.subtle || !/^[a-f0-9]{64}$/.test(model.image_sha256)) continue
+          const digest = await crypto.subtle.digest('SHA-256', await result.blob.arrayBuffer())
+          const fingerprint = Array.from(new Uint8Array(digest), byte =>
+            byte.toString(16).padStart(2, '0')).join('')
+          if (fingerprint !== model.image_sha256) continue
           const local = URL.createObjectURL(result.blob)
           opened.push(local)
           const picture = await decodeObjectUrl(local)
