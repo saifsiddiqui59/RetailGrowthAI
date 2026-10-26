@@ -2,7 +2,7 @@
 import importlib.util
 from pathlib import Path
 
-import pytest
+import unittest
 
 FILE = Path(__file__).resolve().parents[2] / "ops/p0_249_cold_warm_http_probe.py"
 spec = importlib.util.spec_from_file_location("p0_probe", FILE)
@@ -18,9 +18,9 @@ def test_actual_503_distinct():
     sample = probe.classify(0, "503", .6, 60.9, 60.95)
     assert sample["category"] == "CONFIRMED_HTTP_503"
 
-@pytest.mark.parametrize("status", ["401", "404"])
-def test_expected_statuses(status):
-    assert probe.classify(0, status, .6, .8, .85)["category"] == "EXPECTED_401_OR_404"
+def test_expected_statuses():
+    for status in ("401", "404"):
+        assert probe.classify(0, status, .6, .8, .85)["category"] == "EXPECTED_401_OR_404"
 
 def test_sends_exactly_six_read_only_requests_and_one_idle():
     calls, idle = [], []
@@ -41,5 +41,5 @@ def test_anomaly_fails_diagnostic_acceptance():
     assert probe.run_probe(sender=sender,sleeper=lambda _:None) == 4
 
 def test_rejects_arbitrary_customer_route():
-    with pytest.raises(ValueError):
+    with unittest.TestCase().assertRaises(ValueError):
         probe.probe("fake", "/api/shop/real-id")
