@@ -65,3 +65,28 @@ for sec in 1 6 13 18 28; do
  ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$sec" -i "$OUTPUT_HD" -frames:v 1 "$ROOT/ci-artifacts/feature4-fullres-frame-$sec.jpg"
 done
 python3 "$ROOT/video-engine/hyperframes/check_feature4_output.py" "$ROOT/ci-artifacts" --fullres
+
+# Explicit full-minute qualification (full 1080p, CPU, no GPU/provider charges).
+# Once the first source benchmark is recorded, keep this as an opt-in gate to
+# avoid paying a 60s full-resolution encode on every unrelated branch change.
+if [[ "${FEATURE4_FULL_MINUTE_CI:-1}" == "1" ]]; then
+  PROJECT_60="$TEMP/diwali-60s-1080p"
+  OUTPUT_60="$ROOT/ci-artifacts/feature4-60s-1080p-hyperframes-synthetic.mp4"
+  python3 "$ROOT/video-engine/demo_feature4_diwali.py" "$PROJECT_60" --seconds 60 --width 1080
+  if (( NODE_MAJOR >= 22 )); then
+    timeout --signal=TERM --kill-after=10s 480s node "$ROOT/video-engine/hyperframes/render.mjs" "$PROJECT_60" "$OUTPUT_60"
+  else
+    timeout --signal=TERM --kill-after=10s 480s npm exec --yes --package=node@22 -- node "$ROOT/video-engine/hyperframes/render.mjs" "$PROJECT_60" "$OUTPUT_60"
+  fi
+  python3 - "$OUTPUT_60" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0,str(Path("video-engine").resolve()))
+from render_adapter import verify_mp4
+proof=verify_mp4(sys.argv[1],duration=60,width=1080,height=1920,fps=24)
+print("PASS: real 60s/1080p/24fps HyperFrames full-minute H264/AAC",proof)
+PY
+  for sec in 1 9 18 29 42 55; do
+    ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$sec" -i "$OUTPUT_60" -frames:v 1 "$ROOT/ci-artifacts/feature4-minute-frame-$sec.jpg"
+  done
+fi
