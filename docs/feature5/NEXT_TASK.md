@@ -102,3 +102,9 @@
 ## 2026-10-26 — A40 source bug fixed; external action still outstanding
 - DONE: A40 48GB BF16 quote screening and CPU tests under Feature5-owned PR #323; NVIDIA/Runpod public specs support the *hardware candidate*, not a real Hunyuan model benchmark. Provider-side teardown bound in cost screen remains mandatory.
 - NOT DONE: Azure **managed-environment** NCA100 quota new limit=1 request (submit under existing environment Settings→Quota), account-specific cloud GPU capacity/rates, prepaid hard cap, approved Tencent weights, real CUDA, true five-second H264 MP4.
+
+## 2026-10-26 — Next after evaluated full GitHub solutions
+- **Coordinator decision required:** evaluate retaining Hunyuan 1.5 vs adding separate Feature5 **LTX-Video v0.9.8 13B distilled** long-shot candidate, and use Part3-owned Wan2.2 as permissive short-format baseline; no duplicated Part3 implementation.
+- **Before paid deployment:** independently review LTX 0.X checkpoint commercial license and AI disclosure/hosted SaaS constraints, pin exact code/weights/ComfyUI legacy workflow version plus checksums, ensure DEV Azure `ManagedEnvironmentConsumptionNCA100Gpus` limit >= 1, then operator cost ceiling.
+- **Acceptance:** genuine private synthetic 5s pilot and controlled 60s model-extension clip at target portrait FPS, original SHA/FFprobe, garment/face visual reviewer and actual measured Azure GPU billing; until then neither performance nor cost is proven.
+- Source/architecture comparison: `docs/feature5/OPEN_SOURCE_VIDEO_ENGINE_REVIEW_20261026.md`. No H100 Terraform apply, no new worker deployment and no PR merge independently.
