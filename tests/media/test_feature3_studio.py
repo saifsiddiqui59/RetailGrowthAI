@@ -160,6 +160,104 @@ class Feature3Tests(unittest.TestCase):
             self.assertEqual(gif.format, "GIF")
             self.assertGreaterEqual(gif.n_frames, 2)
 
+
+    def test_pillow_does_not_silently_clip_approved_offer(self):
+        doc = self.design(approved_offer="20% OFF")
+        offer = next(item for item in doc["layers"] if item["id"] == "offer")
+        offer["w"], offer["h"] = .01, .01
+        with self.assertRaisesRegex(DesignError, "fit its layer"):
+            render_design(doc, self.manifest, self.root,
+                          self.root / "clipped.png", scale=.25)
+
+    @unittest.skipUnless(shutil.which("node"), "Node needed for browser/CPU parity test")
+    def test_browser_and_pillow_composers_agree_on_exact_schema(self):
+        import subprocess
+        script = """
+          import {composeFeature3Poster} from './frontend/src/features/creative/feature3-compose.mjs';
+          console.log(JSON.stringify(composeFeature3Poster({
+            shopId:'00000000-0000-4000-8000-000000000a33',
+            mode:'image',prompt:'Diwali premium ethnic clothing',
+            businessName:'Test Boutique',headline:'Celebrate in style',
+            cta:'Discover festive edit',approvedOffer:'20% OFF',
+            sourceAssetId:'00000000-0000-4000-8000-000000000a34',
+            authorizedAssetIds:['00000000-0000-4000-8000-000000000a34'],
+            template:'festival',format:'square',
+          })));
+        """
+        browser = json.loads(subprocess.check_output(
+            ["node", "--input-type=module", "-e", script], text=True,
+            timeout=15, cwd=ROOT,
+        ))
+        server = compose_poster(
+            shop_id="00000000-0000-4000-8000-000000000a33",
+            mode="image", prompt="Diwali premium ethnic clothing",
+            business_name="Test Boutique", headline="Celebrate in style",
+            cta="Discover festive edit", approved_offer="20% OFF",
+            source_asset_id="00000000-0000-4000-8000-000000000a34",
+            template="festival", format="square",
+        )
+        self.assertEqual(browser, server)
+
+    def test_all_seven_cpu_effects_are_bounded_and_deterministic(self):
+        import copy
+        doc = self.design(approved_offer="20% OFF")
+        saved = copy.deepcopy(doc)
+        for effect in ("flash", "pulse", "fade", "slide", "zoom", "sparkle", "reveal"):
+            with self.subTest(effect=effect):
+                path = self.root / ("effect-" + effect + ".gif")
+                result = export_animation(doc, self.manifest, self.root, path,
+                                          fps=3, duration=1, scale=.2, effects=(effect,))
+                self.assertEqual(result["effects"], [effect])
+                self.assertGreater(path.stat().st_size, 100)
+        self.assertEqual(doc, saved)
+        with self.assertRaisesRegex(DesignError, "Animation effects"):
+            export_animation(doc, self.manifest, self.root, self.root / "bad.gif",
+                             effects=("user-supplied-expression",))
+
+    def test_tenant_scoped_garment_fidelity_review(self):
+        from garment_review_v2 import build_review_sheet, validate_review, FEATURES
+        generated_id = str(uuid4())
+        Image.new("RGB", (260, 280), "#3C5C71").save(self.root / "tryon.png")
+        self.manifest["assets"][generated_id] = {
+            "kind": "image", "shop_id": self.shop, "path": "tryon.png",
+            "rights": {"license": "owned", "commercial_use": True,
+                       "source": "synthetic try-on fixture",
+                       "evidence": "local only test image"},
+        }
+        result = build_review_sheet(
+            shop_id=self.shop, garment_asset_id=self.asset,
+            model_asset_id=generated_id, manifest=self.manifest,
+            staged_root=self.root, output_path=self.root / "compare.png",
+        )
+        self.assertTrue(result["requires_human_review"])
+        with Image.open(result["path"]) as image:
+            self.assertEqual(image.size, (1200, 860))
+        with self.assertRaisesRegex(DesignError, "Cross-tenant"):
+            build_review_sheet(
+                shop_id=str(uuid4()), garment_asset_id=self.asset,
+                model_asset_id=generated_id, manifest=self.manifest,
+                staged_root=self.root, output_path=self.root / "bad.png",
+            )
+        review = {
+            "shop_id": self.shop, "source_asset_id": self.asset,
+            "output_asset_id": generated_id,
+            "checks": dict.fromkeys(FEATURES, True),
+            "reviewer_confirmation": True, "notes": "",
+        }
+        summary = validate_review(review=review, shop_id=self.shop,
+                                  source_asset_id=self.asset, output_asset_id=generated_id)
+        self.assertEqual(summary["status"], "HUMAN_REVIEW_PASSED")
+        self.assertFalse(summary["publish_approved"])
+        review["checks"]["neckline"] = False
+        with self.assertRaisesRegex(DesignError, "note"):
+            validate_review(review=review, shop_id=self.shop,
+                            source_asset_id=self.asset, output_asset_id=generated_id)
+        review["notes"] = "Neckline differs from the original"
+        self.assertEqual(validate_review(
+            review=review, shop_id=self.shop, source_asset_id=self.asset,
+            output_asset_id=generated_id,
+        )["status"], "REGENERATION_REQUIRED")
+
     def test_gpu_disabled_without_local_weights_or_licensed_parser(self):
         with self.assertRaises(ProviderBlocked):
             OfflineFluxKlein4B(self.root / "missing-gpu-weights")
