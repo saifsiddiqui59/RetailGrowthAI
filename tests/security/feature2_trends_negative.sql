@@ -23,7 +23,7 @@ values('fb000000-0000-4000-8000-000000000001',
 set local role authenticated;
 select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','fa000000-0000-4000-8000-000000000001',true);
-do $
+do $$
 declare denied boolean := false;
 begin
   if (select count(*) from public.shop_content_drafts
