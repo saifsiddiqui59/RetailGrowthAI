@@ -74,6 +74,9 @@ export class ReelIntentWriter extends CampaignDayWriter {
     const reel=matching[0].instagram.reel;
     const ids=reel.storyboard.map(s=>canonicalUuid(s.asset_id));
     const music=reel.music_asset_id===null?null:canonicalUuid(reel.music_asset_id);
+    // Distinct licensed MIME roles are authoritative in SQL as well. Deny
+    // an audio track reused in a storyboard image slot before a quota RPC.
+    if(music && ids.includes(music))return out(403,"ASSET_RIGHTS_UNVERIFIED");
     if(music)ids.push(music);
     if(!await this.licensedMedia(token,sid,ids,music))return out(403,"ASSET_RIGHTS_UNVERIFIED");
 

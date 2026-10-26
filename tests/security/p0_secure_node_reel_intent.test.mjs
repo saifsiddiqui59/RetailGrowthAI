@@ -36,7 +36,7 @@ function mock({
   role="OWNER",active=true,foreign=false,invalidLicense=false,
   status="DRAFT",dayRejected=false,invalidReel=false,
   music=false,quotaCode=null,lostAck=false,rpcResult={job_id:JOB,status:"QUEUED"},
-  duplicateMedia=false,wrongOrigin=false,missingRpc=false,
+  duplicateMedia=false,wrongOrigin=false,missingRpc=false,sameMediaForMusic=false,
 }={}){
   const calls=[];
   const fetchImpl=async(raw,init)=>{
@@ -55,6 +55,10 @@ function mock({
       if(invalidReel)v.instagram.reel.storyboard[0].duration_seconds=29;
       if(dayRejected)v.review_status="REJECTED";
       if(music)v.instagram.reel.music_asset_id=MUSIC;
+      if(sameMediaForMusic){
+        v.instagram.reel.music_asset_id=MUSIC;
+        v.instagram.reel.storyboard[0].asset_id=MUSIC;
+      }
       rows=[v];
     }
     if(table==="shop_memberships")rows=active?
@@ -183,4 +187,11 @@ test("malformed procedure response cannot masquerade as completed render job",as
     assert.equal(r.status,503);
     assert.equal(postCalls(calls).length,1);
   }
+});
+
+test("same owned audio file cannot double as Reel storyboard image AND music",async()=>{
+  const {handler,calls}=mock({sameMediaForMusic:true});
+  const response=await handler("POST","/api/campaigns/"+CAMP+"/renders",HEADER,request());
+  assert.notEqual(response.status,202);
+  assert.equal(postCalls(calls).length,0);
 });

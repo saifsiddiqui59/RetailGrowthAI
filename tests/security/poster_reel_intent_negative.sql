@@ -124,6 +124,44 @@ begin
   end if;
 end $$;
 
+-- Distinct MIME-role regression: same music AUDIO UUID cannot also occupy an
+-- image storyboard frame, even if licensing and tenant ownership are valid.
+-- A broken implementation might check only music MIME for this shared ID.
+reset role;
+select set_config('request.jwt.claims','{"role":"service_role","sub":"11111111-1111-4111-8111-111111111111"}',true);
+insert into public.media_assets(id,shop_id,created_by,object_path,mime_type,
+  source,license_name,attribution)
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  '33333333-3333-4333-8333-333333333333',
+  '11111111-1111-4111-8111-111111111111',
+  '33333333-3333-4333-8333-333333333333/uploads/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.mp3',
+  'audio/mpeg','UPLOAD','owned','Owned audio track and reviewed licensing');
+update public.campaign_days set instagram=
+  jsonb_set(jsonb_set(instagram,'{reel,storyboard,0,asset_id}',
+    '"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"'::jsonb),
+    '{reel,music_asset_id}',
+    '"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"'::jsonb)
+where id='88888888-8888-4888-8888-888888888888';
+set local role authenticated;
+select set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-4111-8111-111111111111","is_anonymous":false}',true);
+do $p0249_music_frame$
+begin
+  if public.request_reel_render_job(
+    '44444444-4444-4444-8444-444444444444',
+    '88888888-8888-4888-8888-888888888888') is not null then
+    raise exception 'audio file reused in storyboard image slot got a render job';
+  end if;
+end $p0249_music_frame$;
+reset role;
+select set_config('request.jwt.claims','{"role":"service_role","sub":"11111111-1111-4111-8111-111111111111"}',true);
+update public.campaign_days set instagram=
+  jsonb_set(jsonb_set(instagram,'{reel,storyboard,0,asset_id}',
+    '"55555555-5555-4555-8555-555555555555"'::jsonb),
+    '{reel,music_asset_id}', 'null'::jsonb)
+where id='88888888-8888-4888-8888-888888888888';
+set local role authenticated;
+select set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-4111-8111-111111111111","is_anonymous":false}',true);
+
 -- Private quota and outbox are intentionally INVISIBLE to authenticated users.
 -- Assert under disposable-test postgres identity only; never grant them SELECT.
 reset role;
