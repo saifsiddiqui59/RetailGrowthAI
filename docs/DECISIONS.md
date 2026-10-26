@@ -521,3 +521,8 @@
 ## 2026-10-26 — Verified prompt integration and protected release policy
 - PR #391 source merged, exact PR and main CI 4/4. GitHub Actions real-code fictional ZIP #12666657825 has checksum and reproducible sample files. Do not claim sample content or on-canvas TEST PNG as live observed trends, licensed hosted media, human-approved ads or rendered production Reel.
 - Reuse the existing resource-scoped OIDC protected `dev` deployment via PR #392 instead of direct CLI resource mutation; retain current tagged Central India RG, exact Flex Function App, current Free SWA, daily leased RSS, and cost-free template defaults. Never conflate CI success, deployment, signed user E2E and Flex #249 gateway issue.
+
+
+## 2026-10-26 — Split live prompt authorization acceptance from trend-backed draft acceptance
+- The zero-paid deterministic Prompt Improver should be testable under signed tenant RLS even when no real relevant fashion trend exists. Therefore add a separate opt-in **manual-only** `feature2-prompt` mode to the *existing* protected DEV disposable canary, before image upload or trend-based draft actions. Never weaken the original full `feature2` mode's genuine RSS clothing-evidence preflight.
+- Two newly created, ROOT-approved, nonce-identified test accounts receive OWNER-on-own-shop and after explicit owner-granted membership VIEWER→EDITOR on only their test shop. Validate roles and JSON in responses; absolutely no service key used as browser bearer, no synthetic live trends, no paid providers, no new cloud capacity. Privileged credentials remain in protected runner only, with existing narrow finally cleanup. Invalid JWT is not a valid signed expired JWT; separately test true expiration when possible.

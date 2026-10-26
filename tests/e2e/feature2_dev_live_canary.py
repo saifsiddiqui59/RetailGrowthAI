@@ -85,6 +85,143 @@ def validated_saved_owner_draft(payload, *, shop_id, draft_id, trend_id, submiss
     return row
 
 
+def validated_prompt_preview(payload, *, shop_id, original_prompt, output_formats,
+                             language="en-IN", business_name="RetailGrowthAI Test a",
+                             city="Nagpur"):
+    """Accept only the exact signed-in, zero-cost, nonpublishable preview shape.
+
+    This is application-runtime evidence, NOT a substitute for validating the
+    JWT cryptographically: that must have happened at the deployed Azure API.
+    """
+    if not isinstance(payload, dict) or payload.get("shop_id") != shop_id:
+        raise RuntimeError("Prompt improvement returned another tenant or invalid payload")
+    if (payload.get("original_prompt") != original_prompt
+            or not isinstance(payload.get("improved_prompt"), str)
+            or not 1 <= len(payload["improved_prompt"]) <= 1500
+            or original_prompt not in payload["improved_prompt"]):
+        raise RuntimeError("Prompt improvement lost the original retailer intent")
+    if (payload.get("output_formats") != output_formats
+            or payload.get("language") != language
+            or payload.get("review_status") != "NEEDS_REVIEW"
+            or payload.get("provider_mode") != "deterministic"
+            or payload.get("can_publish") is not False):
+        raise RuntimeError("Prompt improvement changed language, format, provider or approval")
+    used = payload.get("business_context_used")
+    if (not isinstance(used, dict) or used.get("business_name") != business_name
+            or used.get("city") != city
+            or not isinstance(used.get("products"), list)
+            or used["products"]):  # DEV v1 has no verified product catalogue.
+        raise RuntimeError("Prompt improver invented product facts or foreign business data")
+    suggestions = payload.get("improvement_suggestions")
+    if (not isinstance(suggestions, list) or not suggestions
+            or any(not isinstance(s, str) or not s.strip() for s in suggestions)):
+        raise RuntimeError("Prompt preview omitted review explanations")
+    usage = payload.get("usage")
+    if (not isinstance(usage, dict) or usage.get("paid_inference_calls") != 0
+            or usage.get("estimated_paid_cost_usd") != 0
+            or usage.get("provider") != "local_templates"):
+        raise RuntimeError("Prompt preview used an unapproved inference provider")
+    return payload
+
+
+def run_live_feature2_prompt(call, *, api, supabase, owner, outsider, shops, accounts):
+    """Signed prompt-only acceptance, with no trends, media or AI-provider calls.
+
+    Called *only after* the existing manual protected workflow, API anonymous
+    preflight, ROOT approval, and creation of exactly two canary-owned shops.
+    This routine may mutate only canary-owned business/membership rows, which
+    the calling workflow's strict finally block is responsible for cleaning.
+    """
+    shop_id, foreign_shop = shops
+    owner_id, outsider_id = accounts[0][0], accounts[1][0]
+    if owner_id == outsider_id or shop_id == foreign_shop:
+        raise RuntimeError("Prompt canary fixtures are not tenant-isolated")
+    base = api + "/api/shops/" + shop_id
+    profile_url = supabase + "/rest/v1/business_profiles?" + urllib.parse.urlencode({
+        "shop_id": "eq." + shop_id,
+        "select": "shop_id,business_name,city",
+    })
+    _, profiles = call(profile_url, method="PATCH", payload={
+        "business_name": "RetailGrowthAI Test a",
+        "category": "clothing", "city": "Nagpur",
+        "brand_voice": "warm and helpful",
+    }, headers={**owner, "Prefer": "return=representation"}, expect=(200,))
+    if (not isinstance(profiles, list) or len(profiles) != 1
+            or profiles[0].get("shop_id") != shop_id
+            or profiles[0].get("business_name") != "RetailGrowthAI Test a"
+            or profiles[0].get("city") != "Nagpur"):
+        raise RuntimeError("Canary-only OWNER profile update was not authorized")
+    print("FEATURE2_PROMPT_OWNER_PROFILE_RLS=PASS", flush=True)
+
+    url = base + "/improve-prompt"
+    original = "Create seven days of clothing styling ideas for my shop."
+    formats = ["instagram_caption", "facebook_post", "linkedin_post",
+               "youtube_shorts_description", "poster_brief", "reel_storyboard"]
+    prompt = {"original_prompt": original, "output_formats": formats, "language": "en-IN"}
+    # Signed-out and nonmember calls do not create accounts or content.
+    call(url, method="POST", payload=prompt, headers=outsider, expect=(403, 404))
+    call(url, method="POST", payload=prompt,
+         headers={"Authorization": "Bearer rejected.invalid.token"}, expect=(401,))
+    # API rejects browser-forged business profile, cost model and root privileges.
+    call(url, method="POST", payload={**prompt,
+        "business_profile": {"products": ["unverified clothing"]}},
+        headers=owner, expect=(400,))
+    call(url, method="POST", payload={**prompt,
+        "provider_mode": "approved_llm"}, headers=owner, expect=(400,))
+    print("FEATURE2_PROMPT_FOREIGN_INVALID_TOKEN_FORGED_CONTEXT=PASS", flush=True)
+
+    _, history_before = call(base + "/content-drafts", headers=owner, expect=(200,))
+    if (not isinstance(history_before, dict)
+            or history_before.get("shop_id") != shop_id
+            or history_before.get("drafts") != []):
+        raise RuntimeError("Prompt-only test must start with zero canary drafts")
+    _, improved = call(url, method="POST", payload=prompt,
+                       headers=owner, timeout=40, expect=(200,))
+    validated_prompt_preview(improved, shop_id=shop_id,
+                             original_prompt=original, output_formats=formats)
+    print("FEATURE2_PROMPT_SIGNED_OWNER_ZERO_COST_PREVIEW=PASS", flush=True)
+
+    # OWNER invites only the known second disposable account as a VIEWER.
+    _, membership = call(supabase + "/rest/v1/shop_memberships",
+        method="POST", payload={"shop_id": shop_id, "user_id": outsider_id,
+                                "role": "VIEWER"},
+        headers={**owner, "Prefer": "return=representation"}, expect=(201,))
+    if (not isinstance(membership, list) or len(membership) != 1
+            or membership[0].get("shop_id") != shop_id
+            or membership[0].get("user_id") != outsider_id
+            or membership[0].get("role") != "VIEWER"):
+        raise RuntimeError("Canary VIEWER membership was not authorized")
+    call(url, method="POST", payload=prompt, headers=outsider, expect=(403, 404))
+    print("FEATURE2_PROMPT_SIGNED_VIEWER_DENIAL=PASS", flush=True)
+
+    # Promote only this test-owned membership with the test OWNER identity.
+    membership_url = supabase + "/rest/v1/shop_memberships?" + urllib.parse.urlencode({
+        "shop_id": "eq." + shop_id, "user_id": "eq." + outsider_id,
+        "select": "shop_id,user_id,role",
+    })
+    _, roles = call(membership_url, method="PATCH",
+                    payload={"role": "EDITOR"},
+                    headers={**owner, "Prefer": "return=representation"}, expect=(200,))
+    if (not isinstance(roles, list) or len(roles) != 1
+            or roles[0].get("shop_id") != shop_id
+            or roles[0].get("user_id") != outsider_id
+            or roles[0].get("role") != "EDITOR"):
+        raise RuntimeError("Canary EDITOR promotion failed verified owner RLS")
+    _, edited = call(url, method="POST", payload=prompt,
+                     headers=outsider, timeout=40, expect=(200,))
+    validated_prompt_preview(edited, shop_id=shop_id,
+                             original_prompt=original, output_formats=formats)
+    print("FEATURE2_PROMPT_SIGNED_EDITOR_ZERO_COST_PREVIEW=PASS", flush=True)
+
+    _, history_after = call(base + "/content-drafts", headers=owner, expect=(200,))
+    if (not isinstance(history_after, dict)
+            or history_after.get("shop_id") != shop_id
+            or history_after.get("drafts") != []):
+        raise RuntimeError("Prompt-only preview caused an unauthorized draft write")
+    print("FEATURE2_PROMPT_NO_DRAFT_NO_MEDIA_NO_TREND=PASS", flush=True)
+    print("FEATURE2_PROMPT_HOSTED_CANARY_ACCEPTANCE=PASS", flush=True)
+
+
 def run_live_feature2(call, *, api, supabase, owner, outsider, shops, accounts, asset):
     """Never replay a draft POST; read back under caller JWT only."""
     shop_id, foreign_shop = shops
