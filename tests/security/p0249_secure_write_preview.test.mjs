@@ -28,7 +28,8 @@ test("preview alone owns exact DEV JWT/RLS write routes, never production source
  assert.match(preview,/renderWritesEnabled: true/);
  assert.match(readOnly,/writesEnabled: false/);
  assert.match(readOnly,/renderWritesEnabled: false/);
- assert.match(canonical,/previewReadCampaign/===null ? /secureReadCampaign/:/secureReadCampaign/);
+ assert.match(canonical,/secureReadCampaign/);
+ assert.doesNotMatch(canonical,/previewCampaignCreate|previewReelSubmit/);
  assert.equal((preview.match(/publicRoute\("/g)||[]).length,13);
  assert.equal((preview.match(/\["POST"\]/g)||[]).length,5);
  assert.equal((preview.match(/\["PATCH"\]/g)||[]).length,1);
