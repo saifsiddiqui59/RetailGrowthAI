@@ -39,7 +39,7 @@ def choose_meters(items, *, now=None):
         region = str(row.get("armRegionName", "")).lower()
         if region != REGION or row.get("currencyCode") != "USD":
             continue
-        if row.get("productName") != "Azure OpenAI":
+        if not str(row.get("productName","")).lower().startswith("azure openai"):
             continue
         if row.get("isPrimaryMeterRegion") is False:
             continue
@@ -81,7 +81,7 @@ def choose_meters(items, *, now=None):
 
 
 def fetch_prices(fetch=urlopen):
-    query = urlencode({"$filter": "armRegionName eq 'southindia' and productName eq 'Azure OpenAI'",
+    query = urlencode({"$filter": "armRegionName eq 'southindia' and contains(productName, 'Azure OpenAI')",
                        "currencyCode": "USD"})
     url = ENDPOINT + "?" + query
     items = []
@@ -106,7 +106,26 @@ def fetch_prices(fetch=urlopen):
 
 
 def main():
-    meters = choose_meters(fetch_prices())
+    records = fetch_prices()
+    try:
+        meters = choose_meters(records)
+    except ValueError:
+        # Price API response contains public catalog data only; NEVER print
+        # tenant credentials, JWTs, Azure configuration or subscription details.
+        related = [row for row in records
+                   if isinstance(row, dict) and
+                   ("mini" in normalize(str(row.get("skuName", ""))) or
+                    "4 1" in normalize(str(row.get("skuName", ""))))]
+        print("FEATURE2_PUBLIC_PRICE_CATALOG_DIAGNOSTIC="+json.dumps({
+            "records_received": len(records),
+            "related_sku_count": len(related),
+            "public_examples": [
+                {k: row.get(k) for k in
+                 ("productName", "skuName", "unitOfMeasure",
+                  "armRegionName", "type", "retailPrice")}
+                for row in related[:20]]
+        }, sort_keys=True))
+        raise
     print("FEATURE2_OFFICIAL_RETAIL_METER_LOOKUP=PASS")
     print(json.dumps({"region": REGION, "model": "gpt-4.1-mini",
                       "deployment_type": "Regional Standard",
