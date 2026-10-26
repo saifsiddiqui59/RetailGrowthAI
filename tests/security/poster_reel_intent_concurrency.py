@@ -86,7 +86,7 @@ def count_waiters() -> int:
 def main() -> None:
     print("START: isolated two-session Reel RPC lock/idempotency check")
     subprocess.run(
-        [*BASE, "-f", "tests/security/poster_reel_intent_concurrency_setup.sql"],
+        [*BASE, "-f", "tests/security/reel_intent_concurrency_setup.sql"],
         cwd=ROOT, env=dict(os.environ, PGAPPNAME="rga-reel-race-setup"),
         capture_output=True, text=True, check=True, timeout=45,
     )
