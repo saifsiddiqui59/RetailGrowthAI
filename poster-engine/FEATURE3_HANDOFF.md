@@ -505,3 +505,48 @@ actual FLUX 4B CUDA inference and a reviewed, private output is proven.
 *synthetic/CPU* outputs from the actual Pillow/FFmpeg engine (geometric
 garment, not AI human); real fashion model sample MUST NOT be declared
 available until an actual GPU run succeeds.
+
+
+## 2026-10-26 — User-directed import-FIRST synthetic fashion library
+
+The desired product is NOT "generate every model on GPU": **curate/import
+commercially reusable existing synthetic adult human-model stills, share
+across approved retailers, and retain separate optional Create New AI Model**.
+This is the minimum-spend path, and it supersedes the prior default
+AI-creation-first concept.
+
+**Delivered in feature-owned source:**
+- `model_library_v2.py` imports locally staged PNG/JPEG/WebP avatar image
+  bytes, validates size, strips metadata, creates immutable SHA256 PNG and
+  deterministic UUID/key, and uses mandatory trusted callbacks for
+  independent license/rights, shop membership or platform-curator grant,
+  private Blob upload, and durable registry write. No remote download.
+- Supports **two scopes**: owner-shop private and curator-approved shared
+  platform; server rights rechecked before every `poster`, `try_on` and
+  `video_reference` reuse. Imported models start `PENDING_REVIEW`,
+  never automatically approved/published. CC-BY attribution is required.
+- Both `opensource_render` and `created_ai` supply exactly the same
+  `retailgrowth.model-library.v1` record; existing FLUX model creation
+  remains an opt-in separate cost-based operation, not duplicated storage.
+- `tests/media/test_feature3_model_library.py` contains offline Pillow
+  fixtures and rights/security tests: metadata stripping, same-hash
+  dedupe, tenant denial, curator-only global publish, source provenance,
+  revoked rights, forged private storage receipt, malformed/mismatched
+  rights, animation rejection, CC-BY attribution and reuse by all three
+  consumers. Fixtures are synthetic, **not externally sourced models**.
+- `MODEL_LIBRARY_IMPORT_FIRST.md` documents reviewed initial source
+  MakeHuman core CC0 assets/renders (separate third-party source licenses
+  are mandatory), and explicitly forbids bulk scraping/importing random
+  people photos or stock libraries with restricted redistribution.
+- **No cloud migrations, live import UI, end-user library, real upstream
+  images, commercial virtual try-on or GPU inference deployed.**
+  This is source-only for coordinator interface/schema/backend review.
+
+**Coordinator P0 next:** additive model registry RLS, platform curator
+and tenant roles, rights evidence, immutable private media uploads and
+signed previews, human approval/revocation, import browser UX and asset
+handoffs to Feature4/5. Live tenant/VIEWER/expired-JWT E2E must prove no
+cross-tenant leakage. Do not promote platform assets on self-declared
+rights. Update canonical PROJECT_STATE, NEXT_TASK, DECISIONS and WORK_LOG
+when PR reviewed/merged. **Cost default: zero GPU** for imports and
+reuse; on-demand model creation still available when approved.
