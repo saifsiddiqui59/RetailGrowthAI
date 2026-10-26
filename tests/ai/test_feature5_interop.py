@@ -154,7 +154,8 @@ class TestFeature4Handoff(unittest.TestCase):
         ]:
             with self.subTest(value=value), self.assertRaises(MotionError):
                 feature4_asset_entry(self.ready(**value), shop_id=self.shop,
-                                     local_staged_path="clips/fashion.mp4", rights=self.rights)
+                                     local_staged_path="clips/fashion.mp4",
+                                     rights=self.rights, **self.review_kwargs)
 
     def test_forged_or_missing_visual_review_never_publishes(self):
         with self.assertRaises(MotionError):
