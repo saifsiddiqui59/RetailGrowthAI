@@ -15,8 +15,26 @@ from ai_providers_v2 import ProviderBlocked
 MODEL = "black-forest-labs/FLUX.2-klein-4B"
 OFFICIAL_REVISION = "e7b7dc27f91deacad38e78976d1f2b499d76a294"
 SHA = re.compile(r"^[a-f0-9]{64}$")
-SCHEMA = "retailgrowth.flux2-klein-4b.full-snapshot.v2"
+SCHEMA = "retailgrowth.flux2-klein-4b.full-snapshot.v3"
 MAX_MANIFEST = 16384
+# Verified against the publisher's exact FLUX.2 Klein 4B Diffusers layout.
+# Shards alone are insufficient for a loadable, untampered pipeline.
+REQUIRED_CONFIG_FILES = frozenset({
+    "LICENSE.md",
+    "scheduler/scheduler_config.json",
+    "text_encoder/config.json",
+    "text_encoder/generation_config.json",
+    "text_encoder/model.safetensors.index.json",
+    "transformer/config.json",
+    "vae/config.json",
+    "tokenizer/added_tokens.json",
+    "tokenizer/chat_template.jinja",
+    "tokenizer/merges.txt",
+    "tokenizer/special_tokens_map.json",
+    "tokenizer/tokenizer.json",
+    "tokenizer/tokenizer_config.json",
+    "tokenizer/vocab.json",
+})
 
 
 def _digest(path):
@@ -37,7 +55,7 @@ def verify_reviewed_flux_snapshot(directory, approval_manifest):
         record = json.loads(manifest_path.read_text(encoding="utf-8"))
         if not isinstance(record, dict) or set(record) != {
             "schema", "repository", "revision_sha", "weights_license",
-            "model_index_sha256", "shards_sha256", "dependencies_operator_approved",
+            "model_index_sha256", "shards_sha256", "configs_sha256", "dependencies_operator_approved",
         } or record["schema"] != SCHEMA or record["repository"] != MODEL or \
             record["revision_sha"] != OFFICIAL_REVISION or \
             record["weights_license"] != "Apache-2.0" or \
@@ -55,16 +73,22 @@ def verify_reviewed_flux_snapshot(directory, approval_manifest):
             "vae/diffusion_pytorch_model.safetensors",
         } <= actual:
             raise ProviderBlocked("Incomplete or replaced model shards")
-        for name, digest in hashes.items():
+        configs = record["configs_sha256"]
+        if not isinstance(configs, dict) or set(configs) != REQUIRED_CONFIG_FILES:
+            raise ProviderBlocked("Complete verified FLUX tokenizer/config manifest required")
+        for name, digest in {**hashes, **configs}.items():
             ref = PurePosixPath(name)
             if (ref.is_absolute() or ".." in ref.parts or
                 any(part in ("", ".") for part in ref.parts) or
-                not name.endswith(".safetensors") or
                 not isinstance(digest, str) or not SHA.fullmatch(digest)):
-                raise ProviderBlocked("Unsafe shard manifest")
+                raise ProviderBlocked("Unsafe model file manifest")
             path = root.joinpath(*ref.parts)
-            if path.is_symlink() or not path.is_file() or path.stat().st_size == 0 or _digest(path) != digest:
-                raise ProviderBlocked("FLUX shard bytes do not match approval")
+            # Reject symlinks at every interior level, not only at the leaf.
+            if (any((root.joinpath(*ref.parts[:i])).is_symlink()
+                    for i in range(1, len(ref.parts) + 1))
+                or not path.is_file() or path.stat().st_size == 0
+                or _digest(path) != digest):
+                raise ProviderBlocked("FLUX model bytes do not match approval")
         index = root / "model_index.json"
         if index.is_symlink() or not index.is_file() or _digest(index) != record["model_index_sha256"]:
             raise ProviderBlocked("FLUX model index changed")
@@ -74,6 +98,7 @@ def verify_reviewed_flux_snapshot(directory, approval_manifest):
             "repository": MODEL, "revision_sha": OFFICIAL_REVISION,
             "weight_license": "Apache-2.0", "model_index_sha256": record["model_index_sha256"],
             "weight_shards_sha256_verified": True,
+            "configs_sha256_verified": True,
             "dependencies_operator_approved": True, "offline_only": True,
             "saas_deployment_authorized": False,
         }
