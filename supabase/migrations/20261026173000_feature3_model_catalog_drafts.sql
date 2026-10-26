@@ -81,18 +81,24 @@ using(retail_private.has_role(shop_id,array['OWNER','EDITOR','VIEWER']));
 -- Strict JSON shape + bounds; only server validates/commits trusted design bytes.
 create function retail_private.feature3_valid_design(d jsonb, shop uuid)
 returns boolean language plpgsql stable security definer set search_path='' as $$
-declare layer jsonb; kind text; k text; expected_keys text[];
-        ids text[] := array[]::text[];
+declare
+  layer jsonb;
+  kind text;
+  k text;
+  expected_keys text[];
+  ids text[] := array[]::text[];
 begin
-  if d is null or jsonb_typeof(d)<>'object' or pg_catalog.octet_length(d::text)>16384
+  if d is null or jsonb_typeof(d) is distinct from 'object'
+   or pg_catalog.octet_length(d::text)>16384
    or (select array_agg(key order by key) from jsonb_object_keys(d) as key) is distinct from
       array['background','format','layers','schema','shop_id','template']
-   or d->>'schema'<>'retailgrowth.poster.v2' or d->>'shop_id'<>shop::text
-   or d->>'format' not in ('square','portrait','story')
-   or d->>'template' not in
-     ('fashion','luxury','streetwear','ethnic','festival','restaurant','general','new_arrivals','clearance','seasonal')
-   or d->>'background' !~ '^#[0-9a-fA-F]{6}$'
-   or jsonb_typeof(d->'layers')<>'array'
+   or d->>'schema' is distinct from 'retailgrowth.poster.v2'
+   or d->>'shop_id' is distinct from shop::text
+   or coalesce(d->>'format' in ('square','portrait','story'),false) is not true
+   or coalesce(d->>'template' in
+      ('fashion','luxury','streetwear','ethnic','festival','restaurant','general','new_arrivals','clearance','seasonal'),false) is not true
+   or coalesce(d->>'background' ~ '^#[0-9a-fA-F]{6}$',false) is not true
+   or jsonb_typeof(d->'layers') is distinct from 'array'
    or jsonb_array_length(d->'layers') not between 1 and 24 then
     return false;
   end if;
@@ -107,11 +113,15 @@ begin
     else
       return false;
     end if;
-    if jsonb_typeof(layer)<>'object'
-      or layer->>'id' !~ '^[A-Za-z0-9_-]{1,48}
+    if jsonb_typeof(layer) is distinct from 'object'
+      or coalesce(layer->>'id' ~ '^[A-Za-z0-9_-]{1,48}$',false) is not true
+      or ids @> array[layer->>'id']
+      or (select array_agg(key order by key) from jsonb_object_keys(layer) as key)
+          is distinct from expected_keys
+    then return false; end if;
     ids := ids || (layer->>'id');
     foreach k in array array['x','y','w','h'] loop
-      if jsonb_typeof(layer->k) <> 'number'
+      if jsonb_typeof(layer->k) is distinct from 'number'
        or (layer->>k)::numeric < 0 or (layer->>k)::numeric > 1
        or (k in ('w','h') and (layer->>k)::numeric < .01) then
         return false;
@@ -122,21 +132,24 @@ begin
     if kind='text' and (
         layer->>'text' is null or length(trim(layer->>'text')) not between 1 and 160
         or layer->>'text' ~ '[[:cntrl:]]'
-        or layer->>'color' !~ '^#[0-9a-fA-F]{6}$'
-        or jsonb_typeof(layer->'font_size')<>'number'
+        or coalesce(layer->>'color' ~ '^#[0-9a-fA-F]{6}$',false) is not true
+        or jsonb_typeof(layer->'font_size') is distinct from 'number'
         or (layer->>'font_size')::numeric not between 12 and 150
         or (layer->>'font_size')::numeric <> trunc((layer->>'font_size')::numeric)
-        or jsonb_typeof(layer->'bold')<>'boolean'
+        or jsonb_typeof(layer->'bold') is distinct from 'boolean'
       ) then return false; end if;
-    if kind='rect' and layer->>'color' !~ '^#[0-9a-fA-F]{6}$' then return false; end if;
-    -- Existing registered shop media IDs MUST be canonical UUIDs.
-    if kind='image' and layer->>'asset_id' !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-      then return false; end if;
+    if kind='rect' and
+       coalesce(layer->>'color' ~ '^#[0-9a-fA-F]{6}$',false) is not true
+       then return false; end if;
+    if kind='image' and
+       coalesce(layer->>'asset_id' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',false) is not true
+       then return false; end if;
   end loop;
   return true;
 exception when invalid_text_representation or numeric_value_out_of_range then return false;
 end $$;
 revoke all on function retail_private.feature3_valid_design(jsonb,uuid) from public,anon,authenticated;
+
 
 -- CAS-only browser write; never mutate APPROVED designs or render/publish.
 -- On uncertain transport failure read user-RLS design by ID before retrying.
