@@ -13,6 +13,8 @@ import {
   replaceFeature3Image, validateFeature3Design,
 } from './feature3-design.mjs'
 
+import { renderFeature3LocalDraft } from './feature3-local-png.mjs'
+
 const SIZE = { boxSizing: 'border-box', maxWidth: '100%', width: '100%' }
 const COLOR = /^#[0-9a-fA-F]{6}$/
 
@@ -67,6 +69,36 @@ export default function Feature3CpuEditor({
       event.target.value = ''
     }
   }
+  const downloadDraftPng = () => {
+    if (disabled) return
+    try {
+      // The browser performs exactly one bounded 1080px local render;
+      // nothing is posted, uploaded, published or charged to a GPU.
+      const local = document.createElement('canvas')
+      renderFeature3LocalDraft(local, draft, imageMap)
+      if (typeof local.toBlob !== 'function') {
+        throw Error('PNG export is unavailable in this browser')
+      }
+      local.toBlob(blob => {
+        if (!blob || blob.type !== 'image/png') {
+          setMessage('Browser could not encode the local draft PNG.')
+          return
+        }
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = 'retailgrowth-unreviewed-local-draft.png'
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+        setMessage('Downloaded local draft PNG. This is not an approved cloud poster.')
+      }, 'image/png')
+    } catch (error) {
+      setMessage(error.message || 'Local draft PNG could not be generated.')
+    }
+  }
+
   const exportDraft = () => {
     const url = URL.createObjectURL(new Blob([JSON.stringify(draft, null, 2)],
       { type: 'application/json' }))
@@ -206,6 +238,9 @@ export default function Feature3CpuEditor({
         </label>
         <button type="button" disabled={disabled||!onSaveDraft||saving}
           onClick={save}>{saving?'Saving…':'Save private draft'}</button>
+        <button type="button" disabled={disabled} onClick={downloadDraftPng}>
+          Download local draft PNG (unreviewed)
+        </button>
         <button type="button" disabled={disabled} onClick={exportDraft}>Download editable JSON</button>
         <label>Reopen local JSON
           <input type="file" accept="application/json,.json" disabled={disabled}
