@@ -1,0 +1,88 @@
+name: RetailGrowthAI DEV Node Free SWA preview read-only smoke
+# Recheck already-deployed named preview. NO upload or Azure writes.
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/p0-dev-node-preview-readonly-smoke-once.yml']
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0-249-swa-preview-readonly-smoke
+  cancel-in-progress: false
+jobs:
+  smoke:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'audit(dev): RetailGrowthAI P0 249 isolated Node preview smoke')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify pinned synthetic endpoints and preview-only policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/security/p0_node_http_control.test.mjs experiments/wineshop-node-http-control/test/routes.test.mjs
+          python3 -m unittest discover -s tests/infra -p 'test_p0_249_preview_smoke.py'
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify exact RetailGrowthAI DEV subscription and existing Free SWA
+        shell: bash
+        env:
+          EXPECTED_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$EXPECTED_SUB"
+          az group show -g rg-retailgrowth-dev -o json > "$RUNNER_TEMP/rg.json"
+          az staticwebapp show -g rg-retailgrowth-dev -n retailgrowthai-dev-preview -o json > "$RUNNER_TEMP/swa.json"
+          python3 - "$RUNNER_TEMP/rg.json" "$RUNNER_TEMP/swa.json" <<'PY'
+          import json,sys
+          rg,swa=(json.load(open(p)) for p in sys.argv[1:])
+          tags={str(k).lower():str(v).lower() for k,v in (rg.get("tags") or {}).items()}
+          assert rg["name"]=="rg-retailgrowth-dev"
+          assert str(rg["location"]).replace(" ","").lower()=="centralindia"
+          assert tags.get("app")=="retailgrowthai" and tags.get("environment")=="dev"
+          assert swa["name"]=="retailgrowthai-dev-preview"
+          assert (swa.get("sku") or {}).get("name","").lower()=="free"
+          assert swa["defaultHostname"]=="purple-dune-06b5da200.2.azurestaticapps.net"
+          print("P0_249_EXISTING_FREE_SWA_ONLY_VERIFIED=true")
+          PY
+      - name: Four actual no-JWT synthetic HTTP calls against already-deployed named preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          preview='https://purple-dune-06b5da200-p0249node.eastasia.2.azurestaticapps.net'
+          test "$preview" != 'https://purple-dune-06b5da200.2.azurestaticapps.net'
+          for pair in 'p0-health-lite:200' 'campaigns/11111111-1111-4111-8111-111111111111:401' 'p0-249-missing:404' 'p0-health-lite:200'; do
+            IFS=: read -r path expected <<< "$pair"
+            stamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            output="$(curl -sS --connect-timeout 4 --max-time 15 -D "$RUNNER_TEMP/headers" -o /dev/null -w '%{http_code} %{time_total} %{time_appconnect} %{time_starttransfer}' "$preview/api/$path")"
+            read -r got duration tls first_byte <<< "$output"
+            marker=false
+            if grep -iq '^x-p0-control: node-v4' "$RUNNER_TEMP/headers"; then marker=true; fi
+            echo "P0_249_NODE_PREVIEW_UTC=$stamp PATH=$path HTTP=$got DURATION=$duration TLS=$tls FIRST_BYTE=$first_byte APP_MARKER=$marker"
+            test "$got" = "$expected"
+            test "$marker" = true
+          done
+          echo "P0_249_FREE_NODE_PREVIEW_READONLY_HTTP_ACCEPTANCE=PASSED"
+      - name: Confirm old customer SPA still serves login shell (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --max-time 15 'https://purple-dune-06b5da200.2.azurestaticapps.net/account' -o "$RUNNER_TEMP/production-account.html"
+          grep -Fq 'id="root"' "$RUNNER_TEMP/production-account.html"
+          echo "P0_249_EXISTING_PRODUCTION_FRONTEND_UNCHANGED=true"
+      - name: Azure logout
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
