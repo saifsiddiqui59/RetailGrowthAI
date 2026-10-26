@@ -154,6 +154,39 @@ test('shop-wide month reads two campaigns only after click with user JWT and one
   expect(calls.some(url=>url.includes('retail_platform_notifications'))).toBe(false)
 })
 
+test('private registered media is read only on preview through user JWT, never public Storage links',async({page})=>{
+  await signedIn(page)
+  const image='a1000000-0000-4000-8000-000000000010'
+  const upload='a1000000-0000-4000-8000-000000000020'
+  let privateReads=0
+  await page.route(HOST+'/rest/v1/media_assets**',route=>{
+    const u=new URL(route.request().url())
+    const registered={id:image,shop_id:SHOP,storage_bucket:'retailgrowth-media',
+      object_path:SHOP+'/uploads/'+upload+'.png',mime_type:'image/png',
+      source:'UPLOAD',license_name:'owned'}
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify(u.searchParams.has('id')?[registered]:[registered])})
+  })
+  await page.route(HOST+'/storage/v1/object/authenticated/**',route=>{
+    privateReads++
+    expect(route.request().headers().authorization).toBe('Bearer offline-test-JWT')
+    const png=Buffer.alloc(256)
+    Buffer.from([137,80,78,71,13,10,26,10]).copy(png)
+    return route.fulfill({status:200,body:png,
+      headers:{'Access-Control-Allow-Origin':'*','Content-Type':'image/png','Content-Length':'256'}})
+  })
+  await page.goto('/media-library')
+  expect(privateReads).toBe(0)
+  await page.getByRole('button',{name:'Preview Image a1000000'}).click()
+  await expect(page.getByRole('img',{name:'Authorized private image Image a1000000'}))
+    .toHaveAttribute('src',/^blob:/)
+  await expect(page.getByRole('link',{name:'Save private image'}))
+    .toHaveAttribute('href',/^blob:/)
+  expect(privateReads).toBe(1)
+  await expect(page.locator('a[href*="/storage/v1/object/"]')).toHaveCount(0)
+})
+
 test('media library filters business-owned records without public blob URLs', async ({ page }) => {
   const calls = await signedIn(page)
   await page.goto('/media-library')

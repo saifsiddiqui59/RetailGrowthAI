@@ -302,3 +302,41 @@ test('read-only shop-wide draft month requires JWT, shop/date filters, rejects f
   response=Array(201).fill({shop_id:shop})
   await assert.rejects(()=>api.listShopCalendarMonth(shop,'2026-12'),/could not be verified/)
 })
+
+test('private registered upload preview fetches binary with caller JWT only and validates byte signature',async()=>{
+  const shop='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  const asset='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+  const upload='cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+  const requests=[]
+  const png=new Uint8Array(256)
+  png.set([137,80,78,71,13,10,26,10])
+  let bytes=png
+  let row={id:asset,shop_id:shop,storage_bucket:'retailgrowth-media',
+    object_path:shop+'/uploads/'+upload+'.png',
+    mime_type:'image/png',source:'UPLOAD',license_name:'owned'}
+  const api=fixture(async(url,options)=>{
+    requests.push({url,options})
+    if(url.includes('/auth/v1/token')) return json({access_token:'user-access',refresh_token:'user-refresh',expires_in:3600})
+    if(url.includes('/rest/v1/media_assets')) return json([row])
+    if(url.includes('/storage/v1/object/authenticated/'))return new Response(bytes,{
+      headers:{'Content-Type':'image/png','Content-Length':String(bytes.byteLength)}})
+    throw Error('Unexpected '+url)
+  })
+  await api.signIn('owner@example.test','password123')
+  const result=await api.downloadPrivateImage(shop,asset)
+  assert.equal(result.blob.type,'image/png')
+  assert.equal(result.blob.size,256)
+  assert.equal(result.filename,'retailgrowth-image-'+asset.slice(0,8)+'.png')
+  const storageCall=requests.find(x=>x.url.includes('/storage/v1/object/authenticated/'))
+  assert.equal(storageCall.options.headers.Authorization,'Bearer user-access')
+  assert.ok(storageCall.url.endsWith(shop+'/uploads/'+upload+'.png'))
+  assert.equal(storageCall.options.redirect,'error')
+  assert.doesNotMatch(storageCall.url,/object\/public|object\/sign/)
+  row={...row,shop_id:'dddddddd-dddd-4ddd-8ddd-dddddddddddd'}
+  const before=requests.filter(x=>x.url.includes('/storage/v1/object/authenticated/')).length
+  await assert.rejects(()=>api.downloadPrivateImage(shop,asset),/not registered or authorized/)
+  assert.equal(requests.filter(x=>x.url.includes('/storage/v1/object/authenticated/')).length,before)
+  row={...row,shop_id:shop}
+  bytes=new Uint8Array(256)
+  await assert.rejects(()=>api.downloadPrivateImage(shop,asset),/signature is invalid/)
+})

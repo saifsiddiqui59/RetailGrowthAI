@@ -493,6 +493,98 @@ export function createRetailClient({
     }
     return records
   }
+  // Private image read: the user JWT checks media_assets RLS AND Storage RLS.
+  // Never return storage object paths or issue long-lived public/signed URLs.
+  async function downloadPrivateImage(shopId, assetId) {
+    if (!UUID_V4.test(shopId || '') || !UUID_V4.test(assetId || '')) {
+      throw new Error('Invalid private image scope')
+    }
+    const rows = await table('media_assets', {query: {
+      select: 'id,shop_id,storage_bucket,object_path,mime_type,source,license_name',
+      shop_id: 'eq.' + shopId, id: 'eq.' + assetId, limit: '1',
+    }})
+    const row = Array.isArray(rows) && rows.length === 1 ? rows[0] : null
+    const types = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp' }
+    const ext = types[row?.mime_type] || ''
+    const filePath = new RegExp('^' + shopId +
+      '/uploads/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}' +
+      ext.replace('.', '[.]') + '
+    if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/.test(shopId || '')) throw new Error('Invalid shop ID')
+    const rows = await table('media_assets', {
+      query: { select: 'id,shop_id,source,license_name,mime_type',
+        shop_id: 'eq.' + shopId, order: 'created_at.desc', limit: '100' },
+    })
+    return rows.filter(row => row.shop_id === shopId && row.license_name)
+  }
+  return {
+    configured, getStoredSession: () => session, getAccessToken: accessToken,
+    signIn, signUp, signOut, getUser, requestPasswordReset, acceptEmailLinkSession, updatePassword,
+    listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
+    isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
+    listPlatformNotifications, setPlatformNotificationRead, listPlatformSubscriptionWatch,
+    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, downloadPrivateImage, uploadImageAsset,
+  }
+}
+
+// Lazy creation: unconfigured Vite/CI builds can still render their mock workspace.
+let sharedClient
+export function getRetailClient() {
+  if (!sharedClient) sharedClient = createRetailClient()
+  return sharedClient
+}
+, 'i')
+    if (!row || row.id !== assetId || row.shop_id !== shopId ||
+        row.storage_bucket !== 'retailgrowth-media' || row.source !== 'UPLOAD' ||
+        !ext || typeof row.license_name !== 'string' || !row.license_name.trim() ||
+        typeof row.object_path !== 'string' || !filePath.test(row.object_path)) {
+      throw new Error('This private uploaded image is not registered or authorized')
+    }
+    const endpoint = origin + '/storage/v1/object/authenticated/retailgrowth-media/' +
+      row.object_path.split('/').map(encodeURIComponent).join('/')
+    const response = await fetchImpl(endpoint, {
+      method: 'GET', redirect: 'error', cache: 'no-store',
+      headers: { apikey: key, Authorization: 'Bearer ' + await accessToken(),
+        Accept: row.mime_type },
+    })
+    if (!response.ok || !response.body) throw new Error('Private image read was denied')
+    if ((response.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase() !== row.mime_type) {
+      throw new Error('Private image content type did not match registration')
+    }
+    const maxBytes = 25 * 1024 * 1024
+    const declared = Number(response.headers.get('Content-Length'))
+    if ((Number.isFinite(declared) && declared > maxBytes) || declared < 0) {
+      throw new Error('Private image exceeds safe preview size')
+    }
+    const reader = response.body.getReader()
+    let total = 0
+    const pieces = []
+    try {
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        total += value.byteLength
+        if (total > maxBytes) {
+          await reader.cancel().catch(() => {})
+          throw new Error('Private image exceeds safe preview size')
+        }
+        pieces.push(value)
+      }
+    } finally { reader.releaseLock() }
+    const bytes = new Uint8Array(total)
+    let position = 0
+    for (const piece of pieces) { bytes.set(piece, position); position += piece.byteLength }
+    const png = [137,80,78,71,13,10,26,10].every((b,i)=>bytes[i]===b)
+    const jpg = bytes[0]===255 && bytes[1]===216 && bytes[2]===255
+    const webp = [82,73,70,70].every((b,i)=>bytes[i]===b) &&
+      [87,69,66,80].every((b,i)=>bytes[i+8]===b)
+    if (total < 100 || (row.mime_type==='image/png' && !png) ||
+        (row.mime_type==='image/jpeg' && !jpg) ||
+        (row.mime_type==='image/webp' && !webp)) {
+      throw new Error('Private image signature is invalid')
+    }
+    return {blob:new Blob([bytes],{type:row.mime_type}),
+      filename:'retailgrowth-image-' + assetId.slice(0,8) + ext}
+  }
   async function listMediaAssets(shopId) {
     if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/.test(shopId || '')) throw new Error('Invalid shop ID')
     const rows = await table('media_assets', {
