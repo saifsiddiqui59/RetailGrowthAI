@@ -10,6 +10,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import shutil
 import subprocess
+from time import monotonic
 from typing import Protocol
 
 from .contracts import MotionError, MotionSpec, AssetGrant, canonical_uuid, validate_source
@@ -119,7 +120,17 @@ class MotionWorker:
             workdir = job_dir / token
             workdir.mkdir(mode=0o700, exist_ok=False)
             source = self.media.stage(spec.shop_id, spec.source_asset_id, workdir) if grant else None
+            started = monotonic()
             output = self.runner.run(spec, source_file=source, workdir=workdir)
+            model_elapsed = max(0.0, monotonic() - started)
+            if model_elapsed > self.cost_guard.max_billable_seconds:
+                # An unexpectedly costly operation must never be auto retried.
+                if not self.store.mark_unknown(jid, token, "GPU_RUNTIME_OVER_CAP"):
+                    raise MotionError("GPU overrun reconciliation required")
+                return "UNKNOWN"
+            inferred_cost = self.cost_guard.estimated_spend_for_observed_inference_usd(
+                model_elapsed
+            )
             if not Path(output).resolve().is_relative_to(workdir.resolve()):
                 raise MotionError("Generated output escaped private job directory")
             info = validate_clip(output)
@@ -127,7 +138,9 @@ class MotionWorker:
                          "source_asset_id": spec.source_asset_id, "provider": "hunyuan-video-1.5",
                          "prompt_version": spec.prompt_version, "seed": spec.seed,
                          "license_status": "PENDING_FINAL_REVIEW", "quality_review_required": True,
-                         "reserved_usd": str(reservation), "compute_seconds_measured": None,
+                         "reserved_usd": str(reservation),
+                         "compute_seconds_measured": round(model_elapsed, 3),
+                         "estimated_observed_compute_usd": str(inferred_cost),
                          "maximum_compute_budget_usd": str(maximum_cost)})
             # An upload timeout may happen AFTER private bytes were accepted.
             # Never declare refundable FAILED or start inference again.
