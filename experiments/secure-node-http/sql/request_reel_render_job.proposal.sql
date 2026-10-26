@@ -111,7 +111,8 @@ declare
   job_state pg_catalog.text;
 begin
   if p_campaign_id is null or p_day_id is null or actor is null
-     or pg_catalog.current_setting('request.jwt.claim.role',true) is distinct from 'authenticated'
+     or (select auth.jwt())->>'role' is distinct from 'authenticated'
+     or actor::pg_catalog.text is distinct from (select auth.jwt())->>'sub'
      or (select auth.jwt())->>'is_anonymous' = 'true' then return null;
   end if;
 
