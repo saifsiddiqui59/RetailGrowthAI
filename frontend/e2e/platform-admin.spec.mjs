@@ -147,6 +147,63 @@ test('root arrives at SaaS control from the single home URL; warnings state what
     .getByRole('link', { name: 'My business' })).toBeVisible()
 })
 
+test('root directory paging does not repeat global metrics RPC, reducing database requests', async ({ page }) => {
+  const calls = await loginAs(page, 'ROOT')
+  const directoryCalls = []
+  await page.route(SUPABASE + '/rest/v1/rpc/retail_platform_shops', route => {
+    const offset = route.request().postDataJSON().p_offset
+    directoryCalls.push(offset)
+    const rows = Array.from({length: offset ? 1 : 25}, (_,i) => ({
+      shop_id: 'f1000000-0000-4000-8000-' + String(offset+i+1).padStart(12,'0'),
+      name: 'Store '+(offset+i+1), slug: 'store-'+(offset+i+1),
+      plan_code: 'STARTER',subscription_status:'ACTIVE',campaigns:0,renders:0,
+      valid_until: '2099-10-01T00:00:00Z',
+    }))
+    return fulfill(route,{total:26,shops:rows})
+  })
+  await page.goto('/platform-admin')
+  await expect(page.getByRole('table').getByText('Store 1', {exact: true})).toBeVisible()
+  await expect(page.getByRole('status').filter({hasText:'26 retailers'})).toBeVisible()
+  const initialSummaryReads = calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_summary').length
+  const initialDirectoryReads = directoryCalls.length
+  expect(initialSummaryReads).toBeGreaterThan(0)
+  expect(initialDirectoryReads).toBeGreaterThan(0)
+  await page.getByRole('button',{name:'Next',exact:true}).last().click()
+  await expect(page.getByRole('table').getByText('Store 26')).toBeVisible()
+  await expect(page.getByText('Page 2', {exact: true})).toBeVisible()
+  expect(directoryCalls.at(-1)).toBe(25)
+  expect(directoryCalls).toHaveLength(initialDirectoryReads + 1)
+  expect(calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_summary')).toHaveLength(initialSummaryReads)
+  // Existing explicit Refresh rechecks both independent server sources.
+  await page.getByRole('button',{name:'Refresh',exact:true}).last().click()
+  await expect.poll(() => calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_summary').length).toBe(initialSummaryReads + 1)
+  await expect.poll(() => directoryCalls.length).toBe(initialDirectoryReads + 2)
+})
+
+test('a failed directory page does not invent zero platform metrics or warnings', async ({ page }) => {
+  const calls = await loginAs(page, 'ROOT')
+  await page.route(SUPABASE + '/rest/v1/rpc/retail_platform_shops', route => {
+    const offset = route.request().postDataJSON().p_offset
+    if (offset) return fulfill(route,{message:'temporary error'},503)
+    return fulfill(route,{total:26,shops:Array.from({length:25},(_,i)=>({
+      shop_id:'f1000000-0000-4000-8000-'+String(i+1).padStart(12,'0'),
+      name:'Store '+(i+1),slug:'store-'+(i+1),campaigns:0,renders:0,
+    }))})
+  })
+  await page.goto('/platform-admin')
+  await expect(page.getByRole('region',{name:'Platform overview metrics'})
+    .getByText('Total retailers')).toBeVisible()
+  await expect(page.getByRole('status').filter({hasText:'26 retailers'})).toBeVisible()
+  const initialSummaryReads = calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_summary').length
+  expect(initialSummaryReads).toBeGreaterThan(0)
+  await page.getByRole('button',{name:'Next',exact:true}).last().click()
+  await expect(page.getByRole('alert')).toContainText('Retailer directory could not be verified')
+  await expect(page.getByRole('region',{name:'Platform overview metrics'})
+    .locator('.metric').filter({hasText:'Total retailers'}).locator('strong')).toHaveText('1')
+  await expect(page.getByText('Platform monitoring is unavailable')).toHaveCount(0)
+  expect(calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_summary')).toHaveLength(initialSummaryReads)
+})
+
 test('shop owner lands on own workspace rather than global SaaS metrics', async ({ page }) => {
   await loginAs(page, 'OWNER')
   await page.goto('/')
@@ -235,6 +292,36 @@ test('root has a persistent inbox, marks a verified signal read and can reverse 
   expect(calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_set_notification_read')
     .map(c=>c.body.p_read)).toEqual([true,false])
 })
+test('super admin alert filter revisits reuse short-lived verified reads, manual refresh re-queries',async({page})=>{
+  const calls=await loginAs(page,'ROOT')
+  const notified=[]
+  await page.route(SUPABASE+'/rest/v1/rpc/retail_platform_notifications',route=>{
+    const p=route.request().postDataJSON()
+    notified.push(p)
+    return fulfill(route,{
+      total_active:2,unread_active:2,database_checked_at:'2026-10-24T08:00:00Z',
+      azure_telemetry:'NOT_CONNECTED',
+      items:p.p_category==='queue'?[]:[{
+        id:101,event_key:'job:campaign:cached',category:'job',severity:'critical',
+        title:'Cached job warning',detail:'Server-recorded job status',
+        first_seen_at:'2026-10-24T07:00:00Z',active:true,read_at:null,
+      }],
+    })
+  })
+  await page.goto('/platform-alerts')
+  await expect(page.getByText('Cached job warning')).toBeVisible()
+  const activeReads=notified.filter(p=>p.p_category==='all').length
+  expect(activeReads).toBeGreaterThan(0)
+  await page.getByRole('button',{name:'Queue health'}).click()
+  await expect(page.getByText('No matching verified notifications.')).toBeVisible()
+  await page.getByRole('button',{name:'All',exact:true}).click()
+  await expect(page.getByText('Cached job warning')).toBeVisible()
+  expect(notified.filter(p=>p.p_category==='all')).toHaveLength(activeReads)
+  await page.getByRole('button',{name:'Refresh alerts'}).click()
+  await expect.poll(()=>notified.filter(p=>p.p_category==='all').length).toBe(activeReads+1)
+  expect(calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_set_notification_read')).toHaveLength(0)
+})
+
 test('subscription watch totals apply to all retailers and search is server-side',async({page})=>{
   const calls=await loginAs(page,'ROOT')
   await page.goto('/platform-admin')

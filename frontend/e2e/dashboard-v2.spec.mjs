@@ -16,6 +16,7 @@ async function signedIn(page) {
       '/rest/v1/rpc/retail_onboarding_status': { status: 'APPROVED', approval_required: false },
       '/rest/v1/shop_memberships': [{ shop_id: SHOP, active: true, role: 'OWNER' }],
       '/rest/v1/shops': [{ id: SHOP, name: 'Example Boutique', slug: 'example-boutique' }],
+      '/rest/v1/business_profiles': [],
       '/rest/v1/media_assets': [
         {id: 'a1000000-0000-4000-8000-000000000010', shop_id: SHOP, license_name: 'owned', mime_type:'image/png'},
         {id: 'a1000000-0000-4000-8000-000000000020', shop_id: 'a1000000-0000-4000-8000-000000000002', license_name:'owned',mime_type:'image/jpeg'}
@@ -214,6 +215,101 @@ test('rapid workspace navigation reuses principal-scoped shop list without extra
   await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Settings'}).click()
   await expect(page.getByRole('heading',{name:'Workspace settings'})).toBeVisible()
   expect(calls.filter(path=>path==='/rest/v1/shops')).toHaveLength(1)
+})
+
+test('selected business persists across all Feature 1 routes using verified memberships', async ({ page }) => {
+  const SECOND = 'a1000000-0000-4000-8000-000000000002'
+  const calls = await signedIn(page)
+  await page.route(HOST + '/rest/v1/shop_memberships**',route=>route.fulfill({
+    status:200,contentType:'application/json',
+    headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+    body:JSON.stringify([{shop_id:SHOP,active:true,role:'OWNER'}, {shop_id:SECOND,active:true,role:'EDITOR'}])
+  }))
+  await page.route(HOST + '/rest/v1/shops**',route=>route.fulfill({
+    status:200,contentType:'application/json',
+    headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+    body:JSON.stringify([{id:SHOP,name:'Example Boutique',slug:'example-boutique'},
+      {id:SECOND,name:'Second Shop',slug:'second-shop'}])
+  }))
+  await page.route(HOST + '/rest/v1/media_assets**',route=>route.fulfill({
+    status:200,contentType:'application/json',
+    headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+    body:'[]'
+  }))
+  await page.route(HOST + '/rest/v1/business_profiles**',route=>route.fulfill({
+    status:200,contentType:'application/json',
+    headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+    body:'[]'
+  }))
+  await page.goto('/')
+  await expect(page.getByLabel('Dashboard business')).toHaveValue(SHOP)
+  await page.getByLabel('Dashboard business').selectOption(SECOND)
+  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Media library'}).click()
+  await expect(page.getByLabel('Media library business')).toHaveValue(SECOND)
+  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Settings'}).click()
+  await expect(page.getByLabel('Settings business')).toHaveValue(SECOND)
+  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Campaign calendar'}).click()
+  await expect(page.getByLabel('Calendar business')).toHaveValue(SECOND)
+  await page.goto('/creative-studio')
+  await expect(page.getByLabel('Creative Studio business')).toHaveValue(SECOND)
+  await page.goto('/calendar')
+  await page.reload()
+  await expect(page.getByLabel('Calendar business')).toHaveValue(SECOND)
+  expect(await page.evaluate(user=>sessionStorage.getItem('retailgrowthai-selected-business:'+user),USER)).toBe(SECOND)
+  expect(calls.some(path=>path.includes('/retail_platform_notifications'))).toBe(false)
+})
+
+test('stored business ID not in membership cannot drive data requests', async ({ page }) => {
+  const forged = 'a1000000-0000-4000-8000-000000000009'
+  const calls = await signedIn(page)
+  await page.addInitScript(({user,shop}) =>
+    sessionStorage.setItem('retailgrowthai-selected-business:'+user,shop),
+    {user:USER,shop:forged})
+  await page.goto('/media-library')
+  await expect(page.getByLabel('Media library business')).toHaveValue(SHOP)
+  await expect(page.getByText('1 matching registered images')).toBeVisible()
+  await expect.poll(()=>calls.filter(path=>path==='/rest/v1/media_assets').length).toBe(1)
+  // Never issue a query for a forged shop that is absent from the signed-in
+  // member list; the server retains RLS as the decisive authorization layer.
+  expect(await page.evaluate(user=>sessionStorage.getItem('retailgrowthai-selected-business:'+user),USER)).toBe(forged)
+})
+
+test('Creative Studio shows only real shop-scoped marketing context and links to existing tools', async ({page})=>{
+  await signedIn(page)
+  const requests=[]
+  await page.route(HOST + '/rest/v1/business_profiles**',route=>{
+    requests.push({method:route.request().method(),url:route.request().url()})
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify([{shop_id:SHOP,business_name:'Example Boutique',category:'Clothing',
+        city:'Nagpur',description:'Local ethnic clothing for families',brand_voice:''}])})
+  })
+  await page.goto('/creative-studio')
+  await expect(page.getByRole('heading',{name:'Creative Studio'})).toBeVisible()
+  await expect(page.getByText('4 of 5')).toBeVisible()
+  await expect(page.getByRole('list',{name:'Business content checklist'}).getByText('Brand voice')).toBeVisible()
+  for (const label of ['Open Trend Intelligence','View Media Library',
+    'Open Campaign Studio','Open Draft Calendar','Edit profile']) {
+    await expect(page.getByRole('link',{name:label})).toBeVisible()
+  }
+  expect(requests).toHaveLength(1)
+  expect(requests[0].method).toBe('GET')
+  expect(new URL(requests[0].url).searchParams.get('shop_id')).toBe('eq.'+SHOP)
+  await expect(page.getByText('No fabricated live data')).toBeVisible()
+})
+
+test('Creative Studio rejects foreign profile response without showing its content', async ({page})=>{
+  await signedIn(page)
+  await page.route(HOST + '/rest/v1/business_profiles**',route=>route.fulfill({
+    status:200,contentType:'application/json',
+    headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+    body:JSON.stringify([{shop_id:'a1000000-0000-4000-8000-000000000002',
+      business_name:'Foreign competitor',category:'Retail',city:'Other city'}])
+  }))
+  await page.goto('/creative-studio')
+  await expect(page.getByRole('alert')).toContainText('could not be verified')
+  await expect(page.getByText('Foreign competitor')).toHaveCount(0)
+  await expect(page.getByText('of 5')).toHaveCount(0)
 })
 
 test('unverified guest cannot deep-link to dashboard subroutes', async ({ page }) => {
