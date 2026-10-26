@@ -265,14 +265,27 @@ def _assets(manifest, staged_root, shop_id, asset_id):
         raise DesignError(str(exc)) from exc
 
 
-def render_design(design, manifest, staged_root, output_path, *, scale=1,
-                  pulse_offer=False):
-    """Draw bounded versioned layers as server-side PNG, with no remote fetch."""
-    design = validate_design(design)
-    if type(scale) not in (int, float) or not .2 <= scale <= 1:
-        raise DesignError("Invalid output scale")
+def _prepare_authorized_images(design, manifest, staged_root):
+    """Resolve each tenant-checked source image ONCE per individual render job.
+
+    This is deliberately private to the engine, never a browser-controlled
+    image cache. Rights revocations require a new job/authorization check.
+    """
     if not isinstance(manifest, dict) or manifest.get("shop_id") != design["shop_id"]:
         raise DesignError("Cross-tenant manifest")
+    images = {}
+    for layer in design["layers"]:
+        if layer["type"] == "image" and layer["asset_id"] not in images:
+            images[layer["asset_id"]] = _assets(
+                manifest, staged_root, design["shop_id"], layer["asset_id"]
+            )
+    return images
+
+
+def _render_prepared(design, images, output_path, *, scale=1, pulse_offer=False):
+    """Draw a single canvas with per-job preauthorized in-memory images."""
+    if type(scale) not in (int, float) or not .2 <= scale <= 1:
+        raise DesignError("Invalid output scale")
     w0, h0 = FORMATS[design["format"]]
     w, h = round(w0 * scale), round(h0 * scale)
     canvas = Image.new("RGB", (w, h), design["background"])
@@ -283,7 +296,7 @@ def render_design(design, manifest, staged_root, output_path, *, scale=1,
         if layer["type"] == "rect":
             d.rectangle((x, y, x + width, y + height), fill=layer["color"])
         elif layer["type"] == "image":
-            photo = _assets(manifest, staged_root, design["shop_id"], layer["asset_id"])
+            photo = images[layer["asset_id"]]
             if layer["id"] == "logo":
                 thumb = ImageOps.contain(photo, (width, height), Image.Resampling.LANCZOS)
                 ox = x + (width - thumb.width) // 2
@@ -311,3 +324,13 @@ def render_design(design, manifest, staged_root, output_path, *, scale=1,
     canvas.save(path, format="PNG")
     return {"path": str(path), "width": w, "height": h,
             "shop_id": design["shop_id"], "schema": SCHEMA}
+
+
+def render_design(design, manifest, staged_root, output_path, *, scale=1,
+                  pulse_offer=False):
+    """Rights-check current media, draw PNG and never fetch arbitrary URLs."""
+    checked = validate_design(design)
+    images = _prepare_authorized_images(checked, manifest, staged_root)
+    return _render_prepared(checked, images, output_path, scale=scale,
+                            pulse_offer=pulse_offer)
+
