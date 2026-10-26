@@ -5,6 +5,8 @@
 begin;
 \i experiments/secure-node-http/sql/request_reel_render_job.proposal.sql
 
+-- Runtime fixture must use current PostgREST request.jwt.claims JSON, NOT the
+-- legacy request.jwt.claim.role/sub GUCs (removed on PostgreSQL 14+).
 -- The Python hash serializer must match ensure_ascii=True (incl. emoji/Hindi).
 do $$
 declare serialised text;
@@ -46,8 +48,8 @@ values
  'authenticated','authenticated','reel-rpc-foreign@example.invalid','!',now(),now());
 
 set local role authenticated;
-select set_config('request.jwt.claim.role','authenticated',true);
-select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
+-- auth claims set through request.jwt.claims JSON below (PostgREST >= 14).
+select set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-4111-8111-111111111111","is_anonymous":false}',true);
 insert into public.shops(id,owner_user_id,name,slug) values
 ('33333333-3333-4333-8333-333333333333',
  '11111111-1111-4111-8111-111111111111','Reel RPC isolated shop','rg-reel-rpc-ci');
@@ -56,7 +58,7 @@ insert into public.shop_memberships(shop_id,user_id,role) values
  '22222222-2222-4222-8222-222222222222','VIEWER');
 
 reset role;
-select set_config('request.jwt.claim.role','service_role',true);
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
 insert into public.campaigns(id,shop_id,created_by,brief,start_date) values
 ('44444444-4444-4444-8444-444444444444',
  '33333333-3333-4333-8333-333333333333',
@@ -99,8 +101,8 @@ insert into public.render_jobs(id,shop_id,campaign_id,day_id,requested_by,preset
  '73593202305f3dec115aaf8e851e5aac9045fb751b3587641b9ec5713efcb3c6');
 
 set local role authenticated;
-select set_config('request.jwt.claim.role','authenticated',true);
-select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
+-- auth claims set through request.jwt.claims JSON below (PostgREST >= 14).
+select set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-4111-8111-111111111111","is_anonymous":false}',true);
 do $$
 declare result jsonb;
 begin
@@ -133,9 +135,9 @@ begin
   end if;
 end $$;
 set local role authenticated;
-select set_config('request.jwt.claim.role','authenticated',true);
+-- auth claims set through request.jwt.claims JSON below (PostgREST >= 14).
 -- Forbidden VIEWER/foreign user cannot cause any additional job or usage.
-select set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222',true);
+select set_config('request.jwt.claims','{"role":"authenticated","sub":"22222222-2222-4222-8222-222222222222","is_anonymous":false}',true);
 do $$
 begin
   if public.request_reel_render_job(
@@ -144,7 +146,7 @@ begin
     raise exception 'VIEWER requested a privileged Reel job';
   end if;
 end $$;
-select set_config('request.jwt.claim.sub','99999999-9999-4999-8999-999999999999',true);
+select set_config('request.jwt.claims','{"role":"authenticated","sub":"99999999-9999-4999-8999-999999999999","is_anonymous":false}',true);
 do $$
 begin
   if public.request_reel_render_job(
@@ -156,13 +158,13 @@ end $$;
 
 -- One edited storyboard produces ONE fresh job/reservation/outbox.
 reset role;
-select set_config('request.jwt.claim.role','service_role',true);
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
 update public.campaign_days set instagram=jsonb_set(instagram,
   '{reel,cta}','"Edited CTA"'::jsonb)
  where id='88888888-8888-4888-8888-888888888888';
 set local role authenticated;
-select set_config('request.jwt.claim.role','authenticated',true);
-select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
+-- auth claims set through request.jwt.claims JSON below (PostgREST >= 14).
+select set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-4111-8111-111111111111","is_anonymous":false}',true);
 do $$
 declare a jsonb; b jsonb;
 begin
@@ -191,14 +193,14 @@ begin
 end $$;
 -- Editing to unlicensed (but same-shop) source cannot bypass rights.
 reset role;
-select set_config('request.jwt.claim.role','service_role',true);
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
 update public.campaign_days set instagram=jsonb_set(instagram,
   '{reel,storyboard,0,asset_id}',
   '"66666666-6666-4666-8666-666666666666"'::jsonb)
  where id='88888888-8888-4888-8888-888888888888';
 set local role authenticated;
-select set_config('request.jwt.claim.role','authenticated',true);
-select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
+-- auth claims set through request.jwt.claims JSON below (PostgREST >= 14).
+select set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-4111-8111-111111111111","is_anonymous":false}',true);
 do $$
 begin
   if public.request_reel_render_job(
@@ -210,8 +212,8 @@ end $$;
 
 -- Validate strict SQL privileges: no anonymous entry or direct user inserts.
 set local role anon;
-select set_config('request.jwt.claim.role','anon',true);
-select set_config('request.jwt.claim.sub','',true);
+select set_config('request.jwt.claims','{"role":"anon"}',true);
+-- No actor sub for anonymous request.
 do $$
 declare denied boolean:=false;
 begin
