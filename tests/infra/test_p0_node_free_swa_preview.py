@@ -10,6 +10,7 @@ class SafePreviewPolicy(unittest.TestCase):
     def test_named_preview_is_mandatory_and_bounded(self):
         w = WORKFLOW.read_text()
         self.assertIn("deployment_environment: p0249node", w)
+        self.assertIn("grep -iq '^x-p0-control: node-v4'", w)
         self.assertIn("production_branch: main", w)
         self.assertIn("app_location: experiments/wineshop-node-http-control/site", w)
         self.assertIn("skip_app_build: true", w)
