@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 from pathlib import Path
 from time import monotonic
@@ -20,6 +21,26 @@ from gpu_worker_v2 import OfflineFluxKlein4B
 
 MAX_JOB_BYTES = 4096
 MAX_SECONDS = 600
+MAX_CONTAINER_SECONDS = 900
+
+
+def _verify_one_shot_budget():
+    """No GPU job without an operator's complete estimated all-in compute rate.
+
+    This cannot cap Azure storage/egress or billing outside the container
+    lifetime; those require a separate resource budget and cleanup review.
+    """
+    if os.environ.get("RETAIL_FLUX_PAID_ONE_SHOT_APPROVED") != "1":
+        raise ProviderBlocked("Protected FLUX one-shot spend approval is absent")
+    try:
+        rate = Decimal(os.environ["RETAIL_FLUX_TOTAL_RATE_USD_PER_SECOND"])
+        cap = Decimal(os.environ["RETAIL_FLUX_MAX_USD_PER_RUN"])
+    except (KeyError, InvalidOperation) as exc:
+        raise ProviderBlocked("Verified Azure GPU+CPU+RAM price and spend cap required") from exc
+    if (not rate.is_finite() or not cap.is_finite() or rate <= 0 or cap <= 0
+        or rate * MAX_CONTAINER_SECONDS > cap):
+        raise ProviderBlocked("FLUX worst-case GPU job exceeds approved spending estimate")
+    return str(rate * MAX_CONTAINER_SECONDS)
 
 
 def _private_dir(value):
@@ -60,6 +81,7 @@ def run_one(*, weights, approval, request, output):
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     os.environ["DIFFUSERS_OFFLINE"] = "1"
+    maximum_estimated_compute_usd = _verify_one_shot_budget()
     manifest = verify_reviewed_flux_snapshot(weights, approval)
     if manifest.get("weight_shards_sha256_verified") is not True:
         raise ProviderBlocked("All FLUX shard digests must be verified before GPU billing")
@@ -89,6 +111,7 @@ def run_one(*, weights, approval, request, output):
         "human_reviewed": False, "registered_private_media": False,
         "commercial_publishing_allowed": False,
         "image_size": len(payload), "inference_seconds": round(seconds, 3),
+        "operator_estimated_max_process_compute_usd": maximum_estimated_compute_usd,
     }
     with (dest / "unreviewed-receipt.json").open("x", encoding="utf-8") as fd:
         json.dump(receipt, fd, indent=2)
