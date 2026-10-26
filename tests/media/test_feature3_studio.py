@@ -284,27 +284,81 @@ class Feature3Tests(unittest.TestCase):
         with Image.open(BytesIO(result)) as png:
             self.assertEqual(png.mode, "RGBA")
 
-    def test_fake_runner_does_not_bypass_tenant_scoping(self):
-        cfg = ProviderConfig("fixture", "test-1", frozenset({"image_edit"}),
-                             "Apache-2.0", "Apache-2.0",
-                             dependency_licenses_approved=True,
-                             cost_approved=True, gpu_deployed=True)
-        fixture = OptionalGPUProvider(cfg, runner=lambda job, files: b"SYNTHETIC_BYTES")
+    def test_fake_runner_requires_durable_quota_and_private_valid_png(self):
+        from io import BytesIO
+        cfg = ProviderConfig(
+            "fixture", "test-1", frozenset({"image_edit"}),
+            "Apache-2.0", "Apache-2.0",
+            dependency_licenses_approved=True,
+            cost_approved=True, gpu_deployed=True,
+            estimated_gpu_seconds=30, estimated_boot_seconds=10,
+            gpu_rate_usd_per_hour=1.5, max_cost_usd_per_job=.10,
+        )
+        with BytesIO() as buffer:
+            Image.new("RGB", (80, 80), "#3C5C71").save(buffer, "PNG")
+            png_bytes = buffer.getvalue()
+        fixture = OptionalGPUProvider(cfg, runner=lambda job, files: png_bytes)
         job = InferenceJob(self.shop, str(uuid4()), "image_edit", (self.asset,))
+        self.assertTrue(fixture.status()["enabled"])
+        self.assertAlmostEqual(fixture.quote(), 0.016667, places=6)
+        events = []
+        def reserve(shop, jid, attempt, estimate):
+            self.assertEqual(shop, self.shop)
+            self.assertEqual(jid, job.job_id)
+            events.append(("reserved", estimate))
+            return "durable-ledger-reservation"
+        def finalize(reservation, wall, success):
+            self.assertEqual(reservation, "durable-ledger-reservation")
+            events.append(("completed", success))
         with self.assertRaises(ProviderBlocked):
             fixture.execute(job, resolve_assets=lambda *_: {},
-                            write_private_output=lambda *_: None)
+                            write_private_output=lambda *_: None,
+                            reserve_usage=reserve, finalize_usage=finalize)
+        self.assertFalse(events)
         observed = {}
         def writer(shop, job_id, payload, metadata):
             observed.update(metadata)
             self.assertEqual(shop, self.shop)
-            self.assertEqual(payload, b"SYNTHETIC_BYTES")
+            self.assertEqual(payload, png_bytes)
             return "private-fixture-only"
-        self.assertEqual(fixture.execute(job,
-            resolve_assets=lambda shop, ids: {self.asset: b"SYNTHETIC_SOURCE"},
-            write_private_output=writer), "private-fixture-only")
+        self.assertEqual(fixture.execute(
+            job, resolve_assets=lambda shop, ids: {self.asset: b"PRIVATE_INPUT"},
+            write_private_output=writer, reserve_usage=reserve,
+            finalize_usage=finalize,
+        ), "private-fixture-only")
+        self.assertEqual([x[0] for x in events], ["reserved", "completed"])
+        self.assertEqual(events[-1], ("completed", True))
         self.assertTrue(observed["synthetic"])
-        # This injection simulates the worker contract, NOT actual model inference.
+        self.assertEqual(observed["source_asset_ids"], [self.asset])
+        self.assertGreaterEqual(observed["inference_wall_seconds"], 0)
+        # Mock fixture runner is NOT real image generation.
+
+    def test_provider_invalid_output_fails_closed_and_finalizes_usage(self):
+        cfg = ProviderConfig(
+            "fixture", "bad-output", frozenset({"image_edit"}),
+            "Apache-2.0", "Apache-2.0",
+            dependency_licenses_approved=True, cost_approved=True,
+            gpu_deployed=True, estimated_gpu_seconds=20,
+            gpu_rate_usd_per_hour=1, max_cost_usd_per_job=.10,
+        )
+        events = []
+        fixture = OptionalGPUProvider(cfg, runner=lambda job, inputs: b"MALFORMED")
+        with self.assertRaises(ProviderBlocked):
+            fixture.execute(
+                InferenceJob(self.shop, str(uuid4()), "image_edit", (self.asset,)),
+                resolve_assets=lambda *_: {self.asset: b"PRIVATE_INPUT"},
+                write_private_output=lambda *_: "should-not-run",
+                reserve_usage=lambda *_: "lease",
+                finalize_usage=lambda *args: events.append(args),
+            )
+        self.assertEqual(len(events), 1)
+        self.assertIs(events[0][-1], False)
+        blocked = ProviderConfig("no-cost", "v1", frozenset({"image_edit"}),
+                                 "Apache-2.0", "Apache-2.0",
+                                 dependency_licenses_approved=True,
+                                 cost_approved=True, gpu_deployed=True)
+        self.assertFalse(OptionalGPUProvider(blocked, runner=lambda *_: b"image")
+                         .status()["enabled"])
 
 
 if __name__ == "__main__":
