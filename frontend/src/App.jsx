@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import CampaignDashboard from './features/campaigns/CampaignDashboard.jsx'
+import TrendWorkspace from './features/trends/TrendWorkspace.jsx'
 import { AuthProvider, useRetailAuth } from './auth/AuthProvider.jsx'
 import { AccountWorkspace } from './auth/AccountWorkspace.jsx'
 import DashboardOverview from './features/dashboard/DashboardOverview.jsx'
@@ -12,6 +13,7 @@ import LoginPage from './auth/LoginPage.jsx'
 const links = [
   { to: '/', label: 'Overview', icon: '▦', end: true },
   { to: '/campaigns', label: 'Campaigns', icon: '▤' },
+  { to: '/trends', label: 'Trend Intelligence', icon: '◉' },
   { to: '/subscription', label: 'Subscription', icon: '◈' },
 ]
 
@@ -105,7 +107,9 @@ function AppShell() {
     ? [{ to: '/platform-admin', label: 'Platform Control', icon: '⚙' },
         { to: '/platform-alerts', label: 'Notifications', icon: '◇' },
         { to: '/business', label: 'My business', icon: '▦' },
-        { to: '/campaigns', label: 'Campaigns', icon: '▤' }, { to: '/subscription', label: 'Subscription', icon: '◈' }]
+        { to: '/campaigns', label: 'Campaigns', icon: '▤' },
+        { to: '/trends', label: 'Trend Intelligence', icon: '◉' },
+        { to: '/subscription', label: 'Subscription', icon: '◈' }]
     : links
   const title = availableLinks.find((item) => item.to === location.pathname)?.label ||
     (location.pathname === '/account' ? 'Account' : 'Workspace')
@@ -155,6 +159,7 @@ function AppShell() {
             <Route path="/" element={platformAdmin ? <Navigate to="/platform-admin" replace /> : <DashboardOverview />} />
             <Route path="/business" element={<DashboardOverview />} />
             <Route path="/campaigns" element={<CampaignDashboard />} />
+            <Route path="/trends" element={<TrendWorkspace />} />
             <Route path="/subscription" element={<SubscriptionPage />} />
             <Route path="/platform-admin" element={<PlatformBoundary />} />
             <Route path="/platform-alerts" element={<PlatformBoundary><PlatformAlerts /></PlatformBoundary>} />
