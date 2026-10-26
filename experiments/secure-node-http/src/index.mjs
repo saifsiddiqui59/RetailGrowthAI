@@ -1,52 +1,74 @@
 /**
- * SOURCE ONLY. Not wired to live RetailGrowthAI SWA or to p0249node preview.
- * A separately reviewed client must send its Supabase access token in this
- * custom header because managed SWA may handle Authorization internally.
- * The header is never trusted without asymmetric JWKS verification and RLS.
+ * P0 #249 REAL SUPABASE JWT FREE SWA PREVIEW ONLY.
+ *
+ * The target is the EXISTING RetailGrowthAI Free SWA named preview
+ * `p0249secure`, never the live customer site. Every route uses asymmetric
+ * Supabase JWKS verification and caller-token PostgREST RLS.
+ * ALL MUTATIONS ARE OFF. No service_role, secrets, queues, or billed provider.
+ * DO NOT use this as proof of actual signed-in retailer E2E yet.
  */
 import { app } from "@azure/functions";
 import { createSupabaseVerifier } from "./security.mjs";
-import { PrivateReader } from "./private-reads.mjs";
+import { ReelIntentWriter } from "./reel-intent.mjs";
 import { createReadOnlyGateway } from "./routes.mjs";
+import { createCampaignDayGateway } from "./campaign-day-writes.mjs";
+import { createPosterWriteGateway } from "./poster-writes.mjs";
+import { createReelIntentGateway } from "./reel-intent.mjs";
+import { createSecureHttpDispatcher } from "./secure-api-dispatch.mjs";
 
-const origin = process.env.RETAIL_SUPABASE_URL;
-const publishableKey = process.env.RETAIL_SUPABASE_PUBLISHABLE_KEY;
-const handler = createReadOnlyGateway({
-  verifyJwt: createSupabaseVerifier({ origin }),
-  reader: new PrivateReader({ origin, publishableKey }),
-});
-
-async function handle(req) {
-  const rawToken = req.headers.get("x-rgai-supabase-jwt") || "";
-  // Never echo the JWT, cookie, body, signed link or sensitive header to logs.
-  return handler("GET", new URL(req.url).pathname, rawToken ? "Bearer " + rawToken : "");
+// Publishable key: first-party verified *public* DEV-only Supabase API key.
+// Never load the service role/secret key, and never read other project config.
+const DEV_SUPABASE_URL = "https://jeearzffnjbvghwjjjrf.supabase.co";
+const DEV_PUBLISHABLE_KEY = "sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq";
+const DEV_PREVIEW_ORIGIN =
+  "https://purple-dune-06b5da200-p0249secure.eastasia.2.azurestaticapps.net";
+if ((process.env.RETAIL_SUPABASE_URL &&
+     process.env.RETAIL_SUPABASE_URL !== DEV_SUPABASE_URL) ||
+    (process.env.RETAIL_SUPABASE_PUBLISHABLE_KEY &&
+     process.env.RETAIL_SUPABASE_PUBLISHABLE_KEY !== DEV_PUBLISHABLE_KEY)) {
+  throw new Error("P0249_PREVIEW_WRONG_SUPABASE_PROJECT");
 }
-app.http("secureReadCampaign", {
-  route: "campaigns/{id}", methods: ["GET"], authLevel: "anonymous",
-  handler: handle,
+const verifyJwt = createSupabaseVerifier({ origin: DEV_SUPABASE_URL });
+const writer = new ReelIntentWriter({
+  origin: DEV_SUPABASE_URL,
+  publishableKey: DEV_PUBLISHABLE_KEY,
 });
-app.http("secureReadRenderJob", {
-  route: "render-jobs/{id}", methods: ["GET"], authLevel: "anonymous",
-  handler: handle,
+const dispatch = createSecureHttpDispatcher({
+  readGateway: createReadOnlyGateway({verifyJwt, reader: writer}),
+  campaignGateway: createCampaignDayGateway({verifyJwt, writer}),
+  posterGateway: createPosterWriteGateway({verifyJwt, writer}),
+  reelGateway: createReelIntentGateway({verifyJwt, writer}),
+  // Hard-coded disabled; an env setting must NEVER activate billable writes.
+  writesEnabled: false,
+  renderWritesEnabled: false,
+  allowedOrigin: DEV_PREVIEW_ORIGIN,
 });
 
-app.http("secureRenderDownload", {
-  route: "render-jobs/{id}/download", methods: ["GET"], authLevel: "anonymous",
-  handler: handle,
+function api(req) {
+  return dispatch(req);
+}
+const publicRoute = (name, route, methods) => app.http(name, {
+  route, methods, authLevel: "anonymous", handler: api,
 });
-app.http("securePosterDraft", {
-  route: "poster-drafts/{id}", methods: ["GET"], authLevel: "anonymous",
-  handler: handle,
-});
-app.http("securePosterList", {
-  route: "campaigns/{id}/days/{dayId}/posters", methods: ["GET"], authLevel: "anonymous",
-  handler: handle,
-});
-app.http("securePosterJob", {
-  route: "poster-jobs/{id}", methods: ["GET"], authLevel: "anonymous",
-  handler: handle,
-});
-app.http("securePosterDownload", {
-  route: "poster-jobs/{id}/download", methods: ["GET"], authLevel: "anonymous",
-  handler: handle,
+publicRoute("previewReadCampaign", "campaigns/{id}", ["GET"]);
+publicRoute("previewReadRenderJob", "render-jobs/{id}", ["GET"]);
+publicRoute("previewRenderDownload", "render-jobs/{id}/download", ["GET"]);
+publicRoute("previewPosterDraft", "poster-drafts/{id}", ["GET"]);
+publicRoute("previewPosterList", "campaigns/{id}/days/{dayId}/posters", ["GET"]);
+publicRoute("previewPosterJob", "poster-jobs/{id}", ["GET"]);
+publicRoute("previewPosterDownload", "poster-jobs/{id}/download", ["GET"]);
+
+app.http("previewSecureHealth", {
+  route: "p0-secure-health",
+  methods: ["GET"],
+  authLevel: "anonymous",
+  handler: async () => ({
+    status: 200,
+    headers: {
+      "Cache-Control": "no-store",
+      "X-P0249-Secure-Preview": "real-jwks-rls-readonly-v1",
+      "X-Content-Type-Options": "nosniff",
+    },
+    jsonBody: {status: "READ_ONLY_PREVIEW"},
+  }),
 });
