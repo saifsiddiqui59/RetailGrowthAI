@@ -75,8 +75,16 @@ class TrendFeatureAdapter:
                     "complete": snapshot.get("complete", False),
                     "observed_at": snapshot.get("observed_at"),
                 }
-            if not isinstance(payload, dict) or set(payload) != {"trend_id", "campaign"}:
+            if (not isinstance(payload, dict) or
+                set(payload) not in ({"trend_id", "campaign"},
+                                     {"trend_id", "campaign", "submission_id"})):
                 return 400, {"error": "INVALID_REQUEST"}
+            submission_id = payload.get("submission_id")
+            if submission_id is not None:
+                try:
+                    canonical_uuid(submission_id)
+                except (ValueError, TypeError):
+                    return 400, {"error": "INVALID_REQUEST"}
             if not self.draft_store:
                 return 503, {"error": "CONTENT_DRAFT_STORE_NOT_CONFIGURED"}
             target = payload["trend_id"]
@@ -92,6 +100,11 @@ class TrendFeatureAdapter:
             campaign_id = str(uuid4())
             draft = create_content_draft(brief, retailer, campaign_id=campaign_id,
                                          now=now, trend=chosen)
+            # Non-sensitive correlation nonce for read-after-uncertain-POST.
+            # Not a DB idempotency lock: clients MUST NOT replay a POST just
+            # because Azure timed out before returning the insert acknowledgement.
+            if submission_id is not None:
+                draft["submission_id"] = submission_id
             if not self.tenant_store.member(token, user_id, sid, write=True):
                 return 403, {"error": "FORBIDDEN"}
             draft_id = self.draft_store.save_draft(token, user_id, sid, draft)
