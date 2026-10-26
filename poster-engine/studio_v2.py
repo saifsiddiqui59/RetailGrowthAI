@@ -290,8 +290,12 @@ def render_design(design, manifest, staged_root, output_path, *, scale=1,
                 oy = y + (height - thumb.height) // 2
                 canvas.paste(thumb.convert("RGB"), (ox, oy), mask=thumb.getchannel("A"))
             else:
-                image = ImageOps.fit(photo.convert("RGB"), (width, height), Image.Resampling.LANCZOS)
-                canvas.paste(image, (x, y))
+                # Preserve product PNG/WebP transparency so legitimate shop
+                # cutouts keep their clean background, matching Konva canvas.
+                image = ImageOps.fit(photo.convert("RGBA"), (width, height),
+                                     Image.Resampling.LANCZOS)
+                canvas.paste(image.convert("RGB"), (x, y),
+                             mask=image.getchannel("A"))
         else:
             color = layer["color"]
             size = layer["font_size"]
