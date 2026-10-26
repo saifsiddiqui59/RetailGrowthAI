@@ -14,12 +14,13 @@ import {
 } from './feature3-design.mjs'
 
 import { renderFeature3LocalDraft } from './feature3-local-png.mjs'
+import { encodeFeature3LocalBackup, decodeFeature3LocalBackup } from './feature3-local-backup.mjs'
 
 const SIZE = { boxSizing: 'border-box', maxWidth: '100%', width: '100%' }
 const COLOR = /^#[0-9a-fA-F]{6}$/
 
 export default function Feature3CpuEditor({
-  initialDesign, imageMap = {}, onSaveDraft = null, disabled = false,
+  initialDesign, imageMap = {}, context = null, onSaveDraft = null, disabled = false,
 }) {
   const [history, setHistory] = useState(() => newFeature3History(initialDesign))
   const current = useRef(history)
@@ -52,12 +53,8 @@ export default function Feature3CpuEditor({
     if (!file) return
     try {
       if (file.size < 1 || file.size > 25000) throw Error('Invalid local file size')
-      const parsed = validateFeature3Design(JSON.parse(await file.text()))
-      if (parsed.shop_id !== initialDesign.shop_id ||
-          parsed.layers.some(x => x.type === 'image' &&
-            !imageIds.includes(x.asset_id))) {
-        throw Error('Shop or media authorization does not match')
-      }
+      const parsed = decodeFeature3LocalBackup(await file.text(),
+        context, imageIds)
       const restored = newFeature3History(parsed)
       current.current = restored
       setHistory(restored)
@@ -100,11 +97,18 @@ export default function Feature3CpuEditor({
   }
 
   const exportDraft = () => {
-    const url = URL.createObjectURL(new Blob([JSON.stringify(draft, null, 2)],
+    let data
+    try {
+      data = encodeFeature3LocalBackup(draft, context)
+    } catch {
+      setMessage('Verified shop/campaign/day required to export a local backup.')
+      return
+    }
+    const url = URL.createObjectURL(new Blob([data],
       { type: 'application/json' }))
     const a = document.createElement('a')
     a.href = url
-    a.download = 'retailgrowth-poster-editable-v2.json'
+    a.download = 'retailgrowth-poster-day-bound-local-v2.json'
     document.body.appendChild(a)
     a.click()
     a.remove()
@@ -241,7 +245,7 @@ export default function Feature3CpuEditor({
         <button type="button" disabled={disabled} onClick={downloadDraftPng}>
           Download local draft PNG (unreviewed)
         </button>
-        <button type="button" disabled={disabled} onClick={exportDraft}>Download editable JSON</button>
+        <button type="button" disabled={disabled} onClick={exportDraft}>Download day-bound editable JSON</button>
         <label>Reopen local JSON
           <input type="file" accept="application/json,.json" disabled={disabled}
             onChange={importDraft}/>
