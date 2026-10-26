@@ -4,6 +4,8 @@
 This imports the deliberately small synthetic media fixture used by the real
 cross-feature tests; never downloads photos/music or claims true AI model motion.
 """
+import argparse
+import copy
 import json
 import sys
 from pathlib import Path
@@ -16,15 +18,35 @@ from creative_contract import compile_creative_reel  # noqa: E402
 
 
 def main():
-    if len(sys.argv) != 2:
-        raise SystemExit("Usage: python video-engine/demo_feature4_diwali.py /new/empty/project-dir")
-    project = Path(sys.argv[1])
+    parser = argparse.ArgumentParser(description="Authorized synthetic demo only; never real retail media")
+    parser.add_argument("project", help="New empty private output directory")
+    parser.add_argument("--seconds", type=int, default=30, choices=(15, 30))
+    parser.add_argument("--width", type=int, default=540, choices=(540, 1080))
+    args = parser.parse_args()
+    project = Path(args.project)
     if project.exists() and any(project.iterdir()):
         raise SystemExit("Fixture output directory must be empty")
     fixture = CreativeReelTests(methodName="test_diwali_30s_brand_logo_motion_poster_exact_offer")
     fixture.setUp()
     try:
         fixture.make_assets(with_video=True)
+        fixture.request["output"]["width"] = args.width
+        fixture.request["output"]["height"] = args.width * 16 // 9
+        fixture.request["duration_seconds"] = args.seconds
+        if args.seconds == 15:
+            # Short-form HD stress fixture with all meaningful editorial roles:
+            # opening, source-audio motion, product, exact approved offer, CTA.
+            scenes = fixture.request["scenes"]
+            sequence = ((scenes[0], 0, 2), (scenes[1], 2, 5),
+                        (scenes[2], 7, 3), (scenes[3], 10, 3),
+                        (scenes[5], 13, 2))
+            fixture.request["scenes"] = []
+            for order, (scene, start, length) in enumerate(sequence):
+                trimmed = copy.deepcopy(scene)
+                trimmed["order"] = order
+                trimmed["start_time"] = start
+                trimmed["duration"] = length
+                fixture.request["scenes"].append(trimmed)
         # The synthetic soundtrack/SFX are original deterministic wave synthesis:
         # no third-party songs, sample packs or purported trending-music rights.
         import math
