@@ -20,7 +20,7 @@ jobs:
     if: >-
       github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
       github.ref == 'refs/heads/main' &&
-      github.event.head_commit.message == 'chore(feature2): inspect existing Azure Foundry readiness without provisioning'
+      startsWith(github.event.head_commit.message, 'chore(feature2): inspect existing Azure Foundry readiness without provisioning')
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     environment: dev
