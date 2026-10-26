@@ -11,7 +11,7 @@ def test_only_approved_main_merge_triggers_exact_existing_dev_readiness():
     assert "branches: [main]" in SOURCE
     assert ".github/workflows/retail-dev-feature2-foundry-readonly-once.yml" in SOURCE
     assert "workflow_dispatch:" not in SOURCE
-    assert "github.event.head_commit.message == 'chore(feature2): inspect existing Azure Foundry readiness without provisioning'" in SOURCE
+    assert "startsWith(github.event.head_commit.message, 'chore(feature2): inspect existing Azure Foundry readiness without provisioning')" in SOURCE
     assert "environment: dev" in SOURCE
     assert "id-token: write" in SOURCE
     assert "rg-retailgrowth-dev" in SOURCE
