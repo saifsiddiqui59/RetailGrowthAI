@@ -99,6 +99,53 @@ def _phrases(language: str) -> dict:
     }[language]
 
 
+def _whole_word_limit(value: str, limit: int, *, fallback: str = "Styling ideas") -> str:
+    """Shorten at word boundaries; never emit a title ending mid-token."""
+    text = " ".join(value.split())
+    if len(text) <= limit:
+        return text
+    words = text.split(" ")
+    kept: list[str] = []
+    for word in words:
+        candidate = " ".join((*kept, word))
+        if len(candidate) > limit:
+            break
+        kept.append(word)
+    return " ".join(kept) or fallback[:limit]
+
+
+def _youtube_title(headline: str, business_name: str) -> str:
+    """Keep the topic useful; avoid clipping the brand or a final word."""
+    # A fictional fixture's disclaimer stays in source metadata, not the video title.
+    display_brand = business_name.split(" (", 1)[0].strip()
+    if len(display_brand) > 45:
+        display_brand = _whole_word_limit(display_brand, 45, fallback="")
+    suffix = f" | {display_brand}" if display_brand else ""
+    title = _whole_word_limit(headline, 100 - len(suffix))
+    return title + suffix
+
+
+def _clothing_angle(index: int, product: str, city: str) -> tuple[str, str, str]:
+    """Seven specific styling exercises; suggestions, never merchandise facts."""
+    ideas = (
+        (f"Try an everyday layer alongside {product}",
+         "Which layer would you choose?", "layering"),
+        (f"Pair {product} with two colours you already like",
+         "Would you choose a lighter or deeper shade?", "colour pairing"),
+        (f"Restyle {product} with a different choice of footwear",
+         "Which footwear suits your routine?", "footwear combinations"),
+        (f"Plan a day-to-evening outfit idea around {product}",
+         "What would you change for the evening?", "day-to-evening dressing"),
+        (f"Use a scarf or a bag to change the focus of {product}",
+         "Would you choose a scarf or a bag?", "accessory placement"),
+        (f"Read the garment care label before cleaning {product}",
+         "Which care instruction do you check first?", "care-label reading"),
+        (f"Compare two looks built around {product} in {city}",
+         "Which combination fits your week?", "look comparison"),
+    )
+    return ideas[index % len(ideas)]
+
+
 def _approved_trend(trend: dict | None, profile: RetailerProfile, now: datetime) -> dict | None:
     if trend is None:
         return None
@@ -164,22 +211,49 @@ def create_content_draft(
     reviewer_texts: list[str] = []
     for index, day in enumerate(campaign["days"]):
         theme = source if selected and index == 0 else day["topic"]
-        # The external trend TITLE is never copied verbatim into the model's
-        # system prompts or used to claim popularity / endorsements.
-        marketing_angle = f"{templates['idea']} {theme}" if selected and index == 0 else f"{templates['explore']} {theme}"
-        headline = marketing_angle[:95].strip()
-        hook = f"{headline} — {context}"[:140]
-        facebook = f"{retailer.name}: {headline}. {templates['question']} {cta}"
-        youtube_title = f"{headline} | {retailer.name}"[:100]
-        youtube_description = f"{templates['explore']} {context}. {cta} {' '.join(hashtag)}"
-        instagram_caption = f"{headline}. {templates['question']} {cta} {' '.join(hashtag)}"
-        linkedin_post = f"{retailer.name} shares {headline}. {templates['note']} {cta}"
+        # The external title is evidence context, not a popularity guarantee.
+        # Never generate unverified price, stock, material-performance or offer claims.
+        if category == "clothing" and retailer.language == "en-IN" and retailer.products:
+            angle, question, shot_focus = _clothing_angle(index, subject, retailer.city)
+            headline = _whole_word_limit(angle, 95)
+            if selected and index == 0:
+                headline = _whole_word_limit(f"{source}: {angle}", 95)
+            marketing_angle = angle
+            facebook = (f"{retailer.name}: Today's styling exercise is to {angle[0].lower() + angle[1:]}. "
+                        f"{question} {cta}")
+            instagram_caption = (f"{angle}. {question} {cta} {' '.join(hashtag)}")
+            linkedin_post = (f"An outfit idea for {retailer.audience} in {retailer.city}: {angle}. "
+                             f"Look at your existing wardrobe, consider the combination, "
+                             f"and decide whether it fits your routine. {cta}")
+            youtube_description = (f"An approachable {shot_focus} exercise using {subject}: "
+                                   f"{angle}. {question} {cta} {' '.join(hashtag)}")
+            scene_scripts = (
+                f"Show only an authorized {subject} photo; introduce {shot_focus} with the headline",
+                f"Reframe that approved photo; overlay the day's idea: {angle}",
+                f"Hold the approved photo; show the retailer-provided CTA and ask: {question}",
+            )
+        else:
+            marketing_angle = (f"{templates['idea']} {theme}" if selected and index == 0
+                               else f"{templates['explore']} {theme}")
+            headline = _whole_word_limit(marketing_angle, 95)
+            question = templates["question"]
+            facebook = f"{retailer.name}: {headline}. {question} {cta}"
+            instagram_caption = f"{headline}. {question} {cta} {' '.join(hashtag)}"
+            linkedin_post = f"{retailer.name} shares {headline}. {templates['note']} {cta}"
+            youtube_description = f"{templates['explore']} {context}. {cta} {' '.join(hashtag)}"
+            scene_scripts = (
+                f"{templates['scene'][0]}: {theme}",
+                f"{templates['scene'][1]}: {context}",
+                f"{templates['scene'][2]}: {cta}",
+            )
+        youtube_title = _youtube_title(headline, retailer.name)
+        hook = _whole_word_limit(f"{headline} — {context}", 140)
+        # Copy-only changes: the provider's IDs, tenant, licensed asset IDs and
+        # canonical 30-second storyboard remain untouched and revalidated.
+        day["linkedin"]["post_text"] = linkedin_post
+        day["instagram"]["caption"] = instagram_caption
         if selected and index == 0:
-            # Only replace copy, not the trusted IDs, media references, CTA, or
-            # storyboard timing. Existing complete v1 validation remains active.
             day["topic"] = headline[:140]
-            day["linkedin"]["post_text"] = linkedin_post
-            day["instagram"]["caption"] = instagram_caption
         extra = {
             "day_id": day["id"], "scheduled_date": day["scheduled_date"],
             "status": "DRAFT", "approval_status": "PENDING_RETAILER",
@@ -199,7 +273,7 @@ def create_content_draft(
             "video": {"hook": hook, "duration_seconds": 30,
                       "scenes": [{"start_seconds": i * 10, "duration_seconds": 10,
                                   "script": scene, "asset_id": brief.media_asset_ids[(index + i) % len(brief.media_asset_ids)]}
-                                 for i, scene in enumerate(templates["scene"])]},
+                                 for i, scene in enumerate(scene_scripts)]},
             "hashtags": hashtag, "format": "short_video_or_poster",
         }
         by_day.append(extra)

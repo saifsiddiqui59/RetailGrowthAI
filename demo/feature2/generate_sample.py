@@ -83,6 +83,7 @@ def make_sample() -> dict:
             "instagram": day["instagram"]["caption"],
             "facebook": extra["platform_copy"]["facebook"],
             "youtube_title": extra["platform_copy"]["youtube_title"],
+            "youtube_description": extra["platform_copy"]["youtube_description"],
             "poster": extra["poster"],
             "video": extra["video"],
             "review_status": extra["approval_status"],
@@ -92,6 +93,12 @@ def make_sample() -> dict:
     if (len(rows) != 7 or any(x["review_status"] != "PENDING_RETAILER" for x in rows) or
         any("20% OFF" in repr(x) or "in stock" in repr(x).lower() for x in rows)):
         raise AssertionError("Unsafe test campaign output")
+    if (len({x["poster"]["headline"] for x in rows}) != 7 or
+        len({x["facebook"] for x in rows}) != 7 or
+        len({x["video"]["scenes"][1]["script"] for x in rows}) != 7 or
+        any(not x["youtube_title"].endswith(" | Thread & Loom Studio")
+            or len(x["youtube_title"]) > 100 for x in rows)):
+        raise AssertionError("Feature2 sample editorial quality gate failed")
     return {
         "mode": "FICTIONAL_OFFLINE_SAMPLE_NOT_LIVE_DEV",
         "source_disclosure": "A synthetic Google-format RSS fixture; this is not a genuine observed trending search.",
@@ -135,7 +142,10 @@ def main():
             "INSTAGRAM: " + d["instagram"],
             "FACEBOOK: " + d["facebook"],
             "YOUTUBE: " + d["youtube_title"],
+            "YOUTUBE DESCRIPTION: " + d["youtube_description"],
             "POSTER HEADLINE: " + d["poster"]["headline"],
+            "POSTER SUBHEADLINE: " + d["poster"]["subheadline"],
+            "POSTER CTA: " + d["poster"]["cta"],
             "30s STORYBOARD: " + " / ".join(s["script"] for s in d["video"]["scenes"]),
             "STATUS: PENDING_RETAILER",
             "",
