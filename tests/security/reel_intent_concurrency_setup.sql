@@ -29,6 +29,10 @@ values ('a4444444-4444-4444-8444-444444444444',
         'Two simultaneous identical render requests on isolated database',
         '2026-11-01');
 
+-- The campaign planner normally transitions this row before a render request.
+update public.campaigns set status='DRAFT'
+where id='a4444444-4444-4444-8444-444444444444';
+
 insert into public.media_assets(id,shop_id,created_by,object_path,mime_type,
                                source,license_name,attribution)
 values ('a5555555-5555-4555-8555-555555555555',
