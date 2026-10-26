@@ -75,7 +75,7 @@ def check_artifact(media_dir):
 def check_fullres_artifact(media_dir):
     """Gate actual 1080p scene diversity; never equate synthetic visuals with fashion realism."""
     root = Path(media_dir)
-    expected = (1, 4, 8, 11, 14)
+    expected = (1, 6, 13, 18, 28)
     pictures = []
     for time in expected:
         p = root / f"feature4-fullres-frame-{time}.jpg"

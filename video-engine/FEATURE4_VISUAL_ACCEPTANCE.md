@@ -26,7 +26,7 @@ The owner rejected the original 30-second synthetic animation as basic. A techni
 
 ## Automated evidence (what the tests can and cannot prove)
 
-- `video-engine/hyperframes/ci-smoke.sh` renders real CPU HyperFrames output in CI. The original 30s/540p fixture validates H.264/AAC output, scene changes, intro brand and known synthetic 480 Hz source-audio mix. Added **15s/1080p** original synthetic stress fixture validates actual encoded resolution, fps, pixel format and five separate scenes, and extracts high-resolution review frames.
+- `video-engine/hyperframes/ci-smoke.sh` renders real CPU HyperFrames output in CI. The original 30s/540p fixture validates H.264/AAC output, scene changes, intro brand and known synthetic 480 Hz source-audio mix. A **15s/1080p** synthetic first proof passed 4/4 CI [#40307861324](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40307861324) (15.000s, 3.06MB H.264/AAC, 24fps/yuv420p; renderer ~49 seconds on GitHub CPU). The ongoing default acceptance gate now requests the actual full **30s/1080p** synthetic mode, exact output probe and five scene screenshots, with CI evidence pending.
 - `video-engine/hyperframes/render.mjs` now checks exact requested resolution and fps against the private compiled render configuration. `video-engine/render_adapter.py` independently validates final MP4 before atomic private file publication.
 - These are **automated engineering gates only**. Neither synthetic silhouette fixtures nor image-difference statistics detect realistic garment fidelity, true AI motion, product misrepresentation, small text clipping or speech intelligibility.
 - Do not show the synthetic render as a real retailer reference or mark this feature ready for a paying retailer.
