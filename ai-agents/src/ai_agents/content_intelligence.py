@@ -139,6 +139,8 @@ def create_content_draft(
     """
     if brief.shop_id != retailer.shop_id:
         raise PermissionError("cross-tenant content request")
+    if RESTRICTED.search(retailer.category + " " + brief.brief + " " + " ".join(retailer.products)):
+        raise ContractError("restricted-industry promotion requires separate policy approval")
     if now.tzinfo is None:
         raise ValueError("timezone-aware clock required")
     selected = _approved_trend(trend, retailer, now)
