@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useAuthorizedShops } from './useAuthorizedShops.js'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { createCampaignApi } from '../campaigns/campaign-api.mjs'
 import { Card } from '../../components/ui/card.jsx'
@@ -15,12 +15,7 @@ export default function RecentCampaignCalendar() {
   const [loading, setLoading] = useState(false)
   const requestEpoch = useRef(0)
   useEffect(() => () => { requestEpoch.current += 1 }, [])
-  const shopsQuery = useQuery({
-    queryKey: ['recent-calendar', 'shops', user?.id],
-    queryFn: () => client.listShops(),
-    enabled: Boolean(user && configured),
-    staleTime: 30000,
-  })
+  const shopsQuery = useAuthorizedShops({ client, user, configured })
   const shops = shopsQuery.data || []
   const shopId = shops.some(shop => shop.id === requestedShopId)
     ? requestedShopId : shops[0]?.id || ''

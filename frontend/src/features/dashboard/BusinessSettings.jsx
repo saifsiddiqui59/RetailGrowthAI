@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useAuthorizedShops } from './useAuthorizedShops.js'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
@@ -99,14 +100,7 @@ function ProfileEditor({ client, userId, shop }) {
 export default function BusinessSettings() {
   const { client, configured, user } = useRetailAuth()
   const [requestedShopId, setRequestedShopId] = useState('')
-  const shopsQuery = useQuery({
-    queryKey: ['settings', 'shops', user?.id],
-    queryFn: () => client.listShops(),
-    enabled: Boolean(configured && user),
-    retry: false,
-    staleTime: 0,
-    gcTime: 0,
-  })
+  const shopsQuery = useAuthorizedShops({ client, user, configured })
   const shops = shopsQuery.data || []
   // Shop scope always derives from RLS-verified memberships, never a URL param.
   const shop = shops.find(row => row.id === requestedShopId) || shops[0]

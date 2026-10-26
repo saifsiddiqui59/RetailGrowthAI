@@ -12,7 +12,7 @@
 - **Recent campaign draft calendar:** manual read uses the existing per-user/per-shop session UUID hint plus authenticated `GET /api/campaigns/{id}` (no automatic polling/writes). Validates returned campaign/shop/day identity before showing dates. This is not a cross-campaign schedule or a publishing calendar; Azure HTTP #249 remains.
 - Route-level React.lazy splitting defers video studio, Chart.js and privileged platform modules until needed, reducing initial JS requested by the Free Azure SWA login view.
 - Light/dark theme persists only presentation choice in localStorage, not authentication or tenant data. Responsive drawer and accessible links remain.
-- TanStack Query manages tenant-authorized shops and exact-count per-shop dashboard metrics. Keys include user ID and shop ID. Cache expires when unobserved.
+- TanStack Query manages tenant-authorized shops and exact-count per-shop dashboard metrics. Keys include user ID and shop ID. A shared, principal-scoped 8-second shop-list cache (GC after 20 seconds) avoids repeated RLS GETs on rapid dashboard/library/calendar/settings navigation; every operation still undergoes server RLS and mutations do not trust the cache for authorization.
 - Chart.js graphs verified retailer counts and existing server-authorized root summary counts; unknown values are not graphed.
 - Offline chart/media/calendar data-model regressions and mocked Playwright route/guest-denial/320px/theme tests added. New browser journey verifies JWT-protected recent-campaign dates and tenant mismatch denial. No real hosted private-user test claimed.
 - Explicitly versioned TanStack Query, Chart.js and react-chartjs-2 packages. The repo has no committed frontend npm lockfile and current CI uses npm install.
@@ -34,6 +34,7 @@
 ## Feature 1 continued task ledger
 - [x] Dedicated tenant-scoped business settings reads/edits, no new infrastructure.
 - [x] Read-only VIEWER guard, user/shop keys, negative mocked Playwright route tests.
+- [x] Consolidate repeated business-membership list requests across four existing Feature 1 views; verify within-session no-duplicate GET.
 - [ ] Complete shadcn migration, visual QA and uncontracted social/publishing/inbox screens.
 - [ ] Coordinator reconciling shared PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG after PR integration; Feature 1 ownership deliberately avoids those concurrently edited docs.
 - [ ] Hosted, signed-in DEV acceptance remains separately blocked by Azure HTTP #249; offline browser mocks and local Supabase negative SQL are not hosted proof.

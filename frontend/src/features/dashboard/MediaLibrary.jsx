@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useAuthorizedShops } from './useAuthorizedShops.js'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
@@ -12,12 +13,7 @@ export default function MediaLibrary() {
   const [requestedShopId, setRequestedShopId] = useState('')
   const [filter, setFilter] = useState('')
   const [type, setType] = useState('all')
-  const shopsQuery = useQuery({
-    queryKey: ['media-library', 'shops', user?.id],
-    queryFn: () => client.listShops(),
-    enabled: Boolean(configured && user),
-    staleTime: 30000,
-  })
+  const shopsQuery = useAuthorizedShops({ client, user, configured })
   const shops = shopsQuery.data || []
   // Never fetch from an arbitrary user-supplied shop ID: resolve from RLS-backed memberships.
   const shopId = shops.some(shop => shop.id === requestedShopId)

@@ -199,6 +199,23 @@ test('settings refuses cross-tenant profile response and never shows foreign dat
   await expect(page.getByRole('button',{name:'Save business profile'})).toHaveCount(0)
 })
 
+test('rapid workspace navigation reuses principal-scoped shop list without extra GET', async ({ page }) => {
+  const calls = await signedIn(page)
+  await page.route(HOST + '/rest/v1/business_profiles**', route => route.fulfill({
+    status:200, contentType:'application/json',
+    headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+    body:'[]'
+  }))
+  await page.goto('/')
+  await expect(page.getByRole('heading',{name:'Campaign workspace'})).toBeVisible()
+  await expect.poll(()=>calls.filter(path=>path==='/rest/v1/shops').length).toBe(1)
+  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Media library'}).click()
+  await expect(page.getByRole('heading',{name:'Media library'})).toBeVisible()
+  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Settings'}).click()
+  await expect(page.getByRole('heading',{name:'Workspace settings'})).toBeVisible()
+  expect(calls.filter(path=>path==='/rest/v1/shops')).toHaveLength(1)
+})
+
 test('unverified guest cannot deep-link to dashboard subroutes', async ({ page }) => {
   await page.goto('/connections')
   await expect(page).toHaveURL(/\/account$/)

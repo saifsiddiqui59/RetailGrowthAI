@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAuthorizedShops } from './useAuthorizedShops.js'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import sampleCampaign from '../campaigns/fixtures/sample-campaign.json'
@@ -13,11 +14,7 @@ export default function DashboardOverview() {
   const [selectedShop, setSelectedShop] = useState('')
   // Keep query keys scoped to an authenticated principal. No stale counts are
   // shared with another user or business; the backend still enforces RLS.
-  const shopsQuery = useQuery({
-    queryKey: ['dashboard', 'shops', user?.id],
-    queryFn: () => client.listShops(),
-    enabled: Boolean(user && configured),
-  })
+  const shopsQuery = useAuthorizedShops({ client, user, configured })
   const shops = shopsQuery.data || []
   const shopId = shops.some(s => s.id === selectedShop) ? selectedShop : (shops[0]?.id || '')
   const live = configured && Boolean(user)
