@@ -15,7 +15,7 @@
 
 ## Open work and security boundaries
 - This is an incremental frontend slice, not a complete production-grade SaaS redesign or signed-in live Azure acceptance.
-- Official shadcn/ui generation and full component migration are not yet completed. Legacy CSS must be migrated gradually with visual regression tests; do not claim primary shadcn design-system parity yet.
+- An incremental shadcn/ui-compatible source-component foundation is now set up with Tailwind utilities (no global preflight), Vite alias, Card, Badge, Button and Skeleton. The new workspace routes adopt these UI primitives. Official shadcn CLI is not run; remaining legacy views still use existing CSS and require staged migration and visual QA before claiming end-to-end shadcn adoption.
 - Missing additive authorized read contracts: cross-campaign calendar aggregation; tenant asset browse; active social connections; publishing history and delivery receipts; retailer-specific persistent notifications; any extra account settings and platform time-series metrics. The UI is explicit rather than inventing API endpoints or data.
 - Persisted platform alerts are Super Admin only and server-enforced. Root summary chart is a cross-sectional comparison, not time-series trends or cloud telemetry.
 - Azure HTTP #249 blocks reliable hosted signed-in write E2E; no bypass, retry hack, schema change or tenant authorization weakening.
