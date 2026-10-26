@@ -2,7 +2,9 @@
 -- Committed fixtures are required for real two-connection serialization.
 -- Do NOT run on a linked/hosted database. The Python runner hard-pins localhost.
 \set ON_ERROR_STOP on
-\i experiments/secure-node-http/sql/request_reel_render_job.proposal.sql
+-- Canonical migration is applied by disposable `supabase db start` first.
+-- Abort if the versioned RPC is missing; never load a second proposal copy.
+select 'public.request_reel_render_job(uuid,uuid)'::regprocedure;
 
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
 values ('a1111111-1111-4111-8111-111111111111',
