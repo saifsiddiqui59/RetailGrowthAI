@@ -57,7 +57,7 @@ export function selectFeature3Template(prompt) {
 export function composeFeature3Poster({
   shopId, mode, prompt, businessName, headline = null,
   cta = 'Visit our store', approvedOffer = null, sourceAssetId = null,
-  authorizedAssetIds = [], template = null, format = 'square',
+  authorizedAssetIds = [], logoAssetId = null, template = null, format = 'square',
   accent = '#C05F43', background = '#FCF4EC',
 }) {
   text(prompt, 800)
@@ -74,6 +74,8 @@ export function composeFeature3Poster({
   }
   if (sourceAssetId && (!Array.isArray(authorizedAssetIds) ||
     !authorizedAssetIds.includes(sourceAssetId))) throw Error('Unregistered image')
+  if (logoAssetId && (!Array.isArray(authorizedAssetIds) ||
+    !authorizedAssetIds.includes(logoAssetId))) throw Error('Unregistered brand logo')
   const chosen = template ?? selectFeature3Template(prompt)
   if (!FEATURE3_TEMPLATES.includes(chosen) || !FEATURE3_FORMATS[format]) {
     throw Error('Unsupported poster template or format')
@@ -89,6 +91,11 @@ export function composeFeature3Poster({
     rect('accent-rule', chosen === 'streetwear' ? 0 : .07, .135,
       chosen === 'clearance' ? .86 : .23, .012, accent),
   ]
+  if (logoAssetId) {
+    layers[0].w = .68
+    layers.push({ id: 'logo', type: 'image', x: .79, y: .03, w: .14,
+      h: .085, asset_id: logoAssetId })
+  }
   if (sourceAssetId) {
     layers.push({ id: 'product', type: 'image', x: ix, y: iy, w: iw, h: ih,
       asset_id: sourceAssetId })
