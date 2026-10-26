@@ -6,7 +6,7 @@ region availability, actual vCPU/RAM allocation, VAT, egress and model latency.
 """
 from __future__ import annotations
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_UP
 from .contracts import MotionError
 
 METERS = {
@@ -79,3 +79,32 @@ def estimate_execution_usd(rates: VerifiedAzureRates, *, billable_seconds: int,
     return (sec * (rates.gpu_per_second_usd +
                    rates.cpu_per_second_usd * vcpus +
                    rates.gib_per_second_usd * gib_memory)).quantize(Decimal("0.000001"))
+
+@dataclass(frozen=True)
+class MotionSpendGuard:
+    """Fail-closed proposed maximum bill for one approved local GPU attempt.
+
+    Include worst-case cold load + timeout; the ledger must reserve at least
+    this amount BEFORE worker claims a job. No retries are automatically paid.
+    """
+    rates: VerifiedAzureRates
+    max_billable_seconds: int
+    vcpus: int
+    gib_memory: int
+    ancillary_allowance_usd: Decimal
+
+    def minimum_reservation_usd(self) -> Decimal:
+        if not isinstance(self.rates, VerifiedAzureRates) or self.rates.gpu != "A100":
+            raise MotionError("Hunyuan default requires reviewed A100 pricing")
+        if type(self.max_billable_seconds) is not int or not 30 <= self.max_billable_seconds <= 1800:
+            raise MotionError("GPU time cap must be 30-1800 seconds")
+        try:
+            allowance = Decimal(str(self.ancillary_allowance_usd))
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            raise MotionError("Invalid ancillary inference cost allowance") from exc
+        if not allowance.is_finite() or allowance < 0:
+            raise MotionError("Invalid ancillary inference cost allowance")
+        base = estimate_execution_usd(
+            self.rates, billable_seconds=self.max_billable_seconds,
+            vcpus=self.vcpus, gib_memory=self.gib_memory)
+        return (base + allowance).quantize(Decimal("0.0001"), rounding=ROUND_UP)
