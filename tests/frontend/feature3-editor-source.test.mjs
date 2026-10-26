@@ -18,3 +18,18 @@ test('unmounted Feature3 React Konva editor is valid JSX (without enabling depen
   assert.ok(transformed.code.includes('Save private draft'))
   assert.ok(transformed.code.includes('Replace selected photo'))
 })
+
+test('isolated creation studio has responsive and approval-gated JSX', async () => {
+  const { transformWithEsbuild } = await import(requireFrontend.resolve('vite'))
+  const panelPath = fileURLToPath(new URL(
+    '../../frontend/src/features/creative/Feature3StudioPanel.jsx', import.meta.url))
+  const source = await readFile(panelPath, 'utf8')
+  const compiled = await transformWithEsbuild(source, panelPath, { loader: 'jsx' })
+  assert.ok(compiled.code.includes('Text-to-Poster'))
+  assert.ok(compiled.code.includes('Image-to-Poster'))
+  assert.ok(compiled.code.includes('Generate editable poster'))
+  assert.ok(compiled.code.includes('Feature3KonvaEditor'))
+  assert.ok(source.includes('repeat(auto-fit,minmax(min(100%,180px),1fr))'))
+  assert.ok(source.includes('approvedContent?.review_state'))
+  assert.ok(source.includes('approvedOffer: approved ? approvedContent.offer_text : null'))
+})
