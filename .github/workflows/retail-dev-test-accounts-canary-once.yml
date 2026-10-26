@@ -94,10 +94,18 @@ jobs:
             python3 tests/e2e/retail_dev_canary_once.py
           fi
       - name: Upload only FFprobe-verified synthetic cloud Reel media after cleanup
-        if: always() && (inputs.mode == 'browser-upload' || inputs.mode == 'node-browser-reel' || inputs.mode == 'node-poster-reel')
+        if: always() && inputs.mode == 'browser-upload'
         uses: actions/upload-artifact@v4
         with:
           name: retailgrowthai-dev-live-cloud-30s-reel
+          path: output/video-acceptance/retailgrowthai-dev-cloud-reel.mp4
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Preserve genuine signed private 30-second cloud Reel only for ROOT-approved Node modes
+        if: always() && (inputs.mode == 'node-browser-reel' || inputs.mode == 'node-poster-reel')
+        uses: actions/upload-artifact@v4
+        with:
+          name: retailgrowthai-dev-node-cloud-30s-h264-aac-reel
           path: output/video-acceptance/retailgrowthai-dev-cloud-reel.mp4
           retention-days: 7
           if-no-files-found: warn
