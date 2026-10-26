@@ -301,6 +301,28 @@ jobs:
           RETAIL_DISPOSABLE_POSTGRES: '1'
         run: python3 tests/security/poster_reel_intent_concurrency.py
 
+      - name: Validate PROPOSED Feature2 AI budget SQL only in disposable local PostgreSQL
+        shell: bash
+        env:
+          PGPASSWORD: postgres
+          PGHOST: 127.0.0.1
+          PGPORT: '54322'
+          PGDATABASE: postgres
+          PGUSER: postgres
+          RETAIL_DISPOSABLE_POSTGRES: '1'
+        run: |
+          set -euo pipefail
+          # Hard pin the standalone disposable port and explicit opt-in marker.
+          # The proposed AI ledger is deliberately NOT an executable migration:
+          # this CI-only DDL is discarded when the disposable DB stops.
+          test "$PGHOST" = '127.0.0.1'
+          test "$PGPORT" = '54322'
+          test "$PGDATABASE" = 'postgres'
+          test "$RETAIL_DISPOSABLE_POSTGRES" = '1'
+          psql -X -v ON_ERROR_STOP=1 -f docs/feature2/sql/PROPOSED_20261026_feature2_ai_cost_ledger.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/security/feature2_ai_budget_negative.sql
+          python3 tests/security/feature2_ai_budget_concurrency.py
+
       - name: Stop isolated Supabase database
         if: always()
         shell: bash
