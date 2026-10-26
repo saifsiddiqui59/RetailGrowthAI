@@ -41,7 +41,7 @@ Only coordinator merges feature PR #321, updates canonical PROJECT_STATE/NEXT_TA
 
 ## Source-image visual-review pilot — 2026-10-26 addition
 
-The source branch now includes \`openpeople_pilot_qa_v2.py\`. It is a PRIVATE,
+The source branch now includes `openpeople_pilot_qa_v2.py`. It is a PRIVATE,
 zero-GPU, local operator reviewer for **1–3 real JPGs already staged at the
 pinned upstream revision**. It consumes the exact unapproved JSON review
 packets from the existing Feature #3 UI; the server-side allowlist and
@@ -51,7 +51,7 @@ flags, changed URLs, missing source files, symlinks and duplicate selections.
 Example from the repository root, **only after separately staging the
 real source JPGs in an operator-owned private checkout**:
 
-\`\`\`bash
+```bash
 python - <<'PY'
 from pathlib import Path
 import sys
@@ -66,11 +66,11 @@ receipt = build_private_pilot_review(
 )
 print(receipt["status"], receipt["source_asset_count"])
 PY
-\`\`\`
+```
 
 Outputs are **local and unapproved**: a 0600-mode
-\`pilot-contact-sheet-UNAPPROVED.png\` with actual pixel crops and warning,
-and \`pilot-review-UNAPPROVED.json\` recording SHA-1 Git blob provenance,
+`pilot-contact-sheet-UNAPPROVED.png` with actual pixel crops and warning,
+and `pilot-review-UNAPPROVED.json` recording SHA-1 Git blob provenance,
 source SHA-256, size, the precise upstream links, and the still-required
 human reviews. Their containing directory uses 0700 on POSIX. Neither
 file is stored in Git, Azure, Supabase, a shared browser catalog or a
@@ -80,12 +80,12 @@ likeness, apparel suitability or image-provider commercial rights.
 
 Operator decisions remain OUTSIDE and independent of the raw browser
 packet and technical reviewer. Successful private review never sets
-\`approved\`, \`rights_verified\` or \`ready_for_cloud_import\` true.
-The existing \`import_openpeople_still\` still independently requires
+`approved`, `rights_verified` or `ready_for_cloud_import` true.
+The existing `import_openpeople_still` still independently requires
 explicit rights callback approval, authenticated scope/curator authorization
 and a private immutable blob/registry implementation.
 
-**Verification:** \`tests/media/test_feature3_pilot_review.py\` uses
+**Verification:** `tests/media/test_feature3_pilot_review.py` uses
 synthetic (not OpenPeople) JPG pixels and mocks the staged-reader only in
 the positive local contact-sheet test. Its negative cases exercise genuine
 untrusted packet validation, missing source, forced denial, immutability
