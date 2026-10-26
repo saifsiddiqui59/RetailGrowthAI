@@ -12,7 +12,7 @@ from PIL import Image
 from io import BytesIO
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"poster-engine"))
-from flux_t4_snapshot import verify_reviewed_flux_snapshot,SCHEMA,OFFICIAL_REVISION
+from flux_t4_snapshot import verify_reviewed_flux_snapshot,SCHEMA,OFFICIAL_REVISION,REQUIRED_CONFIG_FILES
 from flux_t4_container_entrypoint import run_one
 from ai_providers_v2 import ProviderBlocked
 
@@ -32,13 +32,19 @@ class FullSnapshotTests(unittest.TestCase):
    content=("synthetic-not-real-shard-%s"%i).encode()
    p.write_bytes(content)
    hashes[n]=sha(content)
+  config_hashes={}
+  for i,name in enumerate(sorted(REQUIRED_CONFIG_FILES)):
+   target=folder/name;target.parent.mkdir(parents=True,exist_ok=True)
+   data=(f"synthetic-reviewed-config-{i}".encode())
+   target.write_bytes(data)
+   config_hashes[name]=sha(data)
   data=b'{"_class_name":"Flux2KleinPipeline"}'
   (folder/"model_index.json").write_bytes(data)
   manifest={
    "schema":SCHEMA,"repository":"black-forest-labs/FLUX.2-klein-4B",
    "revision_sha":OFFICIAL_REVISION,"weights_license":"Apache-2.0",
    "model_index_sha256":sha(data),"shards_sha256":hashes,
-   "dependencies_operator_approved":True
+   "configs_sha256":config_hashes, "dependencies_operator_approved":True
   }
   manifest_path=root/"approval.json"
   manifest_path.write_text(json.dumps(manifest))
@@ -57,6 +63,31 @@ class FullSnapshotTests(unittest.TestCase):
   with TemporaryDirectory() as td:
    path,manifest,_=self.make(Path(td))
    (path/SHARDS[1]).unlink()
+   with self.assertRaises(ProviderBlocked):verify_reviewed_flux_snapshot(path,manifest)
+ def test_missing_or_replaced_tokenizer_and_scheduler_rejected(self):
+  for name in ("tokenizer/tokenizer.json","scheduler/scheduler_config.json"):
+   with TemporaryDirectory() as td:
+    path,manifest,_=self.make(Path(td))
+    (path/name).write_bytes(b"tampered")
+    with self.assertRaises(ProviderBlocked):verify_reviewed_flux_snapshot(path,manifest)
+   with TemporaryDirectory() as td:
+    path,manifest,_=self.make(Path(td))
+    (path/name).unlink()
+    with self.assertRaises(ProviderBlocked):verify_reviewed_flux_snapshot(path,manifest)
+ def test_parent_symlink_escape_rejected(self):
+  with TemporaryDirectory() as td:
+   path,manifest,_=self.make(Path(td))
+   origin=path/"text_encoder"
+   relocated=Path(td)/"outside"
+   origin.rename(relocated)
+   origin.symlink_to(relocated,target_is_directory=True)
+   with self.assertRaises(ProviderBlocked):verify_reviewed_flux_snapshot(path,manifest)
+ def test_old_partial_manifest_cannot_claim_full_snapshot(self):
+  with TemporaryDirectory() as td:
+   path,manifest,data=self.make(Path(td))
+   data.pop("configs_sha256")
+   data["schema"]="retailgrowth.flux2-klein-4b.full-snapshot.v2"
+   manifest.write_text(json.dumps(data))
    with self.assertRaises(ProviderBlocked):verify_reviewed_flux_snapshot(path,manifest)
  def test_forbid_different_weights_license_or_revision(self):
   for field,value in (("revision_sha","f"*40),("weights_license","NON-COMMERCIAL"),("dependencies_operator_approved",False)):
