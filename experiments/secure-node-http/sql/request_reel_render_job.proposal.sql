@@ -180,7 +180,7 @@ begin
       where a.id=aid and a.shop_id=campaign.shop_id for share;
     if not found or media.storage_bucket<>'retailgrowth-media' or
        media.object_path not like campaign.shop_id::pg_catalog.text || '/%' or
-       media.license_name not in ('owned','cc0','royalty_free','commercial') or
+       (media.license_name in ('owned','cc0','royalty_free','commercial')) is not true or
        pg_catalog.length(pg_catalog.btrim(coalesce(media.attribution,'')))<10 or
        (media.license_name<>'owned' and
          (media.license_url is null or media.license_url !~ '^https://[^[:space:]]{4,}$')) or
