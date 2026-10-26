@@ -376,3 +376,26 @@ and coordinator issue
 Canonical `docs/PROJECT_STATE.md`, `docs/NEXT_TASK.md`,
 `docs/DECISIONS.md` and `docs/WORK_LOG.md` are coordinator-owned;
 this handoff requests those updates at review/merge.
+
+### 2026-10-26 — Final incremental CPU efficiency and integration checks
+
+- `studio_v2._render_prepared` accepts an **optional job-local in-memory
+  resized image cache (max four RGBA images)**, while the single-job staged
+  media authorization remains mandatory. `animate_v2.export_animation`
+  provides its own bounded cache, so typical static flash/pulse posters
+  resize a product once rather than every frame. No global/shared cache;
+  next job re-checks rights. `test_feature3_low_cost.py` asserts
+  16-frame GIF invokes Pillow's image fit just once and that a newly
+  revoked asset fails at the start of the next job.
+- `PosterStudio.jsx` now offers an explicit authenticated, persisted-day
+  **local-only** CPU v2 text-poster editor. It does **not** change the
+  v1 createPosterDraft/render/select/download API. A dedicated
+  `test_feature3_v1_integration.test.mjs` guards the original v1 cloud
+  controls and checks JSX compiles with existing Vite tooling.
+- For real v2 image-to-poster, authenticated host must supply an
+  authorized/private `imageMap`; no arbitrary URL or unattested local
+  photo may be saved as a registered business media asset.
+- Coordinator: integrate versioned database and readback, E2E mobile
+  and signed download; only then promote v2 from local JSON to cloud.
+  Not necessary to add Konva, GPU or additional always-on capacity to
+  deliver basic CPU poster editing.
