@@ -29,3 +29,9 @@
 ## 2026-10-26 follow-up — GPU budget ceiling and measured usage
 - Added `MotionSpendGuard` in `feature5_motion/azure_pricing.py`, integrated into `MotionWorker` before durable claim, and required existing reservation >= total worst-case billable approved CPU/RAM/A100 time and ancillary allowance. Added offline negative tests for missing quote/underfunded reservation/runner timeout.
 - Added monotonic subprocess elapsed-time and Azure-rate estimate to private output metadata for later existing ledger reconciliation. Enforced `UNKNOWN` on over-budget runtime; fixed an edge case where failure persisting UNKNOWN could be incorrectly downgraded to FAILED. No GPU was actually run.
+
+## 2026-10-26 work continuation: runtime source integrity and offline QA
+- Re-read latest canonical AGENTS and coordinator project docs, current main, PR #323, PR #125 Part3 and PR #322 Feature4; preserved their branches.
+- Fetched official Tencent upstream `generate.py` at commit `60783e704160023913bee78f0b47036d393d4dfa`; added exact Git-blob integrity gate and fake/tampered/symlinked script tests. Did not download model weights or start CUDA.
+- Added true FFmpeg/libx264 5s H264/24FPS media validation test with real 30FPS and 4s rejection fixtures, rather than relying only on `ffprobe` mocks. Added private six-frame review contact sheet and clip SHA256 manifest; real garment visual assessment remains unperformed.
+- No Part3/Feature4/shared-main edits, Azure/Supabase/PROD changes, GPU spend or WineShopPOS modification.

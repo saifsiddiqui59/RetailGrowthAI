@@ -25,3 +25,8 @@
 - An enabled GPU job requires a `MotionSpendGuard` and existing service-only DB credit reservation covering **worst case** allowed GPU wall time, active A100/vCPU/RAM rates plus ancillary allowance, not merely a nonzero reserved value. Runner timeout must not exceed quote. If no guard/rates or insufficient allowance, fail before leasing/launch.
 - Measured subprocess wall-time is included in output metadata only as an **estimate of model-related compute**, not as an Azure invoice. Worker must reconcile Azure startup, image pulls, network, storage and full bill before settling charge.
 - On out-of-budget runtime or unclear DB write, enter `UNKNOWN` (or raise reconciliation-only status when persistence fails). Never transform unrecorded uncertain paid work into a refundable `FAILED`.
+
+## 2026-10-26 source pin + visual evidence decision
+- Pin official Tencent HunyuanVideo-1.5 `generate.py` from upstream commit `60783e704160023913bee78f0b47036d393d4dfa` by Git-object SHA1 blob `ba18ce85661d2cc2ebfe5a7fe4ad80994899d07d`. SHA1 is Git's blob identity and cannot substitute for SHA256 checks of model weights/dependency provenance; pin still needs actual tested runtime and licensed source evidence.
+- A cheap real FFmpeg-encoded 5-second MP4 fixture is appropriate to verify Feature5 machine media validation without pretending a text/image-to-video model ran. Do not treat it as cinematographic acceptance.
+- Human visual QA will examine private PNG samples and contact sheet tied to the exact MP4 SHA256. Only tenant-authorized reviewer state stored in the existing service backend can later authorize Feature4; generated review sheets alone confer no right to publish.
