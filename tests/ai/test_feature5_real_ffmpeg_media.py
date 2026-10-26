@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from feature5_motion.contracts import MotionError
 from feature5_motion.worker import validate_clip
+from feature5_motion.visual_review_artifacts import prepare_visual_review, TIMESTAMPS
 
 
 @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"),
@@ -48,6 +49,32 @@ class TestFeature5RealFFmpegMedia(unittest.TestCase):
         self.assertEqual(result["fps"], 24)
         self.assertGreater(result["bytes"], 1024)
         self.assertTrue(4.5 <= result["duration_seconds"] <= 5.5)
+
+    def test_real_mp4_produces_six_review_frames_and_immutable_hash(self):
+        from hashlib import sha256
+        from PIL import Image
+        clip = self.make_clip("review-clip.mp4")
+        destination = self.root / "review"
+        result = prepare_visual_review(clip, destination)
+        self.assertEqual(result["status"], "PENDING_HUMAN_REVIEW")
+        self.assertEqual(len(result["frames"]), len(TIMESTAMPS))
+        self.assertEqual(result["clip_sha256"], sha256(clip.read_bytes()).hexdigest())
+        self.assertEqual(len(result["clip_sha256"]), 64)
+        self.assertTrue((destination / "review-manifest.json").is_file())
+        for frame in result["frames"]:
+            self.assertTrue((destination / frame["file"]).is_file())
+            self.assertEqual(len(frame["sha256"]), 64)
+        with Image.open(destination / "contact-sheet.png") as sheet:
+            self.assertEqual(sheet.size, (750, 954))
+        with self.assertRaises(MotionError):
+            prepare_visual_review(clip, destination)
+
+    def test_reviewer_materials_fail_closed_for_bad_duration(self):
+        clip = self.make_clip("not-reviewable.mp4", seconds=4)
+        output = self.root / "reject-review"
+        with self.assertRaises(MotionError):
+            prepare_visual_review(clip, output)
+        self.assertFalse(output.exists())
 
     def test_real_wrong_fps_and_duration_fail_closed(self):
         bad_fps = self.make_clip("fps-30.mp4", fps=30)
