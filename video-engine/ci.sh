@@ -22,3 +22,7 @@ python3 "$ROOT/ops/benchmarks/render_benchmark.py" \
   --width 1080 --height 1920 --fps 15 --preset ultrafast \
   --report "$ROOT/ci-artifacts/workstream-n-render-benchmark.json"
 echo "PASS: 30s 1080x1920 H.264/AAC multi-image Reel, xfade, generated tone, overlays, rights"
+
+# Feature #4 gates a real deterministic CPU producer run, not only HTML compilation.
+# No tenant credentials or new cloud resources are required.
+bash "$ROOT/video-engine/hyperframes/ci-smoke.sh"
