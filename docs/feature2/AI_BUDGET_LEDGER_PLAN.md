@@ -46,3 +46,10 @@ review, disposable Supabase CI and protected DEV approval.
 real paid inference, production readiness or hosted quota/RLS evidence.
 
 **Important manifest gate:** Reviewed SQL is stored only under `docs/feature2/sql/PROPOSED_20261026_feature2_ai_cost_ledger.sql`. Future coordinator-approved migration integration must choose a nonconflicting version number, update the immutable manifest deliberately, run full disposable DB security tests and obtain protected DEV migration approval before enabling any model calls.
+
+
+## 2026-10-26 — Superseding SOURCE SQL integration (not DEV application)
+- Actual reviewed versioned candidate landed via #431: `supabase/migrations/20261026194000_feature2_ai_cost_ledger.sql`. Historical proposal remains at `docs/feature2/sql/PROPOSED_20261026_feature2_ai_cost_ledger.sql` for audit, but CI now applies the versioned migration once in disposable PostgreSQL only. The old ad-hoc proposal was not applied to hosted DEV.
+- 5-arg reserve `p_request_id`, per-shop unique request, RG005 replay denial, conservative ceil micro-USD plus existing serial subscription row lock/role/subscription/budget checks. Winning request ID replay after settlement/unknown ACK is denied. Python signed HTTP path carries the draft `submission_id` as reserve ID (#433); new distinct HTTP submission IDs remain distinct billable intent. Do not blindly retry requests.
+- Verified disposable two blocked sessions: USD0.004 cap, two USD0.003 requests, one success and one AI_QUOTA_EXCEEDED, then replay of winner RG005. CI exact #40391854844/#40391861411, independent main #40392713409 all 4 green.
+- Latest hosted read-only prefix 21 through 20261026152102; later Feature3 20261026173000 precedes Feature2 20261026194000 in source. Blind `supabase db push` is prohibited. Written protected DDL/backup/restore approval, separately authorized nonzero expiring budget and Microsoft regional rates/prices still absent. No Azure paid execution, hosted writes or PROD.

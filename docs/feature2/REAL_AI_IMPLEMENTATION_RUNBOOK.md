@@ -27,3 +27,9 @@ This document **does not** authorize a model charge or production release.
 
 The implementation works against a real model **in principle** (the model HTTP path is coded, validated and tested with a stub). Until gates 1–5 are satisfied and a signed hosted model response is collected, status is **source merged / opt-in model disabled**, not “Feature2 real paid AI fully live.”
 No GPU, new paid compute, separate data store, Wan, PROD, WineShopPOS, social publishing or automatic spend has been activated here.
+
+
+## 2026-10-26 — Source promotion checkpoint; release remains gated
+- #431 merged: source canonical migration `20261026194000_feature2_ai_cost_ledger.sql`, 5th request UUID arg, RG005 fail-closed repeated spend, micro-USD rounding; disposable SQL and 4/4 branch/PR/main passed. #433 merged: signed DRAFT submission UUID bound to reservation. No call may be retried after lost Azure/backend acknowledgement.
+- Fresh hosted **READ-ONLY** DEV `jeearzffnjbvghwjjjrf` migration history 21 applied, 2 later source versions (Feature3 first and Feature2 second); AI budget tables null, registered media/drafts 0. Do not run unscoped `db push` or apply either without independent written protected approval and tested restore. Do not enable Feature2 flags until actual expiring shop spend cap approved.
+- Existing model `rgai-gpt-41-mini` region South India confirmed by OIDC #40382879442. Third-party published Regional Standard prices $0.44/$1.76 per million input/output are **indicative**; query official Azure Retail Prices exact `southindia` SKU and contract before budgeting or configuring rates. No paid sample has been run; proposed USD0.20 remains unapproved. Trend-backed draft needs genuine clothing signal and owner-cleared tenant media; text-only isolated actual inference remains an independent gated step.
