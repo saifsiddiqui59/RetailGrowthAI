@@ -56,3 +56,8 @@
 
 ## 2026-10-26 — Azure sign-in does not imply GPU quota
 - Actual signed-in browser profile makes the dedicated DEV subscription and resource group visible, but East US A100 managed-environment quota has not been surfaced; a different portal blade showed no subscription rows in its current directory/filter context. Do not mislabel this as an Azure denial or user failure. Keep paid GPU creation disabled until exact quota, supplier model weights, accepted licensing and maximum bill are verified. Do not reuse the separate voice-project Container Apps environment.
+
+## 2026-10-26 — Azure ARM notification is not a verified GPU deployment
+- `CustomDeployment-20261026093554` showed **Deployment succeeded** in Azure Portal, but exact managed environment was not visible and operation/template details were not retrievable. Therefore mark **UNVERIFIED**, never retry automatically; use coordinator OIDC read-only ARM show/operations before creating anything.
+- Azure **environment-level** Consumption NCA100 GPU quota is only observable after a supported v2 managed environment exists; subscription Quotas empty pre-environment is NOT a proof of zero quota. Allow a single empty Consumption/logging-none DEV environment via strict one-resource what-if, but not an actual GPU profile or job until confirmed availability and real capped spend.
+- Azure Cloud Shell ephemeral browser input failed, and the portal browser tool exhausted its metered budget. Prefer existing repository DEV OIDC to execute coordinator-controlled audited ARM path instead of repeating unreliable GUI steps. User's desire for minimum cost remains controlling; no GPU execution or paid deployment was verified.
