@@ -29,7 +29,7 @@
 /* Constrain provider operations inside a 320px viewport. Any wide business
    directory must scroll *within* the table wrapper, not the whole document. */
 @media(max-width:560px){
-  .platform-page{box-sizing:border-box;max-width:100%;min-width:0;overflow-x:clip}
+  .platform-page{box-sizing:border-box;max-width:100%;min-width:0}
   .platform-page>*{box-sizing:border-box;min-width:0;max-width:100%}
   .platform-page .platform-metrics{grid-template-columns:minmax(0,1fr)}
   .platform-page .metric,.platform-page .panel{min-width:0;max-width:100%;box-sizing:border-box}
@@ -44,11 +44,15 @@
   .platform-page .platform-warning>div,.platform-page .platform-review-item>div{min-width:0;overflow-wrap:anywhere}
 }
 
-/* On mobile, the root-only screen must not push the surrounding app shell
-   even by a border pixel. Long retailer tables keep their own scrollbars. */
+/* Mobile root approvals: the heading title and the no-shrink Radix Button
+   must wrap instead of extending 2px beyond the 320px document. */
 @media(max-width:560px){
-  .retail-shell:has(.platform-page){box-sizing:border-box;max-width:100vw;overflow-x:clip}
-  .retail-shell:has(.platform-page) .page{box-sizing:border-box;min-width:0;max-width:100%}
-  .retail-shell:has(.platform-page) .content{box-sizing:border-box;max-width:100%;min-width:0}
-  .retail-shell:has(.platform-page) .platform-table-wrap{overflow-x:auto}
+  .platform-page .platform-approvals .panel-heading,
+  .platform-page .rg-platform-directory .panel-heading{flex-wrap:wrap;gap:12px}
+  .platform-page .platform-approvals .panel-heading>div,
+  .platform-page .rg-platform-directory .panel-heading>div{min-width:0;max-width:100%;flex:1 1 100%}
+  .platform-page .platform-approvals .panel-heading>[data-slot="button"],
+  .platform-page .rg-platform-directory .panel-heading>[data-slot="button"]{
+    flex:1 1 100%;width:100%;max-width:100%;justify-content:center;min-width:0
+  }
 }
