@@ -1,6 +1,6 @@
 """An actual OpenPeople-shaped LOCAL image import, without downloading assets."""
 from dataclasses import replace
-from hashlib import sha256
+from hashlib import sha1, sha256
 from pathlib import Path
 import sys
 import tempfile
@@ -25,9 +25,13 @@ class OpenPeopleTests(unittest.TestCase):
         self.shop = str(uuid4())
         self.calls = []
         self.source_revision = "a" * 40
+        raw = self.photo.read_bytes()
+        self.git_blob_sha = sha1(b"blob " + str(len(raw)).encode("ascii") +
+                                 bytes([0]) + raw).hexdigest()
         self.selection = OpenPeopleSelection(
             dataset_root=self.root, source_revision=self.source_revision,
-            person_id="P001", image_kind="studio_posture")
+            person_id="P001", image_kind="studio_posture",
+            expected_image_git_blob_sha=self.git_blob_sha)
         self.license_hash = "b" * 64
 
     def import_it(self, **overrides):
@@ -100,6 +104,20 @@ class OpenPeopleTests(unittest.TestCase):
             self.skipTest("symlink creation unavailable")
         with self.assertRaisesRegex(ModelLibraryDenied, "Linked"):
             self.import_it()
+
+    def test_same_path_changed_bytes_or_forged_blob_digest_fail_closed(self):
+        original = self.photo.read_bytes()
+        mutated = bytearray(original)
+        mutated[-3] ^= 1
+        self.photo.write_bytes(mutated)
+        with self.assertRaisesRegex(ModelLibraryDenied, "pinned Git blob"):
+            self.import_it()
+        self.assertFalse(self.calls)
+        self.photo.write_bytes(original)
+        with self.assertRaisesRegex(ModelLibraryDenied, "pinned Git blob"):
+            self.import_it(selection=replace(
+                self.selection, expected_image_git_blob_sha="b"*40))
+        self.assertFalse(self.calls)
 
     def test_import_belongs_to_original_shop_and_bears_no_gpu_charge(self):
         record = self.import_it()
