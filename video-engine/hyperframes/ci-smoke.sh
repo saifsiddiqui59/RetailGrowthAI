@@ -31,3 +31,8 @@ PY
 for sec in 1 6 13 18 24 28; do
  ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$sec" -i "$OUTPUT" -frames:v 1 "$ROOT/ci-artifacts/feature4-frame-$sec.jpg"
 done
+
+# Quantify scene diversity and prove original 480Hz fixture-track remains in AAC mix.
+python3 "$ROOT/video-engine/hyperframes/check_feature4_output.py" "$ROOT/ci-artifacts"
+# Capture resolved dependency lock for review; later pin it to repo and use npm ci.
+cp "$ROOT/video-engine/hyperframes/package-lock.json" "$ROOT/ci-artifacts/feature4-review-package-lock.json"
