@@ -15,7 +15,7 @@ from urllib.request import urlopen
 
 ENDPOINT = "https://prices.azure.com/api/retail/prices"
 REGION = "southindia"
-MODEL = "gpt 4.1 mini"
+MODEL = "gpt 4 1 mini"  # normalize() turns model punctuation into spaces
 SKIP = ("global", "glbl", "data zone", "datazone", "dzone",
         "batch", "provisioned", "ptu")
 
