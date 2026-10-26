@@ -261,11 +261,12 @@ def build_feature2_api():
     key = os.environ["RETAIL_SUPABASE_PUBLISHABLE_KEY"]
     service_key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
     tenant = TenantStore(origin, key)
-    shared = TrendSnapshotStore(AdminStore(origin, service_key))
+    admin = AdminStore(origin, service_key)
+    shared = TrendSnapshotStore(admin)
     return TrendFeatureAdapter(
         SupabaseJWTVerifier(origin), tenant,
         profile_reader=authorized_profile_reader(tenant),
-        snapshot_store=shared, draft_store=TenantDraftStore(tenant),
+        snapshot_store=shared, draft_store=TenantDraftStore(admin),
     )
 
 
