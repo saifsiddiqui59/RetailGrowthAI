@@ -169,6 +169,42 @@ test('calendar verifies last campaign against JWT shop and denies cross-tenant d
   await expect(page.getByText('Approved draft example')).toHaveCount(0)
 })
 
+test('recent draft month view navigates verified November/December without extra network requests',async({page})=>{
+  await signedIn(page)
+  const CAMPAIGN='c1000000-0000-4000-8000-000000000001'
+  let reads=0
+  const makeDay=(n,date,topic)=>({id:'d1000000-0000-4000-8000-'+String(n).padStart(12,'0'),
+    campaign_id:CAMPAIGN,shop_id:SHOP,day_index:n,scheduled_date:date,
+    topic,review_status:'DRAFT'})
+  await page.route('https://api.e2e.retailgrowth.test/**',route=>{
+    const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,content-type'}
+    if(route.request().method()==='OPTIONS')return route.fulfill({status:204,headers,body:''})
+    reads+=1
+    return route.fulfill({status:200,contentType:'application/json',headers,
+      body:JSON.stringify({id:CAMPAIGN,shop_id:SHOP,status:'DRAFT',days:[
+        makeDay(1,'2026-11-30','Winter sale brief'),
+        makeDay(2,'2026-12-01','December gift edits')]})})
+  })
+  await page.addInitScript(({user,shop,campaign})=>sessionStorage.setItem(
+    'retailgrowthai-last-campaign:'+user+':'+shop,campaign
+  ),{user:USER,shop:SHOP,campaign:CAMPAIGN})
+  await page.setViewportSize({width:320,height:740})
+  await page.goto('/calendar')
+  await page.getByRole('button',{name:'Load recent campaign'}).click()
+  await expect(page.getByRole('table',{name:'Verified draft month grid'})).toBeVisible()
+  await expect(page.getByLabel('Draft month')).toHaveValue('2026-11')
+  await expect(page.getByText('Winter sale brief')).toBeVisible()
+  await expect(page.getByText('December gift edits')).toHaveCount(0)
+  await page.getByLabel('Draft month').selectOption('2026-12')
+  await expect(page.getByText('December gift edits')).toBeVisible()
+  await expect(page.getByText('Winter sale brief')).toHaveCount(0)
+  await expect(page.getByRole('table',{name:'Verified draft month grid'})
+    .locator('td[aria-label="2026-12-01: 1 unpublished drafts"]')).toBeVisible()
+  expect(reads).toBe(1)
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=
+    document.documentElement.clientWidth)).toBe(true)
+})
+
 test('business settings saves only validated fields with JWT and real server confirmation', async ({ page }) => {
   await signedIn(page)
   const profile = { shop_id: SHOP, business_name: 'Example Boutique', category:'Clothing',

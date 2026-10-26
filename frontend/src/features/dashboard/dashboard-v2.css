@@ -233,3 +233,31 @@
 :root[data-rg-theme="dark"] .rg-integration-safety{color:#a1cdbd}
 @media(max-width:900px){.rg-integration-steps{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:360px){.rg-integration-guide{padding:16px}.rg-integration-steps li{padding:12px}}
+
+/* Verified recent-draft monthly calendar; client-only UTC date layout.
+   No scheduled/published values beyond authorized DRAFT API content. */
+.rg-calendar-month{margin:17px 0 24px;min-width:0;max-width:100%}
+.rg-calendar-month-toolbar{display:flex;justify-content:space-between;align-items:end;gap:13px;flex-wrap:wrap;margin-bottom:12px}
+.rg-calendar-month-toolbar h2{font-size:18px;margin:0 0 5px}
+.rg-calendar-month-toolbar p{font-size:12px;line-height:1.55;margin:0}
+.rg-calendar-month-toolbar label{display:grid;gap:5px;min-width:0;font-weight:700;font-size:12px}
+.rg-calendar-month-toolbar select{box-sizing:border-box;border:1px solid #cbdbd5;border-radius:9px;background:#fff;color:#213e34;padding:9px;min-height:42px;max-width:100%}
+.rg-calendar-month-table{border-collapse:separate;border-spacing:3px;width:100%;table-layout:fixed}
+.rg-calendar-month-table th{text-align:center;color:#667c75;font-size:11px;padding:9px 2px}
+.rg-calendar-month-table td{vertical-align:top;background:#f7fbf9;border:1px solid #dcebe4;border-radius:8px;min-width:0;height:67px;padding:7px 4px;overflow-wrap:anywhere}
+.rg-calendar-month-table td.is-outside{background:#f4f5f6;color:#899a96}
+.rg-month-date{display:block;font-size:12px;font-weight:800;text-align:right;padding-right:2px}
+.rg-month-count{display:block;color:#15533c;background:#dbf3e6;text-align:center;border-radius:5px;padding:4px 1px;margin-top:6px;font-size:10px;line-height:1.3;font-weight:800}
+:root[data-rg-theme="dark"] .rg-calendar-month-table td{background:#1c3040;border-color:#3e5b63;color:#d7f3ed}
+:root[data-rg-theme="dark"] .rg-calendar-month-table td.is-outside{background:#172633;color:#97a8ac}
+:root[data-rg-theme="dark"] .rg-month-count{background:#245943;color:#d5f8e7}
+:root[data-rg-theme="dark"] .rg-calendar-month-toolbar label{color:#c9dfe4}
+@media(max-width:560px){
+ .rg-calendar-month-table{border-spacing:1px}
+ .rg-calendar-month-table td{height:53px;padding:4px 1px;border-radius:5px}
+ .rg-calendar-month-table th{font-size:10px;padding:6px 0}
+ .rg-month-date{font-size:11px;padding-right:2px}
+ .rg-month-count{font-size:9px;padding:3px 0;margin-top:4px}
+ .rg-calendar-month-toolbar label{width:100%}
+ .rg-calendar-month-toolbar select{width:100%}
+}
