@@ -48,7 +48,7 @@ class TestFeature5EmptyEnvDeploymentPolicy(unittest.TestCase):
         actual = re.findall(r"^\s*az\s+deployment\s+group\s+create\b", w, re.M)
         self.assertEqual(len(actual), 1)
         self.assertIn("what-if", w)
-        self.assertIn('row.get("changeType")=="Create"', w)
+        self.assertIn("from scripts.ci.feature5_arm_whatif_policy import validate_what_if", w)
         self.assertIn("len(rows)==1", w)
         self.assertIn("rgai-f5-empty-env-20261026", w)
         for phrase in ("az containerapp job create", "az containerapp create", "az containerapp env create",
