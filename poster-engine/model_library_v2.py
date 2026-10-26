@@ -199,12 +199,14 @@ def checked_model_for_use(*, model, requesting_shop_id, usage, authorize_use):
     if (not isinstance(model, dict) or model.get("schema") !=
         "retailgrowth.model-library.v1" or model.get("status") != "APPROVED"
         or usage not in USES or model.get("synthetic_adult") is not True or
-        usage not in model.get("approved_uses", ()) or
+        not isinstance(model.get("approved_uses"), (tuple, list, set, frozenset))
+        or usage not in model["approved_uses"] or
         model.get("scope") not in SCOPES or
         not isinstance(model.get("image_sha256"), str) or
         not SHA256.fullmatch(model["image_sha256"]) or
         not callable(authorize_use)):
         raise ModelLibraryDenied("Model is unreviewed or not approved for this usage")
+    _uuid(model.get("model_id"))
     owner = _uuid(model.get("owner_shop_id"))
     if model["scope"] == "shop" and owner != shop_id:
         raise ModelLibraryDenied("Another shop's private models are not accessible")
@@ -214,8 +216,9 @@ def checked_model_for_use(*, model, requesting_shop_id, usage, authorize_use):
     expected_prefix = ("model-library/platform/" if model["scope"] == "platform"
                        else f"shops/{owner}/model-library/")
     key = model.get("storage_key")
-    if (not isinstance(key, str) or not key.startswith(expected_prefix)
-        or not key.endswith("/" + model["image_sha256"] + ".png")):
+    canonical_key = (expected_prefix + model["model_id"] + "/" +
+                     model["image_sha256"] + ".png")
+    if not isinstance(key, str) or key != canonical_key:
         raise ModelLibraryDenied("Private model storage lineage invalid")
     if authorize_use(shop_id, model["model_id"], usage,
                      model["image_sha256"]) is not True:
