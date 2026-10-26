@@ -60,7 +60,7 @@ test('real AI one-POST draft validates current authorized shop, trend and nonce'
 })
 
 test('opt-in starts OFF, requires human selection and retains no blind retry behavior',()=>{
-  const src=readFileSync('frontend/src/features/trends/TrendWorkspace.jsx','utf8')
+  const src=readFileSync(new URL('../../frontend/src/features/trends/TrendWorkspace.jsx', import.meta.url),'utf8')
   assert.match(src,/useState\(false\)/)
   assert.match(src,/\[realAiEnabled, setRealAiEnabled\] = useState\(false\)/)
   assert.match(src,/Use real Azure AI model \(requires approved shop budget\)/)
