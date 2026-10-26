@@ -59,6 +59,20 @@ class CPUCostTests(unittest.TestCase):
         self.assertEqual(ids, [self.asset])
         self.assertGreater((self.root / "sale.gif").stat().st_size, 100)
 
+    def test_static_animation_resizes_same_garment_once_in_job(self):
+        from PIL import ImageOps
+        original = ImageOps.fit
+        calls = []
+        def counted(*args, **kwargs):
+            calls.append(args[1])
+            return original(*args, **kwargs)
+        with patch("studio_v2.ImageOps.fit", side_effect=counted):
+            info = export_animation(self.doc, self.manifest, self.root,
+                                    self.root / "cache.gif", duration=2,
+                                    fps=8, scale=.2, effects=("flash",))
+        self.assertEqual(info["frames"], 16)
+        self.assertEqual(len(calls), 1)
+
     def test_each_new_job_rechecks_rights_without_shared_cache(self):
         with patch.object(studio_v2, "_assets", wraps=studio_v2._assets) as resolved:
             export_animation(self.doc, self.manifest, self.root,
