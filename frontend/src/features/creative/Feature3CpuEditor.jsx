@@ -10,7 +10,7 @@ import {
   FEATURE3_FORMATS, newFeature3History, editFeature3,
   addFeature3Layer, removeFeature3Layer, moveFeature3Layer,
   updateFeature3Layer, undoFeature3, redoFeature3,
-  replaceFeature3Image, validateFeature3Design,
+  replaceFeature3Image,
 } from './feature3-design.mjs'
 
 import { renderFeature3LocalDraft } from './feature3-local-png.mjs'
