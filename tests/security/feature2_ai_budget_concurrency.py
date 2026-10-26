@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SHOP = "f2b00000-0000-4000-8000-000000000011"
 ACTOR = "f2a00000-0000-4000-8000-000000000011"
-PROPOSAL = "docs/feature2/sql/PROPOSED_20261026_feature2_ai_cost_ledger.sql"
+MIGRATION = "supabase/migrations/20261026194000_feature2_ai_cost_ledger.sql"
 BASE = ["psql", "-X", "-A", "-t", "-q", "-v", "ON_ERROR_STOP=1"]
 CHILDREN = []
 REQUIRED = {
@@ -62,9 +62,9 @@ def waiter_count():
 
 
 def check():
-    source=(ROOT/PROPOSAL).read_text()
+    source=(ROOT/MIGRATION).read_text()
     if "create function public.feature2_reserve_ai_budget(" not in source:
-        raise AssertionError("Wrong candidate budget ledger proposal")
+        raise AssertionError("Wrong canonical budget ledger migration")
     setup = subprocess.run(
         BASE+["-f","tests/security/feature2_ai_budget_concurrency_setup.sql"],
         cwd=ROOT,env=dict(os.environ, PGAPPNAME="f2-budget-race-setup"),
@@ -79,16 +79,17 @@ def check():
     time.sleep(0.8)
     if locker.poll() is not None:
         raise AssertionError("Subscription lock holder ended before concurrent requests")
-    req = (
+    def req(request_id):
+        return (
         "begin; set local role service_role; "
         "select set_config('request.jwt.claims',"
         f" '{{\"role\":\"service_role\",\"sub\":\"{ACTOR}\"}}',true); "
         "select 'F2_RECEIPT:' || "
-        f"public.feature2_reserve_ai_budget('{SHOP}','{ACTOR}','prompt',0.003)::text; "
+        f"public.feature2_reserve_ai_budget('{SHOP}','{ACTOR}','prompt',0.003,'{request_id}')::text; "
         "commit;"
     )
-    first=launch(req,"f2-budget-race-a")
-    second=launch(req,"f2-budget-race-b")
+    first=launch(req("f2d00000-0000-4000-8000-000000000011"),"f2-budget-race-a")
+    second=launch(req("f2d00000-0000-4000-8000-000000000012"),"f2-budget-race-b")
     until=time.monotonic()+10
     while waiter_count()<2 and time.monotonic()<until:
         if first.poll() is not None or second.poll() is not None:
@@ -124,8 +125,8 @@ def check():
         raise AssertionError("Concurrent calls bypassed period budget: "+str(result_json))
     # psql -c containing multiple commands can return 1 rather than 3 on
     # deliberate SQL failure. Verify SQLSTATE/message, not only exit code.
-    again=call(req,application="f2-budget-race-lost-ack",allowed=(0,1,3))
-    if again.returncode==0 or "AI_QUOTA_EXCEEDED" not in again.stderr:
+    again=call(req("f2d00000-0000-4000-8000-000000000011"),application="f2-budget-race-lost-ack",allowed=(0,1,3))
+    if again.returncode==0 or "AI_REQUEST_ALREADY_RESERVED" not in again.stderr:
         raise AssertionError("Repeated paid model POST after lost acknowledgement double-reserved")
     print("FEATURE2_AI_BUDGET_CONCURRENT_CAP_AND_LOST_ACK=PASS",flush=True)
     print("FEATURE2_AI_BUDGET_NO_HOSTED_WRITES_NO_INFERENCE=PASS",flush=True)
