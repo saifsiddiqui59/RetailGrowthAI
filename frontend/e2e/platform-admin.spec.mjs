@@ -147,6 +147,56 @@ test('root arrives at SaaS control from the single home URL; warnings state what
     .getByRole('link', { name: 'My business' })).toBeVisible()
 })
 
+test('root directory paging does not repeat global metrics RPC, reducing database requests', async ({ page }) => {
+  const calls = await loginAs(page, 'ROOT')
+  const directoryCalls = []
+  await page.route(SUPABASE + '/rest/v1/rpc/retail_platform_shops', route => {
+    const offset = route.request().postDataJSON().p_offset
+    directoryCalls.push(offset)
+    const rows = Array.from({length: offset ? 1 : 25}, (_,i) => ({
+      shop_id: 'f1000000-0000-4000-8000-' + String(offset+i+1).padStart(12,'0'),
+      name: 'Store '+(offset+i+1), slug: 'store-'+(offset+i+1),
+      plan_code: 'STARTER',subscription_status:'ACTIVE',campaigns:0,renders:0,
+      valid_until: '2099-10-01T00:00:00Z',
+    }))
+    return fulfill(route,{total:26,shops:rows})
+  })
+  await page.goto('/platform-admin')
+  await expect(page.getByRole('table').getByText('Store 1', {exact: true})).toBeVisible()
+  await expect(page.getByRole('status').filter({hasText:'26 retailers'})).toBeVisible()
+  await expect.poll(() => calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_summary').length).toBe(1)
+  await page.getByRole('button',{name:'Next',exact:true}).last().click()
+  await expect(page.getByRole('table').getByText('Store 26')).toBeVisible()
+  await expect(page.getByText('Page 2', {exact: true})).toBeVisible()
+  expect(directoryCalls).toEqual([0,25])
+  expect(calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_summary')).toHaveLength(1)
+  // Existing explicit Refresh rechecks both independent server sources.
+  await page.getByRole('button',{name:'Refresh',exact:true}).last().click()
+  await expect.poll(() => calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_summary').length).toBe(2)
+  await expect.poll(() => directoryCalls.length).toBe(3)
+})
+
+test('a failed directory page does not invent zero platform metrics or warnings', async ({ page }) => {
+  const calls = await loginAs(page, 'ROOT')
+  await page.route(SUPABASE + '/rest/v1/rpc/retail_platform_shops', route => {
+    const offset = route.request().postDataJSON().p_offset
+    if (offset) return fulfill(route,{message:'temporary error'},503)
+    return fulfill(route,{total:26,shops:Array.from({length:25},(_,i)=>({
+      shop_id:'f1000000-0000-4000-8000-'+String(i+1).padStart(12,'0'),
+      name:'Store '+(i+1),slug:'store-'+(i+1),campaigns:0,renders:0,
+    }))})
+  })
+  await page.goto('/platform-admin')
+  await expect(page.getByRole('region',{name:'Platform overview metrics'})
+    .getByText('Total retailers')).toBeVisible()
+  await expect(page.getByRole('status').filter({hasText:'26 retailers'})).toBeVisible()
+  await page.getByRole('button',{name:'Next',exact:true}).last().click()
+  await expect(page.getByRole('alert')).toContainText('Retailer directory could not be verified')
+  await expect(page.getByRole('region',{name:'Platform overview metrics'}).getByText('1',{exact:true})).toBeVisible()
+  await expect(page.getByText('Platform monitoring is unavailable')).toHaveCount(0)
+  expect(calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_summary')).toHaveLength(1)
+})
+
 test('shop owner lands on own workspace rather than global SaaS metrics', async ({ page }) => {
   await loginAs(page, 'OWNER')
   await page.goto('/')

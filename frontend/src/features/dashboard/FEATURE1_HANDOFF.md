@@ -38,3 +38,9 @@
 - [ ] Complete shadcn migration, visual QA and uncontracted social/publishing/inbox screens.
 - [ ] Coordinator reconciling shared PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG after PR integration; Feature 1 ownership deliberately avoids those concurrently edited docs.
 - [ ] Hosted, signed-in DEV acceptance remains separately blocked by Azure HTTP #249; offline browser mocks and local Supabase negative SQL are not hosted proof.
+
+## 2026-10-26 — Admin directory request-cost optimization (Feature #1)
+- Split verified platform-wide summary RPC from paginated retailer directory RPC. Directory page changes now trigger only `retail_platform_shops` (25 rows); global `retail_platform_summary` runs on dashboard mount, manual Refresh and after an audited subscription change. No interval polling, background timers, extra infrastructure, third-party telemetry, new dependency or RLS bypass.
+- Directory errors no longer discard valid summary counts or misclassify all monitoring as unavailable; summary-specific errors explicitly hide counts. Two mocked ROOT browser tests assert exact request counts and page-failure isolation. ROOT gating and original subscription audit RPC are unchanged.
+- PR #337 business selection, #340 mobile nav and #343 Creative launchpad remain separate coordinator-owned integration decisions. Original PR #319 is already substantially integrated via coordinator #328; do not merge blindly. Shared `docs/**` remain coordinator-owned.
+- Cost impact: avoids one global metrics RPC per retailer page navigation, with no Azure/Supabase plan change. No cloud release or real hosted E2E in this source-only slice.
