@@ -202,6 +202,43 @@ def _font(px, bold):
         raise DesignError("Server requires the DejaVu font") from exc
 
 
+def _draw_fitted_text(draw, text, x, y, width, height, font_size, color, bold, scale):
+    """Render EVERY authorized character or fail; never silently cut prices/offers.
+
+    Pillow is the authoritative raster for saved/exported versions. A browser
+    Konva preview is non-authoritative until visual parity has been reviewed.
+    """
+    target = max(8, round(font_size * scale))
+    for px in range(target, 7, -1):
+        font = _font(px, bold)
+        lines, line, words = [], "", text.split()
+        def fits(candidate):
+            return draw.textbbox((0, 0), candidate, font=font, anchor="lt")[2] <= width
+        for word in words:
+            proposed = (line + " " + word).strip()
+            if fits(proposed):
+                line = proposed
+                continue
+            if line:
+                lines.append(line)
+                line = ""
+            # Long SKU, product or offer tokens must not overflow or vanish.
+            for letter in word:
+                if line and not fits(line + letter):
+                    lines.append(line)
+                    line = ""
+                line += letter
+        if line:
+            lines.append(line)
+        line_height = max(9, round(px * 1.24))
+        if lines and len(lines) * line_height <= height and all(fits(s) for s in lines):
+            for index, value in enumerate(lines):
+                draw.text((x, y + index * line_height), value, font=font,
+                          fill=color, anchor="lt")
+            return
+    raise DesignError("Authorized poster text cannot fit its layer without clipping")
+
+
 def _assets(manifest, staged_root, shop_id, asset_id):
     """Reuse the secure Part 1 path, tenant and commercial-rights validator."""
     import importlib.util
@@ -246,24 +283,8 @@ def render_design(design, manifest, staged_root, output_path, *, scale=1,
             if pulse_offer and layer["id"] == "offer":
                 color = "#FFFFFF" if pulse_offer == "flash" else color
                 size = round(size * 1.10)
-            font = _font(max(8, round(size * scale)), layer["bold"])
-            text = layer["text"]
-            # Never draw claims outside the caller-controlled layer rectangle.
-            words, lines, current = text.split(), [], ""
-            for word in words:
-                trial = (current + " " + word).strip()
-                if d.textbbox((0, 0), trial, font=font)[2] <= width:
-                    current = trial
-                else:
-                    if current:
-                        lines.append(current)
-                    current = word
-            if current:
-                lines.append(current)
-            max_lines = max(1, height // max(1, round(font.size * 1.18)))
-            for line in lines[:max_lines]:
-                d.text((x, y), line[:140], font=font, fill=color)
-                y += round(font.size * 1.18)
+            _draw_fitted_text(d, layer["text"], x, y, width, height,
+                              size, color, layer["bold"], scale)
     path = Path(output_path)
     if path.suffix.lower() != ".png":
         raise DesignError("Only PNG output permitted")
