@@ -24,6 +24,7 @@ class ExternalQuoteError(ValueError):
 # RAM are only screening floors, NOT certification that 480p T2V will fit.
 BF16_GPU_FAMILIES = {
     "A100_80GB": 80,
+    "A40_48GB": 48,
     "RTX_4090_24GB": 24,
     "RTX_3090_24GB": 24,
     "RTX_A5000_24GB": 24,
