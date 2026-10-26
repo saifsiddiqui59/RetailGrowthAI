@@ -140,8 +140,8 @@ class TestOfficialScriptPin(unittest.TestCase):
         from hashlib import sha1
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "generate.py"
-            source.write_bytes(b"print('ok')\\n")
-            blob = b"blob 12\\0" + b"print('ok')\\n"
+            source.write_bytes(b"print('ok')\n")
+            blob = b"blob 12\0" + b"print('ok')\n"
             self.assertEqual(git_blob_sha1(source), sha1(blob).hexdigest())
             self.assertNotEqual(git_blob_sha1(source), OFFICIAL_GENERATE_BLOB)
 
