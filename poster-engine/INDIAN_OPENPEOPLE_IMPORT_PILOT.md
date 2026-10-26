@@ -37,3 +37,59 @@ https://github.com/Prompt-Haus/OpenPeople/blob/231f73aa43b32a38001759944baa01d7d
 No actual third-party source JPGs have been staged/imported into RetailGrowthAI DEV. No hosted model-library Supabase/RLS catalog, public/shared-asset release, signed upload or customer workflow exists yet. No commercial rights clearance, genuine VTON, real FLUX GPU inference or hosted E2E has been proven. These require coordinator-owned contracts, migration, secure endpoints, customer approval and review evidence (issue #325).
 
 Only coordinator merges feature PR #321, updates canonical PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG and performs protected DEV integration. No WineShopPOS/PROD changes or paid GPU deployment.
+
+
+## Source-image visual-review pilot — 2026-10-26 addition
+
+The source branch now includes \`openpeople_pilot_qa_v2.py\`. It is a PRIVATE,
+zero-GPU, local operator reviewer for **1–3 real JPGs already staged at the
+pinned upstream revision**. It consumes the exact unapproved JSON review
+packets from the existing Feature #3 UI; the server-side allowlist and
+physical JPG Git-blob hash must both match. It refuses altered permission
+flags, changed URLs, missing source files, symlinks and duplicate selections.
+
+Example from the repository root, **only after separately staging the
+real source JPGs in an operator-owned private checkout**:
+
+\`\`\`bash
+python - <<'PY'
+from pathlib import Path
+import sys
+sys.path.insert(0, "poster-engine")
+from openpeople_pilot_qa_v2 import build_private_pilot_review
+
+packet = Path("/private/reviews/P009-full-packet.json").read_text()
+receipt = build_private_pilot_review(
+    [packet],
+    dataset_root="/private/approved-upstream-checkout",
+    output_dir="/private/reviews/pilot-001",  # MUST NOT preexist
+)
+print(receipt["status"], receipt["source_asset_count"])
+PY
+\`\`\`
+
+Outputs are **local and unapproved**: a 0600-mode
+\`pilot-contact-sheet-UNAPPROVED.png\` with actual pixel crops and warning,
+and \`pilot-review-UNAPPROVED.json\` recording SHA-1 Git blob provenance,
+source SHA-256, size, the precise upstream links, and the still-required
+human reviews. Their containing directory uses 0700 on POSIX. Neither
+file is stored in Git, Azure, Supabase, a shared browser catalog or a
+user-facing CDN. The contact sheet makes *visual review possible*, but it
+does not autonomously certify photographic realism or determine age,
+likeness, apparel suitability or image-provider commercial rights.
+
+Operator decisions remain OUTSIDE and independent of the raw browser
+packet and technical reviewer. Successful private review never sets
+\`approved\`, \`rights_verified\` or \`ready_for_cloud_import\` true.
+The existing \`import_openpeople_still\` still independently requires
+explicit rights callback approval, authenticated scope/curator authorization
+and a private immutable blob/registry implementation.
+
+**Verification:** \`tests/media/test_feature3_pilot_review.py\` uses
+synthetic (not OpenPeople) JPG pixels and mocks the staged-reader only in
+the positive local contact-sheet test. Its negative cases exercise genuine
+untrusted packet validation, missing source, forced denial, immutability
+and private output permissions. Real upstream pixels, artistic acceptance,
+rights and hosted imports **remain unverified** until an exact approved
+source asset is locally supplied and independently reviewed. Zero GPU
+generation and zero new Azure infrastructure are used by this code.
