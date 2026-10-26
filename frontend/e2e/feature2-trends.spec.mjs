@@ -83,7 +83,7 @@ test('foreign tenant draft never renders, viewer cannot create',async({page})=>{
 test('320px mobile authenticated Trends navigation and saved content review fit viewport',async({page})=>{
   await page.setViewportSize({width:320,height:740})
   await setup(page)
-  await page.goto('/')
+  await page.goto('/trends')
   await page.getByRole('button',{name:'Toggle navigation'}).click()
   await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Trend Intelligence'}).click()
   await expect(page.getByRole('heading',{name:'Saved drafts for review'})).toBeVisible()
