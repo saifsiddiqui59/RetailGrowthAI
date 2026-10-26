@@ -91,6 +91,7 @@ export default function Feature3StudioPanel({
         <label><input type="radio" name="feature3-mode" checked={mode === 'text'}
           onChange={() => {setMode('text'); setError('')}}/> Text-to-Poster</label>
         <label><input type="radio" name="feature3-mode" checked={mode === 'image'}
+          disabled={!authorized.length}
           onChange={() => {setMode('image'); setError('')}}/> Image-to-Poster</label>
       </div>
       <label style={fieldStyle}>Describe the advertisement
@@ -98,6 +99,9 @@ export default function Feature3StudioPanel({
           onChange={event => setPrompt(event.target.value)}
           placeholder="Premium Diwali boutique advertisement in warm gold lighting" />
       </label>
+      {!authorized.length && <p role="note">Image-to-Poster requires the host to
+        supply an already-authorized, loaded private product image. This local
+        mode cannot register uploads or fetch remote product URLs.</p>}
       {mode === 'image' && <label style={fieldStyle}>Registered product image
         <select style={inputStyle} value={assetId}
           onChange={event => setAssetId(event.target.value)}>
