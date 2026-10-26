@@ -36,7 +36,7 @@ jobs:
           test "$GITHUB_REPOSITORY" = 'saifsiddiqui59/RetailGrowthAI'
           test "$GITHUB_REF" = 'refs/heads/main'
           python3 -m py_compile tests/e2e/p0249_dev_signed_jwt_read_once.py
-          python3 -m pytest -q tests/infra/test_p0249_signed_jwt_canary_source.py
+          python3 tests/infra/test_p0249_signed_jwt_canary_source.py
           grep -Fq 'P0249_GENUINE_SIGNED_JWT_JWKS_RLS_READ=PASSED' tests/e2e/p0249_dev_signed_jwt_read_once.py
           grep -Fq 'P0249_DISPOSABLE_AUTH_ACCOUNT_DELETED=true' tests/e2e/p0249_dev_signed_jwt_read_once.py
           grep -Fq 'P0249_MODIFIED_SIGNATURE_REJECTED=PASSED' tests/e2e/p0249_dev_signed_jwt_read_once.py
