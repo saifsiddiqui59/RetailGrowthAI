@@ -96,7 +96,7 @@ def test_only_owner_can_use_real_prompt_and_no_ordinary_default_paid_calls():
     adapter=api(ai_service=model)
     p={"original_prompt":"Create seven clothing posts.",
        "output_formats":["instagram_caption"],"language":"en-IN"}
-    assert adapter.improve(SHOP,"")[0]==401
+    assert adapter.improve(SHOP,"",p,ai_mode=True)[0]==401
     assert adapter.improve(SHOP,"Bearer invalid-token",p,ai_mode=True)[0]==401
     assert adapter.improve(FOREIGN,"Bearer owner-token",p,ai_mode=True)[0]==403
     assert adapter.improve(SHOP,"Bearer owner-token",{**p,"model":"untrusted"},ai_mode=True)[0]==400
