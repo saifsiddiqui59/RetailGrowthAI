@@ -125,7 +125,12 @@ def check():
         raise AssertionError("Concurrent calls bypassed period budget: "+str(result_json))
     # psql -c containing multiple commands can return 1 rather than 3 on
     # deliberate SQL failure. Verify SQLSTATE/message, not only exit code.
-    again=call(req("f2d00000-0000-4000-8000-000000000011"),application="f2-budget-race-lost-ack",allowed=(0,1,3))
+    # The winner is nondeterministic under genuine concurrent PostgreSQL locks.
+    # Replay the WINNER'S same request UUID; the loser uses a distinct UUID.
+    winner_nonce = ("f2d00000-0000-4000-8000-000000000011"
+                    if outcomes[0][0] == 0 else
+                    "f2d00000-0000-4000-8000-000000000012")
+    again=call(req(winner_nonce),application="f2-budget-race-lost-ack",allowed=(0,1,3))
     if again.returncode==0 or "AI_REQUEST_ALREADY_RESERVED" not in again.stderr:
         raise AssertionError("Repeated paid model POST after lost acknowledgement double-reserved")
     print("FEATURE2_AI_BUDGET_CONCURRENT_CAP_AND_LOST_ACK=PASS",flush=True)
