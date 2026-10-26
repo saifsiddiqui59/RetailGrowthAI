@@ -114,6 +114,31 @@ class CreativeReelTests(unittest.TestCase):
         self.assertEqual(meta["fallback_events"], [])
         self.assertEqual(json.loads((package / "render-config.json").read_text())["duration_seconds"], 30)
 
+    def test_two_ai_motion_clips_with_original_audio_and_timed_sfx(self):
+        import wave
+        self.make_assets(with_video=True)
+        self.add("walk_clip_2", "fixture_clip.mp4", "video", "feature5")
+        scene = self.request["scenes"][2]
+        scene["asset_id"] = "walk_clip_2"
+        scene["asset_type"] = "video"
+        scene["source_feature"] = "feature5"
+        scene["motion_status"] = "ready"
+        with wave.open(str(self.assets / "whoosh.wav"), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(8000)
+            w.writeframes(b"\x00\x00" * 24000)
+        self.add("whoosh_approved", "whoosh.wav", "audio", "retailer")
+        self.request["scenes"][3]["sfx_asset_id"] = "whoosh_approved"
+        package = compile_creative_reel(
+            self.request, self.manifest, self.assets, self.root / "multimotion")
+        page = (package / "index.html").read_text()
+        self.assertEqual(page.count('class="footage clip"'), 2)
+        self.assertEqual(page.count('data-has-audio="true"'), 2)
+        self.assertIn('id="sfx3"', page)
+        self.assertIn('data-start="16"', page)
+        self.assertIn("20% OFF", page)
+
     def test_no_motion_falls_back_only_with_clear_disclosure(self):
         self.make_assets()
         scene = self.request["scenes"][1]
