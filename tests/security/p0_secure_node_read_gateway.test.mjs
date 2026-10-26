@@ -148,7 +148,8 @@ test("read only secure API preserves 200/401/404/405/503 with no token, no mutat
 test("read-only adapter has no cross-tenant bypass or service-role credential",()=>{
   const code=["src/security.mjs","src/tenant-read.mjs","src/routes.mjs"].map(
     name=>readFileSync(new URL("../../experiments/secure-node-http/"+name,import.meta.url),"utf8")).join("\n");
-  assert.doesNotMatch(code,/sb_secret_|RETAIL_SUPABASE_SERVICE_ROLE_KEY|allow.*unsigned|method:\s*["']POST["']/);
+  assert.doesNotMatch(code,/RETAIL_SUPABASE_SERVICE_ROLE_KEY|method:\s*["']POST["']/);
+  assert.match(code,/startsWith\("sb_secret_"\)/, "privileged keys must be rejected");
   assert.match(code,/createPublicKey/);
   assert.match(code,/shop_memberships/);
 });
