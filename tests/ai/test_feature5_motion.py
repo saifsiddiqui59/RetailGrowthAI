@@ -315,6 +315,66 @@ class TestMotionWorker(unittest.TestCase):
                 self.job, self.token, "PRIVATE_UPLOAD_UNCERTAIN")
             self.assertFalse((Path(temp) / self.job / self.token).exists())
 
+    def test_gpu_subprocess_timeout_never_becomes_refundable_failure(self):
+        with tempfile.TemporaryDirectory() as temp:
+            self.runner.run.side_effect = TimeoutError("paid GPU timeout")
+            worker = MotionWorker(
+                store=self.store, media=self.media, runner=self.runner,
+                workdir_root=Path(temp), enabled=True, credit_cap_usd=1,
+                cost_guard=self.guard,
+            )
+            self.assertEqual(worker.execute(self.job), "UNKNOWN")
+            self.store.mark_unknown.assert_called_once_with(
+                self.job, self.token, "GPU_ATTEMPT_UNCERTAIN")
+            self.store.fail.assert_not_called()
+            self.store.complete.assert_not_called()
+            self.media.upload_private.assert_not_called()
+
+    def test_invalid_output_after_gpu_never_refunds_or_retries(self):
+        with tempfile.TemporaryDirectory() as temp:
+            self.runner.run.side_effect = lambda spec, *, source_file, workdir: workdir / "missing.mp4"
+            worker = MotionWorker(
+                store=self.store, media=self.media, runner=self.runner,
+                workdir_root=Path(temp), enabled=True, credit_cap_usd=1,
+                cost_guard=self.guard,
+            )
+            with patch("feature5_motion.worker.validate_clip",
+                       side_effect=MotionError("Invalid encoded video")):
+                self.assertEqual(worker.execute(self.job), "UNKNOWN")
+            self.store.mark_unknown.assert_called_once_with(
+                self.job, self.token, "GPU_ATTEMPT_UNCERTAIN")
+            self.store.fail.assert_not_called()
+            self.media.upload_private.assert_not_called()
+
+    def test_pre_gpu_stage_exception_uses_failure_without_gpu_spend(self):
+        with tempfile.TemporaryDirectory() as temp:
+            self.media.stage.side_effect = MotionError("Rejected private staging")
+            worker = MotionWorker(
+                store=self.store, media=self.media, runner=self.runner,
+                workdir_root=Path(temp), enabled=True, credit_cap_usd=1,
+                cost_guard=self.guard,
+            )
+            self.assertEqual(worker.execute(self.job), "FAILED")
+            self.runner.run.assert_not_called()
+            self.store.fail.assert_called_once_with(
+                self.job, self.token, "PRE_GPU_VALIDATION_FAILURE")
+            self.store.mark_unknown.assert_not_called()
+
+    def test_unknown_db_persistence_failure_never_downgrades_to_failed(self):
+        from feature5_motion.worker import ReconciliationRequired
+        with tempfile.TemporaryDirectory() as temp:
+            self.runner.run.side_effect = TimeoutError("GPU status unknown")
+            self.store.mark_unknown.return_value = False
+            worker = MotionWorker(
+                store=self.store, media=self.media, runner=self.runner,
+                workdir_root=Path(temp), enabled=True, credit_cap_usd=1,
+                cost_guard=self.guard,
+            )
+            with self.assertRaises(ReconciliationRequired):
+                worker.execute(self.job)
+            self.store.fail.assert_not_called()
+            self.store.complete.assert_not_called()
+
     def test_nonfinite_budget_must_not_authorize_inference(self):
         for cap in (float("nan"), float("inf"), float("-inf"), True, "not-money", 0):
             with tempfile.TemporaryDirectory() as temp:
