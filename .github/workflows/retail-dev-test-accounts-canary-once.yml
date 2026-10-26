@@ -63,6 +63,7 @@ jobs:
           test -n "$RGAI_DEV_SERVICE_KEY"
           # The Ubuntu hosted runner lacks ffprobe on this image: bounded
           # install from the official Ubuntu archive, never skip MP4 verification.
+          if [ "$RGAI_DEV_FEATURE2_PROMPT_CANARY" != "1" ]; then
           if ! command -v ffprobe >/dev/null 2>&1; then
             if [ -f /etc/apt/apt-mirrors.txt ]; then
               printf '%s\n' 'http://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
@@ -74,6 +75,9 @@ jobs:
             timeout 360s sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ffmpeg
           fi
           ffprobe -version | head -n 1
+          else
+            echo 'FEATURE2_PROMPT_ONLY=NO_FFMPEG_INSTALL_NO_VIDEO'
+          fi
           python3 -m py_compile tests/e2e/retail_dev_canary_once.py
       - name: Run bounded hosted DEV synthetic image + 2 disposable accounts
         run: python3 tests/e2e/retail_dev_canary_once.py
