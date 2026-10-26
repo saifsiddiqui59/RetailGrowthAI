@@ -118,7 +118,7 @@ jobs:
           import sys
           p=urlparse(sys.argv[1])
           assert p.scheme=="https" and p.hostname.endswith(".azurestaticapps.net")
-          assert p.hostname=="purple-dune-06b5da200-p0249node.2.azurestaticapps.net"
+          assert p.hostname=="purple-dune-06b5da200-p0249node.eastasia.2.azurestaticapps.net"
           assert not p.username and not p.password and not p.query and not p.fragment
           print("P0_249_PREVIEW_ENV_ONLY=true")
           PY

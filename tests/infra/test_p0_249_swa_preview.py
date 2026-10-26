@@ -49,6 +49,7 @@ class FreeSwaPreviewSafety(unittest.TestCase):
         self.assertIn("rg-retailgrowth-dev", workflow)
         self.assertIn("retailgrowthai-dev-preview", workflow)
         self.assertIn("purple-dune-06b5da200.2.azurestaticapps.net", workflow)
+        self.assertIn("purple-dune-06b5da200-p0249node.eastasia.2.azurestaticapps.net", workflow)
         self.assertIn("github.ref == 'refs/heads/main'", workflow)
         self.assertNotIn("repo_token:", workflow)
         self.assertNotIn("api_location: ''", workflow)
