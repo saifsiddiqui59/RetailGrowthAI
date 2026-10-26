@@ -81,3 +81,7 @@
 - Overview RLS count queries have a 30s per-signed-user/per-shop freshness window, 60s GC, no automatic retry or window-focus refetch; the user has an explicit Refresh metrics action. This prevents unnecessary Supabase requests during rapid dashboard navigation, while errors fail closed instead of showing unverifiable older figures.
 - Business Settings, after a confirmed RLS PATCH, invalidates only Creative Studio's matching principal/shop profile-readiness query; no refresh on unrelated accounts or failed writes. Added 320px mocked browser UI/refresh regression on the same Feature #1 consolidation branch.
 - This advances owned code beyond the pending coordinator merge. Social connections, publishing receipts and retailer inbox still lack versioned tenant-authorized contracts from their owners; no fictitious integration or hosted acceptance claimed.
+
+## Feature #1 Super Admin UI migration (2026-10-26)
+- Migrated root-only metrics, chart, warning center, approval review, retailer directory and audited subscription editor to the existing Card component. Added UI-level Button/Badge for prominent actions/DEV status. Persistent root notification disclaimer and verified totals use Card; explicit Refresh uses Button. Server-enforced ROOT/OWNER authorization and audited subscription confirmation remain unchanged.
+- Responsive scoped CSS (320px, scroll-contained data table, dark mode, focus-visible) uses only present dependencies. Mocked mobile ROOT card/security/no-overflow regression added; no new cloud/DB/API usage or hosted E2E claim.

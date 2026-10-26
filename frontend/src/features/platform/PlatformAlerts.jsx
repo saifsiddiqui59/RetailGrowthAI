@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
+import { Button } from '../../components/ui/button.jsx'
+import { Card } from '../../components/ui/card.jsx'
 import './platform-operations.css'
 
 const CATEGORIES = [
@@ -62,22 +64,22 @@ export default function PlatformAlerts() {
         <h1>Notifications &amp; alerts</h1>
         <p className="lead">Persistent, per-admin read/unread history from verified RetailGrowthAI database events.</p>
       </div>
-      <button type="button" className="subtle-button" disabled={loading}
-        onClick={()=>{setActionError('');alertsQuery.refetch()}}>Refresh alerts</button>
+      <Button variant="outline" className="subtle-button" disabled={loading}
+        onClick={()=>{setActionError('');alertsQuery.refetch()}}>Refresh alerts</Button>
     </div>
-    <div className="panel platform-alert-disclaimer">
+    <Card className="panel platform-alert-disclaimer">
       <strong>Monitoring scope:</strong> database job failures, persisted poison receipts,
       delayed queue outbox records, stale worker leases, account approvals and
       subscription dates. <strong>Azure infrastructure uptime and real queue depths are not connected.</strong>
       No emails or publishing actions are sent.
-    </div>
+    </Card>
     {loading && <p role="status">Refreshing verified platform notifications…</p>}
     {error && <p className="notice-error" role="alert">{error}</p>}
     {data && !loading && <>
-      <div className="platform-alert-tally" aria-label="Notification totals">
+      <Card className="platform-alert-tally rg-platform-alert-summary" aria-label="Notification totals">
         <strong>{data.unread_active} unread / {data.total_active} active alerts</strong>
         <span>Database checked {new Date(data.database_checked_at).toLocaleString('en-IN')} · Azure telemetry unavailable</span>
-      </div>
+      </Card>
       <div className="platform-alert-filters" role="group" aria-label="Notification view">
         {VIEWS.map(([value,label])=><button type="button" key={value} aria-pressed={view===value}
           onClick={()=>chooseView(value)}>{label}</button>)}

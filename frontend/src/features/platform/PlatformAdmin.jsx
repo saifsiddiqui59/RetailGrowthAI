@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import SubscriptionHealthPanel from './SubscriptionHealthPanel.jsx'
 import VerifiedMetricsChart from '../dashboard/VerifiedMetricsChart.jsx'
+import { Card } from '../../components/ui/card.jsx'
+import { Button } from '../../components/ui/button.jsx'
+import { Badge } from '../../components/ui/badge.jsx'
 
 const EMPTY = { retailers: null, trial_shops: null, active_paid_shops: null,
   expired_or_suspended: null, campaigns: null, reels_completed: null }
@@ -197,31 +200,31 @@ export default function PlatformAdmin() {
         <h1>Platform Control</h1>
         <p className="lead">Retailer operations and manual subscription administration. Accessible only with a database-verified Platform Super Admin grant.</p>
       </div>
-      <span className="tag">DEV · No payment gateway</span>
+      <Badge className="tag">DEV · No payment gateway</Badge>
     </div>
-    <div className="panel platform-security-note">
+    <Card className="panel platform-security-note">
       <strong>Privileged access, same login.</strong>
       <p>Shop OWNER rights remain restricted to that shop. This platform console uses separately verified service-side RPCs with audited changes; it does not expose service-role credentials or bypass campaign authorization.</p>
-    </div>
+    </Card>
     {summaryLoading && <p role="status">Verifying platform summary…</p>}
     {loading && <p role="status">Loading retailer directory page…</p>}
     {summaryError && <p role="alert" className="notice-error">{summaryError}</p>}
     {error && <p role="alert" className="notice-error">{error}</p>}
     {message && <p role="status">{message}</p>}
     <section className="metrics platform-metrics" aria-label="Platform overview metrics">
-      {CARDS.map(([key, label]) => <div className="metric" key={key}>
+      {CARDS.map(([key, label]) => <Card className="metric rg-platform-metric" key={key}>
         <span>{label}</span><strong>{summary[key] ?? '—'}</strong>
         <small>Verified server count</small>
-      </div>)}
+      </Card>)}
     </section>
-    <section className="panel rg-chart-panel" aria-label="Verified platform analytics">
+    <Card className="panel rg-chart-panel" aria-label="Verified platform analytics">
       <div className="eyebrow">SERVER-VERIFIED OVERVIEW</div><h2>Platform activity</h2>
       <VerifiedMetricsChart title="Verified platform activity"
         labels={['Retailers', 'Trials', 'Paid', 'Expired', 'Campaigns', 'Reels']}
         values={[summary.retailers, summary.trial_shops, summary.active_paid_shops,
           summary.expired_or_suspended, summary.campaigns, summary.reels_completed]} />
-    </section>
-    <section className="panel platform-warning-center" aria-label="Platform monitoring warnings">
+    </Card>
+    <Card className="panel platform-warning-center" aria-label="Platform monitoring warnings">
       <div className="panel-heading"><div><div className="eyebrow">PLATFORM MONITORING</div>
         <h2>Warnings &amp; attention needed</h2></div>
         <span className="tag">{summaryLoading ? 'Updating' : warnings.length + ' notices'}</span>
@@ -234,14 +237,14 @@ export default function PlatformAdmin() {
           <div><strong>{warning.title}</strong><p>{warning.detail}</p></div>
         </div>)}
       </div>}
-    </section>
-    <section className="panel platform-approvals" aria-label="Retailer approval center">
+    </Card>
+    <Card className="panel platform-approvals" aria-label="Retailer approval center">
       <div className="panel-heading"><div><div className="eyebrow">SAAS OWNER ACTIONS</div>
         <h2>Retailer signup approvals</h2></div>
-        <button className="subtle-button" type="button"
+        <Button variant="outline" size="sm" className="subtle-button"
           onClick={() => setReviewOpen(open => !open)} aria-expanded={reviewOpen}>
           {reviewOpen ? 'Hide requests' : 'Review requests'}
-        </button>
+        </Button>
       </div>
       <p>New RetailGrowthAI Auth registrations are queued separately from email verification.
         Decisions are restricted to Platform Super Admin and stored with an audit reason.
@@ -281,12 +284,12 @@ export default function PlatformAdmin() {
             </div>}
         </div>)}
       </>}
-    </section>
+    </Card>
     <SubscriptionHealthPanel onManage={beginEdit} refreshKey={reload} />
-    <section className="panel">
+    <Card className="panel rg-platform-directory">
       <div className="panel-heading">
         <div><div className="eyebrow">TENANT DIRECTORY</div><h2>Retailer accounts</h2></div>
-        <button type="button" className="subtle-button" onClick={() => setReload((v) => v + 1)}>Refresh</button>
+        <Button variant="outline" size="sm" className="subtle-button" onClick={() => setReload((v) => v + 1)}>Refresh</Button>
       </div>
       {total !== null && <p role="status">{total} retailers · showing {shops.length} on this page</p>}
       {!loading && !error && !shops.length && <p>No retailers are registered.</p>}
@@ -311,8 +314,8 @@ export default function PlatformAdmin() {
         <button type="button" className="subtle-button" disabled={loading || total === null || offset + 25 >= total || offset + 25 > 5000}
           onClick={() => setOffset(offset + 25)}>Next</button>
       </div>
-    </section>
-    {editing && <section className="panel platform-edit" aria-label="Admin subscription editor">
+    </Card>
+    {editing && <Card className="panel platform-edit" aria-label="Admin subscription editor">
       <h2>Manage {editing.name}</h2>
       <p>Changes are applied only after explicit confirmation and are logged with the acting user and reason. Changing a plan starts a new usage period; historic usage is preserved.</p>
       <form onSubmit={save}>
@@ -343,6 +346,6 @@ export default function PlatformAdmin() {
           <button type="button" className="subtle-button" disabled={saving} onClick={() => setEditing(null)}>Cancel</button>
         </div>
       </form>
-    </section>}
+    </Card>}
   </div>
 }

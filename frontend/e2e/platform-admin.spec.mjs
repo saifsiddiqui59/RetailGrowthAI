@@ -204,6 +204,20 @@ test('a failed directory page does not invent zero platform metrics or warnings'
   expect(calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_summary')).toHaveLength(initialSummaryReads)
 })
 
+test('root console mobile layout uses shared cards and no subscription mutations on view',async ({page})=>{
+  await page.setViewportSize({width:320,height:740})
+  const calls=await loginAs(page,'ROOT')
+  await page.goto('/platform-admin')
+  await expect(page.getByRole('heading',{name:'Platform Control'})).toBeVisible()
+  await expect(page.getByRole('region',{name:'Platform overview metrics'})
+    .locator('[data-slot="card"]')).toHaveCount(6)
+  await expect(page.getByRole('region',{name:'Retailer approval center'}))
+    .toHaveAttribute('data-slot','card')
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth <=
+    document.documentElement.clientWidth)).toBe(true)
+  expect(calls.filter(x=>x.path.includes('retail_platform_set_subscription'))).toHaveLength(0)
+})
+
 test('shop owner lands on own workspace rather than global SaaS metrics', async ({ page }) => {
   await loginAs(page, 'OWNER')
   await page.goto('/')

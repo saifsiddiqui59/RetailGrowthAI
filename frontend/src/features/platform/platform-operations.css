@@ -3,3 +3,25 @@
 .platform-alert-actions .subtle-button:disabled{opacity:.6}
 .platform-alert-actions .text-link{font-size:12px;white-space:normal;text-align:right}
 @media(max-width:760px){.platform-alert-actions{width:100%;flex-direction:row;align-items:center;margin-left:44px;justify-content:space-between}}
+
+/* Feature #1: professional root operations on existing Card/Button primitives. */
+.platform-page .rg-platform-metric{min-width:0;overflow:hidden}
+.platform-page .rg-platform-metric strong{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.platform-page .rg-platform-directory{min-width:0}
+.platform-page .rg-platform-directory .platform-table-wrap{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain}
+.platform-page .rg-platform-directory .platform-table{min-width:660px}
+.platform-page [data-slot="button"],.platform-alert-page [data-slot="button"]{min-height:40px;white-space:normal}
+.platform-page .platform-pager,.platform-alert-page .platform-pager{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.platform-alert-page .rg-platform-alert-summary{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:14px 18px;min-width:0}
+.platform-alert-page .rg-platform-alert-summary>*{overflow-wrap:anywhere}
+.platform-page :is(button,a):focus-visible,.platform-alert-page :is(button,a):focus-visible{outline:2px solid #15966f;outline-offset:3px}
+:root[data-rg-theme="dark"] .platform-alert-page .rg-platform-alert-summary{background:#172736;border-color:#334c5d;color:#e4edf4}
+:root[data-rg-theme="dark"] .platform-page [data-slot="button"],:root[data-rg-theme="dark"] .platform-alert-page [data-slot="button"]{color:#d2f2e5;background:#223f39;border-color:#497d6c}
+@media(max-width:560px){
+ .platform-page .page-heading,.platform-alert-page .page-heading{display:flex;flex-wrap:wrap;gap:14px}
+ .platform-page .page-heading>*:last-child,.platform-alert-page .page-heading>[data-slot="button"]{max-width:100%}
+ .platform-page .rg-platform-directory .platform-table-wrap{border-radius:9px}
+ .platform-alert-page .rg-platform-alert-summary{align-items:start;flex-direction:column}
+ .platform-alert-page .platform-alert-actions{margin-left:0;min-width:0;justify-content:flex-start;flex-wrap:wrap}
+ .platform-page .platform-pager>[data-slot="button"],.platform-alert-page .platform-pager>[data-slot="button"]{min-height:44px}
+}
