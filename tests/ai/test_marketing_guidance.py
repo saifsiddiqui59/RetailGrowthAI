@@ -63,7 +63,7 @@ def test_no_unknown_channel_duplicate_role_or_prompt_injection():
 
 def test_unsafe_regulated_marketing_stays_policy_blocked():
     with pytest.raises(PermissionError):
-        build_editorial_guidance(shop(category="alcohol"),
+        build_editorial_guidance(shop(category="general", products=["beer"]),
            original_request="Write posts.", channel_names=["instagram"])
 
 
