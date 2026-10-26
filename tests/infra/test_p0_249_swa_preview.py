@@ -35,7 +35,7 @@ class FreeSwaPreviewSafety(unittest.TestCase):
         self.assertNotRegex(index, r'methods:\s*\["(?:POST|PUT|PATCH|DELETE)"\]')
         for source in (index, routes):
             self.assertNotRegex(source, r"(?i)service_role|sb_secret_|azure.*key|queueclient|createclient|cookie")
-        self.assertIn("CONTROL_NO_TENANT_IMPLEMENTATION", routes)
+        self.assertIn('AUTH_REQUIRED', routes)
 
     def test_named_preview_deployment_never_replaces_production(self):
         workflow = WORKFLOW.read_text()
