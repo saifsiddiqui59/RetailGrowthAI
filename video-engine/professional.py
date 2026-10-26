@@ -321,11 +321,15 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
         leading_video = media_markup if aid and ordered[aid][1] == "video" else ""
         video_layer = " has-video" if leading_video else ""
         scene_image = media_markup if aid and ordered[aid][1] != "video" else ""
+        intro_logo_markup = ""
+        if i == 0 and plan.get("logo_asset_id"):
+            logo_src = names[plan["logo_asset_id"]]
+            intro_logo_markup = f'<img class="hero-logo" src="{logo_src}" alt="">'
         components.append(
             f'{leading_video}<section id="scene{i}" class="clip scene s{i%3}{video_layer} anim-{animation} trans-{transition}" '
             f'data-start="{start}" data-duration="{length}" data-track-index="1" '
             f'style="--span:{length}s">'
-            f'<div class="halo"></div><div class="photo-wrap">{scene_image}</div>{poster_markup}'
+            f'<div class="halo"></div><div class="photo-wrap">{scene_image}</div>{poster_markup}{intro_logo_markup}'
             f'<div class="glass"><p class="kicker">{k} / {i+1:02d}</p>'
             f'<h1 style="font-size:{title_font}px">{headline}</h1>{offer_markup}</div>'
             f'<p class="index">RG · {i+1:02d} / {len(plan["scenes"]):02d}</p></section>'
@@ -342,6 +346,7 @@ html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background
 .product-photo{{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 26px 35px #0009);animation:photoFloat var(--span) ease-in-out both}}
  .footage{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}}
 .poster-overlay{{position:absolute;right:5%;top:15%;height:38%;max-width:60%;object-fit:contain;filter:drop-shadow(0 8px 24px #000a);animation:cardRise var(--span) ease-in-out both}}
+.hero-logo{{position:absolute;top:21%;left:34%;width:32%;height:32%;object-fit:contain;filter:drop-shadow(0 18px 42px #000a);animation:popIn var(--span) ease-out both}}
 .anim-pop .glass{{animation:popIn var(--span) ease both}}
 .anim-glow .offer{{text-shadow:0 0 16px {accent},0 0 25px {accent}}}
 .anim-slide .photo-wrap{{animation:slideIn var(--span) ease both}}
@@ -377,12 +382,13 @@ h1{{font-weight:900;font-size:{width//10}px;line-height:1.04;letter-spacing:-.01
     cta = clean_text(plan["cta"], "CTA", 110)
     last = plan["scenes"][-1]
     cta_start = max(0, duration - min(3, last["duration"]))
-    components.append(
-        f'<div id="cta" class="clip" data-start="{cta_start}" data-duration="{duration-cta_start}" '
-        f'data-track-index="3" style="position:absolute;top:16%;left:12%;right:12%;z-index:9;'
-        f'background:{accent};color:{bg};padding:2%;text-align:center;font-size:{width//22}px;'
-        f'font-weight:900;border-radius:12px">{cta}</div>'
-    )
+    if last["headline"].strip().casefold() != plan["cta"].strip().casefold():
+        components.append(
+            f'<div id="cta" class="clip" data-start="{cta_start}" data-duration="{duration-cta_start}" '
+            f'data-track-index="3" style="position:absolute;top:16%;left:12%;right:12%;z-index:9;'
+            f'background:{accent};color:{bg};padding:2%;text-align:center;font-size:{width//22}px;'
+            f'font-weight:900;border-radius:12px">{cta}</div>'
+        )
     gain = "0.15" if source_audio else "0.55"
     components.append(
         f'<audio id="soundtrack" src="{soundtrack}" data-start="0" '
