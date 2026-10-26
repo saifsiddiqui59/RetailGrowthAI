@@ -11,7 +11,8 @@ import tempfile
 from pathlib import Path
 
 from PIL import Image
-from studio_v2 import DesignError, render_design, validate_design
+from studio_v2 import (DesignError, _prepare_authorized_images,
+                       _render_prepared, validate_design)
 
 FORMATS = frozenset({"gif", "mp4"})
 
@@ -103,6 +104,10 @@ def export_animation(design, manifest, staged_root, output_path, *, duration=2,
         or len(set(effects)) != len(effects)):
         raise DesignError("Animation effects must be approved templates (max three)")
     output.parent.mkdir(parents=True, exist_ok=True)
+    # Validate every source only once for this bounded render job, including
+    # a reveal frame that may initially hide a product. Never cache images
+    # across tenants/jobs or after rights might have been revoked.
+    prepared = _prepare_authorized_images(design, manifest, staged_root)
     frames = []
     with tempfile.TemporaryDirectory(prefix="retailgrowth-animation-") as work:
         root = Path(work)
@@ -110,7 +115,7 @@ def export_animation(design, manifest, staged_root, output_path, *, duration=2,
         for index in range(count):
             path = root / ("frame-%04d.png" % index)
             frame_doc = _frame_document(design, index, count, set(effects))
-            render_design(frame_doc, manifest, staged_root, path, scale=scale)
+            _render_prepared(frame_doc, prepared, path, scale=scale)
             _finish_frame(path, design, index, count, set(effects), scale)
             if kind == "gif":
                 with Image.open(path) as frame:
