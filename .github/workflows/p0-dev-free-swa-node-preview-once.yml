@@ -127,9 +127,10 @@ jobs:
             observation="$(curl -sS --connect-timeout 3 --max-time 15 -D "$RUNNER_TEMP/control-headers" -o /dev/null -w '%{http_code} %{time_total}' "$PREVIEW/api/$path")"
             got="${observation%% *}"
             seconds="${observation#* }"
-            echo "P0_249_NODE_ROUTE=$path HTTP=$got seconds=$seconds"
+            if grep -iq '^x-p0-control: node-v4' "$RUNNER_TEMP/control-headers"; then marker=true; else marker=false; fi
+            echo "P0_249_NODE_ROUTE=$path HTTP=$got seconds=$seconds marker=$marker"
             test "$got" = "$expected"
-            grep -iq '^x-p0-control: node-v4' "$RUNNER_TEMP/control-headers"
+            test "$marker" = "true"
           done
           curl -fsSL --max-time 15 'https://purple-dune-06b5da200.2.azurestaticapps.net/account' -o "$RUNNER_TEMP/live.html"
           grep -Fq 'id="root"' "$RUNNER_TEMP/live.html"
