@@ -37,6 +37,7 @@ test('existing DEV Free SWA release remains one-shot, protected and resource-sco
   assert.match(workflow, /retailgrowthai-dev-preview/)
   assert.match(workflow, /static-web-apps-deploy/)
   assert.match(workflow, /FEATURE2_FREE_SWA_NO_TREND_FALLBACK=PASS/)
+  assert.match(workflow, /if \[ -f package-lock\.json \]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi/)
   for (const forbidden of ['workflow_dispatch:', 'az group create', 'az staticwebapp create',
     'az functionapp create', 'az containerapp', 'az vm create', 'supabase db push']) {
     assert.equal(workflow.includes(forbidden), false)
