@@ -17,6 +17,8 @@ from recovery_runtime import dispatch_outbox, record_poison, reconcile_and_dispa
 from notification_store import NotificationStore
 from notification_worker import dispatch_notifications, SmtpSender
 from poster_render_api import PosterRenderAPI
+from feature3_v2_api import Feature3V2API
+from feature3_v2_store import Feature3V2Store
 from poster_admin import PosterAdmin
 from poster_queue import AzurePosterQueue
 
@@ -41,9 +43,12 @@ def build_api():
                   if os.environ.get("RETAIL_ENABLE_POSTER_DRAFTS") == "true" else None)
     poster_render_api = (PosterRenderAPI(store)
                          if os.environ.get("RETAIL_ENABLE_POSTER_RENDERING") == "true" else None)
+    feature3_api = (Feature3V2API(store, Feature3V2Store(url, key))
+                    if os.environ.get("RETAIL_FEATURE3_V2_ENABLED") == "true" else None)
     return HTTPAPI(SupabaseJWTVerifier(url), store, queue, render_api,
                    failure_store=admin, durable_outbox=bool(connection and admin),
-                   poster_api=poster_api, poster_render_api=poster_render_api)
+                   poster_api=poster_api, poster_render_api=poster_render_api,
+                   feature3_api=feature3_api)
 
 
 def dispatch(request, path):
@@ -72,6 +77,19 @@ def dispatch(request, path):
         json.dumps(payload), status_code=code, mimetype="application/json",
         headers=diagnostics.complete(code, payload),
     )
+
+# Source-only future endpoints, explicitly disabled in existing DEV/PROD.
+@app.route(route="shops/{shop_id}/feature3-models", methods=["GET"])
+def list_feature3_models(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/shops/" + req.route_params["shop_id"] + "/feature3-models")
+
+
+@app.route(route="campaigns/{campaign_id}/days/{day_id}/feature3-designs",
+           methods=["GET", "POST"])
+def feature3_designs(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/campaigns/" + req.route_params["campaign_id"]
+                    + "/days/" + req.route_params["day_id"] + "/feature3-designs")
+
 
 @app.route(route="campaigns", methods=["POST"])
 def create_campaign(req: func.HttpRequest) -> func.HttpResponse:
