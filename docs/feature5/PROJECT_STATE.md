@@ -11,3 +11,10 @@ Delivery and review boundary: Feature5 may add its provider/worker source and ow
 - Fixed genuine upstream CLI mismatch: Tencent `generate.py` uses *presence* of `--image_path` to select I2V, so T2V now omits it completely. Added 121-frame/24-fps 5-second target, disabled rewrite and upscaling, and blocked external model downloads. Command tests use mocks, not real GPU output.
 - Added decoded-image checks (including limits), timeout subprocess termination, CUDA BF16+minimum-VRAM preflight, fail-closed NaN/Infinity quota checks, exact private output path/lease receipt, post-upload UNKNOWN reconciliation, and private scratch cleanup.
 - No real inferences, cloud billing, private media uploads, deployed database tables, or operator authorization occurred.
+
+## 2026-10-26 continuation checkpoint — after PR #323 integration review
+- Verified exact branch `51201dbf93d7e94d2b2889310228f129ab6dcb3c` had two independent **4/4 PASS** GitHub Actions runs: #40293931880 / #40293926883. Main subsequently advanced independently; branch remains unmerged draft.
+- After that checkpoint strengthened cross-feature clip handoff to require an independently loaded `VisualReview` with same shop, job, clip asset, exact bytes SHA-256, all anatomy/garment/temporal/branding checklist passes, actual reviewer write role and AI-disclosure approval. Tests use synthetic review records; this does NOT establish real quality.
+- Billable logical request key now includes approved prompt SHA-256 and seed, not just day/source. Changing creative content cannot accidentally return the previous reserved motion clip. This is a proposed Feature5-only internal contract change, coordinator must version/accept it.
+- Added Tencent Community License territory/notice/AUP/MAU policy, which blocks runner launch by default if reviewed activation context is missing. Test policy is simulated; it does NOT constitute Tencent consent or attorney approval.
+- Real-gpu harness additionally requires actual operator reviewed deployment/publication regions and provider legal name. No GPU, weights or Azure credentials attached to this session; real Hunyuan outputs and fashion QA remain UNVERIFIED.
