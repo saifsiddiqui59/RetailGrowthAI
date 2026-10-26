@@ -33,8 +33,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile ops/p0_249_cold_warm_http_probe.py tests/infra/test_p0_249_cold_warm_probe.py
-          python3 -m pip install --disable-pip-version-check pytest
-          python3 -m pytest -q tests/infra/test_p0_249_cold_warm_probe.py
+          # The full Python and Node negative suites are required PR CI gates.
+          # No network-based package install in this credentialed job.
       - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
