@@ -26,6 +26,7 @@ from PIL import Image, UnidentifiedImageError
 
 from ai_providers_v2 import InferenceJob, ProviderBlocked, _verified_png
 from gpu_worker_v2 import OfflineFluxKlein4B
+from gpu_preflight_v2 import verify_local_flux_snapshot
 from studio_v2 import compose_poster, render_design
 
 
@@ -177,6 +178,8 @@ def main(argv=None):
                         help="Already downloaded, reviewed 4B model directory")
     parser.add_argument("--out", type=Path, required=True,
                         help="Empty private local output directory")
+    parser.add_argument("--approval-manifest", type=Path, required=True,
+                        help="Operator-verified 4B repo/revision/license and model index SHA-256")
     parser.add_argument("--business-name", default="Sample Fashion House")
     parser.add_argument("--licensed-garment", type=Path,
                         help="Locally owned/approved reference; not guaranteed try-on")
@@ -185,10 +188,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.licensed_garment and not args.confirm_commercial_rights:
         parser.error("Owned garment needs --confirm-commercial-rights")
-    if not args.weights.is_dir() or args.weights.is_symlink() or not (
-        args.weights / "model_index.json"
-    ).is_file():
-        raise ProviderBlocked("Locally installed and reviewed FLUX weights missing")
+    preflight = verify_local_flux_snapshot(args.weights, args.approval_manifest)
     # Diffusers/HF must not download or auto-upgrade models during execution.
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
@@ -199,7 +199,7 @@ def main(argv=None):
         runner=runner, output_root=args.out,
         business_name=args.business_name, approved_reference=source,
     )
-    print(json.dumps(receipt, indent=2))
+    print(json.dumps({**receipt, "model_snapshot_preflight": preflight}, indent=2))
     return 0
 
 
