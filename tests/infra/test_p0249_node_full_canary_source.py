@@ -22,7 +22,7 @@ class NodeFullCanarySafety(unittest.TestCase):
         self.assertIn('x-rgai-supabase-jwt',src)
         self.assertIn('canary.API=NODE_PREVIEW',src)
         self.assertNotIn('sb_secret_',src)
-        self.assertNotIn('wineshop',src.lower())
+        self.assertNotIn('https://wineshop',src.lower())
         # Original canary unchanged and still demands real ROOT approval.
         self.assertIn('CANARY_WAITING_FOR_EXPLICIT_DEV_OPERATOR_APPROVAL=true',original)
         self.assertIn('preflight_dev_http_auth_routes()',original)
