@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import SubscriptionHealthPanel from './SubscriptionHealthPanel.jsx'
+import VerifiedMetricsChart from '../dashboard/VerifiedMetricsChart.jsx'
 
 const EMPTY = { retailers: null, trial_shops: null, active_paid_shops: null,
   expired_or_suspended: null, campaigns: null, reels_completed: null }
@@ -188,6 +189,13 @@ export default function PlatformAdmin() {
         <span>{label}</span><strong>{summary[key] ?? '—'}</strong>
         <small>Verified server count</small>
       </div>)}
+    </section>
+    <section className="panel rg-chart-panel" aria-label="Verified platform analytics">
+      <div className="eyebrow">SERVER-VERIFIED OVERVIEW</div><h2>Platform activity</h2>
+      <VerifiedMetricsChart title="Verified platform activity"
+        labels={['Retailers', 'Trials', 'Paid', 'Expired', 'Campaigns', 'Reels']}
+        values={[summary.retailers, summary.trial_shops, summary.active_paid_shops,
+          summary.expired_or_suspended, summary.campaigns, summary.reels_completed]} />
     </section>
     <section className="panel platform-warning-center" aria-label="Platform monitoring warnings">
       <div className="panel-heading"><div><div className="eyebrow">PLATFORM MONITORING</div>

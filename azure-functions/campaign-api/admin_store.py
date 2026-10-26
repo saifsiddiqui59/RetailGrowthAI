@@ -35,7 +35,9 @@ class AdminStore:
                         "rpc/complete_render_claim", "rpc/fail_render_claim",
                         "rpc/claim_outbox_events", "rpc/confirm_outbox_event",
                         "rpc/record_poison_event", "rpc/reconcile_stale_jobs",
-                        "campaigns", "campaign_days", "shop_memberships", "media_assets", "render_jobs"):
+                        "campaigns", "campaign_days", "shop_memberships", "media_assets", "render_jobs",
+                        "trend_snapshots", "rpc/feature2_claim_collection", "rpc/feature2_finish_collection",
+                        "shop_content_drafts"):
             raise ValueError("unsupported worker path")
         url = self.origin + "/rest/v1/" + path
         if query:

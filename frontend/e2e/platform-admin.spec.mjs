@@ -76,6 +76,14 @@ async function loginAs(page, role, { invalid = false } = {}) {
   await page.getByLabel('Email').fill(role.toLowerCase() + '@example.invalid')
   await page.getByLabel('Password').fill(invalid ? 'wrong-password' : 'offline-only-password')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  // Wait for the actual Supabase user and server-side platform grant to settle
+  // before any test reloads the SPA or asserts route isolation. This guards
+  // against a raced reload, not against denied roles.
+  if (!invalid) {
+    await expect(page.getByText('Signed in as ' + role.toLowerCase() + '@example.invalid')).toBeVisible()
+    if (role === 'ROOT') await expect(page.getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('link', { name: 'Platform Control' })).toBeVisible()
+  }
   return requests
 }
 
