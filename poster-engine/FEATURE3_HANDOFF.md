@@ -205,3 +205,47 @@ NOT directly alter those shared contracts. Keep #249 as distinct P0.
 - Optional GPU license/cost/usage integration remains OFF. Do not
   characterize fixture-backed output as a live fashion model, live FLUX or
   real garment try-on.
+
+## 2026-10-26 — Resumed worker and persistence implementation (after PR #321 review-ready)
+
+Following the user's request to continue all independent work, committed:
+
+- `render_workflow_v2.py`: **working offline CPU queue-worker execution**
+  against injected durable claim, authenticated media staging, immutable private
+  upload, completion and failure callbacks. Verifies full shop/campaign/day/
+  draft/job UUIDs, frozen design SHA-256, revision, bounded retries (3 attempts),
+  safe opaque `shops/{shop_id}/posters-v2/{job_id}/{fingerprint}.{format}` key,
+  file/CPU limits, rights recheck on each attempt, object receipt, and cleanup.
+  Tests render real Pillow PNG, GIF and FFmpeg MP4 into synthetic private media
+  mocks. **Not yet registered as live Azure Function/queue trigger.**
+- `persistence_contract_v2.py`: **versioned draft revision seam** requiring
+  trusted JWT-derived member role/campaign/day, matching shop, fresh approved
+  asset references, frozen design hash, optimistic compare-and-swap and
+  immutable new-ID variation instead of overwriting an approved poster.
+  Negative tests cover stale revision, wrong shop/lineage, revoked rights,
+  approved overwrite and ambiguous storage acknowledgements.
+  **Not a Postgres migration or a deployed save endpoint.**
+- `studio_v2.py` corrected product alpha compositing: transparent
+  merchant-owned garment cutouts now preserve original product colours and
+  the authorized branded canvas background, without losing the PNG alpha.
+  Tested with a deliberately transparent synthetic product image.
+- Verified upstream FASHN 1.5 pipeline source at
+  `src/fashn_vton/pipeline.py`: constructor calls `_setup_hp_model()`,
+  and `__call__()` calls `self.hp_model.predict` on BOTH the person and
+  garment; this happens even when `segmentation_free=True`. Therefore
+  **segmentation_free does not bypass its restricted parser**. Commercial
+  inference remains disabled until a fully patched dependency path and
+  approved replacement parser/pose model license review are verified.
+- Unit/media CI tests run on branch commits. The coordinator still needs
+  to integrate audited atomic Supabase RPCs, private writer/authz, v2 router,
+  real Konva dependency pins/mount and hosted Azure end-to-end signed tests.
+  See [coordination issue #325](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/325).
+
+**Cost and commercial rights:** No paid GPU, storage, external inference
+service or model snapshot was provisioned/charged by these changes.
+Existing illustrative estimates are not an Azure quote. Real FLUX/Hunyuan
+output and real FASHN inference remain **unverified/unavailable**.
+
+**CI:** The exact latest PR-head SHA and 4/4 job evidence must be verified
+after all continuation commits. Earlier run #40291353845 applies to the
+previous baseline only.
