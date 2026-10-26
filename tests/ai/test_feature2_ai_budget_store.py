@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "azure-functions/campaign-api"
 sys.path.insert(0, str(SOURCE))
 Store = runpy.run_path(str(SOURCE / "feature2_ai_budget_store.py"))["Feature2BudgetStore"]
-SQL = (ROOT / "supabase/migrations/20261026194500_feature2_ai_cost_ledger.sql").read_text()
+SQL = (ROOT / "docs/feature2/sql/PROPOSED_20261026_feature2_ai_cost_ledger.sql").read_text()
 SHOP = "a1000000-0000-4000-8000-000000000001"
 ACTOR = "a1000000-0000-4000-8000-000000000002"
 RECEIPT = "a1000000-0000-4000-8000-000000000003"
