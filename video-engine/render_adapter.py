@@ -134,3 +134,42 @@ def run_compiled_reel(request, manifest, asset_root, private_output_dir, *,
             "fallback_events": bound.audit["fallback_events"],
             "render_wall_seconds": round(time.monotonic()-start, 3),
             "output_probe": proof}
+
+
+def main():
+    """Trusted DEV operator CLI; never accept its inputs from public HTTP."""
+    import argparse
+    parser = argparse.ArgumentParser(description="Private Feature4 Reel compile / render adapter")
+    parser.add_argument("--request", required=True, help="Coordinator-approved internal plan JSON")
+    parser.add_argument("--manifest", required=True, help="Server-derived authorization + provenance")
+    parser.add_argument("--asset-root", required=True, help="Preauthorized local staged media root")
+    parser.add_argument("--output-dir", required=True, help="Existing private directory (render mode)")
+    parser.add_argument("--compile-only", action="store_true")
+    parser.add_argument("--allow-synthetic-test", action="store_true",
+                        help="Non-production synthetic CI fixtures only")
+    parser.add_argument("--timeout", type=int, default=MAX_RENDER_SECONDS)
+    args = parser.parse_args()
+    try:
+        request = json.loads(Path(args.request).read_text(encoding="utf-8"))
+        manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
+        if args.compile_only:
+            import tempfile
+            with tempfile.TemporaryDirectory(prefix="retail-feature4-dryrun-") as tmp:
+                package = compile_creative_reel(
+                    request, manifest, args.asset_root, Path(tmp)/"composition",
+                    allow_synthetic_test=args.allow_synthetic_test)
+                print(json.dumps({"status": "COMPILED_ONLY", "plan": request["version"],
+                                  "scene_count": len(request["scenes"]),
+                                  "lineage": json.loads((package/"lineage.json").read_text())}))
+        else:
+            response = run_compiled_reel(
+                request, manifest, args.asset_root, args.output_dir,
+                allow_synthetic_test=args.allow_synthetic_test,
+                timeout_seconds=args.timeout)
+            print(json.dumps(response, sort_keys=True))
+    except (CreativeRenderError, CreativeContractError, OSError, ValueError, KeyError) as exc:
+        parser.exit(status=2, message="FEATURE4 REJECTED: " + str(exc) + "\n")
+
+
+if __name__ == "__main__":
+    main()
