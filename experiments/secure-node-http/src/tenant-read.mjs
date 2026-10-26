@@ -4,7 +4,7 @@
  */
 import { AuthDenied, UpstreamUnavailable, canonicalUuid, supabaseOrigin } from "./security.mjs";
 
-const TABLES = new Set(["campaigns", "campaign_days", "render_jobs"]);
+const TABLES = new Set(["campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs", "media_assets"]);
 const MEMBERSHIP_ROLES = new Set(["OWNER", "EDITOR", "VIEWER"]);
 
 export class TenantReader {

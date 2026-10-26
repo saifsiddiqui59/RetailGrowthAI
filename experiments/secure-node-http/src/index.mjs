@@ -6,14 +6,14 @@
  */
 import { app } from "@azure/functions";
 import { createSupabaseVerifier } from "./security.mjs";
-import { TenantReader } from "./tenant-read.mjs";
+import { PrivateReader } from "./private-reads.mjs";
 import { createReadOnlyGateway } from "./routes.mjs";
 
 const origin = process.env.RETAIL_SUPABASE_URL;
 const publishableKey = process.env.RETAIL_SUPABASE_PUBLISHABLE_KEY;
 const handler = createReadOnlyGateway({
   verifyJwt: createSupabaseVerifier({ origin }),
-  reader: new TenantReader({ origin, publishableKey }),
+  reader: new PrivateReader({ origin, publishableKey }),
 });
 
 async function handle(req) {
@@ -27,5 +27,26 @@ app.http("secureReadCampaign", {
 });
 app.http("secureReadRenderJob", {
   route: "render-jobs/{id}", methods: ["GET"], authLevel: "anonymous",
+  handler: handle,
+});
+
+app.http("secureRenderDownload", {
+  route: "render-jobs/{id}/download", methods: ["GET"], authLevel: "anonymous",
+  handler: handle,
+});
+app.http("securePosterDraft", {
+  route: "poster-drafts/{id}", methods: ["GET"], authLevel: "anonymous",
+  handler: handle,
+});
+app.http("securePosterList", {
+  route: "campaigns/{id}/days/{dayId}/posters", methods: ["GET"], authLevel: "anonymous",
+  handler: handle,
+});
+app.http("securePosterJob", {
+  route: "poster-jobs/{id}", methods: ["GET"], authLevel: "anonymous",
+  handler: handle,
+});
+app.http("securePosterDownload", {
+  route: "poster-jobs/{id}/download", methods: ["GET"], authLevel: "anonymous",
   handler: handle,
 });
