@@ -39,7 +39,7 @@ def git_blob_sha1(path: Path) -> str:
         raise MotionError("Unapproved local inference script size")
     data = candidate.read_bytes()
     return hashlib.sha1(b"blob " + str(len(data)).encode("ascii") +
-                        b"\\0" + data).hexdigest()
+                        b"\0" + data).hexdigest()
 
 
 def verify_official_script(path: Path) -> None:
