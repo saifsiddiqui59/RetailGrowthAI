@@ -7,18 +7,22 @@
 
 ## Feature 1 branch changes
 - Extended sidebar and routes for campaign calendar, Creative Studio, media library, social connections, publishing history, retailer notifications and settings. Uncontracted screens explicitly disclose unavailable features instead of fabricating metrics.
+- **Follow-up implementation:** existing RLS-protected `listMediaAssets(shopId)` now powers the actual media metadata library, with tenant-bound business selection, client-side defensive validation, MIME search/filter, no public blob URLs, loading/error/empty states and browser negative tests. No new tables or endpoints.
+- **Recent campaign draft calendar:** manual read uses the existing per-user/per-shop session UUID hint plus authenticated `GET /api/campaigns/{id}` (no automatic polling/writes). Validates returned campaign/shop/day identity before showing dates. This is not a cross-campaign schedule or a publishing calendar; Azure HTTP #249 remains.
+- Route-level React.lazy splitting defers video studio, Chart.js and privileged platform modules until needed, reducing initial JS requested by the Free Azure SWA login view.
 - Light/dark theme persists only presentation choice in localStorage, not authentication or tenant data. Responsive drawer and accessible links remain.
 - TanStack Query manages tenant-authorized shops and exact-count per-shop dashboard metrics. Keys include user ID and shop ID. Cache expires when unobserved.
 - Chart.js graphs verified retailer counts and existing server-authorized root summary counts; unknown values are not graphed.
-- Offline chart-data regression checks and mocked Playwright route/guest-denial/320px theme tests added.
+- Offline chart/media/calendar data-model regressions and mocked Playwright route/guest-denial/320px/theme tests added. New browser journey verifies JWT-protected recent-campaign dates and tenant mismatch denial. No real hosted private-user test claimed.
 - Explicitly versioned TanStack Query, Chart.js and react-chartjs-2 packages. The repo has no committed frontend npm lockfile and current CI uses npm install.
 
 ## Open work and security boundaries
 - This is an incremental frontend slice, not a complete production-grade SaaS redesign or signed-in live Azure acceptance.
 - An incremental shadcn/ui-compatible source-component foundation is now set up with Tailwind utilities (no global preflight), Vite alias, Card, Badge, Button and Skeleton. The new workspace routes adopt these UI primitives. Official shadcn CLI is not run; remaining legacy views still use existing CSS and require staged migration and visual QA before claiming end-to-end shadcn adoption.
-- Missing additive authorized read contracts: cross-campaign calendar aggregation; tenant asset browse; active social connections; publishing history and delivery receipts; retailer-specific persistent notifications; any extra account settings and platform time-series metrics. The UI is explicit rather than inventing API endpoints or data.
+- Missing additive authorized read contracts: complete cross-campaign calendar aggregation beyond recent local hint; paginated all-assets browse and secure thumbnail/preview/download contract beyond existing 100-row RLS metadata list; active social connections; publishing history and delivery receipts; retailer-specific persistent notifications; any extra account settings and platform time-series metrics. The UI is explicit rather than inventing endpoints or data.
 - Persisted platform alerts are Super Admin only and server-enforced. Root summary chart is a cross-sectional comparison, not time-series trends or cloud telemetry.
 - Azure HTTP #249 blocks reliable hosted signed-in write E2E; no bypass, retry hack, schema change or tenant authorization weakening.
+- **Low cost:** reused current Supabase RLS SELECT and existing signed-in campaign GET only, manual on-demand reads, no extra Azure/Supabase services, no GPU, no new model tokens or subscriptions. All new state lives in the current React app.
 - No cloud deployment, database migration, new paid Azure resource, PROD, WineShopPOS, or Part 2/3 changes.
 
 ## Coordinator process
