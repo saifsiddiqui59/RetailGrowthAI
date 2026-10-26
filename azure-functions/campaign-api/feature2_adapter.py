@@ -119,6 +119,52 @@ class TrendFeatureAdapter:
         except StorageUnavailable:
             return 503, {"error": "TREND_STORAGE_UNAVAILABLE"}
 
+    def improve(self, shop_id: str, authorization: str,
+                payload: dict | None) -> tuple[int, dict]:
+        """Zero-paid-inference editorial preview. No trends, media or DB writes.
+
+        Only authenticated OWNER/EDITOR, with server-read RLS business context.
+        The request cannot supply or override an authorized business profile.
+        """
+        try:
+            sid = canonical_uuid(shop_id)
+            if not isinstance(authorization, str) or not authorization.startswith("Bearer "):
+                return 401, {"error": "UNAUTHORIZED"}
+            token = authorization[7:].strip()
+            if not token:
+                return 401, {"error": "UNAUTHORIZED"}
+            try:
+                uid = canonical_uuid(self.verify_token(token))
+            except (AuthenticationError, ValueError, TypeError):
+                return 401, {"error": "UNAUTHORIZED"}
+            if not self.tenant_store.member(token, uid, sid, write=True):
+                return 403, {"error": "FORBIDDEN"}
+            if self.profile_reader is None:
+                return 503, {"error": "PROFILE_UNAVAILABLE"}
+            if not isinstance(payload, dict) or set(payload) != {
+                "original_prompt", "output_formats", "language"
+            }:
+                return 400, {"error": "INVALID_REQUEST"}
+            row = self.profile_reader(token, uid, sid)
+            if not isinstance(row, dict) or row.get("shop_id") != sid:
+                return 404, {"error": "NOT_FOUND"}
+            if not isinstance(row.get("city"), str) or not row["city"].strip():
+                return 422, {"error": "BUSINESS_PROFILE_INCOMPLETE"}
+            from ai_agents.prompt_improver import improve_prompt
+            result = improve_prompt(
+                payload["original_prompt"], RetailerProfile.from_authorized(row),
+                output_formats=payload["output_formats"], language=payload["language"],
+            )
+            return 200, {"shop_id": sid, **result}
+        except AuthenticationError:
+            return 401, {"error": "UNAUTHORIZED"}
+        except (ValueError, TypeError, KeyError, ContractError):
+            return 400, {"error": "INVALID_REQUEST"}
+        except PermissionError:
+            return 403, {"error": "FORBIDDEN"}
+        except StorageUnavailable:
+            return 503, {"error": "PROFILE_UNAVAILABLE"}
+
     def list_drafts(self, shop_id: str, authorization: str) -> tuple[int, dict]:
         """Read saved drafts with the *user's* RLS identity, even when RSS is down."""
         try:
