@@ -3,7 +3,6 @@
 Must pass pytest AND Python unittest discovery. Nothing touches Azure.
 """
 import json
-import re
 import unittest
 from pathlib import Path
 
@@ -51,7 +50,8 @@ class FreeSwaPreviewSafety(unittest.TestCase):
         self.assertIn("retailgrowthai-dev-preview", workflow)
         self.assertIn("purple-dune-06b5da200.2.azurestaticapps.net", workflow)
         self.assertIn("github.ref == 'refs/heads/main'", workflow)
-        self.assertIn("repo_token:", workflow.replace("repo_token:", "NOT_USED:") ) if False else None
+        self.assertNotIn("repo_token:", workflow)
+        self.assertNotIn("api_location: ''", workflow)
 
     def test_credentialed_job_cannot_activate_outside_release_gate(self):
         workflow = WORKFLOW.read_text()
