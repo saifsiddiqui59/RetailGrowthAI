@@ -215,12 +215,33 @@ def main():
               "Real Azure seven-day usage not available")
         check(len({x["topic"].casefold() for x in result["days"]})==7,
               "Seven creative themes must be distinct")
+        # Prompt improvement is one additional independent billed attempt.
+        # A failed response is NOT retried; a successful seven-day draft remains
+        # independently reviewable from the first genuine Azure call.
+        prompt_report={"status":"NOT_ATTEMPTED","review_status":"DRAFT"}
+        try:
+            activation=Feature2AiActivation(admin,**opts)
+            improved=activation.improve(
+                original_prompt="Create seven days of kurti styling ideas for a fictional Nagpur studio.",
+                retailer=retailer,
+                output_formats=["instagram_caption","facebook_post","linkedin_post",
+                                "youtube_shorts_description","poster_brief","reel_storyboard"],
+                language="en-IN",shop_id=SHOP,actor_id=uid)
+            prompt_report={"status":"REAL_AZURE_PROMPT_COMPLETED",
+                "improved_prompt":improved["improved_prompt"],
+                "review_status":"NEEDS_REVIEW",
+                "usage":improved["usage"],"can_publish":False}
+            print("FEATURE2_REAL_PROMPT_IMPROVEMENT=PASS")
+        except Exception:
+            prompt_report={"status":"REAL_AZURE_PROMPT_FAILED_NO_RETRY",
+                           "review_status":"DRAFT","can_publish":False}
+            print("FEATURE2_REAL_PROMPT_IMPROVEMENT=FAILED_NO_RETRY")
         report={
           "provider":"azure_openai_REAL_RESPONSE", "model_deployment":DEPLOYMENT,
           "provider_evidence":proofs,"public_retail_usd_per_million":{
              "input":PUBLIC_INPUT,"output":PUBLIC_OUTPUT},
           "pricing_warning":"Cost is a verified public-list-rate estimate, not a subscription invoice",
-          "ledger_settlement":writer.last_usage,
+          "ledger_settlement":writer.last_usage,"prompt_improvement":prompt_report,
           "approved_total_limit_usd":MAX_TOTAL,"per_call_limit_usd":MAX_CALL,
           "shop":"Thread & Loom Studio (fictional Nagpur canary)",
           "trend_source":"NONE_EVERGREEN_NO_LIVE_TREND_CLAIM",
