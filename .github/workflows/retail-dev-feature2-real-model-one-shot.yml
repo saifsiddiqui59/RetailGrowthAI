@@ -5,6 +5,8 @@ name: RetailGrowthAI Feature2 REAL isolated existing GPT-4.1-mini canary (one-ti
 # One-time release trigger remains contingent on exact merge message, main SHA,
 # protected DEV environment/OIDC, signed JWT and atomic expiring cost cap.
 # Real requests must not be rerun after a potentially billed completion.
+# 2026-10-27 pre-inference HTTP403 confirmed with zero shops/reservations;
+# rerun approved once after correcting POST return=minimal bootstrap RLS behavior.
 on:
   push:
     branches: [main]
