@@ -838,3 +838,9 @@ NaN
 1. Validate `fix/feature1-calendar-style-collision-20261027` with exact-head four-job CI, notably mocked Playwright SPA navigation `/campaigns` → `/calendar` at 1440px and 390px with no sideways overflow; verify original campaign Studio seven-day grid still works.
 2. Coordinator review/merge only after checks pass, verify independent `main` CI and then deploy **only existing Free SWA DEV static frontend** under the existing project-specific approval/release guard. Confirm real served `/calendar` CSS and authenticated screenshot before stating hosted layout fixed.
 3. Zero DB schema/Auth/RLS/API/queue/Foundry/GPU, PROD or WineShopPOS changes. No automatic model calls or calendar publishing claims.
+
+
+## 2026-10-27 — Feature #1 Calendar screenshot fix deployed (follow-up QA only)
+- **DONE:** #445 source layout collision fix, Playwright SPA regression and independent post-merge main CI #40500695395 4/4. **DONE:** #446 protected existing Free SWA frontend-only release, verified new live CSS and public `/calendar` in successful Actions #40501178661.
+- **FOLLOW UP:** Verify signed-in browser after hard refresh at `https://purple-dune-06b5da200.2.azurestaticapps.net/calendar` with actual account and 1440px/mobile widths; public smoke cannot prove user-specific rendering. Retain on-demand, RLS-verified month reads and no published-status assumptions. Check separate post-release CI #40501178669 before claiming it green.
+- No schema, backend, model, publishing, PROD or WineShopPOS changes. No further rollout for the same source fix needed.
