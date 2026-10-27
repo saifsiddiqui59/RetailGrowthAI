@@ -595,3 +595,9 @@
 
 ## Feature2 2026-10-27 — Keep true onboarding approval and audit trail for GPT-4.1-mini canary
 - User's clear DEV-only backup waiver permitted exact-feature2 additive schema migration; no global RLS or onboarding relaxation. After #440's authentic run failed at `bootstrap_shop` 42501/HTTP403, chose legitimate signed-JWT `shops_create` over an admin service-role bypass; source #441 demands a genuine authenticated Platform Super Admin approval of one pending synthetic account. A PostgreSQL review consistency constraint requires `decided_by` real author; DO NOT forge it via privileged SQL. Preserve original 22-version schema, zero budgets until approved, per-call USD0.05 and one-shot USD0.20 cap.
+
+
+## Feature2 2026-10-27 — One successful real Azure text acceptance, no automatic billed retry
+- One-time owner-approved $0.20 DEV test executed via normal Platform Super Admin-approved synthetic user, existing Azure South India GPT-4.1-mini, service-only atomic reserve/settle. Campaign actual provider 623/2440 tokens, public-rate estimated $0.00456852, SQL rounded settlement $0.004569; 7-day DRAFT pass. User's earlier waiver allowed only exact additive Feature2 schema without backup, not global RLS/PROD/publishing modifications.
+- Shop POST must request `Prefer: return=minimal` because `shops_read` RLS requires bootstrap OWNER membership; do not change security policy to make `return=representation` work pre-trigger. Pre-inference protected runs #40469565233 and #40488744227 403, final corrected #40489632633 pass. Independent main CI #40489632525 4/4.
+- Second prompt request FAILED_NO_RETRY with unresolved USD0.002030 reservation; no automatic retry, zero-settlement speculation or additional paid activation. Synthetic budget disabled and membership inactive. Source evidence in `docs/feature2/REAL_AZURE_7_DAY_ACCEPTANCE_20261027.md`.
