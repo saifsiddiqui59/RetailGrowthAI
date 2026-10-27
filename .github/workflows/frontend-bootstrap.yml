@@ -322,6 +322,9 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -c "select 'public.feature2_reserve_ai_budget(uuid,uuid,text,numeric,uuid)'::regprocedure;"
           psql -X -v ON_ERROR_STOP=1 -f tests/security/feature2_ai_budget_negative.sql
           python3 tests/security/feature2_ai_budget_concurrency.py
+          # Disposable-only: exercise exactly Feature2's reversible DDL and ROLLBACK.
+          # Never expose this operation to hosted DEV or modify the migration ledger.
+          psql -X -v ON_ERROR_STOP=1 -f tests/security/feature2_ai_budget_rollback_rehearsal.sql
 
       - name: Stop isolated Supabase database
         if: always()
