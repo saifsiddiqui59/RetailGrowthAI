@@ -601,3 +601,8 @@
 - One-time owner-approved $0.20 DEV test executed via normal Platform Super Admin-approved synthetic user, existing Azure South India GPT-4.1-mini, service-only atomic reserve/settle. Campaign actual provider 623/2440 tokens, public-rate estimated $0.00456852, SQL rounded settlement $0.004569; 7-day DRAFT pass. User's earlier waiver allowed only exact additive Feature2 schema without backup, not global RLS/PROD/publishing modifications.
 - Shop POST must request `Prefer: return=minimal` because `shops_read` RLS requires bootstrap OWNER membership; do not change security policy to make `return=representation` work pre-trigger. Pre-inference protected runs #40469565233 and #40488744227 403, final corrected #40489632633 pass. Independent main CI #40489632525 4/4.
 - Second prompt request FAILED_NO_RETRY with unresolved USD0.002030 reservation; no automatic retry, zero-settlement speculation or additional paid activation. Synthetic budget disabled and membership inactive. Source evidence in `docs/feature2/REAL_AZURE_7_DAY_ACCEPTANCE_20261027.md`.
+
+
+## 2026-10-27 — Calendar route CSS namespace must not overlap Studio day-picker
+- The Studio retains `.rg-calendar` (seven-column grid) and `.rg-calendar-day` button styles. The separate Feature #1 page uses `.rg-campaign-calendar-page` for its block layout and `.rg-verified-calendar-day` for read-only draft cards; route-local selectors replace `.rg-calendar .` selectors in dashboard CSS. Prevent CSS bleed after React.lazy module styles persist across SPA navigation without modifying Studio functionality or campaign/tenant data.
+- Guard via Playwright SPA transition in both desktop and mobile viewports. No new libraries, cloud resources or data permissions required.
