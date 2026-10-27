@@ -239,8 +239,8 @@ test('new month loads while previous JWT read is pending and stale response cann
     await expect(page.getByText('1 verified planned day in 2026-11. No delivery confirmation.')).toBeVisible()
     releaseOld()
     await expect(page.getByText('Old October draft')).toHaveCount(0)
-    expect(requested.filter(m => m?.includes('2026-10-01'))).toHaveLength(1)
-    expect(requested.filter(m => m?.includes('2026-11-01'))).toHaveLength(1)
+    expect(requested.filter(m => m?.startsWith('(scheduled_date.gte.2026-10-01,'))).toHaveLength(1)
+    expect(requested.filter(m => m?.startsWith('(scheduled_date.gte.2026-11-01,'))).toHaveLength(1)
   } finally {
     releaseOld()
   }
