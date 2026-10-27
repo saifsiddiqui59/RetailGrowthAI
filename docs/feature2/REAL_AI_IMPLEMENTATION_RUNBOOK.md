@@ -37,3 +37,7 @@ No GPU, new paid compute, separate data store, Wan, PROD, WineShopPOS, social pu
 
 ## 2026-10-26 — Verifiable Microsoft regional token price, still zero live model calls
 - OIDC #40401262949 verified existing South India GPT-4.1-mini Regional Standard S0 and official Microsoft Retail Prices API $0.44 uncached input/$1.76 output USD per million (unit originally 1K; multiplied by 1000), effective 2025-11-01. No credentials read, no inference or Azure configuration writes; account-specific billed rate is not verified. User separately approved max $0.20 total synthetic DEV test, but protected schema/ROOT and expiring per-shop reserve remain unapplied. Do not enable paid flags or attempt billable inference without these gates.
+
+
+## Feature2 2026-10-27 — LIVE DEV migration verified, paid generation legitimately gated
+- Owner waived Supabase backup and canonical cost migration `20261026194000` is now hosted with 22 exact versions, both service-only/RLS cost tables, zero enabled budgets and no money spent. Real protected canary #40469565233 reached no Azure model network call: `/shops` HTTP403 from correct signed-owner trigger. One synthetic GoTrue actor exists without shop, onboarding request PENDING. Source #441 retries **no model call** until a genuine Platform Super Admin approves the pending user through the existing audited Platform Control `/platform-admin` workflow. Never use SQL SET ROLE/JWT forgery or bypass gated service-only spend controls. Run only one signed manual DEV canary with expected US$0.20 total maximum after approval.

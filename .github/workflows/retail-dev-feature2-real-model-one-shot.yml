@@ -5,6 +5,12 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/retail-dev-feature2-real-model-one-shot.yml'
+  workflow_dispatch:
+    inputs:
+      approval_code:
+        description: 'Enter AUTHORIZED_FEATURE2_DEV_020_AFTER_ONBOARDING_APPROVAL'
+        required: true
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -15,7 +21,10 @@ jobs:
     if: >-
       github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
       github.ref == 'refs/heads/main' &&
-      startsWith(github.event.head_commit.message, 'release(dev): isolated Feature2 genuine GPT-4.1-mini test')
+      ((github.event_name == 'push' &&
+        startsWith(github.event.head_commit.message, 'release(dev): isolated Feature2 genuine GPT-4.1-mini test')) ||
+       (github.event_name == 'workflow_dispatch' &&
+        inputs.approval_code == 'AUTHORIZED_FEATURE2_DEV_020_AFTER_ONBOARDING_APPROVAL'))
     environment: dev
     runs-on: ubuntu-24.04
     timeout-minutes: 18

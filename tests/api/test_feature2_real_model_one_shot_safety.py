@@ -15,6 +15,10 @@ def test_feature2_paid_one_shot_has_scoped_approval_and_actual_auditable_limits(
     assert 'FEATURE2_REAL_AZURE_7DAY_DRAFT=PASS' in s
     assert 'AzureFoundryProvider._post_json' in s
     assert 'Feature2BudgetStore' in s and 'ledger.settle' in s
+    assert 'retail_onboarding_status' in s
+    assert 'SYNTHETIC_DEV_USER_REQUIRES_GENUINE_PLATFORM_ADMIN_APPROVAL' in s
+    assert 'admin_users["users"]' in s
+    assert 'bearer=token["access_token"]' in s
     assert 'shop_memberships?shop_id=eq.' in s
     assert '"enabled":False' in s
     assert '"can_publish":False' in s
@@ -26,6 +30,8 @@ def test_feature2_paid_one_shot_has_scoped_approval_and_actual_auditable_limits(
 def test_feature2_paid_one_shot_workflow_requires_exact_main_approval_and_dev_oidc():
     s=WF.read_text()
     assert 'branches: [main]' in s and 'environment: dev' in s
+    assert 'workflow_dispatch:' in s
+    assert 'AUTHORIZED_FEATURE2_DEV_020_AFTER_ONBOARDING_APPROVAL' in s
     assert "startsWith(github.event.head_commit.message, 'release(dev): isolated Feature2 genuine GPT-4.1-mini test')" in s
     assert 'cancel-in-progress: false' in s
     assert 'id-token: write' in s

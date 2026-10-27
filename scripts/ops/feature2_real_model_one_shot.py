@@ -115,36 +115,59 @@ def main():
     expiry=now+dt.timedelta(minutes=18)
     beginning=now-dt.timedelta(minutes=2)
     stamp=lambda x:x.isoformat()
-    email="rgai-f2-403-"+secrets.token_hex(8)+"@example.invalid"
-    password=secrets.token_urlsafe(38)
-    user=http("/auth/v1/admin/users",method="POST",apikey=service,
-              obj={"email":email,"password":password,"email_confirm":True,
-                   "user_metadata":{"purpose":"RetailGrowthAI Feature2 synthetic DEV only"}})
+    # Reuse precisely the pending synthetic GoTrue account created by the
+    # previous blocked pre-inference run. No fresh account or paid call on retry.
+    admin_users=http("/auth/v1/admin/users?page=1&per_page=100",apikey=service)
+    check(isinstance(admin_users,dict) and isinstance(admin_users.get("users"),list),
+          "Admin test-account inventory unavailable")
+    matches=[u for u in admin_users["users"] if isinstance(u,dict)
+             and str(u.get("email","")).startswith("rgai-f2-403-")
+             and str(u.get("email","")).endswith("@example.invalid")]
+    check(len(matches)==1, "Expected exactly one prior isolated synthetic test user")
+    user=matches[0]
     uid=str(UUID(user["id"]))
+    email=user["email"]
+    password=secrets.token_urlsafe(38)
+    http("/auth/v1/admin/users/"+uid,method="PUT",apikey=service,
+         obj={"password":password,"email_confirm":True})
     budget_created=False
     membership_created=False
     try:
-        # No existing shop/user/subscription is modified.
-        http("/rest/v1/shops",method="POST",apikey=service,obj={
-             "id":SHOP,"owner_user_id":uid,"name":"Thread & Loom Studio (DEV TEST)",
-             "slug":"thread-loom-feature2-dev403","timezone":"Asia/Kolkata"})
-        http("/rest/v1/shop_memberships",method="POST",apikey=service,obj={
-             "shop_id":SHOP,"user_id":uid,"role":"OWNER","active":True})
-        membership_created=True
-        http("/rest/v1/business_profiles",method="POST",apikey=service,obj={
-             "shop_id":SHOP,"business_name":"Thread & Loom Studio",
-             "category":"clothing","description":"Fictional Nagpur Indian clothing and kurti studio",
-             "city":"Nagpur","brand_voice":"warm, useful and elegant"})
-        # STARTER solely for synthetic two-call DEV accounting, no customer upgrade/payment.
-        http("/rest/v1/shop_subscriptions",method="POST",apikey=service,obj={
-             "shop_id":SHOP,"plan_code":"STARTER","status":"ACTIVE",
-             "valid_from":stamp(beginning),"valid_until":stamp(expiry),
-             "period_start":stamp(beginning),"period_end":stamp(expiry)})
+        # Authenticated issuer and exact admin-reviewed onboarding gate,
+        # not service-role insertion or a forged auth.uid.
         token=http("/auth/v1/token?grant_type=password",method="POST",
                    apikey=public_key(),obj={"email":email,"password":password})
         identity=http("/auth/v1/user",apikey=public_key(),bearer=token["access_token"])
         check(identity["id"]==uid,"Synthetic user JWT did not verify")
-        # Default deny: no external service-role budget has yet been granted.
+        state=http("/rest/v1/rpc/retail_onboarding_status",method="POST",
+                   apikey=public_key(),bearer=token["access_token"],obj={})
+        check(state.get("status")=="APPROVED" and state.get("approval_required") is True,
+              "SYNTHETIC_DEV_USER_REQUIRES_GENUINE_PLATFORM_ADMIN_APPROVAL")
+        http("/rest/v1/shops",method="POST",apikey=public_key(),
+             bearer=token["access_token"],obj={
+             "id":SHOP,"owner_user_id":uid,"name":"Thread & Loom Studio (DEV TEST)",
+             "slug":"thread-loom-feature2-dev403","timezone":"Asia/Kolkata"})
+        # Existing audited bootstrap triggers set OWNER membership, profile,
+        # and the trial subscription. Do not duplicate those rows.
+        membership_created=True
+        check(len(http("/rest/v1/shop_memberships?select=role&shop_id=eq."+SHOP+
+                       "&user_id=eq."+uid,apikey=service))==1,
+              "Shop bootstrap did not create exact OWNER membership")
+        profile_rows=http("/rest/v1/business_profiles?shop_id=eq."+SHOP,
+            method="PATCH",apikey=service,obj={
+              "business_name":"Thread & Loom Studio",
+              "category":"clothing",
+              "description":"Fictional Nagpur Indian clothing and kurti studio",
+              "city":"Nagpur","brand_voice":"warm, useful and elegant"})
+        check(len(profile_rows)==1,"Synthetic onboarding business profile update failed")
+        # Change only this throwaway shop's trial to an ephemeral STARTER test
+        # so two paid requests can be tested without touching a real trial.
+        subscriptions=http("/rest/v1/shop_subscriptions?shop_id=eq."+SHOP,
+            method="PATCH",apikey=service,obj={
+               "plan_code":"STARTER","status":"ACTIVE",
+               "valid_from":stamp(beginning),"valid_until":stamp(expiry),
+               "period_start":stamp(beginning),"period_end":stamp(expiry)})
+        check(len(subscriptions)==1,"Synthetic-only shop subscription update failed")
         check(http("/rest/v1/shop_ai_budget_controls?select=shop_id&shop_id=eq."+SHOP,
                    apikey=service)==[],"Budget must start disabled")
         http("/rest/v1/shop_ai_budget_controls",method="POST",apikey=service,obj={
