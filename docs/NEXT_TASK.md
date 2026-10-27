@@ -832,3 +832,9 @@ NaN
 2. Investigate failed prompt-improver response **offline first**, do NOT auto-retry. Its reservation `prompt RESERVED USD0.002030` is unresolved; total conservative quota usage USD0.006599, NOT confirmed Azure invoice. Reconcile with bill evidence; do not assume $0 or settle without evidence.
 3. Human-review the actual seven-day text artifact before 2026-11-03 expiration; source run #40489632633. Check material/fabric/climate factual claims, branding and unique creative angles. Only synthetic shop model response, DRAFT/no media/publishing. For actual persisted draft, authorize fresh genuine clothing trend, rights-cleared registered private media, tenant signed workflow and end-to-end tests.
 4. Documented success and blockers in `docs/feature2/REAL_AZURE_7_DAY_ACCEPTANCE_20261027.md`; keep issue #403 open until prompt/hosted full E2E verified. Synthetic account clean-up requires separate controlled workflow.
+
+
+## 2026-10-27 — Feature #1 screenshot calendar layout fix
+1. Validate `fix/feature1-calendar-style-collision-20261027` with exact-head four-job CI, notably mocked Playwright SPA navigation `/campaigns` → `/calendar` at 1440px and 390px with no sideways overflow; verify original campaign Studio seven-day grid still works.
+2. Coordinator review/merge only after checks pass, verify independent `main` CI and then deploy **only existing Free SWA DEV static frontend** under the existing project-specific approval/release guard. Confirm real served `/calendar` CSS and authenticated screenshot before stating hosted layout fixed.
+3. Zero DB schema/Auth/RLS/API/queue/Foundry/GPU, PROD or WineShopPOS changes. No automatic model calls or calendar publishing claims.
