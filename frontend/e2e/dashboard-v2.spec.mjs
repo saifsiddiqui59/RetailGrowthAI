@@ -60,6 +60,50 @@ test('desktop routes show honest unavailable contracts, not invented data', asyn
   expect(calls.some(path => path.includes('/social_accounts'))).toBe(false)
 })
 
+test('calendar panels stay full width after Campaign Studio CSS loads, on desktop and mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await signedIn(page)
+  // React.lazy CSS remains loaded when the user navigates from Campaign Studio.
+  // Its .rg-calendar seven-column picker must NOT style this page container.
+  await page.goto('/campaigns')
+  await expect(page.locator('.rg-calendar[aria-label="Choose a campaign day"]')).toBeVisible()
+  await page.getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('link', { name: 'Campaign calendar' }).click()
+  await expect(page).toHaveURL(/calendar$/)
+  const root = page.locator('.rg-campaign-calendar-page')
+  await expect(root.getByRole('heading', { name: 'Campaign calendar' })).toBeVisible()
+  await expect(root.getByRole('region', { name: 'All campaigns planning calendar' })).toBeVisible()
+  const measures = await root.evaluate(element => {
+    const heading = element.querySelector('.page-heading').getBoundingClientRect()
+    const recent = element.querySelector('.panel').getBoundingClientRect()
+    const month = element.querySelector('.rg-shop-month').getBoundingClientRect()
+    return {display: getComputedStyle(element).display,
+      width: element.getBoundingClientRect().width,
+      headingBottom: heading.bottom, recentTop: recent.top, recentBottom: recent.bottom,
+      recentWidth: recent.width, monthTop: month.top, monthWidth: month.width}
+  })
+  expect(measures.display).toBe('block')
+  expect(measures.width).toBeGreaterThan(680)
+  expect(measures.recentWidth).toBeGreaterThan(680)
+  expect(measures.monthWidth).toBeGreaterThan(680)
+  expect(measures.recentTop).toBeGreaterThanOrEqual(measures.headingBottom - 2)
+  expect(measures.monthTop).toBeGreaterThanOrEqual(measures.recentBottom - 2)
+  await page.getByRole('button', { name: 'Switch to dark mode' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-rg-theme', 'dark')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect.poll(() => page.evaluate(() =>
+    document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  const mobile = await root.evaluate(element => {
+    const recent = element.querySelector('.panel').getBoundingClientRect()
+    const month = element.querySelector('.rg-shop-month').getBoundingClientRect()
+    return { recentWidth: recent.width, monthWidth: month.width,
+      recentBottom: recent.bottom, monthTop: month.top }
+  })
+  expect(mobile.recentWidth).toBeLessThanOrEqual(390)
+  expect(mobile.monthWidth).toBeLessThanOrEqual(390)
+  expect(mobile.monthTop).toBeGreaterThanOrEqual(mobile.recentBottom - 2)
+})
+
 test('320px mobile drawer, new navigation, and dark mode persist without overflow', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 })
   await signedIn(page)

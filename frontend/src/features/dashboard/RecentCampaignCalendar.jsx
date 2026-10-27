@@ -68,7 +68,7 @@ export default function RecentCampaignCalendar() {
     }
   }
 
-  return <div className="rg-workspace-page rg-calendar">
+  return <div className="rg-workspace-page rg-campaign-calendar-page">
     <div className="page-heading"><div><div className="eyebrow">RECENT CAMPAIGN / DRAFT SCHEDULE</div>
       <h1>Campaign calendar</h1>
       <p className="lead">Review verified dates from your latest campaign in this browser session. Draft dates are not social publishing confirmations.</p>
@@ -112,7 +112,7 @@ export default function RecentCampaignCalendar() {
           </table>
         </section>}
         {!!currentMonthDays.length && <div className="rg-calendar-grid" aria-label="Verified campaign day schedule">
-          {currentMonthDays.map(day=><Card className="rg-calendar-day" key={day.id}>
+          {currentMonthDays.map(day=><Card className="rg-verified-calendar-day" key={day.id}>
             <div className="rg-calendar-date"><strong>{day.scheduled_date}</strong>
               <Badge>{day.review_status}</Badge></div>
             <h2>{day.topic}</h2><span>Day {day.day_index} · Not published</span>
