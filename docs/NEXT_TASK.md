@@ -848,3 +848,7 @@ NaN
 ## 2026-10-27 — Feature #1 scoped month-loading regression
 - Review source-only Feature #1 month request guard and Playwright overlapping-month regression. Merge only after exact-head four-job CI, then independently check post-merge main CI. No DEV deployment or hosted E2E as requested.
 - Remaining integration gates: Part 2 tenant-authorized OAuth/publishing receipts and retailer read/unread API; full media-history server pagination. Do not fabricate social delivery or bypass existing RLS. Existing Free SWA live Calendar layout release #40501178661 already succeeded; do not deploy it again.
+
+## 2026-10-27 — Feature #1 scoped month fix complete
+- **DONE:** PR #448 merged `b9ccc0bf`; final PR CI #40510858113 4/4 and independent main CI #40511424526 4/4. No further source action for this race. Existing Free SWA DEV release #40501178661 predates this source-only fix; do not claim this newest change is deployed.
+- **REMAINING:** tenant-safe Part 2 social account/publishing receipts and retailer read/unread contracts; full private media-history server paging; owner-excluded authenticated hosted visual QA. Do not activate OAuth, public Storage links or cloud deployments without their release gates. Keep costs near zero.
