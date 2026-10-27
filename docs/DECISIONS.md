@@ -586,3 +586,8 @@
 ## Feature2 2026-10-26 — Published Azure GPT4 pricing unit conversion
 - Verified through protected public Microsoft Azure Retail Prices run #40401262949, with exact existing South India GPT-4.1-mini Standard: `gpt 4.1 mini Inp regnl` USD0.00044 per **1K** tokens = USD0.44 per **1M**, `gpt 4.1 mini Outp regnl` USD0.00176 per **1K** = USD1.76 per **1M**. Public retail list price only, not account contract. Parser in merged #437 accepts 1K and 1M and rejects unknown units.
 - User authorized USD0.20 total isolated DEV test, NOT hosted SQL, identities, Azure secret release or PROD. Atomic, disabled-by-default hosted spending gate remains prerequisite; no actual model calls yet.
+
+
+## 2026-10-27 — Feature2 hosted DEV migration exact version vs MCP tool drift
+- Retain repository's original 14-digit version `20261026194000`. The connected Supabase `apply_migration` action chooses a new server timestamp and cannot retain that version; invoking it risks future migration drift. Unfiltered `db push` applies unrelated earlier Feature3 schema. A guarded exact version preserving release is mandatory, after independent recovery proof; do not use `migration repair` to pretend a migration ran.
+- Fresh real project Free-plan and live 21-version/1-shop snapshot: no guaranteed managed backup; do not treat local reversible DDL test as complete logical schema/data/Auth/Storage recovery. Test with disposable PostgreSQL in a transaction and `ROLLBACK` only. Existing actual trial/user must not receive automatic paid shop approval. No hosted writes under source-only PR #439.
