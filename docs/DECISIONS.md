@@ -606,3 +606,7 @@
 ## 2026-10-27 — Calendar route CSS namespace must not overlap Studio day-picker
 - The Studio retains `.rg-calendar` (seven-column grid) and `.rg-calendar-day` button styles. The separate Feature #1 page uses `.rg-campaign-calendar-page` for its block layout and `.rg-verified-calendar-day` for read-only draft cards; route-local selectors replace `.rg-calendar .` selectors in dashboard CSS. Prevent CSS bleed after React.lazy module styles persist across SPA navigation without modifying Studio functionality or campaign/tenant data.
 - Guard via Playwright SPA transition in both desktop and mobile viewports. No new libraries, cloud resources or data permissions required.
+
+
+## 2026-10-27 — Approved deployment implementation for Feature #1 calendar-only fix
+- Preserve existing tagged Azure DEV Central India **Free** Static Web App; do not provision additional resources or touch queues, Functions, Postgres/RLS, AI or social publisher. One-shot main-only release workflow merged under #446, OIDC checked actual existing RG+Free SKU, masked transient SWA upload token, built tested public frontend and verified **served** new Calendar page CSS and four SPA routes in successful run #40501178661. This is public asset evidence; a signed-in hosted visual check remains separate. Disallow reuse of Studio `.rg-calendar`/`.rg-calendar-day` selectors for unrelated page roots.
