@@ -15,6 +15,8 @@ def test_feature2_paid_one_shot_has_scoped_approval_and_actual_auditable_limits(
     assert 'FEATURE2_REAL_AZURE_7DAY_DRAFT=PASS' in s
     assert 'AzureFoundryProvider._post_json' in s
     assert 'Feature2BudgetStore' in s and 'ledger.settle' in s
+    assert 'prefer_representation=False' in s
+    assert 'return=minimal' in s
     assert 'retail_onboarding_status' in s
     assert 'SYNTHETIC_DEV_USER_REQUIRES_GENUINE_PLATFORM_ADMIN_APPROVAL' in s
     assert 'admin_users["users"]' in s
