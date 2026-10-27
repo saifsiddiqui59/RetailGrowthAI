@@ -66,10 +66,10 @@ test('calendar panels stay full width after Campaign Studio CSS loads, on deskto
   // React.lazy CSS remains loaded when the user navigates from Campaign Studio.
   // Its .rg-calendar seven-column picker must NOT style this page container.
   await page.goto('/campaigns')
-  await expect(page.getByLabel('Choose a campaign day')).toBeVisible()
+  await expect(page.locator('.rg-calendar[aria-label="Choose a campaign day"]')).toBeVisible()
   await page.getByRole('navigation', { name: 'Main navigation' })
     .getByRole('link', { name: 'Campaign calendar' }).click()
-  await expect(page).toHaveURL(/\\/calendar$/)
+  await expect(page).toHaveURL(/calendar$/)
   const root = page.locator('.rg-campaign-calendar-page')
   await expect(root.getByRole('heading', { name: 'Campaign calendar' })).toBeVisible()
   await expect(root.getByRole('region', { name: 'All campaigns planning calendar' })).toBeVisible()
