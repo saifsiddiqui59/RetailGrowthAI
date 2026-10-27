@@ -324,7 +324,7 @@ jobs:
           python3 tests/security/feature2_ai_budget_concurrency.py
           # Disposable-only: exercise exactly Feature2's reversible DDL and ROLLBACK.
           # Never expose this operation to hosted DEV or modify the migration ledger.
-          psql -X -v ON_ERROR_STOP=1 -f tests/security/feature2_ai_budget_rollback_rehearsal.sql
+          PGAPPNAME=rgai_feature2_disposable_rollback_ci psql -X -v ON_ERROR_STOP=1 -f tests/security/feature2_ai_budget_rollback_rehearsal.sql
 
       - name: Stop isolated Supabase database
         if: always()
