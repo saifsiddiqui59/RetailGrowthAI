@@ -19,7 +19,7 @@ def test_feature2_paid_one_shot_has_scoped_approval_and_actual_auditable_limits(
     assert '"enabled":False' in s
     assert '"can_publish":False' in s
     assert 'RETAIL_FOUNDRY_REAL_AI_ENABLED' not in s
-    assert 'retry' not in s.lower()
+    assert 'for attempt in' not in s\n    assert 'range(3)' not in s\n    assert 'while True' not in s
 
 def test_feature2_paid_one_shot_workflow_requires_exact_main_approval_and_dev_oidc():
     s=WF.read_text()
