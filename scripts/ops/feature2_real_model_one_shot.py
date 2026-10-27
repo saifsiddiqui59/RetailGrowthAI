@@ -41,7 +41,7 @@ def az(*args):
     except ValueError as exc:
         raise RuntimeError("Unexpected protected Azure resource response") from exc
 
-def http(path, *, method="GET", obj=None, apikey=None, bearer=None, expected=(200,201)):
+def http(path, *, method="GET", obj=None, apikey=None, bearer=None, expected=(200,201), prefer_representation=True):
     check(path.startswith(("/rest/v1/", "/auth/v1/")), "Unexpected Supabase path")
     check(apikey and len(apikey)>16, "Protected Supabase credential missing")
     headers = {"apikey":apikey, "Accept":"application/json"}
@@ -51,7 +51,7 @@ def http(path, *, method="GET", obj=None, apikey=None, bearer=None, expected=(20
         headers["Authorization"] = "Bearer " + bearer
     if obj is not None:
         headers["Content-Type"]="application/json"
-        headers["Prefer"]="return=representation"
+        headers["Prefer"]="return=representation" if prefer_representation else "return=minimal"
     body=json.dumps(obj,ensure_ascii=False).encode() if obj is not None else None
     req=urllib.request.Request(ORIGIN+path,data=body,headers=headers,method=method)
     try:
@@ -143,8 +143,12 @@ def main():
                    apikey=public_key(),bearer=token["access_token"],obj={})
         check(state.get("status")=="APPROVED" and state.get("approval_required") is True,
               "SYNTHETIC_DEV_USER_REQUIRES_GENUINE_PLATFORM_ADMIN_APPROVAL")
+        # The AFTER INSERT bootstrap creates the OWNER membership. An INSERT
+        # ... RETURNING * attempts a SELECT before that membership exists,
+        # so RLS can reject a valid approved owner's creation with 403.
+        # Return minimal, then read back the bootstrap state using service role.
         http("/rest/v1/shops",method="POST",apikey=public_key(),
-             bearer=token["access_token"],obj={
+             bearer=token["access_token"],prefer_representation=False,obj={
              "id":SHOP,"owner_user_id":uid,"name":"Thread & Loom Studio (DEV TEST)",
              "slug":"thread-loom-feature2-dev403","timezone":"Asia/Kolkata"})
         # Existing audited bootstrap triggers set OWNER membership, profile,
