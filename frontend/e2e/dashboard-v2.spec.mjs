@@ -198,6 +198,54 @@ test('shop-wide month reads two campaigns only after click with user JWT and one
   expect(calls.some(url=>url.includes('retail_platform_notifications'))).toBe(false)
 })
 
+test('new month loads while previous JWT read is pending and stale response cannot overwrite', async ({page}) => {
+  await signedIn(page)
+  let releaseOld
+  let oldStarted
+  const oldGate = new Promise(resolve => { releaseOld = resolve })
+  const oldSeen = new Promise(resolve => { oldStarted = resolve })
+  const requested = []
+  await page.route(HOST + '/rest/v1/campaign_days**', async route => {
+    const request = route.request()
+    const url = new URL(request.url())
+    expect(url.searchParams.get('shop_id')).toBe('eq.' + SHOP)
+    expect(request.headers().authorization).toBe('Bearer offline-test-JWT')
+    const month = url.searchParams.get('and')
+    requested.push(month)
+    const october = month?.includes('2026-10-01')
+    if (october) {
+      oldStarted()
+      await oldGate
+    }
+    const row = {
+      id: october ? 'd1000000-0000-4000-8000-000000000001' : 'd1000000-0000-4000-8000-000000000002',
+      campaign_id: 'c1000000-0000-4000-8000-000000000001',
+      shop_id: SHOP,
+      scheduled_date: october ? '2026-10-15' : '2026-11-15',
+      topic: october ? 'Old October draft' : 'Fresh November draft',
+      review_status: 'DRAFT',
+    }
+    await route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*'},body:JSON.stringify([row])})
+  })
+  try {
+    await page.goto('/calendar')
+    await page.getByLabel('Business calendar month').fill('2026-10')
+    await page.getByRole('button',{name:'Load business month'}).click()
+    await oldSeen
+    await page.getByLabel('Business calendar month').fill('2026-11')
+    await page.getByRole('button',{name:'Load business month'}).click()
+    await expect(page.getByText('Fresh November draft')).toBeVisible()
+    await expect(page.getByText('1 verified planned day in 2026-11. No delivery confirmation.')).toBeVisible()
+    releaseOld()
+    await expect(page.getByText('Old October draft')).toHaveCount(0)
+    expect(requested.filter(m => m?.includes('2026-10-01'))).toHaveLength(1)
+    expect(requested.filter(m => m?.includes('2026-11-01'))).toHaveLength(1)
+  } finally {
+    releaseOld()
+  }
+})
+
 test('private registered media is read only on preview through user JWT, never public Storage links',async({page})=>{
   await signedIn(page)
   const image='a1000000-0000-4000-8000-000000000010'

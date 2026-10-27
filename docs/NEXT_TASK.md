@@ -844,3 +844,7 @@ NaN
 - **DONE:** #445 source layout collision fix, Playwright SPA regression and independent post-merge main CI #40500695395 4/4. **DONE:** #446 protected existing Free SWA frontend-only release, verified new live CSS and public `/calendar` in successful Actions #40501178661.
 - **FOLLOW UP:** Verify signed-in browser after hard refresh at `https://purple-dune-06b5da200.2.azurestaticapps.net/calendar` with actual account and 1440px/mobile widths; public smoke cannot prove user-specific rendering. Retain on-demand, RLS-verified month reads and no published-status assumptions. Check separate post-release CI #40501178669 before claiming it green.
 - No schema, backend, model, publishing, PROD or WineShopPOS changes. No further rollout for the same source fix needed.
+
+## 2026-10-27 — Feature #1 scoped month-loading regression
+- Review source-only Feature #1 month request guard and Playwright overlapping-month regression. Merge only after exact-head four-job CI, then independently check post-merge main CI. No DEV deployment or hosted E2E as requested.
+- Remaining integration gates: Part 2 tenant-authorized OAuth/publishing receipts and retailer read/unread API; full media-history server pagination. Do not fabricate social delivery or bypass existing RLS. Existing Free SWA live Calendar layout release #40501178661 already succeeded; do not deploy it again.

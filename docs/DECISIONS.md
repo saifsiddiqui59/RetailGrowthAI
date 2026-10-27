@@ -610,3 +610,7 @@
 
 ## 2026-10-27 — Approved deployment implementation for Feature #1 calendar-only fix
 - Preserve existing tagged Azure DEV Central India **Free** Static Web App; do not provision additional resources or touch queues, Functions, Postgres/RLS, AI or social publisher. One-shot main-only release workflow merged under #446, OIDC checked actual existing RG+Free SKU, masked transient SWA upload token, built tested public frontend and verified **served** new Calendar page CSS and four SPA routes in successful run #40501178661. This is public asset evidence; a signed-in hosted visual check remains separate. Disallow reuse of Studio `.rg-calendar`/`.rg-calendar-day` selectors for unrelated page roots.
+
+## 2026-10-27 — Feature #1 read-only calendar request concurrency
+- UI may load a new authorized user/shop/month while a previous scope's GET remains pending. Guard only against a second request for the **same visible scope**, and reject stale responses using request epoch plus current principal/shop/month. No automatic retries, cross-tenant cached rendering or extra background polling.
+- Reject malformed or impossible calendar day strings before rendering even though the Postgres date column normally prevents them. Keep review statuses distinct from social publishing receipts.

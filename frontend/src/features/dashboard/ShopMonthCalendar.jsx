@@ -21,7 +21,8 @@ export default function ShopMonthCalendar({client,user,configured,shopId}) {
   const grid=draftMonthCells(rows,month)
 
   async function loadMonth() {
-    if (!configured || !user?.id || !shopId || status.loading) return
+    // An older shop/month request must not block a new authorized scope.
+    if (!configured || !user?.id || !shopId || visible?.loading) return
     const request=++requestRef.current
     const requestedScope=scope
     const requestedMonth=month

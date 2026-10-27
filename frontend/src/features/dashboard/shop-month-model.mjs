@@ -11,6 +11,12 @@ export function checkedMonth(month) {
   return { start: month + '-01', end: next }
 }
 
+function realISODate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const parsed = new Date(value + 'T12:00:00Z')
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0,10) === value
+}
+
 export function verifiedShopMonthRows(rows, shopId, month) {
   const {start,end} = checkedMonth(month)
   if (!UUID.test(shopId || '') || !Array.isArray(rows) || rows.length > MAX_MONTH_DAYS) {
@@ -19,7 +25,7 @@ export function verifiedShopMonthRows(rows, shopId, month) {
   const normalized = []
   for (const row of rows) {
     if (!row || row.shop_id !== shopId || !UUID.test(row.id || '') ||
-      !UUID.test(row.campaign_id || '') || typeof row.scheduled_date !== 'string' ||
+      !UUID.test(row.campaign_id || '') || !realISODate(row.scheduled_date) ||
       row.scheduled_date < start || row.scheduled_date >= end ||
       typeof row.topic !== 'string' || !row.topic.trim() || row.topic.length > 300 ||
       !['DRAFT','APPROVED','REJECTED'].includes(row.review_status)) {
