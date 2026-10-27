@@ -25,6 +25,8 @@ test('two same-tenant campaigns sort and preserve distinct reviewed-but-unpublis
 test('fail closed on cross-business, missing scope, invalid dates, invalid statuses and overflow',()=>{
   const bad=[
     {...first,shop_id:OTHER},{...first,scheduled_date:'2026-11-01'},
+    {...first,scheduled_date:'2026-10-99'},{...first,scheduled_date:'2026-10-00'},
+    {...first,scheduled_date:'2026-10-32'},
     {...first,topic:''},{...first,review_status:'PUBLISHED'},
     {...first,id:'unsafe'}
   ]
