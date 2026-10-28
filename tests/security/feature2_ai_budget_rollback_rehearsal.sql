@@ -14,6 +14,16 @@ BEGIN
     OR to_regprocedure('public.feature2_settle_ai_budget(uuid,numeric)') is null
     THEN RAISE EXCEPTION 'Feature2 objects missing before rollback rehearsal'; END IF;
 END $$;
+-- Feature3 extends the *same* AI budget ledger. In this protected
+-- disposable transaction only, explicitly remove its dependents before
+-- rehearsing an isolated Feature2 rollback; no CASCADE, never hosted.
+DO $
+BEGIN
+ IF to_regclass('public.feature3_gpu_jobs') is not null THEN
+   DROP TABLE retail_private.feature3_gpu_outbox;
+   DROP TABLE public.feature3_gpu_jobs;
+ END IF;
+END $;
 DROP FUNCTION public.feature2_reserve_ai_budget(uuid,uuid,text,numeric,uuid);
 DROP FUNCTION public.feature2_settle_ai_budget(uuid,numeric);
 DROP TABLE public.shop_ai_spend_reservations;
@@ -36,5 +46,8 @@ BEGIN
     OR to_regprocedure('public.feature2_reserve_ai_budget(uuid,uuid,text,numeric,uuid)') is null
     OR to_regprocedure('public.feature2_settle_ai_budget(uuid,numeric)') is null
  THEN RAISE EXCEPTION 'Transaction rollback did not restore Feature2 schema'; END IF;
+ IF to_regclass('public.feature3_gpu_jobs') is null
+    OR to_regclass('retail_private.feature3_gpu_outbox') is null
+ THEN RAISE EXCEPTION 'Rollback did not restore Feature3 GPU dependent tables'; END IF;
  RAISE NOTICE 'FEATURE2_DISPOSABLE_REVERSIBLE_DDL_REHEARSAL=PASS';
 END $$;
