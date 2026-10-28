@@ -207,3 +207,8 @@ Wan2.2 official published model/license and ComfyUI 5B required trio were indepe
 ## 2026-10-28 — Current Feature3 / Feature4 / Part3 real source contract audit
 
 2026-10-28 source cross-feature code audit: inspected actual Feature3 #561 consumer packet module and main F3 fashion resolver; inspected Feature4 #322 motion handoff (Hunyuan-1.5 profile) and Part3 #125 (Wan2.7 profile + proposed schema). Added `cross_feature_packet_gate.py` validating current F3 packet re-read, exact cross-feature shot/timeline alignment and immutability, with default provider-off, and rejecting Hunyuan/Wan2.7 as non-Wan2.2 profiles. Test fixture uses true consumer shape, synthetic only. See `docs/feature5/CROSS_FEATURE_SOURCE_CONTRACT_AUDIT_20261028.md`.
+
+
+## 2026-10-28 — F3 verified consumer-to-private first-frame staging + hosted catalog reality
+
+Latest F5 source P0 resolved: verified F3 #561 consumer metadata + F4 timeline and cross-checked exact original first-frame SHA against actual F3 staging call with second revocation re-read. Test-only fixtures pass when CI completes. Remaining source to coordinator: versioned F4/Part3 profile reconciliation; hosted Part3 premiums table absent in live DEV; actual tenant-approved private media, workers, signed JWT and ACL/RLS, real video quality not tested. No paid A100.

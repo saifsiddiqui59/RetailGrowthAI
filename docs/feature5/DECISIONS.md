@@ -186,3 +186,8 @@ Official Wan2.2 upstream Apache-2.0 and ComfyUI 5B file-name/license inventory d
 ## 2026-10-28 — Current Feature3 / Feature4 / Part3 real source contract audit
 
 Cross-feature Feature3 consumer packet is metadata-only and `provider_call_permitted=false`. At the F5 boundary the current server-side packet must be re-fetched and matched, source ID/revisions/fingerprints and F2/F4 timeline checked. This qualification does not itself approve any GPU call or commercial media. Feature4 Hunyuan 1.5 480p and Part3 Wan2.7 720P/1080P cannot be silently changed to F5 Wan2.2 704×1280/121frame 24fps; reject wrong model and seek versioned coordinator schema reconciliation.
+
+
+## 2026-10-28 — F3 verified consumer-to-private first-frame staging + hosted catalog reality
+
+- 2026-10-28: Added real F3 consumer packet + private first-frame CPU staging connector and revocation-safe follow-up read. This uses F3's genuine contract shape, while tests use synthetic F3 current readers on old F5 branch. Connected Supabase read-only inventory: F3 model tables deployed with 0 records, Part3 premium jobs table not deployed. No writes, no hosted JWT, no GPU or paid provider.

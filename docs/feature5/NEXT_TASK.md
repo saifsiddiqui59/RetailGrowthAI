@@ -231,3 +231,8 @@ GPU-OFF source/Pexels test suite must finish exact-head four CI jobs. Runtime we
 ## 2026-10-28 — Current Feature3 / Feature4 / Part3 real source contract audit
 
 Next after exact-head CI: coordinator must reconcile incompatible F4 Hunyuan/Part3 Wan2.7 with F5 Wan2.2 native 704x1280 121-frame profile and deployment/credit schema, merge actual F3 server-side current reference resolver, and integrate F5 fenced claim/outbox/private import. Test-only F3 packets do not grant real rights. Separate real source byte/consent, hosted signed tenancy and paid inference remain external gates; do not mark production complete.
+
+
+## 2026-10-28 — F3 verified consumer-to-private first-frame staging + hosted catalog reality
+
+Feature5 never treats feature3 packet freshness as a provider permission. `stage_fresh_feature3_consumer_input` calls both current F3 packet reader and the independently server-authorized raw first-frame resolver, and does a *second* packet refresh after the private PNG staging; output is deleted upon denied/revoked second refresh. The 0-row hosted Feature3 catalog and absent Part3 premium jobs table cannot be replaced by test logins or app mock receipts; record success only for CPU synthetic tests.

@@ -26,3 +26,8 @@
 5. License/hardware/weight SHA OCI immutable CUDA runtime and explicitly capped real GPU/API Wan inference. A100 OFF until explicit paid decision.
 
 **Only Feature5-owned source contracts, tests and docs may be changed in this branch. No shared migration, GPU, DEV/PROD/WineShopPOS edits.**
+
+
+## 2026-10-28 — F3 verified consumer-to-private first-frame staging + hosted catalog reality
+
+\n## Verified DEV Supabase catalog (read only, no writes)\n\nConnected DEV project `jeearzffnjbvghwjjjrf` public catalog returned RLS-enabled `feature3_models` (0 rows), `feature3_gpu_jobs` (0 rows), `media_assets` (1 row), `shops` (2 rows), and **no deployed `premium_video_jobs` table**. Installed migrations end at Feature3 GPU budget jobs `20261028101328`. This proves shared Part3 premium jobs/credits/import CAS NOT deployed; no hosted job can be labeled successful. Test-only local HMAC sessions and portable FFmpeg imports are not hosted auth. No customer rows or secrets were queried.\n\n## New Feature3 consumer-to-private bytes connector\n\n`stage_fresh_feature3_consumer_input` in Feature5 uses exact feature3 consumer packet (`#561`), original garment/model/try-on IDs and first-frame SHA, independent current private Feature3 manifest and `resolve_first_frame` staging; independently re-fetches current consumer packet after staging and cleans the ephemeral PNG on revocation. Real synthetic CPU test confirms byte hash and no GPU entitlement; revoked second read leaves no file. Actual F3 pending branch is not merged into this stacked F5 branch and all native callbacks must be connected by coordinator.\n
