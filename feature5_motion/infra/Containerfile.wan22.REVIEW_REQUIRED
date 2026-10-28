@@ -1,0 +1,40 @@
+# RetailGrowthAI Feature5 source-only Containerfile scaffold (GPU OFF).
+#
+# DO NOT BUILD/DEPLOY WITHOUT SEPARATE COST + LICENSE APPROVAL.
+# No CUDA base, wheelhouse, reviewed vendor checkout or transitive lock
+# are currently bundled. Missing inputs intentionally make this unbuildable.
+# Operator must provide exact OCI @sha256 CUDA/Python base, all-wheel hashes,
+# GPL-reviewed complete source, reviewed native /object_info and GPU budget.
+#
+# No pip index, git clone, curl/wget or custom nodes at build time.
+ARG REVIEWED_CUDA_PYTHON_BASE
+FROM $REVIEWED_CUDA_PYTHON_BASE
+ARG COMFYUI_SOURCE_COMMIT
+ARG EXPECTED_COMFYUI_COMMIT=79cf64c21a1dba50749945ba9fe2e3a692f45438
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_INDEX=1 \
+    PIP_REQUIRE_HASHES=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1
+
+# These are reviewed build-context artifacts, never fetched by this file.
+COPY vendor/ComfyUI/ /opt/retailgrowth/comfyui/
+COPY vendor/reviewed-wheelhouse/ /opt/retailgrowth/wheelhouse/
+COPY vendor/reviewed-wheels.require-hashes.txt /opt/retailgrowth/requirements.lock
+COPY feature5_motion/infra/extra_model_paths.feature35.yaml /opt/retailgrowth/extra_model_paths.yaml
+
+RUN test "$COMFYUI_SOURCE_COMMIT" = "$EXPECTED_COMFYUI_COMMIT" && \
+    test "$(cat /opt/retailgrowth/comfyui/REVIEWED_SOURCE_COMMIT)" = "$EXPECTED_COMFYUI_COMMIT" && \
+    test -f /opt/retailgrowth/comfyui/LICENSE && \
+    python -m pip install --no-index --require-hashes \
+      --find-links=/opt/retailgrowth/wheelhouse \
+      -r /opt/retailgrowth/requirements.lock && \
+    python -m pip check
+
+# No public HTTP ingress, model downloads, job start or embedded secrets.
+WORKDIR /opt/retailgrowth/comfyui
+USER 10001:10001
+CMD ["python","main.py","--listen","127.0.0.1","--port","8188","--extra-model-paths-config","/opt/retailgrowth/extra_model_paths.yaml"]
