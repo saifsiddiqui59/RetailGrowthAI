@@ -60,3 +60,34 @@ test('published receipts, timezone, states, status counts and bounded pages are 
  assert.throws(()=>normalizePublishingHistory(shop,Array(101).fill(history[0])),/could not be verified/)
  assert.throws(()=>formatSchedule('wrong','Asia/Kolkata'),/could not be verified/)
 })
+
+
+test('invalid normalized UTC calendar dates, leap days and 24:00 are rejected for identities and receipts',()=>{
+ const {accounts,history}=source()
+ const malformed=[
+  '2026-02-29T10:30:00Z','2026-02-31T10:30:00Z',
+  '2026-04-31T10:30:00Z','2026-10-28T24:00:00Z',
+  '2026-10-28T12:60:00Z','2026-10-28T12:30:60Z',
+ ]
+ for(const timestamp of malformed){
+  assert.throws(()=>normalizeSocialAccounts(shop,[{...accounts[0],verified_at:timestamp}]),/could not be verified/)
+  assert.throws(()=>normalizePublishingHistory(shop,[{...history[0],scheduled_at:timestamp}]),/could not be verified/)
+  assert.throws(()=>formatSchedule(timestamp,'UTC'),/could not be verified/)
+ }
+ assert.equal(normalizeSocialAccounts(shop,[{...accounts[0],verified_at:'2028-02-29T10:30:00Z'}]).length,1)
+ assert.equal(normalizePublishingHistory(shop,[{...history[0],scheduled_at:'2028-02-29T10:30:00.123Z'}]).length,1)
+})
+
+test('IANA DST overlap labels include actual UTC offset so two 01:30 events remain distinguishable',()=>{
+ const first=formatSchedule('2026-11-01T05:30:00Z','America/New_York')
+ const second=formatSchedule('2026-11-01T06:30:00Z','America/New_York')
+ assert.match(first,/GMT-4/)
+ assert.match(second,/GMT-5/)
+ assert.ok(first.includes('America/New_York'))
+ assert.ok(second.includes('America/New_York'))
+ assert.notEqual(first,second)
+ const springBefore=formatSchedule('2026-03-08T06:30:00Z','America/New_York')
+ const springAfter=formatSchedule('2026-03-08T07:30:00Z','America/New_York')
+ assert.match(springBefore,/GMT-5/)
+ assert.match(springAfter,/GMT-4/)
+})

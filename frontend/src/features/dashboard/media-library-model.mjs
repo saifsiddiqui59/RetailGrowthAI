@@ -1,4 +1,5 @@
 const ALLOWED_TYPES = new Set(['all', 'image/png', 'image/jpeg', 'image/webp'])
+const ALLOWED_SOURCES = new Set(['UPLOAD','STOCK','GENERATED'])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 export function mediaLabel(id) {
@@ -14,9 +15,25 @@ export function filterAssets(rows, shopId, search = '', type = 'all') {
   return rows.filter(row =>
     row && row.shop_id === shopId && UUID.test(row.id || '') &&
     typeof row.license_name === 'string' && row.license_name.trim() &&
-    typeof row.mime_type === 'string' &&
+    ALLOWED_SOURCES.has(row.source) &&
+    ALLOWED_TYPES.has(row.mime_type) && row.mime_type !== 'all' &&
     (requestedType === 'all' || row.mime_type === requestedType) &&
     (!term || (row.id + ' ' + row.license_name + ' ' + row.mime_type).toLowerCase().includes(term)))
+}
+
+/**
+ * Safe reference adapter for planned STOCK/GENERATED integration.
+ * A registered row is NOT proof of third-party licensing or private-byte access.
+ * Only the existing self-owned UPLOAD flow may enable on-demand preview.
+ */
+export function mediaPreviewAccess(asset, shopId) {
+  const valid=Boolean(asset && UUID.test(shopId||'') && asset.shop_id===shopId &&
+    UUID.test(asset.id||'') && ALLOWED_SOURCES.has(asset.source) &&
+    ALLOWED_TYPES.has(asset.mime_type) && asset.mime_type!=='all' &&
+    typeof asset.license_name==='string' && Boolean(asset.license_name.trim()))
+  if(!valid)return {allowed:false,reason:'unverified'}
+  if(asset.source!=='UPLOAD')return {allowed:false,reason:'rights-and-private-access-required'}
+  return {allowed:true,reason:'private-upload-only'}
 }
 
 /**

@@ -611,9 +611,24 @@ export function createRetailClient({
   // The DB's (created_at DESC,id DESC) is authoritative; no migration needed.
   async function listMediaAssetsKeysetPage(shopId, cursor = null) {
     if (!UUID_V4.test(shopId || '')) throw new Error('Invalid media page scope')
-    const timestamp = value => typeof value === 'string' &&
-      /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?(?:Z|[+]00:00)$/.test(value) &&
-      Number.isFinite(Date.parse(value))
+    // PostgreSQL stores microsecond timestamps. Date.parse loses the final
+    // three fractional digits, which can reject valid same-ms keyset pages.
+    // Compare normalized UTC digits without floating-point or timezone rounding.
+    const timestampKey = value => {
+      if (typeof value !== 'string') return null
+      const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(?:Z|[+]00:00)$/.exec(value)
+      if (!m) return null
+      const date = new Date(m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':'+m[6]+'Z')
+      if (!Number.isFinite(date.getTime()) ||
+          date.getUTCFullYear() !== Number(m[1]) ||
+          date.getUTCMonth()+1 !== Number(m[2]) ||
+          date.getUTCDate() !== Number(m[3]) ||
+          date.getUTCHours() !== Number(m[4]) ||
+          date.getUTCMinutes() !== Number(m[5]) ||
+          date.getUTCSeconds() !== Number(m[6])) return null
+      return m.slice(1,7).join('')+(m[7]||'').padEnd(6,'0')
+    }
+    const timestamp = value => timestampKey(value) !== null
     if (cursor !== null && (!cursor || !UUID_V4.test(cursor.id || '') ||
         !timestamp(cursor.created_at))) throw new Error('Invalid media page cursor')
     const query = {
@@ -638,14 +653,14 @@ export function createRetailClient({
     // Fail closed if the database unexpectedly returned out-of-order rows.
     for (let i=1;i<rows.length;i++) {
       const first=rows[i-1],next=rows[i]
-      const before=Date.parse(first.created_at), after=Date.parse(next.created_at)
+      const before=timestampKey(first.created_at), after=timestampKey(next.created_at)
       if (before < after || (before===after &&
           first.id.toLowerCase() <= next.id.toLowerCase())) {
         throw new Error('Media history ordering could not be verified')
       }
     }
-    if (cursor && rows.length && (Date.parse(rows[0].created_at)>Date.parse(cursor.created_at) ||
-      (Date.parse(rows[0].created_at)===Date.parse(cursor.created_at) &&
+    if (cursor && rows.length && (timestampKey(rows[0].created_at)>timestampKey(cursor.created_at) ||
+      (timestampKey(rows[0].created_at)===timestampKey(cursor.created_at) &&
         rows[0].id.toLowerCase()>=cursor.id.toLowerCase()))) {
       throw new Error('Media history cursor boundary could not be verified')
     }

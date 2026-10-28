@@ -8,7 +8,7 @@ import { Card } from '../../components/ui/card.jsx'
 import { Button } from '../../components/ui/button.jsx'
 import { Badge } from '../../components/ui/badge.jsx'
 import { Skeleton } from '../../components/ui/skeleton.jsx'
-import { filterAssets, mediaLabel, paginateVerifiedAssets } from './media-library-model.mjs'
+import { filterAssets, mediaLabel, mediaPreviewAccess, paginateVerifiedAssets } from './media-library-model.mjs'
 
 export default function MediaLibrary() {
   const { client, configured, user } = useRetailAuth()
@@ -35,7 +35,7 @@ export default function MediaLibrary() {
     if (previewUrl.current) URL.revokeObjectURL(previewUrl.current)
   }, [])
   async function showPrivateImage(asset) {
-    if (!shopId || !user || asset.source !== 'UPLOAD') return
+    if (!user || !mediaPreviewAccess(asset, shopId).allowed) return
     const epoch = ++requestEpoch.current
     const scope = activeScope
     setPreview({scope,id:asset.id,loading:true})
@@ -120,10 +120,10 @@ export default function MediaLibrary() {
                 <div><strong>{mediaLabel(asset.id)}</strong>
                   <p>{asset.mime_type || 'Image type unavailable'}</p>
                   <span>Licence: {asset.license_name}</span>
-                  {asset.source === 'UPLOAD'
+                  {mediaPreviewAccess(asset, shopId).allowed
                     ? <Button variant="outline" size="sm" disabled={preview?.loading}
                         onClick={()=>showPrivateImage(asset)}>Preview {mediaLabel(asset.id)}</Button>
-                    : <span>Preview requires a verified private upload</span>}
+                    : <span>Private preview unavailable until ownership, rights and private access are verified</span>}
                 </div>
               </Card>)}
             </div>}
