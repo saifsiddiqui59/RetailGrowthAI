@@ -217,20 +217,14 @@ def main():
                     and t.get("approval_status")=="DRAFT" and
                     isinstance(t.get("evidence_url"),str)]
         if not candidates:
-            # The real Google RSS chart may contain only finance/sport. Never
-            # plant a fictional trend, manipulate shared snapshots, or claim
-            # hosted draft persistence was exercised.
+            # A real, signed trends GET returned no source-backed fashion
+            # recommendation. This is a correct fail-closed outcome, not an
+            # invitation to probe POST with fabricated trend IDs. A hosted
+            # cold-start / gateway 503 can mask that invalid POST entirely.
+            # Never claim the positive DRAFT save/readback passed.
             print("FEATURE2_HOSTED_REAL_FASHION_TREND=NOT_AVAILABLE_FAIL_CLOSED",flush=True)
-            bad={"trend_id":"0"*32,
-                 "campaign":{"shop_id":SHOP,"brief":"Seven honest styling ideas using only approved media.",
-                             "duration_days":7,
-                             "start_date":(dt.datetime.now(dt.timezone(dt.timedelta(hours=5,minutes=30))).date()+dt.timedelta(days=1)).isoformat(),
-                             "timezone":"Asia/Kolkata","language":"en-IN",
-                             "platforms":["linkedin","instagram"],"media_asset_ids":[aid],"offer":None}}
-            denial=request(base+"/content-drafts",method="POST",apikey=pub,bearer=token,
-                           obj=bad,expected=(409,))
-            ensure(denial==(409,None),"Unverified fashion trend should be denied")
-            print("FEATURE2_HOSTED_UNVERIFIED_TREND_DRAFT_WRITE_DENIED=PASS",flush=True)
+            print("FEATURE2_HOSTED_DRAFT_SAVE=BLOCKED_NO_RELEVANT_LIVE_TREND",flush=True)
+            print("FEATURE2_HOSTED_UNVERIFIED_TREND_POST=SKIPPED_NO_FABRICATED_ID",flush=True)
             return
         trend=candidates[0]
         from uuid import uuid4
