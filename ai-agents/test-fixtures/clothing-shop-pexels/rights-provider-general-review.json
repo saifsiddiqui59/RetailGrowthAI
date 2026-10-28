@@ -1,0 +1,76 @@
+{
+  "reviewed_at": "2026-10-28",
+  "provider": "Pexels",
+  "provider_license_url": "https://www.pexels.com/license/",
+  "provider_commercial_ads_general_license_verified": true,
+  "provider_license_permission_scope": "commercial advertisement and social media, modifications permitted, subject to restrictions",
+  "source_pages_verified": [
+    {
+      "candidate_id": "pexels-boutique-rack-4947543",
+      "source_page": "https://www.pexels.com/photo/collection-of-female-clothes-on-rack-in-boutique-4947543/",
+      "creator": "Maria Orlova",
+      "media_type": "IMAGE",
+      "provider_source_page_exists": true,
+      "rights_state": "GENERAL_PEXELS_LICENSE_ONLY",
+      "original_bytes_imported": false,
+      "original_sha256": null,
+      "tenant_storage_receipt": null,
+      "independent_model_release_verified": false,
+      "garment_identity_verified": false,
+      "commercial_individual_rights_verified": false,
+      "can_publish": false
+    },
+    {
+      "candidate_id": "pexels-clothing-shop-36730433",
+      "source_page": "https://www.pexels.com/photo/young-women-shopping-in-clothing-store-36730433/",
+      "creator": "Vitaly Gariev",
+      "media_type": "IMAGE",
+      "provider_source_page_exists": true,
+      "rights_state": "GENERAL_PEXELS_LICENSE_ONLY",
+      "original_bytes_imported": false,
+      "original_sha256": null,
+      "tenant_storage_receipt": null,
+      "independent_model_release_verified": false,
+      "garment_identity_verified": false,
+      "commercial_individual_rights_verified": false,
+      "can_publish": false
+    },
+    {
+      "candidate_id": "pexels-hanging-clothes-8322393",
+      "source_page": "https://www.pexels.com/video/hanging-clothes-8322393/",
+      "creator": "Ron Lach",
+      "media_type": "VIDEO",
+      "provider_source_page_exists": true,
+      "rights_state": "GENERAL_PEXELS_LICENSE_ONLY",
+      "original_bytes_imported": false,
+      "original_sha256": null,
+      "tenant_storage_receipt": null,
+      "independent_model_release_verified": false,
+      "garment_identity_verified": false,
+      "commercial_individual_rights_verified": false,
+      "can_publish": false
+    },
+    {
+      "candidate_id": "pexels-shopping-dresses-8855232",
+      "source_page": "https://www.pexels.com/video/women-looking-at-dresses-at-a-clothing-store-8855232/",
+      "creator": "Lara Jameson",
+      "media_type": "VIDEO",
+      "provider_source_page_exists": true,
+      "rights_state": "GENERAL_PEXELS_LICENSE_ONLY",
+      "original_bytes_imported": false,
+      "original_sha256": null,
+      "tenant_storage_receipt": null,
+      "independent_model_release_verified": false,
+      "garment_identity_verified": false,
+      "commercial_individual_rights_verified": false,
+      "can_publish": false
+    }
+  ],
+  "explicit_exclusions": [
+    "Do not infer a person's consent to endorse a real retailer",
+    "Do not represent stock clothing as a shop-owned actual SKU",
+    "Do not infer AI virtual try-on/model-release grant from general stock license",
+    "No verified original SHA256 or authenticated tenant storage means no media render"
+  ],
+  "overall_status": "PROVIDER_GENERAL_COMMERCIAL_LICENSE_VERIFIED_ORIGINAL_AND_THIRD_PARTY_RIGHTS_PENDING"
+}

@@ -26,3 +26,11 @@ Read-only external request successfully reached **https://purple-dune-06b5da200.
 New negative/positive Python tests exercise live endpoint construction, category filtering, 25-row bounds, immediate disabled/no-key failure without egress, malicious media metadata, authoritative shop access before/after provider fetch, copyright fail closed, provider outage and duplicate/foreign audio IDs. These tests use mock HTTP bytes; passing them is not a live production chart result.
 
 Existing \`/trends\` free **Improve Prompt with AI** checkbox auto-previews enhanced prompts (requires user explicit Apply); real Foundry enhancement requires a separate approved-budget toggle and click. Keep that behavior.
+
+### Hosted schema constraint independently confirmed
+
+`public.register_uploaded_image` in existing `supabase/migrations/20261022173000_p1_private_upload_registration.sql` accepts authenticated OWNER/EDITOR, checks actual Storage object metadata and `uploads/` paths, supports **JPEG/PNG/WebP only** and persists `source='UPLOAD'`. It does **not** accept licensed Pexels video or register `STOCK` as a separate reviewed provenance class. Writing `media_assets` directly through the admin connector to impersonate signed-in asset import would bypass intended checks and would not be compliant. Coordinator must provide an additive signed real stock-media import and video registration contract before live shop attachment. The real DEV browser has no saved Supabase sign-in in this session. No fake account or synthetic review receipt can replace these conditions.
+
+### Anonymous DEV smoke actually executed
+
+Read-only web requests to `/trends`, `/campaigns`, and `/platform-admin` all redirected to the hosted `/account` sign-in. This is a positive observation of anonymous route gating, **not** a verified API JWT/RLS test or hosted Reel success. The prior unmerged Azure #249 Python 503 behavior is separately unresolved.
