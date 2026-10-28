@@ -20,6 +20,7 @@ const rootStyle = { display: 'grid', gap: 16, width: '100%', minWidth: 0 }
 export default function Feature3StudioPanel({
   shopId, campaignId, dayId, brandKit, imageMap = {}, approvedContent = null,
   onSaveDesign = null, approvedModels = [], restoredDesign = null, disabled = false,
+  modelWorkflowApi = null, modelWorkflowEnabled = false,
 }) {
   const [mode, setMode] = useState('text')
   const [prompt, setPrompt] = useState('')
@@ -209,7 +210,8 @@ export default function Feature3StudioPanel({
         onClick={() => setShowModelLibrary(value => !value)}>
         {showModelLibrary ? 'Hide model library review' : 'Explore existing AI fashion models (no GPU)'}
       </button>
-      {showModelLibrary && <Feature3ModelLibraryReview disabled={disabled} />}
+      {showModelLibrary && <Feature3ModelLibraryReview disabled={disabled} shopId={shopId}
+        workflowApi={modelWorkflowApi} workflowEnabled={modelWorkflowEnabled} />}
     </section>
   </section>
 }
