@@ -38,3 +38,22 @@ Test media stays only in a temporary directory and is deleted after checks. The 
 Feature #7 worker may edit only `video-engine/feature7/**` and `tests/media/test_feature7*.py`. F4 editor integration and final production rendering belong to Feature #4; hosted upload/JWT/RLS/private storage/Postgres approval/lease, and shared docs/CI changes belong to the coordinator. Source test images are not automatically customer-license evidence, nor authorization to publish a real model's likeness. Hosted two-tenant DEV E2E and real licensed CPU WhisperX ASR quality are still unverified.
 
 **No modification to WineShopPOS, main, shared schema, CI workflow, Azure services or PROD; no GPU started.**
+
+
+## 2026-10-28 — Verified real 1080x1920 Pexels export (supersedes earlier 360x640-only acceptance)
+
+**New working CPU-only Full HD sample preset:** `pexels_fullhd_export.py` uses the **existing** MIT AutoBroll `buildPexelsOfflineEditFixture()` source-aligned caption planner and the shared FFmpeg H264/AAC codec stack. The script is an offline **stock-demo export preset**, not a separate SaaS editor or alternative to Feature #4's chosen `MartinDelophy/ai-video-editor`. It processes real, previously verified Pexels video #8581174 and original photo #5490963, preserves source SHA, applies video and photo grading, B-roll zoom/pan, text overlays and 0.5s crossfade, and outputs **1080x1920 pixels, 30fps, 10s, H264 High yuv420p CRF20, AAC stereo 48 kHz, faststart**. CPU only; no proprietary model, GPU or paid inference.
+
+**Working real-world acceptance:** `test_feature7_pexels_autobroll.py` adds exact original Pexels Full HD export and corrupt media / duplicate write negative tests. It verifies the actual FFprobe dimensions, frame rate, pixel format, audio codec/sample rate, duration, decoded distinct video/photo frames, source integrity and fail-closed output name. Original source Pexels assets are online-retrieved solely in CI/explicit opt-in, capped and discarded after testing. GitHub media CI [#40760554613](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40760554613) **264 media tests PASS**, real 1080p rendered output; a genuine first attempt at `873c894` failed on a Python stat descriptor method misuse and was corrected, not bypassed.
+
+**Playable output now retained as a short-lived public CI artifact:** The existing `ffmpeg-smoke` GitHub upload-artifact action automatically attaches `ci-artifacts/feature7-pexels-fullhd-1080x1920-demo.mp4` and `feature7-pexels-fullhd-proof.json`; **no GitHub workflow or shared CI change required**. Example verified real artifact [from #40760554613](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40760554613/artifacts/12846938704), retained until approximately 2026-10-31; subsequent exact-head runs have their own artifact IDs. This is a downloadable **genuine Full HD stock sample**, not just render logs.
+
+Run with already legally downloaded public Pexels stock assets (Node+FFmpeg/ffprobe+Python required):
+```bash
+python3 video-engine/feature7/pexels_fullhd_export.py \
+  --video /absolute/path/pexels_8581174.mp4 \
+  --photo /absolute/path/pexels_5490963.jpg \
+  --output /absolute/private/path/fashion_demo_fullhd.mp4
+```
+
+**Production distinction:** The demo emits silent **AAC placeholder audio** rather than falsely claim a music license, spoken presenter, voice transcription or customer approval. It is real Full HD media suitable for reviewing framing/text/transition/encoding, but **NOT** a signed customer-ready production advertisement: active authenticated shop ownership, registered private media, real licensed/approved soundtrack, human editorial approval, F4 renderer integration, 15/30/60s campaign lengths and hosted downloadable tenant output still require their respective API/DB/F4 team owners. Do not claim Pexels stock conveys ownership of an actual retailer's product/garment or person endorsement. GPU remains OFF. No WineShopPOS, cloud or shared contracts changed.
