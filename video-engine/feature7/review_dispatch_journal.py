@@ -167,6 +167,23 @@ class LocalApprovedEditDispatch:
                 row["media_snapshot_sha256"] != ctx.media_snapshot_sha256):
             raise ReviewStateError("Changed, foreign or revoked private media scope")
 
+    def _approval_live(self, row, now):
+        persisted = self.db.execute("""
+          SELECT * FROM feature7_local_reviews WHERE review_id=?
+        """, (row["review_id"],)).fetchone()
+        if (persisted is None or persisted["status"] != "APPROVED" or
+                persisted["approval_id"] != row["approval_id"] or
+                persisted["shop_id"] != row["shop_id"] or
+                persisted["campaign_id"] != row["campaign_id"] or
+                persisted["reviewer_id"] != row["approved_reviewer_id"] or
+                persisted["media_snapshot_sha256"] != row["media_snapshot_sha256"] or
+                persisted["draft_sha256"] != row["draft_sha256"] or
+                persisted["candidate_sha256"] != row["candidate_sha256"] or
+                persisted["expires_ms"] is None or
+                not persisted["created_ms"] <= now <= persisted["expires_ms"]):
+            raise ReviewStateError(
+                "Human approval expired, revoked or changed during dispatch")
+
     def lease_next(self, *, context, now_ms=None, lease_ms=LEASE_MS):
         ctx = self._ctx(context)
         now = _clock(now_ms)
@@ -174,6 +191,30 @@ class LocalApprovedEditDispatch:
             raise ReviewStateError("Invalid bounded dispatch lease")
 
         def claim():
+            # Revoke stale/withdrawn approvals BEFORE choosing a ready lease.
+            # This is the same SQLite transaction as the lease write.
+            self.db.execute("""
+              UPDATE f7_approved_edit_dispatch
+              SET state='REVOKED',fence=NULL,lease_expires_ms=NULL
+              WHERE shop_id=? AND campaign_id=?
+                AND media_snapshot_sha256=?
+                AND state IN ('READY','LEASED')
+                AND NOT EXISTS (
+                  SELECT 1 FROM feature7_local_reviews a
+                  WHERE a.review_id=f7_approved_edit_dispatch.review_id
+                    AND a.status='APPROVED'
+                    AND a.approval_id=f7_approved_edit_dispatch.approval_id
+                    AND a.reviewer_id=f7_approved_edit_dispatch.approved_reviewer_id
+                    AND a.shop_id=f7_approved_edit_dispatch.shop_id
+                    AND a.campaign_id=f7_approved_edit_dispatch.campaign_id
+                    AND a.media_snapshot_sha256=
+                      f7_approved_edit_dispatch.media_snapshot_sha256
+                    AND a.draft_sha256=f7_approved_edit_dispatch.draft_sha256
+                    AND a.candidate_sha256=f7_approved_edit_dispatch.candidate_sha256
+                    AND a.expires_ms>=?
+                )
+            """, (ctx.shop_id,ctx.campaign_id,
+                  ctx.media_snapshot_sha256,now))
             # A worker can crash during its final permitted attempt.
             # Reap that terminal expired lease instead of stranding a job
             # permanently in LEASED without a visible DEAD state.
@@ -219,6 +260,7 @@ class LocalApprovedEditDispatch:
 
     def _leased(self, row, ctx, lease, now):
         self._scope(row, ctx)
+        self._approval_live(row,now)
         if (not isinstance(lease, DispatchLease) or
                 row["dispatch_id"] != lease.dispatch_id or
                 row["idempotency_key"] != lease.idempotency_key or
