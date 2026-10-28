@@ -11,7 +11,8 @@ function id(x) {
   if (typeof x !== 'string' || !UUID.test(x)) throw Error('Canonical resource UUID required')
   return x.toLowerCase()
 }
-export function createFeature3Api({ baseUrl, tokenProvider, fetchImpl = fetch }) {
+export function createFeature3Api({ baseUrl, tokenProvider, fetchImpl = fetch,
+  signedStorageOrigin = null }) {
   const url = new URL(baseUrl)
   if (url.protocol !== 'https:' || url.username || url.password ||
       url.search || url.hash || !['', '/'].includes(url.pathname)) {
@@ -85,6 +86,43 @@ export function createFeature3Api({ baseUrl, tokenProvider, fetchImpl = fetch })
         throw Error('Untrusted poster save acknowledgement')
       }
       return data
+    },
+    listGeneratedJobs: async shopId => {
+      const sid = id(shopId)
+      const data = await request('GET','/shops/'+sid+'/feature3-gpu-jobs')
+      if (data.shop_id!==sid || data.gpu_submission_enabled!==false ||
+          !Array.isArray(data.jobs) || data.jobs.length>20 ||
+          data.jobs.some(job=>job.shop_id!==sid || !UUID.test(job.id) ||
+            !['QUEUED','RUNNING','SUCCEEDED','FAILED'].includes(job.status))) {
+        throw Error('Untrusted private generated image history')
+      }
+      return data.jobs
+    },
+    getGeneratedImageDownload: async (shopId,jobId) => {
+      const sid=id(shopId), jid=id(jobId)
+      if (typeof signedStorageOrigin!=='string') throw Error('Private Storage origin required')
+      const originUrl = new URL(signedStorageOrigin)
+      if (originUrl.protocol!=='https:' || originUrl.username || originUrl.password ||
+          originUrl.search || originUrl.hash || !['','/'].includes(originUrl.pathname)) {
+        throw Error('Invalid private Storage origin')
+      }
+      const data = await request('GET','/shops/'+sid+'/feature3-gpu-jobs/'+jid+'/download')
+      if (data.job_id!==jid || !UUID.test(data.media_asset_id) ||
+          data.expires_in_seconds!==60 || data.approved_model!==false ||
+          typeof data.url!=='string') throw Error('Untrusted private image receipt')
+      const signed=new URL(data.url)
+      const prefix='/storage/v1/object/sign/retailgrowth-media/'+sid+
+        '/feature3/gpu/'+jid+'/'
+      if (signed.origin!==originUrl.origin || !signed.pathname.startsWith(prefix) ||
+          !/^([0-9a-f]{64})\.png$/.test(signed.pathname.slice(prefix.length)) ||
+          signed.username || signed.password || signed.hash ||
+          [...signed.searchParams.keys()].length!==1 ||
+          !signed.searchParams.has('token') ||
+          !signed.searchParams.get('token')) {
+        throw Error('Untrusted private signed storage URL')
+      }
+      return {jobId:jid,mediaAssetId:id(data.media_asset_id),url:signed.href,
+        expiresInSeconds:60,approvedModel:false}
     },
     listModels: async shopId => {
       const sid=id(shopId)

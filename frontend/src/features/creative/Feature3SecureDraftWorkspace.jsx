@@ -14,6 +14,8 @@ export default function Feature3SecureDraftWorkspace({
   const [reopened, setReopened] = useState(null)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [generatedJobs, setGeneratedJobs] = useState([])
+  const [generatedLink, setGeneratedLink] = useState(null)
   const ticket = useRef({designId:null,revision:0})
   const pending = useRef(false)
 
@@ -30,6 +32,32 @@ export default function Feature3SecureDraftWorkspace({
     } finally {
       setBusy(false)
     }
+  }
+
+  const loadGenerated = async () => {
+    if (disabled || busy || pending.current) return
+    setBusy(true); setGeneratedLink(null); setMessage('')
+    try {
+      const jobs = await feature3Api.listGeneratedJobs(shopId)
+      setGeneratedJobs(jobs)
+      setMessage(jobs.length ? 'Private generated image job history loaded.' :
+        'No generated image jobs for this retailer.')
+    } catch {
+      setGeneratedJobs([])
+      setMessage('Generated image history is unavailable or access was revoked.')
+    } finally { setBusy(false) }
+  }
+
+  const openGenerated = async jobId => {
+    if (disabled || busy || pending.current) return
+    setBusy(true); setGeneratedLink(null); setMessage('')
+    try {
+      const receipt = await feature3Api.getGeneratedImageDownload(shopId,jobId)
+      setGeneratedLink(receipt)
+      setMessage('Private link is valid for 60 seconds. Image remains unreviewed.')
+    } catch {
+      setMessage('Private image unavailable, expired or no longer authorized.')
+    } finally { setBusy(false) }
   }
 
   const restore = event => {
@@ -103,6 +131,26 @@ export default function Feature3SecureDraftWorkspace({
           <option key={d.id} value={d.id}>Revision {d.revision} / {d.id.slice(0,8)}</option>)}
       </select>
     </label>}
+    {typeof feature3Api.listGeneratedJobs === 'function' &&
+      typeof feature3Api.getGeneratedImageDownload === 'function' && <>
+      <div style={{display:'grid',gap:8,marginTop:16}}>
+        <button type="button" disabled={disabled || busy} onClick={loadGenerated}>
+          Check my generated private images
+        </button>
+        {generatedJobs.map(job=><div key={job.id}
+          style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+          <span>Image job {job.id.slice(0,8)} — {job.status}</span>
+          {job.status==='SUCCEEDED' && <button type="button"
+            disabled={disabled || busy} onClick={()=>openGenerated(job.id)}>
+            Request 60-second signed download
+          </button>}
+        </div>)}
+        {generatedLink && <a href={generatedLink.url} target="_blank"
+          rel="noopener noreferrer" download>
+          Open private PNG (expires in 60 seconds; not approved for publishing)
+        </a>}
+      </div>
+    </>}
     <Feature3StudioPanel
       key={reopened ? reopened.id+':'+reopened.revision : 'new-'+shopId+dayId}
       shopId={shopId} campaignId={campaignId} dayId={dayId}
