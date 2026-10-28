@@ -159,7 +159,7 @@ grant execute on function public.feature3_commit_gpu_private_output(
 -- generated media row. A success must now match this exact immutable
 -- output-evidence receipt, source claim token and original job identity.
 create function retail_private.feature3_output_settlement_fence()
-returns trigger language plpgsql security definer set search_path='' as $
+returns trigger language plpgsql security definer set search_path='' as $f3_output_guard$
 begin
  if new.status='SUCCEEDED' and (
     old.status <> 'RUNNING' or old.claim_token is null
@@ -175,7 +175,7 @@ begin
       using errcode='42501';
  end if;
  return new;
-end $;
+end $f3_output_guard$;
 create trigger feature3_output_settlement_guard
 before update on public.feature3_gpu_jobs
 for each row execute function retail_private.feature3_output_settlement_fence();
