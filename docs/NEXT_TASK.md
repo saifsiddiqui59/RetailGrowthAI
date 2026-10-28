@@ -889,3 +889,9 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 - **3.4 #470:** do not trigger paid service; reuse same AI spend ledger and subscription locks, default-off GPU controls, atomic job claim/reserve/settle/outbox with no lost-ACK replay. Existing adapter #458 is not a hosted ledger.
 - **3.5 #471:** generated images must enter private media table, be human-reviewed, and be accessible only by signed/current-tenant short-lived downloads. No mock image falsely called FLUX.
 - **3.6 #472:** SQL denial, authenticated DEV tests and full 4/4 exact-head plus independent postmerge main CI; keep earlier hosted browser deferral as a release condition. No GPU/PROD/WineShopPOS.
+
+## Feature2 2026-10-28 — next work after successful protected zero-AI-cost signed hosted test
+1. **DONE**: approved synthetic OWNER real private original PNG GET and media registration; zero-cost signed prompt preview; inactive membership/budget cleanup; protected DEV run #40665965219 SUCCESS, PR #481 branch 4/4 CI. **NOT DONE**: positive saved DRAFT E2E. Live Google RSS has 0 clothing across 3 snapshots, 2 GET retries hit Azure HTTP 503; no fake or invalid POST made.
+2. Obtain independently verifiable real *clothing* trend evidence in the existing bounded trusted source adapter. Only then submit a single genuine signed DRAFT POST with original/rights-cleared shop media and read it back via tenant JWT. If source remains irrelevant, retain BLOCKED status, not fabricated PASS. Assess #249 gateway/Functions cold-start 503 separately.
+3. Review real retailer-photo licensing and editorial approval before any publishing; original Python-generated PNG is only an owned E2E fixture, not clothing photography. Keep GPT paid calls OFF; existing ledger USD $0.005286 settled at public retail rate. Source receipt `docs/feature2/20261028_PROMPT_RECONCILIATION_TRENDS_AND_HOSTED_TEST.md`. No PROD/WineShopPOS.
+
