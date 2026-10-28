@@ -1,5 +1,5 @@
 name: RetailGrowthAI DEV P0249 original Flex read-only ARM detectors
-# Repeat once to GET six discovered exact detector responses; audit-only existing tagged DEV resource; this job NEVER sends customer HTTP,
+# Repeat to decode allowlisted statusId/section row counts for six known detector responses; audit-only existing tagged DEV resource; this job NEVER sends customer HTTP,
 # changes app settings, creates resources, or runs GPU/premium models.
 on:
   push:
