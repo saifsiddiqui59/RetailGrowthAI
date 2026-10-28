@@ -152,3 +152,10 @@
 - The existing media_assets user-JWT/RLS keyset history verifies exact PostgreSQL six-digit microsecond order and page boundaries instead of truncating timestamps to browser milliseconds. Node regressions exercise same-millisecond differently ordered UUIDs, invalid dates, boundary tampering and 201 entries across 100+100+1 pages. No database contract or migration changed.
 - mediaPreviewAccess is a reusable tenant/registered-image reference check. Invalid source/MIME/rights metadata fails closed; only eligible original UPLOAD receives on-demand private preview. STOCK and GENERATED remain metadata-only until separately approved rights and private byte access. No public bucket or fabricated license confirmation.
 - This branch changes Feature #1-owned frontend and tests plus the existing shared Supabase client timestamp check. Four-job exact-head CI and independent post-merge main CI are required evidence before calling it source accepted. No hosted API, OAuth, Azure, model/GPU, DEV SQL, PROD or WineShopPOS change.
+
+
+## 2026-10-28 — Third fictional retailer, disconnected identity and in-progress publishing QA
+- Added Marigold Bistro (fictional restaurant) to explicitly opt-in offline social/publishing preview scenarios alongside Aarohi Fashion and Green Basket Grocery. Restaurant's five disconnected/expired/revoked/pending/connected identity inputs and six publishing states test display behavior with no provider requests or credentials.
+- DISCONNECTED is a read-only identity state with zero publish scopes. PUBLISHING is visibly in progress, never a successful receipt; no automatically enabled OAuth, disconnect, scheduling or publish action.
+- Node model negative tests and 320px mocked Chromium regression cover per-tenant isolation, status filters, empty receipt, responsive layout and zero provider requests. This is NOT a real restaurant registration or live API verification.
+- Exact-head four-job source CI and independent main CI are required. Hosted releases, migrations, GPU, Part 2 provider activation and WineShopPOS remain excluded.

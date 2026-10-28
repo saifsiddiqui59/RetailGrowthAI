@@ -1,7 +1,7 @@
 // Pure, testable Feature #1 READ-model seam. No OAuth, transport, persistence or publishing.
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const PROVIDERS=new Set(['instagram','facebook','linkedin','youtube'])
-const ACCOUNT_STATES=new Set(['CONNECTED','EXPIRED','REVOKED','PENDING'])
+const ACCOUNT_STATES=new Set(['CONNECTED','DISCONNECTED','EXPIRED','REVOKED','PENDING'])
 const POST_STATES=new Set(['SCHEDULED','QUEUED','PUBLISHING','PUBLISHED','FAILED','CANCELLED'])
 const SCOPES=new Set(['read_identity','publish_image','publish_video'])
 const safeText=(v,max=100)=>typeof v==='string'&&v.trim().length>0&&v.length<=max

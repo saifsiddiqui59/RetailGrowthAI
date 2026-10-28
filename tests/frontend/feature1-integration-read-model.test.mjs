@@ -91,3 +91,25 @@ test('IANA DST overlap labels include actual UTC offset so two 01:30 events rema
  assert.match(springBefore,/GMT-5/)
  assert.match(springAfter,/GMT-4/)
 })
+
+
+test('third fictional restaurant covers disconnected accounts and all six post states without provider transport',()=>{
+ const restaurant=OFFLINE_SCENARIOS.find(x=>x.name.includes('Bistro'))
+ assert.ok(restaurant)
+ const fixture=offlineScenario(restaurant.id)
+ const identities=normalizeSocialAccounts(restaurant.id,fixture.accounts)
+ const events=normalizePublishingHistory(restaurant.id,fixture.history)
+ assert.equal(identities.length,5)
+ assert.equal(identities.filter(x=>x.status==='DISCONNECTED').length,1)
+ assert.deepEqual(identities.find(x=>x.status==='DISCONNECTED').scopes,[])
+ assert.deepEqual(new Set(events.map(x=>x.status)),new Set([
+  'SCHEDULED','QUEUED','PUBLISHING','PUBLISHED','FAILED','CANCELLED'
+ ]))
+ assert.ok(events.every(x=>x.status!=='PUBLISHED'||x.receipt_id?.startsWith('OFFLINE-RECEIPT-')))
+ assert.ok(events.every(x=>x.status!=='PUBLISHING'||x.receipt_id===null))
+ assert.throws(()=>normalizeSocialAccounts(shop,fixture.accounts),/could not be verified/)
+ assert.throws(()=>normalizePublishingHistory(shop,fixture.history),/could not be verified/)
+ assert.throws(()=>normalizeSocialAccounts(restaurant.id,[{
+  ...fixture.accounts[4],scopes:['publish_video']
+ }]),/could not be verified/)
+})
