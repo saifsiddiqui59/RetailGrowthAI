@@ -632,7 +632,8 @@ export function createRetailClient({
     const rows = await table('media_assets', {query})
     if (!Array.isArray(rows) || rows.length > 101 ||
         rows.some(x => !x || !UUID_V4.test(x.id || '') ||
-          !UUID_V4.test(x.shop_id || '') || !timestamp(x.created_at) ||
+          !UUID_V4.test(x.shop_id || '') || x.shop_id !== shopId ||
+          !timestamp(x.created_at) ||
           typeof x.license_name !== 'string' ||
           !['UPLOAD','STOCK','GENERATED'].includes(x.source) ||
           !['image/png','image/jpeg','image/webp'].includes(x.mime_type))) {
@@ -652,12 +653,12 @@ export function createRetailClient({
         rows[0].id.toLowerCase()>=cursor.id.toLowerCase()))) {
       throw new Error('Media history cursor boundary could not be verified')
     }
-    // Keyset advances on the 100th *raw* record, never on filtered rows, so
-    // even a malformed/foreign record cannot cause replay or a runaway loop.
+    // A mixed-tenant RLS response is invalid, never silently filtered.
+    // The 100th raw row still anchors the next keyset window.
     const page=rows.slice(0,100)
     const last=page.at(-1)
     return {
-      items:page.filter(row => row.shop_id===shopId && row.license_name.trim()),
+      items:page.filter(row => row.license_name.trim()),
       nextCursor:rows.length===101 && last
         ? {id:last.id,created_at:last.created_at}:null,
     }
