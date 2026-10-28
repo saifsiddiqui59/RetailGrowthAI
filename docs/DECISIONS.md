@@ -779,3 +779,14 @@
 
 ## 2026-10-28 — #249 full trace timeline does not establish 503 root cause
 - Real existing tagged DEV #40765330477 historical query showed 25 worker-start and 25 routine host-initialization messages, but zero specific timeout/exit/gRPC exception string matches in observed AppTraces across failed HTTP503 interval. Queue/Timer scale groups can explain host starts; no per-request HTTP instance assignment. AppRequests 14 unclassified statuses must not be treated as 503. Keep root cause UNKNOWN, seek authorized Azure internal ingress-to-worker tracing, defer all paid capacity/concurrency/tier/customer-origin changes; #249 OPEN, #568 DRAFT, no PROD/WineShopPOS.
+
+## Feature3 real acceptance policy — 2026-10-28
+- Respect coordinator-only shared-doc integration. Source #574 solved all three overlapping SQL inventories without bypassing historical scoped release denial. Compensate any repeated queue dispatch at envelope level only; never replay uncertain charged inference, auto-mark human rights, or settle by a fabricated receipt.
+- A verified CC0 public Wikimedia garment original is objective copyright/byte provenance of that exact still image, not a marketing release for an identified person, private retailer SKU, model reference or actual VTON output. `#576` emits human likeness and GPU approval flags FALSE.
+- Preview and import UI #563 remains disabled until real signed tenant/reviewer/curator DEV deployment. 4/4 disposable CI validates source contracts, not live consent, paid inference, cloud deployment or CDN.
+- KEEP GPU and paid API OFF, no unreviewed hosted Supabase mutations and no WineShopPOS/PROD.
+
+## Feature3 integration closure addendum — 2026-10-28
+- Cross-feature consumer packet source handoff was actually merged through coordinator [PR #585](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/585) as `2ee13281f3acf8b8966a77d4204343fe7e9f52e5` after exact-head [four-job CI #40765382161](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40765382161) PASS. Old conflicted #561 closed as superseded without overwriting concurrently updated canonical docs. Post-merge main #40765977249 requires distinct final four-job verification.
+- Signed Feature3 model import/review UI #563 source merged `d0e38dae` and its independent main #40764827362 PASSED 4/4. Existing #574 exact three SQL migrations, #562 private output stage, #576 independently hashed real public CC0 garment reference, and #571 offline six-trait VTON human review source already merged; no real paid generation, private signed customer image rights, model-person consent, or hosted DEV schema release implied.
+- Actual RetailGrowthAI DEV Supabase remains 24 applied migration versions with seven newer sources unapplied; no owner/curator live signed acceptance, GPU cost or Azure deployment performed. Do not treat synthetic sign-in, external copyright photo or source CI as hosted VTON acceptance.
