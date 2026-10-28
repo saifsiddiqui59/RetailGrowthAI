@@ -34,10 +34,9 @@ CLIPS=(
     ("look02", "8249911", "RDNE Stock project",
      "https://www.pexels.com/video/woman-walking-while-looks-at-camera-8249911/",
      ("https://videos.pexels.com/video-files/8249911/8249911-hd_1920_1080_25fps.mp4",)),
-    ("look03", "8531898", "KoolShooters",
-     "https://www.pexels.com/video/a-woman-in-a-dress-walking-at-a-park-8531898/",
-     ("https://videos.pexels.com/video-files/8531898/8531898-hd_1920_1080_25fps.mp4",
-      "https://videos.pexels.com/video-files/8531898/8531898-uhd_3840_2160_25fps.mp4")),
+    ("look03", "7626927", "Mikhail Nilov",
+     "https://www.pexels.com/video/woman-wearing-black-dress-7626927/",
+     ("https://videos.pexels.com/video-files/7626927/7626927-hd_1080_1920_25fps.mp4",)),
 )
 MAX_MEDIA_BYTES=155_000_000
 
@@ -183,7 +182,7 @@ def make_project(source_dir:Path,project_dir:Path,allow_staged_test=False):
         plan={"version":"rg_video_v2","shop_id":DEMO_SHOP,"mode":"media",
               "template":"cinematic","duration_seconds":15,
               "output":{"width":1080,"height":1920,"fps":24},
-              "brand":{"name":"RetailGrowthAI editing concept","primary_color":"#C8AB82"},
+              "brand":{"name":"FASHION EDIT","primary_color":"#C8AB82"},
               "scenes":[
                   {"start":0,"duration":5,"asset_id":"look01",
                    "headline":"THE FASHION EDIT","transition":"cut","animation_preset":"fade","mute_source":True},

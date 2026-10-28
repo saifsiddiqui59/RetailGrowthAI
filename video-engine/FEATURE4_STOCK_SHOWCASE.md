@@ -12,7 +12,7 @@ Sources verified at public Pexels pages 2026-10-28:
 | --- | --- | --- |
 | [8151871](https://www.pexels.com/video/a-fashionable-woman-modeling-while-walking-8151871/) | RDNE Stock project | 0–5s fashion hook |
 | [8249911](https://www.pexels.com/video/woman-walking-while-looks-at-camera-8249911/) | RDNE Stock project | 5–10s rose-pattern fabric |
-| [8531898](https://www.pexels.com/video/a-woman-in-a-dress-walking-at-a-park-8531898/) | KoolShooters | 10–15s sunlit outdoor movement |
+| [7626927](https://www.pexels.com/video/woman-wearing-black-dress-7626927/) | Mikhail Nilov | 10–15s portrait studio outfit motion |
 
 The [Pexels License](https://www.pexels.com/license/) allows editing and commercial
 video usage, **but forbids suggesting model/brand endorsement**. The concept's
@@ -36,7 +36,7 @@ ffprobe -v error -show_format -show_streams \
 ```
 
 For **no-network** source tests, supply `--source-dir` with actual downloaded,
-privately staged `8151871.mp4`, `8249911.mp4`, `8531898.mp4`.
+privately staged `8151871.mp4`, `8249911.mp4`, `7626927.mp4`.
 Running `tests/media/test_feature4_stock_showcase.py` uses local patterns
 exclusively and *never* labels them genuine fashion footage.
 
@@ -59,3 +59,6 @@ WineShopPOS file modified.
 ## F4-37 — Fixed-keyframe full-HD source normalization
 
 Actual F4-36 [PR CI #40759676430](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40759676430) 4/4 SUCCESS created verified real stock `feature4-stock-real-footage-15s.mp4`, but Chromium/HyperFrames warned about **3.03–3.04s sparse source keyframe intervals**. This is a real seek/freeze hazard; encoded MP4 PASS alone is insufficient to waive it. F4-37 now has a bounded CPU-only **immutable input-staging normalization**: each allowed stock source is probed, cropped to 9:16 Full-HD, FPS normalized to 24, re-encoded H264 with a 24-frame (1s) fixed GOP and source audio stripped for the intentionally muted timeline. It processes the first 5.25s only, never overwrites original downloaded files, preserves original + staged SHA-256 evidence and uses the same trusted HyperFrames compiler/producer. Negative tests reject overwrite and invalid clips; a real FFprobe keyframe test checks spacing <=1.1s. These changes do **not** imply a true garment match, professional edit quality, spoken narration or release approval. CI exact new-head required. GPU remains OFF; prior F4-36 sample artifact is a provisional owner-review candidate, superseded if the new sample renders.
+
+## F4-38 — stronger real runway-style closing frame
+The first F4-36 extracted MP4 was inspected frame-by-frame and the 8531898 clip's closing 5s lacked focus. This improves shot quality by replacing it with the Pexels-verified **vertical 1080×1920** 12s/25fps studio fashion clip [7626927](https://www.pexels.com/video/woman-wearing-black-dress-7626927/) by Mikhail Nilov. The exact 7626927 HD download URL is the Pexels site's official redirect, not an invented mirror. The intrusive multi-line `RetailGrowthAI editing concept` header is shortened to `FASHION EDIT`. Existing source normalized FFmpeg 1s GOP, original license/provenance checks, rights fail-closed, exact 15s no-endorsement CTA remain. This does NOT verify retailer's actual garment or professional human approval. Exact source CI must re-verify.
