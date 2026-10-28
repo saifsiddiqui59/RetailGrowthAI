@@ -60,8 +60,14 @@ class TrustedEditExecutionTests(unittest.TestCase):
         self.assertEqual(request["edit_plan"], trusted["edit_plan"])
         self.assertEqual(result["lineage"]["source_edit_approval"],
                          "approved-feature7-timeline-001")
-        self.assertEqual(render_inputs(request, result["manifest"]).audit,
-                         result["lineage"])
+        lowered = render_inputs(request, result["manifest"])
+        self.assertEqual(lowered.audit, result["lineage"])
+        self.assertEqual([s["start"] for s in lowered.plan["scenes"]], [0, 9, 20])
+        self.assertEqual([s["duration"] for s in lowered.plan["scenes"]], [9, 11, 10])
+        self.assertEqual([s["asset_id"] for s in lowered.plan["scenes"]],
+                         ["motionwalk", "photokurti", "photokurti"])
+        self.assertEqual(lowered.plan["scenes"][0]["transition"], "cut")
+        self.assertEqual(lowered.plan["scenes"][0]["trim_start"], 1.5)
         self.assertEqual(draft, original, "original reviewed draft must remain immutable")
         self.assertEqual(set(result["manifest"]["assets"]),
                          {"photokurti", "motionwalk", "saleposter",
