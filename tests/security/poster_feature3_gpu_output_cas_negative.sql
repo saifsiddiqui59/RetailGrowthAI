@@ -133,6 +133,19 @@ begin
  end if;
  r:=public.feature3_commit_gpu_private_output(s,j,1,t,p,repeat('c',64),200,array[src]);
  if r is not null then raise exception 'FAIL: duplicate response replay accepted'; end if;
+ -- Paid settlement is separate but MUST consume exactly the fenced private
+ -- evidence receipt, without manufacturing review/publish approval.
+ if public.feature3_finish_gpu_job(
+      j,t,0.125000,(select media_asset_id from
+       retail_private.feature3_gpu_output_evidence where job_id=j)
+    ) is distinct from true then
+   raise exception 'FAIL: correctly attested private output not settled';
+ end if;
+ if (select status from public.feature3_gpu_jobs where id=j)<>'SUCCEEDED' or
+    (select actual_usd from public.shop_ai_spend_reservations
+     where id='e3000000-0000-4000-8000-000000000031')<>0.125000 then
+    raise exception 'FAIL: exact one-shot attested GPU settlement was not durable';
+ end if;
 end $checks$;
 reset role;
 rollback;
