@@ -43,6 +43,7 @@ class BrollEvaluation:
     can_dispatch_motion: bool = False
     can_publish: bool = False
     gpu_enabled: bool = False
+    original_sha256: str = ""
 
 
 def candidate_catalog() -> tuple[dict, ...]:
@@ -127,6 +128,15 @@ def inspect_stock_broll(
         raise StockMediaRejected("Private original could not be reverified") from exc
     if type(original) is not bytes or not 100 <= len(original) <= 50_000_000:
         raise StockMediaRejected("Bounded original bytes not available")
+    # A catalog URL and an arbitrary SHA cannot stand in for even a
+    # plausibly typed original file. Container-level codec/dimension probes
+    # and human rights review remain required on live import.
+    if evidence["mime"] == "video/mp4" and original[4:8] != b"ftyp":
+        raise StockMediaRejected("Original video container signature unavailable")
+    if evidence["mime"] == "image/jpeg" and not (
+        original.startswith(b"\xff\xd8\xff") and original.endswith(b"\xff\xd9")
+    ):
+        raise StockMediaRejected("Original JPEG signature unavailable")
     if sha256(original).hexdigest() != evidence["sha256"]:
         raise StockMediaRejected("Downloaded stock media bytes changed since review")
     if trusted_member_check(sid) is not True:
@@ -137,4 +147,5 @@ def inspect_stock_broll(
         candidate_source_page=candidate["source_page"],
         expected_duration_seconds=candidate["expected_duration_seconds"],
         can_show_in_offline_editor=True,
+        original_sha256=evidence["sha256"],
     )
