@@ -17,7 +17,8 @@ from ai_agents.feature2_stock_media import (
 
 SHOP = "11111111-1111-4111-8111-111111111111"
 OTHER = "22222222-2222-4222-8222-222222222222"
-FIXTURE_BYTES = b"\x00\x00\x00\x18ftypisom" + (b"synthetic test video frame; not stock media" * 80)
+FIXTURE_BYTES = b"\\x00\\x00\\x00\\x18ftypisom" + (b"synthetic test video frame; not stock media" * 80)
+JPEG_BYTES = b"\\xff\\xd8\\xff" + b"synthetic JPEG header/payload; not downloaded photograph" * 10 + b"\\xff\\xd9"
 
 
 def setup_review(candidate):
@@ -39,7 +40,7 @@ def setup_review(candidate):
         "shop_id": SHOP, "candidate_id": candidate["candidate_id"],
         "private": True,
         "mime": "image/jpeg" if candidate["media_kind"] == "IMAGE" else "video/mp4",
-        "sha256": sha256(FIXTURE_BYTES).hexdigest(),
+        "sha256": sha256(JPEG_BYTES if candidate["media_kind"] == "IMAGE" else FIXTURE_BYTES).hexdigest(),
     }
     checker_calls = []
     def check(sid):
@@ -47,7 +48,7 @@ def setup_review(candidate):
         return sid == SHOP
     def original(sid, cid):
         assert sid == SHOP and cid == candidate["candidate_id"]
-        return FIXTURE_BYTES
+        return JPEG_BYTES if candidate["media_kind"] == "IMAGE" else FIXTURE_BYTES
     return status, evidence, check, original, checker_calls
 
 
