@@ -143,3 +143,10 @@ Follow-up for coordinator/Feature4: attach genuine signed-in human action, autho
 - `test_feature7_speech_quality.py`: perfect transcription reference, hallucinated text, valid words with wrong cue positions, malformed SRT, source digest mismatch and out-of-range words.
 
 **Scope/remains:** CPU-only, zero model/provider/network calls in these modules. Actual spoken-word inference with reviewed local model weights **still unverified**. No authenticated retailer upload/private playback, true JWT/RLS, DB-backed human approvals, Feature4 renderer overlays, or hosted DEV real-tenant media QA are claimed. PR #513 remains DRAFT/UNMERGED; canonical docs and shared schema remain coordinator-owned. GPU stays disabled until a separately authorized activation.
+
+
+### 2026-10-28 — Fifth continuation real CC0 integration smoke
+
+In addition to frozen H264/AAC source snapshots and human-reference WER/timing metrics, `tests/media/test_feature7_public_cc0.py` now runs the **actual pinned public CC0 talking-head recording** through `prepareAuthoritativePrivateReview` using explicitly fabricated **test-only signed ASR and media-rights attestations**. The test verifies byte-identical private snapshot and current-rights recheck, rejects revocation just before returning the review, and deletes downloaded temporary media. The real audio is from the source MP4; its word timings are interpolated from an existing human SRT, **not real WhisperX inference or evidence of commercial endorsement**.
+
+Source-only risks not solved by this smoke: full storage-object generation/fencing and atomic PostgreSQL approval across processes, a real media user-auth JWT/RLS check, licensed offline CPU WhisperX+aligner weights and word accuracy, real speaking audio quality verification, approved retailer-owned media, actual Feature4 UI/renderer integration and signed hosted download. GPU/paid inference remain OFF. Do not mark Feature7 customer-ready on green test evidence alone. 
