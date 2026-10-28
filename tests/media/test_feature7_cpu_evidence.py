@@ -91,7 +91,7 @@ fs.writeFileSync(path.join(outDir,'source.json'),
             'issued_by':'trusted_server','source':'retailer_upload',
             'active':True,'rights_status':'APPROVED','media_type':'video',
             'mime_type':'video/mp4','relative_path':'own.mp4',
-            'sha256':cls.sha}
+            'sha256':cls.sha,'has_audio':True}
         }
 
     def exec(self,payload):
@@ -147,7 +147,6 @@ fs.writeFileSync(path.join(outDir,'source.json'),
                     req['grant']['sha256']='0'*64
                     req['expected_sha256']='0'*64
                 if kind=='no_sound':req['grant']['has_audio']=False
-                if kind=='no_sound':continue # No audio marker isn't part of this preflight grant
                 self.assertNotEqual(self.exec(req).returncode,0)
 
     def test_no_command_injection_in_asset_or_model_paths(self):
@@ -158,5 +157,49 @@ fs.writeFileSync(path.join(outDir,'source.json'),
         req['whisperx_bin']='node; echo unsafe'
         self.assertNotEqual(self.exec(req).returncode,0)
 
+
+    def test_signed_asr_can_drive_private_review_without_browser_trust(self):
+        from_file=self.exec(self.req())
+        self.assertEqual(from_file.returncode,0,from_file.stderr)
+        transcript=json.loads(from_file.stdout)
+        req=self.req()
+        doc={
+          'shop_id':'shop7','campaign_id':'campaign7','root':str(self.media),
+          'job_id':'job7','now_ms':req['now_ms'],
+          'draft':{'shop_id':'shop7','campaign_id':'campaign7',
+            'duration_seconds':15,'scenes':[{
+              'asset_id':'source7','asset_type':'video',
+              'source_feature':'retailer','duration':15,'start':0
+            }]},
+          'media':[{'scene_index':0,'asset_id':'source7',
+            'source_duration_seconds':2.0,
+            'relative_path':'own.mp4','expected_sha256':self.sha,
+            'grant':req['grant'],
+            'whisperx_json':{'segments':[{'words':[
+              {'word':'Test','start':0.3,'end':0.6},
+              {'word':'sound.','start':0.7,'end':0.9}
+            ]}]},'asr_evidence':transcript['evidence']
+          }]
+        }
+        # A 15-second scene cannot be built from a 2-second source. The
+        # evidence-bound input is accepted, but original scene length fails.
+        checker=r"""
+import fs from 'node:fs';
+import {prepareEvidenceBoundReview} from './video-engine/feature7/evidence_bound_review.mjs';
+const payload=JSON.parse(fs.readFileSync(0,'utf8'));
+const key=Buffer.from('ab'.repeat(32),'hex');
+process.stdout.write(JSON.stringify(prepareEvidenceBoundReview({
+ ...payload,asr_key:key
+})));
+"""
+        denial=subprocess.run(['node','--input-type=module','-e',checker],
+          input=json.dumps(doc),text=True,capture_output=True,cwd=ROOT,timeout=20)
+        self.assertNotEqual(denial.returncode,0)
+        self.assertIn('scene',denial.stderr.lower())
+        # Scope tampering is denied *before* any tentative proposal gets out.
+        doc['media'][0]['asr_evidence']['shop_id']='other'
+        other=subprocess.run(['node','--input-type=module','-e',checker],
+          input=json.dumps(doc),text=True,capture_output=True,cwd=ROOT,timeout=20)
+        self.assertNotEqual(other.returncode,0)
 
 if __name__=='__main__': unittest.main()
