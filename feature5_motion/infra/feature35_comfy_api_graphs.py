@@ -125,7 +125,7 @@ def wan22_ti2v_5b(*, prompt, seed, approved_input_file=None, width=1280, height=
           latent_image=["7",0], seed=seed, steps=20, cfg=5, sampler_name="uni_pc", scheduler="simple", denoise=1)
     _node(n, 10, "VAEDecode", samples=["9",0], vae=["3",0])
     _node(n, 11, "CreateVideo", images=["10",0], fps=fps)
-    _node(n, 12, "SaveVideo", video=["11",0], filename_prefix=prefix, format="auto", codec="auto")
+    _node(n, 12, "SaveVideo", video=["11",0], filename_prefix=prefix, format={"format":"mp4","codec":{"codec":"h264"}})
     return {"prompt":n}
 
 
