@@ -606,6 +606,59 @@ export function createRetailClient({
     }
     return result
   }
+  // Server-side keyset history: first 100 visible records anchor the next
+  // window. New uploads cannot move the page boundary as offset paging did.
+  // The DB's (created_at DESC,id DESC) is authoritative; no migration needed.
+  async function listMediaAssetsKeysetPage(shopId, cursor = null) {
+    if (!UUID_V4.test(shopId || '')) throw new Error('Invalid media page scope')
+    const timestamp = value => typeof value === 'string' &&
+      /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?(?:Z|[+]00:00)$/.test(value) &&
+      Number.isFinite(Date.parse(value))
+    if (cursor !== null && (!cursor || !UUID_V4.test(cursor.id || '') ||
+        !timestamp(cursor.created_at))) throw new Error('Invalid media page cursor')
+    const query = {
+      select:'id,shop_id,source,license_name,mime_type,created_at',
+      shop_id:'eq.' + shopId, order:'created_at.desc,id.desc', limit:'101',
+    }
+    if (cursor) {
+      // Use the PostgREST OR expression rather than untrusted URL fragments.
+      // UUID and UTC date are validated before building a filter.
+      query.or = '(created_at.lt.' + cursor.created_at +
+        ',and(created_at.eq.' + cursor.created_at + ',id.lt.' + cursor.id + '))'
+    }
+    const rows = await table('media_assets', {query})
+    if (!Array.isArray(rows) || rows.length > 101 ||
+        rows.some(x => !x || !UUID_V4.test(x.id || '') ||
+          !UUID_V4.test(x.shop_id || '') || !timestamp(x.created_at) ||
+          typeof x.license_name !== 'string' ||
+          !['UPLOAD','STOCK','GENERATED'].includes(x.source) ||
+          !['image/png','image/jpeg','image/webp'].includes(x.mime_type))) {
+      throw new Error('Media history page could not be verified')
+    }
+    // Fail closed if the database unexpectedly returned out-of-order rows.
+    for (let i=1;i<rows.length;i++) {
+      const first=rows[i-1],next=rows[i]
+      const before=Date.parse(first.created_at), after=Date.parse(next.created_at)
+      if (before < after || (before===after &&
+          first.id.toLowerCase() <= next.id.toLowerCase())) {
+        throw new Error('Media history ordering could not be verified')
+      }
+    }
+    if (cursor && rows.length && (Date.parse(rows[0].created_at)>Date.parse(cursor.created_at) ||
+      (Date.parse(rows[0].created_at)===Date.parse(cursor.created_at) &&
+        rows[0].id.toLowerCase()>=cursor.id.toLowerCase()))) {
+      throw new Error('Media history cursor boundary could not be verified')
+    }
+    // Keyset advances on the 100th *raw* record, never on filtered rows, so
+    // even a malformed/foreign record cannot cause replay or a runaway loop.
+    const page=rows.slice(0,100)
+    const last=page.at(-1)
+    return {
+      items:page.filter(row => row.shop_id===shopId && row.license_name.trim()),
+      nextCursor:rows.length===101 && last
+        ? {id:last.id,created_at:last.created_at}:null,
+    }
+  }
   async function listMediaAssetsPage(shopId, offset = 0) {
     if (!UUID_V4.test(shopId || '') || !Number.isSafeInteger(offset) ||
         offset < 0 || offset % 100 !== 0) throw new Error('Invalid media page scope')
@@ -639,7 +692,7 @@ export function createRetailClient({
     listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
     isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
     listPlatformNotifications, setPlatformNotificationRead, listPlatformSubscriptionWatch,
-    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, listMediaAssetsPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset,
+    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, listMediaAssetsPage, listMediaAssetsKeysetPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset,
   }
 }
 

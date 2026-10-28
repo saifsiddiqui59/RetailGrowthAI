@@ -20,7 +20,7 @@ export default function MediaLibrary() {
   const previewScope = useRef('')
   const requestEpoch = useRef(0)
   const shopsQuery = useAuthorizedShops({ client, user, configured })
-  const shops = shopsQuery.data || []
+  const shops = shopsQuery.isError ? [] : (shopsQuery.data || [])
   // Never fetch from an arbitrary user-supplied shop ID: resolve from RLS-backed memberships.
   const { shopId, selectShop } = useSelectedShop({ user, shops })
   const activeScope = (user?.id || '') + ':' + (shopId || '')
@@ -53,10 +53,10 @@ export default function MediaLibrary() {
     }
   }
   const assetsQuery = useInfiniteQuery({
-    queryKey: ['media-library', 'pages', user?.id, shopId],
-    queryFn: ({pageParam}) => client.listMediaAssetsPage(shopId, pageParam),
-    initialPageParam: 0,
-    getNextPageParam: last => last.nextOffset ?? undefined,
+    queryKey: ['media-library', 'keyset-v1', user?.id, shopId],
+    queryFn: ({pageParam}) => client.listMediaAssetsKeysetPage(shopId, pageParam),
+    initialPageParam: null,
+    getNextPageParam: last => last.nextCursor ?? undefined,
     enabled: Boolean(configured && user && shopId),
     staleTime: 30000,
     retry: false,
@@ -79,7 +79,7 @@ export default function MediaLibrary() {
   return <div className="rg-workspace-page rg-library">
     <div className="page-heading">
       <div><div className="eyebrow">AUTHORIZED BUSINESS ASSETS</div><h1>Media library</h1>
-        <p className="lead">Browse registered images for one business in bounded pages. All results use your Supabase session and tenant RLS.</p></div>
+        <p className="lead">Browse registered images for one business with stable older-image pages that are not shifted by newer uploads. All results use your Supabase session and tenant RLS.</p></div>
       <Button asChild className="primary-action rg-workspace-cta"><Link to="/campaigns">Upload an image</Link></Button>
     </div>
     <Card className="panel">
@@ -111,7 +111,7 @@ export default function MediaLibrary() {
       {configured && !fetching && !hasError && !hasShops && <p role="status">No accessible businesses. <Link to="/account">Create or join a business in Account.</Link></p>}
       {configured && hasShops && !fetching && !hasError && <>
         <div className="rg-library-summary"><strong>{assets.length} matching registered images</strong>
-          <Badge>{assetsQuery.hasNextPage ? 'Older records available — load more to include them in search' : 'All retrieved pages loaded'}</Badge></div>
+          <Badge>{assetsQuery.hasNextPage ? 'Older records available — load more to include them in search' : 'No older records in this history'}</Badge></div>
         {assets.length === 0
           ? <p role="status">No matching registered images in the loaded pages. Upload licensed images or load older records if available.</p>
           : <div className="rg-library-grid" role="region" aria-label="Authorized media records">
