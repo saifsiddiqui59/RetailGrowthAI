@@ -51,7 +51,8 @@ def test_detector_output_contains_no_raw_message_metadata_or_private_fields():
                          "insights":[{"details":"USER_EMAIL"}]}}
     x=summarize(value)
     assert x=={"result":"received","status":"Unknown","dataset_sections":1,
-               "insight_sections":1,"raw_findings_redacted":True,
+               "insight_sections":1,"dataset_rows_per_section":[1],
+               "raw_findings_redacted":True,
                "historical_window_verified":False}
     assert "TOKEN" not in str(x) and "PASSWORD" not in str(x)
 
@@ -74,3 +75,16 @@ def test_drilldown_is_only_six_discovered_fixed_names():
         assert ns["NAME"].fullmatch(name)
     assert names[0]=="ColdStartFailuresWorkflowNode"
     assert names[1]=="functioncoldstart"
+
+
+def test_real_detector_object_statusid_is_whitelisted_without_exposing_message():
+    obj={"properties":{"status":{"statusId":"Critical",
+                                "message":"JWT and customer data are private"},
+                       "dataset":[{"table":{"rows":[["PRIVATE"],["SECRET"]]}}]}}
+    result=summarize(obj)
+    assert result["status"]=="Critical"
+    assert result["dataset_sections"]==1
+    assert result["dataset_rows_per_section"]==[2]
+    assert "JWT" not in str(result) and "SECRET" not in str(result)
+    obj["properties"]["status"]["statusId"]="malicious tenant identifier"
+    assert summarize(obj)["status"]=="Unknown"
