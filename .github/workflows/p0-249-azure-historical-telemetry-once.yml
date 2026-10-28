@@ -32,7 +32,14 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile ops/p0_249_historical_telemetry.py tests/infra/test_p0_249_historical_telemetry.py
-          python3 -m pytest -q tests/infra/test_p0_249_historical_telemetry.py
+          python3 - <<'PY'
+          import runpy
+          ns = runpy.run_path("tests/infra/test_p0_249_historical_telemetry.py")
+          for name, func in sorted(ns.items()):
+              if name.startswith("test_") and callable(func):
+                  func()
+                  print("P0249_OFFLINE_SAFETY_TEST=" + name + "=PASS")
+          PY
       - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
