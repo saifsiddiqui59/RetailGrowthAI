@@ -13,6 +13,7 @@ import stat
 from pathlib import Path, PurePosixPath
 
 from .wan22_motion_adapter import WanShotPackage, WanCompatibilityError, PROVIDER
+from .contracts import canonical_uuid
 from .wan22_clip_validation import inspect_native_mp4, pending_private_receipt
 from .wan22_frame_screening import screen_motion_frames
 
@@ -92,13 +93,27 @@ def find_single_private_wan_mp4(*, shot, private_output_root):
 
 
 def inspect_single_private_wan_output(*, shot, private_output_root,
+                                      job_id, attempt_token,
+                                      verify_existing_fenced_output_scope,
                                       ffprobe="ffprobe",ffmpeg="ffmpeg"):
-    """Produce an immutable *pending* receipt after actual local media probes.
+    """Produce an immutable *pending* receipt after a fresh existing-job fence.
 
-    Motion screening can spot frozen output; it cannot approve a human,
-    garment, music rights, source identity or paid inference success.
+    The callback must check EXISTING tenant DB/ledger lease, private output
+    directory ownership, reservation and current worker attempt (not browser
+    fields). Synthetic test doubles are not hosted evidence.
     """
-    path=find_single_private_wan_mp4(shot=shot,private_output_root=private_output_root)
+    if not isinstance(shot,WanShotPackage) or not callable(verify_existing_fenced_output_scope):
+        raise WanCompatibilityError("Current trusted private Wan worker claim required")
+    shop=canonical_uuid(shot.lineage["shop_id"])
+    jid=canonical_uuid(job_id)
+    token=canonical_uuid(attempt_token)
+    root=Path(private_output_root)
+    if (root.is_symlink() or not root.is_dir() or
+        verify_existing_fenced_output_scope(
+            shop,jid,token,shot.lineage_sha256,
+            str(root.resolve(strict=True))) is not True):
+        raise WanCompatibilityError("Private output not in current fenced worker attempt")
+    path=find_single_private_wan_mp4(shot=shot,private_output_root=root)
     inspection=inspect_native_mp4(shot,staged_file=path,ffprobe=ffprobe)
     screening=screen_motion_frames(clip_path=path,inspected=inspection,
                                    ffmpeg=ffmpeg)
