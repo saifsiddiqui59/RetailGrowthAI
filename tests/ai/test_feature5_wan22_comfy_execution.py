@@ -1,0 +1,137 @@
+"""Offline-only ComfyUI protocol simulator: no actual socket, GPU or media."""
+import copy
+import unittest
+from uuid import uuid4
+
+from feature5_motion.wan22_comfy_execution import (
+    LoopbackComfyTransport, WanPrivateComfyDispatcher,
+    UnknownComfyPaidAttempt,
+)
+from feature5_motion.wan22_motion_adapter import (
+    compile_motion_direction, WanCompatibilityError,
+)
+from test_feature5_wan22_motion_adapter import fixture
+from test_feature5_wan22_native_preflight import fabricated_object_info
+
+
+def synthetic_package():
+    dispatch,media,profile,revisions=fixture()
+    return compile_motion_direction(
+        dispatch=dispatch,approved_reference=media,profile=profile,
+        installed_revisions=revisions,gpu_vram_gib=80)
+
+
+class FakeLocalComfy:
+    def __init__(self,package,wrong_ack=False,ambiguous=False):
+        self.package=package
+        self.calls=[]
+        self.wrong_ack=wrong_ack
+        self.ambiguous=ambiguous
+
+    def __call__(self,method,path,body=None):
+        self.calls.append((method,path,body))
+        if method=="GET" and path=="/object_info":
+            return fabricated_object_info(self.package.graph)
+        if method=="POST" and path=="/prompt":
+            if self.ambiguous:
+                raise ConnectionResetError("Simulated post-submit unknown")
+            return {"prompt_id":str(uuid4()) if self.wrong_ack else body["prompt_id"],
+                    "number":1,"node_errors":{}}
+        if method=="GET" and path.startswith("/history/"):
+            prompt_id=path.split("/")[-1]
+            return {prompt_id:{"status":{"status_str":"success","completed":True},
+                               "outputs":{"12":{"videos":[{"filename":"fake.mp4"}]}}}}
+        raise AssertionError("Unexpected simulated endpoint")
+
+
+def inputs(pkg,**extras):
+    kwargs=dict(package=pkg,job_id=str(uuid4()),attempt_token=str(uuid4()),
+                verify_existing_fenced_paid_claim=lambda *a: True,
+                verify_current_private_first_frame=lambda *a: True,
+                operator_image_legal_budget_approved=True,
+                production_runtime_approved=True)
+    kwargs.update(extras)
+    return kwargs
+
+
+class WanComfyPrivateProtocolTests(unittest.TestCase):
+    def test_default_off_even_with_all_mocked_approvals(self):
+        pkg=synthetic_package()
+        fake=FakeLocalComfy(pkg)
+        with self.assertRaisesRegex(WanCompatibilityError,"disabled"):
+            WanPrivateComfyDispatcher(fake).submit_once(**inputs(pkg))
+        self.assertEqual(fake.calls,[])
+
+    def test_no_submit_on_unapproved_claim_or_revoked_source(self):
+        pkg=synthetic_package()
+        for key,func in [
+            ("verify_existing_fenced_paid_claim",lambda *args: False),
+            ("verify_current_private_first_frame",lambda *args: False),
+        ]:
+            fake=FakeLocalComfy(pkg)
+            with self.subTest(key=key),self.assertRaises(WanCompatibilityError):
+                WanPrivateComfyDispatcher(fake,enabled=True).submit_once(**inputs(pkg,**{key:func}))
+            self.assertEqual(fake.calls,[])
+        fake=FakeLocalComfy(pkg)
+        with self.assertRaises(WanCompatibilityError):
+            WanPrivateComfyDispatcher(fake,enabled=True).submit_once(**inputs(
+                pkg,operator_image_legal_budget_approved=False))
+        self.assertEqual(fake.calls,[])
+
+    def test_exact_single_post_and_no_auto_release_from_fake_history(self):
+        pkg=synthetic_package()
+        fake=FakeLocalComfy(pkg)
+        d=WanPrivateComfyDispatcher(fake,enabled=True)
+        params=inputs(pkg)
+        receipt=d.submit_once(**params)
+        self.assertEqual(receipt.prompt_id,params["attempt_token"])
+        self.assertEqual(receipt.job_id,params["job_id"])
+        self.assertFalse(receipt.gpu_success_proven)
+        self.assertFalse(receipt.feature4_approved)
+        self.assertEqual([x[0:2] for x in fake.calls],
+                         [("GET","/object_info"),("POST","/prompt")])
+        self.assertEqual(fake.calls[1][2],
+                         {"prompt":pkg.graph["prompt"],"prompt_id":params["attempt_token"]})
+        report=d.read_history_once(receipt)
+        self.assertEqual(report["state"],
+                         "COMFY_REPORTED_SUCCESS_PENDING_PRIVATE_MP4_PROBE")
+        self.assertFalse(report["private_import_approved"])
+        self.assertEqual(len([x for x in fake.calls if x[0]=="POST"]),1)
+
+    def test_changed_canonical_graph_never_reaches_paid_prompt(self):
+        pkg=synthetic_package()
+        altered=copy.deepcopy(pkg)
+        altered.graph["prompt"]["9"]["inputs"]["steps"]=90
+        fake=FakeLocalComfy(pkg)
+        with self.assertRaises(WanCompatibilityError):
+            WanPrivateComfyDispatcher(fake,enabled=True).submit_once(**inputs(altered))
+        self.assertEqual([c[1] for c in fake.calls],["/object_info"])
+
+    def test_ambiguous_post_and_mismatched_prompt_id_never_retry(self):
+        pkg=synthetic_package()
+        for kwargs in ({"ambiguous":True},{"wrong_ack":True}):
+            fake=FakeLocalComfy(pkg,**kwargs)
+            with self.subTest(kwargs=kwargs),self.assertRaises(UnknownComfyPaidAttempt):
+                WanPrivateComfyDispatcher(fake,enabled=True).submit_once(**inputs(pkg))
+            self.assertEqual(len([x for x in fake.calls if x[0]=="POST"]),1)
+
+    def test_http_transport_rejects_all_non_loopback_or_extraneous_routes_without_socket(self):
+        with self.assertRaises(WanCompatibilityError):
+            LoopbackComfyTransport(port=8189)
+        with self.assertRaises(WanCompatibilityError):
+            LoopbackComfyTransport(timeout_seconds=100)
+        api=LoopbackComfyTransport()
+        for meth,path,data in [
+            ("GET","https://evil.invalid/object_info",None),
+            ("GET","/view?filename=secrets",None),
+            ("POST","/upload/image",{}),
+            ("POST","/prompt",None),
+            ("GET","/history/../../private",None),
+            ("GET","/queue",None),
+        ]:
+            with self.subTest(method=meth,path=path),self.assertRaises(WanCompatibilityError):
+                api(meth,path,data)
+
+
+if __name__=="__main__":
+    unittest.main()
