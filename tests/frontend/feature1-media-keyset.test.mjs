@@ -34,7 +34,14 @@ test('shop JWT keyset pages preserve 100-record boundary when newer uploads arri
  assert.ok(filter.includes('created_at.lt.'+row(99).created_at))
  assert.ok(filter.includes('id.lt.'+row(99).id))
  rows=[{...row(100),shop_id:other}]
- assert.equal((await client.listMediaAssetsKeysetPage(shop,first.nextCursor)).items.length,0)
+ await assert.rejects(()=>client.listMediaAssetsKeysetPage(shop,first.nextCursor),/verified/)
+ // Never accept an apparently valid page if the last lookahead row is foreign.
+ rows=[row(100),{...row(101),shop_id:other}]
+ await assert.rejects(()=>client.listMediaAssetsKeysetPage(shop,first.nextCursor),/verified/)
+ // A mixed-tenant response is invalid even if the foreign row would otherwise
+ // have been omitted from the displayed, filtered 100-record page.
+ rows=[row(100),{...row(101),shop_id:other},row(102)]
+ await assert.rejects(()=>client.listMediaAssetsKeysetPage(shop,first.nextCursor),/verified/)
  rows=[row(98)]
  await assert.rejects(()=>client.listMediaAssetsKeysetPage(shop,first.nextCursor),/boundary/)
  rows=[row(100),row(99)]
