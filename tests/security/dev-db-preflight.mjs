@@ -40,9 +40,26 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261028190000_feature3_model_review_audit.sql',
   // Feature3 immutable verifier RPC is SOURCE ONLY; never execute on hosted DEV automatically.
   '20261028210000_feature3_private_evidence_commit.sql',
+  // Feature3 pending import is SOURCE ONLY, not a hosted migration authorization.
+  '20261028223000_feature3_pending_model_import.sql',
 ]);
 
 const CAPABILITIES = {
+  '20261028223000': [
+    /create function public[.]feature3_import_pending_model/i,
+    /security definer set search_path=''/i,
+    /public[.]shop_memberships/i,
+    /public[.]media_assets/i,
+    /scope,status,source_kind/i,
+    /'PENDING_REVIEW'/i,
+    /rights_verified/i,
+    /for share/i,
+    /for update/i,
+    /on conflict[(]model_id[)] do nothing/i,
+    /revoke all on function public[.]feature3_import_pending_model/i,
+    /grant execute on function public[.]feature3_import_pending_model/i,
+    /to authenticated/i,
+  ],
   '20261028210000': [
     /create function public[.]feature3_commit_verified_evidence/i,
     /security definer set search_path=''/i,
