@@ -240,4 +240,50 @@ revoke all on function public.feature3_revoke_model(uuid,uuid,integer,text,text)
 grant execute on function public.feature3_revoke_model(uuid,uuid,integer,text,text)
  to authenticated;
 
+
+-- Guard against ANY old service-role code path bypassing human review by
+-- directly PATCHing model flags. All approval transitions require an event
+-- just inserted by the signed RPC in the same transaction.
+create function retail_private.feature3_guard_reviewed_model()
+returns trigger language plpgsql security definer set search_path='' as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.status <> 'PENDING_REVIEW' or new.rights_verified or new.rights_revision <> 1
+    then raise exception 'MODEL_MUST_START_PENDING' using errcode='42501'; end if;
+    return new;
+  end if;
+  if (new.owner_shop_id,new.model_id,new.media_asset_id,new.created_by,
+      new.scope,new.source_kind,new.image_sha256,new.license_id,
+      new.license_evidence_sha256,new.synthetic_adult,new.approved_uses,
+      new.attribution) is distinct from
+     (old.owner_shop_id,old.model_id,old.media_asset_id,old.created_by,
+      old.scope,old.source_kind,old.image_sha256,old.license_id,
+      old.license_evidence_sha256,old.synthetic_adult,old.approved_uses,
+      old.attribution) then
+    raise exception 'MODEL_SOURCE_IMMUTABLE' using errcode='42501';
+  end if;
+  if (new.status,new.rights_verified,new.rights_revision)
+      is distinct from (old.status,old.rights_verified,old.rights_revision) then
+    if new.rights_revision <> old.rights_revision + 1 or
+       not exists(select 1 from retail_private.feature3_model_review_events ev
+        where ev.owner_shop_id=old.owner_shop_id and ev.model_id=old.model_id
+          and ev.media_asset_id=old.media_asset_id
+          and ev.previous_revision=old.rights_revision
+          and ev.rights_revision=new.rights_revision
+          and ev.from_status=old.status and ev.to_status=new.status
+          and ev.image_sha256=old.image_sha256
+          and ((ev.action='APPROVE' and new.status='APPROVED' and new.rights_verified)
+            or (ev.action='REJECT' and new.status='REJECTED' and not new.rights_verified)
+            or (ev.action='REVOKE' and new.status='REVOKED' and not new.rights_verified)))
+    then raise exception 'MODEL_REVIEW_EVENT_REQUIRED' using errcode='42501'; end if;
+  end if;
+  return new;
+end
+$$;
+revoke all on function retail_private.feature3_guard_reviewed_model()
+ from public,anon,authenticated;
+create trigger feature3_model_rights_guard
+before insert or update on public.feature3_models
+for each row execute function retail_private.feature3_guard_reviewed_model();
+
 commit;
