@@ -27,3 +27,9 @@ Other original upstream tests and source/Foundry mocked tests remain in existing
 8. Obtain separate documented GPU provider, cost cap and operator approval AFTER Feature2 is objectively ready. GPU remains off here.
 
 Coordinator owns canonical shared docs PROJECT_STATE, NEXT_TASK, DECISIONS and WORK_LOG and production merges; this Feature2 report is additive. No automatic paid calls or background tasks started.
+
+## Additional mocked Azure GPT-4.1-mini positive-path test
+
+The standalone director-to-editor mock now has a **second independent test** at ai-agents/tests/test_feature2_diwali_mocked_foundry_positive.py. It calls the REAL local Python AzureFeature2DirectorLLM and actual Node/mit planner from the same synthetic approved 15/30/60-second script, but replaces ONLY the HTTPS transport with a deterministic **no-network fake** returning a shaped Foundry completion and actual-usage-shaped token receipt. It verifies one per-shop budget reservation before the model request, no retry, real local JSON compile, precise same-shop media and sale proof hashes, and a nonpublishable DRAFT for 3/6/12 shots. This is **not** a genuine Azure model answer, billed token record, external video or claim of artistic quality. No model keys or GPU usage occur.
+
+An initial test caught a shared-object alias issue: changing a motion prompt changed the nested storyboard in memory simultaneously. The offline handoff now recomputes the ORIGINAL Creative Director plan fingerprint over its editor scenes and Feature3 garment lineage; any such post-review mutation is rejected before a mock editor timeline can be built. The first failing CI was **not bypassed**; the protected hash invariant was added and the negative test retained.
