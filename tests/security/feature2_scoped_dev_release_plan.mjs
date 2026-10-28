@@ -7,7 +7,7 @@ import { DEV_PROJECT_REF, verifyPreflight } from './dev-db-preflight.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 export const FEATURE2_FILE='20261026194000_feature2_ai_cost_ledger.sql';
-export const OTHER_FEATURE_FILE='20261028093000_feature3_model_catalog_drafts.sql';
+export const OTHER_FEATURE_FILE='20261028092346_feature3_model_catalog_drafts.sql';
 export const HOSTED_APPLIED_COUNT=21;
 
 export function scopedFeature2Plan(snapshot, options={}) {
@@ -59,7 +59,7 @@ export function scopedFeature2Plan(snapshot, options={}) {
     source_version:'20261026194000',
     source_name:'feature2_ai_cost_ledger',
     source_sha256:createHash('sha256').update(source).digest('hex'),
-    other_pending_version_remains_unapplied:'20261028093000',
+    other_pending_version_remains_unapplied:'20261028092346',
     selected_pending_count:1,
     backup_restore_verified:false,
     actual_hosted_sql_execution:false,
