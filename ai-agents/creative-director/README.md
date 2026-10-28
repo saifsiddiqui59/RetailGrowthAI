@@ -11,6 +11,8 @@ Vendored upstream project: [Kuble-Lab/open-creative-director](https://github.com
 | `lib/explainer-plan.js` | `upstream/explainer-plan.js` | Vendored unmodified (Git blob SHA `610cf8cfcdedd26c2487566a09d2e03c6ad059be`) |
 | `lib/music-video-plan.js` | `upstream/music-video-plan.js` | Vendored unmodified (SHA `4f347b4f484710fe31d553b23a570bc63c4cbd04`), required dependency of plan |
 | `lib/explainer-cues.js` | `upstream/explainer-cues.js` | Vendored unmodified (SHA `6b147079754cf6669ce0c8bf284f72559db8f300`) |
+| `lib/explainer-scene.js` + `public/nodes/motion-html.js` | `upstream/explainer-scene.js` + `upstream/motion-html.js` | Source vendored with one relative require rewrite; scene layouts, timing and validation tests run offline (not used to execute model-authored HTML). |
+| `scripts/test-explainer-scene.js` | `upstream/scripts/test-explainer-scene.js` | Original assertions preserved; two relative require paths adjusted. |
 | `lib/explainer-revise.js` | `upstream/explainer-revise.js` | Vendored unmodified (SHA `f5ea858637f252d30cfded24dd23f2e7c9491849`) |
 | `scripts/test-explainer-plan.js` | `upstream/scripts/test-explainer-plan.js` | Test assertions unchanged; relative require adjusted from `../lib/explainer-plan` to `../explainer-plan` |
 | `scripts/test-explainer-cues.js` | `upstream/scripts/test-explainer-cues.js` | Test assertions unchanged; relative require adjusted from `../lib/explainer-cues` to `../explainer-cues` |
@@ -33,11 +35,12 @@ From the repository root:
 ```bash
 node ai-agents/creative-director/upstream/scripts/test-explainer-plan.js
 node ai-agents/creative-director/upstream/scripts/test-explainer-cues.js
+node ai-agents/creative-director/upstream/scripts/test-explainer-scene.js
 node ai-agents/creative-director/tests/test-director.js
 uv run --project ai-agents pytest ai-agents/tests/test_feature2_creative_director_oss.py ai-agents/tests/test_feature2_director_azure.py
 ```
 
-Python CI invokes all three Node tests without paying an inference provider. Original upstream tests cover planner/anchors/source references and speech cues; adapted tests cover 15/30/60s Diwali kurti 20%-approved offer, exact F3 reference image, script pacing, F5 depth, 12-shot 60s reel, fake/expired sale, cross-tenant, prompt superficiality, anatomy safeguards, revision isolation, real-transcript timing mismatch and Azure budget/transport failure gates.
+Python CI invokes all four Node tests without paying an inference provider. Original upstream tests cover planner/anchors/source references and speech cues; adapted tests cover 15/30/60s Diwali kurti 20%-approved offer, exact F3 reference image, script pacing, F5 depth, 12-shot 60s reel, fake/expired sale, cross-tenant, prompt superficiality, anatomy safeguards, revision isolation, real-transcript timing mismatch and Azure budget/transport failure gates.
 
 ## Release/quality gates — important
 
