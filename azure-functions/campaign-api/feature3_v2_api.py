@@ -62,6 +62,15 @@ class Feature3V2API:
                      "registered": True, "private_bytes_verified": False,
                      "model_reviewed": False, "gpu_eligible": False}
 
+    def gpu_jobs(self, token, user_id, shop_id):
+        """Only current-member, JWT/RLS-scoped metadata; no job claim."""
+        sid = canonical_uuid(shop_id)
+        if not self.tenant.member(token, user_id, sid):
+            return 404, {"error": "NOT_FOUND"}
+        return 200, {"shop_id": sid,
+                     "jobs": self.tenant.feature3_gpu_jobs(token, sid),
+                     "gpu_submission_enabled": False}
+
     def gpu_download(self, token, user_id, shop_id, job_id):
         """Authenticated download for successful, registered, private v2 GPU PNG.
 
