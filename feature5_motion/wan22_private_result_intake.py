@@ -150,6 +150,12 @@ def inspect_single_private_wan_output(*, shot, private_output_root,
             raise WanCompatibilityError("Private output changed after media verification")
     except OSError as exc:
         raise WanCompatibilityError("Private native output no longer available") from exc
+    # A rights/lease revocation during several seconds of FFmpeg decoding
+    # invalidates even a technically sound clip: never issue a pending token.
+    if verify_existing_fenced_output_scope(
+            shop,jid,token,shot.lineage_sha256,
+            str(root.resolve(strict=True))) is not True:
+        raise WanCompatibilityError("Private output lease revoked during media screening")
     receipt=pending_private_receipt(shot,inspection)
     receipt.update({
         "screening_decision":screening.decision,

@@ -82,6 +82,16 @@ class WanPrivateOutputIntakeTests(unittest.TestCase):
             self.assertEqual(receipt["receipt_sha256"],canonical(sealed))
             sealed["approved_for_feature4"]=True
             self.assertNotEqual(receipt["receipt_sha256"],canonical(sealed))
+            calls=[]
+            def expiring_lease(*args):
+                calls.append(args)
+                return len(calls)==1
+            with self.assertRaisesRegex(WanCompatibilityError,"revoked during"):
+                inspect_single_private_wan_output(
+                    shot=shot(),private_output_root=root,job_id=job,
+                    attempt_token=token,
+                    verify_existing_fenced_output_scope=expiring_lease)
+            self.assertEqual(len(calls),2)
 
     def test_output_bytes_not_read_without_current_tenant_attempt_lease(self):
         with tempfile.TemporaryDirectory() as td:

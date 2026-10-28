@@ -174,6 +174,22 @@ class WanComfyPrivateProtocolTests(unittest.TestCase):
                 forged,verify_existing_fenced_paid_claim=original_claim))
         self.assertEqual(fake3.calls,[])
 
+    def test_rights_revoked_during_runtime_preflight_never_posts(self):
+        pkg=synthetic_package()
+        fake=FakeLocalComfy(pkg)
+        seen=[]
+        def grant(shop,asset,sha):
+            seen.append(1)
+            proof=private_f3_proof(shop,asset,sha)
+            if len(seen)==2:
+                proof["approved"]=False
+            return proof
+        with self.assertRaisesRegex(WanCompatibilityError,"rights changed"):
+            WanPrivateComfyDispatcher(fake,enabled=True).submit_once(**inputs(
+                pkg,verify_current_private_first_frame=grant))
+        self.assertEqual(len(seen),2)
+        self.assertEqual([c[1] for c in fake.calls],["/object_info"])
+
     def test_ambiguous_post_and_mismatched_prompt_id_never_retry(self):
         pkg=synthetic_package()
         for kwargs in ({"ambiguous":True},{"wrong_ack":True}):

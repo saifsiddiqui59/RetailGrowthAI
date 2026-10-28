@@ -156,6 +156,12 @@ class WanPrivateComfyDispatcher:
         validate_native_graph_against_object_info(
             package.graph,object_info,expected_input_filename=proof["staged_basename"],
             expected_negative_prompt=negative)
+        # Rights may have been revoked while node/schema preflight ran. Bind
+        # the same independent current grant again immediately before CAS.
+        refreshed=verify_current_private_first_frame(
+            shop,source,package.lineage["source_sha256"])
+        if type(refreshed) is not dict or refreshed != proof:
+            raise WanCompatibilityError("Feature3 current rights changed before durable intent")
         body={"prompt":package.graph["prompt"],"prompt_id":token}
         # The caller's EXISTING Part3 transaction must atomically change this
         # exact claim from READY to SUBMISSION_INTENT_RECORDED, once only, with
