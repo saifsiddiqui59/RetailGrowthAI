@@ -57,7 +57,7 @@ jobs:
           if [ -z "$resource_id" ]; then echo "P0_249_AZURE_METRICS_SCOPE_UNAVAILABLE=true"; exit 0; fi
           definitions=$(az monitor metrics list-definitions --resource "$resource_id" -o json 2>/dev/null)
           if [ -z "$definitions" ]; then echo "P0_249_AZURE_METRIC_DEFINITIONS_UNAVAILABLE=true"; exit 0; fi
-          printf "%s" "$definitions" | python3 -c 'import json,sys; x=json.load(sys.stdin); names=[r.get("name",{}).get("value","") for r in x.get("value",[])]; print("P0_249_AZURE_AVAILABLE_METRIC_NAMES="+json.dumps([n for n in names if any(q in n.lower() for q in ("request","http","response","error"))]))'
+          printf "%s" "$definitions" | python3 -c 'import json,sys; sys.path.insert(0,"ops"); from p0_249_http_comparison_probe import sanitized_metric_names; print("P0_249_AZURE_AVAILABLE_METRIC_NAMES="+json.dumps(sanitized_metric_names(json.load(sys.stdin))))'
           echo "P0_249_AZURE_TRACES_NOT_INFERRED_FROM_METRIC_DEFINITIONS=true"
       - name: End read-only session
         if: always()
