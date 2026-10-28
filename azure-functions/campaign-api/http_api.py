@@ -28,6 +28,15 @@ class HTTPAPI:
             token = authorization[7:].strip()
             user_id = self.verify_token(token)
             # Feature3 is additive and OFF unless specifically configured.
+            if "/feature3-source-assets/" in path:
+                if self.feature3_api is None:
+                    return 503, {"error": "FEATURE3_V2_DISABLED"}
+                parts = path.strip("/").split("/")
+                if (method != "GET" or len(parts) != 4 or
+                    parts[0] != "shops" or parts[2] != "feature3-source-assets"):
+                    return 404, {"error": "NOT_FOUND"}
+                return self.feature3_api.source_asset(
+                    token, user_id, parts[1], parts[3])
             if path.startswith("/shops/") and path.endswith("/feature3-models"):
                 if self.feature3_api is None:
                     return 503, {"error": "FEATURE3_V2_DISABLED"}

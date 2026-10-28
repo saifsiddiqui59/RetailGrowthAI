@@ -38,6 +38,30 @@ class Feature3V2API:
         return 200, {"shop_id": sid, "models": entries,
                      "private_images_must_be_loaded_separately": True}
 
+
+    def source_asset(self, token, user_id, shop_id, asset_id):
+        """Read only a registered current-tenant private source metadata proof.
+
+        It does NOT assert model/likeness approval, image SHA or that the
+        Storage object can be read. A separate signed private binary read is
+        required before the output can enter an image-conditioned model.
+        """
+        sid, aid = canonical_uuid(shop_id), canonical_uuid(asset_id)
+        if not self.tenant.member(token, user_id, sid, write=True):
+            return 404, {"error": "NOT_FOUND"}
+        receipt = self.tenant.feature3_source_asset(token, sid, aid)
+        if not isinstance(receipt, dict) or not (
+            isinstance(receipt.get("mime_type"), str) and
+            receipt.get("mime_type") in ("image/png", "image/jpeg", "image/webp") and
+            receipt.get("license_name") in ("owned", "cc0", "commercial", "royalty_free")
+        ):
+            return 404, {"error": "NOT_FOUND"}
+        return 200, {"shop_id": sid, "media_asset_id": aid,
+                     "mime_type": receipt["mime_type"],
+                     "license_name": receipt["license_name"],
+                     "registered": True, "private_bytes_verified": False,
+                     "model_reviewed": False, "gpu_eligible": False}
+
     def day(self, token, user_id, campaign_id, day_id, method, body=None):
         cid, did = canonical_uuid(campaign_id), canonical_uuid(day_id)
         if method not in ("GET", "POST"):

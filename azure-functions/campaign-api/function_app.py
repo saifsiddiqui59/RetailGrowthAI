@@ -78,6 +78,14 @@ def dispatch(request, path):
         headers=diagnostics.complete(code, payload),
     )
 
+# Source-only endpoint, disabled unless the reviewed Feature3 v2 flag is enabled.
+@app.route(route="shops/{shop_id}/feature3-source-assets/{asset_id}",
+           methods=["GET"])
+def feature3_registered_source(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/shops/" + req.route_params["shop_id"] +
+                    "/feature3-source-assets/" + req.route_params["asset_id"])
+
+
 # Source-only future endpoints, explicitly disabled in existing DEV/PROD.
 @app.route(route="shops/{shop_id}/feature3-models", methods=["GET"])
 def list_feature3_models(req: func.HttpRequest) -> func.HttpResponse:
