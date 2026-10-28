@@ -12,7 +12,7 @@ import unittest
 
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'video-engine'/'feature7'))
-from review_journal import CurrentReviewContext,ReviewStateError
+from review_journal import CurrentReviewContext,ReviewStateError,LocalReviewJournal
 from review_dispatch_journal import LocalApprovedEditDispatch
 
 DRAFT='a'*64
@@ -32,17 +32,26 @@ class Feature7DispatchJournalTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory(prefix='feature7-dispatch-')
         self.database=Path(self.temp.name)/'review_dispatch.sqlite'
+        self.reviews=LocalReviewJournal(self.database)
         self.store=LocalApprovedEditDispatch(self.database)
 
     def tearDown(self):
         self.store.close()
+        self.reviews.close()
         self.temp.cleanup()
 
-    def stage(self,review_id='review_1',approval_id='approved_1'):
-        return self.store.stage_approved(context=ctx(),
-          review_id=review_id,approval_id=approval_id,
+    def stage(self):
+        review=self.reviews.stage(context=ctx(),
+          draft_sha256=DRAFT,candidate_sha256=CANDIDATE,now_ms=900)
+        approval=self.reviews.approve(review_id=review['review_id'],
+          expected_revision=0,context=ctx(),candidate_sha256=CANDIDATE,
+          confirmed_by_human=True,now_ms=950)
+        job=self.store.stage_approved(context=ctx(),
+          review_id=review['review_id'],approval_id=approval['approval_id'],
           draft_sha256=DRAFT,candidate_sha256=CANDIDATE,
           human_confirmed=True,now_ms=1000)
+        return {**job,'review_id':review['review_id'],
+          'approval_id':approval['approval_id']}
 
     def test_normal_lease_ack_prevents_duplicate_consumer(self):
         job=self.stage()
@@ -115,13 +124,34 @@ class Feature7DispatchJournalTests(unittest.TestCase):
     def test_staging_duplicate_ids_rejected_transactionally(self):
         first=self.stage()
         with self.assertRaises(ReviewStateError):
-            self.stage()
-        with self.assertRaises(ReviewStateError):
-            self.stage(review_id='review_2',approval_id='approved_1')
-        with self.assertRaises(ReviewStateError):
-            self.stage(review_id='review_1',approval_id='approved_2')
+            self.store.stage_approved(context=ctx(),
+              review_id=first['review_id'],approval_id=first['approval_id'],
+              draft_sha256=DRAFT,candidate_sha256=CANDIDATE,
+              human_confirmed=True,now_ms=1000)
+        for changed in [
+          {'approval_id':'wrong_approval'},
+          {'draft_sha256':'e'*64},
+          {'candidate_sha256':'f'*64}
+        ]:
+            with self.subTest(changed=changed):
+                request={'context':ctx(),'review_id':first['review_id'],
+                  'approval_id':first['approval_id'],
+                  'draft_sha256':DRAFT,'candidate_sha256':CANDIDATE,
+                  'human_confirmed':True,'now_ms':1000}
+                request.update(changed)
+                with self.assertRaises(ReviewStateError):
+                    self.store.stage_approved(**request)
         self.assertEqual(self.store.inspect(
             context=ctx(),dispatch_id=first['dispatch_id'])['state'],'READY')
+
+    def test_unapproved_review_cannot_be_queued_even_if_human_flag_true(self):
+        pending=self.reviews.stage(context=ctx(),draft_sha256=DRAFT,
+          candidate_sha256=CANDIDATE,now_ms=900)
+        with self.assertRaises(ReviewStateError):
+            self.store.stage_approved(context=ctx(),
+              review_id=pending['review_id'],approval_id='f7a_fake123',
+              draft_sha256=DRAFT,candidate_sha256=CANDIDATE,
+              human_confirmed=True,now_ms=1000)
 
     def test_retry_exponential_external_and_poison_after_limit(self):
         job=self.stage()
