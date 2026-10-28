@@ -81,14 +81,14 @@ def intake_vton_candidate(*, approved_manifest, provider_response,
     output_sha=sha256(raw).hexdigest()
     if not _SHA.fullmatch(provider_response.get("output_sha256", "")) or provider_response["output_sha256"] != output_sha:
         raise FashionReferenceDenied("Private generated VTON pixels changed")
-    if verify_current_private_worker(
-       shop,job,1,token,approved_manifest["reference_fingerprint"],
-       task["garment_asset_id"],task["model_asset_id"],output_sha) is not True:
-        raise FashionReferenceDenied("No independently authorized leased VTON output")
     garment=approved_manifest.get("garment")
     if not isinstance(garment,dict) or any(
         type(garment.get(key)) is not str or not garment[key].strip() for key in _TRAITS):
         raise FashionReferenceDenied("Exact human-reviewed garment product required")
+    if verify_current_private_worker(
+       shop,job,1,token,approved_manifest["reference_fingerprint"],
+       task["garment_asset_id"],task["model_asset_id"],output_sha) is not True:
+        raise FashionReferenceDenied("No independently authorized leased VTON output")
     return {
         "schema":"retailgrowth.feature3-vton-candidate-review.v1",
         "shop_id":shop,"provider_job_id":job,
