@@ -53,7 +53,9 @@ cp "$ROOT/video-engine/hyperframes/package-lock.json" "$ROOT/ci-artifacts/featur
 # All materials are original synthetic fixtures, NEVER customer media.
 PROJECT_HD="$TEMP/diwali-1080p"
 OUTPUT_HD="$ROOT/ci-artifacts/feature4-30s-1080p-hyperframes-synthetic.mp4"
-python3 "$ROOT/video-engine/demo_feature4_diwali.py" "$PROJECT_HD" --seconds 30 --width 1080
+# Exercise actual AAC narration track in the high-resolution render instead
+# of merely verifying the source HTML (synthetic 863Hz tone, NOT a human voice).
+python3 "$ROOT/video-engine/demo_feature4_diwali.py" "$PROJECT_HD" --seconds 30 --width 1080 --with-narration
 if (( NODE_MAJOR >= 22 )); then
   timeout --signal=TERM --kill-after=10s 440s python3 "$ROOT/video-engine/hyperframes/benchmark_render.py" "$PROJECT_HD" "$OUTPUT_HD" "$ROOT/ci-artifacts/feature4-1080p-cpu-benchmark.json" --timeout 420
 else

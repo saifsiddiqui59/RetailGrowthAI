@@ -107,7 +107,17 @@ def check_fullres_artifact(media_dir):
     ]
     if sum(d > 8 for d in scene_changes) < 3:
         raise AssertionError(f"1080p scenes not distinguishable: {scene_changes}")
-    return {"resolution": "1080x1920", "frames_sampled": len(pictures),
+    # Distinct fixed 863Hz fixture tone must survive the actual HyperFrames
+    # mix → AAC encode → MP4 demux → PCM decode. This does NOT test speech.
+    encoded_mp4 = root / "feature4-30s-1080p-hyperframes-synthetic.mp4"
+    narr_mid = tone_amplitude(encoded_mp4, 13, hz=863)
+    narr_end = tone_amplitude(encoded_mp4, 27, hz=863)
+    if not (narr_mid > 55 and narr_end > 55):
+        raise AssertionError("Approved synthetic narration track missing in final AAC")
+    return {"synthetic_narration_mid_amplitude": round(narr_mid, 2),
+            "synthetic_narration_end_amplitude": round(narr_end, 2),
+            "spoken_word_qa_accepted": False,
+            "resolution": "1080x1920", "frames_sampled": len(pictures),
             "scene_deltas": [round(x, 2) for x in scene_changes],
             "commercial_fashion_realism_accepted": False}
 

@@ -22,6 +22,7 @@ def main():
     parser.add_argument("project", help="New empty private output directory")
     parser.add_argument("--seconds", type=int, default=30, choices=(15, 30, 60))
     parser.add_argument("--width", type=int, default=540, choices=(540, 1080))
+    parser.add_argument("--with-narration", action="store_true", help="Add a test-only synthetic 863Hz narration channel")
     args = parser.parse_args()
     project = Path(args.project)
     if project.exists() and any(project.iterdir()):
@@ -85,12 +86,28 @@ def main():
         fixture.add("original_demo_music", "original_demo_music.wav", "audio", "retailer")
         fixture.add("original_demo_sfx", "original_demo_sfx.wav", "audio", "retailer")
         fixture.request["music_asset_id"] = "original_demo_music"
+        if args.with_narration:
+            # A deliberately unmistakable SINUSOIDAL test marker, not human speech.
+            # An actual encode/AAC spectral gate proves the F4 narration channel.
+            with wave.open(str(fixture.assets/"original_demo_voice.wav"), "wb") as w:
+                w.setnchannels(1)
+                w.setsampwidth(2)
+                w.setframerate(22050)
+                for i in range(args.seconds * 22050):
+                    t = i / 22050
+                    ramp = min(1, t / .2, (args.seconds-t) / .2)
+                    sample = int(3800 * math.sin(2 * math.pi * 863 * t) * max(0, ramp))
+                    w.writeframesraw(struct.pack("<h", sample))
+            fixture.add("original_demo_voice", "original_demo_voice.wav", "audio", "retailer")
+            fixture.request["voiceover_asset_id"] = "original_demo_voice"
+            fixture.request["voiceover_source"] = "retailer"
         fixture.request["scenes"][3]["sfx_asset_id"] = "original_demo_sfx"
         output = compile_creative_reel(fixture.request, fixture.manifest, fixture.assets, project)
         print(json.dumps({"status": "COMPILED_SYNTHETIC_TEST_ONLY",
                           "duration_seconds": fixture.request["duration_seconds"],
                           "project": str(output), "scene_count": len(fixture.request["scenes"]),
-                          "real_ai_motion": False, "commercial_media": False}))
+                          "real_ai_motion": False, "commercial_media": False,
+                          "real_voiceover": False, "synthetic_narration_test": args.with_narration}))
     finally:
         fixture.root_tmp.cleanup()
 
