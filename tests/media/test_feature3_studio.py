@@ -347,6 +347,7 @@ class Feature3Tests(unittest.TestCase):
 
     def test_fake_runner_requires_durable_quota_and_private_valid_png(self):
         from io import BytesIO
+        from hashlib import sha256
         cfg = ProviderConfig(
             "fixture", "test-1", frozenset({"image_edit"}),
             "Apache-2.0", "Apache-2.0",
@@ -360,17 +361,34 @@ class Feature3Tests(unittest.TestCase):
             png_bytes = buffer.getvalue()
         fixture = OptionalGPUProvider(cfg, runner=lambda job, files: png_bytes)
         job = InferenceJob(self.shop, str(uuid4()), "image_edit", (self.asset,))
+        claim_token, reservation_id, media_id = str(uuid4()), str(uuid4()), str(uuid4())
         self.assertTrue(fixture.status()["enabled"])
         self.assertAlmostEqual(fixture.quote(), 0.016667, places=6)
         events = []
-        def reserve(shop, jid, attempt, estimate):
+        def claim(shop, jid, attempt):
+            events.append("claimed")
+            return {"shop_id": shop, "job_id": jid, "attempt": attempt,
+                    "claim_token": claim_token}
+        def authorize(shop,jid,token,ids):
+            self.assertEqual(shop, self.shop)
+            self.assertEqual(token, claim_token)
+            self.assertEqual(ids, (self.asset,))
+            events.append("reauthorized")
+            return True
+        def reserve(shop, jid, attempt, estimate, token):
             self.assertEqual(shop, self.shop)
             self.assertEqual(jid, job.job_id)
-            events.append(("reserved", estimate))
-            return "durable-ledger-reservation"
-        def finalize(reservation, wall, success):
-            self.assertEqual(reservation, "durable-ledger-reservation")
+            self.assertEqual(token, claim_token)
+            events.append("reserved")
+            return {"reservation_id": reservation_id, "shop_id": shop,
+                    "job_id":jid, "attempt":attempt, "claim_token": token,
+                    "reserved_usd":estimate}
+        def finalize(reservation, wall, success, token):
+            self.assertEqual(reservation, reservation_id)
+            self.assertEqual(token, claim_token)
             events.append(("completed", success))
+            return {"shop_id":self.shop, "job_id":job.job_id, "attempt":1,
+                    "claim_token":token, "finalized":True}
         with self.assertRaises(ProviderBlocked):
             fixture.execute(job, resolve_assets=lambda *_: {},
                             write_private_output=lambda *_: None,
@@ -381,18 +399,24 @@ class Feature3Tests(unittest.TestCase):
             observed.update(metadata)
             self.assertEqual(shop, self.shop)
             self.assertEqual(payload, png_bytes)
-            return "private-fixture-only"
-        self.assertEqual(fixture.execute(
-            job, resolve_assets=lambda shop, ids: {self.asset: b"PRIVATE_INPUT"},
+            return {"shop_id": shop, "job_id": job_id, "attempt":1,
+                    "claim_token":claim_token, "media_asset_id":media_id,
+                    "image_sha256":sha256(payload).hexdigest(),
+                    "private":True,"review_status":"UNREVIEWED"}
+        output=fixture.execute(
+            job, claim_job=claim, reauthorize=authorize,
+            resolve_assets=lambda shop, ids: {self.asset: b"PRIVATE_INPUT"},
             write_private_output=writer, reserve_usage=reserve,
             finalize_usage=finalize,
-        ), "private-fixture-only")
-        self.assertEqual([x[0] for x in events], ["reserved", "completed"])
-        self.assertEqual(events[-1], ("completed", True))
+        )
+        self.assertEqual(output["media_asset_id"], media_id)
+        self.assertEqual(events, ["claimed","reauthorized","reserved",
+                                  "reauthorized",("completed",True)])
         self.assertTrue(observed["synthetic"])
+        self.assertTrue(observed["requires_human_review"])
         self.assertEqual(observed["source_asset_ids"], [self.asset])
         self.assertGreaterEqual(observed["inference_wall_seconds"], 0)
-        # Mock fixture runner is NOT real image generation.
+        # A valid CPU Pillow fixture is NOT real CUDA generation.
 
     def test_provider_invalid_output_fails_closed_and_finalizes_usage(self):
         cfg = ProviderConfig(
@@ -402,23 +426,30 @@ class Feature3Tests(unittest.TestCase):
             gpu_deployed=True, estimated_gpu_seconds=20,
             gpu_rate_usd_per_hour=1, max_cost_usd_per_job=.10,
         )
-        events = []
-        fixture = OptionalGPUProvider(cfg, runner=lambda job, inputs: b"MALFORMED")
+        events=[]
+        fixture=OptionalGPUProvider(cfg, runner=lambda job, inputs: b"MALFORMED")
+        job=InferenceJob(self.shop,str(uuid4()),"image_edit",(self.asset,))
+        claim_token,reservation_id=str(uuid4()),str(uuid4())
         with self.assertRaises(ProviderBlocked):
             fixture.execute(
-                InferenceJob(self.shop, str(uuid4()), "image_edit", (self.asset,)),
-                resolve_assets=lambda *_: {self.asset: b"PRIVATE_INPUT"},
+                job,
+                claim_job=lambda s,j,a: {"shop_id":s,"job_id":j,"attempt":a,
+                                        "claim_token":claim_token},
+                reauthorize=lambda *args: True,
+                resolve_assets=lambda *_: {self.asset:b"PRIVATE_INPUT"},
                 write_private_output=lambda *_: "should-not-run",
-                reserve_usage=lambda *_: "lease",
-                finalize_usage=lambda *args: events.append(args),
+                reserve_usage=lambda s,j,a,c,t: {
+                    "reservation_id":reservation_id,"shop_id":s,
+                    "job_id":j,"attempt":a,"claim_token":t,"reserved_usd":c},
+                finalize_usage=lambda r,w,ok,t: (events.append(ok) or
+                    {"shop_id":self.shop,"job_id":job.job_id,"attempt":1,
+                     "claim_token":claim_token,"finalized":True}),
             )
-        self.assertEqual(len(events), 1)
-        self.assertIs(events[0][-1], False)
-        blocked = ProviderConfig("no-cost", "v1", frozenset({"image_edit"}),
-                                 "Apache-2.0", "Apache-2.0",
-                                 dependency_licenses_approved=True,
-                                 cost_approved=True, gpu_deployed=True)
-        self.assertFalse(OptionalGPUProvider(blocked, runner=lambda *_: b"image")
+        self.assertEqual(events,[False])
+        blocked=ProviderConfig("no-cost","v1",frozenset({"image_edit"}),
+            "Apache-2.0","Apache-2.0",
+            dependency_licenses_approved=True,cost_approved=True,gpu_deployed=True)
+        self.assertFalse(OptionalGPUProvider(blocked, runner=lambda *_:b"image")
                          .status()["enabled"])
 
 
