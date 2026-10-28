@@ -161,3 +161,7 @@ Checkpoint continuation completed code on existing Feature5 branch: added negati
 ## 2026-10-28 — Parallel/timeout negative proof
 
 2026-10-28: Added CPU negative tests for parallel same-dispatcher submission (one POST only) and F3 rights resolver outage after durable intent (zero POST, consumed). Source test commit a0929fff705274fb22e5876e38b2410b70cd62c7. Final documentation-head 4/4 CI pending, no paid or hosted writes.
+
+
+## 2026-10-28 — Read-only hosted policy denial (not signed-JWT acceptance)
+Connected DEV project was queried in a read-only rolled-back transaction. Synthetic authenticated user had 0 rows across shops, media_assets, render_jobs, shop_usage_reservations, usage_events, memberships. Anonymous role got 42501 permission denied on shops. No signed JWT, cross-shop actual user, protected HTTP request or paid model transaction was exercised. All GPU/paid resources remained off.
