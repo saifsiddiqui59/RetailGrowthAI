@@ -43,7 +43,7 @@ array['poster','try_on','video_reference']);
 
 -- Even a direct service-role/postgres UPDATE cannot counterfeit approval
 -- without a same-transaction reviewer event: this is not just an RPC check.
-do $
+do $guard_test$
 declare denied boolean := false;
 begin
  begin
@@ -52,7 +52,7 @@ begin
    where model_id='b3000000-0000-4000-8000-000000000031';
  exception when insufficient_privilege then denied:=true; end;
  if not denied then raise exception 'FAIL un-audited direct model promotion'; end if;
-end $;
+end $guard_test$;
 
 -- Authentication alone cannot invent independent license verification.
 set local role authenticated;
