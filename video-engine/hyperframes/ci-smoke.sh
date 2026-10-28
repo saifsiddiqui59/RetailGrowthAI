@@ -11,7 +11,14 @@ timeout --signal=TERM --kill-after=10s 180s npm install --prefix "$ROOT/video-en
 if [ -x "$ROOT/video-engine/hyperframes/node_modules/.bin/puppeteer" ]; then
   timeout --signal=TERM --kill-after=10s 140s "$ROOT/video-engine/hyperframes/node_modules/.bin/puppeteer" browsers install chrome-headless-shell
 fi
+# Run offline package/browser readiness checks before the full CPU render.
+# The older-node npm-exec fallback is unqualified and remains a DEV blocker.
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
+if (( NODE_MAJOR >= 22 )); then
+  python3 "$ROOT/video-engine/hyperframes/qualify_runtime.py" --report "$ROOT/ci-artifacts/feature4-runtime-preflight.json"
+else
+  echo "Feature4 source runtime preflight deferred: runner Node <22, fallback npm exec used" >&2
+fi
 if (( NODE_MAJOR >= 22 )); then
   timeout --signal=TERM --kill-after=10s 480s node "$ROOT/video-engine/hyperframes/render.mjs" "$PROJECT" "$OUTPUT"
 else

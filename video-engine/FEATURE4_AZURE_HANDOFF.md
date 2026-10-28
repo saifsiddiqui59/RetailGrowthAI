@@ -106,3 +106,7 @@ A CI-generated npm lockfile for producer 0.8.185 is available in `ffmpeg-smoke` 
 ## F4-08 benchmark observed resources (GitHub, not Azure)
 
 GitHub Actions #40671108819 passed 4/4 and 114 media unit tests. Full-HD 30s synthetic HyperFrames execution on 4 visible runner CPUs took 119.612 seconds, sampled 1,790,390,272 process-tree RSS bytes (about 1.67 GiB) across 580 samples, with sampled CPU-time lower bound 182.09 seconds and up to 8 observed processes. These are bounded **GitHub CI** measurements, not Azure Flex billing, hosted cold starts, memory guarantee or a sizing decision. Do **not** provision a larger Azure plan solely from this observation. Coordinator must benchmark package/browser/host under approved DEV constraints before enabling live v2.
+
+## Optional F4-08 deployment qualification prerequisite
+
+Before adding a production Node/Chromium sidecar or worker, compare the real deployed image against the offline `qualify_runtime.py` checks: Node >=22.12.0, pinned HyperFrames producer 0.8.185, actual executable Puppeteer Headless Shell, working FFmpeg/FFprobe and observed cgroup memory ceiling. These checks must be run **inside the intended Azure worker**, not simply on GitHub. Reported GitHub resource measurements and any sample license status are not transferable to Azure. The script itself has no tenant/media network calls and produces only a local diagnostic JSON.
