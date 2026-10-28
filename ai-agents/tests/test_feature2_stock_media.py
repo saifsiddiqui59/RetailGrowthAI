@@ -95,6 +95,8 @@ def test_reviewed_synthetic_bytes_are_only_eligible_for_nonbillable_stock_previe
     {"reviewed_licence_page": "https://example.com/false-license"},
     {"reviewed_source_page": "https://example.com/forged"},
     {"reviewed_on": "2026-10-27"},
+    {"reviewed_on": "2026-02-30"},
+    {"reviewed_on": None},
     {"creator": "Fake photographer"},
     {"file_bytes_checked": False},
     {"license_terms_checked": False},
