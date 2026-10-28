@@ -47,11 +47,12 @@ def stage_approved_fashion_first_frame(
         not callable(resolve_first_frame)):
         raise WanCompatibilityError("Feature3 current read-only bundle required")
     # A model-library photo next to a kurti photo is NOT a garment try-on.
-    if require_model_wearing_garment and (
-        type(expected_manifest.get("model")) is not dict or
-        type(expected_manifest.get("try_on_review")) is not dict or
-        expected_manifest["try_on_review"].get("state") != "HUMAN_REVIEW_PASSED"
-    ):
+    has_reviewed_worn_frame = (
+        type(expected_manifest.get("model")) is dict and
+        type(expected_manifest.get("try_on_review")) is dict and
+        expected_manifest["try_on_review"].get("state") == "HUMAN_REVIEW_PASSED"
+    )
+    if require_model_wearing_garment and not has_reviewed_worn_frame:
         raise WanCompatibilityError("A wearer shot requires an independently reviewed actual try-on first frame")
     if technical_letterbox_approved is not True:
         raise WanCompatibilityError("Feature4 must approve explicit non-cropping native portrait preparation")
@@ -121,7 +122,7 @@ def stage_approved_fashion_first_frame(
             "source_facts_sha256":expected_manifest["reference_fingerprint"],
             "width":TARGET[0],"height":TARGET[1],
             "approved":True,"private":True,"commercial_rights":True,
-            "human_likeness_approved":True,
+            "human_likeness_approved":has_reviewed_worn_frame,
         }
         yield target,grant,{
             "staging":"EXPLICIT_ASPECT_PRESERVING_LETTERBOX",
