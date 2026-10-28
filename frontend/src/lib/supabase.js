@@ -471,6 +471,49 @@ export function createRetailClient({
       license_name: licenseName, object_path: objectPath }
   }
 
+  // Feature3 signed model-original upload: reuses existing private upload
+  // transport and byte-signature checks, but with immutable model/sha path.
+  // Registration remains a SECOND signed RPC and does not certify rights.
+  async function uploadModelOriginal(shopId, { file, modelId, licenseName,
+        licenseUrl = '', attribution = '', confirmedRights = false }) {
+    ensureConfigured()
+    if (!UUID_V4.test(shopId || '') || !UUID_V4.test(modelId || '') ||
+        !confirmedRights || !LICENSES.has(licenseName) ||
+        typeof attribution !== 'string' ||
+        attribution.trim().length < 10 || attribution.trim().length > 200 ||
+        typeof licenseUrl !== 'string' || licenseUrl.length > 500) {
+      throw new Error('Valid shop, model, and declared source rights required.')
+    }
+    if (licenseName !== 'owned') {
+      try {
+        const link = new URL(licenseUrl)
+        if (link.protocol !== 'https:' || !link.hostname || link.username || link.password)
+          throw new Error('Invalid source license URL')
+      } catch { throw new Error('An HTTPS source-license URL is required.') }
+    }
+    await verifyImageBytes(file)
+    if (file.type !== 'image/png') throw new Error('Model original must be PNG.')
+    if (!globalThis.crypto?.subtle) throw new Error('Secure SHA-256 browser required')
+    const bytes = await file.arrayBuffer()
+    const hash = await globalThis.crypto.subtle.digest('SHA-256',bytes)
+    const digest = Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2,'0')).join('')
+    // Exactly the path accepted by feature3_register_model_original.
+    const objectPath = shopId + '/model-library/' + modelId + '/' + digest + '.png'
+    const token = await accessToken()
+    const response = await fetchImpl(origin + '/storage/v1/object/retailgrowth-media/' + objectPath, {
+      method:'POST', redirect:'error', cache:'no-store',
+      headers: {
+        apikey:key, Authorization:'Bearer '+token, 'Content-Type':'image/png',
+        'x-upsert':'false',
+      },
+      body:file,
+    })
+    if (!response.ok) throw new Error('Private original upload denied or already exists.')
+    return Object.freeze({shop_id:shopId,model_id:modelId,object_path:objectPath,
+      image_sha256:digest,bytes:file.size,upload_only:true,
+      rights_verified:false,registered:false})
+  }
+
   // Existing campaign_days RLS already checks active shop membership.
   // One read-only, bounded month query; NOT a social posting history endpoint.
   async function listShopCalendarMonth(shopId, month) {
@@ -696,7 +739,7 @@ export function createRetailClient({
     listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
     isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
     listPlatformNotifications, setPlatformNotificationRead, listPlatformSubscriptionWatch,
-    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, listMediaAssetsPage, listMediaAssetsKeysetPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset,
+    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, listMediaAssetsPage, listMediaAssetsKeysetPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset, uploadModelOriginal,
   }
 }
 
