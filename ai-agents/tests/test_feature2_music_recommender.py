@@ -71,7 +71,7 @@ def test_server_model_reorders_known_tracks_without_granting_usage_rights():
 
 
 @pytest.mark.parametrize("bad", [
-    {"audio_id": "sound-123"},
+    {"audio_id": "stock-789"},
     {"source": "unreviewed_scraper"},
     {"evidence_url": "http://www.instagram.com/reels/audio/123/"},
     {"evidence_url": "https://evil.example/reels/audio/123/"},
