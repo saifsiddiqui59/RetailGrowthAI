@@ -75,7 +75,7 @@ def audit_entries(
         isinstance(entries.get(pinned_prefix + name), bytes)
         and compare_digest(
             sha1(b"blob " + str(len(entries[pinned_prefix + name])).encode("ascii")
-                 + b"\\0" + entries[pinned_prefix + name]).hexdigest(), expected
+                 + b"\0" + entries[pinned_prefix + name]).hexdigest(), expected
         )
         for name, expected in PINNED_UPSTREAM_BLOBS.items()
     )
