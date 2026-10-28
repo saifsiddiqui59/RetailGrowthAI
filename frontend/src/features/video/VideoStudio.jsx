@@ -77,7 +77,7 @@ export default function VideoStudio({
           <h2 id="f4-title">Professional Video Studio</h2>
           <p>Design a branded 9:16 Reel from your approved shop media.</p>
         </div>
-        <span className="f4-status">{renderStatus?.status || 'LOCAL DRAFT'}</span>
+        <span className="f4-status">{renderStatus?.shop_id === shopId ? renderStatus.status : 'LOCAL DRAFT'}</span>
       </header>
       <div className="f4-layout">
         <form className="f4-controls" onSubmit={submit}>
@@ -209,7 +209,9 @@ export default function VideoStudio({
           ) : (
             <div className={'f4-phone f4-' + draft.template}>
               <span className="f4-kicker">{VIDEO_TEMPLATES.find(([id]) => id === draft.template)?.[1]}</span>
-              <div className="f4-mock-motion" aria-hidden="true"><span /><span /><span /></div>
+              <div className="f4-media-placeholder" aria-hidden="true">
+                <span>{selectedScene?.asset_id ? 'APPROVED ASSET ID · NO REAL VIDEO PREVIEW' : 'SELECT MEDIA TO PREVIEW'}</span>
+              </div>
               <div className="f4-preview-copy">
                 <span>SCENE {selectedSceneIndex + 1} / {draft.scenes.length} · {selectedScene?.start ?? 0}–{(selectedScene?.start ?? 0) + (selectedScene?.duration ?? 0)}s</span>
                 <strong>{selectedScene?.headline || 'Your product story'}</strong>
@@ -219,7 +221,7 @@ export default function VideoStudio({
             </div>
           )}
           <p className="f4-view-note">{ready ? 'Signed output from the existing authenticated job workflow' :
-            'The real preview, saved render history and signed downloads require coordinator-approved backend integration.'}</p>
+            'Storyboard planning only—not footage of a real model. Saved jobs and private downloads require coordinator-enabled backend v2.'}</p>
         </aside>
       </div>
     </section>
