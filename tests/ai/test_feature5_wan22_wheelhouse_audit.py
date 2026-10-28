@@ -9,6 +9,7 @@ import unittest
 
 from feature5_motion.infra.wan22_native_preflight import (
     REQUIRED_PACKAGES, audit_offline_wheelhouse,
+    render_reviewed_require_hashes, validate_offline_requirements_file,
 )
 from feature5_motion.wan22_motion_adapter import WanCompatibilityError
 
@@ -94,5 +95,45 @@ class WanOfflineWheelhouseTest(unittest.TestCase):
                 audit_offline_wheelhouse(td,reviewed_wheel_sha256={"torch":approved["torch"]})
 
 
+    def test_lockfile_matches_entire_actual_sha_checked_wheel_inventory(self):
+        with TemporaryDirectory() as td:
+            approved=fake_wheels(td)
+            proof=audit_offline_wheelhouse(td,reviewed_wheel_sha256=approved)
+            self.assertEqual(proof["wheel_count"],len(approved))
+            text=render_reviewed_require_hashes(approved)
+            path=Path(td)/"requirements.lock"
+            # Store lock outside wheel directory: no unexpected wheelhouse entries.
+            target=Path(td).parent/(Path(td).name+".require-hashes.txt")
+            try:
+                target.write_text(text,encoding="utf8")
+                self.assertTrue(validate_offline_requirements_file(
+                    target,reviewed_wheel_sha256=approved))
+                target.write_text(text+"--extra-index-url https://external.invalid\n")
+                with self.assertRaisesRegex(WanCompatibilityError,"differ"):
+                    validate_offline_requirements_file(target,reviewed_wheel_sha256=approved)
+                target.unlink()
+                target.symlink_to(Path(td)/"torch-1.2.3-py3-none-any.whl")
+                with self.assertRaises(WanCompatibilityError):
+                    validate_offline_requirements_file(target,reviewed_wheel_sha256=approved)
+            finally:
+                target.unlink(missing_ok=True)
+
+    def test_reject_injected_pip_option_and_normalized_dependency_alias(self):
+        manifest=fake_wheels_in_memory()
+        bad=dict(manifest)
+        bad["--extra-index-url"]=dict(manifest["torch"])
+        with self.assertRaisesRegex(WanCompatibilityError,"Unsafe"):
+            render_reviewed_require_hashes(bad)
+        bad=dict(manifest)
+        bad["TORCH"]=dict(manifest["torch"])
+        with self.assertRaisesRegex(WanCompatibilityError,"Alias"):
+            render_reviewed_require_hashes(bad)
+
+
 if __name__ == "__main__":
     unittest.main()
+
+def fake_wheels_in_memory():
+    return {name:{"version":"1.2.3","sha256":"a"*64}
+            for name in REQUIRED_PACKAGES}
+
