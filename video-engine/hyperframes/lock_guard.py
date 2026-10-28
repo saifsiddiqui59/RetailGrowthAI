@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """F4-12: fail closed if npm resolves a different HyperFrames dependency tree.
 
-GitHub Actions produced an reviewed npm v3 lockfile from producer 0.8.185.
-Until that exact JSON is committed, we verify the complete byte-for-byte
-resolved tree *before* npm ci installs package scripts. This is not proof of
-commercial license clearance, Azure runtime packaging or media quality.
+GitHub Actions produced the exact reviewed npm v3 lockfile from producer 0.8.185.
+This lock is now committed in the Feature4 branch and verified byte-for-byte
+BEFORE npm ci installs package scripts. This is not commercial license clearance,
+Azure runtime packaging or media quality proof.
 """
 from __future__ import annotations
 
@@ -87,7 +87,7 @@ def verify_lock(path):
         "producer": PRODUCER_VERSION,
         "puppeteer": PUPPETEER_VERSION,
         "allowed_registry": ALLOWED_REGISTRY,
-        "lockfile_committed_to_repository": False,
+        "lockfile_committed_to_repository": True,
         "transitive_license_review_complete": False,
         "legal_signoff_for_commercial_saas": False,
         "license_counts": dict(sorted(licenses.items())),

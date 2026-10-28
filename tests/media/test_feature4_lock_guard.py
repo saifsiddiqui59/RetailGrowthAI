@@ -50,6 +50,16 @@ class DependencyLockTests(unittest.TestCase):
                 with self.assertRaises(DependencyLockError):
                     verify_lock(path)
 
+    def test_checked_in_lockfile_is_exact_frozen_audited_bytes(self):
+        # A clean checkout must ship the same reviewed CI lock; no resolver step.
+        lock = ROOT / "video-engine" / "hyperframes" / "package-lock.json"
+        self.assertTrue(lock.is_file(), "Git-tracked dependency lock is required")
+        self.assertEqual(hashlib.sha256(lock.read_bytes()).hexdigest(), PINNED_SHA256)
+        result = verify_lock(lock)
+        self.assertTrue(result["lockfile_committed_to_repository"])
+        self.assertFalse(result["legal_signoff_for_commercial_saas"])
+        self.assertEqual(result["package_entries_including_root"], LOCK_PACKAGES)
+
 
 if __name__ == "__main__":
     unittest.main()

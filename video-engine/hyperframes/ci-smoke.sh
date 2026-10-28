@@ -7,9 +7,8 @@ PROJECT="$TEMP/diwali-composition"
 OUTPUT="$ROOT/ci-artifacts/feature4-30s-hyperframes-synthetic.mp4"
 mkdir -p "$ROOT/ci-artifacts"
 python3 "$ROOT/video-engine/demo_feature4_diwali.py" "$PROJECT"
-# Freeze every resolved transitive package before any installation scripts run.
-# This temporary resolution is a stopgap pending a committed package-lock.json.
-timeout --signal=TERM --kill-after=10s 180s npm install --prefix "$ROOT/video-engine/hyperframes" --package-lock-only --ignore-scripts --no-audit --no-fund
+# Validate the exact committed v3 dependency lock BEFORE npm executes any
+# installation scripts. No network-driven package resolution or lock rewrites.
 python3 "$ROOT/video-engine/hyperframes/lock_guard.py" --lock "$ROOT/video-engine/hyperframes/package-lock.json" --report "$ROOT/ci-artifacts/feature4-npm-dependency-audit.json"
 timeout --signal=TERM --kill-after=10s 180s npm ci --prefix "$ROOT/video-engine/hyperframes" --no-audit --no-fund
 if [ -x "$ROOT/video-engine/hyperframes/node_modules/.bin/puppeteer" ]; then
@@ -45,7 +44,7 @@ done
 
 # Quantify scene diversity and prove original 480Hz fixture-track remains in AAC mix.
 python3 "$ROOT/video-engine/hyperframes/check_feature4_output.py" "$ROOT/ci-artifacts"
-# Capture SHA-pinned temporary lock for reproducibility review. It is not yet Git-tracked.
+# Preserve the exact committed SHA-pinned lock in the CI evidence artifact.
 cp "$ROOT/video-engine/hyperframes/package-lock.json" "$ROOT/ci-artifacts/feature4-review-package-lock.json"
 
 # Acceptance-stage output contract: exercise real 1080x1920 frames, not just
