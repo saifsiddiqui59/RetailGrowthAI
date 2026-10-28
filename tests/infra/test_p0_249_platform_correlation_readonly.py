@@ -74,6 +74,25 @@ def test_sanitization_never_exposes_raw_instance_or_log_message():
     assert "secret" not in repr(sanitized) and "private" not in repr(sanitized)
 
 
+def test_kusto_aggregate_counts_accept_bounded_decimal_strings():
+    rows = [
+        {"bucket": "2026-10-28T19:40:00Z", "events": "17",
+         "category": "worker_start", "instance": "same-host"},
+        {"bucket": "2026-10-28T19:41:00Z", "events": 2.0,
+         "category": "grpc_pending_timeout"},
+        {"bucket": "2026-10-28T19:42:00Z", "events": "1e5",
+         "category": "worker_startstream"},
+        {"bucket": "2026-10-28T19:43:00Z", "events": "90000000000000",
+         "category": "rpc_exception"},
+        {"bucket": "2026-10-28T19:44:00Z", "events": False,
+         "category": "worker_exit"},
+    ]
+    cleaned = module.safe_rows(rows)
+    assert len(cleaned) == 2
+    assert [r["events"] for r in cleaned] == [17, 2]
+    assert all("instance" not in r for r in cleaned)
+
+
 def test_only_aggregate_read_operations_reachable():
     calls = []
     module.audit_scope = lambda: calls.append("scoped")
