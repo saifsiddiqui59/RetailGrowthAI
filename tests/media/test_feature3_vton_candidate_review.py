@@ -21,7 +21,7 @@ class VTONCandidateTests(unittest.TestCase):
         self.output=f.images["tryon"]
         self.response={
             "shop_id":f.shop,"provider_job_id":str(uuid4()),"claim_token":str(uuid4()),
-            "provider":"fashn-vton-1.5","source_fingerprint":self.bundle["reference_fingerprint"],
+            "provider":"tryon-v1.6","source_fingerprint":self.bundle["reference_fingerprint"],
             "model_asset_id":f.model_asset,"garment_asset_id":f.garment,
             "output_sha256":sha256(self.output).hexdigest(),
             "attempt":1,"output_png":self.output,
