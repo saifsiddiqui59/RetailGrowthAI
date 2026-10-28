@@ -135,3 +135,8 @@
 
 ## 2026-10-28 — GPU-OFF private output hardening and mock-to-media acceptance
 - Resumed #40726978755: FFmpeg media negative test mismatched MotionError/WanCompatibilityError; a concurrently landed 6b1cfeb0 correction was verified in #40727265840 as all four jobs success. Subsequently extended source output-directory denial, late mutation check, receipt metadata hash/job/attempt binding and one-shot synthetic mock Comfy protocol-to-real-FFmpeg pending receipt/lease revocation test. New CI evidence required after push; tests have no paid GPU, live customer rights, Wan inference, Azure write or WineShopPOS touch.
+
+
+## 2026-10-28 — GPU-OFF source qualification and exact external gates
+
+Resume checkpoint #40726978755 failed/cancelled at 2fd85b6 from malformed UUID negative; concurrent corrective 6b1cfeb0 passed replacement 4/4 in #40727265840. Added branch commit 005c92d1 with strict foreign folder rejection, post-screen SHA/identity validation, sealed pending receipt and mock Comfy one-POST/history -> real synthetic moving FFmpeg MP4 -> revoked-lease denial. Code SHA 005c92d1d254a925d22fadeee9270f900b061a2d: GitHub Actions #40733254877 completed 4/4 SUCCESS; Python/uv 622 passed, 7 skipped and 343 subtests passed; FFmpeg/media 51 tests OK plus synthetic renderer; frontend/Playwright and disposable Supabase succeeded. URL: https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40733254877. Mark feature-owned CPU source ready pending final docs SHA CI. No actual Wan, GPU, Azure/paid, live media or WineShopPOS changes.
