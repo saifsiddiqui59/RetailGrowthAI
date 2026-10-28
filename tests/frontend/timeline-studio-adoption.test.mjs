@@ -5,7 +5,7 @@ import { inspectCreativeDirection } from '../../frontend/src/features/video/crea
 import { createEditorHistory, pushEditorHistory, undoEditorHistory, redoEditorHistory } from '../../frontend/src/features/video/vendor/editorHistoryCore.mjs'
 import { packTimedSegmentsIntoLanes, materializeCaptionTimings, getVisualSegmentTimeline } from '../../frontend/src/features/video/vendor/timeline.js'
 import { getTimelineRulerTicks, getTimelineAutoFitZoom } from '../../frontend/src/features/video/vendor/timelineScale.js'
-import { makeVideoDraft, compatibleMedia, validateVideoDraft } from '../../frontend/src/features/video/video-model.mjs'
+import { makeVideoDraft, compatibleMedia, validateVideoDraft, sourceClipPlaybackWindow } from '../../frontend/src/features/video/video-model.mjs'
 
 const SHOP='11111111-1111-4111-8111-111111111111'
 const OTHER='22222222-2222-4222-8222-222222222222'
@@ -218,4 +218,14 @@ test('front-end refuses unsupported video edits and source-duration overruns bef
  assert.match(validateVideoDraft(wrongMute,measured,music).join(';'),/source audio mute/)
  const shortVoice={...d,voiceover_asset_id:'licensed_music'}
  assert.match(validateVideoDraft(shortVoice,assets,[{...music[0],duration_seconds:8}]).join(';'),/does not cover/)
+})
+
+test('signed source video preview plays only the exact renderer trim window',()=>{
+ const scene={duration:6,trim_start:2.5}
+ const source={kind:'video',authorized:true,duration_seconds:9}
+ assert.deepEqual(sourceClipPlaybackWindow(scene,source),{start:2.5,end:8.5})
+ assert.equal(sourceClipPlaybackWindow(scene,{kind:'image',authorized:true}),null)
+ assert.throws(()=>sourceClipPlaybackWindow({...scene,trim_start:3.5},source),/exceeds verified/)
+ assert.throws(()=>sourceClipPlaybackWindow({...scene,trim_start:-1},source),/invalid verified/)
+ assert.throws(()=>sourceClipPlaybackWindow({...scene,trim_start:NaN},source),/invalid verified/)
 })

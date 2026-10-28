@@ -160,3 +160,22 @@ export function validateVideoDraft(plan, mediaAssets = [], musicAssets = []) {
   }
   return [...new Set(errors)]
 }
+
+/** Preview exactly the authorized source-video excerpt used by the existing
+ *  HyperFrames data-media-start/data-duration renderer. No URLs or rights
+ *  approvals may be derived here; the private-media adapter owns URL checks.
+ */
+export function sourceClipPlaybackWindow(scene, source) {
+  if (!scene || !source || source.kind !== 'video' || source.authorized !== true) return null
+  const start = scene.trim_start ?? 0
+  if (!valid(start) || start < 0 || start > 180 ||
+      !valid(scene.duration) || scene.duration < .5) {
+    throw Error('Preview has an invalid verified source trim')
+  }
+  const end = Math.round((start + scene.duration) * 1000) / 1000
+  if (valid(source.duration_seconds) && source.duration_seconds > 0 &&
+      end > source.duration_seconds + .02) {
+    throw Error('Source preview exceeds verified video length')
+  }
+  return Object.freeze({start, end})
+}

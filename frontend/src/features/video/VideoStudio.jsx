@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   VIDEO_MODES, VIDEO_TEMPLATES, VIDEO_ANIMATIONS, VIDEO_TRANSITIONS, compatibleMedia, makeVideoDraft,
-  shiftVideoScene, retimeVideoDraft, validateVideoDraft,
+  shiftVideoScene, retimeVideoDraft, validateVideoDraft, sourceClipPlaybackWindow,
 } from './video-model.mjs'
 import { privateMediaPreviewUrl } from './video-transport.mjs'
 import TimelineStudioSurface from './TimelineStudioSurface.jsx'
@@ -26,6 +26,7 @@ export default function VideoStudio({
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [selectedSceneIndex, setSelectedSceneIndex] = useState(0)
+  const previewVideo = useRef(null)
   // A login/shop switch cannot retain the previous tenant's composition draft.
   useEffect(() => {
     setDraft(makeVideoDraft({ shopId, mediaAssets }))
@@ -54,7 +55,11 @@ export default function VideoStudio({
     .find(item => item?.authorized === true && item?.shop_id === shopId &&
       item.id === selectedScene?.asset_id)
   let previewSource = null
+  let sourceWindow = null
   try {
+    if (sceneSource?.kind === 'video') {
+      sourceWindow = sourceClipPlaybackWindow(selectedScene, sceneSource)
+    }
     if (sceneSource?.shop_id === shopId && sceneSource?.preview_url) {
       previewSource = privateMediaPreviewUrl(
         sceneSource.preview_url, import.meta.env?.VITE_SUPABASE_URL, shopId)
@@ -258,8 +263,25 @@ export default function VideoStudio({
             <div className={'f4-phone f4-' + draft.template}>
               <span className="f4-kicker">{VIDEO_TEMPLATES.find(([id]) => id === draft.template)?.[1]}</span>
               {previewSource && sceneSource?.kind === 'video' ? (
-                <video className="f4-source-preview" src={previewSource} controls playsInline muted
-                  preload="metadata" aria-label="Authorized source footage; not rendered advertisement" />
+                <video key={selectedSceneIndex + ':' + sourceWindow?.start + ':' + previewSource}
+                  ref={previewVideo} className="f4-source-preview" src={previewSource} controls playsInline muted
+                  preload="metadata" aria-label="Authorized source footage excerpt; muted preview, not rendered advertisement"
+                  onLoadedMetadata={event => {
+                    if (sourceWindow) {
+                      try { event.currentTarget.currentTime = sourceWindow.start } catch { /* unavailable seek is not a render approval */ }
+                    }
+                  }}
+                  onPlay={event => {
+                    if (sourceWindow && (event.currentTarget.currentTime < sourceWindow.start ||
+                        event.currentTarget.currentTime >= sourceWindow.end)) {
+                      event.currentTarget.currentTime = sourceWindow.start
+                    }
+                  }}
+                  onTimeUpdate={event => {
+                    if (sourceWindow && event.currentTarget.currentTime >= sourceWindow.end - .02) {
+                      event.currentTarget.pause()
+                    }
+                  }} />
               ) : previewSource && ['image', 'poster'].includes(sceneSource?.kind) ? (
                 <img className="f4-source-preview" src={previewSource}
                   alt="Authorized retailer product or poster source; not rendered advertisement" />
@@ -273,7 +295,10 @@ export default function VideoStudio({
                 <strong>{selectedScene?.headline || 'Your product story'}</strong>
                 <em>{selectedScene?.offer || (selectedSceneIndex === draft.scenes.length - 1 ? draft.cta : 'Approved media storyboard')}</em>
               </div>
-              <span className="f4-mock-label">{previewSource ? 'SOURCE ASSET · FINAL REEL NOT RENDERED' : 'STORYBOARD ONLY · NO VIDEO GENERATED'}</span>
+              <span className="f4-mock-label">{previewSource && sourceWindow
+                ? 'SOURCE ' + sourceWindow.start + '–' + sourceWindow.end + 's · MUTED PREVIEW ONLY'
+                : previewSource ? 'SOURCE ASSET · FINAL REEL NOT RENDERED'
+                : 'STORYBOARD ONLY · NO VIDEO GENERATED'}</span>
             </div>
           )}
           <p className="f4-view-note">{ready ? 'Signed output from the existing authenticated job workflow' :

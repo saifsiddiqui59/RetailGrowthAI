@@ -93,14 +93,24 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
   const trackMusic = draft.music_asset_id && musicAssets.some(m=>m.id===draft.music_asset_id &&
     m.shop_id===draft.shop_id && m.authorized===true)
     ? [{id:'licensed-audio',start:0,duration:draft.duration_seconds,volume:1}] : []
-  return <section className="f4-ts-editor" aria-label="Professional multi-track video timeline">
+  const shortcuts = event => {
+    if (approvedDirection || (!event.ctrlKey && !event.metaKey) || event.altKey ||
+        event.key.toLowerCase() !== 'z' || event.target?.closest?.(
+          'input,textarea,select,[contenteditable="true"]')) return
+    event.preventDefault()
+    applyHistory(event.shiftKey ? redoEditorHistory : undoEditorHistory)
+  }
+  return <section className="f4-ts-editor" aria-label="Professional multi-track video timeline"
+    onKeyDown={shortcuts}>
     <div className="f4-ts-toolbar">
       <strong>Timeline Studio <small>MIT upstream · HyperFrames output</small></strong>
       <div className="f4-ts-tools">
         <button type="button" onClick={()=>applyHistory(undoEditorHistory)}
-          disabled={approvedDirection||!history.past.length} aria-label="Undo timeline edit">Undo</button>
+          disabled={approvedDirection||!history.past.length} aria-label="Undo timeline edit"
+          aria-keyshortcuts="Control+Z Meta+Z">Undo</button>
         <button type="button" onClick={()=>applyHistory(redoEditorHistory)}
-          disabled={approvedDirection||!history.future.length} aria-label="Redo timeline edit">Redo</button>
+          disabled={approvedDirection||!history.future.length} aria-label="Redo timeline edit"
+          aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">Redo</button>
         <button type="button" disabled={approvedDirection||draft.scenes.length>=12}
           onClick={split} aria-label="Split video at playhead">Split at playhead</button>
         <button type="button" disabled={approvedDirection||selected<=0}
