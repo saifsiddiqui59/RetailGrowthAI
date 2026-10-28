@@ -58,7 +58,7 @@ test('desktop routes show honest unavailable contracts, not invented data', asyn
   await expect(page.getByRole('button', { name: 'Load recent campaign' })).toBeVisible()
   await page.goto('/media-library')
   await expect(page.getByRole('heading', { name: 'Media library' })).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Authorized media records' }).getByText('Image a1000000')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Authorized media records' }).getByText('Image a1000000',{exact:true})).toBeVisible()
   await expect(page.getByText('image/jpeg')).toHaveCount(0)
   expect(calls.some(path => path.includes('/retail_platform_notifications'))).toBe(false)
   expect(calls.some(path => path.includes('/social_accounts'))).toBe(false)
