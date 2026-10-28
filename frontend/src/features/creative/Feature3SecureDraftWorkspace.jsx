@@ -2,9 +2,10 @@
  * Source-only: requires coordinator to supply feature3Api + registered private images.
  * No blind POST retries, no browser status promotion and no signed PNG claims.
  */
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Feature3StudioPanel from './Feature3StudioPanel.jsx'
 import { validateFeature3Design } from './feature3-design.mjs'
+import {scopedFeature3GeneratedLink,SAFE_CLIENT_LIFETIME_MS} from './feature3-signed-link-scope.mjs'
 
 export default function Feature3SecureDraftWorkspace({
   shopId, campaignId, dayId, brandKit, imageMap = {}, approvedModels = [],
@@ -16,6 +17,24 @@ export default function Feature3SecureDraftWorkspace({
   const [busy, setBusy] = useState(false)
   const [generatedJobs, setGeneratedJobs] = useState([])
   const [generatedLink, setGeneratedLink] = useState(null)
+  const activeScope=useRef({shopId,feature3Api})
+  activeScope.current={shopId,feature3Api}
+  const pendingDownload=useRef(0)
+  const scopeKey=shopId+'|'+campaignId+'|'+dayId
+  const visibleGeneratedLink=!disabled ? scopedFeature3GeneratedLink(
+    generatedLink,shopId,Date.now(),scopeKey) : null
+  useEffect(()=>{
+    // On scope/provider changes, discard links and ignore delayed promises.
+    pendingDownload.current+=1
+    setGeneratedLink(null)
+    setGeneratedJobs([])
+  },[scopeKey,feature3Api])
+  useEffect(()=>{
+    if(!generatedLink)return
+    const timer=setTimeout(()=>setGeneratedLink(null),SAFE_CLIENT_LIFETIME_MS)
+    return ()=>clearTimeout(timer)
+  },[generatedLink])
+
   const ticket = useRef({designId:null,revision:0})
   const pending = useRef(false)
 
@@ -50,14 +69,22 @@ export default function Feature3SecureDraftWorkspace({
 
   const openGenerated = async jobId => {
     if (disabled || busy || pending.current) return
+    const scope=shopId, provider=feature3Api, requestKey=scopeKey
+    const attempt=++pendingDownload.current
+    const current=()=>attempt===pendingDownload.current &&
+      activeScope.current.shopId===scope &&
+      activeScope.current.feature3Api===provider
     setBusy(true); setGeneratedLink(null); setMessage('')
     try {
-      const receipt = await feature3Api.getGeneratedImageDownload(shopId,jobId)
-      setGeneratedLink(receipt)
-      setMessage('Private link is valid for 60 seconds. Image remains unreviewed.')
+      const receipt = await provider.getGeneratedImageDownload(scope,jobId)
+      if(!current())return
+      setGeneratedLink({...receipt,scope,requestKey,createdAt:Date.now()})
+      setMessage('Private link expires in 60 seconds. Image remains unreviewed.')
     } catch {
-      setMessage('Private image unavailable, expired or no longer authorized.')
-    } finally { setBusy(false) }
+      if(current())setMessage('Private image unavailable, expired or no longer authorized.')
+    } finally {
+      if(current())setBusy(false)
+    }
   }
 
   const restore = event => {
@@ -145,7 +172,7 @@ export default function Feature3SecureDraftWorkspace({
             Request 60-second signed download
           </button>}
         </div>)}
-        {generatedLink && <a href={generatedLink.url} target="_blank"
+        {visibleGeneratedLink && <a href={visibleGeneratedLink.url} target="_blank"
           rel="noopener noreferrer" download>
           Open private PNG (expires in 60 seconds; not approved for publishing)
         </a>}
