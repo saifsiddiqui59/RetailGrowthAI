@@ -104,9 +104,12 @@ def inspect_single_private_wan_output(*, shot, private_output_root,
     """
     if not isinstance(shot,WanShotPackage) or not callable(verify_existing_fenced_output_scope):
         raise WanCompatibilityError("Current trusted private Wan worker claim required")
-    shop=canonical_uuid(shot.lineage["shop_id"])
-    jid=canonical_uuid(job_id)
-    token=canonical_uuid(attempt_token)
+    try:
+        shop=canonical_uuid(shot.lineage["shop_id"])
+        jid=canonical_uuid(job_id)
+        token=canonical_uuid(attempt_token)
+    except (ValueError,KeyError,TypeError) as exc:
+        raise WanCompatibilityError("Invalid private Wan tenant/job/attempt fence") from exc
     root=Path(private_output_root)
     if (root.is_symlink() or not root.is_dir() or
         verify_existing_fenced_output_scope(
