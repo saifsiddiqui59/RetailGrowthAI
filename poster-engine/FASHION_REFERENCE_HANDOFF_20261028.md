@@ -120,3 +120,17 @@ delivered to an image-to-video model yet.
 No WineShopPOS modification. This document provides a reviewed integration
 proposal without changing the canonical shared `docs/INTERFACES_V1.md`
 until the coordinator freezes the cross-feature API surface.
+
+## 2026-10-28 — Real registered-upload UUID interoperability repair
+
+`register_uploaded_image` validates an independently generated private
+Storage object key `{shop}/uploads/{object_uuid}.{png|jpg|webp}`, then creates
+a separate `media_assets.id` registration UUID. The prior fashion
+adapter erroneously required the storage UUID to equal the DB media ID.
+`fashion_reference_v1._approved_asset` now verifies the correct existing
+upload prefix, a canonical private object UUIDv4, exact registered extension
+and current DB row+shop+hash+byte permissions **without equating the two IDs**.
+This is still a source-level adapter: production requires authoritative
+asset/current-rights review callbacks and original byte hash registration,
+not unverified client evidence. New tests deliberately use different file
+and database IDs and deny forged paths, mismatched MIME and traversal.
