@@ -24,6 +24,7 @@ const PlatformAdmin = lazy(() => import('./features/platform/PlatformAdmin.jsx')
 const PlatformAlerts = lazy(() => import('./features/platform/PlatformAlerts.jsx'))
 const WorkspacePage = lazy(() => import('./features/dashboard/WorkspacePages.jsx'))
 const MediaLibrary = lazy(() => import('./features/dashboard/MediaLibrary.jsx'))
+const RetailerInbox = lazy(() => import('./features/dashboard/RetailerInbox.jsx'))
 const RecentCampaignCalendar = lazy(() => import('./features/dashboard/RecentCampaignCalendar.jsx'))
 const BusinessSettings = lazy(() => import('./features/dashboard/BusinessSettings.jsx'))
 
@@ -204,7 +205,7 @@ function AppShell() {
             <Route path="/media-library" element={<MediaLibrary />} />
             <Route path="/connections" element={<WorkspacePage section="connections" />} />
             <Route path="/publishing" element={<WorkspacePage section="publishing" />} />
-            <Route path="/notifications" element={<WorkspacePage section="notifications" />} />
+            <Route path="/notifications" element={<RetailerInbox />} />
             <Route path="/settings" element={<BusinessSettings />} />
             <Route path="/platform-admin" element={<PlatformBoundary />} />
             <Route path="/platform-alerts" element={<PlatformBoundary><PlatformAlerts /></PlatformBoundary>} />
