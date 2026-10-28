@@ -6,6 +6,10 @@ function source(duration) {
   return {
     shop_id: 'shop-test-403', campaign_id: 'campaign-diwali-01', duration_seconds: duration,
     business_name: 'Thread and Loom Studio', campaign_date: '2026-11-06', authenticated_owner_or_editor: true, server_verified: true,
+    creative_brief: 'Create an elegant Diwali kurti promotion showing authentic garment motion, no artificial extravagance.',
+    target_audience: 'Adults buying festive Indian clothing for family celebrations',
+    brand_voice: 'Warm, elegant and restrained premium boutique tone',
+    advertising_objective: 'Explain the authorized 20 percent festive promotion and invite visits',
     approved_offers: [{
       id: 'sale-offer-20', shop_id: 'shop-test-403', approval_status: 'APPROVED',
       percent_off: 20, signed_evidence_id: 'approval-record-owner-20', active: true, valid_from: '2026-10-01', valid_until: '2026-11-15'
@@ -78,6 +82,7 @@ for (const duration of [15, 30, 60]) {
   assert.equal(prompt.provider, 'existing_azure_gpt_4_1_mini_via_feature2_budget_gate');
   assert.equal(prompt.paid_call_made, false);
   assert.ok(prompt.user.includes('asset-approved-red-kurti'));
+  assert.ok(prompt.user.includes('Create an elegant Diwali kurti promotion'));
   const result = compile(input, authored);
   const creative = result.creative_direction_v1;
   assert.equal(creative.duration_seconds, duration);
