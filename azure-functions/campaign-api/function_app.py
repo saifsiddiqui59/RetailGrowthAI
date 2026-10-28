@@ -5,21 +5,23 @@ from request_diagnostics import RequestDiagnostics
 
 import azure.functions as func
 
-from http_api import HTTPAPI
-from security import SupabaseJWTVerifier
-from tenant_store import TenantStore
-from queue_adapter import AzurePlanningQueue, AzureRenderQueue
-from admin_store import AdminStore
-from render_api import RenderAPI
-from poster_draft_api import PosterDraftAPI
-from poster_render_api import PosterRenderAPI
-from feature3_v2_api import Feature3V2API
-from feature3_v2_store import Feature3V2Store
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 
 def build_api():
+    # Imports occur only after a request reaches the Python HTTP handler;
+    # Azure Functions indexing does not need tenant/network/worker modules.
+    from http_api import HTTPAPI
+    from security import SupabaseJWTVerifier
+    from tenant_store import TenantStore
+    from queue_adapter import AzurePlanningQueue, AzureRenderQueue
+    from admin_store import AdminStore
+    from render_api import RenderAPI
+    from poster_draft_api import PosterDraftAPI
+    from poster_render_api import PosterRenderAPI
+    from feature3_v2_api import Feature3V2API
+    from feature3_v2_store import Feature3V2Store
     # Fail closed when environment settings are absent or malformed.
     url = os.environ["RETAIL_SUPABASE_URL"]
     key = os.environ["RETAIL_SUPABASE_PUBLISHABLE_KEY"]
@@ -180,6 +182,7 @@ def download_poster_render(req: func.HttpRequest) -> func.HttpResponse:
 def plan_campaign(message: func.QueueMessage):
     # Worker-only dependencies must not initialize during HTTP indexing.
     from planning_worker import process_campaign
+    from admin_store import AdminStore
     # The message contains ONLY a canonical UUID; no user tokens or media URLs.
     admin = AdminStore(
         os.environ["RETAIL_SUPABASE_URL"],
@@ -220,6 +223,7 @@ def render_campaign_reel(message: func.QueueMessage):
     # start should not import media codecs or the offline renderer.
     from render_worker import process_render
     from private_media import PrivateMedia
+    from admin_store import AdminStore
     # Queue message contains only a validated job UUID. No paths, tokens or URLs.
     origin = os.environ["RETAIL_SUPABASE_URL"]
     key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
@@ -230,6 +234,8 @@ def render_campaign_reel(message: func.QueueMessage):
 
 
 def _recovery_dependencies():
+    from admin_store import AdminStore
+    from queue_adapter import AzurePlanningQueue, AzureRenderQueue
     origin = os.environ["RETAIL_SUPABASE_URL"]
     key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
     connection = os.environ["RETAIL_STORAGE"]
@@ -323,6 +329,9 @@ def build_feature2_api():
         return None
     from feature2_adapter import TrendFeatureAdapter
     from feature2_store import TrendSnapshotStore, TenantDraftStore, authorized_profile_reader
+    from security import SupabaseJWTVerifier
+    from tenant_store import TenantStore
+    from admin_store import AdminStore
     origin = os.environ["RETAIL_SUPABASE_URL"]
     key = os.environ["RETAIL_SUPABASE_PUBLISHABLE_KEY"]
     service_key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
@@ -444,6 +453,7 @@ def feature2_collect_india_trends(timer: func.TimerRequest):
     from datetime import datetime, timezone
     from feature2_store import TrendSnapshotStore
     from ai_agents.trend_runtime import run_daily_collection
+    from admin_store import AdminStore
     store = TrendSnapshotStore(AdminStore(
         os.environ["RETAIL_SUPABASE_URL"],
         os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"],
