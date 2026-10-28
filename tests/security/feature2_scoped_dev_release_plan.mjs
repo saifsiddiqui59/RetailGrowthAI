@@ -7,7 +7,7 @@ import { DEV_PROJECT_REF, verifyPreflight } from './dev-db-preflight.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 export const FEATURE2_FILE='20261026194000_feature2_ai_cost_ledger.sql';
-export const OTHER_FEATURE_FILE='20261026173000_feature3_model_catalog_drafts.sql';
+export const OTHER_FEATURE_FILE='20261028093000_feature3_model_catalog_drafts.sql';
 export const HOSTED_APPLIED_COUNT=21;
 
 export function scopedFeature2Plan(snapshot, options={}) {
@@ -28,7 +28,7 @@ export function scopedFeature2Plan(snapshot, options={}) {
   if (view.appliedCount!==HOSTED_APPLIED_COUNT)
     throw new Error('Expected exactly 21 applied canonical migrations');
   const pending=view.pending.map(x=>x.file);
-  if (pending.length!==2 || pending[0]!==OTHER_FEATURE_FILE || pending[1]!==FEATURE2_FILE)
+  if (pending.length!==2 || pending[0]!==FEATURE2_FILE || pending[1]!==OTHER_FEATURE_FILE)
     throw new Error('Unexpected pending migrations; refuse any unreviewed release');
   const source=readFileSync(resolve(migrationDir,FEATURE2_FILE),'utf8');
   const cleaned=source.replace(/^(?:\s*--[^\n]*(?:\n|$))*/, '').trimStart();
@@ -59,7 +59,7 @@ export function scopedFeature2Plan(snapshot, options={}) {
     source_version:'20261026194000',
     source_name:'feature2_ai_cost_ledger',
     source_sha256:createHash('sha256').update(source).digest('hex'),
-    other_pending_version_remains_unapplied:'20261026173000',
+    other_pending_version_remains_unapplied:'20261028093000',
     selected_pending_count:1,
     backup_restore_verified:false,
     actual_hosted_sql_execution:false,
