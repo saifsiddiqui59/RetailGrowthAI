@@ -1124,3 +1124,10 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## Feature3 seven-migration read-only readiness (2026-10-28; branch)
 - Source-only `tests/security/feature3-migration-release-gate.mjs` pins current hosted 24-version prefix plus seven pending SQL files with SHA256, transaction and drift rejection, rollback/authorization warnings. Isolated Node tests included. [Full Feature3 release record](feature3/SEVEN_MIGRATION_RELEASE_PREFLIGHT_20261028.md). No hosted SQL, paid VTON, signed model authorization or release claim.
+
+
+## 2026-10-28 — Feature #3 MVP scope and acceptance sequencing (owner decision)
+- **Current model inputs:** fictional AI-generated **adult** fashion models only. Real-person model photography and its likeness-consent sourcing are deferred. Use original or authorized garment/product references and record synthetic-model provenance; do not simulate a real person's permission. Preserve existing safety and authorization controls for any future real-person uploads.
+- **Hosted signed-user E2E moves to FUTURE final cross-feature acceptance** when Features #1, #2, #3, #4, #5, #7 and the publishing/integration functionality they depend upon are ready together. Then test genuine hosted OWNER, EDITOR, VIEWER and reviewer/curator logins, tenant isolation, upload, review, approval, rejection, download, revocation and audit. Do not gate ongoing *source development* on those hosted accounts now.
+- **Do not defer security regression:** each PR continues running existing disposable signed-role/negative-RLS SQL, offline authenticated-client and mocked browser tests. They are not hosted sign-in proof.
+- Still pending independently: actual VTON inference with authorized synthetic model + garment, six-trait output QA, commercial source rights, protected hosted migration approval and Azure #249. No GPU/provider billing or hosted SQL approved by this scheduling change.
