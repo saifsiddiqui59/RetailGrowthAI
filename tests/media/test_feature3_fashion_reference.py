@@ -7,7 +7,7 @@ import sys
 from io import BytesIO
 from pathlib import Path
 from copy import deepcopy
-from uuid import uuid4
+from uuid import uuid4, uuid5, NAMESPACE_URL
 import unittest
 
 from PIL import Image, ImageDraw
@@ -39,7 +39,8 @@ class FashionKurtiReferenceTests(unittest.TestCase):
     def setUp(self):
         self.shop=str(uuid4());self.other=str(uuid4())
         self.garment=str(uuid4());self.model_asset=str(uuid4())
-        self.model_id=str(uuid4());self.tryon=str(uuid4());self.job=str(uuid4())
+        self.model_id=str(uuid5(NAMESPACE_URL, "sample-approved-synthetic-adult-kurti-model"))
+        self.tryon=str(uuid4());self.job=str(uuid4())
         self.images={"garment":image_bytes("garment"),
                      "model":image_bytes("model"),
                      "tryon":image_bytes("model")}
