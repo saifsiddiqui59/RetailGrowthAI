@@ -71,10 +71,12 @@ export function mountFeature7ReviewPanel({
     if(!selected)throw Error('Missing selected scene');
     const assetId=session.source_scenes[index].asset_id;
     const trusted=trusted_media_object_urls[assetId];
-    video.removeAttribute('src');
     if(isObjectURL(trusted)){
-      video.src=trusted;video.hidden=false;placeholder.hidden=true;
+      if(video.src!==trusted)video.src=trusted;
+      video.currentTime=selected.trim_start;
+      video.hidden=false;placeholder.hidden=true;
     }else{
+      video.removeAttribute('src');
       video.hidden=true;placeholder.hidden=false;
     }
     const max=session.media_evidence[index].source_duration_seconds-selected.duration;
