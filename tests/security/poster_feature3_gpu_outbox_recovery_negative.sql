@@ -30,7 +30,7 @@ begin
  if n<>3 then raise exception 'FAIL: outbox fencing metadata absent'; end if;
  if (select pg_get_functiondef(
   'public.feature3_audit_gpu_recovery(integer)'::regprocedure
- )) not like '%on conflict (job_id, kind) do nothing%' then
+ )) !~* 'on conflict[[:space:]]*\\(job_id,[[:space:]]*kind\\)[[:space:]]*do nothing' then
    raise exception 'FAIL: recovery incidents not deduplicated';
  end if;
 end $$;
