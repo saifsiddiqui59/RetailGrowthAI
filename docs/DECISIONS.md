@@ -815,3 +815,6 @@
 ## Feature3 model-original upload policy repair and evidence boundary (2026-10-28)
 - Patch unhosted `20261028232000` instead of creating an out-of-order eighth migration while seven are still absent: permit canonical model-library SHA-addressed PNG signed OWNER/EDITOR INSERT plus exact Supabase Storage owner_id. Keep existing upload paths and forbid browser GPU namespace, updates and fabricated approvals. A client-computed hash is *not* provider-verified original private bytes; backend evidence writer must independently fetch and compare.
 - Upload then independently signed source registration is a two-step sequence; no automatic duplicate retries or false success when the second ACK is ambiguous. Protect behind existing OFF-by-default Feature3 flags. Live migration only after reviewed exact release gate. No paid inference, PROD or WineShopPOS.
+
+## Feature3 leased queue envelope and paid uncertainty (2026-10-28)
+- Outbox consumer may send only canonical tenant/job IDs to an **injected existing** queue after DB claim and acknowledge SQL only after observed Azure queue send ACK; if queue or SQL ACK is uncertain, stop instead of replaying billable work. This source does not provision queue, publish images, start GPU, settle costs or override signed model rights. Keep SQL one-shot claim fencing at execution.
