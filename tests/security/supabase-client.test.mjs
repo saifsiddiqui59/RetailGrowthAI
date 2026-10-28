@@ -380,3 +380,42 @@ test('media pages use bounded tenant-JWT reads, stable order and fail-closed res
   rows={error:'unexpected'}
   await assert.rejects(()=>api.listMediaAssetsPage(shop,200),/could not be verified/)
 })
+
+
+test('retailer inbox RPC requires exact JWT/shop/page scope and rejects foreign results',async()=>{
+  const shop='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  const other='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+  const requests=[]
+  let reply={shop_id:shop,matching_total:1,unread_total:1,checked_at:'2026-10-28T11:00:00Z',
+    items:[{id:5,shop_id:shop,category:'video',severity:'info',
+      title:'Reel rendering completed',detail:'Server verified',created_at:'2026-10-28T11:00:00Z',read_at:null}]}
+  const api=fixture(async(url,options)=>{
+    if(url.includes('/auth/v1/token'))return json({access_token:'user-retail-jwt',refresh_token:'refresh',expires_in:3600})
+    if(url.includes('/rest/v1/rpc/retail_retailer_inbox')){requests.push({url,options});return json(reply)}
+    if(url.includes('/rest/v1/rpc/retail_retailer_set_inbox_read')){requests.push({url,options});return json({shop_id:shop,id:5,read:true})}
+    throw Error('Unexpected call '+url)
+  })
+  await api.signIn('owner@example.invalid','secret')
+  await assert.rejects(()=>api.listRetailerInbox(other,'all','all',100,0),/Invalid retailer inbox scope/)
+  await assert.rejects(()=>api.listRetailerInbox(shop,'bad'),/Invalid retailer inbox scope/)
+  await assert.rejects(()=>api.listRetailerInbox(shop,'all','all',20,-1),/Invalid retailer inbox scope/)
+  assert.equal(requests.length,0)
+  const data=await api.listRetailerInbox(shop,'unread','video',20,0)
+  assert.equal(data.items.length,1)
+  const call=requests[0]
+  assert.equal(call.options.headers.Authorization,'Bearer user-retail-jwt')
+  assert.equal(call.options.headers.apikey,'sb_publishable_example')
+  assert.deepEqual(JSON.parse(call.options.body),{
+    p_shop_id:shop,p_view:'unread',p_category:'video',p_limit:20,p_offset:0})
+  assert.doesNotMatch(JSON.stringify(call),/sb_secret_|service_role/)
+  reply={...reply,items:[{...reply.items[0],shop_id:other}]}
+  await assert.rejects(()=>api.listRetailerInbox(shop),/could not be verified/)
+  reply={...reply,items:Array(21).fill(reply.items[0])}
+  await assert.rejects(()=>api.listRetailerInbox(shop),/could not be verified/)
+  const wrote=await api.setRetailerInboxRead(shop,5,true)
+  assert.deepEqual(wrote,{shop_id:shop,id:5,read:true})
+  assert.equal(requests[requests.length-1].options.headers.Authorization,'Bearer user-retail-jwt')
+  await assert.rejects(()=>api.setRetailerInboxRead(shop,5,false),/was not confirmed/)
+  await assert.rejects(()=>api.setRetailerInboxRead('wrong',5,true),/Invalid retailer inbox update/)
+  await assert.rejects(()=>api.setRetailerInboxRead(shop,0,true),/Invalid retailer inbox update/)
+})
