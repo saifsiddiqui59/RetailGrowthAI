@@ -155,3 +155,11 @@
 - P0 RUNTIME: real protected ComfyUI /object_info, installed checkpoint choices, actual Azure model-readonly mount/torch ABI/true CUDA compatibility; no real inference.
 - P1 OWNER-APPROVED A100 LATER: exactly one cost-capped licensed sample I2V, actual motion/garment/facial quality and private final 1080x1920 Feature4 composition, human review and measured costs. Remain OFF until explicit separate permission.
 - P1 COORDINATOR: reconcile draft stacked #323/#465 and Feature2/3/4 main contracts, merge under coordinator ownership, verify postmerge four-job CI and hosted negative rights/tenant tests. Feature5 PR remains DRAFT.
+
+
+## 2026-10-28 — Next after source-only one-attempt and private output intake
+- SOURCE DONE: new existing-ledger atomic unique Comfy submission-intent callback required; denial of second start in same dispatcher and across two mocked workers. No additional wallet, outbox or cloud queue. Exact paid/unknown persistence must be bound by coordinator to the existing Part3 claim ledger and separately verified in hosted signed DEV.
+- SOURCE DONE: new exact private per-attempt result discovery, tenant/job/token permission check before byte access, real 121-frame 704x1280 H264 MP4 ffprobe + objective moving-frame test; pending receipt remains review-required. CI includes synthetic moving FFmpeg media and path/traversal/missing/second-result/revoked-claim negatives.
+- P0 STILL ENGINEERING: coordinator binds real transactional prepaid active claim + SHA-approved Feature2 direction + current Feature3 private original and try-on rights + unique durable submission-intent CAS + tenant/job/token scoped private output access + measured billing, storage upload and final fenced DB receipt. Source mock callbacks are not a live implementation.
+- P0 STILL EXTERNAL: independently reviewed real ComfyUI whole source/notice, CUDA base OCI and transitive wheel SHA bundle, build/registry expense approval, actual private /object_info and real model read-only mount/runtime. GPU OFF.
+- P1 REAL ACCEPTANCE: separately capped and approved A100 single test, actual human/garment/anatomy motion, review/publishing/license, Feature4 final Full-HD composition, coordinator PR #323/#465 integration and signed hosted tenant-negative E2E. Track detailed matrix in SOURCE_READINESS_AND_PENDING_20261028.md.
