@@ -66,6 +66,11 @@ export function studioSourceTrim(draft, index, seconds, mediaAssets) {
     i === index ? { ...scene, trim_start: seconds } : scene) }
 }
 export function studioValidatedDraft(draft, mediaAssets, musicAssets) {
+  // A browser-approved flag is not a tenant grant. The server checks again.
+  const rights = [...(mediaAssets || []), ...(musicAssets || [])]
+  const selected = [...draft.scenes.map(s => s.asset_id), draft.music_asset_id].filter(Boolean)
+  if (selected.some(id => !rights.some(a => a.id === id && a.authorized === true &&
+    a.shop_id === draft.shop_id))) throw Error('Foreign or revoked media cannot enter this timeline')
   const issues = validateVideoDraft(draft, mediaAssets, musicAssets)
   if (issues.length) throw Error(issues.join('; '))
   return draft

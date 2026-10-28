@@ -130,7 +130,7 @@ export default function VideoStudio({
             <label>Approved soundtrack
               <select disabled={Boolean(creativeDirection)} value={draft.music_asset_id || ''} onChange={e => patch({ music_asset_id: e.target.value || null })}>
                 <option value="">No licensed music / silent export</option>
-                {musicAssets.filter(track => track?.authorized === true).map(track =>
+                {musicAssets.filter(track => track?.authorized === true && track?.shop_id === shopId).map(track =>
                   <option key={track.id} value={track.id}>{track.title || track.id}</option>)}
               </select>
             </label>
@@ -220,10 +220,6 @@ export default function VideoStudio({
           <p className="f4-fine">Visual preview is a storyboard mock, not a rendered MP4. Nothing here bypasses backend shop access, media rights, usage limits or human approval.</p>
         </form>
         <aside className="f4-view" aria-label="Video storyboard preview">
-          <TimelineStudioSurface draft={draft} mediaAssets={mediaAssets} musicAssets={musicAssets}
-            selectedSceneIndex={selectedSceneIndex} onSelectScene={setSelectedSceneIndex}
-            approvedDirection={Boolean(creativeDirection)}
-            onChange={next => { setDraft(next); setSubmitted(false) }} />
           <nav className="f4-timeline" aria-label="Choose a storyboard scene to preview">
             {draft.scenes.map((scene, index) => (
               <button key={index} type="button" className={index === selectedSceneIndex ? 'f4-selected' : ''}
@@ -264,6 +260,10 @@ export default function VideoStudio({
             'Storyboard planning only—not footage of a real model. Saved jobs and private downloads require coordinator-enabled backend v2.'}</p>
         </aside>
       </div>
+      <TimelineStudioSurface draft={draft} mediaAssets={mediaAssets} musicAssets={musicAssets}
+        selectedSceneIndex={selectedSceneIndex} onSelectScene={setSelectedSceneIndex}
+        approvedDirection={Boolean(creativeDirection)}
+        onChange={next => { setDraft(next); setSubmitted(false) }} />
     </section>
   )
 }
