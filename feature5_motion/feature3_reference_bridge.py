@@ -1,0 +1,138 @@
+"""Private Feature3 approved garment reference -> Wan first-frame staging bridge.
+
+No browser media grant, URL or storage access here. Caller supplies the real
+Feature3 resolve_first_frame function and currently claim-fenced trusted readers.
+A mocked reader is allowed ONLY inside CPU-only unit tests. The returned grant
+does NOT authorize GPU inference or publication.
+
+No destructive garment crop/stretch: explicit approved letterbox/scale to native
+Wan2.2 portrait resolution, preserving aspect ratio, with immutable source and
+prepared SHA256 plus reviewed Feature3 reference fingerprint.
+"""
+from __future__ import annotations
+
+from contextlib import contextmanager
+from hashlib import sha256
+from io import BytesIO
+import os
+from pathlib import Path
+
+from PIL import Image, UnidentifiedImageError
+
+from .wan22_motion_adapter import WanCompatibilityError
+
+F3_SCHEMA = "retailgrowth.fashion-reference-bundle.v1"
+TARGET = (704, 1280)
+MAX_INPUT = 25 * 1024 * 1024
+
+
+@contextmanager
+def stage_approved_fashion_first_frame(
+    *, expected_manifest, current_readers, verify_worker_job,
+    resolve_first_frame, private_job_dir, technical_letterbox_approved=False,
+    require_model_wearing_garment=True,
+):
+    """Re-check Feature3 private bytes *after* verified claim and rights.
+
+    The input is a server-authorized F3 manifest only, not data from the UI.
+    Staged bytes are deleted even if Wan compilation or mocked inference fails.
+    """
+    if (type(expected_manifest) is not dict or
+        expected_manifest.get("schema") != F3_SCHEMA or
+        expected_manifest.get("purpose") != "image_to_video" or
+        expected_manifest.get("output_approved") is not False or
+        expected_manifest.get("gpu_authorized") is not False or
+        type(current_readers) is not dict or
+        not callable(verify_worker_job) or
+        not callable(resolve_first_frame)):
+        raise WanCompatibilityError("Feature3 current read-only bundle required")
+    # A model-library photo next to a kurti photo is NOT a garment try-on.
+    if require_model_wearing_garment and (
+        type(expected_manifest.get("model")) is not dict or
+        type(expected_manifest.get("try_on_review")) is not dict or
+        expected_manifest["try_on_review"].get("state") != "HUMAN_REVIEW_PASSED"
+    ):
+        raise WanCompatibilityError("A wearer shot requires an independently reviewed actual try-on first frame")
+    if technical_letterbox_approved is not True:
+        raise WanCompatibilityError("Feature4 must approve explicit non-cropping native portrait preparation")
+    # Actual Feature3 resolver independently revalidates JTW/RLS source, grants,
+    # latest product/media/model reviews and raw private bytes and hash.
+    source = resolve_first_frame(
+        expected_manifest=expected_manifest,
+        current_readers=current_readers,
+        verify_worker_job=verify_worker_job,
+    )
+    frame=expected_manifest["sources"]["first_frame"]
+    if (type(source) is not dict or
+        source.get("shop_id") != expected_manifest.get("shop_id") or
+        source.get("source_asset_id") != frame.get("source_asset_id") or
+        source.get("sha256") != frame.get("sha256") or
+        source.get("mime_type") != frame.get("mime_type") or
+        source.get("dimensions") != frame.get("dimensions") or
+        source.get("gpu_authorized") is not False):
+        raise WanCompatibilityError("Feature3 first-frame changed since current approval")
+    raw=source.get("image_bytes")
+    if type(raw) is not bytes or not 100 <= len(raw) <= MAX_INPUT:
+        raise WanCompatibilityError("Invalid private first-frame byte payload")
+    original_sha=sha256(raw).hexdigest()
+    if original_sha != frame["sha256"]:
+        raise WanCompatibilityError("First-frame bytes do not match approved source")
+    if source["mime_type"] not in ("image/png","image/jpeg","image/webp"):
+        raise WanCompatibilityError("Unsupported current Feature3 image MIME")
+    try:
+        with Image.open(BytesIO(raw)) as im:
+            if (getattr(im,"n_frames",1) != 1 or
+                im.format != {"image/png":"PNG","image/jpeg":"JPEG","image/webp":"WEBP"}[source["mime_type"]] or
+                [im.width,im.height] != source["dimensions"] or
+                not 256 <= im.width <= 8192 or not 256 <= im.height <= 8192):
+                raise WanCompatibilityError("Private image dimensions do not match decoded bytes")
+            frame_rgb=im.convert("RGB")
+            # Fit without cropping or changing subject proportions, pad around.
+            frame_rgb.thumbnail(TARGET,Image.Resampling.LANCZOS)
+            prepared=Image.new("RGB", TARGET, (24,24,24))
+            xy=((TARGET[0]-frame_rgb.width)//2,(TARGET[1]-frame_rgb.height)//2)
+            prepared.paste(frame_rgb,xy)
+            result=BytesIO()
+            prepared.save(result,format="PNG",optimize=True)
+            prepared_bytes=result.getvalue()
+    except (OSError,UnidentifiedImageError,Image.DecompressionBombError,ValueError) as exc:
+        raise WanCompatibilityError("Unable to prepare authorized private first frame") from exc
+    root=Path(private_job_dir)
+    if root.is_symlink() or not root.is_dir():
+        raise WanCompatibilityError("Missing non-symlink private leased work directory")
+    if root.stat().st_mode & 0o077:
+        raise WanCompatibilityError("Private worker directory must not grant group/other access")
+    name="f3_"+original_sha[:24]+"_wan.png"
+    target=root/name
+    if target.exists() or target.is_symlink():
+        raise WanCompatibilityError("Existing attempt first frame; do not overwrite or retry")
+    flags=os.O_WRONLY|os.O_CREAT|os.O_EXCL
+    if hasattr(os,"O_NOFOLLOW"): flags|=os.O_NOFOLLOW
+    made=False
+    try:
+        fd=os.open(target,flags,0o600);made=True
+        with os.fdopen(fd,"wb") as stream:
+            stream.write(prepared_bytes)
+        grant={
+            "asset_id":source["source_asset_id"],"shop_id":source["shop_id"],
+            "mime_type":"image/png","staged_basename":name,
+            "sha256":sha256(prepared_bytes).hexdigest(),
+            "source_sha256":original_sha,
+            "source_facts_sha256":expected_manifest["reference_fingerprint"],
+            "width":TARGET[0],"height":TARGET[1],
+            "approved":True,"private":True,"commercial_rights":True,
+            "human_likeness_approved":True,
+        }
+        yield target,grant,{
+            "staging":"EXPLICIT_ASPECT_PRESERVING_LETTERBOX",
+            "original_dimensions":source["dimensions"],
+            "prepared_dimensions":list(TARGET),
+            "image_content_cropped":False,
+            "original_image_sha256":original_sha,
+            "prepared_image_sha256":grant["sha256"],
+            "garment_visual_fidelity_verified":False,
+            "paid_gpu_approved":False,
+        }
+    finally:
+        if made and target.is_file() and not target.is_symlink():
+            target.unlink()
