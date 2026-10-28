@@ -171,9 +171,11 @@ def main():
     membership_url=ORIGIN+"/rest/v1/shop_memberships?shop_id=eq."+SHOP+"&user_id=eq."+uid
     active=False
     try:
+        # A lost PATCH acknowledgement can still mean the membership committed.
+        # Arm the revocation first so finally always restores inactive state.
+        active=True
         updated=request(membership_url,method="PATCH",apikey=service,obj={"active":True})
         ensure(len(updated)==1 and updated[0]["active"] is True,"Synthetic membership temporary restore failed")
-        active=True
         image=png()
         ensure(100<len(image)<100000,"Synthetic original PNG is invalid")
         if existing:
