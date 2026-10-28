@@ -614,3 +614,6 @@
 ## 2026-10-27 — Feature #1 read-only calendar request concurrency
 - UI may load a new authorized user/shop/month while a previous scope's GET remains pending. Guard only against a second request for the **same visible scope**, and reject stale responses using request epoch plus current principal/shop/month. No automatic retries, cross-tenant cached rendering or extra background polling.
 - Reject malformed or impossible calendar day strings before rendering even though the Postgres date column normally prevents them. Keep review statuses distinct from social publishing receipts.
+
+## 2026-10-28 — #249 classify real HTTP 400 without relaxing validation
+- Keep strict `POST /api/poster-drafts/{id}/renders` missing-resource 404 and genuine bad-request 400 distinction. A protected genuine JWT test repeatedly receives **400 `INVALID_REQUEST`** for empty JSON on a synthetic missing poster while corresponding GET is 404. Allowlisting an error enum strictly for diagnostics and immediately failing the canary is acceptable; treating 400 as an authorized denial or bypassing Node via direct SQL fallback is **not**. No customer cutover or issue closure until real two-tenant full MP4 end-to-end and repeated HTTP reliability pass. Preserve existing Free SWA, Supabase rights, Python Queue/FFmpeg, no PROD/WineShopPOS changes.
