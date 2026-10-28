@@ -180,9 +180,9 @@ class WanMotionAdapterTest(unittest.TestCase):
         a=self.compile()
         d["shot"]["negative_constraints"].append("no duplicate jewelry")
         b=self.compile(dispatch=d)
-        self.assertNotEqual(a.prompt_sha256,b.prompt_sha256) if False else self.assertNotEqual(
-            a.graph["prompt"]["5"]["inputs"]["text"],b.graph["prompt"]["5"]["inputs"]["text"])
-        self.assertNotEqual(a.lineage_sha256,b.lineage_sha256) if False else None
+        self.assertNotEqual(a.prompt_sha256,b.prompt_sha256)
+        self.assertNotEqual(a.graph["prompt"]["5"]["inputs"]["text"],
+                            b.graph["prompt"]["5"]["inputs"]["text"])
         with self.assertRaises(WanCompatibilityError):
             validate_runtime_node_types({})
         self.assertTrue(validate_runtime_node_types({node:{} for node in NODES}))
