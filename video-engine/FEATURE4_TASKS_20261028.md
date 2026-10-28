@@ -13,7 +13,7 @@
 | F4-07 | P0 | Real F3 kurti/model product imagery and F5 natural human walking footage, garment identity/fidelity proof | BLOCKED: Feature3 poster source merged in #321, but no reviewed retailer garment/model photo evidence handed to F4; Feature5 #323 remains draft/without verified actual inference |
 | F4-08 | P1 | Azure Node22+Chromium HyperFrames packaging, FFmpeg worker dispatch, memory/cold-start/lease benchmarking | BLOCKED: no approved live v2 runtime/queue; source renderer runs CI, not Azure; no new billable resource authorized |
 | F4-09 | P1 | Hosted authenticated cross-shop/expired JWT/private download/once-charge canary with actual 15/30/60 media | BLOCKED: requires F4-06/08 and #249 reliable HTTP; do not claim hosted E2E from CPU simulation |
-| F4-10 | P1 | Reviewer signoff on boutique ad and signed licensed sound/media, on-device visual/speech QA | BLOCKED: requires F4-07 and owner visual acceptance. Geometric silhouette was explicitly rejected |
+| F4-10 | P1 | Reviewer signoff on boutique ad and signed licensed sound/media, on-device visual/speech QA | SOURCE RELEASE GATE IMPLEMENTED: `feature4_release_gate.py` and negative tests. Actual human review / real F3+F5 video remain BLOCKED; synthetic output cannot pass |
 | F4-11 | P1 | Update canonical `docs/PROJECT_STATE.md`, `NEXT_TASK.md`, `DECISIONS.md`, `WORK_LOG.md` and merge PR into main | COORDINATOR-OWNED; source handoff and PR checkpoint maintained per feature branch. Do not merge draft automatically |
 | F4-12 | P2 | Confirm no-cost repeatable CI and quality/performance release checks for core engineering | PARTIAL: 30s real CPU CI recurring, full 60s/1080p opt-in to avoid repeat cost, private hosted benchmark pending |
 

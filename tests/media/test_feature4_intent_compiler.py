@@ -94,7 +94,7 @@ class ApprovedIntentTests(unittest.TestCase):
     def test_failed_motion_never_sneaks_as_approved_clip(self):
         draft, trusted = pair()
         trusted["assets"]["motionwalk"]["approved"] = False
-        with self.assertRaisesRegex(CreativeContractError, "provenance"):
+        with self.assertRaisesRegex(CreativeContractError, "not approved"):
             compile_approved_storyboard(draft, trusted)
 
     def test_forged_tenant_media_claims_and_unreviewed_sales_are_rejected(self):

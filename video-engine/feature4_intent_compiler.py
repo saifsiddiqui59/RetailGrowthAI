@@ -12,7 +12,7 @@ import copy
 import math
 
 from creative_contract import CreativeContractError, safe_ref, uuid
-from feature4_worker_handoff import _bundle
+from feature4_worker_handoff import _bundle, Feature4HandoffError
 
 SCENE_FIELDS = frozenset({
     "start", "duration", "headline", "asset_id", "animation_preset",
@@ -210,7 +210,10 @@ def compile_approved_storyboard(draft, snapshot):
     claim = {"id": job_id, "shop_id": shop_id, "campaign_id": campaign_id,
              "idempotency_key": snapshot["idempotency_key"]}
     bundle = {"request": request, "assets": authoritative_rows}
-    _, manifest, _, audit = _bundle(claim, bundle)
+    try:
+        _, manifest, _, audit = _bundle(claim, bundle)
+    except Feature4HandoffError as exc:
+        raise CreativeContractError("Unapproved private-media source: " + str(exc)) from exc
     if set(audit["media_asset_ids"]) != selected_ids:
         raise CreativeContractError("Unreferenced or unapproved media introduced")
     return {"request": request, "manifest": manifest,
