@@ -7,14 +7,22 @@ insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_
 ('b3000000-0000-4000-8000-000000000003','00000000-0000-0000-0000-000000000000','authenticated','authenticated','f3-review-other@example.invalid','!',now(),now()),
 ('b3000000-0000-4000-8000-000000000004','00000000-0000-0000-0000-000000000000','authenticated','authenticated','f3-review-editor@example.invalid','!',now(),now());
 
+-- Bootstrap shops through the REAL current signed owner, never superuser.
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','b3000000-0000-4000-8000-000000000001',true);
 insert into public.shops(id,owner_user_id,name,slug) values
 ('b3000000-0000-4000-8000-000000000011',
- 'b3000000-0000-4000-8000-000000000001','Model review shop','f3-model-review-test'),
+ 'b3000000-0000-4000-8000-000000000001','Model review shop','f3-model-review-test');
+select set_config('request.jwt.claim.sub','b3000000-0000-4000-8000-000000000003',true);
+insert into public.shops(id,owner_user_id,name,slug) values
 ('b3000000-0000-4000-8000-000000000012',
  'b3000000-0000-4000-8000-000000000003','Other shop','f3-other-review-test');
+select set_config('request.jwt.claim.sub','b3000000-0000-4000-8000-000000000001',true);
 insert into public.shop_memberships(shop_id,user_id,role) values
 ('b3000000-0000-4000-8000-000000000011','b3000000-0000-4000-8000-000000000002','VIEWER'),
 ('b3000000-0000-4000-8000-000000000011','b3000000-0000-4000-8000-000000000004','EDITOR');
+reset role;
 
 insert into public.media_assets(id,shop_id,created_by,object_path,mime_type,source,license_name,attribution)
 values('b3000000-0000-4000-8000-000000000021',
