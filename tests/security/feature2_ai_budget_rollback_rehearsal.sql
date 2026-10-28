@@ -20,6 +20,9 @@ END $$;
 DO $$
 BEGIN
  IF to_regclass('public.feature3_gpu_jobs') is not null THEN
+   IF to_regclass('retail_private.feature3_gpu_output_evidence') is not null THEN
+     DROP TABLE retail_private.feature3_gpu_output_evidence;
+   END IF;
    DROP TABLE retail_private.feature3_gpu_outbox;
    DROP TABLE public.feature3_gpu_jobs;
  END IF;
@@ -48,6 +51,7 @@ BEGIN
  THEN RAISE EXCEPTION 'Transaction rollback did not restore Feature2 schema'; END IF;
  IF to_regclass('public.feature3_gpu_jobs') is null
     OR to_regclass('retail_private.feature3_gpu_outbox') is null
+    OR to_regclass('retail_private.feature3_gpu_output_evidence') is null
  THEN RAISE EXCEPTION 'Rollback did not restore Feature3 GPU dependent tables'; END IF;
  RAISE NOTICE 'FEATURE2_DISPOSABLE_REVERSIBLE_DDL_REHEARSAL=PASS';
 END $$;
