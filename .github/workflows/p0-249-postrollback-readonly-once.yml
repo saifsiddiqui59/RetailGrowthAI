@@ -96,7 +96,7 @@ jobs:
           set -euo pipefail
           wid="$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query customerId -o tsv || true)"
           if [ -z "$wid" ]; then echo "P0249_CANARY_LAW=UNAVAILABLE"; exit 0; fi
-          query='AppTraces | where TimeGenerated between (datetime(2026-10-28T19:35:00Z)..datetime(2026-10-28T19:51:00Z)) | where tolower(tostring(column_ifexists("AppRoleName",""))) contains "rgai-dev-functions-d4e5ddbd" or tolower(tostring(column_ifexists("_ResourceId",""))) contains "rgai-dev-functions-d4e5ddbd" | extend category=case(Message contains "Worker process started","worker_start",Message contains "Worker process exited","worker_exit",Message contains "host startup","host_start","other") | where category!="other" | summarize events=count() by bucket=bin(TimeGenerated,1m),category | order by bucket asc | take 30'
+          query='AppTraces | where TimeGenerated between (datetime(2026-10-28T19:35:00Z)..datetime(2026-10-28T19:51:00Z)) | where (tolower(tostring(column_ifexists("AppRoleName",""))) contains "rgai-dev-functions-d4e5ddbd" or tolower(tostring(column_ifexists("_ResourceId",""))) contains "rgai-dev-functions-d4e5ddbd") | extend category=case(Message contains "Worker process started","worker_start",Message contains "Worker process exited","worker_exit",Message contains "host startup","host_start","other") | where category!="other" | summarize events=count() by bucket=bin(TimeGenerated,1m),category | order by bucket asc | take 30'
           if az monitor log-analytics query -w "$wid" --analytics-query "$query" -o json > "$RUNNER_TEMP/aggregate.json" 2>/dev/null; then
             python3 - "$RUNNER_TEMP/aggregate.json" <<'PY'
           import json,sys
