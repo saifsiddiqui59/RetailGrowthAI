@@ -8,6 +8,7 @@
  * must never deserialize rights directly from the requesting browser.
  */
 import {verifyMediaRightsEvidence} from './media_rights_evidence.mjs';
+import {verifyPrivateVideo} from './media_preflight.mjs';
 import {prepareEvidenceBoundReview} from './evidence_bound_review.mjs';
 import {EditValidationError} from './autobroll_semantics.mjs';
 
@@ -50,7 +51,11 @@ export function prepareAuthoritativePrivateReview({
     // The trusted registry is authoritative; never forward a submitted
     // browser grant object into private_review_pipeline.
     const grant={...current,issued_by:'trusted_server'};
-    return {...item,grant};
+    const checked=verifyPrivateVideo({shop_id,asset_id:item.asset_id,
+      grant,root,relative_path:item.relative_path,
+      expected_sha256:item.expected_sha256});
+    // Actual ffprobe duration is authoritative, never browser metadata.
+    return {...item,grant,source_duration_seconds:checked.duration_seconds};
   });
   const result=prepareEvidenceBoundReview({
     shop_id,campaign_id,draft,root,media:verified,broll_grants,
