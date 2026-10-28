@@ -217,3 +217,8 @@ Latest F5 source P0 resolved: verified F3 #561 consumer metadata + F4 timeline a
 ## 2026-10-28 — Deterministic fake token corruption regression fix
 
 During exact-doc-head Actions #40766504875 the FFmpeg job found a flaky *test assertion* in test-only HMAC auth: appending `0` to the token by replacing the last char could leave an original `0` unchanged. Fixed the test to *always choose a different final signature character*. This does NOT weaken auth checks or skip tests; rerun final exact-head 4/4 before source success claim.
+
+
+## 2026-10-28 — Current main real F3 producer source integration
+
+After safe two-parent merge from main `0f2e848c` (zero file path collisions), branch contains actual Feature3 `feature3_consumer_packets_v1.assemble_consumer_packets` and all current Feature3 sources, no copied module or mock shape. Added `tests/ai/test_feature5_real_feature3_producer_e2e.py`: actual F3 three-purpose private-byte SHA verification -> approved F2 brief -> F3/F4/5 packet -> F5 stage current RLS-like fixture -> PIL private review still; current model revocation, replaced garment bytes, foreign shop and changed storyboard denied. Synthetic fabricated test/rights only, no hosted claims.

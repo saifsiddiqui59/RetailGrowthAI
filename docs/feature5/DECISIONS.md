@@ -196,3 +196,8 @@ Cross-feature Feature3 consumer packet is metadata-only and `provider_call_permi
 ## 2026-10-28 — Deterministic fake token corruption regression fix
 
 Fake test HMAC token tampering MUST be demonstrably different from original. A randomized last-character replacement might reproduce the original value and cause nondeterministic false rejection of a valid token; switch deterministically to a different character before asserting denial. Keep the test enabled.
+
+
+## 2026-10-28 — Current main real F3 producer source integration
+
+Use real producer code from main through a fast-forward-safe, two-parent Git merge after compare verified no overlapping changed files. Never duplicate a Feature3 consumer module in Feature5. CPU test fixture can call genuine Feature3 code but mocked rights are NOT commercial consent/true original licensed garment. Real production authorization must be independently proven by signed tenant reader.

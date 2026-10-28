@@ -241,3 +241,8 @@ Feature5 never treats feature3 packet freshness as a provider permission. `stage
 ## 2026-10-28 — Deterministic fake token corruption regression fix
 
 Verify final four-job GitHub Actions after token negative-test fix; no actual deployment until coordinator versioned premium schema, real tenant-owned first frame, private Storage and F4 live approval. Existing FFmpeg negative auth failure was test-flakiness and has been corrected, not silently skipped.
+
+
+## 2026-10-28 — Current main real F3 producer source integration
+
+Check new exact-head CI, then coordinator can reconcile Part3 premium schema/provider against Wan2.2 native worker; since F3 consumer is now main, no cross-branch dependency for its offline contract. Real F3 model catalog and true approved retailer image, signed hosted tenant read, model runtime and F4 final Reel still not proven; no paid GPU.
