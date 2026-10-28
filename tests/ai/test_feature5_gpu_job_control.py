@@ -96,9 +96,30 @@ class SafetyTests(unittest.TestCase):
             az.assert_not_called()
         with patch.object(m,"job",return_value=self.j),patch.object(m,"check_preflight"),\
              patch.object(m,"executions",return_value=[]),patch.object(m,"az") as az,\
-             patch.dict(os.environ,{"RETAIL_F5_PAID_RUN_APPROVED":"YES","RETAIL_F5_MODEL_LICENSE_APPROVED":"YES"}):
+             patch.dict(os.environ,{"RETAIL_F5_PAID_RUN_APPROVED":"YES",
+                        "RETAIL_F5_MODEL_LICENSE_APPROVED":"YES",
+                        "RETAIL_F5_COST_QUOTE_CURRENCY":"USD",
+                        "RETAIL_F5_COST_QUOTE_REFERENCE":"official-reviewed-quote-20261028",
+                        "RETAIL_F5_QUOTED_ALL_IN_USD_PER_GPU_SECOND":"0.0001",
+                        "RETAIL_F5_QUOTED_FIXED_OVERHEAD_USD":"0.01",
+                        "RETAIL_F5_OWNER_APPROVED_PER_TEST_MAX_USD":"0.20"}):
             m.start(SUB,True,True)
             self.assertEqual(az.call_args.args[:3],("containerapp","job","start"))
+    def test_paid_cost_envelope_is_required_and_worst_case_bounded(self):
+        values = {"RETAIL_F5_COST_QUOTE_CURRENCY":"USD",
+                  "RETAIL_F5_COST_QUOTE_REFERENCE":"official-reviewed-quote-20261028",
+                  "RETAIL_F5_QUOTED_ALL_IN_USD_PER_GPU_SECOND":"0.0001",
+                  "RETAIL_F5_QUOTED_FIXED_OVERHEAD_USD":"0.01",
+                  "RETAIL_F5_OWNER_APPROVED_PER_TEST_MAX_USD":"0.20"}
+        with patch.dict(os.environ, {}, clear=True), self.assertRaises(m.SafetyError):
+            m.require_priced_test_envelope(valid_job())
+        with patch.dict(os.environ, values, clear=True):
+            self.assertEqual(str(m.require_priced_test_envelope(valid_job())), "0.1000")
+        with patch.dict(os.environ, dict(values, RETAIL_F5_OWNER_APPROVED_PER_TEST_MAX_USD="0.01"), clear=True), self.assertRaises(m.SafetyError):
+            m.require_priced_test_envelope(valid_job())
+        with patch.dict(os.environ, dict(values, RETAIL_F5_QUOTED_ALL_IN_USD_PER_GPU_SECOND="NaN"), clear=True), self.assertRaises(m.SafetyError):
+            m.require_priced_test_envelope(valid_job())
+
     def test_running_job_blocks_duplicate_start(self):
         with patch.object(m,"job",return_value=self.j),patch.object(m,"check_preflight"),\
              patch.object(m,"executions",return_value=[("e1","running")]),patch.object(m,"az") as az:
