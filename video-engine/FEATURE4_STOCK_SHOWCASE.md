@@ -55,3 +55,7 @@ The isolated GitHub PR's existing FFmpeg CI artifact contains the MP4 **only if*
 the exact-source download and CPU render actually completed. CI must print an
 honest failure if the external source is unreachable. No release/deploy or
 WineShopPOS file modified.
+
+## F4-37 — Fixed-keyframe full-HD source normalization
+
+Actual F4-36 [PR CI #40759676430](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40759676430) 4/4 SUCCESS created verified real stock `feature4-stock-real-footage-15s.mp4`, but Chromium/HyperFrames warned about **3.03–3.04s sparse source keyframe intervals**. This is a real seek/freeze hazard; encoded MP4 PASS alone is insufficient to waive it. F4-37 now has a bounded CPU-only **immutable input-staging normalization**: each allowed stock source is probed, cropped to 9:16 Full-HD, FPS normalized to 24, re-encoded H264 with a 24-frame (1s) fixed GOP and source audio stripped for the intentionally muted timeline. It processes the first 5.25s only, never overwrites original downloaded files, preserves original + staged SHA-256 evidence and uses the same trusted HyperFrames compiler/producer. Negative tests reject overwrite and invalid clips; a real FFprobe keyframe test checks spacing <=1.1s. These changes do **not** imply a true garment match, professional edit quality, spoken narration or release approval. CI exact new-head required. GPU remains OFF; prior F4-36 sample artifact is a provisional owner-review candidate, superseded if the new sample renders.

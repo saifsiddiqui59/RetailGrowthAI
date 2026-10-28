@@ -121,60 +121,100 @@ def original_music(path:Path,seconds=15):
             result.append(max(-32768,min(32767,value)))
         wav.writeframes(result.tobytes())
 
-def make_project(source_dir:Path,project_dir:Path,allow_staged_test=False):
-    """Compile the original Feature4 trusted renderer from 3 locally staged real videos.
+def normalize_for_renderer(source:Path,destination:Path,width=1080,height=1920):
+    """Remove sparse GOP seeking risks and make a short, exact, private 9:16 clip.
 
-    A caller cannot turn the known Pexels sample IDs into a tenant media grant.
+    Preserves the original source untouched. No interpolation, identity edit,
+    third-party plugin, color style transfer or source-audio carrythrough.
     """
+    if not 100<=width<=1080 or not 160<=height<=1920:
+        raise StockShowcaseError("Unsafe normalized portrait resolution")
+    check_input(source)
+    destination.parent.mkdir(parents=True,exist_ok=True)
+    if destination.exists() or destination.is_symlink():
+        raise StockShowcaseError("Refusing to replace a staged source file")
+    # Re-encode only the first 5.25s used by the fixed 5s edit; 24fps / 1s GOP.
+    # Background source tracks are deliberately muted in reviewed concept plan.
+    cmd=["ffmpeg","-nostdin","-hide_banner","-loglevel","error","-y",
+         "-i",str(source),"-map","0:v:0","-an","-sn","-dn",
+         "-t","5.25","-vf",f"fps=24,scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1",
+         "-c:v","libx264","-preset","veryfast","-crf","21",
+         "-g","24","-keyint_min","24","-sc_threshold","0",
+         "-pix_fmt","yuv420p","-movflags","+faststart","-map_metadata","-1",
+         "-threads","2",str(destination)]
+    try:
+        subprocess.run(cmd,check=True,capture_output=True,timeout=110)
+    except (OSError,subprocess.CalledProcessError,subprocess.TimeoutExpired) as exc:
+        destination.unlink(missing_ok=True)
+        raise StockShowcaseError("Could not stage fixed-GOP portrait source") from exc
+    info=check_input(destination)
+    if (info["width"],info["height"])!=(width,height) or not 5.15<=info["seconds"]<=5.35:
+        raise StockShowcaseError("Normalized source duration/resolution mismatch")
+    return info
+
+
+def make_project(source_dir:Path,project_dir:Path,allow_staged_test=False):
+    """Compile immutable, re-encoded Pexels clips using the same trusted renderer."""
     if project_dir.exists() and any(project_dir.iterdir()):
         raise StockShowcaseError("Refusing to overwrite non-empty project")
     source_dir=Path(source_dir).resolve(strict=True)
-    sources={}
-    for asset_id,id,creator,url,urls in CLIPS:
-        src=source_dir/(id+".mp4")
-        info=check_input(src)
-        sources[asset_id]=(src,id,creator,url,info)
-    music=source_dir/"original-concept-bed.wav"
-    original_music(music)
-    manifest={"shop_id":DEMO_SHOP,"assets":{}}
-    for aid,(src,id,creator,url,info) in sources.items():
-        manifest["assets"][aid]={"kind":"video","path":src.name,"rights":{
-            "commercial_use":True,"license":"royalty_free",
-            "source":url,
-            "evidence":"Pexels License; stock footage only, no model endorsement; source ID "+id}}
-    manifest["assets"]["original_music"]={"kind":"audio","path":music.name,
-        "rights":{"commercial_use":True,"license":"owned",
-                  "source":"RetailGrowthAI original wave-synthesized demo soundtrack",
-                  "evidence":"Original deterministic composition; no third-party music"}}
-    plan={"version":"rg_video_v2","shop_id":DEMO_SHOP,"mode":"media",
-          "template":"cinematic","duration_seconds":15,
-          "output":{"width":1080,"height":1920,"fps":24},
-          "brand":{"name":"RetailGrowthAI editing concept","primary_color":"#C8AB82"},
-          "scenes":[
-              {"start":0,"duration":5,"asset_id":"look01",
-               "headline":"THE FASHION EDIT","transition":"cut","animation_preset":"fade","mute_source":True},
-              {"start":5,"duration":5,"asset_id":"look02",
-               "headline":"STYLE IN MOTION","transition":"fade","animation_preset":"subtle_zoom","mute_source":True},
-              {"start":10,"duration":5,"asset_id":"look03",
-               "headline":"A NEW PERSPECTIVE","transition":"slide","animation_preset":"fade","mute_source":True},
-          ],
-          "cta":"STOCK CONCEPT ONLY - NO RETAILER ENDORSEMENT",
-          "music_asset_id":"original_music"}
-    compiled=compile_composition(plan,manifest,source_dir,project_dir)
-    page=(compiled/"index.html").read_text(encoding="utf-8")
-    if page.count('class="footage clip"')!=3 or "THE FASHION EDIT" not in page or "STOCK CONCEPT ONLY" not in page:
-        raise StockShowcaseError("Stock render diverged from approved original concept")
-    provenance={"status":"STOCK_CONCEPT_TECHNICAL_DEMO_ONLY","approval":"PENDING_HUMAN_REVIEW",
-                "showcase_eligible":False,"commercial_release_eligible":False,
-                "photoreal_human_shown":"actual stock videos; no AI-generation claim",
-                "retailer_garment_identity_verified":False,
-                "model_endorsement_claimed":False,"real_spoken_voiceover":False,
-                "source_license":LICENSE_URL,
-                "source_media":[{"source_id":id,"creator":creator,"page_url":url,
-                                 "downloaded_asset_sha256":hashlib.sha256(src.read_bytes()).hexdigest(),
-                                 "measured":info} for src,id,creator,url,info in sources.values()],
-                "music":"Original local wave synthesizer, not licensed commercial music"}
-    return compiled,provenance
+    # No writes to third-party originals or owner/user-upload media.
+    with tempfile.TemporaryDirectory(prefix="feature4-private-normalized-") as work:
+        stage=Path(work)
+        sources={}
+        for asset_id,id,creator,url,urls in CLIPS:
+            original=source_dir/(id+".mp4")
+            measured=check_input(original)
+            normalized=stage/(id+".mp4")
+            normalized_info=normalize_for_renderer(original,normalized)
+            sources[asset_id]=(original,normalized,id,creator,url,measured,normalized_info)
+        music=stage/"original-concept-bed.wav"
+        original_music(music)
+        manifest={"shop_id":DEMO_SHOP,"assets":{}}
+        for aid,(original,normalized,id,creator,url,measured,normalized_info) in sources.items():
+            manifest["assets"][aid]={"kind":"video","path":normalized.name,"rights":{
+                "commercial_use":True,"license":"royalty_free",
+                "source":url,
+                "evidence":"Pexels License; stock footage only, no model endorsement; source ID "+id}}
+        manifest["assets"]["original_music"]={"kind":"audio","path":music.name,
+            "rights":{"commercial_use":True,"license":"owned",
+                      "source":"RetailGrowthAI original wave-synthesized demo soundtrack",
+                      "evidence":"Original deterministic composition; no third-party music"}}
+        plan={"version":"rg_video_v2","shop_id":DEMO_SHOP,"mode":"media",
+              "template":"cinematic","duration_seconds":15,
+              "output":{"width":1080,"height":1920,"fps":24},
+              "brand":{"name":"RetailGrowthAI editing concept","primary_color":"#C8AB82"},
+              "scenes":[
+                  {"start":0,"duration":5,"asset_id":"look01",
+                   "headline":"THE FASHION EDIT","transition":"cut","animation_preset":"fade","mute_source":True},
+                  {"start":5,"duration":5,"asset_id":"look02",
+                   "headline":"STYLE IN MOTION","transition":"fade","animation_preset":"subtle_zoom","mute_source":True},
+                  {"start":10,"duration":5,"asset_id":"look03",
+                   "headline":"A NEW PERSPECTIVE","transition":"slide","animation_preset":"fade","mute_source":True},
+              ],
+              "cta":"STOCK CONCEPT ONLY - NO RETAILER ENDORSEMENT",
+              "music_asset_id":"original_music"}
+        compiled=compile_composition(plan,manifest,stage,project_dir)
+        page=(compiled/"index.html").read_text(encoding="utf-8")
+        if (page.count('class="footage clip"')!=3 or
+                "THE FASHION EDIT" not in page or "STOCK CONCEPT ONLY" not in page):
+            raise StockShowcaseError("Stock render diverged from approved original concept")
+        provenance={"status":"STOCK_CONCEPT_TECHNICAL_DEMO_ONLY",
+                    "approval":"PENDING_HUMAN_REVIEW",
+                    "showcase_eligible":False,"commercial_release_eligible":False,
+                    "photoreal_human_shown":"actual stock videos; no AI-generation claim",
+                    "retailer_garment_identity_verified":False,
+                    "model_endorsement_claimed":False,"real_spoken_voiceover":False,
+                    "source_license":LICENSE_URL,
+                    "normalization":"24fps H264 1s keyframes / 1080x1920 center crop; audio muted",
+                    "source_media":[{"source_id":id,"creator":creator,"page_url":url,
+                        "downloaded_asset_sha256":hashlib.sha256(original.read_bytes()).hexdigest(),
+                        "render_stage_sha256":hashlib.sha256(normalized.read_bytes()).hexdigest(),
+                        "measured_source":measured,"measured_stage":normalized_info}
+                        for original,normalized,id,creator,url,measured,normalized_info in sources.values()],
+                    "music":"Original local wave synthesizer, not licensed commercial music"}
+        return compiled,provenance
+
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

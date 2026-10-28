@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/"video-engine"))
-from feature4_stock_showcase import (CLIPS,StockShowcaseError,make_project,original_music,check_input)
+from feature4_stock_showcase import (CLIPS,StockShowcaseError,make_project,original_music,check_input,normalize_for_renderer)
 
 class StockShowcaseTests(unittest.TestCase):
     def setUp(self):
@@ -54,6 +54,25 @@ class StockShowcaseTests(unittest.TestCase):
         path.write_bytes(b"not a video"*10000)
         with self.assertRaises(StockShowcaseError):
             check_input(path)
+    def test_normalizes_sparse_keyframe_footage_into_24fps_portrait_without_source_mutation(self):
+        self.create_sources()
+        original=self.media/(CLIPS[0][1]+".mp4")
+        source_bytes=original.read_bytes()
+        stage=self.media/"stage.mp4"
+        info=normalize_for_renderer(original,stage,width=270,height=480)
+        self.assertEqual((info["width"],info["height"]),(270,480))
+        self.assertTrue(5.15<=info["seconds"]<=5.35)
+        self.assertEqual(original.read_bytes(),source_bytes)
+        d=json.loads(subprocess.check_output(["ffprobe","-v","error","-select_streams","v:0",
+             "-skip_frame","nokey","-show_frames","-show_entries","frame=best_effort_timestamp_time",
+             "-of","json",str(stage)],text=True))
+        timestamps=[float(x["best_effort_timestamp_time"]) for x in d["frames"]
+                    if "best_effort_timestamp_time" in x]
+        self.assertGreaterEqual(len(timestamps),5)
+        self.assertLessEqual(max(b-a for a,b in zip(timestamps,timestamps[1:])),1.1)
+        with self.assertRaisesRegex(StockShowcaseError,"replace"):
+            normalize_for_renderer(original,stage,width=270,height=480)
+
     def test_original_audio_is_safely_local(self):
         path=self.media/"original.wav"
         original_music(path)
