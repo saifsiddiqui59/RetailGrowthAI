@@ -42,9 +42,24 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261028210000_feature3_private_evidence_commit.sql',
   // Feature3 pending import is SOURCE ONLY, not a hosted migration authorization.
   '20261028223000_feature3_pending_model_import.sql',
+  // Queue dispatch and financial uncertainty audit are source-only and never auto-applied.
+  '20261028231000_feature3_gpu_outbox_recovery.sql',
 ]);
 
 const CAPABILITIES = {
+  '20261028231000': [
+    /alter table retail_private[.]feature3_gpu_outbox/i,
+    /create table retail_private[.]feature3_gpu_recovery_events/i,
+    /enable row level security/i,
+    /revoke all on retail_private[.]feature3_gpu_recovery_events/i,
+    /create function public[.]feature3_claim_gpu_dispatch/i,
+    /create function public[.]feature3_confirm_gpu_dispatch/i,
+    /create function public[.]feature3_audit_gpu_recovery/i,
+    /for update of o skip locked/i,
+    /MANUAL_FINANCIAL_RECONCILIATION/i,
+    /grant execute on function public[.]feature3_audit_gpu_recovery/i,
+    /to service_role/i,
+  ],
   '20261028223000': [
     /create function public[.]feature3_import_pending_model/i,
     /security definer set search_path=''/i,
