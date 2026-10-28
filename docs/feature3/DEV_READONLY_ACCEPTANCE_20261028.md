@@ -18,3 +18,13 @@
 **Current outcome:** `DEV_HOSTED_FEATURE3_ACCEPTANCE=BLOCKED`, `HOSTED_SQL_APPLIED=false`, `REAL_SIGNED_TENANT_E2E=false`, `GPU_STARTED=false`, `PAID_INFERENCE=false`.
 
 The user asked for hosted DEV acceptance. We performed the safe read-only portions against the genuine target. To complete a real PASS requires separately approved chronological seven-version DEV migration rollout with verified restore/rollback, source deploy and flags, real current owner/editor/viewer/independent-curator identities, licensed garment/model rights and consent, genuine private SHA image upload, and actual signed role/revocation/foreign shop tests. Paid FASHN tryon-v1.6 remains disabled absent explicit billing authorization and rights. No secrets, PII, or WineShopPOS data was read.
+
+
+## 2026-10-28 — Later exact source/CI and coordinator status
+- #574 migration coordinator integration merged `23efadf389a16fccab775bd15eadb9ad204c83ef`; independent main #40760090295 4/4 PASS.
+- #562 staged private output adapter merged `3749e7119d8721224f3c1091989751df0435fc09`; independent main #40760987558 4/4 PASS.
+- #576 official Commons real CC0 garment source byte/license verifier merged `a16c137059b77d382dfff5da380435ade07c7d5b`; one-off real source #40760612959 PASS; independent main #40761570610 4/4 PASS.
+- #571 FASHN tryon-v1.6 **offline** six-garment-human-review quality gate merged `c76b46a0f32f91ad36a9c6bdd8e84e930e19cec9`. Immediate main CI #40762142732 was CANCELLED by a separate Azure #249 main commit; later cumulative main #40762519947 on `3722e98f70f82a964ac6d2652649b0770a87daf7` **4/4 PASS**, which includes #571. The separate one-job Azure #249 diagnostic #40762520040 succeeded but is not a substitute for four CI jobs.
+- Cross-feature packets #561 and signed import/review UI #563 remain OPEN/unmerged source 4/4. A coordinator merge of #563 returned GitHub 405 because another team modified base `main` concurrently; no partial/inconsistent merge happened. Re-review new main and independent 4/4 before merge; do not silently force it.
+- Actual virtual try-on inference still **NOT RUN**, because real signed consented person/model and tenant-approved original product and a funded provider call are absent. Real public-domain garment-image rights are **verified for only one particular photo**; actual human output image not created or evaluated, no fake pass.
+- Live hosted DEV acceptance still **BLOCKED** and unchanged: the original connected project showed 24 applied migrations, seven newer source-only ones missing; no signed independent curator credentials and no approved model. No hosted DDL, model GPU, provider charges, Azure deployment or WineShopPOS changes.
