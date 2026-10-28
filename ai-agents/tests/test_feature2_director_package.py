@@ -1,6 +1,7 @@
 """Offline source-only Azure Functions JS path and original-license checks."""
 from pathlib import Path
 import tempfile
+import shutil
 import importlib.util
 
 import pytest
@@ -36,16 +37,44 @@ def test_actual_current_python_functions_packager_has_not_deployed_js_or_node():
 
 def test_fail_closed_on_missing_license_and_malformed_source():
     with tempfile.TemporaryDirectory() as temp:
-        root=Path(temp)
-        source=root/"ai-agents/creative-director"
-        for rel in REQUIRED:
-            p=source/rel
-            p.parent.mkdir(parents=True,exist_ok=True)
-            p.write_text(("MIT License\nCopyright (c) 2026 Kuble AG\n" if rel=="upstream/LICENSE" else "'use strict';\n"))
-        assert len(source_entries(root))==len(REQUIRED)
-        (source/"upstream/LICENSE").write_text("proprietary")
-        with pytest.raises(PackageSourceRejected,match="attribution"):
+        root = Path(temp)
+        source = root / "ai-agents/creative-director"
+        shutil.copytree(Path(__file__).resolve().parents[1] / "creative-director", source)
+        assert source_entries(root)
+
+        # A valid-looking but tampered original JS is not the pinned MIT source.
+        target = source / "upstream/explainer-cues.js"
+        original = target.read_bytes()
+        target.write_bytes(original + b"\\n// injected change")
+        with pytest.raises(PackageSourceRejected, match="Pinned original MIT Git blob differs"):
             source_entries(root)
-        (source/"upstream/LICENSE").unlink()
-        with pytest.raises(PackageSourceRejected,match="required"):
+        target.write_bytes(original)
+        assert source_entries(root)
+
+        (source / "upstream/LICENSE").write_text("proprietary")
+        with pytest.raises(PackageSourceRejected, match="attribution"):
+            source_entries(root)
+        (source / "upstream/LICENSE").unlink()
+        with pytest.raises(PackageSourceRejected, match="required"):
+            source_entries(root)
+
+
+def test_staging_rejects_unreviewed_executable_and_symlink():
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp)
+        source = root / "ai-agents/creative-director"
+        shutil.copytree(Path(__file__).resolve().parents[1] / "creative-director", source)
+        binary = source / "node"
+        binary.write_bytes(b"unreviewed Linux executable")
+        with pytest.raises(PackageSourceRejected, match="extension"):
+            source_entries(root)
+        binary.unlink()
+
+        target = source / "upstream/explainer-plan.js"
+        target.unlink()
+        try:
+            target.symlink_to(source / "upstream/explainer-cues.js")
+        except (NotImplementedError, OSError):
+            pytest.skip("Symlinks unavailable on test filesystem")
+        with pytest.raises(PackageSourceRejected, match="symlink"):
             source_entries(root)
