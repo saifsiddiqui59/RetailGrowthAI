@@ -52,7 +52,8 @@ export function transcribePrivateClipCPU({
   const original=verifyPrivateVideo({
     shop_id,asset_id,grant,root,relative_path,expected_sha256
   });
-  requireOk(original.has_audio===true,'Speech ASR requires an audio track');
+  requireOk(original.has_audio===true && grant.has_audio===true,
+    'Speech ASR requires a verified approved audio track');
   const source=resolveApprovedLocalVideo({root,relative_path});
   const working=fs.mkdtempSync(path.join(os.tmpdir(),'retail-feature7-asr-'));
   fs.chmodSync(working,0o700);
