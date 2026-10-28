@@ -154,6 +154,36 @@ class TenantStore:
             return None
         return item
 
+    def feature3_source_asset(self, token, shop_id, asset_id):
+        """JWT/RLS-backed registration proof, never a blob rights grant."""
+        sid, aid = canonical_uuid(shop_id), canonical_uuid(asset_id)
+        rows = self._request("media_assets", token, query={
+            "select": "id,shop_id,storage_bucket,object_path,mime_type,"
+                      "source,license_name,license_url,attribution",
+            "shop_id": "eq." + sid, "id": "eq." + aid, "limit": "2",
+        })
+        if not isinstance(rows, list) or len(rows) != 1:
+            return None
+        item = rows[0]
+        extensions = {"image/png": ".png", "image/jpeg": ".jpg",
+                      "image/webp": ".webp"}
+        ext = extensions.get(item.get("mime_type"))
+        if not ext or item.get("id") != aid or item.get("shop_id") != sid or (
+            item.get("storage_bucket") != "retailgrowth-media" or
+            item.get("source") != "UPLOAD" or
+            item.get("object_path") != f"{sid}/uploads/{aid}{ext}" or
+            item.get("license_name") not in
+                ("owned", "cc0", "royalty_free", "commercial") or
+            not isinstance(item.get("attribution"), str) or
+            len(item["attribution"].strip()) < 10 or
+            (item["license_name"] != "owned" and
+             (not isinstance(item.get("license_url"), str) or
+              not item["license_url"].startswith("https://")))
+        ):
+            return None
+        return {"mime_type": item["mime_type"],
+                "license_name": item["license_name"]}
+
     def asset(self, token, shop_id, asset_id):
         sid, aid = canonical_uuid(shop_id), canonical_uuid(asset_id)
         rows = self._request("media_assets", token, query={
