@@ -59,12 +59,17 @@ function contextOf(source) {
     assets.set(mediaId, media);
   }
   const offers = new Map();
+  const validDate = (value) => typeof value === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(value) &&
+    !Number.isNaN(Date.parse(value + 'T00:00:00Z'));
+  if (!validDate(req.campaign_date)) fail('Trusted campaign date required for promotion expiry check');
   for (const offer of req.approved_offers || []) {
     object(offer, 'offer');
     id(offer.id, 'offer.id');
     if (offer.shop_id !== shopId || offer.approval_status !== 'APPROVED' ||
         !Number.isInteger(offer.percent_off) || offer.percent_off < 1 || offer.percent_off > 99 ||
-        !offer.signed_evidence_id) fail('Unapproved / foreign discount');
+        !offer.signed_evidence_id || offer.active !== true ||
+        !validDate(offer.valid_from) || !validDate(offer.valid_until) ||
+        !(offer.valid_from <= req.campaign_date && req.campaign_date <= offer.valid_until)) fail('Unapproved, expired or foreign discount');
     offers.set(offer.id, offer);
   }
   return { req, assets, offers, allowedPercents: new Set([...offers.values()].map(x => x.percent_off)) };
