@@ -59,7 +59,7 @@ def intake_vton_candidate(*, approved_manifest, provider_response,
         or shop != approved_manifest.get("shop_id")
         or provider_response.get("attempt") != 1
         or type(provider_response.get("attempt")) is not int
-        or provider_response.get("provider") not in ("fashn-vton-1.5", "approved-vton-provider")
+        or provider_response.get("provider") not in ("tryon-v1.6", "approved-vton-provider")
         or provider_response.get("source_fingerprint") != approved_manifest.get("reference_fingerprint")
         or provider_response.get("garment_asset_id") != task["garment_asset_id"]
         or provider_response.get("model_asset_id") != task["model_asset_id"]):
