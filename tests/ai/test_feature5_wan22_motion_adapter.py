@@ -62,6 +62,7 @@ def fixture():
     }
     reference={"asset_id":ASSET,"shop_id":SHOP,"mime_type":"image/png",
                "staged_basename":"owned_kurti.png","sha256":SHA,
+               "width":1080,"height":1920,
                "approved":True,"private":True,"commercial_rights":True,
                "human_likeness_approved":True}
     profile={"provider":PROVIDER,"task":"ti2v-5B","width":704,"height":1280,
@@ -139,6 +140,7 @@ class WanMotionAdapterTest(unittest.TestCase):
             ("commercial_rights",False),("human_likeness_approved",False),
             ("staged_basename","../../out.png"),("staged_basename","file.png.exe"),
             ("sha256","bad"),("mime_type","text/plain"),
+            ("width",0),("height",100),("width",1920),
         ]:
             bad=copy.deepcopy(r);bad[field]=value
             with self.subTest(field=field),self.assertRaises(WanCompatibilityError):
