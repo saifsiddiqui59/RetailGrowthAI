@@ -15,6 +15,7 @@ import re
 _ALLOWED_SOURCES = {
     "instagram_reels": ("www.instagram.com", "instagram.com"),
     "youtube_shorts": ("www.youtube.com", "youtube.com", "youtu.be"),
+    "youtube_music_video": ("www.youtube.com",),
     "meta_sound_collection": ("www.facebook.com", "facebook.com"),
     "pixabay_music": ("pixabay.com", "www.pixabay.com"),
     "tenant_upload": (),
