@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "video-engine"))
 from feature4_release_gate import (CHECKS, ReleaseNotApproved,
                                    validate_feature4_release)
+from demo_feature4_edited_reel import OWNER_VISUAL_VERDICT
 
 SHOP = "11111111-1111-4111-8111-111111111111"
 OTHER = "44444444-4444-4444-8444-444444444444"
@@ -125,6 +126,18 @@ class ReleaseGateTests(unittest.TestCase):
             j["output_probe"][key] = val
             with self.subTest(key=key), self.assertRaises(ReleaseNotApproved):
                 self.run_gate(j,l,r,m)
+
+    def test_owner_rejected_mock_cannot_be_showcased_even_after_successful_encode(self):
+        self.assertEqual(OWNER_VISUAL_VERDICT["visual_quality_status"], "OWNER_REJECTED")
+        self.assertFalse(OWNER_VISUAL_VERDICT["showcase_eligible"])
+        self.assertFalse(OWNER_VISUAL_VERDICT["commercial_release_eligible"])
+        self.assertEqual(OWNER_VISUAL_VERDICT["fixture_purpose"],
+                         "INTERNAL_CODEC_AND_EDITOR_REGRESSION_ONLY")
+        job, lineage, reviewed, media = baseline()
+        media[PRODUCT]["synthetic_fixture"] = True
+        media[MOTION]["synthetic_fixture"] = True
+        with self.assertRaisesRegex(ReleaseNotApproved, "Synthetic"):
+            self.run_gate(job, lineage, reviewed, media)
 
 
 if __name__ == "__main__":

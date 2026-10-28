@@ -4,6 +4,8 @@
 Reuses the actual pinned MIT Timeline Studio JS edit commands via existing
 edited_draft() helper; all test images and 'AI motion' are synthesized locally.
 Never contacts a provider or downloads retailer/media, never claims real Wan.
+OWNER REJECTED this illustrated output as a fashion Reel. CI regression ONLY.
+Do NOT present it as a showcase, reference ad, customer demo, or release proof.
 """
 from __future__ import annotations
 
@@ -29,6 +31,16 @@ def _run_ffmpeg(*args):
         ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y", *map(str, args)],
         capture_output=True, text=True, check=True, timeout=90,
     )
+
+
+# An owner's explicit quality rejection is not reversed by codec/CI success.
+# Technical regression artifacts stay available internally for deterministic QA.
+OWNER_VISUAL_VERDICT = {
+    "visual_quality_status": "OWNER_REJECTED",
+    "showcase_eligible": False,
+    "commercial_release_eligible": False,
+    "fixture_purpose": "INTERNAL_CODEC_AND_EDITOR_REGRESSION_ONLY",
+}
 
 
 def make_edited_project(destination: Path, *, width: int = 540) -> dict:
@@ -94,6 +106,7 @@ def make_edited_project(destination: Path, *, width: int = 540) -> dict:
             "source_video_inpoints_seconds": [0, 4],
             "approved_offer": "20% OFF", "real_ai_motion": False,
             "commercial_fashion_realism_accepted": False,
+            **OWNER_VISUAL_VERDICT,
         }
     finally:
         fixture.root_tmp.cleanup()
