@@ -175,3 +175,8 @@ Connected DEV project was queried in a read-only rolled-back transaction. Synthe
 ## 2026-10-28 — Image-generation A100-free source qualification
 
 2026-10-28: Implemented Feature5 isolated CPU image review composite and negative rights/tenant/fencing tests on branch. It stages exclusively from F3-approved hash-bound private portrait first frame; 0700/0600, O_EXCL, no outside URL and revocation cleanup. Generates labeled private PNG for editorial diagnostic ONLY, never a publishable or AI-generated asset. No paid providers, GPU, infrastructure changes, customer media or WineShopPOS touched. External Pexels bytes unavailable from restricted runtime; no false stock acceptance. Official Klein 4B does not require A100 hardware.
+
+
+## 2026-10-28 — CPU first-frame cross-feature integration regression
+
+2026-10-28: Added an independent full CPU first-frame F3->Feature5->Pillow board integration test: actual private prepared pixels, hash-bound SKU source, 0600 output, explicit no-FLUX/no-Wan flags and current-rights revocation refusal. No hosted DB writes, GPU or paid API. CI must pass exact newest commit before marking source done.

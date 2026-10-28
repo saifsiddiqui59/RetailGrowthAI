@@ -177,3 +177,8 @@ Latest source-only addendum: deterministic two-thread simulated paid dispatcher 
 ## 2026-10-28 — Image-generation A100-free source qualification
 
 2026-10-28 — Feature5 GPU-OFF image review board code added: `feature5_motion/cpu_image_review.py` creates a private 0700-folder/0600-file Pillow 704x1280 PNG review still from an independently authorized F3 704x1280 staged PNG. Explicit banner declares CPU/NO FLUX/NO WAN/NOT CUSTOMER AD; source byte SHA256 + metadata + file mode/fence checked, caller's existing Part3/F3 rights callback rechecked after writing. No pretrained model, commercial rights or likeness are inferred. CPU-only tests in `tests/media/test_feature5_cpu_image_review.py` cover image output, wrong tenant/hash, rights revocation, symlink, mode and duplicate. Real FLUX image inference NOT performed.
+
+
+## 2026-10-28 — CPU first-frame cross-feature integration regression
+
+Full Feature5-only CPU E2E test now composes a private, clearly NO-AI/PIL reference image from a CURRENT F3 staged first frame and verifies byte SHA, job scope, local file mode, no release, and refusal of a rights revocation. This test uses a synthetic F3 fixture on the stacked branch, not genuine customer grant/FLUX inference.
