@@ -16,12 +16,25 @@ export function inspectCreativeDirection(packageData, { shopId, mediaAssets = []
   const assets = compatibleMedia('media', mediaAssets, shopId)
   let position = 0
   const scenes = creative.map((shot, index) => {
+    const source = assets.find(a => a.id === shot?.asset_id)
+    const overlay = shot?.poster_overlay_asset_id
+    const legalPoster = overlay == null || mediaAssets.some(a =>
+      a.id === overlay && a.shop_id === shopId && a.authorized === true &&
+      a.kind === 'poster' && overlay !== shot.asset_id)
+    const videoSource = source?.kind === 'video'
     if (!shot || !Number.isFinite(shot.duration) || shot.duration < 0.5 ||
         typeof shot.headline !== 'string' || !shot.headline.trim() ||
         shot.headline.length > 110 || typeof shot.asset_id !== 'string' ||
         !assets.some(a => a.id === shot.asset_id) ||
         !['fade', 'slide', 'cut'].includes(shot.transition) ||
         !['subtle_zoom', 'fade', 'slide', 'pop', 'glow'].includes(shot.animation_preset) ||
+        !legalPoster ||
+        (shot.trim_start != null && (!videoSource ||
+          typeof shot.trim_start !== 'number' || !Number.isFinite(shot.trim_start) ||
+          shot.trim_start < 0 || shot.trim_start > 180 ||
+          (typeof source.duration_seconds === 'number' &&
+           source.duration_seconds > 0 && shot.trim_start + shot.duration > source.duration_seconds + .02))) ||
+        (shot.mute_source != null && (!videoSource || typeof shot.mute_source !== 'boolean')) ||
         (shot.offer != null && (typeof shot.offer !== 'string' || shot.offer.length > 70)) ||
         (shot.sfx_asset_id != null && !musicAssets.some(track =>
           track.id === shot.sfx_asset_id && track.shop_id === shopId &&
@@ -31,7 +44,10 @@ export function inspectCreativeDirection(packageData, { shopId, mediaAssets = []
     const s = { start: position, duration: shot.duration, asset_id: shot.asset_id,
       headline: shot.headline, transition: shot.transition, animation_preset: shot.animation_preset,
       ...(shot.offer ? { offer: shot.offer } : {}),
-      ...(shot.sfx_asset_id ? { sfx_asset_id: shot.sfx_asset_id } : {}) }
+      ...(shot.sfx_asset_id ? { sfx_asset_id: shot.sfx_asset_id } : {}),
+      ...(overlay != null ? { poster_overlay_asset_id: overlay } : {}),
+      ...(shot.trim_start != null ? { trim_start: shot.trim_start } : {}),
+      ...(shot.mute_source != null ? { mute_source: shot.mute_source } : {}) }
     position = Math.round((position + s.duration) * 1000) / 1000
     return s
   })

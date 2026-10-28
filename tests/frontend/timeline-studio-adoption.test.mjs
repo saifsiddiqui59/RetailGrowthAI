@@ -229,3 +229,31 @@ test('signed source video preview plays only the exact renderer trim window',()=
  assert.throws(()=>sourceClipPlaybackWindow({...scene,trim_start:-1},source),/invalid verified/)
  assert.throws(()=>sourceClipPlaybackWindow({...scene,trim_start:NaN},source),/invalid verified/)
 })
+
+test('approved F2 clip trims, source mute and poster layers survive read-only handoff unchanged',()=>{
+ const d=direction(), original=structuredClone(d)
+ d.scenes[1].trim_start=2
+ d.scenes[1].mute_source=true
+ d.scenes[1].poster_overlay_asset_id='poster1'
+ const approved=structuredClone(d)
+ const result=inspectCreativeDirection(d,{shopId:SHOP,mediaAssets:assets,musicAssets:music})
+ assert.equal(result.readOnly,true)
+ assert.equal(result.draft.scenes[1].trim_start,2)
+ assert.equal(result.draft.scenes[1].mute_source,true)
+ assert.equal(result.draft.scenes[1].poster_overlay_asset_id,'poster1')
+ assert.deepEqual(d,approved)
+ assert.equal(original.scenes[1].trim_start,undefined)
+ for(const mutate of [
+   v=>v.scenes[1].trim_start=-1,
+   v=>v.scenes[1].trim_start=Infinity,
+   v=>v.scenes[0].trim_start=2,
+   v=>v.scenes[1].mute_source='true',
+   v=>v.scenes[1].poster_overlay_asset_id='motion1',
+   v=>v.scenes[1].poster_overlay_asset_id='foreign',
+ ]) {
+   const forged=structuredClone(d)
+   mutate(forged)
+   assert.throws(()=>inspectCreativeDirection(forged,{shopId:SHOP,mediaAssets:assets,musicAssets:music}),
+     /Feature #2 scene/)
+ }
+})
