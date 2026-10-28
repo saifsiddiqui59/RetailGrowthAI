@@ -76,6 +76,12 @@ PY
 for sec in 1 6 13 18 28; do
  ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$sec" -i "$OUTPUT_HD" -frames:v 1 "$ROOT/ci-artifacts/feature4-fullres-frame-$sec.jpg"
 done
+# Check a synthetic caption is VISIBLY burned into the encoded 1080p MP4.
+# All three frames are within the same 0..3s intro shot to avoid a fake pass
+# from unrelated scene cuts. No speech/text semantic quality is claimed.
+for t in 0.6 1.2 2.2; do
+  ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$t" -i "$OUTPUT_HD" -frames:v 1 "$ROOT/ci-artifacts/feature4-caption-frame-$t.png"
+done
 python3 "$ROOT/video-engine/hyperframes/check_feature4_output.py" "$ROOT/ci-artifacts" --fullres
 
 # Explicit full-minute qualification (full 1080p, CPU, no GPU/provider charges).

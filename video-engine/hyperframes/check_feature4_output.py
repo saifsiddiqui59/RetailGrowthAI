@@ -114,7 +114,29 @@ def check_fullres_artifact(media_dir):
     narr_end = tone_amplitude(encoded_mp4, 27, hz=863)
     if not (narr_mid > 55 and narr_end > 55):
         raise AssertionError("Approved synthetic narration track missing in final AAC")
-    return {"synthetic_narration_mid_amplitude": round(narr_mid, 2),
+    # Synthetic subtitle is visible at t=1.2s and absent at t=0.6/2.2s.
+    # Compare the same first-scene, fixed region to detect true time-gated
+    # pixels in the FINAL decoded MP4, without OCR or claiming spoken QA.
+    before = Image.open(root / "feature4-caption-frame-0.6.png").convert("RGB")
+    during = Image.open(root / "feature4-caption-frame-1.2.png").convert("RGB")
+    after = Image.open(root / "feature4-caption-frame-2.2.png").convert("RGB")
+    if any(frame.size != (1080, 1920) for frame in (before, during, after)):
+        raise AssertionError("Incorrect decoded caption proof frame size")
+    caption_region = (180, 1060, 900, 1360)
+    def frame_delta(a, b):
+        return ImageStat.Stat(ImageChops.difference(
+            a.crop(caption_region), b.crop(caption_region)).convert("L")).mean[0]
+    visible_delta = frame_delta(before, during)
+    baseline_delta = frame_delta(before, after)
+    if not (visible_delta > 4.0 and visible_delta > 2.5 * max(1.0, baseline_delta)):
+        raise AssertionError(
+            f"Timed subtitle not visible in encoded 1080p MP4: "
+            f"caption_delta={visible_delta:.2f}, same_scene_baseline={baseline_delta:.2f}"
+        )
+    return {"synthetic_caption_encoded_pixel_delta": round(visible_delta, 2),
+            "same_scene_caption_off_delta": round(baseline_delta, 2),
+            "caption_semantic_alignment_accepted": False,
+            "synthetic_narration_mid_amplitude": round(narr_mid, 2),
             "synthetic_narration_end_amplitude": round(narr_end, 2),
             "spoken_word_qa_accepted": False,
             "resolution": "1080x1920", "frames_sampled": len(pictures),

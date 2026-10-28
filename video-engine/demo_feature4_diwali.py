@@ -101,13 +101,21 @@ def main():
             fixture.add("original_demo_voice", "original_demo_voice.wav", "audio", "retailer")
             fixture.request["voiceover_asset_id"] = "original_demo_voice"
             fixture.request["voiceover_source"] = "retailer"
+            # The test-only sine wave is NOT spoken dialogue. These reviewed
+            # timestamped words are just a visual marker for the encoded video.
+            fixture.request["script"]["transcript"] = [
+                {"start": 0.9, "duration": 0.9, "text": "SUBTITLE CHECK 873"}
+            ]
         fixture.request["scenes"][3]["sfx_asset_id"] = "original_demo_sfx"
         output = compile_creative_reel(fixture.request, fixture.manifest, fixture.assets, project)
         print(json.dumps({"status": "COMPILED_SYNTHETIC_TEST_ONLY",
                           "duration_seconds": fixture.request["duration_seconds"],
                           "project": str(output), "scene_count": len(fixture.request["scenes"]),
                           "real_ai_motion": False, "commercial_media": False,
-                          "real_voiceover": False, "synthetic_narration_test": args.with_narration}))
+                          "real_voiceover": False, "synthetic_narration_test": args.with_narration,
+                          "test_only_caption_proof": args.with_narration,
+                          "spoken_word_qa_accepted": False,
+                          "showcase_eligible": False}))
     finally:
         fixture.root_tmp.cleanup()
 
