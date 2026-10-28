@@ -1,0 +1,190 @@
+"""Source-only native Wan / ComfyUI runtime contract and lock verification.
+
+Official source: Comfy-Org/ComfyUI @
+79cf64c21a1dba50749945ba9fe2e3a692f45438:
+comfy_extras/nodes_wan.py: Wan22ImageToVideoLatent
+comfy_extras/nodes_video.py: SaveVideo.execute expects codec dictionary,
+not string. Its format dynamic combo can carry {"format":"mp4",
+"codec":{"codec":"h264"}}. The existing pinned Wan API graph is reused.
+
+Everything here is LOCAL READ/VALIDATE ONLY. Caller must obtain actual
+/object_info from a protected authenticated private runtime. Supplying JSON
+from a browser is NOT proof of the installed software or authorization.
+No requests, code execution, GPU, image pulls or Azure writes in this module.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+from pathlib import Path
+
+from .feature35_comfy_api_graphs import CHECKPOINTS, offline_graph_validate, WorkflowError
+from ..wan22_motion_adapter import (
+    COMFY_SOURCE, WAN_SOURCE, WanCompatibilityError,
+    NODE_INPUTS, validate_runtime_node_types,
+)
+
+SHA256 = re.compile(r"^[a-f0-9]{64}$")
+OCI = re.compile(r"^[a-z0-9.-]+(?::[0-9]+)?/[a-z0-9._/-]+@sha256:[a-f0-9]{64}$")
+SHA40 = re.compile(r"^[a-f0-9]{40}$")
+VERSION = re.compile(r"^[0-9]+[.][0-9]+(?:[.][0-9]+)?(?:[+a-zA-Z0-9.-]+)?$")
+MAX_JSON = 2 * 1024 * 1024
+NODE_ALLOWLIST = frozenset((
+    "UNETLoader", "CLIPLoader", "VAELoader", "CLIPTextEncode",
+    "LoadImage", "Wan22ImageToVideoLatent", "ModelSamplingSD3",
+    "KSampler", "VAEDecode", "CreateVideo", "SaveVideo",
+))
+# The minimum reviewed wheel set is NOT a complete transitive dependency
+# lock; the operator must additionally supply an immutable all-wheels manifest.
+REQUIRED_PACKAGES = frozenset((
+    "torch", "torchvision", "torchsde", "transformers", "safetensors",
+    "av", "Pillow", "comfyui-frontend-package",
+))
+
+
+def validate_runtime_lock(lock, *, approved_image_digest, reviewed_wheel_sha256):
+    """Refuse all unreviewed or mutable image/runtime dependency states.
+
+    Locks and approved hashes must be provided by an independent operator.
+    This checks *matching declarations*, not actual container/wheel bytes.
+    """
+    if type(lock) is not dict or set(lock) != {
+        "schema", "source_commit", "wan_source_commit", "image", "python_version",
+        "base_image", "wheels_sha256", "source_license_reviewed",
+        "comfy_gpl_distribution_reviewed", "checkpoint_licenses_reviewed",
+        "cuda_and_nvidia_eula_reviewed", "runtime_gpu_enabled",
+    }:
+        raise WanCompatibilityError("Incomplete immutable Comfy runtime lock")
+    if (lock["schema"] != "retailgrowth.wan22.runtime-lock.v1" or
+        lock["source_commit"] != COMFY_SOURCE or
+        lock["wan_source_commit"] != WAN_SOURCE or
+        not isinstance(lock["image"], str) or not OCI.fullmatch(lock["image"]) or
+        lock["image"] != approved_image_digest or
+        not isinstance(lock["base_image"], str) or not OCI.fullmatch(lock["base_image"]) or
+        not isinstance(lock["python_version"],str) or
+        not VERSION.fullmatch(lock["python_version"])):
+        raise WanCompatibilityError("Unapproved pinned source, Python or immutable OCI image")
+    if any(lock[key] is not True for key in (
+        "source_license_reviewed", "comfy_gpl_distribution_reviewed",
+        "checkpoint_licenses_reviewed", "cuda_and_nvidia_eula_reviewed"
+    )):
+        raise WanCompatibilityError("Commercial runtime dependency/redistribution review missing")
+    if lock["runtime_gpu_enabled"] is not False:
+        raise WanCompatibilityError("GPU activation is out of scope for source preflight")
+    wheels = lock["wheels_sha256"]
+    if type(wheels) is not dict or type(reviewed_wheel_sha256) is not dict or (
+        set(wheels) != set(reviewed_wheel_sha256) or
+        not REQUIRED_PACKAGES <= set(wheels)
+    ):
+        raise WanCompatibilityError("Complete reviewed pinned wheel set required")
+    for name, proof in wheels.items():
+        if (not isinstance(name,str) or len(name) > 100 or not name or
+            type(proof) is not dict or set(proof) != {"version","sha256"} or
+            not isinstance(proof["version"],str) or not VERSION.fullmatch(proof["version"]) or
+            not isinstance(proof["sha256"],str) or not SHA256.fullmatch(proof["sha256"]) or
+            proof != reviewed_wheel_sha256[name]):
+            raise WanCompatibilityError("Unpinned or changed dependency wheel")
+    return True
+
+
+def _actual_input_names(spec):
+    if type(spec) is not dict or type(spec.get("input")) is not dict:
+        raise WanCompatibilityError("Installed node object_info not provided")
+    inp = spec["input"]
+    groups=[]
+    for key in ("required","optional"):
+        group = inp.get(key,{})
+        if type(group) is not dict:
+            raise WanCompatibilityError("Invalid installed node input group")
+        groups.append(group)
+    return groups[0], groups[1]
+
+
+def _allowlist_enums(value, descriptor):
+    """Fail closed on real advertised filename choices when enum is supplied."""
+    if (type(descriptor) is not list or not descriptor or
+        not isinstance(descriptor[0], (list, str))):
+        raise WanCompatibilityError("Malformed installed Comfy widget descriptor")
+    if isinstance(descriptor[0], list) and value not in descriptor[0]:
+        raise WanCompatibilityError("Model/input not installed in runtime selector")
+
+
+def validate_native_graph_against_object_info(graph, object_info):
+    """Check actual node names, required/optional inputs, and checkpoint choices.
+
+    Real protected server must supply its object_info directly. Source-only
+    fixture testing is useful but cannot replace that live readback.
+    """
+    try:
+        offline_graph_validate(graph)
+    except WorkflowError as exc:
+        raise WanCompatibilityError("Invalid private native graph") from exc
+    validate_runtime_node_types(object_info)
+    nodes = graph["prompt"]
+    if not 11 <= len(nodes) <= 12:
+        raise WanCompatibilityError("Unexpected Wan graph node count")
+    classes = {n["class_type"] for n in nodes.values()}
+    if classes - NODE_ALLOWLIST or not {"Wan22ImageToVideoLatent","SaveVideo"} <= classes:
+        raise WanCompatibilityError("Unapproved native graph node")
+    expected = {
+        "unet_name": CHECKPOINTS["wan"][0],
+        "clip_name": CHECKPOINTS["wan"][1],
+        "vae_name": CHECKPOINTS["wan"][2],
+    }
+    for node in nodes.values():
+        name = node["class_type"]
+        if name not in object_info:
+            raise WanCompatibilityError("Missing native Comfy node " + name)
+        required, optional = _actual_input_names(object_info[name])
+        actual = node["inputs"]
+        if set(actual) - (set(required) | set(optional)):
+            raise WanCompatibilityError("Unsupported Comfy input for " + name)
+        if set(required) - set(actual):
+            raise WanCompatibilityError("Missing required native input for " + name)
+        for key,value in actual.items():
+            desc=(required | optional)[key]
+            if key in expected and value != expected[key]:
+                raise WanCompatibilityError("Staged Wan checkpoint changed")
+            if key in ("unet_name","clip_name","vae_name"):
+                _allowlist_enums(value,desc)
+    savers=[n for n in nodes.values() if n["class_type"] == "SaveVideo"]
+    if len(savers) != 1 or savers[0]["inputs"].get("format") != {
+        "format":"mp4","codec":{"codec":"h264"}
+    } or "codec" in savers[0]["inputs"]:
+        raise WanCompatibilityError("Pinned SaveVideo requires explicit dynamic MP4/H264 settings")
+    lengths=[n["inputs"] for n in nodes.values() if n["class_type"]=="Wan22ImageToVideoLatent"]
+    if len(lengths)!=1 or (
+        lengths[0].get("width"),lengths[0].get("height"),lengths[0].get("length")
+    ) not in ((704,1280,121),(1280,704,121)):
+        raise WanCompatibilityError("Unsupported native Wan model size or frame count")
+    return True
+
+
+def check_small_safetensors_header(path, *, expected_size, max_header_bytes=10*1024*1024):
+    """Optional fast local header parse; NOT a full checkpoint SHA256 proof.
+
+    Used after mounting the existing private read-only model share, not in
+    general CI. Reject links and malformed lengths without loading 10GB.
+    """
+    p=Path(path)
+    if p.is_symlink() or not p.is_file() or p.stat().st_size != expected_size:
+        raise WanCompatibilityError("Wrong model file identity/byte count")
+    try:
+        with p.open("rb") as f:
+            size=int.from_bytes(f.read(8),"little")
+            if not 2 <= size <= max_header_bytes or size+8>expected_size:
+                raise ValueError("Invalid model header")
+            raw=f.read(size)
+            if len(raw)!=size:
+                raise ValueError("Truncated model header")
+            doc=json.loads(raw)
+            if type(doc) is not dict or not doc or any(
+                not isinstance(k,str) or not isinstance(v,dict)
+                for k,v in doc.items()
+            ):
+                raise ValueError("Unrecognized safetensors header")
+    except (OSError,ValueError,UnicodeError,TypeError) as exc:
+        raise WanCompatibilityError("Invalid local safetensors metadata") from exc
+    return {"stat_bytes":expected_size,"header_sha256":hashlib.sha256(raw).hexdigest(),
+            "model_sha256_verified":False,"gpu_started":False}
