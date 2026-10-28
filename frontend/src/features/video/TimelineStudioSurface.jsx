@@ -5,6 +5,8 @@ import { TimelineCaptionClip, TimelineAudioClip } from './vendor/TimelineClips.j
 import { createEditorHistory, pushEditorHistory, undoEditorHistory, redoEditorHistory } from './vendor/editorHistoryCore.mjs'
 import { studioReorder, studioSplit, studioTrimPair, studioSourceTrim, studioValidatedDraft } from './timeline-studio-bridge.mjs'
 import { FrameTimecodeInput } from './vendor/openreel/FrameTimecodeInput.jsx'
+import { OpenReelClipSnapper } from './vendor/openreel/clip-snap.mjs'
+import { getTimelineItemRanges, getTimelineTrackSelection, getSplittableTimelineItemIds } from './vendor/openreel/timeline-item-actions.mjs'
 import './TimelineStudioSurface.css'
 
 // Actual upstream Timeline Studio editing/history/clip components, modified for
@@ -14,6 +16,7 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
   selectedSceneIndex = 0, approvedDirection = false, spokenCaptions = [] }) {
   const [history, setHistory] = useState(() => createEditorHistory(draft))
   const [playhead, setPlayhead] = useState(0)
+  const [snapEnabled, setSnapEnabled] = useState(true)
   const [zoom, setZoom] = useState(() => getTimelineAutoFitZoom(draft.duration_seconds))
   const [feedback, setFeedback] = useState('')
   const dragFrom = useRef(null)
@@ -37,9 +40,34 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
     Math.round(900 * draft.duration_seconds / getTimelineVisibleDuration(zoom))))
   const selected = Math.min(Math.max(selectedSceneIndex,0), Math.max(0,draft.scenes.length - 1))
   const previewFps = draft.output?.fps === 24 ? 24 : 30
-  const seekToFrame = seconds => {
+  // Minimal projection of approved scenes; OpenReel only reads layout metadata.
+  // No client media grants, signed URLs, backend data or effect authority enter it.
+  const timelineProject = useMemo(() => ({timeline: {tracks: [{
+    id: 'video', type: 'video', locked: approvedDirection,
+    clips: draft.scenes.map((scene, i) => ({
+      id: 'scene-'+i, startTime: scene.start, duration: scene.duration,
+    })),
+  }]}}), [draft.scenes, approvedDirection])
+  const clipRanges = getTimelineItemRanges(timelineProject)
+  const cutPositions = getTimelineTrackSelection(timelineProject, 'video')
+    .map(item => clipRanges.find(clip => clip.id === item.id)?.startTime)
+    .filter(Number.isFinite)
+  const previousCut = cutPositions.filter(cut => cut < playhead - .0001).at(-1)
+  const nextCut = cutPositions.find(cut => cut > playhead + .0001)
+  const canSplit = getSplittableTimelineItemIds(
+    timelineProject, ['scene-'+selected], playhead).length > 0 &&
+    spans[selected] && playhead - spans[selected].start >= .5 &&
+    spans[selected].end - playhead >= .5
+  const seekToFrame = (seconds, withSnap = false) => {
+    let requested = seconds
+    if (withSnap && snapEnabled) {
+      const snap = new OpenReelClipSnapper({snapThreshold: 8, gridSize: 1})
+        .snapToGrid(seconds, timelineProject.timeline, 'video',
+          trackPixels / draft.duration_seconds)
+      if (snap.didSnap) requested = snap.snappedTime
+    }
     const position = Math.min(draft.duration_seconds,
-      Math.max(0, Math.round(seconds * previewFps) / previewFps))
+      Math.max(0, Math.round(requested * previewFps) / previewFps))
     setPlayhead(position)
     const index = spans.findIndex(span => position >= span.start && position < span.end)
     if (index >= 0) onSelectScene(index)
@@ -122,8 +150,15 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
         <button type="button" onClick={()=>applyHistory(redoEditorHistory)}
           disabled={approvedDirection||!history.future.length} aria-label="Redo timeline edit"
           aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">Redo</button>
-        <button type="button" disabled={approvedDirection||draft.scenes.length>=12}
+        <button type="button" disabled={approvedDirection||draft.scenes.length>=12||!canSplit}
           onClick={split} aria-label="Split video at playhead">Split at playhead</button>
+        <button type="button" disabled={previousCut == null}
+          onClick={()=>seekToFrame(previousCut)} aria-label="Previous scene cut">Previous cut</button>
+        <button type="button" disabled={nextCut == null}
+          onClick={()=>seekToFrame(nextCut)} aria-label="Next scene cut">Next cut</button>
+        <label><input type="checkbox" checked={snapEnabled}
+          onChange={event=>setSnapEnabled(event.target.checked)}
+          aria-label="Snap to scene cuts and grid" /> Snap</label>
         <button type="button" disabled={approvedDirection||selected<=0}
           onClick={()=>{move(selected,selected-1);onSelectScene(selected-1)}}>Earlier</button>
         <button type="button" disabled={approvedDirection||selected===draft.scenes.length-1}
@@ -141,7 +176,7 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
         <span className="f4-ts-track-name">VIDEO</span>
         <div className="f4-studio-track-body" onClick={e=>{
           if(e.target===e.currentTarget) seekToFrame(
-            Math.max(0,Math.min(1,e.nativeEvent.offsetX/e.currentTarget.clientWidth))*draft.duration_seconds)
+            Math.max(0,Math.min(1,e.nativeEvent.offsetX/e.currentTarget.clientWidth))*draft.duration_seconds, true)
         }}>
           {spans.map((span,i)=><button key={i} type="button" draggable={!approvedDirection}
             data-timeline-segment-track="image" data-timeline-segment-index={i}
@@ -228,7 +263,7 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
     </div>
     <div className="f4-ts-inspector">
       <label>Playhead <input type="range" min="0" max={draft.duration_seconds} step="any"
-        value={playhead} onChange={e=>seekToFrame(Number(e.target.value))} />
+        value={playhead} onChange={e=>seekToFrame(Number(e.target.value), true)} />
         <output>{formatTime(playhead)}</output></label>
       {source?.kind==='video'&&<label>Source trim (s) <input type="number" min="0" max="180"
         step=".1" disabled={approvedDirection} value={draft.scenes[selected].trim_start||0}

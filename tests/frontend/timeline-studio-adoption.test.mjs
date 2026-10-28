@@ -348,3 +348,38 @@ test('real MIT OpenReel frame controls parse and step at 24/30fps with strict in
   for(const invalid of ['','oops','-1','00:00:60:00','00:00:00:30','Infinity'])
     assert.equal(parseFrameTimecode(invalid,30),null)
 })
+
+test('OpenReel real track item selection identifies only authorized scenes and splittable interiors',async()=>{
+  const {getTimelineItemRanges,getTimelineTrackSelection,getSplittableTimelineItemIds}
+    = await import('../../frontend/src/features/video/vendor/openreel/timeline-item-actions.mjs')
+  const plan=draft()
+  const project={timeline:{tracks:[{id:'video',clips:plan.scenes.map((scene,i)=>({
+    id:'scene-'+i,startTime:scene.start,duration:scene.duration}))}]}}
+  const items=getTimelineItemRanges(project)
+  assert.deepEqual(items.map(x=>x.startTime),[0,10,20])
+  assert.deepEqual(getTimelineTrackSelection(project,'video').map(x=>x.id),['scene-0','scene-1','scene-2'])
+  assert.deepEqual(getSplittableTimelineItemIds(project,['scene-1'],14),['scene-1'])
+  assert.deepEqual(getSplittableTimelineItemIds(project,['scene-1'],10),[])
+  assert.deepEqual(getSplittableTimelineItemIds(project,['scene-1'],20),[])
+  assert.deepEqual(getSplittableTimelineItemIds(project,['forged-scene'],14),[])
+})
+
+test('OpenReel actual ClipManager snap finds cut/grid boundaries without modifying source',async()=>{
+ const {OpenReelClipSnapper}
+   =await import('../../frontend/src/features/video/vendor/openreel/clip-snap.mjs')
+ const timeline={tracks:[{id:'video',clips:[
+   {id:'scene-0',startTime:0,duration:3.5},
+   {id:'scene-1',startTime:3.5,duration:6.5}
+ ]}]}
+ const original=structuredClone(timeline)
+ const snapper=new OpenReelClipSnapper({snapThreshold:8,gridSize:1})
+ const hit=snapper.snapToGrid(3.46,timeline,'video',100)
+ assert.equal(hit.didSnap,true)
+ assert.equal(hit.snappedTime,3.5)
+ assert.equal(hit.snapTarget,'clip-end')
+ assert.equal(snapper.snapToGrid(1.02,timeline,'video',100).snappedTime,1)
+ assert.equal(snapper.snapToGrid(2.29,timeline,'video',100).didSnap,false)
+ assert.deepEqual(timeline,original)
+ const off=new OpenReelClipSnapper({snapToGridEnabled:false})
+ assert.equal(off.snapToGrid(3.46,timeline,'video',100).snappedTime,3.46)
+})
