@@ -152,9 +152,18 @@ def _model_approval(shop, model_id, image, read_model):
         "video_reference" not in (model.get("approved_uses") or []) or
         model.get("image_sha256") != image["sha256"] or
         type(model.get("rights_revision")) is not int or
-        model["rights_revision"] < 1):
+        model["rights_revision"] < 1 or
+        model.get("pose") not in ("front", "three_quarter", "side", "full_body", "portrait") or
+        not isinstance(model.get("label"), str) or
+        not 1 <= len(model["label"].strip()) <= 64 or
+        model.get("license_id") not in ("CC0-1.0", "CC-BY-4.0", "REVIEWED-COMMERCIAL") or
+        not isinstance(model.get("attribution"), str) or
+        (model["license_id"] == "CC-BY-4.0" and not model["attribution"].strip())):
         raise FashionReferenceDenied("Model catalog approval or current rights missing")
     return {"model_id": model_id, "source_kind": model.get("source_kind"),
+            "label": model["label"].strip(), "pose": model["pose"],
+            "license_id": model["license_id"],
+            "attribution": model["attribution"],
             "rights_revision": model["rights_revision"], "synthetic_adult": True}
 
 
