@@ -213,6 +213,37 @@ class WanFeature3OfflineE2ETests(unittest.TestCase):
                     ):pass
             self.assertFalse(list(Path(td).iterdir()))
 
+
+    def test_private_stage_permissions_preexisting_name_and_cleanup(self):
+        f3,bundle,d,p,v=source_fixture()
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            with stage_approved_fashion_first_frame(
+                expected_manifest=bundle,current_readers=f3.readers(),
+                verify_worker_job=guarded_job(f3,bundle),
+                resolve_first_frame=resolve_first_frame,private_job_dir=root,
+                technical_letterbox_approved=True,
+            ) as (staged,grant,_):
+                self.assertEqual(staged.stat().st_mode & 0o077,0)
+                self.assertTrue(staged.name.startswith("f3_"))
+                with self.assertRaises(WanCompatibilityError):
+                    with stage_approved_fashion_first_frame(
+                        expected_manifest=bundle,current_readers=f3.readers(),
+                        verify_worker_job=guarded_job(f3,bundle),
+                        resolve_first_frame=resolve_first_frame,private_job_dir=root,
+                        technical_letterbox_approved=True,
+                    ): pass
+            self.assertFalse(list(root.iterdir()))
+            root.chmod(0o755)
+            with self.assertRaises(WanCompatibilityError):
+                with stage_approved_fashion_first_frame(
+                    expected_manifest=bundle,current_readers=f3.readers(),
+                    verify_worker_job=guarded_job(f3,bundle),
+                    resolve_first_frame=resolve_first_frame,private_job_dir=root,
+                    technical_letterbox_approved=True,
+                ): pass
+            self.assertFalse(list(root.iterdir()))
+
     def test_cleanup_staged_frame_when_graph_or_worker_fails(self):
         f3,bundle,d,p,v=source_fixture()
         with tempfile.TemporaryDirectory() as td:

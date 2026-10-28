@@ -86,6 +86,7 @@ class WanPrivateComfyDispatcher:
         self.enabled=enabled
         self.transport=transport
         self._attempt_consumed=False
+        self._last_submitted=None
 
     def submit_once(
         self, *, package, job_id, attempt_token,
@@ -162,9 +163,18 @@ class WanPrivateComfyDispatcher:
         # insufficient across worker processes. The attempt UUID by itself
         # is NOT idempotency enforced by ComfyUI.
         self._attempt_consumed=True
-        if record_unique_submission_intent(
+        try:
+            recorded=record_unique_submission_intent(
                 shop,job,token,package.lineage_sha256,
-                package.prompt_sha256) is not True:
+                package.prompt_sha256)
+        except Exception as exc:
+            # A callback may have committed before losing its acknowledgement.
+            # Even with no POST, the durable ledger state must be reconciled,
+            # not treated as an unconsumed request suitable for resubmission.
+            raise UnknownComfyPaidAttempt(
+                "Durable submission intent outcome unknown: reconcile existing claim, never retry"
+            ) from exc
+        if recorded is not True:
             raise WanCompatibilityError("Unique durable paid submission intent denied")
         # Even an uncertain POST stays consumed: coordinator reconciles the
         # existing durable intent. Never automatically replay this operation.
@@ -177,12 +187,10 @@ class WanPrivateComfyDispatcher:
             type(ack.get("node_errors")) is not dict or
             ack["node_errors"]):
             raise UnknownComfyPaidAttempt("ComfyUI submitted state unknown; reconcile before further actions")
-        return SubmittedWanAttempt(token,job,shop)
+        self._last_submitted=SubmittedWanAttempt(token,job,shop)
+        return self._last_submitted
 
-    def read_history_once(self, receipt):
-        """Read once; output remains untrusted until private byte import/probe."""
-        if not isinstance(receipt,SubmittedWanAttempt) or not callable(self.transport):
-            raise WanCompatibilityError("Unknown locally submitted Wan attempt")
+    def _read_history_for(self, receipt):
         result=self.transport("GET","/history/"+receipt.prompt_id,None)
         row=result.get(receipt.prompt_id) if type(result) is dict else None
         if row is None:
@@ -198,3 +206,39 @@ class WanPrivateComfyDispatcher:
                     "private_import_approved":False}
         return {"state":"UNKNOWN_OR_FAILED_REQUIRES_RECONCILIATION",
                 "private_import_approved":False}
+
+    def reconcile_existing_attempt(self, *, receipt, verify_existing_submission_for_reconciliation):
+        """Cross-worker read-only recovery, with an existing DB-owned intent.
+
+        The callback must authenticate the caller's tenant and independently
+        validate the durable Part3 submission intent, current lease and exact
+        shop/job/attempt. It is NOT a newly created ledger or a POST retry.
+        """
+        if (self.enabled is not True or not callable(self.transport) or
+            not callable(verify_existing_submission_for_reconciliation) or
+            type(receipt) is not SubmittedWanAttempt or
+            receipt.status!="SUBMITTED_NOT_GENERATED_OR_APPROVED" or
+            receipt.gpu_success_proven is not False or
+            receipt.feature4_approved is not False):
+            raise WanCompatibilityError("Missing trusted Wan reconciliation scope")
+        try:
+            shop=canonical_uuid(receipt.shop_id)
+            job=canonical_uuid(receipt.job_id)
+            token=canonical_uuid(receipt.prompt_id)
+        except (TypeError,ValueError,AttributeError) as exc:
+            raise WanCompatibilityError("Invalid Wan reconciliation identifier") from exc
+        if verify_existing_submission_for_reconciliation(shop,job,token) is not True:
+            raise WanCompatibilityError("Stale or foreign paid Wan reconciliation denied")
+        return self._read_history_for(receipt)
+
+    def read_history_once(self, receipt):
+        """Only the receipt issued by this dispatcher can read its history.
+
+        Other worker instances must use reconcile_existing_attempt with a fresh
+        independent authorized existing-Part3 state lookup. No POST is made.
+        """
+        if (self.enabled is not True or type(receipt) is not SubmittedWanAttempt or
+            self._last_submitted is None or
+            receipt!=self._last_submitted or not callable(self.transport)):
+            raise WanCompatibilityError("Unknown locally submitted Wan attempt")
+        return self._read_history_for(receipt)

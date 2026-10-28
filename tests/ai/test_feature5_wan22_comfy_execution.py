@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from feature5_motion.wan22_comfy_execution import (
     LoopbackComfyTransport, WanPrivateComfyDispatcher,
-    UnknownComfyPaidAttempt,
+    UnknownComfyPaidAttempt, SubmittedWanAttempt,
 )
 from feature5_motion.wan22_motion_adapter import (
     compile_motion_direction, WanCompatibilityError,
@@ -236,6 +236,70 @@ class WanComfyPrivateProtocolTests(unittest.TestCase):
             WanPrivateComfyDispatcher(fake,enabled=True).submit_once(**inputs(
                 pkg,record_unique_submission_intent=None))
         self.assertEqual(fake.calls,[])
+
+
+    def test_unknown_durable_intent_ack_never_posts_or_retries(self):
+        pkg=synthetic_package()
+        fake=FakeLocalComfy(pkg)
+        dispatcher=WanPrivateComfyDispatcher(fake,enabled=True)
+        args=inputs(pkg,record_unique_submission_intent=lambda *a: (_ for _ in ()).throw(
+            TimeoutError("simulated commit succeeded but reply lost")))
+        with self.assertRaisesRegex(UnknownComfyPaidAttempt,"intent outcome unknown"):
+            dispatcher.submit_once(**args)
+        self.assertFalse(any(method=="POST" for method,_,_ in fake.calls))
+        with self.assertRaisesRegex(WanCompatibilityError,"already consumed"):
+            dispatcher.submit_once(**args)
+
+    def test_reconciliation_requires_existing_authoritative_tenant_lease(self):
+        pkg=synthetic_package()
+        args=inputs(pkg)
+        fake=FakeLocalComfy(pkg,ambiguous=True)
+        submitting=WanPrivateComfyDispatcher(fake,enabled=True)
+        with self.assertRaises(UnknownComfyPaidAttempt):
+            submitting.submit_once(**args)
+        # A different worker is allowed a DB-fenced READ, never another POST.
+        fake.ambiguous=False
+        recovering=WanPrivateComfyDispatcher(fake,enabled=True)
+        receipt=SubmittedWanAttempt(args["attempt_token"],args["job_id"],
+                                     pkg.lineage["shop_id"])
+        calls=[]
+        def live_claim(shop,job,attempt):
+            calls.append((shop,job,attempt))
+            return (shop,job,attempt)==(receipt.shop_id,receipt.job_id,receipt.prompt_id)
+        report=recovering.reconcile_existing_attempt(
+            receipt=receipt,verify_existing_submission_for_reconciliation=live_claim)
+        self.assertEqual(report["state"],
+                         "COMFY_REPORTED_SUCCESS_PENDING_PRIVATE_MP4_PROBE")
+        self.assertFalse(report["private_import_approved"])
+        self.assertEqual(calls,[(receipt.shop_id,receipt.job_id,receipt.prompt_id)])
+        self.assertEqual(len([x for x in fake.calls if x[0]=="POST"]),1)
+        for forged in (
+            SubmittedWanAttempt(receipt.prompt_id,receipt.job_id,str(uuid4())),
+            SubmittedWanAttempt(receipt.prompt_id,"../../other",receipt.shop_id),
+            SubmittedWanAttempt(receipt.prompt_id,receipt.job_id,receipt.shop_id,
+                                feature4_approved=True),
+        ):
+            with self.subTest(forged=forged),self.assertRaises(WanCompatibilityError):
+                recovering.reconcile_existing_attempt(
+                    receipt=forged,verify_existing_submission_for_reconciliation=lambda *a:False)
+        for callback in (None, lambda *a:False, lambda *a:{"approved":True}):
+            with self.subTest(callback=callback),self.assertRaises(WanCompatibilityError):
+                recovering.reconcile_existing_attempt(
+                    receipt=receipt,verify_existing_submission_for_reconciliation=callback)
+        with self.assertRaises(WanCompatibilityError):
+            recovering.read_history_once(receipt)
+        self.assertEqual(len([x for x in fake.calls if x[0]=="POST"]),1)
+
+    def test_untrusted_local_history_receipt_never_queries_arbitrary_attempt(self):
+        pkg=synthetic_package()
+        fake=FakeLocalComfy(pkg)
+        dispatcher=WanPrivateComfyDispatcher(fake,enabled=True)
+        own=dispatcher.submit_once(**inputs(pkg))
+        forged=SubmittedWanAttempt(str(uuid4()),own.job_id,own.shop_id)
+        before=len(fake.calls)
+        with self.assertRaises(WanCompatibilityError):
+            dispatcher.read_history_once(forged)
+        self.assertEqual(len(fake.calls),before)
 
     def test_http_transport_rejects_all_non_loopback_or_extraneous_routes_without_socket(self):
         with self.assertRaises(WanCompatibilityError):
