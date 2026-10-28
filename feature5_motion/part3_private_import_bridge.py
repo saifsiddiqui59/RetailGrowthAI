@@ -73,6 +73,20 @@ def _file_identity(path):
     return (facts.st_dev, facts.st_ino, facts.st_size, facts.st_mtime_ns)
 
 
+
+def _recheck_immutable_input(path, root, before, expected_sha256):
+    """Revalidate path ownership, inode/metadata and actual bytes at each boundary.
+
+    Callbacks are external trust boundaries: an independently verified rights
+    check or durable intent CAS can take time and the staged file may change.
+    Never upload bytes from a path that drifted from native FFprobe evidence.
+    """
+    _private_attempt_path(path, root)
+    if (_file_identity(path) != before or _digest(path) != expected_sha256
+        or _file_identity(path) != before):
+        raise WanCompatibilityError("Private native MP4 changed during import handoff")
+
+
 def import_wan_into_existing_part3(
     *, package, inspection, private_file, trusted_attempt_root, job_id, attempt_token, output_asset_id,
     check_current_paid_claim_and_source, commit_unique_import_intent,
@@ -124,6 +138,12 @@ def import_wan_into_existing_part3(
     claim_args=(shop, job, token, source, package.lineage_sha256, inspection.sha256)
     if check_current_paid_claim_and_source(*claim_args) is not True:
         raise WanCompatibilityError("Current Part3 lease/rights/reservation missing")
+    # The existing claim/rights reader can block while another worker changes
+    # the staged file. Reject before committing an irreversible import intent.
+    try:
+        _recheck_immutable_input(path, root, before, inspection.sha256)
+    except (OSError, WanCompatibilityError) as exc:
+        raise WanCompatibilityError("Staged MP4 changed before import intent") from exc
     key = f"{shop}/renders/{job}/{token}.mp4"
     # Require a durable backend-only CAS before any potentially billable write.
     # Never automatically replay a consumed attempt, including after timeout.
@@ -136,6 +156,10 @@ def import_wan_into_existing_part3(
     if intent is not True:
         raise WanCompatibilityError("Import intent not uniquely committed")
     try:
+        # CAS callbacks can change/revoke the file after a durable intent was
+        # consumed. In this phase never upload, automatically retry or refund;
+        # instead escalate to existing Part3 read-only reconciliation.
+        _recheck_immutable_input(path, root, before, inspection.sha256)
         uploaded=upload_private_once(shop, job, token, path, key, inspection.sha256)
         if (type(uploaded) is not dict or set(uploaded) !=
             {"bucket","path","private","sha256","bytes"} or
