@@ -1,104 +1,110 @@
-# Feature #4 — adopted-code integration selection, revised 2026-10-28
+# RetailGrowthAI — Actual Open-Source Video Stack and Final Ownership Handoff (2026-10-28)
 
-**Status: APPROVED FOR TECHNICAL PILOT DESIGN ONLY, NOT MERGED/INTEGRATED.** This supersedes the earlier shortlist in this PR because the owner explicitly requires a **working third-party editor and Creative Director codebase, adapted and stitched**, not several new homemade modules. Source was read from public GitHub and existing RetailGrowthAI branch PR #322; no source has yet been copied or run within RetailGrowthAI. Owner must approve costs separately; GPU off. Keep original WineShopPOS untouched.
+**Status: DRAFT RESEARCH / IMPLEMENTATION HANDOFF ONLY. No borrowed code installed or integrated yet.** This document **replaces/supersedes** the earlier version of PR #497 that incorrectly assigned the *advertising AI Creative Director* to Feature #4. The owner reports Feature #2's current development chat explicitly owns the complete ad script, storyboard, shot-by-shot direction, transitions and detailed Feature #5 prompts. Do not assign the same AI planning to Feature #4. Preserve existing feature PRs and do not modify WineShopPOS. GPU/model spend remains off until independently approved.
 
-## Verified project state / scope
+## One source of creative truth
 
-- RetailGrowthAI draft Feature #4 [PR #322](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322), branch `feat/feature4-professional-video-studio` (at research check head `47b7ffdeb22055e0da226f877f24cef640825456`): real HyperFrames Full-HD synthetic 30s render, secure `creative_reel_v1` composition/manifest, feature4_intent_compiler, source-only worker/React studio and synthetic tests. Not deployed to live DEV; not a real generated fashion model. Preserve this rendering/rights/billing work. Do not rewrite an existing v2 API, subscription ledger or WineShopPOS.
-- Feature #2 owns **advertising script, captions/CTA and approved offer text**. Its previous real Azure GPT-4.1-mini 7-day campaign generated scene scripts, but this does not prove professional motion generation quality or a 15/30/60s cinematic shot director.
-- Feature #3 owns approved fashion model/product still and garments; Feature #5 Wan2.2 TI2V-5B is the intended premium **real moving video inference**; Feature #7 analyzes uploaded user footage. Feature #4 owns *new-ad* Creative Director, precise F5 motion orders, approvals, multi-asset editing and final MP4.
-- PR #323 remains a **Hunyuan 480p/5s** default-off source adapter; PR #465 is separately **Wan2.2/A100 prep**. **These do not currently implement a reconciled 704×1280, 24fps, 121-frame Wan job API.** No actual generated Fashion footage or live GPU proof. Coordinator must unify provider-specific schemas. Avoid claiming model success from CI synthetic FFmpeg.
+| Role | Authoritative owner | Does NOT do |
+|---|---|---|
+| Complete promotional script, hook, voice-over, dialogue, exact offer/CTA, storyboard, visual style, shot-by-shot choreography, camera direction, proposed transitions, full detailed provider-neutral motion prompts | **Feature #2 — AI Creative Director & Content Writer** | No direct GPU invocation or tenant-bypassing media reference; no MP4 editing/rendering |
+| Approved garment imagery, product photos, virtual try-on/model image references | **Feature #3 — Poster Studio** | Does not author video scripts or final render |
+| Professional React editor, shared workflow orchestration, asset requests, apply scene/timeline plan, actual transition implementation, compositing, captions/music synchronization, HyperFrames render, export and media compliance | **Feature #4 — Professional Video Studio** | **DOES NOT create a second AI marketing/shot director or rewrite Feature2-approved intent** |
+| Model capability validation, I2V/T2V inference, official Wan-specific prompt encoding/expansion *without changing approved creative substance*, budget admission and private generated clip receipts | **Feature #5 — Premium AI Motion** | Does not originate creative ad concept or script; does not assemble final Reel |
+| Semantic understanding and AI editing decisions for existing customer-uploaded video footage | **Feature #7 — Smart Editor** | Does not take over newly generated advertising script/direction |
 
-## Selection: adapt REAL working code, not new editing software
+The Feature #4 draft PR #322 `video-engine/FEATURE4_TASKS_20261028.md` marks F4-13/14 as Feature #7 for multimodal/semantic uploaded-footage editing; that is consistent with **Feature #7** and is **not** proof Feature #7 owns new-ad planning.
 
-| Role | Select upstream | Source commit / license | Exact code to retain/adapt | Status |
-|---|---|---|---|---|
-| Full featured browser editor base | **MartinDelophy/ai-video-editor (Timeline Studio)** | `e1091feccca3be8832b507eb7e17c9e55eb2233a` / MIT root | Existing `src/App.jsx`, `src/components/Timeline.jsx`, `src/components/PreviewStage.jsx`, `src/lib/projectCommandEngine.js`, `src/lib/browserEditPlan.js`, editor styles/state/undo/redo and their real dependencies | P0 feasibility + app-level code adaptation |
-| AI Creative Director / shot planner base | **Kuble-Lab/open-creative-director** | `4ab1a40d15ee8c1a1427c092dce08dc7dfbefa6f` / MIT | Existing `lib/explainer-plan.js`, `lib/explainer-cues.js`, `lib/explainer-revise.js`, selected `lib/nodes/nodes-explainer.js` bridge, pure tests `scripts/test-explainer-plan.js`, `test-explainer-cues.js` | P0 source adoption with secure input/output adapters |
-| Wan model-specific prompt expansion and inference | **Wan-Video/Wan2.2** official | `1ea34ff48f87168174e12956e200b1d908b1c5ff` / source Apache-2.0; official `Wan-AI/Wan2.2-TI2V-5B` weights labeled Apache-2.0 on Hugging Face | `wan/utils/prompt_extend.py`, relevant English T2V/I2V technical guidance from `wan/utils/system_prompt.py`, `generate.py`, `wan/textimage2video.py` and verified ComfyUI workflow/adapter if that is Feature5's actual runtime | P0 model-compatibility; **do not port unsafe/irrelevant upstream prompt-policy rewrites** |
-| Final composer/authorization | Existing RetailGrowthAI Feature4 | PR #322 source | `creative_reel_v1` + HyperFrames + signed private media + existing claims, queue, one-charge ledger | PRESERVE; do not introduce a second backend renderer |
-| Alternative full editor if Timeline Studio pilot fails | S07K/cutaway | `e9c6cc06b549d7fa857bb8f43f02c47a39368e33` / MIT | Entire open-source local-first editor can be adapted; `packages/timeline-engine` contains portable frame/split/trim/ripple algorithms | **FALLBACK ONLY**; its Next.js/Zustand/PixiJS monorepo and unfinished plugin SDK are integration risk |
-| Uploaded speech-footage AI edit | andriidrok1/autobroll | MIT own code, Remotion distinct commercial-use terms | Not included in this F4 task; Feature7 team to consider | OUT OF SCOPE |
+## GitHub-verified baseline (do not imply completed features)
 
-**Why Timeline Studio instead of blindly choosing Cutaway:** Timeline Studio already provides a complete React/Vite editor with actual UI, preview and command/timeline editing, more aligned with our Vite/React dashboard. We must **vendor/copy and adapt its working modules with associated tests/styles/dependencies**, not recreate a bare timeline. Some upstream headless exports **reject captions/overlays/stickers/source audio** (`src/lib/projectRenderPlan.js`); those cannot be silently represented as working. Keep our existing HyperFrames authoritative for final output and implement a tested mapping/feature-parity matrix. Do not just iframe a local backend with unsecured access or introduce its own Anna cloud customer storage.
+- **Feature #2:** `main:ai-agents/src/ai_agents/feature2_ai_writer.py` uses existing Azure Foundry and generates a 7-day campaign with **three short 30-second scene_scripts per day** plus copy. Real isolated GPT-4.1-mini seven-day text inference was verified, but **professional scene-by-scene direction, complete voice/dialogue/production structure, distinct shot-level Wan prompts, and 15/30/60 second plan have NOT been demonstrated as a working integrated path**. Those are Feature2 implementation requirements.
+- **Feature #4:** [PR #322](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322) contains real offline HyperFrames 1080×1920 H264/AAC synthetic export, `rg_video_v2` drafts, `creative_reel_v1`, a review/asset compiler and source-only editing/worker adapters. **Not a production fashion ad or live full F2→F5 integration.** Feature #4 owns output composition and workflow coordination.
+- **Feature #5:** [PR #323](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/323) currently has default-off Hunyuan-specific five-second 480p `MotionSpec`; [PR #465](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/465) prepares Wan/A100. Current Hunyuan contract is **not already a Wan2.2 TI2V-5B 720p interface**; integration and real model proof remain pending.
 
-**Why Open Creative Director is not claimed 'proven production SaaS':** it is feature-rich, provides actual working tested planning/revision logic and reference scenes, but it is primarily a personal local-first OpenRouter/Seedance/ElevenLabs/Higgsfield app with flat-file storage and can generate HTML/GSAP. Keep its *working planning algorithms and tests*, eliminate its unrelated providers/auth/billing/filesystem tools, adapt the API to RetailGrowthAI's approved script, tenant rights and Azure Foundry. **Never execute LLM-authored HTML/JS or permit external scene URLs.** Its real code reuse is required, but market-scale reliability is **unproven**.
+## ACTUAL source to reuse, fork, stitch and modify (not a scratch rewrite)
 
-**Twick explicitly REJECTED for unlicensed SaaS:** `ncounterspecialist/twick` has 536 GitHub stars at a web snapshot and looks like a modular React SDK, but `LICENSE.md` is **Sustainable Use License v1.0**, not MIT. Section 3/4 requires a *separate commercial agreement* for using its backend/platform as hosted SaaS or a competing commercial product. Do not copy/modify it into RetailGrowthAI absent written license. Its documentation's generic "commercial projects" permission does not eliminate these restrictions.
+### 1. Feature #2 owns source adoption: Kuble-Lab/open-creative-director
 
-Also exclude wholesale Remotion/AutoBroll unless a commercial automation license is independently approved; exclude GPL/AGPL editors for proprietary-SaaS code copying pending legal review. MoneyPrinterTurbo MIT is an established automated stock-footage production project, but its separate Python backend / renderer overlaps current Feature4 and does not solve branded high-fidelity garment-motion generation.
+- Git: https://github.com/Kuble-Lab/open-creative-director
+- Inspected/pin `4ab1a40d15ee8c1a1427c092dce08dc7dfbefa6f`, MIT `LICENSE` copyright Kuble AG.
+- **Reuse actual working code**, adapting in Feature2-owned paths:
+  - `lib/explainer-plan.js`: scene structure, cinematic shot/storyboard planning, word-paced scene validations, alternate visual types. Modify its source and tests so it **generates and validates** a complete approved promotional direction plan with detailed motion.
+  - `lib/explainer-cues.js`: word-accurate narration cue alignment to *real* transcript/voice timestamps.
+  - `lib/explainer-revise.js`: targeted scene revisions without rewriting locked fields.
+  - `lib/nodes/nodes-explainer.js` appropriate adapter logic; `scripts/test-explainer-plan.js`, `scripts/test-explainer-cues.js`, `scripts/test-explainer-scene.js` relevant tests.
+  - Quality-check ideas from `lib/explainer-scene.js`, **not model-authored HTML/GSAP execution**.
+- Retain MIT attribution/notices and upstream file→local file→modification ledger. Reuse existing approved Azure GPT-4.1-mini provider and single budget ledger; **do NOT add unrelated OpenRouter/ElevenLabs/Seedance/Higgsfield spending or trust upstream local flat-file users**.
+- Feature2 outputs one explicitly versioned and signed/reviewed **`creative_direction_v1`** package: approved source script/hash, offer/CTA, scene list and shot timing, script/VO/dialogue, environment, framing/lighting, camera/lens artistic direction, choreography broken down within each shot, physical/fabric motion, transitions, Feature3 source requests, and per-shot **`motion_direction_v1`** plus detailed *provider-neutral* generation prompts. Protect source media/tenant identifiers and forbid invented product/offer facts.
 
-## Non-negotiable architecture (reuse, not restart)
+### 2. Feature #4 owns source adoption: MartinDelophy/ai-video-editor (Timeline Studio)
 
-```
-Existing retailer brief / approved Feature2 script + trusted brand/offer + Feature3 owned media
-      ↓
-Adapted Kuble Creative Director source (LLM planning + pacing + reviewed visual treatment)
-      ↓ generates structured shot plan with explicit motion_needed and exact approved copy
-      ↘ if motion needed: model-profile-specific Wan2.2 motion brief+prompt → Feature5
-         trusted entitlement/consent + private reference image → official Wan/ComfyUI inference
-         → clip receipt + actual frame/garment QA → reviewed private media asset
-      ↓
-Adapted Timeline Studio editor React UI (approved media, multi-track manual/AI editing)
-      ↓ validated projection / no silent unsupported effects
-Existing Feature4 `creative_reel_v1` → HyperFrames H264/AAC 1080×1920 private MP4
-      ↓ human review/approval → (Feature6 publishing later)
-```
+- Git: https://github.com/MartinDelophy/ai-video-editor
+- Inspected/pin `e1091feccca3be8832b507eb7e17c9e55eb2233a`, MIT `LICENSE` copyright MartinDelophy.
+- **Reuse actual complete React/Vite editor code**, adapting `src/App.jsx`, `src/components/Timeline.jsx`, `src/components/PreviewStage.jsx`, its state/store/undo architecture and tests/styles, `src/lib/projectCommandEngine.js`, `src/lib/browserEditPlan.js`. Do **not** rebuild an elementary homemade editor. Embed/adapt in existing authenticated Feature4 workspace instead of importing its separate cloud tenant account or backing store.
+- Receives **Feature2 authored `creative_direction_v1`**, compiles/validates to existing `rg_video_v2` / `creative_reel_v1`; applies approved shot order/edits/transitions and sends exactly the approved Feature2 motion briefs to Feature5. May do **technical** adjustments to unsupported durations or effects, but must fail/review rather than change creative substance. Matches source media against server-owned Feature3 media grant.
+- Existing Feature4 HyperFrames/FFmpeg are canonical trusted video renderers; **don't introduce a second active export engine**. Note Timeline Studio's independent `src/lib/projectRenderPlan.js` rejects captions, overlays and some audio modes; verify feature parity through HyperFrames and disable unsupported effects instead of silently dropping them.
+- Feature7 is a distinct producer of reviewed semantic edit plans for uploaded footage; Feature4 can safely execute these with its existing `feature4_edit_execution.py` integration.
 
-- Replace the basic Feature4 standalone UI **at integration time**, not by overwriting Feature1 navigation or working backend. Feature-specific adapter must restore same-shop state and signed preview/private download from existing Supabase/Auth/RLS; no direct browser-to-provider credentials, public blob links or auto publishing. The editor's in-memory/browser project is **not** an authorization grant.
-- The director **MUST NOT rewrite Feature2-approved marketing script or discount**. It produces how-to-film decisions: camera/lens framing, subject/actions/pace, lighting/composition/environment, start-reference IDs, shot boundaries, motion, continuity, approved asset requests and what to omit.
-- Director can generate shot-level creative `WanMotionIntent`, but Feature5's job controller selects **the actual enabled model, version, frame/resolution/seed validation, GPU pricing cap and inference API**, not the model. Feature4 MUST NOT send arbitrary CLI flags or trigger a GPU without server-authoritative reservation.
-- One canonical editor timeline and one trusted server composition/authorization contract. Do not use dual active preview/export engines. If the editor offers an effect that HyperFrames cannot faithfully reproduce, **disable it or explicitly fail review** until renderer parity exists.
+### 3. Feature #5 owns model prompt adapter: Wan-Video/Wan2.2 official
 
-## Feature4 → Feature5: deep production brief, compact Wan model prompt
+- Git: https://github.com/Wan-Video/Wan2.2
+- Inspected/pin `1ea34ff48f87168174e12956e200b1d908b1c5ff`, source Apache-2.0 `LICENSE.txt`; separately verify released model weights and ComfyUI workflow dependencies/rights.
+- Reuse model’s real `wan/utils/prompt_extend.py`, relevant T2V/I2V generation guidance in `wan/utils/system_prompt.py`, official inferencing/ComfyUI graph implementation if compatible. **Upstream prompt guidance includes irrelevant and discriminatory content rewrites: do not copy its policy text as a RetailGrowthAI rule.** Only apply model-specific camera/motion/scene technical wording and existing platform policy.
+- Feature5 transforms the approved detailed Feature2 brief through a **validated provider-profile adapter** that chooses bounded prompt length, appropriate 5s shot format and supported Wan2.2 TI2V-5B settings. It cannot change subject identity/garment facts/approved copy. Feature5 outputs a reviewed private video receipt with lineage, actual dimensions/frames and rights/billing review. Only then Feature4 assembles it.
+- For reference-based fashion commercials prefer Feature3 approved model+kurti **image-to-video**. An elaborate prompt cannot guarantee actual garment consistency or realistic face/hands. Verify real video visually, not just ffprobe.
 
-**Two layers, deliberately:** `motion_direction_v1` = rich structured *production brief* (machine-validated metadata) and `wan_prompt` = focused model-text caption (current Hunyuan `MotionSpec.prompt` permits <=1,500 chars; new Wan contract must be reviewed). More words are not automatically better. Use the official Wan prompt-extension logic as a source adapter; do NOT blindly run both Foundry + DashScope + local Qwen for every shot.
+### 4. Alternatives and exclusions
 
-Required direction fields:
-- Identity/context: approved `shop_id, campaign_id, scene_id, shot_id, source_asset_id`; private source SHA256/rights; **adult** subject reference, exact garment and verified colors/pattern/sleeves, pose and background continuity requirements, original approved brand intent and exact Feature2 script/CTA hash. Never copy private URLs into prompts.
-- Shot specification: purpose (hook/product/motion/detail/etc.), shot order/target seconds, source reference frame and first-frame crop, subject pose, foreground/background, focal length *as artistic approximation*, framing, viewpoint, DOF, natural light/color grade, camera movement path and speed, one physical subject movement with start→middle→end choreography and timing, secondary fabric motion.
-- Model limits: only allowed T2V/I2V tasks; Wan2.2 TI2V-5B original portrait target **704×1280 at 24fps**, target **121 frames ≈5.04s** (profile acceptance must be checked on actual pinned backend), compatible asset aspect, 5s shot, immutable seed; one action per shot, no fake 30s native model request. The official CLI uses `--task ti2v-5B`, `--size 1280*704`, and `--image` only in I2V mode; final portrait orientation follows supplied portrait source. Verify actual decoded dimensions, not a requested orientation string.
-- Output controls: no generative typography, logos, sale prices, disclaimers, watermark, unrelated people/wardrobe changes. Feature4 overlays exact approved copy *after* motion generation.
-- Review plan: source vs selected frames check face/garment patterns/hem/sleeves/colors, walking direction, limb/hands/body, jitter/flicker, clipping, camera smoothness, crop/safe-area, flicker, sudden cuts, undesired background changes, and actual H264/frames/resolution. **Prompting cannot guarantee garment fidelity**; human review required before commercial use.
-- Cost controls: if one output fails, do not blindly pay for retries or multiply independent seeds; let existing ledger decide. Failed real clips must NOT be silently labeled AI-video when only an approved still fallback is used.
+- **S07K/cutaway**, MIT, pin `e9c6cc06b549d7fa857bb8f43f02c47a39368e33`: FULL editor fallback if Timeline Studio cannot pass real editor→HyperFrames parity; its timeline-engine is also MIT. Not another parallel active editor.
+- **MoneyPrinterTurbo**, MIT, production ideas only, duplicates current stock clip/FFmpeg pipeline and cannot guarantee specific garment-motion.
+- **AutoBroll**, MIT own app, separate Remotion commercial license and uploaded-footage semantic use: Feature #7 research, not another Feature4 renderer.
+- **Twick**, `ncounterspecialist/twick`, Sustainable Use License, specifically requires commercial agreement for hosted SaaS / competing products; **do not copy into RetailGrowthAI** under its public license.
+- **OpenFilm**, MIT, alternate HTML video renderer; not selected because it would replace/double existing HyperFrames work. GPL/AGPL third-party source needs separate legal review for proprietary SaaS.
 
-Illustrative **image-to-video** Wan input (actual approved reference is mandatory; not a production invocation):
+## Concrete end-to-end execution sequence (only one creative-authoring stage)
 
 ```text
-A photorealistic adult fashion model wearing the exact red kurti shown in the approved reference image begins in a relaxed full-body pose in a premium boutique. During the shot she makes two small, natural steps toward the camera, pauses, and gently turns her upper body to show the front embroidery. The kurti retains its visible red base, gold embroidery layout, sleeve length, neckline and hem shape; fabric moves subtly with her steps. The camera performs one smooth, slow backward dolly at waist height, holding a stable full-body composition with the outfit clearly visible. Warm diffused boutique practical lighting, realistic skin texture, consistent shelves and soft background blur. A single continuous shot, steady movement, no cuts, no new people, no graphics or readable text.
+Retailer request + approved brand/product facts + rights-authorized reference assets
+  → FEATURE #2 (actual adapted Open Creative Director)
+       - write complete SCRIPT + VOICEOVER + SHOT PLAN + DETAILED MOTION PROMPT
+       - authorize human editorial review; `creative_direction_v1`
+  → FEATURE #4 (actual adapted Timeline Studio editor and existing workflow orchestrator)
+       - verify approval, choose scene asset sources, reserve dispatch via existing secure ledger/outbox
+       - route F2-authored motion requests to Feature #5
+  → FEATURE #5 (official Wan adapter / inference, GPU separately approved)
+       - check permitted model mode/VRAM/size/frames/budget and verify real output
+  → FEATURE #4
+       - assemble Feature3 approved stills + Feature5 approved motion + Feature2 script
+       - exact sale overlays, voiced/music/caption sync, professionally edit and render via HyperFrames
+  → human visual review → optional Feature6 publishing
 ```
 
-**This illustration needs shortening or changing based on actual one-shot model output; 5B can drift in outfit details, cannot lock exact colors, may fail walking, and 720p motion cannot be considered native 1080p photorealism merely by upscaling.** No invented optical performance claim.
+## Required depth of Feature #2 → Feature #5 motion specification (not just one sentence)
 
-For **text-to-video**, reference-based consistency must not be claimed; for fashion SKU advertising, strongly prefer approved F3 I2V first-frame and fallback to real stock/retailer video if brand fidelity is required. One approved clip can be edited/trimmed rather than repeated GPU generation for every 5s block.
+**Feature #2 is the AUTHOR** of a structured `motion_direction_v1`, which must include all of:
+1. Shot purpose, approved ad/storyboard/script line, expected hook/CTA, duration, shot order and preceding/following continuity;
+2. Model/reference identity: authorized first-frame or Feature3 asset reference ID (server-resolved; **no private URLs in prompt**), adult model/pose, verified product SKU, exact garment/embroidery/neckline/sleeve/hem features visible in approved photo;
+3. Physical action timeline: `t=0–1` starting pose; `t=1–3` two realistic steps; `t=3–5` turn/settle/fabric behavior, one coherent camera setup, physically plausible movement, optional secondary background motion;
+4. Camera/lens and composition: stable angle, framed subject, camera dolly/pan/tracking speed, focus/DOF and safe areas; cinematic lighting/environment/color consistency; no extra people or fabricated logo/text;
+5. Style and negative constraints, target resolution/fps/duration as **requirements** (actual supported provider capability validated by Feature5), explicit failure/quality checklist for garment/human anatomy/flicker/crop, immutable plan/source approval hash, expected cost limit;
+6. **Actual rich written shot prompt** derived from these fields; Feature5 only performs bounded WAN-specific prompt tuning and runtime validation.
 
-### Source-to-adapter integration without rewriting algorithms
+Illustrative single shot for reference-based Wan I2V: "Photoreal adult model wearing **the exact approved red kurti reference**; full-body standing in a softly illuminated premium boutique. She takes two small natural forward steps, pauses and turns three-quarter to display the front embroidery; fabric responds subtly to movement. Camera smoothly dollies backward at waist height, holds outfit fully in frame; warm diffused practical lighting, consistent boutique shelving, stable skin/garment appearance, one uncut cinematic shot. Keep visible red cloth, original gold motifs, neckline, sleeve length and hem shape; no new people, clothing changes, text, sale overlay, logos or jump cuts." Feature2 owns authoring, Feature5 must not pretend such a prompt guarantees fidelity.
 
-1. Clone and pin original upstream code at exact SHAs in a disposable development sandbox; run upstream test suites and inspect demos to baseline. Record *measured* results before marking project “proven”.
-2. Copy/adapt the real Timeline Studio frontend modules, styles, test-relevant dependencies and Open Creative Director tested planning/timing/revision sources into Feature4-owned isolated paths; keep LICENSE and `UPSTREAM_ORIGINS.md` with file mapping, source SHAs, local modifications. No absent vendor code masquerading as implementation.
-3. Keep a single authenticated end-user workspace, approved asset registry and project format adapter. No use of upstream Anna cloud storage, plain local project asset trust, arbitrary external imports or shared user history.
-4. Adapt actual Open Creative Director plan validation and revise logic but make it consume an immutable approved Feature2 script. Produce a typed shot list, `creative_reel_v1` projection, and Feature5 motion instructions. Use existing Azure Foundry adapter only under zero-paid/mock mode until *new explicit* spend and model-quality approval.
-5. Feature5 lead adds a **distinct Wan model capability profile** rather than trying to disguise `ti2v-5B` as existing Hunyuan 480p: retain current PR #323 and stacked #465; isolate provider adapter, reconcile existing Part3 ledger/outbox/lease, no paid job.
-6. Validate the two existing edited UI→trusted backend→HyperFrames export paths: preview and export must match transitions/overlays/audio; otherwise disable unsupported UI effects. Render synthetic real MP4 in existing CI; do not invent genuine fashion model/real Wan footage.
-7. Real fashion QA is next independent approval gate, when Feature3 approved original photo and genuine Feature5 approved motion clip exist; reviewer compares source/clip frames. Keep original Azure issue #249 open and PROD unchanged.
+## Acceptance and gates before *any* completion claim
 
-## Exact acceptance tests / no faked completion
+- **Feature2 P0:** Demonstrate actual adapter-driven complete 15/30/60s storyboard + multiple coherent *deep* individual prompts from an approved retailer reference and approved offer, copied/adapted upstream code with pinned notice, source tests. Report that the current `scene_scripts` three-short-string output is NOT this capability.
+- **Feature4 P0:** Run Timeline Studio upstream app and tests, then show a **working adapted** React editor (timeline, trim/split, music, overlays, captions, undo/redo), secure authorized asset feed and real HyperFrames export. Preserve exact Feature2 script/prompts and time/transition decisions or reject unsupported effects. No wholesale custom editor.
+- **Feature5 P0:** Reconcile Hunyuan-specific 480p/5s `MotionSpec` vs. supported Wan TI2V-5B model profile and ComfyUI runtime, validate prompt hash lineage and actual 5s clip profile with provider support. No GPU/model cost without separate authorization.
+- **End-to-end:** Test with synthetic licensed fixtures and explicitly mocked F5, report no actual human AI video; separately require one genuine licensed real F3 model reference / F5 moving clip, inspected frames, artifact SHA, actual cost and reviewer signoff before any claim of commercial-fashion quality.
+- **Safety/reliability:** Test cross-tenant RLS denial, prompt injection, unapproved discount, forged source media, script modifications, repeated paid requests/ambiguous retries, asset licensing, correct MP4 1080×1920 H.264/AAC with voice/music, and CI exact-head.
+- **DOCS:** Once owner/coordinator reviews this architecture, update canonical `docs/PROJECT_STATE.md`, `docs/NEXT_TASK.md`, `docs/DECISIONS.md`, `docs/WORK_LOG.md` under coordinated merge, not by colliding with active parallel branches. Keep PR #322 Feature4 and PRs #323/#465 Feature5 untouched until code changes are intentionally scoped.
 
-- Upstream real tests/demos run on pinned commits; TypeScript/Node/React builds and dependency audit, maintainers/known issues captured. No assertions based on stars.
-- Adapted editor must **actually** render working timeline UI (import authenticated shop-owned image/video, preview, split, trim, music, captions, text overlay, undo/redo) with desktop/mobile browser tests. Timeline Studio's upstream independent FFmpeg headless export currently rejects captions/overlays/source audio; Feature4 must demonstrate those working through HyperFrames before accepting.
-- **Creative Director actual output:** given approved script + source garment and a 30s target, returns stable shot order and 2 or fewer motion-heavy 5s clips as a bounded low-cost default, exact preserved approved text, and a unique specific motion prompt per requested clip; names actual F3 source asset IDs, never a fake URL.
-- Feature5 Wan adapter test inspects request 704×1280@24fps, 121-frame profile (or explicitly reports any observed model limitation), immutable source/seed/prompt lineage; rejects unsupported Hunyuan 480p mapping, cross-shop rights, unapproved claims, and forged billable work.
-- Quality: real MP4/ffprobe 30s/1080×1920/H264/AAC, meaningful 5-scene visual inspection, no prohibited human geometry substituted for model, music/subtitles/voice alignment, exact “20% OFF” only when Feature2 approved it. Test 15/30/60 second composition *with supported assets*.
-- Security: current Supabase JWT/RLS, per-media byte+SHA rights, private signed previews, lease fences, outbox and cost ledger preserved. Unauthorized customer cannot choose external provider/trigger GPU or use unapproved media.
-- Full suite: exact four GitHub CI checks plus actual browser tests and deterministic image/audio samples; real GPU inference remains NOT DONE until separately approved run and reviewed evidence.
-- Update Feature4 task ledger, PR #322 handoff and canonical `docs/{PROJECT_STATE,NEXT_TASK,DECISIONS,WORK_LOG}.md` only under coordinator-reviewed merge; do not overwrite other leads' branches.
+## Original pinned upstream evidence
 
-## Sources & attribution checks
+- Feature2 authoring source: https://github.com/Kuble-Lab/open-creative-director/tree/4ab1a40d15ee8c1a1427c092dce08dc7dfbefa6f
+- Feature4 editor source: https://github.com/MartinDelophy/ai-video-editor/tree/e1091feccca3be8832b507eb7e17c9e55eb2233a
+- Feature5 model source: https://github.com/Wan-Video/Wan2.2/tree/1ea34ff48f87168174e12956e200b1d908b1c5ff
+- Existing Feature4 PR #322: https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322
+- Existing Feature5 PR #323, #465: https://github.com/saifsiddiqui59/RetailGrowthAI/pull/323 and https://github.com/saifsiddiqui59/RetailGrowthAI/pull/465
 
-- Timeline Studio: https://github.com/MartinDelophy/ai-video-editor/tree/e1091feccca3be8832b507eb7e17c9e55eb2233a ; MIT https://github.com/MartinDelophy/ai-video-editor/blob/e1091feccca3be8832b507eb7e17c9e55eb2233a/LICENSE
-- Open Creative Director: https://github.com/Kuble-Lab/open-creative-director/tree/4ab1a40d15ee8c1a1427c092dce08dc7dfbefa6f ; MIT https://github.com/Kuble-Lab/open-creative-director/blob/4ab1a40d15ee8c1a1427c092dce08dc7dfbefa6f/LICENSE
-- Official Wan source: https://github.com/Wan-Video/Wan2.2/tree/1ea34ff48f87168174e12956e200b1d908b1c5ff ; Apache-2.0 https://github.com/Wan-Video/Wan2.2/blob/main/LICENSE.txt and https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B . Different downstream package/asset license still needs evaluation.
-- Twick SaaS restriction: https://github.com/ncounterspecialist/twick/blob/main/LICENSE.md
-- RetailGrowthAI Feature4: https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322 ; Feature5: https://github.com/saifsiddiqui59/RetailGrowthAI/pull/323 and https://github.com/saifsiddiqui59/RetailGrowthAI/pull/465
-
-**Decision and honesty:** This *corrects the prior shortlisting*; it does **not** claim the selected repos are commercially deployed at scale, or that their code has already been integrated with RetailGrowthAI. No WineShopPOS, Azure, PROD, Supabase, model downloads, new paid resources or actual GPU inference in this research PR.
+**Current status: clarified ownership and code handoff only. No upstream source imported into RetailGrowthAI, no updated `creative_direction_v1` deployed, no GPU video generated, no editor integrated.**
