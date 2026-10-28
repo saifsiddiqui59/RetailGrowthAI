@@ -1,5 +1,6 @@
 name: RetailGrowthAI DEV one-time P0 249 warm vs post-idle check
 # Existing DEV only, no user tokens, writes, config mutation, or paid capacity.
+# 2026-10-28 owner-requested recheck of ORIGINAL Python Flex 503/timeout, not Node preview; same guarded scope.
 on:
   workflow_dispatch:
   push:
