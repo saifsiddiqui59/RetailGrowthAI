@@ -16,6 +16,13 @@ from test_feature5_wan22_native_preflight import fabricated_object_info
 
 def synthetic_package():
     dispatch,media,profile,revisions=fixture()
+    # Existing storyboard fixtures intentionally use human-readable labels.
+    # Real fenced production claims and media assets require canonical UUIDs.
+    shop,asset=str(uuid4()),str(uuid4())
+    dispatch["shop_id"]=dispatch["shot"]["shop_id"]=shop
+    dispatch["shot"]["reference_media_id"]=asset
+    media["shop_id"]=shop
+    media["asset_id"]=asset
     return compile_motion_direction(
         dispatch=dispatch,approved_reference=media,profile=profile,
         installed_revisions=revisions,gpu_vram_gib=80)
