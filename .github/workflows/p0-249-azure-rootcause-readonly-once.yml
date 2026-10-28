@@ -1,4 +1,4 @@
-name: RetailGrowthAI 249 existing DEV worker/host lifecycle minute timeline
+name: RetailGrowthAI 249 original HTTP versus other function-group attribution
 # MAIN-ONLY protected one-shot: exact existing Central India tagged RetailGrowthAI
 # DEV app; no deployments, no HTTP requests, no mutations, no customer secrets.
 on:
@@ -16,7 +16,7 @@ jobs:
     if: >-
       github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
       github.ref == 'refs/heads/main' &&
-      startsWith(github.event.head_commit.message, 'audit(dev): RetailGrowthAI 249 full host lifecycle timeline')
+      startsWith(github.event.head_commit.message, 'audit(dev): RetailGrowthAI 249 HTTP worker group attribution')
     environment: dev
     runs-on: ubuntu-24.04
     timeout-minutes: 23
