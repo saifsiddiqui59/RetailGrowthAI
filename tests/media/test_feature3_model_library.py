@@ -30,6 +30,7 @@ class LibraryTests(unittest.TestCase):
         self.shop = str(uuid4())
         self.other = str(uuid4())
         self.evidence = "a" * 64
+        self.registered_media_id = str(uuid4())
         self.candidate = ModelCandidate(
             owner_shop_id=self.shop,
             scope="shop",
@@ -69,11 +70,12 @@ class LibraryTests(unittest.TestCase):
                 raise AssertionError("Content-addressed object cannot be overwritten")
             self.assets[key] = data
             return {"key": key, "sha256": metadata["image_sha256"],
-                    "private": True}
+                    "private": True, "owner_shop_id":self.shop,
+                    "media_asset_id":self.registered_media_id}
         def register(row):
             self.saved.append(row)
             return {key: row[key] for key in
-                    ("model_id", "owner_shop_id", "scope", "status")}
+                    ("model_id", "owner_shop_id", "scope", "status", "media_asset_id")}
         return {
             "authorize_import": authorize,
             "verify_image_license": verify,
@@ -90,6 +92,7 @@ class LibraryTests(unittest.TestCase):
     def test_single_import_seeds_shop_private_library_reused_by_all_three(self):
         saved = self.store(image_bytes=picture(extra_metadata=True))
         self.assertEqual(saved["status"], "PENDING_REVIEW")
+        self.assertEqual(saved["media_asset_id"], self.registered_media_id)
         self.assertFalse(saved["inference_executed_by_import"])
         self.assertEqual(len(self.assets), 1)
         self.assertNotIn(b"personal-location", next(iter(self.assets.values())))
@@ -113,6 +116,25 @@ class LibraryTests(unittest.TestCase):
             checked_model_for_use(
                 model=reviewed, requesting_shop_id=self.other,
                 usage="poster", authorize_use=lambda *_: True)
+
+    def test_model_import_requires_real_registered_same_shop_media_id(self):
+        callbacks=self.callbacks()
+        good_write=callbacks["write_private_png"]
+        for fake in (
+            lambda key,data,metadata: {**good_write(key,data,metadata),
+                                      "media_asset_id":str(uuid4()),
+                                      "owner_shop_id":self.other},
+            lambda key,data,metadata: {k:v for k,v in good_write(key,data,metadata).items()
+                                      if k!="media_asset_id"},
+            lambda key,data,metadata: {**good_write(key,data,metadata),
+                                      "media_asset_id":"not-a-uuid"},
+        ):
+            with self.subTest(fake=fake):
+                with self.assertRaises(ModelLibraryDenied):
+                    import_model_image(candidate=self.candidate,
+                        image_bytes=picture(),
+                        **{**callbacks,"write_private_png":fake})
+        self.assertEqual(self.saved, [])
 
     def test_platform_import_requires_curator_and_then_both_shops_can_reference(self):
         platform_candidate = replace(self.candidate, scope="platform")
