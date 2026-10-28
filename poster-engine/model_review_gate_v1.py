@@ -206,11 +206,15 @@ def decide_model_review(*, shop_id, model_id, reviewer_id, decision, checks,
     _reviewer(shop_id, model_id, reviewer_id, row, authorize_reviewer)
     evidence = _evidence(shop_id, model_id, row, read_license_evidence)
     dims, digest = _registered_image(shop_id, model_id, row, load_private_media)
+    # Snapshot expected CAS identity BEFORE calling a persistence adapter:
+    # even a local in-memory adapter may mutate the row in place, and a real
+    # database adapter may rehydrate a newer row during a settlement check.
+    expected_revision = row["rights_revision"]
     proposal = {
         "shop_id": shop_id, "model_id": model_id, "reviewer_id": reviewer_id,
         "decision": target, "checks": dict(checks), "notes": notes.strip(),
         "expected_status": "PENDING_REVIEW",
-        "expected_rights_revision": row["rights_revision"],
+        "expected_rights_revision": expected_revision,
         "expected_image_sha256": digest, "media_asset_id": row["media_asset_id"],
         "source_scope": row["scope"], "license_id": row["license_id"],
         "license_evidence_sha256": row["license_evidence_sha256"],
@@ -219,7 +223,7 @@ def decide_model_review(*, shop_id, model_id, reviewer_id, decision, checks,
     }
     outcome = persist_review_atomic(proposal)
     return _result(outcome, model_id=model_id, shop_id=shop_id,
-                   previous_revision=row["rights_revision"], target_status=target)
+                   previous_revision=expected_revision, target_status=target)
 
 
 def _revoke_current(row, shop_id, model_id):
@@ -254,12 +258,13 @@ def revoke_approved_model(*, shop_id, model_id, reviewer_id, reason,
         raise ModelReviewDenied("Human revocation reason required")
     row = _revoke_current(read_model(shop_id, model_id), shop_id, model_id)
     _reviewer(shop_id, model_id, reviewer_id, row, authorize_reviewer)
+    expected_revision = row["rights_revision"]
     result = persist_revocation_atomic({
         "shop_id": shop_id, "model_id": model_id, "reviewer_id": reviewer_id,
-        "expected_status": "APPROVED", "expected_rights_revision": row["rights_revision"],
+        "expected_status": "APPROVED", "expected_rights_revision": expected_revision,
         "expected_image_sha256": row["image_sha256"],
         "media_asset_id": row["media_asset_id"], "reason": reason.strip(),
         "new_status": "REVOKED", "must_invalidate_media_cache": True,
     })
     return _result(result, model_id=model_id, shop_id=shop_id,
-                   previous_revision=row["rights_revision"], target_status="REVOKED")
+                   previous_revision=expected_revision, target_status="REVOKED")
