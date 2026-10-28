@@ -157,7 +157,7 @@ class Feature3V2API:
         key = asset.get("object_path") if isinstance(asset, dict) else None
         prefix = sid + "/feature3/gpu/" + jid + "/"
         if not isinstance(key, str) or not key.startswith(prefix) or not (
-                fullmatch(r"[a-f0-9]{64}\\.png", key[len(prefix):])):
+                fullmatch("[a-f0-9]{64}[.]png", key[len(prefix):])):
             return 404, {"error": "OUTPUT_NOT_FOUND"}
         digest = key[len(prefix):-4]
         reviewer = self.verify_reviewed_output
