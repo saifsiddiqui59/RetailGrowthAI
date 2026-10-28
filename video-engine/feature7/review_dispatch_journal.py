@@ -150,6 +150,18 @@ class LocalApprovedEditDispatch:
             raise ReviewStateError("Invalid bounded dispatch lease")
 
         def claim():
+            # A worker can crash during its final permitted attempt.
+            # Reap that terminal expired lease instead of stranding a job
+            # permanently in LEASED without a visible DEAD state.
+            self.db.execute("""
+              UPDATE f7_approved_edit_dispatch
+              SET state='DEAD',fence=NULL,lease_expires_ms=NULL
+              WHERE shop_id=? AND campaign_id=?
+                AND media_snapshot_sha256=?
+                AND state='LEASED' AND attempt>=?
+                AND lease_expires_ms<=?
+            """, (ctx.shop_id, ctx.campaign_id,
+                  ctx.media_snapshot_sha256, MAX_ATTEMPTS, now))
             row = self.db.execute("""
               SELECT * FROM f7_approved_edit_dispatch
               WHERE shop_id=? AND campaign_id=?
