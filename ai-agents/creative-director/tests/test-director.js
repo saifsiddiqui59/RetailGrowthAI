@@ -12,7 +12,9 @@ function source(duration) {
     advertising_objective: 'Explain the authorized 20 percent festive promotion and invite visits',
     approved_offers: [{
       id: 'sale-offer-20', shop_id: 'shop-test-403', approval_status: 'APPROVED',
-      percent_off: 20, signed_evidence_id: 'approval-record-owner-20', active: true, valid_from: '2026-10-01', valid_until: '2026-11-15'
+      percent_off: 20, signed_evidence_id: 'approval-record-owner-20', active: true,
+      eligible_product_skus: ['KURTI-RED-01'], approved_claim_text: '20% off selected kurtis',
+      valid_from: '2026-10-01', valid_until: '2026-11-15'
     }],
     media_grants: [{
       id: 'asset-approved-red-kurti', shop_id: 'shop-test-403', kind: 'IMAGE',
@@ -131,6 +133,24 @@ for (const duration of [15, 30, 60]) {
   const disabled = structuredClone(req);
   disabled.server_verified = false;
   reject(() => compile(disabled, base), 'Untrusted client cannot grant permissions');
+  const outsideScope = structuredClone(req);
+  outsideScope.approved_offers[0].eligible_product_skus = ['KURTI-BLUE-02'];
+  reject(() => compile(outsideScope, base), 'A garment cannot inherit an unrelated SKU promotion');
+  const noScope = structuredClone(req);
+  delete noScope.approved_offers[0].eligible_product_skus;
+  reject(() => compile(noScope, base), 'Unknown eligible SKU scope must fail closed');
+  const forgedClaim = structuredClone(req);
+  forgedClaim.approved_offers[0].approved_claim_text = '20% off all clothes';
+  reject(() => compile(forgedClaim, base), 'Rewording promotion broader than approved claim fails');
+  const mismatchedPercentage = structuredClone(req);
+  mismatchedPercentage.approved_offers[0].approved_claim_text = '40% off selected kurtis';
+  reject(() => compile(mismatchedPercentage, base), 'Legal claim must agree with documented percentage');
+  const invalidCampaignDay = structuredClone(req);
+  invalidCampaignDay.campaign_date = '2026-02-30';
+  reject(() => compile(invalidCampaignDay, base), 'Invalid calendar date cannot authorize an offer');
+  const invalidOfferDay = structuredClone(req);
+  invalidOfferDay.approved_offers[0].valid_until = '2026-02-30';
+  reject(() => compile(invalidOfferDay, base), 'Invalid expiry date cannot be approved');
   const expired = structuredClone(req);
   expired.approved_offers[0].valid_until = '2026-11-05';
   reject(() => compile(expired, base), 'No expired Diwali offer');
