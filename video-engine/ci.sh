@@ -73,5 +73,11 @@ assert len(proof["source_media"])==5 and not proof["commercial_release_eligible"
 assert not proof["model_garment_match_verified"] and not proof["showcase_eligible"]
 print("PASS: 30s actual Pexels garment + stock-person Reel, NOT garment identity or production acceptance")
 PY
+  # CPU-only compressed reviewer proxy from the same verified Full-HD MP4.
+  # Artifact contains no retailer/user media, just explicitly labeled stock QA.
+  python3 "$ROOT/video-engine/feature4_private_preview.py" \
+    --source "$GARMENT_MP4" --duration 30 \
+    --output "$ROOT/ci-artifacts/feature4-stock-garment-30s-small.mp4" \
+    --report "$ROOT/ci-artifacts/feature4-stock-garment-30s-small-proof.json"
 
 fi
