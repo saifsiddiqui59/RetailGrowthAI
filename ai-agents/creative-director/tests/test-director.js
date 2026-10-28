@@ -170,6 +170,20 @@ for (const duration of [15, 30, 60]) {
   const falseDialogue = structuredClone(base);
   falseDialogue.scenes[0].dialogue = 'Get an extra 40% off right now';
   reject(() => compile(req, falseDialogue), 'Unapproved discounts cannot hide in spoken dialogue');
+  const spelledDiscount = structuredClone(base);
+  // Fully written-out number words still need a human editorial review;
+  // the numeric percent spelled as 'percent' is deterministic.
+  spelledDiscount.scenes[0].dialogue = 'Get 40 percent off right now';
+  reject(() => compile(req, spelledDiscount), 'Spelled-out percentage must be bound to approved offer');
+  const unverifiedPrice = structuredClone(base);
+  unverifiedPrice.scenes[0].dialogue = 'Available for ₹999 today';
+  reject(() => compile(req, unverifiedPrice), 'Unverified retailer price cannot be invented');
+  const unverifiedFabric = structuredClone(base);
+  unverifiedFabric.scenes[0].shots[0].visual_description += ' This is pure cotton';
+  reject(() => compile(req, unverifiedFabric), 'No unverified garment composition claim');
+  const freeDelivery = structuredClone(base);
+  freeDelivery.scenes[0].dialogue = 'Free delivery with any purchase';
+  reject(() => compile(req, freeDelivery), 'Unapproved delivery guarantees rejected');
   const falseAction = structuredClone(base);
   falseAction.scenes[0].shots[0].motion_steps[0].human_action += ' with guaranteed best in India results';
   reject(() => compile(req, falseAction), 'Choreography must also be screened for unsupported claims');
