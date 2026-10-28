@@ -79,6 +79,29 @@ done
 python3 "$ROOT/video-engine/hyperframes/check_feature4_output.py" "$ROOT/ci-artifacts" --fullres
 
 # Explicit full-minute qualification (full 1080p, CPU, no GPU/provider charges).
+# TRUE editable-timeline export parity: run upstream Timeline Studio JS commands,
+# authorize the resulting 30s draft in trusted Python, stage only original
+# mock media, then render an actual second MP4 with the same HyperFrames engine.
+# Lower-res 540x960 avoids a second costly Full-HD encoding. No GPU/AI call.
+EDITED_PROJECT="$TEMP/edited-30s-composition"
+EDITED_MP4="$ROOT/ci-artifacts/feature4-30s-540p-actual-editor-mock.mp4"
+python3 "$ROOT/video-engine/demo_feature4_edited_reel.py" "$EDITED_PROJECT" --width 540
+if [[ "$NODE_MAJOR" -ge 22 ]]; then
+  timeout --signal=TERM --kill-after=10s 420s node "$ROOT/video-engine/hyperframes/render.mjs" "$EDITED_PROJECT" "$EDITED_MP4"
+else
+  timeout --signal=TERM --kill-after=10s 420s npm exec --yes --package=node@22 -- node "$ROOT/video-engine/hyperframes/render.mjs" "$EDITED_PROJECT" "$EDITED_MP4"
+fi
+python3 - "$ROOT/video-engine" "$EDITED_MP4" <<'PY'
+import sys
+sys.path.insert(0,sys.argv[1])
+from render_adapter import verify_mp4
+proof=verify_mp4(sys.argv[2],duration=30,width=540,height=960,fps=24)
+print("PASS: actual edited JS->trusted Python->HyperFrames MP4",proof)
+PY
+for sec in 2 15 26; do
+  ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$sec" -i "$EDITED_MP4" -frames:v 1 "$ROOT/ci-artifacts/feature4-editor-frame-$sec.jpg"
+done
+
 # Once the first source benchmark is recorded, keep this as an opt-in gate to
 # avoid paying a 60s full-resolution encode on every unrelated branch change.
 if [[ "${FEATURE4_FULL_MINUTE_CI:-0}" == "1" ]]; then
