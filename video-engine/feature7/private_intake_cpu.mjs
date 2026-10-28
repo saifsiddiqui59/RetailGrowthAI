@@ -28,7 +28,7 @@ function safeDestination(root,shop){
   check(ID.test(shop),'Invalid shop identifier');
   const abs=directory(root);
   const shopDir=path.join(abs,shop);
-  fs.mkdirSync(shopDir,{mode:0o700});
+  fs.mkdirSync(shopDir,{recursive:true,mode:0o700});
   check(directory(shopDir)===shopDir,'Private shop directory escaped root');
   return {abs,shopDir};
 }
