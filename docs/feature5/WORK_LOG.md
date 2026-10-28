@@ -116,3 +116,11 @@
 - Implemented actual offline wheelhouse SHA-256 streaming checks, package/version + zipped WHEEL/METADATA identity, complete reviewed package inventory, symlink/extra/duplicate/changed/missing wheel negative tests. Added deterministic PIP --require-hashes lock rendering and on-disk equality validation; rejects injected index source and aliased dependency names. None uses network, pip install, Docker, Azure or GPU.
 - Initial CI failure was a loss of specific wheel-identity error text due to ValueError superclass catch; corrected to preserve explicit fail-closed reason rather than weakening the test. Latest source and CI are recorded in draft PR #465 after checks conclude.
 - Synthetic ZIP wheel fixtures prove file-audit logic only. Real transitive wheelhouse, pinned NVIDIA CUDA/torch base and production image remain missing; real model/tenant paid generation, Part3 wallet/claim wiring and human review still blocked pending separate authorization. No WineShopPOS changes.
+
+
+## 2026-10-28 — CPU-only preflight/loopback sprint, no A100
+- Read root AGENTS and four canonical docs plus architecture, interfaces, parallel ownership and CI, draft #323/#465 and actual pinned upstream ComfyUI node/server/CLI source.
+- Implemented complete Wan graph canonical topology check and current F3 basename binding; CI caught valid-looking source substitution during regression, corrected by requiring independent approved staging input rather than bypassing the test.
+- Implemented whole-checkout SHA audit, combined no-build source+wheel+pip hashlock+OCI preflight, synthetic negative tests and guarded rootless/no-metadata Containerfile preparation.
+- Implemented loopback-only 127.0.0.1:8188 ComfyUI transport, default-OFF one-attempt POST and read-only history with no-retry UNKNOWN accounting, current fenced lease and current tenant image approval callbacks. Synthetic tests do not use a socket, GPU or human model.
+- Exact final-head GitHub 4-job CI to be verified; do not claim image built, real model startup, GPU spend, licensed source approval, private media release or coordinator merge. No WineShopPOS/PROD writes.
