@@ -28,7 +28,7 @@ let draft=makeVideoDraft({shopId:shop,mode:'media',template:'cinematic',duration
 draft.output.fps=24
 draft.scenes[0]={...draft.scenes[0],asset_id:'photokurti',headline:'Diwali Fashion',transition:'fade'}
 draft.scenes[1]={...draft.scenes[1],asset_id:'motionwalk',headline:'Luxury Boutique',transition:'fade',
-  mute_source:true}
+  mute_source:true,sfx_asset_id:'musicowned'}
 draft.scenes[2]={...draft.scenes[2],asset_id:'photokurti',headline:'Visit Our Store',
   poster_overlay_asset_id:'saleposter',offer:'20% OFF',transition:'cut'}
 draft.cta='Visit Our Store'
@@ -54,11 +54,15 @@ class EditorToRendererTests(unittest.TestCase):
         self.assertEqual([s["duration"] for s in draft["scenes"]], [4, 10, 6, 10])
         self.assertEqual([s["start"] for s in draft["scenes"]], [0, 4, 14, 20])
         self.assertEqual(draft["scenes"][0]["asset_id"], "motionwalk")
+        self.assertEqual(draft["scenes"][0]["sfx_asset_id"], "musicowned")
+        self.assertNotIn("sfx_asset_id", draft["scenes"][2])
         self.assertEqual(draft["scenes"][2]["trim_start"], 4)
         self.assertEqual(draft["scenes"][3]["offer"], "20% OFF")
         compiled = compile_approved_storyboard(draft, trusted)
         request, manifest = compiled["request"], compiled["manifest"]
         self.assertEqual(request["scenes"][0]["source_feature"], "feature5")
+        self.assertEqual(request["scenes"][0]["sfx_asset_id"], "musicowned")
+        self.assertNotIn("sfx_asset_id", request["scenes"][2])
         self.assertEqual([s["duration"] for s in request["scenes"]], [4, 10, 6, 10])
         self.assertEqual(request["scenes"][2]["trim_start"], 4)
         self.assertEqual(request["scenes"][3]["text_overlay"], "20% OFF")
@@ -69,6 +73,8 @@ class EditorToRendererTests(unittest.TestCase):
         self.assertEqual([s["start"] for s in plan.plan["scenes"]], [0,4,14,20])
         self.assertEqual([s["duration"] for s in plan.plan["scenes"]], [4,10,6,10])
         self.assertEqual(plan.plan["scenes"][2]["trim_start"], 4)
+        self.assertEqual(plan.plan["scenes"][0]["sfx_asset_id"], "musicowned")
+        self.assertNotIn("sfx_asset_id", plan.plan["scenes"][2])
         self.assertEqual(plan.audit, compiled["lineage"])
         self.assertEqual(plan.audit["fallback_events"], [])
     def test_server_denies_forged_approval_and_other_tenant_even_if_js_view_passes(self):
