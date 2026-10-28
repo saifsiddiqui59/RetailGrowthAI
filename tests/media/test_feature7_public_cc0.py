@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import sys
 import subprocess
 import tempfile
 import unittest
@@ -25,6 +26,9 @@ from urllib.parse import urlparse
 from urllib.request import urlopen
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT / "video-engine" / "feature7"))
+from review_journal import CurrentReviewContext, LocalReviewJournal, ReviewStateError
+from review_dispatch_journal import LocalApprovedEditDispatch
 SOURCE_REVISION = "b790a2b72325feecd189291c52663ed8123b1839"
 BASE = (f"https://raw.githubusercontent.com/shotstack/test-media/"
         f"{SOURCE_REVISION}/captioning/")
@@ -368,6 +372,85 @@ class Feature7InternetCC0SpeechVideoTests(unittest.TestCase):
           input=json.dumps(p),cwd=PROJECT_ROOT,capture_output=True,text=True,timeout=90)
         self.assertNotEqual(r.returncode,0,r.stdout)
 
+
+    def test_real_cc0_voice_preview_survives_dispatch_worker_crash(self):
+        """Offline genuine CC0 MP4 -> reviewed test decision -> crash -> audio output.
+
+        Both human approval and rights are SIMULATED isolated test fixtures,
+        not legitimate retailer-owned production rights or a hosted worker.
+        """
+        payload=self.payload()
+        reviewed=self.invoke(payload)
+        self.assertEqual(reviewed.returncode,0,reviewed.stderr[-1000:])
+        proposed=json.loads(reviewed.stdout)["review"]
+        draft_sha=hashlib.sha256(json.dumps(payload["draft"],
+          ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+        candidate_sha=hashlib.sha256(json.dumps(proposed,
+          ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+        ctx=CurrentReviewContext(payload["shop_id"],payload["campaign_id"],
+            "test-human-editor","EDITOR",True,True,self.sha)
+        dbpath=self.home/"cc0-voice-lease.sqlite"
+        human=LocalReviewJournal(dbpath)
+        dispatch=LocalApprovedEditDispatch(dbpath)
+        try:
+            stage=human.stage(context=ctx,draft_sha256=draft_sha,
+               candidate_sha256=candidate_sha,now_ms=900)
+            approval=human.approve(review_id=stage["review_id"],
+               context=ctx,expected_revision=0,
+               candidate_sha256=candidate_sha,
+               confirmed_by_human=True,now_ms=950)
+            job=dispatch.stage_approved(context=ctx,
+               review_id=stage["review_id"],
+               approval_id=approval["approval_id"],draft_sha256=draft_sha,
+               candidate_sha256=candidate_sha,
+               human_confirmed=True,now_ms=1000)
+            original_lease=dispatch.lease_next(context=ctx,
+               now_ms=1100,lease_ms=1000)
+            dispatch.close()  # Simulated worker crash before output ack.
+            dispatch=LocalApprovedEditDispatch(dbpath)
+            current_lease=dispatch.lease_next(context=ctx,
+               now_ms=2100,lease_ms=1000)
+            self.assertEqual(current_lease.attempt,2)
+            self.assertEqual(current_lease.idempotency_key,
+                             original_lease.idempotency_key)
+            with self.assertRaises(ReviewStateError):
+                dispatch.finish(context=ctx,lease=original_lease,
+                    result_sha256=self.sha,now_ms=2150)
+            clip=self.home/"cc0-crash-recovered-test-video.mp4"
+            chosen=proposed["scenes"][0]
+            transcoded=subprocess.run([
+                "ffmpeg","-hide_banner","-v","error","-nostdin","-y",
+                "-ss",str(chosen["trim_start"]),"-i",str(self.clip),
+                "-t",str(chosen["duration"]),
+                "-map","0:v:0","-map","0:a:0",
+                "-c:v","libx264","-preset","ultrafast","-crf","29",
+                "-c:a","aac","-b:a","64k",
+                "-movflags","+faststart",str(clip)
+            ],capture_output=True,text=True,timeout=60)
+            self.assertEqual(transcoded.returncode,0,transcoded.stderr[-1200:])
+            checked=subprocess.run([
+                "ffprobe","-v","error","-show_streams","-show_format",
+                "-of","json",str(clip)
+            ],capture_output=True,text=True,timeout=20)
+            self.assertEqual(checked.returncode,0,checked.stderr)
+            probe=json.loads(checked.stdout)
+            self.assertAlmostEqual(float(probe["format"]["duration"]),15,delta=.3)
+            self.assertEqual(sum(z["codec_type"]=="video"
+                                 for z in probe["streams"]),1)
+            self.assertEqual(sum(z["codec_type"]=="audio"
+                                 for z in probe["streams"]),1)
+            output_sha=hashlib.sha256(clip.read_bytes()).hexdigest()
+            receipt=dispatch.finish(context=ctx,lease=current_lease,
+                result_sha256=output_sha,now_ms=2200)
+            self.assertEqual(receipt["state"],"SUCCEEDED")
+            self.assertIsNone(dispatch.lease_next(context=ctx,now_ms=9000))
+            self.assertEqual(dispatch.inspect(context=ctx,
+                dispatch_id=job["dispatch_id"])["result_sha256"],output_sha)
+            self.assertEqual(hashlib.sha256(self.clip.read_bytes()).hexdigest(),
+                             self.sha)
+        finally:
+            dispatch.close()
+            human.close()
 
 if __name__ == "__main__":
     unittest.main()
