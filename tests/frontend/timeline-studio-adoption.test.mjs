@@ -173,3 +173,13 @@ test('moving the first image/video boundary never replays untrimmed motion clips
   const measured=assets.map(a=>a.id==='motion1'?{...a,duration_seconds:9}:a)
   assert.throws(()=>studioValidatedDraft(changed,measured,music),/verified source length/)
 })
+
+test('scene sound effect is licensed and tenant-scoped, and remains a 2s SFX not voiceover',()=>{
+ const d=draft()
+ const withSfx={...d,scenes:d.scenes.map((s,i)=>i===1?{...s,sfx_asset_id:'licensed_music'}:s)}
+ assert.deepEqual(validateVideoDraft(withSfx,assets,music),[])
+ assert.equal(studioValidatedDraft(withSfx,assets,music).scenes[1].sfx_asset_id,'licensed_music')
+ const other=[{...music[0],shop_id:OTHER}]
+ assert.match(validateVideoDraft(withSfx,assets,other).join(';'),/same-shop licensed audio effect/)
+ assert.throws(()=>studioValidatedDraft(withSfx,assets,other),/Foreign, unlicensed or revoked/)
+})

@@ -106,6 +106,11 @@ export function validateVideoDraft(plan, mediaAssets = [], musicAssets = []) {
         errors.push('Scene ' + (index + 1) + ' needs a distinct authorized promotional poster')
       }
     }
+    if (scene.sfx_asset_id != null && !musicAssets.some(track =>
+        track?.id === scene.sfx_asset_id && track?.authorized === true &&
+        track?.kind === 'audio' && track?.shop_id === plan.shop_id)) {
+      errors.push('Scene ' + (index + 1) + ' needs a same-shop licensed audio effect')
+    }
     if (scene.offer != null && (typeof scene.offer !== 'string' || scene.offer.length > 70)) {
       errors.push('Offer text must be approved (max 70 characters)')
     }

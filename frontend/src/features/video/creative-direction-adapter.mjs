@@ -22,12 +22,16 @@ export function inspectCreativeDirection(packageData, { shopId, mediaAssets = []
         !assets.some(a => a.id === shot.asset_id) ||
         !['fade', 'slide', 'cut'].includes(shot.transition) ||
         !['subtle_zoom', 'fade', 'slide', 'pop', 'glow'].includes(shot.animation_preset) ||
-        (shot.offer != null && (typeof shot.offer !== 'string' || shot.offer.length > 70))) {
+        (shot.offer != null && (typeof shot.offer !== 'string' || shot.offer.length > 70)) ||
+        (shot.sfx_asset_id != null && !musicAssets.some(track =>
+          track.id === shot.sfx_asset_id && track.shop_id === shopId &&
+          track.authorized === true && track.kind === 'audio'))) {
       throw Error('Feature #2 scene '+(index + 1)+' needs approved assets and renderable effects')
     }
     const s = { start: position, duration: shot.duration, asset_id: shot.asset_id,
       headline: shot.headline, transition: shot.transition, animation_preset: shot.animation_preset,
-      ...(shot.offer ? { offer: shot.offer } : {}) }
+      ...(shot.offer ? { offer: shot.offer } : {}),
+      ...(shot.sfx_asset_id ? { sfx_asset_id: shot.sfx_asset_id } : {}) }
     position = Math.round((position + s.duration) * 1000) / 1000
     return s
   })

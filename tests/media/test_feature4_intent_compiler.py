@@ -165,3 +165,16 @@ class ApprovedIntentTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+# Scene SFX uses the existing authorized compiler/HyperFrames audio track.
+class SceneSfxContractTests(unittest.TestCase):
+    def test_reviewed_audio_effect_is_bound_to_same_tenant_and_preserved(self):
+        draft,trusted=pair()
+        draft["scenes"][1]["sfx_asset_id"]="musicowned"
+        out=compile_approved_storyboard(draft,trusted)
+        self.assertEqual(out["request"]["scenes"][1]["sfx_asset_id"],"musicowned")
+        self.assertEqual(out["request"]["scenes"][1]["sfx_source"],"retailer")
+        self.assertEqual(render_inputs(out["request"],out["manifest"]).plan["scenes"][1]["sfx_asset_id"],"musicowned")
+        trusted["assets"]["musicowned"]["shop_id"]=OTHER
+        with self.assertRaises(CreativeContractError):
+            compile_approved_storyboard(draft,trusted)

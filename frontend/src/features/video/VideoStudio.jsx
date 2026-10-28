@@ -185,6 +185,15 @@ export default function VideoStudio({
                     </select>
                   </label>
                 )}
+                <label>Reviewed scene sound effect · first 2 seconds
+                  <select disabled={Boolean(creativeDirection)} value={scene.sfx_asset_id || ''}
+                    onChange={e => patchScene(index, { sfx_asset_id: e.target.value || undefined })}>
+                    <option value="">No scene sound effect</option>
+                    {musicAssets.filter(track => track?.authorized === true && track?.shop_id === shopId
+                      && track?.kind === 'audio').map(track =>
+                      <option key={track.id} value={track.id}>{track.title || track.id}</option>)}
+                  </select>
+                </label>
                 <label>Approved offer (optional)
                   <input disabled={Boolean(creativeDirection)} value={scene.offer || ''} maxLength={70}
                     placeholder="Only real retailer-approved claims"

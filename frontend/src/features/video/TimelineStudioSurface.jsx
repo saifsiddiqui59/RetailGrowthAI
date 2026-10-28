@@ -159,9 +159,20 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
         </div>
       </div>
       <div className="f4-ts-row">
-        <span className="f4-ts-track-name">VOICE / SFX</span>
-        <div className="f4-studio-track-body"><span className="f4-ts-empty">
-          Server-approved voice/SFX only · independent gain disabled until renderer parity</span></div>
+        <span className="f4-ts-track-name">SCENE SFX</span>
+        <div className="f4-studio-track-body f4-ts-audio">
+          {draft.scenes.some(scene => scene.sfx_asset_id) ? draft.scenes.flatMap((scene,i) => {
+            if (!scene.sfx_asset_id || !musicAssets.some(asset =>
+              asset.id === scene.sfx_asset_id && asset.shop_id === draft.shop_id &&
+              asset.kind === 'audio' && asset.authorized === true)) return []
+            const segment = {id:'sfx-'+i,start:scene.start,duration:Math.min(2,scene.duration),
+              volume:0.25,name:scene.sfx_asset_id}
+            return [<TimelineAudioClip key={segment.id} segment={segment} laneIndex={0}
+              timelineDuration={draft.duration_seconds} selected={selected===i}
+              rangeSelected={false} waveformVisible={false} gainDisabled t={x=>x}
+              handlersRef={handlers} />]
+          }) : <span className="f4-ts-empty">Reviewed scene effects only · 2s max at fixed 25% gain</span>}
+        </div>
       </div>
       <div className="f4-ts-playhead" style={{left:(74 + playhead/draft.duration_seconds*trackPixels)+'px'}}
         aria-hidden="true" />
