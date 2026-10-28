@@ -30,12 +30,13 @@ export function scopedFeature2Plan(snapshot, options={}) {
   const pending=view.pending.map(x=>x.file);
   // Preserve historical exact-prefix gate while explicitly recognizing the
   // source-only Feature #1 migration. No additional version is authorized for execution.
-  if (pending.length!==7 || pending[0]!==FEATURE2_FILE || pending[1]!==OTHER_FEATURE_FILE ||
+  if (pending.length!==8 || pending[0]!==FEATURE2_FILE || pending[1]!==OTHER_FEATURE_FILE ||
       pending[2]!=='20261028101328_feature3_gpu_budget_jobs.sql' ||
       pending[3]!=='20261028173000_feature1_retailer_inbox.sql' ||
       pending[4]!=='20261028190000_feature3_model_review_audit.sql' ||
       pending[5]!=='20261028210000_feature3_private_evidence_commit.sql' ||
-      pending[6]!=='20261028223000_feature3_pending_model_import.sql')
+      pending[6]!=='20261028223000_feature3_pending_model_import.sql' ||
+      pending[7]!=='20261028230000_feature3_gpu_private_output_cas.sql')
     throw new Error('Unexpected pending migrations; refuse any unreviewed release');
   const source=readFileSync(resolve(migrationDir,FEATURE2_FILE),'utf8');
   const cleaned=source.replace(/^(?:\s*--[^\n]*(?:\n|$))*/, '').trimStart();
