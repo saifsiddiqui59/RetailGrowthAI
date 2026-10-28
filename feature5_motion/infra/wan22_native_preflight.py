@@ -275,3 +275,46 @@ def audit_offline_wheelhouse(root, *, reviewed_wheel_sha256):
     return {"wheel_count":len(seen),"total_bytes":total,
             "actual_file_hashes_checked":True,"gpu_started":False,
             "offline_no_network":True}
+
+
+def render_reviewed_require_hashes(reviewed_wheel_sha256):
+    """Deterministic, one-wheel-per-dependency offline pip hash requirements.
+
+    Does not resolve dependencies or prove CUDA compatibility. The approved
+    manifest must be complete and independently reviewed by an operator.
+    """
+    if (type(reviewed_wheel_sha256) is not dict or
+        not REQUIRED_PACKAGES <= set(reviewed_wheel_sha256) or
+        not 1 <= len(reviewed_wheel_sha256) <= 256):
+        raise WanCompatibilityError("Cannot generate lock without complete reviewed wheel inventory")
+    safe_name = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
+    normalized = set()
+    result = []
+    for name, proof in reviewed_wheel_sha256.items():
+        if not isinstance(name,str) or not safe_name.fullmatch(name):
+            raise WanCompatibilityError("Unsafe dependency name in reviewed lock")
+        pkg = re.sub(r"[-_.]+","-",name).lower()
+        if pkg in normalized:
+            raise WanCompatibilityError("Alias collision in dependency lock")
+        normalized.add(pkg)
+        if (type(proof) is not dict or set(proof) != {"version","sha256"} or
+            not isinstance(proof["version"],str) or not VERSION.fullmatch(proof["version"]) or
+            not isinstance(proof["sha256"],str) or not SHA256.fullmatch(proof["sha256"])):
+            raise WanCompatibilityError("Invalid dependency version or approved digest")
+        result.append((pkg,pkg+"=="+proof["version"]+" --hash=sha256:"+proof["sha256"]))
+    return "\n".join(line for _,line in sorted(result))+"\n"
+
+
+def validate_offline_requirements_file(path, *, reviewed_wheel_sha256):
+    """The build input must be EXACTLY the fully reviewed offline wheel lock."""
+    p=Path(path)
+    if p.is_symlink() or not p.is_file() or p.stat().st_size > 128*1024:
+        raise WanCompatibilityError("Missing or unsafe hashlocked pip input file")
+    expected=render_reviewed_require_hashes(reviewed_wheel_sha256)
+    try:
+        content=p.read_text(encoding="utf8")
+    except (OSError,UnicodeError) as exc:
+        raise WanCompatibilityError("Unreadable hashlocked pip requirements file") from exc
+    if content != expected:
+        raise WanCompatibilityError("Offline pip requirements differ from reviewed wheel byte inventory")
+    return True
