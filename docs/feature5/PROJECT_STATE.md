@@ -111,3 +111,7 @@ The existing main repository already has `.github/workflows/azure-dev-oidc-verif
 ## 2026-10-28 — Owner's Azure Portal quota screenshot
 - Owner-supplied Azure Portal screenshot for existing `rgai-f5-gpu-canary-eastus` now shows **Managed Environment Consumption NCA100 GPUs = 0 used / 2 limit** (T4 = 0/0). This is portal evidence of approved managed-environment GPU capacity, resolving prior quota=0 blocker; it is not an ARM/CLI readback, deployed GPU, reserved compute, GPU billing or model inference. Logged to GitHub issue #400.
 - No GPU replicas in use on the portal quota screenshot; quota alone does not incur GPU-compute charges (Azure Container Apps Consumption billing). Other preexisting storage/logging/network resources may still bill. No external JarvisLabs purchase occurred.
+
+## 2026-10-28 — Prepared no-charge GPU controls for official ComfyUI + Wan2.2
+- Feature5 source-only A100 start/stop/status controller and sample pinned ComfyUI/Wan manifest prepared on isolated child branch. No GPU deployment, model download, container build, active replica, or Azure cloud write. Explicit V100 rejected; owner's Azure quota evidence is A100 (2 limit, 0 used), not independent live readback.
+- Offline mocked tests verify dry-run by default, paid approval gates, wrong SKU, retries/timeout/image checks, duplicate start rejection and exact-job emergency stop. See A100_SAFE_PREP_20261028.md. PR #323 stays draft.
