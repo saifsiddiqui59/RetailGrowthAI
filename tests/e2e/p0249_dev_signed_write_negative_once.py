@@ -104,8 +104,16 @@ def run():
                     print("P0249_WRITE_DENIAL_MISMATCH_CASE=poster_get error="+safe,flush=True)
                     raise
             try:
+                # Strict diagnosis: accept 400 only to inspect a public enum;
+                # never treat it as an authorized or successful render response.
+                classification_only = (400,404) if case_number==4 else expected
                 code,body,_,duration=common.request(DEV_WRITE_PREVIEW+path,method=method,
-                    data=payload,headers=hdr,expected=expected,timeout=20)
+                    data=payload,headers=hdr,expected=classification_only,timeout=20)
+                if case_number==4 and code==400:
+                    candidate=body.get('error') if isinstance(body,dict) else None
+                    safe=candidate if candidate in ('INVALID_REQUEST','INVALID_JSON_BODY','UNAUTHORIZED','SERVICE_UNAVAILABLE') else 'UNRECOGNIZED_ERROR'
+                    print('P0249_POSTER_RENDER_400_SAFE_ERROR='+safe,flush=True)
+                    raise RuntimeError('P0249_POSTER_RENDER_UNEXPECTED_400')
             except RuntimeError as exc:
                 value=str(exc)
                 safe=value if value.startswith("DEV_TEST_UNEXPECTED_HTTP_") else type(exc).__name__
