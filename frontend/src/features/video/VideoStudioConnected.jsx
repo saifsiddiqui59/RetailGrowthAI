@@ -53,6 +53,18 @@ export default function VideoStudioConnected({
     setSignedUrl(null)
     setError('')
     setJob(receipt)
+    // An idempotent create may return an already-SUCCEEDED job. Obtain its
+    // current tenant-private signed URL without replaying the POST.
+    if (receipt.status === 'SUCCEEDED') {
+      try {
+        const url = await api.download({ jobId: receipt.job_id, shopId })
+        if (epoch === context.current) setSignedUrl(url)
+      } catch {
+        if (epoch === context.current) {
+          setError('Completed render found, but the private download could not be renewed.')
+        }
+      }
+    }
     return receipt
   }, [api, shopId, campaignId, approvalId])
 
