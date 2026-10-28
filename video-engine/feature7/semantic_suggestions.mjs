@@ -1,17 +1,24 @@
 /**
- * Low-cost semantic *suggestions* for existing uploaded speech and approved
- * uploaded cutaways. Adapts AutoBroll's arrange-clips / broll-multiclip
- * intention without importing Gemini, Pexels, a renderer or ad scriptwriting.
+ * CPU-only AutoBroll retake grouping and verified-owned B-roll guidance.
  *
- * These are review-only and never remove a take or publish an asset.
+ * Directly adapts the one-best-per-beat / original-permutation intention of
+ * upstream andriidrok1/autobroll scripts/arrange-clips.mjs (MIT), without
+ * Gemini, a second editor, or unreviewed deletions. Ranks text FLUENCY
+ * PROXIES only; a transcript cannot measure acting, image, or audio quality.
  */
 import {EditValidationError} from './autobroll_semantics.mjs';
 const ensure=(condition,message)=>{if(!condition) throw new EditValidationError(message);};
 const TOKEN=/[\p{L}\p{N}]+/gu;
 function normalizeWords(words) {
   ensure(Array.isArray(words) && words.length<=3000,'Invalid transcript');
+  let previousEnd=-1;
   return words.flatMap(w=>{
-    ensure(w && typeof w.word==='string' && w.word.length<=80,'Invalid word');
+    ensure(w && typeof w.word==='string' && w.word.length<=80 &&
+      Number.isInteger(w.startMs) && Number.isInteger(w.endMs) &&
+      w.startMs>=0 && w.startMs>=previousEnd-50 &&
+      w.endMs>w.startMs && w.endMs<=600000,
+      'Invalid source-relative transcript/word alignment');
+    previousEnd=w.endMs;
     return w.word.toLocaleLowerCase('en').match(TOKEN)??[];
   });
 }
@@ -21,49 +28,85 @@ const jaccard=(a,b)=> {
   const union=new Set([...sa,...sb]).size;
   return union===0?0:intersection/union;
 };
-function takeScore(t) {
+const overlapCount=(a,b)=>{
+  const aSet=new Set(a),bSet=new Set(b);
+  return [...aSet].filter(x=>bSet.has(x)).length;
+};
+function nearSameSpokenBeat(a,b){
+  // Partial retakes may stop halfway through the same line. Never group on
+  // generic two-word phrases or one shared product term alone.
+  if(a.length<3 || b.length<3)return false;
+  const common=overlapCount(a,b);
+  const containment=common/Math.min(new Set(a).size,new Set(b).size);
+  return (common>=3 && (jaccard(a,b)>=.72 || containment>=.8));
+}
+function takeQualityProxy(t) {
   const words=t.words;
-  const speech=words.length;
-  const finalPunctuation=words.some(w=>/[.!?]$/.test(w.word)) ? 1:0;
-  let gaps=0;
-  for(let k=1;k<words.length;k++) {
-    if(words[k].startMs-words[k-1].endMs>600)gaps++;
+  const tokens=t.tokens;
+  const unique=new Set(tokens).size;
+  const repeatedPairs=new Map();
+  let repeatedPhraseCount=0;
+  for(let i=0;i<tokens.length-1;i++){
+    const pair=tokens[i]+' '+tokens[i+1];
+    const found=repeatedPairs.get(pair)??0;
+    if(found>0)repeatedPhraseCount++;
+    repeatedPairs.set(pair,found+1);
   }
-  return +(speech*1.5+finalPunctuation-gaps*.3).toFixed(3);
+  let longGaps=0;
+  for(let i=1;i<words.length;i++)if(words[i].startMs-words[i-1].endMs>600)longGaps++;
+  const fillerCount=tokens.filter(x=>['um','uh','erm','ah'].includes(x)).length;
+  const completeSentence=words.length>0 && /[.!?]["']?$/.test(words.at(-1).word);
+  // Coverage of distinct words rewards completed delivery without rewarding
+  // false starts/repeating phrases. Heuristic score != real ASR confidence.
+  const score=+(unique*2 + Math.min(tokens.length,30)*.2 +
+    (completeSentence?2:0) - repeatedPhraseCount*4 -
+    longGaps*1.5 - fillerCount*2).toFixed(3);
+  return {score,distinct_word_count:unique,long_pause_count:longGaps,
+    repeated_phrase_count:repeatedPhraseCount,filler_count:fillerCount,
+    ends_in_sentence_punctuation:completeSentence,
+    score_basis:'TRANSCRIPT_HEURISTIC_NOT_VISUAL_OR_AUDIO_QUALITY'};
 }
 
 export function suggestRetakeSelections({shop_id,footage}={}) {
-  ensure(typeof shop_id==='string' && shop_id.length>0 &&
+  ensure(typeof shop_id==='string' && /^[\w-]{1,120}$/.test(shop_id) &&
     Array.isArray(footage) && footage.length<=12,
     'Invalid retake scope');
+  const scenes=new Set(),assets=new Set();
   const items=footage.map((f,i)=>{
     ensure(f && f.shop_id===shop_id && Number.isInteger(f.scene_index) &&
-      Array.isArray(f.words) && typeof f.asset_id==='string' &&
-      f.words.length<=3000,'Invalid retake tenant/source');
-    return {...f,original_index:i,tokens:normalizeWords(f.words)};
+      f.scene_index>=0 && f.scene_index<12 &&
+      !scenes.has(f.scene_index) &&
+      typeof f.asset_id==='string' && /^[\w-]{1,120}$/.test(f.asset_id) &&
+      !assets.has(f.asset_id),
+      'Invalid, duplicated or foreign retake source');
+    scenes.add(f.scene_index);assets.add(f.asset_id);
+    const tokens=normalizeWords(f.words);
+    return {...f,original_index:i,tokens};
   });
   const used=new Set();
   const recommendations=[];
   for(let i=0;i<items.length;i++){
-    if(used.has(i) || items[i].tokens.length<2)continue;
+    if(used.has(i) || items[i].tokens.length<3)continue;
     const group=[items[i]];used.add(i);
     for(let j=i+1;j<items.length;j++){
-      if(used.has(j) || items[j].tokens.length<2)continue;
-      const overlap=jaccard(items[i].tokens,items[j].tokens);
-      if(overlap>=0.72){group.push(items[j]);used.add(j);}
+      if(used.has(j) || !nearSameSpokenBeat(items[i].tokens,items[j].tokens))continue;
+      group.push(items[j]);used.add(j);
     }
     if(group.length<2)continue;
-    const ranked=group.map(g=>({
+    const ranking=group.map(g=>({
       source_scene_index:g.scene_index,asset_id:g.asset_id,
-      score:takeScore(g)
+      ...takeQualityProxy(g)
     })).sort((a,b)=>b.score-a.score ||
       a.source_scene_index-b.source_scene_index);
     recommendations.push({
       source_scene_indices:group.map(g=>g.scene_index),
-      recommended_source_scene_index:ranked[0].source_scene_index,
-      ranking:ranked,reason:'similar_existing_spoken_take',
+      recommended_source_scene_index:ranking[0].source_scene_index,
+      ranking,reason:'similar_verified_transcript_possible_retake',
       human_review_required:true,discarded_scene_ids:[],
-      output_executable_by_feature4:false
+      output_executable_by_feature4:false,
+      original_order_preserved:true,
+      selection_not_based_on_visual_quality:true,
+      actual_cpu_asr_model_inference_proven:false
     });
   }
   return recommendations;
