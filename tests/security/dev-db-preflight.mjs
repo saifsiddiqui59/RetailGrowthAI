@@ -55,6 +55,8 @@ const CAPABILITIES = {
     /for update/i,
     /insert into public[.]media_assets/i,
     /p_image_sha256/i,
+    /create trigger feature3_output_settlement_guard/i,
+    /retail_private[.]feature3_output_settlement_fence/i,
     /grant execute on function public[.]feature3_commit_gpu_private_output/i,
     /to service_role/i,
   ],
