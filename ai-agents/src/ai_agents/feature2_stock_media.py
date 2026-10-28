@@ -149,3 +149,59 @@ def inspect_stock_broll(
         can_show_in_offline_editor=True,
         original_sha256=evidence["sha256"],
     )
+
+def inspect_stock_from_trusted_shop_jwt(
+    *, shop_id: str, authorization: str, candidate_id: str,
+    verify_jwt, tenant_store, current_review_reader,
+    private_import_reader, private_bytes_reader,
+) -> BrollEvaluation:
+    """Server-only source adapter: no browser-controlled approvals or public URLs.
+
+    Inject only existing verified Supabase JWT and JWT-scoped RLS readers.
+    This is source-level and remains unconnected to any deployed HTTP route.
+    It does not authorize using a stock face as a fashion model.
+    """
+    if (type(authorization) is not str or
+        not authorization.startswith("Bearer ") or
+        type(candidate_id) is not str or
+        not callable(verify_jwt) or
+        not callable(getattr(tenant_store, "member", None)) or
+        not all(callable(x) for x in (
+            current_review_reader, private_import_reader, private_bytes_reader
+        ))):
+        raise StockMediaRejected("Trusted shop JWT and private source readers required")
+    token = authorization.removeprefix("Bearer ").strip()
+    if not 8 <= len(token) <= 16_384:
+        raise StockMediaRejected("Invalid current JWT")
+    try:
+        sid = str(UUID(shop_id))
+        actor = str(UUID(verify_jwt(token)))
+        if tenant_store.member(token, actor, sid, write=True) is not True:
+            raise StockMediaRejected("Active OWNER/EDITOR membership required")
+    except StockMediaRejected:
+        raise
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise StockMediaRejected("Authenticated shop ID and actor required") from exc
+    try:
+        row = next(c for c in candidate_catalog() if c["candidate_id"] == candidate_id)
+    except StopIteration as exc:
+        raise StockMediaRejected("Unknown stock source page") from exc
+    try:
+        rights = current_review_reader(token, actor, sid, candidate_id)
+        import_evidence = private_import_reader(token, actor, sid, candidate_id)
+    except Exception as exc:
+        raise StockMediaRejected("Current license and private original unavailable") from exc
+    def member_check(target_shop):
+        return tenant_store.member(token, actor, target_shop, write=True)
+    def private_original(target_shop, target_candidate):
+        return private_bytes_reader(token, actor, target_shop, target_candidate)
+    try:
+        return inspect_stock_broll(
+            candidate=row, shop_id=sid,
+            current_rights=rights, evidence=import_evidence,
+            trusted_member_check=member_check, originals_reader=private_original,
+        )
+    except StockMediaRejected:
+        raise
+    except Exception as exc:
+        raise StockMediaRejected("Current stock source evidence verification unavailable") from exc
