@@ -24,6 +24,7 @@ class OpenPeopleTests(unittest.TestCase):
         Image.new("RGB", (420, 700), "#CDB6B3").save(self.photo, "JPEG")
         self.shop = str(uuid4())
         self.calls = []
+        self.registered_media_id = str(uuid4())
         self.source_revision = "a" * 40
         raw = self.photo.read_bytes()
         self.git_blob_sha = sha1(b"blob " + str(len(raw)).encode("ascii") +
@@ -55,11 +56,12 @@ class OpenPeopleTests(unittest.TestCase):
 
     def write(self, key, raw, metadata):
         self.calls.append(("write", key, raw))
-        return {"key":key, "sha256":sha256(raw).hexdigest(),"private":True}
+        return {"key":key, "sha256":sha256(raw).hexdigest(),"private":True,
+                "owner_shop_id":self.shop,"media_asset_id":self.registered_media_id}
 
     def register(self, doc):
         self.calls.append(("register", doc))
-        return {k:doc[k] for k in ("model_id","owner_shop_id","scope","status")}
+        return {k:doc[k] for k in ("model_id","owner_shop_id","scope","status","media_asset_id")}
 
     def test_open_source_avatar_real_still_is_normalized_and_stored_privately(self):
         record = self.import_it()
@@ -68,6 +70,7 @@ class OpenPeopleTests(unittest.TestCase):
         self.assertIn("Prompt Haus", record["attribution"])
         self.assertIn(self.source_revision, record["source_uri"])
         self.assertEqual(record["status"], "PENDING_REVIEW")
+        self.assertEqual(record["media_asset_id"],self.registered_media_id)
         self.assertEqual([x[0] for x in self.calls], ["write","register"])
         self.assertTrue(self.calls[0][1].startswith("shops/"+self.shop))
         self.assertTrue(self.calls[0][2].startswith(b"\x89PNG\r\n\x1a\n"))
