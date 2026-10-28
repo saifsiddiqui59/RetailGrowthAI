@@ -57,7 +57,7 @@ jobs:
           assert a['sku']['name']=='Standard_LRS' and a.get('allowBlobPublicAccess') is False
           assert a.get('enableHttpsTrafficOnly') is True and tags(a).get('app')=='retailgrowthai'
           assert a['id'].lower().startswith('/subscriptions/'+sys.argv[3].lower()+'/resourcegroups/rg-retailgrowth-dev/')
-          assert e['name']=='rgai-f5-gpu-canary-eastus' and e['location']=='eastus'
+          assert e['name']=='rgai-f5-gpu-canary-eastus' and str(e['location']).lower().replace(' ','')=='eastus'
           assert tags(e).get('app')=='retailgrowthai' and tags(e).get('environment')=='dev'
           print('PASS existing exact private StorageV2 and Feature5 A100-capable environment, no GPU launched')
           PY
