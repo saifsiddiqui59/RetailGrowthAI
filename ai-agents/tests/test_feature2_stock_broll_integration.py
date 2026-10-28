@@ -30,6 +30,8 @@ def _bundle(seconds):
         "const f=require(process.argv[1]); const director=require(process.argv[2]);"
         "let b=f.verifiedBrief(Number(process.argv[3]));"
         "b.shop_id='"+SHOP+"';"
+        "for(const m of b.media_grants) m.shop_id=b.shop_id;"
+        "for(const o of b.approved_offers) o.shop_id=b.shop_id;"
         "const c=f.authoredCandidate(Number(process.argv[3]));"
         "process.stdout.write(JSON.stringify(director.compile(b,c)));"
     )
