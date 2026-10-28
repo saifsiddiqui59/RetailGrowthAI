@@ -209,6 +209,7 @@ class Feature7InternetCC0SpeechVideoTests(unittest.TestCase):
                 "grant": grant, "whisperx_json": cls.words,
             }],
             "broll_grants": [],
+            "include_visual_qa": True,
         }
 
     def invoke(self, payload):
@@ -237,6 +238,10 @@ class Feature7InternetCC0SpeechVideoTests(unittest.TestCase):
         self.assertFalse(review["silence_jump_cut_advisory"][0]["feature4_executable"])
         self.assertEqual(review["audio_policy"], "PRESERVE_SOURCE")
         self.assertEqual(review["network_calls"], 0)
+        visual=review["media_evidence"][0]["visual_activity"]
+        self.assertEqual(visual["classification"], "VISUAL_QUALITY_ADVISORY_ONLY")
+        self.assertTrue(visual["no_media_modification"])
+        self.assertTrue(visual["human_review_required"])
         self.assertEqual(review["model_calls"], 0)
         self.assertGreater(self.clip.stat().st_size, 100000)
 
