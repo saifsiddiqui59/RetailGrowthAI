@@ -4,6 +4,7 @@ import { getTimelineRulerTicks, getTimelineAutoFitZoom, getTimelineVisibleDurati
 import { TimelineCaptionClip, TimelineAudioClip } from './vendor/TimelineClips.jsx'
 import { createEditorHistory, pushEditorHistory, undoEditorHistory, redoEditorHistory } from './vendor/editorHistoryCore.mjs'
 import { studioReorder, studioSplit, studioTrimPair, studioSourceTrim, studioValidatedDraft } from './timeline-studio-bridge.mjs'
+import { FrameTimecodeInput } from './vendor/openreel/FrameTimecodeInput.jsx'
 import './TimelineStudioSurface.css'
 
 // Actual upstream Timeline Studio editing/history/clip components, modified for
@@ -35,6 +36,14 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
   const trackPixels = Math.min(18000, Math.max(560,
     Math.round(900 * draft.duration_seconds / getTimelineVisibleDuration(zoom))))
   const selected = Math.min(Math.max(selectedSceneIndex,0), Math.max(0,draft.scenes.length - 1))
+  const previewFps = draft.output?.fps === 24 ? 24 : 30
+  const seekToFrame = seconds => {
+    const position = Math.min(draft.duration_seconds,
+      Math.max(0, Math.round(seconds * previewFps) / previewFps))
+    setPlayhead(position)
+    const index = spans.findIndex(span => position >= span.start && position < span.end)
+    if (index >= 0) onSelectScene(index)
+  }
   const change = (fn) => {
     if (approvedDirection) { setFeedback('Approved Feature #2 direction is read-only. Request a revised approval to change edit timing.'); return }
     try {
@@ -103,7 +112,9 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
   return <section className="f4-ts-editor" aria-label="Professional multi-track video timeline"
     onKeyDown={shortcuts}>
     <div className="f4-ts-toolbar">
-      <strong>Timeline Studio <small>MIT upstream · HyperFrames output</small></strong>
+      <strong>Timeline Studio <small>OpenReel frame controls · HyperFrames output</small></strong>
+      <FrameTimecodeInput position={playhead} duration={draft.duration_seconds}
+        frameRate={previewFps} onSeek={seekToFrame} />
       <div className="f4-ts-tools">
         <button type="button" onClick={()=>applyHistory(undoEditorHistory)}
           disabled={approvedDirection||!history.past.length} aria-label="Undo timeline edit"
@@ -129,8 +140,8 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
       <div className="f4-ts-row">
         <span className="f4-ts-track-name">VIDEO</span>
         <div className="f4-studio-track-body" onClick={e=>{
-          if(e.target===e.currentTarget) setPlayhead(
-            Math.round(Math.max(0,Math.min(1,e.nativeEvent.offsetX/e.currentTarget.clientWidth))*draft.duration_seconds*100)/100)
+          if(e.target===e.currentTarget) seekToFrame(
+            Math.max(0,Math.min(1,e.nativeEvent.offsetX/e.currentTarget.clientWidth))*draft.duration_seconds)
         }}>
           {spans.map((span,i)=><button key={i} type="button" draggable={!approvedDirection}
             data-timeline-segment-track="image" data-timeline-segment-index={i}
@@ -216,8 +227,8 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
       </div>
     </div>
     <div className="f4-ts-inspector">
-      <label>Playhead <input type="range" min="0" max={draft.duration_seconds} step=".1"
-        value={playhead} onChange={e=>{const t=Number(e.target.value);setPlayhead(t);const i=spans.findIndex(s=>t>=s.start&&t<s.end);if(i>=0)onSelectScene(i)}} />
+      <label>Playhead <input type="range" min="0" max={draft.duration_seconds} step="any"
+        value={playhead} onChange={e=>seekToFrame(Number(e.target.value))} />
         <output>{formatTime(playhead)}</output></label>
       {source?.kind==='video'&&<label>Source trim (s) <input type="number" min="0" max="180"
         step=".1" disabled={approvedDirection} value={draft.scenes[selected].trim_start||0}

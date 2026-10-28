@@ -35,3 +35,12 @@
 .f4-ts-timeline-content{position:relative;min-width:100%;box-sizing:border-box}
 .f4-ts-track-scroll{scrollbar-width:thin;overscroll-behavior-x:contain}
 .f4-ts-timeline-content .f4-ts-playhead{transform:none}
+
+/* OpenReel PreviewTimecode adapted to the Feature4 design. */
+.f4-frame-timecode{display:flex;align-items:center;gap:5px;position:relative;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;color:#c0d3e6}
+.f4-frame-timecode input{font:inherit;font-family:ui-monospace,monospace;min-width:0;width:102px;padding:6px;border:1px solid #53637a;border-radius:5px;background:#18283b;color:#fff}
+.f4-frame-timecode input:focus{outline:2px solid #fbd38b;outline-offset:2px}
+.f4-frame-timecode input[aria-invalid="true"]{border-color:#ffb5b8}
+.f4-frame-timecode output{font-family:ui-monospace,monospace}
+.f4-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.f4-frame-error{position:absolute;top:100%;left:0;z-index:3;background:#301e29;border:1px solid #ffb5b8;color:#ffe0e0;border-radius:5px;min-width:190px;padding:5px;white-space:normal}

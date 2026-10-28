@@ -333,3 +333,18 @@ test('extending left-hand video boundary cannot exceed verified private source d
   assert.equal(safe.scenes[1].duration,9)
   assert.deepEqual(validateVideoDraft(safe,measured,music),[])
 })
+
+test('real MIT OpenReel frame controls parse and step at 24/30fps with strict invalid input',async()=>{
+  const {formatFrameTimecode,parseFrameTimecode}=await import('../../frontend/src/features/video/vendor/openreel/frame-timecode.mjs')
+  const {stepEditingFrame,normalizeEditingFrameRate}=await import('../../frontend/src/features/video/vendor/openreel/editing-frame-rate.mjs')
+  assert.equal(formatFrameTimecode(1.5,24),'00:00:01:12')
+  assert.equal(formatFrameTimecode(1.5,30),'00:00:01:15')
+  assert.equal(parseFrameTimecode('00:00:02:12',24),2.5)
+  assert.equal(parseFrameTimecode('01:02:12',24),62.5)
+  assert.equal(parseFrameTimecode('0.04',24),1/24)
+  assert.equal(stepEditingFrame(0,1,30),1/30)
+  assert.equal(stepEditingFrame(1/30,-1,30),0)
+  assert.equal(normalizeEditingFrameRate(0),30)
+  for(const invalid of ['','oops','-1','00:00:60:00','00:00:00:30','Infinity'])
+    assert.equal(parseFrameTimecode(invalid,30),null)
+})
