@@ -216,3 +216,8 @@ Source-only test accounts now cover two simulated user sessions/shops, successfu
 ## 2026-10-28 — Import intent ambiguous ACK + private staging path guards
 
 Added negative tests for foreign attempt directory, linked attempt root, post-upload source mutation and lost unique intent commit acknowledgement. Run exact-head 4/4. Human, real JWT, licensed Pexels original bytes and hosted Storage are still explicitly unverified. Paid A100/Wan disabled.
+
+
+## 2026-10-28 — Two-shop parallel offline acceptance and Pexels rights audit
+
+Latest GPU-OFF source suite adds two-shop fake login/cross-private-download deny, 12-way concurrent single-intent upload, and new pinned Pexels page/license audit. Actual Pexels raw bytes still need a rights-approved original download and manual human review, hosted signed Supabase JWT + Part3 DB/Storage still pending; no A100. Verify final 4/4 CI.

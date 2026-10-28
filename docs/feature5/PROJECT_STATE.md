@@ -192,3 +192,8 @@ New Feature5 `part3_private_import_bridge.py` provides a source-only native Wan 
 ## 2026-10-28 — Import intent ambiguous ACK + private staging path guards
 
 GPU-off private import strengthened with a canonical private 0700 attempt root check (no symlinks/foreign or intermediate broad directories), and a lost transactional intent-CAS ACK now yields `UnknownPart3PrivateImport` even if no Storage operation began. No user/token supplies a path or source rights. All write ambiguities retain consumed intent and require existing Part3 read-only reconciliation.
+
+
+## 2026-10-28 — Two-shop parallel offline acceptance and Pexels rights audit
+
+Added real public Pexels source-page and licensing audit `docs/feature5/PEXELS_RIGHTS_AUDIT_20261028.md`: video page 1080x1920, 9s 30fps, photo page 4000x6000; modification commercial permitted but no person endorsement, and API ML dataset extraction restrictions. Local DNS blocked original raw downloads; no original SHA or video-fidelity claim. Added two real independent mock shops with test tokens and a 12-worker simulated atomic CAS race, one settled local import.

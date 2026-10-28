@@ -6,6 +6,8 @@ No paid GPU/model, Azure storage, PROD credentials, or real approval.
 """
 from __future__ import annotations
 from copy import deepcopy
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
 from dataclasses import replace
 import hashlib
 import hmac
@@ -38,6 +40,7 @@ class TestOnlyPart3:
         self.secret=os.urandom(32)
         self.spend_reservation="TEST_ONLY_0_USD"
         self.intent=False
+        self.intent_lock=Lock()
         self.uploads=0
         self.commits=0
         self.revoked=False
@@ -62,10 +65,12 @@ class TestOnlyPart3:
         ) and not self.revoked and self.status=="IMPORTING"
 
     def reserve_intent(self,shop,job,attempt,path,digest):
-        if self.intent or not self.check(shop,job,attempt,self.source,None,digest):
-            return False
-        self.intent=True
-        return True
+        # TEST ONLY, mimics a single DB transactional compare-and-swap.
+        with self.intent_lock:
+            if self.intent or not self.check(shop,job,attempt,self.source,None,digest):
+                return False
+            self.intent=True
+            return True
 
     def upload(self,shop,job,attempt,source,path,digest):
         if not self.intent:
@@ -281,6 +286,36 @@ class Feature5Part3OfflineAcceptanceTests(unittest.TestCase):
         with self.assertRaises(UnknownPart3PrivateImport):
             import_wan_into_existing_part3(**params)
         self.assertEqual((store.uploads,store.commits),(1,0))
+
+    def test_parallel_test_workers_only_one_private_import_and_settlement(self):
+        store,params,_=self.setup_case()
+        def try_once(_):
+            try:
+                import_wan_into_existing_part3(**params)
+                return "SETTLED"
+            except WanCompatibilityError:
+                return "REJECTED"
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            statuses=list(executor.map(try_once,range(12)))
+        self.assertEqual(statuses.count("SETTLED"),1)
+        self.assertEqual(statuses.count("REJECTED"),11)
+        self.assertEqual((store.uploads,store.commits),(1,1))
+        self.assertEqual(store.receipt["ledger_status"],"SETTLED")
+
+    def test_two_independent_test_shops_deny_cross_download(self):
+        store_a,params_a,_=self.setup_case()
+        store_b,params_b,_=self.setup_case()
+        token_a=store_a.login_test_user(store_a.user)
+        token_b=store_b.login_test_user(store_b.user)
+        import_wan_into_existing_part3(**params_a)
+        import_wan_into_existing_part3(**params_b)
+        self.assertIsNotNone(store_a.signed_in_private_download(token_a,store_a.job))
+        self.assertIsNotNone(store_b.signed_in_private_download(token_b,store_b.job))
+        self.assertIsNone(store_a.signed_in_private_download(token_b,store_a.job))
+        self.assertIsNone(store_b.signed_in_private_download(token_a,store_b.job))
+        self.assertIsNone(store_a.signed_in_private_download(token_a,store_b.job))
+        self.assertIsNone(store_b.signed_in_private_download(token_b,store_a.job))
+        self.assertNotEqual(store_a.receipt["path"],store_b.receipt["path"])
 
     def test_f4_review_only_fake_positive_and_foreign_ledger_rejected(self):
         # No assertion of real garment quality: the reviewer and media are

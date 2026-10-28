@@ -171,3 +171,8 @@ Prioritize immutable at-most-once import: a trusted Part3 service-only SQL CAS m
 ## 2026-10-28 — Import intent ambiguous ACK + private staging path guards
 
 An import-intent CAS callback may commit then time out, so any raised exception is `UNKNOWN` (no new commit/upload/replay), never normal retryable preflight. Before CAS, private paths must be contained within dedicated 0700 worker root, with safe intermediate parents. Do not substitute browser signed URLs for trusted file paths.
+
+
+## 2026-10-28 — Two-shop parallel offline acceptance and Pexels rights audit
+
+Simulated test-user logins use an explicitly isolated per-test HMAC secret and never correspond to Supabase Auth JWT. Parallel test CAS lock proves adapter's expected interface only; production must use SQL unique + transaction fencing across processes. Pexels pages license free modifications but no implied endorsement; API AI training/evaluation dataset extraction is restricted, so test local media technical decoding rather than model training datasets.

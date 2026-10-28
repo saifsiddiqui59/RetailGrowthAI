@@ -190,3 +190,8 @@ Connected DEV project was queried in a read-only rolled-back transaction. Synthe
 ## 2026-10-28 — Import intent ambiguous ACK + private staging path guards
 
 - 2026-10-28: Closed source-only import-intent lost-ack ambiguity and staged path escape/symlink risk; verified expected negative tests added. No database changes, hosted JWT, real Storage or paid providers. Exact-head CI awaited.
+
+
+## 2026-10-28 — Two-shop parallel offline acceptance and Pexels rights audit
+
+- 2026-10-28: Added 12-thread CAS/Storage source acceptance and two independent mock shops with fake signed tokens; updated Pexels rights audit based on official pages. Video/photo originals could not be downloaded (DNS blocked), so commercial and real-media fidelity remain unverified. GPU OFF.
