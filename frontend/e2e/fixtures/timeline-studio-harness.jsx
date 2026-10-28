@@ -13,6 +13,9 @@ export function mountFeature4({shop,approved}) {
     {id:'motion1',kind:'video',authorized:true,shop_id:shop},
     {id:'poster1',kind:'poster',authorized:true,shop_id:shop}
   ]
+  const licensedAudio=[
+    {id:'licensed_scene_fx',kind:'audio',authorized:true,shop_id:shop,title:'Licensed short whoosh'}
+  ]
   const approvedPlan=approved?{
     version:'creative_direction_v1',source_feature:'feature2',approved:true,
     shop_id:shop,campaign_id:'campaign1',approval_id:'approval1',
@@ -27,7 +30,7 @@ export function mountFeature4({shop,approved}) {
   }:null
   window.__feature4Renders=[]
   createRoot(holder).render(React.createElement(VideoStudio,{
-   shopId:shop,mediaAssets:media,musicAssets:[],creativeDirection:approvedPlan,
+   shopId:shop,mediaAssets:media,musicAssets:licensedAudio,creativeDirection:approvedPlan,
    onRender:async plan => {window.__feature4Renders.push(plan)}
   }))
 

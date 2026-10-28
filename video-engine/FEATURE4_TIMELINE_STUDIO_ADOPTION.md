@@ -46,3 +46,11 @@ Checkpoint 2026-10-28. **Source-only, PR #322 draft; no Azure, GPU or public edi
 - Existing `tests/media/test_feature4_motion_handoff.py`: mock F2→F5 security, exact prompt fidelity, no double dispatch and no GPU.
 - Existing real 30s synthetic 1080×1920 HyperFrames/FFmpeg CI; server snapshot/tenant/rights tests remain mandatory.
 - Inspect **exact latest head** four-job CI after every push and report failures separately. Previous runs with cancelled jobs or upstream passes do not prove the latest edited source.
+
+## Editing correctness follow-up (F4-17/18)
+- The upstream timeline zoom now expands the **actual** track width in a bounded 560–18,000px horizontal scroll surface and aligns playhead and ruler; the earlier zoom changed only tick labels.
+- Caption clip drag handles modify their correct adjacent scene boundary, not an unrelated clip; duration and source start remain protected.
+- Extending/shrinking a reviewed video scene cannot silently reuse the wrong original source frames; the current tenant and known ffprobe-derived source duration are checked at the UI, while authoritative file-duration checks still occur at the renderer.
+- Scene SFX is now selectable from same-shop licensed audio, visibly plotted at the actual scene start and **capped to existing HyperFrames 2-second, 25%-gain behavior**. It is *not* a general voiceover/multitrack-volume editor.
+- New direct Node `studioSplit`/`studioReorder` edit to trusted Python `compile_approved_storyboard` and `render_inputs` tests establish same-plan preservation for source media, approved copy, trims, music and poster plus tenant/tampered-claim refusal.
+- These tests do not substitute for a complete preview-to-final rendered video equivalence test, real garment/motion signoff, hosted authentication and commercial dependency notices.
