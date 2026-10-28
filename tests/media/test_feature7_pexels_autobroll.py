@@ -269,7 +269,7 @@ class Feature7PexelsRealEditingTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(self.stock_image.read_bytes()).hexdigest(),
           original_photo_sha)
         p=self._ffprobe(output)
-        self.assertAlmostEqual(float(p["format"]["duration"]),10.0,delta=.25)
+        self.assertAlmostEqual(float(p["format"]["duration"]),15.0,delta=.25)
         streams=p["streams"]
         video=next(s for s in streams if s["codec_type"]=="video")
         audio=next(s for s in streams if s["codec_type"]=="audio")
@@ -279,7 +279,7 @@ class Feature7PexelsRealEditingTests(unittest.TestCase):
         self.assertEqual(audio["sample_rate"],"48000")
         # Inspect pixels in each real Pexels segment (not merely metadata).
         frame_digests=[]
-        for second in (1,8):
+        for second in (1,12):
             data=self._ffmpeg(["-ss",str(second),"-i",str(output),
                 "-frames:v","1","-f","framemd5","-"],timeout=45)
             self.assertEqual(data.returncode,0,data.stderr[-1000:])
