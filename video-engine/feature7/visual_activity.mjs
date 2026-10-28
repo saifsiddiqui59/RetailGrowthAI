@@ -15,8 +15,11 @@ function readIntervals(log,pattern,duration_seconds,maxEvents=32) {
   let match;
   while((match=pattern.exec(log))!==null){
     const start=Number(match[1]),end=Number(match[2]);
-    if(!validNumber(start,duration_seconds+.2) ||
-      !validNumber(end,duration_seconds+.2) || end<=start)continue;
+    // FFmpeg may report an interval closing slightly beyond final video time.
+    // Accept at most 2 seconds of decoder overshoot; clamp below to the
+    // verified source duration, never emit out-of-source edit coordinates.
+    if(!validNumber(start,duration_seconds+2) ||
+      !validNumber(end,duration_seconds+2) || end<=start)continue;
     const from=Math.max(0,Math.min(duration_seconds,start));
     const to=Math.max(from,Math.min(duration_seconds,end));
     if(to-from>=.2)ranges.push({start_seconds:+from.toFixed(3),end_seconds:+to.toFixed(3)});
