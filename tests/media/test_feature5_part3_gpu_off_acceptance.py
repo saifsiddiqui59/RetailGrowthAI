@@ -167,7 +167,11 @@ class Feature5Part3OfflineAcceptanceTests(unittest.TestCase):
         other_token=store.login_test_user(foreigner)
         self.assertTrue(store.member(own_token))
         self.assertFalse(store.member(other_token))
-        self.assertFalse(store.member(own_token[:-1]+"0"))
+        # Force a changed signature character; an original '0' must not
+        # accidentally produce an unchanged test token (flaky false pass).
+        corrupted=own_token[:-1]+("1" if own_token[-1]=="0" else "0")
+        self.assertNotEqual(corrupted,own_token)
+        self.assertFalse(store.member(corrupted))
         self.assertIsNone(store.signed_in_private_download(other_token,store.job))
         self.assertIsNone(store.signed_in_private_download(own_token,str(uuid4())))
         receipt=import_wan_into_existing_part3(**params)
