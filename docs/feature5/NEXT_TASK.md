@@ -251,3 +251,11 @@ Check new exact-head CI, then coordinator can reconcile Part3 premium schema/pro
 ## 2026-10-28 — F3→CPU motion→Part3→F4 continuous offline acceptance
 
 Run exact-head four-job CI after new single-path F3→CPU FFmpeg→Part3→F4 integration test. Source-level rehearsal is now a full sequential path, but the native model-origin is explicitly synthetic and different from Wan; keep production blocked until coordinator resolves Part3 Wan2.7 vs F5 Wan2.2 schema/worker, genuine license/tenant-authenticated media, genuine private render and human QA. Real Pexels raw files still not downloaded.
+
+## 2026-10-28 — After immutable import handoff guard
+
+1. Verify latest exact-head GitHub CI (all four required jobs); fix any genuine failures without bypassing tests.
+2. Coordinator must reconcile existing Part3 Wan2.7 provider/credit schema with **separate versioned** Wan2.2 native model, attach real signed tenant/lease/CAS/private Storage callbacks, and run authenticated DEV two-tenant negative acceptance. Feature5 source-only callbacks and mock sessions are not hosted integration.
+3. Obtain lawful actually verified retailer model/garment/try-on originals from Feature3, with human likeness and marketing rights, immutable source SHA; validate with private reads and revocation.
+4. Build externally reviewed immutable ComfyUI/CUDA + wheel SHA image, verify live native node schemas and private staged model hashes without paid A100 launch. Paid capped inference and real garment/Feature4 visual acceptance remain blocked pending explicit separate authorization.
+5. Generate any technical CPU synthetic samples with explicit NOT WAN/NOT CUSTOMER label. Do not mark sample media as real AI or Pexels original.
