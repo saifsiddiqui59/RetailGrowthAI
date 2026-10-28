@@ -180,3 +180,8 @@ Connected DEV project was queried in a read-only rolled-back transaction. Synthe
 ## 2026-10-28 — CPU first-frame cross-feature integration regression
 
 2026-10-28: Added an independent full CPU first-frame F3->Feature5->Pillow board integration test: actual private prepared pixels, hash-bound SKU source, 0600 output, explicit no-FLUX/no-Wan flags and current-rights revocation refusal. No hosted DB writes, GPU or paid API. CI must pass exact newest commit before marking source done.
+
+
+## 2026-10-28 — Part3 native private import GPU-OFF acceptance
+
+2026-10-28: Implemented GPU-OFF native output → private Part3 import/ledger/source rights callback bridge and 6 offline test flows using separate fabricated test-login identities and actual ffmpeg testsrc2 MP4; strict duplicate/revoked/foreign+unknown safety; synthetic only (no model, tenant SQL, hosted JWT or cloud Storage). Branch PR #465, pending exact-head CI. No shared migrations, Azure or WineShopPOS modifications.

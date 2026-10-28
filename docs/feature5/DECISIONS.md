@@ -161,3 +161,8 @@ Technical FFmpeg movement detection is only a low-cost diagnostic: two decoded f
 ## 2026-10-28 — Image-generation A100-free source qualification
 
 Owner requested image generation without A100. Preserve GPU OFF. Official Black Forest Labs FLUX.2 Klein 4B is Apache-2.0, smaller consumer GPU capable (official model listing ~8.4GB model VRAM, support guide ~13GB working VRAM), **not A100-exclusive**. Feature3 owns actual model deployment, sourcing licensing and runway/cost. Feature5's PIL CPU review composite is a deterministic image processing artifact, MUST NOT be described as FLUX generative AI, virtual try-on, realistic garment/likeness fidelity or approved promotion. Need real model and independently authorized host before enabling AI image inference.
+
+
+## 2026-10-28 — Part3 native private import GPU-OFF acceptance
+
+Prioritize immutable at-most-once import: a trusted Part3 service-only SQL CAS must commit unique intent before any potentially successful private write. All post-intent uncertainty is `UnknownPart3PrivateImport` requiring independent object/ledger reconciliation; no refund, replay or manual false success. Existing media bucket `retailgrowth-media` and private path convention are mandatory. Source test fake session is not a signed Supabase JWT and synthetic human review is never legal/quality approval.

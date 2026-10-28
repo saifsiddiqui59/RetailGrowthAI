@@ -206,3 +206,8 @@ Continue GPU-OFF: verify latest CI four jobs and fix any failing tests; independ
 ## 2026-10-28 — CPU first-frame cross-feature integration regression
 
 Verify exact latest SHA 4/4 CI after cross-feature image test. No real licensed stock original bytes or photorealistic image-model inference until separately authorized F3 owned compute/source. A100 stays OFF; coordinator responsible for actual signed tenant lease, importer and Feature4 approval.
+
+
+## 2026-10-28 — Part3 native private import GPU-OFF acceptance
+
+Source-only test accounts now cover two simulated user sessions/shops, successful isolated private media import/download, deny foreign users and swapped lease/hash, unique intent/replay prevention, ambiguous Storage ACK, revoked rights post-upload, forged receipt and synthetic Feature4 metadata. The `test_feature5_part3_gpu_off_acceptance.py` suite exercises **real FFmpeg encoded 121-frame 704×1280 testsrc2**; labels synthetic output NO WAN. Next: run exact-head four CI jobs; coordinator must wire authoritative Part3 DB transaction + Storage upload, source-owner actual F3 rights and F4 real human review before any hosted claim. Actual Pexels raw bytes and signed hosted JWT credentials remain unavailable; never mark simulated sessions as real login.

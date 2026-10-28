@@ -182,3 +182,8 @@ Latest source-only addendum: deterministic two-thread simulated paid dispatcher 
 ## 2026-10-28 — CPU first-frame cross-feature integration regression
 
 Full Feature5-only CPU E2E test now composes a private, clearly NO-AI/PIL reference image from a CURRENT F3 staged first frame and verifies byte SHA, job scope, local file mode, no release, and refusal of a rights revocation. This test uses a synthetic F3 fixture on the stacked branch, not genuine customer grant/FLUX inference.
+
+
+## 2026-10-28 — Part3 native private import GPU-OFF acceptance
+
+New Feature5 `part3_private_import_bridge.py` provides a source-only native Wan → existing Part3 private Storage / settlement handoff. It validates 704×1280 native clip hash and private file security, current tenant/source/lease, reserves an atomic unique import intent **before** Storage write, exact existing private bucket and `{shop}/renders/{job}/{lease}.mp4`, rechecks media and rights, and only accepts an exactly settled authoritative DB receipt consumable by existing Feature4 human-reviewed manifest adapter. After committed intent ANY timeout/mutation/revocation/CAS uncertainty is UNKNOWN with NO retry. No new SQL, real storage, AI inference or paid resources.
