@@ -42,9 +42,24 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261028210000_feature3_private_evidence_commit.sql',
   // Feature3 pending import is SOURCE ONLY, not a hosted migration authorization.
   '20261028223000_feature3_pending_model_import.sql',
+  // Retailer-registered original model PNG, source-only / explicitly not hosted approved.
+  '20261028232000_feature3_model_original_registration.sql',
 ]);
 
 const CAPABILITIES = {
+  '20261028232000': [
+    /create function public[.]feature3_register_model_original/i,
+    /security definer set search_path=''/i,
+    /public[.]shop_memberships/i,
+    /storage[.]objects/i,
+    /owner_id=actor::text/i,
+    /insert into public[.]media_assets/i,
+    /SOURCE_REGISTERED_PENDING_EVIDENCE/i,
+    /byte_sha_verified/i,
+    /license_verified/i,
+    /grant execute on function public[.]feature3_register_model_original/i,
+    /to authenticated/i,
+  ],
   '20261028223000': [
     /create function public[.]feature3_import_pending_model/i,
     /security definer set search_path=''/i,
