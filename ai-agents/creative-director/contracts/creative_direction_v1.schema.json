@@ -212,7 +212,7 @@
         "state": {
           "enum": [
             "ESTIMATED_PENDING_REAL_SPEECH_ALIGNMENT",
-            "REAL_TRANSCRIPT_TIMES_VERIFIED"
+            "WORD_TIMES_MATCH_PENDING_AUDIO_PROVENANCE"
           ]
         },
         "expected_spoken_seconds": {
