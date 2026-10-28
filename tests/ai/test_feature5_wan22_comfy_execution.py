@@ -66,6 +66,7 @@ def inputs(pkg,**extras):
     kwargs=dict(package=pkg,job_id=str(uuid4()),attempt_token=str(uuid4()),
                 verify_existing_fenced_paid_claim=lambda *a: True,
                 verify_current_private_first_frame=private_f3_proof,
+                record_unique_submission_intent=lambda *a: True,
                 operator_image_legal_budget_approved=True,
                 production_runtime_approved=True)
     kwargs.update(extras)
@@ -180,6 +181,61 @@ class WanComfyPrivateProtocolTests(unittest.TestCase):
             with self.subTest(kwargs=kwargs),self.assertRaises(UnknownComfyPaidAttempt):
                 WanPrivateComfyDispatcher(fake,enabled=True).submit_once(**inputs(pkg))
             self.assertEqual(len([x for x in fake.calls if x[0]=="POST"]),1)
+
+    def test_same_dispatcher_consumes_one_submission_and_rejects_repeat(self):
+        pkg=synthetic_package()
+        fake=FakeLocalComfy(pkg)
+        dispatcher=WanPrivateComfyDispatcher(fake,enabled=True)
+        kwargs=inputs(pkg)
+        dispatcher.submit_once(**kwargs)
+        with self.assertRaisesRegex(WanCompatibilityError,"already consumed"):
+            dispatcher.submit_once(**kwargs)
+        self.assertEqual(len([x for x in fake.calls if x[0]=="POST"]),1)
+
+    def test_two_workers_same_fenced_claim_only_one_durable_intent(self):
+        pkg=synthetic_package()
+        job,token=str(uuid4()),str(uuid4())
+        durable=set()
+        recorded=[]
+        def once(shop,jid,attempt,lineage,prompt):
+            key=(shop,jid,attempt)
+            if key in durable:
+                return False
+            durable.add(key)
+            recorded.append((shop,jid,attempt,lineage,prompt))
+            return True
+        args=inputs(pkg,job_id=job,attempt_token=token,
+                    record_unique_submission_intent=once)
+        primary=FakeLocalComfy(pkg)
+        WanPrivateComfyDispatcher(primary,enabled=True).submit_once(**args)
+        duplicate=FakeLocalComfy(pkg)
+        with self.assertRaisesRegex(WanCompatibilityError,"Unique durable"):
+            WanPrivateComfyDispatcher(duplicate,enabled=True).submit_once(**args)
+        self.assertEqual(len(durable),1)
+        self.assertEqual(len(recorded),1)
+        self.assertEqual(recorded[0][-2:],(pkg.lineage_sha256,pkg.prompt_sha256))
+        self.assertEqual(len([x for x in primary.calls if x[0]=="POST"]),1)
+        self.assertEqual(len([x for x in duplicate.calls if x[0]=="POST"]),0)
+
+    def test_uncertain_post_cannot_retry_even_with_identical_prompt_uuid(self):
+        pkg=synthetic_package()
+        fake=FakeLocalComfy(pkg,ambiguous=True)
+        dispatcher=WanPrivateComfyDispatcher(fake,enabled=True)
+        args=inputs(pkg)
+        with self.assertRaises(UnknownComfyPaidAttempt):
+            dispatcher.submit_once(**args)
+        fake.ambiguous=False
+        with self.assertRaisesRegex(WanCompatibilityError,"already consumed"):
+            dispatcher.submit_once(**args)
+        self.assertEqual(len([x for x in fake.calls if x[0]=="POST"]),1)
+
+    def test_missing_durable_intent_callback_denied_before_any_network(self):
+        pkg=synthetic_package()
+        fake=FakeLocalComfy(pkg)
+        with self.assertRaisesRegex(WanCompatibilityError,"disabled"):
+            WanPrivateComfyDispatcher(fake,enabled=True).submit_once(**inputs(
+                pkg,record_unique_submission_intent=None))
+        self.assertEqual(fake.calls,[])
 
     def test_http_transport_rejects_all_non_loopback_or_extraneous_routes_without_socket(self):
         with self.assertRaises(WanCompatibilityError):
