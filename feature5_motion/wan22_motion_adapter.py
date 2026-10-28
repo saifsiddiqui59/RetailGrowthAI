@@ -37,8 +37,17 @@ DIRECTION_KEYS = set("""contract shop_id campaign_id scene_id shot_id shot_start
  negative_constraints requested_profile previous_shot_id next_shot_id reference_facts_sha256""".split())
 DISPATCH_KEYS = set("""source_feature route_owner shop_id campaign_id approval_id review_hash
  shot reviewed coordinator_technical_profile_approved lease_token""".split())
-NODES = {"UNETLoader", "CLIPLoader", "VAELoader", "Wan22ImageToVideoLatent",
-         "KSampler", "VAEDecode", "CreateVideo", "SaveVideo"}
+NODE_INPUTS = {
+    "UNETLoader": {"unet_name", "weight_dtype"},
+    "CLIPLoader": {"clip_name", "type"},
+    "VAELoader": {"vae_name"},
+    "Wan22ImageToVideoLatent": {"width", "height", "length", "vae", "start_image"},
+    "KSampler": {"seed", "steps", "positive", "negative", "latent_image", "model"},
+    "VAEDecode": {"samples", "vae"},
+    "CreateVideo": {"images", "fps"},
+    "SaveVideo": {"video", "filename_prefix"},
+}
+NODES = set(NODE_INPUTS)
 
 
 class WanCompatibilityError(ValueError):
@@ -85,6 +94,19 @@ def validate_runtime_node_types(object_info):
     """Actual private /object_info readback must be supplied by operator; no network."""
     if type(object_info) is not dict or NODES - set(object_info):
         raise WanCompatibilityError("ComfyUI installed native node set unknown")
+    for name, required in NODE_INPUTS.items():
+        node = object_info[name]
+        inp = node.get("input") if type(node) is dict else None
+        if type(inp) is not dict:
+            raise WanCompatibilityError("ComfyUI node has no input contract: " + name)
+        offered = set()
+        for group in ("required", "optional"):
+            part = inp.get(group, {})
+            if type(part) is not dict:
+                raise WanCompatibilityError("ComfyUI malformed native node input")
+            offered.update(part)
+        if required - offered:
+            raise WanCompatibilityError("ComfyUI missing expected native inputs: " + name)
     return True
 
 
