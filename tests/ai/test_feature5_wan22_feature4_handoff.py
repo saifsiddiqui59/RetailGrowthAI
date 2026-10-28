@@ -98,6 +98,25 @@ class WanReviewedFeature4HandoffTests(unittest.TestCase):
                 reviewed_wan_clip_for_feature4(**data)
             self.assertEqual(lookups,[])
 
+    def test_untrusted_rights_path_and_bad_uuid_do_not_query_settlement(self):
+        for field,bad in (("job_id","../bad"),("attempt_token","bad"),("clip_asset_id",None)):
+            k=setup_fixture()
+            lookups=[]
+            k["storage_receipt"][field]=bad
+            k["verify_trusted_settlement_and_storage"]=lambda row: lookups.append(row) or True
+            with self.subTest(field=field),self.assertRaises(WanCompatibilityError):
+                reviewed_wan_clip_for_feature4(**k)
+            self.assertEqual(lookups,[])
+        for key,bad in (("private_staged_path","https://foreign.example/clip.mp4"),
+                        ("rights",{"commercial_use":False,"license":"owned"})):
+            k=setup_fixture()
+            lookups=[]
+            k[key]=bad
+            k["verify_trusted_settlement_and_storage"]=lambda row: lookups.append(row) or True
+            with self.subTest(key=key),self.assertRaises(WanCompatibilityError):
+                reviewed_wan_clip_for_feature4(**k)
+            self.assertEqual(lookups,[])
+
     def test_human_role_source_revocation_and_wrong_fidelity_review_denied(self):
         for field,value in [
             ("reviewer_has_write_role",False),("current_source_approved",False),

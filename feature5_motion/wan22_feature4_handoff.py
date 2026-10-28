@@ -50,11 +50,14 @@ def reviewed_wan_clip_for_feature4(
         not callable(verify_trusted_settlement_and_storage)):
         raise WanCompatibilityError("Fresh active tenant, settled lease and private bytes required")
     info=package.lineage
-    shop=canonical_uuid(info["shop_id"])
-    job=canonical_uuid(storage_receipt["job_id"])
-    token=canonical_uuid(storage_receipt["attempt_token"])
-    clip=canonical_uuid(storage_receipt["clip_asset_id"])
-    source=canonical_uuid(info["source_asset_id"])
+    try:
+        shop=canonical_uuid(info["shop_id"])
+        job=canonical_uuid(storage_receipt["job_id"])
+        token=canonical_uuid(storage_receipt["attempt_token"])
+        clip=canonical_uuid(storage_receipt["clip_asset_id"])
+        source=canonical_uuid(info["source_asset_id"])
+    except (ValueError,TypeError,KeyError) as exc:
+        raise WanCompatibilityError("Invalid current private Wan F4 tenant/job/attempt identifier") from exc
     path=f"{shop}/renders/{job}/{token}.mp4"
     if (storage_receipt["shop_id"]!=shop or
         storage_receipt["source_asset_id"]!=source or
@@ -71,7 +74,17 @@ def reviewed_wan_clip_for_feature4(
         storage_receipt["ledger_status"]!="SETTLED" or
         storage_receipt["rights_approved"] is not True):
         raise WanCompatibilityError("Cross-tenant/attempt or unverified Wan receipt")
-    # Validate the receipt's tenant and hash before contacting trusted DB.
+    # Cheap rights/path checks precede the authoritative DB/ledger lookup;
+    # these client-shaped fields alone never authorize release.
+    if (type(rights) is not dict or rights.get("commercial_use") is not True or
+        rights.get("license") not in VALID_RIGHTS or
+        not isinstance(rights.get("source"),str) or
+        not rights["source"].strip() or
+        not isinstance(rights.get("evidence"),str) or
+        not rights["evidence"].strip()):
+        raise WanCompatibilityError("Motion and reference imagery lack licensing evidence")
+    if not isinstance(private_staged_path,str) or not SAFE_STAGED.fullmatch(private_staged_path):
+        raise WanCompatibilityError("Feature4 expected private staged local MP4")
     if verify_trusted_settlement_and_storage(storage_receipt) is not True:
         raise WanCompatibilityError("Fresh active tenant, settled lease and private bytes required")
     if (not isinstance(human_review,VisualReview) or
@@ -88,15 +101,6 @@ def reviewed_wan_clip_for_feature4(
         )
     except ValueError as exc:
         raise WanCompatibilityError("Wan garment, anatomy or likeness review failed") from exc
-    if (type(rights) is not dict or rights.get("commercial_use") is not True or
-        rights.get("license") not in VALID_RIGHTS or
-        not isinstance(rights.get("source"),str) or
-        not rights["source"].strip() or
-        not isinstance(rights.get("evidence"),str) or
-        not rights["evidence"].strip()):
-        raise WanCompatibilityError("Motion and reference imagery lack licensing evidence")
-    if not isinstance(private_staged_path,str) or not SAFE_STAGED.fullmatch(private_staged_path):
-        raise WanCompatibilityError("Feature4 expected private staged local MP4")
     # Still NOT an external URL or approval for publishing; Feature4 verifies
     # the actual bytes and authorized shop under its own renderer/ledger.
     return clip, {
