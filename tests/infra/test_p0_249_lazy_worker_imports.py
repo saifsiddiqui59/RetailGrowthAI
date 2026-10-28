@@ -74,7 +74,10 @@ def test_worker_imports_are_not_reached_before_disabled_flag_guards():
         guard = next((n for n in nodes if isinstance(n, ast.If) and
                       flag in ast.unparse(n.test)), None)
         assert guard is not None, handler
-        assert any(isinstance(n, ast.Return) for n in guard.body), handler
+        # Disabled timers return; the poster queue must RAISE to avoid
+        # acknowledging/deleting a legitimate queued event while disabled.
+        denial = ast.Raise if handler == "render_campaign_poster" else ast.Return
+        assert any(isinstance(n, denial) for n in guard.body), handler
         for n in nodes:
             if isinstance(n, ast.ImportFrom) and n.module in WORKER_ONLY:
                 assert n.lineno > guard.end_lineno, handler
