@@ -44,7 +44,8 @@ def _check_source(source: Path, *, extension: str, maximum_bytes: int):
     s=source.lstat()
     if not stat.S_ISREG(s.st_mode) or stat.S_ISLNK(s.st_mode) or not 4096<s.st_size<=maximum_bytes:
         raise PexelsFullHdError("Invalid, linked or oversized Pexels media")
-    head=source.open("rb").read(16)
+    with source.open("rb") as source_file:
+        head=source_file.read(16)
     if extension==".mp4" and head[4:8]!=b"ftyp":
         raise PexelsFullHdError("Actual MP4 signature required")
     if extension==".jpg" and head[:3]!=b"\xff\xd8\xff":
