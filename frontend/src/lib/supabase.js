@@ -1,3 +1,4 @@
+import { verifyRetailerInbox } from '../features/dashboard/retailer-inbox-model.mjs'
 // RetailGrowthAI-only lightweight Supabase Auth v1 + PostgREST client.
 // No service-role keys, no client-side authorization assumptions.
 // Use a publishable key and let PostgreSQL RLS enforce every tenant boundary.
@@ -579,20 +580,7 @@ export function createRetailClient({
       method:'POST', token:await accessToken(),
       body:{p_shop_id:shopId,p_view:view,p_category:category,p_limit:limit,p_offset:offset},
     })
-    if (!result || result.shop_id !== shopId || !Array.isArray(result.items) ||
-        result.items.length > limit ||
-        !Number.isSafeInteger(result.unread_total) || result.unread_total < 0 ||
-        !Number.isSafeInteger(result.matching_total) || result.matching_total < 0 ||
-        typeof result.checked_at !== 'string' ||
-        result.items.some(row => !row || row.shop_id !== shopId ||
-          !Number.isSafeInteger(row.id) || row.id < 1 ||
-          !['campaign','video','poster'].includes(row.category) ||
-          !['info','attention'].includes(row.severity) ||
-          typeof row.title !== 'string' || typeof row.detail !== 'string' ||
-          typeof row.created_at !== 'string')) {
-      throw new Error('Retailer inbox records could not be verified')
-    }
-    return result
+    return verifyRetailerInbox(shopId,result,view,category,limit)
   }
   async function setRetailerInboxRead(shopId, id, read) {
     if (!UUID_V4.test(shopId || '') || !Number.isSafeInteger(id) || id < 1 ||
