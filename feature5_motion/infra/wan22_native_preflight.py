@@ -19,7 +19,7 @@ import json
 import re
 from pathlib import Path
 
-from .feature35_comfy_api_graphs import CHECKPOINTS, offline_graph_validate, WorkflowError
+from .feature35_comfy_api_graphs import CHECKPOINTS, offline_graph_validate, wan22_ti2v_5b, WorkflowError
 from ..wan22_motion_adapter import (
     COMFY_SOURCE, WAN_SOURCE, WanCompatibilityError,
     NODE_INPUTS, validate_runtime_node_types,
@@ -158,6 +158,26 @@ def validate_native_graph_against_object_info(graph, object_info):
         lengths[0].get("width"),lengths[0].get("height"),lengths[0].get("length")
     ) not in ((704,1280,121),(1280,704,121)):
         raise WanCompatibilityError("Unsupported native Wan model size or frame count")
+    # An allowlisted class and correct node count do NOT prove that its edges,
+    # sampler, negative conditioning, seed, file paths or output graph are safe.
+    # Reconstruct the entire reviewed graph with strictly typed user-adjustable
+    # fields; *every* node, ID, link, fixed setting and wrapper key must match.
+    try:
+        latent = nodes["7"]["inputs"]
+        sampler = nodes["9"]["inputs"]
+        approved_input_file = nodes["6"]["inputs"]["image"] if "6" in nodes else None
+        canonical = wan22_ti2v_5b(
+            prompt=nodes["4"]["inputs"]["text"],
+            seed=sampler["seed"],
+            approved_input_file=approved_input_file,
+            width=latent["width"], height=latent["height"], frames=latent["length"],
+            fps=nodes["11"]["inputs"]["fps"],
+            output_prefix=nodes["12"]["inputs"]["filename_prefix"],
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise WanCompatibilityError("Invalid pinned Wan node values or IDs") from exc
+    if graph != canonical:
+        raise WanCompatibilityError("Wan graph topology or pinned sampler settings changed")
     return True
 
 
