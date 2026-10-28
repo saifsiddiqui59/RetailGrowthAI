@@ -94,8 +94,8 @@ declare
   a public.media_assets%rowtype;
   target text;
   event_id uuid;
-  required_checks text[] := array['adult_synthetic','likeness_and_consent',
-    'image_license','private_media_integrity','visual_quality','approved_uses'];
+  required_checks text[] := array['adult_synthetic','approved_uses',
+    'image_license','likeness_and_consent','private_media_integrity','visual_quality'];
   k text;
   expected_key text;
 begin
