@@ -124,11 +124,9 @@ class ReviewHTTPTests(unittest.TestCase):
         self.assertEqual(self.store.calls, [])
 
     def test_extra_fields_malformed_method_and_unsupported_route_denied(self):
-        for body in (None, [], {}, {**self.review_body, "reviewer_id": self.user},
-                     {**self.review_body, "checks": True} if False else {}):
-            with self.subTest(body=body), self.assertEqual(
-                    self.handle("POST", self.review, body)[0], 400):
-                pass
+        for body in (None, [], {}, {**self.review_body, "reviewer_id": self.user}):
+            with self.subTest(body=body):
+                self.assertEqual(self.handle("POST", self.review, body)[0], 400)
         for method in ("GET", "PATCH", "DELETE"):
             self.assertEqual(self.handle(method, self.review, self.review_body)[0], 404)
         self.assertEqual(self.handle("POST", self.review + "/extra", self.review_body)[0], 404)
