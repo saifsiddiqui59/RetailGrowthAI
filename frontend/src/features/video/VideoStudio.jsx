@@ -40,17 +40,19 @@ export default function VideoStudio({
       setSubmitted(false)
     }
   }, [approvedRead])
-  const assets = useMemo(() => compatibleMedia(draft.mode, mediaAssets), [draft.mode, mediaAssets])
+  const assets = useMemo(() => compatibleMedia(draft.mode, mediaAssets, shopId), [draft.mode, mediaAssets, shopId])
   const approvedPosters = useMemo(() => (Array.isArray(mediaAssets) ? mediaAssets : [])
-    .filter(asset => asset?.authorized === true && asset?.kind === 'poster'), [mediaAssets])
+    .filter(asset => asset?.authorized === true && asset?.kind === 'poster' &&
+      asset?.shop_id === shopId), [mediaAssets, shopId])
   const issues = useMemo(
     () => [...validateVideoDraft(draft, mediaAssets, musicAssets), ...(approvedRead?.error ? [approvedRead.error] : [])],
-    [draft, mediaAssets, musicAssets],
+    [draft, mediaAssets, musicAssets, approvedRead],
   )
   const patch = (changes) => { if (creativeDirection) return; setDraft(prev => ({ ...prev, ...changes })); setSubmitted(false) }
   const selectedScene = draft.scenes[Math.min(selectedSceneIndex, draft.scenes.length - 1)]
   const sceneSource = (Array.isArray(mediaAssets) ? mediaAssets : [])
-    .find(item => item?.authorized === true && item.id === selectedScene?.asset_id)
+    .find(item => item?.authorized === true && item?.shop_id === shopId &&
+      item.id === selectedScene?.asset_id)
   let previewSource = null
   try {
     if (sceneSource?.shop_id === shopId && sceneSource?.preview_url) {
@@ -138,7 +140,8 @@ export default function VideoStudio({
             <label>Approved soundtrack
               <select disabled={Boolean(creativeDirection)} value={draft.music_asset_id || ''} onChange={e => patch({ music_asset_id: e.target.value || null })}>
                 <option value="">No licensed music / silent export</option>
-                {musicAssets.filter(track => track?.authorized === true && track?.shop_id === shopId).map(track =>
+                {musicAssets.filter(track => track?.authorized === true && track?.shop_id === shopId &&
+                  track?.kind === 'audio').map(track =>
                   <option key={track.id} value={track.id}>{track.title || track.id}</option>)}
               </select>
             </label>

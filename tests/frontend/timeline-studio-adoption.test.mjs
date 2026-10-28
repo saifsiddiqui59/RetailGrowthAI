@@ -193,3 +193,30 @@ test('full-Reel narration is a separate approved, tenant-owned source and not sc
  assert.match(validateVideoDraft(voiced,assets,other).join(';'),/same-shop full-Reel/)
  assert.throws(()=>studioValidatedDraft(voiced,assets,other),/Foreign, unlicensed or revoked/)
 })
+
+test('authoritative shop matching is required for product, poster, music and output validation',()=>{
+ const d=draft()
+ const media=[...assets,{id:'foreign',kind:'image',authorized:true,shop_id:OTHER}]
+ assert.equal(compatibleMedia('media',media,SHOP).some(a=>a.id==='foreign'),false)
+ const {makeVideoDraft}=({makeVideoDraft})
+ const initial=makeVideoDraft({shopId:SHOP,mode:'media',duration:30,mediaAssets:[media.at(-1),...assets]})
+ assert.notEqual(initial.scenes[0].asset_id,'foreign')
+ const foreignAsset={...d,scenes:d.scenes.map((s,i)=>i===0?{...s,asset_id:'foreign'}:s)}
+ assert.match(validateVideoDraft(foreignAsset,media,music).join(';'),/same-shop media/)
+ const foreignPoster={...d,scenes:d.scenes.map((s,i)=>i===1?{...s,poster_overlay_asset_id:'foreign_poster'}:s)}
+ const posters=[...media,{id:'foreign_poster',kind:'poster',authorized:true,shop_id:OTHER}]
+ assert.match(validateVideoDraft(foreignPoster,posters,music).join(';'),/promotional poster/)
+ const foreignMusic={...d,music_asset_id:'licensed_music'}
+ assert.match(validateVideoDraft(foreignMusic,assets,[{...music[0],shop_id:OTHER}]).join(';'),/rights-cleared music/)
+})
+test('front-end refuses unsupported video edits and source-duration overruns before submission',()=>{
+ const d=draft(), measured=assets.map(a=>a.id==='motion1'?{...a,duration_seconds:10}:a)
+ const forged={...d,scenes:d.scenes.map((s,i)=>i===1?{...s,trim_start:2}:s)}
+ assert.match(validateVideoDraft(forged,measured,music).join(';'),/verified video source duration/)
+ const imageTrim={...d,scenes:d.scenes.map((s,i)=>i===0?{...s,trim_start:3}:s)}
+ assert.match(validateVideoDraft(imageTrim,measured,music).join(';'),/invalid approved video trim/)
+ const wrongMute={...d,scenes:d.scenes.map((s,i)=>i===0?{...s,mute_source:true}:s)}
+ assert.match(validateVideoDraft(wrongMute,measured,music).join(';'),/source audio mute/)
+ const shortVoice={...d,voiceover_asset_id:'licensed_music'}
+ assert.match(validateVideoDraft(shortVoice,assets,[{...music[0],duration_seconds:8}]).join(';'),/does not cover/)
+})

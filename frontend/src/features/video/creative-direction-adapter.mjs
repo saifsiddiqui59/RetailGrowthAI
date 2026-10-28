@@ -13,7 +13,7 @@ export function inspectCreativeDirection(packageData, { shopId, mediaAssets = []
     throw Error('Trusted, versioned Feature #2 creative direction is required')
   }
   const creative = packageData.scenes
-  const assets = compatibleMedia('media', mediaAssets).filter(a => a.shop_id === shopId)
+  const assets = compatibleMedia('media', mediaAssets, shopId)
   let position = 0
   const scenes = creative.map((shot, index) => {
     if (!shot || !Number.isFinite(shot.duration) || shot.duration < 0.5 ||
@@ -39,7 +39,7 @@ export function inspectCreativeDirection(packageData, { shopId, mediaAssets = []
       typeof packageData.cta !== 'string' || !packageData.cta.trim() ||
       packageData.cta.length > 110 || !['cinematic','streetwear','festival'].includes(packageData.template) ||
       (packageData.music_asset_id && !musicAssets.some(a => a.id === packageData.music_asset_id &&
-        a.authorized === true && a.shop_id === shopId))) {
+        a.authorized === true && a.shop_id === shopId && a.kind === 'audio'))) {
     throw Error('Feature #2 direction has unsupported timeline, CTA or licensed soundtrack')
   }
   if (packageData.voiceover_asset_id != null &&

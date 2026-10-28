@@ -16,17 +16,19 @@ export const VIDEO_TRANSITIONS = Object.freeze(['fade', 'slide', 'cut'])
 const LIMITS = { text: null, image: ['image'], poster: ['poster'], media: ['image', 'poster', 'video'], music_sync: ['image', 'poster', 'video'] }
 const valid = (n) => typeof n === 'number' && Number.isFinite(n)
 
-export function compatibleMedia(mode, assets) {
+export function compatibleMedia(mode, assets, shopId = null) {
   return (Array.isArray(assets) ? assets : []).filter(item =>
     item && item.authorized === true && typeof item.id === 'string' &&
-    /^[a-zA-Z0-9_-]{1,100}$/.test(item.id) && LIMITS[mode]?.includes(item.kind))
+    /^[a-zA-Z0-9_-]{1,100}$/.test(item.id) &&
+    (shopId === null || item.shop_id === shopId) &&
+    LIMITS[mode]?.includes(item.kind))
 }
 
 export function makeVideoDraft({ shopId, mode = 'image', template = 'streetwear',
   duration = 15, mediaAssets = [] }) {
   if (!VIDEO_MODES.some(([key]) => key === mode) || !VIDEO_TEMPLATES.some(([key]) => key === template) ||
       ![15, 30, 60].includes(duration)) throw Error('Invalid video configuration')
-  const media = compatibleMedia(mode, mediaAssets)
+  const media = compatibleMedia(mode, mediaAssets, shopId)
   return {
     version: 'rg_video_v2', shop_id: shopId, mode, template, duration_seconds: duration,
     output: { width: 1080, height: 1920, fps: 30 },
@@ -80,11 +82,13 @@ export function shiftVideoScene(scenes, from, move) {
 export function validateVideoDraft(plan, mediaAssets = [], musicAssets = []) {
   const errors = []
   if (!plan || plan.version !== 'rg_video_v2') return ['Unsupported timeline version']
+  if (typeof plan.shop_id !== 'string' || !plan.shop_id) return ['Selected tenant is required']
   if (!VIDEO_MODES.some(([key]) => key === plan.mode)) errors.push('Choose a video mode')
   if (!VIDEO_TEMPLATES.some(([key]) => key === plan.template)) errors.push('Choose a template')
   if (![15, 30, 60].includes(plan.duration_seconds)) errors.push('Duration must be 15, 30 or 60 seconds')
   if (!Array.isArray(plan.scenes) || !plan.scenes.length || plan.scenes.length > 12) return [...errors, 'Expected 1–12 scenes']
-  const allowed = new Set(compatibleMedia(plan.mode, mediaAssets).map(media => media.id))
+  const authorizedMedia = compatibleMedia(plan.mode, mediaAssets, plan.shop_id)
+  const allowed = new Set(authorizedMedia.map(media => media.id))
   let time = 0
   for (const [index, scene] of plan.scenes.entries()) {
     if (!valid(scene.start) || !valid(scene.duration) || scene.duration < .5 ||
@@ -92,7 +96,22 @@ export function validateVideoDraft(plan, mediaAssets = [], musicAssets = []) {
     if (typeof scene.headline !== 'string' || !scene.headline.trim() || scene.headline.length > 110) {
       errors.push('Every scene needs an approved headline (max 110 characters)')
     }
-    if (plan.mode !== 'text' && !allowed.has(scene.asset_id)) errors.push('Scene ' + (index + 1) + ' needs authorized media')
+    if (plan.mode !== 'text' && !allowed.has(scene.asset_id)) errors.push('Scene ' + (index + 1) + ' needs authorized same-shop media')
+    const source = authorizedMedia.find(asset => asset.id === scene.asset_id)
+    if (scene.trim_start != null) {
+      if (source?.kind !== 'video' || !valid(scene.trim_start) ||
+          scene.trim_start < 0 || scene.trim_start > 180) {
+        errors.push('Scene ' + (index + 1) + ' has invalid approved video trim')
+      }
+    }
+    if (scene.mute_source != null && (source?.kind !== 'video' || typeof scene.mute_source !== 'boolean')) {
+      errors.push('Scene ' + (index + 1) + ' has unsupported source audio mute')
+    }
+    if (source?.kind === 'video' && valid(source.duration_seconds) &&
+        source.duration_seconds > 0 &&
+        (scene.trim_start || 0) + scene.duration > source.duration_seconds + .02) {
+      errors.push('Scene ' + (index + 1) + ' exceeds verified video source duration')
+    }
     if (scene.animation_preset != null && !VIDEO_ANIMATIONS.includes(scene.animation_preset)) {
       errors.push('Scene ' + (index + 1) + ' has an unapproved motion preset')
     }
@@ -101,7 +120,8 @@ export function validateVideoDraft(plan, mediaAssets = [], musicAssets = []) {
     }
     if (scene.poster_overlay_asset_id != null) {
       const poster = mediaAssets.find(item => item?.authorized === true &&
-        item?.kind === 'poster' && item?.id === scene.poster_overlay_asset_id)
+        item?.kind === 'poster' && item?.id === scene.poster_overlay_asset_id &&
+        item?.shop_id === plan.shop_id)
       if (!poster || poster.id === scene.asset_id) {
         errors.push('Scene ' + (index + 1) + ' needs a distinct authorized promotional poster')
       }
@@ -123,8 +143,16 @@ export function validateVideoDraft(plan, mediaAssets = [], musicAssets = []) {
       a?.kind === 'audio' && a?.shop_id === plan.shop_id)) {
     errors.push('Select an approved same-shop full-Reel narration recording')
   }
-  if (plan.music_asset_id != null && !musicAssets.some(m => m.id === plan.music_asset_id && m.authorized === true)) {
+  if (plan.music_asset_id != null && !musicAssets.some(m =>
+      m?.id === plan.music_asset_id && m?.authorized === true &&
+      m?.kind === 'audio' && m?.shop_id === plan.shop_id)) {
     errors.push('Select a rights-cleared music track')
+  }
+  if (plan.voiceover_asset_id != null && musicAssets.some(a =>
+      a?.id === plan.voiceover_asset_id && a?.authorized === true &&
+      a?.shop_id === plan.shop_id && a?.kind === 'audio' &&
+      valid(a.duration_seconds) && a.duration_seconds + .06 < plan.duration_seconds)) {
+    errors.push('Approved full-Reel narration does not cover the full video duration')
   }
   if (plan.mode === 'music_sync' &&
       (!plan.music_asset_id || !Array.isArray(plan.beats) || plan.beats.length < 2)) {
