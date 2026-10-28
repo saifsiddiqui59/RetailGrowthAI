@@ -110,3 +110,9 @@ GitHub Actions #40671108819 passed 4/4 and 114 media unit tests. Full-HD 30s syn
 ## Optional F4-08 deployment qualification prerequisite
 
 Before adding a production Node/Chromium sidecar or worker, compare the real deployed image against the offline `qualify_runtime.py` checks: Node >=22.12.0, pinned HyperFrames producer 0.8.185, actual executable Puppeteer Headless Shell, working FFmpeg/FFprobe and observed cgroup memory ceiling. These checks must be run **inside the intended Azure worker**, not simply on GitHub. Reported GitHub resource measurements and any sample license status are not transferable to Azure. The script itself has no tenant/media network calls and produces only a local diagnostic JSON.
+
+## Verified F4-08 source/runtime checkpoint — 28 October 2026
+
+The latest exact code-head [Actions #40672638751](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40672638751) passed all four jobs and **117 media tests**. Its offline local runtime preflight validated Node **22.23.3**, minimum **22.12.0**, HyperFrames producer **0.8.185**, executable Chrome Headless Shell and available FFmpeg/FFprobe. The Full-HD 30s synthetic CPU render took **135.280 seconds**, reported **1,769,979,904 bytes peak sampled process RSS**, and passed final H.264/AAC 1080×1920 24fps checks. GitHub synthetic CPU is NOT an Azure sizing/cost result; 2GB memory is a potential risk to benchmark, not a guaranteed fit or an instruction to pay for more capacity.
+
+The separate [#40671875262](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40671875262) passed **115 media tests** with a real negative H.264/AAC **yuv444p** output rejected by the Python final-output verifier; current code retains that independent defense. Source-only PR #322 stays draft. No public API, Azure, schema, feature team, WineShopPOS or production changes. The code does not generate a photorealistic wearer or execute AI shot understanding.
