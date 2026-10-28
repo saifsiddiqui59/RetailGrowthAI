@@ -471,6 +471,42 @@ export function createRetailClient({
       license_name: licenseName, object_path: objectPath }
   }
 
+  // Separate signed model-original upload: never changes /uploads/ behavior
+  // or asserts that licensed source bytes have been reviewed.
+  async function uploadModelOriginal(shopId, {file, modelId, licenseName,
+    licenseUrl = '', attribution = '', confirmedRights = false}) {
+    ensureConfigured()
+    if (!UUID_V4.test(shopId || '') || !UUID_V4.test(modelId || '') ||
+        !confirmedRights || !LICENSES.has(licenseName) ||
+        typeof attribution !== 'string' ||
+        attribution.trim().length < 10 || attribution.trim().length > 200 ||
+        typeof licenseUrl !== 'string' || licenseUrl.length > 500)
+      throw new Error('Valid shop, model and declared source rights required.')
+    if (licenseName !== 'owned') {
+      try {
+        const link = new URL(licenseUrl)
+        if (link.protocol !== 'https:' || !link.hostname || link.username || link.password)
+          throw new Error('Invalid license evidence URL')
+      } catch { throw new Error('HTTPS source license evidence is required.') }
+    }
+    await verifyImageBytes(file)
+    if (file.type !== 'image/png') throw new Error('Model original must be PNG.')
+    if (!globalThis.crypto?.subtle) throw new Error('Secure SHA256 unavailable')
+    const digestBytes = await globalThis.crypto.subtle.digest('SHA-256',await file.arrayBuffer())
+    const digest = Array.from(new Uint8Array(digestBytes), b => b.toString(16).padStart(2,'0')).join('')
+    const objectPath = shopId+'/model-library/'+modelId+'/'+digest+'.png'
+    const response = await fetchImpl(origin+'/storage/v1/object/retailgrowth-media/'+objectPath,{
+      method:'POST',redirect:'error',cache:'no-store',
+      headers:{apikey:key,Authorization:'Bearer '+await accessToken(),
+        'Content-Type':'image/png','x-upsert':'false'},
+      body:file,
+    })
+    if (!response.ok) throw new Error('Private original upload denied or exists')
+    return Object.freeze({shop_id:shopId,model_id:modelId,object_path:objectPath,
+      image_sha256:digest,bytes:file.size,upload_only:true,
+      rights_verified:false,registered:false})
+  }
+
   // Existing campaign_days RLS already checks active shop membership.
   // One read-only, bounded month query; NOT a social posting history endpoint.
   async function listShopCalendarMonth(shopId, month) {
@@ -510,10 +546,14 @@ export function createRetailClient({
     const filePath = new RegExp('^' + shopId +
       '/uploads/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}' +
       ext.replace('.', '[.]') + '$', 'i')
+    const modelPath = new RegExp('^' + shopId +
+      '/model-library/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/[a-f0-9]{64}[.]png$', 'i')
     if (!row || row.id !== assetId || row.shop_id !== shopId ||
         row.storage_bucket !== 'retailgrowth-media' || row.source !== 'UPLOAD' ||
         !ext || typeof row.license_name !== 'string' || !row.license_name.trim() ||
-        typeof row.object_path !== 'string' || !filePath.test(row.object_path)) {
+        typeof row.object_path !== 'string' ||
+        !(filePath.test(row.object_path) || (row.mime_type === 'image/png' &&
+          modelPath.test(row.object_path)))) {
       throw new Error('This private uploaded image is not registered or authorized')
     }
     const endpoint = origin + '/storage/v1/object/authenticated/retailgrowth-media/' +
@@ -696,7 +736,7 @@ export function createRetailClient({
     listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
     isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
     listPlatformNotifications, setPlatformNotificationRead, listPlatformSubscriptionWatch,
-    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, listMediaAssetsPage, listMediaAssetsKeysetPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset,
+    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, listMediaAssetsPage, listMediaAssetsKeysetPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset, uploadModelOriginal,
   }
 }
 

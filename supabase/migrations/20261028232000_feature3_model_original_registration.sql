@@ -2,6 +2,21 @@
 -- SOURCE ONLY, NO hosted DEV execution or paid/GPU activation.
 begin;
 
+-- Add the exact signed-upload namespace needed by feature3_register_model_original.
+-- Existing user uploads remain allowed. Browser may never write GPU outputs.
+drop policy retailgrowth_media_insert on storage.objects;
+create policy retailgrowth_media_insert on storage.objects
+ for insert to authenticated with check (
+  bucket_id='retailgrowth-media'
+  and retail_private.has_role(retail_private.media_path_shop(name),array['OWNER','EDITOR'])
+  and (
+   name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/uploads/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}[.](png|jpg|webp)$'
+   or
+   (name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/model-library/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/[a-f0-9]{64}[.]png$'
+     and owner_id=(select auth.uid())::text)
+  )
+ );
+
 create function public.feature3_register_model_original(
  p_shop_id uuid,p_model_id uuid,p_image_sha256 text,
  p_license_name text,p_license_url text,p_attribution text

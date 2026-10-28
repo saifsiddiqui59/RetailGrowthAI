@@ -72,6 +72,39 @@ export function createFeature3ModelWorkflowApi({baseUrl,tokenProvider,fetchImpl 
     return Object.freeze({...receipt})
   }
   return Object.freeze({
+    registerModelOriginal: async (shopId,input) => {
+      const sid = id(shopId)
+      exact(input,['model_id','image_sha256','license_name','license_url','attribution'])
+      const mid = id(input.model_id)
+      sha(input.image_sha256)
+      if (!['owned','cc0','commercial','royalty_free'].includes(input.license_name) ||
+          typeof input.attribution !== 'string' ||
+          input.attribution.trim().length < 10 || input.attribution.trim().length > 200 ||
+          [...input.attribution].some(c=>c.charCodeAt(0)<32 || c.charCodeAt(0)===127) ||
+          (input.license_url !== null &&
+            (typeof input.license_url !== 'string' || input.license_url.length > 500)) ||
+          (input.license_name !== 'owned' && !input.license_url)) {
+        throw Error('Source registration needs a declared legal basis and attribution')
+      }
+      if (input.license_url !== null) {
+        const link = new URL(input.license_url)
+        if (link.protocol !== 'https:' || link.username || link.password || !link.hostname)
+          throw Error('Untrusted license-evidence URL')
+      }
+      const result = await request(sid,'/feature3-model-originals/register',{
+        ...input,model_id:mid,attribution:input.attribution.trim(),
+      })
+      exact(result,['shop_id','model_id','media_asset_id','image_sha256',
+        'registered','byte_sha_verified','license_verified','status','gpu_authorized'])
+      must(result.shop_id===sid && result.model_id===mid &&
+        UUID.test(result.media_asset_id) &&
+        result.image_sha256===input.image_sha256 &&
+        result.registered===true && result.byte_sha_verified===false &&
+        result.license_verified===false &&
+        result.status==='SOURCE_REGISTERED_PENDING_EVIDENCE' &&
+        result.gpu_authorized===false)
+      return Object.freeze({...result})
+    },
     importPendingModel: async (shopId,input) => {
       const sid = id(shopId)
       exact(input,IMPORT_KEYS)
