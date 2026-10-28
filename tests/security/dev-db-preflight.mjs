@@ -34,9 +34,25 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   // Hosted history already includes Feature2; Feature3 is the last pending migration.
   '20261028092346_feature3_model_catalog_drafts.sql',
   '20261028101328_feature3_gpu_budget_jobs.sql',
+  // Feature #1 retailer inbox is additive, SOURCE-ONLY and not a hosted release authorization.
+  '20261028173000_feature1_retailer_inbox.sql',
 ]);
 
 const CAPABILITIES = {
+  '20261028173000': [
+    /create table retail_private[.]retailer_inbox_events/i,
+    /create table retail_private[.]retailer_inbox_reads/i,
+    /alter table retail_private[.]retailer_inbox_events enable row level security/i,
+    /alter table retail_private[.]retailer_inbox_reads enable row level security/i,
+    /revoke all on retail_private[.]retailer_inbox_events from public,anon,authenticated/i,
+    /revoke all on retail_private[.]retailer_inbox_reads from public,anon,authenticated/i,
+    /retail_private[.]has_role[(]p_shop_id/i,
+    /create function public[.]retail_retailer_inbox/i,
+    /create function public[.]retail_retailer_set_inbox_read/i,
+    /capture_retailer_job_event/i,
+    /grant execute on function public[.]retail_retailer_inbox/i,
+    /grant execute on function public[.]retail_retailer_set_inbox_read/i,
+  ],
   '20261028101328': [
     /alter table public[.]shop_ai_budget_controls/i,
     /feature3_gpu_enabled boolean not null default false/i,
