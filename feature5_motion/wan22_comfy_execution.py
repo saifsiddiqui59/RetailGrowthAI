@@ -85,30 +85,37 @@ class WanPrivateComfyDispatcher:
     def __init__(self, transport=None, *, enabled=False):
         self.enabled=enabled
         self.transport=transport
+        self._attempt_consumed=False
 
     def submit_once(
         self, *, package, job_id, attempt_token,
         verify_existing_fenced_paid_claim, verify_current_private_first_frame,
+        record_unique_submission_intent,
         operator_image_legal_budget_approved=False,
         production_runtime_approved=False,
     ):
         """Return only queue receipt; must never issue a second paid attempt.
 
-        verify_* callbacks MUST be wired to real server-side DB/media records
-        by the coordinator. Test doubles only validate shape in unit tests.
+        verify_* and record_unique_submission_intent callbacks MUST be wired
+        to real server-side DB/media records by the coordinator. The intent
+        callback must be an atomic durable compare-and-swap against the
+        EXISTING prepaid claim; test doubles only validate boundary semantics.
         """
         if (self.enabled is not True or
             operator_image_legal_budget_approved is not True or
             production_runtime_approved is not True or
             not callable(self.transport) or
             not callable(verify_existing_fenced_paid_claim) or
-            not callable(verify_current_private_first_frame)):
+            not callable(verify_current_private_first_frame) or
+            not callable(record_unique_submission_intent)):
             raise WanCompatibilityError("Wan local paid submission disabled or not authorized")
         if (not isinstance(package,WanShotPackage) or
             package.provider!="wan22_ti2v_5b_comfy_v1" or
             package.task!="image_to_video" or
             package.status!="NOT_GENERATED_REVIEW_REQUIRED"):
             raise WanCompatibilityError("Only reviewed Feature2->Feature4 image-to-video packages")
+        if self._attempt_consumed:
+            raise WanCompatibilityError("Comfy dispatcher already consumed one paid attempt")
         job=canonical_uuid(job_id)
         token=canonical_uuid(attempt_token)
         shop=canonical_uuid(package.lineage["shop_id"])
@@ -149,9 +156,18 @@ class WanPrivateComfyDispatcher:
             package.graph,object_info,expected_input_filename=proof["staged_basename"],
             expected_negative_prompt=negative)
         body={"prompt":package.graph["prompt"],"prompt_id":token}
-        # The provider POST is allowed EXACTLY ONCE here. The Comfy server
-        # accepts duplicate prompt IDs, so UUID alone does not deduplicate.
-        # A missing/bad acknowledgement is UNKNOWN and must not be retried.
+        # The caller's EXISTING Part3 transaction must atomically change this
+        # exact claim from READY to SUBMISSION_INTENT_RECORDED, once only, with
+        # lease owner, timestamp and no retry. A boolean checked earlier is
+        # insufficient across worker processes. The attempt UUID by itself
+        # is NOT idempotency enforced by ComfyUI.
+        self._attempt_consumed=True
+        if record_unique_submission_intent(
+                shop,job,token,package.lineage_sha256,
+                package.prompt_sha256) is not True:
+            raise WanCompatibilityError("Unique durable paid submission intent denied")
+        # Even an uncertain POST stays consumed: coordinator reconciles the
+        # existing durable intent. Never automatically replay this operation.
         try:
             ack=self.transport("POST","/prompt",body)
         except Exception as exc:
