@@ -16,7 +16,7 @@ CHECKPOINTS = {
     "flux": ("flux-2-klein-4b.safetensors", "qwen_3_4b.safetensors", "flux2-vae.safetensors"),
     "wan": ("wan2.2_ti2v_5B_fp16.safetensors", "umt5_xxl_fp8_e4m3fn_scaled.safetensors", "wan2.2_vae.safetensors"),
 }
-SAFE_INPUT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,128}\\.(?:png|jpg|jpeg|webp)$")
+SAFE_INPUT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,128}\.(?:png|jpg|jpeg|webp)$")
 SAFE_OUTPUT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_/-]{0,110}$")
 
 
@@ -25,7 +25,7 @@ class WorkflowError(ValueError):
 
 
 def _text(s):
-    if not isinstance(s, str) or not s.strip() or len(s) > 3000 or any(ord(ch) < 32 and ch not in "\\n\\t" for ch in s):
+    if not isinstance(s, str) or not s.strip() or len(s) > 3000 or any(ord(ch) < 32 and ch not in "\n\t" for ch in s):
         raise WorkflowError("Invalid narrative prompt")
     return s.strip()
 
@@ -43,7 +43,7 @@ def _seed(value):
 
 
 def _filename(value):
-    if not isinstance(value, str) or not SAFE_INPUT.fullmatch(value) or ".." in value or "/" in value or "\\\\" in value:
+    if not isinstance(value, str) or not SAFE_INPUT.fullmatch(value) or ".." in value or "/" in value or "\\" in value:
         raise WorkflowError("ComfyUI input must be a validated private staging basename")
     return value
 
