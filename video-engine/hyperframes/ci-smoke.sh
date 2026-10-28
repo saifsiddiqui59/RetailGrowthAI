@@ -44,9 +44,9 @@ PROJECT_HD="$TEMP/diwali-1080p"
 OUTPUT_HD="$ROOT/ci-artifacts/feature4-30s-1080p-hyperframes-synthetic.mp4"
 python3 "$ROOT/video-engine/demo_feature4_diwali.py" "$PROJECT_HD" --seconds 30 --width 1080
 if (( NODE_MAJOR >= 22 )); then
-  timeout --signal=TERM --kill-after=10s 420s node "$ROOT/video-engine/hyperframes/render.mjs" "$PROJECT_HD" "$OUTPUT_HD"
+  timeout --signal=TERM --kill-after=10s 440s python3 "$ROOT/video-engine/hyperframes/benchmark_render.py" "$PROJECT_HD" "$OUTPUT_HD" "$ROOT/ci-artifacts/feature4-1080p-cpu-benchmark.json" --timeout 420
 else
-  timeout --signal=TERM --kill-after=10s 420s npm exec --yes --package=node@22 -- node "$ROOT/video-engine/hyperframes/render.mjs" "$PROJECT_HD" "$OUTPUT_HD"
+  timeout --signal=TERM --kill-after=10s 440s python3 "$ROOT/video-engine/hyperframes/benchmark_render.py" "$PROJECT_HD" "$OUTPUT_HD" "$ROOT/ci-artifacts/feature4-1080p-cpu-benchmark.json" --timeout 420 --use-npm-node22
 fi
 python3 - "$OUTPUT_HD" <<'PY'
 import json,subprocess,sys
