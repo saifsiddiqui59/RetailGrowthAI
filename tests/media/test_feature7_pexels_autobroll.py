@@ -237,6 +237,72 @@ class Feature7PexelsRealEditingTests(unittest.TestCase):
                          original_image_hash)
         # TemporaryDirectory removes all originals, prepared media and outputs.
 
+    def test_full_hd_1080x1920_30fps_social_reel_from_actual_pexels_media(self):
+        """Actual Full HD H264/AAC stock sample, NOT customer-approved publishing.
+
+        The production export preset imports the pre-existing MIT AutoBroll
+        caption planner; it does NOT create a competing Feature4 editor.
+        """
+        import sys
+        sys.path.insert(0, str(ROOT / "video-engine" / "feature7"))
+        from pexels_fullhd_export import render_pexels_fullhd
+        original_video_sha=hashlib.sha256(self.stock_video.read_bytes()).hexdigest()
+        original_photo_sha=hashlib.sha256(self.stock_image.read_bytes()).hexdigest()
+        output=self.home/"pexels_fullhd_1080x1920_retail_sample.mp4"
+        receipt=render_pexels_fullhd(
+            video=self.stock_video,photo=self.stock_image,
+            output=output,timeout_seconds=240)
+        self.assertTrue(output.is_file())
+        self.assertEqual((receipt["width"],receipt["height"]),(1080,1920))
+        self.assertEqual(receipt["fps"],30)
+        self.assertEqual(receipt["video_codec"],"h264")
+        self.assertEqual(receipt["audio_codec"],"aac")
+        self.assertEqual(receipt["sample_rate_hz"],48000)
+        self.assertGreater(receipt["bytes"],600000)
+        self.assertFalse(receipt["gpu_started"])
+        self.assertFalse(receipt["customer_rights_approved"])
+        self.assertFalse(receipt["customer_final_download_ready"])
+        self.assertEqual(receipt["soundtrack"],
+          "SILENT_AAC_PLACEHOLDER_NO_LICENSED_MUSIC")
+        self.assertEqual(hashlib.sha256(self.stock_video.read_bytes()).hexdigest(),
+          original_video_sha)
+        self.assertEqual(hashlib.sha256(self.stock_image.read_bytes()).hexdigest(),
+          original_photo_sha)
+        p=self._ffprobe(output)
+        self.assertAlmostEqual(float(p["format"]["duration"]),10.0,delta=.25)
+        streams=p["streams"]
+        video=next(s for s in streams if s["codec_type"]=="video")
+        audio=next(s for s in streams if s["codec_type"]=="audio")
+        self.assertEqual(video["r_frame_rate"],"30/1")
+        self.assertEqual(video["pix_fmt"],"yuv420p")
+        self.assertEqual((video["width"],video["height"]),(1080,1920))
+        self.assertEqual(audio["sample_rate"],"48000")
+        # Inspect pixels in each real Pexels segment (not merely metadata).
+        frame_digests=[]
+        for second in (1,8):
+            data=self._ffmpeg(["-ss",str(second),"-i",str(output),
+                "-frames:v","1","-f","framemd5","-"],timeout=45)
+            self.assertEqual(data.returncode,0,data.stderr[-1000:])
+            frame_digests.append(hashlib.sha256(data.stdout.encode()).hexdigest())
+        self.assertNotEqual(frame_digests[0],frame_digests[1])
+
+    def test_full_hd_export_refuses_unsafe_output_replay_and_wrong_source(self):
+        import sys
+        sys.path.insert(0, str(ROOT / "video-engine" / "feature7"))
+        from pexels_fullhd_export import render_pexels_fullhd, PexelsFullHdError
+        output=self.home/"existing_original.mp4"
+        output.write_bytes(b"keep me")
+        with self.assertRaises(PexelsFullHdError):
+            render_pexels_fullhd(video=self.stock_video,
+              photo=self.stock_image,output=output)
+        self.assertEqual(output.read_bytes(),b"keep me")
+        fake=self.home/"pretend.jpg"
+        fake.write_bytes(b"not an image"*800)
+        with self.assertRaises(PexelsFullHdError):
+            render_pexels_fullhd(video=self.stock_video,
+              photo=fake,output=self.home/"fake_render.mp4")
+        self.assertFalse((self.home/"fake_render.mp4").exists())
+
     def test_pexels_sources_carry_live_video_and_still_signatures(self):
         self.assertGreater(self.video_receipt["bytes"],4096)
         self.assertGreater(self.image_receipt["bytes"],4096)
