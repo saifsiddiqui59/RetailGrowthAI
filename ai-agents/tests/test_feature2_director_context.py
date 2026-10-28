@@ -87,6 +87,9 @@ def test_uses_only_signed_shop_profile_and_server_grants(duration):
     out = build_verified_director_context(**kwargs)
     assert out["business_name"] == "Thread and Loom Studio"
     assert out["media_grants"][0]["garment_facts"]["embroidery"] == "gold motifs across the front"
+    assert out["media_grants"][0]["original_media_sha256"] == "a" * 64
+    assert out["media_grants"][0]["private"] is True
+    assert out["media_grants"][0]["commercial_use_allowed"] is True
     assert out["approved_offers"][0]["percent_off"] == 20
     assert out["approved_offers"][0]["approved_claim_text"] == "20% off selected kurtis"
     assert out["approved_offers"][0]["eligible_product_skus"] == ["KURTI-RED-01"]
