@@ -37,6 +37,14 @@ Optional **stat-only** check on a mounted volume uses `--mounted-root /mnt/retai
 - Official ComfyUI workflow templates MUST be downloaded and pinned as reviewed **CPU-only source** under coordinator scope before an image is built. The `retailer_t2v_i2v_preflight.example.json` is an illustrative requirements fixture, **not a ComfyUI API workflow or generated video**. Scripts must not silently install community custom nodes, latest Python/Torch/CUDA or fetch weights at runtime.
 - A minimal canary will generate one genuine 5-second / 24 fps source clip, then human-check hands/face/garment and hand to Feature4 for **accurate text/logo/approved soundtrack overlays**. Feature2 owns script; Feature3 owns approved reference PNG; Feature4 final render; Feature5 generates temporal motion.
 
+
+## Additional verified upstream native workflow inspection
+Read-only source inspection at pinned official Comfy-Org/workflow_templates commit `e7cd011d4ded3411c2f481200544f0be6fdc962e`:
+- Wan UI workflow `templates/video_wan2_2_5B_ti2v.json` has 13 nodes with `UNETLoader`, `CLIPLoader`, `VAELoader`, `Wan22ImageToVideoLatent`, `KSampler`, `VAEDecode`, `CreateVideo`, and `SaveVideo`. Loader filenames **exactly** match the three stored Wan files. It defaults to 1280x704 and 121 frames at 24fps (~5s) with an image input; T2V requires correct optional start-image handling and a reviewed ComfyUI API-format graph, not merely removing a file from JSON by guess.
+- FLUX 4B edit UI workflow `templates/image_flux2_klein_image_edit_4b_distilled.json` references **`flux-2-klein-4b-fp8.safetensors`**, not the staged `flux-2-klein-4b.safetensors`. The official example uses saved subgraph node IDs and is NOT ready to submit to the headless ComfyUI API as-is. Preserve the existing 7.75 GB checkpoint and review loader/precision widget overrides and upstream subgraph compatibility *offline* rather than downloading replacement weights or pretending it works.
+- FLUX text-to-image `templates/image_flux2_klein_text_to_image.json` uses embedded native subgraph nodes instead of a simple top-level UNETLoader; its actual inner model references need inspection/normalization before using the staged checkpoint.
+- These are verified **source template observations**, not CUDA inference or a license attestation. All three workflows remain unexecuted, and image/build dependencies remain unpinned.
+
 ## Still blocked / must not run
 1. Independently read Azure manifest and actual account/share/secure environment storage configuration; upstream revision commit IDs and model readback via Azure OIDC. Current branch has **no cloud Azure CLI session**.
 2. Source-pin official FLUX T2I + image-editing and Wan TI2V T2V/I2V API workflows; review pinned Python/CUDA/Torch/ComfyUI and OCI image digest, license/attribution, file-format and CPU JSON validation. No GPU-inference proof exists.
