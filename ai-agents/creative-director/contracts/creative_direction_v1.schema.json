@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:retailgrowthai:feature2:creative_direction_v1",
+  "type": "object",
+  "required": [
+    "contract",
+    "version",
+    "shop_id",
+    "campaign_id",
+    "duration_seconds",
+    "aspect_ratio",
+    "concept",
+    "hook",
+    "voiceover_script",
+    "dialogue_present",
+    "cta",
+    "authorized_offer_ids",
+    "scenes",
+    "reference_media_requests",
+    "audio_sync",
+    "voiceover_language",
+    "edit_owner",
+    "motion_owner",
+    "provider_output_guaranteed",
+    "source_generated_media",
+    "approved_offer_evidence_sha256",
+    "approved_media_evidence_sha256"
+  ],
+  "properties": {
+    "contract": {
+      "const": "creative_direction_v1"
+    },
+    "version": {
+      "const": 1
+    },
+    "shop_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "campaign_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "duration_seconds": {
+      "enum": [
+        15,
+        30,
+        60
+      ]
+    },
+    "aspect_ratio": {
+      "const": "9:16"
+    },
+    "concept": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hook": {
+      "type": "string",
+      "minLength": 1
+    },
+    "voiceover_script": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dialogue_present": {
+      "type": "boolean"
+    },
+    "cta": {
+      "type": "string",
+      "minLength": 1
+    },
+    "authorized_offer_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+      },
+      "uniqueItems": true
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 18,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "sequence",
+          "role",
+          "start_seconds",
+          "duration_seconds",
+          "voiceover",
+          "dialogue",
+          "transition_out",
+          "estimated_spoken_seconds",
+          "shots"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "role": {
+            "enum": [
+              "hook",
+              "product",
+              "benefit",
+              "offer",
+              "cta",
+              "story"
+            ]
+          },
+          "start_seconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "duration_seconds": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "voiceover": {
+            "type": "string"
+          },
+          "dialogue": {
+            "type": "string"
+          },
+          "transition_out": {
+            "type": "string",
+            "minLength": 1
+          },
+          "estimated_spoken_seconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "shots": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "required": [
+                "shot_id",
+                "start_seconds",
+                "duration_seconds",
+                "motion_direction"
+              ],
+              "properties": {
+                "shot_id": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+                },
+                "start_seconds": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "duration_seconds": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 5
+                },
+                "motion_direction": {
+                  "type": "object"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "reference_media_requests": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "feature",
+          "asset_id",
+          "same_shop_required",
+          "rights_review_required"
+        ],
+        "properties": {
+          "feature": {
+            "const": 3
+          },
+          "asset_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+          },
+          "same_shop_required": {
+            "const": true
+          },
+          "rights_review_required": {
+            "const": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "audio_sync": {
+      "type": "object",
+      "required": [
+        "state",
+        "expected_spoken_seconds",
+        "timing"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "ESTIMATED_PENDING_REAL_SPEECH_ALIGNMENT",
+            "WORD_TIMES_MATCH_PENDING_AUDIO_PROVENANCE"
+          ]
+        },
+        "expected_spoken_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "timing": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "voiceover_language": {
+      "const": "en"
+    },
+    "edit_owner": {
+      "const": "feature4"
+    },
+    "motion_owner": {
+      "const": "feature5"
+    },
+    "provider_output_guaranteed": {
+      "const": false
+    },
+    "source_generated_media": {
+      "const": false
+    },
+    "approved_offer_evidence_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "approved_media_evidence_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "additionalProperties": false
+}
