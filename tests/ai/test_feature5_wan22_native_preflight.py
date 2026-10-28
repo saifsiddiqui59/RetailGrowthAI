@@ -32,6 +32,9 @@ def fabricated_object_info(graph):
         if name == "Wan22ImageToVideoLatent":
             required.pop("start_image",None)
             optional["start_image"]=["IMAGE",{}]
+        if name == "SaveVideo":
+            # Actual pinned node advertises a hidden optional codec field.
+            optional["codec"]=["COMBO",{}]
         for model in ("unet_name","clip_name","vae_name"):
             if model in required:
                 required[model] = [[entry["inputs"][model]],{}]
