@@ -28,16 +28,63 @@ class FakeTenant:
         self.sign_calls.append((token,shop_id,path))
         return "https://private.invalid/signed?token=test"
 
+def verified_review(*args):
+    # Offline-only stand-in for a real authoritative persisted review/rights
+    # service. It must not be configured in a hosted environment from browser
+    # claims or made-up database fields.
+    token,shop,job,asset,digest=args
+    return {"shop_id":shop,"job_id":job,"media_asset_id":asset,
+            "image_sha256":digest,"review_revision":1,
+            "review_state":"HUMAN_REVIEW_PASSED",
+            "human_confirmed":True,"private_bytes_verified":True,
+            "source_rights_current":True,"commercial_use_cleared":True,
+            "rights_revoked":False}
+
 class OutputTests(unittest.TestCase):
-    def test_exact_tenant_success_returns_short_lived_private_link_no_approval(self):
+    def test_successful_gpu_job_unreviewed_denies_signed_link_by_default(self):
         t=FakeTenant()
         code,body=Feature3V2API(t,None).gpu_download("signed-jwt",U,S,J)
+        self.assertEqual((code,body),(409,{"error":"OUTPUT_REVIEW_REQUIRED"}))
+        self.assertEqual(t.sign_calls,[])
+
+    def test_exact_tenant_with_mocked_durable_review_returns_short_private_link(self):
+        t=FakeTenant()
+        code,body=Feature3V2API(
+            t,None,verify_reviewed_output=verified_review
+        ).gpu_download("signed-jwt",U,S,J)
         self.assertEqual(code,200)
         self.assertEqual(body["media_asset_id"],A)
         self.assertEqual(body["expires_in_seconds"],60)
         self.assertFalse(body["approved_model"])
         self.assertEqual(t.sign_calls,[("signed-jwt",S,PATH)])
         self.assertNotIn("object_path",body)
+
+    def test_invalid_revoked_stale_or_foreign_human_review_denies_link(self):
+        for change in [
+            {"review_state":"PENDING"},
+            {"human_confirmed":False},
+            {"private_bytes_verified":False},
+            {"source_rights_current":False},
+            {"commercial_use_cleared":False},
+            {"rights_revoked":True},
+            {"shop_id":OTHER},
+            {"media_asset_id":OTHER},
+            {"job_id":OTHER},
+            {"image_sha256":"b"*64},
+            {"review_revision":0},
+            {"review_revision":True},
+            {"review_state":"HUMAN_REVIEW_PASSED","unexpected":"fraud"},
+        ]:
+            t=FakeTenant()
+            def fake(*args,change=change):
+                return {**verified_review(*args),**change}
+            with self.subTest(change=change):
+                code,body=Feature3V2API(
+                    t,None,verify_reviewed_output=fake
+                ).gpu_download("signed-jwt",U,S,J)
+                self.assertEqual((code,body),(409,{"error":"OUTPUT_REVIEW_REQUIRED"}))
+                self.assertEqual(t.sign_calls,[])
+
     def test_revoked_foreign_missing_job_and_unready_never_sign(self):
         t=FakeTenant()
         t.active=False
