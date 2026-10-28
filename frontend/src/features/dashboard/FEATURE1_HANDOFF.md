@@ -120,3 +120,9 @@
 ## 2026-10-27 — Concurrent-month loading hardening
 - Merged PR #448 fixes an overlapping request bug: an older month's pending GET no longer blocks the next explicit user/shop/month load; only the currently visible scope can be loading-blocked. Existing epoch and principal/shop/month checks still discard stale responses. Invalid date strings are rejected before render.
 - Exact final PR CI #40510858113 and independent main CI #40511424526 both passed 4/4, including mocked Playwright delayed October→November request. No live user-account E2E or DEV deployment for this patch. The social/publishing/inbox contracts and full server media paging remain external work.
+
+
+## 2026-10-28 — Feature #1 P2 server-paged media metadata (source branch)
+- Reuse existing authenticated media_assets PostgREST RLS and approved read-only schema to load at most 100 authorized records per explicit page, with limit=101 lookahead, stable created_at/id ordering, and no total-count query. More pages are fetched only by retailer action; never poll or fetch private bytes automatically.
+- Scope TanStack Query's page cache to signed-in principal + selected authorized shop; retain local 12-card paging and filters across loaded pages, dedupe repeated records, hide cross-shop/malformed metadata, and revoke private object-preview blobs on shop/user changes. Searching is explicitly limited to pages actually retrieved, with honest Load older action.
+- Browser, JWT, invalid offset, oversized response and cross-tenant negative tests included. Offset pagination is not a historical snapshot during concurrent uploads; a future cursor-based backend contract may improve consistent ordering. No new migration, paid infrastructure, OAuth, provider activation, hosted E2E or WineShopPOS modification.

@@ -340,3 +340,43 @@ test('private registered upload preview fetches binary with caller JWT only and 
   bytes=new Uint8Array(256)
   await assert.rejects(()=>api.downloadPrivateImage(shop,asset),/signature is invalid/)
 })
+
+
+test('media pages use bounded tenant-JWT reads, stable order and fail-closed response shape', async () => {
+  const shop='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  const foreign='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+  const requests=[]
+  let rows=[]
+  const api=fixture(async (url,options)=>{
+    if(url.includes('/auth/v1/token')) return json({access_token:'media-user-jwt',refresh_token:'refresh',expires_in:3600})
+    if(url.includes('/rest/v1/media_assets')) {requests.push({url,options});return json(rows)}
+    throw Error('Unexpected request '+url)
+  })
+  await api.signIn('owner@example.test','secret')
+  await assert.rejects(()=>api.listMediaAssetsPage('invalid',0),/Invalid media page scope/)
+  await assert.rejects(()=>api.listMediaAssetsPage(shop,-100),/Invalid media page scope/)
+  await assert.rejects(()=>api.listMediaAssetsPage(shop,1),/Invalid media page scope/)
+  assert.equal(requests.length,0)
+  const makeRow=i=>({id:'a1000000-0000-4000-8000-'+String(i).padStart(12,'0'),
+    shop_id:shop,source:'UPLOAD',license_name:'owned',mime_type:'image/png'})
+  rows=Array.from({length:101},(_,i)=>makeRow(i+1))
+  const first=await api.listMediaAssetsPage(shop)
+  assert.equal(first.items.length,100)
+  assert.equal(first.nextOffset,100)
+  const u=new URL(requests[0].url)
+  assert.equal(u.searchParams.get('shop_id'),'eq.'+shop)
+  assert.equal(u.searchParams.get('order'),'created_at.desc,id.desc')
+  assert.equal(u.searchParams.get('limit'),'101')
+  assert.equal(u.searchParams.get('offset'),'0')
+  assert.equal(requests[0].options.headers.Authorization,'Bearer media-user-jwt')
+  assert.doesNotMatch(JSON.stringify(requests[0]),/sb_secret_|service_role|object\/public/)
+  rows=[makeRow(101),{...makeRow(102),shop_id:foreign}]
+  const second=await api.listMediaAssetsPage(shop,100)
+  assert.equal(second.items.length,1)
+  assert.equal(second.nextOffset,null)
+  assert.equal(new URL(requests[1].url).searchParams.get('offset'),'100')
+  rows=Array.from({length:102},(_,i)=>makeRow(i+1))
+  await assert.rejects(()=>api.listMediaAssetsPage(shop,200),/could not be verified/)
+  rows={error:'unexpected'}
+  await assert.rejects(()=>api.listMediaAssetsPage(shop,200),/could not be verified/)
+})
