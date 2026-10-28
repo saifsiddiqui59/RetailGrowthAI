@@ -81,8 +81,10 @@ export function proposeReviewDecision(session,{action,confirmed}={}){
   check(session&&session.original_proposal&&
     ['REQUEST_APPROVAL','REJECT_PROPOSAL'].includes(action),
   'Unknown reviewer decision');
+  check(session.can_request_approval===true,
+    'VIEWER cannot modify reviewer decisions');
   if(action==='REQUEST_APPROVAL')
-    check(session.can_request_approval===true&&confirmed===true,
+    check(confirmed===true,
       'Only an explicitly confirming OWNER/EDITOR can request approval');
   const proposal=clone(session.original_proposal);
   proposal.scenes=clone(session.scenes);
