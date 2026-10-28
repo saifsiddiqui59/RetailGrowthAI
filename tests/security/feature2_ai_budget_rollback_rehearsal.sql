@@ -17,13 +17,13 @@ END $$;
 -- Feature3 extends the *same* AI budget ledger. In this protected
 -- disposable transaction only, explicitly remove its dependents before
 -- rehearsing an isolated Feature2 rollback; no CASCADE, never hosted.
-DO $
+DO $$
 BEGIN
  IF to_regclass('public.feature3_gpu_jobs') is not null THEN
    DROP TABLE retail_private.feature3_gpu_outbox;
    DROP TABLE public.feature3_gpu_jobs;
  END IF;
-END $;
+END $$;
 DROP FUNCTION public.feature2_reserve_ai_budget(uuid,uuid,text,numeric,uuid);
 DROP FUNCTION public.feature2_settle_ai_budget(uuid,numeric);
 DROP TABLE public.shop_ai_spend_reservations;
