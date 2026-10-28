@@ -42,6 +42,31 @@ class Feature3V2API:
                      "private_images_must_be_loaded_separately": True}
 
 
+    def import_model(self, token, user_id, shop_id, body):
+        """Only signed active OWNER/EDITOR can REGISTER an unapproved model.
+
+        This never creates media bytes, claims license/likeness proof or
+        circumvents a second independent human-review and evidence audit.
+        """
+        if not self.model_review_enabled:
+            return 503, {"error": "FEATURE3_MODEL_REVIEW_DISABLED"}
+        sid = canonical_uuid(shop_id)
+        if not self.tenant.member(token, user_id, sid, write=True):
+            return 404, {"error": "NOT_FOUND"}
+        required = {"model_id", "media_asset_id", "source_kind", "label",
+                    "image_sha256", "license_id", "license_evidence_sha256",
+                    "attribution", "approved_uses"}
+        if not isinstance(body, dict) or set(body) != required:
+            return 400, {"error": "INVALID_REQUEST"}
+        result = self.designs.import_pending_model(token, sid, body)
+        if result is None:
+            return 409, {"error": "MODEL_IMPORT_STALE_OR_DENIED"}
+        return 201, {"shop_id": sid, "model_id": result["model_id"],
+                     "media_asset_id": result["media_asset_id"],
+                     "status": "PENDING_REVIEW", "rights_revision": 1,
+                     "rights_verified": False, "evidence_verified": False,
+                     "gpu_authorized": False, "generation_executed": False}
+
     def review_model(self, token, user_id, shop_id, model_id, body, *, action):
         """Authenticated human decision transport: NO GPU or image generation.
 
