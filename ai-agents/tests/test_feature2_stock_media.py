@@ -12,7 +12,8 @@ from hashlib import sha256
 import pytest
 
 from ai_agents.feature2_stock_media import (
-    candidate_catalog, inspect_stock_broll, StockMediaRejected,
+    candidate_catalog, inspect_stock_broll, inspect_stock_from_trusted_shop_jwt,
+    StockMediaRejected,
 )
 
 SHOP = "11111111-1111-4111-8111-111111111111"
@@ -170,3 +171,70 @@ def test_revocation_in_between_checks_denies_preview():
                            current_rights=rights, evidence=evidence,
                            trusted_member_check=recheck, originals_reader=read)
     assert len(call) == 2
+
+
+def test_trusted_jwt_stock_review_rechecks_current_member_with_same_original_token():
+    c=candidate_catalog()[0]
+    rights, evidence, _, read, _=setup_review(c)
+    calls={"member":0,"review":0,"import":0,"bytes":0}
+    actor="33333333-3333-4333-8333-333333333333"
+    class Store:
+        def member(self, token, user, shop, *, write=False):
+            assert token=="fake-valid-current-jwt" and user==actor
+            assert shop==SHOP and write is True
+            calls["member"]+=1
+            return True
+    def review_reader(token, user, shop, cid):
+        calls["review"]+=1
+        assert token=="fake-valid-current-jwt"
+        return rights
+    def imported(token,user,shop,cid):
+        calls["import"]+=1
+        return evidence
+    def private(token,user,shop,cid):
+        calls["bytes"]+=1
+        return read(shop,cid)
+    args={
+        "shop_id":SHOP,"authorization":"Bearer fake-valid-current-jwt",
+        "candidate_id":c["candidate_id"],
+        "verify_jwt":lambda token: actor,
+        "tenant_store":Store(),"current_review_reader":review_reader,
+        "private_import_reader":imported,"private_bytes_reader":private,
+    }
+    result=inspect_stock_from_trusted_shop_jwt(**args)
+    assert result.can_show_in_offline_editor and not result.can_publish
+    assert calls=={"member":3,"review":1,"import":1,"bytes":1}
+
+
+def test_trusted_jwt_stock_denies_viewer_revocation_and_browser_authority():
+    c=candidate_catalog()[0]
+    rights,evidence,_,read,_=setup_review(c)
+    actor="33333333-3333-4333-8333-333333333333"
+    class Member:
+        def __init__(self,revoke=False):
+            self.calls=0
+            self.revoke=revoke
+        def member(self,token,user,shop,*,write=False):
+            self.calls+=1
+            return not self.revoke or self.calls==1
+    def exercise(store, **overrides):
+        request=dict(
+            shop_id=SHOP,authorization="Bearer fake-valid-current-jwt",
+            candidate_id=c["candidate_id"],verify_jwt=lambda t:actor,
+            tenant_store=store,
+            current_review_reader=lambda *a:rights,
+            private_import_reader=lambda *a:evidence,
+            private_bytes_reader=lambda *a:read(SHOP,c["candidate_id"]),
+        )
+        request.update(overrides)
+        return inspect_stock_from_trusted_shop_jwt(**request)
+    with pytest.raises(StockMediaRejected):
+        exercise(Member(revoke=True))
+    with pytest.raises(StockMediaRejected):
+        exercise(Member(),shop_id=OTHER)
+    with pytest.raises(StockMediaRejected):
+        exercise(Member(),authorization="Bearer ")
+    with pytest.raises(StockMediaRejected):
+        exercise(Member(),candidate_id="nonexistent-source")
+    with pytest.raises(StockMediaRejected):
+        exercise(Member(),current_review_reader=lambda *a:{**rights,"rights_state":"REVOKED"})
