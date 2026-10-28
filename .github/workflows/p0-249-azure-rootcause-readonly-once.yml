@@ -1,4 +1,4 @@
-name: RetailGrowthAI 249 existing DEV host worker root-cause correlation
+name: RetailGrowthAI 249 existing DEV host worker root-cause correlation (count normalization)
 # MAIN-ONLY protected one-shot: exact existing Central India tagged RetailGrowthAI
 # DEV app; no deployments, no HTTP requests, no mutations, no customer secrets.
 on:
@@ -16,7 +16,7 @@ jobs:
     if: >-
       github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
       github.ref == 'refs/heads/main' &&
-      startsWith(github.event.head_commit.message, 'audit(dev): RetailGrowthAI 249 Azure host worker rootcause')
+      startsWith(github.event.head_commit.message, 'audit(dev): RetailGrowthAI 249 worker telemetry count correction')
     environment: dev
     runs-on: ubuntu-24.04
     timeout-minutes: 23
