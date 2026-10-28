@@ -246,3 +246,8 @@ Verify final four-job GitHub Actions after token negative-test fix; no actual de
 ## 2026-10-28 — Current main real F3 producer source integration
 
 Check new exact-head CI, then coordinator can reconcile Part3 premium schema/provider against Wan2.2 native worker; since F3 consumer is now main, no cross-branch dependency for its offline contract. Real F3 model catalog and true approved retailer image, signed hosted tenant read, model runtime and F4 final Reel still not proven; no paid GPU.
+
+
+## 2026-10-28 — F3→CPU motion→Part3→F4 continuous offline acceptance
+
+Run exact-head four-job CI after new single-path F3→CPU FFmpeg→Part3→F4 integration test. Source-level rehearsal is now a full sequential path, but the native model-origin is explicitly synthetic and different from Wan; keep production blocked until coordinator resolves Part3 Wan2.7 vs F5 Wan2.2 schema/worker, genuine license/tenant-authenticated media, genuine private render and human QA. Real Pexels raw files still not downloaded.

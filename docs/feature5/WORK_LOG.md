@@ -220,3 +220,8 @@ The existing live Feature3 source bridge and private packet staging were source 
 ## 2026-10-28 — Current main real F3 producer source integration
 
 - 2026-10-28: Synced latest main into Feature5 via conflict-free 2-parent merge; 101 feature-owned added files preserved, all 222 newer main commits included. Added four exact cross-feature tests using actual F3 producer, actual prepared private PNG and CPU test board, revocation and changed garment/timeline denies. No cloud/GPU/paid provider. Replaced erroneous literal `undefined` previous work-log entry with accurate note.
+
+
+## 2026-10-28 — F3→CPU motion→Part3→F4 continuous offline acceptance
+
+- 2026-10-28: Continued without restart; committed full-path GPU-OFF source smoke using real F3 source code and FFmpeg-animated synthetic first-frame, strict native clip screening, independent fake Part3 upload+settlement/login protection, Feature4 faux human QA contract. Marked test-only. No actual media product or paid compute, WineShopPOS untouched.

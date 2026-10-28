@@ -150,6 +150,9 @@ class Feature5FullCrossFeatureOfflineTests(unittest.TestCase):
                 self.assertEqual(manifest["shop_id"],owner.f3.shop)
                 self.assertFalse(manifest["path"].startswith("https://"))
                 self.assertEqual(store.spend_reservation,"TEST_ONLY_0_USD")
+                # Generated local CPU artifact is ephemeral; private mock upload
+                # is the ONLY retained object after scoped attempt cleanup.
+                native.unlink()
                 # Both businesses remain logically isolated throughout receipt.
             self.assertFalse(any(attempt_dir.iterdir()))
             self.assertEqual(len(list(private_store.rglob("*.mp4"))),1)

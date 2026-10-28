@@ -201,3 +201,8 @@ Fake test HMAC token tampering MUST be demonstrably different from original. A r
 ## 2026-10-28 — Current main real F3 producer source integration
 
 Use real producer code from main through a fast-forward-safe, two-parent Git merge after compare verified no overlapping changed files. Never duplicate a Feature3 consumer module in Feature5. CPU test fixture can call genuine Feature3 code but mocked rights are NOT commercial consent/true original licensed garment. Real production authorization must be independently proven by signed tenant reader.
+
+
+## 2026-10-28 — F3→CPU motion→Part3→F4 continuous offline acceptance
+
+An end-to-end local 121-frame 704×1280 CPU camera zoom/pan on one Feature3 still can validate transfer integrity, not Wan2.2 generative motion, correct garment try-on or person walking. A test-only positive Feature4 reviewer is a contract shape assertion and MUST NOT be used in production. The original private reference must be cleaned after use; only a test storage object remains. Continue zero spend.

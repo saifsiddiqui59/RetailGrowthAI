@@ -222,3 +222,8 @@ During exact-doc-head Actions #40766504875 the FFmpeg job found a flaky *test as
 ## 2026-10-28 — Current main real F3 producer source integration
 
 After safe two-parent merge from main `0f2e848c` (zero file path collisions), branch contains actual Feature3 `feature3_consumer_packets_v1.assemble_consumer_packets` and all current Feature3 sources, no copied module or mock shape. Added `tests/ai/test_feature5_real_feature3_producer_e2e.py`: actual F3 three-purpose private-byte SHA verification -> approved F2 brief -> F3/F4/5 packet -> F5 stage current RLS-like fixture -> PIL private review still; current model revocation, replaced garment bytes, foreign shop and changed storyboard denied. Synthetic fabricated test/rights only, no hosted claims.
+
+
+## 2026-10-28 — F3→CPU motion→Part3→F4 continuous offline acceptance
+
+Added one real cross-feature offline execution test `tests/media/test_feature5_f3_cpu_motion_p3_f4_full_path.py`. It invokes actual merged Feature3 approved reference producer and raw private PNG staging, renders a 121-frame 704x1280 H.264 camera zoom/pan from the **fictional synthetic model** using real FFmpeg, screens native codec/frame movement and SHA, performs existing fake Part3 lease+private byte upload/settlement + cross-user deny, then tests Feature4 fake reviewer reject and shape-only positive. No Wan generation, true human walk, garment replacement, real retailer content or legal review is inferred. No cloud, GPU, paid API or production writes.
