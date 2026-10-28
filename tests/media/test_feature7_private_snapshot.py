@@ -5,6 +5,7 @@ records are offline server fixtures, not production JWT or ownership.
 """
 import hashlib
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -66,8 +67,13 @@ class PrivateSnapshotTests(unittest.TestCase):
              'sha256':self.sha,'has_audio':True}}
 
     def invoke(self,obj):
-        return subprocess.run(['node','--input-type=module','-e',JS],
-          input=json.dumps(obj),cwd=ROOT,text=True,capture_output=True,timeout=30)
+        env=dict(os.environ,TMPDIR=str(self.root))
+        result=subprocess.run(['node','--input-type=module','-e',JS],
+          input=json.dumps(obj),cwd=ROOT,text=True,capture_output=True,
+          timeout=30,env=env)
+        self.assertEqual(list(self.root.glob('rg-f7-private-snapshot-*')),[],
+          'Temporary customer media must be removed even after a denied review')
+        return result
 
     def test_real_media_byte_identical_in_private_snapshot(self):
         p=self.request()
