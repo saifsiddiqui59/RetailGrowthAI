@@ -799,3 +799,9 @@
 
 ## 2026-10-28 — Feature3 fail-closed hosted seven-SQL staging plan
 - No unfiltered `db push` or provider timestamp-rewriting migration call. Pin exact DEV 24 + seven version/name order with source SHA256 and transaction checks in read-only `feature3-migration-release-gate.mjs`. SQL CREATE is **not replay-idempotent**; a verified backup/restore and independent operator authorization are mandatory. Green offline CI does not prove real signed users, original image rights, GPU availability or live VTON quality.
+
+
+## 2026-10-28 — Feature3 fictional adult models now; hosted signed-user E2E only at final integration
+- The owner defers sourcing consented **real-person model photographs** from Feature3 current development. Use **fictional AI-generated adults** with recorded provenance, and independently permitted garment/product images. This is not permission to bypass real-person protections for future uploads or to claim rights for third-party products.
+- The owner also moves **actual hosted signed-user acceptance** to a **future milestone when all features are available** (Features 1/2/3/4/5/7 and dependent publishing integration). Do not create hosted test users or run authenticated live E2E now solely to unblock Feature3. Maintain existing offline role/JWT/RLS, tenant negative and migration tests as immediate continuous gates.
+- Final hosted sign-in, real uploads, approval/revocation and private downloads still require separately authorized environment operations and evidence. Neither offline pass nor this scheduling decision approves SQL deploy, GPU/paid VTON, PROD or WineShopPOS changes.
