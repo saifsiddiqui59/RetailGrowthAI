@@ -713,3 +713,8 @@
 
 ## 2026-10-28 — #249 no HTTP closure despite stronger same-route p95/503 proof
 - Exact same synthetic campaign-auth GET 20/host now confirms original Flex 9/20 genuine gateway/unmarked 503 at ~61s while Node preview 0/20, including warm and concurrent Python failures. Descriptive all-completed HTTP p95 Python 60.999s, Node 1.727s; Python handler-success-only p95 not supportable at n11; p99 not supportable at n20. [Read-only live result](part1/P0_249_20261028_POWERED_EQUAL_ROUTE_HTTP.md). This justifies classifying original Flex unreliable, not a definite Azure worker startup cause, always-ready purchase, safe Node cutover, or hosted signed media acceptance. Preserve source integrity/auth, no mutation replay, no WineShopPOS/PROD.
+
+
+## 2026-10-28 — Feature #1 media cursor instead of unstable offset (#536)
+- Prefer immutable existing Postgres `media_assets.created_at,id` as descending keyset for authenticated user-JWT/RLS reads. Limit each request to 101, expose at most 100 records and use the 100th raw row's validated UTC timestamp/UUID as the next cursor. PostgREST `or=(created_at.lt.cursor,and(created_at.eq.cursor,id.lt.uuid))` prevents new head inserts causing later-page duplication/misses. No migration, service-role browser token or full-count query.
+- Fail closed on bad cursor syntax, non-UUID/non-UTC records, oversize/out-of-order or cursor-boundary responses; hide cross-shop/missing-license rows. Read cache is signed principal/shop keyed. Existing offset API remains for compatibility but is no longer used by Media Library. No transactional snapshot across deleted/edited records is claimed. Media previews are still private and limited to independently validated UPLOAD assets; rights for other sources not inferred.
