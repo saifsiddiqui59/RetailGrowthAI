@@ -10,17 +10,11 @@ from security import SupabaseJWTVerifier
 from tenant_store import TenantStore
 from queue_adapter import AzurePlanningQueue, AzureRenderQueue
 from admin_store import AdminStore
-from planning_worker import process_campaign
 from render_api import RenderAPI
 from poster_draft_api import PosterDraftAPI
-from recovery_runtime import dispatch_outbox, record_poison, reconcile_and_dispatch
-from notification_store import NotificationStore
-from notification_worker import dispatch_notifications, SmtpSender
 from poster_render_api import PosterRenderAPI
 from feature3_v2_api import Feature3V2API
 from feature3_v2_store import Feature3V2Store
-from poster_admin import PosterAdmin
-from poster_queue import AzurePosterQueue
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -184,6 +178,8 @@ def download_poster_render(req: func.HttpRequest) -> func.HttpResponse:
 @app.queue_trigger(arg_name="message", queue_name="retail-campaign-planning",
                    connection="RETAIL_STORAGE")
 def plan_campaign(message: func.QueueMessage):
+    # Worker-only dependencies must not initialize during HTTP indexing.
+    from planning_worker import process_campaign
     # The message contains ONLY a canonical UUID; no user tokens or media URLs.
     admin = AdminStore(
         os.environ["RETAIL_SUPABASE_URL"],
@@ -244,6 +240,7 @@ def _recovery_dependencies():
 @app.timer_trigger(schedule="0 */2 * * * *", arg_name="timer",
                    run_on_startup=False, use_monitor=True)
 def recover_stale_jobs(timer: func.TimerRequest):
+    from recovery_runtime import reconcile_and_dispatch
     # Never silently swallow a database failure; retry on the next scheduled tick.
     admin, planning, rendering = _recovery_dependencies()
     reconcile_and_dispatch(admin, planning, rendering)
@@ -252,6 +249,7 @@ def recover_stale_jobs(timer: func.TimerRequest):
 @app.queue_trigger(arg_name="message", queue_name="retail-campaign-planning-poison",
                    connection="RETAIL_STORAGE")
 def planning_poison(message: func.QueueMessage):
+    from recovery_runtime import record_poison
     # A DB receipt is mandatory before the trigger acknowledges/removes poison.
     admin, _, _ = _recovery_dependencies()
     record_poison(admin, "planning", message.get_body())
@@ -260,6 +258,7 @@ def planning_poison(message: func.QueueMessage):
 @app.queue_trigger(arg_name="message", queue_name="retail-reel-render-poison",
                    connection="RETAIL_STORAGE")
 def render_poison(message: func.QueueMessage):
+    from recovery_runtime import record_poison
     admin, _, _ = _recovery_dependencies()
     record_poison(admin, "render", message.get_body())
 
@@ -271,6 +270,8 @@ def dispatch_onboarding_emails(timer: func.TimerRequest):
     # RetailGrowthAI sender, URL and feature flag have been configured.
     if os.environ.get("RETAIL_NOTIFICATIONS_ENABLED") != "true":
         return
+    from notification_store import NotificationStore
+    from notification_worker import dispatch_notifications, SmtpSender
     store = NotificationStore(
         os.environ["RETAIL_SUPABASE_URL"],
         os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"],
@@ -286,6 +287,8 @@ def dispatch_pending_posters(timer: func.TimerRequest):
     # RetailGrowthAI DEV authorization before enabling this source-only path.
     if os.environ.get("RETAIL_ENABLE_POSTER_RENDERING") != "true":
         return
+    from poster_admin import PosterAdmin
+    from poster_queue import AzurePosterQueue
     admin = PosterAdmin(os.environ["RETAIL_SUPABASE_URL"],
                         os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"])
     queue = AzurePosterQueue(os.environ["RETAIL_STORAGE"])
@@ -305,6 +308,7 @@ def render_campaign_poster(message: func.QueueMessage):
     # Heavy Pillow/PNG decoding is worker-only; no eager import in HTTP host.
     from poster_worker import process_poster
     from private_poster_media import PrivatePosterMedia
+    from poster_admin import PosterAdmin
     origin = os.environ["RETAIL_SUPABASE_URL"]
     key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
     process_poster(message.get_body().decode("ascii"),
