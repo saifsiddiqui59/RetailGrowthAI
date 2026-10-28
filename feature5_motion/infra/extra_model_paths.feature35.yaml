@@ -1,0 +1,12 @@
+# Offline-only ComfyUI extra paths; mount one classic Azure Files share read-only.
+# Pass with ComfyUI --extra-model-paths-config after approved image build.
+retailgrowth_feature3:
+  base_path: /mnt/retailgrowth-models/feature3
+  diffusion_models: diffusion_models
+  text_encoders: text_encoders
+  vae: vae
+retailgrowth_feature5:
+  base_path: /mnt/retailgrowth-models/feature5
+  diffusion_models: diffusion_models
+  text_encoders: text_encoders
+  vae: vae
