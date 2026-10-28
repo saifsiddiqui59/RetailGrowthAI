@@ -50,7 +50,9 @@ def _human_garment(value):
         raise FashionReferenceDenied("Complete human-reviewed garment identity required")
     for key in _GARMENT_FIELDS:
         entry = value[key]
-        if not isinstance(entry, str) or not _SAFE.fullmatch(entry) or not entry.strip():
+        if not isinstance(entry, str) or not entry.strip() or (
+            not (_HEX if key == "base_color" else _SAFE).fullmatch(entry)
+        ):
             raise FashionReferenceDenied("Invalid or missing garment identity metadata")
     if not _HEX.fullmatch(value["base_color"]):
         raise FashionReferenceDenied("Garment reference needs recorded hex colour")
