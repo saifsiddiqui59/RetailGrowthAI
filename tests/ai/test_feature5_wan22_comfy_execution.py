@@ -51,10 +51,19 @@ class FakeLocalComfy:
         raise AssertionError("Unexpected simulated endpoint")
 
 
+def private_f3_proof(shop,asset,sha):
+    # Independent mock of a currently authorized Feature3 private staging
+    # record: NOT derived from a possibly edited submitted graph.
+    return {"shop_id":shop,"source_asset_id":asset,"source_sha256":sha,
+            "staged_basename":"owned_kurti.png","approved":True,
+            "private":True,"commercial_rights":True,
+            "human_likeness_approved":True}
+
+
 def inputs(pkg,**extras):
     kwargs=dict(package=pkg,job_id=str(uuid4()),attempt_token=str(uuid4()),
                 verify_existing_fenced_paid_claim=lambda *a: True,
-                verify_current_private_first_frame=lambda *a: True,
+                verify_current_private_first_frame=private_f3_proof,
                 operator_image_legal_budget_approved=True,
                 production_runtime_approved=True)
     kwargs.update(extras)
@@ -113,6 +122,22 @@ class WanComfyPrivateProtocolTests(unittest.TestCase):
         with self.assertRaises(WanCompatibilityError):
             WanPrivateComfyDispatcher(fake,enabled=True).submit_once(**inputs(altered))
         self.assertEqual([c[1] for c in fake.calls],["/object_info"])
+
+    def test_current_f3_grant_binds_exact_input_filename_and_rights(self):
+        pkg=synthetic_package()
+        for label, callback in [
+            ("unapproved basename",lambda shop,asset,sha: {
+                **private_f3_proof(shop,asset,sha),"staged_basename":"other_model.png"}),
+            ("revoked rights",lambda shop,asset,sha: {
+                **private_f3_proof(shop,asset,sha),"approved":False}),
+            ("foreign shop",lambda shop,asset,sha: {
+                **private_f3_proof(shop,asset,sha),"shop_id":str(uuid4())}),
+        ]:
+            fake=FakeLocalComfy(pkg)
+            with self.subTest(label=label),self.assertRaises(WanCompatibilityError):
+                WanPrivateComfyDispatcher(fake,enabled=True).submit_once(**inputs(
+                    pkg,verify_current_private_first_frame=callback))
+            self.assertFalse(any(c[0]=="POST" for c in fake.calls))
 
     def test_ambiguous_post_and_mismatched_prompt_id_never_retry(self):
         pkg=synthetic_package()
