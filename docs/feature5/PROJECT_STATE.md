@@ -202,3 +202,8 @@ Added real public Pexels source-page and licensing audit `docs/feature5/PEXELS_R
 ## 2026-10-28 — Pinned official Wan2.2 weight source inventory
 
 Wan2.2 official published model/license and ComfyUI 5B required trio were independently inventoried in `docs/feature5/WAN22_GPU_OFF_WEIGHT_INVENTORY_20261028.md`: diffusion 9.31GB, encoder 6.27GB, VAE 1.31GB. Existing SHA-source/build/wheel gates are implemented, but no weight bytes or independent hashes, private CUDA OCI runtime, or actual /object_info are present. Keep GPU OFF, no false actual-ready claim.
+
+
+## 2026-10-28 — Current Feature3 / Feature4 / Part3 real source contract audit
+
+2026-10-28 source cross-feature code audit: inspected actual Feature3 #561 consumer packet module and main F3 fashion resolver; inspected Feature4 #322 motion handoff (Hunyuan-1.5 profile) and Part3 #125 (Wan2.7 profile + proposed schema). Added `cross_feature_packet_gate.py` validating current F3 packet re-read, exact cross-feature shot/timeline alignment and immutability, with default provider-off, and rejecting Hunyuan/Wan2.7 as non-Wan2.2 profiles. Test fixture uses true consumer shape, synthetic only. See `docs/feature5/CROSS_FEATURE_SOURCE_CONTRACT_AUDIT_20261028.md`.

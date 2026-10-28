@@ -181,3 +181,8 @@ Simulated test-user logins use an explicitly isolated per-test HMAC secret and n
 ## 2026-10-28 — Pinned official Wan2.2 weight source inventory
 
 Official Wan2.2 upstream Apache-2.0 and ComfyUI 5B file-name/license inventory do not establish installed artifact byte provenance. Leave reviewed weight SHA, workflow SHA and OCI SHA `null` until independently attested; do not turn false gates true on the strength of CPU test mocks. Actual publisher/user consent remains independent.
+
+
+## 2026-10-28 — Current Feature3 / Feature4 / Part3 real source contract audit
+
+Cross-feature Feature3 consumer packet is metadata-only and `provider_call_permitted=false`. At the F5 boundary the current server-side packet must be re-fetched and matched, source ID/revisions/fingerprints and F2/F4 timeline checked. This qualification does not itself approve any GPU call or commercial media. Feature4 Hunyuan 1.5 480p and Part3 Wan2.7 720P/1080P cannot be silently changed to F5 Wan2.2 704×1280/121frame 24fps; reject wrong model and seek versioned coordinator schema reconciliation.

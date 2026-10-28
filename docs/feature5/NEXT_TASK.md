@@ -226,3 +226,8 @@ Latest GPU-OFF source suite adds two-shop fake login/cross-private-download deny
 ## 2026-10-28 — Pinned official Wan2.2 weight source inventory
 
 GPU-OFF source/Pexels test suite must finish exact-head four CI jobs. Runtime weights and pinned CUDA are unverified; acquiring >16GB verified files, SHA, legal permissions, region and budget requires separate delivery mechanisms. Meanwhile F5 native private import/tenant mocks and F3/F4 metadata tests continue without A100.
+
+
+## 2026-10-28 — Current Feature3 / Feature4 / Part3 real source contract audit
+
+Next after exact-head CI: coordinator must reconcile incompatible F4 Hunyuan/Part3 Wan2.7 with F5 Wan2.2 native 704x1280 121-frame profile and deployment/credit schema, merge actual F3 server-side current reference resolver, and integrate F5 fenced claim/outbox/private import. Test-only F3 packets do not grant real rights. Separate real source byte/consent, hosted signed tenancy and paid inference remain external gates; do not mark production complete.
