@@ -97,7 +97,7 @@ class LocalApprovedEditDispatch:
     def stage_approved(self, *, context, review_id, approval_id,
                        draft_sha256, candidate_sha256, human_confirmed,
                        now_ms=None):
-        """Only enqueue AFTER explicit persisted human approval, never browser intent.
+        """Only enqueue AFTER verifying persisted human approval, never browser intent.
 
         True production code must bind this INSERT to the same Postgres
         transaction that writes the authoritative human approval/audit.
@@ -116,6 +116,30 @@ class LocalApprovedEditDispatch:
         idempotency_key = "f7job_" + secrets.token_hex(16)
 
         def write():
+            # Both tables MUST exist in the SAME SQLite database so approval
+            # verification and the outbox INSERT are one atomic transaction.
+            # A caller's human_confirmed=True boolean is never sufficient.
+            try:
+                approved = self.db.execute("""
+                  SELECT * FROM feature7_local_reviews WHERE review_id=?
+                """, (review_id,)).fetchone()
+            except sqlite3.OperationalError as exc:
+                raise ReviewStateError(
+                    "Durable approved human review journal required"
+                ) from exc
+            if (approved is None or approved["status"] != "APPROVED" or
+                    approved["approval_id"] != approval_id or
+                    approved["reviewer_id"] != ctx.reviewer_id or
+                    approved["shop_id"] != ctx.shop_id or
+                    approved["campaign_id"] != ctx.campaign_id or
+                    approved["media_snapshot_sha256"] != ctx.media_snapshot_sha256 or
+                    approved["draft_sha256"] != draft_sha256 or
+                    approved["candidate_sha256"] != candidate_sha256 or
+                    approved["expires_ms"] is None or
+                    not approved["created_ms"] <= now <= approved["expires_ms"]):
+                raise ReviewStateError(
+                    "Persisted, unexpired and matching human approval required"
+                )
             if self.db.execute(
                 "SELECT 1 FROM f7_approved_edit_dispatch WHERE "
                 "review_id=? OR approval_id=?", (review_id, approval_id)
