@@ -129,3 +129,17 @@ Follow-up for coordinator/Feature4: attach genuine signed-in human action, autho
 - See `CPU_OFF_READINESS.md` for repeatable commands, scope and mandatory readiness gates. One staging regression (existing shop folder causing EEXIST) was caught by CI and corrected using a safe existing-directory path while retaining symlink checks. Do not misrepresent staging fixture as a real customer-media registration.
 
 **Still production-blocked**: real JWT/RLS upload and signed playback, genuine licensed local WhisperX speech model/accuracy, reviewer mounting and transactional PostgreSQL approval, Feature4 full caption/B-roll/multicut render, real licensed retailer video and hosted two-tenant DEV acceptance. GPU remains OFF; any future paid startup needs separate approval. Coordinator alone edits canonical docs and merges feature PR.
+
+
+## 2026-10-28 — Fifth independent P0 continuation: immutable source snapshots + objective speech QA
+
+**Implemented in Feature7-owned source (not Azure/DB/Feature4):**
+
+- `private_media_snapshot.mjs` verifies every current authorized MP4 through the existing SHA256/FFprobe gate; creates an isolated 0700 per-job snapshot by streaming exact bytes via a no-follow file descriptor; enforces 12-input/256MiB aggregate budget; validates snapshotted streams again; analyzes only the frozen copies; checks the originals are still intact afterwards; refuses asynchronous callbacks; and deletes temporary customer media on success/failure. This narrows source-file races but is **not a cross-transaction database lock, signed cloud object generation or customer approval**.
+- `authoritative_private_review.mjs` now uses the snapshot wrapper and re-reads the current trusted source-registry rights at the end of the synchronous review. If rights or revision change, the worker returns no review. Only the coordinator can implement an actual authorized JWT/RLS registry lookup and durable lease across asynchronous jobs.
+- `speech_quality.mjs` adds a reusable CPU-only **word error rate** benchmark and SRT cue-timing coverage against a human-provided reference, with input SHA/timecode/length bounds, Unicode word normalization and explicit fake-inference safeguards. Even perfect supplied text returns `actual_model_inference_proven:false` and `customer_release_ready:false`; this never substitutes for installing/benchmarking genuine licensed WhisperX+aligner weights.
+- `test_feature7_private_snapshot.py`: real FFmpeg H264/AAC snapshot, source mutation, duplicate/cross-tenant/budget denial, rejected Promise callback, callback errors, and temporary-media cleanup.
+- `test_feature7_rights.py`: adds rights-revoked-*during*-review denial.
+- `test_feature7_speech_quality.py`: perfect transcription reference, hallucinated text, valid words with wrong cue positions, malformed SRT, source digest mismatch and out-of-range words.
+
+**Scope/remains:** CPU-only, zero model/provider/network calls in these modules. Actual spoken-word inference with reviewed local model weights **still unverified**. No authenticated retailer upload/private playback, true JWT/RLS, DB-backed human approvals, Feature4 renderer overlays, or hosted DEV real-tenant media QA are claimed. PR #513 remains DRAFT/UNMERGED; canonical docs and shared schema remain coordinator-owned. GPU stays disabled until a separately authorized activation.
