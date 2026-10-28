@@ -123,6 +123,46 @@ def test_human_benchmark_requires_real_two_blind_reviewers():
         blind_human_comparison(experiment_id="diwali-2026-10-28", candidates=candidates, reviews=duplicate)
 
 
+def test_blind_review_rejects_duplicate_weighted_receipts_and_forged_reviewer():
+    candidates = {"A": fixture(15), "B": fixture(30)}
+    scores = {k: 5 for k in RUBRIC_WEIGHTS}
+    data = [
+        {"candidate_id": candidate, "reviewer_id": reviewer, "scores": scores}
+        for candidate in ("A", "B") for reviewer in ("human-one", "human-two")
+    ]
+    repeated = copy.deepcopy(data)
+    repeated.append(copy.deepcopy(repeated[0]))
+    with pytest.raises(ValueError, match="four A/B"):
+        blind_human_comparison(experiment_id="diwali-review-403", candidates=candidates, reviews=repeated)
+    missing = copy.deepcopy(data)
+    missing.pop()
+    with pytest.raises(ValueError, match="four A/B"):
+        blind_human_comparison(experiment_id="diwali-review-403", candidates=candidates, reviews=missing)
+    unknown = copy.deepcopy(data)
+    unknown[0]["candidate_id"] = "UNBLINDED_MODEL_NAME"
+    with pytest.raises(ValueError, match="four A/B"):
+        blind_human_comparison(experiment_id="diwali-review-403", candidates=candidates, reviews=unknown)
+    blank_reviewer = copy.deepcopy(data)
+    blank_reviewer[0]["reviewer_id"] = " "
+    with pytest.raises(ValueError, match="Invalid documented human rubric"):
+        blind_human_comparison(experiment_id="diwali-review-403", candidates=candidates, reviews=blank_reviewer)
+
+
+def test_structural_audio_word_timing_not_mistaken_for_proven_real_voice():
+    plan = fixture(30)
+    plan["creative_direction_v1"]["audio_sync"]["state"] = "WORD_TIMES_MATCH_PENDING_AUDIO_PROVENANCE"
+    result = review(plan)
+    assert result.valid_contract_shape
+    assert result.structural_coverage_score == 100
+    assert result.media_visual_reviewed is False
+    assert result.human_creative_approved is False
+    assert result.can_publish is False
+    plan["creative_direction_v1"]["audio_sync"]["state"] = "REAL_TRANSCRIPT_TIMES_VERIFIED"
+    previous_unverified_claim = review(plan)
+    assert not previous_unverified_claim.valid_contract_shape
+    assert "EDIT_AUDIO_OR_SCENE_TIMING_UNVERIFIED" in previous_unverified_claim.issues
+
+
 def test_fingerprint_not_a_cryptographic_authorization():
     assert content_fingerprint(fixture()) == content_fingerprint(fixture())
     assert len(content_fingerprint(fixture())) == 64
