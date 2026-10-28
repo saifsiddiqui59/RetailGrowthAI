@@ -10,7 +10,7 @@
 // Pure functions: no network, no files.
 
 const assert = require('assert/strict');
-const plan = require('../lib/explainer-plan');
+const plan = require('../explainer-plan');
 
 const VOCAB = ['Strom', 'Wärme', 'Pumpe', 'Kosten', 'Energie', 'Haus', 'Winter', 'Effizienz', 'Boden', 'Luft', 'Wasser', 'Förderung', 'Technik', 'Preis', 'Jahr', 'Markt'];
 // n distinct words that belong to scene k (the scene's own number is in every word)
