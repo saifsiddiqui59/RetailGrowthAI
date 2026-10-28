@@ -235,6 +235,7 @@ class ModelHumanReviewTests(unittest.TestCase):
             {"pose": "not-a-pose"},
             {"source_uri": "http://unreviewed.example.invalid"},
             {"source_uri": "https://owner:token@example.invalid/a"},
+            {"source_uri": "https://example.invalid:broken/a"},
             {"image_sha256": "a" * 64},
             {"license_evidence_sha256": "f" * 64},
         ):
@@ -283,6 +284,22 @@ class ModelHumanReviewTests(unittest.TestCase):
                 persist_revocation_atomic=self.persist_revocation,
             )
         self.assertEqual(len(self.revocation_requests), 1)
+
+    def test_can_revoke_approved_model_when_original_license_was_withdrawn(self):
+        self.decide()
+        self.row["license_id"] = "WITHDRAWN"
+        self.row["attribution"] = ""
+        out = revoke_approved_model(
+            shop_id=self.shop, model_id=self.model,
+            reviewer_id=self.reviewer,
+            reason="Original image commercial rights are no longer valid",
+            read_model=self.callbacks()["read_model"],
+            authorize_reviewer=self.callbacks()["authorize_reviewer"],
+            persist_revocation_atomic=self.persist_revocation,
+        )
+        self.assertEqual(out["status"], "REVOKED")
+        self.assertFalse(out["rights_verified"])
+        self.assertEqual(out["rights_revision"], 3)
 
     def test_review_revocation_reason_and_replay_are_denied(self):
         self.decide()
