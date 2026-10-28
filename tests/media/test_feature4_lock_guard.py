@@ -38,7 +38,7 @@ class DependencyLockTests(unittest.TestCase):
             path = Path(root) / "lock.json"
             path.write_text(json.dumps({"lockfileVersion": 3, "packages": {
                 "": {"dependencies": {"@hyperframes/producer": "0.8.185"}}
-            }}))
+            }}).ljust(1200))
             with self.assertRaisesRegex(DependencyLockError, "drifted"):
                 verify_lock(path)
 
