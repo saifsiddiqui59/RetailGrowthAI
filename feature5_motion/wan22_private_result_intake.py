@@ -31,6 +31,8 @@ def _owned_regular(path):
     info=path.stat(follow_symlinks=False)
     if not stat.S_ISREG(info.st_mode):
         raise WanCompatibilityError("Only private regular Comfy files are accepted")
+    if info.st_nlink != 1 or info.st_mode & 0o077:
+        raise WanCompatibilityError("Hardlinked or broadly readable Comfy output forbidden")
     return info
 
 
@@ -61,6 +63,8 @@ def find_single_private_wan_mp4(*, shot, private_output_root):
     expected_dir=root.joinpath(*folder_name.parts[:-1])
     if not expected_dir.is_dir() or expected_dir.is_symlink():
         raise WanCompatibilityError("Expected Comfy output subdirectory missing or linked")
+    if expected_dir.stat().st_mode & 0o077:
+        raise WanCompatibilityError("Comfy private output subdirectory must be 0700")
     # Parent tree is dedicated per attempt. Unexpected directories/files mean
     # the output might have been mixed with other clients' data.
     entries=0

@@ -28,7 +28,7 @@ class WanContainerfileGuardTests(unittest.TestCase):
         self.assertIn("--no-index --require-hashes",s)
         self.assertIn("python -m pip check",s)
         self.assertIn("USER 10001:10001",s)
-        self.assertIn('["python","main.py","--listen","127.0.0.1"',s)
+        self.assertIn('["sh","-c","umask 077; exec python main.py --listen 127.0.0.1',s)
         self.assertIn("install -d -m 0700 -o 10001 -g 10001",s)
         for arg in ("--input-directory","--output-directory",
                     "--temp-directory","--user-directory","--disable-metadata"):

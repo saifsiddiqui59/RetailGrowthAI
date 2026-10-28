@@ -37,8 +37,13 @@ def private_root(td):
     root=Path(td)/"isolated_attempt"
     root.mkdir(mode=0o700)
     output=root/"rgai"
-    output.mkdir()
+    output.mkdir(mode=0o700)
     return root,output/"feature5_00001_.mp4"
+
+
+def private_write(path, value):
+    path.write_bytes(value)
+    path.chmod(0o600)
 
 
 class WanPrivateOutputIntakeTests(unittest.TestCase):
@@ -53,6 +58,7 @@ class WanPrivateOutputIntakeTests(unittest.TestCase):
                 "-frames:v","121","-c:v","libx264","-preset","ultrafast",
                 "-crf","38","-pix_fmt","yuv420p","-an",str(destination),
             ],timeout=50,check=True,capture_output=True)
+            destination.chmod(0o600)  # production must use umask 077
             job,token=str(uuid4()),str(uuid4())
             selected,inspection,receipt=inspect_single_private_wan_output(
                 shot=shot(),private_output_root=root,
@@ -80,7 +86,7 @@ class WanPrivateOutputIntakeTests(unittest.TestCase):
     def test_output_bytes_not_read_without_current_tenant_attempt_lease(self):
         with tempfile.TemporaryDirectory() as td:
             root,destination=private_root(td)
-            destination.write_bytes(b"not actual media")
+            private_write(destination,b"not actual media")
             work=shot()
             for name,cb in [
                 ("missing callback",None),
@@ -104,28 +110,28 @@ class WanPrivateOutputIntakeTests(unittest.TestCase):
             root,dest=private_root(td)
             with self.assertRaisesRegex(WanCompatibilityError,"exactly one"):
                 find_single_private_wan_mp4(shot=shot(),private_output_root=root)
-            dest.write_bytes(b"synthetic-not-mp4")
+            private_write(dest,b"synthetic-not-mp4")
             self.assertEqual(find_single_private_wan_mp4(
                 shot=shot(),private_output_root=root),dest)
-            (dest.parent/"feature5_00002_.mp4").write_bytes(b"synthetic-two")
+            private_write(dest.parent/"feature5_00002_.mp4",b"synthetic-two")
             with self.assertRaisesRegex(WanCompatibilityError,"exactly one"):
                 find_single_private_wan_mp4(shot=shot(),private_output_root=root)
         with tempfile.TemporaryDirectory() as td:
             root,dest=private_root(td)
-            (dest.parent/"feature5_fake_.mp4").write_bytes(b"fake")
+            private_write(dest.parent/"feature5_fake_.mp4",b"fake")
             with self.assertRaisesRegex(WanCompatibilityError,"numbered"):
                 find_single_private_wan_mp4(shot=shot(),private_output_root=root)
         with tempfile.TemporaryDirectory() as td:
             root,dest=private_root(td)
-            dest.write_bytes(b"fake")
-            (root/"unreviewed.txt").write_text("unsolicited")
+            private_write(dest,b"fake")
+            private_write(root/"unreviewed.txt",b"unsolicited")
             with self.assertRaisesRegex(WanCompatibilityError,"Unexpected"):
                 find_single_private_wan_mp4(shot=shot(),private_output_root=root)
 
     def test_unexpected_empty_directory_and_corrupt_mp4_denied(self):
         with tempfile.TemporaryDirectory() as td:
             root,dest=private_root(td)
-            dest.write_bytes(b"corrupted")
+            private_write(dest,b"corrupted")
             (root/"foreign_empty").mkdir(mode=0o700)
             with self.assertRaisesRegex(WanCompatibilityError,"Unexpected directory"):
                 find_single_private_wan_mp4(shot=shot(),private_output_root=root)
@@ -164,6 +170,7 @@ class WanPrivateOutputIntakeTests(unittest.TestCase):
                 "-preset","ultrafast","-crf","38","-pix_fmt","yuv420p",
                 "-an",str(dest)
             ],timeout=70,check=True,capture_output=True)
+            dest.chmod(0o600)  # production must use umask 077
             active=True
             def fence(shop,job,token,lineage,private_root):
                 return (active and shop==submitted.shop_id and job==submitted.job_id
@@ -186,6 +193,23 @@ class WanPrivateOutputIntakeTests(unittest.TestCase):
             with self.assertRaises(WanCompatibilityError):
                 dispatcher.submit_once(**params)
         self.assertEqual(len([call for call in fake.calls if call[1]=="/prompt"]),1)
+
+    def test_broad_permissions_and_hardlinked_output_denied(self):
+        with tempfile.TemporaryDirectory() as td:
+            root,dest=private_root(td)
+            private_write(dest,b"synthetic-not-real-media")
+            dest.chmod(0o644)
+            with self.assertRaisesRegex(WanCompatibilityError,"broadly readable"):
+                find_single_private_wan_mp4(shot=shot(),private_output_root=root)
+            dest.chmod(0o600)
+            outsider=Path(td)/"another_link.mp4"
+            os.link(dest,outsider)
+            with self.assertRaisesRegex(WanCompatibilityError,"Hardlinked"):
+                find_single_private_wan_mp4(shot=shot(),private_output_root=root)
+            outsider.unlink()
+            dest.parent.chmod(0o755)
+            with self.assertRaisesRegex(WanCompatibilityError,"0700"):
+                find_single_private_wan_mp4(shot=shot(),private_output_root=root)
 
     def test_source_prefix_tamper_and_symlinks_never_escape_private_attempt(self):
         with tempfile.TemporaryDirectory() as td:
