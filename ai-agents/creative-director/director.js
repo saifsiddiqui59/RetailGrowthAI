@@ -65,7 +65,8 @@ function contextOf(source) {
   }
   const offers = new Map();
   const validDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-    !Number.isNaN(Date.parse(value + 'T00:00:00Z'));
+    !Number.isNaN(Date.parse(value + 'T00:00:00Z')) &&
+    new Date(value + 'T00:00:00Z').toISOString().slice(0, 10) === value;
   if (!validDate(req.campaign_date)) fail('Trusted campaign date required for promotion expiry check');
   for (const offer of req.approved_offers || []) {
     object(offer, 'offer');
@@ -75,7 +76,17 @@ function contextOf(source) {
         !offer.signed_evidence_id || offer.active !== true ||
         !validDate(offer.valid_from) || !validDate(offer.valid_until) ||
         !(offer.valid_from <= req.campaign_date && req.campaign_date <= offer.valid_until)) fail('Unapproved, expired or foreign discount');
-    offers.set(offer.id, offer);
+    // Source approval must be bound to exact product SKUs and legal wording.
+    // An offer ID + percentage alone never proves an on-screen kurti is eligible.
+    const scope = offer.eligible_product_skus;
+    if (!Array.isArray(scope) || !scope.length || scope.length > 100 ||
+        scope.some(sku => typeof sku !== 'string' || sku.length > 80 || !ID.test(sku)) ||
+        new Set(scope).size !== scope.length) fail('Promotion missing approved eligible product SKU scope');
+    const legalClaim = str(offer.approved_claim_text, 'approved retailer promotion wording', 10, 180);
+    if (!Array.from(legalClaim.matchAll(DISCOUNT)).some(m => Number(m[1]) === offer.percent_off))
+      fail('Promotion wording does not match the signed approved percentage');
+    if (offers.has(offer.id)) fail('Duplicate commercial approval');
+    offers.set(offer.id, { ...offer, eligible_product_skus: scope, approved_claim_text: legalClaim });
   }
   return { req, assets, offers, allowedPercents: new Set([...offers.values()].map(x => x.percent_off)) };
 }
@@ -94,7 +105,9 @@ function directorPrompt(request) {
     duration_seconds: req.duration_seconds,
     target_spoken_words: plan.wordsFor(req.duration_seconds * 0.65, 'en'),
     orientation: '9:16 portrait',
-    offer: [...offers.values()].map(o => ({ id: o.id, percent_off: o.percent_off, evidence: o.signed_evidence_id })),
+    offer: [...offers.values()].map(o => ({ id: o.id, percent_off: o.percent_off,
+      approved_claim_text: o.approved_claim_text, eligible_product_skus: o.eligible_product_skus,
+      evidence: o.signed_evidence_id })),
     approved_garments: [...assets.values()].map(a => ({ id: a.id, sku: a.product_sku, facts: a.garment_facts }))
   };
   const nonce = plan.newNonce();
@@ -105,7 +118,7 @@ function directorPrompt(request) {
     'Every shot requires camera framing, lens, composition, camera movement, lighting, setting, wardrobe, Feature3 approved reference id and product SKU.',
     'Every motion shot requires contiguous relative physical action windows starting at 0 and ending at shot duration, with human action, camera choreography and physical garment behaviour.',
     'Describe the SAME exact approved garment throughout; in every generation_prompt COPY the authoritative garment color, neckline, sleeves, hem and embroidery fields VERBATIM. Do not substitute synonyms or change motif/neckline/hem/sleeves, invent people, add rendered text or fake product claims.',
-    'Generate a rich shot-specific cinematic prompt grounded in ALL movement windows. Overlay exact offer copy later via Feature4, never ask Wan to draw sale text.',
+    'Generate a rich shot-specific cinematic prompt grounded in ALL movement windows. In the authored CTA use approved_claim_text VERBATIM when mentioning the offer. Only eligible_product_skus may feature with that offer. Overlay exact offer copy later via Feature4, never ask Wan to draw sale text.',
     'Scene speech must fit the scene duration at a real speaking pace. Include voiceover and dialogue and narration timing hints.',
     'Return strict JSON with concept, hook, voiceover_script, cta, offer_ids_used, scenes:[{id,role,voiceover,dialogue,transition_out,shots:[{id,duration_seconds,visual_description,subject,character_continuity,reference_asset_id,product_sku,wardrobe,camera:{framing,lens,composition,movement},lighting,background,motion_steps:[{start_seconds,end_seconds,human_action,camera_action,fabric_response}],generation_prompt,negative_constraints:[]}]}].',
     'All decisions remain DRAFT requiring human approval. DO NOT generate or spend on video. No invented offer, product, dates, stock, ratings or performance claim.'
@@ -129,7 +142,12 @@ function compile(request, candidate, options = {}) {
   const fullVO = str(direction.voiceover_script, 'full voiceover script', 10, 3500);
   sanitizedClaims([concept, hook, cta, fullVO].join(' '), allowedPercents);
   if (!Array.isArray(direction.offer_ids_used)) fail('Missing approved offer IDs');
-  for (const oid of direction.offer_ids_used) if (!offers.has(oid)) fail('An offer has not been approved');
+  if (new Set(direction.offer_ids_used).size !== direction.offer_ids_used.length) fail('Duplicate offer reference');
+  for (const oid of direction.offer_ids_used) {
+    if (!offers.has(oid)) fail('An offer has not been approved');
+    if (!normalizedEvidence(cta).includes(normalizedEvidence(offers.get(oid).approved_claim_text)))
+      fail('Approved promotional legal wording absent from advertising CTA');
+  }
   for (const percent of [concept, hook, cta, fullVO].join(' ').matchAll(DISCOUNT)) {
     if (![...direction.offer_ids_used].some(oid => offers.get(oid)?.percent_off === Number(percent[1]))) fail('Discount copy missing its exact approved offer lineage');
   }
@@ -161,6 +179,10 @@ function compile(request, candidate, options = {}) {
       const media = assets.get(shot.reference_asset_id);
       if (!media || media.product_sku !== shot.product_sku) fail('Missing / mismatched approved reference garment');
       neededMedia.add(media.id);
+      for (const offerId of direction.offer_ids_used) {
+        if (!offers.get(offerId).eligible_product_skus.includes(media.product_sku))
+          fail('This garment is outside the signed discount SKU scope');
+      }
       const cam = object(shot.camera, 'camera');
       const camera = {
         framing: str(cam.framing, 'camera.framing', 7, 250),
