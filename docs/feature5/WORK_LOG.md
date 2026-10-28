@@ -124,3 +124,10 @@
 - Implemented whole-checkout SHA audit, combined no-build source+wheel+pip hashlock+OCI preflight, synthetic negative tests and guarded rootless/no-metadata Containerfile preparation.
 - Implemented loopback-only 127.0.0.1:8188 ComfyUI transport, default-OFF one-attempt POST and read-only history with no-retry UNKNOWN accounting, current fenced lease and current tenant image approval callbacks. Synthetic tests do not use a socket, GPU or human model.
 - Exact final-head GitHub 4-job CI to be verified; do not claim image built, real model startup, GPU spend, licensed source approval, private media release or coordinator merge. No WineShopPOS/PROD writes.
+
+
+## 2026-10-28 — Feature5 non-A100 completion sprint
+- Rechecked repo main/Feature5 draft #323/#465, five canonical docs, AGENTS/ARCHITECTURE/INTERFACES/PARALLEL_WORK/CI, prior completed exact-head 4/4 CI #40705818193, and existing Feature2/3/4 handoff files. Retained existing source branch and all old work.
+- Implemented default-OFF local Wan dispatcher unique durable submission intent callback against existing paid job/lease to prevent same-UUID paid replays, including fail-closed repeated dispatcher and simulated second independent worker tests. No coordinator DB migration/real claim implementation claimed.
+- Implemented private result intake, 0700 lease-scoped output root authorization before file read, one official MP4 result, actual local ffprobe/decoded frame motion and pending-only output receipt. Added real FFmpeg testsrc2 704×1280 121-frame synthetic motion CPU integration test and multiple unsafe output/source/second-shop negative checks.
+- Authored detailed SOURCE_READINESS_AND_PENDING_20261028.md matrix, listing remaining independent runtime artifact/licensing, integrated real Part3 DB/tenant/private-media callbacks, operator-approved A100 and human editorial review, Feature4 composition and coordinator-owned merge/hosted acceptance. No GPU/image build, Azure writes, real fashion video, WineShopPOS or PROD changes. Final exact-head CI must be checked and any real failures fixed before source-ready signoff.
