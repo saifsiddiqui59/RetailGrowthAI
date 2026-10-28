@@ -163,6 +163,18 @@ class Feature7DispatchJournalTests(unittest.TestCase):
             leases=list(pool.map(try_claim,[0,1]))
         self.assertEqual(sum(lease is not None for lease in leases),1)
 
+    def test_worker_crash_on_final_attempt_becomes_dead_not_stranded(self):
+        job=self.stage()
+        for attempt in range(1,5):
+            start=1000+(attempt-1)*2000
+            lease=self.store.lease_next(context=ctx(),now_ms=start,lease_ms=1000)
+            self.assertEqual(lease.attempt,attempt)
+            # Let each process die without ack, then reclaim next lease.
+        self.assertIsNone(self.store.lease_next(context=ctx(),now_ms=9000))
+        row=self.store.inspect(context=ctx(),dispatch_id=job['dispatch_id'])
+        self.assertEqual(row['state'],'DEAD')
+        self.assertEqual(row['attempt'],4)
+
     def test_invalid_lease_bounds_and_expired_completion_rejected(self):
         self.stage()
         for invalid in (0,100000,True,1.5):
