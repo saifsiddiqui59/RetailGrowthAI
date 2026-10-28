@@ -9,11 +9,12 @@ from ai_agents.providers import FoundryUnavailable
 def brief():
     return {
         "shop_id": "test-tenant", "campaign_id": "test-diwali-clip",
-        "business_name": "Thread and Loom Studio", "duration_seconds": 15,
+        "business_name": "Thread and Loom Studio", "campaign_date": "2026-11-06", "duration_seconds": 15,
         "authenticated_owner_or_editor": True, "server_verified": True,
         "approved_offers": [{
             "id": "authorized-20", "shop_id": "test-tenant",
-            "approval_status": "APPROVED", "percent_off": 20,
+            "approval_status": "APPROVED", "percent_off": 20, "active": True,
+            "valid_from": "2026-10-01", "valid_until": "2026-11-15",
             "signed_evidence_id": "approved-offer-record",
         }],
         "media_grants": [{
