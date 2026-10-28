@@ -37,6 +37,16 @@ class HTTPAPI:
                     return 404, {"error": "NOT_FOUND"}
                 return self.feature3_api.source_asset(
                     token, user_id, parts[1], parts[3])
+            if path.endswith("/download") and "/feature3-gpu-jobs/" in path:
+                if self.feature3_api is None:
+                    return 503, {"error": "FEATURE3_V2_DISABLED"}
+                parts=path.strip("/").split("/")
+                if (method != "GET" or len(parts)!=5 or
+                    parts[0]!="shops" or parts[2]!="feature3-gpu-jobs" or
+                    parts[4]!="download"):
+                    return 404, {"error": "NOT_FOUND"}
+                return self.feature3_api.gpu_download(
+                    token,user_id,parts[1],parts[3])
             if path.startswith("/shops/") and path.endswith("/feature3-models"):
                 if self.feature3_api is None:
                     return 503, {"error": "FEATURE3_V2_DISABLED"}
