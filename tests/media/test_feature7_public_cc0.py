@@ -138,6 +138,60 @@ process.stdout.write(JSON.stringify({
 """
 
 
+SIGNED_REAL_CC0_JS = r"""
+import fs from 'node:fs';
+import {normalizeWhisperx} from './video-engine/feature7/transcript_adapter.mjs';
+import {sealTranscriptEvidence} from './video-engine/feature7/transcript_evidence.mjs';
+import {sealMediaRightsEvidence} from './video-engine/feature7/media_rights_evidence.mjs';
+import {prepareAuthoritativePrivateReview}
+ from './video-engine/feature7/authoritative_private_review.mjs';
+const data=JSON.parse(fs.readFileSync(0,'utf8'));
+const src=data.media[0];
+const current={...src.grant,rights_revision:'cc0-test-revision-1'};
+const asrKey=Buffer.alloc(32,0xa1);
+const rightsKey=Buffer.alloc(32,0xb2);
+const now=1700000000000;
+const wordData=normalizeWhisperx({
+ asset_id:src.asset_id,shop_id:data.shop_id,
+ source_sha256:src.expected_sha256,
+ source_duration_seconds:16,
+ transcript:src.whisperx_json
+});
+src.asr_evidence=sealTranscriptEvidence({key:asrKey,now_ms:now,
+ data:{shop_id:data.shop_id,asset_id:src.asset_id,job_id:'cc0-test-job',
+   source_sha256:src.expected_sha256,
+   transcript_sha256:wordData.transcript_sha256,
+   model_id:'human_srt_test_only',issued_at_ms:now,
+   expires_at_ms:now+60000}});
+src.rights_evidence=sealMediaRightsEvidence({key:rightsKey,now_ms:now,
+ data:{shop_id:data.shop_id,asset_id:src.asset_id,job_id:'cc0-test-job',
+   source_sha256:src.expected_sha256,rights_revision:current.rights_revision,
+   media_type:'video',mime_type:'video/mp4',relative_path:src.relative_path,
+   issued_at_ms:now,expires_at_ms:now+60000}});
+let checks=0;
+const before=fs.readFileSync(data.root+'/'+src.relative_path);
+const result=prepareAuthoritativePrivateReview({
+ ...data,job_id:'cc0-test-job',asr_key:asrKey,rights_key:rightsKey,
+ now_ms:now,getCurrentApprovedVideo:()=>{
+   checks++;
+   if(data.attack==='revoked_before_return'&&checks>1)
+     return {...current,active:false};
+   return current;
+ }
+});
+const after=fs.readFileSync(data.root+'/'+src.relative_path);
+if(!before.equals(after))throw Error('Original public test speaker altered');
+process.stdout.write(JSON.stringify({
+ verified:result.frozen_media_snapshot_verified,
+ trusted_rights:result.rights_rechecked_against_authoritative_registry,
+ transcript_bound:result.transcript_evidence_verified,
+ status:result.review_status,approved:result.approved,
+ source_unchanged:true,source_model:'HUMAN_REFERENCE_SRT_NOT_REAL_ASR'
+}));
+"""
+
+
+
 @unittest.skipUnless(os.getenv("CI") == "true" or
                      os.getenv("RETAIL_F7_CC0_WEB_TEST") == "1",
                      "External CC0 download enabled only in GitHub Actions / explicit smoke")
@@ -290,6 +344,30 @@ class Feature7InternetCC0SpeechVideoTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(self.clip.read_bytes()).hexdigest(),self.sha)
         # Test artifact is destroyed with TemporaryDirectory. It is not a
         # hosted render, editor implementation, or customer-approved download.
+
+
+    def test_real_cc0_speaker_uses_frozen_signed_private_review(self):
+        """Fake signed registry and human SRT; actual voice bytes, no ML claim."""
+        r = subprocess.run(
+            ["node","--input-type=module","-e",SIGNED_REAL_CC0_JS],
+            input=json.dumps(self.payload()),cwd=PROJECT_ROOT,
+            capture_output=True,text=True,timeout=90)
+        self.assertEqual(r.returncode,0,r.stderr[-1000:])
+        data=json.loads(r.stdout)
+        self.assertTrue(data['verified'])
+        self.assertTrue(data['trusted_rights'])
+        self.assertTrue(data['transcript_bound'])
+        self.assertTrue(data['source_unchanged'])
+        self.assertFalse(data['approved'])
+        self.assertEqual(data['source_model'],'HUMAN_REFERENCE_SRT_NOT_REAL_ASR')
+
+    def test_real_cc0_speaker_revocation_during_review_is_denied(self):
+        p=self.payload()
+        p['attack']='revoked_before_return'
+        r=subprocess.run(["node","--input-type=module","-e",SIGNED_REAL_CC0_JS],
+          input=json.dumps(p),cwd=PROJECT_ROOT,capture_output=True,text=True,timeout=90)
+        self.assertNotEqual(r.returncode,0,r.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
