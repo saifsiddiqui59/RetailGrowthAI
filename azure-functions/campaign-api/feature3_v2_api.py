@@ -62,6 +62,29 @@ class Feature3V2API:
                      "registered": True, "private_bytes_verified": False,
                      "model_reviewed": False, "gpu_eligible": False}
 
+    def gpu_download(self, token, user_id, shop_id, job_id):
+        """Authenticated download for successful, registered, private v2 GPU PNG.
+
+        No direct client output IDs, Storage paths, approval or GPU activation.
+        The real JWT must pass shop membership and both row-level reads.
+        """
+        sid, jid = canonical_uuid(shop_id), canonical_uuid(job_id)
+        if not self.tenant.member(token, user_id, sid):
+            return 404, {"error": "NOT_FOUND"}
+        job = self.tenant.feature3_gpu_job(token, sid, jid)
+        if job is None:
+            return 404, {"error": "NOT_FOUND"}
+        if job["status"] != "SUCCEEDED" or not job.get("output_asset_id"):
+            return 409, {"error": "OUTPUT_NOT_READY"}
+        asset = self.tenant.feature3_generated_asset(
+            token, sid, jid, job["output_asset_id"])
+        if asset is None:
+            return 404, {"error": "OUTPUT_NOT_FOUND"}
+        return 200, {"job_id": jid, "media_asset_id": job["output_asset_id"],
+                     "url": self.tenant.sign_download(
+                         token, sid, asset["object_path"]),
+                     "expires_in_seconds": 60, "approved_model": False}
+
     def day(self, token, user_id, campaign_id, day_id, method, body=None):
         cid, did = canonical_uuid(campaign_id), canonical_uuid(day_id)
         if method not in ("GET", "POST"):
