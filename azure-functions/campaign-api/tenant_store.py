@@ -6,6 +6,7 @@ server-side. HTTP errors never return raw PostgREST error bodies to clients.
 from __future__ import annotations
 
 import json
+import re
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -229,7 +230,7 @@ class TenantStore:
             item.get("storage_bucket")!="retailgrowth-media" or
             item.get("source")!="GENERATED" or item.get("mime_type")!="image/png" or
             not isinstance(key,str) or not key.startswith(expected_prefix) or
-            not __import__("re").fullmatch(r"[a-f0-9]{64}[.]png",key[len(expected_prefix):])):
+            not re.fullmatch(r"[a-f0-9]{64}[.]png",key[len(expected_prefix):])):
             return None
         return {"object_path":key,"mime_type":"image/png"}
 
