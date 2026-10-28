@@ -17,6 +17,10 @@
 | F4-11 | P1 | Update canonical `docs/PROJECT_STATE.md`, `NEXT_TASK.md`, `DECISIONS.md`, `WORK_LOG.md` and merge PR into main | COORDINATOR-OWNED; source handoff and PR checkpoint maintained per feature branch. Do not merge draft automatically |
 | F4-12 | P2 | Confirm no-cost repeatable CI and quality/performance release checks for core engineering | PARTIAL: 30s real CPU CI recurring, full 60s/1080p opt-in to avoid repeat cost, private hosted benchmark pending |
 
+| F4-13 | P0 (Feature #7 ownership) | Multimodal AI creative planner using independently reviewed edits | NOT IMPLEMENTED BY FEATURE #4. Feature #7 must deliver tested, approved decisions and maintain media-understanding ownership. A fake LLM JSON response is not an intelligent editor. |
+| F4-14 | P0 (Feature #7 ownership) | Semantic video analysis, speech and intelligent shot selection | NOT IMPLEMENTED BY FEATURE #4. Requires real footage/keyframes/transcription evidence and Feature #7 handoff. |
+| F4-15 | P0 | Safely execute an approved Feature #7 plan using existing HyperFrames/FFmpeg timeline | SOURCE-ONLY IMPLEMENTED: `feature4_edit_execution.py` + `test_feature4_edit_execution.py`. Supports reviewed source-scene permutation, retiming, safe transitions/animations, video trimming/muting, original draft SHA-256, same-shop/campaign approval binding and reuses existing private-bucket/copy/rights validation. Exact new-head CI must complete before marking VERIFIED. Not AI inference or hosted acceptance. |
+
 ## Non-negotiable boundaries
 
 - **Synthetic test data can be *assumed delivered* for integration tests** at user direction, but must not be called a retailer-owned product, a real AI-generated human, a garment-fidelity approval, or a commercial advertising sample.
@@ -35,3 +39,11 @@
 
 - [Actions #40664857092](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40664857092) **4/4 SUCCESS**, 106 media tests, actual 30s/1080p H.264/AAC export and synthetic source-audio ducking. Exact source head `28d1aa91860bac34683970e9d196bb135764f0b4`. Human review gate tests only verify source record checks; no real human approval.
 - Subsequent source preview client changes require separate exact-head Actions check before asserting passing CI. Any newer commit invalidates earlier same-head certification until rechecked.
+
+## 2026-10-28 — Feature #4 execution adapter continuation
+
+- **New F4-15 source-only integration adapter:** `video-engine/feature4_edit_execution.py` converts a trusted server-fetched Feature #7 reviewed editing decision into reordered/re-timed existing `rg_video_v2` scenes, and executes it through the existing `compile_approved_storyboard` → `creative_reel_v1` → HyperFrames contract. The source Feature #7 decision is bound to the original storyboard SHA-256, shop/campaign, exact server review ID and reviewed timeline version; it cannot change asset IDs, copyright/rights, offer/CTA, logo, soundtrack or output profile. Existing Feature #4 worker validates the resulting plan again.
+- **Negative tests:** `tests/media/test_feature4_edit_execution.py` covers source scene permutation, signed-review lineage propagation, old/foreign approvals, missing/duplicated source scenes, illegal commands/animation/trim, invalid durations, edited promotional claims and revoked/cross-shop/private-storage media. These use only synthetic fixtures; AI perception, cloud media generation, transcription, Azure production cost and real video visual quality remain untested.
+- **Ownership:** This implements Feature #4's trusted plan execution. Feature #7 still owns generation and semantic quality of AI editing decisions; Feature #2 own approved copy; Feature #3/#5 own media generation. No coordinator-owned `docs/**`, public routes, DB migrations, Azure resources, Feature #7 code or `main` were touched.
+- **Verification:** exact-head GitHub CI must be inspected after the branch push; do not infer success from previous `dd1536fb` 4/4 run. PR #322 stays draft.
+
