@@ -203,6 +203,20 @@ def require_priced_test_envelope(j):
     return reserved
 
 
+def require_approved_runtime_image(j):
+    """Paid start must use the exact operator-reviewed immutable image, not just any digest.
+
+    This is independent of the model checksum and price approvals. A digest
+    formatted correctly but not explicitly approved must never pass.
+    """
+    expected = os.getenv("RETAIL_F5_REVIEWED_RUNTIME_IMAGE", "").strip()
+    actual = ((((j.get("properties") or {}).get("template") or {}).get("containers") or [{}])[0].get("image") or "")
+    pattern = r"[^@\\s]+@sha256:[0-9a-fA-F]{64}"
+    if not re.fullmatch(pattern, expected) or actual != expected:
+        raise SafetyError("Paid start requires the exact reviewed OCI image digest")
+    return expected
+
+
 def start(sub, execute, acknowledged):
     j = job(sub)
     if j is None:
@@ -218,6 +232,7 @@ def start(sub, execute, acknowledged):
             os.getenv("RETAIL_F5_MODEL_LICENSE_APPROVED") != "YES"):
         raise SafetyError("Paid start requires cost acknowledgment and both YES approval flags")
     require_priced_test_envelope(j)
+    require_approved_runtime_image(j)
     az("containerapp", "job", "start", "-n", JOB, *rgflags(sub))
     print("Paid start requested. Inspect execution and stop after gathering evidence.")
 
