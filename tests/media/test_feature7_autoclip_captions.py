@@ -52,8 +52,11 @@ class Feature7AutoClipCaptionHandoffTests(unittest.TestCase):
         r=self.invoke(p)
         self.assertEqual(r.returncode,0,r.stderr)
         result=json.loads(r.stdout)
-        self.assertEqual(result["actual_timeline_duration_ms"],15000)
-        self.assertTrue(result["matches_feature4_duration_exactly"])
+        self.assertEqual(result["actual_timeline_duration_ms"],14940)
+        self.assertFalse(result["matches_feature4_duration_exactly"])
+        self.assertEqual(result["applied_audio_crossfade_seconds"],0.03)
+        self.assertFalse(result["measured_frame_level_sync"])
+        self.assertTrue(result["requires_rendered_av_acceptance"])
         self.assertEqual(result["upstream_caption_project"],"andriidrok1/autobroll")
         self.assertEqual(result["upstream_cut_project"],"branmendo/autoclip-core")
         self.assertFalse(result["approved"])
@@ -63,11 +66,33 @@ class Feature7AutoClipCaptionHandoffTests(unittest.TestCase):
         self.assertTrue(all(set(c)=={"start","duration","text"}
                             for c in result["feature4_caption_track"]))
         self.assertFalse(any("Welcome" in c["text"] for c in result["captions"]))
-        self.assertEqual(result["keep_projection"][1]["timeline_start_ms"],3000)
+        self.assertEqual(result["keep_projection"][1]["timeline_start_ms"],2985)
+        self.assertEqual(result["keep_projection"][1]["visible_source_start_ms"],5015)
+        self.assertEqual(result["keep_projection"][1]["visible_source_end_ms"],11985)
         self.assertTrue(any("video" in c["text"] and
                 c["start_ms"]<6000 for c in result["captions"]))
         self.assertTrue(all(x["end_ms"]<=15000 for x in result["captions"]))
         self.assertEqual(p["words"][0]["word"],"Hi")
+
+    def test_explicit_no_crossfade_clock_matches_concat_without_fade(self):
+        p=sample()
+        p["audio_crossfade_seconds"]=0
+        r=self.invoke(p)
+        self.assertEqual(r.returncode,0,r.stderr)
+        result=json.loads(r.stdout)
+        self.assertEqual(result["actual_timeline_duration_ms"],15000)
+        self.assertTrue(result["matches_feature4_duration_exactly"])
+        self.assertEqual(result["keep_projection"][1]["timeline_start_ms"],3000)
+
+    def test_crossfade_edge_word_is_not_misrepresented_as_fully_visible(self):
+        p=sample()
+        p["words"].insert(5,{"word":"CHOPPED","startMs":2970,"endMs":2995})
+        r=self.invoke(p)
+        self.assertEqual(r.returncode,0,r.stderr)
+        result=json.loads(r.stdout)
+        self.assertFalse(any("CHOPPED" in cue["text"] for cue in result["captions"]))
+        self.assertTrue(all(cue["end_ms"]<=result["actual_timeline_duration_ms"]
+                            for cue in result["captions"]))
 
     def test_cross_tenant_bad_timing_forged_html_and_gap_overlap_denied(self):
         for name,changed in [
@@ -78,6 +103,9 @@ class Feature7AutoClipCaptionHandoffTests(unittest.TestCase):
           ("html",lambda p:p["words"][0].update(word="<img>")),
           ("unsupported_target",lambda p:p.update(requested_reel_seconds=12)),
           ("overlength",lambda p:p["keep_segments"][2].update(end=40)),
+          ("negative_fade",lambda p:p.update(audio_crossfade_seconds=-.03)),
+          ("excess_fade",lambda p:p.update(audio_crossfade_seconds=.5)),
+          ("submillisecond_fade",lambda p:p.update(audio_crossfade_seconds=.0005)),
         ]:
             with self.subTest(case=name):
                 p=sample();changed(p)
