@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/button.jsx'
 import { Card } from '../../components/ui/card.jsx'
 import { Badge } from '../../components/ui/badge.jsx'
 import CreativeLaunchpad from './CreativeLaunchpad.jsx'
+import {OfflineIntegrationPreview} from './Feature1ReadViews.jsx'
 
 const pages = {
   calendar: {
@@ -90,6 +91,7 @@ export default function WorkspacePage({ section }) {
       </ol>
       <p className="rg-integration-safety" role="status">No connection, message, post, payment or scheduled delivery is created by viewing this guide.</p>
     </Card>}
+    {['connections','publishing'].includes(section) && <OfflineIntegrationPreview key={section} section={section} />}
     <Card className="panel rg-next-actions" aria-label="Available actions">
       <h2>Continue working</h2><div className="rg-action-list">
         {page.actions.map(([label, to]) =>
