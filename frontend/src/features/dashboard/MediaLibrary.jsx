@@ -72,6 +72,27 @@ export default function MediaLibrary() {
     retry: false,
     refetchOnWindowFocus: false,
   })
+  // A private blob is only valid while the latest RLS-backed metadata still
+  // identifies this same-shop record as an original UPLOAD. A refreshed
+  // GENERATED/STOCK/revoked/missing asset must not leave a stale download link.
+  const previewAuthorized = useMemo(() => Boolean(
+    preview?.scope === activeScope && preview?.id &&
+    assetsQuery.isSuccess && assetsQuery.data?.pages?.some(page =>
+      page.items.some(asset => asset.id === preview.id &&
+        mediaPreviewAccess(asset, shopId).allowed))
+  ), [preview?.scope, preview?.id, activeScope, assetsQuery.isSuccess, assetsQuery.data, shopId])
+  useEffect(() => {
+    if (!preview || preview.scope !== activeScope) return
+    if (!shopsQuery.isError && !assetsQuery.isError &&
+        (!assetsQuery.isSuccess || previewAuthorized)) return
+    // Revocation/metadata failure invalidates both the displayed link and a
+    // pending private byte read. Never rely on a previously authorized blob.
+    requestEpoch.current += 1
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current)
+    previewUrl.current = null
+    setPreview(null)
+  }, [preview?.id, preview?.scope, previewAuthorized, activeScope,
+    shopsQuery.isError, assetsQuery.isError, assetsQuery.isSuccess])
   const assets = useMemo(() => {
     const unique = new Map()
     for (const page of assetsQuery.data?.pages || []) {
@@ -137,7 +158,8 @@ export default function MediaLibrary() {
                 </div>
               </Card>)}
             </div>}
-        {preview?.scope === activeScope && <Card className="rg-private-preview" aria-label="Verified private image preview">
+        {previewAuthorized && !shopsQuery.isFetching && !assetsQuery.isFetching && !hasError &&
+          <Card className="rg-private-preview" aria-label="Verified private image preview">
           <Button type="button" variant="outline" size="sm" onClick={closePrivateImage}>Close private preview</Button>
           {preview.loading && <p role="status">Reading private image with your current session…</p>}
           {preview.error && <p role="alert">{preview.error}</p>}

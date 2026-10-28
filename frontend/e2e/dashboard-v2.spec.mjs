@@ -834,3 +834,51 @@ test('private image close revokes blob and a late Storage response cannot reopen
     expect(privateReads).toBe(2)
   }finally{releaseRead()}
 })
+
+
+test('private preview is revoked if refreshed rights change from UPLOAD to GENERATED',async({page})=>{
+  await signedIn(page)
+  await page.setViewportSize({width:320,height:740})
+  const image='a1000000-0000-4000-8000-000000000010'
+  const upload='a1000000-0000-4000-8000-000000000020'
+  let generated=false,mediaReads=0,privateReads=0
+  await page.route(HOST+'/rest/v1/media_assets**',route=>{
+    const lookup=new URL(route.request().url()).searchParams.has('id')
+    if(!lookup)mediaReads++
+    const registered={id:image,shop_id:SHOP,storage_bucket:'retailgrowth-media',
+      object_path:SHOP+'/uploads/'+upload+'.png',mime_type:'image/png',
+      source:generated&&!lookup?'GENERATED':'UPLOAD',license_name:'owned',
+      created_at:'2026-10-28T12:00:00Z'}
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify([registered])})
+  })
+  const png=Buffer.alloc(256)
+  Buffer.from([137,80,78,71,13,10,26,10]).copy(png)
+  await page.route(HOST+'/storage/v1/object/authenticated/**',route=>{
+    privateReads++
+    expect(route.request().headers().authorization).toBe('Bearer offline-test-JWT')
+    return route.fulfill({status:200,body:png,headers:{
+      'Access-Control-Allow-Origin':'*','Content-Type':'image/png','Content-Length':'256'}})
+  })
+  await page.goto('/media-library')
+  await expect(page.getByText('1 matching registered images')).toBeVisible()
+  await page.getByRole('button',{name:'Preview Image a1000000'}).click()
+  const img=page.getByRole('img',{name:'Authorized private image Image a1000000'})
+  await expect(img).toHaveAttribute('src',/^blob:/)
+  const oldUrl=await img.getAttribute('src')
+  expect(privateReads).toBe(1)
+  generated=true
+  await page.getByRole('button',{name:'Refresh assets'}).click()
+  await expect.poll(()=>mediaReads).toBeGreaterThanOrEqual(2)
+  await expect(page.getByText('Private preview unavailable until ownership, rights and private access are verified')).toBeVisible()
+  await expect(img).toHaveCount(0)
+  await expect(page.getByRole('link',{name:'Save private image'})).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'Preview Image a1000000'})).toHaveCount(0)
+  await expect.poll(async()=>page.evaluate(async url=>{
+    try{return (await fetch(url)).ok}catch{return false}
+  },oldUrl)).toBe(false)
+  expect(privateReads).toBe(1)
+  await expect.poll(()=>page.evaluate(()=>
+    document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
+})
