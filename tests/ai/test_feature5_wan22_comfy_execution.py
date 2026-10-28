@@ -1,5 +1,7 @@
 """Offline-only ComfyUI protocol simulator: no actual socket, GPU or media."""
 import copy
+import hashlib
+import json
 import unittest
 from uuid import uuid4
 
@@ -138,6 +140,38 @@ class WanComfyPrivateProtocolTests(unittest.TestCase):
                 WanPrivateComfyDispatcher(fake,enabled=True).submit_once(**inputs(
                     pkg,verify_current_private_first_frame=callback))
             self.assertFalse(any(c[0]=="POST" for c in fake.calls))
+
+    def test_creative_director_positive_negative_digest_is_fenced_by_existing_claim(self):
+        pkg=synthetic_package()
+        calls=[]
+        def original_claim(*args):
+            calls.append(args)
+            return args[-1]==pkg.prompt_sha256
+        fake=FakeLocalComfy(pkg)
+        receipt=WanPrivateComfyDispatcher(fake,enabled=True).submit_once(**inputs(
+            pkg,verify_existing_fenced_paid_claim=original_claim))
+        self.assertEqual(receipt.status,"SUBMITTED_NOT_GENERATED_OR_APPROVED")
+        self.assertEqual(len(calls),1)
+        self.assertEqual(calls[0][-2:],(pkg.lineage_sha256,pkg.prompt_sha256))
+        altered=copy.deepcopy(pkg)
+        altered.graph["prompt"]["5"]["inputs"]["text"]="silently changed editorial constraints"
+        fake2=FakeLocalComfy(altered)
+        with self.assertRaisesRegex(WanCompatibilityError,"digest"):
+            WanPrivateComfyDispatcher(fake2,enabled=True).submit_once(**inputs(
+                altered,verify_existing_fenced_paid_claim=original_claim))
+        self.assertEqual(fake2.calls,[])
+        altered2=copy.deepcopy(pkg)
+        newnegative="forged scene-specific no-hand-error negative prompt"
+        altered2.graph["prompt"]["5"]["inputs"]["text"]=newnegative
+        from dataclasses import replace
+        forged=replace(altered2,prompt_sha256=hashlib.sha256(json.dumps(
+            {"positive":altered2.prompt,"negative":newnegative},sort_keys=True,
+            separators=(",",":")).encode()).hexdigest())
+        fake3=FakeLocalComfy(forged)
+        with self.assertRaisesRegex(WanCompatibilityError,"fenced"):
+            WanPrivateComfyDispatcher(fake3,enabled=True).submit_once(**inputs(
+                forged,verify_existing_fenced_paid_claim=original_claim))
+        self.assertEqual(fake3.calls,[])
 
     def test_ambiguous_post_and_mismatched_prompt_id_never_retry(self):
         pkg=synthetic_package()
