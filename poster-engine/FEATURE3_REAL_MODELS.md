@@ -127,3 +127,18 @@ are unchanged.
    signed final exports, server-backed persistence and cost benchmark.
 
 No PROD resources or WineShopPOS changes permitted.
+
+
+## Pre-rental private checkpoint audit helper (2026-10-28)
+
+The source-only `flux_t4_review_candidate.py` computes SHA-256 over **every staged safetensors shard**, the exact `Flux2KleinPipeline` index, all required tokenizer/config files, and `LICENSE.md`. It never downloads models, accesses Azure, runs CUDA or approves a license. Run **only after** you have manually staged the official immutable 4B snapshot into private local storage:
+
+```bash
+python poster-engine/flux_t4_review_candidate.py \
+  --weights /mnt/private/models/FLUX.2-klein-4B \
+  --output /mnt/private/reviews/flux2-klein-4b-candidate.json
+```
+
+The candidate is created privately with mode 0600 and `dependencies_operator_approved=false`. It is intentionally rejected by `verify_reviewed_flux_snapshot` until an operator independently verifies the pinned publisher commit, signed provenance where available, actual model weight/license terms, dependency notices and all file digests, then explicitly approves a separately protected copy. **Never blindly change this flag to true.** The tool refuses symlinked components, incomplete shards/configs, unexpected pipeline class, an existing destination or a review manifest stored inside the model mount. Tests use tiny synthetic fake checkpoint bytes and are not real model inference.
+
+The owner-provided **October 28 Azure Portal screenshot** shows the existing Feature5 managed environment's A100 quota now **0 used / 2 limit**, while T4 remains **0 used / 0 limit**. This image is user-provided quota evidence, not a new authenticated Azure OIDC pricing, allocation, active compute or model deployment check. Hold any GPU resource launch until actual A100 price, quota usage, allocation and explicit cost cap are verified separately. Do not touch PROD/WineShopPOS.
