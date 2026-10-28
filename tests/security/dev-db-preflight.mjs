@@ -33,9 +33,23 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261026194000_feature2_ai_cost_ledger.sql',
   // Hosted history already includes Feature2; Feature3 is the last pending migration.
   '20261028092346_feature3_model_catalog_drafts.sql',
+  '20261028093500_feature3_gpu_budget_jobs.sql',
 ]);
 
 const CAPABILITIES = {
+  '20261028093500': [
+    /alter table public[.]shop_ai_budget_controls/i,
+    /feature3_gpu_enabled boolean not null default false/i,
+    /create table public[.]feature3_gpu_jobs/i,
+    /create table retail_private[.]feature3_gpu_outbox/i,
+    /enable row level security/i,
+    /revoke all on public[.]feature3_gpu_jobs/i,
+    /feature3_reserve_gpu_job/i,
+    /feature3_claim_gpu_job/i,
+    /feature3_finish_gpu_job/i,
+    /grant execute on function public[.]feature3_reserve_gpu_job/i,
+    /grant execute on function public[.]feature3_finish_gpu_job/i,
+  ],
   '20261026194000': [
     /create table public[.]shop_ai_budget_controls/i,
     /create table public[.]shop_ai_spend_reservations/i,
