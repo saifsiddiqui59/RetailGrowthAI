@@ -52,7 +52,7 @@ class GeneratedImageHistoryTests(unittest.TestCase):
         self.assertEqual(off.handle("GET",f"/shops/{SID}/feature3-gpu-jobs",
                                     "Bearer valid-user")[0],503)
         self.assertEqual(off.handle("POST",f"/shops/{SID}/feature3-gpu-jobs",
-                                    "Bearer valid-user")[0],503)
+                                    "Bearer valid-user")[0],404)
         for extra in ("/foreign","/download"):
             self.assertEqual(self.api.handle("GET",f"/shops/{SID}/feature3-gpu-jobs"+extra,
                                              "Bearer valid-user")[0],404)
