@@ -30,7 +30,7 @@ DRILLDOWN = (
 NAME = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
 KEYWORDS = ("worker", "startup", "cold", "runtime", "availability", "503",
             "webappdown", "appdown", "crash", "http", "errors", "restart")
-LEVELS = frozenset(("Critical", "Warning", "Info", "Success", "Unknown"))
+LEVELS = frozenset(("Critical", "Warning", "Info", "Success", "None", "Unknown"))
 
 
 def arm_get(base: str, route: str, *, historical: bool = False):
@@ -81,12 +81,25 @@ def summarize_response(result):
         prop = {}
     dataset = prop.get("dataset")
     data_count = len(dataset) if isinstance(dataset, list) else None
-    status = prop.get("status")
-    status = status if isinstance(status, str) and status in LEVELS else "Unknown"
+    # Azure ARM DetectorResponse.properties.status is an OBJECT with statusId,
+    # never a free-text status or a reason to expose its .message.
+    status_object = prop.get("status")
+    raw_level = (status_object.get("statusId") if isinstance(status_object, dict)
+                 else status_object)
+    status = raw_level if isinstance(raw_level, str) and raw_level in LEVELS else "Unknown"
     insights = prop.get("insights")
     insight_count = len(insights) if isinstance(insights, list) else None
+    counts = []
+    # Only row COUNTS, not arbitrary table schemas/values/metadata. The detector
+    # may return private path/tenant information within cells; never print them.
+    if isinstance(dataset, list):
+        for section in dataset[:16]:
+            table = section.get("table") if isinstance(section, dict) else None
+            rows = table.get("rows") if isinstance(table, dict) else None
+            counts.append(min(len(rows), 10000) if isinstance(rows, list) else None)
     return {"result": "received", "status": status,
             "dataset_sections": min(data_count, 100) if data_count is not None else None,
+            "dataset_rows_per_section": counts,
             "insight_sections": min(insight_count, 100) if insight_count is not None else None,
             "raw_findings_redacted": True, "historical_window_verified": False}
 
