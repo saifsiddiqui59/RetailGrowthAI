@@ -24,7 +24,6 @@ function captionsFromApprovedDirectorTiming(bundle){
   // reused without copying or rewriting the speech-layout algorithm.
   const parsed=cues.parseTiming(audio.timing);
   if(!parsed||!Array.isArray(parsed.words)||!parsed.words.length ||
-     !Array.isArray(parsed.lines)||!parsed.lines.length||
      parsed.duration > plan.duration_seconds ||
      parsed.duration<=0)reject('Invalid original word alignment');
   const transcript=cues.spokenTokens(parsed.words.map(x=>x.text).join(' '));
