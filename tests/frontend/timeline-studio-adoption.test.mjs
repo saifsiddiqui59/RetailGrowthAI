@@ -5,7 +5,7 @@ import { inspectCreativeDirection } from '../../frontend/src/features/video/crea
 import { createEditorHistory, pushEditorHistory, undoEditorHistory, redoEditorHistory } from '../../frontend/src/features/video/vendor/editorHistoryCore.mjs'
 import { packTimedSegmentsIntoLanes, materializeCaptionTimings, getVisualSegmentTimeline } from '../../frontend/src/features/video/vendor/timeline.js'
 import { getTimelineRulerTicks, getTimelineAutoFitZoom } from '../../frontend/src/features/video/vendor/timelineScale.js'
-import { makeVideoDraft, validateVideoDraft } from '../../frontend/src/features/video/video-model.mjs'
+import { makeVideoDraft, compatibleMedia, validateVideoDraft } from '../../frontend/src/features/video/video-model.mjs'
 
 const SHOP='11111111-1111-4111-8111-111111111111'
 const OTHER='22222222-2222-4222-8222-222222222222'
@@ -198,7 +198,6 @@ test('authoritative shop matching is required for product, poster, music and out
  const d=draft()
  const media=[...assets,{id:'foreign',kind:'image',authorized:true,shop_id:OTHER}]
  assert.equal(compatibleMedia('media',media,SHOP).some(a=>a.id==='foreign'),false)
- const {makeVideoDraft}=({makeVideoDraft})
  const initial=makeVideoDraft({shopId:SHOP,mode:'media',duration:30,mediaAssets:[media.at(-1),...assets]})
  assert.notEqual(initial.scenes[0].asset_id,'foreign')
  const foreignAsset={...d,scenes:d.scenes.map((s,i)=>i===0?{...s,asset_id:'foreign'}:s)}
