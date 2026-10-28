@@ -278,5 +278,69 @@ process.stdout.write(JSON.stringify(preparePrivateReview(data)));
                 self.assertNotEqual(result.returncode,0,result.stdout)
 
 
+
+    def test_signed_evidence_binds_approved_16s_video_to_15s_review(self):
+        script=r"""
+import fs from 'node:fs';
+import {normalizeWhisperx} from './video-engine/feature7/transcript_adapter.mjs';
+import {sealTranscriptEvidence} from './video-engine/feature7/transcript_evidence.mjs';
+import {prepareEvidenceBoundReview} from './video-engine/feature7/evidence_bound_review.mjs';
+const p=JSON.parse(fs.readFileSync(0,'utf8'));
+const key=Buffer.alloc(32,0x42);
+const item=p.media[0];
+const transcript=normalizeWhisperx({
+ asset_id:item.asset_id,shop_id:p.shop_id,
+ source_sha256:item.expected_sha256,
+ source_duration_seconds:item.source_duration_seconds,
+ transcript:item.whisperx_json
+});
+item.asr_evidence=sealTranscriptEvidence({
+ data:{shop_id:p.shop_id,asset_id:item.asset_id,job_id:p.job_id,
+ source_sha256:item.expected_sha256,
+ transcript_sha256:transcript.transcript_sha256,
+ model_id:'preloaded_cpu_test',
+ issued_at_ms:p.now_ms,expires_at_ms:p.now_ms+50000},
+ key,now_ms:p.now_ms
+});
+if(p.tamper==='transcript')
+ item.whisperx_json.segments[0].words[0].word='tampered';
+if(p.tamper==='source')item.expected_sha256='f'.repeat(64);
+if(p.tamper==='expired')p.now_ms+=70000;
+if(p.tamper==='foreign')p.shop_id='another-shop';
+const result=prepareEvidenceBoundReview({...p,asr_key:key});
+process.stdout.write(JSON.stringify(result));
+"""
+        req=self.request()
+        req['grant']['has_audio']=True
+        fixture={'shop_id':'shop-alpha','campaign_id':'campaign-123',
+          'job_id':'job-a','now_ms':1000000,'root':str(self.private),
+          'draft':{'shop_id':'shop-alpha','campaign_id':'campaign-123',
+            'duration_seconds':15,'scenes':[{
+              'asset_id':'clip-alpha','asset_type':'video',
+              'source_feature':'retailer','duration':15,'start':0
+            }]},
+          'media':[{'scene_index':0,'asset_id':'clip-alpha',
+            'source_duration_seconds':16,
+            'relative_path':'owned_clip.mp4',
+            'expected_sha256':self.sha,'grant':req['grant'],
+            'whisperx_json':{'segments':[{'words':[
+              {'word':'Original','start':1,'end':1.2},
+              {'word':'sound.','start':1.4,'end':1.8}
+            ]}]}}]}
+        good=invoke_js(script,fixture)
+        self.assertEqual(good.returncode,0,good.stderr)
+        data=json.loads(good.stdout)
+        self.assertTrue(data['transcript_evidence_verified'])
+        self.assertEqual(data['asr_job_id'],'job-a')
+        self.assertFalse(data['approved'])
+        self.assertFalse(data['renderable'])
+        self.assertEqual(data['scenes'][0]['duration'],15)
+        for variant in ('transcript','source','expired','foreign'):
+            with self.subTest(variant=variant):
+                bad=json.loads(json.dumps(fixture))
+                bad['tamper']=variant
+                rejected=invoke_js(script,bad)
+                self.assertNotEqual(rejected.returncode,0,rejected.stdout)
+
 if __name__=='__main__':
     unittest.main()
