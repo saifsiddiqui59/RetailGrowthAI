@@ -62,6 +62,7 @@ def fixture():
     }
     reference={"asset_id":ASSET,"shop_id":SHOP,"mime_type":"image/png",
                "staged_basename":"owned_kurti.png","sha256":SHA,
+               "source_sha256":SHA,"source_facts_sha256":SHA,
                "width":1080,"height":1920,
                "approved":True,"private":True,"commercial_rights":True,
                "human_likeness_approved":True}
@@ -139,7 +140,8 @@ class WanMotionAdapterTest(unittest.TestCase):
             ("shop_id","foreign"),("approved",False),("private",False),
             ("commercial_rights",False),("human_likeness_approved",False),
             ("staged_basename","../../out.png"),("staged_basename","file.png.exe"),
-            ("sha256","bad"),("mime_type","text/plain"),
+            ("sha256","bad"),("source_sha256","bad"),
+            ("source_facts_sha256","bad"),("mime_type","text/plain"),
             ("width",0),("height",100),("width",1920),
         ]:
             bad=copy.deepcopy(r);bad[field]=value
@@ -158,6 +160,10 @@ class WanMotionAdapterTest(unittest.TestCase):
         d,r,p,v=fixture()
         d["shot"]["shop_id"]="other_shop"
         with self.assertRaises(WanCompatibilityError):self.compile(dispatch=d)
+        d,r,p,v=fixture()
+        r["source_facts_sha256"]="b"*64
+        with self.assertRaisesRegex(WanCompatibilityError,"revision changed"):
+            self.compile(ref=r)
 
     def test_reject_choreography_gaps_overshoot_and_mutated_contract(self):
         d,r,p,v=fixture()
