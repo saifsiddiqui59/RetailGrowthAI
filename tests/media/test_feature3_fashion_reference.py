@@ -122,6 +122,11 @@ class FashionKurtiReferenceTests(unittest.TestCase):
                         "garment":self.info},
                     read_model=lambda shop,id:self.model_data,
                     read_review=lambda shop,id:self.review)
+    @staticmethod
+    def worker_claim(shop, source_ids, fingerprint):
+        return (isinstance(source_ids, tuple) and bool(source_ids) and
+                isinstance(fingerprint, str) and len(fingerprint)==64)
+
     def prepare(self, **overrides):
         args=dict(shop_id=self.shop,garment_asset_id=self.garment,
                   purpose="image_to_video",**self.readers())
@@ -139,7 +144,7 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         self.assertNotIn("storage_key",str(bundle))
         self.assertNotIn("signedURL",str(bundle))
         self.assertNotIn("image_bytes",str(bundle))
-        worker=resolve_first_frame(expected_manifest=bundle,current_readers=self.readers())
+        worker=resolve_first_frame(expected_manifest=bundle,current_readers=self.readers(), verify_worker_job=self.worker_claim)
         self.assertEqual(worker["image_bytes"],self.blobs[self.garment])
         self.assertEqual(worker["dimensions"],[720,1080])
         self.assertFalse(worker["gpu_authorized"])
@@ -150,7 +155,7 @@ class FashionKurtiReferenceTests(unittest.TestCase):
             self.assertEqual(package["preservation"]["no_embroidered_motif_redraw"],True)
             with self.assertRaises(FashionReferenceDenied):
                 resolve_first_frame(expected_manifest=package,
-                                    current_readers=self.readers())
+                                    current_readers=self.readers(), verify_worker_job=self.worker_claim)
 
     def test_model_and_vton_plan_never_generate_paid_output(self):
         package=self.prepare(model_asset_id=self.model_asset,model_id=self.model_id)
@@ -194,15 +199,15 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         manifest=self.prepare(model_asset_id=self.model_asset,model_id=self.model_id)
         self.model_data["rights_revision"]=4
         with self.assertRaises(FashionReferenceDenied):
-            resolve_first_frame(expected_manifest=manifest,current_readers=self.readers())
+            resolve_first_frame(expected_manifest=manifest,current_readers=self.readers(), verify_worker_job=self.worker_claim)
         self.model_data["rights_revision"]=3
         self.grants[self.garment]["rights_revision"]=4
         with self.assertRaises(FashionReferenceDenied):
-            resolve_first_frame(expected_manifest=manifest,current_readers=self.readers())
+            resolve_first_frame(expected_manifest=manifest,current_readers=self.readers(), verify_worker_job=self.worker_claim)
         self.grants[self.garment]["rights_revision"]=3
         self.product_revision=3
         with self.assertRaises(FashionReferenceDenied):
-            resolve_first_frame(expected_manifest=manifest,current_readers=self.readers())
+            resolve_first_frame(expected_manifest=manifest,current_readers=self.readers(), verify_worker_job=self.worker_claim)
 
     def test_private_bytes_mutation_and_malformed_path_fail(self):
         self.rows[self.garment]["object_path"]=f"{self.other}/uploads/{self.garment}.png"
@@ -224,15 +229,24 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         self.info["base_color"]="teal"
         with self.assertRaises(FashionReferenceDenied):self.prepare()
 
+    def test_worker_without_durable_claim_is_denied_before_private_delivery(self):
+        original=self.prepare()
+        with self.assertRaises(FashionReferenceDenied):
+            resolve_first_frame(expected_manifest=original,current_readers=self.readers(),
+                                verify_worker_job=lambda *_:False)
+        with self.assertRaises(FashionReferenceDenied):
+            resolve_first_frame(expected_manifest=original,current_readers=self.readers(),
+                                verify_worker_job=None)
+
     def test_worker_rejects_malicious_changed_manifest_or_stale_output_review(self):
         original=self.prepare(model_asset_id=self.model_asset,model_id=self.model_id,
                               try_on_asset_id=self.tryon)
         self.review["review_revision"]+=1
         with self.assertRaises(FashionReferenceDenied):
-            resolve_first_frame(expected_manifest=original,current_readers=self.readers())
+            resolve_first_frame(expected_manifest=original,current_readers=self.readers(), verify_worker_job=self.worker_claim)
         edited=deepcopy(original)
         edited["sources"]["first_frame"]["sha256"]="0"*64
         with self.assertRaises(FashionReferenceDenied):
-            resolve_first_frame(expected_manifest=edited,current_readers=self.readers())
+            resolve_first_frame(expected_manifest=edited,current_readers=self.readers(), verify_worker_job=self.worker_claim)
 
 if __name__=="__main__":unittest.main()
