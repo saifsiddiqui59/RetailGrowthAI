@@ -43,10 +43,38 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   // Feature3 pending import is SOURCE ONLY, not a hosted migration authorization.
   '20261028223000_feature3_pending_model_import.sql',
   // Retailer-registered original model PNG, source-only / explicitly not hosted approved.
+  '20261028230000_feature3_gpu_private_output_cas.sql',
+  '20261028231000_feature3_gpu_outbox_recovery.sql',
   '20261028232000_feature3_model_original_registration.sql',
 ]);
 
 const CAPABILITIES = {
+  '20261028231000': [
+    /alter table retail_private[.]feature3_gpu_outbox/i,
+    /create table retail_private[.]feature3_gpu_recovery_events/i,
+    /enable row level security/i,
+    /revoke all on retail_private[.]feature3_gpu_recovery_events/i,
+    /create function public[.]feature3_claim_gpu_dispatch/i,
+    /create function public[.]feature3_confirm_gpu_dispatch/i,
+    /create function public[.]feature3_audit_gpu_recovery/i,
+    /for update of o skip locked/i,
+    /MANUAL_FINANCIAL_RECONCILIATION/i,
+    /grant execute on function public[.]feature3_audit_gpu_recovery/i,
+    /to service_role/i,
+  ],
+  '20261028230000': [
+    /create table retail_private[.]feature3_gpu_output_evidence/i,
+    /create function public[.]feature3_commit_gpu_private_output/i,
+    /security definer set search_path=''/i,
+    /on storage[.]objects as restrictive/i,
+    /for update/i,
+    /insert into public[.]media_assets/i,
+    /p_image_sha256/i,
+    /create trigger feature3_output_settlement_guard/i,
+    /retail_private[.]feature3_output_settlement_fence/i,
+    /grant execute on function public[.]feature3_commit_gpu_private_output/i,
+    /to service_role/i,
+  ],
   '20261028232000': [
     /create function public[.]feature3_register_model_original/i,
     /security definer set search_path=''/i,

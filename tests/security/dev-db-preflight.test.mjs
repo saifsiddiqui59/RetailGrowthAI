@@ -29,7 +29,7 @@ test('read-only remote DEV snapshot identifies exact prefix and pending ordered 
   assert.equal(result.appliedCount, 3);
   assert.equal(result.pending.length, known.local.length - 3);
   assert.equal(result.pending[0].file, '20261022100400_p1_durable_planning.sql');
-  assert.deepEqual(result.pending.slice(-11).map(x=>x.file), [
+  assert.deepEqual(result.pending.slice(-13).map(x=>x.file), [
     '20261024190000_p1_platform_operations.sql',
     '20261026152000_feature2_trends_drafts.sql',
     '20261026152102_p0_249_reel_render_intent.sql',
@@ -40,6 +40,8 @@ test('read-only remote DEV snapshot identifies exact prefix and pending ordered 
     '20261028190000_feature3_model_review_audit.sql',
     '20261028210000_feature3_private_evidence_commit.sql',
     '20261028223000_feature3_pending_model_import.sql',
+    '20261028230000_feature3_gpu_private_output_cas.sql',
+    '20261028231000_feature3_gpu_outbox_recovery.sql',
     '20261028232000_feature3_model_original_registration.sql',
   ]);
 });
