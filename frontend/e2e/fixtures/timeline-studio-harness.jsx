@@ -3,7 +3,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import VideoStudio from '../../src/features/video/VideoStudio.jsx'
 
-export function mountFeature4({shop,approved}) {
+export function mountFeature4({shop,approved,seedCompletedRender=false}) {
   const holder=document.createElement('div')
   holder.id='feature4-offline-test'
   document.getElementById('root')?.setAttribute('hidden','')
@@ -31,6 +31,10 @@ export function mountFeature4({shop,approved}) {
   window.__feature4Renders=[]
   createRoot(holder).render(React.createElement(VideoStudio,{
    shopId:shop,mediaAssets:media,musicAssets:licensedAudio,creativeDirection:approvedPlan,
+   ...(seedCompletedRender ? {
+     renderStatus: {status:'SUCCEEDED',shop_id:shop,job_id:'test-old-job'},
+     signedVideoUrl: 'https://example.invalid/previous-approved-result.mp4'
+   } : {}),
    onRender:async plan => {window.__feature4Renders.push(plan)}
   }))
 

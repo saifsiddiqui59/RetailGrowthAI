@@ -101,7 +101,11 @@ export default function VideoStudio({
   }
   // The coordinator must return the trusted tenant identity with an output.
   // Never show a previously selected shop's signed video after a shop switch.
-  const ready = renderStatus?.status === 'SUCCEEDED' && renderStatus?.shop_id === shopId &&
+  // A prior job's signed artifact MUST NOT be presented as the preview of an
+  // edited/new composition. Editing resets 'submitted'; the next valid submit
+  // creates a new immutable job. This is only UI parity, not a server grant.
+  const ready = submitted && renderStatus?.status === 'SUCCEEDED' &&
+    renderStatus?.shop_id === shopId &&
     typeof signedVideoUrl === 'string' && signedVideoUrl.length > 0
   return (
     <section className="f4-studio" aria-labelledby="f4-title">

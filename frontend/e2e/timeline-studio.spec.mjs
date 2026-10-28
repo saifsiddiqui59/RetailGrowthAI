@@ -111,3 +111,22 @@ test('keyboard timeline undo and redo work without reauthoring approved copy',as
  const scroll=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)
  expect(scroll).toBeLessThanOrEqual(2)
 })
+
+test('editing after a successful render hides stale signed MP4 rather than displaying old footage',async({page})=>{
+  await page.route('https://example.invalid/**',route=>route.abort())
+  await page.goto('/')
+  await page.evaluate(async()=>{
+    const {mountFeature4}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
+    mountFeature4({shop:'11111111-1111-4111-8111-111111111111',
+      approved:false,seedCompletedRender:true})
+  })
+  await expect(page.getByRole('heading',{name:'Professional Video Studio'})).toBeVisible()
+  // Previous approved output must not automatically represent a fresh draft.
+  await expect(page.getByLabel('Signed private rendered video')).toHaveCount(0)
+  await page.getByRole('button',{name:'Submit authorized render'}).click()
+  await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
+  await expect(page.getByLabel('Signed private rendered video')).toBeVisible()
+  await page.getByLabel('Animated headline').first().fill('New approved edit')
+  await expect(page.getByLabel('Signed private rendered video')).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'Submit authorized render'})).toBeEnabled()
+})
