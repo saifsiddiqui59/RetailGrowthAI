@@ -189,6 +189,25 @@ class Feature7DispatchJournalTests(unittest.TestCase):
           context=ctx(),dispatch_id=job['dispatch_id'])['state'],'DEAD')
         self.assertIsNone(self.store.lease_next(context=ctx(),now_ms=99999))
 
+    def test_persisted_approval_revoked_after_queue_cannot_render(self):
+        job=self.stage()
+        lease=self.store.lease_next(context=ctx(),now_ms=1100,lease_ms=1000)
+        self.reviews.revoke(review_id=job['review_id'],
+          context=ctx(),expected_revision=1)
+        with self.assertRaises(ReviewStateError):
+            self.store.finish(context=ctx(),lease=lease,
+              result_sha256=OUTPUT,now_ms=1200)
+        self.assertIsNone(self.store.lease_next(context=ctx(),now_ms=1200))
+        self.assertEqual(self.store.inspect(context=ctx(),
+          dispatch_id=job['dispatch_id'])['state'],'REVOKED')
+
+    def test_expired_approval_rejects_queued_render_before_start(self):
+        job=self.stage()
+        self.assertIsNone(self.store.lease_next(
+          context=ctx(),now_ms=950+10*60*1000+1))
+        self.assertEqual(self.store.inspect(context=ctx(),
+          dispatch_id=job['dispatch_id'])['state'],'REVOKED')
+
     def test_revoking_active_lease_fences_worker(self):
         job=self.stage()
         lease=self.store.lease_next(context=ctx(),now_ms=1100)
