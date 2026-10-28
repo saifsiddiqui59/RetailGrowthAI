@@ -146,3 +146,12 @@
 - P0: coordinator connect to existing authoritative Feature3 source approvals, Feature2 creative hash, Feature4 renderer, shop subscription reserve/Part3 lease claim/fencing/one-try retry reconciliation and private output writer. Never add a second wallet/queue.
 - P1: owner-approved capped paid 5-second genuine Wan I2V test using current licensed active retailer source and approved cross-region transfer; human reviewer assesses anatomy/fabric/pattern/embroidery/continuity and authorizes private clip for Feature4's final Full-HD Reel. No real paid run, human visual approval or production clip so far.
 - P1: coordinator reviews stacked draft PR #323/#465 against main and coordinates interface/merge; preserve independent 4/4 checks and postmerge main CI, WineShopPOS untouched.
+
+
+## 2026-10-28 — Next unfinished after GPU-OFF execution/source sprint
+- DONE CPU SOURCE: complete canonical Wan node topology, independently authorized F3 image-basename binding, entire vendored ComfyUI file SHA audit, transitive wheelhouse+pip-hashlock+immutable OCI base review gate, private non-root no-metadata Containerfile scaffold and default-disabled official local /prompt + /history single-attempt adapter with negative tests.
+- P0 EXTERNAL ARTIFACT: independently obtain/legal-review complete pinned ComfyUI checkout and all-file SHA manifest, actual reviewed CUDA/PyTorch wheelhouse and hashes, immutable CUDA base OCI digest. Check the real bundle with offline gate before any separately approved build/registry costs. Current source template cannot build as-is.
+- P0 COORDINATOR WIRING: bind injected lease/paid claim + approved original F3 bytes/source grants to existing transactional Part3 subscription reservation/fence/outbox, stage one lease-local Comfy input, accept only one output after bounded local probe/actual private sha+DB receipt/settlement. Do NOT add duplicate queue, wallet, HTTP route or migration.
+- P0 RUNTIME: real protected ComfyUI /object_info, installed checkpoint choices, actual Azure model-readonly mount/torch ABI/true CUDA compatibility; no real inference.
+- P1 OWNER-APPROVED A100 LATER: exactly one cost-capped licensed sample I2V, actual motion/garment/facial quality and private final 1080x1920 Feature4 composition, human review and measured costs. Remain OFF until explicit separate permission.
+- P1 COORDINATOR: reconcile draft stacked #323/#465 and Feature2/3/4 main contracts, merge under coordinator ownership, verify postmerge four-job CI and hosted negative rights/tenant tests. Feature5 PR remains DRAFT.
