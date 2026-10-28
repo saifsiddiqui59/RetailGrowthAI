@@ -104,7 +104,12 @@ export default function VideoStudio({
   // A prior job's signed artifact MUST NOT be presented as the preview of an
   // edited/new composition. Editing resets 'submitted'; the next valid submit
   // creates a new immutable job. This is only UI parity, not a server grant.
-  const ready = submitted && renderStatus?.status === 'SUCCEEDED' &&
+  // Encode success does not override an explicit owner QUALITY REJECTION.
+  // The reviewed private artifact may still exist on the server for an audit,
+  // but the UI must not surface it as an acceptable current Reel.
+  const ownerRejected = renderStatus?.shop_id === shopId &&
+    renderStatus?.visual_quality_status === 'OWNER_REJECTED'
+  const ready = submitted && !ownerRejected && renderStatus?.status === 'SUCCEEDED' &&
     renderStatus?.shop_id === shopId &&
     typeof signedVideoUrl === 'string' && signedVideoUrl.length > 0
   return (
@@ -258,6 +263,9 @@ export default function VideoStudio({
               </button>
             ))}
           </nav>
+          {ownerRejected && <p role="alert" className="f4-issues">
+            Owner rejected this Reel for visual quality. It is not a showcase or an approved commercial video.
+          </p>}
           {ready ? (
             <>
               <video controls playsInline preload="metadata" src={signedVideoUrl} aria-label="Signed private rendered video" />

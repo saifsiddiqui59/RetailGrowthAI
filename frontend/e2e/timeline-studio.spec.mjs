@@ -146,3 +146,18 @@ test('approved spoken subtitle lane shows precise Feature2 timing, cannot be edi
  expect(widths.left).toBe('1.6666666666666667%')
  expect(widths.width).toBe('6.666666666666667%')
 })
+
+test('owner-rejected successful MP4 is never surfaced as an acceptable Reel',async({page})=>{
+  await page.goto('/')
+  await page.evaluate(async()=>{
+    const {mountFeature4}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
+    mountFeature4({shop:'11111111-1111-4111-8111-111111111111',
+      approved:false,seedCompletedRender:true,seedOwnerRejectedRender:true})
+  })
+  await expect(page.getByRole('heading',{name:'Professional Video Studio'})).toBeVisible()
+  await page.getByRole('button',{name:'Submit authorized render'}).click()
+  await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
+  await expect(page.getByRole('alert')).toContainText('Owner rejected this Reel')
+  await expect(page.getByLabel('Signed private rendered video')).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'Download authorized MP4'})).toHaveCount(0)
+})
