@@ -1,0 +1,110 @@
+"""Actual FFmpeg CPU motion-in-video acceptance, NEVER genuine Wan inference.
+
+The synthetic test source changes pixels over 121 frames (not a generated
+human/garment). It validates private output discovery, ffprobe MP4 checks,
+decoded motion detection and permanent PENDING review state. No GPU/network.
+"""
+import copy
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import unittest
+
+from feature5_motion.wan22_motion_adapter import WanShotPackage, PROVIDER, WanCompatibilityError
+from feature5_motion.infra.feature35_comfy_api_graphs import wan22_ti2v_5b
+from feature5_motion.wan22_private_result_intake import (
+    find_single_private_wan_mp4, inspect_single_private_wan_output,
+)
+
+
+def shot():
+    graph=wan22_ti2v_5b(
+        prompt="CPU-only synthetic test pattern, NOT a generated person",
+        seed=12,approved_input_file="fixture.png",
+        width=704,height=1280)
+    return WanShotPackage(PROVIDER,"image_to_video",graph,"CPU synthetic only",
+        "a"*64,{"shop_id":"synthetic-only","shot_id":"shotA",
+                 "source_asset_id":"synthetic-only","source_sha256":"c"*64},
+        "b"*64)
+
+
+def private_root(td):
+    root=Path(td)/"isolated_attempt"
+    root.mkdir(mode=0o700)
+    output=root/"rgai"
+    output.mkdir()
+    return root,output/"feature5_00001_.mp4"
+
+
+class WanPrivateOutputIntakeTests(unittest.TestCase):
+    def test_real_moving_cpu_mp4_is_pending_never_approved(self):
+        if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
+            self.fail("FFmpeg job must provide real ffmpeg and ffprobe")
+        with tempfile.TemporaryDirectory() as td:
+            root,destination=private_root(td)
+            subprocess.run([
+                "ffmpeg","-hide_banner","-loglevel","error","-nostdin","-y",
+                "-f","lavfi","-i","testsrc2=size=704x1280:rate=24",
+                "-frames:v","121","-c:v","libx264","-preset","ultrafast",
+                "-crf","38","-pix_fmt","yuv420p","-an",str(destination),
+            ],timeout=50,check=True,capture_output=True)
+            selected,inspection,receipt=inspect_single_private_wan_output(
+                shot=shot(),private_output_root=root)
+            self.assertEqual(selected,destination)
+            self.assertEqual(inspection.frames,121)
+            self.assertEqual((inspection.width,inspection.height),(704,1280))
+            self.assertEqual(inspection.fps,24)
+            self.assertEqual(inspection.codec,"h264")
+            self.assertEqual(receipt["quality_state"],"PENDING_HUMAN_VISUAL_REVIEW")
+            self.assertEqual(receipt["screening_decision"],"NONSTATIC_AWAITING_HUMAN_VISUAL_REVIEW")
+            self.assertFalse(receipt["output_is_ai_proven"])
+            self.assertFalse(receipt["approved_for_feature4"])
+            self.assertTrue(receipt["private_import_required"])
+
+    def test_missing_extra_or_wrongly_numbered_private_outputs_denied(self):
+        with tempfile.TemporaryDirectory() as td:
+            root,dest=private_root(td)
+            with self.assertRaisesRegex(WanCompatibilityError,"exactly one"):
+                find_single_private_wan_mp4(shot=shot(),private_output_root=root)
+            dest.write_bytes(b"synthetic-not-mp4")
+            self.assertEqual(find_single_private_wan_mp4(
+                shot=shot(),private_output_root=root),dest)
+            (dest.parent/"feature5_00002_.mp4").write_bytes(b"synthetic-two")
+            with self.assertRaisesRegex(WanCompatibilityError,"exactly one"):
+                find_single_private_wan_mp4(shot=shot(),private_output_root=root)
+        with tempfile.TemporaryDirectory() as td:
+            root,dest=private_root(td)
+            (dest.parent/"feature5_fake_.mp4").write_bytes(b"fake")
+            with self.assertRaisesRegex(WanCompatibilityError,"numbered"):
+                find_single_private_wan_mp4(shot=shot(),private_output_root=root)
+        with tempfile.TemporaryDirectory() as td:
+            root,dest=private_root(td)
+            dest.write_bytes(b"fake")
+            (root/"unreviewed.txt").write_text("unsolicited")
+            with self.assertRaisesRegex(WanCompatibilityError,"Unexpected"):
+                find_single_private_wan_mp4(shot=shot(),private_output_root=root)
+
+    def test_source_prefix_tamper_and_symlinks_never_escape_private_attempt(self):
+        with tempfile.TemporaryDirectory() as td:
+            root,dest=private_root(td)
+            dest.write_bytes(b"fake")
+            foreign=copy.deepcopy(shot())
+            foreign.graph["prompt"]["12"]["inputs"]["filename_prefix"]="other/tenant"
+            with self.assertRaisesRegex(WanCompatibilityError,"Unreviewed"):
+                find_single_private_wan_mp4(shot=foreign,private_output_root=root)
+            dest.unlink()
+            outside=Path(td)/"outside.mp4"
+            outside.write_bytes(b"private-outside")
+            dest.symlink_to(outside)
+            with self.assertRaisesRegex(WanCompatibilityError,"Linked"):
+                find_single_private_wan_mp4(shot=shot(),private_output_root=root)
+        with tempfile.TemporaryDirectory() as td:
+            root,dest=private_root(td)
+            root.chmod(0o755)
+            with self.assertRaisesRegex(WanCompatibilityError,"0700"):
+                find_single_private_wan_mp4(shot=shot(),private_output_root=root)
+
+if __name__=="__main__":
+    unittest.main()
