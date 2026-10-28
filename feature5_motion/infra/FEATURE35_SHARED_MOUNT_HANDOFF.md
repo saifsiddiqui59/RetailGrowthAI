@@ -38,6 +38,27 @@ Optional **stat-only** check on a mounted volume uses `--mounted-root /mnt/retai
 - A minimal canary will generate one genuine 5-second / 24 fps source clip, then human-check hands/face/garment and hand to Feature4 for **accurate text/logo/approved soundtrack overlays**. Feature2 owns script; Feature3 owns approved reference PNG; Feature4 final render; Feature5 generates temporal motion.
 
 
+## Explicit protected read-only audit, prepared but NOT EXECUTED
+`feature5_motion/audit_shared_model_share_readonly.py` uses the Azure Files SDK to
+read at most 64 KiB for the **one** private completion JSON and GET file
+**properties only** for the six checkpoints. It compares complete/size/SHA-256
+metadata and each stored Hugging Face revision against the original manifest.
+It never opens/downstreams weight bytes, changes Azure settings, creates files,
+starts a job, or spends GPU time. Ordinary unit tests run with all Azure calls
+mocked. Azure Files metadata transactions are not necessarily free.
+
+```bash
+# Default is safely offline: no account access needed.
+python -m feature5_motion.audit_shared_model_share_readonly
+
+# Documentation only; run from authenticated approved DEV operator context
+# with a transient masked key, NEVER with a key committed to GitHub.
+# python -m feature5_motion.audit_shared_model_share_readonly --audit-existing-share
+```
+
+**The live private manifest and revisions have NOT been independently read yet.**
+Running source tests only establishes audit logic, not current Azure reality.
+
 ## Additional verified upstream native workflow inspection
 Read-only source inspection at pinned official Comfy-Org/workflow_templates commit `e7cd011d4ded3411c2f481200544f0be6fdc962e`:
 - Wan UI workflow `templates/video_wan2_2_5B_ti2v.json` has 13 nodes with `UNETLoader`, `CLIPLoader`, `VAELoader`, `Wan22ImageToVideoLatent`, `KSampler`, `VAEDecode`, `CreateVideo`, and `SaveVideo`. Loader filenames **exactly** match the three stored Wan files. It defaults to 1280x704 and 121 frames at 24fps (~5s) with an image input; T2V requires correct optional start-image handling and a reviewed ComfyUI API-format graph, not merely removing a file from JSON by guess.
