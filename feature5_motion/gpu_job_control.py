@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import time
+from decimal import Decimal, InvalidOperation
 from feature5_motion.shared_model_mount import (
     ACCOUNT as MODEL_ACCOUNT, SHARE as MODEL_SHARE,
     STORAGE_NAME as MODEL_STORAGE_NAME, VOLUME_NAME as MODEL_VOLUME_NAME,
@@ -170,6 +171,38 @@ def status(sub):
         raise SafetyError("A GPU execution may still be billing; invoke stop")
     print("No active execution reported. Storage/registry/logging can still charge.")
 
+
+def require_priced_test_envelope(j):
+    """Read operator-verified quote inputs; not Azure billing enforcement."""
+    def amount(name, allow_zero=False):
+        raw = os.getenv(name, "").strip()
+        try:
+            value = Decimal(raw)
+        except (InvalidOperation, ValueError) as exc:
+            raise SafetyError("Missing/invalid operator cost quote: " + name) from exc
+        if not value.is_finite() or (value < 0 if allow_zero else value <= 0):
+            raise SafetyError("Non-positive/non-finite quote: " + name)
+        return value
+    if os.getenv("RETAIL_F5_COST_QUOTE_CURRENCY") != "USD":
+        raise SafetyError("A reviewed USD-denominated A100 quote is required")
+    quote_id = os.getenv("RETAIL_F5_COST_QUOTE_REFERENCE", "").strip()
+    if len(quote_id) < 12 or len(quote_id) > 160:
+        raise SafetyError("Independent A100 quote reference is required")
+    seconds = ((j.get("properties") or {}).get("configuration") or {}).get("replicaTimeout")
+    if type(seconds) is not int or not 1 <= seconds <= 1800:
+        raise SafetyError("Cannot price an unknown GPU execution timeout")
+    rate = amount("RETAIL_F5_QUOTED_ALL_IN_USD_PER_GPU_SECOND")
+    fixed = amount("RETAIL_F5_QUOTED_FIXED_OVERHEAD_USD", allow_zero=True)
+    limit = amount("RETAIL_F5_OWNER_APPROVED_PER_TEST_MAX_USD")
+    reserved = rate * Decimal(seconds) + fixed
+    if reserved > limit:
+        raise SafetyError("Maximum test runtime + overhead exceeds approved test budget")
+    # This is admission gating, NOT a cloud-enforced USD charge ceiling.
+    print(f"Operator quote check: worst-case USD {reserved} <= approved USD {limit}; "
+          "validate actual Azure invoice and stop separately")
+    return reserved
+
+
 def start(sub, execute, acknowledged):
     j = job(sub)
     if j is None:
@@ -184,6 +217,7 @@ def start(sub, execute, acknowledged):
     if (not acknowledged or os.getenv("RETAIL_F5_PAID_RUN_APPROVED") != "YES" or
             os.getenv("RETAIL_F5_MODEL_LICENSE_APPROVED") != "YES"):
         raise SafetyError("Paid start requires cost acknowledgment and both YES approval flags")
+    require_priced_test_envelope(j)
     az("containerapp", "job", "start", "-n", JOB, *rgflags(sub))
     print("Paid start requested. Inspect execution and stop after gathering evidence.")
 
