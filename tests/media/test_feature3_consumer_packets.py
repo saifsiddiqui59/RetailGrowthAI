@@ -172,5 +172,55 @@ class ConsumerPacketTests(TestCase):
         with self.assertRaises(bridge.FashionReferenceDenied): self.assemble()
 
 
+    def test_real_pillow_private_bytes_and_uuid5_model_consumer_integration(self):
+        """Reuse existing synthetic PNG bytes and real Feature3 source gate."""
+        from test_feature3_fashion_reference import FashionKurtiReferenceTests
+        from fashion_reference_v1 import prepare_fashion_references
+        fixture = FashionKurtiReferenceTests(methodName="test_real_png_bytes_and_garment_exact_source_as_first_frame")
+        fixture.setUp()
+        readers = fixture.readers()
+        expected = {
+            purpose: prepare_fashion_references(
+                shop_id=fixture.shop, garment_asset_id=fixture.garment,
+                purpose=purpose, model_asset_id=fixture.model_asset,
+                model_id=fixture.model_id, try_on_asset_id=fixture.tryon,
+                **readers
+            ) for purpose in bridge._PURPOSES
+        }
+        self.assertNotEqual(fixture.model_id, self.model_id)
+        brief = deepcopy(self.brief)
+        brief["shop_id"] = fixture.shop
+        brief["reference_fingerprint"] = expected["creative_direction"]["reference_fingerprint"]
+        brief["garment_sha256"] = expected["creative_direction"]["sources"]["garment"]["sha256"]
+        result = bridge.assemble_consumer_packets(
+            expected_manifests=expected, current_readers=readers,
+            brief_id=self.brief_id, read_approved_brief=lambda shop, bid: deepcopy(brief),
+        )
+        self.assertEqual(result["source"]["model_id"], fixture.model_id)
+        self.assertEqual(result["source"]["garment"]["embroidery"], "Gold floral chest embroidery")
+        self.assertFalse(result["paid_inference_authorized"])
+        # Independent source-gate checks execute on each refresh.
+        fixture.grants[fixture.model_asset]["rights_revoked"] = True
+        with self.assertRaises(bridge.FashionReferenceDenied):
+            bridge.assemble_consumer_packets(
+                expected_manifests=expected, current_readers=readers,
+                brief_id=self.brief_id, read_approved_brief=lambda shop, bid: deepcopy(brief),
+            )
+        fixture.grants[fixture.model_asset]["rights_revoked"] = False
+        fixture.blobs[fixture.garment] = fixture.blobs[fixture.model_asset]
+        with self.assertRaises(bridge.FashionReferenceDenied):
+            bridge.assemble_consumer_packets(
+                expected_manifests=expected, current_readers=readers,
+                brief_id=self.brief_id, read_approved_brief=lambda shop, bid: deepcopy(brief),
+            )
+
+    def test_malformed_camera_and_footage_types_fail_closed(self):
+        self.brief["shots"][0]["camera"] = []
+        with self.assertRaises(bridge.FashionReferenceDenied): self.assemble()
+        self.brief["shots"][0]["camera"] = "static"
+        self.footage["allowed_uses"] = [{"editing": True}]
+        with self.assertRaises(bridge.FashionReferenceDenied): self.assemble()
+
+
 if __name__ == "__main__":
     main()
