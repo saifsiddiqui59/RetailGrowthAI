@@ -21,7 +21,7 @@ jobs:
        startsWith(github.event.head_commit.message, 'audit(dev): RetailGrowthAI P0 249 cold-versus-warm'))
     environment: dev
     runs-on: ubuntu-24.04
-    timeout-minutes: 14
+    timeout-minutes: 34
     permissions:
       contents: read
       id-token: write
@@ -33,7 +33,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile ops/p0_249_cold_warm_http_probe.py tests/infra/test_p0_249_cold_warm_probe.py
+          python3 -m py_compile ops/p0_249_cold_warm_http_probe.py tests/infra/test_p0_249_cold_warm_probe.py ops/p0_249_http_comparison_probe.py tests/infra/test_p0_249_http_comparison_probe.py
           # The full Python and Node negative suites are required PR CI gates.
           # No network-based package install in this credentialed job.
       - uses: azure/login@v3
@@ -41,13 +41,24 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Six synthetic unauthenticated GETs with post-inactivity comparison
+      - name: Original Python Flex vs Node Free SWA 75s bounded anonymous HTTP comparison
         shell: bash
         env:
           RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           set -euo pipefail
-          python3 -u ops/p0_249_cold_warm_http_probe.py
+          python3 -u ops/p0_249_http_comparison_probe.py
+      - name: Read existing Azure host metric metadata only
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          resource_id=$(az functionapp show -g rg-retailgrowth-dev -n rgai-dev-functions-d4e5ddbd --query id -o tsv 2>/dev/null)
+          if [ -z "$resource_id" ]; then echo "P0_249_AZURE_METRICS_SCOPE_UNAVAILABLE=true"; exit 0; fi
+          definitions=$(az monitor metrics list-definitions --resource "$resource_id" -o json 2>/dev/null)
+          if [ -z "$definitions" ]; then echo "P0_249_AZURE_METRIC_DEFINITIONS_UNAVAILABLE=true"; exit 0; fi
+          printf "%s" "$definitions" | python3 -c 'import json,sys; x=json.load(sys.stdin); names=[r.get("name",{}).get("value","") for r in x.get("value",[])]; print("P0_249_AZURE_AVAILABLE_METRIC_NAMES="+json.dumps([n for n in names if any(q in n.lower() for q in ("request","http","response","error"))]))'
+          echo "P0_249_AZURE_TRACES_NOT_INFERRED_FROM_METRIC_DEFINITIONS=true"
       - name: End read-only session
         if: always()
         run: az logout >/dev/null 2>&1 || true
