@@ -129,7 +129,7 @@ test('malicious signed links cannot cross tenant, job, origin or protocol', () =
 
 test('unreviewed route/path and session IDs fail closed', async () => {
   assert.equal(canonicalVideoId(SHOP), SHOP)
-  for (const id of [OTHER.toUpperCase(), 'not-a-uuid', '']) {
+  for (const id of ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'.toUpperCase(), 'not-a-uuid', '']) {
     assert.throws(() => canonicalVideoId(id), /canonical/)
   }
   for (const path of ['//evil.invalid/render', '/api/video', '/../../admin', '/creative-renders?token=a']) {
