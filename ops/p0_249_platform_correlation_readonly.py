@@ -34,7 +34,7 @@ TYPES = (
 )
 CATEGORIES = frozenset(TYPES)
 INSTANCE = 'tostring(column_ifexists("AppRoleInstance",""))'
-STATES = frozenset(("requests", "traces", "exceptions", "function_logs", "activity", "host_timeline"))
+STATES = frozenset(("requests", "traces", "exceptions", "function_logs", "activity", "host_timeline", "request_status_timeline", "startup_401_link"))
 STATUS = re.compile(r"^[1-5][0-9]{2}$")
 BUCKET = re.compile(r"^2026-10-28T(19|20):[0-5][0-9]:00(?:Z|\+00:00)$")
 
@@ -99,6 +99,45 @@ def queries(start: str, end: str) -> dict[str, str]:
               'by bucket=bin(TimeGenerated,1m)'
             + ' | order by bucket asc | take 25'
         ),
+        # ResultCode in AppRequests can contain non-HTTP/internal values.
+        # Count classes without outputting raw codes or request paths.
+        # An internal/unclassified request is NOT a client HTTP 503.
+        "request_status_timeline": (
+            prefix("AppRequests")
+            + ' | extend result=tostring(column_ifexists("ResultCode", ""))'
+              ' | summarize events=count(),'
+              ' app_401=countif(result=="401"),'
+              ' reported_503=countif(result=="503"),'
+              ' other_4xx=countif(result startswith "4" and result!="401"),'
+              ' other_5xx=countif(result startswith "5" and result!="503"),'
+              ' missing_or_zero=countif(isempty(result) or result=="0"),'
+              ' other_status=countif(isnotempty(result) and result!="0"'
+              ' and not(result startswith "4") and not(result startswith "5"))'
+              ' by bucket=bin(TimeGenerated,1m)'
+            + ' | order by bucket asc | take 25'
+        ),
+        # A startup trace on an instance that also handled an app-auth 401
+        # shows HTTP handler activity on the SAME logging role instance.
+        # No matching 401 does NOT imply a failed HTTP request; it may be
+        # another Flex trigger scale group or sampled/missing requests.
+        "startup_401_link": (
+            'let starts = ' + prefix("AppTraces")
+            + ' | where Message contains "Worker process started"'
+            + f' | extend instance={INSTANCE}'
+            + ' | where isnotempty(instance)'
+            + ' | project TimeGenerated, instance; '
+            + 'let authenticated = ' + prefix("AppRequests")
+            + ' | where tostring(column_ifexists("ResultCode", "")) == "401"'
+            + f' | extend instance={INSTANCE}'
+            + ' | where isnotempty(instance)'
+            + ' | summarize app_401=count() by instance; '
+            + 'starts | join kind=leftouter authenticated on instance'
+            + ' | summarize events=count(),'
+              ' linked_401=countif(coalesce(app_401,0)>0),'
+              ' unlinked=countif(coalesce(app_401,0)==0)'
+              ' by bucket=bin(TimeGenerated,1m)'
+            + ' | order by bucket asc | take 25'
+        ),
         "exceptions": (
             prefix("AppExceptions") + instance
             + f' | extend category={classify_expr(field=exception_message)}'
@@ -137,6 +176,8 @@ COUNT_FIELDS = frozenset((
     "worker_start", "host_initialization", "worker_exit",
     "specialization_timeout", "grpc_pending_timeout", "worker_startstream",
     "worker_startup_timeout", "rpc_exception",
+    "app_401", "reported_503", "other_4xx", "other_5xx",
+    "missing_or_zero", "other_status", "linked_401", "unlinked",
 ))
 
 
