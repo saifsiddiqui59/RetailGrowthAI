@@ -132,3 +132,34 @@ test('rejects mismatched/revoked creative approval and unsupported transitions',
  d=>d.review_hash='',d=>d.cta='',
  ]){const v=structuredClone(good);modify(v);assert.throws(()=>inspectCreativeDirection(v,{shopId:SHOP,mediaAssets:assets,musicAssets:music}))}
 })
+
+test('security: cross-tenant poster overlay and soundtrack are rejected independently',()=>{
+ const d=draft()
+ const forged=structuredClone(d)
+ forged.scenes[0].poster_overlay_asset_id='foreign_overlay'
+ const all=[...assets,{id:'foreign_overlay',kind:'poster',shop_id:OTHER,authorized:true}]
+ assert.throws(()=>studioValidatedDraft(forged,all,music),/Foreign, unlicensed or revoked/)
+ const revoked={...d, music_asset_id:'licensed_music'}
+ assert.throws(()=>studioValidatedDraft(revoked,assets,[{...music[0],authorized:false}]),/Foreign, unlicensed or revoked/)
+})
+test('video source bounds reject trim beyond verified duration, including after split',()=>{
+ const d=draft()
+ const measured=assets.map(a=>a.id==='motion1'?{...a,duration_seconds:11}:a)
+ assert.throws(()=>studioSourceTrim(d,1,2,measured),/verified source length/)
+ const ok=studioSourceTrim(d,1,1,measured)
+ assert.deepEqual(validateVideoDraft(ok,assets,music),[])
+ assert.throws(()=>studioValidatedDraft({...d,scenes:d.scenes.map((s,i)=>
+  i===1?{...s,trim_start:3}:s)},measured,music),/verified source length/)
+ const trimmed=studioSplit(ok,1,4,measured)
+ assert.equal(trimmed.scenes[2].trim_start,5)
+ assert.deepEqual(validateVideoDraft(trimmed,assets,music),[])
+})
+test('video right-hand boundary trim never rewinds or silently replays source footage',()=>{
+ const d=draft()
+ const modified={...d,scenes:d.scenes.map((s,i)=>i===1?{...s,trim_start:4}:s)}
+ const moved=studioTrimPair(modified,0,2)
+ assert.equal(moved.scenes[1].trim_start,6)
+ assert.equal(moved.scenes[1].duration,8)
+ assert.deepEqual(validateVideoDraft(moved,assets,music),[])
+ assert.throws(()=>studioTrimPair(modified,0,-5),/before its source begins/)
+})

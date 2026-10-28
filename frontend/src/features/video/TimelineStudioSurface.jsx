@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getVisualSegmentTimeline, formatTime } from './vendor/timeline.js'
-import { getTimelineRulerTicks, getTimelineAutoFitZoom } from './vendor/timelineScale.js'
+import { getTimelineRulerTicks, getTimelineAutoFitZoom, getTimelineVisibleDuration } from './vendor/timelineScale.js'
 import { TimelineCaptionClip, TimelineAudioClip } from './vendor/TimelineClips.jsx'
 import { createEditorHistory, pushEditorHistory, undoEditorHistory, redoEditorHistory } from './vendor/editorHistoryCore.mjs'
 import { studioReorder, studioSplit, studioTrimPair, studioSourceTrim, studioValidatedDraft } from './timeline-studio-bridge.mjs'
@@ -30,6 +30,10 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
     ({ id: String(i), duration: s.duration }))), [draft.scenes])
   const ticks = useMemo(() => getTimelineRulerTicks(draft.duration_seconds, zoom, 0, draft.duration_seconds)
     .filter(tick => tick.isMajor), [draft.duration_seconds, zoom])
+  // Zoom changes the actual edit-track pixel scale, not only the ruler labels.
+  // Content stays within a horizontally scrollable workspace on narrow screens.
+  const trackPixels = Math.min(18000, Math.max(560,
+    Math.round(900 * draft.duration_seconds / getTimelineVisibleDuration(zoom))))
   const selected = Math.min(Math.max(selectedSceneIndex,0), Math.max(0,draft.scenes.length - 1))
   const change = (fn) => {
     if (approvedDirection) { setFeedback('Approved Feature #2 direction is read-only. Request a revised approval to change edit timing.'); return }
@@ -64,18 +68,21 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
     showTrackContextMenu: event => event.preventDefault(),
     selectCaptionClip: (_event,_id,index,start) => { onSelectScene(index); setPlayhead(start) },
     startCaptionResize: (event,_id,index,edge) => {
-      if(approvedDirection || index === draft.scenes.length - 1) return
+      const boundary = edge === 'start' ? index - 1 : index
+      if (approvedDirection || boundary < 0 || boundary >= draft.scenes.length - 1) return
       event.stopPropagation()
-      const target=event.currentTarget.closest('.f4-studio-track-body')
-      const width=target?.getBoundingClientRect().width || 1
-      const startX=event.clientX
-      const original=draft
-      const release=e=>{
-        window.removeEventListener('pointerup',release)
-        const delta=(e.clientX - startX)*draft.duration_seconds/width*(edge==='start'?-1:1)
-        if(Math.abs(delta)>0.03) change(() => studioTrimPair(original,index,Math.round(delta*10)/10))
+      const target = event.currentTarget.closest('.f4-studio-track-body')
+      const width = target?.getBoundingClientRect().width || 1
+      const startX = event.clientX
+      const original = draft
+      const release = e => {
+        window.removeEventListener('pointerup', release)
+        const delta = (e.clientX - startX) * draft.duration_seconds / width
+        if (Math.abs(delta) > 0.03) {
+          change(() => studioTrimPair(original, boundary, Math.round(delta * 10) / 10))
+        }
       }
-      window.addEventListener('pointerup',release,{once:true})
+      window.addEventListener('pointerup', release, { once: true })
     },
     startAudioSegmentMove: () => {},
     selectAudioClip: () => {},
@@ -104,7 +111,8 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
           value={zoom} onChange={e=>setZoom(Number(e.target.value))} /></label>
       </div>
     </div>
-    <div className="f4-ts-track-scroll">
+    <div className="f4-ts-track-scroll" aria-label="Scrollable video tracks">
+      <div className="f4-ts-timeline-content" style={{width:(74 + trackPixels)+'px'}}>
       <div className="f4-ts-ruler" aria-label="Timeline ruler">
         {ticks.map(t=><span key={t.id} style={{left:t.left+'%'}}>{t.label}</span>)}
       </div>
@@ -155,8 +163,9 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
         <div className="f4-studio-track-body"><span className="f4-ts-empty">
           Server-approved voice/SFX only · independent gain disabled until renderer parity</span></div>
       </div>
-      <div className="f4-ts-playhead" style={{left:(playhead/draft.duration_seconds*100)+'%'}}
+      <div className="f4-ts-playhead" style={{left:(74 + playhead/draft.duration_seconds*trackPixels)+'px'}}
         aria-hidden="true" />
+      </div>
     </div>
     <div className="f4-ts-inspector">
       <label>Playhead <input type="range" min="0" max={draft.duration_seconds} step=".1"

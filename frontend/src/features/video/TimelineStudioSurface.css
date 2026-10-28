@@ -6,7 +6,7 @@
 .f4-ts-tools button{background:#22344a;color:white;border:1px solid #53637a;border-radius:6px;padding:5px 9px;cursor:pointer}
 .f4-ts-tools button:disabled{opacity:.35;cursor:not-allowed}
 .f4-ts-tools label{display:flex;align-items:center;gap:4px;font-size:11px}
-.f4-ts-track-scroll{margin:12px 0;position:relative;overflow:hidden;border:1px solid #344258;border-radius:8px;padding:8px 0}
+.f4-ts-track-scroll{margin:12px 0;position:relative;overflow-x:auto;overflow-y:hidden;border:1px solid #344258;border-radius:8px;padding:8px 0}
 .f4-ts-ruler{height:28px;position:relative;margin-left:74px;font-size:10px;color:#96aec6}
 .f4-ts-ruler span{position:absolute;top:2px;transform:translateX(-50%);border-left:1px solid #6d7887;padding-left:3px}
 .f4-ts-row{display:flex;align-items:stretch;min-height:48px;border-top:1px solid #283b52}
@@ -31,3 +31,7 @@
 .f4-ts-parity{color:#a9bdd5;font-size:10px;flex:1;min-width:200px}
 .f4-ts-note{color:#f6dca2;font-size:12px}.f4-ts-error{color:#ffb5b8;font-size:12px}
 @media(max-width:780px){.f4-ts-toolbar{display:block}.f4-ts-tools{margin-top:8px}.f4-ts-clip small{display:none}.f4-ts-track-name{flex-basis:65px;font-size:9px}.f4-ts-ruler{margin-left:65px}.f4-ts-playhead{transform:translateX(65px)}}
+
+.f4-ts-timeline-content{position:relative;min-width:100%;box-sizing:border-box}
+.f4-ts-track-scroll{scrollbar-width:thin;overscroll-behavior-x:contain}
+.f4-ts-timeline-content .f4-ts-playhead{transform:none}

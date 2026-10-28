@@ -46,3 +46,17 @@ test('approved Feature2 scene copy locked, creative read-only, no invented sale'
  const viewport=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}))
  expect(viewport.scroll).toBeLessThanOrEqual(viewport.width+2)
 })
+
+test('zoom changes actual track geometry, and narrow viewport uses internal horizontal scrolling',async ({page})=>{
+ await page.setViewportSize({width:390,height:844})
+ await mount(page)
+ const scroll=page.getByLabel('Scrollable video tracks')
+ const widthBefore=await page.locator('.f4-ts-timeline-content').evaluate(el=>el.getBoundingClientRect().width)
+ await page.getByLabel('Timeline zoom').fill('4')
+ const widthAfter=await page.locator('.f4-ts-timeline-content').evaluate(el=>el.getBoundingClientRect().width)
+ expect(widthAfter).toBeGreaterThan(widthBefore)
+ const state=await scroll.evaluate(el=>({view:el.clientWidth,scroll:el.scrollWidth}))
+ expect(state.scroll).toBeGreaterThan(state.view)
+ const body=await page.evaluate(()=>({view:innerWidth,scroll:document.documentElement.scrollWidth}))
+ expect(body.scroll).toBeLessThanOrEqual(body.view+2)
+})

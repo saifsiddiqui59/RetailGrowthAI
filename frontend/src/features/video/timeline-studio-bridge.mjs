@@ -51,9 +51,20 @@ export function studioTrimPair(draft, index, delta) {
   const durationA = Math.round((a.duration + delta) * 1000) / 1000
   const durationB = Math.round((b.duration - delta) * 1000) / 1000
   if (durationA < 0.5 || durationB < 0.5) throw Error('Each clip must remain at least 0.5 seconds')
+  // A right-hand VIDEO clip must start later in its source if its timeline
+  // start is pushed right. Otherwise moving the boundary silently replays the
+  // original frames and the editor's timing is not reproduced by FFmpeg.
+  const rightStart = b.trim_start || 0
+  const nextRightStart = b.trim_start != null
+    ? Math.round((rightStart + delta) * 1000) / 1000
+    : delta
+  if (nextRightStart < 0 && b.trim_start != null) {
+    throw Error('Cannot extend video before its source begins')
+  }
   return { ...draft, scenes: recalc(draft.scenes.map((scene, i) => i === index ?
     { ...scene, duration: durationA } : i === index + 1 ?
-      { ...scene, duration: durationB } : scene), draft.duration_seconds) }
+      { ...scene, duration: durationB,
+        ...(b.trim_start != null ? {trim_start:nextRightStart} : {}) } : scene), draft.duration_seconds) }
 }
 export function studioSourceTrim(draft, index, seconds, mediaAssets) {
   const scene = draft.scenes[index]
@@ -62,15 +73,54 @@ export function studioSourceTrim(draft, index, seconds, mediaAssets) {
   if (!source || !Number.isFinite(seconds) || seconds < 0 || seconds > 180) {
     throw Error('Source trim is only allowed on the current tenant’s approved video')
   }
-  return { ...draft, scenes: draft.scenes.map((scene, i) =>
-    i === index ? { ...scene, trim_start: seconds } : scene) }
+  if (typeof source.duration_seconds === 'number' && Number.isFinite(source.duration_seconds) &&
+      seconds + scene.duration > source.duration_seconds + 0.02) {
+    throw Error('Video trim exceeds verified source length')
+  }
+  return { ...draft, scenes: draft.scenes.map((item, i) =>
+    i === index ? { ...item, trim_start: seconds } : item) }
 }
+// The UI is never the authorizing store. This catches accidental cross-shop
+// preview/edits early; the trusted compiler revalidates all grants at render time.
 export function studioValidatedDraft(draft, mediaAssets, musicAssets) {
-  // A browser-approved flag is not a tenant grant. The server checks again.
-  const rights = [...(mediaAssets || []), ...(musicAssets || [])]
-  const selected = [...draft.scenes.map(s => s.asset_id), draft.music_asset_id].filter(Boolean)
-  if (selected.some(id => !rights.some(a => a.id === id && a.authorized === true &&
-    a.shop_id === draft.shop_id))) throw Error('Foreign or revoked media cannot enter this timeline')
+  if (!draft || typeof draft.shop_id !== 'string' || !Array.isArray(draft.scenes)) {
+    throw Error('Missing or invalid tenant timeline')
+  }
+  const media = Array.isArray(mediaAssets) ? mediaAssets : []
+  const music = Array.isArray(musicAssets) ? musicAssets : []
+  const sameShop = (id, records, allowedKinds) => {
+    if (!records.some(a => a.id === id && a.shop_id === draft.shop_id &&
+        a.authorized === true && allowedKinds.includes(a.kind))) {
+      throw Error('Foreign, unlicensed or revoked media cannot enter this timeline')
+    }
+  }
+  for (const scene of draft.scenes) {
+    if (draft.mode !== 'text') {
+      sameShop(scene.asset_id, media, ['image', 'poster', 'video'])
+    }
+    if (scene.poster_overlay_asset_id != null) {
+      sameShop(scene.poster_overlay_asset_id, media, ['poster'])
+    }
+    if (scene.sfx_asset_id != null) {
+      sameShop(scene.sfx_asset_id, music, ['audio'])
+    }
+    if (scene.trim_start != null) {
+      const asset = media.find(a => a.id === scene.asset_id && a.shop_id === draft.shop_id)
+      if (!asset || asset.kind !== 'video' || typeof scene.trim_start !== 'number' ||
+          !Number.isFinite(scene.trim_start) || scene.trim_start < 0 ||
+          scene.trim_start > 180) throw Error('Invalid approved video trim')
+    }
+    const asset = media.find(a => a.id === scene.asset_id && a.shop_id === draft.shop_id)
+    const duration = asset?.duration_seconds
+    // Duration is server-probed media metadata, when available. A missing value
+    // is NOT interpreted as unlimited footage: final worker probes the source.
+    if (asset?.kind === 'video' && typeof duration === 'number' &&
+        Number.isFinite(duration) && duration > 0 &&
+        (scene.trim_start || 0) + scene.duration > duration + 0.02) {
+      throw Error('Video trim exceeds verified source length')
+    }
+  }
+  if (draft.music_asset_id != null) sameShop(draft.music_asset_id, music, ['audio'])
   const issues = validateVideoDraft(draft, mediaAssets, musicAssets)
   if (issues.length) throw Error(issues.join('; '))
   return draft
