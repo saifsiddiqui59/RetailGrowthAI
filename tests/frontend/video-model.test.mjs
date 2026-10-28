@@ -6,12 +6,12 @@ import {
 
 const shopId = '11111111-1111-4111-8111-111111111111'
 const media = [
-  { id: 'good_photo', kind: 'image', authorized: true },
-  { id: 'good_video', kind: 'video', authorized: true },
-  { id: 'poster1', kind: 'poster', authorized: true },
-  { id: 'denied_photo', kind: 'image', authorized: false },
+  { id: 'good_photo', kind: 'image', authorized: true, shop_id: shopId },
+  { id: 'good_video', kind: 'video', authorized: true, shop_id: shopId },
+  { id: 'poster1', kind: 'poster', authorized: true, shop_id: shopId },
+  { id: 'denied_photo', kind: 'image', authorized: false, shop_id: shopId },
 ]
-const tracks = [{ id: 'licensed1', title: 'Owned track', authorized: true }]
+const tracks = [{ id: 'licensed1', title: 'Owned track', authorized: true, kind: 'audio', shop_id: shopId }]
 
 test('P0 modes produce bounded v2 plans without granting media authority', () => {
   for (const mode of ['text', 'image', 'poster', 'media']) {
@@ -26,7 +26,7 @@ test('server authorization flags exclude revoked media', () => {
   assert.deepEqual(compatibleMedia('image', media).map(a => a.id), ['good_photo'])
   const plan = makeVideoDraft({ shopId, mode: 'image', mediaAssets: media })
   plan.scenes[1].asset_id = 'denied_photo'
-  assert.match(validateVideoDraft(plan, media).join(' '), /authorized media/)
+  assert.match(validateVideoDraft(plan, media).join(' '), /authorized same-shop media/)
 })
 
 test('scene reordering recalculates non-overlapping time starts', () => {
