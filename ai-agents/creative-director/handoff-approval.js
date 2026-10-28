@@ -36,8 +36,8 @@ function expectedPlanSha(bundle) {
       bundle.approval_record.can_run_paid_motion !== false) reject('Forged or already mutable draft');
   return fingerprint;
 }
-function payloadOf(planSha, shopId, campaignId, reviewerId, timestamp) {
-  return { plan_sha256: planSha, shop_id: shopId, campaign_id: campaignId,
+function payloadOf(planSha, motionSha, shopId, campaignId, reviewerId, timestamp) {
+  return { plan_sha256: planSha, motion_sha256: motionSha, shop_id: shopId, campaign_id: campaignId,
     reviewer_id: reviewerId, approved_at_utc: timestamp,
     decision: 'CREATIVE_ONLY_APPROVED_NOT_PUBLISHED',
     can_publish: false, can_run_paid_motion: false };
@@ -55,7 +55,7 @@ function approveCreativeDraft(bundle, reviewer, secretKey) {
       reviewer.completed_storyboard_review !== true || reviewer.completed_script_review !== true)
     reject('Current RLS-authorized human reviewer and all editorial checks required');
   const fingerprint = expectedPlanSha(bundle);
-  const payload = payloadOf(fingerprint, creative.shop_id, creative.campaign_id,
+  const payload = payloadOf(fingerprint, hash(bundle.motion_direction_v1), creative.shop_id, creative.campaign_id,
     reviewer.id, new Date().toISOString());
   return { ...payload, hmac_sha256: signatureOf(payload, secretKey) };
 }
@@ -64,13 +64,14 @@ function verifyCreativeApproval(bundle, receipt, secretKey, expectedShop) {
   const sha = expectedPlanSha(bundle);
   const creative = bundle.creative_direction_v1;
   if (!receipt || creative.shop_id !== expectedShop ||
-      receipt.plan_sha256 !== sha || receipt.shop_id !== expectedShop ||
+      receipt.plan_sha256 !== sha || receipt.motion_sha256 !== hash(bundle.motion_direction_v1) ||
+      receipt.shop_id !== expectedShop ||
       receipt.campaign_id !== creative.campaign_id || !id(receipt.reviewer_id) ||
       !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(receipt.approved_at_utc)) reject('Approval not bound to current shop/campaign');
   const stamp = Date.parse(receipt.approved_at_utc);
   if (!Number.isFinite(stamp) || stamp > Date.now() + 300000 ||
       stamp < Date.now() - 365 * 24 * 60 * 60 * 1000) reject('Stale or future approval receipt');
-  const payload = payloadOf(receipt.plan_sha256, receipt.shop_id, receipt.campaign_id,
+  const payload = payloadOf(receipt.plan_sha256, receipt.motion_sha256, receipt.shop_id, receipt.campaign_id,
     receipt.reviewer_id, receipt.approved_at_utc);
   const expected = Buffer.from(signatureOf(payload, secretKey), 'hex');
   const actual = typeof receipt.hmac_sha256 === 'string' && /^[a-f0-9]{64}$/.test(receipt.hmac_sha256)
