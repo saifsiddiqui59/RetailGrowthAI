@@ -913,3 +913,9 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 - **3.5 #471:** #483 source merged; next: actual private generated output registration/byte hash and approved model media reuse, same-shop signed download only upon real successful output, no public/foreign token.
 - **3.6 #472:** run full Supabase negative authorization, signed real eligible owner/VIEWER/foreign tests after customer-safe DEV activation, 4/4 source and post-merge main CI; verify no paid GPU enabled. Keep #325 open until genuine FLUX output with cost.
 - **3.2 #468:** recent Feature2 fixture contains original synthetic PNG with revoked membership; do not borrow it. Prepare a genuinely active test shop/authorized JWT with explicit model rights before image conditioning.
+
+
+## 2026-10-28 — Feature3 task3.4 prepaid callback completed; runtime remaining
+- DONE source #493/4 CI: one-shot adapter reuses SQL's pre-paid reservation, does not double reserve, requires trusted actual USD and output media identity. Contract details: `docs/feature3/TASK_3_4_PREPAID_BRIDGE_20261028.md`.
+- STILL P0: service-only SQL REST transport to approved `feature3_reserve_gpu_job`, `feature3_claim_gpu_job`, `feature3_finish_gpu_job` plus protected outbox dispatcher to the existing Azure Queue; signed current-member/media authorization; failure/expired-lease reconciliation after denied preflight; private generated output registration and binary digest check. The provider and tenant flags remain OFF.
+- STILL P0: Task3.2 active legitimate owner-signed private original photo, Task3.3 actual server-side PENDING_REVIEW registration/approval and revocation, Task3.5 eligible generated binary/signature + review/reuse, Task3.6 signed negative/positive DEV acceptance. Do not rent GPU until these are ready and a capped spending authorization is specified.
