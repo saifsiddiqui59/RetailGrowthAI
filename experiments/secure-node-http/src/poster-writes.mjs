@@ -124,7 +124,10 @@ export class PosterRpcWriter extends PrivateReader {
       publicResponse(201,{poster_id:canonicalUuid(draftId),status:"DRAFT"});
   }
 
-  async requestRender(token,userId,posterId,body) {
+  // Dedicated poster entrypoint: ReelIntentWriter derives from this class and
+  // uses requestRender() for campaign videos. Never dispatch poster jobs via
+  // that overridden Reel method (its {day_id,preset} body is incompatible).
+  async requestPosterRender(token,userId,posterId,body) {
     const pid = canonicalUuid(posterId);
     if (body !== undefined && body !== null && !(object(body) && Object.keys(body).length===0)) {
       return denied(400,"INVALID_REQUEST");
@@ -175,7 +178,7 @@ export function createPosterWriteGateway({verifyJwt, writer}) {
       const token=authorization.slice(7);
       const user=await verifyJwt(token);
       if(match) return await writer.createDraft(token,user,match[1],body);
-      if(render) return await writer.requestRender(token,user,render[1],body);
+      if(render) return await writer.requestPosterRender(token,user,render[1],body);
       return await writer.selectBanner(token,user,select[1],body);
     } catch(error) {
       if(error instanceof AuthDenied)return denied(401,"UNAUTHORIZED");
