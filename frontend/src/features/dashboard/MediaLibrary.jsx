@@ -8,7 +8,7 @@ import { Card } from '../../components/ui/card.jsx'
 import { Button } from '../../components/ui/button.jsx'
 import { Badge } from '../../components/ui/badge.jsx'
 import { Skeleton } from '../../components/ui/skeleton.jsx'
-import { filterAssets, mediaLabel, mediaPreviewAccess, paginateVerifiedAssets } from './media-library-model.mjs'
+import { filterAssets, mediaLabel, mediaPreviewAccess, mediaPreviewRevision, currentMediaPreview, paginateVerifiedAssets } from './media-library-model.mjs'
 
 export default function MediaLibrary() {
   const { client, configured, user } = useRetailAuth()
@@ -42,23 +42,24 @@ export default function MediaLibrary() {
     setPreview(null)
   }
   async function showPrivateImage(asset) {
-    if (!user || !mediaPreviewAccess(asset, shopId).allowed) return
+    const revision = mediaPreviewRevision(asset,shopId)
+    if (!user || !revision) return
     const epoch = ++requestEpoch.current
     const scope = activeScope
     // Dispose the previous authorized private URL even if the next read fails.
     if (previewUrl.current) URL.revokeObjectURL(previewUrl.current)
     previewUrl.current = null
-    setPreview({scope,id:asset.id,loading:true})
+    setPreview({scope,id:asset.id,revision,loading:true})
     try {
       const {blob, filename} = await client.downloadPrivateImage(shopId,asset.id)
       if (requestEpoch.current !== epoch || previewScope.current !== scope) return
       const url = URL.createObjectURL(blob)
       if (previewUrl.current) URL.revokeObjectURL(previewUrl.current)
       previewUrl.current = url
-      setPreview({scope,id:asset.id,url,filename,loading:false})
+      setPreview({scope,id:asset.id,revision,url,filename,loading:false})
     } catch {
       if (requestEpoch.current === epoch && previewScope.current === scope) {
-        setPreview({scope,id:asset.id,error:'Private image could not be verified or accessed.',loading:false})
+        setPreview({scope,id:asset.id,revision,error:'Private image could not be verified or accessed.',loading:false})
       }
     }
   }
@@ -77,10 +78,9 @@ export default function MediaLibrary() {
   // GENERATED/STOCK/revoked/missing asset must not leave a stale download link.
   const previewAuthorized = useMemo(() => Boolean(
     preview?.scope === activeScope && preview?.id &&
-    assetsQuery.isSuccess && assetsQuery.data?.pages?.some(page =>
-      page.items.some(asset => asset.id === preview.id &&
-        mediaPreviewAccess(asset, shopId).allowed))
-  ), [preview?.scope, preview?.id, activeScope, assetsQuery.isSuccess, assetsQuery.data, shopId])
+    assetsQuery.isSuccess &&
+    currentMediaPreview(preview, assetsQuery.data?.pages, shopId)
+  ), [preview, activeScope, assetsQuery.isSuccess, assetsQuery.data, shopId])
   useEffect(() => {
     if (!preview || preview.scope !== activeScope) return
     if (!shopsQuery.isError && !assetsQuery.isError &&

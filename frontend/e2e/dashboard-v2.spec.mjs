@@ -882,3 +882,54 @@ test('private preview is revoked if refreshed rights change from UPLOAD to GENER
   await expect.poll(()=>page.evaluate(()=>
     document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
 })
+
+
+test('private preview revokes its Blob when the current UPLOAD licence changes',async({page})=>{
+  await signedIn(page)
+  await page.setViewportSize({width:320,height:740})
+  const image='a1000000-0000-4000-8000-000000000010'
+  const upload='a1000000-0000-4000-8000-000000000020'
+  let changed=false,reads=0,metadataReads=0
+  await page.route(HOST+'/rest/v1/media_assets**',route=>{
+    const request=route.request()
+    const lookup=new URL(request.url()).searchParams.has('id')
+    if(!lookup) metadataReads++
+    const row={id:image,shop_id:SHOP,source:'UPLOAD',
+      storage_bucket:'retailgrowth-media',object_path:SHOP+'/uploads/'+upload+'.png',
+      mime_type:'image/png',license_name:changed&&!lookup?'royalty_free':'owned',
+      created_at:'2026-10-28T12:00:00Z'}
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify([row])})
+  })
+  const png=Buffer.alloc(256)
+  Buffer.from([137,80,78,71,13,10,26,10]).copy(png)
+  await page.route(HOST+'/storage/v1/object/authenticated/**',route=>{
+    reads++
+    expect(route.request().headers().authorization).toBe('Bearer offline-test-JWT')
+    return route.fulfill({status:200,body:png,headers:{
+      'Access-Control-Allow-Origin':'*','Content-Type':'image/png','Content-Length':'256'}})
+  })
+  await page.goto('/media-library')
+  await expect(page.getByText('1 matching registered images')).toBeVisible()
+  await page.getByRole('button',{name:'Preview Image a1000000'}).click()
+  const preview=page.getByRole('img',{name:'Authorized private image Image a1000000'})
+  await expect(preview).toHaveAttribute('src',/^blob:/)
+  const oldUrl=await preview.getAttribute('src')
+  expect(reads).toBe(1)
+
+  // Still a private original UPLOAD with a nonempty licence: the earlier
+  // source-only revocation guard would have retained the old Blob.
+  changed=true
+  await page.getByRole('button',{name:'Refresh assets'}).click()
+  await expect.poll(()=>metadataReads).toBeGreaterThanOrEqual(2)
+  await expect(page.getByText('Licence: royalty_free')).toBeVisible()
+  await expect(preview).toHaveCount(0)
+  await expect(page.getByRole('link',{name:'Save private image'})).toHaveCount(0)
+  await expect.poll(async()=>page.evaluate(async url=>{
+    try{return (await fetch(url)).ok}catch{return false}
+  },oldUrl)).toBe(false)
+  expect(reads).toBe(1)
+  await expect.poll(()=>page.evaluate(()=>
+    document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
+})
