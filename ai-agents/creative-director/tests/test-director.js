@@ -60,7 +60,7 @@ function candidate(duration) {
             camera_action: 'Camera dollies backward smoothly keeping full outfit in frame',
             fabric_response: 'Deep red kurti hem sways slightly and settles with unchanged neckline and embroidery' }
         ],
-        generation_prompt: 'Shot ' + scene + ': premium photoreal Diwali fashion advertisement. The same adult model wears the exact deep red kurti from the approved first-frame image, keeping round neckline, full-length sleeves, straight hem and gold embroidery unchanged. At first stand still; then walk forward two natural steps and turn softly three-quarters. The boutique light is warm and diffused; camera tracks backward on a 50mm lens and holds the complete garment in portrait frame. Preserve anatomy, cloth physics and stable fabric design. No overlays or invented logos.',
+        generation_prompt: 'Shot ' + scene + ': premium photoreal Diwali fashion advertisement. The same adult model wears the exact deep red kurti from the approved first-frame image, keeping round neckline, full-length sleeves, straight knee-length hem and gold motifs across the front unchanged. At first stand still; then walk forward two natural steps and turn softly three-quarters. The boutique light is warm and diffused; camera tracks backward on a 50mm lens and holds the complete garment in portrait frame. Preserve anatomy, cloth physics and stable fabric design. No overlays or invented logos.',
         negative_constraints: ['No garment color or embroidery changes', 'No extra limbs, hands or faces', 'No flicker, jump cuts, extra people or rendered text']
       }]
     });
@@ -158,6 +158,37 @@ for (const duration of [15, 30, 60]) {
   const unverified = structuredClone(base);
   unverified.scenes[0].shots[0].visual_description += ' Guaranteed best in India';
   reject(() => compile(req, unverified), 'No unsupported superiority');
+  const absentNeckline = structuredClone(base);
+  absentNeckline.scenes[0].shots[0].generation_prompt = absentNeckline.scenes[0].shots[0].generation_prompt.replace('round neckline', 'collar style');
+  reject(() => compile(req, absentNeckline), 'Verified neckline cannot be removed from Feature5 prompt');
+  const absentHem = structuredClone(base);
+  absentHem.scenes[0].shots[0].generation_prompt = absentHem.scenes[0].shots[0].generation_prompt.replace('straight knee-length hem', 'floating hem');
+  reject(() => compile(req, absentHem), 'Exact garment hem length cannot be invented');
+  const absentEmbroider = structuredClone(base);
+  absentEmbroider.scenes[0].shots[0].generation_prompt = absentEmbroider.scenes[0].shots[0].generation_prompt.replace('gold motifs across the front', 'gold thread');
+  reject(() => compile(req, absentEmbroider), 'Embroidery identity must survive Wan prompt');
+  const falseDialogue = structuredClone(base);
+  falseDialogue.scenes[0].dialogue = 'Get an extra 40% off right now';
+  reject(() => compile(req, falseDialogue), 'Unapproved discounts cannot hide in spoken dialogue');
+  const falseAction = structuredClone(base);
+  falseAction.scenes[0].shots[0].motion_steps[0].human_action += ' with guaranteed best in India results';
+  reject(() => compile(req, falseAction), 'Choreography must also be screened for unsupported claims');
+  const unverifiedNegative = structuredClone(base);
+  unverifiedNegative.scenes[0].shots[0].negative_constraints[0] += ' Get 75% off';
+  reject(() => compile(req, unverifiedNegative), 'Even negative constraints cannot carry unapproved offer');
+  const wordTimes = base.voiceover_script.split(/\s+/).map((text, i) => ({
+    text, start: i * 0.15, end: (i + 1) * 0.15
+  }));
+  const alignment = { words: wordTimes, duration: wordTimes.length * 0.15 };
+  const withWordTimes = compile(req, base, { actual_voice_alignment: alignment });
+  assert.equal(withWordTimes.creative_direction_v1.audio_sync.state, 'WORD_TIMES_MATCH_PENDING_AUDIO_PROVENANCE');
+  assert.equal(withWordTimes.approval_record.can_publish, false);
+  const overlap = structuredClone(alignment);
+  overlap.words[1].start = 0.01;
+  reject(() => compile(req, base, { actual_voice_alignment: overlap }), 'Overlapping narrator timestamps must not pass');
+  const outside = structuredClone(alignment);
+  outside.words.at(-1).end = alignment.duration + 1;
+  reject(() => compile(req, base, { actual_voice_alignment: outside }), 'Last word must not exceed actual audio duration');
   const voiceWrong = structuredClone(base);
   voiceWrong.voiceover_script = 'Audio does not match';
   reject(() => compile(req, voiceWrong), 'Narration must align');
