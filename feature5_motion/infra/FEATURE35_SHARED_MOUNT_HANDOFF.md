@@ -59,6 +59,22 @@ python -m feature5_motion.audit_shared_model_share_readonly
 **The live private manifest and revisions have NOT been independently read yet.**
 Running source tests only establishes audit logic, not current Azure reality.
 
+## Additional PAID-START fail-closed cost gate, prepared not activated
+Even after manually acknowledging paid run and the existing model-license/approval flags,
+`gpu_job_control.py` now refuses to start without a referenced, independently
+reviewed USD quote: `RETAIL_F5_COST_QUOTE_CURRENCY=USD`,
+`RETAIL_F5_COST_QUOTE_REFERENCE`,
+`RETAIL_F5_QUOTED_ALL_IN_USD_PER_GPU_SECOND`,
+`RETAIL_F5_QUOTED_FIXED_OVERHEAD_USD`,
+`RETAIL_F5_OWNER_APPROVED_PER_TEST_MAX_USD`.
+It checks `replicaTimeout * quoted_rate + fixed_overhead <= approved_max` with
+finite Decimal inputs. These fields are **unset and not approved** at this time;
+test fixtures use fictional numbers and are NOT an Azure retail quote. This check
+is operator admission control, NOT a hard Azure financial cap. It cannot prevent
+separate starts or unexpected bills, so lease/one-execution/status/stop and
+actual invoice checks still apply. NEVER set fabricated quote environment values
+to force a run.
+
 ## Additional verified upstream native workflow inspection
 Read-only source inspection at pinned official Comfy-Org/workflow_templates commit `e7cd011d4ded3411c2f481200544f0be6fdc962e`:
 - Wan UI workflow `templates/video_wan2_2_5B_ti2v.json` has 13 nodes with `UNETLoader`, `CLIPLoader`, `VAELoader`, `Wan22ImageToVideoLatent`, `KSampler`, `VAEDecode`, `CreateVideo`, and `SaveVideo`. Loader filenames **exactly** match the three stored Wan files. It defaults to 1280x704 and 121 frames at 24fps (~5s) with an image input; T2V requires correct optional start-image handling and a reviewed ComfyUI API-format graph, not merely removing a file from JSON by guess.
