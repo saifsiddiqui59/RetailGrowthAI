@@ -62,6 +62,22 @@ export function studioTrimPair(draft, index, delta, mediaAssets = []) {
   const durationA = Math.round((a.duration + delta) * 1000) / 1000
   const durationB = Math.round((b.duration - delta) * 1000) / 1000
   if (durationA < 0.5 || durationB < 0.5) throw Error('Each clip must remain at least 0.5 seconds')
+  // Fixed-gain HyperFrames scene SFX plays for min(2s, scene duration).
+  // Shortening an approved 2s effect to 1s (or extending a shorter effect)
+  // silently changes the sound. Reject the boundary edit, never retime audio.
+  if ((a.sfx_asset_id != null && Math.min(2, a.duration) !== Math.min(2, durationA)) ||
+      (b.sfx_asset_id != null && Math.min(2, b.duration) !== Math.min(2, durationB))) {
+    throw Error('Boundary trim would change an approved scene sound-effect duration')
+  }
+  // Left-hand VIDEO can gain duration: verify the newly exposed frames exist
+  // whenever a trusted/probed source duration is available.
+  const leftMedia = mediaAssets.find(asset => asset.id === a.asset_id &&
+    asset.shop_id === draft.shop_id && asset.authorized === true)
+  if (leftMedia?.kind === 'video' && typeof leftMedia.duration_seconds === 'number' &&
+      Number.isFinite(leftMedia.duration_seconds) && leftMedia.duration_seconds > 0 &&
+      (a.trim_start || 0) + durationA > leftMedia.duration_seconds + 0.02) {
+    throw Error('Boundary trim exceeds verified source video duration')
+  }
   // A right-hand VIDEO clip must start later in its source if its timeline
   // start is pushed right. Otherwise moving the boundary silently replays the
   // original frames and the editor's timing is not reproduced by FFmpeg.

@@ -309,3 +309,27 @@ test('approved F2 subtitle millisecond timecodes match backend without silent ro
     assert.throws(()=>checkedPreviewCaptionCues(invalid,30),/unsafe or overlapping/)
   }
 })
+
+test('timeline boundary changes never silently shorten or extend approved 2s scene SFX',()=>{
+  const original=draft()
+  const withEffect={...original,scenes:original.scenes.map((scene,index)=>
+    index===1?{...scene,sfx_asset_id:'licensed_music'}:scene)}
+  assert.throws(()=>studioTrimPair(withEffect,0,8.5,assets),/sound-effect duration/)
+  assert.throws(()=>studioTrimPair(withEffect,1,-8.5,assets),/sound-effect duration/)
+  const safe=studioTrimPair(withEffect,0,2,assets)
+  assert.equal(safe.scenes[1].duration,8)
+  assert.equal(safe.scenes[1].sfx_asset_id,'licensed_music')
+  assert.deepEqual(validateVideoDraft(safe,assets,music),[])
+  assert.equal(withEffect.scenes[1].duration,10)
+})
+
+test('extending left-hand video boundary cannot exceed verified private source duration',()=>{
+  const original=draft()
+  const measured=assets.map(a=>a.id==='motion1'?{...a,duration_seconds:10}:a)
+  assert.throws(()=>studioTrimPair(original,1,1,measured),/verified source video duration/)
+  assert.equal(original.scenes[1].duration,10)
+  // Decreasing the selected video scene remains permitted and is source-safe.
+  const safe=studioTrimPair(original,1,-1,measured)
+  assert.equal(safe.scenes[1].duration,9)
+  assert.deepEqual(validateVideoDraft(safe,measured,music),[])
+})
