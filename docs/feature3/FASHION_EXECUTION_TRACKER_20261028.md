@@ -104,3 +104,8 @@ rights remain independent of test fixture approval. Do not modify WineShopPOS.
 **Current rule:** GPU stays OFF and public model approval is NOT active; zero
 approved, rights-verified live fashion models does not satisfy production E2E.
 No WineShopPOS or PROD changes.
+
+## 2026-10-28 — NEW Feature3 GPU-OFF handoff PR #561
+- Previous #553 private evidence, #555 signed human review and #559 PENDING model import are merged; their hosted migrations and genuine commercial rights remain undeployed/UNVERIFIED.
+- **Source added / coordinator review pending:** [#561](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/561) validates fresh tenant-owned SHA-pinned garment/model/first frame, server-reviewed Feature2 creative brief, Feature4 camera timeline, Feature5 private first-frame claim-needed packet and optional Feature7 approved uploaded footage. 18 synthetic test methods; include original Pillow byte verification through existing fixture, no real commercially cleared image or downstream live calls. GPU is OFF. Exact PR 4-job CI and post-merge main verification are independent required gates.
+- **Still P0:** real retailer-signed original PNG upload, unexpired rights and separate independent human curator with separately approved hosted schema; downstream service owner integration. **P1:** private generated-output CAS writer, durable job/outbox/poison/settlement/lease and human garment-fidelity evaluation. **P2/external:** hosted signed DEV two-shop browser acceptance, original Azure issue #249, actual one-shot FLUX 4B/VRAM/cost and licensed visual review. Do not declare GPU-OFF DEVELOPMENT COMPLETE or production complete yet.
