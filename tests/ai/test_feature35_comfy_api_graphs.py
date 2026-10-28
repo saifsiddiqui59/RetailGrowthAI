@@ -50,7 +50,7 @@ class TestFeature35HeadlessGraphs(unittest.TestCase):
             args={"prompt":"text","seed":0,**keyword}
             with self.assertRaises(WorkflowError): flux_klein_4b(**args)
         for kwargs in ({"frames":120},{"fps":30},{"height":710},{"seed":-5}):
-            with self.assertRaises(WorkflowError): wan22_ti2v_5b(prompt="text",seed=1,**kwargs)
+            with self.assertRaises(WorkflowError): wan22_ti2v_5b(**{"prompt":"text","seed":1,**kwargs})
 
     def test_broken_internal_link_is_rejected_offline(self):
         g=wan22_ti2v_5b(prompt="A fictional boutique at sunset",seed=0)
