@@ -12,6 +12,7 @@ import {normalizeWhisperx} from './transcript_adapter.mjs';
 import {analyzeLocalAudioActivity} from './audio_activity.mjs';
 import {proposeUploadedFootageEdits,EditValidationError} from './autobroll_semantics.mjs';
 import {suggestRetakeSelections,suggestOwnedCutaways} from './semantic_suggestions.mjs';
+import {suggestGapCuts} from './gap_cut_advisory.mjs';
 
 export function preparePrivateReview({shop_id,campaign_id,draft,root,media,
   broll_grants=[]}={}) {
@@ -61,6 +62,11 @@ export function preparePrivateReview({shop_id,campaign_id,draft,root,media,
   const proposal=proposeUploadedFootageEdits({
     shop_id,campaign_id,draft,footage:approvedFootage,grants
   });
+  const silence_jump_cut_advisory=approvedFootage.map(f=>suggestGapCuts({
+    asset_id:f.asset_id,source_scene_index:f.scene_index,words:f.words,
+    source_duration_seconds:f.source_duration_seconds,
+    target_duration_seconds:draft.scenes[f.scene_index].duration
+  }));
   const retakes_advisory=suggestRetakeSelections({shop_id,
     footage:approvedFootage.map(f=>({...f,shop_id}))});
   const owned_cutaways_advisory=approvedFootage.flatMap(f=>
@@ -69,7 +75,7 @@ export function preparePrivateReview({shop_id,campaign_id,draft,root,media,
         ...c,source_scene_index:f.scene_index
       })));
   return {...proposal,media_evidence:evidence,
-    retakes_advisory,owned_cutaways_advisory,
+    retakes_advisory,owned_cutaways_advisory,silence_jump_cut_advisory,
     review_status:'NEEDS_REVIEW',approved:false,renderable:false,
     media_approval_is_not_human_edit_approval:true};
 }
