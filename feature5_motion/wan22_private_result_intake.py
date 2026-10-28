@@ -7,6 +7,8 @@ settle, publish, retry paid work or assert AI origin, licensing, product fidelit
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import re
 import stat
@@ -69,6 +71,8 @@ def find_single_private_wan_mp4(*, shot, private_output_root):
             directory=Path(parent)/name
             if directory.is_symlink() or entries>MAX_ENTRIES:
                 raise WanCompatibilityError("Linked or overflowing Comfy output tree")
+            if directory != expected_dir:
+                raise WanCompatibilityError("Unexpected directory in private Comfy output tree")
         for name in files:
             entries+=1
             candidate=Path(parent)/name
@@ -118,10 +122,30 @@ def inspect_single_private_wan_output(*, shot, private_output_root,
         raise WanCompatibilityError("Private output not in current fenced worker attempt")
     path=find_single_private_wan_mp4(shot=shot,private_output_root=root)
     inspection=inspect_native_mp4(shot,staged_file=path,ffprobe=ffprobe)
+    before=path.stat(follow_symlinks=False)
     screening=screen_motion_frames(clip_path=path,inspected=inspection,
                                    ffmpeg=ffmpeg)
     if screening.decision!="NONSTATIC_AWAITING_HUMAN_VISUAL_REVIEW":
         raise WanCompatibilityError("Comfy native output looks static; never auto-approve")
+    # Independent final digest catches a model process replacing the MP4
+    # between ffprobe, FFmpeg frame screening, and the pending receipt.
+    try:
+        after=path.stat(follow_symlinks=False)
+        if (path.is_symlink() or before.st_dev!=after.st_dev or
+            before.st_ino!=after.st_ino or before.st_size!=after.st_size or
+            before.st_mtime_ns!=after.st_mtime_ns):
+            raise WanCompatibilityError("Private native output mutated during screening")
+        digest=hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda:stream.read(1024*1024),b""):
+                digest.update(chunk)
+        end=path.stat(follow_symlinks=False)
+        if (end.st_dev!=after.st_dev or end.st_ino!=after.st_ino or
+            end.st_size!=after.st_size or end.st_mtime_ns!=after.st_mtime_ns or
+            digest.hexdigest()!=inspection.sha256):
+            raise WanCompatibilityError("Private output changed after media verification")
+    except OSError as exc:
+        raise WanCompatibilityError("Private native output no longer available") from exc
     receipt=pending_private_receipt(shot,inspection)
     receipt.update({
         "screening_decision":screening.decision,
@@ -130,5 +154,11 @@ def inspect_single_private_wan_output(*, shot, private_output_root,
         "output_is_ai_proven":False,
         "approved_for_feature4":False,
         "private_import_required":True,
+        "job_id":jid,
+        "attempt_token":token,
     })
+    # Tamper-evident pending metadata, NOT a signed/DB-immutable release.
+    receipt["receipt_sha256"]=hashlib.sha256(json.dumps(
+        receipt,sort_keys=True,separators=(",",":"),allow_nan=False
+    ).encode("utf-8")).hexdigest()
     return path,inspection,receipt

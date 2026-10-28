@@ -30,3 +30,7 @@
 5. Independent real-life visual/garment review (face, anatomy, color, embroidery, sleeves, hem, camera/temporal consistency) and license/likeness review; Feature4 composes an actual Full-HD Reel, and coordinator handles final PR integration / main CI and hosted acceptance.
 
 **Release interpretation:** Feature #5 source/offline components may be marked *source-ready* after final 4/4 CI; do not mark Feature #5 production/real-AI-complete until all five external gates pass. An uploaded synthetic moving MP4 is NOT Wan2.2 video.
+
+
+## 2026-10-28 — GPU-OFF private output hardening and mock-to-media acceptance
+- Last proven prior exact-head #40727265840 at 6b1cfeb0: four CI jobs successful. Subsequent CPU source hardening adds foreign empty folder denial, late MP4 inode+size+mtime+SHA check, job/attempt SHA-sealed pending metadata and fake Comfy-to-real FFmpeg moving synthetic integration with revoked-lease denial. These do NOT prove genuine Wan/model quality, durable immutable DB receipt, real retailer rights or licensed inference. Coordinator must bind and test actual Part3 transactional intent/import/settlement; real Comfy/CUDA image and native /object_info, GPU budget/operator approval, private current Feature3 rights, human fashion review and Feature4 final composition remain external.

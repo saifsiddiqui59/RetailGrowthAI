@@ -5,6 +5,8 @@ human/garment). It validates private output discovery, ffprobe MP4 checks,
 decoded motion detection and permanent PENDING review state. No GPU/network.
 """
 import copy
+import hashlib
+import json
 import os
 from pathlib import Path
 import shutil
@@ -51,9 +53,10 @@ class WanPrivateOutputIntakeTests(unittest.TestCase):
                 "-frames:v","121","-c:v","libx264","-preset","ultrafast",
                 "-crf","38","-pix_fmt","yuv420p","-an",str(destination),
             ],timeout=50,check=True,capture_output=True)
+            job,token=str(uuid4()),str(uuid4())
             selected,inspection,receipt=inspect_single_private_wan_output(
                 shot=shot(),private_output_root=root,
-                job_id=str(uuid4()),attempt_token=str(uuid4()),
+                job_id=job,attempt_token=token,
                 verify_existing_fenced_output_scope=lambda *a: True)
             self.assertEqual(selected,destination)
             self.assertEqual(inspection.frames,121)
@@ -65,6 +68,14 @@ class WanPrivateOutputIntakeTests(unittest.TestCase):
             self.assertFalse(receipt["output_is_ai_proven"])
             self.assertFalse(receipt["approved_for_feature4"])
             self.assertTrue(receipt["private_import_required"])
+            self.assertEqual((receipt["job_id"],receipt["attempt_token"]),(job,token))
+            sealed={k:v for k,v in receipt.items() if k!="receipt_sha256"}
+            canonical=lambda value: hashlib.sha256(json.dumps(
+                value,sort_keys=True,separators=(",",":"),allow_nan=False
+            ).encode()).hexdigest()
+            self.assertEqual(receipt["receipt_sha256"],canonical(sealed))
+            sealed["approved_for_feature4"]=True
+            self.assertNotEqual(receipt["receipt_sha256"],canonical(sealed))
 
     def test_output_bytes_not_read_without_current_tenant_attempt_lease(self):
         with tempfile.TemporaryDirectory() as td:
@@ -110,6 +121,71 @@ class WanPrivateOutputIntakeTests(unittest.TestCase):
             (root/"unreviewed.txt").write_text("unsolicited")
             with self.assertRaisesRegex(WanCompatibilityError,"Unexpected"):
                 find_single_private_wan_mp4(shot=shot(),private_output_root=root)
+
+    def test_unexpected_empty_directory_and_corrupt_mp4_denied(self):
+        with tempfile.TemporaryDirectory() as td:
+            root,dest=private_root(td)
+            dest.write_bytes(b"corrupted")
+            (root/"foreign_empty").mkdir(mode=0o700)
+            with self.assertRaisesRegex(WanCompatibilityError,"Unexpected directory"):
+                find_single_private_wan_mp4(shot=shot(),private_output_root=root)
+            (root/"foreign_empty").rmdir()
+            with self.assertRaises(WanCompatibilityError):
+                inspect_single_private_wan_output(
+                    shot=shot(),private_output_root=root,
+                    job_id=str(uuid4()),attempt_token=str(uuid4()),
+                    verify_existing_fenced_output_scope=lambda *a: True)
+
+    def test_mock_comfy_to_real_synthetic_motion_and_revoke(self):
+        """Mocked Comfy one-shot to genuine CPU-encoded moving media, NOT Wan."""
+        if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+            self.fail("Requires FFmpeg and FFprobe in the media runner")
+        import sys
+        ai_dir=str(Path(__file__).resolve().parents[1]/"ai")
+        if ai_dir not in sys.path:
+            sys.path.insert(0,ai_dir)
+        from test_feature5_wan22_comfy_execution import (
+            synthetic_package, FakeLocalComfy, inputs
+        )
+        from feature5_motion.wan22_comfy_execution import WanPrivateComfyDispatcher
+        package=synthetic_package()
+        fake=FakeLocalComfy(package)
+        dispatcher=WanPrivateComfyDispatcher(fake,enabled=True)
+        params=inputs(package)
+        submitted=dispatcher.submit_once(**params)
+        self.assertEqual(dispatcher.read_history_once(submitted)["state"],
+                         "COMFY_REPORTED_SUCCESS_PENDING_PRIVATE_MP4_PROBE")
+        with tempfile.TemporaryDirectory() as td:
+            root,dest=private_root(td)
+            subprocess.run([
+                "ffmpeg","-hide_banner","-loglevel","error","-nostdin","-y",
+                "-f","lavfi","-i","testsrc2=size=704x1280:rate=24",
+                "-frames:v","121","-c:v","libx264","-threads","2",
+                "-preset","ultrafast","-crf","38","-pix_fmt","yuv420p",
+                "-an",str(dest)
+            ],timeout=70,check=True,capture_output=True)
+            active=True
+            def fence(shop,job,token,lineage,private_root):
+                return (active and shop==submitted.shop_id and job==submitted.job_id
+                    and token==submitted.prompt_id and lineage==package.lineage_sha256
+                    and private_root==str(root.resolve()))
+            _,inspection,pending=inspect_single_private_wan_output(
+                shot=package,private_output_root=root,
+                job_id=submitted.job_id,attempt_token=submitted.prompt_id,
+                verify_existing_fenced_output_scope=fence)
+            self.assertEqual(inspection.sha256,pending["media_sha256"])
+            self.assertEqual(pending["quality_state"],"PENDING_HUMAN_VISUAL_REVIEW")
+            self.assertFalse(pending["approved_for_feature4"])
+            self.assertFalse(pending["output_is_ai_proven"])
+            active=False
+            with self.assertRaises(WanCompatibilityError):
+                inspect_single_private_wan_output(
+                    shot=package,private_output_root=root,
+                    job_id=submitted.job_id,attempt_token=submitted.prompt_id,
+                    verify_existing_fenced_output_scope=fence)
+            with self.assertRaises(WanCompatibilityError):
+                dispatcher.submit_once(**params)
+        self.assertEqual(len([call for call in fake.calls if call[1]=="/prompt"]),1)
 
     def test_source_prefix_tamper_and_symlinks_never_escape_private_attempt(self):
         with tempfile.TemporaryDirectory() as td:
