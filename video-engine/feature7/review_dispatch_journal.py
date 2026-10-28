@@ -315,6 +315,26 @@ class LocalApprovedEditDispatch:
             return {"state": "REVOKED", "dispatch_id": dispatch_id}
         return self._transaction(cancel)
 
+    def reconcile_by_idempotency(self, *, context, idempotency_key):
+        """Read-only uncertainty resolution. Never blindly resubmit on timeout.
+
+        A different shop, campaign or changed source cannot discover a
+        result by knowing the idempotency key. This is not public HTTP.
+        """
+        ctx = self._ctx(context)
+        _identifier(idempotency_key, "idempotency key")
+        row = self.db.execute("""
+          SELECT * FROM f7_approved_edit_dispatch
+          WHERE idempotency_key=?
+        """, (idempotency_key,)).fetchone()
+        if row is None:
+            raise ReviewStateError("Unknown private dispatch")
+        self._scope(row, ctx)
+        return {"dispatch_id": row["dispatch_id"], "state": row["state"],
+                "attempt": row["attempt"],
+                "idempotency_key": row["idempotency_key"],
+                "result_sha256": row["result_sha256"]}
+
     def inspect(self, *, context, dispatch_id):
         ctx = self._ctx(context)
         _identifier(dispatch_id, "dispatch")
