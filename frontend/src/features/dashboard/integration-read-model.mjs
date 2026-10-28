@@ -5,7 +5,21 @@ const ACCOUNT_STATES=new Set(['CONNECTED','EXPIRED','REVOKED','PENDING'])
 const POST_STATES=new Set(['SCHEDULED','QUEUED','PUBLISHING','PUBLISHED','FAILED','CANCELLED'])
 const SCOPES=new Set(['read_identity','publish_image','publish_video'])
 const safeText=(v,max=100)=>typeof v==='string'&&v.trim().length>0&&v.length<=max
-const iso=(v)=>typeof v==='string'&&/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z$/.test(v)&&Number.isFinite(Date.parse(v))
+// Date.parse normalizes invalid calendar dates (for example 2026-02-31).
+// Verify every UTC component before displaying an alleged provider event.
+const iso=(v)=>{
+  if(typeof v!=='string')return false
+  const parts=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?Z$/.exec(v)
+  if(!parts)return false
+  const date=new Date(v)
+  return Number.isFinite(date.getTime()) &&
+    date.getUTCFullYear()===Number(parts[1]) &&
+    date.getUTCMonth()+1===Number(parts[2]) &&
+    date.getUTCDate()===Number(parts[3]) &&
+    date.getUTCHours()===Number(parts[4]) &&
+    date.getUTCMinutes()===Number(parts[5]) &&
+    date.getUTCSeconds()===Number(parts[6])
+}
 const onlyKeys=(v,keys)=>v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).every(k=>keys.includes(k))
 const err=()=>{throw new Error('Integration read data could not be verified')}
 function validateScope(shopId,items){
@@ -53,8 +67,11 @@ export function normalizePublishingHistory(shopId,records){
 }
 export function formatSchedule(utc,timezone){
   if(!iso(utc)||!safeText(timezone,60))err()
-  try{return new Intl.DateTimeFormat('en-IN',{dateStyle:'medium',timeStyle:'short',
-    timeZone:timezone,hour12:true}).format(new Date(utc))+' · '+timezone}
+  // Explicit short UTC offset disambiguates repeated local times during DST fall-back.
+  try{return new Intl.DateTimeFormat('en-IN',{
+    year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',
+    timeZone:timezone,timeZoneName:'shortOffset',hour12:true,
+  }).format(new Date(utc))+' · '+timezone}
   catch{err()}
 }
 export const PROVIDER_LABELS=Object.freeze({
