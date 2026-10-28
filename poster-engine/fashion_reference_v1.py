@@ -191,7 +191,7 @@ def _reviewed_try_on(shop, garment, model, candidate, read_review):
 
 def prepare_fashion_references(*, shop_id, garment_asset_id, purpose,
                                read_asset, authorize_asset, read_private_bytes,
-                               garment_metadata, model_asset_id=None,
+                               read_garment_metadata, model_asset_id=None,
                                model_id=None, read_model=None,
                                try_on_asset_id=None, read_review=None):
     """Return metadata-only safe handoff to Feature2, Feature4 and Feature5.
@@ -203,13 +203,20 @@ def prepare_fashion_references(*, shop_id, garment_asset_id, purpose,
     """
     shop = _id(shop_id)
     if purpose not in _PURPOSES or not all(callable(c) for c in
-            (read_asset, authorize_asset, read_private_bytes)):
+            (read_asset, authorize_asset, read_private_bytes, read_garment_metadata)):
         raise FashionReferenceDenied("Trusted media reader, rights and consumer required")
-    garment_info = _human_garment(garment_metadata)
     garment, _ = _approved_asset(
         shop, garment_asset_id, "garment", purpose,
         read_asset=read_asset, authorize_asset=authorize_asset,
         read_private_bytes=read_private_bytes)
+    product = read_garment_metadata(shop, garment_asset_id)
+    if (not isinstance(product, dict) or product.get("shop_id") != shop or
+        product.get("media_asset_id") != garment_asset_id or
+        product.get("status") != "APPROVED" or
+        type(product.get("approval_revision")) is not int or
+        not 1 <= product["approval_revision"] <= 2_147_483_647):
+        raise FashionReferenceDenied("Human-reviewed retailer product identity unavailable")
+    garment_info = _human_garment(product.get("garment"))
     model = None
     model_ref = None
     if model_asset_id is not None or model_id is not None:
@@ -240,7 +247,8 @@ def prepare_fashion_references(*, shop_id, garment_asset_id, purpose,
     }
     identity = {
         "schema": _SCHEMA, "shop_id": shop, "purpose": purpose,
-        "garment": garment_info, "sources": sources, "model": model_ref,
+        "garment": garment_info, "garment_approval_revision": product["approval_revision"],
+        "sources": sources, "model": model_ref,
         "try_on_review": reviewed, "preservation": restrictions,
         "output_approved": False, "gpu_authorized": False,
     }
@@ -260,7 +268,7 @@ def resolve_first_frame(*, expected_manifest, current_readers):
         not isinstance(current_readers, dict)):
         raise FashionReferenceDenied("Fresh signed first-frame request required")
     fields = ("read_asset", "authorize_asset", "read_private_bytes",
-              "read_model", "read_review")
+              "read_garment_metadata", "read_model", "read_review")
     if any(k in current_readers and not callable(current_readers[k]) for k in fields):
         raise FashionReferenceDenied("Invalid live server rights reader")
     s = expected_manifest.get("sources")
@@ -273,7 +281,6 @@ def resolve_first_frame(*, expected_manifest, current_readers):
         "shop_id": expected_manifest.get("shop_id"),
         "garment_asset_id": s["garment"].get("source_asset_id"),
         "purpose": "image_to_video",
-        "garment_metadata": expected_manifest.get("garment"),
         "model_asset_id": (s["model"].get("source_asset_id") if model and
                            isinstance(s.get("model"), dict) else None),
         "model_id": model.get("model_id") if model else None,
