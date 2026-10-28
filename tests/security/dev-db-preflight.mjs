@@ -42,9 +42,22 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261028210000_feature3_private_evidence_commit.sql',
   // Feature3 pending import is SOURCE ONLY, not a hosted migration authorization.
   '20261028223000_feature3_pending_model_import.sql',
+  // Feature3 output registration CAS is SOURCE ONLY, no hosted deployment authorization.
+  '20261028230000_feature3_gpu_private_output_cas.sql',
 ]);
 
 const CAPABILITIES = {
+  '20261028230000': [
+    /create table retail_private[.]feature3_gpu_output_evidence/i,
+    /create function public[.]feature3_commit_gpu_private_output/i,
+    /security definer set search_path=''/i,
+    /on storage[.]objects as restrictive/i,
+    /for update/i,
+    /insert into public[.]media_assets/i,
+    /p_image_sha256/i,
+    /grant execute on function public[.]feature3_commit_gpu_private_output/i,
+    /to service_role/i,
+  ],
   '20261028223000': [
     /create function public[.]feature3_import_pending_model/i,
     /security definer set search_path=''/i,
