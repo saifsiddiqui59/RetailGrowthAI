@@ -38,7 +38,8 @@ def image_bytes(kind):
 class FashionKurtiReferenceTests(unittest.TestCase):
     def setUp(self):
         self.shop=str(uuid4());self.other=str(uuid4())
-        self.garment=str(uuid4());self.model_asset=str(uuid4())
+        self.garment=str(uuid4());self.upload_object=str(uuid4())
+        self.model_asset=str(uuid4())
         self.model_id=str(uuid5(NAMESPACE_URL, "sample-approved-synthetic-adult-kurti-model"))
         self.tryon=str(uuid4());self.job=str(uuid4())
         self.images={"garment":image_bytes("garment"),
@@ -52,7 +53,7 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         }
         self.rows={
             self.garment:self.row(self.garment,"UPLOAD",
-                f"{self.shop}/uploads/{self.garment}.png"),
+                f"{self.shop}/uploads/{self.upload_object}.png"),
             self.model_asset:self.row(self.model_asset,"UPLOAD",
                 f"{self.shop}/model-library/{self.model_id}/{sha256(self.images['model']).hexdigest()}.png"),
             self.tryon:self.row(self.tryon,"GENERATED",
@@ -135,6 +136,7 @@ class FashionKurtiReferenceTests(unittest.TestCase):
 
     def test_real_png_bytes_and_garment_exact_source_as_first_frame(self):
         bundle=self.prepare()
+        self.assertNotEqual(self.upload_object,self.garment)
         self.assertEqual(bundle["sources"]["first_frame"]["source_asset_id"],self.garment)
         self.assertEqual(bundle["sources"]["garment"]["dimensions"],[720,1080])
         self.assertEqual(bundle["garment"]["sku"],"KURTI-TEAL-001")
@@ -209,10 +211,21 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         with self.assertRaises(FashionReferenceDenied):
             resolve_first_frame(expected_manifest=manifest,current_readers=self.readers(), verify_worker_job=self.worker_claim)
 
+    def test_original_storage_uuid_path_must_still_match_registered_original(self):
+        self.rows[self.garment]["object_path"]=(f"{self.shop}/uploads/" +
+            "non-uuid.png")
+        with self.assertRaises(FashionReferenceDenied): self.prepare()
+        self.rows[self.garment]["object_path"]=(f"{self.shop}/uploads/" +
+            str(uuid4()) + ".webp")
+        with self.assertRaises(FashionReferenceDenied): self.prepare()
+        self.rows[self.garment]["object_path"]=(f"{self.shop}/uploads/" +
+            str(uuid4()) + "/traversal.png")
+        with self.assertRaises(FashionReferenceDenied): self.prepare()
+
     def test_private_bytes_mutation_and_malformed_path_fail(self):
-        self.rows[self.garment]["object_path"]=f"{self.other}/uploads/{self.garment}.png"
+        self.rows[self.garment]["object_path"]=f"{self.other}/uploads/{self.upload_object}.png"
         with self.assertRaises(FashionReferenceDenied):self.prepare()
-        self.rows[self.garment]["object_path"]=f"{self.shop}/uploads/{self.garment}.png"
+        self.rows[self.garment]["object_path"]=f"{self.shop}/uploads/{self.upload_object}.png"
         self.blobs[self.garment]=self.blobs[self.model_asset]
         with self.assertRaises(FashionReferenceDenied):self.prepare()
 
