@@ -74,7 +74,7 @@ def summarize_response(result):
     dataset = prop.get("dataset")
     data_count = len(dataset) if isinstance(dataset, list) else None
     status = prop.get("status")
-    status = status if status in LEVELS else "Unknown"
+    status = status if isinstance(status, str) and status in LEVELS else "Unknown"
     insights = prop.get("insights")
     insight_count = len(insights) if isinstance(insights, list) else None
     return {"result": "received", "status": status,
