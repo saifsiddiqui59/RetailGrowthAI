@@ -318,3 +318,19 @@
  .rg-retailer-inbox-controls { flex-direction:column; align-items:stretch; }
  .rg-retailer-inbox-controls label { min-width:0; flex:0 0 auto; }
 }
+
+/* Feature #1 opt-in fictional integration samples; never provider UI actions. */
+.rg-f1-fixture-preview, .rg-f1-fixture-content {min-width:0;overflow-wrap:anywhere}
+.rg-f1-fixture-content {display:grid;gap:14px;margin-top:14px}
+.rg-f1-fixture-warning {padding:12px;border:1px solid var(--border, #878787);border-radius:10px}
+.rg-f1-fixture-content>label, .rg-f1-read-view>label {display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.rg-f1-fixture-content select, .rg-f1-read-view select {max-width:100%;min-height:40px}
+.rg-f1-read-view {min-width:0;display:grid;gap:12px}
+.rg-f1-read-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;min-width:0}
+.rg-f1-read-card {display:grid;gap:8px;min-width:0;padding:16px;overflow-wrap:anywhere}
+.rg-f1-read-card p {margin:0}
+.rg-f1-read-pager {display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+@media(max-width:390px) {
+ .rg-f1-read-card {padding:12px}
+ .rg-f1-read-pager {flex-direction:column;align-items:stretch}
+}
