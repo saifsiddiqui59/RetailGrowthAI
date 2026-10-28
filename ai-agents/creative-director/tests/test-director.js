@@ -19,6 +19,8 @@ function source(duration) {
     media_grants: [{
       id: 'asset-approved-red-kurti', shop_id: 'shop-test-403', kind: 'IMAGE',
       rights_status: 'APPROVED', product_sku: 'KURTI-RED-01',
+      private: true, commercial_use_allowed: true, revoked_at: null,
+      original_media_sha256: 'a'.repeat(64),
       garment_facts: {
         color: 'deep red', neckline: 'round neckline', sleeves: 'full-length sleeves',
         hem: 'straight knee-length hem', embroidery: 'gold motifs across the front'
@@ -96,6 +98,8 @@ for (const duration of [15, 30, 60]) {
   assert.equal(result.approval_record.can_run_paid_motion, false);
   assert.match(result.approval_record.plan_sha256, /^[a-f0-9]{64}$/);
   assert.deepEqual(creative.authorized_offer_ids, ['sale-offer-20']);
+  assert.match(creative.approved_offer_evidence_sha256, /^[a-f0-9]{64}$/);
+  assert.match(creative.approved_media_evidence_sha256, /^[a-f0-9]{64}$/);
   const unique = new Set();
   for (const shot of result.motion_direction_v1) {
     assert.equal(shot.contract, 'motion_direction_v1');
@@ -133,6 +137,20 @@ for (const duration of [15, 30, 60]) {
   const disabled = structuredClone(req);
   disabled.server_verified = false;
   reject(() => compile(disabled, base), 'Untrusted client cannot grant permissions');
+  const modifiedOriginal = structuredClone(req);
+  modifiedOriginal.media_grants[0].original_media_sha256 = 'b'.repeat(64);
+  assert.notEqual(compile(modifiedOriginal, base).approval_record.plan_sha256, compile(req, base).approval_record.plan_sha256,
+    'Changed original image bytes must change the creative approval digest');
+  const broadenScope = structuredClone(req);
+  broadenScope.approved_offers[0].eligible_product_skus.push('KURTI-BLUE-02');
+  assert.notEqual(compile(broadenScope, base).approval_record.plan_sha256, compile(req, base).approval_record.plan_sha256,
+    'Expanded sale SKU eligibility must invalidate the prior approved creative digest');
+  const revokedOriginal = structuredClone(req);
+  revokedOriginal.media_grants[0].revoked_at = '2026-11-01T10:00:00Z';
+  reject(() => compile(revokedOriginal, base), 'Revoked private source cannot become premium video reference');
+  const unlicensedOriginal = structuredClone(req);
+  unlicensedOriginal.media_grants[0].commercial_use_allowed = false;
+  reject(() => compile(unlicensedOriginal, base), 'Unlicensed first frame must be blocked');
   const outsideScope = structuredClone(req);
   outsideScope.approved_offers[0].eligible_product_skus = ['KURTI-BLUE-02'];
   reject(() => compile(outsideScope, base), 'A garment cannot inherit an unrelated SKU promotion');
