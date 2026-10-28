@@ -110,8 +110,15 @@ for (const row of rows) {
   const url = row.media_type === 'IMAGE'
     ? media.src?.original
     : media.video_files?.filter(file => file.file_type === 'video/mp4' &&
-        isPexelsMediaUrl(file.link, 'VIDEO'))
-      .sort((a,b) => (b.height || 0) - (a.height || 0))[0]?.link
+        isPexelsMediaUrl(file.link, 'VIDEO') &&
+        Number.isInteger(file.width) && Number.isInteger(file.height) &&
+        (row.orientation === 'portrait' ? file.height > file.width :
+          file.width > file.height) &&
+        file.width >= (row.orientation === 'portrait' ? 1080 : 1920) &&
+        file.height >= (row.orientation === 'portrait' ? 1920 : 1080))
+      // Modified from MIT MoneyPrinterTurbo material.py: smallest
+      // adequate rendition, rather than downloading huge 4K sources.
+      .sort((a,b) => a.width * a.height - b.width * b.height)[0]?.link
   if (!isPexelsMediaUrl(url, row.media_type)) throw new Error('No vetted Pexels original file URL')
   const ext = row.media_type === 'IMAGE' ? '.jpg' : '.mp4'
   const target = join(downloads, row.candidate_id + ext)
