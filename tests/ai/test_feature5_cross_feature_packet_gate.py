@@ -104,6 +104,94 @@ class RealPartnerShapeTests(unittest.TestCase):
         with self.assertRaises(WanCompatibilityError):
             qualify_feature3_packet(expected_packet=p,read_current_packet=read)
 
+    def test_actual_feature3_staging_to_real_private_png_with_fresh_packet(self):
+        """Use the existing F5->F3 staging code, with accurate #561 metadata."""
+        import hashlib
+        import tempfile
+        from pathlib import Path
+        from test_feature5_f3_to_wan_cpu_e2e import (
+            source_fixture,guarded_job,resolve_first_frame
+        )
+        from feature5_motion.cross_feature_packet_gate import (
+            stage_fresh_feature3_consumer_input,
+        )
+        f3,manifest,_,_,_=source_fixture()
+        packet=actual_f3_packet_shape()
+        packet["shop_id"]=packet["source"]["shop_id"]=f3.shop
+        packet["source"]["garment_asset_id"]=f3.garment
+        packet["source"]["model_asset_id"]=f3.model_asset
+        packet["source"]["first_frame_asset_id"]=f3.tryon
+        packet["source"]["first_frame_sha256"]=manifest["sources"]["first_frame"]["sha256"]
+        packet["feature5"]["first_frame_asset_id"]=f3.tryon
+        packet["feature5"]["first_frame_sha256"]=manifest["sources"]["first_frame"]["sha256"]
+        packet["feature5"]["reference_fingerprint"]=manifest["reference_fingerprint"]
+        for shot in packet["feature4"]["timeline"]:
+            shot["first_frame_asset_id"]=f3.tryon
+        current=copy.deepcopy(packet)
+        def fresh(shop,brief):
+            if (shop,brief)!=(f3.shop,packet["brief_id"]):
+                return None
+            return copy.deepcopy(current)
+        with tempfile.TemporaryDirectory() as td:
+            with stage_fresh_feature3_consumer_input(
+                expected_packet=packet,read_current_packet=fresh,
+                expected_fashion_manifest=manifest,
+                current_fashion_readers=f3.readers(),
+                verify_worker_job=guarded_job(f3,manifest),
+                resolve_first_frame=resolve_first_frame,
+                private_job_dir=td,technical_letterbox_approved=True,
+            ) as (file,grant,meta,proof):
+                self.assertTrue(file.is_file())
+                self.assertEqual(grant["source_sha256"],
+                                 packet["source"]["first_frame_sha256"])
+                self.assertEqual(grant["sha256"],
+                                 hashlib.sha256(file.read_bytes()).hexdigest())
+                self.assertEqual(proof.source_asset_id,f3.tryon)
+                self.assertFalse(proof.can_submit_provider)
+                self.assertFalse(meta["garment_visual_fidelity_verified"])
+            self.assertFalse(list(Path(td).iterdir()))
+
+    def test_second_feature3_packet_refresh_revoked_cleans_private_png(self):
+        import tempfile
+        from pathlib import Path
+        from test_feature5_f3_to_wan_cpu_e2e import (
+            source_fixture,guarded_job,resolve_first_frame
+        )
+        from feature5_motion.cross_feature_packet_gate import (
+            stage_fresh_feature3_consumer_input,
+        )
+        f3,manifest,_,_,_=source_fixture()
+        packet=actual_f3_packet_shape()
+        packet["shop_id"]=packet["source"]["shop_id"]=f3.shop
+        packet["source"]["garment_asset_id"]=f3.garment
+        packet["source"]["model_asset_id"]=f3.model_asset
+        packet["source"]["first_frame_asset_id"]=f3.tryon
+        packet["source"]["first_frame_sha256"]=manifest["sources"]["first_frame"]["sha256"]
+        packet["feature5"]["first_frame_asset_id"]=f3.tryon
+        packet["feature5"]["first_frame_sha256"]=manifest["sources"]["first_frame"]["sha256"]
+        packet["feature5"]["reference_fingerprint"]=manifest["reference_fingerprint"]
+        for shot in packet["feature4"]["timeline"]:
+            shot["first_frame_asset_id"]=f3.tryon
+        calls=[]
+        def revoked_on_second_read(shop,brief):
+            calls.append(1)
+            if len(calls)>1:
+                return None
+            return copy.deepcopy(packet)
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaises(WanCompatibilityError):
+                with stage_fresh_feature3_consumer_input(
+                    expected_packet=packet,
+                    read_current_packet=revoked_on_second_read,
+                    expected_fashion_manifest=manifest,
+                    current_fashion_readers=f3.readers(),
+                    verify_worker_job=guarded_job(f3,manifest),
+                    resolve_first_frame=resolve_first_frame,
+                    private_job_dir=td,technical_letterbox_approved=True,
+                ): pass
+            self.assertEqual(len(calls),2)
+            self.assertFalse(list(Path(td).iterdir()))
+
     def test_existing_other_feature_models_are_not_wan22_compatibility(self):
         self.assertEqual(check_coordinator_motion_profile(dict(SUPPORTED)),
                          "NATIVE_PROFILE_MATCH_ONLY_NOT_AUTHORIZED_TO_RUN")

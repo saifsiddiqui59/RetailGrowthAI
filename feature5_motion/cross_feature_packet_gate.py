@@ -8,11 +8,13 @@ No provider POST, paid job, approval, Storage write or browser entitlement.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from contextlib import contextmanager
 from hashlib import sha256
 import json
 import re
 
 from .contracts import canonical_uuid
+from .feature3_reference_bridge import stage_approved_fashion_first_frame
 from .wan22_motion_adapter import WanCompatibilityError, PROVIDER
 
 SHA = re.compile(r"^[0-9a-f]{64}$")
@@ -179,3 +181,62 @@ def check_coordinator_motion_profile(raw):
     if raw != SUPPORTED:
         raise WanCompatibilityError("Part3/Feature4 model profile mismatch: no implicit paid conversion")
     return "NATIVE_PROFILE_MATCH_ONLY_NOT_AUTHORIZED_TO_RUN"
+
+
+@contextmanager
+def stage_fresh_feature3_consumer_input(
+    *, expected_packet, read_current_packet, expected_fashion_manifest,
+    current_fashion_readers, verify_worker_job, resolve_first_frame,
+    private_job_dir, technical_letterbox_approved=False,
+):
+    """Real F3 packet -> separately reverified private first frame, GPU OFF.
+
+    Require current independently fetched Feature3 #561 consumer metadata,
+    matching original fashion manifest and original byte SHA, while passing
+    the existing real Feature3 trusted resolver. Refresh packet again AFTER
+    staging to catch a revoked model/garment approval during CPU preparation.
+    No launch, upload, credits or production permissions.
+    """
+    proof=qualify_feature3_packet(
+        expected_packet=expected_packet,
+        read_current_packet=read_current_packet)
+    manifest=expected_fashion_manifest
+    if (type(manifest) is not dict or
+        manifest.get("schema")!="retailgrowth.fashion-reference-bundle.v1" or
+        manifest.get("purpose")!="image_to_video" or
+        manifest.get("shop_id")!=proof.shop_id or
+        manifest.get("reference_fingerprint")!=proof.reference_fingerprint):
+        raise WanCompatibilityError("Approved fashion first-frame lineage not current")
+    try:
+        sources=manifest["sources"]
+        source=expected_packet["source"]
+        matched=(
+            sources["first_frame"]["source_asset_id"]==proof.source_asset_id and
+            sources["first_frame"]["sha256"]==source["first_frame_sha256"] and
+            sources["garment"]["source_asset_id"]==source["garment_asset_id"] and
+            sources["model"]["source_asset_id"]==source["model_asset_id"])
+    except (KeyError,TypeError):
+        matched=False
+    if not matched:
+        raise WanCompatibilityError("Feature3 original garment/model/try-on changed")
+    with stage_approved_fashion_first_frame(
+        expected_manifest=manifest,
+        current_readers=current_fashion_readers,
+        verify_worker_job=verify_worker_job,
+        resolve_first_frame=resolve_first_frame,
+        private_job_dir=private_job_dir,
+        technical_letterbox_approved=technical_letterbox_approved,
+        require_model_wearing_garment=True,
+    ) as (file,grant,technical):
+        if (grant["shop_id"]!=proof.shop_id or
+            grant["asset_id"]!=proof.source_asset_id or
+            grant["source_sha256"]!=source["first_frame_sha256"] or
+            grant["source_facts_sha256"]!=proof.reference_fingerprint or
+            grant["private"] is not True):
+            raise WanCompatibilityError("Private first frame not from pinned packet")
+        again=qualify_feature3_packet(
+            expected_packet=expected_packet,
+            read_current_packet=read_current_packet)
+        if again!=proof:
+            raise WanCompatibilityError("Feature3 approval changed during staging")
+        yield file,grant,technical,proof
