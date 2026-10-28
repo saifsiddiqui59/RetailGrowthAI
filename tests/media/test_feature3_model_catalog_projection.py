@@ -22,7 +22,7 @@ class ModelPickerTests(unittest.TestCase):
             schema="retailgrowth.model-library.v1", model_id=self.id,
             owner_shop_id=self.shop, scope="shop", status="APPROVED",
             synthetic_adult=True, image_sha256=SHA,
-            storage_key=f"shops/{self.shop}/model-library/{self.id}/{SHA}.png",
+            storage_key=f"{self.shop}/model-library/{self.id}/{SHA}.png",
             license_id="CC-BY-4.0", attribution="Synthetic example © Test — CC BY 4.0",
             label="Reusable fashion reference", approved_uses=["poster", "video_reference"],
         )
@@ -68,7 +68,7 @@ class ModelPickerTests(unittest.TestCase):
 
     def test_shared_catalog_reuses_same_bytes_but_requires_requester_permission(self):
         shared = {**self.model, 'scope': 'platform',
-                  'storage_key': f'model-library/platform/{self.id}/{SHA}.png'}
+                  'storage_key': f'{self.shop}/model-library/platform/{self.id}/{SHA}.png'}
         entries = self.run_picker(models=[shared], requesting_shop_id=self.other)
         self.assertEqual(len(entries), 1)
         self.assertEqual(self.reads[-1][0], self.other)
