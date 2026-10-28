@@ -42,6 +42,22 @@ class Feature3V2API:
                      "private_images_must_be_loaded_separately": True}
 
 
+    def register_model_original(self, token, user_id, shop_id, body):
+        """Register previously uploaded private model-library PNG, not rights."""
+        if not self.model_review_enabled:
+            return 503, {"error": "FEATURE3_MODEL_REVIEW_DISABLED"}
+        sid = canonical_uuid(shop_id)
+        if not self.tenant.member(token, user_id, sid, write=True):
+            return 404, {"error": "NOT_FOUND"}
+        keys = {"model_id", "image_sha256", "license_name",
+                "license_url", "attribution"}
+        if not isinstance(body, dict) or set(body) != keys:
+            return 400, {"error": "INVALID_REQUEST"}
+        result = self.designs.register_model_original(token, sid, body)
+        if result is None:
+            return 409, {"error": "MODEL_ORIGINAL_STALE_OR_DENIED"}
+        return 201, result
+
     def import_model(self, token, user_id, shop_id, body):
         """Only signed active OWNER/EDITOR can REGISTER an unapproved model.
 

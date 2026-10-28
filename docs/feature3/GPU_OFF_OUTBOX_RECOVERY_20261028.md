@@ -1,0 +1,17 @@
+# Feature3 — No-GPU outbox/paid recovery source continuation (2026-10-28)
+
+**SOURCE ONLY:** GPU and paid API still OFF; this work never creates an Azure Queue, starts a GPU, submits model inference, applies hosted SQL or modifies WineShopPOS.
+
+## Source implementation
+- New additive migration `20261028231000_feature3_gpu_outbox_recovery.sql` extends the existing `retail_private.feature3_gpu_outbox` with an exact one-use dispatch UUID and send timestamp. It does **not** replace the previously merged one-attempt GPU job claim/ledger schema.
+- `public.feature3_claim_gpu_dispatch(limit)`: service role only, bounded 1–10, `FOR UPDATE SKIP LOCKED` with 2-minute lease, max four **queue** deliveries, current subscription, active signed OWNER/EDITOR and the **existing default-OFF Feature3 GPU budget approval**. Returns only IDs/token, not source bytes or paid inference permission.
+- `public.feature3_confirm_gpu_dispatch(job,token,observed_sent)`: only matching current claim token can mark dispatch SENT; the original GPU worker SQL still permits only one paid attempt even if a queue envelope is duplicated.
+- `public.feature3_audit_gpu_recovery(limit)`: non-billing service-only reconciliation writes unique private incidents for expired RUNNING paid claims or exhausted queued dispatch attempts, without changing job state, releasing reservation, charging, refunding, retrying inference, deleting blobs or silently inventing a measured dollar amount. Only an operator may reconcile authoritative logs/billing after a truly uncertain paid attempt.
+- `azure-functions/campaign-api/feature3_gpu_outbox_service.py`: strict service-key PostgREST RPC transport; validates exact token/IDs/bounds/ACK once. Does **not** implement Azure Queue client/worker, real dispatch loop or scheduling.
+- `tests/security/poster_feature3_gpu_outbox_recovery_negative.sql`, `tests/api/test_feature3_gpu_outbox_recovery.py`: synthetic/disposable grant, empty dispatch, false/stale ACK, invalid requests and unknown financial outcome tests; no real job executed.
+- DEV migration preflight inventory includes this exact source version but continues `authorized_to_apply=false`.
+
+## What is still missing
+Real protected Azure queue sender with service OIDC/auth, paired readback after an uncertain ACK; private source/rights inspection; immutable output SQL/Storage writer in separate #562/#565; durable run/poison operator UI; cloud measured invoice vs reservation, source revocation, human VTON quality, licensed original photo and actually signed DEV testing. None can be called completed by these fabricated test receipts. Operator must explicitly authorize the compiled deployment and rollback before hosted changes. GPU start/stop scripts remain dry-run by default.
+
+**Parallel coordination:** This migration is independent of output CAS PR #565 on a different feature branch and later timestamp; both modify the version inventory, so the coordinator must rebase/merge inventory rather than overwriting the other version. Feature3 team submits PR only; coordinator merges only after all four exact-head and independent `main` checks.
