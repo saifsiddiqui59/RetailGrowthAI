@@ -8,12 +8,15 @@ The v2 SQL migration must be separately approved/applied before enabling.
 from __future__ import annotations
 
 import json
+import re
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from security import AuthenticationError
 from tenant_store import StorageUnavailable, canonical_uuid
+
+_SHA256 = re.compile(r"[a-f0-9]{64}")
 
 
 class Feature3V2Store:
@@ -28,7 +31,9 @@ class Feature3V2Store:
     def _request(self, token, resource, *, query=None, body=None):
         if resource not in ("feature3_models", "feature3_poster_designs",
                             "rpc/save_feature3_poster_design",
-                            "rpc/feature3_review_model", "rpc/feature3_revoke_model"):
+                            "rpc/feature3_review_model", "rpc/feature3_revoke_model",
+                            "rpc/feature3_import_pending_model",
+                            "rpc/feature3_register_model_original"):
             raise ValueError("unsupported Feature 3 resource")
         if resource.startswith("rpc/") != (body is not None):
             raise ValueError("Feature 3 writes require RPC; direct writes denied")
@@ -211,3 +216,117 @@ class Feature3V2Store:
         return self._review_receipt(
             result, sid=sid, mid=mid, revision=expected_revision,
             new_status="REVOKED")
+
+    def import_pending_model(self, token, shop_id, body):
+        """Signed user JWT, shop-only PENDING_REVIEW; never verifies image rights.
+
+        The database checks current shop role and exact registered private
+        media key. Public request cannot directly insert models or approve.
+        """
+        sid = canonical_uuid(shop_id)
+        if not isinstance(token, str) or not token.strip() or token.startswith(
+                ("sb_secret_", "sb_publishable_")):
+            raise ValueError("Current signed user JWT required")
+        keys = {"model_id", "media_asset_id", "source_kind", "label",
+                "image_sha256", "license_id", "license_evidence_sha256",
+                "attribution", "approved_uses"}
+        if not isinstance(body, dict) or set(body) != keys:
+            raise ValueError("Exact pending model registration required")
+        mid = canonical_uuid(body["model_id"])
+        media_id = canonical_uuid(body["media_asset_id"])
+        sha = body["image_sha256"]
+        legal_sha = body["license_evidence_sha256"]
+        if (not isinstance(sha, str) or len(sha) != 64
+             or any(c not in "0123456789abcdef" for c in sha)
+             or not isinstance(legal_sha, str) or len(legal_sha) != 64
+             or any(c not in "0123456789abcdef" for c in legal_sha)
+             or body["source_kind"] not in ("retailer_licensed", "created_ai",
+                                            "opensource_render")
+             or body["license_id"] not in ("CC0-1.0","CC-BY-4.0","REVIEWED-COMMERCIAL")
+             or not isinstance(body["label"], str)
+             or not 1 <= len(body["label"].strip()) <= 64
+             or not isinstance(body["attribution"], str)
+             or len(body["attribution"]) > 200
+             or (body["license_id"] == "CC-BY-4.0"
+                 and not body["attribution"].strip())
+             or not isinstance(body["approved_uses"], list)
+             or not 1 <= len(body["approved_uses"]) <= 3
+             or any(type(v) is not str for v in body["approved_uses"])
+             or set(body["approved_uses"]) - {"poster", "try_on", "video_reference"}
+             or len(set(body["approved_uses"])) != len(body["approved_uses"])
+             or any(ord(c) < 32 or ord(c) == 127 for c in (
+                    body["label"] + body["attribution"]))):
+            raise ValueError("Invalid bounded pending model metadata")
+        data = self._request(token, "rpc/feature3_import_pending_model", body={
+            "p_shop_id": sid, "p_model_id": mid,
+            "p_media_asset_id": media_id, "p_source_kind": body["source_kind"],
+            "p_label": body["label"].strip(),
+            "p_image_sha256": sha, "p_license_id": body["license_id"],
+            "p_license_evidence_sha256": legal_sha,
+            "p_attribution": body["attribution"],
+            "p_approved_uses": body["approved_uses"],
+        })
+        if data is None:
+            return None
+        if not isinstance(data, dict) or set(data) != {
+                "shop_id", "model_id", "media_asset_id", "status",
+                "rights_revision", "rights_verified", "evidence_verified",
+                "gpu_authorized", "registered"} or (
+              data["shop_id"] != sid or data["model_id"] != mid
+              or data["media_asset_id"] != media_id
+              or data["status"] != "PENDING_REVIEW"
+              or type(data["rights_revision"]) is not int
+              or data["rights_revision"] != 1
+              or data["rights_verified"] is not False
+              or data["evidence_verified"] is not False
+              or data["gpu_authorized"] is not False
+              or data["registered"] is not True):
+            raise StorageUnavailable("Model import not durably confirmed")
+        return data
+
+    def register_model_original(self, token, shop_id, body):
+        """Signed original model-private PNG row, never license/bytes approval."""
+        sid = canonical_uuid(shop_id)
+        if not isinstance(token, str) or not token.strip() or token.startswith(
+                ("sb_secret_", "sb_publishable_")):
+            raise ValueError("Retailer signed JWT required")
+        keys = {"model_id", "image_sha256", "license_name",
+                "license_url", "attribution"}
+        if not isinstance(body, dict) or set(body) != keys:
+            raise ValueError("Exact model original metadata required")
+        mid = canonical_uuid(body["model_id"])
+        digest = body["image_sha256"]
+        if not isinstance(digest, str) or not _SHA256.fullmatch(digest):
+            raise ValueError("Canonical private PNG SHA required")
+        license_name, license_url, attribution = (
+            body["license_name"], body["license_url"], body["attribution"])
+        if (license_name not in ("owned","cc0","commercial","royalty_free")
+            or not isinstance(attribution, str) or
+            not 10 <= len(attribution.strip()) <= 200 or
+            any(ord(ch) < 32 or ord(ch) == 127 for ch in attribution)
+            or (license_url is not None and (
+                not isinstance(license_url, str) or
+                len(license_url) > 500 or not license_url.startswith("https://")))
+            or (license_name != "owned" and license_url is None)):
+            raise ValueError("Unverified source-license declaration invalid")
+        result = self._request(token, "rpc/feature3_register_model_original", body={
+            "p_shop_id": sid, "p_model_id": mid,
+            "p_image_sha256": digest, "p_license_name": license_name,
+            "p_license_url": license_url, "p_attribution": attribution.strip(),
+        })
+        if result is None:
+            return None
+        if not isinstance(result, dict) or set(result) != {
+            "shop_id","model_id","media_asset_id","image_sha256",
+            "registered","byte_sha_verified","license_verified",
+            "status","gpu_authorized"
+        } or (result["shop_id"] != sid or result["model_id"] != mid or
+              result["image_sha256"] != digest or
+              result["registered"] is not True or
+              result["byte_sha_verified"] is not False or
+              result["license_verified"] is not False or
+              result["gpu_authorized"] is not False or
+              result["status"] != "SOURCE_REGISTERED_PENDING_EVIDENCE"):
+            raise StorageUnavailable("Unconfirmed original-media registration; do not retry")
+        canonical_uuid(result["media_asset_id"])
+        return result

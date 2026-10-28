@@ -89,3 +89,18 @@ rights remain independent of test fixture approval. Do not modify WineShopPOS.
   `feature3_models` has RLS and an `APPROVED` status enum.
 - Any source PR CI PASS is distinct from independent merged-main CI and
   a genuine authenticated DEV/production acceptance. Keep blockers open.
+
+## 2026-10-28 latest no-wait checkpoint (supersedes older P0 source-only TODOs)
+
+| Work package | Actual state | Still required before feature completion |
+| --- | --- | --- |
+| Signed human model approval | #532 review gate + #542 auditable SQL + #544 retailer-JWT RPC transport merged; #555 separate off-by-default HTTP routes **merged** `4642c290` after exact 4/4 [CI #40729549571](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40729549571) | Protected DEV SQL deployment, genuine active retailer/curator and rights evidence, actual signed two-shop E2E |
+| Private commercial model evidence | #553 merged as `04dc5427`; exact PR and independent main four-job CI PASS. Current JWT private Storage binary + service-only one-time RPC and tests | Actual permitted commercial photos, independently verified likeness and original license, deployed hosted schemas and per-image proof |
+| Offline source tests | Original garment/model/pose/first-frame contracts exist in `fashion_reference_v1.py`; suite uses constructed PNGs | Validate exact Feature2/4/5/7 consuming callers and current rights when integrated; don't call fake bytes production-quality reels |
+| Model GPU controls | #544 start/stop scripts dry-run with manual start approval and no automatic create | No start until real feature readiness, quota/provider/cost envelope and protected one-job benchmark |
+| Real try-on and output | Provider contract and billing/outbox skeleton exist, disabled | Genuine licensed VTON, visually reviewed kurti fidelity, private output/claim/retry/cost integration, final Reel download and signed DEV validation |
+| Reliability | Azure issue #249 remains open | Fix validated 60-second original Function 503 before customer release |
+
+**Current rule:** GPU stays OFF and public model approval is NOT active; zero
+approved, rights-verified live fashion models does not satisfy production E2E.
+No WineShopPOS or PROD changes.

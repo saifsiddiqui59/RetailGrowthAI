@@ -1,0 +1,163 @@
+#!/usr/bin/env python3
+"""Issue #249: scoped read-only Azure host/worker/ingress diagnostic.
+
+Exact existing RetailGrowthAI DEV only. Historical UTC windows are fixed.
+All Azure records are aggregated in Kusto; output is only timestamp buckets,
+allowlisted event categories/status/counts and hashed host-instance identity.
+Never print HTTP path, tenant IDs, request IDs, messages, exceptions, raw
+instance IDs, credentials or Azure CLI stderr. No HTTP probes or cloud writes.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import subprocess
+from flex_ingress_correlation import RG, LAW, audit_scope, azure
+from p0_249_historical_telemetry import aggregate_records
+
+WINDOWS = (
+    ("failed_canary", "2026-10-28T19:35:00Z", "2026-10-28T19:51:00Z"),
+    ("post_rollback", "2026-10-28T19:59:00Z", "2026-10-28T20:02:00Z"),
+)
+APP_FILTER = (
+    ' | where (tolower(tostring(column_ifexists("_ResourceId", ""))) '
+    'contains "rgai-dev-functions-d4e5ddbd" or '
+    'tolower(tostring(column_ifexists("AppRoleName", ""))) '
+    'contains "rgai-dev-functions-d4e5ddbd")'
+)
+TYPES = (
+    "specialization_timeout", "grpc_pending_timeout", "worker_startstream",
+    "worker_startup_timeout", "worker_start", "worker_exit",
+    "host_start", "rpc_exception", "connection_aborted",
+    "host_error", "other",
+)
+CATEGORIES = frozenset(TYPES)
+INSTANCE = 'tostring(column_ifexists("AppRoleInstance",""))'
+STATES = frozenset(("requests", "traces", "exceptions", "function_logs", "activity"))
+STATUS = re.compile(r"^[1-5][0-9]{2}$")
+BUCKET = re.compile(r"^2026-10-28T(19|20):[0-5][0-9]:00(?:Z|\+00:00)$")
+
+
+def classify_expr(*, field: str) -> str:
+    """Kusto category labels come from constants, never raw exception/message."""
+    clauses = (
+        ("SpecializeAsync", "specialization_timeout"),
+        ("PendingItem.OnTimeout", "grpc_pending_timeout"),
+        ("StartStream", "worker_startstream"),
+        ("ProcessStartupTimeout", "worker_startup_timeout"),
+        ("Worker process exited", "worker_exit"),
+        ("Worker process started", "worker_start"),
+        ("host startup", "host_start"),
+        ("RpcException", "rpc_exception"),
+        ("ConnectionAbortedException", "connection_aborted"),
+        ("host initialization", "host_error"),
+    )
+    return 'case(' + ', '.join(
+        f'{field} contains "{needle}", "{label}"' for needle, label in clauses
+    ) + ', "other")'
+
+
+def queries(start: str, end: str) -> dict[str, str]:
+    if (start, end) not in {(a, b) for _, a, b in WINDOWS}:
+        raise ValueError("unreviewed Azure time range")
+    time_range = (
+        f' | where TimeGenerated between (datetime({start}) .. datetime({end}))'
+    )
+    exception_message = 'strcat(ExceptionType, " ", tostring(column_ifexists("OuterMessage","")))'
+    function_message = 'tostring(column_ifexists("Message", ""))'
+    prefix = lambda table: table + time_range + APP_FILTER
+    instance = f' | extend instance={INSTANCE}'
+    bucket = 'bucket=bin(TimeGenerated,1m)'
+    return {
+        "requests": (
+            prefix("AppRequests") + instance
+            + f' | summarize events=count() by {bucket}, status=tostring(ResultCode), instance'
+            + ' | order by bucket asc | take 80'
+        ),
+        "traces": (
+            prefix("AppTraces") + instance
+            + f' | extend category={classify_expr(field="Message")}'
+            + ' | where category != "other"'
+            + f' | summarize events=count() by {bucket}, category, instance'
+            + ' | order by bucket asc | take 80'
+        ),
+        "exceptions": (
+            prefix("AppExceptions") + instance
+            + f' | extend category={classify_expr(field=exception_message)}'
+            + ' | where category != "other"'
+            + f' | summarize events=count() by {bucket}, category, instance'
+            + ' | order by bucket asc | take 80'
+        ),
+        "function_logs": (
+            prefix("FunctionAppLogs") + instance
+            + f' | extend category={classify_expr(field=function_message)}'
+            + ' | where category != "other"'
+            + f' | summarize events=count() by {bucket}, category, instance'
+            + ' | order by bucket asc | take 80'
+        ),
+        "activity": (
+            'AzureActivity' + time_range
+            + ' | where ResourceGroup =~ "rg-retailgrowth-dev"'
+            + ' | where tolower(tostring(column_ifexists("_ResourceId","")))'
+              ' contains "rgai-dev-functions-d4e5ddbd"'
+            + f' | summarize events=count() by {bucket}'
+            + ' | order by bucket asc | take 80'
+        ),
+    }
+
+
+def safe_rows(payload) -> list[dict]:
+    """Sanitize before reporting; never serialize complete Azure query output."""
+    out = []
+    for raw in aggregate_records(payload)[:80]:
+        row = {}
+        count = raw.get("events")
+        if type(count) is int and 0 <= count <= 10000000:
+            row["events"] = count
+        when = raw.get("bucket")
+        if isinstance(when, str) and BUCKET.fullmatch(when):
+            row["bucket"] = when
+        category = raw.get("category")
+        if category in CATEGORIES:
+            row["category"] = category
+        status = raw.get("status")
+        if isinstance(status, str) and STATUS.fullmatch(status):
+            row["status"] = status
+        instance = raw.get("instance")
+        if isinstance(instance, str) and 0 < len(instance) <= 256:
+            row["host_hash"] = hashlib.sha256(instance.encode()).hexdigest()[:12]
+        if row.get("bucket") and "events" in row:
+            out.append(row)
+    return out[:80]
+
+
+def collect() -> int:
+    # Owner-approved read-only identity check; never query any other app.
+    audit_scope()
+    data = azure("monitor", "log-analytics", "workspace", "show", "-g", RG, "-n", LAW)
+    wid = data.get("customerId")
+    if not isinstance(wid, str) or not wid:
+        print("P0249_WORKSPACE=UNAVAILABLE", flush=True)
+        return 0
+    print("P0249_WORKSPACE=EXISTING_DEV_VERIFIED", flush=True)
+    for label, start, end in WINDOWS:
+        for kind, q in queries(start, end).items():
+            try:
+                result = azure("monitor", "log-analytics", "query",
+                               "-w", wid, "--analytics-query", q)
+                rows = safe_rows(result)
+                outcome = "AGGREGATED" if rows else "EMPTY_OR_FILTERED"
+            except (RuntimeError, ValueError, TypeError, subprocess.TimeoutExpired):
+                rows, outcome = [], "UNAVAILABLE"
+            print("P0249_CAUSAL=" + json.dumps({
+                "window": label, "source": kind, "result": outcome,
+                "rows": rows,
+            }, separators=(",", ":"), sort_keys=True), flush=True)
+    print("P0249_CAUSE=UNPROVEN_WITHOUT_REQUEST_TO_INSTANCE_PLATFORM_TRACE", flush=True)
+    print("P0249_READ_ONLY_NO_HTTP_TRAFFIC_NO_CLOUD_MUTATION=true", flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(collect())

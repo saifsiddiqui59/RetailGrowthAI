@@ -43,7 +43,10 @@ def build_api():
                   if os.environ.get("RETAIL_ENABLE_POSTER_DRAFTS") == "true" else None)
     poster_render_api = (PosterRenderAPI(store)
                          if os.environ.get("RETAIL_ENABLE_POSTER_RENDERING") == "true" else None)
-    feature3_api = (Feature3V2API(store, Feature3V2Store(url, key))
+    feature3_api = (Feature3V2API(
+                        store, Feature3V2Store(url, key),
+                        model_review_enabled=(
+                            os.environ.get("RETAIL_FEATURE3_MODEL_REVIEW_ENABLED") == "true"))
                     if os.environ.get("RETAIL_FEATURE3_V2_ENABLED") == "true" else None)
     return HTTPAPI(SupabaseJWTVerifier(url), store, queue, render_api,
                    failure_store=admin, durable_outbox=bool(connection and admin),
@@ -106,6 +109,40 @@ def feature3_gpu_private_download(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="shops/{shop_id}/feature3-models", methods=["GET"])
 def list_feature3_models(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/shops/" + req.route_params["shop_id"] + "/feature3-models")
+
+
+# Signed retailer-only registration for an ALREADY UPLOADED private PNG.
+# No public upload, image approval, service role or GPU generation.
+@app.route(route="shops/{shop_id}/feature3-model-originals/register",
+           methods=["POST"])
+def register_feature3_model_original(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/shops/" + req.route_params["shop_id"] +
+                    "/feature3-model-originals/register")
+
+
+# Source importer route was handled in HTTPAPI but not previously mounted
+# in the Azure Functions route table. Keep review flags OFF by default.
+@app.route(route="shops/{shop_id}/feature3-models/import", methods=["POST"])
+def import_feature3_pending_model(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/shops/" + req.route_params["shop_id"] +
+                    "/feature3-models/import")
+
+
+# Source-only human review routes. Both the general Feature3 and the
+# *separate* model-review activation flags default OFF. Signed user JWT and
+# current role are rechecked in HTTPAPI, Feature3V2API and database RPC.
+@app.route(route="shops/{shop_id}/feature3-models/{model_id}/review",
+           methods=["POST"])
+def review_feature3_model(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/shops/" + req.route_params["shop_id"] +
+                    "/feature3-models/" + req.route_params["model_id"] + "/review")
+
+
+@app.route(route="shops/{shop_id}/feature3-models/{model_id}/revoke",
+           methods=["POST"])
+def revoke_feature3_model(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/shops/" + req.route_params["shop_id"] +
+                    "/feature3-models/" + req.route_params["model_id"] + "/revoke")
 
 
 @app.route(route="campaigns/{campaign_id}/days/{day_id}/feature3-designs",

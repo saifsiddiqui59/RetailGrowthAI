@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { filterAssets, mediaLabel, mediaPreviewAccess, paginateVerifiedAssets } from '../../frontend/src/features/dashboard/media-library-model.mjs'
+import { filterAssets, mediaLabel, mediaPreviewAccess, mediaPreviewRevision, currentMediaPreview, paginateVerifiedAssets } from '../../frontend/src/features/dashboard/media-library-model.mjs'
 
 const OWN='a1000000-0000-4000-8000-000000000001'
 const OTHER='a1000000-0000-4000-8000-000000000002'
@@ -64,4 +64,32 @@ test('media preview adapter rejects STOCK/GENERATED, foreign tenant and invalid 
   {...own,id:'a1000000-0000-4000-8000-000000000053',source:'UNKNOWN'}]
  assert.deepEqual(filterAssets(records,OWN).map(x=>x.source),['UPLOAD','STOCK','GENERATED'])
  assert.equal(filterAssets(records,OTHER).length,0)
+})
+
+
+test('private preview is bound to exact current metadata and a unique loaded identity',()=>{
+ const image={...items[0],created_at:'2026-10-28T12:00:00Z'}
+ const revision=mediaPreviewRevision(image,OWN)
+ assert.equal(typeof revision,'string')
+ const pinned={id:ID,revision}
+ assert.equal(currentMediaPreview(pinned,[{items:[image]}],OWN),true)
+ for(const edited of [
+  {...image,license_name:'royalty_free'},
+  {...image,mime_type:'image/jpeg'},
+  {...image,created_at:'2026-10-28T12:00:01Z'},
+  {...image,source:'GENERATED'},
+  {...image,source:'STOCK'},
+  {...image,shop_id:OTHER},
+ ])assert.equal(currentMediaPreview(pinned,[{items:[edited]}],OWN),false,
+   'changed media identity/rights must revoke an existing Blob')
+ assert.equal(currentMediaPreview(pinned,[{items:[]}],OWN),false)
+ assert.equal(currentMediaPreview(pinned,[{items:[image]},{items:[image]}],OWN),false,
+  'duplicate history identity must fail closed even when rows appear identical')
+ assert.equal(currentMediaPreview(pinned,[{items:[image]},{items:null}],OWN),false)
+ assert.equal(currentMediaPreview(pinned,null,OWN),false)
+ assert.equal(currentMediaPreview({...pinned,revision:''},[{items:[image]}],OWN),false)
+ assert.equal(currentMediaPreview(pinned,[{items:[image]}],OTHER),false)
+ assert.equal(mediaPreviewRevision({...image,source:'GENERATED'},OWN),null)
+ assert.equal(mediaPreviewRevision(image,OTHER),null)
+ assert.equal(mediaPreviewRevision({...image,created_at:null},OWN),null)
 })
