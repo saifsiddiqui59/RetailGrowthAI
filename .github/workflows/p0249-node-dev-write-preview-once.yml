@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test tests/security/p0249_secure_write_preview.test.mjs tests/security/p0249_secure_dispatch.test.mjs
+          node --test tests/security/p0249_secure_write_preview.test.mjs tests/security/p0249_secure_dispatch.test.mjs tests/security/p0249_poster_reel_shared_writer.test.mjs
           for src in experiments/secure-node-http/src/*.mjs; do node --check "$src"; done
           grep -Fq 'writesEnabled: true' experiments/secure-node-http/src/dev-write-preview-index.mjs
           grep -Fq 'renderWritesEnabled: true' experiments/secure-node-http/src/dev-write-preview-index.mjs
