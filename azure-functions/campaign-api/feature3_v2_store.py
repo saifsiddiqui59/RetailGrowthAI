@@ -27,7 +27,8 @@ class Feature3V2Store:
 
     def _request(self, token, resource, *, query=None, body=None):
         if resource not in ("feature3_models", "feature3_poster_designs",
-                            "rpc/save_feature3_poster_design"):
+                            "rpc/save_feature3_poster_design",
+                            "rpc/feature3_review_model", "rpc/feature3_revoke_model"):
             raise ValueError("unsupported Feature 3 resource")
         if resource.startswith("rpc/") != (body is not None):
             raise ValueError("Feature 3 writes require RPC; direct writes denied")
@@ -131,3 +132,82 @@ class Feature3V2Store:
                 "approved_uses": ["poster"],
             })
         return checked
+
+    def _review_receipt(self, payload, *, sid, mid, revision, new_status):
+        if payload is None:
+            # The DB refuses invalid active membership, a changed SHA,
+            # incomplete rights or a stale compare-and-swap without leaking.
+            return None
+        if not isinstance(payload, dict) or set(payload) != {
+                "model_id", "owner_shop_id", "status", "rights_verified",
+                "rights_revision", "review_event_id", "audit_persisted"} or (
+            payload["model_id"] != mid or payload["owner_shop_id"] != sid or
+            payload["status"] != new_status or
+            payload["rights_verified"] is not (new_status == "APPROVED") or
+            type(payload["rights_revision"]) is not int or
+            payload["rights_revision"] != revision + 1 or
+            payload["audit_persisted"] is not True
+        ):
+            raise StorageUnavailable("Model review was not durably confirmed")
+        canonical_uuid(payload["review_event_id"])
+        return payload
+
+    def _model_review_token(self, token, shop_id, model_id, revision, image_sha256):
+        # The server must first verify the caller's JWT and current shop
+        # membership; SQL independently derives auth.uid from this SAME token.
+        # A service key is never usable as a user principal for review.
+        if (not isinstance(token, str) or not token.strip() or
+                token.startswith("sb_secret_") or
+                token.startswith("sb_publishable_") or
+                not isinstance(image_sha256, str) or len(image_sha256) != 64 or
+                any(c not in "0123456789abcdef" for c in image_sha256) or
+                type(revision) is not int or not 1 <= revision < 2_147_483_647):
+            raise ValueError("Current signed user token and model revision required")
+        return canonical_uuid(shop_id), canonical_uuid(model_id)
+
+    def review_model(self, token, shop_id, model_id, *, decision,
+                     expected_revision, image_sha256, evidence_revision,
+                     checks, notes):
+        """Transport only; SQL owns human identity, role, review and audit."""
+        sid, mid = self._model_review_token(
+            token, shop_id, model_id, expected_revision, image_sha256)
+        allowed = {"adult_synthetic", "likeness_and_consent", "image_license",
+                   "private_media_integrity", "visual_quality", "approved_uses"}
+        if (decision not in ("APPROVE", "REJECT") or
+                evidence_revision != 1 or type(evidence_revision) is not int or
+                not isinstance(checks, dict) or set(checks) != allowed or
+                any(type(v) is not bool for v in checks.values()) or
+                (decision == "APPROVE" and not all(checks.values())) or
+                not isinstance(notes, str) or
+                not 12 <= len(notes.strip()) <= 500 or
+                any(ord(c) < 32 or ord(c) == 127 for c in notes)):
+            raise ValueError("Six independent human review checks required")
+        result = self._request(token, "rpc/feature3_review_model", body={
+            "p_shop_id": sid, "p_model_id": mid, "p_decision": decision,
+            "p_expected_revision": expected_revision,
+            "p_expected_image_sha256": image_sha256,
+            "p_expected_evidence_revision": evidence_revision,
+            "p_checks": checks, "p_notes": notes.strip(),
+        })
+        return self._review_receipt(
+            result, sid=sid, mid=mid, revision=expected_revision,
+            new_status="APPROVED" if decision == "APPROVE" else "REJECTED")
+
+    def revoke_model(self, token, shop_id, model_id, *, expected_revision,
+                     image_sha256, reason):
+        """Emergency signed revocation; never depends on currently valid license."""
+        sid, mid = self._model_review_token(
+            token, shop_id, model_id, expected_revision, image_sha256)
+        if (not isinstance(reason, str) or
+                not 12 <= len(reason.strip()) <= 500 or
+                any(ord(c) < 32 or ord(c) == 127 for c in reason)):
+            raise ValueError("Auditable revocation reason required")
+        result = self._request(token, "rpc/feature3_revoke_model", body={
+            "p_shop_id": sid, "p_model_id": mid,
+            "p_expected_revision": expected_revision,
+            "p_expected_image_sha256": image_sha256,
+            "p_reason": reason.strip(),
+        })
+        return self._review_receipt(
+            result, sid=sid, mid=mid, revision=expected_revision,
+            new_status="REVOKED")
