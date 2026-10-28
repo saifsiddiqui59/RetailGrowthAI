@@ -59,7 +59,7 @@ function contextOf(source) {
     assets.set(mediaId, media);
   }
   const offers = new Map();
-  const validDate = (value) => typeof value === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(value) &&
+  const validDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
     !Number.isNaN(Date.parse(value + 'T00:00:00Z'));
   if (!validDate(req.campaign_date)) fail('Trusted campaign date required for promotion expiry check');
   for (const offer of req.approved_offers || []) {
