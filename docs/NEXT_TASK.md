@@ -914,6 +914,12 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 - **3.6 #472:** run full Supabase negative authorization, signed real eligible owner/VIEWER/foreign tests after customer-safe DEV activation, 4/4 source and post-merge main CI; verify no paid GPU enabled. Keep #325 open until genuine FLUX output with cost.
 - **3.2 #468:** recent Feature2 fixture contains original synthetic PNG with revoked membership; do not borrow it. Prepare a genuinely active test shop/authorized JWT with explicit model rights before image conditioning.
 
+
+## 2026-10-28 — Feature3 task3.4 prepaid callback completed; runtime remaining
+- DONE source #493/4 CI: one-shot adapter reuses SQL's pre-paid reservation, does not double reserve, requires trusted actual USD and output media identity. Contract details: `docs/feature3/TASK_3_4_PREPAID_BRIDGE_20261028.md`.
+- STILL P0: service-only SQL REST transport to approved `feature3_reserve_gpu_job`, `feature3_claim_gpu_job`, `feature3_finish_gpu_job` plus protected outbox dispatcher to the existing Azure Queue; signed current-member/media authorization; failure/expired-lease reconciliation after denied preflight; private generated output registration and binary digest check. The provider and tenant flags remain OFF.
+- STILL P0: Task3.2 active legitimate owner-signed private original photo, Task3.3 actual server-side PENDING_REVIEW registration/approval and revocation, Task3.5 eligible generated binary/signature + review/reuse, Task3.6 signed negative/positive DEV acceptance. Do not rent GPU until these are ready and a capped spending authorization is specified.
+
 ## 2026-10-28 — Feature #2 editorial QA handoff after real seven-day artifact audit
 1. **DONE (offline, zero paid calls):** compare all 7 genuine provider day objects with brand/product/media evidence controls; see [source-only editorial review](feature2/20261028_REAL_AZURE_EDITORIAL_REVIEW.md). Correct misleading historical Prompt Improver RESERVED/failed text in the dated 27 October acceptance receipt via explicit 28 October superseding note. Do not mark rejected Prompt Improver editorial copy approved simply because its provider usage is settled.
 2. **P1 retailer approval:** obtain an actually authorized active retailer profile and verified fabric/SKU, supported service/contact/location CTA, brand tone and rights-reviewed real media before human editing/approval. Do not attribute produced model/office/outdoor footage to the model's TEXT scene instructions.
