@@ -64,11 +64,13 @@ values('e3000000-0000-4000-8000-000000000023',
 jsonb_build_object('schema','retailgrowth.poster.v2',
   'shop_id','e3000000-0000-4000-8000-000000000011'),
 repeat('a',64));
-insert into public.shop_subscriptions
-(shop_id,status,valid_from,valid_until,period_start,period_end)
-values ('e3000000-0000-4000-8000-000000000011','TRIAL',
- now()-interval '1 hour',now()+interval '1 day',now()-interval '1 day',
- now()+interval '1 day');
+-- Shop onboarding trigger already creates the trial subscription.
+update public.shop_subscriptions
+set status='TRIAL', valid_from=now()-interval '1 hour',
+    valid_until=now()+interval '1 day',
+    period_start=now()-interval '1 day',
+    period_end=now()+interval '1 day'
+where shop_id='e3000000-0000-4000-8000-000000000011';
 insert into public.shop_ai_spend_reservations
  (id,shop_id,request_id,actor_id,operation,period_start,reserved_usd)
 values('e3000000-0000-4000-8000-000000000031',
