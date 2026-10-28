@@ -295,3 +295,17 @@ test('Feature2 approved timed subtitles display as immutable transcript instead 
  }
  assert.throws(()=>checkedPreviewCaptionCues([{start:0,duration:35,text:'bad'}],30))
 })
+
+test('approved F2 subtitle millisecond timecodes match backend without silent rounding',()=>{
+  const cues=[{start:0.5,duration:1.25,text:'Silk & craft'},
+    {start:1.75,duration:0.5,text:'Visit our store'}]
+  assert.deepEqual(checkedPreviewCaptionCues(cues,30),cues)
+  for (const invalid of [
+    [{start:0.5004,duration:1.25,text:'Submillisecond start'}],
+    [{start:0.5,duration:1.2504,text:'Submillisecond duration'}],
+    [cues[0],{start:1.749,duration:0.5,text:'One millisecond overlap'}],
+    [{start:29.801,duration:0.2,text:'Beyond 30s Reel'}],
+  ]) {
+    assert.throws(()=>checkedPreviewCaptionCues(invalid,30),/unsafe or overlapping/)
+  }
+})

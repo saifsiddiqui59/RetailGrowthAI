@@ -8,19 +8,22 @@ export function checkedPreviewCaptionCues(cues,duration) {
   if(cues == null) return []
   if(!Array.isArray(cues) || cues.length<1 || cues.length>60 ||
      ![15,30,60].includes(duration)) throw Error('Unsupported approved spoken subtitles')
-  let prior=0
+  let priorMs=0
   return cues.map(c=>{
     if(!c || typeof c!=='object' || Array.isArray(c) ||
        Object.keys(c).sort().join(',')!=='duration,start,text' ||
        typeof c.start!=='number' || !Number.isFinite(c.start) ||
        typeof c.duration!=='number' || !Number.isFinite(c.duration) ||
        c.start<0 || c.duration<.2 || c.duration>6 ||
-       c.start<prior-.001 || c.start+c.duration>duration+.001 ||
+       c.start!==Math.round(c.start*1000)/1000 ||
+       c.duration!==Math.round(c.duration*1000)/1000 ||
+       Math.round(c.start*1000)<priorMs ||
+       Math.round(c.start*1000)+Math.round(c.duration*1000)>duration*1000 ||
        typeof c.text!=='string' || c.text!==c.text.trim() ||
        !c.text.length || c.text.length>90 || /[<>\x00-\x1F\x7F]/.test(c.text)) {
       throw Error('Feature2 spoken subtitle has unsafe or overlapping timecodes')
     }
-    prior=c.start+c.duration
+    priorMs=Math.round(c.start*1000)+Math.round(c.duration*1000)
     return {start:c.start,duration:c.duration,text:c.text}
   })
 }

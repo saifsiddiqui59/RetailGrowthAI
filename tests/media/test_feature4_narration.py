@@ -14,6 +14,7 @@ ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/"video-engine"))
 sys.path.insert(0,str(ROOT/"tests"/"media"))
 from creative_contract import CreativeContractError, compile_creative_reel, render_inputs
+from feature4_caption_track import checked_caption_cues
 from professional import VideoPlanError
 from test_feature4_cross_feature import CreativeReelTests
 from test_feature4_intent_compiler import pair, OTHER
@@ -99,6 +100,22 @@ class NarrationMediaTests(unittest.TestCase):
         self.assertIn('data-start="10.0" data-duration="2.0" data-track-index="8"',html)
         self.assertIn("Silk &amp; festive style",html)
         self.assertEqual(render_inputs(f.request,f.manifest).plan["caption_cues"],cues)
+
+    def test_reviewed_subtitle_milliseconds_preserved_without_tolerance_overlap(self):
+        cues=[
+            {"start":0.5,"duration":1.25,"text":"Silk & craft"},
+            {"start":1.75,"duration":0.5,"text":"Visit our store"}
+        ]
+        self.assertEqual(checked_caption_cues(cues,30),cues)
+        invalid=[
+            [{"start":0.5004,"duration":1.25,"text":"Submillisecond start"}],
+            [{"start":0.5,"duration":1.2504,"text":"Submillisecond duration"}],
+            [cues[0],{"start":1.749,"duration":0.5,"text":"One millisecond overlap"}],
+            [{"start":29.801,"duration":0.2,"text":"Beyond endpoint"}],
+        ]
+        for candidate in invalid:
+            with self.subTest(candidate=candidate),self.assertRaises(ValueError):
+                checked_caption_cues(candidate,30)
 
     def test_invalid_untrusted_timed_captions_fail_closed(self):
         valid={"start":0.5,"duration":2,"text":"Approved copy"}
