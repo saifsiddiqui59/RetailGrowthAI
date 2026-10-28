@@ -10,9 +10,11 @@ const revisions = require('./upstream/explainer-revise');
 
 const DURATIONS = Object.freeze([15, 30, 60]);
 const ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/;
-const DISCOUNT = /\b(\d{1,3})\s*%\s*(?:off|discount)\b/ig;
+const DISCOUNT = /\b(\d{1,3})\s*(?:%|percent|per[\s-]*cent)\s*(?:off|discount|sale|savings?)\b/ig;
 const UNSUPPORTED = /\b(?:guaranteed|number\s*one|no\.?\s*1|best\s+in\s+india|100%\s+pure|organic\s+certified|clinically\s+proven|viral\s+now)\b/i;
 const NETWORK = /https?:\/\/|data:|javascript:|<script/i;
+// A garment morphology grant is NOT proof of fabric material, price or delivery.
+const UNVERIFIED_RETAIL_FACT = /(?:₹\s*\d|\brs\.?\s*\d|\b(?:pure\s+cotton|pure\s+silk|handloom|handcrafted|free\s+(?:shipping|delivery)|buy\s+(?:one|1)\s+get\s+(?:one|1)|bogo)\b)/i;
 
 function fail(message) { throw new Error('FEATURE2_CREATIVE_DIRECTION_INVALID: ' + message); }
 function object(value, label) {
@@ -38,7 +40,7 @@ function normalizedEvidence(value) {
   return String(value).normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('en');
 }
 function sanitizedClaims(text, allowedPercents) {
-  if (UNSUPPORTED.test(text)) fail('Unverified commercial superiority/guarantee');
+  if (UNSUPPORTED.test(text) || UNVERIFIED_RETAIL_FACT.test(text)) fail('Unverified commercial product/price/service fact');
   for (const match of text.matchAll(DISCOUNT)) {
     if (!allowedPercents.has(Number(match[1]))) fail('Unapproved discount: ' + match[1] + '%');
   }
