@@ -17,6 +17,10 @@ async function signedIn(page) {
       '/rest/v1/shop_memberships': [{ shop_id: SHOP, active: true, role: 'OWNER' }],
       '/rest/v1/shops': [{ id: SHOP, name: 'Example Boutique', slug: 'example-boutique' }],
       '/rest/v1/business_profiles': [],
+      '/rest/v1/rpc/retail_retailer_inbox': {
+        shop_id:SHOP,matching_total:0,unread_total:0,items:[],
+        checked_at:'2026-10-28T11:00:00Z'
+      },
       '/rest/v1/media_assets': [
         {id: 'a1000000-0000-4000-8000-000000000010', shop_id: SHOP, license_name: 'owned', mime_type:'image/png'},
         {id: 'a1000000-0000-4000-8000-000000000020', shop_id: 'a1000000-0000-4000-8000-000000000002', license_name:'owned',mime_type:'image/jpeg'}
@@ -645,6 +649,56 @@ test('Media Library loads beyond the first 100 only on request, without cross-sh
   expect(offsets).toEqual([0,100])
   await expect(page.getByRole('button',{name:'Load 100 older records'})).toHaveCount(0)
   await expect(page.locator('a[href*="/storage/v1/object/"]')).toHaveCount(0)
+  await expect.poll(()=>page.evaluate(()=>
+    document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
+})
+
+
+test('retailer inbox uses signed JWT, scoped paging, genuine server states and per-user read update',async({page})=>{
+  await signedIn(page)
+  const requests=[]
+  let read=false
+  const messages=Array.from({length:21},(_,i)=>({
+    id:i+1,shop_id:SHOP,category:'video',severity:'info',
+    title:'Verified render '+(i+1),detail:'A persisted job event.',
+    created_at:'2026-10-28T11:00:00Z',read_at:i===0&&read?'2026-10-28T11:01:00Z':null
+  }))
+  await page.route(HOST+'/rest/v1/rpc/retail_retailer_inbox',route=>{
+    const req=route.request(),body=req.postDataJSON()
+    expect(req.headers().authorization).toBe('Bearer offline-test-JWT')
+    expect(body.p_shop_id).toBe(SHOP)
+    expect(body.p_limit).toBe(20)
+    requests.push({path:'list',offset:body.p_offset})
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify({shop_id:SHOP,matching_total:21,
+        unread_total:read?20:21,checked_at:'2026-10-28T11:01:00Z',
+        items:messages.slice(body.p_offset,body.p_offset+body.p_limit).map((m,i)=>
+          m.id===1?{...m,read_at:read?'2026-10-28T11:01:00Z':null}:m)})})
+  })
+  await page.route(HOST+'/rest/v1/rpc/retail_retailer_set_inbox_read',route=>{
+    const req=route.request(),body=req.postDataJSON()
+    expect(req.headers().authorization).toBe('Bearer offline-test-JWT')
+    expect(body).toEqual({p_shop_id:SHOP,p_event_id:1,p_read:true})
+    read=true
+    requests.push({path:'mark'})
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify({shop_id:SHOP,id:1,read:true})})
+  })
+  await page.setViewportSize({width:320,height:740})
+  await page.goto('/notifications')
+  await expect(page.getByRole('heading',{name:'Notifications',exact:true})).toBeVisible()
+  await expect(page.getByText('21 unread')).toBeVisible()
+  expect(requests.filter(r=>r.path==='list')).toHaveLength(1)
+  expect(requests[0].offset).toBe(0)
+  await page.getByRole('button',{name:'Mark read'}).first().click()
+  await expect(page.getByText('20 unread')).toBeVisible()
+  expect(requests.some(r=>r.path==='mark')).toBe(true)
+  await page.getByRole('button',{name:'Next'}).click()
+  await expect(page.getByText('Verified render 21')).toBeVisible()
+  expect(requests.some(r=>r.path==='list'&&r.offset===20)).toBe(true)
+  await expect(page.locator('a[href*="/storage/v1/object"]')).toHaveCount(0)
   await expect.poll(()=>page.evaluate(()=>
     document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
 })

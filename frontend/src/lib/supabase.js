@@ -566,6 +566,46 @@ export function createRetailClient({
   // User-JWT + shop-RLS metadata history. Explicit 100-record pages; an extra
   // row detects whether more data exists without an unbounded query or count.
   // Offset is not taken from arbitrary URL input and does not grant access.
+  // Retailer notification RPC is separate from the ROOT-only alert namespace.
+  // User JWT and PostgreSQL current shop membership authorize every read/write.
+  async function listRetailerInbox(shopId, view = 'all', category = 'all', limit = 20, offset = 0) {
+    if (!UUID_V4.test(shopId || '') || !['all','unread'].includes(view) ||
+        !['all','campaign','video','poster'].includes(category) ||
+        !Number.isSafeInteger(limit) || limit < 1 || limit > 40 ||
+        !Number.isSafeInteger(offset) || offset < 0 || offset > 100000) {
+      throw new Error('Invalid retailer inbox scope')
+    }
+    const result = await send('/rest/v1/rpc/retail_retailer_inbox', {
+      method:'POST', token:await accessToken(),
+      body:{p_shop_id:shopId,p_view:view,p_category:category,p_limit:limit,p_offset:offset},
+    })
+    if (!result || result.shop_id !== shopId || !Array.isArray(result.items) ||
+        result.items.length > limit ||
+        !Number.isSafeInteger(result.unread_total) || result.unread_total < 0 ||
+        !Number.isSafeInteger(result.matching_total) || result.matching_total < 0 ||
+        typeof result.checked_at !== 'string' ||
+        result.items.some(row => !row || row.shop_id !== shopId ||
+          !Number.isSafeInteger(row.id) || row.id < 1 ||
+          !['campaign','video','poster'].includes(row.category) ||
+          !['info','attention'].includes(row.severity) ||
+          typeof row.title !== 'string' || typeof row.detail !== 'string' ||
+          typeof row.created_at !== 'string')) {
+      throw new Error('Retailer inbox records could not be verified')
+    }
+    return result
+  }
+  async function setRetailerInboxRead(shopId, id, read) {
+    if (!UUID_V4.test(shopId || '') || !Number.isSafeInteger(id) || id < 1 ||
+        typeof read !== 'boolean') throw new Error('Invalid retailer inbox update')
+    const result = await send('/rest/v1/rpc/retail_retailer_set_inbox_read', {
+      method:'POST', token:await accessToken(),
+      body:{p_shop_id:shopId,p_event_id:id,p_read:read},
+    })
+    if (!result || result.shop_id !== shopId || result.id !== id || result.read !== read) {
+      throw new Error('Retailer read status was not confirmed')
+    }
+    return result
+  }
   async function listMediaAssetsPage(shopId, offset = 0) {
     if (!UUID_V4.test(shopId || '') || !Number.isSafeInteger(offset) ||
         offset < 0 || offset % 100 !== 0) throw new Error('Invalid media page scope')
@@ -599,7 +639,7 @@ export function createRetailClient({
     listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
     isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
     listPlatformNotifications, setPlatformNotificationRead, listPlatformSubscriptionWatch,
-    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, listMediaAssetsPage, downloadPrivateImage, uploadImageAsset,
+    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, listMediaAssetsPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset,
   }
 }
 

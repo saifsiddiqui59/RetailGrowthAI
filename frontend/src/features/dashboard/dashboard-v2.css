@@ -302,3 +302,19 @@
 .retail-shell .rg-campaign-calendar-page>.page-heading,
 .retail-shell .rg-campaign-calendar-page>.panel{width:100%;box-sizing:border-box;min-width:0}
 .retail-shell .rg-campaign-calendar-page>.rg-shop-month{margin-top:20px}
+
+/* Feature #1 retailer inbox: scoping prevents Studio and root-alert CSS bleed. */
+.rg-retailer-inbox-controls { display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px; margin-bottom:18px; }
+.rg-retailer-inbox-controls label { min-width:150px; flex:1 1 150px; display:grid; gap:6px; }
+.rg-retailer-inbox-controls select { max-width:100%; min-height:40px; }
+.rg-retailer-inbox .rg-inbox-cards { display:grid; gap:12px; }
+.rg-retailer-inbox .rg-inbox-item { padding:16px; display:grid; gap:8px; min-width:0; overflow-wrap:anywhere; }
+.rg-retailer-inbox .rg-inbox-item h2 { margin:0; font-size:1.05rem; }
+.rg-retailer-inbox .rg-inbox-item p { margin:0; }
+.rg-retailer-inbox .rg-inbox-actions,.rg-retailer-inbox .rg-inbox-pager { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.rg-retailer-inbox .rg-inbox-pager { margin-top:18px; justify-content:space-between; }
+@media(max-width:480px) {
+ .rg-retailer-inbox .rg-inbox-item { padding:12px; }
+ .rg-retailer-inbox-controls { flex-direction:column; align-items:stretch; }
+ .rg-retailer-inbox-controls label { min-width:0; flex:0 0 auto; }
+}
