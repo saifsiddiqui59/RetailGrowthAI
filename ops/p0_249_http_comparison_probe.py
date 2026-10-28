@@ -40,6 +40,20 @@ def classify(exit_code, status, marker, backend):
     return "UNEXPECTED_HTTP_STATUS"
 
 
+
+def sanitized_metric_names(payload):
+    """Accept Azure CLI metric definitions in row-list or REST {value:[]} form."""
+    entries = payload if isinstance(payload, list) else payload.get("value", []) if isinstance(payload, dict) else []
+    names = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name", {})
+        name = name.get("value", "") if isinstance(name, dict) else name
+        if isinstance(name, str) and any(k in name.lower() for k in ("request", "http", "response", "error")):
+            names.append(name)
+    return names
+
 def sample(backend, phase, route):
     if backend not in ORIGINS or route not in ROUTES:
         raise ValueError("fixed safe DEV backends and synthetic routes only")
@@ -90,10 +104,10 @@ def summarize(observations):
             "network_errors": sum(x["category"] == "NETWORK_OR_CURL_ERROR" for x in rows),
             "unexpected_http": sum(x["category"].startswith(("UNEXPECTED", "UNMARKED")) for x in rows),
             "success_rate_http_percent": round(100 * sum(x["curl_exit"] == 0 and x["http_status"] in ("401", "404") for x in rows) / len(rows), 1) if rows else None,
-            "p50_success_seconds": percentile(times, .5) if len(times) >= 2 else None,
-            "p95_success_seconds": percentile(times, .95) if len(times) >= 20 else None,
-            "p99_success_seconds": percentile(times, .99) if len(times) >= 100 else None,
-            "percentile_caveat": "p95 requires >=20 successful samples; p99 requires >=100",
+            "p50_completed_http_seconds": percentile(times, .5) if len(times) >= 2 else None,
+            "p95_completed_http_seconds": percentile(times, .95) if len(times) >= 20 else None,
+            "p99_completed_http_seconds": percentile(times, .99) if len(times) >= 100 else None,
+            "percentile_caveat": "p95 requires >=20 completed HTTP samples; p99 requires >=100",
         }
     return outcome
 

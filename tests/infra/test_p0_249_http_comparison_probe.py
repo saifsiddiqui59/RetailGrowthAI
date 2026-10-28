@@ -38,9 +38,9 @@ def test_percentile_gates_prevent_unsupported_p99_claim():
              "category": "EXPECTED_401", "total_seconds": 0.8}
             for b in probe.ORIGINS for _ in range(8)]
     summary = probe.summarize(rows)
-    assert summary["azure_flex_python"]["p50_success_seconds"] == .8
-    assert summary["azure_flex_python"]["p95_success_seconds"] is None
-    assert summary["free_swa_node"]["p99_success_seconds"] is None
+    assert summary["azure_flex_python"]["p50_completed_http_seconds"] == .8
+    assert summary["azure_flex_python"]["p95_completed_http_seconds"] is None
+    assert summary["free_swa_node"]["p99_completed_http_seconds"] is None
 
 
 def test_series_sends_16_fixed_get_observations_and_one_five_minute_idle():
@@ -63,3 +63,23 @@ def test_failed_503_fails_test_without_automatic_retry():
                 "category": "HTTP_503_UNMARKED_OR_GATEWAY" if code == "503" else "EXPECTED_401",
                 "total_seconds": 60.9 if code == "503" else 0.5}
     assert probe.run_series(sender=fake_sender, sleeper=lambda _: None, idle=0) == 4
+
+
+def test_azure_metric_definitions_both_cli_shapes():
+    rows = [{"name": {"value": "Http5xx"}}, {"name": "Requests"},
+            {"name": {"value": "CpuPercentage"}}]
+    assert probe.sanitized_metric_names(rows) == ["Http5xx", "Requests"]
+    assert probe.sanitized_metric_names({"value": rows}) == ["Http5xx", "Requests"]
+    assert probe.sanitized_metric_names(None) == []
+
+
+def test_all_http_median_name_includes_503_without_mislabeling_success():
+    data = []
+    for backend in probe.ORIGINS:
+        for code, sec in (("401", 1.0), ("503", 61.0)):
+            data.append({"backend": backend, "curl_exit": 0,
+                         "http_status": code, "category": "EXPECTED_401" if code == "401" else "HTTP_503_UNMARKED_OR_GATEWAY",
+                         "total_seconds": sec})
+    s = probe.summarize(data)
+    assert s["azure_flex_python"]["p50_completed_http_seconds"] == 31.0
+    assert s["azure_flex_python"]["http_503"] == 1
