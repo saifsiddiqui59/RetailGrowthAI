@@ -19,6 +19,14 @@ START = "2026-10-28T10:25:40Z"
 END = "2026-10-28T10:35:30Z"
 CATEGORIES = ("availability", "performance", "configuration")
 MAX_DETECTORS = 6
+DRILLDOWN = (
+    "ColdStartFailuresWorkflowNode",
+    "functioncoldstart",
+    "functionappdownanderrors",
+    "ErrorsInApacheErrorLogForWorker",
+    "FNAppOpenTelemetryErrors",
+    "AvailabilityAndPerformanceFunctionApp",
+)
 NAME = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
 KEYWORDS = ("worker", "startup", "cold", "runtime", "availability", "503",
             "webappdown", "appdown", "crash", "http", "errors", "restart")
@@ -122,6 +130,21 @@ def main():
                 print("P0249_DETECTOR_DETAIL=" + json.dumps(
                     {"category": category, "detector": detector, "result": "unavailable"},
                     sort_keys=True), flush=True)
+    # These detector names were returned by the actual audited original app in
+    # protected run #40686643501. GET the exact fixed names (not dynamic links).
+    # The Azure REST API accepts a startTime/endTime request for detector response;
+    # the service's effective data window cannot be attested from this metadata.
+    for detector in DRILLDOWN:
+        try:
+            response = arm_get(resource_id, "detectors/" + detector, historical=True)
+            safe = summarize_response(response)
+            print("P0249_ROOT_DETECTOR_DETAIL=" + json.dumps(
+                {"detector": detector, **safe, "fixed_utc_range_requested": True},
+                sort_keys=True), flush=True)
+        except (RuntimeError, ValueError, OSError, subprocess.TimeoutExpired):
+            print("P0249_ROOT_DETECTOR_DETAIL=" + json.dumps(
+                {"detector": detector, "result": "unavailable"}, sort_keys=True),
+                flush=True)
     print("P0249_ROOT_CAUSE_NOT_CONFIRMED_BY_SUMMARIES=true", flush=True)
     print("P0249_NO_AZURE_WRITES_NO_HTTP_REQUESTS_NO_PAID_RESOURCES=true", flush=True)
     return 0

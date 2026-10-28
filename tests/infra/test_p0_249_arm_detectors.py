@@ -65,3 +65,12 @@ def test_unsupported_service_is_explicitly_unavailable():
             assert str(error)=="read-only ARM detector unavailable"
         else:
             raise AssertionError("API access failure silently accepted")
+
+def test_drilldown_is_only_six_discovered_fixed_names():
+    names=ns["DRILLDOWN"]
+    assert len(names)==6
+    assert len(set(names))==6
+    for name in names:
+        assert ns["NAME"].fullmatch(name)
+    assert names[0]=="ColdStartFailuresWorkflowNode"
+    assert names[1]=="functioncoldstart"
