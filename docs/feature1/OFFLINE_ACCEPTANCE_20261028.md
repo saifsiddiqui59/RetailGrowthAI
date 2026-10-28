@@ -33,3 +33,19 @@
 ## P2-02 keyset-history acceptance extension (2026-10-28)
 - [PR #536](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/536) merges stable server-side 100+1 UUID/time cursor reads, replacing UI offset pagination while preserving user JWT, RLS, private UPLOAD downloads, local filters and manual older-load UX. Mocked concurrent-head-upload and invalid-page tests prevent mistaken full inventory totals or cross-shop leakage.
 - Exact source CI [#40692187676](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40692187676) 4/4 PASS. Postmerge main [#40692756975](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40692756975) independently verify. This improves offline/source acceptance; it is not proof of hosted generated/stock media licensing, signed downloads or any live OAuth/publishing integration.
+
+
+## Final independent Feature #1 source QA extension — 2026-10-28
+
+| Task | Verified additional source/offline result | Still needs external activation |
+| --- | --- | --- |
+| P1-01 Retailer workspace/Super Admin | Existing merged source unchanged; reviewed responsive/mobile, authorized principal-shop separation and mocked Chromium | Signed-in hosted device and root/retailer session proof, excluded |
+| P1-02 Social read interface | #548 adds third independent fictional restaurant and DISCONNECTED with denied publish scopes; active/revoked/expired/pending/connected remain read-only | Approved Part 2 JWT/RLS current-shop OAuth status/consent/revoke and real signed connection transport |
+| P1-03 Publishing calendar/history | #547 strict impossible-UTC denial and DST GMT-offset disambiguation; #548 six states incl. PUBLISHING with no receipt; fake receipt never accepted as real | Part 2 audited tenant-scoped schedule, receipts, provider confirmation, permissions and paginated API |
+| P1-04 Retailer inbox | Existing #510 source, disposable SQL and mocked browser per-user read state remain; no hosted migration | Chronological hosted migration `20261028173000_feature1_retailer_inbox.sql`, authorized frontend release and actual multi-role JWT checks |
+| P2-01 Multi-campaign calendar | Existing #386/#448 source and race regressions unchanged; draft status never represented as live social post | Genuine provider delivery status remains separate |
+| P2-02 Media Library | #547 rejects false dates/millisecond-collision keyset ordering; 201-row 100+100+1 regression and private-upload-only preview policy; STOCK/GENERATED stay blocked | Commercial rights and private bytes for non-UPLOAD, hosted Storage proof |
+| Independently owned offline regression | #547 exact CI #40706628178 4/4 PASS (87 Chromium); #548 exact CI #40708008594 4/4 PASS (161 JS, 88 Chromium); Supabase disposable, Python and FFmpeg checks preserved | Hosted E2E and actual provider calls intentionally not run |
+
+- **Merged source:** [#547](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/547) `d2709e946a98fc650a79c770ce11fc7d170bd175`; [#548](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/548) `39472b39533f814ba323217503d92170a8a40322`. #547 immediate main CI #40707281837 was cancelled (do not count as PASS), while later main #40707504646 passed all four. Independent #548 main [#40708524159](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40708524159) **PASSED four jobs** on `39472b39533f814ba323217503d92170a8a40322`.
+- **Certification:** Feature #1 independently owned SOURCE/OFFLINE implementation and mock security/browser testing **COMPLETE**; LIVE provider integration, migration/deployment, licensed STOCK/GENERATED private media and real hosted acceptance **NOT COMPLETE**. No new infrastructure charges, GPU, Azure provisioning, hosted migrations or WineShopPOS modifications.
