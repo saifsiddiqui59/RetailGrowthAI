@@ -76,6 +76,10 @@ const CAPABILITIES = {
     /to service_role/i,
   ],
   '20261028232000': [
+    /drop policy retailgrowth_media_insert on storage[.]objects/i,
+    /create policy retailgrowth_media_insert on storage[.]objects/i,
+    /model-library/i,
+    /owner_id=[(]select auth[.]uid[(][)][)]::text/i,
     /create function public[.]feature3_register_model_original/i,
     /security definer set search_path=''/i,
     /public[.]shop_memberships/i,

@@ -3,6 +3,7 @@
  * inputs never certify likeness, image rights, JWT role or human curator.
  */
 import {useState} from 'react'
+import {getRetailClient} from '../../lib/supabase.js'
 const FIELDS = [
  ['adult_synthetic','Confirmed adult synthetic model'],
  ['likeness_and_consent','Independently confirmed likeness/consent'],
@@ -31,10 +32,50 @@ export default function Feature3SignedModelWorkflow({shopId,api,enabled=false,di
  const [busy,setBusy]=useState(false)
  const [status,setStatus]=useState('')
  const [receipt,setReceipt]=useState(null)
+ const [sourceFile,setSourceFile]=useState(null)
+ const [sourceLicense,setSourceLicense]=useState('owned')
+ const [sourceLicenseUrl,setSourceLicenseUrl]=useState('')
+ const [confirmedRights,setConfirmedRights]=useState(false)
  if (!enabled || !api || !shopId || !UUID.test(shopId)) return <p role="note">
   Signed model import and review are disabled pending protected release authorization.
  </p>
  const blocked=disabled||busy
+ const uploadReady=UUID.test(modelId)&&sourceFile?.type==='image/png'&&
+  sourceFile?.size>=100&&sourceFile.size<=25*1024*1024&&confirmedRights&&
+  ['owned','cc0','commercial','royalty_free'].includes(sourceLicense)&&
+  attribution.trim().length>=10&&attribution.trim().length<=200&&
+  (sourceLicense==='owned'||sourceLicenseUrl.startsWith('https://'))&&
+  typeof api.registerModelOriginal==='function'
+ const submitUpload=async()=>{
+  if(blocked||!uploadReady)return
+  setBusy(true);setReceipt(null);setStatus('')
+  try{
+   const client=getRetailClient()
+   // Existing client enforces a current JWT; no service-role key in browser.
+   const uploaded=await client.uploadModelOriginal(shopId,{
+    file:sourceFile,modelId,licenseName:sourceLicense,
+    licenseUrl:sourceLicenseUrl,attribution,confirmedRights:true,
+   })
+   const registration=await api.registerModelOriginal(shopId,{
+    model_id:modelId,image_sha256:uploaded.image_sha256,
+    license_name:sourceLicense,
+    license_url:sourceLicenseUrl||null,attribution:attribution.trim(),
+   })
+   if(registration.model_id!==uploaded.model_id ||
+       registration.image_sha256!==uploaded.image_sha256){
+    throw Error('Storage and signed registration identities do not match')
+   }
+   setMediaId(registration.media_asset_id)
+   setImageSha(uploaded.image_sha256)
+   setConfirmedRights(false)
+   setStatus('Private model PNG registered as unverified source. Independent SHA and license evidence still required before review or reuse.')
+  }catch{
+   // Upload may have succeeded before an uncertain RPC response.
+   // Never repeat an upload or POST automatically after a network failure.
+   setStatus('Upload or registration unconfirmed. Check private asset history before any new attempt; do not upload again blindly.')
+  }finally{setBusy(false)}
+ }
+
  const importReady=UUID.test(modelId)&&UUID.test(mediaId)&&SHA.test(imageSha)&&SHA.test(licenseSha)&&label.trim().length>0&&uses.length>0
  const reviewReady=UUID.test(modelId)&&SHA.test(imageSha)&&Number.isInteger(Number(revision))&&Number(revision)>0&&evidence==='1'&&notes.trim().length>=12
  const verified=FIELDS.every(([k])=>checks[k]===true)
@@ -74,8 +115,31 @@ export default function Feature3SignedModelWorkflow({shopId,api,enabled=false,di
  }
  return <section aria-label="Signed retailer model import and human review" style={{display:'grid',gap:10,padding:12,border:'1px solid #aaa',borderRadius:10}}>
   <h4>Private model registration and independent review</h4>
-  <p>Upload and register the private original PNG through the existing tenant media process first. Import creates PENDING_REVIEW only; independent source evidence and platform curator must separately authorize any approval. GPU is off.</p>
+  <p>Use your own fictional adult-model PNG. This uploads to private shop Storage and registers an UNVERIFIED original. Import creates PENDING_REVIEW only; separate trusted byte/license evidence and independent review are mandatory. GPU is off.</p>
   <label style={field}>Model UUID<input value={modelId} onChange={e=>setModelId(e.target.value.toLowerCase())} disabled={blocked}/></label>
+  <button type="button" disabled={blocked} onClick={()=>setModelId(globalThis.crypto.randomUUID())}>Create new model UUID</button>
+  <fieldset disabled={blocked} style={{display:'grid',gap:6}}>
+   <legend>Private original PNG upload (no approval or GPU)</legend>
+   <label style={field}>Original synthetic adult model PNG
+    <input type="file" accept="image/png" onChange={e=>setSourceFile(e.target.files?.[0]||null)}/>
+   </label>
+   <label style={field}>Source rights declaration
+    <select value={sourceLicense} onChange={e=>setSourceLicense(e.target.value)}>
+     <option value="owned">Owned synthetic creation</option>
+     <option value="cc0">CC0</option><option value="commercial">Commercial license</option>
+     <option value="royalty_free">Royalty free</option>
+    </select>
+   </label>
+   {sourceLicense!=='owned'&&<label style={field}>HTTPS source-license evidence URL
+    <input type="url" value={sourceLicenseUrl} onChange={e=>setSourceLicenseUrl(e.target.value)}/>
+   </label>}
+   <label><input type="checkbox" checked={confirmedRights}
+     onChange={e=>setConfirmedRights(e.target.checked)}/>
+    I declare I can upload this fictional adult model image. This is not independent rights verification.</label>
+   <button type="button" disabled={blocked||!uploadReady} onClick={submitUpload}>
+    Upload privately and register unverified original
+   </button>
+  </fieldset>
   <label style={field}>Registered private PNG media UUID<input value={mediaId} onChange={e=>setMediaId(e.target.value.toLowerCase())} disabled={blocked}/></label>
   <label style={field}>Original PNG SHA-256<input value={imageSha} onChange={e=>setImageSha(e.target.value.toLowerCase())} disabled={blocked}/></label>
   <label style={field}>Independent license-evidence SHA-256<input value={licenseSha} onChange={e=>setLicenseSha(e.target.value.toLowerCase())} disabled={blocked}/></label>
