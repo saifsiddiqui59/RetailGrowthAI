@@ -154,4 +154,32 @@ revoke all on function public.feature3_commit_gpu_private_output(
 grant execute on function public.feature3_commit_gpu_private_output(
   uuid,uuid,integer,uuid,text,text,bigint,uuid[]) to service_role;
 
+
+-- The prior feature3_finish_gpu_job RPC can finish an arbitrary registered
+-- generated media row. A success must now match this exact immutable
+-- output-evidence receipt, source claim token and original job identity.
+create function retail_private.feature3_output_settlement_fence()
+returns trigger language plpgsql security definer set search_path='' as $
+begin
+ if new.status='SUCCEEDED' and (
+    old.status <> 'RUNNING' or old.claim_token is null
+    or new.output_asset_id is null
+    or not exists (
+      select 1 from retail_private.feature3_gpu_output_evidence e
+      where e.job_id=new.id and e.shop_id=new.shop_id
+        and e.media_asset_id=new.output_asset_id
+        and e.claim_token=old.claim_token and e.attempt=old.attempts
+        and e.review_status='UNREVIEWED'
+    )) then
+    raise exception 'Unverified private GPU output settlement'
+      using errcode='42501';
+ end if;
+ return new;
+end $;
+create trigger feature3_output_settlement_guard
+before update on public.feature3_gpu_jobs
+for each row execute function retail_private.feature3_output_settlement_fence();
+revoke all on function retail_private.feature3_output_settlement_fence()
+from public,anon,authenticated;
+
 commit;
