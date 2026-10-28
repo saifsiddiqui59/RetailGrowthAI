@@ -42,10 +42,16 @@ export function inspectCreativeDirection(packageData, { shopId, mediaAssets = []
         a.authorized === true && a.shop_id === shopId))) {
     throw Error('Feature #2 direction has unsupported timeline, CTA or licensed soundtrack')
   }
+  if (packageData.voiceover_asset_id != null &&
+      !musicAssets.some(a => a.id === packageData.voiceover_asset_id &&
+        a.shop_id === shopId && a.authorized === true && a.kind === 'audio')) {
+    throw Error('Feature #2 narration is not rights-authorized for this shop')
+  }
   const draft = { version: 'rg_video_v2', shop_id: shopId, mode: 'media',
     template: packageData.template, duration_seconds: packageData.duration_seconds,
     output: { width: 1080, height: 1920, fps: 30 }, scenes,
-    cta: packageData.cta, music_asset_id: packageData.music_asset_id || null }
+    cta: packageData.cta, music_asset_id: packageData.music_asset_id || null,
+    voiceover_asset_id: packageData.voiceover_asset_id || null }
   const issues = validateVideoDraft(draft, mediaAssets, musicAssets)
   if (issues.length) throw Error(issues.join('; '))
   // Full original package (including camera details and motion prompts) stays

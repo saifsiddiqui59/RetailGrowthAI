@@ -127,6 +127,14 @@ export default function VideoStudio({
                 {[15, 30, 60].map(n => <option key={n} value={n}>{n} seconds</option>)}
               </select>
             </label>
+            <label>Approved full-Reel narration
+              <select disabled={Boolean(creativeDirection)} value={draft.voiceover_asset_id || ''}
+                onChange={e => patch({ voiceover_asset_id: e.target.value || null })}>
+                <option value="">No reviewed narration audio</option>
+                {musicAssets.filter(a => a?.authorized === true && a?.shop_id === shopId &&
+                  a?.kind === 'audio').map(a => <option key={a.id} value={a.id}>{a.title || a.id}</option>)}
+              </select>
+            </label>
             <label>Approved soundtrack
               <select disabled={Boolean(creativeDirection)} value={draft.music_asset_id || ''} onChange={e => patch({ music_asset_id: e.target.value || null })}>
                 <option value="">No licensed music / silent export</option>

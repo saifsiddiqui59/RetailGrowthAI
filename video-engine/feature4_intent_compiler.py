@@ -23,6 +23,7 @@ DRAFT_FIELDS = frozenset({
     "version", "shop_id", "mode", "template", "duration_seconds",
     "output", "scenes", "cta", "music_asset_id",
 })
+OPTIONAL_DRAFT_FIELDS = frozenset({"voiceover_asset_id"})
 PRESENTATION_FIELDS = frozenset({"width", "height", "fps"})
 SNAPSHOT_FIELDS = frozenset({
     "shop_id", "campaign_id", "video_job_id", "approval_id",
@@ -68,7 +69,8 @@ def compile_approved_storyboard(draft, snapshot):
     verified rights, membership, an approved immutable script, verified
     actual Feature3/5 media and a once-only billing reservation.
     """
-    if type(draft) is not dict or set(draft) != DRAFT_FIELDS:
+    if type(draft) is not dict or (set(draft) - (DRAFT_FIELDS | OPTIONAL_DRAFT_FIELDS)
+                                  or DRAFT_FIELDS - set(draft)):
         raise CreativeContractError("Unexpected or missing browser draft fields")
     if type(snapshot) is not dict or not set(snapshot).issubset(SNAPSHOT_FIELDS) or not {
         "shop_id", "campaign_id", "video_job_id", "approval_id",
@@ -111,6 +113,12 @@ def compile_approved_storyboard(draft, snapshot):
         if soundtrack["kind"] != "audio":
             raise CreativeContractError("Approved soundtrack must be audio")
         selected_ids.add(music_id)
+    voice_id = draft.get("voiceover_asset_id")
+    if voice_id is not None:
+        voice = _source(voice_id, snapshot["assets"])
+        if voice["kind"] != "audio":
+            raise CreativeContractError("Approved narration must be audio")
+        selected_ids.add(voice_id)
     scenes = []
     t = 0
     for index, raw in enumerate(draft["scenes"]):
@@ -198,6 +206,9 @@ def compile_approved_storyboard(draft, snapshot):
     if music_id:
         request["music_asset_id"] = music_id
         request["music_source"] = snapshot["assets"][music_id]["source_feature"]
+    if voice_id:
+        request["voiceover_asset_id"] = voice_id
+        request["voiceover_source"] = snapshot["assets"][voice_id]["source_feature"]
     if draft["mode"] == "music_sync":
         if snapshot.get("beat_grid") is None:
             raise CreativeContractError("Server-derived approved beat grid required")

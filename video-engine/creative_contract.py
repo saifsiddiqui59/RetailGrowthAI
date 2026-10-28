@@ -89,7 +89,7 @@ def render_inputs(request, media_manifest, *, allow_synthetic_test=False):
     require_fields(request, {
         "version", "shop_id", "campaign_id", "video_job_id", "idempotency_key",
         "script", "brand", "scenes", "template", "duration_seconds", "output",
-        "music_asset_id", "music_source", "beat_grid", "edit_plan",
+        "music_asset_id", "music_source", "voiceover_asset_id", "voiceover_source", "beat_grid", "edit_plan",
         "allow_image_fallback", "mode",
     }, {"version", "shop_id", "campaign_id", "video_job_id", "idempotency_key",
         "script", "brand", "scenes", "template", "duration_seconds", "output"}, "reel request")
@@ -132,6 +132,9 @@ def render_inputs(request, media_manifest, *, allow_synthetic_test=False):
     sound_id = request.get("music_asset_id")
     if sound_id is not None:
         selected_media(sound_id, "audio", request.get("music_source", "retailer"), media_manifest, shop_id)
+    voice_id = request.get("voiceover_asset_id")
+    if voice_id is not None:
+        selected_media(voice_id, "audio", request.get("voiceover_source", "retailer"), media_manifest, shop_id)
     if "edit_plan" in request:
         edit = request["edit_plan"]
         require_fields(edit, {"source_feature", "approved", "approval_id", "timeline_version"},
@@ -215,6 +218,8 @@ def render_inputs(request, media_manifest, *, allow_synthetic_test=False):
         used_ids.add(logo_id)
     if sound_id:
         used_ids.add(sound_id)
+    if voice_id:
+        used_ids.add(voice_id)
     media = {}
     for asset_id in used_ids:
         entry = media_manifest["assets"][asset_id]
@@ -242,7 +247,8 @@ def render_inputs(request, media_manifest, *, allow_synthetic_test=False):
                              **({"secondary_color": brand["secondary_color"]}
                                 if "secondary_color" in brand else {})},
                    "logo_asset_id": logo_id,
-                   "music_asset_id": sound_id}
+                   "music_asset_id": sound_id,
+                   "voiceover_asset_id": voice_id}
     if request.get("beat_grid") is not None:
         composition["beats"] = copy.deepcopy(request["beat_grid"])
     selected = {"shop_id": shop_id, "assets": media}

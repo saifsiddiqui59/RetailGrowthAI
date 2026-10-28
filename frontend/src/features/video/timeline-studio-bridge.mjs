@@ -122,6 +122,7 @@ export function studioValidatedDraft(draft, mediaAssets, musicAssets) {
     }
   }
   if (draft.music_asset_id != null) sameShop(draft.music_asset_id, music, ['audio'])
+  if (draft.voiceover_asset_id != null) sameShop(draft.voiceover_asset_id, music, ['audio'])
   const issues = validateVideoDraft(draft, mediaAssets, musicAssets)
   if (issues.length) throw Error(issues.join('; '))
   return draft

@@ -159,6 +159,20 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
         </div>
       </div>
       <div className="f4-ts-row">
+        <span className="f4-ts-track-name">NARRATION</span>
+        <div className="f4-studio-track-body f4-ts-audio">
+          {draft.voiceover_asset_id && musicAssets.some(a =>
+            a.id === draft.voiceover_asset_id && a.shop_id === draft.shop_id &&
+            a.kind === 'audio' && a.authorized === true)
+            ? <TimelineAudioClip segment={{id:'approved-voice',start:0,
+                duration:draft.duration_seconds,volume:1}}
+                laneIndex={0} timelineDuration={draft.duration_seconds}
+                selected={false} rangeSelected={false} waveformVisible={false}
+                gainDisabled t={x=>x} handlersRef={handlers} />
+            : <span className="f4-ts-empty">No approved full-Reel voice recording</span>}
+        </div>
+      </div>
+      <div className="f4-ts-row">
         <span className="f4-ts-track-name">SCENE SFX</span>
         <div className="f4-studio-track-body f4-ts-audio">
           {draft.scenes.some(scene => scene.sfx_asset_id) ? draft.scenes.flatMap((scene,i) => {

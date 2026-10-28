@@ -97,7 +97,7 @@ def checked_video(path):
 
 def validate(plan, manifest, asset_root, allow_test_media=False):
     fields(plan, {"version", "shop_id", "mode", "template", "duration_seconds", "output",
-                  "scenes", "cta", "music_asset_id", "beats", "brand", "logo_asset_id"},
+                  "scenes", "cta", "music_asset_id", "voiceover_asset_id", "beats", "brand", "logo_asset_id"},
            {"version", "shop_id", "mode", "template", "duration_seconds", "output", "scenes", "cta"}, "plan")
     fields(manifest, {"shop_id", "assets"}, {"shop_id", "assets"}, "manifest")
     if plan["version"] != VERSION or plan["shop_id"] != manifest["shop_id"] or not UUID.fullmatch(str(plan["shop_id"])):
@@ -228,6 +228,20 @@ def validate(plan, manifest, asset_root, allow_test_media=False):
         path = checked_path(asset_root, entry["path"], music_id, AUDIO)
         inspect_staged_audio(path)
         ordered[music_id] = (path, "audio")
+    voice_id = plan.get("voiceover_asset_id")
+    if voice_id is not None:
+        if not isinstance(voice_id, str) or not ASSET_ID.fullmatch(voice_id) or voice_id not in assets:
+            raise VideoPlanError("Missing authorized narration")
+        voice = assets[voice_id]
+        fields(voice, {"kind", "path", "rights"}, {"kind", "path", "rights"}, "narration entry")
+        if voice["kind"] != "audio":
+            raise VideoPlanError("Narration media must be audio")
+        validate_rights(voice["rights"], voice_id, allow_test_media)
+        voice_path = checked_path(asset_root, voice["path"], voice_id, AUDIO)
+        info = inspect_staged_audio(voice_path)
+        if info["duration_seconds"] is None or info["duration_seconds"] + .06 < duration:
+            raise VideoPlanError("Approved narration is shorter than the Reel")
+        ordered[voice_id] = (voice_path, "audio")
     beats = plan.get("beats", [])
     if not isinstance(beats, list) or len(beats) > 300:
         raise VideoPlanError("Invalid beat-grid size")
@@ -445,15 +459,24 @@ h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.01
             f'background:{accent};color:{bg};padding:2%;text-align:center;font-size:{width//22}px;'
             f'font-weight:900;border-radius:12px">{cta}</div>'
         )
+    # Narration is a full-length approved audio source, not 2-second SFX.
+    # Fix gain in the trusted renderer until an advanced audio-mix contract exists.
+    if plan.get("voiceover_asset_id") is not None:
+        src = names[plan["voiceover_asset_id"]]
+        components.append(
+            f'<audio id="approved-voiceover" src="{src}" data-start="0" '
+            f'data-duration="{duration}" data-track-index="7" data-volume="1" '
+            f'data-fade-in="0.10" data-fade-out="0.16"></audio>'
+        )
     # Duck ONLY the licensed bed beneath clips retaining their original sound.
     # This is deterministic scene-level gain, not transcription/VAD/AI speech QA.
     # Keep the original single-track path for music-free and silent-video Reels.
-    if source_audio and plan.get("music_asset_id") is not None:
+    if (source_audio or plan.get("voiceover_asset_id") is not None) and plan.get("music_asset_id") is not None:
         for i, scene in enumerate(plan["scenes"]):
             aid = scene.get("asset_id")
             is_source_sound = bool(aid and ordered[aid][1] == "video"
                                    and not scene.get("mute_source", False))
-            gain = "0.12" if is_source_sound else "0.55"
+            gain = "0.12" if (is_source_sound or plan.get("voiceover_asset_id") is not None) else "0.55"
             start, length = scene["start"], scene["duration"]
             fade = min(0.12, length / 6)
             components.append(
@@ -463,7 +486,7 @@ h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.01
                 f'data-fade-in="{fade}" data-fade-out="{fade}"></audio>'
             )
     else:
-        gain = "0.15" if source_audio else "0.55"
+        gain = "0.15" if (source_audio or plan.get("voiceover_asset_id") is not None) else "0.55"
         components.append(
             f'<audio id="soundtrack" src="{soundtrack}" data-start="0" '
             f'data-duration="{duration}" data-track-index="5" data-volume="{gain}" '

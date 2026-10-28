@@ -36,7 +36,7 @@ export function makeVideoDraft({ shopId, mode = 'image', template = 'streetwear'
       animation_preset: 'subtle_zoom', transition: 'fade',
       ...(mode !== 'text' && media.length ? { asset_id: media[i % media.length].id } : {}),
     })),
-    cta: 'Visit our store', music_asset_id: null,
+    cta: 'Visit our store', music_asset_id: null, voiceover_asset_id: null,
   }
 }
 
@@ -118,6 +118,11 @@ export function validateVideoDraft(plan, mediaAssets = [], musicAssets = []) {
   }
   if (Math.abs(time - plan.duration_seconds) > .001) errors.push('Scenes must fill the selected duration')
   if (typeof plan.cta !== 'string' || !plan.cta.trim() || plan.cta.length > 110) errors.push('Enter an approved CTA')
+  if (plan.voiceover_asset_id != null && !musicAssets.some(a =>
+      a?.id === plan.voiceover_asset_id && a?.authorized === true &&
+      a?.kind === 'audio' && a?.shop_id === plan.shop_id)) {
+    errors.push('Select an approved same-shop full-Reel narration recording')
+  }
   if (plan.music_asset_id != null && !musicAssets.some(m => m.id === plan.music_asset_id && m.authorized === true)) {
     errors.push('Select a rights-cleared music track')
   }
