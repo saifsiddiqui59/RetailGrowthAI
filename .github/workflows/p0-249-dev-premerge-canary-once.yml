@@ -130,6 +130,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo "attempted=true" >> "$GITHUB_OUTPUT"
           az functionapp deployment source config-zip -g "$RG" -n "$APP" --src "$RUNNER_TEMP/build/candidate.zip" --build-remote true -o none
           echo 'P0249_EXISTING_DEV_CODE_ONLY_DEPLOY=COMPLETE'
       - name: Verify indexing and run real matched-route 20+20 HTTP acceptance
@@ -150,7 +151,7 @@ jobs:
           python3 -u ops/p0_249_powered_equal_route_probe.py
           echo 'P0249_POSTDEPLOY_20GET_NO_503=PASS_SMALL_SAMPLE'
       - name: Restore reviewed pre-change main source ZIP if deployment or live acceptance failed
-        if: failure() && steps.oidc.outcome == 'success'
+        if: failure() && steps.oidc.outcome == 'success' && steps.deploy.outputs.attempted == 'true'
         shell: bash
         run: |
           set -euo pipefail
