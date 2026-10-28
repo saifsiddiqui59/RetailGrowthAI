@@ -146,6 +146,7 @@ class Feature5Part3OfflineAcceptanceTests(unittest.TestCase):
         self.addCleanup(lambda:None)
         params={
             "package":package,"inspection":info,"private_file":self.video,
+            "trusted_attempt_root":self.video.parent,
             "job_id":job,"attempt_token":token,"output_asset_id":asset,
             "check_current_paid_claim_and_source":store.check,
             "commit_unique_import_intent":store.reserve_intent,
@@ -235,6 +236,51 @@ class Feature5Part3OfflineAcceptanceTests(unittest.TestCase):
             import_wan_into_existing_part3(**params)
         self.assertTrue(store.intent)
         self.assertEqual(store.commits,0)
+
+    def test_lost_unique_intent_ack_is_unknown_and_consumed(self):
+        store,params,_=self.setup_case()
+        def commit_and_lose_ack(*args):
+            self.assertTrue(store.reserve_intent(*args))
+            raise TimeoutError("simulated SQL CAS ACK lost")
+        params["commit_unique_import_intent"]=commit_and_lose_ack
+        with self.assertRaises(UnknownPart3PrivateImport):
+            import_wan_into_existing_part3(**params)
+        self.assertTrue(store.intent)
+        self.assertEqual((store.uploads,store.commits),(0,0))
+        params["commit_unique_import_intent"]=store.reserve_intent
+        with self.assertRaises(WanCompatibilityError):
+            import_wan_into_existing_part3(**params)
+        self.assertEqual(store.uploads,0)
+
+    def test_private_staging_folder_must_match_dedicated_attempt(self):
+        store,params,_=self.setup_case()
+        with tempfile.TemporaryDirectory() as td:
+            params["trusted_attempt_root"]=Path(td)
+            with self.assertRaises(WanCompatibilityError):
+                import_wan_into_existing_part3(**params)
+        self.assertFalse(store.intent)
+        self.assertEqual(store.uploads,0)
+
+    def test_symlinked_staging_root_refused(self):
+        store,params,_=self.setup_case()
+        with tempfile.TemporaryDirectory() as td:
+            link=Path(td)/"link"
+            link.symlink_to(self.video.parent, target_is_directory=True)
+            params["trusted_attempt_root"]=link
+            with self.assertRaises(WanCompatibilityError):
+                import_wan_into_existing_part3(**params)
+        self.assertFalse(store.intent)
+
+    def test_video_mutated_after_upload_remains_unknown(self):
+        store,params,_=self.setup_case()
+        def upload_and_touch(*values):
+            done=store.upload(*values)
+            os.utime(self.video,None)
+            return done
+        params["upload_private_once"]=upload_and_touch
+        with self.assertRaises(UnknownPart3PrivateImport):
+            import_wan_into_existing_part3(**params)
+        self.assertEqual((store.uploads,store.commits),(1,0))
 
     def test_f4_review_only_fake_positive_and_foreign_ledger_rejected(self):
         # No assertion of real garment quality: the reviewer and media are

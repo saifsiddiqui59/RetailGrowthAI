@@ -166,3 +166,8 @@ Owner requested image generation without A100. Preserve GPU OFF. Official Black 
 ## 2026-10-28 — Part3 native private import GPU-OFF acceptance
 
 Prioritize immutable at-most-once import: a trusted Part3 service-only SQL CAS must commit unique intent before any potentially successful private write. All post-intent uncertainty is `UnknownPart3PrivateImport` requiring independent object/ledger reconciliation; no refund, replay or manual false success. Existing media bucket `retailgrowth-media` and private path convention are mandatory. Source test fake session is not a signed Supabase JWT and synthetic human review is never legal/quality approval.
+
+
+## 2026-10-28 — Import intent ambiguous ACK + private staging path guards
+
+An import-intent CAS callback may commit then time out, so any raised exception is `UNKNOWN` (no new commit/upload/replay), never normal retryable preflight. Before CAS, private paths must be contained within dedicated 0700 worker root, with safe intermediate parents. Do not substitute browser signed URLs for trusted file paths.

@@ -185,3 +185,8 @@ Connected DEV project was queried in a read-only rolled-back transaction. Synthe
 ## 2026-10-28 — Part3 native private import GPU-OFF acceptance
 
 2026-10-28: Implemented GPU-OFF native output → private Part3 import/ledger/source rights callback bridge and 6 offline test flows using separate fabricated test-login identities and actual ffmpeg testsrc2 MP4; strict duplicate/revoked/foreign+unknown safety; synthetic only (no model, tenant SQL, hosted JWT or cloud Storage). Branch PR #465, pending exact-head CI. No shared migrations, Azure or WineShopPOS modifications.
+
+
+## 2026-10-28 — Import intent ambiguous ACK + private staging path guards
+
+- 2026-10-28: Closed source-only import-intent lost-ack ambiguity and staged path escape/symlink risk; verified expected negative tests added. No database changes, hosted JWT, real Storage or paid providers. Exact-head CI awaited.

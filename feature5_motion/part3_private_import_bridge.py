@@ -37,6 +37,32 @@ def _digest(file):
     return h.hexdigest()
 
 
+def _private_attempt_path(path, root):
+    """Staged MP4 must live under the current isolated 0700 worker attempt.
+
+    Never trust a caller-supplied outside path or symlinked intermediate folder.
+    The coordinator still must bind this root to its server-side fenced claim.
+    """
+    if not path.is_absolute() or not root.is_absolute() or ".." in path.parts:
+        raise WanCompatibilityError("Private worker path must be absolute and scoped")
+    if root.is_symlink() or not root.is_dir() or root.stat().st_mode & 0o077:
+        raise WanCompatibilityError("Private attempt root must be a real 0700 directory")
+    try:
+        if not path.resolve(strict=True).is_relative_to(root.resolve(strict=True)):
+            raise WanCompatibilityError("Native output outside current private attempt")
+        folder=path.parent
+        while folder != root:
+            if (folder.is_symlink() or not folder.is_dir() or
+                folder.stat().st_mode & 0o077):
+                raise WanCompatibilityError("Native output intermediate folder is unsafe")
+            parent=folder.parent
+            if parent == folder:
+                raise WanCompatibilityError("Private output outside worker root")
+            folder=parent
+    except OSError as exc:
+        raise WanCompatibilityError("Native output private root unavailable") from exc
+
+
 def _file_identity(path):
     if path.is_symlink():
         raise WanCompatibilityError("Linked private Wan output forbidden")
@@ -48,7 +74,7 @@ def _file_identity(path):
 
 
 def import_wan_into_existing_part3(
-    *, package, inspection, private_file, job_id, attempt_token, output_asset_id,
+    *, package, inspection, private_file, trusted_attempt_root, job_id, attempt_token, output_asset_id,
     check_current_paid_claim_and_source, commit_unique_import_intent,
     upload_private_once, commit_fenced_storage_and_settlement,
     current_rights_approved=False,
@@ -85,9 +111,11 @@ def import_wan_into_existing_part3(
         if type(proof) is not str or len(proof) != 64 or any(c not in "0123456789abcdef" for c in proof):
             raise WanCompatibilityError("Invalid native motion digest")
     path = Path(private_file)
+    root = Path(trusted_attempt_root)
     if path.suffix != ".mp4":
         raise WanCompatibilityError("Private Wan output must be MP4")
     try:
+        _private_attempt_path(path, root)
         before = _file_identity(path)
         if before[2] != inspection.size_bytes or _digest(path) != inspection.sha256:
             raise WanCompatibilityError("Private output does not match FFprobe/SHA evidence")
@@ -99,7 +127,13 @@ def import_wan_into_existing_part3(
     key = f"{shop}/renders/{job}/{token}.mp4"
     # Require a durable backend-only CAS before any potentially billable write.
     # Never automatically replay a consumed attempt, including after timeout.
-    if commit_unique_import_intent(shop, job, token, key, inspection.sha256) is not True:
+    try:
+        intent=commit_unique_import_intent(shop, job, token, key, inspection.sha256)
+    except Exception as exc:
+        # A lost DB acknowledgment might follow a successful CAS commit.
+        # Treat it as UNKNOWN, not as permission to claim again.
+        raise UnknownPart3PrivateImport("Import intent commit outcome unknown") from exc
+    if intent is not True:
         raise WanCompatibilityError("Import intent not uniquely committed")
     try:
         uploaded=upload_private_once(shop, job, token, path, key, inspection.sha256)

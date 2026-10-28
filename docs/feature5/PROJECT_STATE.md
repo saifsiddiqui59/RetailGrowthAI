@@ -187,3 +187,8 @@ Full Feature5-only CPU E2E test now composes a private, clearly NO-AI/PIL refere
 ## 2026-10-28 — Part3 native private import GPU-OFF acceptance
 
 New Feature5 `part3_private_import_bridge.py` provides a source-only native Wan → existing Part3 private Storage / settlement handoff. It validates 704×1280 native clip hash and private file security, current tenant/source/lease, reserves an atomic unique import intent **before** Storage write, exact existing private bucket and `{shop}/renders/{job}/{lease}.mp4`, rechecks media and rights, and only accepts an exactly settled authoritative DB receipt consumable by existing Feature4 human-reviewed manifest adapter. After committed intent ANY timeout/mutation/revocation/CAS uncertainty is UNKNOWN with NO retry. No new SQL, real storage, AI inference or paid resources.
+
+
+## 2026-10-28 — Import intent ambiguous ACK + private staging path guards
+
+GPU-off private import strengthened with a canonical private 0700 attempt root check (no symlinks/foreign or intermediate broad directories), and a lost transactional intent-CAS ACK now yields `UnknownPart3PrivateImport` even if no Storage operation began. No user/token supplies a path or source rights. All write ambiguities retain consumed intent and require existing Part3 read-only reconciliation.
