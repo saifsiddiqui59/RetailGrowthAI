@@ -10,9 +10,12 @@ from security import AuthenticationError
 
 
 class Feature3V2API:
-    def __init__(self, tenant_store, design_store):
+    def __init__(self, tenant_store, design_store, *, model_review_enabled=False):
         self.tenant = tenant_store
         self.designs = design_store
+        # Independent Gate B: source review SQL must be deployed and tested
+        # before any hosted POST approval/revocation is allowed.
+        self.model_review_enabled = model_review_enabled is True
 
     def _campaign_day(self, token, user_id, cid, did, *, write=False):
         campaign = self.tenant.campaign(token, user_id, cid)
@@ -38,6 +41,57 @@ class Feature3V2API:
         return 200, {"shop_id": sid, "models": entries,
                      "private_images_must_be_loaded_separately": True}
 
+
+    def review_model(self, token, user_id, shop_id, model_id, body, *, action):
+        """Authenticated human decision transport: NO GPU or image generation.
+
+        The HTTP router first verifies a real signed Supabase user JWT.
+        TenantStore checks a current active OWNER/EDITOR; the SQL review
+        RPC separately derives auth.uid() from the SAME user token and
+        compares current status, evidence, rights revision and audit row.
+        """
+        if not self.model_review_enabled:
+            return 503, {"error": "FEATURE3_MODEL_REVIEW_DISABLED"}
+        sid, mid = canonical_uuid(shop_id), canonical_uuid(model_id)
+        if not self.tenant.member(token, user_id, sid, write=True):
+            return 404, {"error": "NOT_FOUND"}
+        if not isinstance(body, dict):
+            return 400, {"error": "INVALID_REQUEST"}
+        if action == "review":
+            required = {"decision", "expected_revision", "image_sha256",
+                        "evidence_revision", "checks", "notes"}
+            if set(body) != required:
+                return 400, {"error": "INVALID_REQUEST"}
+            result = self.designs.review_model(
+                token, sid, mid, decision=body["decision"],
+                expected_revision=body["expected_revision"],
+                image_sha256=body["image_sha256"],
+                evidence_revision=body["evidence_revision"],
+                checks=body["checks"], notes=body["notes"],
+            )
+        elif action == "revoke":
+            required = {"expected_revision", "image_sha256", "reason"}
+            if set(body) != required:
+                return 400, {"error": "INVALID_REQUEST"}
+            result = self.designs.revoke_model(
+                token, sid, mid, expected_revision=body["expected_revision"],
+                image_sha256=body["image_sha256"], reason=body["reason"],
+            )
+        else:
+            return 404, {"error": "NOT_FOUND"}
+        if result is None:
+            # Deliberately hide whether model is absent, foreign, reviewed,
+            # revoked or concurrently changed; do NOT retry a mutation.
+            return 409, {"error": "MODEL_REVIEW_STALE_OR_DENIED"}
+        return 200, {
+            "shop_id": sid, "model_id": mid,
+            "status": result["status"],
+            "rights_revision": result["rights_revision"],
+            "review_event_id": result["review_event_id"],
+            "audit_persisted": True,
+            "gpu_enabled": False,
+            "generation_executed": False,
+        }
 
     def source_asset(self, token, user_id, shop_id, asset_id):
         """Read only a registered current-tenant private source metadata proof.
