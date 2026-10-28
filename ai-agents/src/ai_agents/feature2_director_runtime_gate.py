@@ -35,7 +35,7 @@ def _node_binary_attested(payload: bytes, expected_sha256: str | None) -> bool:
             or not isinstance(expected_sha256, str)
             or SHA256_HEX.fullmatch(expected_sha256) is None):
         return False
-    if (len(payload) < 64 or payload[:7] != b"\\x7fELF\\x02\\x01\\x01"
+    if (len(payload) < 64 or payload[:7] != b"\x7fELF\x02\x01\x01"
             or struct.unpack_from("<H", payload, 18)[0] != 62):
         return False
     phoff = struct.unpack_from("<Q", payload, 32)[0]
@@ -109,7 +109,7 @@ def audit_zip(path: str, *, runtime_linux_node22_verified=False,
         for info in infos:
             name = info.filename
             if (name.startswith("/") or ".." in name.split("/")
-                    or "\\\\" in name or name.startswith(".")):
+                    or "\\" in name or name.startswith(".")):
                 raise ValueError("Unsafe runtime ZIP member")
             if name == CANDIDATE_RUNTIME:
                 if not 100_000 <= info.file_size <= MAX_NODE_BYTES:
