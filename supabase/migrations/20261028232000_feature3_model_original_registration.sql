@@ -13,7 +13,6 @@ create policy retailgrowth_media_insert on storage.objects
    bucket_id='retailgrowth-media'
    and retail_private.has_role(retail_private.media_path_shop(name),
                                 array['OWNER','EDITOR'])
-   and owner_id=(select auth.uid())::text
    and (
      name ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/uploads/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}[.](png|jpg|webp)
 create function public.feature3_register_model_original(
