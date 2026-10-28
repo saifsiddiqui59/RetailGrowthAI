@@ -198,6 +198,25 @@ class TenantStore:
             return None
         return result
 
+    def feature3_gpu_jobs(self, token, shop_id):
+        """Current JWT/RLS-visible image job list, never a paid claim."""
+        sid = canonical_uuid(shop_id)
+        rows = self._request("feature3_gpu_jobs", token, query={
+            "select": "id,shop_id,status,created_at",
+            "shop_id": "eq." + sid, "order": "created_at.desc", "limit": "21",
+        })
+        if not isinstance(rows, list) or len(rows) > 20:
+            raise StorageUnavailable("malformed generated image history")
+        checked = []
+        for row in rows:
+            if not isinstance(row, dict) or row.get("shop_id") != sid or (
+                row.get("status") not in ("QUEUED", "RUNNING", "SUCCEEDED", "FAILED")
+            ):
+                raise StorageUnavailable("foreign or malformed generated image job")
+            jid = canonical_uuid(row.get("id"))
+            checked.append({"id": jid, "shop_id": sid, "status": row["status"]})
+        return checked
+
     def feature3_gpu_job(self, token, shop_id, job_id):
         """User-JWT/RLS-backed generated job read, never a paid job claim."""
         sid, jid = canonical_uuid(shop_id), canonical_uuid(job_id)
