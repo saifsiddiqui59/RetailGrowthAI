@@ -1,5 +1,8 @@
 """Actual Functions source package must reject unbundled Node director."""
 import importlib.util
+from hashlib import sha256
+from zipfile import ZipFile, ZipInfo
+import tempfile
 from pathlib import Path
 
 from ai_agents.feature2_director_runtime_gate import audit_entries, REQUIRED, PIN
@@ -29,6 +32,11 @@ def test_fake_node_file_or_ci_node_cannot_claim_live_readiness():
     members["bin/node"] = b"fake!"
     assert not audit_entries(members).ready_to_enable
     assert not audit_entries(members, runtime_linux_node22_verified=True).ready_to_enable
+    spoofed = audit_entries(members, runtime_linux_node22_verified=True,
+                            operator_approved_runtime=True,
+                            approved_node_sha256=sha256(b"fake!").hexdigest())
+    assert not spoofed.ready_to_enable
+    assert "NODE_RUNTIME_BINARY_NOT_ATTESTED" in spoofed.blocking_reasons
 
 
 def test_missing_license_never_readiness():
@@ -37,3 +45,32 @@ def test_missing_license_never_readiness():
     result = audit_entries(members, runtime_linux_node22_verified=True, operator_approved_runtime=True)
     assert not result.ready_to_enable
     assert "PINNED_MIT_NOTICE_NOT_PACKAGED" in result.blocking_reasons
+
+
+def test_duplicate_or_unsafe_runtime_zip_rejected_before_reading_members():
+    from ai_agents.feature2_director_runtime_gate import audit_zip
+    import pytest
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "candidate.zip"
+        with ZipFile(path, "w") as z:
+            z.writestr("ai_agents/creative-director/director.js", b"original")
+            z.writestr("ai_agents/creative-director/director.js", b"duplicate")
+        with pytest.raises(ValueError, match="duplicate"):
+            audit_zip(str(path))
+        with ZipFile(path, "w") as z:
+            z.writestr("../bin/node", b"evil")
+        with pytest.raises(ValueError, match="Unsafe runtime ZIP member"):
+            audit_zip(str(path))
+
+
+def test_runtime_zip_rejects_nonexecutable_node_even_with_claimed_operator_flags():
+    from ai_agents.feature2_director_runtime_gate import audit_zip
+    import pytest
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "candidate.zip"
+        with ZipFile(path, "w") as z:
+            z.writestr("bin/node", b"fake!")
+        with pytest.raises(ValueError, match="Node executable size"):
+            audit_zip(str(path), runtime_linux_node22_verified=True,
+                      operator_approved_runtime=True,
+                      approved_node_sha256=sha256(b"fake!").hexdigest())
