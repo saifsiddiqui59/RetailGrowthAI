@@ -21,7 +21,7 @@ LICENSE_PAGE = "https://www.pexels.com/license/"
 
 
 def _local_file(candidate, *, suffixes, max_size):
-    if type(candidate) not in (str, Path):
+    if not isinstance(candidate, (str, Path)):
         raise WanCompatibilityError("Local reviewed stock filename required")
     path=Path(candidate)
     if (path.is_symlink() or path.suffix.lower() not in suffixes or
