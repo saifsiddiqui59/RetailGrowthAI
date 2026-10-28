@@ -220,5 +220,63 @@ class Feature7OfflineVideoPipeline(unittest.TestCase):
             [{'start_seconds':.5,'end_seconds':1}])
 
 
+    def test_integrated_private_review_builds_feature4_compatible_advisory(self):
+        js="""
+import fs from 'node:fs';
+import {preparePrivateReview} from './video-engine/feature7/private_review_pipeline.mjs';
+const data=JSON.parse(fs.readFileSync(0,'utf8'));
+process.stdout.write(JSON.stringify(preparePrivateReview(data)));
+"""
+        upload=self.request()
+        upload['grant']['has_audio']=True
+        fixture={'shop_id':'shop-alpha','campaign_id':'campaign-123',
+            'root':str(self.private),
+            'draft':{
+                'shop_id':'shop-alpha','campaign_id':'campaign-123',
+                'duration_seconds':15,'scenes':[{
+                    'asset_id':'clip-alpha','asset_type':'video',
+                    'source_feature':'retailer','duration':15,'start':0
+                }]
+            },
+            'media':[{'scene_index':0,'asset_id':'clip-alpha',
+                'relative_path':'owned_clip.mp4','expected_sha256':self.sha,
+                'grant':upload['grant'],'whisperx_json':{'segments':[{'words':[
+                    {'word':'Welcome','start':.55,'end':.82},
+                    {'word':'there.','start':.87,'end':1.03},
+                    {'word':'Your','start':1.76,'end':1.9},
+                    {'word':'shop.','start':1.94,'end':2.3},
+                    {'word':'Hello','start':12.2,'end':12.5}
+                ]}]}}]}
+        ok=invoke_js(js,fixture)
+        self.assertEqual(ok.returncode,0,ok.stderr)
+        out=json.loads(ok.stdout)
+        self.assertEqual(out['review_status'],'NEEDS_REVIEW')
+        self.assertFalse(out['approved'])
+        self.assertFalse(out['renderable'])
+        self.assertTrue(out['media_approval_is_not_human_edit_approval'])
+        self.assertEqual(out['scenes'][0]['source_scene_index'],0)
+        self.assertEqual(out['scenes'][0]['duration'],15)
+        self.assertFalse(out['scenes'][0]['mute_source'])
+        self.assertEqual(out['media_evidence'][0]['source_sha256'],self.sha)
+        self.assertEqual(out['media_evidence'][0]['audio_activity']['classification'],
+                         'AUDIO_ACTIVITY_NOT_SPEECH')
+        self.assertTrue(out['captions_advisory'])
+        self.assertEqual(out['media_evidence'][0]['paid_calls'],0)
+
+        for mutation in ('foreign','revoked','incorrect_bytes','fake_asr'):
+            with self.subTest(mutation=mutation):
+                bad=json.loads(json.dumps(fixture))
+                item=bad['media'][0]
+                if mutation=='foreign': item['grant']['shop_id']='shop-foreign'
+                if mutation=='revoked': item['grant']['rights_status']='REVOKED'
+                if mutation=='incorrect_bytes':
+                    item['expected_sha256']='f'*64
+                    item['grant']['sha256']='f'*64
+                if mutation=='fake_asr':
+                    item['whisperx_json']['segments'][0]['words'][0].pop('start')
+                result=invoke_js(js,bad)
+                self.assertNotEqual(result.returncode,0,result.stdout)
+
+
 if __name__=='__main__':
     unittest.main()
