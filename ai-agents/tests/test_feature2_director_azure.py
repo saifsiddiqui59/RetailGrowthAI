@@ -20,10 +20,14 @@ def brief():
             "approval_status": "APPROVED", "percent_off": 20, "active": True,
             "valid_from": "2026-10-01", "valid_until": "2026-11-15",
             "signed_evidence_id": "approved-offer-record",
+            "eligible_product_skus": ["KURTI-RED-01"],
+            "approved_claim_text": "20% off selected kurtis",
         }],
         "media_grants": [{
             "id": "rights-cleared-media", "shop_id": "test-tenant",
             "rights_status": "APPROVED", "kind": "IMAGE",
+            "private": True, "commercial_use_allowed": True,
+            "revoked_at": None, "original_media_sha256": "a" * 64,
             "product_sku": "KURTI-RED-01",
             "garment_facts": {
                 "color": "deep red", "neckline": "round neck",
