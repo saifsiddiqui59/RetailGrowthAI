@@ -93,6 +93,7 @@ class LibraryTests(unittest.TestCase):
         saved = self.store(image_bytes=picture(extra_metadata=True))
         self.assertEqual(saved["status"], "PENDING_REVIEW")
         self.assertEqual(saved["media_asset_id"], self.registered_media_id)
+        self.assertTrue(saved["storage_key"].startswith(self.shop + "/model-library/"))
         self.assertFalse(saved["inference_executed_by_import"])
         self.assertEqual(len(self.assets), 1)
         self.assertNotIn(b"personal-location", next(iter(self.assets.values())))
@@ -142,7 +143,7 @@ class LibraryTests(unittest.TestCase):
             self.store(candidate=platform_candidate)
         self.curator = True
         saved = self.store(candidate=platform_candidate)
-        self.assertTrue(saved["storage_key"].startswith("model-library/platform/"))
+        self.assertTrue(saved["storage_key"].startswith(self.shop + "/model-library/platform/"))
         approved = {**saved, "status": "APPROVED"}
         for shop in [self.shop, self.other]:
             result = checked_model_for_use(
@@ -227,7 +228,7 @@ class LibraryTests(unittest.TestCase):
         with self.assertRaisesRegex(ModelLibraryDenied, "storage lineage"):
             checked_model_for_use(
                 model={**reviewed, "storage_key":
-                       "shops/" + self.shop + "/model-library/other/" +
+                       self.shop + "/model-library/other/" +
                        saved["image_sha256"] + ".png"},
                 requesting_shop_id=self.shop, usage="poster",
                 authorize_use=lambda *_: True)
