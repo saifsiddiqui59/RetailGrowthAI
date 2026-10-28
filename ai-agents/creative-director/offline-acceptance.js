@@ -17,6 +17,22 @@ function previewOffline(bundle,{gpuEnabled=false}={}){
     error('Unsupported Reel duration');
   if(plan.aspect_ratio!=='9:16'||shots.length<3||shots.length>12)
     error('Unrecognized portrait Reel or shot count');
+  // The same object can be shared between plan.scenes[*].shots and
+  // motion_direction_v1. Equality checks alone miss simultaneous mutation.
+  // Recompute the ORIGINAL source compiler fingerprint before any mock handoff.
+  if(!Array.isArray(plan.reference_media_requests)||!plan.reference_media_requests.length)
+    error('Missing signed source lineage');
+  const source_media=plan.reference_media_requests.map(ref=>{
+    const source=shots.find(shot=>shot.reference_media_id===ref.asset_id);
+    if(!source||!source.garment_lock||ref.same_shop_required!==true||
+       ref.rights_review_required!==true)
+      error('Missing approved source media reference');
+    return source.garment_lock;
+  });
+  const expected=createHash('sha256')
+    .update(JSON.stringify({creative:plan,source_media})).digest('hex');
+  if(review.plan_sha256!==expected)
+    error('Creative plan or motion inputs changed after the original review');
   const editorTimeline=[];
   let time=0;
   for(let i=0;i<shots.length;i++){
