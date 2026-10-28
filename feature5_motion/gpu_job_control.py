@@ -11,6 +11,11 @@ import re
 import subprocess
 import sys
 import time
+from feature5_motion.shared_model_mount import (
+    ACCOUNT as MODEL_ACCOUNT, SHARE as MODEL_SHARE,
+    STORAGE_NAME as MODEL_STORAGE_NAME, VOLUME_NAME as MODEL_VOLUME_NAME,
+    MOUNT_PATH as MODEL_MOUNT_PATH,
+)
 
 GROUP = "rg-retailgrowth-dev"
 ENV = "rgai-f5-gpu-canary-eastus"
@@ -83,6 +88,28 @@ def executions(sub):
         states.append((item["name"], state))
     return states
 
+def check_model_share_mount(sub, j):
+    """No paid job can launch without the one private read-only model share."""
+    template = (j.get("properties") or {}).get("template") or {}
+    volumes = template.get("volumes") or []
+    matches = [v for v in volumes if isinstance(v, dict) and v.get("name") == MODEL_VOLUME_NAME]
+    if len(matches) != 1 or matches[0].get("storageType") != "AzureFile" or matches[0].get("storageName") != MODEL_STORAGE_NAME:
+        raise SafetyError("Missing expected classic Azure Files job volume")
+    containers = template.get("containers") or []
+    if len(containers) != 1:
+        raise SafetyError("Only one model worker is permitted")
+    mounts = containers[0].get("volumeMounts") or []
+    expected = [v for v in mounts if isinstance(v, dict) and v.get("volumeName") == MODEL_VOLUME_NAME]
+    if len(expected) != 1 or expected[0].get("mountPath") != MODEL_MOUNT_PATH or expected[0].get("subPath"):
+        raise SafetyError("Missing or misdirected shared model mount")
+    config = az("containerapp", "env", "storage", "show", "-n", ENV,
+                "--storage-name", MODEL_STORAGE_NAME, *rgflags(sub))
+    af = (config.get("properties") or {}).get("azureFile") if isinstance(config, dict) else None
+    if not isinstance(af, dict) or (af.get("accountName"), af.get("shareName"), af.get("accessMode")) != (
+            MODEL_ACCOUNT, MODEL_SHARE, "ReadOnly"):
+        raise SafetyError("Expected private Azure Files environment storage is not ReadOnly")
+
+
 def check_preflight(sub, j):
     if not owned(j.get("tags"), feature=True):
         raise SafetyError("Job must be tagged RetailGrowthAI DEV Feature5")
@@ -113,6 +140,7 @@ def check_preflight(sub, j):
     containers = template.get("containers") or []
     if len(containers) != 1 or template.get("initContainers"):
         raise SafetyError("Require one worker container and no init containers")
+    check_model_share_mount(sub, j)
     if not re.fullmatch(r"[^@\s]+@sha256:[0-9a-fA-F]{64}", str(containers[0].get("image", ""))):
         raise SafetyError("Immutable image digest required")
     usage = az("containerapp", "env", "list-usages", "-n", ENV, *rgflags(sub))
