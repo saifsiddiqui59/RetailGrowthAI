@@ -1,3 +1,9 @@
+# 2026-10-28 one-time continuation after run 40655976341:
+# Signed original PNG/owner registration and deterministic prompt PASS, live trend
+# GET returned 503 without any Supabase trend_snapshots hit. Exact existing
+# synthetic asset is reused/byte-verified, not uploaded again; GET-only bounded
+# 503 retry and sanitized classification added. POST is never retried.
+# Budget disabled; membership re-revoked even on uncertain PATCH acknowledgement.
 name: RetailGrowthAI Feature2 free signed DEV media and draft verification (one-time)
 on:
   push:

@@ -9,11 +9,13 @@ A one-shot nonce/path and strict existing-state preflight prevent duplicate runs
 from __future__ import annotations
 import datetime as dt
 import json
+import hashlib
 import os
 from pathlib import Path
 import secrets
 import struct
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -51,13 +53,55 @@ def request(url,*,method="GET",apikey,bearer=None,obj=None,blob=None,mime=None,e
             body=resp.read(500_000)
     except urllib.error.HTTPError as exc:
         if exc.code in expected: return exc.code,None
-        raise RuntimeError("DEV endpoint returned "+str(exc.code)+" for "+
+        # Log only an explicitly allowed machine error code (never HTTP bodies,
+        # a signed request URL, JWTs or private data). Distinguish an Azure
+        # handler's 503 from a platform/gateway 503 without changing semantics.
+        safe_error="GATEWAY_OR_UNKNOWN"
+        try:
+            body_error=json.loads(exc.read(512)).get("error")
+            if body_error in ("TREND_STORAGE_UNAVAILABLE","TREND_STORAGE_NOT_CONFIGURED",
+                              "FEATURE2_DISABLED","INTERNAL_ERROR"):
+                safe_error=body_error
+        except (ValueError,AttributeError,TypeError):
+            pass
+        raise RuntimeError("DEV endpoint returned "+str(exc.code)+" ["+safe_error+"] for "+
                            method+" "+url.split("?")[0].replace(ORIGIN,"SUPABASE").replace(API,"AZURE_API")) from None
     except (urllib.error.URLError,TimeoutError):
         raise RuntimeError("DEV endpoint unavailable; unsafe POST is NOT retried") from None
     if mime or not body: return resp.status if mime else None
     try: return json.loads(body)
     except ValueError: raise RuntimeError("DEV response is not JSON") from None
+
+def read_verified_trends(base, *, apikey, token, sleep=time.sleep):
+    """Retry only an idempotent signed GET after an ambiguous Azure HTTP 503.
+
+    An unavailable/cold DEV host is not a reason to replay a campaign POST.
+    Bound the retry count and preserve the final fail-closed response.
+    """
+    for attempt in range(3):
+        try:
+            return request(base+"/trend-recommendations",apikey=apikey,bearer=token)
+        except RuntimeError as exc:
+            if "DEV endpoint returned 503 [" not in str(exc) or attempt==2:
+                raise
+            print("FEATURE2_TRENDS_SAFE_GET_503_RETRY="+str(attempt+1),flush=True)
+            sleep(1)
+    raise RuntimeError("Trend GET unavailable")
+
+
+def verify_existing_image(apikey,token,expected_bytes):
+    """Download exact preexisting signed tenant object, verify first-party bytes."""
+    req=urllib.request.Request(ORIGIN+"/storage/v1/object/retailgrowth-media/"+PATH,
+         headers={"apikey":apikey,"Authorization":"Bearer "+token})
+    try:
+        with urllib.request.urlopen(req,timeout=20) as reply:
+            ensure(reply.status==200,"Private object GET was not authorized")
+            body=reply.read(100001)
+    except (urllib.error.HTTPError,urllib.error.URLError,TimeoutError):
+        raise RuntimeError("Previously registered private synthetic image unreadable") from None
+    ensure(hashlib.sha256(body).digest()==hashlib.sha256(expected_bytes).digest(),
+           "Private test object differs from deterministic owned PNG")
+
 
 def png():
     # Pixel data created here from math only; no third-party photographs.
@@ -97,8 +141,16 @@ def main():
     budget=request(ORIGIN+"/rest/v1/shop_ai_budget_controls?select=enabled&shop_id=eq."+SHOP,apikey=service)
     ensure(len(budget)==1 and budget[0]["enabled"] is False,
            "Test AI budget must stay disabled")
-    ensure(request(ORIGIN+"/rest/v1/media_assets?select=id&shop_id=eq."+SHOP,apikey=service)==[],
-           "Never replay or create another synthetic licensed media registration")
+    existing=request(ORIGIN+"/rest/v1/media_assets?select=id,shop_id,created_by,source,license_name,object_path,mime_type&shop_id=eq."+SHOP,apikey=service)
+    ensure(isinstance(existing,list) and len(existing)<=1,
+           "Unexpected preexisting synthetic media; no replay")
+    ensure(not existing or (existing[0]["shop_id"]==SHOP and
+           existing[0]["created_by"]==uid and existing[0]["source"]=="UPLOAD" and
+           existing[0]["license_name"]=="owned" and existing[0]["object_path"]==PATH and
+           existing[0]["mime_type"]=="image/png"),
+           "Preexisting media does not match the only original test asset")
+    ensure(request(ORIGIN+"/rest/v1/shop_content_drafts?select=id&shop_id=eq."+SHOP,apikey=service)==[],
+           "A previously persisted draft blocks this one-shot replay")
     users=request(ORIGIN+"/auth/v1/admin/users?page=1&per_page=100",apikey=service)
     matches=[u for u in users.get("users",[]) if u.get("id")==uid
              and str(u.get("email","")).startswith(AUTH_EMAIL_PREFIX)
@@ -119,19 +171,28 @@ def main():
     membership_url=ORIGIN+"/rest/v1/shop_memberships?shop_id=eq."+SHOP+"&user_id=eq."+uid
     active=False
     try:
+        # A lost PATCH acknowledgement can still mean the membership committed.
+        # Arm the revocation first so finally always restores inactive state.
+        active=True
         updated=request(membership_url,method="PATCH",apikey=service,obj={"active":True})
         ensure(len(updated)==1 and updated[0]["active"] is True,"Synthetic membership temporary restore failed")
-        active=True
         image=png()
         ensure(100<len(image)<100000,"Synthetic original PNG is invalid")
-        request(ORIGIN+"/storage/v1/object/retailgrowth-media/"+PATH,method="POST",
-                apikey=pub,bearer=token,blob=image,mime="image/png")
-        registered=request(ORIGIN+"/rest/v1/rpc/register_uploaded_image",method="POST",
-            apikey=pub,bearer=token,obj={
-                "p_shop_id":SHOP,"p_object_path":PATH,"p_license_name":"owned",
-                "p_license_url":None,
-                "p_attribution":"Original RGB test PNG drawn solely in Python for this isolated RetailGrowthAI DEV run."})
-        aid=str(UUID(registered))
+        if existing:
+            # Initial protected run uploaded/registered these exact bytes
+            # before a later GET 503. Do not upload or register them twice.
+            aid=str(UUID(existing[0]["id"]))
+            verify_existing_image(pub,token,image)
+            print("FEATURE2_HOSTED_SIGNED_EXISTING_ORIGINAL_IMAGE_READBACK=PASS",flush=True)
+        else:
+            request(ORIGIN+"/storage/v1/object/retailgrowth-media/"+PATH,method="POST",
+                    apikey=pub,bearer=token,blob=image,mime="image/png")
+            registered=request(ORIGIN+"/rest/v1/rpc/register_uploaded_image",method="POST",
+                apikey=pub,bearer=token,obj={
+                    "p_shop_id":SHOP,"p_object_path":PATH,"p_license_name":"owned",
+                    "p_license_url":None,
+                    "p_attribution":"Original RGB test PNG drawn solely in Python for this isolated RetailGrowthAI DEV run."})
+            aid=str(UUID(registered))
         assets=request(ORIGIN+"/rest/v1/media_assets?select=id,shop_id,created_by,source,license_name,object_path&id=eq."+aid,
                        apikey=pub,bearer=token)
         ensure(len(assets)==1 and assets[0]["shop_id"]==SHOP and
@@ -148,7 +209,7 @@ def main():
                response.get("usage",{}).get("paid_inference_calls")==0,
                "Zero-cost signed hosted prompt did not preserve DRAFT review")
         print("FEATURE2_HOSTED_SIGNED_ZERO_PAID_PROMPT_PREVIEW=PASS",flush=True)
-        feed=request(base+"/trend-recommendations",apikey=pub,bearer=token)
+        feed=read_verified_trends(base,apikey=pub,token=token)
         ensure(feed.get("shop_id")==SHOP and isinstance(feed.get("recommendations"),list),
                "Current source-backed owner recommendations unavailable")
         candidates=[t for t in feed["recommendations"]
