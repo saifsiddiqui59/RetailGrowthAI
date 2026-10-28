@@ -188,3 +188,88 @@ def check_small_safetensors_header(path, *, expected_size, max_header_bytes=10*1
         raise WanCompatibilityError("Invalid local safetensors metadata") from exc
     return {"stat_bytes":expected_size,"header_sha256":hashlib.sha256(raw).hexdigest(),
             "model_sha256_verified":False,"gpu_started":False}
+
+
+def audit_offline_wheelhouse(root, *, reviewed_wheel_sha256):
+    """Hash actual approved wheel bytes locally, without networking, pip or GPU.
+
+    Independently reviewed hashes must be supplied by a trusted operator.
+    A mere declared hash or image digest does not prove supplied wheel bytes.
+    Check wheel package/version identity, zip metadata and complete package
+    set. No files are extracted or executed.
+    """
+    import stat
+    from email.parser import Parser
+    from zipfile import BadZipFile, ZipFile
+
+    if type(reviewed_wheel_sha256) is not dict or not REQUIRED_PACKAGES <= set(reviewed_wheel_sha256):
+        raise WanCompatibilityError("An independently approved complete wheel manifest is required")
+    directory = Path(root)
+    if directory.is_symlink() or not directory.is_dir():
+        raise WanCompatibilityError("Wheelhouse must be an existing non-symlink directory")
+    def normalize(n):
+        return re.sub(r"[-_.]+", "-", n).lower()
+    registered = {normalize(k): (k,v) for k,v in reviewed_wheel_sha256.items()}
+    if len(registered) != len(reviewed_wheel_sha256):
+        raise WanCompatibilityError("Ambiguous normalized wheel package names")
+    seen = set()
+    total = 0
+    for path in sorted(directory.iterdir()):
+        if path.is_symlink() or not path.is_file() or not path.name.endswith(".whl"):
+            raise WanCompatibilityError("Wheelhouse has unexpected, non-wheel or linked entries")
+        if len(seen) >= 256:
+            raise WanCompatibilityError("Wheelhouse has too many dependencies")
+        # PEP 427 wheel name: distribution-version(-build)-python-abi-platform.whl
+        pieces = path.name[:-4].split("-")
+        if len(pieces) not in (5,6) or not pieces[0] or not pieces[1] or not all(pieces[-3:]):
+            raise WanCompatibilityError("Malformed wheel filename")
+        package = normalize(pieces[0])
+        if package not in registered or package in seen:
+            raise WanCompatibilityError("Duplicate or unapproved dependency wheel")
+        name, proof = registered[package]
+        if (type(proof) is not dict or set(proof) != {"version","sha256"} or
+            pieces[1] != proof["version"] or
+            not isinstance(proof["sha256"],str) or not SHA256.fullmatch(proof["sha256"])):
+            raise WanCompatibilityError("Wheel version or approved digest mismatch")
+        info = path.stat()
+        size = info.st_size
+        if not 100 <= size <= 8 * 1024 ** 3 or not stat.S_ISREG(info.st_mode):
+            raise WanCompatibilityError("Wheel has invalid byte size")
+        total += size
+        if total > 24 * 1024 ** 3:
+            raise WanCompatibilityError("Wheelhouse exceeds reviewed storage envelope")
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for data in iter(lambda:stream.read(1024*1024),b""):
+                digest.update(data)
+        if digest.hexdigest() != proof["sha256"] or path.stat().st_size != size:
+            raise WanCompatibilityError("Actual dependency wheel SHA256 does not match approval")
+        try:
+            with ZipFile(path) as archive:
+                members = archive.namelist()
+                if not members or len(members) > 50000 or any(
+                    x.startswith("/") or "\\" in x or
+                    ".." in x.split("/") or "\x00" in x
+                    for x in members
+                ):
+                    raise WanCompatibilityError("Malformed or unsafe wheel archive entries")
+                metadata = [x for x in members if x.endswith(".dist-info/METADATA")]
+                wheelmeta = [x for x in members if x.endswith(".dist-info/WHEEL")]
+                if len(metadata) != 1 or len(wheelmeta) != 1:
+                    raise WanCompatibilityError("Missing or ambiguous wheel metadata")
+                for entry in metadata + wheelmeta:
+                    if archive.getinfo(entry).file_size > 512 * 1024:
+                        raise WanCompatibilityError("Oversized wheel identity metadata")
+                record = Parser().parsestr(archive.read(metadata[0]).decode("utf8"))
+                if normalize(record.get("Name", "")) != package or record.get("Version") != proof["version"]:
+                    raise WanCompatibilityError("Embedded wheel identity differs from filename")
+                if not archive.read(wheelmeta[0]).startswith(b"Wheel-Version:"):
+                    raise WanCompatibilityError("Invalid wheel metadata")
+        except (OSError, ValueError, UnicodeError, BadZipFile) as exc:
+            raise WanCompatibilityError("Unreadable offline wheel archive") from exc
+        seen.add(package)
+    if seen != set(registered):
+        raise WanCompatibilityError("Wheelhouse missing approved dependencies")
+    return {"wheel_count":len(seen),"total_bytes":total,
+            "actual_file_hashes_checked":True,"gpu_started":False,
+            "offline_no_network":True}
