@@ -123,6 +123,44 @@ class UpstreamCpuEditorExecutableTests(unittest.TestCase):
         self.assertEqual(vol.returncode,0,vol.stderr[-600:])
         self.assertIn("mean_volume:",vol.stderr)
 
+    @unittest.skipUnless(shutil.which("node"),"Requires Node caption projection")
+    def test_real_ffmpeg_acrossfade_duration_matches_caption_projection(self):
+        # Existing MIT AutoClip Core compose: 30ms audio acrossfade for each
+        # actual join, 15ms video trimming at each side of the cut. This is a
+        # synthetic-tone timing benchmark, NOT real transcript/ASR validation.
+        import json
+        dst=self.home/"autoclip_projection_clock.mp4"
+        plan=render_autoclip_local_test_preview(**self.args(),output_path=dst)
+        request={
+          "shop_id":"timing-fixture-shop","asset_id":"timing-fixture-source",
+          "source_duration_seconds":plan["source_duration_seconds"],
+          "requested_reel_seconds":15,"audio_crossfade_seconds":0.03,
+          "keep_segments":plan["keep_segments"],
+          "words":[{"word":w["word"],"startMs":round(w["start"]*1000),
+                    "endMs":round(w["end"]*1000)} for w in WORDS]
+        }
+        script="""import fs from 'node:fs';
+import {projectUpstreamCaptionsAfterAutoClipCuts} from
+ './video-engine/feature7/autoclip_caption_handoff.mjs';
+const input=JSON.parse(fs.readFileSync(0,'utf8'));
+process.stdout.write(JSON.stringify(projectUpstreamCaptionsAfterAutoClipCuts(input)));
+"""
+        result=subprocess.run(["node","--input-type=module","-e",script],
+            input=json.dumps(request),text=True,capture_output=True,
+            cwd=ROOT,timeout=20)
+        self.assertEqual(result.returncode,0,result.stderr)
+        projection=json.loads(result.stdout)
+        expected=sum(k["end"]-k["start"] for k in plan["keep_segments"])
+        expected-=0.03*(len(plan["keep_segments"])-1)
+        self.assertAlmostEqual(projection["actual_timeline_duration_ms"]/1000,
+                               expected,delta=.003)
+        self.assertAlmostEqual(plan["output_duration_seconds"],expected,delta=.20)
+        self.assertEqual(len(projection["keep_projection"]),
+                         len(plan["keep_segments"]))
+        self.assertFalse(projection["approved"])
+        self.assertFalse(projection["measured_frame_level_sync"])
+        self.assertTrue(projection["requires_rendered_av_acceptance"])
+
     def test_media_forgery_unknown_asr_unapproved_output_and_replay_rejected(self):
         p=self.args()
         for wrong in [dict(source_sha256="a"*64),
