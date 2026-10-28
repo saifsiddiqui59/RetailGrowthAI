@@ -29,7 +29,14 @@ def test_scope_has_only_fixed_failed_canary_and_postrollback_windows():
             assert "TimeGenerated between" in text
             assert "summarize events=count()" in text
             assert ("take 25" if label in ("host_timeline", "request_status_timeline", "startup_401_link") else "take 80") in text
-            assert "project " not in text
+            # Join must project only timestamp + transient host-instance key;
+            # never project the original raw log message or URL to output.
+            if label == "startup_401_link":
+                assert text.count("| project TimeGenerated, instance") == 1
+                assert "| project Message" not in text
+                assert "| project Url" not in text
+            else:
+                assert "project " not in text
             assert "raw" not in text.lower()
             if label != "activity":
                 assert "AppRoleName" in text
@@ -134,9 +141,10 @@ def test_http_scale_group_link_is_only_401_evidence_not_a_503_claim():
     assert 'unlinked=countif(' in link
     assert 'ResultCode' in link and '"401"' in link
     assert '"503"' not in link
-    for start, end in ((module.WINDOWS[0][1], module.WINDOWS[0][2]),
-                       (module.WINDOWS[1][1], module.WINDOWS[1][2])):
-        assert start in link and end in link
+    for _, start, end in module.WINDOWS:
+        each_link = module.queries(start, end)["startup_401_link"]
+        assert start in each_link and end in each_link
+        assert "2026-10-27" not in each_link
 
 
 def test_safe_http_and_startup_link_counts_no_sensitive_fields():
