@@ -113,6 +113,12 @@ def safe_rows(payload) -> list[dict]:
     for raw in aggregate_records(payload)[:80]:
         row = {}
         count = raw.get("events")
+        # Azure CLI Log Analytics may return Kusto long counts serialized as
+        # bounded decimal strings or integral floats, not just Python int.
+        if isinstance(count, str) and count.isascii() and count.isdecimal() and len(count) <= 8:
+            count = int(count)
+        elif type(count) is float and count.is_integer():
+            count = int(count)
         if type(count) is int and 0 <= count <= 10000000:
             row["events"] = count
         when = raw.get("bucket")
@@ -146,8 +152,20 @@ def collect() -> int:
             try:
                 result = azure("monitor", "log-analytics", "query",
                                "-w", wid, "--analytics-query", q)
+                raw_rows = aggregate_records(result)
                 rows = safe_rows(result)
                 outcome = "AGGREGATED" if rows else "EMPTY_OR_FILTERED"
+                # Only report schema presence/type of fixed allowlisted fields,
+                # never values/messages or dynamic Kusto column names.
+                if not rows and raw_rows:
+                    sample = raw_rows[0]
+                    known = ("bucket", "events", "status", "category", "instance")
+                    print("P0249_SCHEMA=" + json.dumps({
+                        "window": label, "source": kind,
+                        "total_rows_capped": len(raw_rows),
+                        "field_types": {key: type(sample[key]).__name__
+                                        for key in known if key in sample},
+                    }, sort_keys=True), flush=True)
             except (RuntimeError, ValueError, TypeError, subprocess.TimeoutExpired):
                 rows, outcome = [], "UNAVAILABLE"
             print("P0249_CAUSAL=" + json.dumps({
