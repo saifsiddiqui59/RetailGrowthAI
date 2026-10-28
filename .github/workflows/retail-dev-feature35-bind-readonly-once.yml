@@ -100,7 +100,7 @@ jobs:
             test -n "$AZURE_STORAGE_ACCOUNT_KEY"
             echo "::add-mask::$AZURE_STORAGE_ACCOUNT_KEY"
             az containerapp env storage set -g "$RG" -n "$ENV_NAME" \
-              --storage-name "$BINDING" --storage-type AzureFile \
+              --storage-name "$BINDING" \
               --azure-file-account-name "$ACCOUNT" \
               --azure-file-share-name "$SHARE" \
               --azure-file-account-key "$AZURE_STORAGE_ACCOUNT_KEY" \
