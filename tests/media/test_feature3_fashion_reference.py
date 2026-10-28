@@ -84,6 +84,7 @@ class FashionKurtiReferenceTests(unittest.TestCase):
             "neckline":"Round neckline","sleeves":"Elbow-length sleeves",
             "length":"Knee length","embroidery":"Gold floral chest embroidery",
         }
+        self.product_revision=2
         self.calls=[]
     def row(self, id, source, path):
         from hashlib import sha256
@@ -112,12 +113,15 @@ class FashionKurtiReferenceTests(unittest.TestCase):
             return self.blobs[id]
         return dict(read_asset=media,authorize_asset=grant,
                     read_private_bytes=read,
+                    read_garment_metadata=lambda shop,id:{
+                        "shop_id":self.shop,"media_asset_id":self.garment,
+                        "status":"APPROVED","approval_revision":self.product_revision,
+                        "garment":self.info},
                     read_model=lambda shop,id:self.model_data,
                     read_review=lambda shop,id:self.review)
     def prepare(self, **overrides):
         args=dict(shop_id=self.shop,garment_asset_id=self.garment,
-                  purpose="image_to_video",garment_metadata=self.info,
-                  **self.readers())
+                  purpose="image_to_video",**self.readers())
         args.update(overrides)
         return prepare_fashion_references(**args)
 
@@ -190,6 +194,10 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         self.grants[self.garment]["rights_revision"]=4
         with self.assertRaises(FashionReferenceDenied):
             resolve_first_frame(expected_manifest=manifest,current_readers=self.readers())
+        self.grants[self.garment]["rights_revision"]=3
+        self.product_revision=3
+        with self.assertRaises(FashionReferenceDenied):
+            resolve_first_frame(expected_manifest=manifest,current_readers=self.readers())
 
     def test_private_bytes_mutation_and_malformed_path_fail(self):
         self.rows[self.garment]["object_path"]=f"{self.other}/uploads/{self.garment}.png"
@@ -205,10 +213,11 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         self.grants[self.garment]["approval_state"]="PENDING_REVIEW"
         with self.assertRaises(FashionReferenceDenied):self.prepare()
         self.grants[self.garment]["approval_state"]="APPROVED"
-        with self.assertRaises(FashionReferenceDenied):
-            self.prepare(garment_metadata={**self.info,"embroidery":""})
-        with self.assertRaises(FashionReferenceDenied):
-            self.prepare(garment_metadata={**self.info,"base_color":"teal"})
+        self.info["embroidery"]=""
+        with self.assertRaises(FashionReferenceDenied):self.prepare()
+        self.info["embroidery"]="Gold floral chest embroidery"
+        self.info["base_color"]="teal"
+        with self.assertRaises(FashionReferenceDenied):self.prepare()
 
     def test_worker_rejects_malicious_changed_manifest_or_stale_output_review(self):
         original=self.prepare(model_asset_id=self.model_asset,model_id=self.model_id,
