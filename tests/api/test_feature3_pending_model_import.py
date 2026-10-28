@@ -134,8 +134,8 @@ class ImportTests(unittest.TestCase):
                     ("rights_revision",2),("gpu_authorized",True),
                     ("evidence_verified",True),("registered",False)):
             self.receipt={**base,k:v}
-            with self.subTest(k=k),self.assertRaises(StorageUnavailable):
-                self.call()
+            with self.subTest(k=k):
+                self.assertEqual(self.call(), (503, {"error": "SERVICE_UNAVAILABLE"}))
         self.assertEqual(len(self.calls),7)
 
     def test_service_role_rejected_as_user_bearer(self):
