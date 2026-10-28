@@ -13,6 +13,7 @@ but DOES NOT guarantee de-duplication; never retry an uncertain POST.
 from __future__ import annotations
 
 import http.client
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -112,9 +113,23 @@ class WanPrivateComfyDispatcher:
         token=canonical_uuid(attempt_token)
         shop=canonical_uuid(package.lineage["shop_id"])
         source=canonical_uuid(package.lineage["source_asset_id"])
-        if verify_existing_fenced_paid_claim(shop,job,token,
-                                              package.lineage_sha256) is not True:
-            raise WanCompatibilityError("Missing current prepaid fenced attempt lease")
+        # Preserve Feature2's actually signed positive/negative scene direction,
+        # which may differ from the constructor's static default negative.
+        # Trust neither an edited graph nor a recomputed hash by itself: the
+        # independent existing transactional claim must fence BOTH digests.
+        try:
+            positive=package.graph["prompt"]["4"]["inputs"]["text"]
+            negative=package.graph["prompt"]["5"]["inputs"]["text"]
+            complete_sha=hashlib.sha256(json.dumps(
+                {"positive":positive,"negative":negative},sort_keys=True,
+                separators=(",",":"),allow_nan=False).encode()).hexdigest()
+        except (KeyError,TypeError,ValueError,AttributeError) as exc:
+            raise WanCompatibilityError("Malformed Feature2 model prompt bundle") from exc
+        if (positive != package.prompt or
+            complete_sha != package.prompt_sha256 or
+            verify_existing_fenced_paid_claim(
+                shop,job,token,package.lineage_sha256,package.prompt_sha256) is not True):
+            raise WanCompatibilityError("Unreviewed creative digest or missing prepaid fenced attempt")
         # An authoritative F3 resolver must reauthorize rights and the actual
         # staged basename after the lease. A boolean cannot prove which local
         # file the supposedly approved model will consume.
@@ -131,7 +146,8 @@ class WanPrivateComfyDispatcher:
         # Actual protected runtime /object_info, never browser supplied.
         object_info=self.transport("GET","/object_info",None)
         validate_native_graph_against_object_info(
-            package.graph,object_info,expected_input_filename=proof["staged_basename"])
+            package.graph,object_info,expected_input_filename=proof["staged_basename"],
+            expected_negative_prompt=negative)
         body={"prompt":package.graph["prompt"],"prompt_id":token}
         # The provider POST is allowed EXACTLY ONCE here. The Comfy server
         # accepts duplicate prompt IDs, so UUID alone does not deduplicate.
