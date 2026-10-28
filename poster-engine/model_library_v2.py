@@ -161,9 +161,13 @@ def import_model_image(*, candidate, image_bytes, authorize_import,
               digest + "|" + candidate.source_uri + "|" +
               candidate.license_evidence_sha256 + "|" + candidate.pose)
     model_id = str(uuid5(_MODEL_NAMESPACE, source))
-    path = (f"model-library/platform/{model_id}/{digest}.png"
+    # Storage RLS and the existing PrivateMedia adapter require the actual
+    # owner tenant UUID as the first object-key component, even for a
+    # curator-approved shared model. A platform metadata grant never grants
+    # another tenant the original private bytes.
+    path = (f"{candidate.owner_shop_id}/model-library/platform/{model_id}/{digest}.png"
             if candidate.scope == "platform" else
-            f"shops/{candidate.owner_shop_id}/model-library/{model_id}/{digest}.png")
+            f"{candidate.owner_shop_id}/model-library/{model_id}/{digest}.png")
     record = {
         "schema": "retailgrowth.model-library.v1",
         "model_id": model_id, "owner_shop_id": candidate.owner_shop_id,
@@ -221,8 +225,8 @@ def checked_model_for_use(*, model, requesting_shop_id, usage, authorize_use):
     if (model.get("license_id") == "CC-BY-4.0"
         and not model.get("attribution")):
         raise ModelLibraryDenied("Attribution required for derivative use")
-    expected_prefix = ("model-library/platform/" if model["scope"] == "platform"
-                       else f"shops/{owner}/model-library/")
+    expected_prefix = (f"{owner}/model-library/platform/" if model["scope"] == "platform"
+                       else f"{owner}/model-library/")
     key = model.get("storage_key")
     canonical_key = (expected_prefix + model["model_id"] + "/" +
                      model["image_sha256"] + ".png")
