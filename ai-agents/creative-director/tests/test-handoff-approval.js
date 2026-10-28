@@ -55,5 +55,91 @@ fails(()=>h.approveCreativeDraft(original,noMembership,KEY),'revoked member');
 const forgedBudget=structuredClone(original);
 forgedBudget.motion_direction_v1[0].requested_profile.inference_approved=true;
 fails(()=>h.editorHandoff(forgedBudget,receipt,KEY,'shop-403'),'no silent model approval');
+// Regression: HMAC authenticates canonical payload, not arbitrary injected
+// permission fields. These fields previously retained a valid HMAC.
+fails(()=>h.verifyCreativeApproval(original,{...receipt,can_publish:true},KEY,'shop-403'),
+  'forged can_publish=true rejected');
+fails(()=>h.verifyCreativeApproval(original,{...receipt,can_run_paid_motion:true},KEY,'shop-403'),
+  'forged can_run_paid_motion=true rejected');
+fails(()=>h.verifyCreativeApproval(original,{...receipt,decision:'PUBLISH_APPROVED'},KEY,'shop-403'),
+  'forged decision rejected');
+fails(()=>h.verifyCreativeApproval(original,{...receipt,paid_gpu_approved:true},KEY,'shop-403'),
+  'extra unsigned permission rejected');
+fails(()=>h.verifyCreativeApproval(original,{...receipt,can_publish:0},KEY,'shop-403'),
+  'nonboolean permission rejected');
+assert.equal(h.verifyCreativeApproval(original,receipt,KEY,'shop-403'),true);
+
+// Trusted server-only source bridge: do not trust even a perfect-looking
+// browser reviewer object. Recheck RLS membership immediately before receipt.
+const sourceHash=h.expectedPlanSha(original);
+const sourceMotionHash=crypto.createHash('sha256').update(JSON.stringify(original.motion_direction_v1)).digest('hex');
+const storedReview={
+  shop_id:'shop-403',campaign_id:'campaign-403',reviewer_id:'user-approver',
+  plan_sha256:sourceHash,motion_sha256:sourceMotionHash,
+  revoked_at:null,source_media_current:true,claims_current:true,approved_by_human:true
+};
+const observed={membership:0,review:0};
+const readers={
+  verifyJwt:token=>token==='verified-jwt'?'user-approver':null,
+  currentMembership:(token,actor,shop)=>{
+    assert.equal(token,'verified-jwt');
+    assert.equal(actor,'user-approver');
+    assert.equal(shop,'shop-403');
+    observed.membership++;
+    return {shop_id:shop,user_id:actor,active:true,role:'OWNER'};
+  },
+  readEditorialReview:(token,actor,shop,campaign)=>{
+    observed.review++;
+    assert.equal(campaign,'campaign-403');
+    return {...storedReview};
+  }
+};
+const trusted=h.approveCreativeDraftFromTrustedReaders(
+  original,'Bearer verified-jwt','shop-403',readers,KEY);
+assert.equal(h.verifyCreativeApproval(original,trusted,KEY,'shop-403'),true);
+assert.equal(observed.membership,2);
+assert.equal(observed.review,1);
+const denyTrusted=(change,label)=>{
+  const altered={
+    ...readers,
+    ...change,
+  };
+  fails(()=>h.approveCreativeDraftFromTrustedReaders(original,'Bearer verified-jwt',
+    'shop-403',altered,KEY),label);
+};
+denyTrusted({currentMembership:()=>({shop_id:'shop-403',user_id:'user-approver',active:true,role:'VIEWER'})},
+  'viewer current JWT denied');
+denyTrusted({currentMembership:()=>({shop_id:'foreign-shop',user_id:'user-approver',active:true,role:'OWNER'})},
+  'foreign shop denied');
+denyTrusted({readEditorialReview:()=>({...storedReview,plan_sha256:'0'.repeat(64)})},
+  'review was signed for another plan');
+denyTrusted({readEditorialReview:()=>({...storedReview,source_media_current:false})},
+  'revoked image denied');
+denyTrusted({readEditorialReview:()=>({...storedReview,claims_current:false})},
+  'revoked promotional text denied');
+denyTrusted({readEditorialReview:()=>({...storedReview,revoked_at:'2026-10-28T00:00:00Z'})},
+  'revoked editorial receipt denied');
+denyTrusted({readEditorialReview:()=>({...storedReview,approved_by_human:false})},
+  'automation must not forge human editorial approval');
+denyTrusted({verifyJwt:()=>null},'unsigned JWT denied');
+const revoking={
+  ...readers,
+  currentMembership:(token,actor,shop)=>{
+    observed.membership++;
+    return {shop_id:shop,user_id:actor,active:observed.membership%2!==0,role:'OWNER'};
+  }
+};
+observed.membership=0;
+fails(()=>h.approveCreativeDraftFromTrustedReaders(
+  original,'Bearer verified-jwt','shop-403',revoking,KEY),
+  'revoked during RLS source read is denied');
+// No alias should let the receiving editor mutate the reviewed original.
+const clean=h.editorHandoff(original,receipt,KEY,'shop-403');
+clean.creative_direction_v1.scenes[0].id='modified-in-editor';
+clean.motion_direction_v1[0].generation_prompt='changed';
+clean.editorial_receipt.can_publish=true;
+assert.equal(original.creative_direction_v1.scenes[0].id,'s1');
+assert.equal(original.motion_direction_v1[0].generation_prompt,'An approved complete deep red kurti shot');
+assert.equal(receipt.can_publish,false);
 fails(()=>h.approveCreativeDraft(original,reviewer,'weak-secret'),'weak secret');
 console.log('Feature2 -> Feature4/5 editorial-only HMAC handoff test PASS; model and publication OFF');
