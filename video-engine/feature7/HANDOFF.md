@@ -53,3 +53,19 @@ There is no user-facing API/route, Supabase migration, tenant persistence, brows
 5. Update coordinator-owned docs/PROJECT_STATE.md, docs/NEXT_TASK.md, docs/DECISIONS.md and docs/WORK_LOG.md *after* integration; this feature worker must not edit those shared files in parallel. Record PR head SHA and exact four-job CI, not assumed success.
 
 **Current disposition:** feature-source proposal, not production-capable Feature7 AI. Keep PR draft until real data/model and Feature4 integration gates pass.
+
+
+## 2026-10-28 parallel source continuation (after PR #513 initial success)
+
+A new independent offline test-data implementation was added on this same Feature7 branch:
+- \`media_preflight.mjs\`: strict tenant-approved local staged MP4, SHA256, ftyp, ffprobe codec/duration/size, path and symlink guards. This does NOT register or authorize an actual Supabase video upload and does not accept browser-supplied signed rights.
+- \`audio_activity.mjs\`: read-only FFmpeg \`silencedetect\`; structured non-silent regions are **not speech recognition** or VAD. AAC is preserved, not muted, rewritten or billed.
+- \`transcript_adapter.mjs\`: actual AutoBroll-style WhisperX JSON word parsing, bounded timecodes, caption projection through trim and source hash binding for a *trusted worker*. No live WhisperX model invocation; a supplied synthetic transcript is a test input.
+- \`private_review_pipeline.mjs\`: stitches private media bytes, trusted grant, source-relative transcript and audio-activity evidence into the already existing Feature4-compatible \`NEEDS_REVIEW\` draft, with no self-approval.
+- \`semantic_suggestions.mjs\`: pure deterministic similarity ranking of retailer-uploaded retakes plus sparse keyword matches to approved tenant-owned B-roll. Zero cloud/AI calls, no automatic scene deletion or insertion.
+- \`tests/media/test_feature7_pipeline.py\`: generates an original 16-second **low-resolution synthetic MP4 with AAC 440Hz tone** via actual FFmpeg and supplies synthetic WhisperX-shaped word timecodes. This is *not a real recorded spoken advertisement*. Executes positive end-to-end pure source preflight and negative forged/foreign/revoked, traversal/symlink, audio/hash and ASR timing paths.
+- \`tests/media/test_feature7_suggestions.py\`: tests similarity and owner-approved cutaway guidance, including foreign/revoked stock denial.
+
+Feature4's F4-15 adapter still applies **only one contiguous trim per original scene**. Speech silence-gap runs, retake drop choices, overlays and B-roll suggestions are not yet supported by its renderer. Every output is \`approved:false\`, \`renderable:false\` and human-review-required. Do not treat successful unit tests as actual speech intelligibility, private signed production assets, customer footage, published ad, approved video rights or hosted DEV.
+
+All independent workstreams and blockers are tracked in \`video-engine/feature7/TASKS_20261028.md\`. Check final PR head/4-job GitHub Actions outcome before claiming this continuation is green. The coordinator alone updates the canonical \`docs/**\` state, tasks, decisions and work log after integration.
