@@ -35,14 +35,14 @@ class FashionReferenceDenied(ValueError):
     """Fail closed; do not leak whether foreign media exists."""
 
 
-def _id(value):
+def _id(value, *, require_random=True):
     try:
         uid = UUID(value)
-        if str(uid) == value and uid.version == 4:
+        if str(uid) == value and (not require_random or uid.version == 4):
             return value
     except (TypeError, ValueError, AttributeError):
         pass
-    raise FashionReferenceDenied("Canonical tenant and media UUIDv4 required")
+    raise FashionReferenceDenied("Canonical tenant, media or model UUID required")
 
 
 def _human_garment(value):
@@ -142,7 +142,7 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
 
 
 def _model_approval(shop, model_id, image, read_model):
-    model = read_model(shop, _id(model_id))
+    model = read_model(shop, _id(model_id, require_random=False))
     if (not isinstance(model, dict) or model.get("model_id") != model_id or
         model.get("owner_shop_id") != shop or
         model.get("media_asset_id") != image["source_asset_id"] or
