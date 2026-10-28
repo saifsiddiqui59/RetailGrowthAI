@@ -25,6 +25,7 @@ export default function Feature3PosterHost({ client, shopId, children }) {
     import.meta.env?.VITE_CAMPAIGN_API_BASE_URL
     ? createFeature3Api({
         baseUrl: import.meta.env.VITE_CAMPAIGN_API_BASE_URL,
+        signedStorageOrigin: import.meta.env.VITE_SUPABASE_URL,
         tokenProvider: () => client.getAccessToken(),
       }) : null, [client])
   const [preview, setPreview] = useState(() => empty(shopId))
