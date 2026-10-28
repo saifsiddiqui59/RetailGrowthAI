@@ -16,7 +16,7 @@ export function SocialAccountReadView({shopId,records}){
  const visible=state==='all'?accounts:accounts.filter(a=>a.status===state)
  return <div className="rg-f1-read-view" aria-label="Social account read preview">
   <label>Status <select aria-label="Social account status filter" value={state} onChange={e=>setState(e.target.value)}>
-   <option value="all">All states</option>{['CONNECTED','EXPIRED','REVOKED','PENDING'].map(s=><option value={s} key={s}>{s}</option>)}
+   <option value="all">All states</option>{['CONNECTED','DISCONNECTED','EXPIRED','REVOKED','PENDING'].map(s=><option value={s} key={s}>{s}</option>)}
   </select></label>
   <p role="status">{visible.length} accounts matching (offline input only)</p>
   <div className="rg-f1-read-grid">{visible.map(a=><Card key={a.id} className="rg-f1-read-card">
