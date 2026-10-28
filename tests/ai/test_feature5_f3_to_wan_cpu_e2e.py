@@ -1,6 +1,6 @@
 """End-to-end CPU synthetic fixture, NOT actual Wan inference or licensed customer footage.
 
-Real Feature3 reference preparer and fresh worker re-verifier -> on-disk
+Feature3 resolver when present; otherwise a test-only compatible mock -> on-disk
 private first frame -> real Feature2/F4 Wan graph -> synthetic ffmpeg still-video
 -> real ffprobe frame/duration/media SHA -> PENDING receipt. No queue, GPU or cloud.
 """
@@ -17,9 +17,83 @@ import tempfile
 import unittest
 
 ROOT=Path(__file__).resolve().parents[2]
-sys.path.insert(0,str(ROOT/"tests"/"media"))
-from test_feature3_fashion_reference import FashionKurtiReferenceTests
-from fashion_reference_v1 import resolve_first_frame
+# The Feature5 draft branch is stacked on #323, which predates the later
+# Feature3 main-only #515 source. Never duplicate/force merge another lead's
+# feature to make CI pass. Use a test-only compatible simulator on the old
+# branch, and the REAL Feature3 resolver whenever its source is integrated.
+if (ROOT/"poster-engine"/"fashion_reference_v1.py").is_file() and (
+    ROOT/"tests"/"media"/"test_feature3_fashion_reference.py"
+).is_file():
+    sys.path.insert(0,str(ROOT/"tests"/"media"))
+    sys.path.insert(0,str(ROOT/"poster-engine"))
+    from test_feature3_fashion_reference import FashionKurtiReferenceTests
+    from fashion_reference_v1 import resolve_first_frame
+    USING_REAL_FEATURE3 = True
+else:
+    USING_REAL_FEATURE3 = False
+    from io import BytesIO
+    from uuid import uuid4
+    import json
+    from PIL import Image, ImageDraw
+
+    class FashionKurtiReferenceTests:
+        """SIMULATED Feature3 data only; never production rights/approval."""
+        def __init__(self,methodName="runTest"):
+            pass
+        def setUp(self):
+            self.shop,self.garment,self.model_asset,self.tryon,self.model_id=(
+                str(uuid4()) for _ in range(5)
+            )
+            img=Image.new("RGB",(720,1080),"#F6F0E8")
+            draw=ImageDraw.Draw(img)
+            draw.ellipse((310,80,410,210),fill="#BD927A")
+            draw.polygon([(275,230),(445,230),(510,850),(210,850)],
+                         fill="#2B6978")
+            for y in (290,370,450,530,610):
+                draw.arc((330,y,400,y+45),0,160,fill="#E3B56C",width=6)
+            out=BytesIO();img.save(out,format="PNG")
+            self.raw=out.getvalue()
+            self.grants={self.tryon:{"rights_revoked":False}}
+            self.bundle=None
+        def prepare(self,*,model_asset_id,model_id,try_on_asset_id):
+            assert (model_asset_id,model_id,try_on_asset_id)==(
+                self.model_asset,self.model_id,self.tryon)
+            current_hash=hashlib.sha256(self.raw).hexdigest()
+            fingerprint=hashlib.sha256(json.dumps(
+                [self.shop,self.garment,self.model_asset,self.tryon,current_hash],
+                separators=(",",":")).encode()).hexdigest()
+            frame={"source_asset_id":self.tryon,"sha256":current_hash,
+                   "mime_type":"image/png","dimensions":[720,1080]}
+            self.bundle={
+                "schema":"retailgrowth.fashion-reference-bundle.v1",
+                "shop_id":self.shop,"purpose":"image_to_video",
+                "output_approved":False,"gpu_authorized":False,
+                "model":{"pose":"front","synthetic_adult":True},
+                "try_on_review":{"state":"HUMAN_REVIEW_PASSED"},
+                "sources":{
+                    "garment":{"source_asset_id":self.garment},
+                    "model":{"source_asset_id":self.model_asset},
+                    "first_frame":frame,
+                },
+                "reference_fingerprint":fingerprint,
+            }
+            return self.bundle
+        def readers(self):
+            return {"offline_fixture":self}
+
+    def resolve_first_frame(*,expected_manifest,current_readers,verify_worker_job):
+        """ONLY test-double for Feature3's server-side reauthorization."""
+        f3=current_readers["offline_fixture"]
+        ids=tuple(sorted([f3.garment,f3.model_asset,f3.tryon]))
+        if (f3.grants[f3.tryon]["rights_revoked"] or
+            expected_manifest!=f3.bundle or
+            verify_worker_job(f3.shop,ids,f3.bundle["reference_fingerprint"]) is not True):
+            raise ValueError("Simulated source reauthorization rejected")
+        frame=f3.bundle["sources"]["first_frame"]
+        return {"shop_id":f3.shop,"source_asset_id":f3.tryon,
+                "sha256":frame["sha256"],"mime_type":"image/png",
+                "dimensions":[720,1080],"image_bytes":f3.raw,
+                "generation_executed":False,"gpu_authorized":False}
 from test_feature5_wan22_motion_adapter import fixture
 from feature5_motion.feature3_reference_bridge import stage_approved_fashion_first_frame
 from feature5_motion.wan22_motion_adapter import (
