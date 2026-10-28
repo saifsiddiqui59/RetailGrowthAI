@@ -19,12 +19,13 @@ writer, new wallet, database migration or upload surface.
   Asset ownership, private bucket, immutable tenant-first object path,
   mime, actual decoded dimensions and SHA256 of **private image bytes**,
   license evidence, current rights revision and approval are checked.
-- `resolve_first_frame(expected_manifest, current_readers)` is a PRIVATE
+- `resolve_first_frame(expected_manifest, current_readers, verify_worker_job)` is a PRIVATE
   Feature5 worker-only operation. It repeats the full source/model/product/
   review check, demands an identical reference fingerprint and makes one
   last hash-verified image read. It returns **in-process `image_bytes`**
-  for image-to-video *after* separately authorized queue claim/provider
-  cost gates. It returns NO Blob URL, bearer JWT, API key, payable job
+  for image-to-video *after* an independently verified, currently leased
+  durable private worker job (`verify_worker_job`) checks shop, source IDs,
+  exact reference fingerprint, subscription and approved cost cap. It returns NO Blob URL, bearer JWT, API key, payable job
   receipt or public source. It does not start GPU or a renderer.
 - `plan_virtual_try_on(manifest)` prepares an **unbilled, blocked** pair
   of garment/model IDs and category for licensed future provider
