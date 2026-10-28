@@ -776,3 +776,9 @@
 
 ## 2026-10-28 — #249 do NOT equate routine host initialization with worker failure
 - Corrected read-only Azure live run #40763519425 discovered multiple worker starts and `host initialization` trace messages on distinct hashed instances. Historical classifier `host_error` was a misleading alias for the mere substring `host initialization` and **must be renamed neutral**; the 30-row per-instance cap requires a separate full-window minute timeline to avoid hiding later typed evidence. Functions' independent Queue/Timer trigger scaling means host churn may be unrelated to failing HTTP group, and 401 request logs do not identify unmarked 503 ingress. No verified gRPC/worker-startup exception linked yet. Keep causal gate on original request-to-instance host/worker evidence before any runtime/plan setting or customer cutover; issue #249 open, original import-only PR #568 draft.
+
+## Feature3 real acceptance policy — 2026-10-28
+- Respect coordinator-only shared-doc integration. Source #574 solved all three overlapping SQL inventories without bypassing historical scoped release denial. Compensate any repeated queue dispatch at envelope level only; never replay uncertain charged inference, auto-mark human rights, or settle by a fabricated receipt.
+- A verified CC0 public Wikimedia garment original is objective copyright/byte provenance of that exact still image, not a marketing release for an identified person, private retailer SKU, model reference or actual VTON output. `#576` emits human likeness and GPU approval flags FALSE.
+- Preview and import UI #563 remains disabled until real signed tenant/reviewer/curator DEV deployment. 4/4 disposable CI validates source contracts, not live consent, paid inference, cloud deployment or CDN.
+- KEEP GPU and paid API OFF, no unreviewed hosted Supabase mutations and no WineShopPOS/PROD.
