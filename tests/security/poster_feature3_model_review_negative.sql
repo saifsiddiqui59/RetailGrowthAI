@@ -33,6 +33,19 @@ values('b3000000-0000-4000-8000-000000000031',
 repeat('a',64),'REVIEWED-COMMERCIAL',repeat('b',64),
 array['poster','try_on','video_reference']);
 
+-- Even a direct service-role/postgres UPDATE cannot counterfeit approval
+-- without a same-transaction reviewer event: this is not just an RPC check.
+do $
+declare denied boolean := false;
+begin
+ begin
+  update public.feature3_models set status='APPROVED',
+   rights_verified=true,rights_revision=2
+   where model_id='b3000000-0000-4000-8000-000000000031';
+ exception when insufficient_privilege then denied:=true; end;
+ if not denied then raise exception 'FAIL un-audited direct model promotion'; end if;
+end $;
+
 -- Authentication alone cannot invent independent license verification.
 set local role authenticated;
 select set_config('request.jwt.claim.role','authenticated',true);
