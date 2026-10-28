@@ -1,7 +1,8 @@
 'use strict';
 const assert=require('node:assert/strict');
 const crypto=require('node:crypto');
-const {approveCreativeDraft,verifyCreativeApproval,editorHandoff}=require('../handoff-approval');
+const {approveCreativeDraft,approveCreativeDraftFromTrustedReaders,expectedPlanSha,
+  verifyCreativeApproval,editorHandoff}=require('../handoff-approval');
 const {auditFeature4Consumer}=require('../consumer-compat');
 const {previewOffline,readinessFromOffline}=require('../offline-acceptance');
 const {projectReviewedCreativeForF4}=require('../feature4-source-projection');
@@ -24,7 +25,29 @@ process.stdin.on('end',()=>{
     const report=readinessFromOffline(mock);
     assert.equal(report.feature2_production_ready,false);
     assert.equal(report.offline_source_scenario,'PASSED');
-    const receipt=approveCreativeDraft(b,reviewer,KEY);
+    let membershipChecks=0, editorialReads=0;
+    const reviewStore={
+      verifyJwt:jwt=>jwt==='offline-jwt-for-current-owner'?payload.reviewer_id:null,
+      currentMembership:(jwt,actor,shop)=>{
+        membershipChecks++;
+        return {shop_id:shop,user_id:actor,active:true,role:'OWNER'};
+      },
+      readEditorialReview:(jwt,actor,shop,campaign)=>{
+        editorialReads++;
+        return {
+          shop_id:shop,campaign_id:campaign,reviewer_id:actor,
+          plan_sha256:expectedPlanSha(b),
+          motion_sha256:crypto.createHash('sha256')
+            .update(JSON.stringify(b.motion_direction_v1)).digest('hex'),
+          revoked_at:null,source_media_current:true,
+          claims_current:true,approved_by_human:true
+        };
+      }
+    };
+    const receipt=approveCreativeDraftFromTrustedReaders(
+      b,'Bearer offline-jwt-for-current-owner',c.shop_id,reviewStore,KEY);
+    assert.equal(membershipChecks,2);
+    assert.equal(editorialReads,1);
     assert.equal(verifyCreativeApproval(b,receipt,KEY,c.shop_id),true);
     const handoff=editorHandoff(b,receipt,KEY,c.shop_id);
     assert.equal(handoff.can_publish,false);
