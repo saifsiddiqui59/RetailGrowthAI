@@ -211,7 +211,7 @@ def require_approved_runtime_image(j):
     """
     expected = os.getenv("RETAIL_F5_REVIEWED_RUNTIME_IMAGE", "").strip()
     actual = ((((j.get("properties") or {}).get("template") or {}).get("containers") or [{}])[0].get("image") or "")
-    pattern = r"[^@\\s]+@sha256:[0-9a-fA-F]{64}"
+    pattern = r"[^@\s]+@sha256:[0-9a-fA-F]{64}"
     if not re.fullmatch(pattern, expected) or actual != expected:
         raise SafetyError("Paid start requires the exact reviewed OCI image digest")
     return expected
