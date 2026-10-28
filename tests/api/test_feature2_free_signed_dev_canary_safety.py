@@ -93,3 +93,19 @@ def test_ambiguous_membership_restore_still_arms_cleanup_first():
     assert source.index('    try:\n        # A lost PATCH acknowledgement') < source.index(arm,source.index('    try:\n        # A lost PATCH acknowledgement')) < source.index(patch)
     assert source.index(patch) < source.index(ensure)
     assert 'request(membership_url,method="PATCH",apikey=service,obj={"active":False})' in source
+
+
+def test_absent_real_clothing_trend_skips_post_without_pretending_hosted_draft_saved():
+    source=SCRIPT.read_text()
+    start=source.index('        if not candidates:')
+    end=source.index('        trend=candidates[0]',start)
+    guard=source[start:end]
+    assert 'FEATURE2_HOSTED_REAL_FASHION_TREND=NOT_AVAILABLE_FAIL_CLOSED' in guard
+    assert 'FEATURE2_HOSTED_DRAFT_SAVE=BLOCKED_NO_RELEVANT_LIVE_TREND' in guard
+    assert 'FEATURE2_HOSTED_UNVERIFIED_TREND_POST=SKIPPED_NO_FABRICATED_ID' in guard
+    assert 'request(' not in guard
+    assert 'return' in guard
+    # Real positive branch remains present; a future source-backed fashion
+    # recommendation is still required for signed DRAFT POST/GET.
+    assert 'trend=candidates[0]' in source
+    assert 'FEATURE2_HOSTED_REAL_TREND_SIGNED_DRAFT_SAVE_READBACK=PASS' in source
