@@ -13,9 +13,10 @@ import {analyzeLocalAudioActivity} from './audio_activity.mjs';
 import {proposeUploadedFootageEdits,EditValidationError} from './autobroll_semantics.mjs';
 import {suggestRetakeSelections,suggestOwnedCutaways} from './semantic_suggestions.mjs';
 import {suggestGapCuts} from './gap_cut_advisory.mjs';
+import {analyzeLocalVisualActivity} from './visual_activity.mjs';
 
 export function preparePrivateReview({shop_id,campaign_id,draft,root,media,
-  broll_grants=[]}={}) {
+  broll_grants=[],include_visual_qa=false}={}) {
   if(!draft || draft.shop_id!==shop_id || draft.campaign_id!==campaign_id ||
     !Array.isArray(draft.scenes) || !Array.isArray(media) ||
     draft.scenes.length!==media.length || !Array.isArray(broll_grants) ||
@@ -54,6 +55,9 @@ export function preparePrivateReview({shop_id,campaign_id,draft,root,media,
     evidence.push({scene_index:index,asset_id:item.asset_id,
       source_sha256:verified.sha256,transcript_sha256:transcript.transcript_sha256,
       local_media_verified:verified.validation,audio_activity:activity,
+      visual_activity:include_visual_qa ? analyzeLocalVisualActivity({
+        path:resolveApprovedLocalVideo({root,relative_path:item.relative_path}),
+        duration_seconds:verified.duration_seconds}) : null,
       container:'video/mp4',paid_calls:0});
   }
   // Check B-roll as trusted same-shop reviewed retailer uploads too. No URL,
