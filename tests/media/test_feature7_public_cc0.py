@@ -254,5 +254,42 @@ class Feature7InternetCC0SpeechVideoTests(unittest.TestCase):
                 self.assertNotEqual(outcome.returncode, 0, outcome.stdout)
 
 
+    def test_proposed_trim_can_make_private_test_preview_with_sound(self):
+        """Exercise FFmpeg mechanically; Feature4 remains sole production renderer."""
+        outcome = self.invoke(self.payload())
+        self.assertEqual(outcome.returncode, 0, outcome.stderr[-1000:])
+        proposal = json.loads(outcome.stdout)["review"]
+        edit = proposal["scenes"][0]
+        self.assertFalse(proposal["approved"])
+        self.assertFalse(edit["mute_source"])
+        preview = self.home / "offline_test_preview.mp4"
+        enc = subprocess.run([
+            "ffmpeg", "-hide_banner", "-v", "error", "-nostdin", "-y",
+            "-ss", str(edit["trim_start"]), "-i", str(self.clip),
+            "-t", str(edit["duration"]),
+            "-map", "0:v:0", "-map", "0:a:0",
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "30",
+            "-pix_fmt", "yuv420p", "-c:a", "aac", "-ac", "1",
+            "-movflags", "+faststart", str(preview)
+        ], capture_output=True, text=True, timeout=60)
+        self.assertEqual(enc.returncode, 0, enc.stderr[-1200:])
+        probe = subprocess.run([
+            "ffprobe", "-v", "error", "-show_streams", "-show_format",
+            "-of", "json", str(preview)
+        ], capture_output=True, text=True, timeout=20)
+        self.assertEqual(probe.returncode, 0, probe.stderr)
+        tracks = json.loads(probe.stdout)
+        self.assertAlmostEqual(float(tracks["format"]["duration"]), 15, delta=.2)
+        self.assertEqual(sum(s["codec_type"] == "video"
+                             for s in tracks["streams"]), 1)
+        self.assertEqual(sum(s["codec_type"] == "audio"
+                             for s in tracks["streams"]), 1)
+        self.assertEqual(next(s["codec_name"] for s in tracks["streams"]
+                              if s["codec_type"] == "audio"), "aac")
+        self.assertGreater(preview.stat().st_size, 100000)
+        self.assertEqual(hashlib.sha256(self.clip.read_bytes()).hexdigest(),self.sha)
+        # Test artifact is destroyed with TemporaryDirectory. It is not a
+        # hosted render, editor implementation, or customer-approved download.
+
 if __name__ == "__main__":
     unittest.main()
