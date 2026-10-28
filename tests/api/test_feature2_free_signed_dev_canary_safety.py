@@ -37,3 +37,50 @@ def test_protected_workflow_has_no_azure_paid_inference_or_unprotected_pr():
     assert "TEST FIXTURE" in a
     assert "finally:" in a and "TEST_MEMBERSHIP_REVOKED" in a
     assert "RETAIL_FEATURE2_REAL_AI_ENABLED" not in w
+
+def test_recover_existing_synthetic_media_only_with_exact_preflight():
+    src=SCRIPT.read_text()
+    assert 'len(existing)<=1' in src
+    assert 'existing[0]["created_by"]==uid' in src
+    assert 'existing[0]["object_path"]==PATH' in src
+    assert 'existing[0]["mime_type"]=="image/png"' in src
+    assert 'verify_existing_image(pub,token,image)' in src
+    assert 'Previously registered private synthetic image unreadable' in src
+    assert 'shop_content_drafts?select=id' in src
+    assert 'FEATURE2_HOSTED_SIGNED_EXISTING_ORIGINAL_IMAGE_READBACK=PASS' in src
+
+
+def test_safe_get_retries_only_503_no_post_or_unbounded_loop():
+    probe=runpy.run_path(str(SCRIPT))["read_verified_trends"]
+    retries=[]
+    def temporary_503(url, *, apikey, bearer):
+        retries.append(url)
+        if len(retries)==1:
+            raise RuntimeError("DEV endpoint returned 503 [GATEWAY_OR_UNKNOWN] for GET AZURE_API/path")
+        return {"shop_id":"safe","recommendations":[]}
+    probe.__globals__["request"]=temporary_503
+    response=probe("https://rgai-dev-functions-d4e5ddbd.azurewebsites.net/api/shops/safe",
+                   apikey="TEST_PUBLISHABLE",token="SIGNED_TEST",sleep=lambda seconds: None)
+    assert response["shop_id"]=="safe"
+    assert len(retries)==2
+    assert all(url.endswith("/trend-recommendations") for url in retries)
+
+
+def test_non_503_or_repeat_failure_does_not_mutate_or_continue():
+    probe=runpy.run_path(str(SCRIPT))["read_verified_trends"]
+    attempts=[]
+    def denied(url, **kwargs):
+        attempts.append(url)
+        raise RuntimeError("DEV endpoint returned 403 [GATEWAY_OR_UNKNOWN] for GET")
+    probe.__globals__["request"]=denied
+    with pytest.raises(RuntimeError,match="403"):
+        probe("https://dev.example.invalid",apikey="TEST",token="TEST",sleep=lambda _:None)
+    assert len(attempts)==1
+    attempts.clear()
+    def outage(url, **kwargs):
+        attempts.append(url)
+        raise RuntimeError("DEV endpoint returned 503 [TREND_STORAGE_UNAVAILABLE] for GET")
+    probe.__globals__["request"]=outage
+    with pytest.raises(RuntimeError,match="503"):
+        probe("https://dev.example.invalid",apikey="TEST",token="TEST",sleep=lambda _:None)
+    assert len(attempts)==3
