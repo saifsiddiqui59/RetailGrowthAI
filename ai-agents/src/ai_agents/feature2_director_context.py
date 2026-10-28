@@ -176,7 +176,7 @@ def build_verified_director_context(
         if len(eligible) != len(set(eligible)):
             raise CreativeContextRejected("Duplicate approved product SKU")
         approved_wording = _text(row.get("approved_claim_text"), minimum=10, maximum=180)
-        percent_pattern = rf"(?<!\\d){row['percent_off']}\\s*(?:%|percent|per[\\s-]*cent)\\s*(?:off|discount|sale|savings?)"
+        percent_pattern = rf"(?<!\d){row['percent_off']}\s*(?:%|percent|per[\s-]*cent)\s*(?:off|discount|sale|savings?)"
         if re.search(percent_pattern, approved_wording, flags=re.I) is None:
             raise CreativeContextRejected("Approved copy does not identify the documented discount")
         approved_offers.append({
