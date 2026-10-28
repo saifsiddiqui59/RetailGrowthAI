@@ -818,3 +818,7 @@
 
 ## Feature3 signed PNG URL visibility and revocation limitation (2026-10-28)
 - Never render a generated signed PNG URL for a different tenant/campaign/day, late GET response or local 55-second lifetime. Do not conflate UI cleanup with backend signed-token revocation: issued Supabase Storage tokens remain valid until their server expiration unless a server-enforced revocation mechanism is deployed. Keep private JWT/RLS source rechecks and 60s server link TTL.
+
+## 2026-10-28 — Feature3 seven DEV migrations completed with guarded canonical history
+- Explicit user request to apply seven pending DEV-only SQL scripts accepted for RetailGrowthAI project `jeearzffnjbvghwjjjrf`. Deployment used original repository timestamp versions and full original SQL bodies, all seven in one atomic transaction, strict match of the 24 pre-existing version+name prefix, model/GPU state guard and version count verification. Live connected `list_migrations` returned 31 canonical versions and no RUNNING GPU. This is not a release of front-end feature flags or proof of signed users. No backup was created or restore rehearsal was performed; document this DEV limitation and do not claim recovery assurance.
+- Source-only queue publisher must send minimally `{schema,shop_id,job_id}` under SQL claim lease to an injected existing queue, then ACK separately; unknown queue or SQL ACK stops pipeline, no GPU/financial statement fabricated. Paid uncertainty requires operator reconciliation and existing SQL one-shot claim gates.

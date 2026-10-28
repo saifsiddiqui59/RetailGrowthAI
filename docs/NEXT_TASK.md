@@ -1122,3 +1122,8 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## Feature3 generated download scope follow-up (2026-10-28)
 - Verify private-link lifecycle branch PR exact four-job CI and postmerge CI. When hosted release is authorized, independently test signed JWT access, cross-shop denial, short Storage link expiry, and rights revocation. Browser hide/expiry cannot make a previously issued 60s Storage signed URL immediately invalid; server-mediated download or revocation strategy remains necessary for strict immediate cancellation.
+
+## 2026-10-28 — Feature3 after real seven-SQL hosted DEV deployment
+- **DONE HOSTED SQL:** recheck exact version list=31 ending `20261028232000`; next schema changes must be separately versioned/reviewed. Continue no-GPU and feature flags OFF. Do NOT reapply original seven or rewrite migration history.
+- **P0 remaining:** owner-authorized real synthetic-model private original PNG upload and independent byte+rights evidence to approved model (no fabricated license); guarded Feature3 frontend/backend deployment and tests, private generated image writer, true revocation/download checks. Live DEV signed-user multi-role E2E deferred until all features are ready; one email record does not equal a usable auth session.
+- **P1 remaining:** real existing dedicated Azure queue/worker provision scope, ledger reconciliation on paid-unknown claims, and no blind retries; genuine Feature2/4/5/7 source + private consumer handoffs, actual poster Creative Studio QA; original #249 gateway reliability unresolved. Source-only queue publisher uses injected existing queue and remains GPU-OFF.
