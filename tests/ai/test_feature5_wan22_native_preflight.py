@@ -127,7 +127,8 @@ class WanPinnedNativePreflightTests(unittest.TestCase):
             altered=copy.deepcopy(original)
             altered["prompt"][node]["inputs"][key]=value
             with self.subTest(label=label),self.assertRaises(WanCompatibilityError):
-                validate_native_graph_against_object_info(altered,info)
+                validate_native_graph_against_object_info(
+                    altered,info,expected_input_filename="f3_verified_private.png")
         extra=copy.deepcopy(original)
         extra["prompt"]["13"]=copy.deepcopy(extra["prompt"]["5"])
         with self.assertRaises(WanCompatibilityError):
