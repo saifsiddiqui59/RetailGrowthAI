@@ -19,22 +19,42 @@ from pathlib import Path
 from .feature2_ai_writer import AzureFeature2ContentLLM
 from .providers import FoundryUnavailable
 
-_DIRECTOR = Path(__file__).resolve().parents[2] / "creative-director" / "director-cli.js"
+def _director_path() -> Path:
+    """Resolve checkout and intended Python Functions ZIP without untrusted cwd/env."""
+    source = Path(__file__).resolve()
+    candidates = (
+        source.parent / "creative-director" / "director-cli.js",
+        source.parents[2] / "creative-director" / "director-cli.js",
+    )
+    for cli in candidates:
+        root = cli.parent
+        if (cli.is_file() and not cli.is_symlink()
+            and (root / "director.js").is_file()
+            and not (root / "director.js").is_symlink()
+            and (root / "upstream" / "LICENSE").is_file()
+            and (root / "upstream" / "explainer-plan.js").is_file()
+            and (root / "upstream" / "explainer-cues.js").is_file()
+            and (root / "upstream" / "explainer-revise.js").is_file()):
+            notice = (root / "upstream" / "LICENSE").read_text("utf-8")
+            if "MIT License" in notice and "Copyright (c) 2026 Kuble AG" in notice:
+                return cli
+    raise FoundryUnavailable("Pinned MIT Creative Director sources missing from approved package")
 _OUTPUT_BOUNDS = {15: 4200, 30: 8500, 60: 15000}
 
 
 def _run_director(action: str, payload: dict) -> dict:
     if action not in {"prompt", "compile", "revise"}:
         raise ValueError("Unrecognized creative operation")
+    director = _director_path()
     node = shutil.which("node")
-    if node is None or not _DIRECTOR.is_file():
+    if node is None:
         raise FoundryUnavailable("Pinned source creative planner unavailable: Node runtime missing")
     try:
         serialized = json.dumps(payload, ensure_ascii=False)
         if len(serialized) > 320_000:
             raise ValueError("Creative request too large")
         completed = subprocess.run(
-            [node, str(_DIRECTOR), action], input=serialized,
+            [node, str(director), action], input=serialized,
             capture_output=True, text=True, timeout=12, check=False,
         )
         if completed.returncode or len(completed.stdout) > 500_000:
