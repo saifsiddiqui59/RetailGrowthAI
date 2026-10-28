@@ -36,7 +36,7 @@ CATEGORIES = frozenset(TYPES)
 INSTANCE = 'tostring(column_ifexists("AppRoleInstance",""))'
 STATES = frozenset(("requests", "traces", "exceptions", "function_logs", "activity"))
 STATUS = re.compile(r"^[1-5][0-9]{2}$")
-BUCKET = re.compile(r"^2026-10-28T(19|20):[0-5][0-9]:00(?:Z|\\+00:00)$")
+BUCKET = re.compile(r"^2026-10-28T(19|20):[0-5][0-9]:00(?:Z|\+00:00)$")
 
 
 def classify_expr(*, field: str) -> str:
@@ -64,6 +64,8 @@ def queries(start: str, end: str) -> dict[str, str]:
     time_range = (
         f' | where TimeGenerated between (datetime({start}) .. datetime({end}))'
     )
+    exception_message = 'strcat(ExceptionType, " ", tostring(column_ifexists("OuterMessage","")))'
+    function_message = 'tostring(column_ifexists("Message", ""))'
     prefix = lambda table: table + time_range + APP_FILTER
     instance = f' | extend instance={INSTANCE}'
     bucket = 'bucket=bin(TimeGenerated,1m)'
@@ -82,14 +84,14 @@ def queries(start: str, end: str) -> dict[str, str]:
         ),
         "exceptions": (
             prefix("AppExceptions") + instance
-            + f' | extend category={classify_expr(field="strcat(ExceptionType, \" \", tostring(column_ifexists(\"OuterMessage\",\"\")))")}'
+            + f' | extend category={classify_expr(field=exception_message)}'
             + ' | where category != "other"'
             + f' | summarize events=count() by {bucket}, category, instance'
             + ' | order by bucket asc | take 80'
         ),
         "function_logs": (
             prefix("FunctionAppLogs") + instance
-            + f' | extend category={classify_expr(field="tostring(column_ifexists(\"Message\", \"\"))")}'
+            + f' | extend category={classify_expr(field=function_message)}'
             + ' | where category != "other"'
             + f' | summarize events=count() by {bucket}, category, instance'
             + ' | order by bucket asc | take 80'
