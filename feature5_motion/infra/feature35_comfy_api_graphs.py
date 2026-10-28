@@ -99,7 +99,7 @@ def wan22_ti2v_5b(*, prompt, seed, approved_input_file=None, width=832, height=4
     prompt = _text(prompt)
     seed = _seed(seed)
     width = _dim(width, maximum=1280, multiple=32)
-    height = _dim(height, maximum=704, multiple=32)
+    height = _dim(height, maximum=1280, multiple=32)
     if type(frames) is not int or not 5 <= frames <= 121 or (frames-1)%4:
         raise WorkflowError("Wan length must be 4n+1, <=121 (~5s at 24fps)")
     if fps != 24 or type(fps) is not int:
