@@ -10,12 +10,18 @@ from security import AuthenticationError
 
 
 class Feature3V2API:
-    def __init__(self, tenant_store, design_store, *, model_review_enabled=False):
+    def __init__(self, tenant_store, design_store, *, model_review_enabled=False,
+                 verify_reviewed_output=None):
         self.tenant = tenant_store
         self.designs = design_store
         # Independent Gate B: source review SQL must be deployed and tested
         # before any hosted POST approval/revocation is allowed.
         self.model_review_enabled = model_review_enabled is True
+        # Never issue a private generated download based on SUCCEEDED alone.
+        # This server-injected callable must independently validate a durable
+        # human output review, currently authorized source rights and exact
+        # original private bytes. No such hosted verifier is configured yet.
+        self.verify_reviewed_output = verify_reviewed_output
 
     def _campaign_day(self, token, user_id, cid, did, *, write=False):
         campaign = self.tenant.campaign(token, user_id, cid)
@@ -143,6 +149,39 @@ class Feature3V2API:
             token, sid, jid, job["output_asset_id"])
         if asset is None:
             return 404, {"error": "OUTPUT_NOT_FOUND"}
+        # Source-only until a separately reviewed, durable per-output human
+        # approval ledger and current binary/rights verifier are available.
+        # Job SUCCEEDED + registered media is NOT visual or legal approval.
+        # Do not expose a signed object URL for an unreviewed image.
+        from re import fullmatch
+        key = asset.get("object_path") if isinstance(asset, dict) else None
+        prefix = sid + "/feature3/gpu/" + jid + "/"
+        if not isinstance(key, str) or not key.startswith(prefix) or not (
+                fullmatch(r"[a-f0-9]{64}\\.png", key[len(prefix):])):
+            return 404, {"error": "OUTPUT_NOT_FOUND"}
+        digest = key[len(prefix):-4]
+        reviewer = self.verify_reviewed_output
+        if not callable(reviewer):
+            return 409, {"error": "OUTPUT_REVIEW_REQUIRED"}
+        review = reviewer(token, sid, jid, job["output_asset_id"], digest)
+        if not isinstance(review, dict) or set(review) != {
+                "shop_id", "job_id", "media_asset_id", "image_sha256",
+                "review_revision", "review_state", "human_confirmed",
+                "private_bytes_verified", "source_rights_current",
+                "commercial_use_cleared", "rights_revoked",
+        } or review.get("shop_id") != sid or review.get("job_id") != jid or (
+            review.get("media_asset_id") != job["output_asset_id"] or
+            review.get("image_sha256") != digest or
+            type(review.get("review_revision")) is not int or
+            review["review_revision"] < 1 or
+            review.get("review_state") != "HUMAN_REVIEW_PASSED" or
+            review.get("human_confirmed") is not True or
+            review.get("private_bytes_verified") is not True or
+            review.get("source_rights_current") is not True or
+            review.get("commercial_use_cleared") is not True or
+            review.get("rights_revoked") is not False
+        ):
+            return 409, {"error": "OUTPUT_REVIEW_REQUIRED"}
         return 200, {"job_id": jid, "media_asset_id": job["output_asset_id"],
                      "url": self.tenant.sign_download(
                          token, sid, asset["object_path"]),
