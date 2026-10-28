@@ -32,6 +32,11 @@ def fake_wheels(folder):
     return reviews
 
 
+def fake_wheels_in_memory():
+    return {name:{"version":"1.2.3","sha256":"a"*64}
+            for name in REQUIRED_PACKAGES}
+
+
 class WanOfflineWheelhouseTest(unittest.TestCase):
     def test_real_byte_sha256_audit_of_full_synthetic_wheelhouse(self):
         with TemporaryDirectory() as td:
@@ -101,7 +106,6 @@ class WanOfflineWheelhouseTest(unittest.TestCase):
             proof=audit_offline_wheelhouse(td,reviewed_wheel_sha256=approved)
             self.assertEqual(proof["wheel_count"],len(approved))
             text=render_reviewed_require_hashes(approved)
-            path=Path(td)/"requirements.lock"
             # Store lock outside wheel directory: no unexpected wheelhouse entries.
             target=Path(td).parent/(Path(td).name+".require-hashes.txt")
             try:
@@ -132,8 +136,3 @@ class WanOfflineWheelhouseTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-def fake_wheels_in_memory():
-    return {name:{"version":"1.2.3","sha256":"a"*64}
-            for name in REQUIRED_PACKAGES}
-
