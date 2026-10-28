@@ -30,3 +30,15 @@
 ## Combined cross-module proof (one source scenario, no other feature input)
 
 The new test `ai-agents/tests/test_feature2_full_upstream_stock_audio_pipeline.py` runs the real pinned Open Creative Director MIT planner to compile a fictional 30- and 60-second Diwali kurti Reel with source-reconciled word timestamps, calls the **actual pinned upstream cues module** for editor-caption line proposals, checks full Feature2 structural quality, verifies a synthetic original MP4's SHA/rights under a current dummy JWT/three role checks, inserts a 5-second stock *story cutaway proposal only*, then checks synthetic original WAV bytes/duration/commercial approval against the **same signed creative plan hash**. It ensures no mutation of original script/camera/product/CTA, no paid dispatch, no publish, no GPU; invalid tenant/audio and forged publication fields are denied. **Both MP4 and WAV bytes are clearly self-generated test fixtures**, not real Pexels licensed original footage or a genuine spoken voice. This bridges independent modules to catch integration mistakes while the actual Feature3/4/5 image/video services are unavailable and does not authorize deployment.
+
+## Reproducible genuine source-code demo (no subscription/GPU/provider)
+
+The offline-only runnable demonstration now lives in `ai-agents/creative-director/scripts/offline-demo.js`. It calls the actual pinned original MIT Kuble Open Creative Director planner/caption source through the RetailGrowthAI retailer-safe source adapters and uses only entirely **fictional** Diwali kurti retailer + SKU/offer/media grants. Commands:
+
+```bash
+node ai-agents/creative-director/scripts/offline-demo.js 15 --summary
+node ai-agents/creative-director/scripts/offline-demo.js 30 --json
+node ai-agents/creative-director/scripts/offline-demo.js 60 --summary
+```
+
+The full JSON preserves exact creative_direction_v1, motion_direction_v1, DRAFT approval, original plan hash and upstream voice-caption preview, but is **not authorized** for any real tenant, paid motion, production source, human-rights review or publication. Summary and full JSON explicitly mark synthetic inputs, billed calls zero, GPU disabled, no rendered video, no genuine recorded voice or downloaded media. Only the 15/30/60 and --summary/--json flag pairs are accepted; no network, filesystem write or credential is used. CI source test `ai-agents/tests/test_feature2_real_upstream_demo_cli.py` exercises all three and negative arguments. This is a concrete reusable demo even while Feature3/4/5 inputs are absent.
