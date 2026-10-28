@@ -18,6 +18,7 @@ import wave
 from pathlib import Path
 
 from asset_preflight import inspect_staged_audio, inspect_staged_image
+from feature4_caption_track import checked_caption_cues
 from render import checked_path, validate_rights
 
 VERSION = "rg_video_v2"
@@ -97,7 +98,7 @@ def checked_video(path):
 
 def validate(plan, manifest, asset_root, allow_test_media=False):
     fields(plan, {"version", "shop_id", "mode", "template", "duration_seconds", "output",
-                  "scenes", "cta", "music_asset_id", "voiceover_asset_id", "beats", "brand", "logo_asset_id"},
+                  "scenes", "cta", "music_asset_id", "voiceover_asset_id", "caption_cues", "beats", "brand", "logo_asset_id"},
            {"version", "shop_id", "mode", "template", "duration_seconds", "output", "scenes", "cta"}, "plan")
     fields(manifest, {"shop_id", "assets"}, {"shop_id", "assets"}, "manifest")
     if plan["version"] != VERSION or plan["shop_id"] != manifest["shop_id"] or not UUID.fullmatch(str(plan["shop_id"])):
@@ -112,6 +113,13 @@ def validate(plan, manifest, asset_root, allow_test_media=False):
     if (out["width"], out["height"]) not in ((540, 960), (1080, 1920)) or out["fps"] not in (24, 30):
         raise VideoPlanError("Only portrait 540p/1080p, 24/30 FPS is supported")
     clean_text(plan["cta"], "approved CTA", 110)
+    if plan.get("caption_cues") is not None:
+        if plan.get("voiceover_asset_id") is None:
+            raise VideoPlanError("Timed subtitles need approved voiceover")
+        try:
+            checked_caption_cues(plan["caption_cues"],duration)
+        except ValueError as exc:
+            raise VideoPlanError("Invalid approved timed subtitle: "+str(exc)) from exc
     brand = plan.get("brand")
     if brand is not None:
         fields(brand, {"name", "primary_color", "secondary_color"},
@@ -379,6 +387,14 @@ html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background
 h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.015em;text-transform:uppercase;margin:0;overflow-wrap:anywhere}}
 .offer{{font-weight:900;font-size:{width//8}px;letter-spacing:-.055em;color:{accent};line-height:1;margin:4% 0 0}}
 .index{{position:absolute;bottom:2%;right:6%;font-size:{max(11,width//48)}px;letter-spacing:.22em;font-weight:700;opacity:.58}}
+.spoken-caption{{position:absolute;left:7%;right:7%;bottom:35%;z-index:12;
+ display:flex;justify-content:center;text-align:center;pointer-events:none}}
+.spoken-caption span{{display:inline-block;max-width:100%;padding:2.2% 4%;
+ color:#fff;background:#090a13e8;border-radius:{max(7,width//100)}px;
+ font-size:{max(22,width//19)}px;line-height:1.2;font-weight:800;
+ text-shadow:0 1px 3px #000;overflow-wrap:anywhere;
+ animation:subtitlePop .18s ease-out both}}
+@keyframes subtitlePop{{from{{opacity:0;transform:translateY(10%)}}to{{opacity:1;transform:translateY(0)}}}}
 .s2 .glass{{border-top-color:{fg}66}}
 .hero-logo{{position:absolute;top:20%;left:28%;width:44%;height:32%;z-index:5;object-fit:contain;
  filter:drop-shadow(0 15px 42px #0008)}}
@@ -462,6 +478,14 @@ h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.01
             f'data-track-index="3" style="position:absolute;top:16%;left:12%;right:12%;z-index:9;'
             f'background:{accent};color:{bg};padding:2%;text-align:center;font-size:{width//22}px;'
             f'font-weight:900;border-radius:12px">{cta}</div>'
+        )
+    # Source of truth is the Feature2-reviewed transcript, never browser HTML.
+    for index,cue in enumerate(plan.get("caption_cues") or []):
+        safe=clean_text(cue["text"],"approved timed subtitle",90)
+        components.append(
+            f'<div id="spoken-caption{index}" class="clip spoken-caption" '
+            f'data-start="{cue["start"]}" data-duration="{cue["duration"]}" '
+            f'data-track-index="8"><span>{safe}</span></div>'
         )
     # Narration is a full-length approved audio source, not 2-second SFX.
     # Fix gain in the trusted renderer until an advanced audio-mix contract exists.

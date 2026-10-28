@@ -86,4 +86,41 @@ class NarrationMediaTests(unittest.TestCase):
         with self.assertRaises(CreativeContractError):
             compile_approved_storyboard(draft,trusted)
 
+    def test_reviewed_feature2_caption_cues_become_real_timed_root_clips(self):
+        f=self.fixture()
+        cues=[{"start":0.5,"duration":2.5,"text":"Diwali Collection"},
+              {"start":10.0,"duration":2.0,"text":"Silk & festive style"},
+              {"start":25.0,"duration":3.0,"text":"Visit Our Store"}]
+        f.request["script"]["transcript"]=cues
+        with tempfile.TemporaryDirectory() as tmp:
+            compiled=compile_creative_reel(f.request,f.manifest,f.assets,Path(tmp)/"render")
+            html=(compiled/"index.html").read_text()
+        self.assertEqual(html.count('class="clip spoken-caption"'),3)
+        self.assertIn('data-start="10.0" data-duration="2.0" data-track-index="8"',html)
+        self.assertIn("Silk &amp; festive style",html)
+        self.assertEqual(render_inputs(f.request,f.manifest).plan["caption_cues"],cues)
+
+    def test_invalid_untrusted_timed_captions_fail_closed(self):
+        valid={"start":0.5,"duration":2,"text":"Approved copy"}
+        invalid=[
+          [valid,{"start":1,"duration":1,"text":"Overlap"}],
+          [{"start":29,"duration":3,"text":"Outside Reel"}],
+          [{"start":True,"duration":2,"text":"Bool"}],
+          [{"start":float("nan"),"duration":2,"text":"NaN"}],
+          [{"start":0,"duration":0.1,"text":"Short"}],
+          [{"start":0,"duration":2,"text":"<script>alert(1)</script>"}],
+          [{"start":0,"duration":2,"text":"Text","css":"bad"}],
+          "not timed"
+        ]
+        for cues in invalid:
+            f=self.fixture()
+            f.request["script"]["transcript"]=cues
+            with self.subTest(cues=cues),self.assertRaises(CreativeContractError):
+                render_inputs(f.request,f.manifest)
+        f=self.fixture()
+        f.request["script"]["transcript"]=[valid]
+        f.request.pop("voiceover_asset_id")
+        with self.assertRaisesRegex(CreativeContractError,"voice recording"):
+            render_inputs(f.request,f.manifest)
+
 if __name__=="__main__":unittest.main()

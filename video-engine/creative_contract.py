@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass
 from uuid import UUID
 
+from feature4_caption_track import checked_caption_cues
 from professional import VideoPlanError, compile_composition, validate
 
 CONTRACT_VERSION = "creative_reel_v1"
@@ -121,6 +122,14 @@ def render_inputs(request, media_manifest, *, allow_synthetic_test=False):
         approved_text.add(line)
     if script["cta"] not in approved_text:
         raise CreativeContractError("Final CTA must be approved by Feature #2")
+    captions=None
+    if script.get("transcript") is not None:
+        if request.get("voiceover_asset_id") is None:
+            raise CreativeContractError("Timed subtitles require approved voice recording")
+        try:
+            captions=checked_caption_cues(script["transcript"],request["duration_seconds"])
+        except ValueError as exc:
+            raise CreativeContractError("Invalid approved Feature2 subtitle timing: "+str(exc)) from exc
     brand = request["brand"]
     require_fields(brand, {"shop_name", "primary_color", "secondary_color", "logo_asset_id"},
                    {"shop_name", "primary_color", "logo_asset_id"}, "approved brand")
@@ -251,6 +260,8 @@ def render_inputs(request, media_manifest, *, allow_synthetic_test=False):
                    "voiceover_asset_id": voice_id}
     if request.get("beat_grid") is not None:
         composition["beats"] = copy.deepcopy(request["beat_grid"])
+    if captions is not None:
+        composition["caption_cues"] = captions
     selected = {"shop_id": shop_id, "assets": media}
     audit = {"version": CONTRACT_VERSION, "campaign_id": request["campaign_id"],
              "video_job_id": request["video_job_id"], "idempotency_key": request["idempotency_key"],
