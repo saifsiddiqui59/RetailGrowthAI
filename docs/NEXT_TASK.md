@@ -982,6 +982,11 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 - **P0 real-media acceptance:** import one genuinely shop-owned approved kurti and synthetic-adult model from independently reviewed commercial image sources (not revoked old synthetic test rows); confirm private object byte SHA, registered media UUID and current rights before presenting to Feature2/4/5. Prove VIEWER/foreign/anon/expired, failed six checks, curator self-approval and stale race denial with true signed JWT/DB tests.
 - **P1/P2 remain:** provider licensing and *real* visual garment fidelity, protected outbox/worker/cost settlement, generated private output writer, existing Feature4 final Reel QA, hosted DEV launch and original Azure #249 reliability. GPU must remain OFF without separately approved bounded spend.
 
+## 2026-10-28 — #249 powered first/warm/idle acceptance pending live completion
+- DONE source-only matched original Flex/Node test PR #533 and 4/4 CI; active protected workflow #40691854364. Do not invent p95 or statuses while RUNNING.
+- NEXT immediately classify completed request codes/TTFB/marker and real completed-HTTP p95 if >=20; find causal original-host worker/ingress evidence. If cause proven, minimal reversible DEV repair with tests/CI and rerun. No speculative always-ready, plan migration, or unsafe write retry.
+- NEXT separate ROOT-approved signed OWNER/EDITOR/VIEWER/revoked two-shop positive/negative hosted check; rights-owned private image -> poster -> queued real 30s H264/AAC MP4 -> signed private GET, outbox/lease/retries/cleanup. Standard offline tests/e2e/test_campaign_journey.py covers role/queue/media mock gates only. Issue #249 OPEN; no WineShopPOS/PROD.
+
 
 ## 2026-10-28 — Feature #1 remaining after keyset history #536
 - **P2-02 history consistency SOURCE DONE:** [#536](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/536) merged `7ade3c33dd6f3e39837b278b4b3028f25d0ed864`, PR exact [#40692187676](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40692187676) 4/4 PASS, postmerge [#40692756975](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40692756975) independently check result. New uploads don't shift keyset pages; no forced snapshot or fabricated total. Future concurrent row deletion can still create sparse pages; refetch after membership changes.

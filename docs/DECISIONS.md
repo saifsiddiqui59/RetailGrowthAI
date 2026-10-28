@@ -708,6 +708,9 @@
 - Revision changes must be atomic and strictly monotonic across approval, rejection and revocation; stale or ambiguous DB acknowledgements cannot be treated as success or retried blindly. Even a changed/withdrawn license must not block emergency model revocation. Platform-curator approval requires independent reviewer and does not delegate private owner pixels across shops.
 - Scope #532 is server-only, no new HTTP approval route, GPU access, payments, model inference, image upload or unauthorized hosted migration. Source tests use fictional Pillow geometry and fake private SQL callbacks; they are not proof of real approved image rights.
 
+## 2026-10-28 — #249 equal route required for meaningful backend HTTP comparison
+- Previous eight GET comparison mixed anonymous campaign auth 401 and unknown route 404 (which may be served by different router layers). Use fixed same anonymous campaign GET 401 on both Python Flex and Node, marker-required for original Python, 20 observations each by initial/warm/concurrent/postidle. Count any 503, timeout or absent original handler marker as FAILURE. p95 needs >=20 complete responses; never present n20 as p99 or proven cold start. No automatic retry of POST/PATCH, unsafe JWT relaxation, paid plan alteration or customer cutover. Node synthetic success is not full Python Queue/FFmpeg tenant parity; root cause UNKNOWN and #249 OPEN.
+
 
 ## 2026-10-28 — Feature #1 media cursor instead of unstable offset (#536)
 - Prefer immutable existing Postgres `media_assets.created_at,id` as descending keyset for authenticated user-JWT/RLS reads. Limit each request to 101, expose at most 100 records and use the 100th raw row's validated UTC timestamp/UUID as the next cursor. PostgREST `or=(created_at.lt.cursor,and(created_at.eq.cursor,id.lt.uuid))` prevents new head inserts causing later-page duplication/misses. No migration, service-role browser token or full-count query.
