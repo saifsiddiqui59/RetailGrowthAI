@@ -15,7 +15,7 @@
 
 ## Offline tests and hard boundaries
 
-- `tests/frontend/feature3-model-workflow-api.test.mjs`: 11 Node test cases with fictional signed sessions, foreign shop, wrong status, six checks, explicit rejection/revocation, blocked raw Storage path, expired JWT, 409/503 no retry and base-origin restriction. These tests do not prove genuine browser login or commercial rights; source code build must pass exact-head CI.
+- `tests/frontend/feature3-model-workflow-api.test.mjs`: 12 Node test cases with fictional signed sessions, foreign shop, wrong status, six checks, explicit rejection/revocation, blocked raw Storage path, expired JWT, blocked service/publishable keys, 409/503 no retry and base-origin restriction. These tests do not prove genuine browser login or commercial rights; source code build must pass exact-head CI.
 - The model private original must already be uploaded and registered under the customer shop through the existing protected media process. The HTTP import route does **not** upload image bytes or prove license. The service-only evidence writer (#553), independent person/license reviewer and signed decision/revocation SQL (#555) must be deployed after separately reviewed migrations before any genuine positive hosted acceptance.
 - The present UI requires manually supplied current revision and independent evidence revision; a complete authenticated read-back/status and private-media upload browsing experience remains future work. It is NOT an automatic real-customer approval.
 - Real approved licensed photos, real VTON, accurate garment identity, GPU inference and budget, private output CAS/storage implementation, downstream live handlers, Azure #249 reliability and signed two-tenant DEV checks are still open.
