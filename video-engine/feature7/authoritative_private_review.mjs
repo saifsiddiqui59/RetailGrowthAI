@@ -9,6 +9,7 @@
  */
 import {verifyMediaRightsEvidence} from './media_rights_evidence.mjs';
 import {verifyPrivateVideo} from './media_preflight.mjs';
+import {withVerifiedPrivateVideoSnapshots} from './private_media_snapshot.mjs';
 import {prepareEvidenceBoundReview} from './evidence_bound_review.mjs';
 import {EditValidationError} from './autobroll_semantics.mjs';
 
@@ -57,11 +58,30 @@ export function prepareAuthoritativePrivateReview({
     // Actual ffprobe duration is authoritative, never browser metadata.
     return {...item,grant,source_duration_seconds:checked.duration_seconds};
   });
-  const result=prepareEvidenceBoundReview({
-    shop_id,campaign_id,draft,root,media:verified,broll_grants,
-    job_id,asr_key,now_ms
+  const result=withVerifiedPrivateVideoSnapshots({
+    shop_id,root,media:verified,analyze:(frozenRoot)=>
+      prepareEvidenceBoundReview({
+        shop_id,campaign_id,draft,root:frozenRoot,media:verified,
+        broll_grants,job_id,asr_key,now_ms
+      })
   });
+  // No transaction is held across this synchronous source-level function.
+  // Check again immediately before returning, while rejecting any revoked
+  // or changed registry snapshot. The hosted coordinator must enforce an
+  // actual DB lock/lease for the final approval/render boundary.
+  for(const item of verified){
+    const current=getCurrentApprovedVideo({shop_id,asset_id:item.asset_id});
+    check(current && current.shop_id===shop_id &&
+      current.asset_id===item.asset_id &&
+      current.active===true && current.rights_status==='APPROVED' &&
+      current.rights_revision===item.grant.rights_revision &&
+      current.sha256===item.expected_sha256 &&
+      current.relative_path===item.relative_path &&
+      current.has_audio===item.grant.has_audio,
+    'Private video rights changed during source review');
+  }
   return {...result,media_rights_evidence_verified:true,
     rights_rechecked_against_authoritative_registry:true,
+    frozen_media_snapshot_verified:true,
     approved:false,renderable:false};
 }
