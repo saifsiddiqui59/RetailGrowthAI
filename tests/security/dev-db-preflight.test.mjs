@@ -32,8 +32,8 @@ test('read-only remote DEV snapshot identifies exact prefix and pending ordered 
   assert.equal(result.pending.at(-5).file, '20261024190000_p1_platform_operations.sql');
   assert.equal(result.pending.at(-4).file, '20261026152000_feature2_trends_drafts.sql');
   assert.equal(result.pending.at(-3).file, '20261026152102_p0_249_reel_render_intent.sql');
-  assert.equal(result.pending.at(-2).file, '20261026173000_feature3_model_catalog_drafts.sql');
-  assert.equal(result.pending.at(-1).file, '20261026194000_feature2_ai_cost_ledger.sql');
+  assert.equal(result.pending.at(-2).file, '20261026194000_feature2_ai_cost_ledger.sql');
+  assert.equal(result.pending.at(-1).file, '20261028093000_feature3_model_catalog_drafts.sql');
 });
 test('refuses missing snapshot, wrong project, gaps, duplicates, renamed or newer remote versions', () => {
   assert.throws(() => verifyPreflight({ requireRemoteHistory: true }), /history is required/);

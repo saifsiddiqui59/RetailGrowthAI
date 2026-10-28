@@ -1,5 +1,5 @@
 -- Additive Feature #3 catalog + local v2 poster DESIGN persistence (source only).
--- No live migration, third-party approval, GPU, queue, export or paid cloud action.
+-- Rebased timestamp AFTER already-applied 20261026194000 Feature2 ledger.\n-- No third-party approval, GPU, queue, export or paid cloud action.
 -- Runtime must retain v1 poster_drafts/poster_jobs unchanged.
 begin;
 
@@ -165,7 +165,7 @@ declare actor uuid := (select auth.uid());
   item jsonb;
   asset uuid;
 begin
-  if (select auth.role()) is distinct from 'authenticated' or actor is null
+  if actor is null
      or not retail_private.has_role(p_shop_id,array['OWNER','EDITOR'])
      or p_expected_revision is null or p_expected_revision not between 0 and 1000000
      or p_shop_id is null or p_campaign_id is null or p_day_id is null
