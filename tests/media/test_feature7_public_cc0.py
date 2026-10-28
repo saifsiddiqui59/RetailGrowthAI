@@ -275,6 +275,104 @@ class Feature7InternetCC0SpeechVideoTests(unittest.TestCase):
                               input=json.dumps(payload), cwd=PROJECT_ROOT,
                               text=True, capture_output=True, timeout=65)
 
+    def test_real_cc0_audio_constructed_retake_uses_upstream_autoclip_cuts(self):
+        """REAL recorded human audio, deliberately duplicated for repeat-take QA.
+
+        This is a constructed duplicate of legitimate CC0 speech, NOT an
+        independently documented natural false start, WhisperX inference,
+        commercial speaker endorsement, or human-reviewed production edit.
+        """
+        from autoclip_cpu_adapter import (
+            plan_autoclip_speech_edit,render_autoclip_local_test_preview)
+        source=self.home/"cc0_deliberate_repeat_raw.mp4"
+        # Duplicate Scott Ko's original first 3.12 seconds, followed by
+        # the authentic next sentence. The original speaker's voice/video
+        # remains genuine CC0 bytes, not an audio tone or generated voice.
+        graph=(
+          "[0:v]trim=start=0:end=3.12,setpts=PTS-STARTPTS[v0];"
+          "[0:a]atrim=start=0:end=3.12,asetpts=PTS-STARTPTS[a0];"
+          "[0:v]trim=start=0:end=3.12,setpts=PTS-STARTPTS[v1];"
+          "[0:a]atrim=start=0:end=3.12,asetpts=PTS-STARTPTS[a1];"
+          "[0:v]trim=start=3.12:end=15.0,setpts=PTS-STARTPTS[v2];"
+          "[0:a]atrim=start=3.12:end=15.0,asetpts=PTS-STARTPTS[a2];"
+          "[v0][a0][v1][a1][v2][a2]"
+          "concat=n=3:v=1:a=1[v][a]"
+        )
+        ff=subprocess.run(["ffmpeg","-hide_banner","-loglevel","error",
+            "-nostdin","-y","-i",str(self.clip),
+            "-filter_complex",graph,"-map","[v]","-map","[a]",
+            "-c:v","libx264","-preset","ultrafast","-crf","26",
+            "-c:a","aac","-b:a","64k","-movflags","+faststart",
+            str(source)],capture_output=True,text=True,timeout=80)
+        self.assertEqual(ff.returncode,0,ff.stderr[-1400:])
+        source_sha=hashlib.sha256(source.read_bytes()).hexdigest()
+        # The separately verified human SRT is interpolated to word times
+        # only as a timing fixture, NOT proof of ASR word accuracy.
+        raw=[w for seg in self.words["segments"] for w in seg["words"]]
+        first=[w for w in raw if w["end"]<=3.1201]
+        later=[w for w in raw if 3.12<=w["start"] and w["end"]<=15.0001]
+        self.assertGreaterEqual(len(first),6)
+        self.assertGreaterEqual(len(later),14)
+        words=(
+          [{"word":w["word"],"start":w["start"],"end":w["end"]}
+           for w in first]+
+          [{"word":w["word"],"start":w["start"]+3.12,
+            "end":w["end"]+3.12} for w in first]+
+          [{"word":w["word"],"start":w["start"]+3.12,
+            "end":w["end"]+3.12} for w in later]
+        )
+        common=dict(video_path=source,source_sha256=source_sha,
+                    words=words,transcript_origin="human_srt_test_fixture",
+                    max_pause_seconds=.85)
+        plan=plan_autoclip_speech_edit(**common)
+        self.assertGreaterEqual(plan["retake_candidate_count"],1)
+        self.assertTrue(any(x["reason"]=="retake" for x in plan["cut_windows"]))
+        self.assertTrue(plan["keep_segments"])
+        self.assertFalse(plan["approved"])
+        output=self.home/"cc0_real_voice_retake_removed.mp4"
+        edited=render_autoclip_local_test_preview(**common,output_path=output)
+        self.assertTrue(edited["preview_only"])
+        self.assertGreaterEqual(edited["kept_segments_count"],2)
+        self.assertLess(edited["output_duration_seconds"],
+                        plan["source_duration_seconds"]-1.0)
+        self.assertGreater(edited["output_duration_seconds"],12)
+        self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),
+                         source_sha)
+        audio=subprocess.run(["ffmpeg","-hide_banner","-nostdin",
+          "-i",str(output),"-af","volumedetect","-f","null","-"],
+          capture_output=True,text=True,timeout=35)
+        self.assertEqual(audio.returncode,0,audio.stderr[-800:])
+        self.assertIn("mean_volume:",audio.stderr)
+        js=r"""
+import fs from 'node:fs';
+import {projectUpstreamCaptionsAfterAutoClipCuts}
+ from './video-engine/feature7/autoclip_caption_handoff.mjs';
+const p=JSON.parse(fs.readFileSync(0,'utf8'));
+process.stdout.write(JSON.stringify(projectUpstreamCaptionsAfterAutoClipCuts(p)));
+"""
+        caption_request={
+           "shop_id":"cc0-isolated-test-shop","asset_id":"cc0-real-voice",
+           "source_duration_seconds":plan["source_duration_seconds"],
+           "requested_reel_seconds":15,
+           "keep_segments":plan["keep_segments"],
+           "words":[{"word":w["word"],"startMs":round(w["start"]*1000),
+                     "endMs":round(w["end"]*1000)} for w in words]
+        }
+        captions=subprocess.run(["node","--input-type=module","-e",js],
+           input=json.dumps(caption_request),cwd=PROJECT_ROOT,
+           capture_output=True,text=True,timeout=15)
+        self.assertEqual(captions.returncode,0,captions.stderr)
+        result=json.loads(captions.stdout)
+        self.assertGreater(len(result["captions"]),2)
+        self.assertFalse(result["approved"])
+        self.assertTrue(all(c["end_ms"]<=result["actual_timeline_duration_ms"]
+                           for c in result["captions"]))
+        self.assertTrue(all(set(c)=={"start","duration","text"}
+                           for c in result["feature4_caption_track"]))
+        self.assertFalse(result["captions_from_real_model_inference_proven"])
+        self.assertEqual(hashlib.sha256(self.clip.read_bytes()).hexdigest(),
+                         self.sha)
+
     def test_real_internet_voice_video_clip_and_review(self):
         payload = self.payload()
         outcome = self.invoke(payload)
