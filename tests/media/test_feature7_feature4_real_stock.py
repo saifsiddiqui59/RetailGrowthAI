@@ -52,7 +52,9 @@ def fetch_f4_video(dest):
                 if count>MAX:raise ValueError("Over-limit stock input")
                 digest.update(part)
                 out.write(part)
-        if count<50_000 or dest.open("rb").read(8)[4:8]!=b"ftyp":
+        with dest.open("rb") as candidate:
+            has_mp4_header=candidate.read(8)[4:8]==b"ftyp"
+        if count<50_000 or not has_mp4_header:
             raise ValueError("Invalid MP4 signature")
         return digest.hexdigest(),count
     except BaseException:
@@ -124,7 +126,7 @@ process.stdout.write(JSON.stringify(x));
         self.assertEqual(qa["classification"],"VISUAL_QUALITY_ADVISORY_ONLY")
         self.assertTrue(qa["human_review_required"])
         self.assertTrue(qa["no_media_modification"])
-        self.assertFalse(qa["no_visual_semantic_model"] is False)
+        self.assertTrue(qa["no_visual_semantic_model"])
         self.assertEqual(hashlib.sha256(self.video.read_bytes()).hexdigest(),self.sha)
 
 if __name__=="__main__":
