@@ -285,6 +285,30 @@ class Feature7PexelsRealEditingTests(unittest.TestCase):
             self.assertEqual(data.returncode,0,data.stderr[-1000:])
             frame_digests.append(hashlib.sha256(data.stdout.encode()).hexdigest())
         self.assertNotEqual(frame_digests[0],frame_digests[1])
+        if os.getenv("CI") == "true":
+            # Existing FFmpeg workflow already uploads ci-artifacts/ via its
+            # existing actions/upload-artifact job. No shared CI edits needed.
+            # Both inputs are public Pexels stock and generated demo labels.
+            # Never use this path for actual retailer uploads/secret media.
+            artifacts=ROOT/"ci-artifacts"
+            artifacts.mkdir(parents=True,exist_ok=True)
+            published=artifacts/"feature7-pexels-fullhd-1080x1920-demo.mp4"
+            if published.exists():
+                self.fail("Existing output artifact collision")
+            shutil.copy2(output,published)
+            proof=artifacts/"feature7-pexels-fullhd-proof.json"
+            proof.write_text(json.dumps({
+                "generated_from":"PUBLIC_PEXELS_STOCK_DEMO_ONLY",
+                "source_video_page":VIDEO_PAGE,"source_photo_page":IMAGE_PAGE,
+                "licensed_media_terms":"https://www.pexels.com/license/",
+                "autobroll_mit_upstream":"andriidrok1/autobroll",
+                "video_sha256":receipt["sha256"],
+                "duration_seconds":receipt["duration_seconds"],
+                "width":1080,"height":1920,"fps":30,
+                "codec":"H264/AAC","gpu_started":False,
+                "soundtrack":"SILENT_DEMO_PLACEHOLDER",
+                "customer_approved":False,"hosted_release_ready":False
+            },indent=2),encoding="utf8")
 
     def test_full_hd_export_refuses_unsafe_output_replay_and_wrong_source(self):
         import sys
