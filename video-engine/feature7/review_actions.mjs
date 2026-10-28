@@ -65,7 +65,8 @@ export function createReviewSession({draft,proposal,media_evidence,reviewer_view
   return Object.freeze(state);
 }
 export function adjustTrimStart(session,source_scene_index,trim_start_seconds){
-  check(session && Number.isInteger(source_scene_index) &&
+  check(session && session.can_request_approval===true &&
+    Number.isInteger(source_scene_index) &&
     Array.isArray(session.scenes)&&Array.isArray(session.media_evidence)&&
     isFiniteWithin(trim_start_seconds,0,600),'Invalid reviewer trim action');
   const scene=session.scenes.find(s=>s.source_scene_index===source_scene_index);
