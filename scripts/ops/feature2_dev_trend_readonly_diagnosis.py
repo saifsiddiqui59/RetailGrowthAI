@@ -58,9 +58,11 @@ def main():
     membership=request(ORIGIN+"/rest/v1/shop_memberships?select=user_id,active,role&shop_id=eq."+SHOP,apikey=service)
     ensure(len(membership)==1 and membership[0]["active"] is False
            and membership[0]["role"]=="OWNER","Synthetic membership must start revoked")
-    aid=request(ORIGIN+"/rest/v1/media_assets?select=id&shop_id=eq."+SHOP,apikey=service)
-    ensure(len(aid)==1 and str(UUID(aid[0]["id"]))==ASSET,
-           "Original single synthetic image must already be registered")
+    aid=request(ORIGIN+"/rest/v1/media_assets?select=id,source,license_name,object_path&shop_id=eq."+SHOP,apikey=service)
+    ensure(len(aid)==1 and aid[0]["source"]=="UPLOAD" and
+           aid[0]["license_name"]=="owned" and
+           aid[0]["object_path"]==SHOP+"/uploads/"+ASSET+".png",
+           "Original signed synthetic image must already be registered")
     budget=request(ORIGIN+"/rest/v1/shop_ai_budget_controls?select=enabled&shop_id=eq."+SHOP,apikey=service)
     ensure(len(budget)==1 and budget[0]["enabled"] is False,
            "AI budget must remain disabled")
