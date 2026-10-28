@@ -5,7 +5,7 @@ import unittest
 from feature5_motion.wan22_motion_adapter import (
     capability, compile_motion_direction, pending_feature4_receipt,
     validate_runtime_node_types, WanCompatibilityError, PROVIDER,
-    WAN_SOURCE, COMFY_SOURCE, WEIGHTS_REV, ENCODER_REV, NODES,
+    WAN_SOURCE, COMFY_SOURCE, WEIGHTS_REV, ENCODER_REV, NODES, NODE_INPUTS,
 )
 from feature5_motion.infra.feature35_comfy_api_graphs import wan22_ti2v_5b, offline_graph_validate
 
@@ -187,7 +187,12 @@ class WanMotionAdapterTest(unittest.TestCase):
                             b.graph["prompt"]["5"]["inputs"]["text"])
         with self.assertRaises(WanCompatibilityError):
             validate_runtime_node_types({})
-        self.assertTrue(validate_runtime_node_types({node:{} for node in NODES}))
+        runtime = {name:{"input":{"required":{key:["STRING",{}] for key in fields}}}
+                   for name,fields in NODE_INPUTS.items()}
+        self.assertTrue(validate_runtime_node_types(runtime))
+        del runtime["SaveVideo"]["input"]["required"]["video"]
+        with self.assertRaises(WanCompatibilityError):
+            validate_runtime_node_types(runtime)
         d,r,p,v=fixture()
         d["shot"]["camera"]["movement"]="https://foreign.internal/image"
         with self.assertRaises(WanCompatibilityError):self.compile(dispatch=d)
