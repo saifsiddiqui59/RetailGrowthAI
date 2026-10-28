@@ -28,7 +28,7 @@ def test_scope_has_only_fixed_failed_canary_and_postrollback_windows():
             assert "rgai-dev-functions-d4e5ddbd" in text
             assert "TimeGenerated between" in text
             assert "summarize events=count()" in text
-            assert "take 80" in text
+            assert ("take 25" if label == "host_timeline" else "take 80") in text
             assert "project " not in text
             assert "raw" not in text.lower()
             if label != "activity":
@@ -93,6 +93,32 @@ def test_kusto_aggregate_counts_accept_bounded_decimal_strings():
     assert all("instance" not in r for r in cleaned)
 
 
+def test_full_window_timeline_separates_routine_initialization_from_timeouts():
+    q = module.queries(*module.WINDOWS[0][1:])["host_timeline"]
+    assert "by bucket=bin(TimeGenerated,1m)" in q
+    assert "AppRoleInstance" not in q
+    assert 'worker_start=countif(' in q
+    assert 'host_initialization=countif(' in q
+    assert 'grpc_pending_timeout=countif(' in q
+    assert 'worker_exit=countif(' in q
+    assert 'take 25' in q
+    source = module.queries(*module.WINDOWS[0][1:])["traces"]
+    assert '"host_initialization"' in source
+    assert '"host_error"' not in source
+    sample = [
+        {"bucket": "2026-10-28T19:40:00Z", "events": "12",
+         "worker_start": "4", "host_initialization": "3",
+         "grpc_pending_timeout": "0", "worker_exit": 2.0,
+         "Message": "untrusted message with sensitive identifiers"},
+    ]
+    result = module.safe_rows(sample)
+    assert result == [{"bucket": "2026-10-28T19:40:00Z", "events": 12,
+                       "worker_start": 4, "host_initialization": 3,
+                       "grpc_pending_timeout": 0, "worker_exit": 2}]
+    assert module._safe_count("-1") is None
+    assert module._safe_count(True) is None
+
+
 def test_only_aggregate_read_operations_reachable():
     calls = []
     module.audit_scope = lambda: calls.append("scoped")
@@ -108,7 +134,7 @@ def test_only_aggregate_read_operations_reachable():
     assert module.collect() == 0
     assert calls[0] == "scoped"
     assert len([c for c in calls if isinstance(c, tuple) and c[:3] ==
-                ("monitor", "log-analytics", "query")]) == 10
+                ("monitor", "log-analytics", "query")]) == 12
     assert all(c == "scoped" or c[:3] in (
         ("monitor", "log-analytics", "query"),
         ("monitor", "log-analytics", "workspace"),
