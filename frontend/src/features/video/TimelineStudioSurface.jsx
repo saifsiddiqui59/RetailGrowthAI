@@ -79,7 +79,7 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
         window.removeEventListener('pointerup', release)
         const delta = (e.clientX - startX) * draft.duration_seconds / width
         if (Math.abs(delta) > 0.03) {
-          change(() => studioTrimPair(original, boundary, Math.round(delta * 10) / 10))
+          change(() => studioTrimPair(original, boundary, Math.round(delta * 10) / 10, mediaAssets))
         }
       }
       window.addEventListener('pointerup', release, { once: true })

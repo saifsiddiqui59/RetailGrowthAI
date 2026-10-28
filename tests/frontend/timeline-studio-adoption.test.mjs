@@ -163,3 +163,13 @@ test('video right-hand boundary trim never rewinds or silently replays source fo
  assert.deepEqual(validateVideoDraft(moved,assets,music),[])
  assert.throws(()=>studioTrimPair(modified,0,-5),/before its source begins/)
 })
+
+test('moving the first image/video boundary never replays untrimmed motion clips',()=>{
+  const d=draft()
+  const changed=studioTrimPair(d,0,2,assets)
+  assert.equal(changed.scenes[1].duration,8)
+  assert.equal(changed.scenes[1].trim_start,2)
+  assert.throws(()=>studioTrimPair(d,0,-2,assets),/before its source begins/)
+  const measured=assets.map(a=>a.id==='motion1'?{...a,duration_seconds:9}:a)
+  assert.throws(()=>studioValidatedDraft(changed,measured,music),/verified source length/)
+})

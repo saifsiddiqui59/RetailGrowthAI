@@ -44,7 +44,7 @@ export function studioSplit(draft, index, offset, mediaAssets) {
   ]
   return { ...draft, scenes: recalc(scenes, draft.duration_seconds) }
 }
-export function studioTrimPair(draft, index, delta) {
+export function studioTrimPair(draft, index, delta, mediaAssets = []) {
   if (!Number.isInteger(index) || !Number.isFinite(delta) || index < 0 ||
       index >= draft.scenes.length - 1) throw Error('Select an internal clip boundary')
   const a = draft.scenes[index], b = draft.scenes[index + 1]
@@ -54,17 +54,18 @@ export function studioTrimPair(draft, index, delta) {
   // A right-hand VIDEO clip must start later in its source if its timeline
   // start is pushed right. Otherwise moving the boundary silently replays the
   // original frames and the editor's timing is not reproduced by FFmpeg.
+  const rightMedia = mediaAssets.find(a => a.id === b.asset_id &&
+    a.shop_id === draft.shop_id && a.authorized === true)
+  const isVideo = rightMedia?.kind === 'video' || b.trim_start != null
   const rightStart = b.trim_start || 0
-  const nextRightStart = b.trim_start != null
-    ? Math.round((rightStart + delta) * 1000) / 1000
-    : delta
-  if (nextRightStart < 0 && b.trim_start != null) {
+  const nextRightStart = Math.round((rightStart + delta) * 1000) / 1000
+  if (isVideo && nextRightStart < 0) {
     throw Error('Cannot extend video before its source begins')
   }
   return { ...draft, scenes: recalc(draft.scenes.map((scene, i) => i === index ?
     { ...scene, duration: durationA } : i === index + 1 ?
       { ...scene, duration: durationB,
-        ...(b.trim_start != null ? {trim_start:nextRightStart} : {}) } : scene), draft.duration_seconds) }
+        ...(isVideo ? {trim_start:nextRightStart} : {}) } : scene), draft.duration_seconds) }
 }
 export function studioSourceTrim(draft, index, seconds, mediaAssets) {
   const scene = draft.scenes[index]
