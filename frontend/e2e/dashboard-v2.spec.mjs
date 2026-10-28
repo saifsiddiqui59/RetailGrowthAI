@@ -750,3 +750,29 @@ test('opt-in offline Feature1 social and publishing showroom is labelled, respon
   expect(calls.some(path=>path.includes('/social')||path.includes('/oauth')||
     path.includes('/publishing')||path.includes('/retail_platform_notifications'))).toBe(false)
 })
+
+
+test('third fictional restaurant exercises disconnected identity and publishing-in-progress without live calls',async({page})=>{
+ const calls=await signedIn(page)
+ await page.setViewportSize({width:320,height:740})
+ await page.goto('/connections')
+ await page.getByRole('button',{name:'Open offline test preview'}).click()
+ await page.getByLabel('Fictional business scenario')
+   .selectOption('f3333333-3333-4333-8333-333333333333')
+ await expect(page.getByText('OFFLINE TEST ONLY — NOT LIVE DATA')).toBeVisible()
+ await page.getByLabel('Social account status filter').selectOption('DISCONNECTED')
+ await expect(page.getByText('Marigold Bistro disconnected sample')).toBeVisible()
+ await expect(page.getByText('@aarohi.style')).toHaveCount(0)
+ await expect(page.getByRole('button',{name:'Connect / disconnect unavailable'})).toBeDisabled()
+ await page.goto('/publishing')
+ await page.getByRole('button',{name:'Open offline test preview'}).click()
+ await page.getByLabel('Fictional business scenario')
+   .selectOption('f3333333-3333-4333-8333-333333333333')
+ await page.getByLabel('Publishing status filter').selectOption('PUBLISHING')
+ await expect(page.locator('.rg-f1-read-card').getByText('PUBLISHING',{exact:true}).first()).toBeVisible()
+ await expect(page.getByText('Example provider receipt:',{exact:false})).toHaveCount(0)
+ await expect.poll(()=>page.evaluate(()=>
+   document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
+ expect(calls.some(path=>path.includes('/social')||path.includes('/oauth')||
+   path.includes('/publishing'))).toBe(false)
+})
