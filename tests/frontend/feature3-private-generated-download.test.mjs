@@ -74,7 +74,7 @@ test('the v2 UI compiles and displays private success-only download controls',as
   const contents=await readFile(uri,'utf8')
   await transformWithEsbuild(contents,'Feature3SecureDraftWorkspace.jsx',{loader:'jsx'})
   assert.match(contents,/listGeneratedJobs\(shopId\)/)
-  assert.match(contents,/getGeneratedImageDownload\(shopId,jobId\)/)
+  assert.match(contents,/provider[.]getGeneratedImageDownload\(scope,jobId\)/)
   assert.match(contents,/job.status==='SUCCEEDED'/)
   assert.match(contents,/not approved for publishing/)
 })
