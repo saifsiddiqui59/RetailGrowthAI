@@ -20,6 +20,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import tempfile
 
@@ -41,7 +42,7 @@ def _check_source(source: Path, *, extension: str, maximum_bytes: int):
     if not source.is_absolute() or source.suffix.lower()!=extension:
         raise PexelsFullHdError("Explicit absolute Pexels source path required")
     s=source.lstat()
-    if not s.is_file() or s.is_symlink() or not 4096<s.st_size<=maximum_bytes:
+    if not stat.S_ISREG(s.st_mode) or stat.S_ISLNK(s.st_mode) or not 4096<s.st_size<=maximum_bytes:
         raise PexelsFullHdError("Invalid, linked or oversized Pexels media")
     head=source.open("rb").read(16)
     if extension==".mp4" and head[4:8]!=b"ftyp":
