@@ -613,3 +613,38 @@ test('unverified guest cannot deep-link to dashboard subroutes', async ({ page }
   await expect(page).toHaveURL(/\/account$/)
   await expect(page.getByRole('heading', { name: 'Connected accounts' })).toHaveCount(0)
 })
+
+
+test('Media Library loads beyond the first 100 only on request, without cross-shop or public reads',async({page})=>{
+  await signedIn(page)
+  const rows=Array.from({length:101},(_,i)=>({
+    id:'a1000000-0000-4000-8000-'+String(i+100).padStart(12,'0'),
+    shop_id:SHOP,source:'UPLOAD',license_name:'owned',mime_type:'image/png'
+  }))
+  const offsets=[]
+  await page.route(HOST+'/rest/v1/media_assets**',route=>{
+    const req=route.request()
+    expect(req.headers().authorization).toBe('Bearer offline-test-JWT')
+    const u=new URL(req.url()),offset=Number(u.searchParams.get('offset'))
+    offsets.push(offset)
+    expect(u.searchParams.get('shop_id')).toBe('eq.'+SHOP)
+    expect(u.searchParams.get('limit')).toBe('101')
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify(offset===0 ? rows : [rows[100],rows[2],{
+        ...rows[100],id:'a1000000-0000-4000-8000-000000009999',
+        shop_id:'a1000000-0000-4000-8000-000000000002'
+      }])})
+  })
+  await page.setViewportSize({width:320,height:740})
+  await page.goto('/media-library')
+  await expect(page.getByText('100 matching registered images')).toBeVisible()
+  expect(offsets).toEqual([0])
+  await page.getByRole('button',{name:'Load 100 older records'}).click()
+  await expect(page.getByText('101 matching registered images')).toBeVisible()
+  expect(offsets).toEqual([0,100])
+  await expect(page.getByRole('button',{name:'Load 100 older records'})).toHaveCount(0)
+  await expect(page.locator('a[href*="/storage/v1/object/"]')).toHaveCount(0)
+  await expect.poll(()=>page.evaluate(()=>
+    document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
+})

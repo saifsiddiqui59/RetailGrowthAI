@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuthorizedShops } from './useAuthorizedShops.js'
 import { useSelectedShop } from './useSelectedShop.js'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { Card } from '../../components/ui/card.jsx'
 import { Button } from '../../components/ui/button.jsx'
@@ -52,26 +52,34 @@ export default function MediaLibrary() {
       }
     }
   }
-  const assetsQuery = useQuery({
-    queryKey: ['media-library', 'assets', user?.id, shopId],
-    queryFn: () => client.listMediaAssets(shopId),
+  const assetsQuery = useInfiniteQuery({
+    queryKey: ['media-library', 'pages', user?.id, shopId],
+    queryFn: ({pageParam}) => client.listMediaAssetsPage(shopId, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: last => last.nextOffset ?? undefined,
     enabled: Boolean(configured && user && shopId),
     staleTime: 30000,
     retry: false,
+    refetchOnWindowFocus: false,
   })
-  const assets = useMemo(() => filterAssets(assetsQuery.data || [], shopId, filter, type),
-    [assetsQuery.data, shopId, filter, type])
+  const assets = useMemo(() => {
+    const unique = new Map()
+    for (const page of assetsQuery.data?.pages || []) {
+      for (const asset of page.items) if (!unique.has(asset.id)) unique.set(asset.id, asset)
+    }
+    return filterAssets([...unique.values()], shopId, filter, type)
+  }, [assetsQuery.data, shopId, filter, type])
   const scope = user?.id + ':' + shopId + ':' + filter + ':' + type
   const view = paginateVerifiedAssets(assets, paging.scope === scope ? paging.page : 1)
   const movePage = next => setPaging({scope,page:next})
   const hasError = shopsQuery.isError || assetsQuery.isError
-  const fetching = shopsQuery.isFetching || assetsQuery.isFetching
+  const fetching = shopsQuery.isFetching || (assetsQuery.isFetching && !assetsQuery.isFetchingNextPage)
   const hasShops = !shopsQuery.isPending && shops.length > 0
 
   return <div className="rg-workspace-page rg-library">
     <div className="page-heading">
       <div><div className="eyebrow">AUTHORIZED BUSINESS ASSETS</div><h1>Media library</h1>
-        <p className="lead">Browse the latest registered images for one business. All results are returned through your Supabase session and tenant RLS.</p></div>
+        <p className="lead">Browse registered images for one business in bounded pages. All results use your Supabase session and tenant RLS.</p></div>
       <Button asChild className="primary-action rg-workspace-cta"><Link to="/campaigns">Upload an image</Link></Button>
     </div>
     <Card className="panel">
@@ -103,9 +111,9 @@ export default function MediaLibrary() {
       {configured && !fetching && !hasError && !hasShops && <p role="status">No accessible businesses. <Link to="/account">Create or join a business in Account.</Link></p>}
       {configured && hasShops && !fetching && !hasError && <>
         <div className="rg-library-summary"><strong>{assets.length} matching registered images</strong>
-          <Badge>Searching only the 100 newest records; older images may not appear</Badge></div>
+          <Badge>{assetsQuery.hasNextPage ? 'Older records available — load more to include them in search' : 'All retrieved pages loaded'}</Badge></div>
         {assets.length === 0
-          ? <p role="status">No matching registered images in this business. Upload licensed images through Campaign Studio.</p>
+          ? <p role="status">No matching registered images in the loaded pages. Upload licensed images or load older records if available.</p>
           : <div className="rg-library-grid" role="region" aria-label="Authorized media records">
               {view.items.map(asset => <Card className="rg-library-record" key={asset.id}>
                 <div className="rg-library-icon" aria-hidden="true">▧</div>
@@ -129,6 +137,10 @@ export default function MediaLibrary() {
               referrerPolicy="no-referrer">Save private image</a></Button>
           </>}
         </Card>}
+        {assetsQuery.hasNextPage && <Button type="button" variant="outline"
+          disabled={assetsQuery.isFetchingNextPage} onClick={() => assetsQuery.fetchNextPage()}>
+          {assetsQuery.isFetchingNextPage ? 'Loading older records…' : 'Load 100 older records'}
+        </Button>}
         {assets.length > 12 && <nav className="rg-library-pager" aria-label="Media library pages">
           <Button variant="outline" size="sm" disabled={view.page === 1}
             onClick={()=>movePage(view.page-1)}>Previous images</Button>

@@ -562,6 +562,29 @@ export function createRetailClient({
     return {blob:new Blob([bytes],{type:row.mime_type}),
       filename:'retailgrowth-image-'+assetId.slice(0,8)+ext}
   }
+
+  // User-JWT + shop-RLS metadata history. Explicit 100-record pages; an extra
+  // row detects whether more data exists without an unbounded query or count.
+  // Offset is not taken from arbitrary URL input and does not grant access.
+  async function listMediaAssetsPage(shopId, offset = 0) {
+    if (!UUID_V4.test(shopId || '') || !Number.isSafeInteger(offset) ||
+        offset < 0 || offset % 100 !== 0) throw new Error('Invalid media page scope')
+    const rows = await table('media_assets', { query: {
+      select: 'id,shop_id,source,license_name,mime_type',
+      shop_id: 'eq.' + shopId, order: 'created_at.desc,id.desc',
+      offset: String(offset), limit: '101',
+    } })
+    if (!Array.isArray(rows) || rows.length > 101 ||
+        rows.some(row => !row || typeof row !== 'object')) {
+      throw new Error('Media page could not be verified')
+    }
+    return {
+      items: rows.slice(0, 100).filter(row =>
+        row.shop_id === shopId && typeof row.license_name === 'string' &&
+        Boolean(row.license_name.trim())),
+      nextOffset: rows.length === 101 ? offset + 100 : null,
+    }
+  }
   async function listMediaAssets(shopId) {
     if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/.test(shopId || '')) throw new Error('Invalid shop ID')
     const rows = await table('media_assets', {
@@ -576,7 +599,7 @@ export function createRetailClient({
     listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
     isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
     listPlatformNotifications, setPlatformNotificationRead, listPlatformSubscriptionWatch,
-    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, downloadPrivateImage, uploadImageAsset,
+    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, listMediaAssetsPage, downloadPrivateImage, uploadImageAsset,
   }
 }
 
