@@ -931,3 +931,15 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 3. **249.3 NEXT — precise root cause:** protected DEV read-only Azure host/AppInsights/ingress/worker/scale and storage dependency correlation for **2026-10-28 10:26–10:35 UTC**, historical 08:49–08:51 and 09:40–09:46 UTC. Existing metric poststep list/dict parser failed; source-only repair needs CI/merge and controlled re-observation. No raw secrets or unredacted traces. Confirm whether failures occur pre-invocation, in worker start/gRPC, or downstream; classification currently **UNKNOWN**.
 4. **249.4 NEXT — acceptance:** repeat sufficiently powered first/warm/idle/concurrent equal-path GET reliability before setting measurable p95/p99 and evaluating a safe mitigation. Independently require ROOT-approved real signed tenant OWNER/EDITOR, VIEWER, foreign/revoked shop negative checks, approved private asset→poster PNG/banner→queued Python 30s H264/AAC MP4→signed private GET, quota/outbox/idempotency/cleanup. Keep original Queue/FFmpeg and customer frontend, no automatic POST retries.
 5. **249.5 NO SOURCE ROOT FIX justified yet:** do not buy always-ready/new paid plan, alter Python instance memory/concurrency, change Supabase permissions, migrate hosting or route customers from a tiny synthetic comparison. If exact cause verified, smallest reversible fix + regression + 4 PR jobs + postmerge CI + protected live recheck; **keep GitHub Issue #249 OPEN**.
+
+## Feature3 next unfinished gates — 2026-10-28 checked against live DEV
+
+Continue all six numbered tasks in parallel, not just the merged source PRs.
+1. **3.1 #467:** genuine signed active OWNER/EDITOR/VIEWER, revoked/foreign account and expiry/CAS evidence; static hosted RLS/grants verified, user-identity test not complete.
+2. **3.2 #468:** genuinely signed active DEV retailer with original rights-cleared image, private Storage bytes, immutable media UUID and SHA. The inactive Feature2 shop is NOT eligible.
+3. **3.3 #469:** merge and verify model library owner-first Storage path PR #504; build service-authorized registration, human visual/rights approval, revisions, rejection/revocation and reuse. NO automatic image licensing.
+4. **3.4 #470:** merged #501 provides service-only reserve/claim/settle transport, **but no protected outbox-to-Azure Queue `SENT` transition, unknown ACK reconciliation, private bytes writer, real operator cost meter or active GPU worker**. Reuse existing ledger, zero GPUs enabled.
+5. **3.5 #471:** merged #502 provides read-only signed PNG retrieval UI, **but 0 real generated media**. Implement trusted owner/job-linked PNG bytes + checksum registration, orphan cleanup and current-rights recheck.
+6. **3.6 #472:** merged #486 offline fake JWT routing tests. Complete disposal-based SQL concurrency plus hosted genuine JWT and independent post-merge main 4-job CI. Owner deferred full browser E2E this sprint but no security waiver.
+
+Read `docs/PROJECT_STATE.md` final 2026-10-28 checkpoint, source Feature3 handoffs and GitHub issues #467–#472. Do not activate Azure GPU or touch PROD/WineShopPOS.
