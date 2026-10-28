@@ -28,10 +28,10 @@ REPO_ROOT=Path(__file__).resolve().parents[2]
 WIDTH=1080
 HEIGHT=1920
 FPS=30
-VIDEO_SECONDS=6
-PHOTO_SECONDS=4.5
+VIDEO_SECONDS=9
+PHOTO_SECONDS=6.5
 FADE_SECONDS=.5
-EXPECTED_SECONDS=10
+EXPECTED_SECONDS=15
 
 
 class PexelsFullHdError(ValueError):
@@ -162,7 +162,7 @@ def render_pexels_fullhd(*, video: Path, photo: Path,
                "borderw=1:bordercolor=black@0.35:"
                "x=(w-text_w)/2:y=1515")
             graph=(
-              "[0:v]trim=duration=6,setpts=PTS-STARTPTS,"
+              "[0:v]trim=duration=9,setpts=PTS-STARTPTS,"
               "fps=30,scale=1080:1920:force_original_aspect_ratio=increase,"
               "crop=1080:1920,setsar=1,settb=AVTB,"
               "eq=contrast=1.035:saturation=1.06,"
@@ -170,18 +170,18 @@ def render_pexels_fullhd(*, video: Path, photo: Path,
               "drawbox=x=0:y=1450:w=iw:h=470:color=black@0.28:t=fill,"
               f"drawtext=textfile={brand_ref}:{brand_style},"
               f"drawtext=textfile={caption_ref}:{text_style}:"
-              "enable='between(t,0.6,5.9)'[v0];"
+              "enable='between(t,0.6,8.9)'[v0];"
               "[1:v]scale=1134:2016:force_original_aspect_ratio=increase,"
               "crop=1134:2016,setsar=1,"
               "zoompan=z='min(zoom+0.00033,1.05)':"
               "x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':"
               "d=1:s=1080x1920:fps=30,"
-              "trim=duration=4.5,setpts=PTS-STARTPTS,settb=AVTB,"
+              "trim=duration=6.5,setpts=PTS-STARTPTS,settb=AVTB,"
               "format=yuv420p,"
               "drawbox=x=0:y=1450:w=iw:h=470:color=black@0.28:t=fill,"
               f"drawtext=textfile={brand_ref}:{brand_style},"
               f"drawtext=textfile={second_ref}:{text_style}[v1];"
-              "[v0][v1]xfade=transition=fade:duration=0.5:offset=5.5,"
+              "[v0][v1]xfade=transition=fade:duration=0.5:offset=8.5,"
               "format=yuv420p[v]"
             )
             command=[
@@ -211,7 +211,7 @@ def render_pexels_fullhd(*, video: Path, photo: Path,
                 v[0].get("pix_fmt")!="yuv420p" or \
                 v[0].get("r_frame_rate")!="30/1" or \
                 int(a[0].get("sample_rate",0))!=48000 or \
-                not 9.7<float(result["format"]["duration"])<10.3:
+                not 14.7<float(result["format"]["duration"])<15.3:
                 raise PexelsFullHdError("Actual output failed Full HD social export spec")
             if _check_source(video,extension=".mp4",
                              maximum_bytes=100*1024*1024)!=vhash or \
