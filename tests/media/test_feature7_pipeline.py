@@ -1,0 +1,224 @@
+"""Feature7 real FFmpeg fixture pipeline and security negatives (no paid models).
+
+These tests synthesize owner-controlled video + original AAC sound, validate
+its actual bytes with ffprobe, run FFmpeg silencedetect without altering media,
+and adapt offline word-level WhisperX-shaped JSON. No commercially owned footage
+or ML accuracy is claimed.
+"""
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import unittest
+import wave
+
+ROOT=Path(__file__).resolve().parents[2]
+
+
+def invoke_js(script, payload):
+    return subprocess.run(
+        ['node','--input-type=module','-e',script],
+        input=json.dumps(payload),text=True,capture_output=True,
+        timeout=90,cwd=ROOT,
+    )
+
+
+PROBE_JS="""
+import fs from 'node:fs';
+import {verifyPrivateVideo} from './video-engine/feature7/media_preflight.mjs';
+const data=JSON.parse(fs.readFileSync(0,'utf8'));
+process.stdout.write(JSON.stringify(verifyPrivateVideo(data)));
+"""
+AUDIO_JS="""
+import fs from 'node:fs';
+import {resolveApprovedLocalVideo} from './video-engine/feature7/media_preflight.mjs';
+import {analyzeLocalAudioActivity} from './video-engine/feature7/audio_activity.mjs';
+const data=JSON.parse(fs.readFileSync(0,'utf8'));
+const real=resolveApprovedLocalVideo({root:data.root,relative_path:data.relative_path});
+process.stdout.write(JSON.stringify(analyzeLocalAudioActivity({
+  path:real,duration_seconds:data.duration_seconds,has_audio:data.has_audio
+})));
+"""
+ASR_JS="""
+import fs from 'node:fs';
+import {normalizeWhisperx,projectCaptionsToTrim} from './video-engine/feature7/transcript_adapter.mjs';
+import {buildCaptions} from './video-engine/feature7/autobroll_semantics.mjs';
+const d=JSON.parse(fs.readFileSync(0,'utf8'));
+const a=normalizeWhisperx(d);
+const cap=buildCaptions(a.words,d.asset_id);
+process.stdout.write(JSON.stringify({adapted:a,captions:cap,
+  trimmed:projectCaptionsToTrim(cap,0.8,1.2,4)}));
+"""
+PARSE_JS="""
+import fs from 'node:fs';
+import {parseSilencedetect} from './video-engine/feature7/audio_activity.mjs';
+const p=JSON.parse(fs.readFileSync(0,'utf8'));
+process.stdout.write(JSON.stringify(parseSilencedetect(p.log,p.duration)));
+"""
+
+
+@unittest.skipUnless(shutil.which('node') and shutil.which('ffmpeg') and
+                     shutil.which('ffprobe'), 'Requires Node+FFmpeg+ffprobe')
+class Feature7OfflineVideoPipeline(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp=tempfile.TemporaryDirectory(prefix='feature7-ffmpeg-')
+        cls.root=Path(cls.tmp.name)
+        cls.private=cls.root/'private'
+        cls.private.mkdir()
+        cls.wav=cls.root/'original.wav'
+        duration=16.0
+        rate=16000
+        with wave.open(str(cls.wav),'wb') as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(rate)
+            buf=bytearray()
+            for i in range(int(rate*duration)):
+                t=i/rate
+                tone=(0.5<=t<1.05) or (1.7<=t<2.4) or (12.0<=t<13.2)
+                v=int(10000*math.sin(2*math.pi*440*t)) if tone else 0
+                buf.extend(v.to_bytes(2,'little',signed=True))
+            w.writeframes(bytes(buf))
+        cls.path=cls.private/'owned_clip.mp4'
+        ff=subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-y',
+            '-f','lavfi','-i','color=c=navy:size=160x288:rate=10:duration=16',
+            '-i',str(cls.wav),'-c:v','libx264','-preset','ultrafast',
+            '-pix_fmt','yuv420p','-c:a','aac','-b:a','64k',
+            '-t','16','-movflags','+faststart',str(cls.path)],
+            cwd=ROOT,capture_output=True,text=True,timeout=90)
+        if ff.returncode:
+            raise RuntimeError('Fixture encoding failed: '+ff.stderr[-800:])
+        cls.sha=hashlib.sha256(cls.path.read_bytes()).hexdigest()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    @classmethod
+    def request(cls):
+        return {'shop_id':'shop-alpha','asset_id':'clip-alpha',
+            'root':str(cls.private),'relative_path':'owned_clip.mp4',
+            'expected_sha256':cls.sha,
+            'grant':{'shop_id':'shop-alpha','asset_id':'clip-alpha',
+                'issued_by':'trusted_server','source':'retailer_upload',
+                'active':True,'rights_status':'APPROVED',
+                'media_type':'video','mime_type':'video/mp4',
+                'relative_path':'owned_clip.mp4','sha256':cls.sha}}
+
+    def test_real_mp4_probe_and_original_aac_verified(self):
+        result=invoke_js(PROBE_JS,self.request())
+        self.assertEqual(result.returncode,0,result.stderr)
+        parsed=json.loads(result.stdout)
+        self.assertEqual(parsed['validation'],'LOCAL_BYTES_VERIFIED')
+        self.assertEqual(parsed['video_codec'],'h264')
+        self.assertTrue(parsed['has_audio'])
+        self.assertEqual(parsed['audio_codec'],'aac')
+        self.assertEqual(parsed['width'],160)
+        self.assertEqual(parsed['height'],288)
+        self.assertAlmostEqual(parsed['duration_seconds'],16,delta=.12)
+        self.assertEqual(parsed['sha256'],self.sha)
+
+    def test_real_non_destructive_silence_detection(self):
+        before=hashlib.sha256(self.path.read_bytes()).hexdigest()
+        payload={**self.request(),'duration_seconds':16,'has_audio':True}
+        result=invoke_js(AUDIO_JS,payload)
+        self.assertEqual(result.returncode,0,result.stderr)
+        data=json.loads(result.stdout)
+        self.assertEqual(data['classification'],'AUDIO_ACTIVITY_NOT_SPEECH')
+        self.assertTrue(data['original_audio_preserved'])
+        self.assertGreaterEqual(len(data['silence_intervals']),2)
+        self.assertTrue(any(s['start_seconds']<=1.2 and
+                            s['end_seconds']>=1.5 for s in data['silence_intervals']))
+        self.assertTrue(any(x['start_seconds']<.7 and x['end_seconds']>.8
+                            for x in data['non_silent_intervals']))
+        self.assertEqual(hashlib.sha256(self.path.read_bytes()).hexdigest(),before)
+
+    def test_denies_foreign_revoked_and_forged_media_grants(self):
+        mutations=[
+            ('shop_id','other-shop'),
+            ('active',False),
+            ('rights_status','REVOKED'),
+            ('source','remote_stock'),
+            ('issued_by','browser'),
+            ('mime_type','image/png'),
+        ]
+        for field,value in mutations:
+            with self.subTest(field=field):
+                p=self.request()
+                p['grant'][field]=value
+                r=invoke_js(PROBE_JS,p)
+                self.assertNotEqual(r.returncode,0,r.stdout)
+
+    def test_denies_wrong_hash_traversal_or_symlink(self):
+        for name,mutate in [
+            ('hash',lambda p:p.update(expected_sha256='b'*64)),
+            ('absolute',lambda p:p.update(relative_path=str(self.path))),
+            ('parent',lambda p:p.update(relative_path='../original.wav')),
+            ('scheme',lambda p:p.update(relative_path='https://evil/clip.mp4')),
+        ]:
+            with self.subTest(name=name):
+                p=self.request()
+                mutate(p)
+                r=invoke_js(PROBE_JS,p)
+                self.assertNotEqual(r.returncode,0,r.stdout)
+        linked=self.private/'linked.mp4'
+        linked.symlink_to(self.path)
+        p=self.request()
+        p['relative_path']='linked.mp4'
+        p['grant']['relative_path']='linked.mp4'
+        self.assertNotEqual(invoke_js(PROBE_JS,p).returncode,0)
+
+    def test_whisperx_supplied_json_and_caption_trim_projection(self):
+        p={'asset_id':'clip-alpha','shop_id':'shop-alpha','source_sha256':self.sha,
+           'source_duration_seconds':16,
+           'transcript':{'segments':[{'words':[
+             {'word':'Welcome','start':.55,'end':.82},
+             {'word':'there.','start':.87,'end':1.03},
+             {'word':'Our','start':1.74,'end':1.88},
+             {'word':'collection','start':1.90,'end':2.1},
+             {'word':'arrived.','start':2.13,'end':2.35},
+           ]}]}}
+        r=invoke_js(ASR_JS,p)
+        self.assertEqual(r.returncode,0,r.stderr)
+        out=json.loads(r.stdout)
+        self.assertEqual(out['adapted']['source_sha256'],self.sha)
+        self.assertEqual(out['adapted']['paid_model_calls'],0)
+        self.assertEqual(out['adapted']['words'][0]['startMs'],550)
+        self.assertGreater(len(out['captions']),0)
+        self.assertTrue(all(x['startMs']>=4000 and x['endMs']<=5200
+            for x in out['trimmed']))
+        self.assertTrue(all(x['endMs']>x['startMs'] for x in out['trimmed']))
+        # This adapter *does not* run ASR; supplied data belongs to a later
+        # server-verified media-hash-bound transcription step.
+
+    def test_whisperx_missing_invalid_or_overlap_fails_closed(self):
+        p={'asset_id':'clip-alpha','shop_id':'shop-alpha','source_sha256':self.sha,
+           'source_duration_seconds':16,
+           'transcript':{'segments':[{'words':[{'word':'one','start':1,'end':1.5},
+             {'word':'two','start':1.6,'end':2}]}]}}
+        for mutate in [
+            lambda v:v['transcript']['segments'][0]['words'][0].pop('start'),
+            lambda v:v['transcript']['segments'][0]['words'][1].update(start=.4),
+            lambda v:v['transcript']['segments'][0]['words'][1].update(end=50),
+            lambda v:v.update(source_sha256='fake'),
+        ]:
+            data=json.loads(json.dumps(p))
+            mutate(data)
+            self.assertNotEqual(invoke_js(ASR_JS,data).returncode,0)
+
+    def test_silence_end_without_start_ignored(self):
+        sample={'log':'silence_end: 0.1 | nonsense\nsilence_start: 0.5\nsilence_end: 1.0\n',
+                'duration':2.0}
+        r=invoke_js(PARSE_JS,sample)
+        self.assertEqual(r.returncode,0,r.stderr)
+        self.assertEqual(json.loads(r.stdout)['silence_intervals'],
+            [{'start_seconds':.5,'end_seconds':1}])
+
+
+if __name__=='__main__':
+    unittest.main()
