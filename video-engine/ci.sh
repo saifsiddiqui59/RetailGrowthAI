@@ -51,4 +51,27 @@ assert (int(v[0]["width"]),int(v[0]["height"]))==(1080,1920)
 assert abs(float(info["format"]["duration"])-15)<.3
 print("PASS: real Pexels-stock 15-second Full-HD cinematic concept; NOT approved product")
 PY
+  # Owner-authorized Feature3 garment photo proxies + Feature5 motion stock.
+  GARMENT_PROJECT="$TMP/feature4-garment-30s-project"
+  GARMENT_PROOF="$ROOT/ci-artifacts/feature4-garment-30s-provenance.json"
+  GARMENT_MP4="$ROOT/ci-artifacts/feature4-stock-garment-30s.mp4"
+  python3 "$ROOT/video-engine/feature4_garment_integration.py" --download \
+    --project "$GARMENT_PROJECT" --provenance "$GARMENT_PROOF"
+  timeout --signal=TERM --kill-after=10s 500s \
+    node "$ROOT/video-engine/hyperframes/render.mjs" "$GARMENT_PROJECT" "$GARMENT_MP4"
+  python3 - "$GARMENT_MP4" "$GARMENT_PROOF" <<'PY'
+import json,subprocess,sys
+d=json.loads(subprocess.check_output(["ffprobe","-v","error",
+    "-show_streams","-show_format","-of","json",sys.argv[1]],text=True))
+v=[s for s in d["streams"] if s.get("codec_type")=="video"]
+a=[s for s in d["streams"] if s.get("codec_type")=="audio"]
+assert len(v)==len(a)==1 and v[0]["codec_name"]=="h264" and a[0]["codec_name"]=="aac"
+assert (int(v[0]["width"]),int(v[0]["height"]))==(1080,1920)
+assert abs(float(d["format"]["duration"])-30)<.4
+proof=json.load(open(sys.argv[2]))
+assert len(proof["source_media"])==5 and not proof["commercial_release_eligible"]
+assert not proof["model_garment_match_verified"] and not proof["showcase_eligible"]
+print("PASS: 30s actual Pexels garment + stock-person Reel, NOT garment identity or production acceptance")
+PY
+
 fi
