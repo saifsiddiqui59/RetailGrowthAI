@@ -17,8 +17,8 @@ from ai_agents.feature2_stock_media import (
 
 SHOP = "11111111-1111-4111-8111-111111111111"
 OTHER = "22222222-2222-4222-8222-222222222222"
-FIXTURE_BYTES = b"\\x00\\x00\\x00\\x18ftypisom" + (b"synthetic test video frame; not stock media" * 80)
-JPEG_BYTES = b"\\xff\\xd8\\xff" + b"synthetic JPEG header/payload; not downloaded photograph" * 10 + b"\\xff\\xd9"
+FIXTURE_BYTES = b"\x00\x00\x00\x18ftypisom" + (b"synthetic test video frame; not stock media" * 80)
+JPEG_BYTES = b"\xff\xd8\xff" + b"synthetic JPEG header/payload; not downloaded photograph" * 10 + b"\xff\xd9"
 
 
 def setup_review(candidate):
