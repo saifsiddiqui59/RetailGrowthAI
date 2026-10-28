@@ -430,11 +430,15 @@ h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.01
     if plan.get("logo_asset_id"):
         # This is a timed overlay on the root; the logo source is a trusted, staged asset.
         logo_src = names[plan["logo_asset_id"]]
-        intro_seconds = min(3, plan["scenes"][0]["duration"])
-        components.append(
-            f'<img id="intro-logo" class="clip hero-logo" src="{logo_src}" alt="" '
-            f'data-start="0" data-duration="{intro_seconds}" data-track-index="2">'
-        )
+        # A centered hero logo is suitable for a text-only branded intro.
+        # On image/video-led openings it conceals the product/model and breaks
+        # fashion composition. Preserve the small top-right brand mark below.
+        if not plan["scenes"][0].get("asset_id"):
+            intro_seconds = min(3, plan["scenes"][0]["duration"])
+            components.append(
+                f'<img id="intro-logo" class="clip hero-logo" src="{logo_src}" alt="" '
+                f'data-start="0" data-duration="{intro_seconds}" data-track-index="2">'
+            )
         components.append(
             f'<img id="brand-logo" class="clip" src="{logo_src}" alt="" '
             f'data-start="0" data-duration="{duration}" data-track-index="4" '

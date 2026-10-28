@@ -79,6 +79,8 @@ def make_edited_project(destination: Path, *, width: int = 540) -> dict:
                 'data-media-start="4"' not in page or
                 'data-media-start="0"' not in page or
                 '20% OFF' not in page or 'Visit Our Store' not in page or
+                'id="intro-logo"' in page or  # video-led: no face-covering center logo
+                'id="brand-logo"' not in page or  # small corner brand is retained
                 "90% OFF" in page):
             raise AssertionError("Actual edited HyperFrames composition diverged from approved timeline")
         audit = bundle["lineage"]
