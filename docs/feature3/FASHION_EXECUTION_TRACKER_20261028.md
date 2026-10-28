@@ -10,9 +10,9 @@ rights remain independent of test fixture approval. Do not modify WineShopPOS.
 | Capability | Verified state | Next security/quality release gate |
 | --- | --- | --- |
 | Model catalog and v2 poster design DB | 24th DEV migration already applied including model catalog/CPU design tables and default-OFF GPU ledger; SQL RLS tests exist | Human authenticated rights review + model registration/revocation, real registered PNG and actual signed retailer |
-| Model Storage private key | Previous prefix incompatible with Storage RLS; replacement #518 merged from current main, 4/4 exact PR CI | Real private upload/byte-sha proof and rights-verified model object |
-| Fashion image references | #515 merged with 4/4 PR and success on its own post-merge main; source module `poster-engine/fashion_reference_v1.py` | Inject authenticated asset/license/reviewer/product metadata services, real private image; actual feature2/4/5 calling sites |
-| Real retailer upload original | #520 fixes distinct Storage object UUID and registered media UUID (CI/merge must be checked separately) | Signed original from a live OWNER/EDITOR, verified image dimensions/byte SHA, review and revoked/foreign tests |
+| Model Storage private key | Previous prefix incompatible with Storage RLS; replacement #518 merged as `7849d24e` from current main, exact [PR CI #40686017512](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40686017512) 4/4 | Real private upload/byte-sha proof and rights-verified model object |
+| Fashion image references | #515 merged as `3f9613b8`, exact PR 4/4, and its own post-merge main run #40686101352 passed; source module `poster-engine/fashion_reference_v1.py` | Inject authenticated asset/license/reviewer/product metadata services, real private image; actual feature2/4/5 calling sites |
+| Real retailer upload original | #520 merged as `7dd08ebc` after exact [PR CI #40686428683](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40686428683) **4/4 PASS**, correcting distinct Storage object UUID and registered media UUID; post-merge main CI is independent | Signed original from a live OWNER/EDITOR, verified image dimensions/byte SHA, review and revoked/foreign tests |
 | Feature3 generated history | #518 adds actual GET-only Azure Functions route; earlier #508 already denies unsupported POST 404, default-off GET 503 | Hosted source release flag, signed GET, per-tenant status and private download tests |
 | Licensed model try-on | Existing `ai_providers_v2` has FASHN parser dependency not commercially cleared, no real inference | Legal/technical license approval, authorized capped GPU job, human exact garment comparison, no auto-approval |
 | #2/#4/#5 integration | #515 metadata-only handoff and coordinator comments available, not direct model execution | Feature #2 requests approved reference IDs, #4 carries timeline/rights, #5 resolves exact first-frame privately under lease; complete consumer tests |
@@ -25,8 +25,7 @@ rights remain independent of test fixture approval. Do not modify WineShopPOS.
 ### P0
 
 1. **Integrate source-only fixes** #515 (merged), #518 (merged), and
-   #520 (retailer original/private object UUID fix; verify latest exact CI and
-   merge independently); retire stale conflicted #504/#507 only after their
+   #520 (retailer original/private object UUID fix, merged after exact 4/4 CI); retire stale conflicted #504/#507 only after their
    replacements are merged. Avoid replacing already integrated #508.
 2. **Registered original assets:** signed active owner/EDITOR proof, private
    object and separate media row UUID, actual bytes SHA/dimensions, unexpired
