@@ -37,7 +37,20 @@ RUN python /opt/retailgrowth/source_audit.py --source /opt/retailgrowth/comfyui 
       -r /opt/retailgrowth/requirements.lock && \
     python -m pip check
 
-# No public HTTP ingress, model downloads, job start or embedded secrets.
+# The ComfyUI source stays root-owned. Only an ephemeral, non-root private
+# input/output/tmp/user staging area may be writable by worker uid 10001.
+# An approved job orchestrator must bind this path to ONE fenced attempt and
+# shred its contents on terminal/uncertain reconciliation. Source-only here.
+RUN install -d -m 0700 -o 10001 -g 10001 \
+      /opt/retailgrowth/private-runtime \
+      /opt/retailgrowth/private-runtime/input \
+      /opt/retailgrowth/private-runtime/output \
+      /opt/retailgrowth/private-runtime/temp \
+      /opt/retailgrowth/private-runtime/user
+
+# No public ingress, model downloads, automatic job start or embedded secrets.
+# The pinned ComfyUI cli_args.py accepts these four directory arguments and
+# --disable-metadata, preventing prompt/customer details in MP4 metadata.
 WORKDIR /opt/retailgrowth/comfyui
 USER 10001:10001
-CMD ["python","main.py","--listen","127.0.0.1","--port","8188","--extra-model-paths-config","/opt/retailgrowth/extra_model_paths.yaml"]
+CMD ["python","main.py","--listen","127.0.0.1","--port","8188","--input-directory","/opt/retailgrowth/private-runtime/input","--output-directory","/opt/retailgrowth/private-runtime/output","--temp-directory","/opt/retailgrowth/private-runtime/temp","--user-directory","/opt/retailgrowth/private-runtime/user","--disable-metadata","--extra-model-paths-config","/opt/retailgrowth/extra_model_paths.yaml"]
