@@ -53,3 +53,37 @@ export function paginateVerifiedAssets(assets, page, size = 12) {
   return { page: current, pages, total: count, first: count ? start+1 : 0,
     last: Math.min(start+pageSize, count), items: rows.slice(start,start+pageSize) }
 }
+
+
+/**
+ * A private browser Blob must be withdrawn if any previously verified media
+ * identity/rights metadata changes, even while its source remains UPLOAD.
+ * This fingerprint is local display state, NOT a licence grant or byte hash.
+ */
+export function mediaPreviewRevision(asset, shopId) {
+  if (!mediaPreviewAccess(asset,shopId).allowed ||
+      typeof asset.created_at !== 'string' || !asset.created_at) return null
+  return JSON.stringify([
+    asset.id,asset.shop_id,asset.source,asset.mime_type,
+    asset.license_name,asset.created_at,
+  ])
+}
+
+/**
+ * Query refetch can merge several keyset history pages. Reject a missing or
+ * duplicated media identity; a stale page must not keep a private Blob alive
+ * after a different page reports altered rights.
+ */
+export function currentMediaPreview(preview, pages, shopId) {
+  if (!preview || !preview.revision || !Array.isArray(pages)) return false
+  let count=0
+  for (const page of pages) {
+    if (!page || !Array.isArray(page.items)) return false
+    for (const asset of page.items) {
+      if (asset?.id !== preview.id) continue
+      count++
+      if (count > 1 || mediaPreviewRevision(asset,shopId) !== preview.revision) return false
+    }
+  }
+  return count === 1
+}
