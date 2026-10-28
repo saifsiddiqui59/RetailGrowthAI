@@ -94,14 +94,16 @@ def flux_klein_4b(*, prompt, seed, width=1024, height=1024, approved_input_file=
     return {"prompt": n}
 
 
-def wan22_ti2v_5b(*, prompt, seed, approved_input_file=None, width=832, height=480, frames=121, fps=24, output_prefix="rgai/feature5"):
+def wan22_ti2v_5b(*, prompt, seed, approved_input_file=None, width=1280, height=704, frames=121, fps=24, output_prefix="rgai/feature5"):
     """Official native Wan2.2 5B hybrid TI2V nodes; optional start_image enables I2V."""
     prompt = _text(prompt)
     seed = _seed(seed)
     width = _dim(width, maximum=1280, multiple=32)
     height = _dim(height, maximum=1280, multiple=32)
-    if type(frames) is not int or not 5 <= frames <= 121 or (frames-1)%4:
-        raise WorkflowError("Wan length must be 4n+1, <=121 (~5s at 24fps)")
+    if (width,height) not in ((704,1280),(1280,704)):
+        raise WorkflowError("Pinned Wan TI2V-5B supports only native 704x1280 or 1280x704")
+    if type(frames) is not int or frames != 121:
+        raise WorkflowError("Approved Wan native profile requires 121 frames (~5s at 24fps)")
     if fps != 24 or type(fps) is not int:
         raise WorkflowError("Only 24fps is pre-reviewed")
     prefix = _prefix(output_prefix)
