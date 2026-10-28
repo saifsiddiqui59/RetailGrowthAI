@@ -4,14 +4,15 @@
 
 ## Narrow safe change
 
-The original `azure-functions/campaign-api/function_app.py` eagerly imported planning, recovery, poison, notification and poster worker-only modules while Azure Functions indexes the HTTP routes, including when the scheduled notification and poster options were disabled. The source change keeps existing route decorators, settings checks, signed JWT/RLS HTTP boundary, queue trigger names, durable job semantics, limits and error paths intact, and moves those imports into the specific queue/timer functions that actually invoke them:
+The original `azure-functions/campaign-api/function_app.py` eagerly imported planning, recovery, poison, notification, poster worker-only modules **and authenticated HTTP/storage/Feature3 API modules** while Azure Functions indexed the HTTP routes, including when the scheduled notification and poster options were disabled. This candidate retains only `json`, `os`, `azure.functions` and sanitized request diagnostics at module import time; tenant/queue/API modules load when the authenticated request or their respective workers run. The source change keeps existing route decorators, settings checks, signed JWT/RLS HTTP boundary, queue trigger names, durable job semantics, limits and error paths intact, and moves those imports into the specific queue/timer functions that actually invoke them:
 
-- `planning_worker` only on a planning queue message.
+- `HTTPAPI`, tenant/JWT, queue, poster and Feature3 API/store imports only on a dispatched HTTP request; no authorization rule is skipped.
+- `planning_worker` and `AdminStore` only on a planning queue message.
 - `recovery_runtime` only during recovery or poison execution; unused `dispatch_outbox` top-level import removed.
 - `notification_store` and `notification_worker` only **after** the opt-in notification flag is true.
 - `poster_admin`/`poster_queue` only inside enabled poster worker/timer handlers.
 
-A new `tests/infra/test_p0_249_lazy_worker_imports.py` parses/compiles the exact Functions source, rejects worker-only top-level imports or leak into HTTP auth handlers, requires the original registered trigger decorators and checks fail-closed disabled-feature gates before imports. It is **source-level** regression verification; CI must separately run the existing Python and FFmpeg integration suites. This change does not remove large FFmpeg/ffprobe binaries from the deployed ZIP, split HTTP and worker scale groups, or change host/Flex memory/instance settings. Benefits to startup time are **not measured**.
+A new `tests/infra/test_p0_249_lazy_worker_imports.py` parses/compiles the exact Functions source, requires the four-module lightweight indexing allowlist, rejects worker-only top-level imports or leak into HTTP auth handlers, requires the original registered trigger decorators and checks fail-closed disabled-feature gates before imports. It is **source-level** regression verification; CI must separately run the existing Python and FFmpeg integration suites. This change does not remove large FFmpeg/ffprobe binaries from the deployed ZIP, split HTTP and worker scale groups, or change host/Flex memory/instance settings. Benefits to startup time are **not measured**.
 
 ## Owner/coordinator handoff
 
