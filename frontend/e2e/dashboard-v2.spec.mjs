@@ -22,8 +22,8 @@ async function signedIn(page) {
         checked_at:'2026-10-28T11:00:00Z'
       },
       '/rest/v1/media_assets': [
-        {id: 'a1000000-0000-4000-8000-000000000010', shop_id: SHOP, license_name: 'owned', mime_type:'image/png'},
-        {id: 'a1000000-0000-4000-8000-000000000020', shop_id: 'a1000000-0000-4000-8000-000000000002', license_name:'owned',mime_type:'image/jpeg'}
+        {id: 'a1000000-0000-4000-8000-000000000010', shop_id: SHOP, source:'UPLOAD', license_name: 'owned', mime_type:'image/png',created_at:'2026-10-28T12:00:00Z'},
+        {id: 'a1000000-0000-4000-8000-000000000020', shop_id: 'a1000000-0000-4000-8000-000000000002', source:'UPLOAD', license_name:'owned',mime_type:'image/jpeg',created_at:'2026-10-28T11:59:00Z'}
       ],
     }
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, body: '',
@@ -259,7 +259,7 @@ test('private registered media is read only on preview through user JWT, never p
     const u=new URL(route.request().url())
     const registered={id:image,shop_id:SHOP,storage_bucket:'retailgrowth-media',
       object_path:SHOP+'/uploads/'+upload+'.png',mime_type:'image/png',
-      source:'UPLOAD',license_name:'owned'}
+      source:'UPLOAD',license_name:'owned',created_at:'2026-10-28T12:00:00Z'}
     return route.fulfill({status:200,contentType:'application/json',
       headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
       body:JSON.stringify(u.searchParams.has('id')?[registered]:[registered])})
@@ -301,14 +301,16 @@ test('Media Library pages 27 RLS-verified records locally and resets on filters 
   let mediaReads=0
   const rows=Array.from({length:27},(_,i)=>({
     id:'a1000000-0000-4000-8000-'+String(i+100).padStart(12,'0'),
-    shop_id:SHOP,license_name:i===26?'owned-special':'owned',mime_type:i===26?'image/webp':'image/png'
+    shop_id:SHOP,source:'UPLOAD',license_name:i===26?'owned-special':'owned',mime_type:i===26?'image/webp':'image/png',
+    created_at:new Date(Date.UTC(2026,9,28,12,0)-i*1000).toISOString()
   }))
   await page.route(HOST+'/rest/v1/media_assets**',route=>{
     mediaReads+=1
     return route.fulfill({
     status:200,contentType:'application/json',
     headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
-    body:JSON.stringify([...rows,{...rows[0],shop_id:'a1000000-0000-4000-8000-000000000002'}])
+    body:JSON.stringify([...rows,{...rows[0],shop_id:'a1000000-0000-4000-8000-000000000002',
+      created_at:'2026-10-28T11:55:00Z'}])
   })
   })
   await page.setViewportSize({width:320,height:740})
@@ -619,40 +621,45 @@ test('unverified guest cannot deep-link to dashboard subroutes', async ({ page }
 })
 
 
-test('Media Library loads beyond the first 100 only on request, without cross-shop or public reads',async({page})=>{
+test('Media Library keyset loads 101 records without repeating a row after new uploads',async({page})=>{
   await signedIn(page)
   const rows=Array.from({length:101},(_,i)=>({
     id:'a1000000-0000-4000-8000-'+String(i+100).padStart(12,'0'),
-    shop_id:SHOP,source:'UPLOAD',license_name:'owned',mime_type:'image/png'
+    shop_id:SHOP,source:'UPLOAD',license_name:'owned',mime_type:'image/png',
+    created_at:new Date(Date.UTC(2026,9,28,12,0)-i*1000).toISOString()
   }))
-  const offsets=[]
+  const cursors=[]
   await page.route(HOST+'/rest/v1/media_assets**',route=>{
-    const req=route.request()
+    const req=route.request(),u=new URL(req.url())
     expect(req.headers().authorization).toBe('Bearer offline-test-JWT')
-    const u=new URL(req.url()),offset=Number(u.searchParams.get('offset'))
-    offsets.push(offset)
     expect(u.searchParams.get('shop_id')).toBe('eq.'+SHOP)
+    expect(u.searchParams.get('order')).toBe('created_at.desc,id.desc')
     expect(u.searchParams.get('limit')).toBe('101')
+    expect(u.searchParams.has('offset')).toBe(false)
+    cursors.push(u.searchParams.get('or'))
+    // A freshly added row before the original first row must never shift the
+    // second page: backend keyset returns the 101st original record only.
+    const body=cursors.length===1 ? rows : [rows[100]]
+    if(cursors.length===2){
+      expect(cursors[1]).toContain('created_at.lt.'+rows[99].created_at)
+      expect(cursors[1]).toContain('id.lt.'+rows[99].id)
+    }
     return route.fulfill({status:200,contentType:'application/json',
       headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
-      body:JSON.stringify(offset===0 ? rows : [rows[100],rows[2],{
-        ...rows[100],id:'a1000000-0000-4000-8000-000000009999',
-        shop_id:'a1000000-0000-4000-8000-000000000002'
-      }])})
+      body:JSON.stringify(body)})
   })
   await page.setViewportSize({width:320,height:740})
   await page.goto('/media-library')
   await expect(page.getByText('100 matching registered images')).toBeVisible()
-  expect(offsets).toEqual([0])
+  expect(cursors).toEqual([null])
   await page.getByRole('button',{name:'Load 100 older records'}).click()
   await expect(page.getByText('101 matching registered images')).toBeVisible()
-  expect(offsets).toEqual([0,100])
+  expect(cursors).toHaveLength(2)
   await expect(page.getByRole('button',{name:'Load 100 older records'})).toHaveCount(0)
   await expect(page.locator('a[href*="/storage/v1/object/"]')).toHaveCount(0)
   await expect.poll(()=>page.evaluate(()=>
     document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
 })
-
 
 test('retailer inbox uses signed JWT, scoped paging, genuine server states and per-user read update',async({page})=>{
   await signedIn(page)
