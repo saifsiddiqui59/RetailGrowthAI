@@ -84,3 +84,12 @@ def test_non_503_or_repeat_failure_does_not_mutate_or_continue():
     with pytest.raises(RuntimeError,match="503"):
         probe("https://dev.example.invalid",apikey="TEST",token="TEST",sleep=lambda _:None)
     assert len(attempts)==3
+
+def test_ambiguous_membership_restore_still_arms_cleanup_first():
+    source=SCRIPT.read_text()
+    patch='updated=request(membership_url,method="PATCH",apikey=service,obj={"active":True})'
+    arm='active=True'
+    ensure='ensure(len(updated)==1 and updated[0]["active"] is True'
+    assert source.index('    try:\n        # A lost PATCH acknowledgement') < source.index(arm,source.index('    try:\n        # A lost PATCH acknowledgement')) < source.index(patch)
+    assert source.index(patch) < source.index(ensure)
+    assert 'request(membership_url,method="PATCH",apikey=service,obj={"active":False})' in source
