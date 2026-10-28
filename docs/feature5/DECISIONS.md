@@ -146,3 +146,8 @@ Safety requirement strengthened: a callback may commit a durable SUBMISSION_INTE
 ## 2026-10-28 — Continued fail-closed source sprint after previous green CI
 
 One Comfy dispatcher can start at most one attempt even under local concurrent invocations; Part3 transactional CAS is still mandatory across workers. Reused mutable reference approvals cannot be trusted across GET /object_info; compare against a snapshot. After durable submission intent, missing/revoked/changed Feature3 grant is UNKNOWN consumed, never safe for automatic POST replay. Comfy /prompt ack must have expected canonical UUID and a nonnegative integer queue number. Local /history requires the actual issued receipt object; other workers require independently authenticated read-only reconciliation. Parse F4 receipt UUIDs/tenant/rights/path before trusted settlement lookup.
+
+
+## 2026-10-28 — Parallel/timeout negative proof
+
+Parallel callers to the same local Comfy dispatcher must never start a second POST. If the post-intent F3 rights reader times out or errors, treat committed intent as UNKNOWN/consumed, never implicitly safe to repeat. Cross-worker uniqueness continues to require existing Part3 atomic CAS.

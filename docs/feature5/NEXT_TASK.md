@@ -186,3 +186,8 @@ Feature5-owned code validation: verify latest 4/4 source/doc CI; repair any fail
 ## 2026-10-28 — Continued fail-closed source sprint after previous green CI
 
 NEXT: Verify final documentation-head CI four jobs and remediate genuine failures. Feature5 source-only tests now include mutable grant alias, post-intent F3 revocation/no POST, malformed acknowledgement, forged local history and foreign F4 receipt/no DB lookup. Remaining coordinator-owned REAL signed Part3 job+lease+unique DB CAS+immutable private storage+usage settlement, current F3 licensed source and independent F4 review, hosted tenant signed negatives. No real Pexels byte evidence or genuine Wan inference. Immutable CUDA runtime/license review and explicitly capped paid A100 acceptance await separate approval.
+
+
+## 2026-10-28 — Parallel/timeout negative proof
+
+After latest tests, verify all four jobs at the FINAL documentation SHA. Remaining real gates unchanged: coordinator Part3 signed tenant/lease/CAS and private importer, Feature3 real rights, Feature4 human review, separately approved licensed Comfy image and capped GPU. No source-owned paid work remains when CI passes.

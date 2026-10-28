@@ -162,3 +162,8 @@ Owned GPU-OFF source workstream advanced beyond initial source-complete checkpoi
 ## 2026-10-28 — Continued fail-closed source sprint after previous green CI
 
 On Feature5-only branch retained original Comfy/FFmpeg/source contracts. Fixed in-process duplicate submission race with atomically consumed dispatcher slot (existing Part3 durable CAS still required), snapshotted current F3 grant to reject mutable-cache revocation, third post-intent pre-POST F3 rights check returns UNKNOWN without paid retry, hardened Comfy acknowledgement number to nonnegative integer, scoped local history to same issued object, and moved F4 malformed/private handoff rejection before trusted DB calls. No GPU or cloud write.
+
+
+## 2026-10-28 — Parallel/timeout negative proof
+
+Latest source-only addendum: deterministic two-thread simulated paid dispatcher test confirms exactly one POST on one dispatcher; post-CAS Feature3 resolver outage is UNKNOWN/consumed with no POST or retry. Source-only, no A100 or tenant mutation.

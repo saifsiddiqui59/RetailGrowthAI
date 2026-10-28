@@ -49,3 +49,8 @@ Source/offline coverage and external acceptance deliberately separated. Own code
 ## 2026-10-28 — Continued fail-closed source sprint after previous green CI
 
 GPU-OFF source security hardening added after prior 4/4 CI #40748330126: fail closed on mutable source grant aliases, post-intent rights revocation, same-dispatcher parallel calls, malformed acknowledgements, forged local-history receipt, invalid F4 tenant/job UUID and untrusted rights/path before authoritative DB lookup. Tests are synthetic/CPU only; current run on updated documentation SHA must be checked before a new source-qualified verdict. Genuine licensed customer media, hosted tenant proof, Part3 signed settlement/immutable importer, real Comfy CUDA/runtime and paid A100/manual garment review all remain unverified.
+
+
+## 2026-10-28 — Parallel/timeout negative proof
+
+New CPU-only negative tests cover local parallel submission races and post-intent rights-reader timeout. No real signed hosted claims or GPU inference were executed; complete exact final-head four-job CI remains required.

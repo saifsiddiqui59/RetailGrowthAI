@@ -156,3 +156,8 @@ Checkpoint continuation completed code on existing Feature5 branch: added negati
 ## 2026-10-28 — Continued fail-closed source sprint after previous green CI
 
 2026-10-28: Continued Feature5 owned security sprint. Commits 92689b1ed753b77a7b2ff2a81cb68cc198e623d4 and 9281880c30bfb04ec4b653c7abc4ee542537fbdb: atomic local Comfy attempt slot, immutable F3 approval comparison, rights recheck after durable intent, invalid acknowledgment => UNKNOWN, local history receipt identity, F4 private handoff boundary UUID normalization and no needless DB callbacks on invalid fields. Added CPU-only negative regression tests. No A100, paid calls, hosted data writes, schema changes, main merge or WineShopPOS changes. Final exact-head CI must be verified independently.
+
+
+## 2026-10-28 — Parallel/timeout negative proof
+
+2026-10-28: Added CPU negative tests for parallel same-dispatcher submission (one POST only) and F3 rights resolver outage after durable intent (zero POST, consumed). Source test commit a0929fff705274fb22e5876e38b2410b70cd62c7. Final documentation-head 4/4 CI pending, no paid or hosted writes.
