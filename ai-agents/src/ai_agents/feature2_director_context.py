@@ -153,6 +153,8 @@ def build_verified_director_context(
         authorized_media.append({
             "id": mid, "shop_id": sid, "rights_status": "APPROVED",
             "kind": "IMAGE", "product_sku": sku, "garment_facts": facts,
+            "private": True, "commercial_use_allowed": True,
+            "revoked_at": None, "original_media_sha256": row["original_media_sha256"],
         })
     current_offers = _rows(offer_rows, offer_ids, sid)
     approved_offers = []
