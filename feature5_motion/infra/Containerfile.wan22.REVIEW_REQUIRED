@@ -24,9 +24,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY vendor/ComfyUI/ /opt/retailgrowth/comfyui/
 COPY vendor/reviewed-wheelhouse/ /opt/retailgrowth/wheelhouse/
 COPY vendor/reviewed-wheels.require-hashes.txt /opt/retailgrowth/requirements.lock
+COPY vendor/reviewed-source-files.sha256.json /opt/retailgrowth/source-review.json
+COPY feature5_motion/infra/wan22_source_audit.py /opt/retailgrowth/source_audit.py
 COPY feature5_motion/infra/extra_model_paths.feature35.yaml /opt/retailgrowth/extra_model_paths.yaml
 
-RUN test "$COMFYUI_SOURCE_COMMIT" = "$EXPECTED_COMFYUI_COMMIT" && \
+RUN python /opt/retailgrowth/source_audit.py --source /opt/retailgrowth/comfyui --manifest /opt/retailgrowth/source-review.json && \
+    test "$COMFYUI_SOURCE_COMMIT" = "$EXPECTED_COMFYUI_COMMIT" && \
     test "$(cat /opt/retailgrowth/comfyui/REVIEWED_SOURCE_COMMIT)" = "$EXPECTED_COMFYUI_COMMIT" && \
     test -f /opt/retailgrowth/comfyui/LICENSE && \
     python -m pip install --no-index --require-hashes \
