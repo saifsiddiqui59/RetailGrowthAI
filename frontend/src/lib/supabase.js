@@ -612,7 +612,7 @@ export function createRetailClient({
   async function listMediaAssetsKeysetPage(shopId, cursor = null) {
     if (!UUID_V4.test(shopId || '')) throw new Error('Invalid media page scope')
     const timestamp = value => typeof value === 'string' &&
-      /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\\.\d{1,6})?(?:Z|[+]00:00)$/.test(value) &&
+      /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?(?:Z|[+]00:00)$/.test(value) &&
       Number.isFinite(Date.parse(value))
     if (cursor !== null && (!cursor || !UUID_V4.test(cursor.id || '') ||
         !timestamp(cursor.created_at))) throw new Error('Invalid media page cursor')
