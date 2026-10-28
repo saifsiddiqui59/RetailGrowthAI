@@ -36,3 +36,9 @@ The optional `--execute` **must not be used now**. No actual Feature3 GPU job is
 4. Operator later provisions and checks an actual FLUX manual job, model weights + image signature, cost and hard idle cleanup, then explicitly approves bounded one-run GPU test **only when Feature3 is ready**. No hosted database migration, GPU activation, PROD, WineShopPOS, external model calls or charges in this branch.
 
 Source test commands used by existing FFmpeg/media CI: `python3 -m unittest discover -s tests/media -p 'test_feature3_model_evidence.py'` and likewise `test_feature3_gpu_lifecycle.py`; all standard four GitHub Actions jobs still required.
+
+## Signed retailer reviewer RPC transport (additional source work)
+
+`azure-functions/campaign-api/feature3_v2_store.py` now includes `review_model` and `revoke_model` transports for the already-merged `public.feature3_review_model` / `public.feature3_revoke_model` SQL RPCs. It accepts the user's *already-verified* JWT and shop IDs, passes six explicit human checks and immutable expected SHA/revision/evidence revision, and verifies a private durable `review_event_id` and revision receipt. It refuses a service-role/publishable key passed as a user token; SQL independently checks `auth.uid()`, active membership, per-image evidence and the curator requirement. There is NO exposed reviewer HTTP endpoint or hosted integration until separately reviewed release authorization. Synthetic tests in `tests/api/test_feature3_model_review_transport.py` mock PostgREST without a network or fake live user session.
+
+**Do not infer token signature verification** from this transport or synthetic JWT text. The existing authenticated API handler must validate the signed user's session and shop before calling it. No GPU work is triggered by approving a model.
