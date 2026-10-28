@@ -195,7 +195,7 @@ process.stdout.write(JSON.stringify(prepareEvidenceBoundReview({
         denial=subprocess.run(['node','--input-type=module','-e',checker],
           input=json.dumps(doc),text=True,capture_output=True,cwd=ROOT,timeout=20)
         self.assertNotEqual(denial.returncode,0)
-        self.assertIn('scene',denial.stderr.lower())
+        self.assertIn('invalid media duration',denial.stderr.lower())
         # Scope tampering is denied *before* any tentative proposal gets out.
         doc['media'][0]['asr_evidence']['shop_id']='other'
         other=subprocess.run(['node','--input-type=module','-e',checker],
