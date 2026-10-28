@@ -143,7 +143,13 @@ def benchmark(project, output, report, *, timeout_seconds=420, use_npm_node22=Fa
         "render_cap_seconds_reference_only": 780,
         "azure_cost_inr": None,
         "azure_runtime_memory_verified": False,
-        "node22_package_lock_committed": (ROOT / "package-lock.json").is_file(),
+        "package_lock_present_in_workspace": (ROOT / "package-lock.json").is_file(),
+        "package_lock_tracked_in_git": subprocess.run(
+            ["git", "-C", str(ROOT.parents[1]), "ls-files", "--error-unmatch",
+             "video-engine/hyperframes/package-lock.json"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
+            check=False,
+        ).returncode == 0,
     }
     report.parent.mkdir(parents=True, exist_ok=True)
     report.write_text(json.dumps(report_data, indent=2, sort_keys=True) + "\n")

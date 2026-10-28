@@ -59,3 +59,9 @@
 
 - `video-engine/render_adapter.py.verify_mp4` now enforces `yuv420p` at the final verified private-artifact boundary, independently of the existing Node/HyperFrames probe. H.264/AAC alone does not guarantee compatible vertical playback if 4:4:4/10-bit output escapes the producer. An added 2-second real FFmpeg yuv444p H.264/AAC negative fixture tests refusal before signed output can be registered. No external media, GPU, new hosting, schema or API affected.
 - This source hardening is **not yet verified** until its exact code-head media job completes; original green checks belong to the preceding branch head.
+
+## 2026-10-28 — Actual Feature #4 CPU benchmark evidence
+
+- [Exact-head CI #40671108819](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40671108819), code head `1063d1c0c901d7e3cf59dade06994e78aeac9f79`: **SUCCESS 4/4**, 114 media tests, real synthetic 30s Full-HD 24fps H.264/AAC output 5,450,503 bytes. The existing `ffmpeg-smoke` artifact #12808846650 includes `feature4-1080p-cpu-benchmark.json`.
+- Measured GitHub Ubuntu runner: **119.612 wall seconds**, **1,790,390,272 bytes peak sampled process-tree RSS** (about 1.67 GiB), **182.09 sampled CPU seconds lower bound**, **580 samples** at 0.2 seconds, max observed 8 processes, 4 visible CPU cores. This is a CPU-only synthetic workload and does not establish Azure Flex fit, cold start, full-60s acceptance, memory guarantee, user-media quality or billing cost. A 2-GiB Azure target deserves careful isolation testing, not assumed compatibility.
+- The benchmark initially labeled a locally generated npm lock as `committed`; the next code checkpoint corrects this to two separate fields: present in runner workspace and **tracked in Git**. The actual source branch has no committed lockfile. Exact new-head CI remains required after the correction and yuv420p hardening.
