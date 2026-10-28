@@ -10,7 +10,7 @@ import { canonicalVideoId, createVideoTransport, privateMediaPreviewUrl } from '
 // The user must see "integration pending" until all those gates are met.
 export default function VideoStudioConnected({
   shopId, campaignId, approvalId, mediaAssets = [], musicAssets = [],
-  enabled = false, routes = null, pollMs = 3500,
+  enabled = false, routes = null, pollMs = 3500, creativeDirection = null,
 }) {
   const { client, user, configured, recoveryMode } = useRetailAuth()
   const [job, setJob] = useState(null)
@@ -157,7 +157,7 @@ export default function VideoStudioConnected({
         </p>
       )}
       {error && <p className="f4-issues" role="alert">{error}</p>}
-      <VideoStudio key={shopKey} shopId={shopId}
+      <VideoStudio key={shopKey} shopId={shopId} creativeDirection={creativeDirection}
         mediaAssets={shopMedia} musicAssets={shopMusic}
         onRender={api ? submit : null} renderStatus={job}
         signedVideoUrl={ready ? signedUrl : null}

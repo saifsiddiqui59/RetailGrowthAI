@@ -4,6 +4,8 @@ import {
   shiftVideoScene, retimeVideoDraft, validateVideoDraft,
 } from './video-model.mjs'
 import { privateMediaPreviewUrl } from './video-transport.mjs'
+import TimelineStudioSurface from './TimelineStudioSurface.jsx'
+import { inspectCreativeDirection } from './creative-direction-adapter.mjs'
 import './VideoStudio.css'
 
 // Feature-owned panel. Feature #1 must mount it in the shared authenticated layout.
@@ -12,8 +14,14 @@ import './VideoStudio.css'
 export default function VideoStudio({
   shopId, mediaAssets = [], musicAssets = [], onRender = null,
   renderStatus = null, signedVideoUrl = null, onPrivateDownload = null,
+  creativeDirection = null,
 }) {
   const [draft, setDraft] = useState(() => makeVideoDraft({ shopId, mediaAssets }))
+  const approvedRead = useMemo(() => {
+    if (!creativeDirection) return null
+    try { return inspectCreativeDirection(creativeDirection, {shopId, mediaAssets, musicAssets}) }
+    catch(error) { return {error: error.message} }
+  }, [creativeDirection, shopId, mediaAssets, musicAssets])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -25,11 +33,18 @@ export default function VideoStudio({
     setSubmitted(false)
     setError('')
   }, [shopId])
+  useEffect(() => {
+    if (approvedRead?.draft) {
+      setDraft(approvedRead.draft)
+      setSelectedSceneIndex(0)
+      setSubmitted(false)
+    }
+  }, [approvedRead])
   const assets = useMemo(() => compatibleMedia(draft.mode, mediaAssets), [draft.mode, mediaAssets])
   const approvedPosters = useMemo(() => (Array.isArray(mediaAssets) ? mediaAssets : [])
     .filter(asset => asset?.authorized === true && asset?.kind === 'poster'), [mediaAssets])
   const issues = useMemo(
-    () => validateVideoDraft(draft, mediaAssets, musicAssets),
+    () => [...validateVideoDraft(draft, mediaAssets, musicAssets), ...(approvedRead?.error ? [approvedRead.error] : [])],
     [draft, mediaAssets, musicAssets],
   )
   const patch = (changes) => { setDraft(prev => ({ ...prev, ...changes })); setSubmitted(false) }
@@ -64,7 +79,7 @@ export default function VideoStudio({
   async function submit(event) {
     event.preventDefault()
     setError('')
-    if (issues.length || !onRender) return
+    if (issues.length || !onRender || (creativeDirection && !approvedRead?.draft)) return
     setBusy(true)
     try {
       await onRender(structuredClone(draft))
@@ -196,12 +211,16 @@ export default function VideoStudio({
           </div>}
           {error && <p role="alert" className="f4-issues">{error}</p>}
           {submitted && <p className="f4-guidance" role="status">Request submitted. The backend must confirm a durable render job and private artifact.</p>}
-          <button className="f4-submit" type="submit" disabled={busy || issues.length > 0 || !onRender}>
+          <button className="f4-submit" type="submit" disabled={busy || issues.length > 0 || !onRender || Boolean(creativeDirection && !approvedRead?.draft)}>
             {busy ? 'Submitting…' : onRender ? 'Submit authorized render' : 'Backend v2 connection pending'}
           </button>
           <p className="f4-fine">Visual preview is a storyboard mock, not a rendered MP4. Nothing here bypasses backend shop access, media rights, usage limits or human approval.</p>
         </form>
         <aside className="f4-view" aria-label="Video storyboard preview">
+          <TimelineStudioSurface draft={draft} mediaAssets={mediaAssets} musicAssets={musicAssets}
+            selectedSceneIndex={selectedSceneIndex} onSelectScene={setSelectedSceneIndex}
+            approvedDirection={Boolean(creativeDirection)}
+            onChange={next => { setDraft(next); setSubmitted(false) }} />
           <nav className="f4-timeline" aria-label="Choose a storyboard scene to preview">
             {draft.scenes.map((scene, index) => (
               <button key={index} type="button" className={index === selectedSceneIndex ? 'f4-selected' : ''}
