@@ -1,0 +1,306 @@
+name: RetailGrowthAI Feature2 LIVE DEV release to EXISTING resources
+# Owner-approved, one-time release: only changing this workflow on main invokes it.
+# No PR secrets and no resource creation. Never targets other Azure/Supabase projects.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature2-release-once.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rgai-dev-queue-runtime-release
+  cancel-in-progress: false
+
+env:
+  RG: rg-retailgrowth-dev
+  APP: rgai-dev-functions-d4e5ddbd
+  STORAGE: rgaid4e5ddbdf0d21d96
+  SWA: retailgrowthai-dev-preview
+  PROJECT_URL: https://jeearzffnjbvghwjjjrf.supabase.co
+
+jobs:
+  backend:
+    name: Publish existing Functions with licensed FFmpeg and Feature2 trends
+    if: "github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release(dev): activate reviewed RetailGrowthAI Feature2')"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build bounded existing Python release ZIP with content-pinned FFmpeg and Feature2 sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f supabase/migrations/20261024190000_p1_platform_operations.sql
+          test -f supabase/migrations/20261026152000_feature2_trends_drafts.sql
+          grep -Fq 'def get_retailer_trends' azure-functions/campaign-api/function_app.py
+          grep -Fq 'def create_retailer_trend_draft' azure-functions/campaign-api/function_app.py
+          grep -Fq 'def feature2_collect_india_trends' azure-functions/campaign-api/function_app.py
+          grep -Fq 'def improve_retailer_prompt' azure-functions/campaign-api/function_app.py
+          grep -Fq 'def improve(self, shop_id:' azure-functions/campaign-api/feature2_adapter.py
+          grep -Fq 'def improve_prompt(' ai-agents/src/ai_agents/prompt_improver.py
+          python3 -m py_compile ai-agents/src/ai_agents/prompt_improver.py azure-functions/campaign-api/feature2_adapter.py
+          python3 scripts/deploy/package.py --check
+          mkdir -p "$RUNNER_TEMP/media" "$RUNNER_TEMP/release"
+          IMAGE="mwader/static-ffmpeg@sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822"
+          docker pull "$IMAGE"
+          cid="$(docker create "$IMAGE" -version)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          docker cp "$cid:/ffmpeg" "$RUNNER_TEMP/media/ffmpeg"
+          docker cp "$cid:/ffprobe" "$RUNNER_TEMP/media/ffprobe"
+          chmod 755 "$RUNNER_TEMP/media/ffmpeg" "$RUNNER_TEMP/media/ffprobe"
+          cat > "$RUNNER_TEMP/media/THIRD_PARTY_NOTICES.txt" <<'NOTICE'
+          FFmpeg and ffprobe: static Linux x86_64 GPL distribution, libx264 and AAC.
+          Corresponding source and build instructions: https://github.com/wader/static-ffmpeg
+          Distribution content digest: sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822
+          License and redistribution terms: https://ffmpeg.org/legal.html
+          NOTICE
+          python3 scripts/deploy/package.py --ffmpeg-dir "$RUNNER_TEMP/media" \
+            --output "$RUNNER_TEMP/release/part1.zip"
+          python3 scripts/deploy/package.py --verify-zip "$RUNNER_TEMP/release/part1.zip"
+          sha256sum "$RUNNER_TEMP/release/part1.zip"
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Scope audit and Foundry discovery (no credentials printed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          az group show -g "$RG" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          rg=json.load(open(sys.argv[1]))
+          tags={k.lower():str(v).lower() for k,v in (rg.get('tags') or {}).items()}
+          assert rg['name']=='rg-retailgrowth-dev'
+          assert rg['location'].replace(' ','').lower()=='centralindia'
+          assert tags.get('app')=='retailgrowthai' and tags.get('environment')=='dev'
+          PY
+          test "$(az functionapp show -g "$RG" -n "$APP" --query name -o tsv)" = "$APP"
+          test "$(az storage account show -g "$RG" -n "$STORAGE" --query name -o tsv)" = "$STORAGE"
+          test "$(az staticwebapp show -g "$RG" -n "$SWA" --query name -o tsv)" = "$SWA"
+          test "$(az staticwebapp show -g "$RG" -n "$SWA" --query defaultHostname -o tsv)" = "purple-dune-06b5da200.2.azurestaticapps.net"
+          test "$(az staticwebapp show -g "$RG" -n "$SWA" --query sku.name -o tsv | tr '[:upper:]' '[:lower:]')" = "free"
+          az functionapp config appsettings list -g "$RG" -n "$APP" --query '[].name' -o tsv > "$RUNNER_TEMP/names"
+          for name in RETAIL_SUPABASE_URL RETAIL_SUPABASE_SERVICE_ROLE_KEY RETAIL_SUPABASE_PUBLISHABLE_KEY RETAIL_STORAGE; do
+            grep -Fxq "$name" "$RUNNER_TEMP/names" || { echo "::error::Missing existing server-only setting: $name"; exit 3; }
+          done
+          # Inventory only the exact DEV resource group; never discover other projects.
+          az cognitiveservices account list -g "$RG" -o json > "$RUNNER_TEMP/foundry.json"
+          python3 - "$RUNNER_TEMP/foundry.json" <<'PY'
+          import json,sys
+          acc=json.load(open(sys.argv[1]))
+          print("Foundry-compatible cognitive resources in RetailGrowthAI DEV RG:",len(acc))
+          for item in acc:
+            print("Cognitive resource kind:",item.get('kind','unknown'))
+          PY
+      - name: Check existing RetailGrowthAI-only DEV Supabase feature tables
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp config appsettings list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/feature2-settings.json"
+          python3 - "$RUNNER_TEMP/feature2-settings.json" <<'PY'
+          import json,sys,urllib.request
+          items={x['name']:x.get('value','') for x in json.load(open(sys.argv[1]))}
+          origin='https://jeearzffnjbvghwjjjrf.supabase.co'
+          assert items.get('RETAIL_SUPABASE_URL')==origin
+          key=items.get('RETAIL_SUPABASE_SERVICE_ROLE_KEY','')
+          assert key.startswith('sb_secret_') or (key.startswith('eyJ') and key.count('.')==2)
+          headers={'apikey':key,'Accept':'application/json'}
+          if key.startswith('eyJ'): headers['Authorization']='Bearer '+key
+          for table in ('trend_collection_claims','trend_snapshots','shop_content_drafts'):
+              u=origin+'/rest/v1/'+table+'?select=*&limit=0'
+              with urllib.request.urlopen(urllib.request.Request(u,headers=headers),timeout=25) as resp:
+                  assert resp.status==200
+          print('PASS: exact RetailGrowthAI DEV DB feature tables verified; no customer rows or secrets logged')
+          PY
+      - name: Publish exact existing Flex Function App and index new Feature2 routes/timer
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp deployment source config-zip -g "$RG" -n "$APP" \
+            --src "$RUNNER_TEMP/release/part1.zip" --build-remote true -o none
+          for i in $(seq 1 12); do
+            az functionapp function list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/functions.json"
+            if python3 - "$RUNNER_TEMP/functions.json" <<'PY'
+          import json,sys
+          o=json.load(open(sys.argv[1]))
+          have={r.get('name','').split('/')[-1] for r in o}
+          expected={'create_campaign','read_campaign','save_campaign_day','create_render',
+                    'get_render','get_render_download','plan_campaign','render_campaign_reel',
+                    'planning_poison','render_poison','recover_stale_jobs',
+                    'render_campaign_poster','dispatch_pending_posters',
+                    'get_retailer_trends','create_retailer_trend_draft','feature2_collect_india_trends',
+                    'improve_retailer_prompt'}
+          print('REMOTE_FUNCTIONS',len(have),'MISSING',sorted(expected-have))
+          sys.exit(0 if expected<=have else 1)
+          PY
+            then break; fi
+            test "$i" -lt 12
+            sleep 10
+          done
+          az functionapp config appsettings set -g "$RG" -n "$APP" -o none --settings \
+            RETAIL_ENABLE_FEATURE2=true \
+            RETAIL_FEATURE2_COLLECTION_ENABLED=true \
+            RETAIL_TRENDS_GOOGLE_RSS_ENABLED=true \
+            RETAIL_TRENDS_YOUTUBE_ENABLED=false
+          echo "PASS: existing DEV Feature2 enabled; Google RSS only, daily timer, no paid YouTube API or Foundry"
+          code="$(curl -sS --connect-timeout 8 --max-time 25 -o /dev/null -w '%{http_code}' \
+            "https://$APP.azurewebsites.net/api/shops/00000000-0000-4000-8000-000000000001/trend-recommendations" || true)"
+          if [ "$code" = "401" ]; then
+            echo "PASS: unauthenticated Feature2 endpoint denied"
+          else
+            echo "::warning::Azure Flex HTTP issue #249 persists or indexing is delayed, route code $code; signed-in E2E remains unverified."
+          fi
+      - name: Seed first free daily India RSS snapshot (backend only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp config appsettings list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/feature2-settings.json"
+          PYTHONPATH="$GITHUB_WORKSPACE/ai-agents/src" python3 - "$RUNNER_TEMP/feature2-settings.json" <<'PY'
+          import datetime,json,sys,urllib.request
+          from ai_agents.trend_intelligence import collect
+          values={a['name']:a.get('value','') for a in json.load(open(sys.argv[1]))}
+          origin='https://jeearzffnjbvghwjjjrf.supabase.co'
+          assert values.get('RETAIL_SUPABASE_URL')==origin
+          key=values.get('RETAIL_SUPABASE_SERVICE_ROLE_KEY','')
+          assert key.startswith('sb_secret_') or (key.startswith('eyJ') and key.count('.')==2)
+          headers={'apikey':key,'Content-Type':'application/json','Accept':'application/json'}
+          if key.startswith('eyJ'): headers['Authorization']='Bearer '+key
+          def rpc(name,payload):
+              req=urllib.request.Request(origin+'/rest/v1/rpc/'+name,headers=headers,
+                  method='POST',data=json.dumps(payload).encode())
+              with urllib.request.urlopen(req,timeout=25) as resp:
+                  assert resp.status in (200,201,204)
+                  return json.loads(resp.read())
+          now=datetime.datetime.now(datetime.timezone.utc)
+          day=now.date().isoformat()
+          token=rpc('feature2_claim_collection',{'p_region':'IN','p_day':day})
+          if token is None:
+              print('COLLECTOR already claimed UTC day; no duplicate external fetch.')
+          else:
+              snapshot=collect(now,environ={'RETAIL_TRENDS_GOOGLE_RSS_ENABLED':'true',
+                                            'RETAIL_TRENDS_YOUTUBE_ENABLED':'false'})
+              assert rpc('feature2_finish_collection',{
+                  'p_region':'IN','p_day':day,'p_token':token,'p_snapshot':snapshot}) is True
+              print('SAVED shared India snapshot; source health (no customer titles):')
+              for source in snapshot['sources']:
+                  print(source['source'],source['status'],source['count'])
+          PY
+      - name: Clear Azure session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
+
+  frontend:
+    needs: backend
+    name: Publish Feature2 React to existing Free SWA
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Verify DEV-only public Vite origins, build, tests, and SPA fallback
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fxq "VITE_SUPABASE_URL=https://jeearzffnjbvghwjjjrf.supabase.co" .env.production
+          grep -Fxq "VITE_CAMPAIGN_API_BASE_URL=https://rgai-dev-functions-d4e5ddbd.azurewebsites.net" .env.production
+          grep -Fq 'Improve Prompt with AI' src/features/trends/TrendWorkspace.jsx
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          npm test
+          npm run build
+          test -s dist/index.html && test -s dist/staticwebapp.config.json
+          grep -FRq 'Improve Prompt with AI' dist/assets/
+          if grep -REq 'sb_secret_|RETAIL_SUPABASE_SERVICE_ROLE_KEY|RETAIL_FOUNDRY_API_KEY' dist; then
+            echo "::error::Privileged setting name or secret marker detected in public artifact"; exit 3
+          fi
+          echo "PASS: public-only DEV frontend build; sensitive keys excluded."
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify existing Azure Free SWA and fetch ephemeral token
+        id: swa-token
+        shell: bash
+        run: |
+          set -euo pipefail
+          az staticwebapp show -g "$RG" -n "$SWA" -o json > "$RUNNER_TEMP/swa.json"
+          python3 - "$RUNNER_TEMP/swa.json" <<'PY'
+          import json,sys
+          s=json.load(open(sys.argv[1]))
+          assert s['name']=='retailgrowthai-dev-preview'
+          assert (s.get('sku') or {}).get('name','').lower()=='free'
+          assert s.get('defaultHostname','').endswith('.azurestaticapps.net')
+          PY
+          token="$(az staticwebapp secrets list -g "$RG" -n "$SWA" --query 'properties.apiKey' -o tsv)"
+          test -n "$token"
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+      - uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.token }}
+          action: upload
+          app_location: frontend
+          api_location: ''
+          output_location: dist
+          app_build_command: npm run build
+          production_branch: main
+      - name: Verify real Azure HTTPS routes, report exact site
+        shell: bash
+        run: |
+          set -euo pipefail
+          host="$(az staticwebapp show -n "$SWA" -g "$RG" --query defaultHostname -o tsv)"
+          for path in '' campaigns account trends; do
+            ok=0
+            for n in $(seq 1 10); do
+              if curl -fsSL --max-time 20 "https://$host/$path" -o "$RUNNER_TEMP/route.html" \
+                && grep -Fq 'id="root"' "$RUNNER_TEMP/route.html"; then ok=1; break; fi
+              sleep 6
+            done
+            test "$ok" = "1" || { echo "::error::SWA route /$path failed"; exit 3; }
+            echo "PASS real SWA /$path"
+          done
+          echo "REAL DEV LIVE FRONTEND HTTPS: https://$host"
+          echo "Only authenticated tenant content is live; unsigned mock sample stays labeled."
+      - name: Clear Azure session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
+
+# 2026-10-26 DEV-only review release: the existing /shops/{shop_id}/content-drafts
+# trigger now serves GET and POST under independently verified user JWT + RLS.
+# This comment-only workflow revision re-runs the previous reviewed existing-resource
+# release after Feature #2's tested saved-DRAFT review source is integrated.
+
+# 2026-10-26 coordinator one-shot re-release for Feature2 lost-ACK draft safety.
+# Exact existing DEV Functions/Free SWA/FFmpeg/scope checks and costs unchanged.
+
+# 2026-10-26: Feature2 reviewed Prompt Improver DEV source integration is
+# 8da0f4583f562a835629e72f51c33261a5efbc03 (PR #391; four checks passed).
+# Re-arm ONLY via explicit reviewed release(dev) squash title and protected
+# DEV environment. Retain exact existing resource/OIDC/tags/Free-tier guards.
+# Add strict source, Cloud Functions indexing and built lazy UI assertions.
+# This release makes no paid inference calls and does not bypass Azure #249.

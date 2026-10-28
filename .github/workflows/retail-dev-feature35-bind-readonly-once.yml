@@ -1,0 +1,122 @@
+name: RetailGrowthAI Feature3+5 register existing shared Azure Files ReadOnly (GPU OFF)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/retail-dev-feature35-bind-readonly-once.yml']
+permissions:
+  contents: read
+concurrency:
+  group: rgai-feature35-readonly-binding
+  cancel-in-progress: false
+jobs:
+  bind:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: dev
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-retailgrowth-dev
+      ACCOUNT: rgaimodelseastus26
+      SHARE: retailgrowth-models
+      ENV_NAME: rgai-f5-gpu-canary-eastus
+      BINDING: rgai-models-readonly
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Assert existing read-only verification script and no GPU commands
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s scripts/ops/feature35_model_share_preflight.py || { echo "::error::Merge read-only audit PR first"; exit 3; }
+          python3 -m py_compile scripts/ops/feature35_model_share_preflight.py
+      - name: Existing DEV OIDC only
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify fixed RetailGrowthAI DEV identity, region, share and account
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${AZ_SUB:-}" && test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          test "$(az group show -g "$RG" --query tags.app -o tsv | tr '[:upper:]' '[:lower:]')" = retailgrowthai
+          test "$(az group show -g "$RG" --query tags.environment -o tsv | tr '[:upper:]' '[:lower:]')" = dev
+          az storage account show -g "$RG" -n "$ACCOUNT" -o json > "$RUNNER_TEMP/account.json"
+          az containerapp env show -g "$RG" -n "$ENV_NAME" -o json > "$RUNNER_TEMP/env.json"
+          python3 - "$RUNNER_TEMP/account.json" "$RUNNER_TEMP/env.json" "$AZ_SUB" <<'PY'
+          import json,sys
+          a=json.load(open(sys.argv[1]));e=json.load(open(sys.argv[2]))
+          def tags(d): return {str(k).lower():str(v).lower() for k,v in (d.get('tags') or {}).items()}
+          assert a['name']=='rgaimodelseastus26' and a['location']=='eastus' and a['kind']=='StorageV2'
+          assert a['sku']['name']=='Standard_LRS' and a.get('allowBlobPublicAccess') is False
+          assert a.get('enableHttpsTrafficOnly') is True and tags(a).get('app')=='retailgrowthai'
+          assert a['id'].lower().startswith('/subscriptions/'+sys.argv[3].lower()+'/resourcegroups/rg-retailgrowth-dev/')
+          assert e['name']=='rgai-f5-gpu-canary-eastus' and str(e['location']).lower().replace(' ','')=='eastus'
+          assert tags(e).get('app')=='retailgrowthai' and tags(e).get('environment')=='dev'
+          print('PASS existing exact private StorageV2 and Feature5 A100-capable environment, no GPU launched')
+          PY
+          aid="$(az storage account show -g "$RG" -n "$ACCOUNT" --query id -o tsv)"
+          az rest --method get --url "https://management.azure.com${aid}/fileServices/default/shares/${SHARE}?api-version=2023-05-01" -o json > "$RUNNER_TEMP/share.json"
+          python3 - "$RUNNER_TEMP/share.json" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1]));p=d['properties']
+          assert d['name']=='retailgrowth-models' and p['shareQuota']==64
+          assert p['accessTier'].lower()=='cool' and p.get('enabledProtocols','SMB')=='SMB'
+          print('PASS classic Cool LRS Azure Files SMB share')
+          PY
+      - name: Verify exact existing SIX private files and completion manifest before any change
+        shell: bash
+        env:
+          RETAIL_F35_ALLOW_READONLY: YES
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 -m pip install --disable-pip-version-check 'azure-storage-file-share==12.23.0'
+          export AZURE_STORAGE_ACCOUNT_KEY="$(az storage account keys list -g "$RG" -n "$ACCOUNT" --query '[0].value' -o tsv)"
+          test -n "$AZURE_STORAGE_ACCOUNT_KEY"
+          echo "::add-mask::$AZURE_STORAGE_ACCOUNT_KEY"
+          python3 scripts/ops/feature35_model_share_preflight.py
+          unset AZURE_STORAGE_ACCOUNT_KEY
+      - name: Bind exact private SMB model share READ ONLY if absent, no job deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          if az containerapp env storage show -g "$RG" -n "$ENV_NAME" --storage-name "$BINDING" -o json > "$RUNNER_TEMP/existing.json" 2>/dev/null; then
+            python3 - "$RUNNER_TEMP/existing.json" <<'PY'
+          import json,sys
+          p=(json.load(open(sys.argv[1])).get('properties') or {}).get('azureFile') or {}
+          assert (p.get('accountName'),p.get('shareName'),p.get('accessMode'))==('rgaimodelseastus26','retailgrowth-models','ReadOnly')
+          print('EXISTING_READONLY_BINDING_VALIDATED; no Azure write')
+          PY
+          else
+            export AZURE_STORAGE_ACCOUNT_KEY="$(az storage account keys list -g "$RG" -n "$ACCOUNT" --query '[0].value' -o tsv)"
+            test -n "$AZURE_STORAGE_ACCOUNT_KEY"
+            echo "::add-mask::$AZURE_STORAGE_ACCOUNT_KEY"
+            az containerapp env storage set -g "$RG" -n "$ENV_NAME" \
+              --storage-name "$BINDING" \
+              --azure-file-account-name "$ACCOUNT" \
+              --azure-file-share-name "$SHARE" \
+              --azure-file-account-key "$AZURE_STORAGE_ACCOUNT_KEY" \
+              --access-mode ReadOnly -o none
+            unset AZURE_STORAGE_ACCOUNT_KEY
+            echo "CREATED_READONLY_ENVIRONMENT_STORAGE_BINDING_NO_GPU"
+          fi
+          az containerapp env storage show -g "$RG" -n "$ENV_NAME" --storage-name "$BINDING" -o json > "$RUNNER_TEMP/final.json"
+          python3 - "$RUNNER_TEMP/final.json" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1]));p=(x.get('properties') or {}).get('azureFile') or {}
+          assert (p.get('accountName'),p.get('shareName'),p.get('accessMode'))==('rgaimodelseastus26','retailgrowth-models','ReadOnly')
+          # Never print or assume an Azure credential redaction placeholder.
+          print('PASS READONLY AzureFile environment storage registered; no container job deployed')
+          PY
+          echo "NO_A100_JOB_STARTED_AND_NO_WEIGHT_TRANSFER"
+      - name: Logout Azure
+        if: always()
+        run: az logout >/dev/null 2>&1 || true

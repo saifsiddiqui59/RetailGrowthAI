@@ -1,0 +1,136 @@
+name: RetailGrowthAI #249 real JWT isolated Free SWA read preview
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/p0249-real-jwt-free-swa-preview-once.yml']
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-real-jwt-read-preview
+  cancel-in-progress: false
+jobs:
+  isolated-dev-preview:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'experiment(dev): RetailGrowthAI P0 249 real JWT Free SWA preview')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Verify pinned asymmetric real user-JWT read API and no mutations
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/security/p0249_secure_node_preview.test.mjs tests/security/p0249_secure_dispatch.test.mjs
+          for src in experiments/secure-node-http/src/*.mjs; do node --check "$src"; done
+          grep -Fq 'writesEnabled: false' experiments/secure-node-http/src/dev-preview-index.mjs
+          grep -Fq 'renderWritesEnabled: false' experiments/secure-node-http/src/dev-preview-index.mjs
+          ! grep -REq 'RETAIL_SUPABASE_SERVICE_ROLE_KEY|sb_secret_' experiments/secure-node-http/src/dev-preview-index.mjs
+          grep -Fxq 'VITE_CAMPAIGN_API_BASE_URL=https://rgai-dev-functions-d4e5ddbd.azurewebsites.net' frontend/.env.production
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify existing exact Free SWA, tagged DEV RG and available named preview
+        shell: bash
+        env:
+          EXPECTED_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$EXPECTED_SUB"
+          az group show -g rg-retailgrowth-dev -o json > "$RUNNER_TEMP/rg.json"
+          az staticwebapp show -g rg-retailgrowth-dev -n retailgrowthai-dev-preview -o json > "$RUNNER_TEMP/swa.json"
+          az staticwebapp environment list -g rg-retailgrowth-dev -n retailgrowthai-dev-preview -o json > "$RUNNER_TEMP/envs.json"
+          python3 - "$RUNNER_TEMP/rg.json" "$RUNNER_TEMP/swa.json" "$RUNNER_TEMP/envs.json" <<'PY'
+          import json,sys
+          rg,site,envs=(json.load(open(p)) for p in sys.argv[1:])
+          tags={str(k).lower():str(v).lower() for k,v in (rg.get('tags') or {}).items()}
+          assert rg['name']=='rg-retailgrowth-dev' and str(rg['location']).replace(' ','').lower()=='centralindia'
+          assert tags.get('app')=='retailgrowthai' and tags.get('environment')=='dev'
+          assert site['name']=='retailgrowthai-dev-preview'
+          assert (site.get('sku') or {}).get('name','').lower()=='free'
+          assert site['defaultHostname']=='purple-dune-06b5da200.2.azurestaticapps.net'
+          assert isinstance(envs,list)
+          names={str(e.get('name') or e.get('environmentName') or '').lower() for e in envs}
+          occupied={n for n in names if n and n not in ('default','production')}
+          if 'p0249secure' not in occupied:
+              assert len(occupied)<3, 'Free preview quota exhausted; do NOT provision paid capacity'
+          print('P0249_EXISTING_FREE_SWA_AND_PREVIEW_CAP_VERIFIED=true')
+          PY
+      - name: Obtain masked existing SWA upload token
+        id: token
+        shell: bash
+        run: |
+          set -euo pipefail
+          value="$(az staticwebapp secrets list -g rg-retailgrowth-dev -n retailgrowthai-dev-preview --query 'properties.apiKey' -o tsv)"
+          test -n "$value"
+          echo "::add-mask::$value"
+          echo "token=$value" >> "$GITHUB_OUTPUT"
+      - name: Stage approved DEV-only handler exclusively in ephemeral runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          source=experiments/secure-node-http/src/dev-preview-index.mjs
+          target=experiments/secure-node-http/src/index.mjs
+          test -s "$source"
+          test -s "$target"
+          test "$(node -p "require('./experiments/secure-node-http/package.json').main")" = 'src/index.mjs'
+          cp -- "$source" "$target"
+          node --check "$target"
+          grep -Fq 'writesEnabled: false' "$target"
+          grep -Fq 'renderWritesEnabled: false' "$target"
+          ! grep -Eq 'RETAIL_SUPABASE_SERVICE_ROLE_KEY|sb_secret_' "$target"
+          echo 'P0249_ISOLATED_RUNNER_ONLY_DEV_PREVIEW_HANDLER_STAGED=true'
+      - name: Deploy NEW NAMED DEV PREVIEW ONLY (never customer or production)
+        id: release
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9
+        with:
+          azure_static_web_apps_api_token: ${{ steps.token.outputs.token }}
+          action: upload
+          app_location: experiments/secure-node-http/site
+          api_location: experiments/secure-node-http
+          output_location: ''
+          skip_app_build: true
+          production_branch: main
+          deployment_environment: p0249secure
+      - name: Actual HTTPS negative JWT, 5 repeated reads and immutable live frontend
+        env:
+          PREVIEW: ${{ steps.release.outputs.static_web_app_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$PREVIEW" = 'https://purple-dune-06b5da200-p0249secure.eastasia.2.azurestaticapps.net'
+          health="$(curl -sS --connect-timeout 4 --max-time 20 -D "$RUNNER_TEMP/health.headers" -o "$RUNNER_TEMP/health.json" -w '%{http_code} %{time_total}' "$PREVIEW/api/p0-secure-health")"
+          read -r status seconds <<< "$health"
+          test "$status" = 200
+          grep -iq '^x-p0249-secure-preview: real-jwks-rls-readonly-v1' "$RUNNER_TEMP/health.headers"
+          echo "P0249_SECURE_READ_HEALTH=200 seconds=$seconds"
+          for i in 1 2 3 4 5; do
+            value="$(curl -sS --connect-timeout 4 --max-time 18 -D "$RUNNER_TEMP/deny.headers" -o /dev/null -w '%{http_code} %{time_total}' "$PREVIEW/api/campaigns/11111111-1111-4111-8111-111111111111")"
+            read -r code duration <<< "$value"
+            test "$code" = 401
+            grep -iq '^x-rgai-secure-adapter: candidate-v1' "$RUNNER_TEMP/deny.headers"
+            echo "P0249_ANONYMOUS_DENIED_ITERATION=$i status=$code seconds=$duration"
+          done
+          forged="$(curl -sS --connect-timeout 4 --max-time 18 -o /dev/null -w '%{http_code}' -H 'x-rgai-supabase-jwt: not-a-real-signed-supabase-access-token-123' "$PREVIEW/api/campaigns/11111111-1111-4111-8111-111111111111")"
+          test "$forged" = 401
+          echo "P0249_FORGED_JWT_DENIED=true"
+          curl -fsSL --max-time 20 'https://purple-dune-06b5da200.2.azurestaticapps.net/account' -o "$RUNNER_TEMP/live.html"
+          grep -Fq 'id="root"' "$RUNNER_TEMP/live.html"
+          echo 'P0249_EXISTING_CUSTOMER_FRONTEND_NOT_REPOINTED=true'
+          echo 'P0249_REAL_JWT_READ_PREVIEW_NEGATIVE_ACCEPTANCE=true'
+          echo 'P0249_AUTHORIZED_SIGNED_IN_POSITIVE_E2E=UNVERIFIED'
+      - name: Azure logout
+        if: always()
+        run: az logout >/dev/null 2>&1 || true

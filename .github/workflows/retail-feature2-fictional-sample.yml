@@ -1,0 +1,65 @@
+name: RetailGrowthAI Feature2 real-code fictional sample
+# Pure local code execution: NO Azure/Supabase credentials, external paid API,
+# tenant mutation, real trend claims, or publishing.
+on:
+  push:
+    branches: [main, chore/feature2-fictitious-sample-demo-release]
+    paths:
+      - 'demo/feature2/**'
+      - 'tests/ai/test_feature2_fictional_retailer_sample.py'
+      - '.github/workflows/retail-feature2-fictional-sample.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline_sample:
+    name: Produce real engine seven-day test campaign
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: true
+      - name: Install Python 3.13
+        run: uv python install 3.13
+      - name: Generate sample using actual Feature2 AI-agent modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv sync --project ai-agents
+          uv run --project ai-agents -- python demo/feature2/generate_sample.py demo/feature2/out
+      - name: Validate fixture is real code output and NOT live trends/hosted media
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('demo/feature2/out/feature2-sample.json').read_text())
+          assert d['mode']=='FICTIONAL_OFFLINE_SAMPLE_NOT_LIVE_DEV'
+          assert d['source_candidate']['classification']=='SYNTHETIC_TEST_NOT_REAL_TREND'
+          assert d['business_profile']['city']=='Nagpur'
+          assert len(d['days'])==7 and d['can_publish'] is False
+          assert all(x['review_status']=='PENDING_RETAILER' for x in d['days'])
+          assert all(sum(s['duration_seconds'] for s in x['video']['scenes'])==30 for x in d['days'])
+          print('PASS REAL FEATURE2 OUTPUT: 7 draft days, 4 platform copy variants, poster and 30s video storyboards; synthetic source correctly labeled')
+          PY
+      - name: Upload readable Feature2 output generated from source, not fabricated copy
+        uses: actions/upload-artifact@v4
+        with:
+          name: RetailGrowthAI-Feature2-Fictional-Retailer-Sample
+          path: |
+            demo/feature2/out/feature2-sample.json
+            demo/feature2/out/feature2-sample.txt
+            demo/feature2/out/original-prompt.txt
+            demo/feature2/out/improved-prompt.txt
+            demo/feature2/out/campaign-7-days.json
+            demo/feature2/out/campaign-preview.md
+            demo/feature2/out/sample-test-results.json
+            demo/feature2/out/synthetic-test-image.png
+          retention-days: 14
+          if-no-files-found: error

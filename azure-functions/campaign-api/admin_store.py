@@ -35,7 +35,13 @@ class AdminStore:
                         "rpc/complete_render_claim", "rpc/fail_render_claim",
                         "rpc/claim_outbox_events", "rpc/confirm_outbox_event",
                         "rpc/record_poison_event", "rpc/reconcile_stale_jobs",
-                        "campaigns", "campaign_days", "shop_memberships", "media_assets", "render_jobs"):
+                        "campaigns", "campaign_days", "shop_memberships", "media_assets", "render_jobs",
+                        "trend_snapshots", "rpc/feature2_claim_collection", "rpc/feature2_finish_collection",
+                        "shop_content_drafts",
+                        "rpc/feature2_reserve_ai_budget", "rpc/feature2_settle_ai_budget",
+                        "rpc/feature3_reserve_gpu_job", "rpc/feature3_claim_gpu_job",
+                        "rpc/feature3_finish_gpu_job", "feature3_gpu_jobs",
+                        "shop_ai_spend_reservations"):
             raise ValueError("unsupported worker path")
         url = self.origin + "/rest/v1/" + path
         if query:
@@ -58,7 +64,7 @@ class AdminStore:
                 response_code = json.loads(exc.read(4096)).get("code")
             except (ValueError, AttributeError, TypeError):
                 response_code = None
-            if response_code in ("RG001", "RG002"):
+            if response_code in ("RG001", "RG002", "RG003", "RG004"):
                 raise SubscriptionDenied(response_code) from exc
             raise StorageUnavailable("worker database request failed") from exc
         except (URLError, OSError, json.JSONDecodeError) as exc:

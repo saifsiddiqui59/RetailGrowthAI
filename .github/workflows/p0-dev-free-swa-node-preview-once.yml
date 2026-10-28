@@ -1,0 +1,170 @@
+name: RetailGrowthAI DEV one-time Free SWA Node control preview
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/p0-dev-free-swa-node-preview-once.yml']
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-node-free-preview-one-shot
+  cancel-in-progress: false
+jobs:
+  deploy-preview-only:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'experiment(dev): RetailGrowthAI P0 249 Free SWA Node preview')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Validate synthetic Node, no user data or mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/security/p0_node_http_control.test.mjs experiments/wineshop-node-http-control/test/routes.test.mjs
+          node --check experiments/wineshop-node-http-control/src/index.mjs
+          test "$(node -p "require('./experiments/wineshop-node-http-control/package.json').main")" = "src/index.mjs"
+          ! grep -REq 'RETAIL_SUPABASE_SERVICE_ROLE_KEY|sb_secret_|createClient|POST.*campaigns' experiments/wineshop-node-http-control/src
+      - name: Audit isolated preview shell and unchanged production frontend origin
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fxq 'VITE_CAMPAIGN_API_BASE_URL=https://rgai-dev-functions-d4e5ddbd.azurewebsites.net' frontend/.env.production
+          test -s experiments/wineshop-node-http-control/site/index.html
+          test -s experiments/wineshop-node-http-control/site/staticwebapp.config.json
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const path='experiments/wineshop-node-http-control/site/staticwebapp.config.json';
+          const c=JSON.parse(fs.readFileSync(path,'utf8'));
+          if(c.platform?.apiRuntime!=='node:22')throw new Error('Control must use managed Node 22');
+          if(!String(c.globalHeaders?.['X-Robots-Tag']).includes('noindex'))throw new Error('Public preview must not be indexed');
+          console.log('P0_249_SEPARATE_PREVIEW_ONLY_SHELL_VERIFIED=true');
+          NODE
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify ONLY existing tagged DEV Free Static Web App
+        shell: bash
+        env:
+          EXPECTED_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          test "$(az account show --query id -o tsv)" = "$EXPECTED_SUB"
+          az group show -n rg-retailgrowth-dev -o json > "$RUNNER_TEMP/rg.json"
+          az staticwebapp show -g rg-retailgrowth-dev -n retailgrowthai-dev-preview -o json > "$RUNNER_TEMP/site.json"
+          az staticwebapp environment list -g rg-retailgrowth-dev -n retailgrowthai-dev-preview -o json > "$RUNNER_TEMP/p0-env.json"
+          python3 - "$RUNNER_TEMP/rg.json" "$RUNNER_TEMP/site.json" "$RUNNER_TEMP/p0-env.json" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1]))
+          t={k.lower():str(v).lower() for k,v in (r.get("tags") or {}).items()}
+          s=json.load(open(sys.argv[2]))
+          assert r["name"]=="rg-retailgrowth-dev" and t.get("app")=="retailgrowthai" and t.get("environment")=="dev"
+          assert str(r["location"]).replace(" ","").lower()=="centralindia"
+          assert s["name"]=="retailgrowthai-dev-preview"
+          assert (s.get("sku") or {}).get("name","").lower()=="free"
+          assert s["defaultHostname"]=="purple-dune-06b5da200.2.azurestaticapps.net"
+          env=json.load(open(sys.argv[3]))
+          assert isinstance(env,list), "unable to verify Free preview slots"
+          names={str(item.get("name") or item.get("environmentName") or "").lower() for item in env}
+          if "p0249node" not in names:
+              occupied={name for name in names if name and name not in ("production","default")}
+              assert len(occupied)<3, "Free SWA preview environment capacity exhausted"
+          print("P0_249_FREE_PREVIEW_SLOT_VERIFIED=true")
+          print("P0_249_VERIFIED_EXISTING_FREE_SWA=true")
+          PY
+      - name: Obtain masked deployment token for exact existing DEV SWA
+        shell: bash
+        id: token
+        run: |
+          set -euo pipefail
+          t="$(az staticwebapp secrets list -g rg-retailgrowth-dev -n retailgrowthai-dev-preview --query 'properties.apiKey' -o tsv)"
+          test -n "$t"
+          echo "::add-mask::$t"
+          echo "token=$t" >> "$GITHUB_OUTPUT"
+      - name: Deploy isolated named PREVIEW (never production)
+        id: preview
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9
+        with:
+          azure_static_web_apps_api_token: ${{ steps.token.outputs.token }}
+          action: upload
+          app_location: experiments/wineshop-node-http-control/site
+          api_location: experiments/wineshop-node-http-control
+          output_location: ''
+          skip_app_build: true
+          production_branch: main
+          deployment_environment: p0249node
+      - name: Verify returned preview and synthetic HTTP routes
+        shell: bash
+        env:
+          PREVIEW: ${{ steps.preview.outputs.static_web_app_url }}
+        run: |
+          set -euo pipefail
+          test -n "$PREVIEW"
+          python3 - "$PREVIEW" <<'PY'
+          from urllib.parse import urlparse
+          import sys
+          p=urlparse(sys.argv[1])
+          assert p.scheme=="https" and p.hostname.endswith(".azurestaticapps.net")
+          assert p.hostname=="purple-dune-06b5da200-p0249node.eastasia.2.azurestaticapps.net"
+          assert not p.username and not p.password and not p.query and not p.fragment
+          print("P0_249_PREVIEW_ENV_ONLY=true")
+          PY
+          for pair in 'p0-health-lite:200' 'campaigns/11111111-1111-4111-8111-111111111111:401' 'p0-249-missing:404' 'p0-health-lite:200'; do
+            IFS=: read -r path expected <<< "$pair"
+            observation="$(curl -sS --connect-timeout 3 --max-time 15 -D "$RUNNER_TEMP/control-headers" -o /dev/null -w '%{http_code} %{time_total}' "$PREVIEW/api/$path")"
+            got="${observation%% *}"
+            seconds="${observation#* }"
+            if grep -iq '^x-p0-control: node-v4' "$RUNNER_TEMP/control-headers"; then marker=true; else marker=false; fi
+            echo "P0_249_NODE_ROUTE=$path HTTP=$got seconds=$seconds marker=$marker"
+            test "$got" = "$expected"
+            test "$marker" = "true"
+          done
+          curl -fsSL --max-time 15 'https://purple-dune-06b5da200.2.azurestaticapps.net/account' -o "$RUNNER_TEMP/live.html"
+          grep -Fq 'id="root"' "$RUNNER_TEMP/live.html"
+          echo "P0_249_NODE_FREE_PREVIEW_ACCEPTED=true"
+      - name: Prove custom JWT transport header reaches named Free preview (SYNTHETIC ONLY)
+        shell: bash
+        env:
+          PREVIEW: ${{ steps.preview.outputs.static_web_app_url }}
+        run: |
+          set -euo pipefail
+          # No Supabase JWT, credentials, customer data or write route is used.
+          test -n "$PREVIEW"
+          test "$PREVIEW" = "https://purple-dune-06b5da200-p0249node.eastasia.2.azurestaticapps.net"
+          route="$PREVIEW/api/p0-jwt-transport-lite"
+          no_header="$(curl -sS --connect-timeout 3 --max-time 15 -o "$RUNNER_TEMP/no-header.json" -w '%{http_code}' "$route")"
+          test "$no_header" = "401"
+          bearer_only="$(curl -sS --connect-timeout 3 --max-time 15 -H 'Authorization: Bearer synthetic-not-a-real-token' -o "$RUNNER_TEMP/bearer-only.json" -w '%{http_code}' "$route")"
+          test "$bearer_only" = "401"
+          verified="$(curl -sS --connect-timeout 3 --max-time 15 -D "$RUNNER_TEMP/header-proof-headers" -o "$RUNNER_TEMP/header-proof.json" -w '%{http_code} %{time_total}' -H 'x-rgai-supabase-jwt: p0249-public-synthetic-header-proof' "$route")"
+          read -r status duration <<< "$verified"
+          test "$status" = "200"
+          grep -iq '^x-p0-control: node-v4' "$RUNNER_TEMP/header-proof-headers"
+          python3 - "$RUNNER_TEMP/header-proof.json" <<'PY'
+          import json,sys
+          value=json.load(open(sys.argv[1]))
+          assert value=={"transport":"CUSTOM_HEADER_DELIVERED_SYNTHETIC_ONLY"}
+          assert "p0249-public-synthetic-header-proof" not in json.dumps(value)
+          print("P0_249_HEADER_VALUE_NOT_REFLECTED=true")
+          PY
+          echo "P0_249_SYNTHETIC_CUSTOM_HEADER_FORWARDED=true HTTP=$status seconds=$duration"
+          # This only proves custom-header forwarding to a synthetic Node handler.
+          # It is NOT Supabase JWT verification, signed-in E2E or Node cutover.
+          echo "P0_249_REAL_JWT_E2E=UNVERIFIED"
+
+      - name: Azure logout
+        if: always()
+        run: az logout >/dev/null 2>&1 || true

@@ -1,0 +1,64 @@
+name: RetailGrowthAI DEV one-time P0 249 warm vs post-idle check
+# Existing DEV only, no user tokens, writes, config mutation, or paid capacity.
+# 2026-10-28 owner-requested recheck of ORIGINAL Python Flex 503/timeout, not Node preview; same guarded scope.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p1-dev-p0-249-cold-warm-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0-249-warm-postidle
+  cancel-in-progress: false
+jobs:
+  probe:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       startsWith(github.event.head_commit.message, 'audit(dev): RetailGrowthAI P0 249 cold-versus-warm'))
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 34
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Validate safety tests offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/p0_249_cold_warm_http_probe.py tests/infra/test_p0_249_cold_warm_probe.py ops/p0_249_http_comparison_probe.py tests/infra/test_p0_249_http_comparison_probe.py
+          # The full Python and Node negative suites are required PR CI gates.
+          # No network-based package install in this credentialed job.
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Original Python Flex vs Node Free SWA 75s bounded anonymous HTTP comparison
+        shell: bash
+        env:
+          RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0_249_http_comparison_probe.py
+      - name: Read existing Azure host metric metadata only
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          resource_id=$(az functionapp show -g rg-retailgrowth-dev -n rgai-dev-functions-d4e5ddbd --query id -o tsv 2>/dev/null)
+          if [ -z "$resource_id" ]; then echo "P0_249_AZURE_METRICS_SCOPE_UNAVAILABLE=true"; exit 0; fi
+          definitions=$(az monitor metrics list-definitions --resource "$resource_id" -o json 2>/dev/null)
+          if [ -z "$definitions" ]; then echo "P0_249_AZURE_METRIC_DEFINITIONS_UNAVAILABLE=true"; exit 0; fi
+          printf "%s" "$definitions" | python3 -c 'import json,sys; sys.path.insert(0,"ops"); from p0_249_http_comparison_probe import sanitized_metric_names; print("P0_249_AZURE_AVAILABLE_METRIC_NAMES="+json.dumps(sanitized_metric_names(json.load(sys.stdin))))'
+          echo "P0_249_AZURE_TRACES_NOT_INFERRED_FROM_METRIC_DEFINITIONS=true"
+      - name: End read-only session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true

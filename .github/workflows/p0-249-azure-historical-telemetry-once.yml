@@ -1,0 +1,57 @@
+name: RetailGrowthAI DEV P0 249 historical host/worker telemetry
+# Single guarded read-only Azure OIDC query against original Central India DEV Functions.
+# No GET/POST to live HTTP, no customer records, no app config/capacity changes.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0-249-azure-historical-telemetry-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-fixed-window-telemetry-once
+  cancel-in-progress: false
+jobs:
+  correlate:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'audit(dev): RetailGrowthAI 249 fixed-window telemetry')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Offline scope and redaction preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/p0_249_historical_telemetry.py tests/infra/test_p0_249_historical_telemetry.py
+          python3 - <<'PY'
+          import runpy
+          ns = runpy.run_path("tests/infra/test_p0_249_historical_telemetry.py")
+          for name, func in sorted(ns.items()):
+              if name.startswith("test_") and callable(func):
+                  func()
+                  print("P0249_OFFLINE_SAFETY_TEST=" + name + "=PASS")
+          PY
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Read original Python Flex timestamps / host and metrics only
+        shell: bash
+        env:
+          RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0_249_historical_telemetry.py
+      - name: Azure OIDC logout
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
