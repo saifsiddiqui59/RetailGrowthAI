@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from uuid import uuid4
 
 from feature5_motion.wan22_motion_adapter import WanShotPackage, PROVIDER, WanCompatibilityError
 from feature5_motion.infra.feature35_comfy_api_graphs import wan22_ti2v_5b
@@ -25,7 +26,7 @@ def shot():
         seed=12,approved_input_file="fixture.png",
         width=704,height=1280)
     return WanShotPackage(PROVIDER,"image_to_video",graph,"CPU synthetic only",
-        "a"*64,{"shop_id":"synthetic-only","shot_id":"shotA",
+        "a"*64,{"shop_id":"00000000-0000-4000-8000-000000000031","shot_id":"shotA",
                  "source_asset_id":"synthetic-only","source_sha256":"c"*64},
         "b"*64)
 
@@ -51,7 +52,9 @@ class WanPrivateOutputIntakeTests(unittest.TestCase):
                 "-crf","38","-pix_fmt","yuv420p","-an",str(destination),
             ],timeout=50,check=True,capture_output=True)
             selected,inspection,receipt=inspect_single_private_wan_output(
-                shot=shot(),private_output_root=root)
+                shot=shot(),private_output_root=root,
+                job_id=str(uuid4()),attempt_token=str(uuid4()),
+                verify_existing_fenced_output_scope=lambda *a: True)
             self.assertEqual(selected,destination)
             self.assertEqual(inspection.frames,121)
             self.assertEqual((inspection.width,inspection.height),(704,1280))
@@ -62,6 +65,28 @@ class WanPrivateOutputIntakeTests(unittest.TestCase):
             self.assertFalse(receipt["output_is_ai_proven"])
             self.assertFalse(receipt["approved_for_feature4"])
             self.assertTrue(receipt["private_import_required"])
+
+    def test_output_bytes_not_read_without_current_tenant_attempt_lease(self):
+        with tempfile.TemporaryDirectory() as td:
+            root,destination=private_root(td)
+            destination.write_bytes(b"not actual media")
+            work=shot()
+            for name,cb in [
+                ("missing callback",None),
+                ("revoked claim",lambda *args: False),
+                ("mismatched shop",lambda shop,*args: shop=="foreign"),
+                ("invalid result",lambda *args: {"approved":True}),
+            ]:
+                with self.subTest(name=name),self.assertRaises(WanCompatibilityError):
+                    inspect_single_private_wan_output(
+                        shot=work,private_output_root=root,
+                        job_id=str(uuid4()),attempt_token=str(uuid4()),
+                        verify_existing_fenced_output_scope=cb)
+            with self.assertRaises(WanCompatibilityError):
+                inspect_single_private_wan_output(
+                    shot=work,private_output_root=root,
+                    job_id="../foreign",attempt_token=str(uuid4()),
+                    verify_existing_fenced_output_scope=lambda *a: True)
 
     def test_missing_extra_or_wrongly_numbered_private_outputs_denied(self):
         with tempfile.TemporaryDirectory() as td:
