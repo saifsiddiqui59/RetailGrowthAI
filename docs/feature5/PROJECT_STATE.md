@@ -167,3 +167,8 @@ On Feature5-only branch retained original Comfy/FFmpeg/source contracts. Fixed i
 ## 2026-10-28 — Parallel/timeout negative proof
 
 Latest source-only addendum: deterministic two-thread simulated paid dispatcher test confirms exactly one POST on one dispatcher; post-CAS Feature3 resolver outage is UNKNOWN/consumed with no POST or retry. Source-only, no A100 or tenant mutation.
+
+
+## 2026-10-28 — Stock media decoded-frame screening continuation
+
+2026-10-28: Existing optional stock candidate inspector now decodes two bounded portrait FFmpeg frames and reports nonstatic-vs-obviously-frozen screening, SHA256 frame fingerprints and luma difference. It verifies compressed photo pixels and checks video/photo hash+inode+mtime again after decoding; rejects mutable files. Added real CPU-encoded moving/still synthetic negative cases and post-probe mutation test. Still NOT actual downloaded Pexels file, real person/garment/consent approval, model-origin proof, or Feature4 publication.

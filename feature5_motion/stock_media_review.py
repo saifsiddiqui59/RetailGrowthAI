@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 import subprocess
 
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageChops, ImageStat, UnidentifiedImageError
 
 from .wan22_motion_adapter import WanCompatibilityError
 
@@ -38,7 +38,23 @@ def _sha(path):
     return digest.hexdigest()
 
 
-def inspect_downloaded_stock_pair(*, local_video, local_photo, ffprobe="ffprobe"):
+def _sample_rgb(*, video, timestamp, ffmpeg):
+    """Decode exactly one bounded frame in memory; never stage it on disk."""
+    frame_bytes=160*284*3
+    result=subprocess.run(
+        [ffmpeg,"-hide_banner","-loglevel","error","-nostdin",
+         "-protocol_whitelist","file","-ss",f"{timestamp:.3f}",
+         "-i",str(video.resolve(strict=True)),
+         "-vf","scale=160:284:flags=area",
+         "-frames:v","1","-f","rawvideo","-pix_fmt","rgb24","-"],
+        check=True,capture_output=True,timeout=20)
+    if len(result.stdout)!=frame_bytes:
+        raise ValueError("Stock video did not yield a valid decoded frame")
+    return Image.frombytes("RGB",(160,284),result.stdout)
+
+
+def inspect_downloaded_stock_pair(*, local_video, local_photo, ffprobe="ffprobe",
+                                  ffmpeg="ffmpeg"):
     """Tech-check two local stock candidates; return PENDING review metadata.
 
     Operators must independently download and record original page/license
@@ -48,6 +64,12 @@ def inspect_downloaded_stock_pair(*, local_video, local_photo, ffprobe="ffprobe"
     video=_local_file(local_video,suffixes={".mp4"},max_size=160*1024*1024)
     photo=_local_file(local_photo,suffixes={".jpg",".jpeg",".png",".webp"},
                       max_size=30*1024*1024)
+    # Public stock files may be readable by the local operator, but their
+    # identities must not change while external decoders inspect their bytes.
+    v_before=video.stat(follow_symlinks=False)
+    p_before=photo.stat(follow_symlinks=False)
+    video_sha=_sha(video)
+    photo_sha=_sha(photo)
     try:
         result=subprocess.run(
             [ffprobe,"-v","error","-protocol_whitelist","file",
@@ -74,7 +96,26 @@ def inspect_downloaded_stock_pair(*, local_video, local_photo, ffprobe="ffprobe"
                 not 400<=im.width<=8192 or not 600<=im.height<=8192):
                 raise ValueError("Unexpected stock image type/dimensions")
             photo_dimensions=[im.width,im.height]
-            im.verify()
+            im.load()  # verify actual compressed pixels, not header only
+        # Screening detects a *frozen* clip only; changes may be camera motion,
+        # edit cuts, or unrelated people, not evidence of a walking model.
+        early=_sample_rgb(video=video,timestamp=duration*0.2,ffmpeg=ffmpeg)
+        late=_sample_rgb(video=video,timestamp=duration*0.8,ffmpeg=ffmpeg)
+        difference=round(ImageStat.Stat(
+            ImageChops.difference(early,late).convert("L")).mean[0],3)
+        fingerprints=[hashlib.sha256(im.tobytes()).hexdigest()
+                      for im in (early,late)]
+        changed_video=not video.is_symlink()
+        v_after=video.stat(follow_symlinks=False)
+        p_after=photo.stat(follow_symlinks=False)
+        for before,after in ((v_before,v_after),(p_before,p_after)):
+            if (before.st_dev!=after.st_dev or before.st_ino!=after.st_ino or
+                before.st_size!=after.st_size or
+                before.st_mtime_ns!=after.st_mtime_ns):
+                changed_video=False
+        if (photo.is_symlink() or not changed_video or
+            _sha(video)!=video_sha or _sha(photo)!=photo_sha):
+            raise ValueError("Stock media changed during local inspection")
     except (OSError,ValueError,TypeError,KeyError,ZeroDivisionError,
             UnidentifiedImageError,Image.DecompressionBombError,
             subprocess.SubprocessError) as exc:
@@ -84,8 +125,13 @@ def inspect_downloaded_stock_pair(*, local_video, local_photo, ffprobe="ffprobe"
         "video_source_page":STOCK_VIDEO_PAGE,
         "photo_source_page":STOCK_PHOTO_PAGE,
         "license_page":LICENSE_PAGE,
-        "video_sha256":_sha(video),
-        "photo_sha256":_sha(photo),
+        "video_sha256":video_sha,
+        "photo_sha256":photo_sha,
+        "decoded_frame_sha256":fingerprints,
+        "decoded_frame_luma_difference":difference,
+        "technical_motion_screen":(
+            "OBVIOUSLY_STATIC_REJECTED" if difference<=0.5
+            else "NONSTATIC_PENDING_HUMAN_REVIEW"),
         "video_dimensions":[width,height],
         "video_duration_seconds":duration,
         "video_fps":round(fps_n/fps_d,5),

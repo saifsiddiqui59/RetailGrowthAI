@@ -165,3 +165,8 @@ Checkpoint continuation completed code on existing Feature5 branch: added negati
 
 ## 2026-10-28 — Read-only hosted policy denial (not signed-JWT acceptance)
 Connected DEV project was queried in a read-only rolled-back transaction. Synthetic authenticated user had 0 rows across shops, media_assets, render_jobs, shop_usage_reservations, usage_events, memberships. Anonymous role got 42501 permission denied on shops. No signed JWT, cross-shop actual user, protected HTTP request or paid model transaction was exercised. All GPU/paid resources remained off.
+
+
+## 2026-10-28 — Stock media decoded-frame screening continuation
+
+- 2026-10-28: Existing optional stock candidate inspector now decodes two bounded portrait FFmpeg frames and reports nonstatic-vs-obviously-frozen screening, SHA256 frame fingerprints and luma difference. It verifies compressed photo pixels and checks video/photo hash+inode+mtime again after decoding; rejects mutable files. Added real CPU-encoded moving/still synthetic negative cases and post-probe mutation test. Still NOT actual downloaded Pexels file, real person/garment/consent approval, model-origin proof, or Feature4 publication.

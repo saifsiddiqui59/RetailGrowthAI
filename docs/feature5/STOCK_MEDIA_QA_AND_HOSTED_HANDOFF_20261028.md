@@ -36,3 +36,8 @@ Supplementary 2026-10-28 read-only DEV Supabase security advisors: 9 INFO enable
 
 ## 2026-10-28 — Actual hosted RLS negative read-only session
 Executed in connected DEV Supabase with BEGIN READ ONLY / ROLLBACK, SET LOCAL ROLE authenticated, and a *synthetic nonexistent UUID* in request.jwt.claims; actual counts returned **0** for shops, media_assets, render_jobs, shop_usage_reservations, usage_events and shop_memberships. Separate anonymous SET LOCAL ROLE anon query was denied with PostgreSQL 42501 permission denied for table shops (no broad anon SELECT GRANT). This is real hosted **role/policy denial evidence** but is **NOT a signed real-user JWT, real two-shop test, private Storage URL test, or Part3 paid fencing/settlement test**. No rows were created/modified, no signed JWT or secrets viewed. Coordinator still must execute supported signed DEV two-tenant workflow and review definer-function warnings before live activation.
+
+
+## 2026-10-28 — Stock media decoded-frame screening continuation
+
+Local offline stock check now decodes actual FFmpeg frames and reports movement/anti-freeze evidence only. Probe is source-only, not commercial-rights endorsement. Manual Pexels download and original rights documentation still outstanding. Run latest CI before source completion claim.

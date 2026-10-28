@@ -151,3 +151,8 @@ One Comfy dispatcher can start at most one attempt even under local concurrent i
 ## 2026-10-28 — Parallel/timeout negative proof
 
 Parallel callers to the same local Comfy dispatcher must never start a second POST. If the post-intent F3 rights reader times out or errors, treat committed intent as UNKNOWN/consumed, never implicitly safe to repeat. Cross-worker uniqueness continues to require existing Part3 atomic CAS.
+
+
+## 2026-10-28 — Stock media decoded-frame screening continuation
+
+Technical FFmpeg movement detection is only a low-cost diagnostic: two decoded frames with differences can show non-frozen footage but never authenticate human motion, retail garment consistency, likeness, right-to-publish or production-grade output. Hash/inode checks constrain tamper during local stock inspection, not grant a customer license.

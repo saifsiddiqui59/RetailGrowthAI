@@ -191,3 +191,8 @@ NEXT: Verify final documentation-head CI four jobs and remediate genuine failure
 ## 2026-10-28 — Parallel/timeout negative proof
 
 After latest tests, verify all four jobs at the FINAL documentation SHA. Remaining real gates unchanged: coordinator Part3 signed tenant/lease/CAS and private importer, Feature3 real rights, Feature4 human review, separately approved licensed Comfy image and capped GPU. No source-owned paid work remains when CI passes.
+
+
+## 2026-10-28 — Stock media decoded-frame screening continuation
+
+Remaining free work: rerun four-job CI on final SHA after the new local stock fixture screen; independently obtain lawful original Pexels assets and run inspector to record actual original media hashes, model image/video suitability, and human review; never present different garments as a matched video try-on. Coordinated Part3/F3/F4 signed hosted acceptance and paid GPU remain separately gated.
