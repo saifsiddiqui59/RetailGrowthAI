@@ -750,3 +750,8 @@
 ## 2026-10-28 — Feature3 human approval route remains independently disabled
 - Human review and revocation are not GPU or media-generation permissions. Expose exactly POST retailer `feature3-models/{model_id}/review|revoke` only after signed Supabase JWT + active same-shop OWNER/EDITOR, with strict body schema, existing SQL-derived actor and durable audit/CAS. An unknown or stale outcome returns generic 409, no automatic POST replay. No renderer, source-media bytes or service-role evidence endpoint is public.
 - Require independent runtime `RETAIL_FEATURE3_MODEL_REVIEW_ENABLED=true` **as well as** `RETAIL_FEATURE3_V2_ENABLED=true`, both OFF until protected RetailGrowthAI-only release verification of migrations, real rights and auth. Synthetic fixture sign-in/rights do not establish real commercial authorization or VTON quality. GPU must not start merely because review SQL succeeded.
+
+
+## 2026-10-28 — Feature #1 discard private bytes when authoritative metadata changes
+- The media gallery must never keep displaying or offering a previously issued private uploaded-image Blob after its latest current-shop JWT/RLS media metadata no longer authorizes an original UPLOAD preview. On failed membership/media validation, remove preview state and revoke the browser object URL; hide it during any access revalidation. Cancel logically in-flight byte reads with the existing request-epoch fence.
+- Reclassification to STOCK/GENERATED, a missing asset, or a read error must **not** be interpreted as proof of licensing for previously cached bytes; return to metadata-only display. Real licensing, host acceptance and commercial rights remain independent authorization gates. No shared API/schema change and no public Storage links.
