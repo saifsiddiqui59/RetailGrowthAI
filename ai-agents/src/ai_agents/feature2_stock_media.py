@@ -95,6 +95,11 @@ def inspect_stock_broll(
         raise StockMediaRejected("Untrusted stock candidate metadata or license was modified")
     if type(current_rights) is not dict or type(evidence) is not dict:
         raise StockMediaRejected("Unreviewed source and local original")
+    try:
+        recorded_review_date = date.fromisoformat(current_rights["reviewed_on"])
+        discovery_date = date.fromisoformat(candidate["observed_on"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise StockMediaRejected("Invalid stock reviewer date evidence") from exc
     if (current_rights.get("shop_id") != sid or
         current_rights.get("candidate_id") != candidate["candidate_id"] or
         current_rights.get("rights_state") != "ACTIVE_REVIEWED" or
@@ -103,7 +108,7 @@ def inspect_stock_broll(
         current_rights.get("reviewed_source_page") != candidate["source_page"] or
         current_rights.get("creator") != candidate["creator"] or
         not isinstance(current_rights.get("reviewed_on"), str) or
-        date.fromisoformat(current_rights["reviewed_on"]) < date.fromisoformat(candidate["observed_on"]) or
+        recorded_review_date < discovery_date or
         any(current_rights.get(k) is not True for k in _TESTS)):
         raise StockMediaRejected("Current commercial license/release/approval review incomplete")
     if (candidate["attribution_required"] and
