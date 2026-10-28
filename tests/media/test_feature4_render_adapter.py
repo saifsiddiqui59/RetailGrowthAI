@@ -18,7 +18,7 @@ class RenderAdapterTests(unittest.TestCase):
         self.folder = Path(self.temp.name)
         self.movie = self.folder / "test.mp4"
 
-    def synthesize(self, *, video_codec="libx264", with_audio=True):
+    def synthesize(self, *, video_codec="libx264", with_audio=True, pixel_format="yuv420p"):
         command = [
             "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
             "-f", "lavfi", "-i", "color=c=black:s=360x640:r=24:d=2",
@@ -28,7 +28,7 @@ class RenderAdapterTests(unittest.TestCase):
         command += ["-c:v", video_codec, "-preset", "ultrafast"]
         if with_audio:
             command += ["-c:a", "aac", "-shortest"]
-        command += ["-pix_fmt", "yuv420p", "-y", str(self.movie)]
+        command += ["-pix_fmt", pixel_format, "-y", str(self.movie)]
         subprocess.run(command, check=True, capture_output=True, timeout=25)
 
     def test_real_mp4_probe_h264_aac_fps_duration(self):
@@ -49,6 +49,12 @@ class RenderAdapterTests(unittest.TestCase):
                 verify_mp4(self.movie, **args)
         self.synthesize(with_audio=False)
         with self.assertRaisesRegex(CreativeRenderError, "AAC"):
+            verify_mp4(self.movie, duration=2, width=360, height=640, fps=24)
+
+    def test_h264_aac_wrong_pixel_format_must_not_be_released(self):
+        # yuv444p is technically valid H.264 but fails many mobile players.
+        self.synthesize(pixel_format="yuv444p")
+        with self.assertRaisesRegex(CreativeRenderError, "yuv420p"):
             verify_mp4(self.movie, duration=2, width=360, height=640, fps=24)
 
     def test_no_unsafe_node_choice_or_timeout(self):

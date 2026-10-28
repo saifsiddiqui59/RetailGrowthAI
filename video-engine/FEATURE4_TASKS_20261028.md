@@ -6,7 +6,7 @@
 |---|---|---|---|
 | F4-01 | P0 | Verify latest GitHub files and inherited CI | DONE: source checked, baseline 4/4 runs #40658598605/#40658606959 |
 | F4-02 | P0 | Bridge `rg_video_v2` frontend with `creative_reel_v1` using trusted F2/3/5 approval + media rows | SOURCE VERIFIED: `feature4_intent_compiler.py` + private-bucket/source rights tests; 4/4 CI #40664857092 (106 media tests). Needs coordinator atomic DB approval snapshot |
-| F4-03 | P0 | Media ownership, provenance, rights, private staging, fallback and render proof | SOURCE IMPLEMENTED: `feature4_worker_handoff.py` + `_bundle` reuse and negative tests; hosted source/media acceptance remains |
+| F4-03 | P0 | Media ownership, provenance, rights, private staging, fallback and render proof | SOURCE IMPLEMENTED (plus pixel-format verification): `feature4_worker_handoff.py` + `_bundle` reuse and negative tests; hosted source/media acceptance remains |
 | F4-04 | P0 | Authenticated Studio UI, single submit, source previews, RLS job/status, tenant-private signed MP4 | SOURCE IMPLEMENTED, DEFAULT OFF: signed same-shop source media preview + `VideoStudioConnected.jsx`, `video-transport.mjs`, `feature4_http_handoff.py`; not mounted in main or live |
 | F4-05 | P0 | Actual HyperFrames composition, Full-HD 30s/60s, music ducking, FFmpeg codec, scene changes | ENGINEERING COMPLETE: real synthetic 30s and 60s Full-HD outputs in #40318231205 and #40658598605; still not photoreal release |
 | F4-06 | P0 | Coordinator-owned v2 RLS migration and atomic claim/lease/outbox/quota one-charge job | BLOCKED FOR FEATURE4 BRANCH: shared `supabase/migrations/**`, `azure-functions/**` and existing ledger require coordinator reconciliation and DEV review |
@@ -54,3 +54,8 @@
 - These are GitHub Ubuntu CPU observations, **not Azure Flex memory/cold-start/cost evidence**; process-tree RSS misses between-sample peaks or detached children and is not a capacity guarantee. Existing 60s Full-HD remains opt-in to conserve CI minutes.
 - CI artifact `ffmpeg-smoke` on [#40669534025](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40669534025) contained `feature4-review-package-lock.json` (69,904 bytes, SHA-256 `2b4016fde9514ac2771660a3a1e81389ee3b1237c72db6acfa1fc540494948a6`), generated on GitHub from pinned HyperFrames 0.8.185. Reviewed lockfile v3 includes **138 package entries**, integrity hashes on all installed packages and npm registry resolved URLs; it is **not yet committed** to the source branch. Do not switch CI to `npm ci` until the exact lockfile is reviewed, committed and reverified. Commercial third-party notices remain separate.
 - Running after this code change requires its own exact-head four-job Actions evidence. No cloud resource, service, migrations, application API or real AI inference changed.
+
+## 2026-10-28 — F4-03 output compatibility defense-in-depth
+
+- `video-engine/render_adapter.py.verify_mp4` now enforces `yuv420p` at the final verified private-artifact boundary, independently of the existing Node/HyperFrames probe. H.264/AAC alone does not guarantee compatible vertical playback if 4:4:4/10-bit output escapes the producer. An added 2-second real FFmpeg yuv444p H.264/AAC negative fixture tests refusal before signed output can be registered. No external media, GPU, new hosting, schema or API affected.
+- This source hardening is **not yet verified** until its exact code-head media job completes; original green checks belong to the preceding branch head.

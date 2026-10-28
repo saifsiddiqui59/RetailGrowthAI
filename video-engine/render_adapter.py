@@ -41,6 +41,11 @@ def verify_mp4(path, *, duration, width, height, fps):
         v, a = video[0], audio[0]
         if v.get("codec_name") != "h264" or a.get("codec_name") != "aac":
             raise CreativeRenderError("Output codecs not H.264/AAC")
+        # Renderer Node already checks this. Recheck at the trusted upload
+        # boundary so alternative/transferred MP4 artifacts cannot silently
+        # ship unsupported 4:2:2, 4:4:4 or ten-bit pixel formats to phones.
+        if v.get("pix_fmt") != "yuv420p":
+            raise CreativeRenderError("Output pixel format must be yuv420p")
         if (int(v.get("width", 0)), int(v.get("height", 0))) != (width, height):
             raise CreativeRenderError("Video resolution mismatch")
         observed_fps = v.get("avg_frame_rate", "0/1")
