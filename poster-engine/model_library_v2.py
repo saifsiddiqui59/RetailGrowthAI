@@ -129,8 +129,8 @@ def import_model_image(*, candidate, image_bytes, authorize_import,
     authorize_import(candidate) -> {shop_id, scope, curator_approved}
     verify_image_license(candidate, image_sha256) -> {approved, license_id,
         evidence_sha256, allow_reuse, uses}
-    write_private_png(key, bytes, metadata) -> {key, sha256, private}
-    register_model(record) -> {model_id, status, scope, owner_shop_id}
+    write_private_png(key, bytes, metadata) -> {key, sha256, private,\n        owner_shop_id, media_asset_id (registered in the same tenant)}
+    register_model(record) -> {model_id, status, scope, owner_shop_id, media_asset_id}
     All callbacks must reauthorize; browser declarations never confer rights.
     """
     _validate_candidate(candidate)
@@ -178,13 +178,19 @@ def import_model_image(*, candidate, image_bytes, authorize_import,
     }
     receipt = write_private_png(path, clean, record)
     if (not isinstance(receipt, dict) or receipt.get("key") != path or
-        receipt.get("sha256") != digest or receipt.get("private") is not True):
-        raise ModelLibraryDenied("Private storage did not confirm immutable model object")
+        receipt.get("sha256") != digest or receipt.get("private") is not True or
+        receipt.get("owner_shop_id") != candidate.owner_shop_id):
+        raise ModelLibraryDenied("Private storage did not confirm immutable owned media")
+    try:
+        asset_id = _uuid(receipt["media_asset_id"])
+    except (TypeError, ValueError, KeyError) as exc:
+        raise ModelLibraryDenied("Registered tenant-owned media asset UUID required") from exc
+    record["media_asset_id"] = asset_id
     saved = register_model(record)
     if (not isinstance(saved, dict) or
         any(saved.get(key) != value for key, value in (
             ("model_id", model_id), ("owner_shop_id", candidate.owner_shop_id),
-            ("scope", candidate.scope), ("status", "PENDING_REVIEW")))):
+            ("scope", candidate.scope), ("status", "PENDING_REVIEW"),\n            ("media_asset_id", asset_id)))):
         raise ModelLibraryDenied("Authenticated library registration mismatch")
     return record
 
