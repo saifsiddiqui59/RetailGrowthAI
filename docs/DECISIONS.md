@@ -622,3 +622,7 @@
 
 ## 2026-10-28 — #249 classify real HTTP 400 without relaxing validation
 - Keep strict `POST /api/poster-drafts/{id}/renders` missing-resource 404 and genuine bad-request 400 distinction. A protected genuine JWT test repeatedly receives **400 `INVALID_REQUEST`** for empty JSON on a synthetic missing poster while corresponding GET is 404. Allowlisting an error enum strictly for diagnostics and immediately failing the canary is acceptable; treating 400 as an authorized denial or bypassing Node via direct SQL fallback is **not**. No customer cutover or issue closure until real two-tenant full MP4 end-to-end and repeated HTTP reliability pass. Preserve existing Free SWA, Supabase rights, Python Queue/FFmpeg, no PROD/WineShopPOS changes.
+
+## 2026-10-28 — #249 separate polymorphic poster/Reel writer methods
+- The shared ReelIntentWriter subclass must never overload PosterRpcWriter.requestRender for two different payload contracts. Poster gateway uses dedicated requestPosterRender(token,userId,posterId,empty-object); Reel uses requestRender(token,userId,campaignId,day_id/preset). Avoid broad permission/validation bypasses.
+- Exact PR #457 source 4/4, actual Free SWA DEV #40658342675 and real signed six-write no-shop denial #40658591300 SUCCESS, missing poster POST now 404 rather than 400 and disposable user deleted. Correct rejection of a missing poster is not proof of successful authorized poster rendering or 30s private video. Keep #249 OPEN until positive two-tenant and repeat HTTP acceptance; no PROD/WineShopPOS or paid resources.
