@@ -1,6 +1,8 @@
 # Feature #2 real Azure GPT-4.1-mini: isolated DEV acceptance (2026-10-27)
 
-**Status:** Genuine seven-day multi-platform **TEXT-ONLY content = SUCCESS**. Prompt improvement = FAILED_NO_RETRY, not yet reconciled. Human approval required; no customer, image, MP4, publishing or social account was used. This is NOT an end-to-end production publishing test.
+> **2026-10-28 update (supersedes historical 27 October prompt status below):** Original provider artifact recovered; 377 input / 313 output prompt tokens settled at public-rate USD0.000717, with earlier 623/2440 campaign USD0.004569, combined USD0.005286. The original prompt **editorial output remains rejected**. Seven-day output independently audited offline at [28 October editorial review](20261028_REAL_AZURE_EDITORIAL_REVIEW.md). Historical pre-reconciliation ledger rows below are preserved as a dated snapshot, **not current debt**. Protected signed media and zero-cost prompt passed [DEV #40665965219](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40665965219), but no genuine clothing trend or positive saved DRAFT POST/GET exists. No new paid model call or invoice amount verified.
+
+**Historical status as of 2026-10-27:** Genuine seven-day multi-platform **TEXT-ONLY content = SUCCESS**. Prompt improvement = FAILED_NO_RETRY, not yet reconciled. Human approval required; no customer, image, MP4, publishing or social account was used. This is NOT an end-to-end production publishing test.
 
 ## Scope and irreversible operation evidence
 
