@@ -169,7 +169,10 @@ begin
   if (select auth.role()) is distinct from 'service_role' or
      p_job_id is null or p_claim_token is null then return null; end if;
   select * into j from public.feature3_gpu_jobs where id=p_job_id for update;
-  if not found or j.status<>'QUEUED' or j.attempts<>0 or not exists(\n      select 1 from retail_private.feature3_gpu_outbox o\n      where o.job_id=j.id and o.state='SENT'\n  ) then return null; end if;
+  if not found or j.status<>'QUEUED' or j.attempts<>0 or not exists(
+      select 1 from retail_private.feature3_gpu_outbox o
+      where o.job_id=j.id and o.state='SENT'
+  ) then return null; end if;
   update public.feature3_gpu_jobs
      set status='RUNNING',attempts=1,claim_token=p_claim_token,
          lease_until=now()+interval '15 minutes',updated_at=now()
@@ -210,7 +213,9 @@ begin
        where id=p_asset_id and shop_id=j.shop_id for update;
     if not found or a.storage_bucket<>'retailgrowth-media' or
        a.mime_type<>'image/png' or a.source<>'GENERATED' or
-       a.object_path not like j.shop_id::text||'/feature3/gpu/'||j.id::text||'/%'\n       or not exists(select 1 from storage.objects o where\n          o.bucket_id='retailgrowth-media' and o.name=a.object_path) then
+       a.object_path not like j.shop_id::text||'/feature3/gpu/'||j.id::text||'/%'
+       or not exists(select 1 from storage.objects o where
+          o.bucket_id='retailgrowth-media' and o.name=a.object_path) then
       raise exception 'Untrusted private image asset' using errcode='42501';
     end if;
   end if;
