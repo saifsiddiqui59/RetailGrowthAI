@@ -372,6 +372,33 @@ process.stdout.write(JSON.stringify(projectUpstreamCaptionsAfterAutoClipCuts(p))
         self.assertFalse(result["captions_from_real_model_inference_proven"])
         self.assertEqual(hashlib.sha256(self.clip.read_bytes()).hexdigest(),
                          self.sha)
+        if os.getenv("CI") == "true":
+            # Existing FFmpeg CI uploads ci-artifacts/ without a workflow edit.
+            # These bytes come only from a pinned public CC0 speech source.
+            # Do not publish user/customer uploads or impersonated consent.
+            artifacts=PROJECT_ROOT/"ci-artifacts"
+            artifacts.mkdir(exist_ok=True)
+            target=artifacts/"feature7-cc0-real-voice-retake-cut.mp4"
+            self.assertFalse(target.exists())
+            shutil.copy2(output,target)
+            (artifacts/"feature7-cc0-real-voice-retake-proof.json").write_text(
+                json.dumps({
+                    "source_repo":"shotstack/test-media",
+                    "source_license":"CC0-1.0",
+                    "source_revision":SOURCE_REVISION,
+                    "actual_source_sha256":source_sha,
+                    "edited_sha256":edited["output_sha256"],
+                    "original_human_speech_audio":True,
+                    "simulated_retake_by_duplicating_cc0_first_section":True,
+                    "real_asr_inference":False,
+                    "human_review_signed_off":False,
+                    "commercial_endorsement":False,
+                    "retake_cut_count":plan["retake_candidate_count"],
+                    "keep_segments":plan["keep_segments"],
+                    "source_to_output_caption_count":len(result["captions"]),
+                    "feature4_final_renderer_executed":False,
+                    "customer_publishable":False,
+                },indent=2),encoding="utf8")
 
     def test_real_internet_voice_video_clip_and_review(self):
         payload = self.payload()
