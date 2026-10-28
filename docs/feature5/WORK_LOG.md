@@ -225,3 +225,7 @@ The existing live Feature3 source bridge and private packet staging were source 
 ## 2026-10-28 — F3→CPU motion→Part3→F4 continuous offline acceptance
 
 - 2026-10-28: Continued without restart; committed full-path GPU-OFF source smoke using real F3 source code and FFmpeg-animated synthetic first-frame, strict native clip screening, independent fake Part3 upload+settlement/login protection, Feature4 faux human QA contract. Marked test-only. No actual media product or paid compute, WineShopPOS untouched.
+
+## 2026-10-28 — Feature5 GPU-free import integrity continuation
+
+Added two additional immutable staged-clip checkpoints in `feature5_motion/part3_private_import_bridge.py` around existing lease/rights and unique intent CAS callbacks, plus two explicit mutation tests using separately copied synthetic FFmpeg videos in `tests/media/test_feature5_part3_gpu_off_acceptance.py`. Tests are submitted to GitHub CI, not yet claimed successful at documentation time. Original upstream/multi-tenant/Part3 integration blockers remain. No paid model inference, Azure/A100, customer image or WineShopPOS modification.
