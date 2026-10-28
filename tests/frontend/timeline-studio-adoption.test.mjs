@@ -183,3 +183,13 @@ test('scene sound effect is licensed and tenant-scoped, and remains a 2s SFX not
  assert.match(validateVideoDraft(withSfx,assets,other).join(';'),/same-shop licensed audio effect/)
  assert.throws(()=>studioValidatedDraft(withSfx,assets,other),/Foreign, unlicensed or revoked/)
 })
+
+test('full-Reel narration is a separate approved, tenant-owned source and not scene SFX',()=>{
+ const d=draft()
+ const voiced={...d,voiceover_asset_id:'licensed_music'}
+ assert.deepEqual(validateVideoDraft(voiced,assets,music),[])
+ assert.equal(studioValidatedDraft(voiced,assets,music).voiceover_asset_id,'licensed_music')
+ const other=[{...music[0],shop_id:OTHER}]
+ assert.match(validateVideoDraft(voiced,assets,other).join(';'),/same-shop full-Reel/)
+ assert.throws(()=>studioValidatedDraft(voiced,assets,other),/Foreign, unlicensed or revoked/)
+})

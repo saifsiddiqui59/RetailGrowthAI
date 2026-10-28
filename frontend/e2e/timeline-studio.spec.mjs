@@ -82,3 +82,16 @@ test('Feature2 approved sound design remains read-only; no unapproved SFX inject
  await expect(page.getByLabel('Reviewed scene sound effect · first 2 seconds').first()).toBeDisabled()
  await expect(page.getByLabel('Final call to action')).toBeDisabled()
 })
+
+test('authorized full-Reel narration is visible and survives authenticated-intent draft',async ({page})=>{
+ await page.setViewportSize({width:1440,height:900})
+ await mount(page)
+ await page.getByLabel('Approved full-Reel narration').selectOption('licensed_scene_fx')
+ await expect(page.locator('.f4-ts-row').filter({hasText:'NARRATION'})
+   .locator('[data-timeline-segment-track="audio"]')).toHaveCount(1)
+ await page.getByRole('button',{name:'Submit authorized render'}).click()
+ await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
+ const plan=await page.evaluate(()=>window.__feature4Renders[0])
+ expect(plan.voiceover_asset_id).toBe('licensed_scene_fx')
+ expect(plan.version).toBe('rg_video_v2')
+})

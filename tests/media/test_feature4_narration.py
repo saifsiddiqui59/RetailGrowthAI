@@ -1,0 +1,89 @@
+"""Feature4 optional fixed-gain narration: all media is original synthetic test data.
+
+Uses existing reviewed private rights and HyperFrames HTML; does NOT run TTS.
+"""
+import math
+import struct
+import sys
+import tempfile
+import unittest
+import wave
+from pathlib import Path
+
+ROOT=Path(__file__).resolve().parents[2]
+sys.path.insert(0,str(ROOT/"video-engine"))
+sys.path.insert(0,str(ROOT/"tests"/"media"))
+from creative_contract import CreativeContractError, compile_creative_reel, render_inputs
+from professional import VideoPlanError
+from test_feature4_cross_feature import CreativeReelTests
+from test_feature4_intent_compiler import pair, OTHER
+from feature4_intent_compiler import compile_approved_storyboard
+
+def write_sound(path, seconds, freq):
+    with wave.open(str(path),"wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(16000)
+        for i in range(int(16000*seconds)):
+            t=i/16000
+            sample=int(10000*math.sin(2*math.pi*freq*t))
+            f.writeframesraw(struct.pack("<h", sample))
+
+class NarrationMediaTests(unittest.TestCase):
+    def fixture(self,seconds=30):
+        fixture=CreativeReelTests(methodName="test_diwali_30s_brand_logo_motion_poster_exact_offer")
+        fixture.setUp()
+        self.addCleanup(fixture.root_tmp.cleanup)
+        fixture.make_assets(with_video=False)
+        # No fabricated Feature5 video: substitute only an explicitly disclosed
+        # original synthetic still for the motions during narration CPU test.
+        s=fixture.request["scenes"][1]
+        s["asset_id"]="product_image"
+        s["asset_type"]="image"
+        s["source_feature"]="feature3"
+        s.pop("motion_status",None)
+        write_sound(fixture.assets/"narration.wav",seconds,350)
+        write_sound(fixture.assets/"licensed_music.wav",30,196)
+        fixture.add("approved_narration","narration.wav","audio","retailer")
+        fixture.add("licensed_music","licensed_music.wav","audio","retailer")
+        fixture.request["voiceover_asset_id"]="approved_narration"
+        fixture.request["voiceover_source"]="retailer"
+        fixture.request["music_asset_id"]="licensed_music"
+        fixture.request["music_source"]="retailer"
+        return fixture
+
+    def test_voice_is_full_length_and_renderer_ducks_bed_without_replacing_sfx(self):
+        f=self.fixture()
+        with tempfile.TemporaryDirectory() as tmp:
+            project=compile_creative_reel(f.request,f.manifest,f.assets,Path(tmp)/"render")
+            page=(project/"index.html").read_text()
+        self.assertIn('id="approved-voiceover"',page)
+        self.assertIn('data-duration="30" data-track-index="7" data-volume="1"',page)
+        self.assertIn('data-track-index="5" data-volume="0.12"',page)
+        self.assertEqual(page.count('id="approved-voiceover"'),1)
+        info=render_inputs(f.request,f.manifest)
+        self.assertEqual(info.plan["voiceover_asset_id"],"approved_narration")
+        self.assertIn("approved_narration",info.audit["media_asset_ids"])
+        self.assertIn("licensed_music",info.audit["media_asset_ids"])
+
+    def test_silent_or_short_narration_cannot_be_passed_as_full_reel(self):
+        f=self.fixture(seconds=7)
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(VideoPlanError,"shorter"):
+                compile_creative_reel(f.request,f.manifest,f.assets,Path(tmp)/"render")
+
+    def test_compiler_accepts_optional_voice_and_rejects_wrong_kind_and_cross_shop(self):
+        draft,trusted=pair()
+        draft["voiceover_asset_id"]="musicowned"
+        output=compile_approved_storyboard(draft,trusted)
+        self.assertEqual(output["request"]["voiceover_source"],"retailer")
+        self.assertEqual(render_inputs(output["request"],output["manifest"]).plan["voiceover_asset_id"],"musicowned")
+        draft["voiceover_asset_id"]="photokurti"
+        with self.assertRaises(CreativeContractError):
+            compile_approved_storyboard(draft,trusted)
+        draft["voiceover_asset_id"]="musicowned"
+        trusted["assets"]["musicowned"]["shop_id"]=OTHER
+        with self.assertRaises(CreativeContractError):
+            compile_approved_storyboard(draft,trusted)
+
+if __name__=="__main__":unittest.main()
