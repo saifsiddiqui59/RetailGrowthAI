@@ -6,6 +6,7 @@ server-side. HTTP errors never return raw PostgREST error bodies to clients.
 from __future__ import annotations
 
 import json
+import re
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -196,6 +197,42 @@ class TenantStore:
         if result["storage_bucket"] != "retailgrowth-media" or not result["object_path"].startswith(sid + "/"):
             return None
         return result
+
+    def feature3_gpu_job(self, token, shop_id, job_id):
+        """User-JWT/RLS-backed generated job read, never a paid job claim."""
+        sid, jid = canonical_uuid(shop_id), canonical_uuid(job_id)
+        rows = self._request("feature3_gpu_jobs", token, query={
+            "select": "id,shop_id,status,output_asset_id",
+            "id": "eq." + jid, "shop_id": "eq." + sid, "limit": "2",
+        })
+        if not isinstance(rows, list) or len(rows) != 1:
+            return None
+        item = rows[0]
+        if item.get("shop_id") != sid or item.get("id") != jid:
+            return None
+        if item.get("status") not in ("QUEUED","RUNNING","SUCCEEDED","FAILED"):
+            return None
+        return item
+
+    def feature3_generated_asset(self, token, shop_id, job_id, asset_id):
+        """Only the precise versioned private PNG object for this GPU job."""
+        sid, jid, aid = map(canonical_uuid, (shop_id,job_id,asset_id))
+        rows = self._request("media_assets", token, query={
+            "select": "id,shop_id,storage_bucket,object_path,mime_type,source",
+            "id": "eq." + aid, "shop_id": "eq." + sid, "limit": "2",
+        })
+        if not isinstance(rows, list) or len(rows)!=1:
+            return None
+        item=rows[0]
+        expected_prefix=f"{sid}/feature3/gpu/{jid}/"
+        key=item.get("object_path")
+        if (item.get("id")!=aid or item.get("shop_id")!=sid or
+            item.get("storage_bucket")!="retailgrowth-media" or
+            item.get("source")!="GENERATED" or item.get("mime_type")!="image/png" or
+            not isinstance(key,str) or not key.startswith(expected_prefix) or
+            not re.fullmatch(r"[a-f0-9]{64}[.]png",key[len(expected_prefix):])):
+            return None
+        return {"object_path":key,"mime_type":"image/png"}
 
     def sign_download(self, token, shop_id, object_path):
         """Request a short-lived link with the real user's RLS-scoped JWT."""

@@ -86,6 +86,14 @@ def feature3_registered_source(req: func.HttpRequest) -> func.HttpResponse:
                     "/feature3-source-assets/" + req.route_params["asset_id"])
 
 
+# No public generated GPU image path; existing Feature3 flag defaults OFF.
+@app.route(route="shops/{shop_id}/feature3-gpu-jobs/{job_id}/download",
+           methods=["GET"])
+def feature3_gpu_private_download(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/shops/" + req.route_params["shop_id"] +
+                    "/feature3-gpu-jobs/" + req.route_params["job_id"] + "/download")
+
+
 # Source-only future endpoints, explicitly disabled in existing DEV/PROD.
 @app.route(route="shops/{shop_id}/feature3-models", methods=["GET"])
 def list_feature3_models(req: func.HttpRequest) -> func.HttpResponse:
