@@ -1100,3 +1100,9 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 ## Feature3 next: exact seven-SQL DEV readiness and real try-on (2026-10-28)
 - Pass exact-head four-job PR CI on seven-version read-only gate, coordinator merge and independent main CI; source `tests/security/feature3-migration-release-gate.test.mjs` is offline only. Require separate operator approval, fresh exact 24-history/backup/restore and protected SQL negative checks before any DEV schema mutation. Then real OWNER/EDITOR/VIEWER/curator sign-in/revoke/foreign/private-media QA.
 - Real VTON still requires commercially cleared original garment, explicit adult-model likeness consent, actual authorized inference, immutable private output and six-trait human QA. GPU/paid API OFF; #249 hosted reliability open. Never label mocks hosted PASS.
+
+
+## 2026-10-28 — Feature #3 updated execution order: hosted signed users are FUTURE
+- **NOW:** complete source code, disposable Supabase migration/RLS/security negative tests, mocked authentication and cross-feature synthetic integration, real non-mocked VTON using **fictional generated adult models** and permitted garment inputs only (if cost/compute independently authorized), and six-trait quality review. No identifiable real-human portrait/likeness sourcing in current MVP.
+- **FUTURE, after all Feature #1/#2/#3/#4/#5/#7 and dependent publishing workflows are available:** separately approved final hosted DEV signed-user E2E with real isolated OWNER/EDITOR/VIEWER/reviewer identities, role denial, tenant boundary, real upload, review/approve/reject/revoke, signed download and audit. No test login is invented or marked PASS now.
+- Keep the seven hosted SQL migrations and Azure #249 as separate deployment/reliability gates; document actual status. Continue fail-closed offline security tests on every change. Do not disable current JWT/RLS checks to defer the hosted E2E milestone.
