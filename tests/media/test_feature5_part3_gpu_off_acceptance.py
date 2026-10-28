@@ -291,6 +291,66 @@ class Feature5Part3OfflineAcceptanceTests(unittest.TestCase):
             import_wan_into_existing_part3(**params)
         self.assertEqual((store.uploads,store.commits),(1,0))
 
+    def _isolated_staged_clip_for_mutation(self, params):
+        # Never mutate the shared 121-frame FFmpeg class fixture.
+        temp=tempfile.TemporaryDirectory(prefix="rgai-f5-mutation-")
+        self.addCleanup(temp.cleanup)
+        root=Path(temp.name)
+        root.chmod(0o700)
+        clip=root/"synthetic_cpu_not_wan.mp4"
+        shutil.copyfile(self.video,clip)
+        clip.chmod(0o600)
+        params["private_file"]=clip
+        params["trusted_attempt_root"]=root
+        return clip
+
+    @staticmethod
+    def _alter_private_clip_bytes(clip):
+        with clip.open("r+b") as stream:
+            stream.seek(2048)
+            old=stream.read(1)
+            if len(old)!=1:
+                raise AssertionError("Synthetic video fixture unexpectedly short")
+            stream.seek(2048)
+            stream.write(bytes((old[0] ^ 1,)))
+
+    def test_private_clip_changes_during_claim_recheck_denied_before_intent(self):
+        store,params,_=self.setup_case()
+        clip=self._isolated_staged_clip_for_mutation(params)
+        original_check=params["check_current_paid_claim_and_source"]
+
+        def claimed_but_staged_bytes_change(*values):
+            authorized=original_check(*values)
+            self._alter_private_clip_bytes(clip)
+            return authorized
+
+        params["check_current_paid_claim_and_source"]=claimed_but_staged_bytes_change
+        with self.assertRaises(WanCompatibilityError):
+            import_wan_into_existing_part3(**params)
+        self.assertFalse(store.intent)
+        self.assertEqual((store.uploads,store.commits),(0,0))
+
+    def test_private_clip_changes_during_consumed_intent_never_uploaded(self):
+        store,params,_=self.setup_case()
+        clip=self._isolated_staged_clip_for_mutation(params)
+
+        def intent_committed_then_file_mutated(*values):
+            committed=store.reserve_intent(*values)
+            self.assertTrue(committed)
+            self._alter_private_clip_bytes(clip)
+            return committed
+
+        params["commit_unique_import_intent"]=intent_committed_then_file_mutated
+        with self.assertRaises(UnknownPart3PrivateImport):
+            import_wan_into_existing_part3(**params)
+        self.assertTrue(store.intent)
+        self.assertEqual((store.uploads,store.commits),(0,0))
+        # A consumed intent must never be used to retry the same paid upload.
+        params["commit_unique_import_intent"]=store.reserve_intent
+        with self.assertRaises(WanCompatibilityError):
+            import_wan_into_existing_part3(**params)
+        self.assertEqual(store.uploads,0)
+
     def test_parallel_test_workers_only_one_private_import_and_settlement(self):
         store,params,_=self.setup_case()
         def try_once(_):
