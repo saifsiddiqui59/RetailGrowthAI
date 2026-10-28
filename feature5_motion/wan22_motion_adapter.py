@@ -91,7 +91,7 @@ def validate_runtime_node_types(object_info):
 def private_first_frame(media, *, ref, shop):
     """Caller must source media grant from current server JWT/RLS and private byte hash."""
     required = {"asset_id", "shop_id", "mime_type", "staged_basename",
-                "sha256", "approved", "private", "commercial_rights",
+                "sha256", "width", "height", "approved", "private", "commercial_rights",
                 "human_likeness_approved"}
     if type(media) is not dict or set(media) != required:
         raise WanCompatibilityError("Current authoritative media grant required")
@@ -108,6 +108,11 @@ def private_first_frame(media, *, ref, shop):
                          "image/webp": {"webp"}}.get(mime, set()):
         raise WanCompatibilityError("Image MIME/extension disagreement")
     _sha(media["sha256"], "first-frame SHA256")
+    w,h=media["width"],media["height"]
+    if (type(w) is not int or type(h) is not int or
+        not 256 <= w <= 8192 or not 256 <= h <= 8192 or
+        abs(w/h - 704/1280) > 0.025):
+        raise WanCompatibilityError("I2V first-frame aspect ratio does not match native portrait profile")
     return name
 
 
