@@ -28,3 +28,8 @@
 
 ## Acceptance boundary
 **Feature #1 can be described as complete for source-level and offline-mocked QA of its owned interfaces.** It cannot be described as fully operational for live OAuth, authenticated provider publishing, live retailer inbox or unapproved generated/stock asset access. No hosted testing, DEV/PROD mutation, paid resource upgrade, GPU, real publishing or WineShopPOS modification was carried out.
+
+
+## P2-02 keyset-history acceptance extension (2026-10-28)
+- [PR #536](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/536) merges stable server-side 100+1 UUID/time cursor reads, replacing UI offset pagination while preserving user JWT, RLS, private UPLOAD downloads, local filters and manual older-load UX. Mocked concurrent-head-upload and invalid-page tests prevent mistaken full inventory totals or cross-shop leakage.
+- Exact source CI [#40692187676](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40692187676) 4/4 PASS. Postmerge main [#40692756975](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40692756975) independently verify. This improves offline/source acceptance; it is not proof of hosted generated/stock media licensing, signed downloads or any live OAuth/publishing integration.
