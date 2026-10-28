@@ -110,7 +110,7 @@ def _allowlist_enums(value, descriptor):
         raise WanCompatibilityError("Model/input not installed in runtime selector")
 
 
-def validate_native_graph_against_object_info(graph, object_info):
+def validate_native_graph_against_object_info(graph, object_info, *, expected_input_filename=None):
     """Check actual node names, required/optional inputs, and checkpoint choices.
 
     Real protected server must supply its object_info directly. Source-only
@@ -178,6 +178,11 @@ def validate_native_graph_against_object_info(graph, object_info):
         raise WanCompatibilityError("Invalid pinned Wan node values or IDs") from exc
     if graph != canonical:
         raise WanCompatibilityError("Wan graph topology or pinned sampler settings changed")
+    # Topology checks CANNOT know whether an otherwise valid image basename
+    # was actually approved. Bind it to the independently reauthorized F3
+    # private staging record; never trust a filename from the graph itself.
+    if expected_input_filename is not None and approved_input_file != expected_input_filename:
+        raise WanCompatibilityError("Wan first-frame basename differs from current Feature3 private grant")
     return True
 
 
