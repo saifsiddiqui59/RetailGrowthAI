@@ -13,6 +13,8 @@ const ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/;
 const DISCOUNT = /\b(\d{1,3})\s*(?:%|percent|per[\s-]*cent)\s*(?:off|discount|sale|savings?)\b/ig;
 const UNSUPPORTED = /\b(?:guaranteed|number\s*one|no\.?\s*1|best\s+in\s+india|100%\s+pure|organic\s+certified|clinically\s+proven|viral\s+now)\b/i;
 const NETWORK = /https?:\/\/|data:|javascript:|<script/i;
+const HEX_SHA256 = /^[a-f0-9]{64}$/;
+const BROAD_OFFER = /\b(?:all|any|everything|storewide|entire store)\b/i;
 // A garment morphology grant is NOT proof of fabric material, price or delivery.
 const UNVERIFIED_RETAIL_FACT = /(?:₹\s*\d|\brs\.?\s*\d|\b(?:pure\s+cotton|pure\s+silk|handloom|handcrafted|free\s+(?:shipping|delivery)|buy\s+(?:one|1)\s+get\s+(?:one|1)|bogo)\b)/i;
 
@@ -57,7 +59,11 @@ function contextOf(source) {
     object(media, 'media grant');
     const mediaId = id(media.id, 'media.id');
     if (media.shop_id !== shopId || media.rights_status !== 'APPROVED' ||
-        media.kind !== 'IMAGE' || !media.product_sku) fail('Unapproved or cross-tenant Feature3 media');
+        media.kind !== 'IMAGE' || !media.product_sku || media.private !== true ||
+        media.commercial_use_allowed !== true || media.revoked_at != null ||
+        typeof media.original_media_sha256 !== 'string' ||
+        !HEX_SHA256.test(media.original_media_sha256))
+      fail('Unapproved, changed or cross-tenant private Feature3 media');
     const garment = object(media.garment_facts, 'verified garment facts');
     for (const field of ['color', 'neckline', 'sleeves', 'hem', 'embroidery']) str(garment[field], 'verified garment ' + field, 2, 180);
     if (assets.has(mediaId)) fail('Duplicated media grant');
@@ -83,6 +89,7 @@ function contextOf(source) {
         scope.some(sku => typeof sku !== 'string' || sku.length > 80 || !ID.test(sku)) ||
         new Set(scope).size !== scope.length) fail('Promotion missing approved eligible product SKU scope');
     const legalClaim = str(offer.approved_claim_text, 'approved retailer promotion wording', 10, 180);
+    if (BROAD_OFFER.test(legalClaim)) fail('Broad/storewide promotion is not authorized by this SKU-only contract');
     if (!Array.from(legalClaim.matchAll(DISCOUNT)).some(m => Number(m[1]) === offer.percent_off))
       fail('Promotion wording does not match the signed approved percentage');
     if (offers.has(offer.id)) fail('Duplicate commercial approval');
@@ -243,7 +250,8 @@ function compile(request, candidate, options = {}) {
         next_shot_id: null
       };
       if (shots.length) shots[shots.length - 1].next_shot_id = shotId;
-      const approvedSourceHash = hash({ media_id: media.id, garment: media.garment_facts, shop_id: req.shop_id });
+      const approvedSourceHash = hash({ media_id: media.id, original_media_sha256: media.original_media_sha256,
+        garment: media.garment_facts, shop_id: req.shop_id });
       motion.reference_facts_sha256 = approvedSourceHash;
       shots.push(motion);
       sceneShots.push({ shot_id: shotId, start_seconds: position, duration_seconds: seconds, motion_direction: motion });
@@ -283,6 +291,16 @@ function compile(request, candidate, options = {}) {
     duration_seconds: req.duration_seconds, aspect_ratio: '9:16',
     concept, hook, voiceover_script: fullVO, dialogue_present: script.some(s => !!s.dialogue),
     cta, authorized_offer_ids: direction.offer_ids_used,
+    approved_offer_evidence_sha256: hash(direction.offer_ids_used.map(id => {
+      const o = offers.get(id);
+      return { id, approved_claim_text: o.approved_claim_text, eligible_product_skus: o.eligible_product_skus,
+        percent_off: o.percent_off, signed_evidence_id: o.signed_evidence_id,
+        valid_from: o.valid_from, valid_until: o.valid_until };
+    })),
+    approved_media_evidence_sha256: hash([...neededMedia].map(id => {
+      const m = assets.get(id);
+      return { id, original_media_sha256: m.original_media_sha256, garment_facts: m.garment_facts };
+    })),
     scenes: script, reference_media_requests: [...neededMedia].map(asset_id => ({
       feature: 3, asset_id, same_shop_required: true, rights_review_required: true
     })), audio_sync: audioSync,
