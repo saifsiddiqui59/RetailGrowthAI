@@ -13,3 +13,14 @@ This work extends the **existing** RetailGrowthAI Supabase database, `shop_ai_bu
 Remaining after this schema: authenticated backend bridge between source #458 callbacks and the service-only RPCs, outbox-to-Azure Queue relay, model approval, private bytes and current-rights rechecks, and one paid CUDA benchmark only after owner approval.
 
 No WineShopPOS/PROD or GPU resource changes.
+
+## Verified actual DEV deployment — 2026-10-28
+
+The reviewed source migration in PR #479 merged as `92f9c7a3` after exact-head CI #40667005701 **4/4 PASS**. Fresh live RetailGrowthAI DEV history before migration: 23, through Feature3 catalog 20261028092346; no existing GPU jobs or outbox. Applied `feature3_gpu_budget_jobs` using connected Supabase, which returned **success** and assigned actual version **20261028101328** (24 versions). Verified live:
+- `public.feature3_gpu_jobs` and `retail_private.feature3_gpu_outbox` exist; both RLS enabled.
+- Existing/new GPU approval default `false`, **0 GPU-enabled tenants**.
+- `anon` and `authenticated` cannot execute reserve/claim/finalize GPU service RPCs.
+- GPU jobs=0, private outbox events=0, no GPU worker or Azure compute was started.
+- Source version synchronized by follow-on migration reconciliation PR (CI/merge must be independently checked).
+
+This is a **hosted schema result**, NOT real CUDA inference, end-to-end tenant claim or paid budget acceptance. Outstanding: actual authenticated backend adapter, runtime outbox/queue relay and negative concurrency/expiry tenant tests.

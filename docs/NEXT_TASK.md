@@ -905,3 +905,11 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 - **P1-03 publishing calendar/history:** **BLOCKED** by Part 2 real approved per-shop schedule/status/receipt read API with UTC+IANA timezone, channel identity, pagination and authorization; no optimistic published claims or sends. Track #489.
 - **P1-04 retailer inbox:** **BLOCKED** by coordinator-owned tenant/user RLS persistence, categories, read/unread audit and bounded read/write contract distinct from ROOT-only `retail_platform_notifications`; do not extend platform notifications to ordinary users. Track #489.
 - **Cost/scope:** no new cloud resources or paid calls for #487. No hosted E2E, DEV verification/deployment, PROD release, provider activation, real posting, GPU or WineShopPOS changes.
+
+
+## Feature3 2026-10-28 — Follow-on after tasks 3.3–3.5 source merges / real GPU schema
+- **3.3 #469:** #482 source merged; next: true signed JWT & private bytes/header/digest/media FK registration into deployed Feature3 catalog, server-only approval/revocation and reusable reviewed model. No real approved model yet.
+- **3.4 #470:** #479 source merged/4 CI, exact DEV version 20261028101328 APPLIED with GPU `false`, zero jobs, RLS/service-role-only RPCs. Next: reconcile source version under CI, wire a server-owned authenticated request/price/quota/job bridge and private outbox sender to existing Azure queues; require one-shot worker controls and expiry/fencing denial, no customer billed run.
+- **3.5 #471:** #483 source merged; next: actual private generated output registration/byte hash and approved model media reuse, same-shop signed download only upon real successful output, no public/foreign token.
+- **3.6 #472:** run full Supabase negative authorization, signed real eligible owner/VIEWER/foreign tests after customer-safe DEV activation, 4/4 source and post-merge main CI; verify no paid GPU enabled. Keep #325 open until genuine FLUX output with cost.
+- **3.2 #468:** recent Feature2 fixture contains original synthetic PNG with revoked membership; do not borrow it. Prepare a genuinely active test shop/authorized JWT with explicit model rights before image conditioning.
