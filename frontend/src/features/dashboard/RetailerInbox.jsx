@@ -20,7 +20,7 @@ export default function RetailerInbox() {
   const { client, configured, user } = useRetailAuth()
   const queryClient = useQueryClient()
   const shopsQuery = useAuthorizedShops({client,configured,user})
-  const shops = shopsQuery.data || []
+  const shops = shopsQuery.isError ? [] : (shopsQuery.data || [])
   const { shopId, selectShop } = useSelectedShop({user,shops})
   const [view,setView] = useState('all')
   const [category,setCategory] = useState('all')
@@ -37,9 +37,10 @@ export default function RetailerInbox() {
     retry:false,
     refetchOnWindowFocus:false,
   })
-  const data = inboxQuery.isError ? null : inboxQuery.data
-  const loading = Boolean(shopsQuery.isFetching || inboxQuery.isFetching)
   const error = shopsQuery.isError || inboxQuery.isError
+  // A failed membership refresh must never expose a previously cached inbox.
+  const data = error ? null : inboxQuery.data
+  const loading = Boolean(shopsQuery.isFetching || inboxQuery.isFetching)
   async function toggle(item) {
     if (working!==null) return
     setWorking(item.id)
