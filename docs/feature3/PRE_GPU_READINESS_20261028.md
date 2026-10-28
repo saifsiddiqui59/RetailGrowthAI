@@ -101,3 +101,18 @@ hosted signed-in browser E2E. These remain future production release gates.
 bounded paid generation under a durable reservation, true private output
 registration and no cross-tenant/retry charges. Source-only tests are not
 enough to claim the complete SaaS or a running GPU.
+
+## 2026-10-28 — Latest actual DEV correction and remaining gates
+
+Earlier 22-version/absent-catalog paragraphs above describe the *pre-migration*
+audit and are superseded by this section. Independently verified current DEV:
+**24 migrations**, including applied Feature3 model catalog
+`20261028092346` and GPU job ledger `20261028101328`.
+GPU-enabled tenants=0, jobs=0, outbox=0, models=0 and versioned designs=0.
+All four Feature3 data tables have RLS. The pending account and media acceptance
+remains unproven. Source merges #501 prepaid RPC transport, #502 JWT read-only
+private generated image UI and #486 fake-JWT route tests passed their own CI,
+but **do not constitute a deployed GPU worker, registered FLUX output or
+authenticated hosted merchant**. Model key prefix compatibility PR #504 awaits
+re-run acceptance. See the canonical 2026-10-28 checkpoint and separate
+Task3.3/3.4/3.5 handoff files. GPU spend stays OFF; no PROD/WineShopPOS changes.
