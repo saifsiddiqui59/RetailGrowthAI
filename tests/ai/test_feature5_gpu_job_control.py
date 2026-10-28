@@ -13,7 +13,9 @@ def valid_job():
             "properties":{"environmentId":ENV_ID,"workloadProfileName":"f5-a100",
             "configuration":{"triggerType":"Manual","replicaRetryLimit":0,"replicaTimeout":900,
                             "manualTriggerConfig":{"parallelism":1,"replicaCompletionCount":1}},
-            "template":{"containers":[{"image":"example.azurecr.io/f5@sha256:" + "a"*64,\n                "volumeMounts":[{"volumeName":models.VOLUME_NAME,"mountPath":models.MOUNT_PATH}]}],\n                "volumes":[{"name":models.VOLUME_NAME,"storageType":"AzureFile","storageName":models.STORAGE_NAME}]}}}
+            "template":{"containers":[{"image":"example.azurecr.io/f5@sha256:" + "a"*64,
+                "volumeMounts":[{"volumeName":models.VOLUME_NAME,"mountPath":models.MOUNT_PATH}]}],
+                "volumes":[{"name":models.VOLUME_NAME,"storageType":"AzureFile","storageName":models.STORAGE_NAME}]}}}
 
 def valid_env():
     return {"name":m.ENV,"location":"eastus",
@@ -41,7 +43,11 @@ class SafetyTests(unittest.TestCase):
             if "list-usages" in args:
                 return [{"name":{"value":"ManagedEnvironmentConsumptionNCA100Gpus"},
                          "limit":2,"currentValue":0}]
-            if "storage" in args and "show" in args:\n                return {"properties":{"azureFile":{"accountName":models.ACCOUNT,\n                         "shareName":models.SHARE,"accessMode":"ReadOnly"}}}\n            return self.env\n        with patch.object(m,"az",side_effect=read):
+            if "storage" in args and "show" in args:
+                return {"properties":{"azureFile":{"accountName":models.ACCOUNT,
+                         "shareName":models.SHARE,"accessMode":"ReadOnly"}}}
+            return self.env
+        with patch.object(m,"az",side_effect=read):
             m.check_preflight(SUB,self.j)
             for key,value in [("replicaRetryLimit",1),("replicaTimeout",3600),("triggerType","Schedule")]:
                 corrupt=valid_job()
