@@ -102,7 +102,7 @@ function directorPrompt(request) {
     'Write strong unique opening, natural voiceover/dialogue, exact approved CTA, visually specific scenes, physical subject choreography and garment-safe motion.',
     'Every shot requires camera framing, lens, composition, camera movement, lighting, setting, wardrobe, Feature3 approved reference id and product SKU.',
     'Every motion shot requires contiguous relative physical action windows starting at 0 and ending at shot duration, with human action, camera choreography and physical garment behaviour.',
-    'Describe the SAME exact approved garment throughout; no changed motif/neckline/hem/sleeves, invented people, unreadable generated text or fake product claims.',
+    'Describe the SAME exact approved garment throughout; in every generation_prompt COPY the authoritative garment color, neckline, sleeves, hem and embroidery fields VERBATIM. Do not substitute synonyms or change motif/neckline/hem/sleeves, invent people, add rendered text or fake product claims.',
     'Generate a rich shot-specific cinematic prompt grounded in ALL movement windows. Overlay exact offer copy later via Feature4, never ask Wan to draw sale text.',
     'Scene speech must fit the scene duration at a real speaking pace. Include voiceover and dialogue and narration timing hints.',
     'Return strict JSON with concept, hook, voiceover_script, cta, offer_ids_used, scenes:[{id,role,voiceover,dialogue,transition_out,shots:[{id,duration_seconds,visual_description,subject,character_continuity,reference_asset_id,product_sku,wardrobe,camera:{framing,lens,composition,movement},lighting,background,motion_steps:[{start_seconds,end_seconds,human_action,camera_action,fabric_response}],generation_prompt,negative_constraints:[]}]}].',
