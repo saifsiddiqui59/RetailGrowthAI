@@ -9,7 +9,7 @@
 //   - the title that opens a scene comes at the minimum time whatever its anchor says; the other elements keep their times
 
 const assert = require('assert/strict');
-const cues = require('../lib/explainer-cues');
+const cues = require('../explainer-cues');
 
 const near = (actual, expected, tolerance = 0.0005, message = '') => assert.ok(Math.abs(actual - expected) <= tolerance, `${message} ${actual} !== ${expected}`.trim());
 
