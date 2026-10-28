@@ -112,16 +112,26 @@ class WanPrivateComfyDispatcher:
         token=canonical_uuid(attempt_token)
         shop=canonical_uuid(package.lineage["shop_id"])
         source=canonical_uuid(package.lineage["source_asset_id"])
-        if (verify_existing_fenced_paid_claim(shop,job,token,
-                                             package.lineage_sha256) is not True or
-            verify_current_private_first_frame(shop,source,
-                                               package.lineage["source_sha256"]) is not True):
-            raise WanCompatibilityError("Missing current prepaid attempt lease/private source rights")
-        # A protected runtime must supply its own installed /object_info.
-        # Malformed node schemas block submission; synthetic fixtures do NOT
-        # attest the actual running server.
+        if verify_existing_fenced_paid_claim(shop,job,token,
+                                              package.lineage_sha256) is not True:
+            raise WanCompatibilityError("Missing current prepaid fenced attempt lease")
+        # An authoritative F3 resolver must reauthorize rights and the actual
+        # staged basename after the lease. A boolean cannot prove which local
+        # file the supposedly approved model will consume.
+        proof=verify_current_private_first_frame(
+            shop,source,package.lineage["source_sha256"])
+        if (type(proof) is not dict or set(proof) != {
+            "shop_id","source_asset_id","source_sha256","staged_basename",
+            "approved","private","commercial_rights","human_likeness_approved",
+        } or proof["shop_id"]!=shop or proof["source_asset_id"]!=source or
+            proof["source_sha256"]!=package.lineage["source_sha256"] or
+            any(proof[key] is not True for key in (
+                "approved","private","commercial_rights","human_likeness_approved"))):
+            raise WanCompatibilityError("Missing current approved private staged Feature3 input")
+        # Actual protected runtime /object_info, never browser supplied.
         object_info=self.transport("GET","/object_info",None)
-        validate_native_graph_against_object_info(package.graph,object_info)
+        validate_native_graph_against_object_info(
+            package.graph,object_info,expected_input_filename=proof["staged_basename"])
         body={"prompt":package.graph["prompt"],"prompt_id":token}
         # The provider POST is allowed EXACTLY ONCE here. The Comfy server
         # accepts duplicate prompt IDs, so UUID alone does not deduplicate.
