@@ -104,3 +104,9 @@ rights remain independent of test fixture approval. Do not modify WineShopPOS.
 **Current rule:** GPU stays OFF and public model approval is NOT active; zero
 approved, rights-verified live fashion models does not satisfy production E2E.
 No WineShopPOS or PROD changes.
+
+
+## 2026-10-28 — Accepted MVP sequencing supersedes earlier real-person and hosted-sign-in TODOs
+- **NOW:** Fictional AI-generated **adult** models only; no identifiable real-person portraits or likeness-release procurement in the Feature3 MVP. Authorized garment photographs (not a person's implied endorsement) plus generated model provenance are required. Existing genuine VTON output and garment color, pattern, neckline, sleeves, length and embroidery QA remain unfinished; don't mark synthetic composite/mock output as inferred.
+- **FUTURE FINAL INTEGRATION:** Hosted DEV OWNER, EDITOR, VIEWER and independent reviewer/curator **signed-user E2E testing waits until all features (#1, #2, #3, #4, #5, #7 and dependent publishing paths) are developed and available together.** Execute authentic sign-in, uploads, approval/rejection, audit, cross-tenant denial, download and revocation only then under separate deployment approval. For now keep disposable negative SQL, RLS/JWT unit tests, browser mocks, and source verification mandatory.
+- **Still protected:** Existing real-person likeness/consent checks must not be falsely satisfied or removed; any future real-person pathway requires its own approval. Seven pending hosted SQL migrations, #249 gateway reliability and costs remain independent gates; no hosted DEV/PROD change or paid inference authorized.
