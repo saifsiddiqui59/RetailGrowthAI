@@ -54,7 +54,12 @@ if(p.attack==='fake_grant')item.grant={
 };
 const r=prepareAuthoritativePrivateReview({
   ...p,asr_key:asrKey,rights_key:rightsKey,
-  getCurrentApprovedVideo:()=>p.current
+  getCurrentApprovedVideo:()=>{
+    p.rights_checks=(p.rights_checks??0)+1;
+    if(p.attack==='revoked_during_review' && p.rights_checks>1)
+      return {...p.current,active:false};
+    return p.current;
+  }
 });
 process.stdout.write(JSON.stringify(r));
 """
@@ -120,7 +125,7 @@ class Feature7AuthoritativeRightsTests(unittest.TestCase):
 
     def test_revoked_foreign_stale_rights_spoofing_and_expiry_fail(self):
         for attack in ('revoked','foreign_shop','rights_revision','bad_source',
-          'different_job','expired','forged_mac'):
+          'different_job','expired','forged_mac','revoked_during_review'):
             with self.subTest(attack=attack):
                 p=self.payload();p['attack']=attack
                 r=self.js(p)
