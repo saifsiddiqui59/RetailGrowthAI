@@ -60,7 +60,7 @@ export default function RetailerInbox() {
     </div>
     <Card className="panel rg-integration-guide" aria-label="Notifications integration requirements">
       <div className="eyebrow">VERIFICATION BOUNDARY</div>
-      <h2>What these notifications mean</h2>
+      <h2>Verified event scope</h2>
       <ol className="rg-integration-steps">{guide.map(([title,detail],i)=>
         <li key={title}><span className="rg-integration-number" aria-hidden="true">{i+1}</span>
           <div><strong>{title}</strong><p>{detail}</p></div></li>)}</ol>
