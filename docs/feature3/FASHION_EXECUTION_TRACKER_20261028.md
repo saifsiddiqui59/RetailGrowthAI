@@ -104,3 +104,12 @@ rights remain independent of test fixture approval. Do not modify WineShopPOS.
 **Current rule:** GPU stays OFF and public model approval is NOT active; zero
 approved, rights-verified live fashion models does not satisfy production E2E.
 No WineShopPOS or PROD changes.
+
+## 2026-10-28 — Coordinator cross-track GPU-OFF checkpoint
+- **PR #561:** Feature2/4/5/7 sample briefs and validated original garment/model/first frame handoff, four CI jobs SUCCESS, awaiting coordinator merge.
+- **PR #562:** real synthetic PNG private stage callback and revocation/ambiguous-ACK guards, four CI SUCCESS, awaiting coordinator merge.
+- **PR #563:** signed retailer human import/review/revoke UI, flags disabled, final exact-head four CI SUCCESS, awaiting coordinator merge.
+- **PR #565:** PostgreSQL one-shot output media+SHA CAS and success trigger, service RPC, source-only SQL and negative/positive tests; updated after SQL fixture test failure, final CI and coordinator approval pending.
+- **PR #566:** service-only GPU dispatch/ACK and financial uncertainty incident ledger, no paid rerun, initial SQL test formatting fixed; final CI/merge pending.
+- **Parallel migration constraint:** #565 and #566 each adjust the historical migration inventory; both exact versions must be reconciled in final coordinator PR, and older Feature2 hosted permission gate must remain explicitly fail-closed.
+- **Still P0:** actual same-shop signed model original upload, immutable byte SHA, independent likeness/license proof and genuine human curator; existing `uploads/` registration cannot directly create `model-library/` original. **P1:** complete real GPU-off callback-to-Storage SQL wiring and durable recovery, accurate real VTON visuals after GPU approval. **P2:** signed hosted E2E, actual FLUX VRAM/USD/quality, Azure #249 reliability evidence. GPU remains OFF and hosted migrations are unapproved.
