@@ -27,7 +27,7 @@ It does not replace Part 1, start a GPU, publish media or touch WineShopPOS.
   or fed into image-to-image. No private user IDs, URLs or keys should be
   copied into public GitHub issues or test fixtures.
 - `to_regclass('public.feature3_models')` was **null**. Supabase migration
-  history contains 22, then the Feature2 AI ledger `20261026194000` but NOT
+  history contains 22 versions including the later Feature2 AI ledger `20261026194000` but NOT
   `20261026173000_feature3_model_catalog_drafts`.
   Applying a source migration and exposing new endpoints requires separately
   reviewed chronology, grant/security regression, protected DEV execution
