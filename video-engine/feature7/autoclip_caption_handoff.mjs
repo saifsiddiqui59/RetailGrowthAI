@@ -104,7 +104,7 @@ export function projectUpstreamCaptionsAfterAutoClipCuts({
     shop_id,asset_id,requested_reel_seconds,
     actual_timeline_duration_ms:Math.round(position),
     applied_audio_crossfade_seconds:fadeMs/1000,
-    timing_basis:'AUT OCLIP'.replace(' ', '')+'_CORE_AUDIO_CROSSFADE_AND_VIDEO_HALF_TRIM',
+    timing_basis:'AUTOCLIP_CORE_AUDIO_CROSSFADE_AND_VIDEO_HALF_TRIM',
     measured_frame_level_sync:false,
     requires_rendered_av_acceptance:true,
     matches_feature4_duration_exactly:
