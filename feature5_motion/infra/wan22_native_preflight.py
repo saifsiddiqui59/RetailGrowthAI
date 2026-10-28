@@ -265,6 +265,8 @@ def audit_offline_wheelhouse(root, *, reviewed_wheel_sha256):
                     raise WanCompatibilityError("Embedded wheel identity differs from filename")
                 if not archive.read(wheelmeta[0]).startswith(b"Wheel-Version:"):
                     raise WanCompatibilityError("Invalid wheel metadata")
+        except WanCompatibilityError:
+            raise
         except (OSError, ValueError, UnicodeError, BadZipFile) as exc:
             raise WanCompatibilityError("Unreadable offline wheel archive") from exc
         seen.add(package)
