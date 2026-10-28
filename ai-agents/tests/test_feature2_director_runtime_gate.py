@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 
 from ai_agents.feature2_director_runtime_gate import audit_entries, REQUIRED, PIN
+from ai_agents.feature2_director_package import source_entries
 
 
 def test_current_python_flex_packaging_reports_genuine_blocker():
@@ -74,3 +75,14 @@ def test_runtime_zip_rejects_nonexecutable_node_even_with_claimed_operator_flags
             audit_zip(str(path), runtime_linux_node22_verified=True,
                       operator_approved_runtime=True,
                       approved_node_sha256=sha256(b"fake!").hexdigest())
+
+
+def test_packaged_upstream_mit_originals_are_checked_again_not_just_at_staging():
+    entries = source_entries(Path(__file__).resolve().parents[2])
+    assert "PINNED_DIRECTOR_UPSTREAM_HASH_MISMATCH" not in audit_entries(entries).blocking_reasons
+    forged = dict(entries)
+    key = "ai_agents/creative-director/upstream/explainer-cues.js"
+    forged[key] += b"\\n// tampered after source staging"
+    audit = audit_entries(forged)
+    assert not audit.ready_to_enable
+    assert "PINNED_DIRECTOR_UPSTREAM_HASH_MISMATCH" in audit.blocking_reasons

@@ -6,12 +6,13 @@ the GitHub runner itself has Node installed. No cloud I/O, deployment or secrets
 """
 from __future__ import annotations
 from dataclasses import dataclass
-from hashlib import sha256
+from hashlib import sha1, sha256
 from hmac import compare_digest
 import re
 import struct
 from typing import Mapping
 from zipfile import ZipFile
+from .feature2_director_package import PINNED_UPSTREAM_BLOBS
 
 
 REQUIRED = frozenset({
@@ -69,6 +70,15 @@ def audit_entries(
         raise TypeError("Trusted ZIP entry map required")
     keys = set(entries)
     missing = tuple(sorted(REQUIRED - keys))
+    pinned_prefix = "ai_agents/creative-director/"
+    originals_ok = all(
+        isinstance(entries.get(pinned_prefix + name), bytes)
+        and compare_digest(
+            sha1(b"blob " + str(len(entries[pinned_prefix + name])).encode("ascii")
+                 + b"\\0" + entries[pinned_prefix + name]).hexdigest(), expected
+        )
+        for name, expected in PINNED_UPSTREAM_BLOBS.items()
+    )
     license_bytes = entries.get("ai_agents/creative-director/upstream/LICENSE")
     license_ok = isinstance(license_bytes, bytes) and (
         b"MIT License" in license_bytes and b"Copyright (c) 2026 Kuble AG" in license_bytes
@@ -86,6 +96,8 @@ def audit_entries(
         reasons.append("PINNED_DIRECTOR_SOURCE_NOT_PACKAGED")
     if not license_ok:
         reasons.append("PINNED_MIT_NOTICE_NOT_PACKAGED")
+    if not originals_ok:
+        reasons.append("PINNED_DIRECTOR_UPSTREAM_HASH_MISMATCH")
     if not has_node:
         reasons.append("NODE_RUNTIME_NOT_IN_FUNCTION_ZIP")
     elif not node_attested:
