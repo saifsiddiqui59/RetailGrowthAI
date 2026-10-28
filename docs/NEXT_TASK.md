@@ -852,3 +852,9 @@ NaN
 ## 2026-10-27 — Feature #1 scoped month fix complete
 - **DONE:** PR #448 merged `b9ccc0bf`; final PR CI #40510858113 4/4 and independent main CI #40511424526 4/4. No further source action for this race. Existing Free SWA DEV release #40501178661 predates this source-only fix; do not claim this newest change is deployed.
 - **REMAINING:** tenant-safe Part 2 social account/publishing receipts and retailer read/unread contracts; full private media-history server paging; owner-excluded authenticated hosted visual QA. Do not activate OAuth, public Storage links or cloud deployments without their release gates. Keep costs near zero.
+
+
+## Feature2 2026-10-28 — next, after real prompt ledger reconciliation
+- Prompt inference bill receipt is no longer ambiguous: 377/313 tokens from provider artifact #12728895512, exact DEV reservation prompt SETTLED $0.000717; campaign copy SETTLED $0.004569. No further paid model request under original one-time approval. Prompt **editorial text still failed** and needs offline correction/review; do NOT call provider automatically.
+- Execute and audit the new protected **zero-paid-AI** signed DEV smoke: genuine approved synthetic user JWT, original test PNG/private Storage and ownership RPC, real trends endpoint, fail-closed on no verified clothing signal and only save/readback DRAFT if source becomes genuinely relevant. Do not seed fabricated clothing trend or mutate real user shops.
+- Current real Oct28 Google RSS snapshot 10 items, zero clothing across all three days; hosted content-draft E2E remains gated by true relevant source, not by new permission. Review a separate, properly dated Google India fashion editorial source adapter before ever claiming Google Blogs are last-30-hour RSS trending. Evidence: docs/feature2/20261028_PROMPT_RECONCILIATION_TRENDS_AND_HOSTED_TEST.md. No WineShopPOS or PROD.
