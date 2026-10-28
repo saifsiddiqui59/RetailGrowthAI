@@ -53,6 +53,27 @@ def test_worker_only_modules_not_imported_during_function_indexing():
     assert not (imports(top_level) & WORKER_ONLY)
 
 
+def test_http_and_storage_modules_do_not_load_during_indexing():
+    tree = parsed()
+    top_level = [n for n in tree.body if not isinstance(n, (ast.FunctionDef,
+                                                            ast.AsyncFunctionDef))]
+    permitted = {"json", "os", "request_diagnostics", "azure.functions"}
+    assert imports(top_level) == permitted
+    funcs = functions_by_name(tree)
+    # These modules need authentication and data access only after real HTTP
+    # invocation, never during route registration or queue trigger indexing.
+    assert {"http_api", "security", "tenant_store", "admin_store",
+            "queue_adapter", "render_api", "poster_draft_api",
+            "poster_render_api", "feature3_v2_api", "feature3_v2_store"
+            }.issubset(imports([funcs["build_api"]]))
+    assert "admin_store" in imports([funcs["plan_campaign"]])
+    assert {"admin_store", "queue_adapter"}.issubset(
+        imports([funcs["_recovery_dependencies"]]))
+    assert "admin_store" in imports([funcs["render_campaign_reel"]])
+    assert {"security", "tenant_store", "admin_store"}.issubset(
+        imports([funcs["build_feature2_api"]]))
+
+
 def test_each_worker_import_stays_inside_its_own_trigger():
     tree = parsed()
     funcs = functions_by_name(tree)
