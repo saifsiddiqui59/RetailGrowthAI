@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import math
 from dataclasses import dataclass
 
 from .infra.feature35_comfy_api_graphs import (
@@ -73,7 +74,7 @@ def _time(v):
 def capability(*, width, height, fps, frames, gpu_vram_gib, revisions):
     if (width, height) not in NATIVE_SIZES or fps != NATIVE_FPS or frames != NATIVE_FRAMES:
         raise WanCompatibilityError("Wan TI2V-5B supports native 704x1280/1280x704, 121 frames, 24 fps; not native 1080p")
-    if type(gpu_vram_gib) not in (int, float) or gpu_vram_gib < MIN_VRAM_GIB:
+    if type(gpu_vram_gib) not in (int, float) or not math.isfinite(gpu_vram_gib) or gpu_vram_gib < MIN_VRAM_GIB:
         raise WanCompatibilityError("Unverified/insufficient Wan VRAM; upstream documents minimum 24GiB")
     if revisions != {"diffusion": WEIGHTS_REV, "text_encoder": ENCODER_REV}:
         raise WanCompatibilityError("Unapproved installed model checkpoint revisions")
@@ -252,7 +253,7 @@ def compile_motion_direction(*, dispatch, approved_reference, profile,
     lineage_sha=hashlib.sha256(json.dumps(lineage,sort_keys=True,
                       separators=(",",":")).encode()).hexdigest()
     return WanShotPackage(PROVIDER,"image_to_video",graph,technical_prompt,
-                          hashlib.sha256(technical_prompt.encode()).hexdigest(),
+                          hashlib.sha256(json.dumps({"positive":technical_prompt,"negative":negative_prompt},sort_keys=True,separators=(",",":")).encode()).hexdigest(),
                           lineage,lineage_sha)
 
 
