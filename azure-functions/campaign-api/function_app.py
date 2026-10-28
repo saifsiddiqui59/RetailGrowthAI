@@ -86,6 +86,14 @@ def feature3_registered_source(req: func.HttpRequest) -> func.HttpResponse:
                     "/feature3-source-assets/" + req.route_params["asset_id"])
 
 
+# Feature3 generated image *status metadata* is read-only. Azure Functions
+# must register the exact GET path; paid GPU submission is not a public route.
+@app.route(route="shops/{shop_id}/feature3-gpu-jobs", methods=["GET"])
+def feature3_private_job_history(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/shops/" + req.route_params["shop_id"] +
+                    "/feature3-gpu-jobs")
+
+
 # No public generated GPU image path; existing Feature3 flag defaults OFF.
 @app.route(route="shops/{shop_id}/feature3-gpu-jobs/{job_id}/download",
            methods=["GET"])
