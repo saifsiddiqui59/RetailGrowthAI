@@ -85,6 +85,19 @@ class WanReviewedFeature4HandoffTests(unittest.TestCase):
             with self.subTest(field=field),self.assertRaises(WanCompatibilityError):
                 reviewed_wan_clip_for_feature4(**k)
 
+    def test_foreign_receipts_never_query_trusted_settlement(self):
+        for field in ("shop_id","path","media_sha256"):
+            data=setup_fixture()
+            lookups=[]
+            def db_probe(receipt):
+                lookups.append(receipt)
+                return True
+            data["verify_trusted_settlement_and_storage"]=db_probe
+            data["storage_receipt"][field]="foreign-or-unsafe"
+            with self.subTest(field=field),self.assertRaises(WanCompatibilityError):
+                reviewed_wan_clip_for_feature4(**data)
+            self.assertEqual(lookups,[])
+
     def test_human_role_source_revocation_and_wrong_fidelity_review_denied(self):
         for field,value in [
             ("reviewer_has_write_role",False),("current_source_approved",False),

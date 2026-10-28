@@ -16,6 +16,7 @@ import http.client
 import hashlib
 import json
 import re
+import threading
 from dataclasses import dataclass
 
 from .contracts import canonical_uuid
@@ -86,6 +87,7 @@ class WanPrivateComfyDispatcher:
         self.enabled=enabled
         self.transport=transport
         self._attempt_consumed=False
+        self._submit_lock=threading.Lock()
         self._last_submitted=None
 
     def submit_once(
@@ -115,8 +117,12 @@ class WanPrivateComfyDispatcher:
             package.task!="image_to_video" or
             package.status!="NOT_GENERATED_REVIEW_REQUIRED"):
             raise WanCompatibilityError("Only reviewed Feature2->Feature4 image-to-video packages")
-        if self._attempt_consumed:
-            raise WanCompatibilityError("Comfy dispatcher already consumed one paid attempt")
+        # An in-process slot is consumed atomically before callback/network I/O;
+        # the existing Part3 CAS remains the cross-worker authority.
+        with self._submit_lock:
+            if self._attempt_consumed:
+                raise WanCompatibilityError("Comfy dispatcher already consumed one paid attempt")
+            self._attempt_consumed=True
         job=canonical_uuid(job_id)
         token=canonical_uuid(attempt_token)
         shop=canonical_uuid(package.lineage["shop_id"])
@@ -151,6 +157,7 @@ class WanPrivateComfyDispatcher:
             any(proof[key] is not True for key in (
                 "approved","private","commercial_rights","human_likeness_approved"))):
             raise WanCompatibilityError("Missing current approved private staged Feature3 input")
+        proof=dict(proof)  # snapshot; the resolver may reuse a mutable cache
         # Actual protected runtime /object_info, never browser supplied.
         object_info=self.transport("GET","/object_info",None)
         validate_native_graph_against_object_info(
@@ -168,7 +175,6 @@ class WanPrivateComfyDispatcher:
         # lease owner, timestamp and no retry. A boolean checked earlier is
         # insufficient across worker processes. The attempt UUID by itself
         # is NOT idempotency enforced by ComfyUI.
-        self._attempt_consumed=True
         try:
             recorded=record_unique_submission_intent(
                 shop,job,token,package.lineage_sha256,
@@ -182,6 +188,18 @@ class WanPrivateComfyDispatcher:
             ) from exc
         if recorded is not True:
             raise WanCompatibilityError("Unique durable paid submission intent denied")
+        # One last independent rights check AFTER committing the unique paid
+        # intent, before sending /prompt. An UNKNOWN intent is never replayed.
+        try:
+            final_proof=verify_current_private_first_frame(
+                shop,source,package.lineage["source_sha256"])
+        except Exception as exc:
+            raise UnknownComfyPaidAttempt(
+                "Source rights unknown after durable intent; reconcile, never retry"
+            ) from exc
+        if type(final_proof) is not dict or final_proof!=proof:
+            raise UnknownComfyPaidAttempt(
+                "Source rights changed after durable intent; reconcile, never retry")
         # Even an uncertain POST stays consumed: coordinator reconciles the
         # existing durable intent. Never automatically replay this operation.
         try:
@@ -190,6 +208,7 @@ class WanPrivateComfyDispatcher:
             raise UnknownComfyPaidAttempt("Uncertain Wan submission: reconcile existing claim, never retry") from exc
         if (type(ack) is not dict or
             ack.get("prompt_id")!=token or
+            type(ack.get("number")) is not int or ack["number"] < 0 or
             type(ack.get("node_errors")) is not dict or
             ack["node_errors"]):
             raise UnknownComfyPaidAttempt("ComfyUI submitted state unknown; reconcile before further actions")
@@ -245,6 +264,6 @@ class WanPrivateComfyDispatcher:
         """
         if (self.enabled is not True or type(receipt) is not SubmittedWanAttempt or
             self._last_submitted is None or
-            receipt!=self._last_submitted or not callable(self.transport)):
+            receipt is not self._last_submitted or not callable(self.transport)):
             raise WanCompatibilityError("Unknown locally submitted Wan attempt")
         return self._read_history_for(receipt)

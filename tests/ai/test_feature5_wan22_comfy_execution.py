@@ -190,6 +190,69 @@ class WanComfyPrivateProtocolTests(unittest.TestCase):
         self.assertEqual(len(seen),2)
         self.assertEqual([c[1] for c in fake.calls],["/object_info"])
 
+    def test_mutable_grant_reuse_and_post_intent_revocation_fail_closed(self):
+        pkg=synthetic_package()
+        shared=private_f3_proof(pkg.lineage["shop_id"],
+                                pkg.lineage["source_asset_id"],
+                                pkg.lineage["source_sha256"])
+        calls=[]
+        def stale_cache(*args):
+            calls.append(1)
+            if len(calls)==2:
+                shared["approved"]=False
+            return shared
+        fake=FakeLocalComfy(pkg)
+        with self.assertRaisesRegex(WanCompatibilityError,"rights changed"):
+            WanPrivateComfyDispatcher(fake,enabled=True).submit_once(**inputs(
+                pkg,verify_current_private_first_frame=stale_cache))
+        self.assertFalse(any(c[0]=="POST" for c in fake.calls))
+        calls.clear()
+        intent=[]
+        def third_check(shop,asset,digest):
+            calls.append(1)
+            grant=private_f3_proof(shop,asset,digest)
+            if len(calls)==3:
+                grant["approved"]=False
+            return grant
+        def durable(*args):
+            intent.append(args)
+            return True
+        dispatcher=WanPrivateComfyDispatcher(fake,enabled=True)
+        args=inputs(pkg,verify_current_private_first_frame=third_check,
+                    record_unique_submission_intent=durable)
+        with self.assertRaisesRegex(UnknownComfyPaidAttempt,"rights changed after durable"):
+            dispatcher.submit_once(**args)
+        self.assertEqual(len(calls),3)
+        self.assertEqual(len(intent),1)
+        self.assertFalse(any(c[0]=="POST" for c in fake.calls))
+        with self.assertRaisesRegex(WanCompatibilityError,"already consumed"):
+            dispatcher.submit_once(**args)
+
+    def test_malformed_ack_and_value_equal_forged_local_receipt_denied(self):
+        from dataclasses import replace
+        pkg=synthetic_package()
+        for number in (None,-1,True,"1"):
+            fake=FakeLocalComfy(pkg)
+            dispatcher=WanPrivateComfyDispatcher(fake,enabled=True)
+            args=inputs(pkg)
+            def reply(method,path,body=None):
+                if method=="POST":
+                    fake.calls.append((method,path,body))
+                    return {"prompt_id":body["prompt_id"],
+                            "number":number,"node_errors":{}}
+                return fake(method,path,body)
+            dispatcher.transport=reply
+            with self.subTest(number=number),self.assertRaises(UnknownComfyPaidAttempt):
+                dispatcher.submit_once(**args)
+            self.assertEqual(len([a for a in fake.calls if a[0]=="POST"]),1)
+        fake=FakeLocalComfy(pkg)
+        dispatcher=WanPrivateComfyDispatcher(fake,enabled=True)
+        receipt=dispatcher.submit_once(**inputs(pkg))
+        before=len(fake.calls)
+        with self.assertRaisesRegex(WanCompatibilityError,"Unknown locally"):
+            dispatcher.read_history_once(replace(receipt))
+        self.assertEqual(len(fake.calls),before)
+
     def test_ambiguous_post_and_mismatched_prompt_id_never_retry(self):
         pkg=synthetic_package()
         for kwargs in ({"ambiguous":True},{"wrong_ack":True}):

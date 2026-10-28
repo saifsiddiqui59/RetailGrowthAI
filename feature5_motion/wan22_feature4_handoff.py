@@ -47,8 +47,7 @@ def reviewed_wan_clip_for_feature4(
         raise WanCompatibilityError("Authoritative private media receipt missing")
     if (current_source_approved is not True or
         reviewer_has_write_role is not True or
-        not callable(verify_trusted_settlement_and_storage) or
-        verify_trusted_settlement_and_storage(storage_receipt) is not True):
+        not callable(verify_trusted_settlement_and_storage)):
         raise WanCompatibilityError("Fresh active tenant, settled lease and private bytes required")
     info=package.lineage
     shop=canonical_uuid(info["shop_id"])
@@ -72,6 +71,9 @@ def reviewed_wan_clip_for_feature4(
         storage_receipt["ledger_status"]!="SETTLED" or
         storage_receipt["rights_approved"] is not True):
         raise WanCompatibilityError("Cross-tenant/attempt or unverified Wan receipt")
+    # Validate the receipt's tenant and hash before contacting trusted DB.
+    if verify_trusted_settlement_and_storage(storage_receipt) is not True:
+        raise WanCompatibilityError("Fresh active tenant, settled lease and private bytes required")
     if (not isinstance(human_review,VisualReview) or
         human_review.shop_id!=shop or
         human_review.source_asset_id!=source or
