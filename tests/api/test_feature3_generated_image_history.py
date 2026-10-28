@@ -26,6 +26,14 @@ class GeneratedImageHistoryTests(unittest.TestCase):
     def _denied():
         raise AuthenticationError("JWT invalid or expired")
 
+    def test_functions_registers_history_get_without_paid_submission(self):
+        from pathlib import Path
+        entry=(Path(__file__).resolve().parents[2] /
+               "azure-functions/campaign-api/function_app.py").read_text()
+        self.assertIn('route="shops/{shop_id}/feature3-gpu-jobs", methods=["GET"]', entry)
+        self.assertIn('def feature3_private_job_history(', entry)
+        self.assertNotIn('route="shops/{shop_id}/feature3-gpu-jobs", methods=["POST"]', entry)
+
     def test_signed_member_get_only_and_no_paid_submit(self):
         self.assertEqual(self.api.handle("GET",f"/shops/{SID}/feature3-gpu-jobs",
                                          "Bearer valid-user"),
