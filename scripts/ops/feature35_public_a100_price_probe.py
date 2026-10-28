@@ -9,7 +9,7 @@ import urllib.parse
 import urllib.request
 
 API = "https://prices.azure.com/api/retail/prices"
-MAX_PAGES = 4
+MAX_PAGES = 8
 
 def discover(fetch=None):
     if fetch is None:
@@ -38,13 +38,15 @@ def discover(fetch=None):
         nexturl=obj.get("NextPageLink")
         if not nexturl:
             break
-        if not isinstance(nexturl,str) or not nexturl.startswith(API):
+        target = urllib.parse.urlsplit(nexturl) if isinstance(nexturl,str) else None
+        if not target or target.scheme != "https" or target.hostname != "prices.azure.com" or target.path != "/api/retail/prices":
             raise ValueError("Invalid or external continuation URL")
         url=nexturl
     return {"region":"eastus","service":"Azure Container Apps",
             "official_public_a100_meters":matches,
             "supporting_compute_meters":other_active[:24],
             "pages_checked":page+1,
+            "pagination_complete":not bool(nexturl),
             "is_customer_contract_quote":False,
             "paid_gpu_start_authorized":False}
 
