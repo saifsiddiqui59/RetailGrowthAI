@@ -1,0 +1,152 @@
+"""End-to-end CPU synthetic fixture, NOT actual Wan inference or licensed customer footage.
+
+Real Feature3 reference preparer and fresh worker re-verifier -> on-disk
+private first frame -> real Feature2/F4 Wan graph -> synthetic ffmpeg still-video
+-> real ffprobe frame/duration/media SHA -> PENDING receipt. No queue, GPU or cloud.
+"""
+from __future__ import annotations
+
+from copy import deepcopy
+import hashlib
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+
+ROOT=Path(__file__).resolve().parents[2]
+sys.path.insert(0,str(ROOT/"tests"/"media"))
+from test_feature3_fashion_reference import FashionKurtiReferenceTests
+from fashion_reference_v1 import resolve_first_frame
+from test_feature5_wan22_motion_adapter import fixture
+from feature5_motion.feature3_reference_bridge import stage_approved_fashion_first_frame
+from feature5_motion.wan22_motion_adapter import (
+    compile_motion_direction, WanCompatibilityError,
+)
+from feature5_motion.wan22_clip_validation import inspect_native_mp4,pending_private_receipt
+
+
+def source_fixture():
+    f3=FashionKurtiReferenceTests(methodName="runTest")
+    f3.setUp()
+    bundle=f3.prepare(model_asset_id=f3.model_asset,model_id=f3.model_id,
+                      try_on_asset_id=f3.tryon)
+    d,r,p,v=fixture()
+    d["shop_id"]=d["shot"]["shop_id"]=f3.shop
+    d["shot"]["reference_media_id"]=f3.tryon
+    d["shot"]["reference_facts_sha256"]=bundle["reference_fingerprint"]
+    return f3,bundle,d,p,v
+
+
+def guarded_job(f3, bundle):
+    """TEST double: a source-fingerprint and shop-scoped claim, no real DB."""
+    expected=tuple(sorted([f3.garment,f3.model_asset,f3.tryon]))
+    return lambda shop,source_ids,fingerprint: (
+        shop==f3.shop and source_ids==expected and
+        fingerprint==bundle["reference_fingerprint"]
+    )
+
+
+class WanFeature3OfflineE2ETests(unittest.TestCase):
+    def test_actual_private_png_to_native_graph_to_real_cpu_mp4_pending_receipt(self):
+        if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+            self.skipTest("Full CPU render requires installed ffmpeg and ffprobe")
+        f3,bundle,d,p,v=source_fixture()
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            with stage_approved_fashion_first_frame(
+                expected_manifest=bundle,current_readers=f3.readers(),
+                verify_worker_job=guarded_job(f3,bundle),
+                resolve_first_frame=resolve_first_frame,private_job_dir=root,
+                technical_letterbox_approved=True,
+            ) as (staged,ref,prep):
+                self.assertTrue(staged.exists())
+                self.assertEqual(ref["sha256"],hashlib.sha256(staged.read_bytes()).hexdigest())
+                self.assertEqual(ref["source_sha256"],bundle["sources"]["first_frame"]["sha256"])
+                self.assertNotEqual(ref["sha256"],ref["source_sha256"])
+                self.assertEqual(prep["prepared_dimensions"],[704,1280])
+                self.assertFalse(prep["image_content_cropped"])
+                self.assertFalse(prep["garment_visual_fidelity_verified"])
+                self.assertFalse(prep["paid_gpu_approved"])
+                clip=compile_motion_direction(
+                    dispatch=d,approved_reference=ref,profile=p,gpu_vram_gib=80,
+                    installed_revisions=v)
+                self.assertEqual(clip.lineage["source_sha256"],ref["source_sha256"])
+                self.assertEqual(clip.lineage["staged_first_frame_sha256"],ref["sha256"])
+                self.assertEqual(clip.graph["prompt"]["6"]["inputs"]["image"],staged.name)
+                output=root/"cpu_synthetic_NOT_WAN.mp4"
+                subprocess.run(
+                    ["ffmpeg","-hide_banner","-nostdin","-loglevel","error","-y",
+                     "-loop","1","-framerate","24","-i",str(staged),
+                     "-frames:v","121","-r","24","-c:v","libx264",
+                     "-preset","ultrafast","-threads","2","-pix_fmt","yuv420p",
+                     "-an",str(output)],
+                    check=True,capture_output=True,timeout=70,
+                )
+                inspection=inspect_native_mp4(clip,staged_file=output)
+                pending=pending_private_receipt(clip,inspection)
+                self.assertEqual(pending["frames"],121)
+                self.assertEqual((pending["width"],pending["height"]),(704,1280))
+                self.assertEqual(pending["codec"],"h264")
+                self.assertEqual(pending["source_sha256"],bundle["sources"]["first_frame"]["sha256"])
+                self.assertFalse(pending["approved_for_feature4"])
+                self.assertTrue(pending["private_import_required"])
+                self.assertEqual(pending["quality_state"],"PENDING_HUMAN_VISUAL_REVIEW")
+            self.assertFalse(staged.exists())  # private first-frame removed
+        # This is NOT an inferred Wan output, garment fidelity score or GPU test.
+
+    def test_revoked_approved_source_fails_before_private_staging(self):
+        f3,bundle,d,p,v=source_fixture()
+        with tempfile.TemporaryDirectory() as td:
+            f3.grants[f3.tryon]["rights_revoked"]=True
+            with self.assertRaises(Exception):
+                with stage_approved_fashion_first_frame(
+                    expected_manifest=bundle,current_readers=f3.readers(),
+                    verify_worker_job=guarded_job(f3,bundle),
+                    resolve_first_frame=resolve_first_frame,private_job_dir=td,
+                    technical_letterbox_approved=True,
+                ): pass
+            self.assertFalse(list(Path(td).iterdir()))
+
+    def test_denies_missing_true_tryon_unreviewed_claim_and_explicit_approval(self):
+        f3,bundle,d,p,v=source_fixture()
+        with tempfile.TemporaryDirectory() as td:
+            cases=[
+                dict(expected_manifest={**bundle,"try_on_review":None},
+                     technical_letterbox_approved=True),
+                dict(expected_manifest=bundle,technical_letterbox_approved=False),
+                dict(expected_manifest=bundle,technical_letterbox_approved=True,
+                     verify_worker_job=lambda *_:False),
+            ]
+            for opts in cases:
+                with self.subTest(opts=opts),self.assertRaises(Exception):
+                    with stage_approved_fashion_first_frame(
+                        expected_manifest=opts.get("expected_manifest",bundle),
+                        current_readers=f3.readers(),
+                        verify_worker_job=opts.get("verify_worker_job",guarded_job(f3,bundle)),
+                        resolve_first_frame=resolve_first_frame,private_job_dir=td,
+                        technical_letterbox_approved=opts["technical_letterbox_approved"],
+                    ):pass
+            self.assertFalse(list(Path(td).iterdir()))
+
+    def test_cleanup_staged_frame_when_graph_or_worker_fails(self):
+        f3,bundle,d,p,v=source_fixture()
+        with tempfile.TemporaryDirectory() as td:
+            staged=None
+            with self.assertRaisesRegex(RuntimeError,"simulated CPU failure"):
+                with stage_approved_fashion_first_frame(
+                    expected_manifest=bundle,current_readers=f3.readers(),
+                    verify_worker_job=guarded_job(f3,bundle),
+                    resolve_first_frame=resolve_first_frame,private_job_dir=td,
+                    technical_letterbox_approved=True,
+                ) as (path,grant,prep):
+                    staged=path
+                    raise RuntimeError("simulated CPU failure")
+            self.assertFalse(staged.exists())
+            self.assertFalse(list(Path(td).iterdir()))
+
+
+if __name__=="__main__":
+    unittest.main()
