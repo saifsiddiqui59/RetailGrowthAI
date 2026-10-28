@@ -29,6 +29,13 @@ class WanContainerfileGuardTests(unittest.TestCase):
         self.assertIn("python -m pip check",s)
         self.assertIn("USER 10001:10001",s)
         self.assertIn('["python","main.py","--listen","127.0.0.1"',s)
+        self.assertIn("install -d -m 0700 -o 10001 -g 10001",s)
+        for arg in ("--input-directory","--output-directory",
+                    "--temp-directory","--user-directory","--disable-metadata"):
+            self.assertIn(arg,s)
+        self.assertIn("/opt/retailgrowth/private-runtime/input",s)
+        self.assertIn("/opt/retailgrowth/private-runtime/output",s)
+        self.assertLess(s.index("install -d -m 0700"),s.index("USER 10001:10001"))
         for forbidden in (
             r"(?im)^\s*EXPOSE\s+",r"(?im)^\s*RUN.*\bcurl\b",
             r"(?im)^\s*RUN.*\bwget\b",r"(?im)^\s*RUN.*\bgit clone\b",
