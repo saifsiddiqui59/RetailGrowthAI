@@ -56,6 +56,15 @@ class HTTPAPI:
                 if self.feature3_api is None:
                     return 503, {"error": "FEATURE3_V2_DISABLED"}
                 return self.feature3_api.gpu_jobs(token, user_id, parts[1])
+            if path.startswith("/shops/") and path.endswith("/feature3-models/import"):
+                parts = path.strip("/").split("/")
+                if (method != "POST" or len(parts) != 4
+                    or parts[0] != "shops" or parts[2] != "feature3-models"
+                    or parts[3] != "import"):
+                    return 404, {"error": "NOT_FOUND"}
+                if self.feature3_api is None:
+                    return 503, {"error": "FEATURE3_V2_DISABLED"}
+                return self.feature3_api.import_model(token, user_id, parts[1], body)
             if "/feature3-models/" in path:
                 # Model decisions are strictly signed OWNER/EDITOR writes.
                 # This route never starts generation, uploads files or
