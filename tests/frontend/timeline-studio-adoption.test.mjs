@@ -257,3 +257,15 @@ test('approved F2 clip trims, source mute and poster layers survive read-only ha
      /Feature #2 scene/)
  }
 })
+
+test('splitting a scene never duplicates or truncates its approved timed SFX',()=>{
+ const d=draft()
+ const audio={...d,scenes:d.scenes.map((s,i)=>i===1?{...s,sfx_asset_id:'licensed_music'}:s)}
+ const split=studioSplit(audio,1,3,assets)
+ assert.equal(split.scenes[1].sfx_asset_id,'licensed_music')
+ assert.equal(split.scenes[2].sfx_asset_id,undefined)
+ assert.equal(split.scenes[1].duration,3)
+ assert.deepEqual(validateVideoDraft(split,assets,music),[])
+ assert.throws(()=>studioSplit(audio,1,1,assets),/cut through the approved 2-second/)
+ assert.deepEqual(audio.scenes[1].duration,10)
+})

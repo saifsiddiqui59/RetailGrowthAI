@@ -29,6 +29,13 @@ export function studioSplit(draft, index, offset, mediaAssets) {
     a.shop_id === draft.shop_id && a.authorized === true)
   if (draft.mode !== 'text' && !media) throw Error('Cannot split an unapproved media source')
   const isVideo = media?.kind === 'video'
+  // HyperFrames places approved scene SFX at the scene's first 0-2 seconds.
+  // Splitting inside that window would change its true export duration, and
+  // copying the SFX to both new clips would cause an unauthorized replay.
+  const fxSeconds = Math.min(2, scene.duration)
+  if (scene.sfx_asset_id != null && offset < fxSeconds - 0.001) {
+    throw Error('Split would cut through the approved 2-second sound effect')
+  }
   const parts = splitVisualSegmentState({
     type: isVideo ? 'video' : 'image',
     sourceStart: isVideo ? (scene.trim_start || 0) : 0,
@@ -36,10 +43,14 @@ export function studioSplit(draft, index, offset, mediaAssets) {
   }, offset, scene.duration - offset)
   // Preserve EXACT approved claim, caption and asset identity in both pieces.
   const scenes = [ ...draft.scenes.slice(0, index),
-    ...parts.map((part) => ({
-      ...scene, duration: part.duration,
-      ...(isVideo ? { trim_start: part.sourceStart } : {}),
-    })),
+    ...parts.map((part, partIndex) => {
+      const { sfx_asset_id, ...rest } = scene
+      return {
+        ...rest, duration: part.duration,
+        ...(partIndex === 0 && sfx_asset_id != null ? { sfx_asset_id } : {}),
+        ...(isVideo ? { trim_start: part.sourceStart } : {}),
+      }
+    }),
     ...draft.scenes.slice(index + 1),
   ]
   return { ...draft, scenes: recalc(scenes, draft.duration_seconds) }
