@@ -74,7 +74,33 @@ test('the v2 UI compiles and displays private success-only download controls',as
   const contents=await readFile(uri,'utf8')
   await transformWithEsbuild(contents,'Feature3SecureDraftWorkspace.jsx',{loader:'jsx'})
   assert.match(contents,/listGeneratedJobs\(shopId\)/)
-  assert.match(contents,/getGeneratedImageDownload\(shopId,jobId\)/)
+  assert.match(contents,/provider[.]getGeneratedImageDownload\(scope,jobId\)/)
   assert.match(contents,/job.status==='SUCCEEDED'/)
   assert.match(contents,/not approved for publishing/)
+})
+
+test('short-lived private URL disappears on shop, day, revision or expiration mismatch',async()=>{
+  const {scopedFeature3GeneratedLink,SAFE_CLIENT_LIFETIME_MS}=await import(
+    '../../frontend/src/features/creative/feature3-signed-link-scope.mjs')
+  const now=1000000, requestKey=sid+'|campaign|day'
+  const item={scope:sid,requestKey,jobId:jid,mediaAssetId:aid,url:signed,
+    createdAt:now,expiresInSeconds:60,approvedModel:false}
+  assert.equal(scopedFeature3GeneratedLink(item,sid,now,requestKey),item)
+  assert.equal(scopedFeature3GeneratedLink(item,'b1000000-0000-4000-8000-000000000001',now,requestKey),null)
+  assert.equal(scopedFeature3GeneratedLink(item,sid,now,requestKey+'-other'),null)
+  assert.equal(scopedFeature3GeneratedLink(item,sid,now+SAFE_CLIENT_LIFETIME_MS,requestKey),null)
+  assert.equal(scopedFeature3GeneratedLink({...item,approvedModel:true},sid,now,requestKey),null)
+  assert.equal(scopedFeature3GeneratedLink({...item,expiresInSeconds:3600},sid,now,requestKey),null)
+  assert.equal(scopedFeature3GeneratedLink({...item,createdAt:now+100},sid,now,requestKey),null)
+})
+test('Creative Studio refuses to display stale signed URL during render or delayed JWT response',async()=>{
+  const file=new URL('../../frontend/src/features/creative/Feature3SecureDraftWorkspace.jsx',import.meta.url)
+  const contents=await readFile(file,'utf8')
+  assert.match(contents,/visibleGeneratedLink && <a/)
+  assert.match(contents,/pendingDownload.current/)
+  assert.match(contents,/activeScope.current.shopId===scope/)
+  assert.match(contents,/scopedFeature3GeneratedLink\(/)
+  const req=createRequire(new URL('../../frontend/package.json',import.meta.url))
+  const {transformWithEsbuild}=await import(req.resolve('vite'))
+  await transformWithEsbuild(contents,'Feature3SecureDraftWorkspace.jsx',{loader:'jsx'})
 })
