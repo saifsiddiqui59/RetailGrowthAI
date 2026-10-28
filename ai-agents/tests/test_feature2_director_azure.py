@@ -10,6 +10,10 @@ def brief():
     return {
         "shop_id": "test-tenant", "campaign_id": "test-diwali-clip",
         "business_name": "Thread and Loom Studio", "campaign_date": "2026-11-06", "duration_seconds": 15,
+        "creative_brief": "Create an elegant Diwali kurti ad with authentic close-up movements.",
+        "target_audience": "Adults shopping for festive Indian garments",
+        "brand_voice": "Warm and elegant premium boutique voice",
+        "advertising_objective": "Explain the approved festive offer and invite store visits",
         "authenticated_owner_or_editor": True, "server_verified": True,
         "approved_offers": [{
             "id": "authorized-20", "shop_id": "test-tenant",
