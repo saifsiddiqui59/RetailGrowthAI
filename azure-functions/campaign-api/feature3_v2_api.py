@@ -50,7 +50,11 @@ class Feature3V2API:
         if not self.tenant.member(token, user_id, sid, write=True):
             return 404, {"error": "NOT_FOUND"}
         receipt = self.tenant.feature3_source_asset(token, sid, aid)
-        if receipt is None:
+        if not isinstance(receipt, dict) or not (
+            isinstance(receipt.get("mime_type"), str) and
+            receipt.get("mime_type") in ("image/png", "image/jpeg", "image/webp") and
+            receipt.get("license_name") in ("owned", "cc0", "commercial", "royalty_free")
+        ):
             return 404, {"error": "NOT_FOUND"}
         return 200, {"shop_id": sid, "media_asset_id": aid,
                      "mime_type": receipt["mime_type"],
