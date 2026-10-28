@@ -37,6 +37,8 @@ jobs:
           test "$GITHUB_REF" = 'refs/heads/main'
           python3 -m py_compile tests/e2e/p0249_dev_signed_write_negative_once.py
           python3 tests/infra/test_p0249_signed_write_canary_source.py
+          node --test tests/security/p0249_poster_reel_shared_writer.test.mjs
+          grep -Fq 'if(render) return await writer.requestPosterRender' experiments/secure-node-http/src/poster-writes.mjs
           grep -Fq 'P0249_REAL_JWT_DEV_ALL_SIX_UNOWNED_WRITES_DENIED=PASSED' tests/e2e/p0249_dev_signed_write_negative_once.py
           grep -Fq 'P0249_CROSS_SITE_SIGNED_JWT_MUTATION_BLOCKED=true' tests/e2e/p0249_dev_signed_write_negative_once.py
           grep -Fq 'P0249_FORGED_SIGNED_WRITE_JWT_DENIED=true' tests/e2e/p0249_dev_signed_write_negative_once.py
