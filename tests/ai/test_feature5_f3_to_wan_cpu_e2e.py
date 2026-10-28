@@ -125,6 +125,47 @@ def guarded_job(f3, bundle):
 
 
 class WanFeature3OfflineE2ETests(unittest.TestCase):
+    def test_feature3_private_image_to_cpu_review_board_without_a100(self):
+        """Exercise actual F3 staging + real Pillow generated preview, not FLUX."""
+        from feature5_motion.cpu_image_review import compose_review_first_frame
+        from uuid import uuid4
+        f3,bundle,d,p,v=source_fixture()
+        with tempfile.TemporaryDirectory() as td:
+            with stage_approved_fashion_first_frame(
+                expected_manifest=bundle,current_readers=f3.readers(),
+                verify_worker_job=guarded_job(f3,bundle),
+                resolve_first_frame=resolve_first_frame,private_job_dir=td,
+                technical_letterbox_approved=True,
+            ) as (staged,ref,prep):
+                job,attempt=str(uuid4()),str(uuid4())
+                def current_rights(shop,jid,token,asset,source_hash,prepared_hash):
+                    return (shop==f3.shop and jid==job and token==attempt
+                            and asset==f3.tryon
+                            and source_hash==ref["source_sha256"]
+                            and prepared_hash==ref["sha256"]
+                            and f3.grants[f3.tryon]["rights_revoked"] is False)
+                image,proof=compose_review_first_frame(
+                    stage_png=staged,grant=ref,private_attempt_dir=td,
+                    job_id=job,attempt_token=attempt,
+                    verify_existing_fenced_rights=current_rights)
+                self.assertTrue(image.is_file())
+                self.assertEqual(proof["prepared_sha256"],ref["sha256"])
+                self.assertEqual(proof["review_png_sha256"],
+                                 hashlib.sha256(image.read_bytes()).hexdigest())
+                self.assertEqual(image.stat().st_mode & 0o777,0o600)
+                self.assertFalse(proof["flux_inference_executed"])
+                self.assertFalse(proof["wan_inference_executed"])
+                self.assertFalse(proof["approved_for_feature4"])
+                image.unlink()
+                f3.grants[f3.tryon]["rights_revoked"]=True
+                with self.assertRaises(WanCompatibilityError):
+                    compose_review_first_frame(
+                        stage_png=staged,grant=ref,private_attempt_dir=td,
+                        job_id=job,attempt_token=attempt,
+                        verify_existing_fenced_rights=current_rights)
+                self.assertFalse(list(Path(td).glob("cpu_review_*.png")))
+
+
     def test_actual_private_png_to_native_graph_to_real_cpu_mp4_pending_receipt(self):
         if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
             self.skipTest("Full CPU render requires installed ffmpeg and ffprobe")
