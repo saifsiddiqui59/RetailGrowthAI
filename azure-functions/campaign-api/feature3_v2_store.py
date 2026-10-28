@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import json
 import re
-_SHA256 = re.compile(r'^[a-f0-9]{64}from urllib.error import HTTPError, URLError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from security import AuthenticationError
 from tenant_store import StorageUnavailable, canonical_uuid
+
+_SHA256 = re.compile(r"[a-f0-9]{64}")
 
 
 class Feature3V2Store:
