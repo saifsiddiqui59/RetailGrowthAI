@@ -102,3 +102,10 @@
 - 2026-10-28: Prepared A100-only, default-off Azure manual-job start/status/emergency stop source for ComfyUI+Wan2.2, plus non-executable deployment manifest, operator runbook and CPU-only mocked safety tests in isolated Feature5 child branch. No actual V100/A100 hardware invoked, Azure changes, ComfyUI deployment, paid API call, real sample, or WineShopPOS edits. Parent Feature5 PR #323 remains draft; activation is gated.
 
 - 2026-10-28: Read-only verification of official ComfyUI 5B TI2V native workflow and three required model/encoder/VAE filenames; pinned upstream reference commits in non-executable Feature5 manifest. Actual weights, image, runtime tests and deployment still absent.
+
+
+## 2026-10-28 — Feature5 official Comfy native implementation/source work
+- Read current main and AGENTS/PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG/ARCHITECTURE/INTERFACES/PARALLEL_WORK and exact PR #323/#465/#514/#322. Confirmed existing source-only Feature5 I2V adapter/CPU model and media tests were green at #40688451976.
+- Inspected the REAL pinned official ComfyUI nodes_wan.py and nodes_video.py: SaveVideo optional codec argument must be a dictionary; old codec="auto" string was a real latent GPU-runtime mismatch. Fixed the existing graph to dynamic format={"format":"mp4","codec":{"codec":"h264"}}. No alternate renderer.
+- Added independently testable native runtime schema/checkpoint/immutability/rights/wheel-hash checks and cheap local safetensors header validator; it never downloads 34GB or infers. Added source-only, deliberately incomplete Containerfile to document safe no-network hash-locked build inputs and GPL notice requirement, not a built OCI image.
+- CI exposed a missing optional SaveVideo.codec entry in synthetic object_info; corrected fixture rather than removing runtime drift test. Following exact-head full 4-job CI must be checked. GPU remains OFF; no Azure or Supabase live changes, no model runs, no WineShopPOS.
