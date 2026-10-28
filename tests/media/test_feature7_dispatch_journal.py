@@ -86,6 +86,26 @@ class Feature7DispatchJournalTests(unittest.TestCase):
           result_sha256=OUTPUT,now_ms=2200)['state'],'SUCCEEDED')
         self.assertEqual(job['idempotency_key'],second.idempotency_key)
 
+    def test_uncertain_ack_reconciles_without_duplicate_submission(self):
+        job=self.stage()
+        lease=self.store.lease_next(context=ctx(),now_ms=1100,lease_ms=1000)
+        self.store.finish(context=ctx(),lease=lease,result_sha256=OUTPUT,
+          now_ms=1200)
+        # Response was lost to the caller. Query, do NOT enqueue again.
+        recovered=self.store.reconcile_by_idempotency(context=ctx(),
+          idempotency_key=job['idempotency_key'])
+        self.assertEqual(recovered['state'],'SUCCEEDED')
+        self.assertEqual(recovered['result_sha256'],OUTPUT)
+        self.assertIsNone(self.store.lease_next(context=ctx(),now_ms=5000))
+        with self.assertRaises(ReviewStateError):
+            self.store.reconcile_by_idempotency(
+                context=ctx(shop='foreign'),
+                idempotency_key=job['idempotency_key'])
+        with self.assertRaises(ReviewStateError):
+            self.store.reconcile_by_idempotency(
+                context=ctx(source='d'*64),
+                idempotency_key=job['idempotency_key'])
+
     def test_heartbeat_extends_only_current_lease(self):
         self.stage()
         first=self.store.lease_next(context=ctx(),now_ms=1000,lease_ms=1000)
