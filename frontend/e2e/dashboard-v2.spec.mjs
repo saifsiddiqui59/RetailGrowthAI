@@ -824,7 +824,10 @@ test('private image close revokes blob and a late Storage response cannot reopen
     await started
     await expect(page.getByText('Reading private image with your current session…')).toBeVisible()
     await page.getByRole('button',{name:'Close private preview'}).click()
+    const delayedResponse=page.waitForResponse(response=>
+      response.url().includes('/storage/v1/object/authenticated/'))
     releaseRead()
+    await delayedResponse
     await expect(img).toHaveCount(0)
     await expect(page.getByRole('button',{name:'Close private preview'})).toHaveCount(0)
     await expect(page.locator('a[href^="blob:"]')).toHaveCount(0)
