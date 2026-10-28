@@ -56,6 +56,16 @@ class HTTPAPI:
                 if self.feature3_api is None:
                     return 503, {"error": "FEATURE3_V2_DISABLED"}
                 return self.feature3_api.gpu_jobs(token, user_id, parts[1])
+            if path.startswith("/shops/") and path.endswith("/feature3-model-originals/register"):
+                parts = path.strip("/").split("/")
+                if (method != "POST" or len(parts) != 4 or
+                    parts[0] != "shops" or parts[2] != "feature3-model-originals" or
+                    parts[3] != "register"):
+                    return 404, {"error": "NOT_FOUND"}
+                if self.feature3_api is None:
+                    return 503, {"error": "FEATURE3_V2_DISABLED"}
+                return self.feature3_api.register_model_original(
+                    token, user_id, parts[1], body)
             if path.startswith("/shops/") and path.endswith("/feature3-models/import"):
                 parts = path.strip("/").split("/")
                 if (method != "POST" or len(parts) != 4
