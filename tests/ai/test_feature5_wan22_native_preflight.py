@@ -102,6 +102,52 @@ class WanPinnedNativePreflightTests(unittest.TestCase):
         with self.assertRaises(WanCompatibilityError):
             validate_native_graph_against_object_info(graph,info4)
 
+    def test_canonical_native_graph_rejects_mutated_links_sampler_or_extra_nodes(self):
+        original=wan22_ti2v_5b(
+            prompt="Approved shop-owned kurti scene with studio camera tracking",
+            seed=42,approved_input_file="f3_verified_private.png",
+            width=704,height=1280,output_prefix="rgai/feature5")
+        info=fabricated_object_info(original)
+        mutations=(
+            ("different valid wiring",("9","positive",["5",0])),
+            ("different sampler",("9","sampler_name","euler")),
+            ("different seed type",("9","seed",True)),
+            ("altered steps",("9","steps",40)),
+            ("negative prompt deleted",("5","text","")),
+            ("model sampling shift",("8","shift",10)),
+            ("image link changed",("7","start_image",["6",1])),
+            ("incorrect source image",("6","image","unreviewed.png")),
+            ("different output path",("12","filename_prefix","../../external")),
+            ("frozen frame video FPS",("11","fps",1)),
+            ("manipulated decoder input",("10","samples",["7",0])),
+            ("text encoder selection",("4","clip",["3",0])),
+            ("unexpected loader type",("2","type","flux")),
+        )
+        for label,(node,key,value) in mutations:
+            altered=copy.deepcopy(original)
+            altered["prompt"][node]["inputs"][key]=value
+            with self.subTest(label=label),self.assertRaises(WanCompatibilityError):
+                validate_native_graph_against_object_info(altered,info)
+        extra=copy.deepcopy(original)
+        extra["prompt"]["13"]=copy.deepcopy(extra["prompt"]["5"])
+        with self.assertRaises(WanCompatibilityError):
+            validate_native_graph_against_object_info(extra,info)
+        extra=copy.deepcopy(original)
+        extra["browser_untrusted_approval"]=True
+        with self.assertRaisesRegex(WanCompatibilityError,"topology"):
+            validate_native_graph_against_object_info(extra,info)
+
+    def test_canonical_native_graph_preserves_allowlisted_reproducibility_controls(self):
+        for first_frame in (None,"f3_verified_private.png"):
+            for seed in (0,13,2**32):
+                graph=wan22_ti2v_5b(
+                    prompt="approved handoff from Feature 2: a green kurti walking",
+                    seed=seed,approved_input_file=first_frame,
+                    width=704,height=1280,
+                    output_prefix="rgai/feature5_shop_job")
+                self.assertTrue(validate_native_graph_against_object_info(
+                    graph,fabricated_object_info(graph)))
+
     def test_pinned_wheel_lock_requires_independently_reviewed_digests(self):
         lock=fake_lock()
         self.assertTrue(validate_runtime_lock(lock,approved_image_digest=IMAGE,
