@@ -221,3 +221,8 @@ Added negative tests for foreign attempt directory, linked attempt root, post-up
 ## 2026-10-28 — Two-shop parallel offline acceptance and Pexels rights audit
 
 Latest GPU-OFF source suite adds two-shop fake login/cross-private-download deny, 12-way concurrent single-intent upload, and new pinned Pexels page/license audit. Actual Pexels raw bytes still need a rights-approved original download and manual human review, hosted signed Supabase JWT + Part3 DB/Storage still pending; no A100. Verify final 4/4 CI.
+
+
+## 2026-10-28 — Pinned official Wan2.2 weight source inventory
+
+GPU-OFF source/Pexels test suite must finish exact-head four CI jobs. Runtime weights and pinned CUDA are unverified; acquiring >16GB verified files, SHA, legal permissions, region and budget requires separate delivery mechanisms. Meanwhile F5 native private import/tenant mocks and F3/F4 metadata tests continue without A100.

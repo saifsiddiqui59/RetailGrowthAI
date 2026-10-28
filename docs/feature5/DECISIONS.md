@@ -176,3 +176,8 @@ An import-intent CAS callback may commit then time out, so any raised exception 
 ## 2026-10-28 — Two-shop parallel offline acceptance and Pexels rights audit
 
 Simulated test-user logins use an explicitly isolated per-test HMAC secret and never correspond to Supabase Auth JWT. Parallel test CAS lock proves adapter's expected interface only; production must use SQL unique + transaction fencing across processes. Pexels pages license free modifications but no implied endorsement; API AI training/evaluation dataset extraction is restricted, so test local media technical decoding rather than model training datasets.
+
+
+## 2026-10-28 — Pinned official Wan2.2 weight source inventory
+
+Official Wan2.2 upstream Apache-2.0 and ComfyUI 5B file-name/license inventory do not establish installed artifact byte provenance. Leave reviewed weight SHA, workflow SHA and OCI SHA `null` until independently attested; do not turn false gates true on the strength of CPU test mocks. Actual publisher/user consent remains independent.

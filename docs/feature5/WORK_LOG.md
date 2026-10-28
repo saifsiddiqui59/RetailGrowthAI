@@ -195,3 +195,8 @@ Connected DEV project was queried in a read-only rolled-back transaction. Synthe
 ## 2026-10-28 — Two-shop parallel offline acceptance and Pexels rights audit
 
 - 2026-10-28: Added 12-thread CAS/Storage source acceptance and two independent mock shops with fake signed tokens; updated Pexels rights audit based on official pages. Video/photo originals could not be downloaded (DNS blocked), so commercial and real-media fidelity remain unverified. GPU OFF.
+
+
+## 2026-10-28 — Pinned official Wan2.2 weight source inventory
+
+- 2026-10-28: Recorded upstream Wan2.2 5B official model files/estimated weight volumes and pinned ComfyUI workflow. No 16GB+ actual weights, hashes, CUDA runtime, no model execution. No A100, paid API, WineShopPOS or main changes.

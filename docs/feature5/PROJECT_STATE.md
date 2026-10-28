@@ -197,3 +197,8 @@ GPU-off private import strengthened with a canonical private 0700 attempt root c
 ## 2026-10-28 — Two-shop parallel offline acceptance and Pexels rights audit
 
 Added real public Pexels source-page and licensing audit `docs/feature5/PEXELS_RIGHTS_AUDIT_20261028.md`: video page 1080x1920, 9s 30fps, photo page 4000x6000; modification commercial permitted but no person endorsement, and API ML dataset extraction restrictions. Local DNS blocked original raw downloads; no original SHA or video-fidelity claim. Added two real independent mock shops with test tokens and a 12-worker simulated atomic CAS race, one settled local import.
+
+
+## 2026-10-28 — Pinned official Wan2.2 weight source inventory
+
+Wan2.2 official published model/license and ComfyUI 5B required trio were independently inventoried in `docs/feature5/WAN22_GPU_OFF_WEIGHT_INVENTORY_20261028.md`: diffusion 9.31GB, encoder 6.27GB, VAE 1.31GB. Existing SHA-source/build/wheel gates are implemented, but no weight bytes or independent hashes, private CUDA OCI runtime, or actual /object_info are present. Keep GPU OFF, no false actual-ready claim.
