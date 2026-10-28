@@ -1,4 +1,6 @@
 name: RetailGrowthAI Feature2 read-only hosted trend diagnostics (exact DEV)
+# Original signed media registration returns its own UUID, not image path UUID.
+# Re-execute only after exact path evidence preflight; no model or POST retries.
 on:
   push:
     branches: [main]
