@@ -7,6 +7,7 @@ The injected 'admin' is a trusted service client; NEVER pass browser objects.
 """
 from __future__ import annotations
 
+import math
 import tempfile
 from pathlib import Path
 from uuid import UUID
@@ -102,7 +103,48 @@ def _bundle(job, source):
     # No unused tenant-private objects may be downloaded or introduced into HTML.
     if set(lowered.audit["media_asset_ids"]) != set(assets):
         raise Feature4HandoffError("Authoritative bundle includes unrelated media")
-    return request, manifest, names
+    return request, manifest, names, lowered.audit
+
+
+def _verified_render_result(result, output, job, request, audit):
+    """Refuse a forged/fallback relabel or unverifiable media before private upload.
+
+    This is an integrity check of the trusted local renderer return value, not a
+    substitute for the actual ffprobe invoked by run_compiled_reel.
+    """
+    if type(result) is not dict:
+        raise Feature4HandoffError("Renderer did not return verified output")
+    probe = result.get("output_probe")
+    if type(probe) is not dict:
+        raise Feature4HandoffError("Renderer output lacks media verification")
+    try:
+        raw_file = Path(result["file_path"])
+        file = raw_file.resolve(strict=True)
+        expected = (output / (job["id"] + ".mp4")).resolve()
+        if (file != expected or not file.is_file() or raw_file.is_symlink()
+                or result.get("render_job_id") != job["id"]
+                or result.get("idempotency_key") != job["idempotency_key"]
+                or result.get("rendered_as") != audit["rendered_as"]
+                or result.get("fallback_events") != audit["fallback_events"]):
+            raise Feature4HandoffError("Renderer output not bound to approved input and claim")
+        expected_output = request["output"]
+        seconds = probe.get("duration_seconds")
+        if (type(seconds) not in (int, float) or not math.isfinite(seconds)
+                or abs(seconds - request["duration_seconds"]) > .25
+                or probe.get("width") != expected_output["width"]
+                or probe.get("height") != expected_output["height"]
+                or probe.get("fps") != expected_output["fps"]
+                or probe.get("video_codec") != "h264"
+                or probe.get("audio_codec") != "aac"
+                or type(probe.get("bytes")) is not int
+                or probe["bytes"] != file.stat().st_size
+                or not 1024 < probe["bytes"] <= 80 * 1024 * 1024):
+            raise Feature4HandoffError("Renderer media proof contradicts approved output")
+        return file, probe
+    except Feature4HandoffError:
+        raise
+    except (KeyError, TypeError, ValueError, OSError) as exc:
+        raise Feature4HandoffError("Invalid renderer media output") from exc
 
 
 def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel):
@@ -143,7 +185,7 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
         admin.render_failure(claim, "ACCESS_REVOKED", permanent=True)
         return "DENIED"
     try:
-        request, manifest, objects = _bundle(claim, admin.load_feature4_bundle(claim))
+        request, manifest, objects, audit = _bundle(claim, admin.load_feature4_bundle(claim))
         with tempfile.TemporaryDirectory(prefix="retailgrowth-f4-") as tmp:
             root = Path(tmp)
             staging = root / "media"
@@ -160,13 +202,7 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
                 if staged_bytes > MAX_TOTAL_STAGED_BYTES:
                     raise Feature4HandoffError("Total staged media exceeds the private worker budget")
             result = render_fn(request, manifest, staging, output)
-            result_path = Path(result["file_path"]).resolve(strict=True)
-            if (result["render_job_id"] != jid or
-                    result["idempotency_key"] != claim["idempotency_key"] or
-                    not result_path.is_relative_to(output.resolve()) or
-                    result_path.name != jid + ".mp4" or
-                    type(result.get("output_probe")) is not dict):
-                raise Feature4HandoffError("Renderer output not bound to current claim")
+            result_path, probe = _verified_render_result(result, output, claim, request, audit)
             if admin.render_authorized(claim) is not True or admin.feature4_claim_current(claim) is not True:
                 # Lease lost while expensive CPU work ran: never publish or bill.
                 return "STALE"
@@ -175,7 +211,7 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
             key = media.upload(claim["shop_id"], jid, result_path,
                                lease_token=claim["render_claim_token"])
             finalized = admin.complete_feature4_render(
-                claim, key, result["output_probe"], result["rendered_as"])
+                claim, key, probe, audit["rendered_as"])
             if finalized is not True:
                 # An orphan private object can be reconciled; no signed URL or
                 # second credit charge is produced by this adapter.

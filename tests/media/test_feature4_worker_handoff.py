@@ -117,11 +117,16 @@ def fake_render(request, manifest, staged, output):
     assert all(not Path(x["path"]).is_absolute() for x in manifest["assets"].values())
     destination = output / (JOB + ".mp4")
     destination.write_bytes(b"synthetic MP4 bytes" + b"0"*1024)
+    from creative_contract import render_inputs
+    audit = render_inputs(request, manifest).audit
     return {"file_path": str(destination), "render_job_id": JOB,
             "idempotency_key": request["idempotency_key"],
-            "rendered_as": "AUTHORIZED_ASSEMBLY",
+            "rendered_as": audit["rendered_as"],
+            "fallback_events": audit["fallback_events"],
             "output_probe": {"duration_seconds": 15.0,
-                             "width": 1080, "height": 1920, "fps": 24}}
+                             "width": 1080, "height": 1920, "fps": 24,
+                             "bytes": destination.stat().st_size,
+                             "video_codec": "h264", "audio_codec": "aac"}}
 
 
 class WorkerHandoffTests(unittest.TestCase):
@@ -219,6 +224,81 @@ class WorkerHandoffTests(unittest.TestCase):
             self.run_worker()
         self.assertEqual(self.media.downloads, [])
         self.assertEqual(self.admin.failures[-1], ("INVALID_RENDER_INPUT", True))
+
+
+    def test_assumed_feature3_image_and_feature5_motion_integrate_without_fallback(self):
+        """Assumed input availability exercises contract, NOT real human inference."""
+        self.admin.bundle["assets"]["motion01"] = {
+            "shop_id": SHOP, "kind": "video", "source_feature": "feature5",
+            "approved": True, "storage_bucket": "retailgrowth-media",
+            "object_path": SHOP + "/approved/feature5-motion01.mp4",
+            "mime_type": "video/mp4", "license_name": "owned",
+            "rights_evidence": "Approved fixture provenance for offline contract test",
+            "rights_source": "offline mock producer",
+        }
+        scene = self.admin.bundle["request"]["scenes"][1]
+        scene.update({"asset_id": "motion01", "asset_type": "video",
+                      "source_feature": "feature5", "motion_status": "ready"})
+        self.assertEqual(self.run_worker(), "SUCCEEDED")
+        self.assertEqual(len(self.media.downloads), 2)
+        self.assertEqual({k.split("/")[-1] for _,k,_ in self.media.downloads},
+                         {"product01.png", "feature5-motion01.mp4"})
+        self.assertEqual(self.admin.completions[0][-1], "AUTHORIZED_ASSEMBLY")
+        self.assertEqual(self.media.uploads[0][-1], LEASE)
+
+    def test_fallback_result_cannot_be_relabelled_as_real_motion(self):
+        self.admin.bundle["request"]["allow_image_fallback"] = True
+        self.admin.bundle["request"]["scenes"][1].update({
+            "asset_id": "motion01", "asset_type": "video", "source_feature": "feature5",
+            "motion_status": "failed", "fallback_image_asset_id": "product01",
+        })
+        def disguised(*args):
+            result = fake_render(*args)
+            self.assertEqual(result["rendered_as"], "IMAGE_ANIMATION_FALLBACK")
+            result["rendered_as"] = "AUTHORIZED_ASSEMBLY"
+            return result
+        with self.assertRaisesRegex(Feature4HandoffError, "approved input"):
+            process_feature4_render(JOB, self.admin, self.media, render_fn=disguised)
+        self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.failures[-1], ("INVALID_RENDER_INPUT", True))
+
+    def test_explicitly_approved_image_fallback_keeps_disclosure(self):
+        self.admin.bundle["request"]["allow_image_fallback"] = True
+        self.admin.bundle["request"]["scenes"][1].update({
+            "asset_id": "motion01", "asset_type": "video", "source_feature": "feature5",
+            "motion_status": "failed", "fallback_image_asset_id": "product01",
+        })
+        self.assertEqual(self.run_worker(), "SUCCEEDED")
+        self.assertEqual(self.admin.completions[0][-1], "IMAGE_ANIMATION_FALLBACK")
+
+    def test_malformed_or_forged_output_proof_never_uploaded(self):
+        examples = (
+            ("duration_seconds", 60.0), ("width", 540), ("fps", 30),
+            ("video_codec", "mpeg4"), ("audio_codec", "mp3"),
+            ("bytes", 999999), ("bytes", True),
+        )
+        for key, value in examples:
+            with self.subTest(key=key, value=value):
+                self.media = Media()
+                self.admin.failures.clear()
+                def damaged(*args):
+                    result = fake_render(*args)
+                    result["output_probe"][key] = value
+                    return result
+                with self.assertRaises(Feature4HandoffError):
+                    process_feature4_render(JOB, self.admin, self.media, render_fn=damaged)
+                self.assertEqual(self.media.uploads, [])
+                self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
+
+    def test_renderer_forged_fallback_events_rejected(self):
+        def damaged(*args):
+            result = fake_render(*args)
+            result["fallback_events"] = [{"scene_order": 1, "disclosure": "fictional"}]
+            return result
+        with self.assertRaisesRegex(Feature4HandoffError, "approved input"):
+            process_feature4_render(JOB, self.admin, self.media, render_fn=damaged)
+        self.assertEqual(self.media.uploads, [])
+
 
 
 if __name__ == "__main__":
