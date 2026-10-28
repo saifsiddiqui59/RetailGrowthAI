@@ -12,7 +12,7 @@ const check=(ok,msg)=>{if(!ok)throw new EditValidationError(msg);};
 const REF=/^[\w-]{1,120}$/;
 export function projectUpstreamCaptionsAfterAutoClipCuts({
   shop_id,asset_id,words,keep_segments,source_duration_seconds,
-  requested_reel_seconds=15
+  requested_reel_seconds=15,audio_crossfade_seconds=0.03
 }={}){
   check(typeof shop_id==='string'&&REF.test(shop_id)&&
     typeof asset_id==='string'&&REF.test(asset_id)&&
@@ -21,7 +21,11 @@ export function projectUpstreamCaptionsAfterAutoClipCuts({
     keep_segments.length<=32&&
     Number.isFinite(source_duration_seconds)&&
     source_duration_seconds>=.5&&source_duration_seconds<=600&&
-    [15,30,60].includes(requested_reel_seconds),
+    [15,30,60].includes(requested_reel_seconds)&&
+    Number.isFinite(audio_crossfade_seconds)&&
+    audio_crossfade_seconds>=0&&audio_crossfade_seconds<=0.25&&
+    Math.abs(audio_crossfade_seconds*1000-
+      Math.round(audio_crossfade_seconds*1000))<1e-6,
   'Valid scoped source, transcript and original reel required');
   let previousEnd=-1;
   for(const w of words){
@@ -33,25 +37,39 @@ export function projectUpstreamCaptionsAfterAutoClipCuts({
       'Unsafe/misaligned source speech');
     previousEnd=w.endMs;
   }
+  // AutoClip Core compose.py audio acrossfade(d) shortens every joined
+  // timeline by d and trims d/2 of video on each side of the join.
+  // Project only fully visible retained words; never caption removed speech.
+  // The source must use the SAME crossfade setting when rendering preview.
+  const shortestMs=Math.min(...keep_segments.map(k=>
+    Number.isFinite(k?.start)&&Number.isFinite(k?.end)?
+      (k.end-k.start)*1000:NaN));
+  const fadeMs=keep_segments.length<2?0:Math.min(
+    Math.round(audio_crossfade_seconds*1000),Math.floor(shortestMs/2));
+  check(Number.isFinite(fadeMs)&&fadeMs>=0,'Invalid upstream fade');
   let position=0,priorSourceEnd=0;
   const cues=[],keepProjection=[];
-  for(const entry of keep_segments){
+  for(const [index,entry] of keep_segments.entries()){
     const a=entry?.start,b=entry?.end;
     check(Number.isFinite(a)&&Number.isFinite(b)&&
       a>=priorSourceEnd&&b>a&&b<=source_duration_seconds+.01&&
       b-a>=.35,'Disordered/invalid upstream keep span');
     const from=Math.round(a*1000),to=Math.round(b*1000);
+    const visibleFrom=from+(index>0?fadeMs/2:0);
+    const visibleTo=to-(index<keep_segments.length-1?fadeMs/2:0);
+    check(visibleTo-visibleFrom>=200,'Crossfade erased retained segment');
     const frameStart=position;
-    const inside=words.filter(w=>w.startMs>=from&&w.endMs<=to);
+    const inside=words.filter(w=>
+      w.startMs>=visibleFrom&&w.endMs<=visibleTo);
     // Upstream captions are built ONLY for actually kept speech words.
     // A cut word is not hallucinated as a full spoken word.
     const groups=buildCaptions(inside,asset_id);
     for(const page of groups){
-      const start=Math.round(position+(page.startMs-from));
-      const finish=Math.round(position+(page.endMs-from));
+      const start=Math.round(position+(page.startMs-visibleFrom));
+      const finish=Math.round(position+(page.endMs-visibleFrom));
       const text=page.words.map(w=>w.text).join(' ').trim();
       check(text.length>0&&text.length<=90&&
-        start>=frameStart&&finish<=frameStart+to-from&&finish>start,
+        start>=frameStart&&finish<=frameStart+visibleTo-visibleFrom&&finish>start,
         'Caption outside verified retained media');
       if(finish-start<200)continue; // F4 caption track minimum .2s
       if(cues.length)check(start>=cues.at(-1).end_ms,
@@ -70,9 +88,12 @@ export function projectUpstreamCaptionsAfterAutoClipCuts({
     }
     keepProjection.push({
       source_start_ms:from,source_end_ms:to,
-      timeline_start_ms:frameStart,timeline_end_ms:frameStart+(to-from)
+      visible_source_start_ms:visibleFrom,
+      visible_source_end_ms:visibleTo,
+      timeline_start_ms:Math.round(frameStart),
+      timeline_end_ms:Math.round(frameStart+visibleTo-visibleFrom)
     });
-    position+=to-from;
+    position+=visibleTo-visibleFrom;
     priorSourceEnd=b;
   }
   check(cues.length>0&&cues.length<=60&&
@@ -81,7 +102,11 @@ export function projectUpstreamCaptionsAfterAutoClipCuts({
   return Object.freeze({
     version:'feature7_autoclip_autobroll_caption_projection_v1',
     shop_id,asset_id,requested_reel_seconds,
-    actual_timeline_duration_ms:position,
+    actual_timeline_duration_ms:Math.round(position),
+    applied_audio_crossfade_seconds:fadeMs/1000,
+    timing_basis:'AUT OCLIP'.replace(' ', '')+'_CORE_AUDIO_CROSSFADE_AND_VIDEO_HALF_TRIM',
+    measured_frame_level_sync:false,
+    requires_rendered_av_acceptance:true,
     matches_feature4_duration_exactly:
       Math.abs(position-requested_reel_seconds*1000)<=20,
     upstream_caption_project:'andriidrok1/autobroll',
