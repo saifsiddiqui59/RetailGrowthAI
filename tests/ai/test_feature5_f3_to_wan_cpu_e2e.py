@@ -26,6 +26,7 @@ from feature5_motion.wan22_motion_adapter import (
     compile_motion_direction, WanCompatibilityError,
 )
 from feature5_motion.wan22_clip_validation import inspect_native_mp4,pending_private_receipt
+from feature5_motion.wan22_frame_screening import screen_motion_frames
 
 
 def source_fixture():
@@ -94,6 +95,13 @@ class WanFeature3OfflineE2ETests(unittest.TestCase):
                 self.assertFalse(pending["approved_for_feature4"])
                 self.assertTrue(pending["private_import_required"])
                 self.assertEqual(pending["quality_state"],"PENDING_HUMAN_VISUAL_REVIEW")
+                visual=screen_motion_frames(clip_path=output,inspected=inspection)
+                self.assertEqual(visual.decision,"OBVIOUSLY_STATIC_REJECTED")
+                self.assertFalse(visual.garment_fidelity_approved)
+                self.assertFalse(visual.approved_for_feature4)
+                self.assertTrue(visual.human_visual_review_required)
+                self.assertEqual(len(visual.frame_sha256),5)
+                self.assertEqual(len(visual.adjacent_luma_difference),4)
             self.assertFalse(staged.exists())  # private first-frame removed
         # This is NOT an inferred Wan output, garment fidelity score or GPU test.
 
