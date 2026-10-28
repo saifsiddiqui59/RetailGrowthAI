@@ -24,9 +24,9 @@ def _denied():
     raise FashionReferenceDenied("Current, tenant-authorized creative handoff unavailable")
 
 
-def _uuid(value):
+def _uuid(value, *, require_random=True):
     try:
-        return isinstance(value, str) and str(UUID(value)) == value and UUID(value).version == 4
+        return isinstance(value, str) and str(UUID(value)) == value and (not require_random or UUID(value).version == 4)
     except (ValueError, TypeError, AttributeError):
         return False
 
@@ -45,7 +45,7 @@ def _refresh(expected, readers, purpose):
         _denied()
     s = _source_ids(expected)
     model = expected.get("model")
-    if not isinstance(model, dict) or not _uuid(model.get("model_id")):
+    if not isinstance(model, dict) or not _uuid(model.get("model_id"), require_random=False):
         _denied()
     shop = expected.get("shop_id")
     garment_id = s["garment"].get("source_asset_id")
@@ -93,7 +93,7 @@ def _validate_brief(brief, creative):
             _denied()
         if (type(shot["start_second"]) is not int or shot["start_second"] != pos or
             type(shot["duration_seconds"]) is not int or not 1 <= shot["duration_seconds"] <= 15 or
-            shot["camera"] not in _CAMERAS or shot["preserve_garment_identity"] is not True):
+            not isinstance(shot["camera"], str) or shot["camera"] not in _CAMERAS or shot["preserve_garment_identity"] is not True):
             _denied()
         for key in ("scene", "overlay"):
             value = shot[key]
@@ -118,7 +118,9 @@ def _read_footage(*, shop_id, asset_id, read_footage):
         type(footage["rights_revision"]) is not int or footage["rights_revision"] < 1 or
         footage["rights_revoked"] is not False or footage["approval_state"] != "APPROVED" or
         not isinstance(footage["allowed_uses"], (list, tuple)) or "editing" not in footage["allowed_uses"] or
-        len(footage["allowed_uses"]) > 6 or len(set(footage["allowed_uses"])) != len(footage["allowed_uses"])):
+        len(footage["allowed_uses"]) > 6 or
+        any(not isinstance(use, str) for use in footage["allowed_uses"]) or
+        len(set(footage["allowed_uses"])) != len(footage["allowed_uses"])):
         _denied()
     return {"asset_id": asset_id, "sha256": footage["image_sha256"],
             "rights_revision": footage["rights_revision"], "mime_type": "video/mp4"}
