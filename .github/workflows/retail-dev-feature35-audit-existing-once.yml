@@ -84,8 +84,14 @@ jobs:
           python3 - "$RUNNER_TEMP/env.json" <<'PY'
           import json,sys
           env=json.load(open(sys.argv[1]));t={k.lower():str(v).lower() for k,v in (env.get('tags') or {}).items()}
-          assert env['name']=='rgai-f5-gpu-canary-eastus' and env['location']=='eastus'
-          assert t.get('app')=='retailgrowthai' and t.get('environment')=='dev'
+          loc=str(env.get('location','')).lower().replace(' ','')
+          print('SAFE_ENV_IDENTITY_CHECK: name_match=%s location=%s app_tag_match=%s dev_tag_match=%s' % (
+            env.get('name')=='rgai-f5-gpu-canary-eastus', loc,
+            t.get('app')=='retailgrowthai', t.get('environment')=='dev'))
+          assert env.get('name')=='rgai-f5-gpu-canary-eastus', 'Unexpected managed environment name'
+          assert loc=='eastus', 'Unexpected managed environment location'
+          assert t.get('app')=='retailgrowthai', 'Missing RetailGrowthAI ownership tag'
+          assert t.get('environment')=='dev', 'Missing RetailGrowthAI DEV tag'
           print('PASS exact East US RetailGrowthAI DEV managed environment')
           PY
           if az containerapp env storage show -g "$RG" -n "$ENV_NAME" --storage-name rgai-models-readonly -o json > "$RUNNER_TEMP/mount.json" 2>/dev/null; then
@@ -106,6 +112,7 @@ jobs:
           fi
           echo "NO_GPU_START_NO_CLOUD_MUTATION"
       - name: Public East US A100 retail meter discovery (no subscription or GPU)
+        if: always()
         run: python3 scripts/ops/feature35_public_a100_price_probe.py
       - name: Logout Azure
         if: always()
