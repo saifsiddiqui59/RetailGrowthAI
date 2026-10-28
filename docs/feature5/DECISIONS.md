@@ -206,3 +206,7 @@ Use real producer code from main through a fast-forward-safe, two-parent Git mer
 ## 2026-10-28 — F3→CPU motion→Part3→F4 continuous offline acceptance
 
 An end-to-end local 121-frame 704×1280 CPU camera zoom/pan on one Feature3 still can validate transfer integrity, not Wan2.2 generative motion, correct garment try-on or person walking. A test-only positive Feature4 reviewer is a contract shape assertion and MUST NOT be used in production. The original private reference must be cleaned after use; only a test storage object remains. Continue zero spend.
+
+## 2026-10-28 — Validate media bytes across external Part3 callback boundaries
+
+An existing server-side rights/claim callback is not a filesystem lock. Feature5 must recheck absolute private path containment, file permissions/link identity, metadata and SHA **after** that callback, before durable unique import intent, and once again **after** committing the intent but before Storage upload. Pre-intent drift is denied without new storage/billing action; post-intent drift is an ambiguous consumed intent and is NEVER automatically reprocessed or refunded. Existing Part3 transactional reservation and authoritative signed tenant checks remain mandatory; local mock callbacks cannot attest them. GPU/A100 stays OFF.
