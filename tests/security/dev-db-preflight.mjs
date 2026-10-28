@@ -38,9 +38,22 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261028173000_feature1_retailer_inbox.sql',
   // Feature3 human review is SOURCE ONLY, not a hosted rollout authorization.
   '20261028190000_feature3_model_review_audit.sql',
+  // Feature3 immutable verifier RPC is SOURCE ONLY; never execute on hosted DEV automatically.
+  '20261028210000_feature3_private_evidence_commit.sql',
 ]);
 
 const CAPABILITIES = {
+  '20261028210000': [
+    /create function public[.]feature3_commit_verified_evidence/i,
+    /security definer set search_path=''/i,
+    /retail_private[.]feature3_model_evidence/i,
+    /from public[.]feature3_models/i,
+    /for update/i,
+    /public[.]shop_memberships/i,
+    /p_expected_image_sha256/i,
+    /grant execute on function public[.]feature3_commit_verified_evidence/i,
+    /to service_role/i,
+  ],
   '20261028190000': [
     /create table retail_private[.]feature3_model_evidence/i,
     /create table retail_private[.]feature3_model_review_events/i,
