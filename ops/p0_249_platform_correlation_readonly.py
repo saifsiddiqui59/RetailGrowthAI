@@ -30,11 +30,11 @@ TYPES = (
     "specialization_timeout", "grpc_pending_timeout", "worker_startstream",
     "worker_startup_timeout", "worker_start", "worker_exit",
     "host_start", "rpc_exception", "connection_aborted",
-    "host_error", "other",
+    "host_initialization", "other",
 )
 CATEGORIES = frozenset(TYPES)
 INSTANCE = 'tostring(column_ifexists("AppRoleInstance",""))'
-STATES = frozenset(("requests", "traces", "exceptions", "function_logs", "activity"))
+STATES = frozenset(("requests", "traces", "exceptions", "function_logs", "activity", "host_timeline"))
 STATUS = re.compile(r"^[1-5][0-9]{2}$")
 BUCKET = re.compile(r"^2026-10-28T(19|20):[0-5][0-9]:00(?:Z|\+00:00)$")
 
@@ -51,7 +51,7 @@ def classify_expr(*, field: str) -> str:
         ("host startup", "host_start"),
         ("RpcException", "rpc_exception"),
         ("ConnectionAbortedException", "connection_aborted"),
-        ("host initialization", "host_error"),
+        ("host initialization", "host_initialization"),
     )
     return 'case(' + ', '.join(
         f'{field} contains "{needle}", "{label}"' for needle, label in clauses
@@ -82,6 +82,23 @@ def queries(start: str, end: str) -> dict[str, str]:
             + f' | summarize events=count() by {bucket}, category, instance'
             + ' | order by bucket asc | take 80'
         ),
+        # A full-window minute timeline does not group by host instance, so
+        # the first 30 rows cannot conceal later startup/timeout events. Counts
+        # distinguish routine initialization from actual timeout/exit hints.
+        "host_timeline": (
+            prefix("AppTraces")
+            + ' | summarize events=count(), '
+              'worker_start=countif(Message contains "Worker process started"), '
+              'host_initialization=countif(Message contains "host initialization"), '
+              'worker_exit=countif(Message contains "Worker process exited"), '
+              'specialization_timeout=countif(Message contains "SpecializeAsync"), '
+              'grpc_pending_timeout=countif(Message contains "PendingItem.OnTimeout"), '
+              'worker_startstream=countif(Message contains "StartStream"), '
+              'worker_startup_timeout=countif(Message contains "ProcessStartupTimeout"), '
+              'rpc_exception=countif(Message contains "RpcException") '
+              'by bucket=bin(TimeGenerated,1m)'
+            + ' | order by bucket asc | take 25'
+        ),
         "exceptions": (
             prefix("AppExceptions") + instance
             + f' | extend category={classify_expr(field=exception_message)}'
@@ -107,20 +124,34 @@ def queries(start: str, end: str) -> dict[str, str]:
     }
 
 
+def _safe_count(value):
+    """Only a small, nonnegative integer; never turn arbitrary log fields into output."""
+    if isinstance(value, str) and value.isascii() and value.isdecimal() and len(value) <= 8:
+        value = int(value)
+    elif type(value) is float and value.is_integer():
+        value = int(value)
+    return value if type(value) is int and 0 <= value <= 10000000 else None
+
+
+COUNT_FIELDS = frozenset((
+    "worker_start", "host_initialization", "worker_exit",
+    "specialization_timeout", "grpc_pending_timeout", "worker_startstream",
+    "worker_startup_timeout", "rpc_exception",
+))
+
+
 def safe_rows(payload) -> list[dict]:
     """Sanitize before reporting; never serialize complete Azure query output."""
     out = []
     for raw in aggregate_records(payload)[:80]:
         row = {}
-        count = raw.get("events")
-        # Azure CLI Log Analytics may return Kusto long counts serialized as
-        # bounded decimal strings or integral floats, not just Python int.
-        if isinstance(count, str) and count.isascii() and count.isdecimal() and len(count) <= 8:
-            count = int(count)
-        elif type(count) is float and count.is_integer():
-            count = int(count)
-        if type(count) is int and 0 <= count <= 10000000:
+        count = _safe_count(raw.get("events"))
+        if count is not None:
             row["events"] = count
+        for key in COUNT_FIELDS:
+            value = _safe_count(raw.get(key))
+            if value is not None:
+                row[key] = value
         when = raw.get("bucket")
         if isinstance(when, str) and BUCKET.fullmatch(when):
             row["bucket"] = when
