@@ -46,6 +46,8 @@ def evidence():
             "id": OFFER, "shop_id": SID, "approval_status": "APPROVED",
             "active": True, "revoked_at": None, "percent_off": 20,
             "signed_evidence_id": "owner-verified-20-percent-off",
+            "eligible_product_skus": ["KURTI-RED-01"],
+            "approved_claim_text": "20% off selected kurtis",
             "valid_from": "2026-10-28", "valid_until": "2026-11-15",
         }],
     }
@@ -86,6 +88,8 @@ def test_uses_only_signed_shop_profile_and_server_grants(duration):
     assert out["business_name"] == "Thread and Loom Studio"
     assert out["media_grants"][0]["garment_facts"]["embroidery"] == "gold motifs across the front"
     assert out["approved_offers"][0]["percent_off"] == 20
+    assert out["approved_offers"][0]["approved_claim_text"] == "20% off selected kurtis"
+    assert out["approved_offers"][0]["eligible_product_skus"] == ["KURTI-RED-01"]
     assert out["authenticated_owner_or_editor"] is True
     assert [x[2] for x in calls] == [True, True]
     assert not any("jwt" in key or "token" in key for key in out)
@@ -115,6 +119,11 @@ def test_browser_cannot_grant_approval_or_overwrite_brand_or_offer():
     lambda e: e["offers"][0].update(valid_until="2026-10-28"),
     lambda e: e["offers"][0].update(percent_off=99, active=False),
     lambda e: e["offers"][0].update(signed_evidence_id=None),
+    lambda e: e["offers"][0].update(eligible_product_skus=["KURTI-BLUE-999"]),
+    lambda e: e["offers"][0].update(eligible_product_skus=[]),
+    lambda e: e["offers"][0].update(approved_claim_text="20% off everything"),
+    lambda e: e["offers"][0].update(approved_claim_text="40% off selected kurtis"),
+    lambda e: e["offers"][0].update(eligible_product_skus=["KURTI-RED-01", "KURTI-RED-01"]),
 ])
 def test_foreign_or_unapproved_source_fails_closed(change):
     rows = evidence()
