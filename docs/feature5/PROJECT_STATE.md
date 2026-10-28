@@ -212,3 +212,8 @@ Wan2.2 official published model/license and ComfyUI 5B required trio were indepe
 ## 2026-10-28 — F3 verified consumer-to-private first-frame staging + hosted catalog reality
 
 Latest F5 source P0 resolved: verified F3 #561 consumer metadata + F4 timeline and cross-checked exact original first-frame SHA against actual F3 staging call with second revocation re-read. Test-only fixtures pass when CI completes. Remaining source to coordinator: versioned F4/Part3 profile reconciliation; hosted Part3 premiums table absent in live DEV; actual tenant-approved private media, workers, signed JWT and ACL/RLS, real video quality not tested. No paid A100.
+
+
+## 2026-10-28 — Deterministic fake token corruption regression fix
+
+During exact-doc-head Actions #40766504875 the FFmpeg job found a flaky *test assertion* in test-only HMAC auth: appending `0` to the token by replacing the last char could leave an original `0` unchanged. Fixed the test to *always choose a different final signature character*. This does NOT weaken auth checks or skip tests; rerun final exact-head 4/4 before source success claim.

@@ -210,3 +210,8 @@ Connected DEV project was queried in a read-only rolled-back transaction. Synthe
 ## 2026-10-28 — F3 verified consumer-to-private first-frame staging + hosted catalog reality
 
 undefined
+
+
+## 2026-10-28 — Deterministic fake token corruption regression fix
+
+- 2026-10-28: GitHub Actions surfaced flaky negative signed test-token assertion in source-only two-shop suite (unchanged last char). Fixed deterministic mutation, keeping denial test. Earlier Python, media, Supabase and frontend source suites passed separately; exact final SHA must be verified.

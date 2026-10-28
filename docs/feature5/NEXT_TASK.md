@@ -236,3 +236,8 @@ Next after exact-head CI: coordinator must reconcile incompatible F4 Hunyuan/Par
 ## 2026-10-28 — F3 verified consumer-to-private first-frame staging + hosted catalog reality
 
 Feature5 never treats feature3 packet freshness as a provider permission. `stage_fresh_feature3_consumer_input` calls both current F3 packet reader and the independently server-authorized raw first-frame resolver, and does a *second* packet refresh after the private PNG staging; output is deleted upon denied/revoked second refresh. The 0-row hosted Feature3 catalog and absent Part3 premium jobs table cannot be replaced by test logins or app mock receipts; record success only for CPU synthetic tests.
+
+
+## 2026-10-28 — Deterministic fake token corruption regression fix
+
+Verify final four-job GitHub Actions after token negative-test fix; no actual deployment until coordinator versioned premium schema, real tenant-owned first frame, private Storage and F4 live approval. Existing FFmpeg negative auth failure was test-flakiness and has been corrected, not silently skipped.

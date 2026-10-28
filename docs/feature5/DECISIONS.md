@@ -191,3 +191,8 @@ Cross-feature Feature3 consumer packet is metadata-only and `provider_call_permi
 ## 2026-10-28 — F3 verified consumer-to-private first-frame staging + hosted catalog reality
 
 - 2026-10-28: Added real F3 consumer packet + private first-frame CPU staging connector and revocation-safe follow-up read. This uses F3's genuine contract shape, while tests use synthetic F3 current readers on old F5 branch. Connected Supabase read-only inventory: F3 model tables deployed with 0 records, Part3 premium jobs table not deployed. No writes, no hosted JWT, no GPU or paid provider.
+
+
+## 2026-10-28 — Deterministic fake token corruption regression fix
+
+Fake test HMAC token tampering MUST be demonstrably different from original. A randomized last-character replacement might reproduce the original value and cause nondeterministic false rejection of a valid token; switch deterministically to a different character before asserting denial. Keep the test enabled.
