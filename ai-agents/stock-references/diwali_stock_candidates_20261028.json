@@ -1,0 +1,50 @@
+[
+  {
+    "candidate_id": "pexels-diwali-diyas-26761190",
+    "source_page": "https://www.pexels.com/video/burning-lamp-during-diwali-celebration-26761190/",
+    "creator": "Samar Layek",
+    "provider": "Pexels",
+    "media_kind": "VIDEO",
+    "purpose": "ATMOSPHERE_BROLL",
+    "license_page": "https://www.pexels.com/license/",
+    "license_name": "Pexels License",
+    "attribution_required": false,
+    "observed_on": "2026-10-28",
+    "source_description": "Ten-second vertical 9:16 Diwali oil lamps; festive ambiance only, no garment identity",
+    "expected_duration_seconds": 10,
+    "source_review_status": "CANDIDATE_NOT_IMPORTED",
+    "downloaded_original_sha256": null
+  },
+  {
+    "candidate_id": "pexels-diwali-diyas-34579328",
+    "source_page": "https://www.pexels.com/video/glowing-diya-lamps-celebrating-diwali-34579328/",
+    "creator": "Suhas Hanjar",
+    "provider": "Pexels",
+    "media_kind": "VIDEO",
+    "purpose": "ATMOSPHERE_BROLL",
+    "license_page": "https://www.pexels.com/license/",
+    "license_name": "Pexels License",
+    "attribution_required": false,
+    "observed_on": "2026-10-28",
+    "source_description": "Eleven-second vertical 9:16 warm diya scene; B-roll only, no person/model release inferred",
+    "expected_duration_seconds": 11,
+    "source_review_status": "CANDIDATE_NOT_IMPORTED",
+    "downloaded_original_sha256": null
+  },
+  {
+    "candidate_id": "commons-diwali-candles-2006",
+    "source_page": "https://commons.wikimedia.org/wiki/File:Diwali_candles.jpg",
+    "creator": "Ramakrishna Reddy y",
+    "provider": "Wikimedia Commons",
+    "media_kind": "IMAGE",
+    "purpose": "CULTURAL_CUTAWAY",
+    "license_page": "https://creativecommons.org/licenses/by-sa/2.0/",
+    "license_name": "CC BY-SA 2.0",
+    "attribution_required": true,
+    "observed_on": "2026-10-28",
+    "source_description": "Diwali candles in Pune; licensed Commons still with attribution and share-alike obligations",
+    "expected_duration_seconds": 0,
+    "source_review_status": "CANDIDATE_NOT_IMPORTED",
+    "downloaded_original_sha256": null
+  }
+]
