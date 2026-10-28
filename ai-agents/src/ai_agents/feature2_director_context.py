@@ -168,12 +168,28 @@ def build_verified_director_context(
         if not valid_from <= date.fromisoformat(selected_date) <= valid_until:
             raise CreativeContextRejected("Offer does not cover campaign date")
         signed = _text(row.get("signed_evidence_id"), maximum=150)
+        eligible = row.get("eligible_product_skus")
+        if (type(eligible) is not list or not 1 <= len(eligible) <= 100 or
+            any(type(sku) is not str for sku in eligible)):
+            raise CreativeContextRejected("Offer has no verified eligible garment SKU list")
+        eligible = [_text(sku, maximum=80) for sku in eligible]
+        if len(eligible) != len(set(eligible)):
+            raise CreativeContextRejected("Duplicate approved product SKU")
+        approved_wording = _text(row.get("approved_claim_text"), minimum=10, maximum=180)
+        percent_pattern = rf"(?<!\\d){row['percent_off']}\\s*(?:%|percent|per[\\s-]*cent)\\s*(?:off|discount|sale|savings?)"
+        if re.search(percent_pattern, approved_wording, flags=re.I) is None:
+            raise CreativeContextRejected("Approved copy does not identify the documented discount")
         approved_offers.append({
             "id": oid, "shop_id": sid, "approval_status": "APPROVED",
             "percent_off": row["percent_off"], "active": True,
             "signed_evidence_id": signed,
             "valid_from": valid_from.isoformat(), "valid_until": valid_until.isoformat(),
+            "eligible_product_skus": eligible, "approved_claim_text": approved_wording,
         })
+    for asset in authorized_media:
+        if approved_offers and any(asset["product_sku"] not in offer["eligible_product_skus"]
+                                   for offer in approved_offers):
+            raise CreativeContextRejected("Shown garment does not qualify for the approved offer")
     # Role/membership may have been revoked during I/O. A final RLS/role
     # check is mandatory BEFORE *prepaid* creative model reservation.
     try:
