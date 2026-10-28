@@ -110,7 +110,7 @@ def _allowlist_enums(value, descriptor):
         raise WanCompatibilityError("Model/input not installed in runtime selector")
 
 
-def validate_native_graph_against_object_info(graph, object_info, *, expected_input_filename=None):
+def validate_native_graph_against_object_info(graph, object_info, *, expected_input_filename=None, expected_negative_prompt=None):
     """Check actual node names, required/optional inputs, and checkpoint choices.
 
     Real protected server must supply its object_info directly. Source-only
@@ -176,6 +176,15 @@ def validate_native_graph_against_object_info(graph, object_info, *, expected_in
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise WanCompatibilityError("Invalid pinned Wan node values or IDs") from exc
+    # Feature2's Creative Director owns a scene-specific negative prompt.
+    # The actual dispatcher MUST independently fence the entire positive+
+    # negative prompt digest against the authoritative Part3 paid claim.
+    if expected_negative_prompt is not None:
+        if (type(expected_negative_prompt) is not str or
+            not 1 <= len(expected_negative_prompt) <= 1000 or
+            any(ord(ch)<32 and ch not in "\n\t" for ch in expected_negative_prompt)):
+            raise WanCompatibilityError("Unreviewed Feature2 negative constraints")
+        canonical["prompt"]["5"]["inputs"]["text"]=expected_negative_prompt
     if graph != canonical:
         raise WanCompatibilityError("Wan graph topology or pinned sampler settings changed")
     # Topology checks CANNOT know whether an otherwise valid image basename
