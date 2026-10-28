@@ -37,7 +37,7 @@ def official_metadata(api, repo, path):
     digest = str((info[0].lfs or {}).get("sha256") or "").lower()
     if not re.fullmatch("[0-9a-f]{64}", digest):
         res = requests.head("https://huggingface.co/" + repo + "/resolve/" + revision + "/" + path,
-                            allow_redirects=True, timeout=(20, 90))
+                            allow_redirects=False, timeout=(20, 90))
         res.raise_for_status()
         for header in ("x-linked-etag", "etag"):
             candidate = res.headers.get(header, "").strip(' "').lower()
