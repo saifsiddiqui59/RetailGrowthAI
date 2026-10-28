@@ -110,3 +110,12 @@ Follow-up for coordinator/Feature4: attach genuine signed-in human action, autho
 
 ### Internet CC0 test-preview extension (source-only, not deployed)
 \`tests/media/test_feature7_public_cc0.py\` now also takes the chosen one-scene contiguous trim from the **unapproved review proposal**, transcodes a **test-only** 15-second MP4 using FFmpeg, validates the preserved H264 video/AAC original-speech audio tracks with ffprobe, and confirms the source video bytes remain untouched. The local temporary output is deleted automatically. This is *mechanical media QA* (not approval, not hosted download, not a new Feature4 renderer, not a substitute for human listener/word alignment). Full offline user workflow and P0 backend integrations are still not complete.
+
+
+## 2026-10-28 — Fourth independent continuation: real reviewer controls and stronger media rights
+
+- Human reviewer controls: `review_actions.mjs` and `reviewer_panel.mjs` + scoped CSS provide an embeddable, keyboard-accessible video review panel, selected-source trim preview, read-only caption/visual QA and explicit approval/rejection *requests*. A genuine Feature4 authenticated workspace integration remains P0; this component never auto-approves or uploads/renders.
+- Strict worker rights: `media_rights_evidence.mjs` adds TTL-bound HMAC for shop/asset/job/registered video byte SHA/rights revision; `authoritative_private_review.mjs` requires injected authoritative current private-video rights, verifies exact MP4/ffprobe and signed ASR, then calls existing evidence-bound semantic pipeline. Do not treat a text marker as trusted media rights.
+- `private_review_pipeline.mjs` now exposes verified media duration for safe manually adjusted trims. Caller must inject current membership and registry from actual backend, not frontend JSON.
+- New independent source tests: `test_feature7_reviewer.py`, `test_feature7_rights.py`, with real synthetic H264/AAC, role/revocation/expiry/foreign/hash/tamper and browser-control review refusal checks. See `REVIEWER_INTEGRATION.md`.
+- Source code is NOT a production video upload, signed private download, actual real-model transcription, mounted dashboard review UI, durable RLS human decision or Feature4 overlay renderer. Feature-owner only; coordinator-owned docs/SCHEMA unchanged. Exact-head four-job GitHub Actions proof must be checked and recorded on PR #513 before source-complete claims.
