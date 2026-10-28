@@ -113,7 +113,8 @@ def validate_runtime_node_types(object_info):
 def private_first_frame(media, *, ref, shop):
     """Caller must source media grant from current server JWT/RLS and private byte hash."""
     required = {"asset_id", "shop_id", "mime_type", "staged_basename",
-                "sha256", "width", "height", "approved", "private", "commercial_rights",
+                "sha256", "source_sha256", "source_facts_sha256", "width", "height",
+                "approved", "private", "commercial_rights",
                 "human_likeness_approved"}
     if type(media) is not dict or set(media) != required:
         raise WanCompatibilityError("Current authoritative media grant required")
@@ -130,6 +131,8 @@ def private_first_frame(media, *, ref, shop):
                          "image/webp": {"webp"}}.get(mime, set()):
         raise WanCompatibilityError("Image MIME/extension disagreement")
     _sha(media["sha256"], "first-frame SHA256")
+    _sha(media["source_sha256"], "original approved source SHA256")
+    _sha(media["source_facts_sha256"], "Feature3 approved reference fingerprint")
     w,h=media["width"],media["height"]
     if (type(w) is not int or type(h) is not int or
         not 256 <= w <= 8192 or not 256 <= h <= 8192 or
@@ -232,6 +235,8 @@ def compile_motion_direction(*, dispatch, approved_reference, profile,
     if runtime_nodes is not None: validate_runtime_node_types(runtime_nodes)
     ref=_id(shot["reference_media_id"],"approved reference")
     filename=private_first_frame(approved_reference,ref=ref,shop=shop)
+    if approved_reference["source_facts_sha256"] != shot["reference_facts_sha256"]:
+        raise WanCompatibilityError("Feature3 approved reference revision changed")
 
     # Adapt Wan official prompt_extension technical T2V-vs-I2V selection
     # deterministically. Never run upstream's optional cloud/local Qwen rewriter.
@@ -270,7 +275,8 @@ def compile_motion_direction(*, dispatch, approved_reference, profile,
         "shot_id":shot["shot_id"],"source_feature":"feature2",
         "routed_by":"feature4","approval_id":dispatch["approval_id"],
         "review_hash":dispatch["review_hash"],"lease_token":dispatch["lease_token"],
-        "source_asset_id":ref,"source_sha256":approved_reference["sha256"],
+        "source_asset_id":ref,"source_sha256":approved_reference["source_sha256"],
+        "staged_first_frame_sha256":approved_reference["sha256"],
         "reference_facts_sha256":shot["reference_facts_sha256"],
         "target_final_editorial":[1080,1920,24],
         "actual_native_request":[704,1280,24,121],
