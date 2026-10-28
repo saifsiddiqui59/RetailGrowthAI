@@ -102,7 +102,8 @@ class SafetyTests(unittest.TestCase):
                         "RETAIL_F5_COST_QUOTE_REFERENCE":"official-reviewed-quote-20261028",
                         "RETAIL_F5_QUOTED_ALL_IN_USD_PER_GPU_SECOND":"0.0001",
                         "RETAIL_F5_QUOTED_FIXED_OVERHEAD_USD":"0.01",
-                        "RETAIL_F5_OWNER_APPROVED_PER_TEST_MAX_USD":"0.20"}):
+                        "RETAIL_F5_OWNER_APPROVED_PER_TEST_MAX_USD":"0.20",
+                        "RETAIL_F5_REVIEWED_RUNTIME_IMAGE":"example.azurecr.io/f5@sha256:"+"a"*64}):
             m.start(SUB,True,True)
             self.assertEqual(az.call_args.args[:3],("containerapp","job","start"))
     def test_paid_cost_envelope_is_required_and_worst_case_bounded(self):
@@ -119,6 +120,31 @@ class SafetyTests(unittest.TestCase):
             m.require_priced_test_envelope(valid_job())
         with patch.dict(os.environ, dict(values, RETAIL_F5_QUOTED_ALL_IN_USD_PER_GPU_SECOND="NaN"), clear=True), self.assertRaises(m.SafetyError):
             m.require_priced_test_envelope(valid_job())
+
+    def test_paid_start_requires_exact_reviewed_runtime_image(self):
+        j = valid_job()
+        good = j["properties"]["template"]["containers"][0]["image"]
+        with patch.dict(os.environ, {}, clear=True), self.assertRaises(m.SafetyError):
+            m.require_approved_runtime_image(j)
+        with patch.dict(os.environ, {"RETAIL_F5_REVIEWED_RUNTIME_IMAGE": good}):
+            self.assertEqual(m.require_approved_runtime_image(j), good)
+        with patch.dict(os.environ, {"RETAIL_F5_REVIEWED_RUNTIME_IMAGE": good.replace("a"*64, "b"*64)}), self.assertRaises(m.SafetyError):
+            m.require_approved_runtime_image(j)
+        with patch.dict(os.environ, {"RETAIL_F5_REVIEWED_RUNTIME_IMAGE": "example.azurecr.io/f5:latest"}), self.assertRaises(m.SafetyError):
+            m.require_approved_runtime_image(j)
+
+    def test_paid_start_fails_without_reviewed_image_even_if_price_valid(self):
+        j = valid_job()
+        quote = {"RETAIL_F5_PAID_RUN_APPROVED":"YES","RETAIL_F5_MODEL_LICENSE_APPROVED":"YES",
+                 "RETAIL_F5_COST_QUOTE_CURRENCY":"USD",
+                 "RETAIL_F5_COST_QUOTE_REFERENCE":"official-reviewed-quote-20261028",
+                 "RETAIL_F5_QUOTED_ALL_IN_USD_PER_GPU_SECOND":"0.0001",
+                 "RETAIL_F5_QUOTED_FIXED_OVERHEAD_USD":"0.01",
+                 "RETAIL_F5_OWNER_APPROVED_PER_TEST_MAX_USD":"0.20"}
+        with patch.object(m,"job",return_value=j), patch.object(m,"check_preflight"), patch.object(m,"executions",return_value=[]), patch.object(m,"az") as az, patch.dict(os.environ,quote,clear=True):
+            with self.assertRaises(m.SafetyError):
+                m.start(SUB,True,True)
+            az.assert_not_called()
 
     def test_running_job_blocks_duplicate_start(self):
         with patch.object(m,"job",return_value=self.j),patch.object(m,"check_preflight"),\
