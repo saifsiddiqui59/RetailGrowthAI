@@ -1,8 +1,10 @@
 """Hosted debug must be read-only on actual media/drafts and no paid model."""
 from pathlib import Path
 import runpy
+import sys
 import pytest
 ROOT=Path(__file__).resolve().parents[2]
+sys.path.insert(0,str(ROOT/"scripts/ops"))
 SCRIPT=ROOT/"scripts/ops/feature2_dev_trend_readonly_diagnosis.py"
 WORKFLOW=ROOT/".github/workflows/retail-dev-feature2-readonly-diagnosis.yml"
 
