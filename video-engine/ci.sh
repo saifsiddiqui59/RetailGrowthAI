@@ -26,3 +26,29 @@ echo "PASS: 30s 1080x1920 H.264/AAC multi-image Reel, xfade, generated tone, ove
 # Feature #4 gates a real deterministic CPU producer run, not only HTML compilation.
 # No tenant credentials or new cloud resources are required.
 bash "$ROOT/video-engine/hyperframes/ci-smoke.sh"
+
+# Feature4 real-stock review candidate, only on this branch's PR CI.
+# Fail if real Pexels media cannot be fetched; never fall back to the
+# OWNER_REJECTED illustrated synthetic Reel and mislabel it as a showcase.
+# No workflow mutation, paid resource, GPU, tenant credentials or production use.
+if [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" && "${GITHUB_HEAD_REF:-}" == "feat/feature4-professional-video-studio" ]]; then
+  STOCK_PROJECT="$TMP/feature4-stock-project"
+  STOCK_PROOF="$ROOT/ci-artifacts/feature4-stock-provenance.json"
+  STOCK_MP4="$ROOT/ci-artifacts/feature4-stock-real-footage-15s.mp4"
+  python3 "$ROOT/video-engine/feature4_stock_showcase.py" --download \
+    --project "$STOCK_PROJECT" --provenance "$STOCK_PROOF"
+  # Existing verified Node 22 & HyperFrames engine; no new rendering engine.
+  timeout --signal=TERM --kill-after=10s 400s \
+    node "$ROOT/video-engine/hyperframes/render.mjs" "$STOCK_PROJECT" "$STOCK_MP4"
+  python3 - "$STOCK_MP4" <<'PY'
+import json,subprocess,sys
+info=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_streams",
+  "-show_format","-of","json",sys.argv[1]],text=True))
+v=[s for s in info["streams"] if s.get("codec_type")=="video"]
+a=[s for s in info["streams"] if s.get("codec_type")=="audio"]
+assert len(v)==len(a)==1 and v[0]["codec_name"]=="h264" and a[0]["codec_name"]=="aac"
+assert (int(v[0]["width"]),int(v[0]["height"]))==(1080,1920)
+assert abs(float(info["format"]["duration"])-15)<.3
+print("PASS: real Pexels-stock 15-second Full-HD cinematic concept; NOT approved product")
+PY
+fi
