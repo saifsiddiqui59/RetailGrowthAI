@@ -129,7 +129,8 @@ def import_model_image(*, candidate, image_bytes, authorize_import,
     authorize_import(candidate) -> {shop_id, scope, curator_approved}
     verify_image_license(candidate, image_sha256) -> {approved, license_id,
         evidence_sha256, allow_reuse, uses}
-    write_private_png(key, bytes, metadata) -> {key, sha256, private,\n        owner_shop_id, media_asset_id (registered in the same tenant)}
+    write_private_png(key, bytes, metadata) -> {key, sha256, private,
+        owner_shop_id, media_asset_id (registered in the same tenant)}
     register_model(record) -> {model_id, status, scope, owner_shop_id, media_asset_id}
     All callbacks must reauthorize; browser declarations never confer rights.
     """
@@ -190,7 +191,8 @@ def import_model_image(*, candidate, image_bytes, authorize_import,
     if (not isinstance(saved, dict) or
         any(saved.get(key) != value for key, value in (
             ("model_id", model_id), ("owner_shop_id", candidate.owner_shop_id),
-            ("scope", candidate.scope), ("status", "PENDING_REVIEW"),\n            ("media_asset_id", asset_id)))):
+            ("scope", candidate.scope), ("status", "PENDING_REVIEW"),
+            ("media_asset_id", asset_id)))):
         raise ModelLibraryDenied("Authenticated library registration mismatch")
     return record
 
