@@ -7,6 +7,7 @@ server-side; queue messages carry UUIDs, not bytes, tokens or remote URLs.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha256
 from io import BytesIO
 import math
 import time
@@ -144,28 +145,65 @@ class OptionalGPUProvider:
                 "within_job_budget": within_budget}
 
     def execute(self, job, *, resolve_assets, write_private_output,
-                reserve_usage=None, finalize_usage=None):
-        """GPU-worker-only lease/accounting and private storage handshake.
+                reserve_usage=None, finalize_usage=None,
+                claim_job=None, reauthorize=None):
+        """Private GPU worker boundary. No direct client-driven execution.
 
-        The caller supplies transactional idempotent shop+job reservation,
-        RLS/rights-verified assets, immutable private writer and terminal usage
-        accounting. This class never accepts a direct HTTP user-request body.
+        Only server-controlled callbacks may verify an *existing* DB lease,
+        current member/subscription/media rights, DB-atomic spend reservation,
+        private staged storage and fenced terminal settlement. A callback's
+        claim alone does not turn this into a hosted Azure integration.
         """
         job.validate(self.config)
         status = self.status()
         if not status["enabled"]:
             raise ProviderBlocked("Licensed, quoted GPU provider is not enabled")
-        callbacks = (resolve_assets, write_private_output, reserve_usage, finalize_usage)
+        callbacks = (claim_job, reauthorize, resolve_assets,
+                     reserve_usage, write_private_output, finalize_usage)
         if not all(callable(cb) for cb in callbacks):
-            raise ProviderBlocked("Tenant-private media and durable usage ledger required")
+            raise ProviderBlocked("Durable claim, RLS, private media and usage ledger required")
+        claim = claim_job(job.shop_id, job.job_id, job.attempt)
+        if (not isinstance(claim, dict)
+            or set(claim) != {"shop_id", "job_id", "attempt", "claim_token"}
+            or claim.get("shop_id") != job.shop_id
+            or claim.get("job_id") != job.job_id
+            or claim.get("attempt") != job.attempt):
+            raise ProviderBlocked("Authoritative GPU job claim was denied")
+        try:
+            claim_token = _uuid(claim["claim_token"])
+            if str(UUID(claim_token).version) != "4":
+                raise ValueError("Claim is not an unpredictable v4 UUID")
+        except (TypeError, KeyError, ValueError) as exc:
+            raise ProviderBlocked("Invalid GPU job claim fencing token") from exc
+        if reauthorize(job.shop_id, job.job_id, claim_token, job.source_asset_ids) is not True:
+            raise ProviderBlocked("Current retailer/media authorization denied")
         inputs = resolve_assets(job.shop_id, job.source_asset_ids)
         if not isinstance(inputs, dict) or set(inputs) != set(job.source_asset_ids):
             raise ProviderBlocked("Source assets not authorized")
-        reservation = reserve_usage(job.shop_id, job.job_id, job.attempt, self.quote())
-        if not isinstance(reservation, str) or not reservation.strip():
-            raise ProviderBlocked("Durable quota reservation denied")
+        reservation = reserve_usage(
+            job.shop_id, job.job_id, job.attempt, self.quote(), claim_token,
+        )
+        if (not isinstance(reservation, dict)
+            or set(reservation) != {
+                "reservation_id", "shop_id", "job_id", "attempt",
+                "claim_token", "reserved_usd"
+            }
+            or reservation.get("shop_id") != job.shop_id
+            or reservation.get("job_id") != job.job_id
+            or reservation.get("attempt") != job.attempt
+            or reservation.get("claim_token") != claim_token
+            or type(reservation.get("reserved_usd")) not in (int, float)
+            or not math.isfinite(reservation["reserved_usd"])
+            or reservation["reserved_usd"] < self.quote()
+            or reservation["reserved_usd"] > self.config.max_cost_usd_per_job):
+            raise ProviderBlocked("Bounded durable GPU quota reservation denied")
+        try:
+            reservation_id = _uuid(reservation["reservation_id"])
+        except (TypeError, ValueError) as exc:
+            raise ProviderBlocked("Invalid private spend reservation identity") from exc
         wall = 0.0
         completed = False
+        receipt = None
         try:
             started = time.monotonic()
             output = self.runner(job, inputs)
@@ -173,23 +211,54 @@ class OptionalGPUProvider:
             if wall > self.config.max_execution_seconds:
                 raise ProviderBlocked("Inference exceeded bounded wall-time budget")
             clean = _verified_png(output)
-            result = write_private_output(job.shop_id, job.job_id, clean, {
+            if reauthorize(job.shop_id, job.job_id, claim_token, job.source_asset_ids) is not True:
+                raise ProviderBlocked("Retailer/media rights revoked during GPU execution")
+            digest = sha256(clean).hexdigest()
+            receipt = write_private_output(job.shop_id, job.job_id, clean, {
                 "provider": self.config.name,
                 "provider_version": self.config.version,
                 "weights_license": self.config.weights_license,
-                "synthetic": True, "attempt": job.attempt,
+                "synthetic": True,
+                "attempt": job.attempt, "claim_token": claim_token,
                 "source_asset_ids": list(job.source_asset_ids),
+                "image_sha256": digest,
                 "quoted_cost_usd": self.quote(),
                 "inference_wall_seconds": round(wall, 3),
-                "requires_human_review": job.capability == "virtual_try_on",
+                "requires_human_review": True,
                 "garment_fidelity_not_guaranteed": job.capability == "virtual_try_on",
             })
+            if (not isinstance(receipt, dict)
+                or set(receipt) != {
+                    "shop_id", "job_id", "attempt", "claim_token",
+                    "media_asset_id", "image_sha256", "private",
+                    "review_status"
+                }
+                or receipt.get("shop_id") != job.shop_id
+                or receipt.get("job_id") != job.job_id
+                or receipt.get("attempt") != job.attempt
+                or receipt.get("claim_token") != claim_token
+                or receipt.get("image_sha256") != digest
+                or receipt.get("private") is not True
+                or receipt.get("review_status") != "UNREVIEWED"):
+                raise ProviderBlocked("Untrusted or cross-tenant generated media receipt")
+            try:
+                if _uuid(receipt["media_asset_id"]) != receipt["media_asset_id"]:
+                    raise ValueError("Noncanonical output asset")
+            except (TypeError, KeyError, ValueError) as exc:
+                raise ProviderBlocked("No registered private output media identity") from exc
             completed = True
-            return result
         finally:
-            # Commit usage once via a DB fencing/idempotency operation whether
-            # image output succeeded or failed. On ledger failure, fail closed.
-            finalize_usage(reservation, round(wall, 3), completed)
+            # A failed finalize denies success; the caller's fenced DB
+            # transaction must also quarantine orphaned staged objects.
+            outcome = finalize_usage(
+                reservation_id, round(wall, 3), completed, claim_token,
+            )
+            if (not isinstance(outcome, dict) or
+                outcome != {"shop_id": job.shop_id, "job_id": job.job_id,
+                            "attempt": job.attempt, "claim_token": claim_token,
+                            "finalized": True}):
+                raise ProviderBlocked("Durable GPU usage settlement was not acknowledged")
+        return receipt
 
 
 FLUX_KLEIN_4B = ProviderConfig(
