@@ -228,6 +228,47 @@ class WanComfyPrivateProtocolTests(unittest.TestCase):
         with self.assertRaisesRegex(WanCompatibilityError,"already consumed"):
             dispatcher.submit_once(**args)
 
+    def test_parallel_calls_on_one_dispatcher_post_only_once(self):
+        from concurrent.futures import ThreadPoolExecutor
+        pkg=synthetic_package()
+        fake=FakeLocalComfy(pkg)
+        dispatcher=WanPrivateComfyDispatcher(fake,enabled=True)
+        args=inputs(pkg)
+        def submit(_):
+            try:
+                dispatcher.submit_once(**args)
+                return "submitted"
+            except WanCompatibilityError as exc:
+                return str(exc)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results=list(executor.map(submit,(1,2)))
+        self.assertCountEqual(
+            results,["submitted","Comfy dispatcher already consumed one paid attempt"])
+        self.assertEqual(len([c for c in fake.calls if c[0]=="POST"]),1)
+
+    def test_missing_post_intent_grant_ack_stays_unknown_and_consumed(self):
+        pkg=synthetic_package()
+        fake=FakeLocalComfy(pkg)
+        calls=[]
+        recorded=[]
+        def grant(shop,asset,digest):
+            calls.append(1)
+            if len(calls)==3:
+                raise TimeoutError("simulated rights reader outage")
+            return private_f3_proof(shop,asset,digest)
+        def once(*args):
+            recorded.append(args)
+            return True
+        dispatcher=WanPrivateComfyDispatcher(fake,enabled=True)
+        args=inputs(pkg,verify_current_private_first_frame=grant,
+                    record_unique_submission_intent=once)
+        with self.assertRaisesRegex(UnknownComfyPaidAttempt,"rights unknown"):
+            dispatcher.submit_once(**args)
+        self.assertEqual(len(recorded),1)
+        self.assertFalse(any(c[0]=="POST" for c in fake.calls))
+        with self.assertRaisesRegex(WanCompatibilityError,"already consumed"):
+            dispatcher.submit_once(**args)
+
     def test_malformed_ack_and_value_equal_forged_local_receipt_denied(self):
         from dataclasses import replace
         pkg=synthetic_package()
