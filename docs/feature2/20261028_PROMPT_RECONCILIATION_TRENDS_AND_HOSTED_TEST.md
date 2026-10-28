@@ -31,3 +31,17 @@
 
 - Done: genuine prompt consumption reconciliation and no-retry future-usage fix, actual hosted trend feed diagnosis, source-only media + signed E2E harness, genuine seven-day TEXT-ONLY model canary.
 - Not automatically done: prompt **editorial quality** (still failed model text); relevant **live fashion trend** and real product-photo licensing; actual hosted E2E DRAFT persistence if no relevant source. Do not alter PROD or WineShopPOS. Maintain owner-approved **zero-new-paid-AI** constraint.
+
+## 2026-10-28 — protected actual hosted signed continuation: partial acceptance PASS, persisted DRAFT blocked
+
+- [PR #481](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/481) merged to main `83a9ac055c710b4c040de1ca2e1075852340abd3`. Exact branch [CI #40665557947](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40665557947) passed all four jobs. Stale duplicate conflict PR #477 was closed without merging.
+- [Protected DEV hosted #40665965219](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40665965219) **SUCCESS** with genuine signed JWT and exact previously approved synthetic shop:
+  - `FEATURE2_HOSTED_SIGNED_EXISTING_ORIGINAL_IMAGE_READBACK=PASS` and `FEATURE2_HOSTED_SIGNED_ORIGINAL_IMAGE_UPLOAD_AND_REGISTRATION=PASS` (private first-party-owned original PNG, not retailer photograph).
+  - `FEATURE2_HOSTED_SIGNED_ZERO_PAID_PROMPT_PREVIEW=PASS` (deterministic preview, not another GPT call).
+  - `FEATURE2_TRENDS_SAFE_GET_503_RETRY=1/2` (actual Azure HTTP 503 during bounded GET retries); later real source-backed response had no clothing item.
+  - `FEATURE2_HOSTED_REAL_FASHION_TREND=NOT_AVAILABLE_FAIL_CLOSED`, `FEATURE2_HOSTED_DRAFT_SAVE=BLOCKED_NO_RELEVANT_LIVE_TREND`, `FEATURE2_HOSTED_UNVERIFIED_TREND_POST=SKIPPED_NO_FABRICATED_ID`.
+  - `FEATURE2_HOSTED_TEST_MEMBERSHIP_REVOKED=PASS`, `FEATURE2_HOSTED_AI_BUDGET_NEVER_ENABLED=PASS`.
+- Independently verified in exact Supabase DEV: **0 DRAFT records**, 1 rights-owned isolated synthetic media asset, 0 active test memberships, 0 enabled budgets. 2026-10-26/27/28 Google RSS daily snapshots each had 10 real trends and **zero clothing**. Neither positive hosted DRAFT save/readback nor a real commercially cleared clothing product photograph is proven. Do not represent the zero-cost workflow's SUCCESS as full hosted E2E acceptance.
+- Ledger independently remains **two SETTLED rows**, campaign `$0.004569` and prompt `$0.000717` = **$0.005286 public-rate estimate**, not Azure billed invoice. No paid new call.
+- Remaining next step is genuine real fashion trend + product-media evidence and a successful signed DRAFT POST/GET when API reliability permits; never fake signals or bypass tenant/ROOT gating. Main CI for the release was superseded by adjacent concurrent merges; branch 4/4 and protected hosted run separately independently verified.
+
