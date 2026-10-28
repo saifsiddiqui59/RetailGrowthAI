@@ -10,7 +10,7 @@ import './TimelineStudioSurface.css'
 // the existing approved rg_video_v2 and trusted HyperFrames renderer.
 // No upstream localStorage account, cloud upload or independent video exporter.
 export default function TimelineStudioSurface({ draft, onChange, onSelectScene, mediaAssets = [], musicAssets = [],
-  selectedSceneIndex = 0, approvedDirection = false }) {
+  selectedSceneIndex = 0, approvedDirection = false, spokenCaptions = [] }) {
   const [history, setHistory] = useState(() => createEditorHistory(draft))
   const [playhead, setPlayhead] = useState(0)
   const [zoom, setZoom] = useState(() => getTimelineAutoFitZoom(draft.duration_seconds))
@@ -159,6 +159,19 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
             handlersRef={handlers} />)}
         </div>
       </div>
+      {spokenCaptions.length > 0 && <div className="f4-ts-row">
+        <span className="f4-ts-track-name">SPOKEN SUBTITLES</span>
+        <div className="f4-studio-track-body f4-ts-captions"
+          aria-label="Approved spoken subtitles" style={{pointerEvents:'none'}}>
+          {spokenCaptions.map((cue,i)=><TimelineCaptionClip key={'spoken-'+i}
+            segment={{id:'approved-spoken-'+i,text:cue.text,hidden:false}}
+            index={i} laneIndex={1} start={cue.start} duration={cue.duration}
+            timelineDuration={draft.duration_seconds}
+            current={playhead>=cue.start&&playhead<cue.start+cue.duration}
+            selected={false} dragging={false} reorderTarget={false}
+            rangeSelected={false} placeholder={false} handlersRef={handlers} />)}
+        </div>
+      </div>}
       <div className="f4-ts-row">
         <span className="f4-ts-track-name">MUSIC</span>
         <div className="f4-studio-track-body f4-ts-audio">

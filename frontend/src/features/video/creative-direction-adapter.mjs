@@ -2,6 +2,29 @@
 // Proposed read-only F2 handoff adapter. No trust is conferred by browser approval.
 import { compatibleMedia, validateVideoDraft } from './video-model.mjs'
 const id = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(value)
+// Read-only preview of the Feature2-reviewed timed transcript. Server approval
+// and audio provenance MUST be independently verified before a render.
+export function checkedPreviewCaptionCues(cues,duration) {
+  if(cues == null) return []
+  if(!Array.isArray(cues) || cues.length<1 || cues.length>60 ||
+     ![15,30,60].includes(duration)) throw Error('Unsupported approved spoken subtitles')
+  let prior=0
+  return cues.map(c=>{
+    if(!c || typeof c!=='object' || Array.isArray(c) ||
+       Object.keys(c).sort().join(',')!=='duration,start,text' ||
+       typeof c.start!=='number' || !Number.isFinite(c.start) ||
+       typeof c.duration!=='number' || !Number.isFinite(c.duration) ||
+       c.start<0 || c.duration<.2 || c.duration>6 ||
+       c.start<prior-.001 || c.start+c.duration>duration+.001 ||
+       typeof c.text!=='string' || c.text!==c.text.trim() ||
+       !c.text.length || c.text.length>90 || /[<>\x00-\x1F\x7F]/.test(c.text)) {
+      throw Error('Feature2 spoken subtitle has unsafe or overlapping timecodes')
+    }
+    prior=c.start+c.duration
+    return {start:c.start,duration:c.duration,text:c.text}
+  })
+}
+
 export function inspectCreativeDirection(packageData, { shopId, mediaAssets = [], musicAssets = [] } = {}) {
   if (!packageData || typeof packageData !== 'object' || Array.isArray(packageData) ||
       packageData.version !== 'creative_direction_v1' ||
@@ -63,6 +86,15 @@ export function inspectCreativeDirection(packageData, { shopId, mediaAssets = []
         a.shop_id === shopId && a.authorized === true && a.kind === 'audio')) {
     throw Error('Feature #2 narration is not rights-authorized for this shop')
   }
+  const sourceScript=packageData.script
+  if(sourceScript != null && (sourceScript.source_feature!=='feature2' ||
+      sourceScript.approved!==true || sourceScript.approval_id!==packageData.approval_id)) {
+    throw Error('Feature2 spoken transcript revision is not approved')
+  }
+  const captionCues=checkedPreviewCaptionCues(sourceScript?.transcript,packageData.duration_seconds)
+  if(captionCues.length && !packageData.voiceover_asset_id) {
+    throw Error('Spoken subtitles require reviewed narration media')
+  }
   const draft = { version: 'rg_video_v2', shop_id: shopId, mode: 'media',
     template: packageData.template, duration_seconds: packageData.duration_seconds,
     output: { width: 1080, height: 1920, fps: 30 }, scenes,
@@ -73,5 +105,5 @@ export function inspectCreativeDirection(packageData, { shopId, mediaAssets = []
   // Full original package (including camera details and motion prompts) stays
   // independently persisted by Feature2/coordinator, NEVER in an editable browser draft.
   return { draft, approvalId: packageData.approval_id, campaignId: packageData.campaign_id,
-    reviewHash: packageData.review_hash, readOnly: true }
+    reviewHash: packageData.review_hash, captionCues, readOnly: true }
 }

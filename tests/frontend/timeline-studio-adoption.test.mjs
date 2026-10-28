@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { studioRanges, studioSplit, studioReorder, studioTrimPair, studioSourceTrim, studioValidatedDraft } from '../../frontend/src/features/video/timeline-studio-bridge.mjs'
-import { inspectCreativeDirection } from '../../frontend/src/features/video/creative-direction-adapter.mjs'
+import { inspectCreativeDirection, checkedPreviewCaptionCues } from '../../frontend/src/features/video/creative-direction-adapter.mjs'
 import { createEditorHistory, pushEditorHistory, undoEditorHistory, redoEditorHistory } from '../../frontend/src/features/video/vendor/editorHistoryCore.mjs'
 import { packTimedSegmentsIntoLanes, materializeCaptionTimings, getVisualSegmentTimeline } from '../../frontend/src/features/video/vendor/timeline.js'
 import { getTimelineRulerTicks, getTimelineAutoFitZoom } from '../../frontend/src/features/video/vendor/timelineScale.js'
@@ -268,4 +268,30 @@ test('splitting a scene never duplicates or truncates its approved timed SFX',()
  assert.deepEqual(validateVideoDraft(split,assets,music),[])
  assert.throws(()=>studioSplit(audio,1,1,assets),/cut through the approved 2-second/)
  assert.deepEqual(audio.scenes[1].duration,10)
+})
+
+test('Feature2 approved timed subtitles display as immutable transcript instead of scene headings',()=>{
+ const d=direction()
+ d.voiceover_asset_id='licensed_music'
+ d.script={source_feature:'feature2',approved:true,approval_id:'approval1',
+  transcript:[{start:.5,duration:2,text:'Approved voice cue'},
+  {start:20,duration:2,text:'Visit our store'}]}
+ const unchanged=structuredClone(d)
+ const result=inspectCreativeDirection(d,{shopId:SHOP,mediaAssets:assets,musicAssets:music})
+ assert.equal(result.captionCues.length,2)
+ assert.equal(result.captionCues[1].start,20)
+ assert.deepEqual(d,unchanged)
+ assert.equal(result.draft.scenes.length,3)
+ for(const change of [
+  q=>q.script.transcript[1].start=1,
+  q=>q.script.transcript[0].text='<script>',
+  q=>q.script.approved=false,
+  q=>q.script.approval_id='another',
+  q=>q.voiceover_asset_id=null,
+ ]) {
+  const candidate=structuredClone(d)
+  change(candidate)
+  assert.throws(()=>inspectCreativeDirection(candidate,{shopId:SHOP,mediaAssets:assets,musicAssets:music}))
+ }
+ assert.throws(()=>checkedPreviewCaptionCues([{start:0,duration:35,text:'bad'}],30))
 })

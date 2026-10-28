@@ -312,6 +312,7 @@ export default function VideoStudio({
       <TimelineStudioSurface draft={draft} mediaAssets={mediaAssets} musicAssets={musicAssets}
         selectedSceneIndex={selectedSceneIndex} onSelectScene={setSelectedSceneIndex}
         approvedDirection={Boolean(creativeDirection)}
+        spokenCaptions={approvedRead?.captionCues || []}
         onChange={next => { setDraft(next); setSubmitted(false) }} />
     </section>
   )

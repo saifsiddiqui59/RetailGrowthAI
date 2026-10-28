@@ -130,3 +130,19 @@ test('editing after a successful render hides stale signed MP4 rather than displ
   await expect(page.getByLabel('Signed private rendered video')).toHaveCount(0)
   await expect(page.getByRole('button',{name:'Submit authorized render'})).toBeEnabled()
 })
+
+test('approved spoken subtitle lane shows precise Feature2 timing, cannot be edited',async ({page})=>{
+ await page.setViewportSize({width:390,height:844})
+ await mount(page,true)
+ const transcript=page.getByLabel('Approved spoken subtitles')
+ await expect(transcript).toBeVisible()
+ await expect(transcript.locator('[data-timeline-segment-track="caption"]')).toHaveCount(3)
+ await expect(transcript).toContainText('Reviewed spoken intro')
+ await expect(transcript).toContainText('Exactly reviewed offer')
+ await expect(page.getByRole('button',{name:'Split video at playhead'})).toBeDisabled()
+ const widths=await transcript.locator('[data-timeline-segment-track="caption"]').first()
+   .evaluate(el=>({left:el.style.getPropertyValue('--caption-left'),
+                   width:el.style.getPropertyValue('--caption-width')}))
+ expect(widths.left).toBe('1.6666666666666667%')
+ expect(widths.width).toBe('6.666666666666667%')
+})
