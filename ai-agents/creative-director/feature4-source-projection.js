@@ -35,9 +35,12 @@ function projectReviewedCreativeForF4(bundle,receipt,secret,shopId,sourceSnapsho
     if(!_UUID.test(motion.reference_media_id)||
       !asset||asset.shop_id!==shopId||asset.approved!==true||
       asset.private!==true||asset.commercial_rights!==true||
-      asset.kind!=='image'||asset.original_media_sha256!==sourceSnapshot.original_media_sha256||
-      asset.original_media_sha256!==plan.original_media_sha256 &&
-        plan.original_media_sha256 !== undefined)
+      asset.kind!=='image'|| !/^[a-f0-9]{64}$/.test(asset.original_media_sha256)||
+      motion.reference_facts_sha256!==sha({
+        media_id:motion.reference_media_id,
+        original_media_sha256:asset.original_media_sha256,
+        garment:motion.garment_lock,shop_id:shopId
+      }))
       reject('Source image bytes/rights need current server review');
     if(motion.duration_seconds!==5||!_SAFE.test(motion.shot_id)||
        typeof motion.generation_prompt!=='string'||motion.generation_prompt.length>1500||
