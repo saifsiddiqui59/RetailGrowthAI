@@ -61,15 +61,15 @@ class GPUControls(unittest.TestCase):
         obj.update(kwargs)
         return SimpleNamespace(**obj)
 
-    def run(self, action="start", **kwargs):
+    def invoke(self, action="start", **kwargs):
         return execute(self.args(action, **kwargs), runner=self.runner, environ=self.env)
 
     def test_default_dry_run_never_calls_azure(self):
-        p = self.run()
+        p = self.invoke()
         self.assertEqual(p["mode"], "DRY_RUN")
         self.assertEqual(p["worst_case_usd"], "0.4500")
         self.assertEqual(self.calls, [])
-        p = self.run("stop", execution="running-1")
+        p = self.invoke("stop", execution="running-1")
         self.assertEqual(p["mode"], "DRY_RUN")
         self.assertEqual(self.calls, [])
 
@@ -77,7 +77,7 @@ class GPUControls(unittest.TestCase):
         for key in ("RETAIL_FEATURE3_GPU_ENABLED", "RETAIL_FEATURE3_FLUX_START_APPROVED"):
             old = self.env.pop(key)
             with self.subTest(key=key), self.assertRaises(GPUControlDenied):
-                self.run(execute=True)
+                self.invoke(execute=True)
             self.env[key] = old
         self.assertEqual(self.calls, [])
 
@@ -86,11 +86,11 @@ class GPUControls(unittest.TestCase):
                         {"rate_usd_per_sec": "0.5", "max_usd": "2.50"},
                         {"max_usd": "3.0"}, {"job": "invalid JOB"}):
             with self.subTest(changes=changes), self.assertRaises(GPUControlDenied):
-                self.run(execute=True, **changes)
+                self.invoke(execute=True, **changes)
         self.assertEqual(self.calls, [])
 
     def test_existing_exact_job_one_execution_only(self):
-        receipt = self.run(execute=True)
+        receipt = self.invoke(execute=True)
         self.assertEqual(receipt["result"], "COMMAND_SUBMITTED_NOT_VERIFIED")
         self.assertTrue(any(x[1:4] == ["containerapp", "job", "start"] for x in self.calls))
         self.assertFalse(any("create" in x for argv in self.calls for x in argv))
@@ -100,7 +100,7 @@ class GPUControls(unittest.TestCase):
             self.calls.clear()
             self.executions = [{"name": "running-1", "status": state}]
             with self.subTest(state=state), self.assertRaises(GPUControlDenied):
-                self.run(execute=True)
+                self.invoke(execute=True)
             self.assertFalse(any(x[1:4] == ["containerapp", "job", "start"] for x in self.calls))
 
     def test_wrong_tenant_job_metadata_or_mutable_image_denied(self):
@@ -116,14 +116,14 @@ class GPUControls(unittest.TestCase):
             self.data = {**GOOD_JOB, **patch}
             self.calls.clear()
             with self.subTest(patch=str(patch)[:50]), self.assertRaises(GPUControlDenied):
-                self.run(execute=True)
+                self.invoke(execute=True)
             self.assertFalse(any(x[1:4] == ["containerapp", "job", "start"] for x in self.calls))
         self.data = GOOD_JOB
 
     def test_exact_stop_allowed_even_when_gpu_start_disabled(self):
         self.env.clear()
         self.executions = [{"name": "running-1", "status": "Running"}]
-        out = self.run("stop", execute=True, execution="running-1")
+        out = self.invoke("stop", execute=True, execution="running-1")
         self.assertEqual(out["result"], "COMMAND_SUBMITTED_NOT_VERIFIED")
         cmd = next(x for x in self.calls if x[1:4] == ["containerapp", "job", "stop"])
         self.assertIn("--job-execution-name", cmd)
@@ -131,14 +131,14 @@ class GPUControls(unittest.TestCase):
 
     def test_stop_requires_named_execution_and_does_not_bulk_stop(self):
         with self.assertRaises(GPUControlDenied):
-            self.run("stop", execute=True)
+            self.invoke("stop", execute=True)
         with self.assertRaises(GPUControlDenied):
-            self.run("stop", execute=True, execution="foreign-run")
+            self.invoke("stop", execute=True, execution="foreign-run")
         self.assertFalse(any(x[1:4] == ["containerapp", "job", "stop"] for x in self.calls))
 
     def test_completed_stop_is_noop(self):
         self.executions = [{"name": "old-run", "status": "Succeeded"}]
-        out = self.run("stop", execute=True, execution="old-run")
+        out = self.invoke("stop", execute=True, execution="old-run")
         self.assertEqual(out["result"], "ALREADY_TERMINAL")
         self.assertFalse(any(x[1:4] == ["containerapp", "job", "stop"] for x in self.calls))
 
