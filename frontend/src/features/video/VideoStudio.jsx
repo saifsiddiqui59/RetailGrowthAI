@@ -47,7 +47,7 @@ export default function VideoStudio({
     () => [...validateVideoDraft(draft, mediaAssets, musicAssets), ...(approvedRead?.error ? [approvedRead.error] : [])],
     [draft, mediaAssets, musicAssets],
   )
-  const patch = (changes) => { setDraft(prev => ({ ...prev, ...changes })); setSubmitted(false) }
+  const patch = (changes) => { if (creativeDirection) return; setDraft(prev => ({ ...prev, ...changes })); setSubmitted(false) }
   const selectedScene = draft.scenes[Math.min(selectedSceneIndex, draft.scenes.length - 1)]
   const sceneSource = (Array.isArray(mediaAssets) ? mediaAssets : [])
     .find(item => item?.authorized === true && item.id === selectedScene?.asset_id)
@@ -59,6 +59,7 @@ export default function VideoStudio({
     }
   } catch { /* Invalid or cross-tenant source previews are never rendered. */ }
   function changeDuration(next) {
+    if (creativeDirection) return
     try {
       patch(retimeVideoDraft(draft, next))
       setError('')
@@ -71,6 +72,7 @@ export default function VideoStudio({
   ) })
 
   function newDraft({ mode = draft.mode, template = draft.template, duration = draft.duration_seconds } = {}) {
+    if (creativeDirection) return
     setDraft(makeVideoDraft({ shopId, mode, template, duration, mediaAssets }))
     setError('')
     setSubmitted(false)
@@ -105,27 +107,28 @@ export default function VideoStudio({
         <span className="f4-status">{renderStatus?.shop_id === shopId ? renderStatus.status : 'LOCAL DRAFT'}</span>
       </header>
       <div className="f4-layout">
-        <form className="f4-controls" onSubmit={submit}>
+        <form className="f4-controls" onSubmit={submit} aria-label="Approved render options">
+          {creativeDirection && <p className="f4-guidance" role="status">Feature #2 approved copy, scenes and camera direction are locked. Editing needs renewed creative approval.</p>}
           <div className="f4-two">
             <label>Video type
-              <select value={draft.mode} onChange={e => newDraft({ mode: e.target.value })}>
+              <select disabled={Boolean(creativeDirection)} value={draft.mode} onChange={e => newDraft({ mode: e.target.value })}>
                 {VIDEO_MODES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
               </select>
             </label>
             <label>Professional style
-              <select value={draft.template} onChange={e => patch({ template: e.target.value })}>
+              <select disabled={Boolean(creativeDirection)} value={draft.template} onChange={e => patch({ template: e.target.value })}>
                 {VIDEO_TEMPLATES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
               </select>
             </label>
           </div>
           <div className="f4-two">
             <label>Duration
-              <select value={draft.duration_seconds} onChange={e => changeDuration(Number(e.target.value))}>
+              <select disabled={Boolean(creativeDirection)} value={draft.duration_seconds} onChange={e => changeDuration(Number(e.target.value))}>
                 {[15, 30, 60].map(n => <option key={n} value={n}>{n} seconds</option>)}
               </select>
             </label>
             <label>Approved soundtrack
-              <select value={draft.music_asset_id || ''} onChange={e => patch({ music_asset_id: e.target.value || null })}>
+              <select disabled={Boolean(creativeDirection)} value={draft.music_asset_id || ''} onChange={e => patch({ music_asset_id: e.target.value || null })}>
                 <option value="">No licensed music / silent export</option>
                 {musicAssets.filter(track => track?.authorized === true).map(track =>
                   <option key={track.id} value={track.id}>{track.title || track.id}</option>)}
@@ -142,31 +145,31 @@ export default function VideoStudio({
                 <legend>SCENE {String(index + 1).padStart(2, '0')} · {scene.start}s – {scene.start + scene.duration}s</legend>
                 <div className="f4-reorder">
                   <button type="button" onClick={() => patch({ scenes: shiftVideoScene(draft.scenes, index, -1) })}
-                    disabled={index === 0} aria-label={'Move scene ' + (index + 1) + ' earlier'}>↑ Earlier</button>
+                    disabled={Boolean(creativeDirection) || index === 0} aria-label={'Move scene ' + (index + 1) + ' earlier'}>↑ Earlier</button>
                   <button type="button" onClick={() => patch({ scenes: shiftVideoScene(draft.scenes, index, 1) })}
-                    disabled={index === draft.scenes.length - 1}
+                    disabled={Boolean(creativeDirection) || index === draft.scenes.length - 1}
                     aria-label={'Move scene ' + (index + 1) + ' later'}>↓ Later</button>
                 </div>
                 {draft.mode !== 'text' && (
                   <label>Approved product, poster or footage
-                    <select value={scene.asset_id || ''} onChange={e => patchScene(index, { asset_id: e.target.value || undefined })}>
+                    <select disabled={Boolean(creativeDirection)} value={scene.asset_id || ''} onChange={e => patchScene(index, { asset_id: e.target.value || undefined })}>
                       <option value="">Select an authorized asset</option>
                       {assets.map(media => <option key={media.id} value={media.id}>{media.name || media.id} · {media.kind}</option>)}
                     </select>
                   </label>
                 )}
                 <label>Animated headline
-                  <input value={scene.headline} maxLength={110} onChange={e => patchScene(index, { headline: e.target.value })} />
+                  <input disabled={Boolean(creativeDirection)} value={scene.headline} maxLength={110} onChange={e => patchScene(index, { headline: e.target.value })} />
                 </label>
                 <div className="f4-two">
                   <label>Motion
-                    <select value={scene.animation_preset || 'subtle_zoom'}
+                    <select disabled={Boolean(creativeDirection)} value={scene.animation_preset || 'subtle_zoom'}
                       onChange={e => patchScene(index, { animation_preset: e.target.value })}>
                       {VIDEO_ANIMATIONS.map(value => <option key={value} value={value}>{value.replace('_', ' ')}</option>)}
                     </select>
                   </label>
                   <label>Scene transition
-                    <select value={scene.transition || 'fade'}
+                    <select disabled={Boolean(creativeDirection)} value={scene.transition || 'fade'}
                       onChange={e => patchScene(index, { transition: e.target.value })}>
                       {VIDEO_TRANSITIONS.map(value => <option key={value} value={value}>{value}</option>)}
                     </select>
@@ -174,7 +177,7 @@ export default function VideoStudio({
                 </div>
                 {draft.mode !== 'text' && approvedPosters.length > 0 && (
                   <label>Reviewed promotion poster overlay (optional)
-                    <select value={scene.poster_overlay_asset_id || ''}
+                    <select disabled={Boolean(creativeDirection)} value={scene.poster_overlay_asset_id || ''}
                       onChange={e => patchScene(index, { poster_overlay_asset_id: e.target.value || undefined })}>
                       <option value="">No poster on this scene</option>
                       {approvedPosters.filter(poster => poster.id !== scene.asset_id).map(poster =>
@@ -183,18 +186,18 @@ export default function VideoStudio({
                   </label>
                 )}
                 <label>Approved offer (optional)
-                  <input value={scene.offer || ''} maxLength={70}
+                  <input disabled={Boolean(creativeDirection)} value={scene.offer || ''} maxLength={70}
                     placeholder="Only real retailer-approved claims"
                     onChange={e => patchScene(index, { offer: e.target.value || undefined })} />
                 </label>
                 {draft.mode === 'media' && assets.some(asset => asset.id === scene.asset_id && asset.kind === 'video') && (
                   <div className="f4-two">
                     <label>Start source at (seconds)
-                      <input type="number" min="0" max="180" step=".1" value={scene.trim_start || 0}
+                      <input disabled={Boolean(creativeDirection)} type="number" min="0" max="180" step=".1" value={scene.trim_start || 0}
                         onChange={e => patchScene(index, { trim_start: Number(e.target.value) })} />
                     </label>
                     <label className="f4-switch">
-                      <input type="checkbox" checked={scene.mute_source === true}
+                      <input disabled={Boolean(creativeDirection)} type="checkbox" checked={scene.mute_source === true}
                         onChange={e => patchScene(index, { mute_source: e.target.checked })} />
                       Explicitly mute original clip audio
                     </label>
@@ -204,7 +207,7 @@ export default function VideoStudio({
             ))}
           </div>
           <label>Final call to action
-            <input value={draft.cta} maxLength={110} onChange={e => patch({ cta: e.target.value })} />
+            <input disabled={Boolean(creativeDirection)} value={draft.cta} maxLength={110} onChange={e => patch({ cta: e.target.value })} />
           </label>
           {issues.length > 0 && <div role="alert" className="f4-issues">
             {issues.map(issue => <p key={issue}>{issue}</p>)}
