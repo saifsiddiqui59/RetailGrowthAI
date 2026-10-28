@@ -112,9 +112,17 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
     if any(segment in ("", ".", "..") for segment in parts) or parts[0] != shop:
         raise FashionReferenceDenied("Private media object outside owning tenant")
     if role == "garment":
-        if (row.get("source") != "UPLOAD" or
-            path != f"{shop}/uploads/{asset_id}{_EXT[row['mime_type']]}"):
+        # The existing register_uploaded_image RPC creates media_assets.id
+        # independently of the UUID filename placed in private Storage. The
+        # row is authoritative for its exact object_path; do not assume the
+        # two identifiers are equal or fabricate a Storage object key.
+        # The RPC only accepts {shop}/uploads/{storage_uuid}.{png|jpg|webp}.
+        if (row.get("source") != "UPLOAD" or len(parts) != 3 or
+            parts[1] != "uploads" or
+            not path.endswith(_EXT[row["mime_type"]])):
             raise FashionReferenceDenied("Garment must be the registered original upload")
+        storage_id = parts[2][:-len(_EXT[row["mime_type"]])]
+        _id(storage_id)
     elif role == "model":
         if (row.get("source") not in ("UPLOAD", "GENERATED") or
             len(parts) < 4 or parts[1] != "model-library" or
