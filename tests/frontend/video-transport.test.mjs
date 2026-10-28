@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  canonicalVideoId, trustedVideoPath, privateVideoUrl,
+  canonicalVideoId, trustedVideoPath, privateVideoUrl, privateMediaPreviewUrl,
   parseVideoJob, createVideoTransport,
 } from '../../frontend/src/features/video/video-transport.mjs'
 
@@ -148,4 +148,22 @@ test('parse video job never accepts cross-shop result even if server says succee
     { ...accepted, status: 'SUCCEEDED', error_code: null })
   assert.throws(() => parseVideoJob({ ...accepted, shop_id: OTHER }, SHOP), /tenant/)
   assert.throws(() => parseVideoJob({ ...accepted, job_id: OTHER }, SHOP, JOB), /requested job/)
+})
+
+test('Feature4 source previews require a matching signed tenant-private Storage asset', () => {
+  const url = SU + '/storage/v1/object/sign/retailgrowth-media/' +
+    SHOP + '/products/original-kurti.png?token=short-lived'
+  assert.equal(privateMediaPreviewUrl(url, SU, SHOP), url)
+  for (const bad of [
+    url.replace(SHOP, OTHER),
+    url.replace('https://', 'http://'),
+    url.replace('/sign/', '/public/'),
+    url.replace('example.supabase.co', 'untrusted.invalid'),
+    url.replace('token=', 'not-token='),
+    url.replace('/products/', '/products/%2e%2e/'),
+    url + '#leaked',
+    'data:image/svg+xml;base64,PHN2Zz4=',
+  ]) {
+    assert.throws(() => privateMediaPreviewUrl(bad, SU, SHOP), /preview|signed|private|Storage|shop|unsafe|URL/)
+  }
 })

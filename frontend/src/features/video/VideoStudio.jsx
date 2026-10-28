@@ -3,6 +3,7 @@ import {
   VIDEO_MODES, VIDEO_TEMPLATES, VIDEO_ANIMATIONS, VIDEO_TRANSITIONS, compatibleMedia, makeVideoDraft,
   shiftVideoScene, retimeVideoDraft, validateVideoDraft,
 } from './video-model.mjs'
+import { privateMediaPreviewUrl } from './video-transport.mjs'
 import './VideoStudio.css'
 
 // Feature-owned panel. Feature #1 must mount it in the shared authenticated layout.
@@ -33,6 +34,15 @@ export default function VideoStudio({
   )
   const patch = (changes) => { setDraft(prev => ({ ...prev, ...changes })); setSubmitted(false) }
   const selectedScene = draft.scenes[Math.min(selectedSceneIndex, draft.scenes.length - 1)]
+  const sceneSource = (Array.isArray(mediaAssets) ? mediaAssets : [])
+    .find(item => item?.authorized === true && item.id === selectedScene?.asset_id)
+  let previewSource = null
+  try {
+    if (sceneSource?.shop_id === shopId && sceneSource?.preview_url) {
+      previewSource = privateMediaPreviewUrl(
+        sceneSource.preview_url, import.meta.env?.VITE_SUPABASE_URL, shopId)
+    }
+  } catch { /* Invalid or cross-tenant source previews are never rendered. */ }
   function changeDuration(next) {
     try {
       patch(retimeVideoDraft(draft, next))
@@ -209,15 +219,23 @@ export default function VideoStudio({
           ) : (
             <div className={'f4-phone f4-' + draft.template}>
               <span className="f4-kicker">{VIDEO_TEMPLATES.find(([id]) => id === draft.template)?.[1]}</span>
-              <div className="f4-media-placeholder" aria-hidden="true">
-                <span>{selectedScene?.asset_id ? 'APPROVED ASSET ID · NO REAL VIDEO PREVIEW' : 'SELECT MEDIA TO PREVIEW'}</span>
-              </div>
+              {previewSource && sceneSource?.kind === 'video' ? (
+                <video className="f4-source-preview" src={previewSource} controls playsInline muted
+                  preload="metadata" aria-label="Authorized source footage; not rendered advertisement" />
+              ) : previewSource && ['image', 'poster'].includes(sceneSource?.kind) ? (
+                <img className="f4-source-preview" src={previewSource}
+                  alt="Authorized retailer product or poster source; not rendered advertisement" />
+              ) : (
+                <div className="f4-media-placeholder" aria-hidden="true">
+                  <span>{selectedScene?.asset_id ? 'PRIVATE SOURCE PREVIEW NOT AVAILABLE' : 'SELECT MEDIA TO PREVIEW'}</span>
+                </div>
+              )}
               <div className="f4-preview-copy">
                 <span>SCENE {selectedSceneIndex + 1} / {draft.scenes.length} · {selectedScene?.start ?? 0}–{(selectedScene?.start ?? 0) + (selectedScene?.duration ?? 0)}s</span>
                 <strong>{selectedScene?.headline || 'Your product story'}</strong>
                 <em>{selectedScene?.offer || (selectedSceneIndex === draft.scenes.length - 1 ? draft.cta : 'Approved media storyboard')}</em>
               </div>
-              <span className="f4-mock-label">STORYBOARD ONLY · NO VIDEO GENERATED</span>
+              <span className="f4-mock-label">{previewSource ? 'SOURCE ASSET · FINAL REEL NOT RENDERED' : 'STORYBOARD ONLY · NO VIDEO GENERATED'}</span>
             </div>
           )}
           <p className="f4-view-note">{ready ? 'Signed output from the existing authenticated job workflow' :

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import VideoStudio from './VideoStudio.jsx'
-import { canonicalVideoId, createVideoTransport } from './video-transport.mjs'
+import { canonicalVideoId, createVideoTransport, privateMediaPreviewUrl } from './video-transport.mjs'
 
 // Feature #4-owned authenticated bridge, NOT a mounted application route.
 // Feature #1/coordinator must supply a selected RLS-authorized shop,
@@ -32,7 +32,18 @@ export default function VideoStudioConnected({
   // The integration bridge is stricter than the local draft editor:
   // never even offer an asset belonging to a different selected shop.
   const shopMedia = useMemo(() => (Array.isArray(mediaAssets) ? mediaAssets : [])
-    .filter(asset => asset?.shop_id === shopId && asset?.authorized === true),
+    .filter(asset => asset?.shop_id === shopId && asset?.authorized === true)
+    .map(asset => {
+      // The source image/movie is displayed only when it has a validated,
+      // per-shop Supabase Storage signed URL. Invalid external URLs are never
+      // rendered as <img> or <video>. Server retains actual media authority.
+      let preview_url
+      try {
+        preview_url = privateMediaPreviewUrl(
+          asset.preview_url, import.meta.env?.VITE_SUPABASE_URL, shopId)
+      } catch { preview_url = null }
+      return { ...asset, preview_url }
+    }),
   [mediaAssets, shopId])
   const shopMusic = useMemo(() => (Array.isArray(musicAssets) ? musicAssets : [])
     .filter(asset => asset?.shop_id === shopId && asset?.authorized === true),

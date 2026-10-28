@@ -38,3 +38,8 @@
 /* Explicit, neutral storyboard placeholder: NEVER draw a fake human silhouette. */
 .f4-media-placeholder{position:absolute;inset:19% 10% 34%;display:flex;justify-content:center;align-items:center;border:1px dashed #a3adbd88;background:linear-gradient(145deg,#1b2333,#0b111d);border-radius:16px;padding:14px}
 .f4-media-placeholder span{max-width:22ch;letter-spacing:.13em;font-size:11px;text-align:center;line-height:1.7;color:#b3c2d6;font-weight:700}
+
+/* Show ONLY tenant-signed source imagery; this is not a rendered AI advertisement. */
+.f4-source-preview{position:absolute;top:16%;left:8%;width:84%;height:53%;object-fit:contain;border-radius:12px;background:#03060b;z-index:1;box-shadow:0 9px 28px #0006}
+.f4-phone>.f4-source-preview:not(video){object-position:center}
+.f4-view .f4-phone video.f4-source-preview{width:84%;aspect-ratio:auto;object-fit:contain;border-radius:12px}

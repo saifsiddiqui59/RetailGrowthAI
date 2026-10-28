@@ -5,9 +5,9 @@
 | ID | Priority | Work item | Status / strict acceptance evidence |
 |---|---|---|---|
 | F4-01 | P0 | Verify latest GitHub files and inherited CI | DONE: source checked, baseline 4/4 runs #40658598605/#40658606959 |
-| F4-02 | P0 | Bridge `rg_video_v2` frontend with `creative_reel_v1` using trusted F2/3/5 approval + media rows | SOURCE IMPLEMENTED: `feature4_intent_compiler.py` and contract tests; needs coordinator atomic DB snapshot |
+| F4-02 | P0 | Bridge `rg_video_v2` frontend with `creative_reel_v1` using trusted F2/3/5 approval + media rows | SOURCE VERIFIED: `feature4_intent_compiler.py` + private-bucket/source rights tests; 4/4 CI #40664857092 (106 media tests). Needs coordinator atomic DB approval snapshot |
 | F4-03 | P0 | Media ownership, provenance, rights, private staging, fallback and render proof | SOURCE IMPLEMENTED: `feature4_worker_handoff.py` + `_bundle` reuse and negative tests; hosted source/media acceptance remains |
-| F4-04 | P0 | Authenticated Studio UI, single submit, RLS job/status, tenant-private signed MP4 | SOURCE IMPLEMENTED, DEFAULT OFF: `VideoStudioConnected.jsx`, `video-transport.mjs`, `feature4_http_handoff.py`; not mounted in main or live |
+| F4-04 | P0 | Authenticated Studio UI, single submit, source previews, RLS job/status, tenant-private signed MP4 | SOURCE IMPLEMENTED, DEFAULT OFF: signed same-shop source media preview + `VideoStudioConnected.jsx`, `video-transport.mjs`, `feature4_http_handoff.py`; not mounted in main or live |
 | F4-05 | P0 | Actual HyperFrames composition, Full-HD 30s/60s, music ducking, FFmpeg codec, scene changes | ENGINEERING COMPLETE: real synthetic 30s and 60s Full-HD outputs in #40318231205 and #40658598605; still not photoreal release |
 | F4-06 | P0 | Coordinator-owned v2 RLS migration and atomic claim/lease/outbox/quota one-charge job | BLOCKED FOR FEATURE4 BRANCH: shared `supabase/migrations/**`, `azure-functions/**` and existing ledger require coordinator reconciliation and DEV review |
 | F4-07 | P0 | Real F3 kurti/model product imagery and F5 natural human walking footage, garment identity/fidelity proof | BLOCKED: Feature3 poster source merged in #321, but no reviewed retailer garment/model photo evidence handed to F4; Feature5 #323 remains draft/without verified actual inference |
@@ -30,3 +30,8 @@
 - Feature PR: https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322
 - Azure handoff: [FEATURE4_AZURE_HANDOFF.md](FEATURE4_AZURE_HANDOFF.md)
 - Commercial visual gate: [FEATURE4_VISUAL_ACCEPTANCE.md](FEATURE4_VISUAL_ACCEPTANCE.md)
+
+## 28 October verification
+
+- [Actions #40664857092](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40664857092) **4/4 SUCCESS**, 106 media tests, actual 30s/1080p H.264/AAC export and synthetic source-audio ducking. Exact source head `28d1aa91860bac34683970e9d196bb135764f0b4`. Human review gate tests only verify source record checks; no real human approval.
+- Subsequent source preview client changes require separate exact-head Actions check before asserting passing CI. Any newer commit invalidates earlier same-head certification until rechecked.

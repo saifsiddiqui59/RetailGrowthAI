@@ -53,6 +53,36 @@ export function privateVideoUrl(value, supabaseOrigin, shopId, jobId) {
   return url.toString()
 }
 
+export function privateMediaPreviewUrl(value, supabaseOrigin, shopId) {
+  const shop = canonicalVideoId(shopId)
+  if (typeof value !== 'string' || typeof supabaseOrigin !== 'string') {
+    throw Error('Private source preview is unavailable')
+  }
+  let url, trusted
+  try {
+    url = new URL(value)
+    trusted = new URL(supabaseOrigin)
+  } catch { throw Error('Private source preview URL invalid') }
+  if (url.protocol !== 'https:' || trusted.protocol !== 'https:' ||
+      url.origin !== trusted.origin || url.username || url.password ||
+      url.hash || !url.searchParams.get('token')) {
+    throw Error('Source preview must have a tenant-private signed URL')
+  }
+  const prefix = '/storage/v1/object/sign/retailgrowth-media/'
+  if (!url.pathname.startsWith(prefix)) throw Error('Source preview is not private Storage media')
+  let path
+  try { path = decodeURIComponent(url.pathname.slice(prefix.length)) }
+  catch { throw Error('Malformed private preview path') }
+  const parts = path.split('/')
+  if (parts[0] !== shop || parts.length < 3 ||
+      parts.some(part => !part || part === '.' || part === '..') ||
+      path.includes('\\') || path.includes('%') ||
+      !/^[a-zA-Z0-9._/-]+$/.test(path)) {
+    throw Error('Source preview belongs to another shop or unsafe path')
+  }
+  return url.toString()
+}
+
 export function parseVideoJob(data, shopId, expectedId = null) {
   const shop = canonicalVideoId(shopId)
   if (data === null || typeof data !== 'object' || Array.isArray(data) ||
