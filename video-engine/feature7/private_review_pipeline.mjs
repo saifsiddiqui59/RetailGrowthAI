@@ -54,6 +54,7 @@ export function preparePrivateReview({shop_id,campaign_id,draft,root,media,
     });
     evidence.push({scene_index:index,asset_id:item.asset_id,
       source_sha256:verified.sha256,transcript_sha256:transcript.transcript_sha256,
+      source_duration_seconds:verified.duration_seconds,
       local_media_verified:verified.validation,audio_activity:activity,
       visual_activity:include_visual_qa ? analyzeLocalVisualActivity({
         path:resolveApprovedLocalVideo({root,relative_path:item.relative_path}),
