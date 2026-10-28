@@ -133,7 +133,7 @@ def review(bundle: Mapping) -> StructuralAudit:
         issues.append("COMMERCIAL_APPROVAL_GATE_NOT_CLOSED")
     audio = plan.get("audio_sync")
     if (isinstance(audio, dict) and audio.get("state") in
-        ("ESTIMATED_PENDING_REAL_SPEECH_ALIGNMENT", "REAL_TRANSCRIPT_TIMES_VERIFIED")
+        ("ESTIMATED_PENDING_REAL_SPEECH_ALIGNMENT", "WORD_TIMES_MATCH_PENDING_AUDIO_PROVENANCE")
         and txt(plan.get("voiceover_script"), 10)
         and sum(float(s.get("duration_seconds", -999)) for s in scenes) == duration
         and all(txt(s.get("transition_out"), 3) for s in scenes)):
@@ -158,16 +158,24 @@ def blind_human_comparison(*, experiment_id: str, candidates: dict, reviews: lis
         raise ValueError("Both real candidate bundles required")
     if not isinstance(reviews, list):
         raise ValueError("Review receipts required")
+    # Exactly two balanced A/B ratings, with no duplicated weighted receipts.
+    if len(reviews) != 4 or any(
+        not isinstance(r, dict) or r.get("candidate_id") not in ("A", "B")
+        for r in reviews
+    ):
+        raise ValueError("Exactly four A/B review receipts are required")
     result = {}
     for candidate_id in ("A", "B"):
         found = [r for r in reviews if isinstance(r, dict) and r.get("candidate_id") == candidate_id]
-        if len(found) < 2 or len({r.get("reviewer_id") for r in found}) < 2:
+        if len(found) != 2 or len({r.get("reviewer_id") for r in found}) != 2:
             raise ValueError("Two independent reviewers required for " + candidate_id)
         ratings = []
         for r in found:
             scores = r.get("scores")
-            if (not isinstance(r.get("reviewer_id"), str) or not isinstance(scores, dict)
-                or set(scores) != set(HUMAN_DIMENSIONS) or
+            if (not isinstance(r.get("reviewer_id"), str) or
+                not r["reviewer_id"].strip() or len(r["reviewer_id"]) > 100 or
+                not isinstance(scores, dict) or
+                set(scores) != set(HUMAN_DIMENSIONS) or
                 any(type(v) is not int or not 0 <= v <= 5 for v in scores.values())):
                 raise ValueError("Invalid documented human rubric")
             ratings.append(sum((scores[k] / 5) * RUBRIC_WEIGHTS[k] for k in HUMAN_DIMENSIONS))
