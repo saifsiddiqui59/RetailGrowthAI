@@ -116,9 +116,14 @@ def _evidence(shop_id, model_id, row, read_license_evidence):
     provenance = evidence.get("source_uri")
     if not isinstance(provenance, str) or len(provenance) > 1500:
         raise ModelReviewDenied("Original provenance missing")
-    u = urlsplit(provenance)
-    if u.scheme != "https" or not u.hostname or u.username or u.password or \
-            u.fragment or u.port not in (None, 443):
+    try:
+        u = urlsplit(provenance)
+        permitted = (u.scheme == "https" and bool(u.hostname) and
+                     not u.username and not u.password and not u.fragment and
+                     u.port in (None, 443))
+    except ValueError as exc:
+        raise ModelReviewDenied("Malformed original source URL") from exc
+    if not permitted:
         raise ModelReviewDenied("Verified HTTPS original required")
     return evidence
 
@@ -217,6 +222,27 @@ def decide_model_review(*, shop_id, model_id, reviewer_id, decision, checks,
                    previous_revision=row["rights_revision"], target_status=target)
 
 
+def _revoke_current(row, shop_id, model_id):
+    """Revocation must remain possible after license/metadata corruption.
+
+    A license can be withdrawn or attribution deleted; requiring that
+    revoked external evidence still be valid would block an urgent revoke.
+    The atomic DB writer must fence the stored identity, SHA and revision.
+    """
+    if not isinstance(row, dict) or row.get("owner_shop_id") != shop_id or \
+            row.get("model_id") != model_id or \
+            row.get("status") != "APPROVED" or \
+            row.get("rights_verified") is not True or \
+            row.get("scope") not in ("shop", "platform") or \
+            not isinstance(row.get("image_sha256"), str) or \
+            not _SHA.fullmatch(row["image_sha256"]):
+        raise ModelReviewDenied("No currently approved same-shop model")
+    _uuid(row.get("media_asset_id"))
+    _uuid(row.get("created_by"))
+    _positive_revision(row.get("rights_revision"))
+    return row
+
+
 def revoke_approved_model(*, shop_id, model_id, reviewer_id, reason,
                           read_model, authorize_reviewer, persist_revocation_atomic):
     """Revoke active model rights with monotonic revision and durable audit."""
@@ -226,9 +252,7 @@ def revoke_approved_model(*, shop_id, model_id, reviewer_id, reason,
     if not isinstance(reason, str) or not 12 <= len(reason.strip()) <= 500 or \
             any(ord(c) < 32 or ord(c) == 127 for c in reason):
         raise ModelReviewDenied("Human revocation reason required")
-    row = _model_current(read_model(shop_id, model_id), shop_id, model_id, ("APPROVED",))
-    if row.get("rights_verified") is not True:
-        raise ModelReviewDenied("No approved source to revoke")
+    row = _revoke_current(read_model(shop_id, model_id), shop_id, model_id)
     _reviewer(shop_id, model_id, reviewer_id, row, authorize_reviewer)
     result = persist_revocation_atomic({
         "shop_id": shop_id, "model_id": model_id, "reviewer_id": reviewer_id,
