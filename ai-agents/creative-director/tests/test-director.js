@@ -12,11 +12,15 @@ function source(duration) {
     advertising_objective: 'Explain the authorized 20 percent festive promotion and invite visits',
     approved_offers: [{
       id: 'sale-offer-20', shop_id: 'shop-test-403', approval_status: 'APPROVED',
-      percent_off: 20, signed_evidence_id: 'approval-record-owner-20', active: true, valid_from: '2026-10-01', valid_until: '2026-11-15'
+      percent_off: 20, signed_evidence_id: 'approval-record-owner-20', active: true,
+      eligible_product_skus: ['KURTI-RED-01'], approved_claim_text: '20% off selected kurtis',
+      valid_from: '2026-10-01', valid_until: '2026-11-15'
     }],
     media_grants: [{
       id: 'asset-approved-red-kurti', shop_id: 'shop-test-403', kind: 'IMAGE',
       rights_status: 'APPROVED', product_sku: 'KURTI-RED-01',
+      private: true, commercial_use_allowed: true, revoked_at: null,
+      original_media_sha256: 'a'.repeat(64),
       garment_facts: {
         color: 'deep red', neckline: 'round neckline', sleeves: 'full-length sleeves',
         hem: 'straight knee-length hem', embroidery: 'gold motifs across the front'
@@ -60,7 +64,7 @@ function candidate(duration) {
             camera_action: 'Camera dollies backward smoothly keeping full outfit in frame',
             fabric_response: 'Deep red kurti hem sways slightly and settles with unchanged neckline and embroidery' }
         ],
-        generation_prompt: 'Shot ' + scene + ': premium photoreal Diwali fashion advertisement. The same adult model wears the exact deep red kurti from the approved first-frame image, keeping round neckline, full-length sleeves, straight hem and gold embroidery unchanged. At first stand still; then walk forward two natural steps and turn softly three-quarters. The boutique light is warm and diffused; camera tracks backward on a 50mm lens and holds the complete garment in portrait frame. Preserve anatomy, cloth physics and stable fabric design. No overlays or invented logos.',
+        generation_prompt: 'Shot ' + scene + ': premium photoreal Diwali fashion advertisement. The same adult model wears the exact deep red kurti from the approved first-frame image, keeping round neckline, full-length sleeves, straight knee-length hem and gold motifs across the front unchanged. At first stand still; then walk forward two natural steps and turn softly three-quarters. The boutique light is warm and diffused; camera tracks backward on a 50mm lens and holds the complete garment in portrait frame. Preserve anatomy, cloth physics and stable fabric design. No overlays or invented logos.',
         negative_constraints: ['No garment color or embroidery changes', 'No extra limbs, hands or faces', 'No flicker, jump cuts, extra people or rendered text']
       }]
     });
@@ -94,6 +98,8 @@ for (const duration of [15, 30, 60]) {
   assert.equal(result.approval_record.can_run_paid_motion, false);
   assert.match(result.approval_record.plan_sha256, /^[a-f0-9]{64}$/);
   assert.deepEqual(creative.authorized_offer_ids, ['sale-offer-20']);
+  assert.match(creative.approved_offer_evidence_sha256, /^[a-f0-9]{64}$/);
+  assert.match(creative.approved_media_evidence_sha256, /^[a-f0-9]{64}$/);
   const unique = new Set();
   for (const shot of result.motion_direction_v1) {
     assert.equal(shot.contract, 'motion_direction_v1');
@@ -131,6 +137,38 @@ for (const duration of [15, 30, 60]) {
   const disabled = structuredClone(req);
   disabled.server_verified = false;
   reject(() => compile(disabled, base), 'Untrusted client cannot grant permissions');
+  const modifiedOriginal = structuredClone(req);
+  modifiedOriginal.media_grants[0].original_media_sha256 = 'b'.repeat(64);
+  assert.notEqual(compile(modifiedOriginal, base).approval_record.plan_sha256, compile(req, base).approval_record.plan_sha256,
+    'Changed original image bytes must change the creative approval digest');
+  const broadenScope = structuredClone(req);
+  broadenScope.approved_offers[0].eligible_product_skus.push('KURTI-BLUE-02');
+  assert.notEqual(compile(broadenScope, base).approval_record.plan_sha256, compile(req, base).approval_record.plan_sha256,
+    'Expanded sale SKU eligibility must invalidate the prior approved creative digest');
+  const revokedOriginal = structuredClone(req);
+  revokedOriginal.media_grants[0].revoked_at = '2026-11-01T10:00:00Z';
+  reject(() => compile(revokedOriginal, base), 'Revoked private source cannot become premium video reference');
+  const unlicensedOriginal = structuredClone(req);
+  unlicensedOriginal.media_grants[0].commercial_use_allowed = false;
+  reject(() => compile(unlicensedOriginal, base), 'Unlicensed first frame must be blocked');
+  const outsideScope = structuredClone(req);
+  outsideScope.approved_offers[0].eligible_product_skus = ['KURTI-BLUE-02'];
+  reject(() => compile(outsideScope, base), 'A garment cannot inherit an unrelated SKU promotion');
+  const noScope = structuredClone(req);
+  delete noScope.approved_offers[0].eligible_product_skus;
+  reject(() => compile(noScope, base), 'Unknown eligible SKU scope must fail closed');
+  const forgedClaim = structuredClone(req);
+  forgedClaim.approved_offers[0].approved_claim_text = '20% off all clothes';
+  reject(() => compile(forgedClaim, base), 'Rewording promotion broader than approved claim fails');
+  const mismatchedPercentage = structuredClone(req);
+  mismatchedPercentage.approved_offers[0].approved_claim_text = '40% off selected kurtis';
+  reject(() => compile(mismatchedPercentage, base), 'Legal claim must agree with documented percentage');
+  const invalidCampaignDay = structuredClone(req);
+  invalidCampaignDay.campaign_date = '2026-02-30';
+  reject(() => compile(invalidCampaignDay, base), 'Invalid calendar date cannot authorize an offer');
+  const invalidOfferDay = structuredClone(req);
+  invalidOfferDay.approved_offers[0].valid_until = '2026-02-30';
+  reject(() => compile(invalidOfferDay, base), 'Invalid expiry date cannot be approved');
   const expired = structuredClone(req);
   expired.approved_offers[0].valid_until = '2026-11-05';
   reject(() => compile(expired, base), 'No expired Diwali offer');
@@ -158,6 +196,51 @@ for (const duration of [15, 30, 60]) {
   const unverified = structuredClone(base);
   unverified.scenes[0].shots[0].visual_description += ' Guaranteed best in India';
   reject(() => compile(req, unverified), 'No unsupported superiority');
+  const absentNeckline = structuredClone(base);
+  absentNeckline.scenes[0].shots[0].generation_prompt = absentNeckline.scenes[0].shots[0].generation_prompt.replace('round neckline', 'collar style');
+  reject(() => compile(req, absentNeckline), 'Verified neckline cannot be removed from Feature5 prompt');
+  const absentHem = structuredClone(base);
+  absentHem.scenes[0].shots[0].generation_prompt = absentHem.scenes[0].shots[0].generation_prompt.replace('straight knee-length hem', 'floating hem');
+  reject(() => compile(req, absentHem), 'Exact garment hem length cannot be invented');
+  const absentEmbroider = structuredClone(base);
+  absentEmbroider.scenes[0].shots[0].generation_prompt = absentEmbroider.scenes[0].shots[0].generation_prompt.replace('gold motifs across the front', 'gold thread');
+  reject(() => compile(req, absentEmbroider), 'Embroidery identity must survive Wan prompt');
+  const falseDialogue = structuredClone(base);
+  falseDialogue.scenes[0].dialogue = 'Get an extra 40% off right now';
+  reject(() => compile(req, falseDialogue), 'Unapproved discounts cannot hide in spoken dialogue');
+  const spelledDiscount = structuredClone(base);
+  // Fully written-out number words still need a human editorial review;
+  // the numeric percent spelled as 'percent' is deterministic.
+  spelledDiscount.scenes[0].dialogue = 'Get 40 percent off right now';
+  reject(() => compile(req, spelledDiscount), 'Spelled-out percentage must be bound to approved offer');
+  const unverifiedPrice = structuredClone(base);
+  unverifiedPrice.scenes[0].dialogue = 'Available for ₹999 today';
+  reject(() => compile(req, unverifiedPrice), 'Unverified retailer price cannot be invented');
+  const unverifiedFabric = structuredClone(base);
+  unverifiedFabric.scenes[0].shots[0].visual_description += ' This is pure cotton';
+  reject(() => compile(req, unverifiedFabric), 'No unverified garment composition claim');
+  const freeDelivery = structuredClone(base);
+  freeDelivery.scenes[0].dialogue = 'Free delivery with any purchase';
+  reject(() => compile(req, freeDelivery), 'Unapproved delivery guarantees rejected');
+  const falseAction = structuredClone(base);
+  falseAction.scenes[0].shots[0].motion_steps[0].human_action += ' with guaranteed best in India results';
+  reject(() => compile(req, falseAction), 'Choreography must also be screened for unsupported claims');
+  const unverifiedNegative = structuredClone(base);
+  unverifiedNegative.scenes[0].shots[0].negative_constraints[0] += ' Get 75% off';
+  reject(() => compile(req, unverifiedNegative), 'Even negative constraints cannot carry unapproved offer');
+  const wordTimes = base.voiceover_script.split(/\s+/).map((text, i) => ({
+    text, start: i * 0.15, end: (i + 1) * 0.15
+  }));
+  const alignment = { words: wordTimes, duration: wordTimes.length * 0.15 };
+  const withWordTimes = compile(req, base, { actual_voice_alignment: alignment });
+  assert.equal(withWordTimes.creative_direction_v1.audio_sync.state, 'WORD_TIMES_MATCH_PENDING_AUDIO_PROVENANCE');
+  assert.equal(withWordTimes.approval_record.can_publish, false);
+  const overlap = structuredClone(alignment);
+  overlap.words[1].start = 0.01;
+  reject(() => compile(req, base, { actual_voice_alignment: overlap }), 'Overlapping narrator timestamps must not pass');
+  const outside = structuredClone(alignment);
+  outside.words.at(-1).end = alignment.duration + 1;
+  reject(() => compile(req, base, { actual_voice_alignment: outside }), 'Last word must not exceed actual audio duration');
   const voiceWrong = structuredClone(base);
   voiceWrong.voiceover_script = 'Audio does not match';
   reject(() => compile(req, voiceWrong), 'Narration must align');

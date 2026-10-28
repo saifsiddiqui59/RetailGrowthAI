@@ -10,9 +10,13 @@ const revisions = require('./upstream/explainer-revise');
 
 const DURATIONS = Object.freeze([15, 30, 60]);
 const ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/;
-const DISCOUNT = /\b(\d{1,3})\s*%\s*(?:off|discount)\b/ig;
+const DISCOUNT = /\b(\d{1,3})\s*(?:%|percent|per[\s-]*cent)\s*(?:off|discount|sale|savings?)\b/ig;
 const UNSUPPORTED = /\b(?:guaranteed|number\s*one|no\.?\s*1|best\s+in\s+india|100%\s+pure|organic\s+certified|clinically\s+proven|viral\s+now)\b/i;
 const NETWORK = /https?:\/\/|data:|javascript:|<script/i;
+const HEX_SHA256 = /^[a-f0-9]{64}$/;
+const BROAD_OFFER = /\b(?:all|any|everything|storewide|entire store)\b/i;
+// A garment morphology grant is NOT proof of fabric material, price or delivery.
+const UNVERIFIED_RETAIL_FACT = /(?:₹\s*\d|\brs\.?\s*\d|\b(?:pure\s+cotton|pure\s+silk|handloom|handcrafted|free\s+(?:shipping|delivery)|buy\s+(?:one|1)\s+get\s+(?:one|1)|bogo)\b)/i;
 
 function fail(message) { throw new Error('FEATURE2_CREATIVE_DIRECTION_INVALID: ' + message); }
 function object(value, label) {
@@ -34,8 +38,11 @@ function exactPositive(value, label) {
 function hash(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
+function normalizedEvidence(value) {
+  return String(value).normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('en');
+}
 function sanitizedClaims(text, allowedPercents) {
-  if (UNSUPPORTED.test(text)) fail('Unverified commercial superiority/guarantee');
+  if (UNSUPPORTED.test(text) || UNVERIFIED_RETAIL_FACT.test(text)) fail('Unverified commercial product/price/service fact');
   for (const match of text.matchAll(DISCOUNT)) {
     if (!allowedPercents.has(Number(match[1]))) fail('Unapproved discount: ' + match[1] + '%');
   }
@@ -52,7 +59,11 @@ function contextOf(source) {
     object(media, 'media grant');
     const mediaId = id(media.id, 'media.id');
     if (media.shop_id !== shopId || media.rights_status !== 'APPROVED' ||
-        media.kind !== 'IMAGE' || !media.product_sku) fail('Unapproved or cross-tenant Feature3 media');
+        media.kind !== 'IMAGE' || !media.product_sku || media.private !== true ||
+        media.commercial_use_allowed !== true || media.revoked_at != null ||
+        typeof media.original_media_sha256 !== 'string' ||
+        !HEX_SHA256.test(media.original_media_sha256))
+      fail('Unapproved, changed or cross-tenant private Feature3 media');
     const garment = object(media.garment_facts, 'verified garment facts');
     for (const field of ['color', 'neckline', 'sleeves', 'hem', 'embroidery']) str(garment[field], 'verified garment ' + field, 2, 180);
     if (assets.has(mediaId)) fail('Duplicated media grant');
@@ -60,7 +71,8 @@ function contextOf(source) {
   }
   const offers = new Map();
   const validDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-    !Number.isNaN(Date.parse(value + 'T00:00:00Z'));
+    !Number.isNaN(Date.parse(value + 'T00:00:00Z')) &&
+    new Date(value + 'T00:00:00Z').toISOString().slice(0, 10) === value;
   if (!validDate(req.campaign_date)) fail('Trusted campaign date required for promotion expiry check');
   for (const offer of req.approved_offers || []) {
     object(offer, 'offer');
@@ -70,7 +82,18 @@ function contextOf(source) {
         !offer.signed_evidence_id || offer.active !== true ||
         !validDate(offer.valid_from) || !validDate(offer.valid_until) ||
         !(offer.valid_from <= req.campaign_date && req.campaign_date <= offer.valid_until)) fail('Unapproved, expired or foreign discount');
-    offers.set(offer.id, offer);
+    // Source approval must be bound to exact product SKUs and legal wording.
+    // An offer ID + percentage alone never proves an on-screen kurti is eligible.
+    const scope = offer.eligible_product_skus;
+    if (!Array.isArray(scope) || !scope.length || scope.length > 100 ||
+        scope.some(sku => typeof sku !== 'string' || sku.length > 80 || !ID.test(sku)) ||
+        new Set(scope).size !== scope.length) fail('Promotion missing approved eligible product SKU scope');
+    const legalClaim = str(offer.approved_claim_text, 'approved retailer promotion wording', 10, 180);
+    if (BROAD_OFFER.test(legalClaim)) fail('Broad/storewide promotion is not authorized by this SKU-only contract');
+    if (!Array.from(legalClaim.matchAll(DISCOUNT)).some(m => Number(m[1]) === offer.percent_off))
+      fail('Promotion wording does not match the signed approved percentage');
+    if (offers.has(offer.id)) fail('Duplicate commercial approval');
+    offers.set(offer.id, { ...offer, eligible_product_skus: scope, approved_claim_text: legalClaim });
   }
   return { req, assets, offers, allowedPercents: new Set([...offers.values()].map(x => x.percent_off)) };
 }
@@ -89,7 +112,9 @@ function directorPrompt(request) {
     duration_seconds: req.duration_seconds,
     target_spoken_words: plan.wordsFor(req.duration_seconds * 0.65, 'en'),
     orientation: '9:16 portrait',
-    offer: [...offers.values()].map(o => ({ id: o.id, percent_off: o.percent_off, evidence: o.signed_evidence_id })),
+    offer: [...offers.values()].map(o => ({ id: o.id, percent_off: o.percent_off,
+      approved_claim_text: o.approved_claim_text, eligible_product_skus: o.eligible_product_skus,
+      evidence: o.signed_evidence_id })),
     approved_garments: [...assets.values()].map(a => ({ id: a.id, sku: a.product_sku, facts: a.garment_facts }))
   };
   const nonce = plan.newNonce();
@@ -99,8 +124,8 @@ function directorPrompt(request) {
     'Write strong unique opening, natural voiceover/dialogue, exact approved CTA, visually specific scenes, physical subject choreography and garment-safe motion.',
     'Every shot requires camera framing, lens, composition, camera movement, lighting, setting, wardrobe, Feature3 approved reference id and product SKU.',
     'Every motion shot requires contiguous relative physical action windows starting at 0 and ending at shot duration, with human action, camera choreography and physical garment behaviour.',
-    'Describe the SAME exact approved garment throughout; no changed motif/neckline/hem/sleeves, invented people, unreadable generated text or fake product claims.',
-    'Generate a rich shot-specific cinematic prompt grounded in ALL movement windows. Overlay exact offer copy later via Feature4, never ask Wan to draw sale text.',
+    'Describe the SAME exact approved garment throughout; in every generation_prompt COPY the authoritative garment color, neckline, sleeves, hem and embroidery fields VERBATIM. Do not substitute synonyms or change motif/neckline/hem/sleeves, invent people, add rendered text or fake product claims.',
+    'Generate a rich shot-specific cinematic prompt grounded in ALL movement windows. In the authored CTA use approved_claim_text VERBATIM when mentioning the offer. Only eligible_product_skus may feature with that offer. Overlay exact offer copy later via Feature4, never ask Wan to draw sale text.',
     'Scene speech must fit the scene duration at a real speaking pace. Include voiceover and dialogue and narration timing hints.',
     'Return strict JSON with concept, hook, voiceover_script, cta, offer_ids_used, scenes:[{id,role,voiceover,dialogue,transition_out,shots:[{id,duration_seconds,visual_description,subject,character_continuity,reference_asset_id,product_sku,wardrobe,camera:{framing,lens,composition,movement},lighting,background,motion_steps:[{start_seconds,end_seconds,human_action,camera_action,fabric_response}],generation_prompt,negative_constraints:[]}]}].',
     'All decisions remain DRAFT requiring human approval. DO NOT generate or spend on video. No invented offer, product, dates, stock, ratings or performance claim.'
@@ -124,7 +149,12 @@ function compile(request, candidate, options = {}) {
   const fullVO = str(direction.voiceover_script, 'full voiceover script', 10, 3500);
   sanitizedClaims([concept, hook, cta, fullVO].join(' '), allowedPercents);
   if (!Array.isArray(direction.offer_ids_used)) fail('Missing approved offer IDs');
-  for (const oid of direction.offer_ids_used) if (!offers.has(oid)) fail('An offer has not been approved');
+  if (new Set(direction.offer_ids_used).size !== direction.offer_ids_used.length) fail('Duplicate offer reference');
+  for (const oid of direction.offer_ids_used) {
+    if (!offers.has(oid)) fail('An offer has not been approved');
+    if (!normalizedEvidence(cta).includes(normalizedEvidence(offers.get(oid).approved_claim_text)))
+      fail('Approved promotional legal wording absent from advertising CTA');
+  }
   for (const percent of [concept, hook, cta, fullVO].join(' ').matchAll(DISCOUNT)) {
     if (![...direction.offer_ids_used].some(oid => offers.get(oid)?.percent_off === Number(percent[1]))) fail('Discount copy missing its exact approved offer lineage');
   }
@@ -156,6 +186,10 @@ function compile(request, candidate, options = {}) {
       const media = assets.get(shot.reference_asset_id);
       if (!media || media.product_sku !== shot.product_sku) fail('Missing / mismatched approved reference garment');
       neededMedia.add(media.id);
+      for (const offerId of direction.offer_ids_used) {
+        if (!offers.get(offerId).eligible_product_skus.includes(media.product_sku))
+          fail('This garment is outside the signed discount SKU scope');
+      }
       const cam = object(shot.camera, 'camera');
       const camera = {
         framing: str(cam.framing, 'camera.framing', 7, 250),
@@ -170,7 +204,14 @@ function compile(request, candidate, options = {}) {
       const lighting = str(shot.lighting, 'lighting', 16, 300);
       const background = str(shot.background, 'background', 15, 300);
       const prompt = str(shot.generation_prompt, 'detailed generated clip prompt', 180, 1600);
-      if (!prompt.toLowerCase().includes(media.garment_facts.color.toLowerCase())) fail('Motion prompt omits authorized garment color');
+      // A color-only keyword is not sufficient for real fashion identity.
+      // Require every verified garment detail verbatim in the Feature5 prompt;
+      // the real generated pixels still need independent human inspection.
+      const grounded = normalizedEvidence(prompt);
+      for (const [field, fact] of Object.entries(media.garment_facts)) {
+        if (!['color', 'neckline', 'sleeves', 'hem', 'embroidery'].includes(field)) continue;
+        if (!grounded.includes(normalizedEvidence(fact))) fail('Motion prompt omits verified garment ' + field);
+      }
       if (!Array.isArray(shot.negative_constraints) || shot.negative_constraints.length < 3) fail('Missing negative garment/camera safeguards');
       const negative = shot.negative_constraints.map((s) => str(s, 'negative constraint', 8, 220));
       if (!Array.isArray(shot.motion_steps) || shot.motion_steps.length < 2 || shot.motion_steps.length > 10) fail('Missing physical movement timeline');
@@ -188,7 +229,11 @@ function compile(request, candidate, options = {}) {
         };
       });
       if (stepCursor !== seconds) fail('Physical action timeline does not fill the shot');
-      const sourceText = [visual, subject, character, wardrobe, lighting, background, prompt].join(' ');
+      // Every field can become output speech or downstream motion instructions:
+      // commercial claims must be screened in ALL of them, not only CTA/VO.
+      const sourceText = [visual, subject, character, wardrobe, lighting, background,
+        voiceover, dialogue, transition, ...Object.values(camera), ...negative,
+        ...steps.flatMap(step => [step.human_action, step.camera_action, step.fabric_response]), prompt].join(' ');
       sanitizedClaims(sourceText, allowedPercents);
       if (DISCOUNT.test(prompt)) fail('Motion prompt must not ask model to draw sale text');
       DISCOUNT.lastIndex = 0;
@@ -205,7 +250,8 @@ function compile(request, candidate, options = {}) {
         next_shot_id: null
       };
       if (shots.length) shots[shots.length - 1].next_shot_id = shotId;
-      const approvedSourceHash = hash({ media_id: media.id, garment: media.garment_facts, shop_id: req.shop_id });
+      const approvedSourceHash = hash({ media_id: media.id, original_media_sha256: media.original_media_sha256,
+        garment: media.garment_facts, shop_id: req.shop_id });
       motion.reference_facts_sha256 = approvedSourceHash;
       shots.push(motion);
       sceneShots.push({ shot_id: shotId, start_seconds: position, duration_seconds: seconds, motion_direction: motion });
@@ -232,8 +278,12 @@ function compile(request, candidate, options = {}) {
   if (voAlignment) {
     const parsed = cues.parseTiming(voAlignment);
     if (!parsed || cues.spokenTokens(parsed.words.map(w => w.text).join(' ')).join('|') !== cues.spokenTokens(fullVO).join('|') ||
-      parsed.duration > req.duration_seconds || parsed.words.some(w => w.end <= w.start)) fail('Supplied real voice alignment mismatches script/duration');
-    audioSync = { state: 'REAL_TRANSCRIPT_TIMES_VERIFIED', expected_spoken_seconds: plan.secondsFor(fullVO, 'en'),
+      parsed.duration > req.duration_seconds || !parsed.words.length ||
+      parsed.words.some((w, i) => w.start < 0 || w.end <= w.start || w.end > parsed.duration ||
+        (i && w.start < parsed.words[i - 1].end))) fail('Supplied word timing mismatches script/duration or overlaps');
+    // The word array alone is not a signed source-audio provenance record.
+    // Even if word times match, this must NOT imply real audio was inspected.
+    audioSync = { state: 'WORD_TIMES_MATCH_PENDING_AUDIO_PROVENANCE', expected_spoken_seconds: plan.secondsFor(fullVO, 'en'),
       timing: cues.timingOf(parsed.words, parsed.duration) };
   }
   const creative = {
@@ -241,6 +291,16 @@ function compile(request, candidate, options = {}) {
     duration_seconds: req.duration_seconds, aspect_ratio: '9:16',
     concept, hook, voiceover_script: fullVO, dialogue_present: script.some(s => !!s.dialogue),
     cta, authorized_offer_ids: direction.offer_ids_used,
+    approved_offer_evidence_sha256: hash(direction.offer_ids_used.map(id => {
+      const o = offers.get(id);
+      return { id, approved_claim_text: o.approved_claim_text, eligible_product_skus: o.eligible_product_skus,
+        percent_off: o.percent_off, signed_evidence_id: o.signed_evidence_id,
+        valid_from: o.valid_from, valid_until: o.valid_until };
+    })),
+    approved_media_evidence_sha256: hash([...neededMedia].map(id => {
+      const m = assets.get(id);
+      return { id, original_media_sha256: m.original_media_sha256, garment_facts: m.garment_facts };
+    })),
     scenes: script, reference_media_requests: [...neededMedia].map(asset_id => ({
       feature: 3, asset_id, same_shop_required: true, rights_review_required: true
     })), audio_sync: audioSync,
