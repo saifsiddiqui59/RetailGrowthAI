@@ -29,7 +29,7 @@ export function scopedFeature2Plan(snapshot, options={}) {
     throw new Error('Expected exactly 21 applied canonical migrations');
   const pending=view.pending.map(x=>x.file);
   if (pending.length!==3 || pending[0]!==FEATURE2_FILE || pending[1]!==OTHER_FEATURE_FILE ||
-      pending[2]!=='20261028093500_feature3_gpu_budget_jobs.sql')
+      pending[2]!=='20261028101328_feature3_gpu_budget_jobs.sql')
     throw new Error('Unexpected pending migrations; refuse any unreviewed release');
   const source=readFileSync(resolve(migrationDir,FEATURE2_FILE),'utf8');
   const cleaned=source.replace(/^(?:\s*--[^\n]*(?:\n|$))*/, '').trimStart();
