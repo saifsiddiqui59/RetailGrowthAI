@@ -34,10 +34,20 @@ export default function MediaLibrary() {
     requestEpoch.current += 1
     if (previewUrl.current) URL.revokeObjectURL(previewUrl.current)
   }, [])
+  function closePrivateImage() {
+    // A pending private Storage read must never reopen a dismissed preview.
+    requestEpoch.current += 1
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current)
+    previewUrl.current = null
+    setPreview(null)
+  }
   async function showPrivateImage(asset) {
     if (!user || !mediaPreviewAccess(asset, shopId).allowed) return
     const epoch = ++requestEpoch.current
     const scope = activeScope
+    // Dispose the previous authorized private URL even if the next read fails.
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current)
+    previewUrl.current = null
     setPreview({scope,id:asset.id,loading:true})
     try {
       const {blob, filename} = await client.downloadPrivateImage(shopId,asset.id)
@@ -128,6 +138,7 @@ export default function MediaLibrary() {
               </Card>)}
             </div>}
         {preview?.scope === activeScope && <Card className="rg-private-preview" aria-label="Verified private image preview">
+          <Button type="button" variant="outline" size="sm" onClick={closePrivateImage}>Close private preview</Button>
           {preview.loading && <p role="status">Reading private image with your current session…</p>}
           {preview.error && <p role="alert">{preview.error}</p>}
           {preview.url && <>
