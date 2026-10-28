@@ -26,6 +26,8 @@ def test_exact_authenticated_get_only_and_no_second_upload_or_paid_model():
     assert 'active":False' in code
     assert "upload" not in code.lower()
     assert "register_uploaded_image" not in code
+    assert '"object_path"' in code and '"license_name"' in code
+    assert 'asset[0]["id"]==ASSET' not in code
     assert "Feature2AiActivation" not in code
     assert "AzureFeature2" not in code
     assert "environment: dev" in workflow
