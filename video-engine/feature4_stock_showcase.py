@@ -188,16 +188,21 @@ def make_project(source_dir:Path,project_dir:Path,allow_staged_test=False):
                    "headline":"THE FASHION EDIT","transition":"cut","animation_preset":"fade","mute_source":True},
                   {"start":5,"duration":5,"asset_id":"look02",
                    "headline":"STYLE IN MOTION","transition":"fade","animation_preset":"subtle_zoom","mute_source":True},
-                  {"start":10,"duration":5,"asset_id":"look03",
+                  {"start":10,"duration":3,"asset_id":"look03",
                    "headline":"A NEW PERSPECTIVE","transition":"slide","animation_preset":"fade","mute_source":True},
+                  {"start":13,"duration":2,
+                   "headline":"STOCK FASHION EDIT - NOT A RETAILER AD",
+                   "transition":"fade","animation_preset":"fade"},
               ],
-              "cta":"STOCK CONCEPT ONLY - NO RETAILER ENDORSEMENT",
+              "cta":"STOCK FASHION EDIT - NOT A RETAILER AD",
               "music_asset_id":"original_music"}
         compiled=compile_composition(plan,manifest,stage,project_dir)
         page=(compiled/"index.html").read_text(encoding="utf-8")
         if (page.count('class="footage clip"')!=3 or
-                "THE FASHION EDIT" not in page or "STOCK CONCEPT ONLY" not in page):
-            raise StockShowcaseError("Stock render diverged from approved original concept")
+                "THE FASHION EDIT" not in page or
+                "STOCK FASHION EDIT - NOT A RETAILER AD" not in page or
+                'id="scene3"' not in page or 'id="cta"' in page):
+            raise StockShowcaseError("Stock render diverged from approved face-safe concept endcard")
         provenance={"status":"STOCK_CONCEPT_TECHNICAL_DEMO_ONLY",
                     "approval":"PENDING_HUMAN_REVIEW",
                     "showcase_eligible":False,"commercial_release_eligible":False,
