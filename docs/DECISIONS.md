@@ -614,3 +614,8 @@
 ## 2026-10-27 — Feature #1 read-only calendar request concurrency
 - UI may load a new authorized user/shop/month while a previous scope's GET remains pending. Guard only against a second request for the **same visible scope**, and reject stale responses using request epoch plus current principal/shop/month. No automatic retries, cross-tenant cached rendering or extra background polling.
 - Reject malformed or impossible calendar day strings before rendering even though the Postgres date column normally prevents them. Keep review statuses distinct from social publishing receipts.
+
+
+## Feature2 2026-10-28 — settle existing real provider usage, never replay paid attempt
+- Original Azure archived second response proves a billed provider completion for prompt with 377 prompt/313 completion tokens. At verified public-rate $0.44/M input and $1.76/M output, round UP to $0.000717. Narrow exact-row guarded operator transaction settled only prior USD0.002030 RESERVED receipt, leaving genuine seven-day campaign USD0.004569 settled; combined USD0.005286, **not the Azure account invoice**. No new call. Capture valid token usage before editorial rejection for future provider responses; preserve full reservation if response/network usage unknown. Never bypass cost limits.
+- No unsourced fashion trend: current Google RSS finance/other items must not be relabeled clothing. A monthly published Google India thrifting report is background evidence, **not** 30h Google RSS. Zero-paid protected signed canary uses owned synthetic original image under genuine JWT and only persists draft if a verifiably relevant live fashion signal exists. User approvals reused only for DEV; never change unrelated tenant, PROD or WineShopPOS.

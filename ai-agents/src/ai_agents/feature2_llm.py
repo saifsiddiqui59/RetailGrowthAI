@@ -113,6 +113,29 @@ class AzureFeature2PromptLLM:
             response = self._client._transport(url, headers, body)
             if not isinstance(response, dict):
                 raise ValueError("Non-object model response")
+            # A provider can charge for tokens even if its content is rejected
+            # for truncation, malformed JSON, prompt injection, or missing
+            # verbatim request. Capture VERIFIED billable token usage before
+            # editorial acceptance so the durable reservation can be settled
+            # in the caller's finally block without making another model call.
+            usage = response["usage"]
+            if not isinstance(usage, dict):
+                raise ValueError("Missing billable usage details")
+            prompt_tokens, completion_tokens = usage["prompt_tokens"], usage["completion_tokens"]
+            if (type(prompt_tokens) is not int or type(completion_tokens) is not int
+                or not 1 <= prompt_tokens <= input_bound
+                or not 1 <= completion_tokens <= output_bound):
+                raise ValueError("Invalid/beyond-bound reported token usage")
+            actual = ((Decimal(prompt_tokens) * self._input_rate +
+                       Decimal(completion_tokens) * self._output_rate) / 1_000_000)
+            if actual > self._cap or actual > max_cost:
+                raise ValueError("Provider cost exceeds reserved upper bound")
+            self.last_usage = {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "actual_cost_usd": float(actual),
+                "reservation_recorded": True,
+            }
             choices = response["choices"]
             if not isinstance(choices, list) or len(choices) != 1:
                 raise ValueError("Unexpected choice count")
@@ -140,24 +163,6 @@ class AzureFeature2PromptLLM:
                 or UNSAFE_INPUT.search(candidate) or UNSUPPORTED.search(candidate)
                 or RESTRICTED.search(candidate)):
                 raise ValueError("Model removed original request or returned unsafe copy")
-            usage = response["usage"]
-            if not isinstance(usage, dict):
-                raise ValueError("Missing billable usage details")
-            prompt_tokens, completion_tokens = usage["prompt_tokens"], usage["completion_tokens"]
-            if (type(prompt_tokens) is not int or type(completion_tokens) is not int
-                or not 1 <= prompt_tokens <= input_bound
-                or not 1 <= completion_tokens <= output_bound):
-                raise ValueError("Invalid/beyond-bound reported token usage")
-            actual = ((Decimal(prompt_tokens) * self._input_rate +
-                       Decimal(completion_tokens) * self._output_rate) / 1_000_000)
-            if actual > self._cap or actual > max_cost:
-                raise ValueError("Provider cost exceeds reserved upper bound")
-            self.last_usage = {
-                "prompt_tokens": prompt_tokens,
-                "completion_tokens": completion_tokens,
-                "actual_cost_usd": float(actual),
-                "reservation_recorded": True,
-            }
             return candidate
         except (KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
             # The reserved attempt may already have incurred a charge. Ledger

@@ -141,7 +141,16 @@ def test_bad_model_output_never_becomes_approved_content_and_no_retry(payload):
         provider(BASE)
     assert len(calls) == 1
     assert len(reservations) == 1
-    assert provider.last_usage is None
+    # Valid response token usage MUST be recorded even if the text itself
+    # fails editorial validation, so the ledger's finally block can settle.
+    usage = payload.get("usage", {})
+    in_tok, out_tok = usage.get("prompt_tokens"), usage.get("completion_tokens")
+    if (type(in_tok) is int and type(out_tok) is int and
+        1 <= in_tok <= 1000 and 1 <= out_tok <= 550):
+        assert provider.last_usage is not None
+        assert provider.last_usage["prompt_tokens"] == in_tok
+    else:
+        assert provider.last_usage is None
 
 
 def test_network_error_is_not_retried_after_possible_model_spend():

@@ -1,0 +1,39 @@
+"""Zero-cost hosted smoke is a real signed JWT probe, not a paid bypass."""
+import runpy
+from pathlib import Path
+
+import pytest
+
+ROOT=Path(__file__).resolve().parents[2]
+SCRIPT=ROOT / "scripts/ops/feature2_free_signed_dev_canary.py"
+WORKFLOW=ROOT / ".github/workflows/retail-dev-feature2-free-hosted-smoke.yml"
+
+def test_original_synthetic_png_is_valid_and_not_a_licensed_external_photo():
+    scope=runpy.run_path(str(SCRIPT))
+    data=scope["png"]()
+    assert data[:8]==b"\x89PNG\r\n\x1a\n"
+    assert 100<len(data)<100000
+
+def test_one_time_hosted_smoke_cannot_run_without_exact_operator_gate(monkeypatch):
+    scope=runpy.run_path(str(SCRIPT))
+    monkeypatch.delenv("RGAI_F2_FREE_DEV_ONCE",raising=False)
+    with pytest.raises(RuntimeError,match="authorization"):
+        scope["main"]()
+
+def test_protected_workflow_has_no_azure_paid_inference_or_unprotected_pr():
+    a=SCRIPT.read_text()
+    w=WORKFLOW.read_text()
+    assert "environment: dev" in w
+    assert "github.ref == 'refs/heads/main'" in w
+    assert "approval_code == 'AUTHORIZED_FEATURE2_DEV_FREE_MEDIA_NOT_AI'" in w
+    assert "RETAIL_SUPABASE_SERVICE_ROLE_KEY" in w
+    assert "workflow_dispatch:" in w
+    assert "AzureFeature2PromptLLM" not in a
+    assert "AzureFeature2ContentLLM" not in a
+    assert "shop_ai_budget_controls" in a and '"enabled"] is False' in a
+    assert "register_uploaded_image" in a
+    assert "trend-recommendations" in a and "content-drafts" in a
+    assert "NOT_AVAILABLE_FAIL_CLOSED" in a
+    assert "TEST FIXTURE" in a
+    assert "finally:" in a and "TEST_MEMBERSHIP_REVOKED" in a
+    assert "RETAIL_FEATURE2_REAL_AI_ENABLED" not in w
