@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1] / "creative-director"
 @pytest.mark.parametrize("script", [
     "upstream/scripts/test-explainer-plan.js",
     "upstream/scripts/test-explainer-cues.js",
+    "upstream/scripts/test-explainer-scene.js",
     "tests/test-director.js",
 ])
 def test_creative_director_node_source(script):
