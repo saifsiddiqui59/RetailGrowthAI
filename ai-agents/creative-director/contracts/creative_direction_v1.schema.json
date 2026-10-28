@@ -22,7 +22,9 @@
     "edit_owner",
     "motion_owner",
     "provider_output_guaranteed",
-    "source_generated_media"
+    "source_generated_media",
+    "approved_offer_evidence_sha256",
+    "approved_media_evidence_sha256"
   ],
   "properties": {
     "contract": {
@@ -242,6 +244,14 @@
     },
     "source_generated_media": {
       "const": false
+    },
+    "approved_offer_evidence_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "approved_media_evidence_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
     }
   },
   "additionalProperties": false
