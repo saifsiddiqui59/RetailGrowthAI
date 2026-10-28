@@ -114,7 +114,7 @@ export function createFeature3Api({ baseUrl, tokenProvider, fetchImpl = fetch,
       const prefix='/storage/v1/object/sign/retailgrowth-media/'+sid+
         '/feature3/gpu/'+jid+'/'
       if (signed.origin!==originUrl.origin || !signed.pathname.startsWith(prefix) ||
-          !/^([0-9a-f]{64})\\.png$/.test(signed.pathname.slice(prefix.length)) ||
+          !/^([0-9a-f]{64})\.png$/.test(signed.pathname.slice(prefix.length)) ||
           signed.username || signed.password || signed.hash ||
           [...signed.searchParams.keys()].length!==1 ||
           !signed.searchParams.has('token') ||
