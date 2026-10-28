@@ -265,7 +265,8 @@ def prepare_fashion_references(*, shop_id, garment_asset_id, purpose,
     return {**identity, "reference_fingerprint": digest}
 
 
-def resolve_first_frame(*, expected_manifest, current_readers):
+def resolve_first_frame(*, expected_manifest, current_readers,
+                        verify_worker_job):
     """Feature5 private worker ONLY: reverify every source, approval and hash.
 
     This deliberately does NOT return a URL, token, Storage path, queue job,
@@ -274,8 +275,9 @@ def resolve_first_frame(*, expected_manifest, current_readers):
     if not isinstance(expected_manifest, dict) or (
         expected_manifest.get("schema") != _SCHEMA or
         expected_manifest.get("purpose") != "image_to_video" or
-        not isinstance(current_readers, dict)):
-        raise FashionReferenceDenied("Fresh signed first-frame request required")
+        not isinstance(current_readers, dict) or
+        not callable(verify_worker_job)):
+        raise FashionReferenceDenied("Fresh, leased private worker first-frame request required")
     fields = ("read_asset", "authorize_asset", "read_private_bytes",
               "read_garment_metadata", "read_model", "read_review")
     if any(k in current_readers and not callable(current_readers[k]) for k in fields):
@@ -301,6 +303,16 @@ def resolve_first_frame(*, expected_manifest, current_readers):
     fresh = prepare_fashion_references(**inputs)
     if fresh != expected_manifest:
         raise FashionReferenceDenied("Media rights, model or product changed before consumption")
+    # This callback is supplied by the authenticated durable-job service,
+    # NEVER by a client. It must validate the current worker lease, tenant,
+    # source IDs, subscription and independently approved cost cap. It must
+    # not grant paid work merely because approved images exist.
+    source_ids = tuple(sorted({
+        value["source_asset_id"] for value in fresh["sources"].values()
+        if isinstance(value, dict)
+    }))
+    if verify_worker_job(fresh["shop_id"], source_ids, fresh["reference_fingerprint"]) is not True:
+        raise FashionReferenceDenied("No current authorized motion worker claim")
     frame = fresh["sources"]["first_frame"]
     # The first pass revalidated all sources, while this final read pins the
     # exact frame bytes immediately before delivery to the private worker.
