@@ -5,10 +5,10 @@ const { directorPrompt, compile, revisionTargets, revise } = require('../directo
 function source(duration) {
   return {
     shop_id: 'shop-test-403', campaign_id: 'campaign-diwali-01', duration_seconds: duration,
-    business_name: 'Thread and Loom Studio', authenticated_owner_or_editor: true, server_verified: true,
+    business_name: 'Thread and Loom Studio', campaign_date: '2026-11-06', authenticated_owner_or_editor: true, server_verified: true,
     approved_offers: [{
       id: 'sale-offer-20', shop_id: 'shop-test-403', approval_status: 'APPROVED',
-      percent_off: 20, signed_evidence_id: 'approval-record-owner-20'
+      percent_off: 20, signed_evidence_id: 'approval-record-owner-20', active: true, valid_from: '2026-10-01', valid_until: '2026-11-15'
     }],
     media_grants: [{
       id: 'asset-approved-red-kurti', shop_id: 'shop-test-403', kind: 'IMAGE',
@@ -126,6 +126,9 @@ for (const duration of [15, 30, 60]) {
   const disabled = structuredClone(req);
   disabled.server_verified = false;
   reject(() => compile(disabled, base), 'Untrusted client cannot grant permissions');
+  const expired = structuredClone(req);
+  expired.approved_offers[0].valid_until = '2026-11-05';
+  reject(() => compile(expired, base), 'No expired Diwali offer');
   const noOffer = structuredClone(req);
   noOffer.approved_offers = [];
   reject(() => compile(noOffer, base), '20% requires source approval');
