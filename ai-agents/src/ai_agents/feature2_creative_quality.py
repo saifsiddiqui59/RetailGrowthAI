@@ -163,7 +163,7 @@ def blind_human_comparison(*, experiment_id: str, candidates: dict, reviews: lis
         not isinstance(r, dict) or r.get("candidate_id") not in ("A", "B")
         for r in reviews
     ):
-        raise ValueError("Exactly four A/B review receipts are required")
+        raise ValueError("Two independent reviewers per candidate and exactly four A/B review receipts are required")
     result = {}
     for candidate_id in ("A", "B"):
         found = [r for r in reviews if isinstance(r, dict) and r.get("candidate_id") == candidate_id]
