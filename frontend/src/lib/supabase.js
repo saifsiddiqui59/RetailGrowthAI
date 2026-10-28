@@ -558,7 +558,13 @@ export function createRetailClient({
     // The active retailer JWT/RLS and exact model hash must still be checked
     // by the approved-model consumer; this helper never certifies rights.
     const modelPath = new RegExp('^' + shopId +
-      '/model-library/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/[a-f0-9]{64}[.]png
+      '/model-library/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/[a-f0-9]{64}[.]png$', 'i')
+    if (!row || row.id !== assetId || row.shop_id !== shopId ||
+        row.storage_bucket !== 'retailgrowth-media' || row.source !== 'UPLOAD' ||
+        !ext || typeof row.license_name !== 'string' || !row.license_name.trim() ||
+        typeof row.object_path !== 'string' ||
+        !(filePath.test(row.object_path) || (row.mime_type === 'image/png' &&
+          modelPath.test(row.object_path)))) {
       throw new Error('This private uploaded image is not registered or authorized')
     }
     const endpoint = origin + '/storage/v1/object/authenticated/retailgrowth-media/' +
