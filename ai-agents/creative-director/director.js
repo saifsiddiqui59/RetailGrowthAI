@@ -34,6 +34,9 @@ function exactPositive(value, label) {
 function hash(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
+function normalizedEvidence(value) {
+  return String(value).normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('en');
+}
 function sanitizedClaims(text, allowedPercents) {
   if (UNSUPPORTED.test(text)) fail('Unverified commercial superiority/guarantee');
   for (const match of text.matchAll(DISCOUNT)) {
@@ -170,7 +173,14 @@ function compile(request, candidate, options = {}) {
       const lighting = str(shot.lighting, 'lighting', 16, 300);
       const background = str(shot.background, 'background', 15, 300);
       const prompt = str(shot.generation_prompt, 'detailed generated clip prompt', 180, 1600);
-      if (!prompt.toLowerCase().includes(media.garment_facts.color.toLowerCase())) fail('Motion prompt omits authorized garment color');
+      // A color-only keyword is not sufficient for real fashion identity.
+      // Require every verified garment detail verbatim in the Feature5 prompt;
+      // the real generated pixels still need independent human inspection.
+      const grounded = normalizedEvidence(prompt);
+      for (const [field, fact] of Object.entries(media.garment_facts)) {
+        if (!['color', 'neckline', 'sleeves', 'hem', 'embroidery'].includes(field)) continue;
+        if (!grounded.includes(normalizedEvidence(fact))) fail('Motion prompt omits verified garment ' + field);
+      }
       if (!Array.isArray(shot.negative_constraints) || shot.negative_constraints.length < 3) fail('Missing negative garment/camera safeguards');
       const negative = shot.negative_constraints.map((s) => str(s, 'negative constraint', 8, 220));
       if (!Array.isArray(shot.motion_steps) || shot.motion_steps.length < 2 || shot.motion_steps.length > 10) fail('Missing physical movement timeline');
@@ -188,7 +198,11 @@ function compile(request, candidate, options = {}) {
         };
       });
       if (stepCursor !== seconds) fail('Physical action timeline does not fill the shot');
-      const sourceText = [visual, subject, character, wardrobe, lighting, background, prompt].join(' ');
+      // Every field can become output speech or downstream motion instructions:
+      // commercial claims must be screened in ALL of them, not only CTA/VO.
+      const sourceText = [visual, subject, character, wardrobe, lighting, background,
+        voiceover, dialogue, transition, ...Object.values(camera), ...negative,
+        ...steps.flatMap(step => [step.human_action, step.camera_action, step.fabric_response]), prompt].join(' ');
       sanitizedClaims(sourceText, allowedPercents);
       if (DISCOUNT.test(prompt)) fail('Motion prompt must not ask model to draw sale text');
       DISCOUNT.lastIndex = 0;
@@ -232,8 +246,12 @@ function compile(request, candidate, options = {}) {
   if (voAlignment) {
     const parsed = cues.parseTiming(voAlignment);
     if (!parsed || cues.spokenTokens(parsed.words.map(w => w.text).join(' ')).join('|') !== cues.spokenTokens(fullVO).join('|') ||
-      parsed.duration > req.duration_seconds || parsed.words.some(w => w.end <= w.start)) fail('Supplied real voice alignment mismatches script/duration');
-    audioSync = { state: 'REAL_TRANSCRIPT_TIMES_VERIFIED', expected_spoken_seconds: plan.secondsFor(fullVO, 'en'),
+      parsed.duration > req.duration_seconds || !parsed.words.length ||
+      parsed.words.some((w, i) => w.start < 0 || w.end <= w.start || w.end > parsed.duration ||
+        (i && w.start < parsed.words[i - 1].end))) fail('Supplied word timing mismatches script/duration or overlaps');
+    // The word array alone is not a signed source-audio provenance record.
+    // Even if word times match, this must NOT imply real audio was inspected.
+    audioSync = { state: 'WORD_TIMES_MATCH_PENDING_AUDIO_PROVENANCE', expected_spoken_seconds: plan.secondsFor(fullVO, 'en'),
       timing: cues.timingOf(parsed.words, parsed.duration) };
   }
   const creative = {
