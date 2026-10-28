@@ -159,3 +159,10 @@
 - DISCONNECTED is a read-only identity state with zero publish scopes. PUBLISHING is visibly in progress, never a successful receipt; no automatically enabled OAuth, disconnect, scheduling or publish action.
 - Node model negative tests and 320px mocked Chromium regression cover per-tenant isolation, status filters, empty receipt, responsive layout and zero provider requests. This is NOT a real restaurant registration or live API verification.
 - Exact-head four-job source CI and independent main CI are required. Hosted releases, migrations, GPU, Part 2 provider activation and WineShopPOS remain excluded.
+
+
+## 2026-10-28 — Feature #1 private preview disposal and inbox response integrity
+- Owner-independent source hardening: Media Library now has an explicit **Close private preview** action that revokes its temporary in-browser blob URL, invalidates any ongoing private Storage read and prevents late responses reopening a dismissed preview. Starting another preview immediately destroys the previous private URL, including when the next JWT/RLS download fails. Existing authorized-UPLOAD-only access and non-UPLOAD denials remain unchanged.
+- A new pure retailer inbox read model validates the existing server JSON response and exact selected tenant, accepted RFC3339 Postgres timestamps (including microseconds and time-zone offsets), true calendar dates, safe titles/details and per-message read state, page bounds, unique event IDs, view/category consistency and fixed non-secret keys before caching. No unreviewed API, DDL or subscription permission is added.
+- Offline Node negatives and mocked 320px Chromium verify forged tenant, duplicates, extra secrets, malformed timestamps, and blob dismissal during an in-flight delayed private response. This is browser/JWT-mocked source assurance, **not** independently signed-in hosted storage/inbox validation.
+- Exact PR head four-job CI and independent postmerge main checks must pass before acceptance. No hosted Supabase migration, social provider, GPU, Azure release, PROD or WineShopPOS change.
