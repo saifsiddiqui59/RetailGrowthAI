@@ -156,3 +156,8 @@ Parallel callers to the same local Comfy dispatcher must never start a second PO
 ## 2026-10-28 — Stock media decoded-frame screening continuation
 
 Technical FFmpeg movement detection is only a low-cost diagnostic: two decoded frames with differences can show non-frozen footage but never authenticate human motion, retail garment consistency, likeness, right-to-publish or production-grade output. Hash/inode checks constrain tamper during local stock inspection, not grant a customer license.
+
+
+## 2026-10-28 — Image-generation A100-free source qualification
+
+Owner requested image generation without A100. Preserve GPU OFF. Official Black Forest Labs FLUX.2 Klein 4B is Apache-2.0, smaller consumer GPU capable (official model listing ~8.4GB model VRAM, support guide ~13GB working VRAM), **not A100-exclusive**. Feature3 owns actual model deployment, sourcing licensing and runway/cost. Feature5's PIL CPU review composite is a deterministic image processing artifact, MUST NOT be described as FLUX generative AI, virtual try-on, realistic garment/likeness fidelity or approved promotion. Need real model and independently authorized host before enabling AI image inference.

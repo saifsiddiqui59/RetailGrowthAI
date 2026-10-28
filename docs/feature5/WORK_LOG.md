@@ -170,3 +170,8 @@ Connected DEV project was queried in a read-only rolled-back transaction. Synthe
 ## 2026-10-28 — Stock media decoded-frame screening continuation
 
 - 2026-10-28: Existing optional stock candidate inspector now decodes two bounded portrait FFmpeg frames and reports nonstatic-vs-obviously-frozen screening, SHA256 frame fingerprints and luma difference. It verifies compressed photo pixels and checks video/photo hash+inode+mtime again after decoding; rejects mutable files. Added real CPU-encoded moving/still synthetic negative cases and post-probe mutation test. Still NOT actual downloaded Pexels file, real person/garment/consent approval, model-origin proof, or Feature4 publication.
+
+
+## 2026-10-28 — Image-generation A100-free source qualification
+
+2026-10-28: Implemented Feature5 isolated CPU image review composite and negative rights/tenant/fencing tests on branch. It stages exclusively from F3-approved hash-bound private portrait first frame; 0700/0600, O_EXCL, no outside URL and revocation cleanup. Generates labeled private PNG for editorial diagnostic ONLY, never a publishable or AI-generated asset. No paid providers, GPU, infrastructure changes, customer media or WineShopPOS touched. External Pexels bytes unavailable from restricted runtime; no false stock acceptance. Official Klein 4B does not require A100 hardware.

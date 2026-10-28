@@ -196,3 +196,8 @@ After latest tests, verify all four jobs at the FINAL documentation SHA. Remaini
 ## 2026-10-28 — Stock media decoded-frame screening continuation
 
 Remaining free work: rerun four-job CI on final SHA after the new local stock fixture screen; independently obtain lawful original Pexels assets and run inspector to record actual original media hashes, model image/video suitability, and human review; never present different garments as a matched video try-on. Coordinated Part3/F3/F4 signed hosted acceptance and paid GPU remain separately gated.
+
+
+## 2026-10-28 — Image-generation A100-free source qualification
+
+Continue GPU-OFF: verify latest CI four jobs and fix any failing tests; independently supply licensed Pexels original photo/video bytes or authorized tenant media to execute the existing offline inspector on real files. Feature3 owns FLUX.2 Klein image generation and actual licensed try-on; Feature5 only composes a clearly labeled non-AI private reference review board. Full FLUX/real video generation, signed Part3 claim/unique intent/immutable importer, hosted real JWT two-tenant tests, independent F3 reviewer/Feature4 editorial signoff still require coordinator integration and separately approved compute. Do not start A100.

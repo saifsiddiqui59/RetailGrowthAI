@@ -172,3 +172,8 @@ Latest source-only addendum: deterministic two-thread simulated paid dispatcher 
 ## 2026-10-28 — Stock media decoded-frame screening continuation
 
 2026-10-28: Existing optional stock candidate inspector now decodes two bounded portrait FFmpeg frames and reports nonstatic-vs-obviously-frozen screening, SHA256 frame fingerprints and luma difference. It verifies compressed photo pixels and checks video/photo hash+inode+mtime again after decoding; rejects mutable files. Added real CPU-encoded moving/still synthetic negative cases and post-probe mutation test. Still NOT actual downloaded Pexels file, real person/garment/consent approval, model-origin proof, or Feature4 publication.
+
+
+## 2026-10-28 — Image-generation A100-free source qualification
+
+2026-10-28 — Feature5 GPU-OFF image review board code added: `feature5_motion/cpu_image_review.py` creates a private 0700-folder/0600-file Pillow 704x1280 PNG review still from an independently authorized F3 704x1280 staged PNG. Explicit banner declares CPU/NO FLUX/NO WAN/NOT CUSTOMER AD; source byte SHA256 + metadata + file mode/fence checked, caller's existing Part3/F3 rights callback rechecked after writing. No pretrained model, commercial rights or likeness are inferred. CPU-only tests in `tests/media/test_feature5_cpu_image_review.py` cover image output, wrong tenant/hash, rights revocation, symlink, mode and duplicate. Real FLUX image inference NOT performed.
