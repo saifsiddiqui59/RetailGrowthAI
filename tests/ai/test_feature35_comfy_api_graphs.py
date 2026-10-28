@@ -49,7 +49,8 @@ class TestFeature35HeadlessGraphs(unittest.TestCase):
         for keyword in ({"seed":-1},{"width":9999},{"output_prefix":"../other"},{"prompt":""}):
             args={"prompt":"text","seed":0,**keyword}
             with self.assertRaises(WorkflowError): flux_klein_4b(**args)
-        for kwargs in ({"frames":120},{"fps":30},{"height":710},{"seed":-5}):
+        for kwargs in ({"frames":120},{"fps":30},{"height":710},{"seed":-5},
+                       {"width":832,"height":480},{"width":1080,"height":1920}):
             with self.assertRaises(WorkflowError): wan22_ti2v_5b(**{"prompt":"text","seed":1,**kwargs})
 
     def test_broken_internal_link_is_rejected_offline(self):
