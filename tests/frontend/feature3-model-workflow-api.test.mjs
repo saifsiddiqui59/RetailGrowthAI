@@ -77,6 +77,13 @@ test('expired session denied before any HTTP call',async()=>{
  await assert.rejects(client.importPendingModel(shop,newModel),/sign in/)
  assert.equal(calls.length,0)
 })
+test('browser cannot substitute service or publishable project keys for signed user',async()=>{
+ for(const key of ['sb_secret_fake','sb_publishable_fake']){
+  const {client,calls}=api(imported,{tokenProvider:()=>key})
+  await assert.rejects(client.importPendingModel(shop,newModel),/sign in/)
+  assert.equal(calls.length,0)
+ }
+})
 test('ambiguous 409 or 503 POST does not retry',async()=>{
  for(const opt of [{status:409},{fail:true}]) {
   const {client,calls}=api(null,opt)
