@@ -67,6 +67,8 @@ class FashionKurtiReferenceTests(unittest.TestCase):
             "approved_uses":["poster","video_reference","try_on"],
             "image_sha256":sha256(self.images["model"]).hexdigest(),
             "rights_revision":3,"source_kind":"retailer_licensed",
+            "label":"Approved studio model reference","pose":"front",
+            "license_id":"REVIEWED-COMMERCIAL","attribution":"Studio-owned test model",
         }
         self.review={
             "shop_id":self.shop,"source_asset_id":self.garment,
@@ -152,6 +154,8 @@ class FashionKurtiReferenceTests(unittest.TestCase):
     def test_model_and_vton_plan_never_generate_paid_output(self):
         package=self.prepare(model_asset_id=self.model_asset,model_id=self.model_id)
         task=plan_virtual_try_on(manifest=package)
+        self.assertEqual(package["model"]["pose"],"front")
+        self.assertEqual(package["model"]["license_id"],"REVIEWED-COMMERCIAL")
         self.assertEqual(task["category"],"tops")
         self.assertEqual(task["garment_asset_id"],self.garment)
         self.assertEqual(task["model_asset_id"],self.model_asset)
