@@ -36,9 +36,25 @@ export const FOLLOW_ON_MIGRATIONS = Object.freeze([
   '20261028101328_feature3_gpu_budget_jobs.sql',
   // Feature #1 retailer inbox is additive, SOURCE-ONLY and not a hosted release authorization.
   '20261028173000_feature1_retailer_inbox.sql',
+  // Feature3 human review is SOURCE ONLY, not a hosted rollout authorization.
+  '20261028190000_feature3_model_review_audit.sql',
 ]);
 
 const CAPABILITIES = {
+  '20261028190000': [
+    /create table retail_private[.]feature3_model_evidence/i,
+    /create table retail_private[.]feature3_model_review_events/i,
+    /enable row level security/i,
+    /revoke all on retail_private[.]feature3_model_evidence from public,anon,authenticated/i,
+    /revoke all on retail_private[.]feature3_model_review_events from public,anon,authenticated/i,
+    /create function public[.]feature3_review_model/i,
+    /create function public[.]feature3_revoke_model/i,
+    /create trigger feature3_model_rights_guard/i,
+    /feature3_can_review/i,
+    /for update/i,
+    /grant execute on function public[.]feature3_review_model/i,
+    /grant execute on function public[.]feature3_revoke_model/i,
+  ],
   '20261028173000': [
     /create table retail_private[.]retailer_inbox_events/i,
     /create table retail_private[.]retailer_inbox_reads/i,
