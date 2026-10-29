@@ -979,3 +979,6 @@
 
 ## 2026-10-29 — Operator private output evidence proposal tested only in disposable DB
 - Validate proposed output SQL rights with temporary isolated PostgreSQL import, real service-role-only EXECUTE checks, nonservice JWT claim and missing job/media denial, then explicitly drop it. Do not apply the proposal to hosted DEV as a side effect of CI or infer that synthetic proof is a true generated PNG or billable provider invoice.
+
+## 2026-10-29 — Private saved draft and GPU job history scope must be enforced before React effects
+- UI authorization data remains valid only for exact `shop_id/campaign_id/day_id` and current signed API provider. Scope-tag private saved designs, generated-job status, reopened draft, transient messages and revision CAS ticket at render time; reject stale in-flight results on scope/API/nonce change, including after uncertain POST. A foreign/previous day DRAFT is never reopened based on its media SHA alone. The backend still owns real JWT/RLS, licence and reviewer authorization.
