@@ -60,6 +60,45 @@ def test_node_plain_401_fails_classification_not_backend_proof():
     assert probe.classify(0, "503", True, "free_swa_node") == "HTTP_503_APP_MARKED"
 
 
+def test_actual_curl_sample_uses_final_response_handler_markers_only():
+    """Mock the real curl-to-temporary-header pipeline, not just its parser."""
+    from types import SimpleNamespace
+
+    def sample(backend, header_blob):
+        def fake_run(command, **kwargs):
+            assert kwargs["capture_output"] is True
+            assert command[command.index("--request") + 1] == "GET"
+            assert "--location" not in command and "-L" not in command
+            assert all("Authorization" not in x and "Cookie" not in x
+                       for x in command)
+            path = command[command.index("--dump-header") + 1]
+            Path(path).write_text(header_blob)
+            return SimpleNamespace(returncode=0,
+                                   stdout="401 0.001 0.002 0.003 0.004 0.005")
+        with patch.object(probe.subprocess, "run", fake_run):
+            return probe.sample(backend, "initial", "campaign")
+
+    ok = sample("free_swa_node",
+                "HTTP/2 401\r\nX-RGAI-Secure-Adapter: candidate-v1\r\n\r\n")
+    assert ok["node_adapter_marker"] is True
+    assert ok["application_request_marker"] is False
+    assert ok["category"] == "EXPECTED_401"
+    assert not any("candidate-v1" in str(v) for v in ok.values())
+
+    fake = sample("free_swa_node",
+                  "HTTP/1.1 200 Connection established\r\n"
+                  "X-RGAI-Secure-Adapter: candidate-v1\r\n\r\n"
+                  "HTTP/2 401\r\nContent-Length: 0\r\n\r\n")
+    assert fake["node_adapter_marker"] is False
+    assert fake["category"] == "UNMARKED_401_NOT_PROVEN_HANDLER"
+
+    python = sample("azure_flex_python", "HTTP/2 401\r\nX-Request-ID: private-opaque\r\n\r\n")
+    assert python["application_request_marker"] is True
+    assert python["node_adapter_marker"] is False
+    assert python["category"] == "EXPECTED_401"
+    assert "private-opaque" not in str(python)
+
+
 def test_percentile_gates_prevent_unsupported_p99_claim():
     rows = [{"backend": b, "curl_exit": 0, "http_status": "401",
              "category": "EXPECTED_401", "total_seconds": 0.8}
