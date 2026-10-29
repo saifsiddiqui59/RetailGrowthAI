@@ -118,3 +118,11 @@ This is NOT proof of trusted AI viral music selection. Unit tests reject
 unsorted, foreign-shop, unapproved and malformed beat proposals; existing
 React/mobile Playwright tests still cover editor interactions. No new external
 editor fork, paid service, GPU, storage, schema or WineShopPOS modifications.
+
+
+## F4-59 — actual bounded visual duplication (2026-10-29)
+
+- `studioDuplicate` in the already-adopted Timeline Studio bridge implements **repeat the selected visual twice in the same original scene slot** (each half the original scene duration), not lengthening the approved 15/30/60s film or fabricating new source frames. A video repeats from its *approved in-point* for both halves; the compiler and worker still enforce real duration and tenant-granted source bytes.
+- Exact original image/poster/video ID, approved copy, promo and CTA are preserved. Extra clip is not allowed to replay an approved 2s scene SFX, cut that SFX short, create >12 scenes, use a foreign/revoked source, or create sub-0.5s scenes. This is **bounded visual-loop duplication**, not a general infinite-duration timeline. The UI button is disabled on immutable Feature2-approved direction and clearly describes the repeated half-length result.
+- `tests/frontend/timeline-studio-adoption.test.mjs` now tests source in-point restart, exact 30s duration, retained media/promo/rights, one-off SFX and denials. `frontend/e2e/timeline-studio.spec.mjs` tests mobile duplicate → undo → redo → authorized v2 draft submission, time and shop identity, and approval-locked control. Real HyperFrames export consumes this unchanged `rg_video_v2` contract; a separate real encoded duplicate-specific 15/30s media sample is **not claimed**.
+- Commits `cd1f6dec`, `2d5ab41b`, `eff0054a`, `41c171c6`. Exact-head branch/PR CI must be checked. Remaining independent advanced multi-track mix, general effects, real photoreal garment-worn model, narration semantics and hosted deployment stay open; PR #322 remains draft, no GPU/paid resources, PROD/WineShopPOS untouched.
