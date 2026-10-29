@@ -24,6 +24,7 @@ import sys
 import time
 
 _MODEL_FILES = ("config.json", "model.bin", "tokenizer.json")
+_APPROVED_MODEL_REVISION = "536b0662742c02347bc0e980a01041f333bce120"
 _SHA = re.compile(r"^[a-f0-9]{64}$")
 _LANG = re.compile(r"^[a-z]{2,3}$")
 _MAX_WORDS = 3000
@@ -70,7 +71,7 @@ def validate_local_model(model_dir: str, manifest_path: str) -> dict:
            data.get("commercial_rights_reviewed") is True and
            data.get("model_project") == "Systran/faster-whisper-small" and
            isinstance(data.get("model_revision"), str) and
-           re.fullmatch(r"[a-f0-9]{40}", data["model_revision"]) is not None and
+           data["model_revision"] == _APPROVED_MODEL_REVISION and
            isinstance(data.get("files"), dict),
            "Operator-reviewed pinned model provenance required")
     hashes = data["files"]
