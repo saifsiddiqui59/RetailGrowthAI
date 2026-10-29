@@ -94,3 +94,8 @@ WineShopPOS, shared coordinator docs or PROD modifications.
 | F7-06 | Reviewed F2 signed original WAV and WER consumer (PR #551) and current F7→F4 speech-review source adapter; existing versioned F7 handoff unchanged, exact-feature consumer test remains conditional | Coordinator must combine latest F2/F4/F7 source in one checkout and run real contract/authorization tests (DEP-F7-14, -19, -23) |
 
 **Do not stop:** F7 continues all independent tests as inputs become available. Stable `DEP-F7-07` ... `DEP-F7-23` owner/output/criteria are in `DEPENDENCIES_F7_07_23.md`. A passing unit/security/fixture test **never** establishes actual model recognition, customer ownership, publication or hosted approval. No GPU/paid API/PROD/WineShopPOS/shared-coordinator file modified.
+
+
+## 2026-10-29 — F7-03 safety continuation (source, not accepted completion)
+- Implemented stale async response fencing for review and caption submissions, denies duplicates from unchanged scene/cue selection, and prevents callback DOM updates after reviewer destroy. Added offline Node regression and optional real Chromium mobile test.
+- Evidence to verify: `tests/media/test_feature7_reviewer_async.py`, `tests/media/test_feature7_reviewer_actual_browser.py`, and exact final-head PR CI. F7-03 remains **PARTIAL**, not an integrated DONE; authenticated Feature4 mounting and true live account/rights tests are outstanding. No paid services, production operations, shared coordinator documents or WineShopPOS changes.
