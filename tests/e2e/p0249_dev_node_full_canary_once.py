@@ -8,6 +8,7 @@ of the two unique, disposable newly signed-up retailer shops.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import time
@@ -104,6 +105,65 @@ def node_preview_headers(headers):
     return forwarded
 
 
+
+class _NodeNeverRedirect(urllib.request.HTTPRedirectHandler):
+    """No custom JWT can follow a 30x away from the pinned preview origin."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_NODE_OPENER = urllib.request.build_opener(_NodeNeverRedirect())
+
+
+def _call_node_preview(url, *, method, payload, headers, timeout, expect):
+    """Bounded Node-only HTTP transport; no redirect or uncertain write retry.
+
+    The original Supabase client remains untouched. The preview receives
+    only node_preview_headers output; this helper never accepts arbitrary hosts.
+    """
+    if not url.startswith(NODE_PREVIEW + "/api/") or method not in ("GET", "POST", "PATCH"):
+        raise RuntimeError("P0249_INVALID_NODE_REQUEST_TARGET")
+    if payload is not None and isinstance(payload, (bytes, bytearray)):
+        raise RuntimeError("P0249_NODE_BINARY_WRITE_UNSUPPORTED")
+    data = json.dumps(payload).encode("utf-8") if payload is not None else None
+    safe_headers = dict(headers)
+    if data is not None:
+        safe_headers.setdefault("content-type", "application/json")
+    request = urllib.request.Request(url, data=data, method=method, headers=safe_headers)
+    status, body = None, b""
+    for attempt in range(3 if method == "GET" else 1):
+        try:
+            with _NODE_OPENER.open(request, timeout=(65 if method == "GET" else timeout)) as response:
+                status, body = response.status, response.read(1_000_001)
+            if len(body) > 1_000_000:
+                raise RuntimeError("P0249_NODE_RESPONSE_TOO_LARGE")
+            break
+        except urllib.error.HTTPError as response:
+            status, body = response.code, response.read(4097)
+            if 300 <= status <= 399:
+                raise RuntimeError("P0249_NODE_REDIRECT_DENIED") from None
+            if method == "GET" and status in (502, 503, 504) and attempt < 2:
+                time.sleep(4 * (attempt + 1))
+                continue
+            break
+        except (TimeoutError, ConnectionResetError, OSError):
+            if method == "GET" and attempt < 2:
+                time.sleep(4 * (attempt + 1))
+                continue
+            raise RuntimeError("P0249_REAL_NODE_HTTP_TRANSACTION_UNCONFIRMED") from None
+    if status not in expect:
+        if status in (502, 503, 504):
+            raise RuntimeError("P0249_REAL_NODE_HTTP_TRANSACTION_UNCONFIRMED")
+        # Never surface error bodies, signed IDs, private URL or request JWTs.
+        raise RuntimeError("P0249_NODE_UNEXPECTED_HTTP_STATUS_" + str(status))
+    if not body:
+        return status, None
+    try:
+        return status, json.loads(body)
+    except (ValueError, UnicodeDecodeError):
+        return status, body
+
+
 def main():
     if os.environ.get("RGAI_DEV_CANARY_APPROVAL") != "AUTHORIZED_RETAILGROWTHAI_DEV_ONLY":
         raise RuntimeError("ROOT_APPROVAL_PRECONDITION_MISSING")
@@ -123,15 +183,11 @@ def main():
             original=node_preview_headers(headers or {})
         else:
             original=dict(headers or {})
-        try:
-            return previous_call(url,method=method,payload=payload,
-                                 headers=original,timeout=timeout,expect=expect)
-        except (canary.TransientGateway,TimeoutError,ConnectionResetError) as e:
-            if is_node:
-                # NO fallback to direct SQL or blind replay: the assertion is
-                # that the real Node HTTP write, not a backup route, works.
-                raise RuntimeError("P0249_REAL_NODE_HTTP_TRANSACTION_UNCONFIRMED") from None
-            raise
+        if is_node:
+            return _call_node_preview(url, method=method, payload=payload,
+                                      headers=original, timeout=timeout, expect=expect)
+        return previous_call(url,method=method,payload=payload,
+                             headers=original,timeout=timeout,expect=expect)
 
     canary.call=node_routed_call
     canary.preflight_dev_http_auth_routes=node_preflight
