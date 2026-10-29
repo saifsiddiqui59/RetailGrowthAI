@@ -9,7 +9,7 @@ export function createTraceStore({ supabaseUrl, publishableKey, tokenProvider, f
       !['', '/'].includes(url.pathname)) throw new Error('Trace storage must use a trusted HTTPS origin')
   if (typeof tokenProvider !== 'function') throw new Error('Trace storage requires a signed-in user')
   async function request(table, { method = 'GET', query = {}, body } = {}) {
-    if (!['feature_test_runs', 'feature_test_events'].includes(table)) throw new Error('Unsupported trace table')
+    if (!['feature_test_runs', 'feature_test_events', 'rpc/retail_feature_worker_spans'].includes(table)) throw new Error('Unsupported trace endpoint')
     const token = await tokenProvider()
     if (!token) throw new Error('Sign in to access private test results')
     const target = new URL(url.origin + '/rest/v1/' + table)
@@ -86,6 +86,39 @@ export function createTraceStore({ supabaseUrl, publishableKey, tokenProvider, f
       } })
       if (!Array.isArray(rows) || rows.some(row => row.shop_id !== shopId)) throw new Error('Trace history tenant mismatch')
       return rows
+    },
+    // This read-only RPC is backed by retail_private.feature_worker_spans:
+    // only the service-role backend can append; the signed RLS membership
+    // check executes on every read. Never query or expose the private table.
+    async listWorkerSpans(shopId, jobIds) {
+      checkedUuid(shopId)
+      if (!Array.isArray(jobIds) || jobIds.length < 1 || jobIds.length > 5 ||
+          jobIds.some(jobId => !UUID.test(jobId)) ||
+          new Set(jobIds).size !== jobIds.length) {
+        throw new Error('Select one to five distinct authorized job references')
+      }
+      const all = []
+      for (const jobId of jobIds) {
+        // RPC is a read-only operation despite its POST transport method.
+        // One signed query per known job; never retry or claim missing = failed.
+        const response = await request('rpc/retail_feature_worker_spans', {
+          method: 'POST',
+          body: { p_shop_id: shopId, p_job_id: jobId, p_limit: 10 },
+        })
+        if (!response || response.source !== 'trusted_backend_persisted' ||
+            response.shop_id !== shopId || response.job_id !== jobId ||
+            !Array.isArray(response.events) || response.events.length > 10 ||
+            response.events.some(row => row?.shop_id !== shopId || row?.job_id !== jobId ||
+              !['F2', 'F4'].includes(row?.feature) ||
+              !['SUCCEEDED','FAILED','DENIED','UNCONFIGURED'].includes(row?.status) ||
+              !Number.isInteger(row?.attempt) || row.attempt < 1 || row.attempt > 5 ||
+              !Number.isInteger(row?.elapsed_ms) || row.elapsed_ms < 0 ||
+              row.elapsed_ms > 1800000)) {
+          throw new Error('Private backend span RPC returned inconsistent tenant or source')
+        }
+        all.push(...response.events)
+      }
+      return all
     },
     async listEvents(shopId, runId) {
       checkedUuid(shopId); checkedUuid(runId)

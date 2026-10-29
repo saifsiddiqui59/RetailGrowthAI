@@ -25,10 +25,15 @@ function tomorrowInIndia() {
   const get = name => parts.find(p => p.type === name)?.value
   return new Date(Date.UTC(+get('year'), +get('month') - 1, +get('day') + 1)).toISOString().slice(0, 10)
 }
-function downloadReport(run, events) {
-  // Explicit user action only; URLs, tokens and credentials are never put in receipts.
+function downloadReport(run, events, workerSpans = []) {
+  // User-triggered export keeps browser observations and genuine private RPC
+  // worker evidence in separate arrays. A job reference is not a proven
+  // run-to-job linkage or independent marketing-quality approval.
   const data = JSON.stringify({ schema: 'retailgrowth.feature-test.v1',
-    source: 'browser-observed-not-server-audit', run, events }, null, 2)
+    browser_source: 'browser-observed-not-server-audit', run, events,
+    trusted_worker_spans: workerSpans,
+    worker_job_link_provenance: 'browser-observed-job-reference-only',
+  }, null, 2)
   const url = URL.createObjectURL(new Blob([data + '\n'], { type: 'application/json' }))
   const anchor = document.createElement('a')
   anchor.href = url
@@ -47,7 +52,7 @@ function StageCard({ feature, title, events }) {
         {status === 'UNOBSERVED' ? 'NOT OBSERVED' : status}
       </span>
     </div>
-    {!latest && <p>No authenticated receipt for this feature in this test.</p>}
+    {!related.length && <p>No authenticated receipt for this feature in this test.</p>}
     {related.map(e => <details key={e.event_seq} open={related.length === 1}>
       <summary>{e.action}: {e.summary}{e.duration_ms !== null ? ' (' + e.duration_ms + 'ms)' : ''}</summary>
       {Object.keys(e.details || {}).length > 0 && <pre>{JSON.stringify(e.details, null, 2)}</pre>}
@@ -70,6 +75,10 @@ export default function TestingConsole() {
   const [history, setHistory] = useState([])
   const [activeRun, setActiveRun] = useState(null)
   const [events, setEvents] = useState([])
+  const [workerSpans, setWorkerSpans] = useState([])
+  const [workerError, setWorkerError] = useState('')
+  const [workerLoading, setWorkerLoading] = useState(false)
+  const selectedRunId = useRef('')
   const [baselineId, setBaselineId] = useState('')
   const [baselineEvents, setBaselineEvents] = useState([])
   const [baselineError, setBaselineError] = useState('')
@@ -122,6 +131,8 @@ export default function TestingConsole() {
   useEffect(() => {
     let alive = true
     setHistory([]); setEvents([]); setActiveRun(null); setError(''); setOutcome('')
+    selectedRunId.current = ''
+    setWorkerSpans([]); setWorkerError(''); setWorkerLoading(false)
     setBaselineId(''); setBaselineEvents([]); setBaselineError('')
     setHistoryStats(null); setAnalyzingHistory(false)
     setAssets([]); setAssetId('')
@@ -144,7 +155,9 @@ export default function TestingConsole() {
     try {
       const loaded = await store.listEvents(shopId, run.id)
       if (selection.current !== shopId) return
+      selectedRunId.current = run.id
       setActiveRun(run); setEvents(loaded)
+      setWorkerSpans([]); setWorkerError('')
       setBaselineId(''); setBaselineEvents([]); setBaselineError('')
     } catch {
       setError('Unable to load private trace events for this business.')
@@ -159,6 +172,35 @@ export default function TestingConsole() {
       const items = await store.listEvents(shopId, runId)
       if (selection.current === shopId) setBaselineEvents(items)
     } catch { setBaselineError('Baseline trace could not be loaded. No comparison is available.') }
+  }
+  async function inspectServerSpans() {
+    if (!store || !shopId || !activeRun || busy.current || workerLoading) return
+    const expectedRun = activeRun.id
+    const expectedShop = shopId
+    // Browser event IDs are user-observed references, not an authenticated
+    // server-issued run->job link. RLS independently enforces active membership.
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    const ids = [...new Set(events.flatMap(item => [
+      item.feature === 'F2' ? item.details?.campaign_id : null,
+      item.feature === 'F4' ? item.details?.render_job_id : null,
+    ]).filter(id => typeof id === 'string' && uuid.test(id)))].slice(0, 5)
+    setWorkerSpans([]); setWorkerError('')
+    if (!ids.length) {
+      setWorkerError('This test has no verified job ID references to inspect.')
+      return
+    }
+    setWorkerLoading(true)
+    try {
+      const rows = await store.listWorkerSpans(expectedShop, ids)
+      if (selection.current === expectedShop && selectedRunId.current === expectedRun) {
+        setWorkerSpans(rows)
+        if (!rows.length) setWorkerError('No persisted worker receipts were found for these job references. This is not proof the jobs never ran.')
+      }
+    } catch {
+      if (selection.current === expectedShop && selectedRunId.current === expectedRun) {
+        setWorkerError('Trusted span table is not released, unavailable or access is denied. Browser-only receipts remain unchanged.')
+      }
+    } finally { setWorkerLoading(false) }
   }
   const diagnostics = useMemo(() => summarizeTrace(events), [events])
   const rateableFeatures = useMemo(() => diagnostics.features.filter(f =>
@@ -192,12 +234,15 @@ export default function TestingConsole() {
     }
     busy.current = true
     networkEvidence.current = []
+    selectedRunId.current = ''
+    setWorkerSpans([]); setWorkerError('')
     setRunning(true); setError(''); setOutcome(''); setEvents([])
     setBaselineId(''); setBaselineEvents([]); setBaselineError('')
     setHistoryStats(null)
     const id = crypto.randomUUID()
     const run = { id, shop_id: shopId, created_by: user.id,
       prompt: prompt.trim(), mode, created_at: new Date().toISOString() }
+    selectedRunId.current = run.id
     setActiveRun(run)
     try {
       const result = await executeFeatureTrace({
@@ -324,7 +369,7 @@ export default function TestingConsole() {
           <div className="rgt-results-title"><div>
             <h2>Feature execution evidence</h2>
             <small>Run {activeRun.id} · {activeRun.mode}</small>
-          </div><button type="button" disabled={running} onClick={() => downloadReport(activeRun, events)}>
+          </div><button type="button" disabled={running} onClick={() => downloadReport(activeRun, events, workerSpans)}>
             Export JSON
           </button></div>
           <div className="rgt-message"><strong>You</strong><p>{activeRun.prompt}</p></div>
@@ -335,6 +380,21 @@ export default function TestingConsole() {
               ? <p><strong>{diagnostics.first_problem.feature} · {diagnostics.first_problem.action} ({diagnostics.first_problem.status})</strong>: {diagnostics.first_problem.summary}</p>
               : <p>{diagnostics.event_count ? 'No reported API failure. This does not establish final media quality or unobserved worker health.' : 'No stage receipts observed yet.'}</p>}
             <p>{diagnostics.reviewed_features} feature(s) have human quality ratings. A technically successful run can still need improvement.</p>
+          </section>
+          <section className="rgt-diagnostics" aria-label="Trusted worker evidence">
+            <h3>Server-authored worker receipts</h3>
+            <p>Optional private-RPC job observations, separate from browser logs. Job references came from this test's client receipts and are not independently bound to the run.</p>
+            <button type="button" disabled={running || workerLoading} onClick={inspectServerSpans}>
+              {workerLoading ? 'Checking worker receipts…' : 'Check server worker receipts'}
+            </button>
+            {workerError && <p role="status">{workerError}</p>}
+            {workerSpans.map(item => <p key={item.id}>
+              <strong>{item.feature} · {item.operation} · {item.status}</strong>
+              {' — '}attempt {item.attempt}, {item.elapsed_ms} ms,
+              job {item.job_id.slice(0, 8)}
+              {item.feature === 'F4' && item.status === 'SUCCEEDED' ? ' (private FFmpeg job)' : ''}
+            </p>)}
+            {workerSpans.length > 0 && <p>These entries came from the service-only database table. A completed job is not an independently approved marketing output.</p>}
           </section>
           <div className="rgt-stages">
             {FEATURES.map(([id, title]) => <StageCard key={id} feature={id} title={title} events={events} />)}

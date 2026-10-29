@@ -85,3 +85,7 @@ publishing, licensed stock fetch, real Wan, GPU or provider cost is triggered.
   outcomes accurately and do not replay POST, bypass JWT/RLS, change SKU,
   or claim missing client response means a failed DB/worker operation.
 - Never use WineShopPOS resources or touch PROD.
+
+## 2026-10-29 — Source additions after original design
+- F2 planner/Part1 F4 FFmpeg worker outcome spans now have strict status/metadata and optional backend-only service RPC sink. A separate private-schema ledger plus signed OWNER/EDITOR read RPC is staged (not applied) and the Testing Chat UI can read it by job IDs already present in browser-observed receipts. This is not a trusted run→job mapping until independently verified. Duplicate public-ledger draft #626 was discarded; no second table.
+- Mocked Chromium now renders the saved StageCards without the former undefined-variable error, checks signed backend RPC, missing-schema fallback and viewer denial. Source PR #628 4/4 CI, merged at 4a3acd3e. Real hosted Supabase, SWA and Functions deployment and genuine tenant/job acceptance are separate gates. F3/F5/F7 continue NOT_RUN.
