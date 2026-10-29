@@ -93,3 +93,30 @@ test('React history filter cancels pending binary work and frees local previews'
   assert.match(jsx,/Generated — unreviewed/)
   assert.doesNotMatch(jsx,/getGeneratedImageDownload\(/)
 })
+
+test('scoped generated history strips forged approvals, URLs and arbitrary private metadata',()=>{
+  const contaminated={
+    shopId:SHOP,jobs:JOBS,busy:'true',message:'Current shop only',
+    signed_url:'https://foreign.example/private.png',
+    storage_path:'other-shop/secret.png',
+    access_token:'fake-test-token',
+    reviewed_for_publication:true,
+    gpu_authorized:true,
+  }
+  const safe=scopedFeature3GeneratedHistory(contaminated,SHOP)
+  assert.deepEqual(Object.keys(safe).sort(),['busy','jobs','message','shopId'])
+  assert.equal(safe.shopId,SHOP)
+  assert.equal(safe.jobs.length,JOBS.length)
+  assert.equal(safe.message,'Current shop only')
+  assert.equal(safe.busy,false)
+  assert.equal(Object.isFrozen(safe),true)
+  assert.equal('signed_url' in safe,false)
+  assert.equal('storage_path' in safe,false)
+  assert.equal('access_token' in safe,false)
+  assert.equal('reviewed_for_publication' in safe,false)
+  assert.equal('gpu_authorized' in safe,false)
+  assert.equal(scopedFeature3GeneratedHistory({...contaminated,busy:true},SHOP).busy,true)
+  assert.equal(scopedFeature3GeneratedHistory({...contaminated,message:'x'.repeat(301)},SHOP).message,'')
+  assert.equal(scopedFeature3GeneratedHistory({...contaminated,message:{private:'value'}},SHOP).message,'')
+  assert.equal(scopedFeature3GeneratedHistory({...contaminated,shopId:OTHER},SHOP).jobs.length,0)
+})
