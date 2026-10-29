@@ -6,6 +6,7 @@ import ast
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 TARGET = ROOT / "scripts/ops/p0249_root_canary_playwright.py"
@@ -50,6 +51,20 @@ class CanaryOperatorSelection(unittest.TestCase):
                            "execute_sql", "Authorization: Bearer", "sami9049@gmail.com",
                            "Ppp#2020"):
             self.assertNotIn(prohibited, source)
+
+    def test_dispatch_only_uses_existing_gh_auth_and_protected_choice(self):
+        with patch.object(MOD.subprocess, "run") as run:
+            MOD.dispatch_owner_approved_dev_canary()
+        args = run.call_args.args[0]
+        self.assertEqual(args[:3], ["gh", "workflow", "run"])
+        self.assertIn("retail-dev-test-accounts-canary-once.yml", args)
+        self.assertIn("approval_code=AUTHORIZED_RETAILGROWTHAI_DEV_ONLY", args)
+        self.assertIn("mode=node-poster-reel", args)
+        self.assertEqual(args[args.index("--ref") + 1], "main")
+        self.assertIs(run.call_args.kwargs["capture_output"], True)
+        self.assertIs(run.call_args.kwargs["check"], True)
+        self.assertNotIn("sami9049@gmail.com", repr(args))
+        self.assertNotIn("Ppp#2020", repr(args))
 
     def test_missing_opt_in_fails_before_password_or_import(self):
         with self.assertRaises(SystemExit) as error:
