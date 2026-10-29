@@ -5,6 +5,7 @@ import { cloneElement, useEffect, useMemo, useRef, useState } from 'react'
 import { createFeature3Api } from './feature3-api.mjs'
 import { scopedFeature3Preview } from './feature3-private-preview.mjs'
 import Feature3GeneratedHistory from './Feature3GeneratedHistory.jsx'
+import {createFeature3PrivatePNGClient} from './feature3-private-png-client.mjs'
 
 const enabled = import.meta.env?.VITE_FEATURE3_V2_ENABLED === 'true'
 const MAX_MODEL_PREVIEWS = 5
@@ -29,6 +30,16 @@ export default function Feature3PosterHost({ client, shopId, children }) {
         signedStorageOrigin: import.meta.env.VITE_SUPABASE_URL,
         tokenProvider: () => client.getAccessToken(),
       }) : null, [client])
+  // Existing signed Storage URLs cannot be instantly revoked. New binary
+  // preview is separately gated OFF until the reviewed current-rights
+  // private PNG backend endpoint is actually live and accepted.
+  const binaryClient=useMemo(()=>enabled &&
+    import.meta.env?.VITE_FEATURE3_PRIVATE_BINARY_ENABLED==='true' &&
+    client?.configured && import.meta.env?.VITE_CAMPAIGN_API_BASE_URL
+    ? createFeature3PrivatePNGClient({
+        baseUrl:import.meta.env.VITE_CAMPAIGN_API_BASE_URL,
+        tokenProvider:()=>client.getAccessToken(),
+      }):null,[client])
   const [preview, setPreview] = useState(() => empty(shopId))
   // Guard on RENDER too: useEffect cleanup happens after the first paint.
   const scoped = scopedFeature3Preview(preview, shopId)
@@ -109,7 +120,8 @@ export default function Feature3PosterHost({ client, shopId, children }) {
       <small>No paid AI or background downloads. Limited to five private previews.</small>
     </div>
     {scoped.message && <p role="status">{scoped.message}</p>}
-    <Feature3GeneratedHistory key={shopId} shopId={shopId} api={api} />
+    <Feature3GeneratedHistory key={shopId} shopId={shopId} api={api}
+      binaryClient={binaryClient} />
     {cloneElement(children, {feature3Api:api, approvedModels:scoped.models,
       authenticatedModelImageMap:scoped.imageMap})}
   </section>
