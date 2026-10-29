@@ -105,7 +105,7 @@ class Feature7OriginalWavCpuTests(unittest.TestCase):
         cls.manifest.write_text("{}")
         cls.stub=cls.base/"test_only_asr"
         cls.stub.write_text("""#!/usr/bin/env node
-const fs=require('fs'),path=require('path');
+const fs=require('fs'),path=require('path'),crypto=require('crypto');
 const args=process.argv.slice(2);
 if(!args[0].endsWith('/faster_whisper_cpu.py') ||
  process.env.HF_HUB_OFFLINE!=='1' ||
@@ -126,6 +126,8 @@ fs.writeFileSync(output,JSON.stringify({
  word_accuracy_benchmarked:false,
  language:'en',approved:false,renderable:false,
  source_audio_duration_seconds:1,
+ verified_input_sha256:crypto.createHash('sha256').update(bytes).digest('hex'),
+ process_peak_rss_bytes:null,
  segments:[{words:[{word:'Diwali',start:0.1,end:0.3},
    {word:'fashion',start:0.32,end:0.65}]}]
 }));
@@ -191,6 +193,8 @@ fs.writeFileSync(output,JSON.stringify({
         self.assertEqual(receipt["source_media_kind"],"audio/wav")
         self.assertEqual(receipt["source_sha256"],before)
         self.assertEqual(receipt["original_media_sha256"],before)
+        self.assertEqual(receipt["verified_input_sha256"],before)
+        self.assertIsNone(receipt["process_peak_rss_bytes"])
         self.assertEqual(receipt["source_duration_seconds"],1.0)
         self.assertEqual(receipt["words"][0],
                          {"word":"Diwali","startMs":100,"endMs":300})
