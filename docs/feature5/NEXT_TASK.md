@@ -366,3 +366,6 @@ Run exact-head four-job CI after new single-path F3→CPU FFmpeg→Part3→F4 in
 
 ## 2026-10-29 — CI regression and source fix
 New native-claim tests initially found ONE real test fixture mismatch in Python CI #40932450519 (1 failed, 1176 passed, 9 skipped): the two-worker test overrides job and attempt IDs after the fake backend claim was constructed. F5 real gate correctly denied the foreign claim. Test fixture repaired in source commit 82a9b860 so read_current_part3_native_claim uses final overridden identifiers, not stale local defaults; native profile constraints were NOT weakened. Verify all four jobs on subsequent exact documentation HEAD and keep PR #465 draft until green.
+
+## 2026-10-29 — Numbered remaining release task snapshot
+Canonical owner snapshot: `docs/feature5/F5_22_TASK_DEPENDENCIES_20261029.json`. **DONE 0/22, IN_PROGRESS 3/22, BLOCKED 19/22, FAILED 0.** Continue independent GPU-off source, runtime and direct real Feature2 exporter integration when its original code is coordinated into shared main. Coordinator owns external dependency resolutions and merge; actual garment-worn model/licence, Part3 leased native job and credits, private hosted bytes, protected OCI/checkpoints, GPU authorization, true Wan 5s MP4, human review and F4 final remain unproven. Do not promote fixtures or start paid GPU.
