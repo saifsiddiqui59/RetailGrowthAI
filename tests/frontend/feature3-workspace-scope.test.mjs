@@ -54,12 +54,31 @@ test('mounted private workspace compiles and fences every async metadata/receipt
   assert.match(source,/pendingHistory\.current/)
   assert.match(source,/pendingJobs\.current/)
   assert.match(source,/activeScope\.current\.scopeKey===requestKey/)
-  assert.match(source,/scopedFeature3WorkspaceValue\(savedState,scopeKey,\[\]\)/)
-  assert.match(source,/scopedFeature3WorkspaceValue\(generatedState,scopeKey,\[\]\)/)
-  assert.match(source,/scopedFeature3WorkspaceValue\(reopenedState,scopeKey,null\)/)
-  assert.match(source,/ticket\.current=\{scope,designId:response\.design_id/)
+  assert.match(source,/scopedFeature3WorkspaceValue\(savedState,scopeKey,\[\],feature3Api\)/)
+  assert.match(source,/scopedFeature3WorkspaceValue\(generatedState,scopeKey,\[\],feature3Api\)/)
+  assert.match(source,/scopedFeature3WorkspaceValue\(reopenedState,scopeKey,null,feature3Api\)/)
+  assert.match(source,/ticket\.current=\{scope,provider,designId:response\.design_id/)
   assert.match(source,/chosen\.campaign_id!==campaignId/)
   assert.match(source,/chosen\.day_id!==dayId/)
   assert.match(source,/Save not confirmed\. Do not retry blindly/)
   assert.doesNotMatch(source,/fetch\(/)
+})
+
+
+test('same shop/day and replaced signed API session hides previous private state on first paint',()=>{
+  const prior={session:1},fresh={session:2}
+  for(const value of [[{private:true}],'old private receipt',true]){
+    const state={scope,provider:prior,value}
+    assert.strictEqual(scopedFeature3WorkspaceValue(state,scope,null,prior),value)
+    assert.strictEqual(scopedFeature3WorkspaceValue(state,scope,null,fresh),null)
+    assert.strictEqual(scopedFeature3WorkspaceValue({scope,value},scope,null,fresh),null)
+  }
+})
+
+test('mounted workspace fences same-day provider, CAS and signed links before effects',async()=>{
+  const source=await readFile(new URL('../../frontend/src/features/creative/Feature3SecureDraftWorkspace.jsx',import.meta.url),'utf8')
+  assert.match(source,/generatedLink\?\.provider===feature3Api/)
+  assert.match(source,/ticket\.current\.provider!==provider/)
+  assert.match(source,/pending\.current\.provider===feature3Api/)
+  assert.match(source,/scopedFeature3WorkspaceValue\(savedState,scopeKey,\[\],feature3Api\)/)
 })

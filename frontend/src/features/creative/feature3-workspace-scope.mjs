@@ -2,10 +2,11 @@
  * These guards never grant shop access. Current JWT/RLS and image rights are
  * checked independently by the existing backend before any durable write.
  */
-export function scopedFeature3WorkspaceValue(state, scope, fallback) {
+export function scopedFeature3WorkspaceValue(state, scope, fallback, provider = undefined) {
   if (typeof scope !== 'string' || !scope ||
       !state || typeof state !== 'object' || Array.isArray(state) ||
-      state.scope !== scope || !Object.hasOwn(state, 'value')) return fallback
+      state.scope !== scope || (provider !== undefined && state.provider !== provider) ||
+      !Object.hasOwn(state, 'value')) return fallback
   return state.value
 }
 

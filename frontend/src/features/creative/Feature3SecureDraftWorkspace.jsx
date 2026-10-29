@@ -14,19 +14,19 @@ export default function Feature3SecureDraftWorkspace({
   approvedContent = null, feature3Api, disabled = false,
 }) {
   const scopeKey=feature3ContextKey({shopId,campaignId,dayId})
-  const [savedState,setSavedState] = useState({scope:scopeKey,value:[]})
-  const [reopenedState,setReopenedState] = useState({scope:scopeKey,value:null})
-  const [messageState,setMessageState] = useState({scope:scopeKey,value:''})
-  const [busyState,setBusyState] = useState({scope:scopeKey,value:false})
-  const [generatedState,setGeneratedState] = useState({scope:scopeKey,value:[]})
+  const [savedState,setSavedState] = useState({scope:scopeKey,provider:feature3Api,value:[]})
+  const [reopenedState,setReopenedState] = useState({scope:scopeKey,provider:feature3Api,value:null})
+  const [messageState,setMessageState] = useState({scope:scopeKey,provider:feature3Api,value:''})
+  const [busyState,setBusyState] = useState({scope:scopeKey,provider:feature3Api,value:false})
+  const [generatedState,setGeneratedState] = useState({scope:scopeKey,provider:feature3Api,value:[]})
   const [generatedLink,setGeneratedLink] = useState(null)
   // Scope at render time, not only in a later useEffect cleanup: no stale
   // private job/draft/revision can appear on the first paint of a new shop/day.
-  const saved=scopedFeature3WorkspaceValue(savedState,scopeKey,[])
-  const reopened=scopedFeature3WorkspaceValue(reopenedState,scopeKey,null)
-  const message=scopedFeature3WorkspaceValue(messageState,scopeKey,'')
-  const busy=scopedFeature3WorkspaceValue(busyState,scopeKey,false)
-  const generatedJobs=scopedFeature3WorkspaceValue(generatedState,scopeKey,[])
+  const saved=scopedFeature3WorkspaceValue(savedState,scopeKey,[],feature3Api)
+  const reopened=scopedFeature3WorkspaceValue(reopenedState,scopeKey,null,feature3Api)
+  const message=scopedFeature3WorkspaceValue(messageState,scopeKey,'',feature3Api)
+  const busy=scopedFeature3WorkspaceValue(busyState,scopeKey,false,feature3Api)
+  const generatedJobs=scopedFeature3WorkspaceValue(generatedState,scopeKey,[],feature3Api)
   const setMessage=value=>setMessageState({scope:scopeKey,value})
   const setBusy=value=>setBusyState({scope:scopeKey,value})
   const activeScope=useRef({shopId,scopeKey,feature3Api})
@@ -34,24 +34,24 @@ export default function Feature3SecureDraftWorkspace({
   const pendingDownload=useRef(0)
   const pendingHistory=useRef(0)
   const pendingJobs=useRef(0)
-  const ticket=useRef({scope:scopeKey,designId:null,revision:0})
-  const pending=useRef({scope:scopeKey,active:false})
+  const ticket=useRef({scope:scopeKey,provider:feature3Api,designId:null,revision:0})
+  const pending=useRef({scope:scopeKey,provider:feature3Api,active:false})
   const currentScope=(scope,provider)=>
     activeScope.current.scopeKey===scope && activeScope.current.feature3Api===provider
-  const visibleGeneratedLink=!disabled ? scopedFeature3GeneratedLink(
-    generatedLink,shopId,Date.now(),scopeKey) : null
+  const visibleGeneratedLink=!disabled && generatedLink?.provider===feature3Api
+    ? scopedFeature3GeneratedLink(generatedLink,shopId,Date.now(),scopeKey) : null
   useEffect(()=>{
     pendingDownload.current+=1
     pendingHistory.current+=1
     pendingJobs.current+=1
-    ticket.current={scope:scopeKey,designId:null,revision:0}
-    pending.current={scope:scopeKey,active:false}
+    ticket.current={scope:scopeKey,provider:feature3Api,designId:null,revision:0}
+    pending.current={scope:scopeKey,provider:feature3Api,active:false}
     setGeneratedLink(null)
-    setSavedState({scope:scopeKey,value:[]})
-    setReopenedState({scope:scopeKey,value:null})
-    setGeneratedState({scope:scopeKey,value:[]})
-    setMessageState({scope:scopeKey,value:''})
-    setBusyState({scope:scopeKey,value:false})
+    setSavedState({scope:scopeKey,provider:feature3Api,value:[]})
+    setReopenedState({scope:scopeKey,provider:feature3Api,value:null})
+    setGeneratedState({scope:scopeKey,provider:feature3Api,value:[]})
+    setMessageState({scope:scopeKey,provider:feature3Api,value:''})
+    setBusyState({scope:scopeKey,provider:feature3Api,value:false})
   },[scopeKey,feature3Api])
   useEffect(()=>{
     if(!generatedLink)return
@@ -60,7 +60,7 @@ export default function Feature3SecureDraftWorkspace({
   },[generatedLink])
 
   const loadHistory = async () => {
-    if (disabled || busy || (pending.current.scope===scopeKey && pending.current.active)) return
+    if (disabled || busy || (pending.current.scope===scopeKey && pending.current.provider===feature3Api && pending.current.active)) return
     const scope=scopeKey,provider=feature3Api,attempt=++pendingHistory.current
     const current=()=>currentFeature3WorkspaceRequest(
       activeScope.current,scope,provider,attempt,pendingHistory.current)
@@ -68,7 +68,7 @@ export default function Feature3SecureDraftWorkspace({
     try {
       const rows=await feature3Api.listDesigns(shopId, campaignId, dayId)
       if(!current())return
-      setSavedState({scope,value:rows})
+      setSavedState({scope,provider,value:rows})
       setMessage(rows.length ? 'Private draft history loaded.' :
         'No v2 private poster drafts exist for this day.')
     } catch {
@@ -79,7 +79,7 @@ export default function Feature3SecureDraftWorkspace({
   }
 
   const loadGenerated = async () => {
-    if (disabled || busy || (pending.current.scope===scopeKey && pending.current.active)) return
+    if (disabled || busy || (pending.current.scope===scopeKey && pending.current.provider===feature3Api && pending.current.active)) return
     const scope=scopeKey,provider=feature3Api,attempt=++pendingJobs.current
     const current=()=>currentFeature3WorkspaceRequest(
       activeScope.current,scope,provider,attempt,pendingJobs.current)
@@ -87,19 +87,19 @@ export default function Feature3SecureDraftWorkspace({
     try {
       const jobs=await feature3Api.listGeneratedJobs(shopId)
       if(!current())return
-      setGeneratedState({scope,value:jobs})
+      setGeneratedState({scope,provider,value:jobs})
       setMessage(jobs.length ? 'Private generated image job history loaded.' :
         'No generated image jobs for this retailer.')
     } catch {
       if(current()){
-        setGeneratedState({scope,value:[]})
+        setGeneratedState({scope,provider,value:[]})
         setMessage('Generated image history is unavailable or access was revoked.')
       }
     } finally { if(current())setBusy(false) }
   }
 
   const openGenerated = async jobId => {
-    if (disabled || busy || (pending.current.scope===scopeKey && pending.current.active)) return
+    if (disabled || busy || (pending.current.scope===scopeKey && pending.current.provider===feature3Api && pending.current.active)) return
     const scope=shopId, provider=feature3Api, requestKey=scopeKey
     const attempt=++pendingDownload.current
     const current=()=>attempt===pendingDownload.current &&
@@ -110,7 +110,7 @@ export default function Feature3SecureDraftWorkspace({
     try {
       const receipt = await provider.getGeneratedImageDownload(scope,jobId)
       if(!current())return
-      setGeneratedLink({...receipt,scope,requestKey,createdAt:Date.now()})
+      setGeneratedLink({...receipt,scope,requestKey,provider,createdAt:Date.now()})
       setMessage('Private link expires in 60 seconds. Image remains unreviewed.')
     } catch {
       if(current())setMessage('Private image unavailable, expired or no longer authorized.')
@@ -134,8 +134,8 @@ export default function Feature3SecureDraftWorkspace({
              !imageMap[layer.asset_id]?.naturalHeight))) {
         throw Error('Shop media grant must be refreshed first')
       }
-      ticket.current = {scope:scopeKey,designId:chosen.id,revision:chosen.revision}
-      setReopenedState({scope:scopeKey,value:{
+      ticket.current = {scope:scopeKey,provider:feature3Api,designId:chosen.id,revision:chosen.revision}
+      setReopenedState({scope:scopeKey,provider:feature3Api,value:{
         id:chosen.id,revision:chosen.revision,design}})
       setMessage('Authorized editable draft reopened. Saving uses revision CAS.')
     } catch {
@@ -145,14 +145,14 @@ export default function Feature3SecureDraftWorkspace({
 
   const saveDesign = async design => {
     const scope=scopeKey,provider=feature3Api
-    if (disabled || (pending.current.scope===scope && pending.current.active))
+    if (disabled || (pending.current.scope===scope && pending.current.provider===provider && pending.current.active))
       throw Error('Draft save already in progress')
     // The previous campaign/day may have committed an uncertain POST. Never
     // carry that old design ID or optimistic CAS revision into a new scope.
-    if(ticket.current.scope!==scope) {
-      ticket.current={scope,designId:null,revision:0}
+    if(ticket.current.scope!==scope || ticket.current.provider!==provider) {
+      ticket.current={scope,provider,designId:null,revision:0}
     }
-    pending.current={scope,active:true}
+    pending.current={scope,provider,active:true}
     setBusy(true);setMessage('')
     try {
       const submitted=validateFeature3Design(design)
@@ -171,7 +171,7 @@ export default function Feature3SecureDraftWorkspace({
       if(!currentScope(scope,provider)){
         throw Error('Private design context changed during an uncertain save')
       }
-      ticket.current={scope,designId:response.design_id,revision:response.revision}
+      ticket.current={scope,provider,designId:response.design_id,revision:response.revision}
       setMessage('Private v2 design metadata saved at revision '+response.revision+
         '. Not a rendered, reviewed or publishable poster.')
       return response
@@ -181,7 +181,7 @@ export default function Feature3SecureDraftWorkspace({
         : 'Save not confirmed. Do not retry blindly: it may already have committed. Read private history first.')
       throw error
     } finally {
-      if(pending.current.scope===scope)pending.current.active=false
+      if(pending.current.scope===scope && pending.current.provider===provider)pending.current.active=false
       if(currentScope(scope,provider))setBusy(false)
     }
   }
