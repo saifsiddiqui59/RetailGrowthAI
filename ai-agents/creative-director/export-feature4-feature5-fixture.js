@@ -32,6 +32,14 @@ function exportCompiled(bundle,input,duration){
       Object.keys(input.media_grants[0].garment_facts||{}).some(k=>
         m.garment_lock?.[k]!==input.media_grants[0].garment_facts[k])))
     throw Error('Compiled director plan and original media scope mismatch');
+  const grant=input.media_grants[0];
+  if(!/^[a-f0-9]{64}$/.test(grant.original_media_sha256))
+    throw Error('Compiled director source original SHA invalid');
+  const sourceFacts=hash(JSON.stringify({
+    media_id:grant.id,original_media_sha256:grant.original_media_sha256,
+    garment:grant.garment_facts,shop_id:input.shop_id}));
+  if(bundle.motion_direction_v1.some(m=>m.reference_facts_sha256!==sourceFacts))
+    throw Error('Compiled director reference image byte identity was replaced');
   const checked=previewOffline(bundle,{gpuEnabled:false});
   const original=bundle.creative_direction_v1, motion=bundle.motion_direction_v1;
   if(checked.billable_calls!==0||checked.generated_video_files!==0||
