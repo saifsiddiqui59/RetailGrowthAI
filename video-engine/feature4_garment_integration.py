@@ -21,6 +21,14 @@ GARMENTS = (
     ("garment02", "8387134", "Ron Lach",
      "https://www.pexels.com/photo/hanging-clothes-in-a-clothes-rack-inside-a-boutique-8387134/"),
 )
+# Two more official Pexels editorial photos for the FULL-MINUTE QA only.
+# 30-second verified source/appearance remains byte-for-byte unchanged.
+MINUTE_GARMENTS = (
+    ("garment03", "4947543", "Maria Orlova",
+     "https://www.pexels.com/photo/collection-of-female-clothes-on-rack-in-boutique-4947543/"),
+    ("garment04", "4857762", "Rachel Claire",
+     "https://www.pexels.com/photo/stylish-clothes-hanging-on-rack-in-fashion-boutique-4857762/"),
+)
 MAX_IMAGE_BYTES = 22_000_000
 OUTRO = "STOCK GARMENT CONCEPT - NOT A RETAILER AD"
 
@@ -34,7 +42,7 @@ class ImageRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def retrieve_garment(dest: Path, source_id: str):
-    if source_id not in {rec[1] for rec in GARMENTS}:
+    if source_id not in {rec[1] for rec in GARMENTS + MINUTE_GARMENTS}:
         raise StockShowcaseError("Garment ID not allowlisted")
     if dest.exists() or dest.is_symlink():
         raise StockShowcaseError("Refusing garment overwrite")
@@ -102,7 +110,8 @@ def make_garment_project(source_dir: Path, project_dir: Path, *, seconds: int = 
                 "sha256_original": hashlib.sha256(original.read_bytes()).hexdigest(),
                 "sha256_staged": hashlib.sha256(norm.read_bytes()).hexdigest(),
                 "original_probe": measured, "stage_probe": staged, "ai_generated": False})
-        for aid, sid, creator, page in GARMENTS:
+        active_garments = GARMENTS + MINUTE_GARMENTS if seconds == 60 else GARMENTS
+        for aid, sid, creator, page in active_garments:
             original, dest = source_dir / (sid + ".jpg"), stage / (sid + ".jpg")
             checked_garment(original)
             dest.write_bytes(original.read_bytes())
@@ -136,14 +145,14 @@ def make_garment_project(source_dir: Path, project_dir: Path, *, seconds: int = 
                 (0, 5, "look01", "A NEW SEASON"),
                 (5, 5, "garment01", "DETAILS WORTH NOTICING"),
                 (10, 5, "look02", "THE EDIT IN MOTION"),
-                (15, 5, "garment02", "FORM AND TEXTURE"),
+                (15, 5, "garment03", "FORM AND TEXTURE"),
                 (20, 5, "look03", "LOOKS FOR EVERY DAY"),
                 (25, 5, "garment01", "CURATED REFERENCE"),
                 (30, 5, "look02", "MOVEMENT AND STYLE"),
-                (35, 5, "garment02", "CLOTHING DETAILS"),
+                (35, 5, "garment04", "CLOTHING DETAILS"),
                 (40, 5, "look01", "THE CITY EDIT"),
                 (45, 5, "garment01", "FIND YOUR STYLE"),
-                (50, 8, "garment02", "EDITORIAL FASHION STUDY"),
+                (50, 8, "garment03", "EDITORIAL FASHION STUDY"),
                 (58, 2, None, OUTRO),
             ]
         # Auto-find actual PCM onsets; no invented fixed-grid positions.
@@ -209,7 +218,7 @@ def main():
         if args.download:
             for _, sid, _, _, urls in CLIPS:
                 retrieve_stock(root / (sid + ".mp4"), urls)
-            for _, sid, _, _ in GARMENTS:
+            for _, sid, _, _ in (GARMENTS + MINUTE_GARMENTS if args.seconds == 60 else GARMENTS):
                 retrieve_garment(root / (sid + ".jpg"), sid)
         proj, report = make_garment_project(root, Path(args.project), seconds=args.seconds)
         proof = Path(args.provenance)

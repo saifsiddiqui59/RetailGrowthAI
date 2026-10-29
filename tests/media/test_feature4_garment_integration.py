@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "video-engine"))
-from feature4_garment_integration import (GARMENTS, OUTRO, StockShowcaseError,
+from feature4_garment_integration import (GARMENTS, MINUTE_GARMENTS, OUTRO, StockShowcaseError,
     checked_garment, make_garment_project, retrieve_garment)
 from feature4_stock_showcase import CLIPS
 
@@ -29,7 +29,7 @@ class GarmentIntegrationTests(unittest.TestCase):
                 "-c:v", "libx264", "-preset", "ultrafast",
                 str(self.media / (sid + ".mp4"))],
                 check=True, capture_output=True, timeout=30)
-        for _, sid, _, _ in GARMENTS:
+        for _, sid, _, _ in GARMENTS + MINUTE_GARMENTS:
             subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-y",
                 "-f", "lavfi", "-i", "testsrc2=size=640x960:rate=1",
                 "-frames:v", "1", "-q:v", "2", str(self.media / (sid + ".jpg"))],
@@ -78,6 +78,10 @@ class GarmentIntegrationTests(unittest.TestCase):
         self.assertTrue(report["reused_stock_video_clips"])
         self.assertEqual(html.count('class="footage clip"'), 5)
         self.assertEqual(html.count('class="product-photo"'), 6)
+        self.assertEqual(len(report["source_media"]), 7)
+        self.assertEqual(sum(a["source_feature"] == "feature3_garment_proxy"
+                             for a in report["source_media"]), 4)
+        self.assertEqual(len({a["source_id"] for a in report["source_media"]}), 7)
         self.assertIn('id="scene11"', html)
         self.assertNotIn('id="cta"', html)
         self.assertFalse(report["model_garment_match_verified"])

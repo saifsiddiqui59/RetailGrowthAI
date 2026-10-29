@@ -89,3 +89,19 @@ The unit test only verifies Bash syntax and safe invalid-input behavior;
 the script MUST be executed on a configured CPU runner before making a
 'full-minute Full-HD render passed' claim. Stock clips repeat and are
 not AI motion or actual retailer garments; the owner visual gate remains.
+
+
+### F4-49 — two additional independently sourced stock clothing photos (60s only)
+Pexels [Maria Orlova boutique rack #4947543](https://www.pexels.com/photo/collection-of-female-clothes-on-rack-in-boutique-4947543/)
+and [Rachel Claire garment display #4857762](https://www.pexels.com/photo/stylish-clothes-hanging-on-rack-in-fashion-boutique-4857762/)
+are separately attributed to their actual creators. The 60-second editorial
+test now has **four distinct physical garment-reference photos** + three
+verified real stock model clips. As before there is NO on-model garment
+matching/retailer inventory claim, model endorsement or AI-generated motion.
+These two additional media files are fetched from the fixed Pexels
+`images.pexels.com` allowlist ONLY for `--seconds 60`; the passing 30s
+Pexels fixture and its provenance are unchanged. In every minute run, the
+compiler copies source SHA-256, creator and original rights URL into the
+temporary private provenance and does not install product datasets. Offline
+synthetic media tests enforce seven distinct sources and twelve 60s scenes.
+The actual separate 60s runner must still execute and be visually reviewed.
