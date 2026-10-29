@@ -476,13 +476,21 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
             issues.add("UNVERIFIED_URGENCY_OR_TREND")
         if _CLAIM_MATERIAL.search(text):
             issues.add("PRODUCT_MATERIAL_FACTS_NOT_VERIFIED")
-        percent_hits=_CLAIM_PERCENT.findall(text)
-        if percent_hits:
-            legitimate=any(
-                offer["approved_claim_text"].casefold() in text.casefold()
-                for offer in names)
-            if not legitimate or _CLAIM_WIDE.search(text):
-                issues.add("DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED")
+        # Having ONE legitimate offer substring must not launder a second
+        # invented percentage in that same sentence, headline or voiceover.
+        # Every numeric discount occurrence must fall wholly inside the exact
+        # approved legal wording (including SKU/scope limitations).
+        approved_spans=[]
+        for offer in names:
+            claim=offer["approved_claim_text"]
+            pattern=r"(?<!\\w)"+re.escape(claim)+r"(?!\\w)"
+            approved_spans.extend((m.start(),m.end()) for m in
+                                   re.finditer(pattern,text,flags=re.I))
+        hits=list(_CLAIM_PERCENT.finditer(text))
+        if hits and (not approved_spans or _CLAIM_WIDE.search(text) or
+                     any(not any(a<=hit.start() and hit.end()<=b
+                                 for a,b in approved_spans) for hit in hits)):
+            issues.add("DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED")
     digest=hashlib.sha256(json.dumps(copy,ensure_ascii=False,sort_keys=True,
                     separators=(",",":")).encode()).hexdigest()
     return {
