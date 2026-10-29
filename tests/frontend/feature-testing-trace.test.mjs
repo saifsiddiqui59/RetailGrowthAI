@@ -135,7 +135,15 @@ test('API correlation receipts attach to the matching F2 step without leaking se
  const receipt={source:'trend',operation:'/shops/:id/improve-prompt',method:'POST',
   status_code:200,request_id:'1234567890abcdef1234567890abcdef',elapsed_ms:90,
   attempt:1,handler_marker_seen:true}
- const result=await executeFeatureTrace({...options,store,getNetworkEvidence:()=>[receipt]})
+ // Correlation only appears after Feature #2's authenticated response.
+  const received=[]
+  const observedTrend={improvePrompt:async(...args)=>{
+    const reply=await trendApi.improvePrompt(...args)
+    received.push(receipt)
+    return reply
+  }}
+  const result=await executeFeatureTrace({...options,store,trendApi:observedTrend,
+    getNetworkEvidence:()=>received})
  assert.equal(result.status,'PASS')
  const feature2=store.events.find(e=>e.action==='prompt-improvement')
  assert.equal(feature2.details.http_receipts.length,1)
