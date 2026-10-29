@@ -198,6 +198,25 @@ fs.writeFileSync(output,JSON.stringify({
                          {"word":"fashion","startMs":320,"endMs":650})
         self.assertEqual(receipt["evidence"]["source_sha256"],before)
         self.assertEqual(receipt["evidence"]["job_id"],"job_123456")
+        # Independently recompute the exact Python HMAC transcript digest
+        # expected by Feature2's strict signed-audio consumer, without
+        # weakening the existing Feature7 authorization signature.
+        canonical=json.dumps(receipt["words"],ensure_ascii=False,
+             separators=(",",":")).encode("utf8")
+        self.assertEqual(receipt["transcript_sha256"],
+                         hashlib.sha256(canonical).hexdigest())
+        order=("version","shop_id","asset_id","job_id","source_sha256",
+               "transcript_sha256","model_id","issued_at_ms","expires_at_ms")
+        fields={k:receipt["evidence"][k] for k in order}
+        serialized=json.dumps(fields,ensure_ascii=False,
+                              separators=(",",":")).encode("utf8")
+        expected=hmac.new(bytes.fromhex("ab"*32),
+              b"retailgrowth.feature7.asr.v1\n"+serialized,
+              hashlib.sha256).hexdigest()
+        self.assertEqual(receipt["evidence"]["mac"],expected)
+        self.assertEqual(receipt["model_id"],"faster_whisper_small_cpu_int8")
+        self.assertTrue(receipt["local_cpu_inference_invoked"])
+        self.assertFalse(receipt["customer_publishable"])
         self.assertFalse(receipt["approved"])
         self.assertFalse(receipt["renderable"])
         self.assertFalse(receipt["customer_publishable"])
