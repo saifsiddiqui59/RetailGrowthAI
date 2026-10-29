@@ -13,6 +13,7 @@ rights and single-use lease after an approved provider is enabled.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 import re
 
 from tenant_store import canonical_uuid, StorageUnavailable
@@ -69,19 +70,26 @@ class Feature3GPUJobPlanPreflight:
         self.store=admin_store
         self.proof=source_proof
 
-    def _snapshot(self, shop, job):
+    def _snapshot(self, shop, job, claimed_token=None):
         s=self.store
         j=_single(s,"feature3_gpu_jobs",shop,job,
-            "id,shop_id,requested_by,design_id,design_revision,design_server_sha256,status,attempts,claim_token,output_asset_id")
+            "id,shop_id,requested_by,design_id,design_revision,design_server_sha256,status,attempts,claim_token,lease_until,output_asset_id")
         if (j.get("id") != job or j.get("shop_id") != shop or
-                j.get("status") != "QUEUED" or
-                j.get("attempts") != 0 or j.get("claim_token") is not None or
                 j.get("output_asset_id") is not None or
                 type(j.get("design_revision")) is not int or
                 not 1 <= j["design_revision"] <= 1_000_000 or
                 not isinstance(j.get("design_server_sha256"),str) or
                 not _SHA.fullmatch(j["design_server_sha256"])):
-            raise Feature3PlanDenied("Job is not a fresh unclaimed GPU plan")
+            raise Feature3PlanDenied("Job is not a current GPU plan")
+        if claimed_token is None:
+            if (j.get("status")!="QUEUED" or j.get("attempts")!=0 or
+                    j.get("claim_token") is not None or
+                    j.get("lease_until") is not None):
+                raise Feature3PlanDenied("Only fresh unclaimed plan allowed")
+        elif (j.get("status")!="RUNNING" or j.get("attempts")!=1 or
+              j.get("claim_token")!=claimed_token or
+              not isinstance(j.get("lease_until"),str)):
+            raise Feature3PlanDenied("Current one-shot claimed job unavailable")
         actor,design=_uuid(j.get("requested_by")),_uuid(j.get("design_id"))
         members=s.request("shop_memberships",query={
             "select":"shop_id,user_id,role,active",
@@ -182,9 +190,9 @@ class Feature3GPUJobPlanPreflight:
         return {"job":j,"design":d,"member":members[0],
                 "subscription":sub,"assets":by_id,"models":models,"ids":unique}
 
-    def check(self, shop_id, job_id):
+    def _check(self, shop_id, job_id, claimed_token=None):
         shop,job=_uuid(shop_id),_uuid(job_id)
-        snapshot=self._snapshot(shop,job)
+        snapshot=self._snapshot(shop,job,claimed_token)
         verified=[]
         model_hashes={m["media_asset_id"]:m["image_sha256"] for m in snapshot["models"]}
         for asset in snapshot["ids"]:
@@ -209,7 +217,7 @@ class Feature3GPUJobPlanPreflight:
         # Model and tenant rights might change during actual private image
         # verification. Re-read all authoritative SQL rows; any divergence
         # denies preflight. Workers must check AGAIN after paid job claim.
-        after=self._snapshot(shop,job)
+        after=self._snapshot(shop,job,claimed_token)
         if after!=snapshot:
             raise Feature3PlanDenied("Source/lease/role changed during GPU preflight")
         # Re-run the independently authorized bytes/right revocation proof,
@@ -235,3 +243,79 @@ class Feature3GPUJobPlanPreflight:
                 "preflight_verified":True,"provider_call_permitted":False,
                 "gpu_started":False,"claim_performed":False,
                 "paid_retry_authorized":False}
+
+    def check(self, shop_id, job_id):
+        """Existing GPU-OFF queue-inspection contract: zero claims."""
+        return self._check(shop_id,job_id)
+
+    def check_claimed(self, shop_id, job_id, claim_token, source_asset_ids,
+                      read_prepaid_reservation):
+        """Revalidate real one-shot RUNNING lease + sources without invoking GPU.
+
+        Call only from a service-owned worker after a separately gated claim.
+        This method does not claim, extend lease, bill, download model weights,
+        ACK the queue, or authorize a provider. All rights and real image
+        bytes are checked twice, with a full DB snapshot refresh in between.
+        """
+        shop,job,token=map(_uuid,(shop_id,job_id,claim_token))
+        if not callable(read_prepaid_reservation):
+            raise Feature3PlanDenied("Actual service-side current lease reader required")
+        if (type(source_asset_ids) is not tuple or
+                not 1<=len(source_asset_ids)<=12):
+            raise Feature3PlanDenied("Canonical claimed source list required")
+        ids=tuple(_uuid(item) for item in source_asset_ids)
+        if ids!=tuple(sorted(set(ids))):
+            raise Feature3PlanDenied("Claimed sources are duplicated or reordered")
+
+        def live_lease():
+            try:
+                r=read_prepaid_reservation(shop,job,1,token)
+            except Exception as exc:
+                raise Feature3PlanDenied("Current one-shot lease unconfirmed") from exc
+            if (not isinstance(r,dict) or set(r)!={
+                    "reservation_id","shop_id","job_id","attempt",
+                    "claim_token","reserved_usd"} or
+                    r.get("shop_id")!=shop or r.get("job_id")!=job or
+                    r.get("claim_token")!=token or
+                    type(r.get("attempt")) is not int or r["attempt"]!=1):
+                raise Feature3PlanDenied("Unconfirmed current reserved GPU lease")
+            _uuid(r.get("reservation_id"))
+            try:
+                amount=Decimal(str(r["reserved_usd"]))
+            except (InvalidOperation,KeyError,TypeError,ValueError) as exc:
+                raise Feature3PlanDenied("Untrusted prepaid GPU amount") from exc
+            if (type(r["reserved_usd"]) is bool or not amount.is_finite()
+                    or amount<=0 or amount>Decimal("2.50")
+                    or amount.as_tuple().exponent < -6):
+                raise Feature3PlanDenied("Invalid bounded prepaid GPU amount")
+            return {**r,"reserved_usd":str(amount)}
+        before=live_lease()
+        result=self._check(shop,job,claimed_token=token)
+        if ids!=result["source_asset_ids"]:
+            raise Feature3PlanDenied("Claimed GPU input sources changed")
+        if live_lease()!=before:
+            raise Feature3PlanDenied("Prepaid GPU lease changed during source verification")
+        # This is proof of an existing claimed lease, not a new claim. Do NOT
+        # interpret it as a provider authorization while feature is GPU-OFF.
+        return {**result,"claim_observed":True,"current_lease_verified":True}
+
+
+def make_claimed_gpu_off_rights_callback(*, plan_reader, service):
+    """Existing worker current_rights signature -> real SQL/bytes recheck.
+
+    The backend service supplies read_prepaid_reservation, which already
+    checks future RUNNING lease, service-only reservation and prepaid cap.
+    A fake/browser source verifier must never be passed to a live worker.
+    """
+    if (not callable(getattr(plan_reader,"check_claimed",None)) or
+            not callable(getattr(service,"read_prepaid_reservation",None))):
+        raise ValueError("Actual claimed source plan and prepaid SQL reader required")
+
+    def current_rights(shop_id, job_id, token, source_asset_ids):
+        result=plan_reader.check_claimed(
+            shop_id,job_id,token,source_asset_ids,service.read_prepaid_reservation)
+        return (result["current_lease_verified"] is True and
+                result["claim_observed"] is True and
+                result["provider_call_permitted"] is False and
+                result["paid_retry_authorized"] is False)
+    return current_rights
