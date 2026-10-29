@@ -124,6 +124,8 @@ export default function Feature3SecureDraftWorkspace({
     if (!chosen) return
     try {
       if (chosen.status !== 'DRAFT') throw Error('Only editable drafts reopen')
+      if (chosen.shop_id!==shopId || chosen.campaign_id!==campaignId ||
+          chosen.day_id!==dayId) throw Error('Private draft context changed')
       const design = validateFeature3Design(chosen.design)
       if (design.shop_id !== shopId ||
           design.layers.some(layer => layer.type === 'image' &&
@@ -132,8 +134,9 @@ export default function Feature3SecureDraftWorkspace({
              !imageMap[layer.asset_id]?.naturalHeight))) {
         throw Error('Shop media grant must be refreshed first')
       }
-      ticket.current = {designId:chosen.id,revision:chosen.revision}
-      setReopened({id:chosen.id,revision:chosen.revision,design})
+      ticket.current = {scope:scopeKey,designId:chosen.id,revision:chosen.revision}
+      setReopenedState({scope:scopeKey,value:{
+        id:chosen.id,revision:chosen.revision,design}})
       setMessage('Authorized editable draft reopened. Saving uses revision CAS.')
     } catch {
       setMessage('Draft is no longer editable or private media access changed.')
@@ -141,11 +144,18 @@ export default function Feature3SecureDraftWorkspace({
   }
 
   const saveDesign = async design => {
-    if (disabled || pending.current) throw Error('Draft save already in progress')
-    pending.current = true
-    setBusy(true); setMessage('')
+    const scope=scopeKey,provider=feature3Api
+    if (disabled || (pending.current.scope===scope && pending.current.active))
+      throw Error('Draft save already in progress')
+    // The previous campaign/day may have committed an uncertain POST. Never
+    // carry that old design ID or optimistic CAS revision into a new scope.
+    if(ticket.current.scope!==scope) {
+      ticket.current={scope,designId:null,revision:0}
+    }
+    pending.current={scope,active:true}
+    setBusy(true);setMessage('')
     try {
-      const submitted = validateFeature3Design(design)
+      const submitted=validateFeature3Design(design)
       if (submitted.shop_id !== shopId ||
           submitted.layers.some(layer => layer.type === 'image' &&
             (!imageMap[layer.asset_id]?.complete ||
@@ -153,23 +163,26 @@ export default function Feature3SecureDraftWorkspace({
              !imageMap[layer.asset_id]?.naturalHeight))) {
         throw Error('Registered media must still be authorized')
       }
-      const response = await feature3Api.saveDesign(
+      const response=await feature3Api.saveDesign(
         shopId,campaignId,dayId,submitted,{
           designId:ticket.current.designId,
           expectedRevision:ticket.current.revision,
         })
-      ticket.current={designId:response.design_id,revision:response.revision}
+      if(!currentScope(scope,provider)){
+        throw Error('Private design context changed during an uncertain save')
+      }
+      ticket.current={scope,designId:response.design_id,revision:response.revision}
       setMessage('Private v2 design metadata saved at revision '+response.revision+
         '. Not a rendered, reviewed or publishable poster.')
       return response
     } catch (error) {
-      setMessage(error?.status === 409
+      if(currentScope(scope,provider))setMessage(error?.status === 409
         ? 'This revision is stale or no longer authorized. Refresh history; do not resend automatically.'
         : 'Save not confirmed. Do not retry blindly: it may already have committed. Read private history first.')
       throw error
     } finally {
-      pending.current=false
-      setBusy(false)
+      if(pending.current.scope===scope)pending.current.active=false
+      if(currentScope(scope,provider))setBusy(false)
     }
   }
   if (!feature3Api || typeof feature3Api.listDesigns !== 'function' ||
