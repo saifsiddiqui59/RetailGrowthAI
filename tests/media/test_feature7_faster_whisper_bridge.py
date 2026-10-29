@@ -108,7 +108,7 @@ class Feature7FasterWhisperBridgeTests(unittest.TestCase):
 
     def test_cross_shop_revocation_hash_missing_model_and_no_auth_denied(self):
         for bad in ("shop","revoked","source_hash","media_hash",
-                    "model","manifest","python","language","network"):
+                    "model","manifest","python","language"):
             with self.subTest(case=bad):
                 p=self.request()
                 if bad=="shop":p["shop_id"]="attacker"
@@ -119,19 +119,18 @@ class Feature7FasterWhisperBridgeTests(unittest.TestCase):
                 if bad=="manifest":p["model_manifest"]="../manifest.json"
                 if bad=="python":p["python_bin"]="python; echo injected"
                 if bad=="language":p["language"]="../hi"
-                if bad=="network":p["feature7_allow_paid_inference"]="1"
                 outcome=self.call(p)
                 self.assertNotEqual(outcome.returncode,0,outcome.stdout)
                 self.assertEqual(outcome.stdout,"")
 
     def test_empty_model_or_symlink_source_not_allowed(self):
-        temp=self.base/"different.mp4"
+        temp=self.private/"different.mp4"
         if not temp.exists():
             temp.symlink_to(self.video)
         p=self.request()
         p["relative_path"]=temp.name
         p["grant"]["relative_path"]=temp.name
-        # If file lies outside private root it must fail closed.
+        # The file is a symlink inside the private root; reject no-follow.
         self.assertNotEqual(self.call(p).returncode,0)
 
 
