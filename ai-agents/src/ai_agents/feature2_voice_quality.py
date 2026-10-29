@@ -401,3 +401,103 @@ def review_signed_audio_transcript(*, receipt, shop_id, campaign_id,
             "phoneme_accuracy_verified": False,
             "independent_word_alignment_accepted": False,
             "human_listen_required": True, "publish_approved": False}
+
+
+def _word_edit_totals(expected,heard):
+    """Exact word-level Levenshtein counts (not SequenceMatcher heuristics).
+
+    Tie-breaking is deterministic: diagonal substitution, deletion, insertion.
+    Time bounded at 600x600 tokens, independent of audio and model loading.
+    """
+    if (type(expected) is not list or type(heard) is not list or
+        not 1<=len(expected)<=600 or not 1<=len(heard)<=600 or
+        any(type(w) is not str or not 1<=len(w)<=80 for w in expected+heard)):
+        raise VoiceQualityDenied("Bounded word sequences required for WER")
+    prev=[(j,0,0,j) for j in range(len(heard)+1)]
+    for i,reference in enumerate(expected,1):
+        curr=[(i,0,i,0)]
+        for j,actual in enumerate(heard,1):
+            unchanged=reference==actual
+            diag=prev[j-1]
+            substitutions=(diag[0]+(0 if unchanged else 1),
+                           diag[1]+(0 if unchanged else 1),diag[2],diag[3])
+            dele=prev[j]
+            deletion=(dele[0]+1,dele[1],dele[2]+1,dele[3])
+            ins=curr[-1]
+            insertion=(ins[0]+1,ins[1],ins[2],ins[3]+1)
+            # tuple costs incorporate fixed tie priorities; the cost alone
+            # determines WER (not the arbitrary S/D/I operation split).
+            curr.append(min((substitutions,deletion,insertion),
+                            key=lambda x:(x[0],0 if x is substitutions else
+                                          1 if x is deletion else 2)))
+        prev=curr
+    errors,subs,deletes,inserts=prev[-1]
+    return {"substitutions":subs,"deletions":deletes,"insertions":inserts,
+            "edit_distance":errors,
+            "reference_word_count":len(expected),
+            "heard_word_count":len(heard),
+            "word_error_rate":round(errors/len(expected),5),
+            "word_accuracy_is_not_pronunciation":True}
+
+
+def compare_signed_feature7_word_error_rate(*,receipt,shop_id,campaign_id,
+        audio_asset_id,creative_plan_sha256,original_audio_sha256,
+        audio_duration_seconds,expected_script,evidence_key,now_ms,
+        expected_job_id,assert_current_source,
+        human_transcript=None,verify_signed_human_transcript=None):
+    """Signed original-WAV ASR WER; optional independent signed human WER.
+
+    Human reference must be cryptographically bound by a trusted backend to
+    current shop/campaign/asset/plan/WAV/job + exact UTF-8 digest. No browser
+    checkbox, self-proclaimed speaker or ASR receipt can impersonate a human
+    reviewer. It never certifies audio inference, voice quality or publishing.
+    """
+    quality=review_signed_audio_transcript(
+        receipt=receipt,shop_id=shop_id,campaign_id=campaign_id,
+        audio_asset_id=audio_asset_id,
+        creative_plan_sha256=creative_plan_sha256,
+        original_audio_sha256=original_audio_sha256,
+        audio_duration_seconds=audio_duration_seconds,
+        expected_script=expected_script,evidence_key=evidence_key,
+        now_ms=now_ms,expected_job_id=expected_job_id,
+        assert_current_source=assert_current_source)
+    expected=quality["expected_words"]
+    actual=quality["transcribed_words"]
+    asr=_word_edit_totals(expected,actual)
+    human=None;manual_agreement=None
+    if human_transcript is not None:
+        if (type(human_transcript) is not str or
+            not 1<=len(human_transcript)<=1800 or
+            not callable(verify_signed_human_transcript)):
+            raise VoiceQualityDenied("Independently signed human transcript required")
+        human_words=_words(human_transcript)
+        if not 1<=len(human_words)<=600:
+            raise VoiceQualityDenied("Human transcript must contain bounded speech words")
+        digest=sha256(human_transcript.encode("utf-8")).hexdigest()
+        binding=(shop_id,campaign_id,audio_asset_id,creative_plan_sha256,
+                 original_audio_sha256,expected_job_id,digest)
+        if verify_signed_human_transcript(*binding) is not True or \
+           assert_current_source(*binding[:-1]) is not True:
+            raise VoiceQualityDenied("Human reference revoked or not independently signed")
+        human=_word_edit_totals(expected,human_words)
+        manual_agreement=_word_edit_totals(human_words,actual)
+        if verify_signed_human_transcript(*binding) is not True or \
+           assert_current_source(*binding[:-1]) is not True:
+            raise VoiceQualityDenied("Signed human reference changed during comparison")
+    elif verify_signed_human_transcript is not None:
+        raise VoiceQualityDenied("Human evidence callback without transcript")
+    return {"schema":"retailgrowth.feature2-verified-word-error-review.v1",
+            "shop_id":shop_id,"campaign_id":campaign_id,
+            "audio_asset_id":audio_asset_id,
+            "original_audio_sha256":original_audio_sha256,
+            "creative_plan_sha256":creative_plan_sha256,
+            "source_job_id":expected_job_id,
+            "feature7_hmac_and_current_source_verified":True,
+            "feature7_asr_word_error":asr,
+            "human_signed_transcript_available":human is not None,
+            "human_transcript_vs_script_error":human,
+            "feature7_asr_vs_human_error":manual_agreement,
+            "human_accuracy_not_assumed":True,
+            "real_worker_execution_independently_observed":False,
+            "source_only_metric_not_acoustic_certification":True,
+            "pronunciation_verified":False,"can_publish":False}
