@@ -370,3 +370,40 @@ def test_delivery_and_bogo_claims_are_reviewer_flags_without_source_approval(una
         copy=candidate_copy(caption=unapproved))
     assert "UNVERIFIED_URGENCY_OR_TREND" in report["issues"]
     assert report["can_publish"] is False
+
+
+@pytest.mark.parametrize("draft,issue", [
+    ({"caption": "５０％ off selected kurti styles"},
+     "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ({"caption": "20% off selected kurti styles and ９０％ off another"},
+     "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ({"cta": "Ｒｓ．１９９ for the festive collection"},
+     "UNVERIFIED_CURRENCY_PRICE"),
+    ({"caption": "ＦＲＥＥ ＳＨＩＰＰＩＮＧ for selected kurtis"},
+     "UNVERIFIED_URGENCY_OR_TREND"),
+    ({"headline": "１００％ pure cotton festive kurti"},
+     "PRODUCT_MATERIAL_FACTS_NOT_VERIFIED"),
+])
+def test_unicode_compatibility_claims_still_require_editorial_review(draft, issue):
+    report = inspect_retailer_copy_claims(
+        verified_context=copy_context(), copy=candidate_copy(**draft))
+    assert issue in report["issues"]
+    assert report["review_required"] is True
+    assert report["can_publish"] is False
+
+
+@pytest.mark.parametrize("hidden", ["\\u200b", "\\u2060", "\\ufeff",
+                                     "\\u202e", "\\u2066", "\\u200e"])
+def test_invisible_claim_obfuscation_rejected_before_review(hidden):
+    with pytest.raises(EditorialBasisRejected, match="Unsafe"):
+        inspect_retailer_copy_claims(
+            verified_context=copy_context(),
+            copy=candidate_copy(caption="50" + hidden + "% off kurtis"))
+
+
+def test_hindi_joiners_remain_legal_in_noncommercial_copy():
+    report = inspect_retailer_copy_claims(
+        verified_context=copy_context(),
+        copy=candidate_copy(caption="त्योहारों के लिए सुंदर कुर्ती\u200d स्टाइल"))
+    assert report["issues"] == []
+    assert report["can_publish"] is False
