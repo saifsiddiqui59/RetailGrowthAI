@@ -916,3 +916,14 @@
 
 
 - 2026-10-29 Feature3 GPU-off queue preview: inspect queue shop/job IDs only with strict schema and current trusted source/role checks; require provider explicitly OFF, return no ACK/claim/charge permission. Never register an ordinary Azure Queue trigger that silently deletes accepted messages or poison-retries disabled paid work. Preserve independent audited one-shot SQL and operator reconciliation for later enabled-worker activation.
+
+## 2026-10-29 — Retailer generated-image history is on-demand metadata before private outputs
+- Feature3 Creative Studio may show an existing authenticated same-shop GPU job status only after explicit retailer GET, with exact normalized id/shop/status allowlist. Never preemptively mint signed Storage URLs, auto-download an unreviewed generated image, imply approval or initiate paid GPU. Scope async UI reads by current shop and discard stale responses on role/account/shop transitions. Binary preview needs separate current-rights endpoint and verified host acceptance.
+
+
+## 2026-10-29 — Uncertain private GPU billing state is read-only until independently reconciled
+- Inspect actual same-shop GPU job, reserved/settled spend and *independently trusted* private output evidence before labelling an observed state. No retry or refund may be inferred from lease expiry or a failed Queue/Storage/DB ACK. Only explicit human operator financial evidence can advance a charged unknown; this source module never submits a paid/financial mutation. A SUCCEEDED private PNG is UNREVIEWED and not licensable or publishable by itself.
+
+## 2026-10-29 — Integrate disjoint private history and financial inspection without false live claims
+- Preserve original #642 and #643 source/test diffs and append-only docs when main has advanced; never force-merge conflicting canonical docs, silently drop a security negative test or claim that a metadata read settles financial state. Source CI and hosted DEV are distinct.
+

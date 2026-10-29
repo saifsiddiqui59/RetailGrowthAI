@@ -1239,3 +1239,14 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 
 - 2026-10-29 Feature3 Phase2 queue intake gate: current v1 packet parser is now wired to read-only SQL/source preflight under mandatory provider OFF, but **do not register an Azure Queue-trigger handler yet**. Implement legitimate worker+operator intake with explicit handling of queue ACK/deletion, one-shot claim only after actual financial/provider/rights approval and trusted current bytes, loss-of-ACK reconciliation and no paid retry. This queue source test is not operational queue consumption. Verify combined exact-head CI.
+
+## 2026-10-29 — Feature3 pending after safe generated job history UX
+- Verify all four exact CI jobs and coordinator merge for `feat/feature3-safe-generated-history-ui-20261029`, then postmerge main 4/4; source adds retailer-requested PRIVATE job status list only, never auto-generates, signs URLs or preloads media. Future generation preview remains contingent on merged no-URL reader, coordinator-approved binary endpoint, genuine immutable rights verifier and actual hosted signed tenant regression; no live backend output row currently exists. Keep GPU OFF and protect against revoked/foreign stale Blob URL.
+
+
+## 2026-10-29 — Feature3 GPU-off financial reconciliation operator bridge
+- Run exact-head CI and coordinator merge for `feat/feature3-financial-reconciliation-inspection-20261029` and postmerge main 4/4. Source inspection detects missing/uncertain/contradictory job, billing and immutable output proof but cannot run actual operator action without trusted private evidence reader, billed GPU invoice and reviewed human recovery policy. **Never** automatically retry/settle/refund/delete on uncertain ACK; existing provider remains OFF and queued jobs are not consumed by this inspector. Pair with merged output-fence #640 and current-rights #641.
+
+## 2026-10-29 — Phase2 UI/reconciliation coordinator closeout
+- Verify all four exact integration CI jobs and postmerge main 4/4 before closing #642/#643 as superseded. Still pending trusted private model+garment actual licensed bytes, operator evidence RPC, binary no-URL endpoint, Azure real queue worker/poison, reviewed source-produced customer images, browser E2E and #249 host fix; no GPU/PROD/WineShopPOS operations.
+
