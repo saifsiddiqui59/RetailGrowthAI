@@ -25,7 +25,9 @@ class VisibilityReceiptTests(unittest.TestCase):
         self.windows=[{"start":i*5.0,"duration":5.0} for i in range(12)]
         self.prov={"scene_windows":self.windows}
         self.report={
-            "schema":"feature4_scene_visibility_v1",
+            "schema":"feature4_scene_visibility_v2",
+            "sample_fractions":[.15,.30,.50,.70,.85],
+            "short_blank_frames_excluded_by_sampling":False,
             "status":"SAMPLED_SCENES_NOT_BLANK_NOT_CONTENT_APPROVAL",
             "source_sha256":hashlib.sha256(self.original.read_bytes()).hexdigest(),
             "seconds":60,"checked_scene_count":12,
@@ -36,10 +38,9 @@ class VisibilityReceiptTests(unittest.TestCase):
             "checked_scenes":[{
                 "scene_start":i*5.0,"duration":5.0,
                 "sustained_near_black":False,
-                "samples":[{"time_seconds":i*5.0+1.5,"mean_luma":87,
-                            "near_black_fraction":0.03},
-                           {"time_seconds":i*5.0+3.5,"mean_luma":80,
-                            "near_black_fraction":0.05}]
+                "samples":[{"time_seconds":round(i*5.0+fraction*5.0,3),
+                            "mean_luma":87,"near_black_fraction":0.03}
+                           for fraction in (.15,.30,.50,.70,.85)]
             } for i in range(12)],
         }
         self.persist()
@@ -77,6 +78,33 @@ class VisibilityReceiptTests(unittest.TestCase):
         self.persist()
         with self.assertRaises(MinuteProofError):
             self.verify()
+    def test_missing_center_sample_or_forged_black_flag_rejected(self):
+        # Evidence must cover every reviewed interior time, not just the old
+        # two temporal probes, and cannot claim a black sample is visible.
+        self.report["checked_scenes"][0]["samples"].pop(2)
+        self.persist()
+        with self.assertRaises(MinuteProofError):
+            self.verify()
+        self.report["checked_scenes"][0]["samples"].insert(
+            2,{"time_seconds":2.5,"mean_luma":0,"near_black_fraction":1})
+        self.persist()
+        with self.assertRaises(MinuteProofError):
+            self.verify()
+        self.report["checked_scenes"][0]["samples"][2]={
+            "time_seconds":2.8,"mean_luma":87,"near_black_fraction":.03}
+        self.persist()
+        with self.assertRaises(MinuteProofError):
+            self.verify()
+
+    def test_legacy_two_frame_proof_is_no_longer_accepted(self):
+        self.report["schema"]="feature4_scene_visibility_v1"
+        self.report["checked_scenes"][0]["samples"]=[
+            self.report["checked_scenes"][0]["samples"][1],
+            self.report["checked_scenes"][0]["samples"][3]]
+        self.persist()
+        with self.assertRaises(MinuteProofError):
+            self.verify()
+
     def test_mismatched_scene_claim_and_symlinked_receipt_rejected(self):
         self.report["checked_scenes"][7]["scene_start"]=1
         self.persist()
