@@ -62,8 +62,10 @@ def validate(data, deps=None, policy=None):
         if not isinstance(task, dict):
             raise InventoryError("Invalid feature task row")
         tid, feature = task.get("id"), task.get("feature")
-        if feature not in EXPECTED or not isinstance(tid, str) or tid in ids:
-            raise InventoryError(f"Duplicate or invalid task ID: {tid}")
+        if isinstance(tid, str) and tid in ids:
+            raise InventoryError(f"Duplicate task ID: {tid}")
+        if feature not in EXPECTED or not isinstance(tid, str):
+            raise InventoryError(f"Invalid task ID: {tid}")
         suffix = tid.split("-", 1)[-1]
         if feature == "7":
             if not re.fullmatch(r"F7-[A-Z]{1,2}", tid):
