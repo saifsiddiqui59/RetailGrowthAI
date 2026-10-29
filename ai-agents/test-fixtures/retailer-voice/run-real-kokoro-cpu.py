@@ -9,11 +9,16 @@ for Kokoro inference success.
 import argparse
 from hashlib import sha256
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
 import sys
 import time
+try:
+    import resource  # Linux process RSS includes native ONNX Runtime allocations
+except ImportError:
+    resource=None
 
 from ai_agents.feature2_kokoro_local import (
     MODEL_NAME,VOICES_NAME,MODEL_SHA,VOICES_SHA,synthesize_local
@@ -34,8 +39,14 @@ def main():
     parser.add_argument("--voice",choices=("af_heart","af_sarah","am_adam",
                                             "bf_emma","bm_george"),default="af_heart")
     parser.add_argument("--mp3",action="store_true")
+    parser.add_argument("--worker-hourly-usd",type=float,default=None,
+                        help="Operator-verified CPU worker USD/hour, optional")
     args=parser.parse_args()
     if args.plan==args.run:parser.error("Choose exactly one of --plan or --run")
+    if args.worker_hourly_usd is not None and (
+        not math.isfinite(args.worker_hourly_usd) or
+        not 0<args.worker_hourly_usd<=100):
+        parser.error("A finite, externally verified positive worker rate is required")
     if args.plan:
         print(json.dumps({"actual_inference_executed":False,"upstream":"thewh1teagle/kokoro-onnx",
             "mode":"CPU", "model_file":MODEL_NAME,"model_sha256":MODEL_SHA,
@@ -52,6 +63,7 @@ def main():
     os.environ["RETAIL_FEATURE2_KOKORO_CPU_ENABLED"]="true"
     lang="en-gb" if args.voice.startswith(("bf_","bm_")) else "en-us"
     t0=time.perf_counter()
+    cpu0=time.process_time()
     result=synthesize_local(text=EXAMPLES[args.example],voice_id=args.voice,
                             lang=lang,speed="normal",cache_dir=args.model_dir)
     if result["test_only"] or not result["actual_inference_verified"]:
@@ -59,12 +71,25 @@ def main():
     wav_path=out/"kokoro-cpu-original.wav"
     wav_path.write_bytes(result.pop("audio_wav"))
     os.chmod(wav_path,0o600)
+    cpu_seconds=round(time.process_time()-cpu0,3)
+    elapsed_seconds=round(time.perf_counter()-t0,3)
+    peak_rss=(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+              if resource is not None and sys.platform.startswith("linux") else None)
     report={**result,"source_original_text_sha256":sha256(EXAMPLES[args.example].encode()).hexdigest(),
-            "benchmark_elapsed_seconds":round(time.perf_counter()-t0,3),
+            "benchmark_elapsed_seconds":elapsed_seconds,
+            "process_cpu_seconds":cpu_seconds,
+            "peak_process_rss_kib_linux":peak_rss,
+            "realtime_factor":round(result["cpu_elapsed_seconds"]/result["duration_seconds"],3),
+            "synthesis_concurrency_limit":1,
+            "compute_cost_basis":"Operator rate times single-worker measured elapsed; storage and idle cost excluded",
+            "estimated_worker_compute_usd":(
+                round(elapsed_seconds*args.worker_hourly_usd/3600,7)
+                if args.worker_hourly_usd is not None else None),
             "output_wav":str(wav_path),"word_transcript_accuracy":"NOT_VERIFIED",
             "human_quality":"NOT_REVIEWED",
             "free_provider_api_cost_usd":0,
-            "local_compute_and_storage_cost_usd":"NOT_MEASURED"}
+            "local_compute_and_storage_cost_usd":"NOT_MEASURED",
+            "price_usd_per_worker_hour_operator_supplied":args.worker_hourly_usd}
     if args.mp3:
         dest=out/"kokoro-cpu-original.mp3"
         subprocess.run(["ffmpeg","-nostdin","-hide_banner","-loglevel","error",
@@ -73,6 +98,14 @@ def main():
         os.chmod(dest,0o600)
         report["mp3_sha256"]=sha256(dest.read_bytes()).hexdigest()
         report["output_mp3"]=str(dest)
+        mp3_probe=subprocess.run(["ffprobe","-v","error","-show_entries",
+          "stream=codec_name:format=duration","-of","json",str(dest)],
+          capture_output=True,text=True,timeout=15,check=True)
+        mp3_info=json.loads(mp3_probe.stdout)
+        if not any(st.get("codec_name")=="mp3" for st in mp3_info.get("streams",[])) \
+            or float(mp3_info.get("format",{}).get("duration",0))<=0:
+            raise RuntimeError("Optional Kokoro MP3 codec/duration evidence missing")
+        report["mp3_duration_seconds"]=float(mp3_info["format"]["duration"])
     # Actual audio inspection using ffprobe, not assuming WAV success.
     probe=subprocess.run(["ffprobe","-v","error","-show_entries",
                           "stream=codec_name,sample_rate,channels",
