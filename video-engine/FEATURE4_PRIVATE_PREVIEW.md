@@ -35,3 +35,24 @@ No GPU, paid compute, third-party artist music, real retailers or WineShopPOS.
 CI test \`tests/media/test_feature4_private_preview.py\` performs actual
 FFmpeg encode, source immutability, codec/duration/size verification and
 negative tests for unsafe files, wrong aspect and wrong duration.
+
+
+## F4-43 — audio-only perceptual loudness mastering
+The owner-reported stock Reel had quiet original synthesized audio (measured
+approximately -29.1 dB mean). A separate FFmpeg loudnorm transcode of **only**
+the AAC audio improved mean volume to approximately -17.5 dB on the 30s sample;
+the SHA-256 streamhash of H264 video packets remained byte-for-byte identical.
+New \`video-engine/feature4_audio_master.py\` performs this step after an
+already-authorized private render and BEFORE generating the compact preview,
+without rewriting or deleting the Full-HD original. It enforces source 9:16
+H264/AAC, expected 15/30/60s duration, bounded output, loudness measurement,
+audio level sanity, immutable H264 packet hash, atomic no-overwrite, and
+source/output SHA-256 provenance. Source-only, no public/signed URL, no
+rights grant, no voice recognition, no music recommendations.
+
+PR-only Pexels QA outputs mastered Full-HD + small 540p mobile MP4 in the
+existing short-retention CI artifact. Actual offline unit tests exercise
+a low-volume synthetic soundtrack, verify gain and exactly preserved H264
+packet hash, and reject malicious/invalid source paths and bad durations.
+Commercial acceptance, actual AI speech, licensed third-party songs,
+real retailer garment fidelity and hosted JWT/RLS/private signing still pending.

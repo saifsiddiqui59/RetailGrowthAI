@@ -77,10 +77,24 @@ assert all(any(abs(c-b)<.17 for b in proof["measured_beat_timestamps"])
     for c in proof["synced_scene_starts"][1:])
 print("PASS: 30s actual Pexels garment + stock-person Reel, NOT garment identity or production acceptance")
 PY
+  # F4-43: audio-only loudness mastering; H264 packet hash must not change.
+  GARMENT_MASTER="$ROOT/ci-artifacts/feature4-stock-garment-30s-mastered.mp4"
+  GARMENT_MASTER_PROOF="$ROOT/ci-artifacts/feature4-stock-garment-master-proof.json"
+  python3 "$ROOT/video-engine/feature4_audio_master.py" \
+    --source "$GARMENT_MP4" --duration 30 \
+    --output "$GARMENT_MASTER" --report "$GARMENT_MASTER_PROOF"
+  python3 - "$GARMENT_MASTER_PROOF" <<'PY'
+import json,sys
+p=json.load(open(sys.argv[1]))
+assert p["status"]=="PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED"
+assert p["mastered_audio_mean_db"] > p["source_audio_mean_db"] + 2
+assert not p["commercial_release_eligible"] and not p["signed_download_ready"]
+print("PASS: real stock 30s AAC audio mastered with H264 video packet hash unchanged")
+PY
   # CPU-only compressed reviewer proxy from the same verified Full-HD MP4.
   # Artifact contains no retailer/user media, just explicitly labeled stock QA.
   python3 "$ROOT/video-engine/feature4_private_preview.py" \
-    --source "$GARMENT_MP4" --duration 30 \
+    --source "$GARMENT_MASTER" --duration 30 \
     --output "$ROOT/ci-artifacts/feature4-stock-garment-30s-small.mp4" \
     --report "$ROOT/ci-artifacts/feature4-stock-garment-30s-small-proof.json"
 
