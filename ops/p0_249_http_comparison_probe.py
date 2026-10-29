@@ -133,14 +133,31 @@ def summarize(observations):
     for backend in ORIGINS:
         rows = [x for x in observations if x["backend"] == backend]
         times = [x["total_seconds"] for x in rows if x["curl_exit"] == 0]
+        confirmed_campaign = [
+            x for x in rows
+            if x.get("route") == "campaign" and x.get("curl_exit") == 0
+            and x.get("http_status") == "401"
+            and x.get("category") == "EXPECTED_401"
+            and (x.get("application_request_marker") is True
+                 if backend == "azure_flex_python"
+                 else x.get("node_adapter_marker") is True)
+        ]
+        campaign_count = sum(x.get("route") == "campaign" for x in rows)
         outcome[backend] = {
             "samples": len(rows),
+            "verified_campaign_handler_401": len(confirmed_campaign),
+            "campaign_samples": campaign_count,
+            "verified_campaign_handler_rate_percent": (
+                round(100 * len(confirmed_campaign) / campaign_count, 1)
+                if campaign_count else None
+            ),
             "completed_http": sum(x["curl_exit"] == 0 for x in rows),
             "http_503": sum(x["http_status"] == "503" and x["curl_exit"] == 0 for x in rows),
             "client_timeouts": sum(x["category"] == "CLIENT_TIMEOUT" for x in rows),
             "network_errors": sum(x["category"] == "NETWORK_OR_CURL_ERROR" for x in rows),
             "unexpected_http": sum(x["category"].startswith(("UNEXPECTED", "UNMARKED")) for x in rows),
             "success_rate_http_percent": round(100 * sum(x["curl_exit"] == 0 and x["http_status"] in ("401", "404") for x in rows) / len(rows), 1) if rows else None,
+            "transport_success_does_not_prove_handler": True,
             "p50_completed_http_seconds": percentile(times, .5) if len(times) >= 2 else None,
             "p95_completed_http_seconds": percentile(times, .95) if len(times) >= 20 else None,
             "p99_completed_http_seconds": percentile(times, .99) if len(times) >= 100 else None,
