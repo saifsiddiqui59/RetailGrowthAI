@@ -1,5 +1,6 @@
 // Pure, deterministic browser-receipt analysis. NOT trusted server telemetry.
 import { acceptedDimension } from './quality-rubrics.mjs'
+import { isObservedCompletedOutput } from './trace-output-evidence.mjs'
 // Every metric preserves the distinction between API execution and subjective QA.
 export const FEATURE_LABELS = Object.freeze([
   ['F1', 'Tenant and rights'], ['F2', 'Creative director'],
@@ -34,7 +35,7 @@ export function summarizeTrace(events) {
     let completedOutputSeen = false
     for (const e of ordered) {
       if (e.feature !== id) continue
-      if (e.status === 'PASS') completedOutputSeen = true
+      if (isObservedCompletedOutput(e)) completedOutputSeen = true
       if (e.status !== 'QUALITY_REVIEW' || !completedOutputSeen ||
           !Number.isInteger(e.details?.score) || e.details.score < 1 ||
           e.details.score > 5) continue

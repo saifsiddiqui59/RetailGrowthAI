@@ -3,7 +3,20 @@ import assert from 'node:assert/strict'
 import {inspectHumanQuality,compareHumanQualityAspects}
  from '../../frontend/src/features/testing/trace-quality-analysis.mjs'
 
-const e=(feature,status,event_seq,details={})=>({feature,status,event_seq,details})
+const F2_OUTPUT={provider_mode:'deterministic',
+ improved_prompt:'A complete real output about approved fashion styles'}
+const F4_OUTPUT={status:'SUCCEEDED',
+ render_job_id:'33333333-3333-4333-8333-333333333333',
+ output_asset_id:'44444444-4444-4444-8444-444444444444'}
+const e=(feature,status,event_seq,details={},action='step')=>{
+ if(status==='PASS'&&action==='step'){
+  if(feature==='F2')return {feature,status,event_seq,action:'prompt-improvement',
+   details:{...F2_OUTPUT,...details}}
+  if(feature==='F4')return {feature,status,event_seq,action:'ffmpeg-result',
+   details:{...F4_OUTPUT,...details}}
+ }
+ return {feature,status,event_seq,details,action}
+}
 test('human ratings require a previous completed real output',()=>{
  const data=[
   e('F4','QUALITY_REVIEW',1,{score:1,dimension:'audio'}),
@@ -48,4 +61,12 @@ test('same feature and same aspect can be compared without claiming AI causality
 test('no receipts yields no invented quality judgments',()=>{
  assert.deepEqual(inspectHumanQuality([]),[])
  assert.deepEqual(compareHumanQualityAspects([],[]),[])
+})
+
+test('a submitted but unfinished Reel cannot be reviewed as if the private MP4 exists',()=>{
+ const events=[
+  e('F4','PASS',1,{render_job_id:F4_OUTPUT.render_job_id},'ffmpeg-submission'),
+  e('F4','QUALITY_REVIEW',2,{score:1,dimension:'audio'}),
+ ]
+ assert.deepEqual(inspectHumanQuality(events),[])
 })

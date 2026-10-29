@@ -17,7 +17,8 @@ const browserEvents=[
   {run_id:RUN,shop_id:SHOP,actor_user_id:USER,event_seq:2,
    feature:'F4',action:'ffmpeg-result',status:'PASS',
    summary:'Private FFmpeg job reported success',duration_ms:110,
-   details:{render_job_id:RENDER}},
+   details:{render_job_id:RENDER,status:'SUCCEEDED',
+     output_asset_id:'e2000000-0000-4000-8000-000000000001'}},
   {run_id:RUN,shop_id:SHOP,actor_user_id:USER,event_seq:3,
    feature:'F3',action:'poster-model',status:'NOT_RUN',
    summary:'Poster studio not invoked',duration_ms:null,details:{}},
@@ -149,4 +150,22 @@ test('human reviewer saves exact quality aspect only after observed output',asyn
  await expect(scores.getByText(/Voiceover and music mix/)).toBeVisible()
  await expect(page.getByRole('region',{name:'What to improve next'})
    .getByText(/Listen for intelligible speech/).first()).toBeVisible()
+})
+
+test('acknowledged Reel submission cannot be rated without completed private output',async({page})=>{
+ const submissions=[
+  {run_id:RUN,shop_id:SHOP,actor_user_id:USER,event_seq:1,
+   feature:'F2',action:'campaign-submission',status:'PASS',
+   summary:'Campaign acknowledged, no draft returned',details:{campaign_id:CAMPAIGN}},
+  {run_id:RUN,shop_id:SHOP,actor_user_id:USER,event_seq:2,
+   feature:'F4',action:'ffmpeg-submission',status:'PASS',
+   summary:'Render queued, output not verified',details:{render_job_id:RENDER}},
+ ]
+ await setup(page,{events:submissions})
+ await page.goto('/testing-chat')
+ await page.getByRole('button',{name:/Create seven-day garment promotion/}).click()
+ await expect(page.getByRole('button',{name:'Save human quality review'})).toBeDisabled()
+ await expect(page.getByRole('region',{name:'Human review by quality aspect'})).toHaveCount(0)
+ await expect(page.getByRole('region',{name:'What to improve next'})
+   .getByText('Job acknowledged — completed creative output not observed').first()).toBeVisible()
 })

@@ -4,6 +4,13 @@ import { summarizeTrace, compareTraceRuns, aggregateFeatureHistory } from '../..
 
 const e = (feature, status, seq, action='step', details={}, duration_ms=null) =>
  ({ feature, status, event_seq:seq, action, summary:'Observed result', details, duration_ms })
+const F2_OUTPUT={improved_prompt:'A detailed safe product campaign writing brief',
+ provider_mode:'deterministic'}
+const F4_OUTPUT={status:'SUCCEEDED',
+ render_job_id:'33333333-3333-4333-8333-333333333333',
+ output_asset_id:'44444444-4444-4444-8444-444444444444'}
+const outputF2=(seq,ms=null)=>e('F2','PASS',seq,'prompt-improvement',F2_OUTPUT,ms)
+const outputF4=(seq,ms=null)=>e('F4','PASS',seq,'ffmpeg-result',F4_OUTPUT,ms)
 
 test('localizes the FIRST failed or ambiguous handoff even with later success', () => {
  const report=summarizeTrace([
@@ -22,7 +29,7 @@ test('localizes the FIRST failed or ambiguous handoff even with later success', 
 
 test('human quality does not change API execution verdict or masquerade as provider score', () => {
  const report=summarizeTrace([
-   e('F4','PASS',1,'ffmpeg',{},1234),
+   outputF4(1,1234),
    e('F4','QUALITY_REVIEW',2,'quality',{score:1,note:'Too basic'}),
    e('F4','QUALITY_REVIEW',3,'quality',{score:9,note:'Forged invalid score'}),
  ])
@@ -34,8 +41,8 @@ test('human quality does not change API execution verdict or masquerade as provi
 })
 
 test('comparison never manufactures a baseline, quality or latency improvement', () => {
- const comparison=compareTraceRuns([e('F2','PASS',1,'draft',{},600)],[
-    e('F2','PASS',1,'draft',{},500),
+ const comparison=compareTraceRuns([outputF2(1,600)],[
+    outputF2(1,500),
     e('F2','QUALITY_REVIEW',2,'review',{score:4}),
  ])
  const f=comparison.find(x=>x.id==='F2')
@@ -47,8 +54,8 @@ test('comparison never manufactures a baseline, quality or latency improvement',
 
 test('aggregate counts NOT_RUN and UNKNOWN separately and calculates bounded observed p95', () => {
  const observed=aggregateFeatureHistory([
-   {events:[e('F2','PASS',1,'draft',{},100),e('F2','QUALITY_REVIEW',2,'review',{score:2})]},
-   {events:[e('F2','PASS',1,'draft',{},200),e('F2','QUALITY_REVIEW',2,'review',{score:4})]},
+   {events:[outputF2(1,100),e('F2','QUALITY_REVIEW',2,'review',{score:2})]},
+   {events:[outputF2(1,200),e('F2','QUALITY_REVIEW',2,'review',{score:4})]},
    {events:[e('F2','UNKNOWN',1,'draft')]},
    {events:[e('F2','NOT_RUN',1,'draft')]},
  ])
@@ -80,8 +87,8 @@ test('completed F2 prompt remains PASS when its optional campaign substage was N
 })
 
 test('aspect mismatches are not scored as a regression',()=>{
- const current=[e('F4','PASS',1,'render'),e('F4','QUALITY_REVIEW',2,'review',{score:1,dimension:'audio'})]
- const baseline=[e('F4','PASS',1,'render'),e('F4','QUALITY_REVIEW',2,'review',{score:4,dimension:'captions'})]
+ const current=[outputF4(1),e('F4','QUALITY_REVIEW',2,'review',{score:1,dimension:'audio'})]
+ const baseline=[outputF4(1),e('F4','QUALITY_REVIEW',2,'review',{score:4,dimension:'captions'})]
  const now=summarizeTrace(current).features.find(f=>f.id==='F4')
  assert.equal(now.quality_latest,1)
  assert.equal(now.quality_dimension_latest,'audio')
@@ -98,6 +105,17 @@ test('quality review before output never claims verified output quality',()=>{
  ])
  const row=result.features.find(f=>f.id==='F3')
  assert.equal(row.status,'NOT_RUN')
+ assert.equal(row.quality_latest,null)
+ assert.equal(row.quality_count,0)
+})
+
+test('submission PASS alone never authorizes a human output-quality rating',()=>{
+ const events=[
+  e('F4','PASS',1,'ffmpeg-submission',{render_job_id:F4_OUTPUT.render_job_id}),
+  e('F4','QUALITY_REVIEW',2,'human-quality-review',{score:1,dimension:'audio'}),
+ ]
+ const row=summarizeTrace(events).features.find(x=>x.id==='F4')
+ assert.equal(row.status,'PASS')
  assert.equal(row.quality_latest,null)
  assert.equal(row.quality_count,0)
 })
