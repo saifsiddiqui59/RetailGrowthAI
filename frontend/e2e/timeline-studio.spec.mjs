@@ -301,3 +301,47 @@ test('real React beat lane never renders unapproved or foreign-shop audio marker
  await expect(page.getByLabel('Proposed music beat positions; server verification required')).toHaveCount(0)
  await expect(page.getByRole('textbox',{name:'Playhead timecode'})).toHaveValue('00:00:00:00')
 })
+
+
+test('stale caption resize aborts across synthetic shop switch or approval lock',async ({page})=>{
+ await page.setViewportSize({width:1280,height:850})
+ await page.goto('/')
+ await page.evaluate(async shop=>{
+   const fixture=await import('/e2e/fixtures/timeline-studio-harness.jsx')
+   fixture.mountFeature4ResizeRace({shop})
+ },SHOP)
+ await expect(page.getByTestId('f4-resize-active-shop')).toHaveText(SHOP)
+ const endHandle=page.locator('.caption-segment').first()
+   .locator('.caption-resize-handle.is-end')
+ const fireDown=async pointerId=>endHandle.dispatchEvent('pointerdown',{
+   pointerId,button:0,isPrimary:true,clientX:100,clientY:100
+ })
+ const fireUp=async pointerId=>page.evaluate(id=>{
+   window.dispatchEvent(new PointerEvent('pointerup',{
+     pointerId:id,button:0,isPrimary:true,clientX:150,clientY:100,bubbles:true
+   }))
+ },pointerId)
+ const OTHER='44444444-4444-4444-8444-444444444444'
+ await fireDown(21)
+ await page.evaluate(other=>window.__feature4ResizeChangeContext(other),OTHER)
+ await expect(page.getByTestId('f4-resize-active-shop')).toHaveText(OTHER)
+ await fireUp(21)
+ expect(await page.evaluate(()=>window.__feature4ResizeWrites.length)).toBe(0)
+ // Same tenant, but freshly approved direction becomes immutable mid-drag.
+ await fireDown(22)
+ await page.evaluate(other=>window.__feature4ResizeChangeContext(other,true),OTHER)
+ await expect(page.getByRole('button',{name:'Split video at playhead'})).toBeDisabled()
+ await fireUp(22)
+ expect(await page.evaluate(()=>window.__feature4ResizeWrites.length)).toBe(0)
+ // Explicit pointer cancel must also prevent a late synthetic pointer-up.
+ await page.evaluate(other=>window.__feature4ResizeChangeContext(other,false),OTHER)
+ await expect(page.getByRole('button',{name:'Split video at playhead'})).toBeEnabled()
+ await fireDown(23)
+ await page.evaluate(()=>{
+   window.dispatchEvent(new PointerEvent('pointercancel',{
+     pointerId:23,isPrimary:true,bubbles:true
+   }))
+ })
+ await fireUp(23)
+ expect(await page.evaluate(()=>window.__feature4ResizeWrites.length)).toBe(0)
+})
