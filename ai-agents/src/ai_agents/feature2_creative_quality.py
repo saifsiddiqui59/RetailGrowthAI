@@ -389,6 +389,8 @@ def read_verified_private_trace(*,shop_id,campaign_id,workflow_id,
     if fetch()!=source:
         raise Feature2TraceDenied("Private trace changed during readback")
     return {"schema":"retailgrowth.feature2-private-trace-history.v1",
+            "shop_id":shop_id,"campaign_id":campaign_id,
+            "source_sha256":source_sha256,
             "workflow_id":workflow_id,"events":verified,
             "last_event_sha256":prior,"private":True,
             "all_steps_verified":bool(verified),
