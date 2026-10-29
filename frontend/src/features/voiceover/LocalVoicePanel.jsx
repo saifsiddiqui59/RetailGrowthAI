@@ -8,6 +8,7 @@ import {verifyLocalPrivatePlayback} from './voiceover-private-playback.mjs'
 export default function LocalVoicePanel({
  shopId,campaignId,planSha256,enabled=false,sourceScript='',
  onLocalPreview=null,onLocalGenerate=null,onFetchLocalAudio=null,
+ onProposeScriptRevision=null,onProposePronunciation=null,
 }){
  const [language,setLanguage]=useState('en-us')
  const [voice,setVoice]=useState('af_heart')
@@ -16,6 +17,9 @@ export default function LocalVoicePanel({
  const [error,setError]=useState('')
  const [message,setMessage]=useState('')
  const [saved,setSaved]=useState(null)
+ const [scriptDraft,setScriptDraft]=useState(sourceScript)
+ const [pronounceWord,setPronounceWord]=useState('')
+ const [pronounceAs,setPronounceAs]=useState('')
  const [audioUrl,setAudioUrl]=useState('')
  const urlRef=useRef(null)
  const scopeRef=useRef('')
@@ -25,10 +29,44 @@ export default function LocalVoicePanel({
   urlRef.current=null;setAudioUrl('')
  }
  useEffect(()=>{
-  setSaved(null);setAudioUrl('')
+  setSaved(null);setAudioUrl('');setScriptDraft(sourceScript)
+  setPronounceWord('');setPronounceAs('')
   return ()=>{if(urlRef.current)URL.revokeObjectURL(urlRef.current);urlRef.current=null}
  },[shopId,campaignId,planSha256])
  const choices=F2_LOCAL_VOICES.filter(x=>x.locale===language)
+ async function propose(kind){
+  const callback=kind==='script'?onProposeScriptRevision:onProposePronunciation
+  if(enabled!==true||typeof callback!=='function'){
+   setError('Authenticated editor review endpoint unavailable');return
+  }
+  const scope=scopeRef.current
+  const text=scriptDraft.trim()
+  if(kind==='script' && (!text||text.length>1400||text===sourceScript.trim())){
+   setError('Enter a revised narration draft (max 1400 characters)');return
+  }
+  if(kind==='word' && (!/^[A-Za-z-]{1,60}$/.test(pronounceWord.trim())||
+      !/^[A-Za-z- ]{1,80}$/.test(pronounceAs.trim()))){
+   setError('Provide a supported correction word and proposed pronunciation');return
+  }
+  setError('');setMessage('');setBusy(true)
+  try{
+   const result=await callback({
+     shop_id:shopId,campaign_id:campaignId,
+     creative_plan_sha256:planSha256,
+     idempotency_key:crypto.randomUUID(),
+     requires_human_editor_review:true,
+     ...(kind==='script'?{proposed_script:text}:
+       {word:pronounceWord.trim(),spoken_as:pronounceAs.trim(),language})
+   })
+   if(scope!==scopeRef.current || result?.shop_id!==shopId ||
+      result?.campaign_id!==campaignId || result?.review_status!=='NEEDS_REVIEW' ||
+      result?.can_publish!==false || result?.automatically_applied===true){
+    throw Error('Untrusted correction proposal response')
+   }
+   setMessage('Proposal sent for human editor review; approved source script is unchanged')
+  }catch(e){setError(e?.message||'Revision proposal rejected')}
+  finally{setBusy(false)}
+ }
  async function fetchAudio(){
   if(!saved||typeof onFetchLocalAudio!=='function'||enabled!==true){
    setError('Authorized private WAV reader unavailable');return
@@ -82,9 +120,25 @@ export default function LocalVoicePanel({
  }
  return <section className="rg-local-voice" aria-label="Free local Kokoro voiceover">
   <p>Kokoro ONNX / CPU — English voices only. Hindi and Marathi need an explicitly approved compatible provider.</p>
-  <label>Approved narration script
-   <textarea rows={3} value={sourceScript} readOnly aria-label="Approved source narration script"/>
+  <label>Editable narration draft (changes require editor review)
+   <textarea rows={3} maxLength={1400} value={scriptDraft}
+    onChange={e=>setScriptDraft(e.target.value)} aria-label="Narration revision draft"/>
   </label>
+  <button type="button" disabled={busy||enabled!==true||!onProposeScriptRevision||
+    scriptDraft.trim()===sourceScript.trim()} onClick={()=>propose('script')}>
+   Submit narration revision for human review
+  </button>
+  {onProposePronunciation&&<fieldset disabled={!enabled||busy}>
+   <legend>Suggest a shop pronunciation</legend>
+   <label>Word <input value={pronounceWord} maxLength={60}
+     onChange={e=>setPronounceWord(e.target.value)}/></label>
+   <label>Speak as <input value={pronounceAs} maxLength={80}
+     onChange={e=>setPronounceAs(e.target.value)}/></label>
+   <button type="button" onClick={()=>propose('word')}>
+     Request pronunciation dictionary approval
+   </button>
+   <p>Corrections take effect only after independent editor approval and audio re-listening.</p>
+  </fieldset>}
   <label>English accent
    <select value={language} onChange={e=>{
     const lang=e.target.value
