@@ -112,6 +112,9 @@ class StockEndcardTests(unittest.TestCase):
     def test_untrusted_symlink_or_missing_video_denied(self):
         with self.assertRaises(EndcardProofError):
             verify_stock_endcard(self.video,self.provenance)
+        # Create actual decodable media before checking symlink denial;
+        # otherwise the first missing-video guard would mask the test.
+        self.video_fixture(changed=True)
         other=self.root/"provenance-real.json"
         self.provenance.rename(other)
         self.provenance.symlink_to(other)
