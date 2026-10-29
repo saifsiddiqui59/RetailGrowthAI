@@ -94,6 +94,41 @@ class WanNativeClipTest(unittest.TestCase):
                 ),self.assertRaises(WanCompatibilityError):
                     inspect_native_mp4(package(),staged_file=path)
 
+    def test_ffprobe_json_is_complete_unambiguous_and_fails_closed(self):
+        import json
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td)/"native.mp4"
+            path.write_bytes(b"CPU-only private test fixture")
+            good = json.dumps(GOOD_PROBE)
+            malicious = (
+                good + (" " * 51000),
+                '{"streams": [], "streams": ' + json.dumps(GOOD_PROBE["streams"]) +
+                    ', "format": ' + json.dumps(GOOD_PROBE["format"]) + '}',
+                good.replace('"duration": "5.041667"', '"duration": NaN'),
+            )
+            for raw in malicious:
+                with self.subTest(input_size=len(raw)), patch(
+                    "feature5_motion.wan22_clip_validation.subprocess.run",
+                    return_value=SimpleNamespace(stdout=raw)
+                ), self.assertRaises(WanCompatibilityError):
+                    inspect_native_mp4(package(), staged_file=path)
+
+    def test_clip_changed_during_ffprobe_is_denied_even_with_same_length(self):
+        import json
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td)/"native.mp4"
+            original = b"private-staged-source"
+            path.write_bytes(original)
+
+            def replaced_during_probe(*_args, **_kwargs):
+                path.write_bytes(b"X" * len(original))
+                return SimpleNamespace(stdout=json.dumps(GOOD_PROBE))
+
+            with patch("feature5_motion.wan22_clip_validation.subprocess.run",
+                       side_effect=replaced_during_probe), self.assertRaises(
+                           WanCompatibilityError):
+                inspect_native_mp4(package(), staged_file=path)
+
     def test_rejects_missing_media_symlinks_or_other_lineage(self):
         import json
         with tempfile.TemporaryDirectory() as td:
