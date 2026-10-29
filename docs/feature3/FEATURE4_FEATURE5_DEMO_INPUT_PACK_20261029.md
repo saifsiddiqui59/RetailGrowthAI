@@ -6,7 +6,7 @@ Source: [Prompt-Haus/OpenVTO](https://github.com/Prompt-Haus/OpenVTO), commit `1
 
 | File generated locally | Exact upstream path | Git blob SHA1 |
 | --- | --- | --- |
-| `synthetic_avatar.png` | `packages/sdk/openvto/assets/avatars/1.png` | `fc88e5d07282009a14b0bd58fbddbc2f89ace0` |
+| `synthetic_avatar.png` | `packages/sdk/openvto/assets/avatars/1.png` | `fc88e5d07282009a14b0bd58fbdd58bc2f89ace0` |
 | `synthetic_garment_front.jpg` | `packages/sdk/openvto/assets/clothes/shirts/1_front.jpg` | `878fde8857f58862723f85d7f8bd723c65a8e498` |
 | `synthetic_model_pose.jpg` | `packages/sdk/openvto/assets/people/1_posture.jpg` | `72a86a60280976ce5c73db9525d9648b54d1126a` |
 

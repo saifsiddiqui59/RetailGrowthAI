@@ -28,7 +28,7 @@ MAX_BYTES = 3 * 1024 * 1024
 # upstream Git tree, NOT guessed from filenames or a floating GitHub branch.
 SOURCES = (
     ("synthetic_avatar.png", "packages/sdk/openvto/assets/avatars/1.png",
-     "fc88e5d07282009a14b0bd58fbddbc2f89ace0", 1207867, "PNG"),
+     "fc88e5d07282009a14b0bd58fbdd58bc2f89ace0", 1207867, "PNG"),
     ("synthetic_garment_front.jpg",
      "packages/sdk/openvto/assets/clothes/shirts/1_front.jpg",
      "878fde8857f58862723f85d7f8bd723c65a8e498", 32633, "JPEG"),
