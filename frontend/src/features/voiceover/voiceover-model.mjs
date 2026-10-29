@@ -130,3 +130,46 @@ export function verifyReviewedDraftReceipt({shopId,campaignId,proposal,receipt})
   return Object.freeze({revision:receipt.revision,review_status:'DRAFT',
     requires_fresh_media_rights:true,can_publish:false})
 }
+
+
+// Sentence retakes are fresh private WAV proposals, never audio replacement
+// or publish approval. Server revalidates original rights, approved dictionary,
+// operator Kokoro inference, exact immutable revision and one-shot job lease.
+export function makeLocalSentenceRetakeAction({shopId,campaignId,planSha256,
+   originalAudioSha256,sentenceIndex,jobKey,voiceId,lang,speed}){
+ if(!UUID.test(shopId)||!UUID.test(campaignId)||!SHA.test(planSha256)||
+    !SHA.test(originalAudioSha256)||!UUID.test(jobKey)||
+    !Number.isInteger(sentenceIndex)||sentenceIndex<0||sentenceIndex>12||
+    !F2_LOCAL_VOICES.some(v=>v.id===voiceId&&v.locale===lang)||
+    !VOICE_SPEEDS.includes(speed))invalid()
+ return Object.freeze({schema:'retailgrowth.feature2-local-sentence-retake-request.v1',
+   shop_id:shopId,campaign_id:campaignId,
+   creative_plan_sha256:planSha256,flagged_audio_sha256:originalAudioSha256,
+   sentence_index:sentenceIndex,job_key:jobKey,
+   voice_id:voiceId,language:lang,speed,
+   requires_current_editor_and_dictionary:true,
+   requires_one_durable_local_retake:true,auto_azure_fallback:false,
+   can_publish:false})
+}
+export function verifyLocalSentenceRetakeReceipt({request,receipt}){
+ if(!request||!receipt||
+    receipt.schema!=='retailgrowth.feature2-sentence-retake.v1'||
+    receipt.shop_id!==request.shop_id||
+    receipt.campaign_id!==request.campaign_id||
+    receipt.creative_plan_sha256!==request.creative_plan_sha256||
+    receipt.prior_audio_sha256!==request.flagged_audio_sha256||
+    receipt.sentence_index!==request.sentence_index||
+    !SHA.test(receipt.new_audio_sha256||'')||
+    !UUID.test(receipt.private_sentence_audio_asset_id)||
+    receipt.review_status!=='PENDING_NEW_STT_AND_HUMAN_LISTEN'||
+    receipt.private!==true||receipt.can_publish!==false||
+    receipt.requires_feature4_scene_assembly!==true||
+    receipt.requires_new_feature7_transcription!==true||
+    receipt.actual_pronunciation_success_verified!==false||
+    receipt.azure_fallback_used!==false)invalid()
+ return Object.freeze({audio_asset_id:receipt.private_sentence_audio_asset_id,
+   original_audio_sha256:receipt.new_audio_sha256,
+   requires_new_feature7_transcription:true,
+   requires_feature4_scene_assembly:true,
+   can_publish:false})
+}
