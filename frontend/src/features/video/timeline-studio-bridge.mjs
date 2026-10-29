@@ -55,6 +55,36 @@ export function studioSplit(draft, index, offset, mediaAssets) {
   ]
   return { ...draft, scenes: recalc(scenes, draft.duration_seconds) }
 }
+// Duplicate the VISUAL content in place by replaying the first half twice.
+// Preserve the fixed 15/30/60s output contract and review-locked offer/copy.
+// A source video intentionally restarts from its approved in-point, rather than
+// pretending source footage exists beyond the authorized media duration.
+export function studioDuplicate(draft, index, mediaAssets = []) {
+  const scene = draft.scenes?.[index]
+  if (!Number.isInteger(index) || !scene || draft.scenes.length >= 12 ||
+      !Number.isFinite(scene.duration) || scene.duration < 1) {
+    throw Error('Duplication needs a clip of at least 1 second and fewer than 12 scenes')
+  }
+  const media = mediaAssets.find(a => a.id === scene.asset_id &&
+    a.shop_id === draft.shop_id && a.authorized === true &&
+    ['image','poster','video'].includes(a.kind))
+  if (draft.mode !== 'text' && !media) throw Error('Cannot duplicate a foreign or unapproved clip')
+  const first = Math.round(scene.duration * 500) / 1000
+  const second = Math.round((scene.duration - first) * 1000) / 1000
+  if (first < .5 || second < .5) throw Error('Duplicate clips must remain at least 0.5 seconds')
+  if (scene.sfx_asset_id != null && first < Math.min(2, scene.duration)) {
+    throw Error('Duplication would truncate an approved 2-second scene sound effect')
+  }
+  const {sfx_asset_id, ...withoutEffect} = scene
+  const copy = { ...withoutEffect, duration: second,
+    ...(media?.kind === 'video' ? {trim_start: scene.trim_start || 0} : {}) }
+  const original = {...scene, duration: first}
+  return { ...draft, scenes: recalc([
+    ...draft.scenes.slice(0,index), original, copy,
+    ...draft.scenes.slice(index+1)
+  ],draft.duration_seconds) }
+}
+
 export function studioTrimPair(draft, index, delta, mediaAssets = []) {
   if (!Number.isInteger(index) || !Number.isFinite(delta) || index < 0 ||
       index >= draft.scenes.length - 1) throw Error('Select an internal clip boundary')
