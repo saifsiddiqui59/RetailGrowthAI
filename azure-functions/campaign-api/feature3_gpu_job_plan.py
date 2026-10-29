@@ -212,6 +212,22 @@ class Feature3GPUJobPlanPreflight:
         after=self._snapshot(shop,job)
         if after!=snapshot:
             raise Feature3PlanDenied("Source/lease/role changed during GPU preflight")
+        # Re-run the independently authorized bytes/right revocation proof,
+        # not just SQL metadata. Rights may be revoked without DB row drift.
+        for asset,known_sha,known_revision in verified:
+            fresh=self.proof(shop,dict(after["assets"][asset]))
+            if (not isinstance(fresh,dict) or set(fresh)!={
+                "shop_id","asset_id","image_sha256","rights_revision",
+                "private_bytes_verified","independent_license_verified",
+                "current_customer_approval","rights_revoked"
+            } or fresh.get("shop_id")!=shop or fresh.get("asset_id")!=asset or
+                fresh.get("image_sha256")!=known_sha or
+                fresh.get("rights_revision")!=known_revision or
+                fresh.get("private_bytes_verified") is not True or
+                fresh.get("independent_license_verified") is not True or
+                fresh.get("current_customer_approval") is not True or
+                fresh.get("rights_revoked") is not False):
+                raise Feature3PlanDenied("Current source rights changed after DB read")
         return {"shop_id":shop,"job_id":job,
                 "source_asset_ids":snapshot["ids"],
                 "source_sha256s":tuple(x[1] for x in verified),
