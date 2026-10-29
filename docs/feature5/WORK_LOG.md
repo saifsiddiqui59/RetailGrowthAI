@@ -307,3 +307,8 @@ First documentation-head Actions run #40864647921 exposed **one new Feature5 med
 - New source-conditional real Feature2 exporter integration test 41e5c8b7: executes actual Node compiled output at 15,30,60s only once source merges, otherwise explicitly skips.
 - RetailGrowthAI DEV metadata read-only: 31 migrations; existing shop_ai_spend_reservations/shop_usage_reservations but no premium-video job table in public/retail_private schemas. Sent precise external backend contract to Part3 PR #125 comment 6505212109.
 - No actual hosted JWT, genuine Wan inference, GPU spend, signed human garment review, storage settlement, production or WineShopPOS modifications. Verify exact final HEAD 4/4 CI before marking passed.
+
+## 2026-10-29 — Real CI feedback, repaired without bypassing test
+- Inspected [Actions #40932450519](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40932450519) Python failure (one failure; 1176 tests passed, 9 skipped): actual test_two_workers_same_fenced_claim_only_one_durable_intent used custom job/attempt while fake native lease reader had the initial independently-generated IDs. Correct refusal by production gate, incorrect test setup.
+- Fixed tests/ai/test_feature5_wan22_comfy_execution.py::inputs in commit 82a9b8602de4d4db5595848f4759b9839e22ec04: attach simulated current Part3 lease claim to the FINAL job/attempt after caller overrides. Preserved all model/reservation identity, unique CAS, and UNKNOWN retry fences.
+- CI on fixed source [#40933090198](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40933090198) started/pending on latest source check; final documentation-head 4/4 must be examined separately. No GPU, hosted mutation, billing, WineShopPOS or production touched.
