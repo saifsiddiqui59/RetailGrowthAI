@@ -961,3 +961,6 @@
 
 ## 2026-10-29 — Feature3 GPU-OFF queue receipt strictness
 - A read-only preflight result is a typed evidence receipt, not a job-execution permit. It must contain unique canonical source IDs, exact immutable SHA256 and bounded integer rights revisions; malformed arrays, missing provider OFF state or backend outages are denied. Zero-charge queue visibility is not equivalent to a worker's SQL lease or Azure delivery ACK. No automatic queue retry, provider invocation or financial mutation authorized.
+
+## 2026-10-29 — Feature3 postclaim rights must use shared preflight and current prepaid lease
+- A worker's initial QUEUED planning result cannot authorize an already-claimed RUNNING job. Reuse the exact SQL/tenant/image source-rights verifier with distinct RUNNING attempts=1/token/lease requirements, rereading the existing immutable prepaid reservation both before and after the private original-byte/current approval proofs. Source IDs must match the same versioned design; no source-only receipt authorizes a GPU call, spends budget, extends a lease, retries a job or acknowledges Azure Queue.
