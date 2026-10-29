@@ -45,7 +45,52 @@ def edited_draft():
         cwd=ROOT, capture_output=True, text=True, timeout=20, check=True)
     return json.loads(output.stdout)
 
+def duplicated_draft():
+    # Execute the actual adopted JS editor operation. The authoritative Python
+    # tenant/rights/compiler/renderer plan remains independently validated.
+    script = NODE_EDITOR.replace(
+        "studioSplit, studioReorder, studioValidatedDraft",
+        "studioDuplicate, studioValidatedDraft"
+    ).replace(
+        "draft=studioSplit(draft,1,4,media)\\ndraft=studioReorder(draft,1,0)",
+        "draft=studioDuplicate(draft,1,media)"
+    )
+    if "draft=studioDuplicate(draft,1,media)" not in script:
+        raise AssertionError("Required JS duplicate edit was not applied")
+    return json.loads(subprocess.run(
+        ["node","--input-type=module","-e",script], cwd=ROOT,
+        capture_output=True,text=True,timeout=20,check=True
+    ).stdout)
+
 class EditorToRendererTests(unittest.TestCase):
+    def test_duplicate_video_clip_compiles_to_actual_same_source_restart_without_repeated_sfx(self):
+        draft = duplicated_draft()
+        original, trusted = pair()
+        self.assertEqual(len(draft["scenes"]), 4)
+        self.assertEqual([s["duration"] for s in draft["scenes"]], [10,5,5,10])
+        self.assertEqual(draft["scenes"][1]["asset_id"], "motionwalk")
+        self.assertEqual(draft["scenes"][2]["asset_id"], "motionwalk")
+        self.assertEqual(draft["scenes"][1]["trim_start"], 0)
+        self.assertEqual(draft["scenes"][2]["trim_start"], 0)
+        self.assertEqual(draft["scenes"][1]["sfx_asset_id"], "musicowned")
+        self.assertNotIn("sfx_asset_id", draft["scenes"][2])
+        bundle = compile_approved_storyboard(draft, trusted)
+        request, manifest = bundle["request"], bundle["manifest"]
+        self.assertEqual([s["duration"] for s in request["scenes"]],[10,5,5,10])
+        self.assertEqual([s["trim_start"] for s in request["scenes"][1:3]],[0,0])
+        self.assertEqual(request["scenes"][1]["sfx_asset_id"],"musicowned")
+        self.assertNotIn("sfx_asset_id",request["scenes"][2])
+        self.assertEqual(request["scenes"][3]["text_overlay"],"20% OFF")
+        self.assertEqual(request["script"]["cta"],"Visit Our Store")
+        self.assertEqual(set(manifest["assets"]),
+                         {"motionwalk","photokurti","saleposter","musicowned","storelogo"})
+        plan = render_inputs(request,manifest)
+        self.assertEqual([s["duration"] for s in plan.plan["scenes"]],[10,5,5,10])
+        self.assertEqual([s["trim_start"] for s in plan.plan["scenes"][1:3]],[0,0])
+        self.assertNotIn("sfx_asset_id",plan.plan["scenes"][2])
+        self.assertEqual(plan.audit["fallback_events"],[])
+
+
     def test_upstream_edit_is_preserved_in_same_real_compiler_and_hyperframes_plan(self):
         draft = edited_draft()
         original, trusted = pair()
