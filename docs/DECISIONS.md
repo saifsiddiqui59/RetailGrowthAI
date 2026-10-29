@@ -879,3 +879,7 @@
 
 ## 2026-10-29 — One private ledger, not two test-audit tables
 - The authoritative source-only backend worker store is retail_private.feature_worker_spans with service-only append and signed role-checked retail_feature_worker_spans read RPC. Client feature_test_events remains browser-observed, not backend proof. An overlapping public-schema candidate PR #626 was closed without merging. Do not expose the private ledger directly to authenticated browser roles, spoof a backend run binding, turn on worker span writes before verified DEV release, or infer #249 root cause from missing HTTP markers. No publishing, paid provider spend or WineShopPOS mutation.
+
+
+## 2026-10-29 — Unconfirmed Feature3 output means no automatic financial settlement
+- After any private generated-output write attempt, an exception or untrusted output ACK could conceal successful Supabase Storage or SQL registration. The GPU provider must **not** call its FAILED financial settlement in that uncertain state; preserve RUNNING/reserved for supervised reconciliation against immutable DB evidence and trustworthy provider metering. Only validated private output or failure before an attempted write can proceed through the existing measured single settlement. Neither unknown ACK nor one-shot queue delivery authorizes billable retry, refund, GPU activation or source rights relaxation.
