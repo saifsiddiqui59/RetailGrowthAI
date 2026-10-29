@@ -125,7 +125,14 @@ class Feature3GPUOperatorReconciliation:
             asset=_id(output)
             if r["state"]!="SETTLED" or j["attempts"]!=1:
                 raise Feature3ReconciliationUnknown("Success requires measured settlement")
-            evidence=self.private_evidence(shop,job,asset)
+            try:
+                evidence=self.private_evidence(shop,job,asset)
+            except Exception:
+                # HTTP/SQL/Storage backends may raise messages containing a
+                # private object path or service credential. This service-only
+                # operator receipt must never echo those error details.
+                raise Feature3ReconciliationUnknown(
+                    "Private output evidence unavailable") from None
             if (not isinstance(evidence,dict) or set(evidence)!={
                 "shop_id","job_id","media_asset_id","image_sha256",
                 "private","attempt","review_status"
@@ -142,9 +149,15 @@ class Feature3GPUOperatorReconciliation:
             # Check BOTH job AND ledger again after the independent PNG byte
             # and output-evidence verifier completes. Changed/uncertain ACKs
             # are operator-only unknown, not authorization to charge/replay.
-            if (_row(self.db.request("feature3_gpu_jobs",query=job_query))!=j or
-                    _row(self.db.request(
-                        "shop_ai_spend_reservations",query=reservation_query))!=r):
+            try:
+                after_job=_row(self.db.request(
+                    "feature3_gpu_jobs",query=job_query))
+                after_reservation=_row(self.db.request(
+                    "shop_ai_spend_reservations",query=reservation_query))
+            except Exception:
+                raise Feature3ReconciliationUnknown(
+                    "Current job or reservation read unavailable") from None
+            if after_job!=j or after_reservation!=r:
                 raise Feature3ReconciliationUnknown(
                     "Job or reservation changed during private verification")
             # Observed means immutable SQL receipt and private proof; still
