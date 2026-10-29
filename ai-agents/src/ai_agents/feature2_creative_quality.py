@@ -345,6 +345,8 @@ def stage_blind_human_review_revision(*,shop_id,campaign_id,experiment_id,
                 candidate_digests[item["candidate_id"]],
                 hashlib.sha256(blob).hexdigest()) is not True:
                 raise Feature2TraceDenied("Signed individual human review missing")
+    except Feature2TraceDenied:
+        raise
     except (TypeError,KeyError,ValueError) as exc:
         raise Feature2TraceDenied("Invalid individual signed review") from exc
     receipt_digest=hashlib.sha256(json.dumps(
