@@ -77,6 +77,12 @@ def accept_unreviewed_wav(*,shop_id,campaign_id,plan,original_audio,
         not _uuid(result.get("asset_id")) or
         result.get("review_state")!="PENDING_RIGHTS_AND_SPEECH_REVIEW"):
         raise VoiceUploadRejected("Private original was not registered pending review")
+    # A valid storage receipt is not a current authorization. The trusted writer
+    # must also fence the commit transaction against revocation; this readback
+    # prevents a stale successful response after an in-flight permission change.
+    if (authenticated_editor(shop_id,campaign_id) is not True or
+        read_authoritative_plan(shop_id,campaign_id)!=plan):
+        raise VoiceUploadRejected("Source or membership revoked after private upload")
     return {**receipt,"asset_id":result["asset_id"],
             "private_download_url":None,"billing":"NONE"}
 
@@ -184,14 +190,32 @@ def accept_unreviewed_mp3(*,shop_id,campaign_id,plan,original_mp3,
         "private":True,"paid_calls":0}
     saved=store_both_private_pending(
         shop_id,campaign_id,original_mp3,decoded["derived_wav"],dict(receipt))
-    if (type(saved) is not dict or not _uuid(saved.get("asset_id")) or
+    # A receipt for only the MP3 object is NOT proof that the independently
+    # hashed derivative was atomically registered as a second private object.
+    # These assertions constrain a trusted backend writer; a browser callback
+    # or a fixture response cannot authorize durable storage or media rights.
+    original_id=saved.get("asset_id") if type(saved) is dict else None
+    derived_id=saved.get("derived_wav_asset_id") if type(saved) is dict else None
+    if (type(saved) is not dict or not _uuid(original_id) or
+        not _uuid(derived_id) or derived_id==original_id or
         saved.get("shop_id")!=shop_id or saved.get("campaign_id")!=campaign_id or
         saved.get("original_mp3_sha256")!=receipt["original_mp3_sha256"] or
         saved.get("derived_wav_sha256")!=receipt["derived_wav_sha256"] or
         saved.get("review_state")!="PENDING_RIGHTS_AND_SPEECH_REVIEW" or
-        saved.get("private") is not True):
-        raise VoiceUploadRejected("Private original/derived MP3 pair not registered")
-    return {**receipt,"asset_id":saved["asset_id"],
-            "derived_wav_asset_id":saved.get("derived_wav_asset_id"),
+        saved.get("private") is not True or
+        saved.get("derived_wav_private") is not True or
+        saved.get("atomic_pair_registered") is not True or
+        any(saved.get(flag) is True for flag in
+            ("can_publish","can_dispatch_motion","commercial_use_approved",
+             "original_media_rights_verified","human_speech_alignment_verified"))):
+        raise VoiceUploadRejected("Both private MP3/WAV objects must be atomically registered pending review")
+    # The atomic writer owns commit-time tenant fencing and rollback/orphan
+    # cleanup. A valid pair receipt alone cannot authorize a response if the
+    # editor or exact source plan changed while the writer was in flight.
+    if (authenticated_editor(shop_id,campaign_id) is not True or
+        read_authoritative_plan(shop_id,campaign_id)!=plan):
+        raise VoiceUploadRejected("Source or membership revoked after private MP3/WAV upload")
+    return {**receipt,"asset_id":original_id,
+            "derived_wav_asset_id":derived_id,
             "original_wav_is_registered_feature7_source":False,
             "private_download_url":None,"billing":"NONE"}
