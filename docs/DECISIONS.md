@@ -970,3 +970,6 @@
 
 ## 2026-10-29 — Private model candidate URLs must be revoked on decode failure
 - Each failed private model image candidate must revoke its own browser-created Blob URL immediately and remove it from the host registry, avoiding unused media retention or double revocation at later shop switch/unmount. Successful previews stay scoped to current authenticated shop and bounded list. Never revoke arbitrary remote URLs and never treat local memory cleanup as a legal permission, Storage URL revocation or customer rights check.
+
+## 2026-10-29 — Feature3 source progress is not hosted completion
+- Track the 33 established work packages by source-integrated/source-partial/blocked dependency categories and a separate strict end-to-end completion count. A synthetic Pillow test, an undeployed SQL RPC, a local Blob URL or a merged source PR does not prove genuine customer media rights, hosted public route, paid provider execution or a finished live feature.
