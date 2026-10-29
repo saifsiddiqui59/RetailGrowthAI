@@ -8,8 +8,24 @@ durable worker must be implemented behind separate provider/onboarding gates.
 """
 from __future__ import annotations
 
+import re
+from uuid import UUID
+
 from feature3_gpu_envelope import decode_dispatch_envelope, GPUEnvelopeDenied
 from feature3_gpu_job_plan import Feature3PlanDenied
+
+_SHA256 = re.compile(r"^[a-f0-9]{64}$")
+
+
+def _uuid4(value):
+    if type(value) is not str:
+        return False
+    try:
+        parsed=UUID(value)
+    except (ValueError,TypeError,AttributeError):
+        return False
+    return parsed.version==4 and str(parsed)==value
+
 
 _ALLOWED = frozenset((
     "shop_id","job_id","source_asset_ids","source_sha256s",
@@ -34,7 +50,11 @@ class Feature3GPUOffQueueIntake:
     def inspect(self, raw_message):
         # Must be intentionally OFF, not merely no provider status or a
         # browser-supplied config. Never inspect a queue in actual paid mode.
-        status = self._status()
+        try:
+            status = self._status()
+        except Exception as exc:
+            raise Feature3QueueIntakeBlocked(
+                "Current GPU provider OFF status unavailable") from exc
         if (not isinstance(status,dict) or
                 status.get("enabled") is not False):
             raise Feature3QueueIntakeBlocked(
@@ -46,7 +66,9 @@ class Feature3GPUOffQueueIntake:
                 "Untrusted queued job identity") from exc
         try:
             plan = self._plan.check(routing["shop_id"],routing["job_id"])
-        except Feature3PlanDenied as exc:
+        except Exception as exc:
+            # An unexpected backend/SQL/rights outage is also a denial.
+            # This inspector cannot acknowledge an unknown queued delivery.
             raise Feature3QueueIntakeBlocked(
                 "Current retailer source authorization unavailable") from exc
         if (not isinstance(plan,dict) or set(plan)!=_ALLOWED or
@@ -58,9 +80,17 @@ class Feature3GPUOffQueueIntake:
                 plan.get("claim_performed") is not False or
                 plan.get("paid_retry_authorized") is not False or
                 not isinstance(plan.get("source_asset_ids"),tuple) or
+                not isinstance(plan.get("source_sha256s"),tuple) or
+                not isinstance(plan.get("rights_revisions"),tuple) or
                 not 1 <= len(plan["source_asset_ids"]) <= 12 or
                 len(plan["source_sha256s"])!=len(plan["source_asset_ids"]) or
-                len(plan["rights_revisions"])!=len(plan["source_asset_ids"])):
+                len(plan["rights_revisions"])!=len(plan["source_asset_ids"]) or
+                any(not _uuid4(v) for v in plan["source_asset_ids"]) or
+                len(set(plan["source_asset_ids"]))!=len(plan["source_asset_ids"]) or
+                any(type(v) is not str or not _SHA256.fullmatch(v)
+                    for v in plan["source_sha256s"]) or
+                any(type(v) is not int or not 1 <= v <= 2_147_483_647
+                    for v in plan["rights_revisions"])):
             raise Feature3QueueIntakeBlocked("Untrusted private queue preflight receipt")
         return {
             "shop_id":routing["shop_id"],"job_id":routing["job_id"],
