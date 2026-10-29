@@ -910,3 +910,25 @@
 ## 2026-10-29 — Feature3 coordinator conflict-resolved source integration
 - Consolidate disjoint PR #629/#632/#634/#636/#637/#638 code and tests on the current main base with all append-only doc additions preserved, rather than discarding a contributor's decision record or merging stale branch tips over concurrent updates. Existing #630 is integrated separately. Require full four-job CI on combined head and postmerge main; test success does not imply licensed VTON, live signed user acceptance or permission to use a paid GPU.
 
+
+## 2026-10-29 — GPU job preflight may inspect real sources but never grant paid inference
+- Parse only backend-stored versioned job/design/source IDs, require active tenant author/subscription, independent reviewed model and private-byte/license/source-rights proof TWICE separated by fresh authoritative PostgREST reads; refuse changed rights even when core rows have not changed. Preflight is non-mutating and always returns provider_call_permitted=false; a separate current one-shot SQL claim and real billed meter are mandatory for any later paid execution. Ban generic service mutations to GPU planning/ledger tables; retain their established RPCs. No tenant key/blob transfer to browser.
+
+
+- 2026-10-29 Feature3 GPU-off queue preview: inspect queue shop/job IDs only with strict schema and current trusted source/role checks; require provider explicitly OFF, return no ACK/claim/charge permission. Never register an ordinary Azure Queue trigger that silently deletes accepted messages or poison-retries disabled paid work. Preserve independent audited one-shot SQL and operator reconciliation for later enabled-worker activation.
+
+## 2026-10-29 — Retailer generated-image history is on-demand metadata before private outputs
+- Feature3 Creative Studio may show an existing authenticated same-shop GPU job status only after explicit retailer GET, with exact normalized id/shop/status allowlist. Never preemptively mint signed Storage URLs, auto-download an unreviewed generated image, imply approval or initiate paid GPU. Scope async UI reads by current shop and discard stale responses on role/account/shop transitions. Binary preview needs separate current-rights endpoint and verified host acceptance.
+
+
+## 2026-10-29 — Uncertain private GPU billing state is read-only until independently reconciled
+- Inspect actual same-shop GPU job, reserved/settled spend and *independently trusted* private output evidence before labelling an observed state. No retry or refund may be inferred from lease expiry or a failed Queue/Storage/DB ACK. Only explicit human operator financial evidence can advance a charged unknown; this source module never submits a paid/financial mutation. A SUCCEEDED private PNG is UNREVIEWED and not licensable or publishable by itself.
+
+## 2026-10-29 — Integrate disjoint private history and financial inspection without false live claims
+- Preserve original #642 and #643 source/test diffs and append-only docs when main has advanced; never force-merge conflicting canonical docs, silently drop a security negative test or claim that a metadata read settles financial state. Source CI and hosted DEV are distinct.
+
+
+## 2026-10-29 — Real image pixels do not by themselves prove rights
+- Feature3 service-only CPU preflight must retrieve immutable same-shop private bytes, real-decode image and recompute SHA256 under a narrowly scoped backend Storage credential. Compare with a **separate independent, current, reviewer-approved legal/provenance/retailer permission record**, and reread that record after fetching bytes. Never infer commercial permission from media `license_name`, OpenVTO demo, model weights or Storage 200; deny unknown/revoked record. Do not expose bytes/keys to browsers or imply spend rights.
+
+- 2026-10-29: Coordinator conflict-reconciled the Feature3 private source byte proof #645 into current-main integration without dropping prior history. Verify four-job exact head CI and postmerge main separately; real legal authority and hosted source approval still pending.

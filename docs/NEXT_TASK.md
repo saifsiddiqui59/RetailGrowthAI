@@ -1233,3 +1233,25 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 ## 2026-10-29 — Coordinator Feature3 integration and non-GPU execution
 - First: verify combined-source integration branch full four-job CI; reconcile any integration failures without dropping private Storage/financial fences, publisher envelope, JWT-only reads or signed-image rights guards; coordinator merge and verify fresh postmerge main CI. Previous independent PR #630 is already merged. After combined changes land, close overlapping standalone PRs only when confirmed included. Second: complete real current-rights reader, Azure Queue worker handler and authenticated private output evidence/byte lifecycle, operator reconciliation, reviewed no-URL download route/Blob lifecycle, Creative Studio history, and Feature2/4/5/7 source consumers under genuine one-shot lease. Keep GPU OFF and live DEV sign-in/host #249 as separate gates.
 
+
+## 2026-10-29 — Feature3 Phase2 remaining after current-rights plan source
+- Exact-head four CI jobs for `feat/feature3-gpuoff-trusted-plan-preflight-20261029`, coordinator merge + fresh main 4/4. Continue existing-queue backend worker loader, actual signed current private-source byte/license/evidence proof (currently required injected port), final atomic lease recheck before invocation, operator recovery for unknown cost/Storage/queue ACK; no GPU ON until all independent and owner release gates. Add generated private PNG binary endpoint and browser Blob revoke, improve Creative Studio private history, Feature2/4/5/7 actual adapter adoption and Testing Chat server-signed event binding. RLS signed DEV test and #249 remain later gates; no PROD or WineShopPOS.
+
+
+- 2026-10-29 Feature3 Phase2 queue intake gate: current v1 packet parser is now wired to read-only SQL/source preflight under mandatory provider OFF, but **do not register an Azure Queue-trigger handler yet**. Implement legitimate worker+operator intake with explicit handling of queue ACK/deletion, one-shot claim only after actual financial/provider/rights approval and trusted current bytes, loss-of-ACK reconciliation and no paid retry. This queue source test is not operational queue consumption. Verify combined exact-head CI.
+
+## 2026-10-29 — Feature3 pending after safe generated job history UX
+- Verify all four exact CI jobs and coordinator merge for `feat/feature3-safe-generated-history-ui-20261029`, then postmerge main 4/4; source adds retailer-requested PRIVATE job status list only, never auto-generates, signs URLs or preloads media. Future generation preview remains contingent on merged no-URL reader, coordinator-approved binary endpoint, genuine immutable rights verifier and actual hosted signed tenant regression; no live backend output row currently exists. Keep GPU OFF and protect against revoked/foreign stale Blob URL.
+
+
+## 2026-10-29 — Feature3 GPU-off financial reconciliation operator bridge
+- Run exact-head CI and coordinator merge for `feat/feature3-financial-reconciliation-inspection-20261029` and postmerge main 4/4. Source inspection detects missing/uncertain/contradictory job, billing and immutable output proof but cannot run actual operator action without trusted private evidence reader, billed GPU invoice and reviewed human recovery policy. **Never** automatically retry/settle/refund/delete on uncertain ACK; existing provider remains OFF and queued jobs are not consumed by this inspector. Pair with merged output-fence #640 and current-rights #641.
+
+## 2026-10-29 — Phase2 UI/reconciliation coordinator closeout
+- Verify all four exact integration CI jobs and postmerge main 4/4 before closing #642/#643 as superseded. Still pending trusted private model+garment actual licensed bytes, operator evidence RPC, binary no-URL endpoint, Azure real queue worker/poison, reviewed source-produced customer images, browser E2E and #249 host fix; no GPU/PROD/WineShopPOS operations.
+
+
+## 2026-10-29 — Feature3 private byte verifier release blockers
+- Verify exact head 4/4 CI on `feat/feature3-private-source-byte-rights-proof-20261029`, coordinator source merge and independent postmerge main CI. Continue source-independent real current image/likeness/license/garment review authority: no production implementation of trusted per-asset legal evidence callback yet. Wire this private source proof to already merged `Feature3GPUJobPlanPreflight` in a real backend runtime only after rights source approval; confirm signed RetailGrowthAI DEV/storage, revocation, one-shot SQL claim, actual queue delete/retries and cost status before enabling worker. No paid GPU, PROD or WineShopPOS.
+
+- 2026-10-29: Coordinator conflict-reconciled the Feature3 private source byte proof #645 into current-main integration without dropping prior history. Verify four-job exact head CI and postmerge main separately; real legal authority and hosted source approval still pending.

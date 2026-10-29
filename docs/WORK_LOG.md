@@ -679,3 +679,20 @@ Use scripts/checkpoint.sh after completing a task.
 
 - 2026-10-29 Coordinator Phase1 initiated on `main` with verified source-only #630 squash `7cd4a179`; prepared combined conflict-resolved code/test + six PR append-only doc grafts for #629/#632/#634/#636/#637/#638, retaining all contributors' changes. Observe exact integration four-job CI and merge/postmerge separately. Next Phase2 independent no-GPU tasks prioritized. No hosted schema/PROD/GPU/WineShopPOS changes.
 
+
+- 2026-10-29 Feature3 Phase2 independent no-GPU work: implemented service-only real queued-job plan reader, exact versioned design SHA and registered input layer resolver, current active role/subscription, reviewed model revisions, private media and independently supplied byte/licence/approval evidence; rereads SQL snapshot and per-source proof to deny midfetch model/rights revocation. Restricted generic GPU job/ledger and new plan table writes to GET-only in AdminStore; negative runtime tests included. No real external bytes, paid provider, Azure trigger, hosted migration or WineShopPOS. Four CI gates and coordinator source merge still need exact verification.
+
+
+- 2026-10-29 Feature3 continued P0 non-GPU queue chain: implemented `Feature3GPUOffQueueIntake` to join merged strict queue envelope decoder and current SQL/rights reader, defaulting to provider OFF, no queue delivery ACK/deletion, no SQL claim, no GPU/settlement, and failing closed on forged/future schema, role rights revocation, foreign shop/receipt, or dishonest paid flags. Added no-provider synthetic tests and source release warning against mounting an Azure Queue-trigger. Four-job CI on exact branch required.
+
+- 2026-10-29 Feature3 Phase2 P1 parallel independent frontend: implemented strict `validateFeature3GeneratedHistory` and UI `Feature3GeneratedHistory` inside existing feature-flagged authenticated PosterHost, on-demand same-shop GET-only job statuses, no automatic signed URL/GPU/private byte download, stale scope response fencing and safe empty/deny behavior. Added Node tests foreign ID, duplicate status, untrusted extra path/URL/approval, 21+ cap and stale shop scopes. No live role testing, GPU, hosted deployment or WineShopPOS; exact CI/merge pending.
+
+
+- 2026-10-29 Feature3 Phase2 no-GPU P0: added read-only operator financial/output unknown-ACK inspector over actual service GET paths, with privately injected immutable evidence reader; classifies QUEUED/RUNNING holds and observed SETTLED terminal cases, denies contradictory USD/tenant/asset/record evidence and never retries/finishes/refunds/deletes. Added synthetic negative tests and ownership handoff. No hosted DB or vendor bill inspection, no real operator action, paid GPU or WineShopPOS.
+
+- 2026-10-29 Coordinator Phase2: #642 frontend generated history direct merge was rejected by GitHub 405 for current-main doc conflict despite exact 4/4 CI; preserved its validated code/tests, combined with #643 read-only GPU billing reconciliation source/test and append-only docs on new current-main integration branch for fresh four-job CI. No GitHub force-push, hosted/cloud settings, paid provider or WineShopPOS change.
+
+
+- 2026-10-29 Phase2 Feature3 independent source work: added actual bounded no-redirect backend Supabase private Storage GET plus Pillow real-image decode and SHA256 checked against an independent current rights review callback twice; source returns only safe metadata attestation into existing job plan and cannot trigger GPU or billing. Mocked-HTTP real PNG tests cover original/rightly approved, revoked mid-GET, foreign/media corrupt, bad MIME/size/redirect and malformed origin. Independent legal approval source and genuine DEV signed testing remain gated; no hosted SQL/provider/WineShopPOS change.
+
+- 2026-10-29: Coordinator conflict-reconciled the Feature3 private source byte proof #645 into current-main integration without dropping prior history. Verify four-job exact head CI and postmerge main separately; real legal authority and hosted source approval still pending.

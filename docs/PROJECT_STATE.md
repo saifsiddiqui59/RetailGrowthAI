@@ -1252,3 +1252,25 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 ## 2026-10-29 — Coordinator Feature3 combined integration under CI
 - PR #630 merged directly as main `7cd4a179f64d4c6ec32a4930e19334a589886c1c` (pinned verified MIT demo bytes). Prepared a **single conflict-reconciled source integration** from approved exact-head #629, #632, #634, #636, #637 and #638, carrying each distinct source/test diff and all six append-only canonical docs updates. Integration is SOURCE ONLY, not a deployed runtime. Await four-job combined CI and protected coordinator merge; no paid GPU, PROD, hosted SQL or WineShopPOS changes.
 
+
+## 2026-10-29 — Feature3 Phase2 source-only current-rights preflight
+- Added `Feature3GPUJobPlanPreflight` over REAL existing service-only PostgREST table paths: QUEUED one-shot job, versioned poster SHA, active owner/editor, subscription, private registered media and approved human model catalog; separate independently trusted source byte/license/approval receipt checked twice around a full SQL snapshot refresh, including non-DB rights revocation. Generic GPU/usage table writes explicitly blocked by service transport. Strict offline forged/revoked/foreign/lease tests. This does not provision GPU, claim a job, deploy a queue trigger or establish real licensed source proof. [Runbook](feature3/GPU_OFF_CURRENT_RIGHTS_PREFLIGHT_20261029.md); exact-head CI and postmerge main must be verified separately.
+
+
+- 2026-10-29 Feature3 Phase2 GPU-off queue intake source added: strict existing v1 shop/job envelope -> live backend plan inspector, with provider.status explicit OFF and no SQL claim, queue ACK/deletion, financial charge, GPU execution or generated images. Mocked e2e packet/foreign/source revoked/forged success denials tested. This intentionally has NO Azure Functions queue binding and cannot itself consume a real queue.
+
+## 2026-10-29 — Feature3 on-demand private generated history UX (source-only)
+- Added strict tenant-scoped `feature3-generated-history.mjs`, opt-in `Feature3GeneratedHistory.jsx`, mounted only inside existing authorized `Feature3PosterHost`. Authenticated GET reads existing RLS `listGeneratedJobs` without fetching a signed image URL, issuing any GPU POST or granting publish approval. Debounced/epoch-fenced current-shop reads deny stale async responses, cross-shop/duplicate/forged media URL/status data, and show no previews until separate approved downloads. Tests cover current shop and revoked/foreign selection. No DEV live data, rendered images or GPU run claimed.
+
+
+## 2026-10-29 — Feature3 read-only financial/Storage reconciliation source
+- Added `Feature3GPUOperatorReconciliation` inspecting actual existing GPU job and spend reservation under backend-only GET plus independently trusted private output evidence. Reports pending unknown, observed terminal failure, or observed terminal private-output success; **never** changes job, retries GPU, finalizes/refunds, deletes Storage or grants publishing. Negative CPU tests for foreign/revoked/forged/cost cap. Actual evidence reader/hosted invoice/operator runbook and protected release remain outstanding. [Handoff](feature3/GPU_OPERATOR_RECONCILIATION_20261029.md).
+
+## 2026-10-29 — Coordinator Phase2 source integration checkpoint
+- Reconciled separate source-ready #642 (on-demand tenant private generated job metadata UI) and #643 (operator read-only uncertain-billing inspection) into a current-main branch with all original source/test docs and CI gates; no new generated private pixels or billable worker. Complete exact integration PR 4/4 and fresh postmerge main CI before treating them merged.
+
+
+## 2026-10-29 — Feature3 actual private source byte attestation (source only)
+- `Feature3PrivateSourceProof` implements the real HTTPS Storage/Pillow/SHA256 source proof port used by current GPU-off job plan. Enforces same-shop registered private media path and MIME, separately reviewer-backed current commercial permission, source provenance and customer approval before and after read, denies changed rights and altered bytes. Returns no private object key/URL/image bytes or provider permission. Test-only fake rights authority: actual licensed legal evidence source and signed DEV validation NOT implemented. No GPU, deployment or WineShopPOS change. [Handoff](feature3/PRIVATE_SOURCE_BYTES_RIGHTS_PROOF_20261029.md).
+
+- 2026-10-29: Coordinator conflict-reconciled the Feature3 private source byte proof #645 into current-main integration without dropping prior history. Verify four-job exact head CI and postmerge main separately; real legal authority and hosted source approval still pending.
