@@ -932,3 +932,7 @@
 - Feature3 service-only CPU preflight must retrieve immutable same-shop private bytes, real-decode image and recompute SHA256 under a narrowly scoped backend Storage credential. Compare with a **separate independent, current, reviewer-approved legal/provenance/retailer permission record**, and reread that record after fetching bytes. Never infer commercial permission from media `license_name`, OpenVTO demo, model weights or Storage 200; deny unknown/revoked record. Do not expose bytes/keys to browsers or imply spend rights.
 
 - 2026-10-29: Coordinator conflict-reconciled the Feature3 private source byte proof #645 into current-main integration without dropping prior history. Verify four-job exact head CI and postmerge main separately; real legal authority and hosted source approval still pending.
+
+
+## 2026-10-29 — Generated output operator evidence must include real bytes, not only SQL
+- Only service_role may inspect immutable job/output evidence, and a SQL or storage.objects row is insufficient to prove stored pixels. Bound exact same-tenant private PNG GET and SHA256/format/size validation between two authoritative SQL reads before returning a read-only operator receipt. Keep new DDL outside canonical migrations until separate coordinator approval/versioning; 31-current gate, no replay/charge/refund/publish authorization.
