@@ -315,3 +315,6 @@ First documentation-head Actions run #40864647921 exposed **one new Feature5 med
 
 ## 2026-10-29 — Cross-feature task tracking without repeated manual status guesses
 Verified F5 draft #465 `82dad625`, F2 #551 open, F4 #322 open, Part3 #125 open and Feature3 #630 merged; old exact F5 head Actions #40933327353 has four successes. Added `docs/feature5/F5_22_TASK_DEPENDENCIES_20261029.json` (GitHub commit d9d6f57a), enumerating 22 remaining release work packages with explicit owner/dependency/output/acceptance, including three active source/preflight preparations and 19 external blocks. Pure docs/coordination; no GPU, Azure, Supabase or WineShopPOS mutation. Verify latest documentation head CI separately.
+
+## 2026-10-29 — F5-02 fail-closed malformed Feature2 export
+- Original Feature2 PR #551 remains draft. Hardened byte-level Feature2 source import against deeply nested JSON parser recursion and added subprocess negative regression ensuring error-code 2 and no traceback, with no provider authorization. Updated 22-task source ledger to retain F5-02 IN PROGRESS. See `F5_02_JSON_FAILCLOSED_HANDOFF_20261029.md`. Separate stacked branch/PR and exact-head four-job CI required before source signoff. No GPU, paid calls, hosted changes, PROD or WineShopPOS.

@@ -21,7 +21,9 @@
       "dependency_id": "F2#551",
       "owner": "Feature5",
       "required_output": "actual 15/30/60 Node exporter stdout",
-      "acceptance_criteria": "F5 runs all original durations and negative tamper tests"
+      "acceptance_criteria": "F5 runs all original durations and negative tamper tests",
+      "source_evidence": "2026-10-29 GPU-OFF JSON source boundary denies oversized, duplicate-key, nonfinite, non-UTF8, duration-tampered and over-deep input; new CLI negative test prevents parser exception/traceback. This is security source progress, NOT true Feature2 producer runtime.",
+      "remaining_acceptance": "Execute actual original 15/30/60 Node exporter from Feature2 PR #551 after coordinator-owned integration; verify exact-source stdout and independent tamper tests at exact-head 4/4 CI. Remain IN PROGRESS."
     },
     {
       "task": 3,
