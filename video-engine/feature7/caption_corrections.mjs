@@ -198,3 +198,63 @@ export function buildCorrectedCaptionReviewProjection(session,originalProjection
     approved:false,renderable:false,human_review_required:true
   });
 }
+
+
+/**
+ * Verify a client correction against a newly fetched trusted source snapshot.
+ * This is only source-level data verification: a production API still MUST
+ * derive reviewer_view via JWT/RLS, lock the authoritative media registry,
+ * persist a human action and fence the Feature4 dispatch transaction.
+ * Neither a JS digest nor a reviewer_view object supplied by a browser
+ * confers those rights.
+ */
+export function verifyCaptionCorrectionRequestForWorker({
+  request,original_projection,shop_id,asset_id,
+  source_sha256,preview_sha256,reviewer_view
+}={}){
+  valid(request&&typeof request==='object'&&!Array.isArray(request)&&
+    request.version==='feature7_caption_correction_request_v1'&&
+    request.reviewer_confirmation===true&&
+    request.approved===false&&request.renderable===false&&
+    request.customer_publishable===false&&
+    Array.isArray(request.corrections)&&
+    request.corrections.length>=1&&request.corrections.length<=60,
+    'Unapproved confirmed text-only correction request required');
+  // The reviewer_view and projection MUST come from the trusted backend,
+  // not from request.body. Reconstruct the exact original cue revision.
+  let session=createCaptionCorrectionSession({
+    shop_id,asset_id,source_sha256,preview_sha256,
+    caption_projection:original_projection,reviewer_view
+  });
+  valid(session.can_propose,'VIEWER may not correct captions');
+  const seen=new Set();
+  for(const correction of request.corrections){
+    const i=correction?.cue_index;
+    valid(Number.isInteger(i)&&i>=0&&i<session.cues.length&&
+      !seen.has(i),'Unknown, repeated or foreign caption edit');
+    seen.add(i);
+    session=editCaptionCorrection(session,i,correction.corrected_text);
+  }
+  const rebuilt=requestCaptionCorrectionReview(session,{confirmed:true});
+  // Exact canonical packet values, not the user-supplied hint, define the
+  // original source revision and correction candidate.
+  valid(request.request_sha256_hint===rebuilt.request_sha256_hint&&
+    Object.keys(request).length===Object.keys(rebuilt).length,
+    'Stale or forged caption request digest');
+  for(const [key,value] of Object.entries(rebuilt)){
+    valid(JSON.stringify(request[key])===JSON.stringify(value),
+      'Caption request fields changed since source verification');
+  }
+  return Object.freeze({
+    candidate_sha256:rebuilt.request_sha256_hint,
+    shop_id,asset_id,source_sha256,preview_sha256,
+    expected_revision:reviewer_view.revision,
+    source_captions_sha256:session.source_captions_sha256,
+    verified_correction_count:session.corrections.length,
+    current_snapshot_consistency_checked:true,
+    authenticated_jwt_rls_verified_here:false,
+    persisted_human_approval_here:false,
+    requires_authoritative_server_transaction:true,
+    approved:false,renderable:false,customer_publishable:false
+  });
+}
