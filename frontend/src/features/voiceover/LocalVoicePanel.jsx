@@ -3,7 +3,7 @@ import {F2_LOCAL_VOICES, VOICE_SPEEDS, makeLocalVoiceAction,
   makeReviewedDraftRequest, verifyReviewedDraftReceipt,
   makeLocalSentenceRetakeAction, verifyLocalSentenceRetakeReceipt} from './voiceover-model.mjs'
 import {verifyLocalPrivatePlayback} from './voiceover-private-playback.mjs'
-import {verifyPrivateVoiceQualityReview} from './voiceover-quality-review.mjs'
+import {verifyPrivateVoiceQualityReview,verifySignedWordErrorReview} from './voiceover-quality-review.mjs'
 
 // Part of existing F2 VoiceoverSelector, not a new app. Actual backend must
 // authenticate and run upstream CPU Kokoro with pinned local model weights.
@@ -11,7 +11,7 @@ import {verifyPrivateVoiceQualityReview} from './voiceover-quality-review.mjs'
 export default function LocalVoicePanel({
  shopId,campaignId,planSha256,enabled=false,sourceScript='',
  onLocalPreview=null,onLocalGenerate=null,onFetchLocalAudio=null,
- onFetchQualityReview=null,
+ onFetchQualityReview=null,onFetchSignedWerReview=null,
  onProposeScriptRevision=null,onProposePronunciation=null,
  onCommitReviewedDraft=null,onRequestSentenceRetake=null,
 }){
@@ -23,6 +23,7 @@ export default function LocalVoicePanel({
  const [message,setMessage]=useState('')
  const [saved,setSaved]=useState(null)
  const [quality,setQuality]=useState(null)
+ const [wer,setWer]=useState(null)
  const [pendingProposal,setPendingProposal]=useState(null)
  const [reviewAcknowledged,setReviewAcknowledged]=useState(false)
  const [sentenceIndex,setSentenceIndex]=useState(0)
@@ -38,7 +39,7 @@ export default function LocalVoicePanel({
   urlRef.current=null;setAudioUrl('')
  }
  useEffect(()=>{
-  setSaved(null);setQuality(null);setPendingProposal(null)
+  setSaved(null);setQuality(null);setWer(null);setPendingProposal(null)
   setReviewAcknowledged(false);setSentenceIndex(0)
   setAudioUrl('');setScriptDraft(sourceScript)
   setPronounceWord('');setPronounceAs('')
@@ -142,9 +143,29 @@ export default function LocalVoicePanel({
       shopId,campaignId,planSha256,receipt:saved,review:response,
     })
     if(scope!==scopeRef.current)throw Error('Review context revoked during read')
-    setQuality(reviewed)
+    setQuality(reviewed);setWer(null)
     setMessage('Speech-to-text hints loaded; listen to the original and request human review')
   }catch(e){setQuality(null);setError(e?.message||'Audio review unavailable')}
+  finally{setBusy(false)}
+ }
+ async function loadSignedWer(){
+  if(!saved||!quality||enabled!==true||typeof onFetchSignedWerReview!=='function'){
+   setError('Signed current original-WAV and reviewer endpoint unavailable');return
+  }
+  const scope=scopeRef.current
+  setError('');setBusy(true)
+  try{
+   const record=await onFetchSignedWerReview({
+     shop_id:shopId,campaign_id:campaignId,
+     creative_plan_sha256:planSha256,
+     audio_asset_id:saved.private_audio_asset_id,
+     original_audio_sha256:saved.original_audio_sha256,
+   })
+   const selected=verifySignedWordErrorReview({
+     shopId,campaignId,planSha256,receipt:saved,metrics:record})
+   if(scope!==scopeRef.current)throw Error('Signed WAV review context changed')
+   setWer(selected)
+  }catch(e){setWer(null);setError(e?.message||'Signed word accuracy review unavailable')}
   finally{setBusy(false)}
  }
  async function proposeSentenceRetake(){
@@ -161,12 +182,12 @@ export default function LocalVoicePanel({
     verifyLocalSentenceRetakeReceipt({request,receipt:result})
     if(scope!==scopeRef.current)throw Error('Original audio or campaign changed')
     setMessage('New private sentence proposed. Await a fresh Feature7 transcript, human listening and Feature4 scene assembly.')
-    setQuality(null);setSaved(null);clearAudio()
+    setQuality(null);setWer(null);setSaved(null);clearAudio()
   }catch(e){setError(e?.message||'Retake rejected; inspect one-shot job before retry')}
   finally{setBusy(false)}
  }
  async function submit(preview){
-  setError('');setMessage('');setSaved(null);setQuality(null);clearAudio()
+  setError('');setMessage('');setSaved(null);setQuality(null);setWer(null);clearAudio()
   const callback=preview?onLocalPreview:onLocalGenerate
   if(enabled!==true||typeof callback!=='function'){
    setError('Signed local Kokoro speech worker not connected');return
@@ -270,6 +291,19 @@ export default function LocalVoicePanel({
       onClick={fetchAudio}>Load verified private WAV preview</button>
     <button type="button" disabled={busy||enabled!==true||!onFetchQualityReview}
       onClick={loadQuality}>Review signed word-level transcription</button>
+    {quality&&onFetchSignedWerReview&&<button type="button" disabled={!enabled||busy}
+      onClick={loadSignedWer}>Compare signed F7 word error and human transcription</button>}
+    {wer&&<section aria-label="Signed original WAV word-error comparison">
+      <p>F7 transcript vs reviewed script word error rate: {(wer.asr.word_error_rate*100).toFixed(1)}%
+        ({wer.asr.substitutions} substitutions, {wer.asr.deletions} deletions,
+         {wer.asr.insertions} insertions).</p>
+      {wer.manual_human_reference?<p>Independent signed human reference vs script:
+        {(wer.manual_human_reference.word_error_rate*100).toFixed(1)}%.
+        F7 vs human reference: {(wer.asr_vs_human.word_error_rate*100).toFixed(1)}%.</p>:
+        <p>Independent signed human transcript not available.</p>}
+      <p>Word errors are textual estimates, not pronunciation or actual-model certification.
+        Listen to original private audio; rights and publishing review remain required.</p>
+    </section>}
     {quality&&<section aria-label="Original WAV quality and review hints">
       <p>ASR script comparison: {quality.asr_matched_script?'No text differences detected':'Check flagged words against the original audio'}.
         Audio words and pronunciation are not independently certified.</p>
