@@ -10,6 +10,8 @@
 4. Require a **separately injected current independent licence and customer approval authority** that binds the original same-shop media ID and actual binary digest to a reviewed `rights_revision`. Call this authority twice, refusing any revoked approval or changed revision. The media row's self-declared licence name, UI consent or demo manifest is not accepted as legal approval.
 5. Produce the exact `Feature3GPUJobPlanPreflight` source-proof receipt, containing only shop ID, media ID, SHA256, current reviewed revision and four strict booleans. No private object path, key, image bytes, signed URL, GPU charge or publish approval is returned. The existing planner checks the same proof again around its second authoritative SQL snapshot.
 
+Later hardening requires any declared HTTP Content-Length to equal actual fetched byte count, and a private `model-library` original to have a canonical model UUID namespace and SHA256 filename exactly matching its real decoded source bytes (including supported PNG/JPEG/WebP test fixtures). This prohibits a replaced but otherwise valid image from obtaining a source-proof receipt even from a permissive reviewer callback. See [immutable source and SQL proposal handoff](SOURCE_IMMUTABILITY_MODEL_RPC_PROPOSAL_20261029.md).
+
 Tests in `tests/api/test_feature3_private_source_proof.py` generate real Pillow pixels and mock the actual HTTPS request boundary. They cover PNG/JPEG/WebP bytes; identity/URL injection; MIME, redirect, byte and size mismatch; private rights denied/revoked in flight or revised after first check; missing independent authority, invalid key/origin and factory integration.
 
 ## What is still not operational
