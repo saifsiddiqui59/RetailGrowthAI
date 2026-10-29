@@ -67,7 +67,8 @@ def pcm_stats(wav_original):
             "words_heard_verified":False}
 
 def consume_feature7_stt(*,shop_id,campaign_id,source_sha256,
-                         original_audio_sha256,expected_script,transcript):
+                         original_audio_sha256,expected_script,transcript,
+                         audio_duration_seconds=None):
     """Fail closed unless F7 signed-worker output binds original same-shop bytes.
 
     Contract proposed to Feature7; this alone is NOT an F7 implementation.
@@ -85,6 +86,11 @@ def consume_feature7_stt(*,shop_id,campaign_id,source_sha256,
         transcript.get("worker_verified") is not True or
         type(expected_script) is not str or not 1<=len(expected_script)<=1800):
         raise VoiceQualityDenied("No trusted Feature7 transcription evidence")
+    if audio_duration_seconds is not None and (
+        type(audio_duration_seconds) not in (int,float) or
+        not math.isfinite(audio_duration_seconds) or
+        not 0.2 <= audio_duration_seconds <= 65):
+        raise VoiceQualityDenied("Independent original WAV duration missing")
     rows=transcript.get("words")
     if not isinstance(rows,list) or not 1<=len(rows)<=600:
         raise VoiceQualityDenied("No bounded word timestamps from Feature7")
@@ -96,9 +102,13 @@ def consume_feature7_stt(*,shop_id,campaign_id,source_sha256,
         word=row["word"];start=row["start"];end=row["end"];conf=row["confidence"]
         if (type(word) is not str or not 1<=len(word)<=80 or
             len(_words(word))!=1 or type(start) not in (float,int) or
-            type(end) not in (float,int) or type(conf) not in (float,int) or
-            not all(math.isfinite(x) for x in (start,end,conf)) or
-            not previous<=start<=end<=65 or not 0<=conf<=1):
+            type(end) not in (float,int) or
+            (conf is not None and type(conf) not in (float,int)) or
+            not all(math.isfinite(x) for x in (start,end)) or
+            (conf is not None and (not math.isfinite(conf) or not 0<=conf<=1)) or
+            not previous<=start<end<=65 or
+            (audio_duration_seconds is not None and
+             end>audio_duration_seconds+0.001)):
             raise VoiceQualityDenied("Untrusted or reordered Feature7 timestamps")
         previous=end
         tokens.append({"word":_words(word)[0],"start":round(float(start),3),
@@ -128,6 +138,8 @@ def consume_feature7_stt(*,shop_id,campaign_id,source_sha256,
             "model_version":transcript["model_version"],
             "audio_sha256":original_audio_sha256,
             "word_timing_verified_by_external_worker":True,
+            "token_confidence_available":all(x["confidence"] is not None for x in tokens),
+            "human_listen_required":True,
             "transcribed_words":heard,"expected_words":expected,
             "issues":issues,
             "transcript_matches_script":not issues,
