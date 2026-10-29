@@ -17,12 +17,35 @@ import os
 import re
 import sys
 import wave
+import unicodedata
 
-class VoiceQualityDenied(ValueError):
-    pass
+class VoiceQualityDenied(Valudef _words(text):
+    """Unicode-grapheme-aware candidates; NEVER a pronunciation certificate.
 
-def _words(text):
-    return [w.casefold() for w in re.findall(r"[\w']+",text,flags=re.UNICODE)]
+    Python's default \\w drops some Devanagari vowel marks, producing false
+    Hindi/Marathi mismatches. Retain letter/number/combining marks in a token.
+    """
+    if not isinstance(text, str):
+        return []
+    tokens, chars = [], []
+    for ch in unicodedata.normalize("NFC", text):
+        category = unicodedata.category(ch)
+        if category[0] in ("L", "N") or (category[0] == "M" and chars):
+            chars.append(ch)
+        elif ch in ("'", "’") and chars:
+            chars.append("'")
+        else:
+            if chars:
+                word = "".join(chars).strip("'")
+                if word:
+                    tokens.append(word.casefold())
+                chars = []
+    if chars:
+        word = "".join(chars).strip("'")
+        if word:
+            tokens.append(word.casefold())
+    return tokens
+flags=re.UNICODE)]
 
 def pcm_stats(wav_original):
     """Actual PCM16 mono evidence, not fake speech/pronunciation diagnosis."""
