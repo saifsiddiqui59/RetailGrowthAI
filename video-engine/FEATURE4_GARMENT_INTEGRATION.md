@@ -41,3 +41,35 @@ completion to prevent a concurrent worker from overwriting an existing output
 at the final rename; a negative race test covers this. No consumer routes,
 JWT/RLS, cloud, GPU or WineShopPOS changes. An encoded MP4 is still stock QA,
 not real retailer garment/model acceptance.
+
+
+## F4-45–46 — Independent 60s storyboard and subtitles
+
+F4-45 extends the existing 30s Pexels stock QA composer with an explicit
+`--seconds 60` mode. This accepts only 30 or 60, uses **the same actual three
+Pexels footage clips and two garment photo references**, creates a 12-scene
+60-second 1080×1920/24fps composition, and measures original-percussion WAV
+beat onsets with the existing detector before snapping cuts. The resulting
+stock references are deliberately repeated; `reused_stock_video_clips=true`
+is recorded in provenance. This does **not** assert new/inferred human model
+motion, Feature3 garment fidelity, real model try-on or a professional-quality
+retailer ad. 60s compiler unit tests run without internet with synthetic test
+inputs, and the same source media rights are checked at the compiler. Rendering
+a real 60s 1080p MP4 remains an explicit **opt-in CPU acceptance job** owing to
+cost/time; a compiled plan is not mislabeled a rendered Full-HD sample.
+
+F4-46 adds `feature4_subtitles.py`: deterministic private SRT and WebVTT
+export of *already approved* millisecond-precise Feature2 caption cues.
+Strict cue validation refuses overlaps, unescaped subtitle control text,
+out-of-bounds and unreviewed/malformed timecodes. Pair writing is exclusive
+(`O_EXCL`, mode 0600), rolls back if the second file cannot be created,
+never overwrites an existing or symlink target and returns SHA-256 evidence.
+This is **not** transcription, semantic speech alignment, an API route, public
+hosting, a signed download or third-party caption rights approval. Tenant
+authorization, transcript freeze, actual voiceover identity, sidecar private
+registration, expiring signed URLs and end-user access are coordinator-owned.
+
+These independent features require no feature3/5 GPU input or public API,
+no cloud change, no shared schema, no WineShopPOS changes. They stay within
+draft Feature4 PR #322 pending exact-head CI and an actual minute-long
+render/human acceptance.

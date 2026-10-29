@@ -65,6 +65,36 @@ class GarmentIntegrationTests(unittest.TestCase):
         with self.assertRaisesRegex(StockShowcaseError, "overwrite"):
             make_garment_project(self.media, self.root / "project")
 
+
+    def test_real_contract_compiles_sixty_second_full_hd_storyboard(self):
+        self.sources()
+        proj, report = make_garment_project(
+            self.media, self.root / "minute-project", seconds=60)
+        config = json.loads((proj / "render-config.json").read_text())
+        html = (proj / "index.html").read_text()
+        self.assertEqual(config["duration_seconds"], 60)
+        self.assertEqual((config["width"], config["height"], config["fps"]), (1080,1920,24))
+        self.assertEqual(report["scene_count"], 12)
+        self.assertTrue(report["reused_stock_video_clips"])
+        self.assertEqual(html.count('class="footage clip"'), 5)
+        self.assertEqual(html.count('class="product-photo"'), 6)
+        self.assertIn('id="scene11"', html)
+        self.assertNotIn('id="cta"', html)
+        self.assertFalse(report["model_garment_match_verified"])
+        self.assertFalse(report["commercial_release_eligible"])
+        self.assertFalse(report["actual_spoken_voiceover"])
+        self.assertGreater(len(report["measured_beat_timestamps"]), 45)
+        for cut in report["synced_scene_starts"][1:]:
+            self.assertTrue(any(abs(cut - beat) < .17
+                                for beat in report["measured_beat_timestamps"]))
+        with self.assertRaises(StockShowcaseError):
+            make_garment_project(self.media, self.root / "minute-project", seconds=60)
+
+    def test_unreviewed_full_minute_duration_fails_closed(self):
+        for seconds in (12, 31, 59, 61, True):
+            with self.assertRaisesRegex(StockShowcaseError, "Only 30s or 60s"):
+                make_garment_project(self.media, self.root / "no-project", seconds=seconds)
+
     def test_missing_and_symlinked_input_rejected(self):
         self.sources()
         image = self.media / (GARMENTS[0][1] + ".jpg")
