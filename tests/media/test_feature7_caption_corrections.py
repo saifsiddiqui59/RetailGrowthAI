@@ -16,7 +16,8 @@ import fs from 'node:fs';
 import {proposeUploadedFootageEdits}
  from './video-engine/feature7/autobroll_semantics.mjs';
 import {createCaptionCorrectionSession,editCaptionCorrection,
- requestCaptionCorrectionReview,buildCorrectedCaptionReviewProjection} from './video-engine/feature7/caption_corrections.mjs';
+ requestCaptionCorrectionReview,buildCorrectedCaptionReviewProjection,
+ verifyCaptionCorrectionRequestForWorker} from './video-engine/feature7/caption_corrections.mjs';
 import {mountFeature7ReviewPanel} from './video-engine/feature7/reviewer_panel.mjs';
 const p=JSON.parse(fs.readFileSync(0,'utf8'));
 const draft=p.input.draft;
@@ -42,13 +43,33 @@ if(p.bad==='overlap')projection.feature4_caption_track[1].start=.8;
 if(p.bad==='late')projection.feature4_caption_track[2].start=15;
 if(p.bad==='approved')projection.approved=true;
 if(p.bad==='samesha')correctionInput.preview_sha256=correctionInput.source_sha256;
-if(p.operation==='pure'||p.operation==='preview'){
+if(['pure','preview','verify'].includes(p.operation)){
  let s=createCaptionCorrectionSession({...correctionInput,reviewer_view:reviewer});
  const original=s;
  if(p.bad==='wrong_index')s=editCaptionCorrection(s,8,'Different words');
  else s=editCaptionCorrection(s,0,p.edit??'Our blue shirts');
  if(p.reset)s=editCaptionCorrection(s,0,'Our red shirts');
- if(p.operation==='preview'){
+ if(p.operation==='verify'){
+   const request=requestCaptionCorrectionReview(s,{confirmed:true});
+   if(p.bad==='request_text_changed')
+     request.corrections[0].corrected_text='Adversarial';
+   if(p.bad==='extra_field')request.extra='bypass';
+   if(p.bad==='request_approval')request.approved=true;
+   if(p.bad==='request_digest')request.request_sha256_hint='0'.repeat(64);
+   if(p.bad==='stale_revision')reviewer.revision=4;
+   if(p.bad==='foreign_shop')reviewer.shop_id='foreign';
+   if(p.bad==='revoked')reviewer.active_membership=false;
+   if(p.bad==='viewer')reviewer.role='VIEWER';
+   if(p.bad==='source_changed')correctionInput.source_sha256='c'.repeat(64);
+   const validated=verifyCaptionCorrectionRequestForWorker({
+     request,original_projection:projection,
+     shop_id:correctionInput.shop_id,asset_id:correctionInput.asset_id,
+     source_sha256:correctionInput.source_sha256,
+     preview_sha256:correctionInput.preview_sha256,
+     reviewer_view:reviewer
+   });
+   process.stdout.write(JSON.stringify(validated));
+ }else if(p.operation==='preview'){
    const updated=buildCorrectedCaptionReviewProjection(s,projection);
    process.stdout.write(JSON.stringify(updated));
  }else{
@@ -222,6 +243,67 @@ class Feature7CaptionCorrectionTests(unittest.TestCase):
             self.assertFalse(report['customer_publishable'])
             self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),
                              original_sha)
+
+    def test_current_trusted_context_can_verify_correction_candidate(self):
+        r=self.run_case(operation="verify",edit="Our proper shirts")
+        self.assertEqual(r.returncode,0,r.stderr)
+        validated=json.loads(r.stdout)
+        self.assertTrue(validated["current_snapshot_consistency_checked"])
+        self.assertFalse(validated["authenticated_jwt_rls_verified_here"])
+        self.assertFalse(validated["persisted_human_approval_here"])
+        self.assertEqual(validated["expected_revision"],3)
+        self.assertEqual(validated["verified_correction_count"],1)
+        self.assertEqual(len(validated["candidate_sha256"]),64)
+        self.assertFalse(validated["approved"])
+        self.assertFalse(validated["renderable"])
+
+    def test_server_verification_rejects_stale_rights_or_altered_request(self):
+        for bad in ("request_text_changed","extra_field","request_approval",
+                    "request_digest","stale_revision","foreign_shop",
+                    "revoked","viewer","source_changed"):
+            with self.subTest(bad=bad):
+                r=self.run_case(operation="verify",bad=bad)
+                self.assertNotEqual(r.returncode,0,r.stdout)
+
+    def test_verified_caption_correction_still_needs_durable_explicit_human_ack(self):
+        # Strict local-only SQLite stand-in for coordinator JWT/RLS/Postgres.
+        from review_journal import (
+            CurrentReviewContext,LocalReviewJournal,ReviewStateError)
+        r=self.run_case(operation="verify",edit="Our proper shirts")
+        self.assertEqual(r.returncode,0,r.stderr)
+        validated=json.loads(r.stdout)
+        ctx=CurrentReviewContext("test-shop","campaign-a",
+            "human-test-editor","EDITOR",True,True,"a"*64)
+        # Scope fixture deliberately chooses the actual request's test shop.
+        ctx=CurrentReviewContext(validated["shop_id"],"test-campaign",
+            "human-test-editor","EDITOR",True,True,validated["source_sha256"])
+        with tempfile.TemporaryDirectory(prefix="f7_caption_journal_") as tmp:
+            ledger=LocalReviewJournal(Path(tmp)/"reviews.sqlite")
+            try:
+                staged=ledger.stage(context=ctx,draft_sha256="c"*64,
+                    candidate_sha256=validated["candidate_sha256"],now_ms=1000)
+                with self.assertRaises(ReviewStateError):
+                    ledger.approve(review_id=staged["review_id"],
+                        expected_revision=0,context=ctx,
+                        candidate_sha256=validated["candidate_sha256"],
+                        confirmed_by_human=False,now_ms=1100)
+                with self.assertRaises(ReviewStateError):
+                    ledger.approve(review_id=staged["review_id"],
+                        expected_revision=1,context=ctx,
+                        candidate_sha256=validated["candidate_sha256"],
+                        confirmed_by_human=True,now_ms=1100)
+                approved=ledger.approve(review_id=staged["review_id"],
+                    expected_revision=0,context=ctx,
+                    candidate_sha256=validated["candidate_sha256"],
+                    confirmed_by_human=True,now_ms=1100)
+                self.assertEqual(approved["status"],"APPROVED")
+                with self.assertRaises(ReviewStateError):
+                    ledger.approve(review_id=staged["review_id"],
+                        expected_revision=0,context=ctx,
+                        candidate_sha256=validated["candidate_sha256"],
+                        confirmed_by_human=True,now_ms=1101)
+            finally:
+                ledger.close()
 
     def test_panel_viewer_read_only_and_callback_mandatory(self):
         r=self.run_case(operation="ui_confirmed",role="VIEWER")
