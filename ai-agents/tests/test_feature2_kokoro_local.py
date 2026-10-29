@@ -29,8 +29,8 @@ def test_source_only_mocked_input_is_labeled_test_only_and_pcm_bytes_are_real():
 ])
 def test_unsupported_language_voice_and_injection_never_use_engine(bad):
     with pytest.raises(LocalSpeechUnavailable):
-        synthesize_local(text="Diwali offer",engine=SimulatedEngine(),
-            trusted_for_tests=True,**bad)
+        synthesize_local(engine=SimulatedEngine(),
+            trusted_for_tests=True,**{"text":"Diwali offer",**bad})
 def test_real_inference_never_uses_mock_engine():
     with pytest.raises(LocalSpeechUnavailable):
         synthesize_local(text="Hello",engine=SimulatedEngine())
