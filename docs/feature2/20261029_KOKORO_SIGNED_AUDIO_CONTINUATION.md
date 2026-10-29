@@ -159,3 +159,24 @@ forged HMAC, revoked editor, changed original bytes, video-source reuse,
 stale/foreign job, and mid-review revocation. Coordinator must connect the
 existing signed tenant and audio asset store; Feature7 owns true WAV adapter.
 No F7 or F4 source files or shared interfaces were changed by Feature2.
+
+
+## Feature4: real-word-timing review candidate (source adapter)
+
+New additive Feature2-owned
+`feature2_feature4_voiceover.prepare_feature4_speech_review_candidate`
+accepts **only trusted backend callbacks** for current shop OWNER/EDITOR,
+registered private F2 Kokoro metadata and private persisted F2/F7 quality
+review. It requires source hash, unchanged creative/script, original
+duration, valid ordered actual F7 millisecond word timing, pending state,
+and **two independent same-shop current reads** to block revocation or
+TOCTOU. The output `retailgrowth.feature2-feature4-speech-review.v1`
+contains `voiceover_asset_id`, provider/model/voice, immutable SHA,
+candidate word timings, quality faults and music/caption responsibility
+flags. It is ALWAYS `approved:false`, `renderable:false`,
+`can_publish:false`; no public audio URL, no raw WAV. This is not F4's
+persisted human approval or a new public F4 render API. F4 must transform
+human-reviewed words into its own signed `script.transcript`/caption
+snapshot, revalidate original private audio and editor/lease, then mix
+and sync final 1080p media. Source-only tenant/negative fixtures are not
+evidence of actual WAV speech/word alignment or rights authorization.
