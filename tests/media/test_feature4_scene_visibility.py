@@ -5,10 +5,12 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/"video-engine"))
 from feature4_scene_visibility import verify_scene_visibility,VisibilityProofError
+import feature4_scene_visibility
 
 SCENES=[{"start":0.0,"duration":5.0},
         {"start":5.0,"duration":5.0},
@@ -75,6 +77,23 @@ class Feature4SceneVisibilityTests(unittest.TestCase):
         subprocess.run(args,check=True,capture_output=True,timeout=120)
         with self.assertRaisesRegex(VisibilityProofError,"blank/black"):
             verify_scene_visibility(self.path,seconds=15,scenes=SCENES)
+
+    def test_encoded_media_changed_during_sampling_rejected(self):
+        self.source()
+        original=feature4_scene_visibility._pixel_frame
+        changed=[False]
+        def mutate_after_one_decoded_frame(source,at):
+            sample=original(source,at)
+            if not changed[0]:
+                changed[0]=True
+                with self.path.open("ab") as handle:
+                    handle.write(b"concurrently-mutated-source")
+            return sample
+        with patch.object(feature4_scene_visibility,"_pixel_frame",
+                          side_effect=mutate_after_one_decoded_frame):
+            with self.assertRaisesRegex(VisibilityProofError,"changed"):
+                verify_scene_visibility(self.path,seconds=15,scenes=SCENES)
+        self.assertTrue(changed[0])
 
     def test_malicious_scene_ranges_and_wrong_run_duration_rejected(self):
         self.source()
