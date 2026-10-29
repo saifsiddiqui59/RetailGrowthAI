@@ -65,7 +65,7 @@ class ReceiptTests(unittest.TestCase):
         with patch("feature4_quality_receipt.inspect_mp4",
                    side_effect=[{"seconds":30,"width":1080,"height":1920}]*2+
                               [{"seconds":30,"width":540,"height":960}]):
-            with self.assertRaisesRegex(QualityReceiptError,"motion"):
+            with self.assertRaisesRegex(QualityReceiptError,"moving actor"):
                 self.validate()
         self.motion["checked_moving_scenes"][0]["luma_difference"]=6.1
         (self.root/"motion_proof.json").write_text(json.dumps(self.motion))
