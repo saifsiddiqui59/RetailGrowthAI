@@ -25,8 +25,8 @@ for folder in ("tests/ai","tests/media","poster-engine"):
 from test_feature5_real_feature3_producer_e2e import Feature5RealFeature3SourceIntegrationTests
 from test_feature5_part3_gpu_off_acceptance import TestOnlyPart3
 from feature5_motion.cross_feature_packet_gate import stage_fresh_feature3_consumer_input
-from feature5_motion.feature3_reference_bridge import resolve_feature3_materialized_first_frame
-from feature3_worker_inputs_v1 import materialize_feature5_input
+from feature5_motion.feature3_reference_bridge import resolve_feature3_worker_handoff_first_frame
+from feature3_worker_input_handoff import resolve_private_worker_inputs
 from feature5_motion.wan22_motion_adapter import WanShotPackage,PROVIDER,WanCompatibilityError
 from feature5_motion.wan22_clip_validation import inspect_native_mp4
 from feature5_motion.wan22_frame_screening import screen_motion_frames
@@ -60,11 +60,12 @@ class Feature5FullCrossFeatureOfflineTests(unittest.TestCase):
             os.chmod(attempt_dir,0o700)
             os.chmod(private_store,0o700)
             native=attempt_dir/"CPU_PAN_NOT_WAN.mp4"
-            # Actual merged Feature3 private worker API, not simulated output
-            # shape; underlying current reads/lease remain test-only doubles.
+            # Actually execute the merged Feature3 private handoff: check
+            # garment, model AND reviewed first-frame originals and their
+            # rights together. The delegated DB lease is test-only in CI.
             def real_feature3_private_first_frame(**kwargs):
-                return resolve_feature3_materialized_first_frame(
-                    **kwargs,materialize_feature5_input=materialize_feature5_input)
+                return resolve_feature3_worker_handoff_first_frame(
+                    **kwargs,resolve_private_worker_inputs=resolve_private_worker_inputs)
             with stage_fresh_feature3_consumer_input(
                 **owner.args(packet,attempt_dir,
                     resolve_first_frame=real_feature3_private_first_frame)
