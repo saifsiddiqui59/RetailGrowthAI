@@ -1,0 +1,13 @@
+"""Stock full-minute standalone CPU acceptance script is safe and well formed."""
+import subprocess
+import unittest
+from pathlib import Path
+SCRIPT=Path(__file__).resolve().parents[2]/"video-engine/feature4_stock_minute_acceptance.sh"
+class MinuteRunnerContractTests(unittest.TestCase):
+    def test_bash_syntax_is_valid(self):
+        subprocess.run(["bash","-n",str(SCRIPT)],check=True,timeout=10)
+    def test_no_arguments_and_existing_directory_fail_before_download(self):
+        for args in ([],["/tmp"]):
+            p=subprocess.run(["bash",str(SCRIPT),*args],capture_output=True,text=True,timeout=10)
+            self.assertEqual(p.returncode,2)
+            self.assertIn("Usage:",p.stderr)

@@ -73,3 +73,19 @@ These independent features require no feature3/5 GPU input or public API,
 no cloud change, no shared schema, no WineShopPOS changes. They stay within
 draft Feature4 PR #322 pending exact-head CI and an actual minute-long
 render/human acceptance.
+
+
+## F4-48 — Separate actual 60s Full-HD acceptance run
+`bash video-engine/feature4_stock_minute_acceptance.sh /absolute/new-private-output-directory`
+runs the same stock rights-checked acquisition, 12-scene 60s compiler,
+1080×1920/24fps HyperFrames renderer, actual decoded actor-motion QA,
+lossless video packet-preserving AAC loudness mastering, and 540×960
+faststart MP4 preview exporter. It refuses existing output directories,
+uses an output with mode 0700, and logs exact source/preview hashes.
+This is **separate from the normal 15-minute PR media CI** to avoid
+invalidating unrelated tests by resource exhaustion. It requires real
+Node22, Chromium and Pexels connectivity; no GPU or cloud credentials.
+The unit test only verifies Bash syntax and safe invalid-input behavior;
+the script MUST be executed on a configured CPU runner before making a
+'full-minute Full-HD render passed' claim. Stock clips repeat and are
+not AI motion or actual retailer garments; the owner visual gate remains.
