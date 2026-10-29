@@ -30,6 +30,40 @@ def _message_acknowledged(receipt):
     return True
 
 
+def _validated_dispatch_rows(rows, limit):
+    """Reject all suspect SQL-claimed envelopes before the first queue send.
+
+    A forged, duplicate or oversized batch cannot be partially published.
+    The database claim may already have a short lease, but it never justifies
+    an uncertain queue replay or paid provider invocation.
+    """
+    if type(rows) is not list or len(rows) > limit:
+        raise StorageUnavailable("Untrusted GPU outbox batch; do not publish")
+    result=[]
+    seen_jobs=set()
+    seen_tokens=set()
+    keys={"job_id","shop_id","dispatch_token","expires_in_seconds","gpu_started"}
+    for row in rows:
+        if (type(row) is not dict or set(row)!=keys or
+                type(row.get("expires_in_seconds")) is not int or
+                row["expires_in_seconds"] != 120 or
+                row.get("gpu_started") is not False):
+            raise StorageUnavailable("Untrusted GPU outbox lease flags")
+        try:
+            ids=(row["job_id"],row["shop_id"],row["dispatch_token"])
+            if any(type(value) is not str or UUID(value).version != 4 or
+                   str(UUID(value)) != value for value in ids):
+                raise ValueError("Noncanonical outbox identity")
+        except (TypeError,ValueError,AttributeError) as exc:
+            raise StorageUnavailable("Untrusted GPU outbox identity") from exc
+        if row["job_id"] in seen_jobs or row["dispatch_token"] in seen_tokens:
+            raise StorageUnavailable("Duplicate GPU outbox claim in one batch")
+        seen_jobs.add(row["job_id"])
+        seen_tokens.add(row["dispatch_token"])
+        result.append(row)
+    return result
+
+
 class Feature3GPUOutboxPublisher:
     def __init__(self, outbox, queue_client):
         if not hasattr(outbox, "claim_dispatch") or not hasattr(outbox, "confirm_dispatch"):
@@ -40,8 +74,9 @@ class Feature3GPUOutboxPublisher:
         self.queue = queue_client
 
     def dispatch_once(self, limit=5):
-        # The store validates 1..10 and each dispatch_token/shop/job lease.
-        rows = self.outbox.claim_dispatch(limit)
+        if type(limit) is not int or not 1 <= limit <= 10:
+            raise ValueError("Bounded GPU outbox dispatch limit required")
+        rows = _validated_dispatch_rows(self.outbox.claim_dispatch(limit), limit)
         accepted = 0
         for row in rows:
             # Do not send any media, token, URL, raw licence or image bytes
