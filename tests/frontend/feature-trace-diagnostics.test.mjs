@@ -78,3 +78,26 @@ test('completed F2 prompt remains PASS when its optional campaign substage was N
  assert.equal(historical.passed,1)
  assert.equal(historical.skipped,0)
 })
+
+test('aspect mismatches are not scored as a regression',()=>{
+ const current=[e('F4','PASS',1,'render'),e('F4','QUALITY_REVIEW',2,'review',{score:1,dimension:'audio'})]
+ const baseline=[e('F4','PASS',1,'render'),e('F4','QUALITY_REVIEW',2,'review',{score:4,dimension:'captions'})]
+ const now=summarizeTrace(current).features.find(f=>f.id==='F4')
+ assert.equal(now.quality_latest,1)
+ assert.equal(now.quality_dimension_latest,'audio')
+ const row=compareTraceRuns(current,baseline).find(f=>f.id==='F4')
+ assert.equal(row.score_delta,null)
+ assert.equal(row.quality_dimension,'audio')
+ assert.equal(row.baseline_quality_dimension,'captions')
+})
+
+test('quality review before output never claims verified output quality',()=>{
+ const result=summarizeTrace([
+   e('F3','QUALITY_REVIEW',1,'forged-review',{score:1,dimension:'garment_identity'}),
+   e('F3','NOT_RUN',2,'poster-model'),
+ ])
+ const row=result.features.find(f=>f.id==='F3')
+ assert.equal(row.status,'NOT_RUN')
+ assert.equal(row.quality_latest,null)
+ assert.equal(row.quality_count,0)
+})
