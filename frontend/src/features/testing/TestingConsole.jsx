@@ -75,6 +75,10 @@ export default function TestingConsole() {
   const [baselineError, setBaselineError] = useState('')
   const [historyStats, setHistoryStats] = useState(null)
   const [analyzingHistory, setAnalyzingHistory] = useState(false)
+  const [trustedSpans, setTrustedSpans] = useState([])
+  const [verifyingWorkers, setVerifyingWorkers] = useState(false)
+  const [workerProofError, setWorkerProofError] = useState('')
+  const workerProofEpoch = useRef(0)
   const [ratingFeature, setRatingFeature] = useState('F2')
   const [rating, setRating] = useState(3)
   const [reviewNote, setReviewNote] = useState('')
@@ -124,6 +128,7 @@ export default function TestingConsole() {
     setHistory([]); setEvents([]); setActiveRun(null); setError(''); setOutcome('')
     setBaselineId(''); setBaselineEvents([]); setBaselineError('')
     setHistoryStats(null); setAnalyzingHistory(false)
+    ++workerProofEpoch.current; setTrustedSpans([]); setWorkerProofError(''); setVerifyingWorkers(false)
     setAssets([]); setAssetId('')
     if (!shopId || !store) return () => { alive = false }
     Promise.all([store.listRuns(shopId), client.listMediaAssets(shopId)]).then(([runs, media]) => {
@@ -144,6 +149,7 @@ export default function TestingConsole() {
     try {
       const loaded = await store.listEvents(shopId, run.id)
       if (selection.current !== shopId) return
+      ++workerProofEpoch.current; setTrustedSpans([]); setWorkerProofError(''); setVerifyingWorkers(false)
       setActiveRun(run); setEvents(loaded)
       setBaselineId(''); setBaselineEvents([]); setBaselineError('')
     } catch {
@@ -193,6 +199,7 @@ export default function TestingConsole() {
     busy.current = true
     networkEvidence.current = []
     setRunning(true); setError(''); setOutcome(''); setEvents([])
+    ++workerProofEpoch.current; setTrustedSpans([]); setWorkerProofError(''); setVerifyingWorkers(false)
     setBaselineId(''); setBaselineEvents([]); setBaselineError('')
     setHistoryStats(null)
     const id = crypto.randomUUID()
@@ -221,6 +228,38 @@ export default function TestingConsole() {
     } finally {
       busy.current = false; setRunning(false)
     }
+  }
+  const workerJobs = useMemo(() => {
+    const candidates = [
+      events.find(e => e.feature === 'F2' && e.action === 'campaign-planning' &&
+        typeof e.details?.campaign_id === 'string')?.details?.campaign_id,
+      events.find(e => e.feature === 'F4' && e.action === 'ffmpeg-submission' &&
+        typeof e.details?.render_job_id === 'string')?.details?.render_job_id,
+    ]
+    return [...new Set(candidates.filter(Boolean))]
+  }, [events])
+  async function verifyTrustedWorkers() {
+    if (!store || !activeRun || !workerJobs.length || running || verifyingWorkers ||
+        activeRun.shop_id !== shopId) return
+    const epoch = ++workerProofEpoch.current
+    setVerifyingWorkers(true); setWorkerProofError(''); setTrustedSpans([])
+    const requestShop = shopId
+    try {
+      // Only explicit read-only, signed and shop-scoped calls. No worker mutation.
+      const found = []
+      for (const jobId of workerJobs.slice(0, 2)) {
+        const spans = await store.readTrustedWorkerSpans(requestShop, jobId, 30)
+        if (workerProofEpoch.current !== epoch || selection.current !== requestShop) return
+        found.push(...spans)
+      }
+      if (workerProofEpoch.current === epoch && selection.current === requestShop) {
+        setTrustedSpans(found)
+      }
+    } catch {
+      if (workerProofEpoch.current === epoch && selection.current === requestShop) {
+        setWorkerProofError('Trusted backend spans are unavailable or could not be authorized/verified in DEV. No worker success is assumed.')
+      }
+    } finally { if (workerProofEpoch.current === epoch) setVerifyingWorkers(false) }
   }
   async function submitReview(event) {
     event.preventDefault()
@@ -339,6 +378,23 @@ export default function TestingConsole() {
           <div className="rgt-stages">
             {FEATURES.map(([id, title]) => <StageCard key={id} feature={id} title={title} events={events} />)}
           </div>
+          <section className="rgt-trusted" aria-label="Independently verified backend worker evidence">
+            <h3>Backend worker evidence · separate from browser QA</h3>
+            <p>Server-verified spans are fetched from the private service-only ledger, not from a user-written PASS receipt.</p>
+            <button type="button" disabled={running || verifyingWorkers || !workerJobs.length}
+              onClick={verifyTrustedWorkers}>
+              {verifyingWorkers ? 'Checking signed backend evidence…' : 'Check verified worker spans'}
+            </button>
+            {!workerJobs.length && <p>No campaign or render job ID was returned in this test.</p>}
+            {workerProofError && <p role="alert" className="rgt-error">{workerProofError}</p>}
+            {trustedSpans.length === 0 && !workerProofError && !verifyingWorkers &&
+              <p>No trusted worker span has been loaded. This is not a worker PASS.</p>}
+            {trustedSpans.map(span => <details key={span.id}>
+              <summary><strong>BACKEND VERIFIED</strong> · {span.feature} · {span.operation} · {span.status} · {span.elapsed_ms}ms</summary>
+              <pre>{JSON.stringify({job_id: span.job_id, attempt: span.attempt,
+                metadata: span.metadata, recorded_at: span.recorded_at}, null, 2)}</pre>
+            </details>)}
+          </section>
           <section className="rgt-comparison" aria-label="Compare output with a past test">
             <h3>Compare with a previous run</h3>
             <label>Baseline test
