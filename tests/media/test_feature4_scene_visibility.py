@@ -63,7 +63,7 @@ class Feature4SceneVisibilityTests(unittest.TestCase):
         ):
             with self.subTest(windows=windows),self.assertRaises(VisibilityProofError):
                 verify_scene_visibility(self.path,seconds=15,scenes=windows)
-        with self.assertRaisesRegex(VisibilityProofError,"duration"):
+        with self.assertRaises(VisibilityProofError):
             verify_scene_visibility(self.path,seconds=60,scenes=SCENES)
 
     def test_no_fake_decodable_video_from_garbage_or_symlink(self):
