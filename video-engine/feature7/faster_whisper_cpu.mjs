@@ -125,6 +125,8 @@ export function transcribePrivateVideoWithFasterWhisperCPU({
       model_bin_sha256:parsed.model_bin_sha256,
       transcription_status:'real_local_cpu_decoder_output',
       language:parsed.language,
+      actual_decode_wall_seconds:parsed.actual_decode_wall_seconds,
+      actual_decode_realtime_factor:parsed.actual_decode_realtime_factor,
       asr_word_accuracy_benchmarked:false,
       independent_word_alignment_accepted:false,
       evidence,local_cpu_inference_invoked:true,
