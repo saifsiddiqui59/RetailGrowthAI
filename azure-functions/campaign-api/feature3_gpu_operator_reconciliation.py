@@ -150,16 +150,16 @@ class Feature3GPUOperatorReconciliation:
             # and output-evidence verifier completes. Changed/uncertain ACKs
             # are operator-only unknown, not authorization to charge/replay.
             try:
-                after_job=_row(self.db.request(
-                    "feature3_gpu_jobs",query=job_query))
-                after_reservation=_row(self.db.request(
-                    "shop_ai_spend_reservations",query=reservation_query))
+                if (_row(self.db.request("feature3_gpu_jobs",query=job_query))!=j or
+                        _row(self.db.request(
+                            "shop_ai_spend_reservations",query=reservation_query))!=r):
+                    raise Feature3ReconciliationUnknown(
+                        "Job or reservation changed during private verification")
+            except Feature3ReconciliationUnknown:
+                raise
             except Exception:
                 raise Feature3ReconciliationUnknown(
                     "Current job or reservation read unavailable") from None
-            if after_job!=j or after_reservation!=r:
-                raise Feature3ReconciliationUnknown(
-                    "Job or reservation changed during private verification")
             # Observed means immutable SQL receipt and private proof; still
             # not a decision on licensing, human quality or publication.
             classification="TERMINAL_SUCCESS_EVIDENCE_OBSERVED"
