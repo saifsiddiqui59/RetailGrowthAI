@@ -162,8 +162,11 @@ def validate_minute_evidence(*, original, master, preview, provenance,
                              captioned=None, caption_srt=None, caption_vtt=None,
                              caption_proof=None, visibility_proof=None):
     caption_args=(captioned,caption_srt,caption_vtt,caption_proof)
-    if any(x is not None for x in caption_args) and not all(x is not None for x in caption_args):
-        raise MinuteProofError("Partial captioned review chain cannot pass")
+    # A positive 60s acceptance receipt MUST be complete. Optional old CLI
+    # flags once allowed an otherwise-positive receipt with evidence NOT_RUN.
+    # Require the actual captioned MP4/SRT/VTT/burn-in and visibility proof.
+    if not all(x is not None for x in (*caption_args, visibility_proof)):
+        raise MinuteProofError("Missing mandatory 60s captioned or scene visibility proof")
     files=[Path(original),Path(master),Path(preview)]
     h0,h1,h2=(_sha(x) for x in files)
     p,m,a,v,s=(_record(x) for x in
@@ -222,14 +225,10 @@ def validate_minute_evidence(*, original, master, preview, provenance,
                 or asset.get("ai_generated") is not False):
             raise MinuteProofError("Attribution, SHA-256, or provenance missing")
     scene_evidence=validate_visibility_evidence(
-        original=original,provenance=provenance,visibility_proof=visibility_proof
-    ) if visibility_proof is not None else {
-        "status":"NOT_RUN","commercial_release_eligible":False}
+        original=original,provenance=provenance,visibility_proof=visibility_proof)
     caption_evidence=validate_captioned_review(
         preview=preview,provenance=provenance,captioned=captioned,
-        caption_srt=caption_srt,caption_vtt=caption_vtt,caption_proof=caption_proof
-    ) if all(x is not None for x in caption_args) else {
-        "status":"NOT_RUN","commercial_release_eligible":False}
+        caption_srt=caption_srt,caption_vtt=caption_vtt,caption_proof=caption_proof)
     return {
         "schema":"feature4_stock_minute_qa_receipt_v1",
         "status":"NATIVE_60S_TECHNICAL_EVIDENCE_ONLY",
@@ -259,8 +258,8 @@ def main():
                  "master-proof","preview-proof","contact-image","contact-proof","output"):
         ap.add_argument("--"+name,required=True)
     for name in ("captioned","caption-srt","caption-vtt","caption-proof"):
-        ap.add_argument("--"+name,required=False)
-    ap.add_argument("--visibility-proof",required=False)
+        ap.add_argument("--"+name,required=True)
+    ap.add_argument("--visibility-proof",required=True)
     args=ap.parse_args()
     kw={name.replace("-","_"):Path(getattr(args,name.replace("-","_")))
         for name in ("original","master","preview","provenance","motion",
