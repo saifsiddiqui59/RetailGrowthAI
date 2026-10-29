@@ -182,6 +182,7 @@ class PendingFeature4RichWanReceiptTests(unittest.TestCase):
             self.assertIs(result[field],False)
         self.assertIs(result["part3_evidence"]["live_trusted_lease_billing_and_storage_verified"],False)
         self.assertEqual(result["review_decision"],"NOT_APPROVED")
+        self.assertEqual(result["revocation_status"],"UNVERIFIED_RECHECK_CURRENT_RIGHTS")
         self.assertIsNone(result["output_media"]["public_url"])
 
     def test_tampered_receipt_and_changed_technical_mp4_are_denied(self):
