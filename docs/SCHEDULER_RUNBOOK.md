@@ -40,3 +40,7 @@ Open a new chat in the RetailGrowthAI ChatGPT Project **for each feature** (Feat
 ## Release permissions
 
 No paid AI Foundry coding agent has been connected or authorized here. Do not assume any Azure model rates, spend quotas or billing consent from this scheduler change. The GPU and DEV/PROD deployment gates remain separate and protected.
+
+## 2026-10-29 — Cross-feature references and verified task-status output
+Five new chat names and their prompt are in `docs/FEATURE_CHAT_SETUP_20261029.md`. Source/consumer dependencies and outstanding required outputs are in `coordination/shared_feature_references.json` (do not infer production readiness from fixtures). Every worker submits reviewed task evidence after a batch; coordinator-owned `coordination/task_progress.json` is an initially empty append-only reviewed event ledger, and `scripts/coordination/task_status.py` generates a task-manager status snapshot in `coordination-reports/task-status.json/.md`. DONE needs signed human/code reviewer evidence, merged PR and independent fresh main 4/4 Actions result. Do not update status by guessing; a green mock/source-only test isn't production acceptance. Until actual event delivery by a permitted coding agent, snapshots do not imply task work occurred.
+No user-facing samples, videos or demo review requests while the owner is absent; no GPU/production/charged models. Existing GPT-4.1 Mini may be tested once under the enforced small one-off budget, never automatically.

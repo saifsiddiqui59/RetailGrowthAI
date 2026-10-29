@@ -126,3 +126,6 @@ The coordinator PR validates the immutable 159-task registry with offline negati
 
 ## 2026-10-29 — Advisory task scheduler CI
 The dependency coordinator PR validates `scripts/coordination/task_scheduler.py` and `tests/contracts/test_task_scheduler.py` as read-only source tests, then the existing hourly/main-CI Actions job writes the advisory `scheduler-plan.json/.md` artifact alongside the dependency report. It does not launch coding agents, re-run failed production actions or authorize cloud/GPU. Respect normal four-job exact-head and postmerge main gates. See `docs/SCHEDULER_RUNBOOK.md`.
+
+## 2026-10-29 — Task-manager evidence + login safety
+The coordinator PR adds read-only cross-feature/test policy regressions, DEV provisioning guard negative tests, and `task_status.py` validation. Trusted-main scheduler writes `task-status.json/.md` beside existing issue/dependency/scheduler reports. It validates merge and fresh main four-job CI for any reviewed DONE event; an empty event ledger means **no newly verified DONE**. No hosted login, Auth Admin account creation, paid GPT-4.1 Mini or GPU is executed by CI. Real Playwright signed UI tests need provisioned DEV account credentials and remain separate from mocks.

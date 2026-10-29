@@ -1,0 +1,69 @@
+"""No-network status events; integration requires real, reviewed fresh main CI."""
+import copy
+import importlib.util
+import json
+from pathlib import Path
+import pytest
+
+ROOT=Path(__file__).resolve().parents[2]
+spec=importlib.util.spec_from_file_location("task_status",ROOT/"scripts/coordination/task_status.py")
+s=importlib.util.module_from_spec(spec)
+spec.loader.exec_module(s)
+INV=json.loads((ROOT/"coordination/feature_tasks.json").read_text())
+
+class FakeGitHub:
+    def __init__(self, merged=True, jobs=True):
+        self.merged,self.jobs=merged,jobs
+    def get(self,path):
+        if path.startswith("/pulls/"):
+            return {"merged_at":"2026-10-29T09:00:00Z" if self.merged else None,
+                    "merge_commit_sha":"abcdef123","base":{"ref":"main"}}
+        if path.endswith("/jobs?per_page=100"):
+            return {"jobs":[{"name":n,"status":"completed","conclusion":"success"}
+                            for n in (s.REQUIRED_JOBS if self.jobs else {"Frontend build + contract tests"})]}
+        return {"head_sha":"abcdef123","head_branch":"main","status":"completed",
+                "conclusion":"success","created_at":"2026-10-29T09:01:00Z"}
+
+def event(status="DONE"):
+    if status=="DONE":
+        return {"task_id":"F2-01","status":"DONE","pr_number":551,
+                "main_ci_run_id":40912345678,
+                "accepted_by":"coordinator","acceptance_scope":"source_integrated",
+                "acceptance_evidence_url":"https://github.com/example/a"}
+    return {"task_id":"F2-01","status":status,"reason":"Integration pending; build still running"}
+
+def test_no_events_never_claim_done():
+    report=s.resolve(INV,{"schema_version":1,"events":[]},gh=FakeGitHub())
+    assert report["task_count"]==159
+    assert report["verified_done"]==0
+    assert report["summary"]["DONE"]==0
+    assert sum(report["summary"].values())==159
+
+def test_status_requires_real_reasons_and_ids():
+    for data in ([{"task_id":"FAKE","status":"FAILED","reason":"issue"}],
+                 [{"task_id":"F2-01","status":"BLOCKED"}]):
+        with pytest.raises(s.ProgressError):
+            s.validate(INV,{"schema_version":1,"events":data})
+
+def test_done_requires_actual_merge_and_fresh_main_ci():
+    data={"schema_version":1,"events":[event()]}
+    assert s.resolve(INV,data,gh=FakeGitHub())["verified_done"]==1
+    assert s.resolve(INV,data,gh=FakeGitHub(merged=False))["verified_done"]==0
+    assert s.resolve(INV,data,gh=FakeGitHub(jobs=False))["verified_done"]==0
+    with pytest.raises(s.ProgressError,match="verifier"):
+        s.resolve(INV,data)
+
+def test_done_does_not_allow_fabricated_acceptance_or_reopen():
+    invalid=event()
+    del invalid["accepted_by"]
+    with pytest.raises(s.ProgressError,match="DONE needs"):
+        s.validate(INV,{"schema_version":1,"events":[invalid]})
+    with pytest.raises(s.ProgressError,match="terminal"):
+        s.validate(INV,{"schema_version":1,"events":[event(),event("FAILED")]})
+
+def test_non_done_status_updates_preserve_reason_and_no_false_claim():
+    events={"schema_version":1,"events":[event("IN PROGRESS"),event("FAILED")]}
+    report=s.resolve(INV,events,gh=FakeGitHub())
+    task=next(x for x in report["items"] if x["id"]=="F2-01")
+    assert task["status"]=="FAILED"
+    assert report["verified_done"]==0
