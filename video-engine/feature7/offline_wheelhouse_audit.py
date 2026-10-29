@@ -51,7 +51,7 @@ def parse_requirement(value):
     # Marker evaluation is intentionally NOT asserted. All marker-qualified
     # dependencies must still be present, even when not needed on this host.
     if separator and (not marker.strip() or
-                      re.fullmatch(r"[A-Za-z0-9_.!<>=(),'\\" \t-]+",marker) is None):
+                      re.fullmatch(r'[A-Za-z0-9_.!<>=(),"\t -]+',marker) is None):
         raise WheelhouseRejected("Unsupported dependency environment marker")
     match = REQ_NAME.fullmatch(base)
     if not match:
