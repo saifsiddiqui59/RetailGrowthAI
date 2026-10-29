@@ -25,6 +25,8 @@ for folder in ("tests/ai","tests/media","poster-engine"):
 from test_feature5_real_feature3_producer_e2e import Feature5RealFeature3SourceIntegrationTests
 from test_feature5_part3_gpu_off_acceptance import TestOnlyPart3
 from feature5_motion.cross_feature_packet_gate import stage_fresh_feature3_consumer_input
+from feature5_motion.feature3_reference_bridge import resolve_feature3_materialized_first_frame
+from feature3_worker_inputs_v1 import materialize_feature5_input
 from feature5_motion.wan22_motion_adapter import WanShotPackage,PROVIDER,WanCompatibilityError
 from feature5_motion.wan22_clip_validation import inspect_native_mp4
 from feature5_motion.wan22_frame_screening import screen_motion_frames
@@ -58,8 +60,14 @@ class Feature5FullCrossFeatureOfflineTests(unittest.TestCase):
             os.chmod(attempt_dir,0o700)
             os.chmod(private_store,0o700)
             native=attempt_dir/"CPU_PAN_NOT_WAN.mp4"
+            # Actual merged Feature3 private worker API, not simulated output
+            # shape; underlying current reads/lease remain test-only doubles.
+            def real_feature3_private_first_frame(**kwargs):
+                return resolve_feature3_materialized_first_frame(
+                    **kwargs,materialize_feature5_input=materialize_feature5_input)
             with stage_fresh_feature3_consumer_input(
-                **owner.args(packet,attempt_dir)
+                **owner.args(packet,attempt_dir,
+                    resolve_first_frame=real_feature3_private_first_frame)
             ) as (first_frame,grant,staging,proof):
                 self.assertFalse(proof.can_submit_provider)
                 self.assertEqual(proof.source_asset_id,owner.f3.tryon)
