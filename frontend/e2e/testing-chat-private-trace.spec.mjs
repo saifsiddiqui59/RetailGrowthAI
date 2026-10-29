@@ -40,7 +40,7 @@ function reply(route,body,status=200){return route.fulfill({
     'Access-Control-Allow-Headers':'apikey,authorization,content-type,prefer'},
   body:JSON.stringify(body),
 })}
-async function setup(page,{role='OWNER',rpcMissing=false,events=browserEvents}={}){
+async function setup(page,{role='OWNER',rpcMissing=false,events=browserEvents,onQualityWrite=()=>{}}={}){
  const requests=[]
  await page.addInitScript(()=>sessionStorage.setItem('retailgrowthai-auth-v1',
   JSON.stringify({access_token:'signed-testing-jwt',
@@ -55,7 +55,14 @@ async function setup(page,{role='OWNER',rpcMissing=false,events=browserEvents}={
   if(path==='/rest/v1/shops')return reply(route,[{id:SHOP,name:'Boutique Studio',slug:'boutique-test'}])
   if(path==='/rest/v1/media_assets')return reply(route,[])
   if(path==='/rest/v1/feature_test_runs')return reply(route,history)
-  if(path==='/rest/v1/feature_test_events')return reply(route,events)
+  if(path==='/rest/v1/feature_test_events'){
+    if(req.method()==='POST'){
+      const write=req.postDataJSON()
+      onQualityWrite(write)
+      return reply(route,[write],201)
+    }
+    return reply(route,events)
+  }
   if(path==='/rest/v1/rpc/retail_feature_worker_spans'){
     const input=req.postDataJSON()
     requests.push({path,body:input,auth:req.headers().authorization})
@@ -121,4 +128,25 @@ test('poor-quality F4 output is a quality improvement priority, not an execution
  await expect(section.locator('.rgt-guidance-item').getByText(/Review scene pacing, 1080x1920 frame/)).toBeVisible()
  await expect(section.getByText(/a reviewer rated its quality 1\/5/)).toBeVisible()
  await expect(section.getByText(/observed execution failure/i)).toHaveCount(0)
+})
+
+test('human reviewer saves exact quality aspect only after observed output',async({page})=>{
+ const writes=[]
+ await setup(page,{onQualityWrite:write=>writes.push(write)})
+ await page.goto('/testing-chat')
+ await page.getByRole('button',{name:/Create seven-day garment promotion/}).click()
+ await page.getByLabel('Feature with a completed observed output').selectOption('F4')
+ await page.getByLabel('Quality aspect').selectOption('audio')
+ await page.getByLabel('Score (1 = poor, 5 = excellent)').selectOption('1')
+ await page.getByLabel('What should be improved?').fill('Voices are too quiet behind the soundtrack')
+ await page.getByRole('button',{name:'Save human quality review'}).click()
+ await expect(page.getByText('Human quality rating saved. An execution PASS is not a quality PASS.')).toBeVisible()
+ expect(writes).toHaveLength(1)
+ expect(writes[0].feature).toBe('F4')
+ expect(writes[0].status).toBe('QUALITY_REVIEW')
+ expect(writes[0].details).toMatchObject({score:1,dimension:'audio'})
+ const scores=page.getByRole('region',{name:'Human review by quality aspect'})
+ await expect(scores.getByText(/Voiceover and music mix/)).toBeVisible()
+ await expect(page.getByRole('region',{name:'What to improve next'})
+   .getByText(/Listen for intelligible speech/).first()).toBeVisible()
 })

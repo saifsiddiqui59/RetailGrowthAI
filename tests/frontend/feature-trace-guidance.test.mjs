@@ -82,3 +82,16 @@ test('all empty events present no executed feature, rating or fake diagnosis',()
  assert.equal(result.observed_features,0)
  assert.ok(result.entries.every(x=>x.status==='UNOBSERVED'))
 })
+
+test('human reviewer can isolate weak audio without claiming a codec or worker failure',()=>{
+ const result=analyzeImprovementPriorities([
+   event('F4','PASS',1,'ffmpeg-result'),
+   event('F4','QUALITY_REVIEW',2,'human-quality-review',{score:1,dimension:'audio'}),
+ ])
+ const item=result.attention[0]
+ assert.equal(item.category,'LOW_HUMAN_QUALITY')
+ assert.equal(item.status,'PASS')
+ assert.equal(item.latest_human_dimension,'audio')
+ assert.match(item.reason,/Voiceover and music mix 1\/5/)
+ assert.match(item.recommended_action,/Listen for intelligible speech/)
+})

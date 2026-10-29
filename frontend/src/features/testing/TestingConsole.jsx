@@ -7,6 +7,8 @@ import { createTraceStore } from './trace-store.mjs'
 import { executeFeatureTrace } from './trace-runner.mjs'
 import { summarizeTrace, compareTraceRuns, aggregateFeatureHistory } from './trace-diagnostics.mjs'
 import { analyzeImprovementPriorities } from './trace-guidance.mjs'
+import { acceptedDimension, dimensionsFor } from './quality-rubrics.mjs'
+import { inspectHumanQuality, compareHumanQualityAspects } from './trace-quality-analysis.mjs'
 import './testing-console.css'
 
 const MODES = [
@@ -59,7 +61,10 @@ function StageCard({ feature, title, events }) {
       <summary>{e.action}: {e.summary}{e.duration_ms !== null ? ' (' + e.duration_ms + 'ms)' : ''}</summary>
       {Object.keys(e.details || {}).length > 0 && <pre>{JSON.stringify(e.details, null, 2)}</pre>}
     </details>)}
-    {reviews.map(e => <p className="rgt-review" key={e.event_seq}>Human review: {e.details?.score}/5 · {e.details?.note || 'No notes'}</p>)}
+    {reviews.map(e => <p className="rgt-review" key={e.event_seq}>
+      Human review ({acceptedDimension(feature,e.details?.dimension || 'overall')?.label || 'Unrecognized aspect'}):
+      {' '}{e.details?.score}/5 · {e.details?.note || 'No notes'}
+    </p>)}
   </section>
 }
 export default function TestingConsole() {
@@ -87,6 +92,7 @@ export default function TestingConsole() {
   const [historyStats, setHistoryStats] = useState(null)
   const [analyzingHistory, setAnalyzingHistory] = useState(false)
   const [ratingFeature, setRatingFeature] = useState('F2')
+  const [ratingDimension, setRatingDimension] = useState('overall')
   const [rating, setRating] = useState(3)
   const [reviewNote, setReviewNote] = useState('')
   const [savingReview, setSavingReview] = useState(false)
@@ -206,6 +212,10 @@ export default function TestingConsole() {
   }
   const diagnostics = useMemo(() => summarizeTrace(events), [events])
   const improvements = useMemo(() => analyzeImprovementPriorities(events), [events])
+  const qualityAspects = useMemo(() => inspectHumanQuality(events), [events])
+  const availableDimensions = useMemo(() => dimensionsFor(ratingFeature), [ratingFeature])
+  const aspectComparisons = useMemo(() => baselineEvents.length
+    ? compareHumanQualityAspects(events,baselineEvents) : [], [events,baselineEvents])
   const rateableFeatures = useMemo(() => diagnostics.features.filter(f =>
     f.id !== 'F1' && f.status === 'PASS'), [diagnostics])
   async function analyzeHistory() {
@@ -273,7 +283,8 @@ export default function TestingConsole() {
   async function submitReview(event) {
     event.preventDefault()
     if (!activeRun || savingReview || running || activeRun.created_by !== user?.id ||
-        !rateableFeatures.some(f => f.id === ratingFeature)) return
+        !rateableFeatures.some(f => f.id === ratingFeature) ||
+        !acceptedDimension(ratingFeature,ratingDimension)) return
     const seq = events.reduce((n, e) => Math.max(n, e.event_seq), 0) + 1
     if (seq > 1000) return setError('Trace event limit reached.')
     setSavingReview(true); setError('')
@@ -282,7 +293,8 @@ export default function TestingConsole() {
         runId: activeRun.id, shopId: activeRun.shop_id, userId: user.id, seq,
         feature: ratingFeature, action: 'human-quality-review', status: 'QUALITY_REVIEW',
         summary: 'Reviewer submitted a subjective output-quality rating.',
-        details: { score: rating, note: reviewNote.trim().slice(0, 300) },
+        details: { score: rating, dimension: ratingDimension,
+          note: reviewNote.trim().slice(0, 300) },
       })
       setEvents(current => [...current, logged]); setReviewNote('')
       setOutcome('Human quality rating saved. An execution PASS is not a quality PASS.')
@@ -320,7 +332,7 @@ export default function TestingConsole() {
           {historyStats.features.map(f => <div key={f.id}>
             <strong>{f.id} · {f.label}</strong>
             <small>PASS {f.passed} · FAIL {f.failed} · UNKNOWN {f.uncertain} · NOT RUN {f.skipped}</small>
-            <small>Human quality: {f.quality_mean === null ? 'Not rated' : f.quality_mean + '/5 (' + f.quality_sample_count + ' ratings)'}</small>
+            <small>Human review average (mixed aspects): {f.quality_mean === null ? 'Not rated' : f.quality_mean + '/5 (' + f.quality_sample_count + ' ratings)'}</small>
           </div>)}
           <p>Only observed browser receipts; not a backend uptime or provider-quality measurement.</p>
         </div>}
@@ -437,14 +449,23 @@ export default function TestingConsole() {
             </label>
             {baselineError && <p role="alert">{baselineError}</p>}
             {comparisons && <div className="rgt-compare-table"><table>
-              <thead><tr><th>Feature</th><th>Baseline</th><th>Current</th><th>Quality change</th><th>Latency change</th></tr></thead>
+              <thead><tr><th>Feature</th><th>Baseline</th><th>Current</th><th>Quality change (same aspect)</th><th>Latency change</th></tr></thead>
               <tbody>{comparisons.map(item => <tr key={item.id}>
                 <td>{item.id} · {item.label}</td><td>{item.baseline_status}</td><td>{item.status}</td>
                 <td>{item.score_delta === null ? 'Not comparable' : (item.score_delta > 0 ? '+' : '') + item.score_delta + '/5'}</td>
                 <td>{item.duration_delta_ms === null ? 'Not comparable' : (item.duration_delta_ms > 0 ? '+' : '') + item.duration_delta_ms + 'ms'}</td>
               </tr>)}</tbody>
             </table></div>}
-            {comparisons && <p>These are browser-observed differences, not proof of a statistically significant model or worker improvement.</p>}
+            {comparisons && <p>Quality score changes compare the same rated aspect only. Browser timing is not statistically significant model/worker evidence.</p>}
+            {aspectComparisons.length > 0 && <div className="rgt-compare-table"><table>
+              <thead><tr><th>Human quality aspect</th><th>Current</th><th>Baseline</th><th>Change</th></tr></thead>
+              <tbody>{aspectComparisons.map(item => <tr key={item.feature+':'+item.dimension}>
+                <td>{item.feature} · {acceptedDimension(item.feature,item.dimension)?.label || item.dimension}</td>
+                <td>{item.latest_score}/5</td>
+                <td>{item.baseline_latest_score === null ? 'Not reviewed' : item.baseline_latest_score+'/5'}</td>
+                <td>{item.change === null ? 'Not comparable' : (item.change>0?'+':'')+item.change+'/5'}</td>
+              </tr>)}</tbody>
+            </table></div>}
           </section>
           <form className="rgt-quality" onSubmit={submitReview}>
             <h3>Rate output quality</h3>
@@ -452,9 +473,14 @@ export default function TestingConsole() {
             <div className="rgt-options">
               <label>Feature with a completed observed output
                 <select value={rateableFeatures.some(f => f.id === ratingFeature) ? ratingFeature : ''}
-                  onChange={e => setRatingFeature(e.target.value)}>
+                  onChange={e => { setRatingFeature(e.target.value); setRatingDimension('overall') }}>
                   {!rateableFeatures.some(f => f.id === ratingFeature) && <option value="">Select a completed output</option>}
                   {rateableFeatures.map(f => <option key={f.id} value={f.id}>{f.id} · {f.label}</option>)}
+                </select>
+              </label>
+              <label>Quality aspect
+                <select value={ratingDimension} onChange={e => setRatingDimension(e.target.value)}>
+                  {availableDimensions.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
                 </select>
               </label>
               <label>Score (1 = poor, 5 = excellent)
@@ -468,8 +494,17 @@ export default function TestingConsole() {
                 onChange={e => setReviewNote(e.target.value)} />
             </label>
             <button type="submit" disabled={running || savingReview ||
-              activeRun.created_by !== user.id || !rateableFeatures.some(f => f.id === ratingFeature)}>Save human quality review</button>
+              activeRun.created_by !== user.id || !rateableFeatures.some(f => f.id === ratingFeature) ||
+              !acceptedDimension(ratingFeature,ratingDimension)}>Save human quality review</button>
           </form>
+          {qualityAspects.length > 0 && <section className="rgt-diagnostics" aria-label="Human review by quality aspect">
+            <h3>Human review by quality aspect</h3>
+            {qualityAspects.map(item => <p key={item.feature+':'+item.dimension}>
+              <strong>{item.feature} · {acceptedDimension(item.feature,item.dimension)?.label}</strong>:
+              {' '}{item.latest_score}/5 latest; {item.mean_score}/5 average over {item.sample_count} reviewer entry(s)
+            </p>)}
+            <p>Subjective human reviews, not AI scores or backend-worker results.</p>
+          </section>}
           <p><Link to="/campaigns">Open Campaign Studio for saved campaign and private MP4 status</Link></p>
         </div>}
       </div>
