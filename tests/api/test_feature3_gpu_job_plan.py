@@ -192,7 +192,7 @@ class CurrentGPUPlanTests(unittest.TestCase):
 
     def test_model_legal_proof_revision_matches_current_catalog_revision(self):
         self.db.model_row["rights_revision"]=3
-        with self.assertRaisesRegex(Feature3PlanDenied,"current private bytes"):
+        with self.assertRaisesRegex(Feature3PlanDenied,"private bytes or independent rights"):
             self.run_plan()
         self.assertEqual(self.db.proofs,1)
         # The catalog and independently reviewed legal authority must agree
