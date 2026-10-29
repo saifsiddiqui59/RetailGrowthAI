@@ -25,10 +25,15 @@ function tomorrowInIndia() {
   const get = name => parts.find(p => p.type === name)?.value
   return new Date(Date.UTC(+get('year'), +get('month') - 1, +get('day') + 1)).toISOString().slice(0, 10)
 }
-function downloadReport(run, events) {
-  // Explicit user action only; URLs, tokens and credentials are never put in receipts.
+function downloadReport(run, events, workerSpans = []) {
+  // User-triggered export keeps browser observations and genuine private RPC
+  // worker evidence in separate arrays. A job reference is not a proven
+  // run-to-job linkage or independent marketing-quality approval.
   const data = JSON.stringify({ schema: 'retailgrowth.feature-test.v1',
-    source: 'browser-observed-not-server-audit', run, events }, null, 2)
+    browser_source: 'browser-observed-not-server-audit', run, events,
+    trusted_worker_spans: workerSpans,
+    worker_job_link_provenance: 'browser-observed-job-reference-only',
+  }, null, 2)
   const url = URL.createObjectURL(new Blob([data + '\n'], { type: 'application/json' }))
   const anchor = document.createElement('a')
   anchor.href = url
@@ -47,7 +52,7 @@ function StageCard({ feature, title, events }) {
         {status === 'UNOBSERVED' ? 'NOT OBSERVED' : status}
       </span>
     </div>
-    {!latest && <p>No authenticated receipt for this feature in this test.</p>}
+    {!related.length && <p>No authenticated receipt for this feature in this test.</p>}
     {related.map(e => <details key={e.event_seq} open={related.length === 1}>
       <summary>{e.action}: {e.summary}{e.duration_ms !== null ? ' (' + e.duration_ms + 'ms)' : ''}</summary>
       {Object.keys(e.details || {}).length > 0 && <pre>{JSON.stringify(e.details, null, 2)}</pre>}
@@ -364,7 +369,7 @@ export default function TestingConsole() {
           <div className="rgt-results-title"><div>
             <h2>Feature execution evidence</h2>
             <small>Run {activeRun.id} · {activeRun.mode}</small>
-          </div><button type="button" disabled={running} onClick={() => downloadReport(activeRun, events)}>
+          </div><button type="button" disabled={running} onClick={() => downloadReport(activeRun, events, workerSpans)}>
             Export JSON
           </button></div>
           <div className="rgt-message"><strong>You</strong><p>{activeRun.prompt}</p></div>
