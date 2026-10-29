@@ -3,7 +3,7 @@ import { getVisualSegmentTimeline, formatTime } from './vendor/timeline.js'
 import { getTimelineRulerTicks, getTimelineAutoFitZoom, getTimelineVisibleDuration } from './vendor/timelineScale.js'
 import { TimelineCaptionClip, TimelineAudioClip } from './vendor/TimelineClips.jsx'
 import { createEditorHistory, pushEditorHistory, undoEditorHistory, redoEditorHistory } from './vendor/editorHistoryCore.mjs'
-import { studioReorder, studioSplit, studioTrimPair, studioSourceTrim, studioValidatedDraft } from './timeline-studio-bridge.mjs'
+import { studioReorder, studioSplit, studioDuplicate, studioTrimPair, studioSourceTrim, studioValidatedDraft } from './timeline-studio-bridge.mjs'
 import { FrameTimecodeInput } from './vendor/openreel/FrameTimecodeInput.jsx'
 import { OpenReelClipSnapper } from './vendor/openreel/clip-snap.mjs'
 import { proposedBeatMarkers } from './beat-preview.mjs'
@@ -160,6 +160,13 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
           aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">Redo</button>
         <button type="button" disabled={approvedDirection||draft.scenes.length>=12||!canSplit}
           onClick={split} aria-label="Split video at playhead">Split at playhead</button>
+        <button type="button"
+          disabled={approvedDirection||draft.scenes.length>=12||!draft.scenes[selected]||
+            draft.scenes[selected].duration<1||
+            (draft.scenes[selected].sfx_asset_id!=null&&draft.scenes[selected].duration<4)}
+          onClick={()=>change(d=>studioDuplicate(d,selected,mediaAssets))}
+          aria-label="Duplicate selected clip with two half-length replays"
+          title="Replay the selected visual twice within its original timeline duration">Duplicate clip</button>
         <button type="button" disabled={previousCut == null}
           onClick={()=>seekToFrame(previousCut)} aria-label="Previous scene cut">Previous cut</button>
         <button type="button" disabled={nextCut == null}
