@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from 'react'
 import {F2_LOCAL_VOICES, VOICE_SPEEDS, makeLocalVoiceAction} from './voiceover-model.mjs'
 import {verifyLocalPrivatePlayback} from './voiceover-private-playback.mjs'
+import {verifyPrivateVoiceQualityReview} from './voiceover-quality-review.mjs'
 
 // Part of existing F2 VoiceoverSelector, not a new app. Actual backend must
 // authenticate and run upstream CPU Kokoro with pinned local model weights.
@@ -8,6 +9,7 @@ import {verifyLocalPrivatePlayback} from './voiceover-private-playback.mjs'
 export default function LocalVoicePanel({
  shopId,campaignId,planSha256,enabled=false,sourceScript='',
  onLocalPreview=null,onLocalGenerate=null,onFetchLocalAudio=null,
+ onFetchQualityReview=null,
  onProposeScriptRevision=null,onProposePronunciation=null,
 }){
  const [language,setLanguage]=useState('en-us')
@@ -17,6 +19,7 @@ export default function LocalVoicePanel({
  const [error,setError]=useState('')
  const [message,setMessage]=useState('')
  const [saved,setSaved]=useState(null)
+ const [quality,setQuality]=useState(null)
  const [scriptDraft,setScriptDraft]=useState(sourceScript)
  const [pronounceWord,setPronounceWord]=useState('')
  const [pronounceAs,setPronounceAs]=useState('')
@@ -29,7 +32,7 @@ export default function LocalVoicePanel({
   urlRef.current=null;setAudioUrl('')
  }
  useEffect(()=>{
-  setSaved(null);setAudioUrl('');setScriptDraft(sourceScript)
+  setSaved(null);setQuality(null);setAudioUrl('');setScriptDraft(sourceScript)
   setPronounceWord('');setPronounceAs('')
   return ()=>{if(urlRef.current)URL.revokeObjectURL(urlRef.current);urlRef.current=null}
  },[shopId,campaignId,planSha256])
@@ -85,8 +88,29 @@ export default function LocalVoicePanel({
   }catch(e){setError(e?.message||'Original private WAV failed verification')}
   finally{setBusy(false)}
  }
+ async function loadQuality(){
+  if(!saved||enabled!==true||typeof onFetchQualityReview!=='function'){
+    setError('Authenticated private quality reader unavailable');return
+  }
+  const scope=scopeRef.current
+  setError('');setMessage('');setBusy(true)
+  try{
+    const response=await onFetchQualityReview({
+      shop_id:shopId,campaign_id:campaignId,
+      creative_plan_sha256:planSha256,
+      audio_asset_id:saved.private_audio_asset_id,
+    })
+    const reviewed=verifyPrivateVoiceQualityReview({
+      shopId,campaignId,planSha256,receipt:saved,review:response,
+    })
+    if(scope!==scopeRef.current)throw Error('Review context revoked during read')
+    setQuality(reviewed)
+    setMessage('Speech-to-text hints loaded; listen to the original and request human review')
+  }catch(e){setQuality(null);setError(e?.message||'Audio review unavailable')}
+  finally{setBusy(false)}
+ }
  async function submit(preview){
-  setError('');setMessage('');setSaved(null);clearAudio()
+  setError('');setMessage('');setSaved(null);setQuality(null);clearAudio()
   const callback=preview?onLocalPreview:onLocalGenerate
   if(enabled!==true||typeof callback!=='function'){
    setError('Signed local Kokoro speech worker not connected');return
@@ -170,6 +194,22 @@ export default function LocalVoicePanel({
     <p>Editorial status: Pending human listening and rights approval</p>
     <button type="button" disabled={busy||enabled!==true||!onFetchLocalAudio}
       onClick={fetchAudio}>Load verified private WAV preview</button>
+    <button type="button" disabled={busy||enabled!==true||!onFetchQualityReview}
+      onClick={loadQuality}>Review signed word-level transcription</button>
+    {quality&&<section aria-label="Original WAV quality and review hints">
+      <p>ASR script comparison: {quality.asr_matched_script?'No text differences detected':'Check flagged words against the original audio'}.
+        Audio words and pronunciation are not independently certified.</p>
+      {quality.pcm_warnings.length>0&&<p>Audio warnings: {quality.pcm_warnings.join(', ')}.</p>}
+      {quality.issues.length>0&&<ol aria-label="Possible spoken-word mismatches">
+        {quality.issues.slice(0,30).map((entry,i)=><li key={i}>
+          {entry.word}: {entry.problem}
+          {entry.at_seconds!==null?' (around '+entry.at_seconds.toFixed(2)+' seconds)':''}
+          {' — Listen and request editor-approved correction.'}
+        </li>)}
+      </ol>}
+      {quality.issues.length>30&&<p>More word warnings exist. Review all of them in your protected editor.</p>}
+      <p>Word confidence unavailable. Listening, original media rights and editorial approval are still mandatory before rendering.</p>
+    </section>}
     {audioUrl&&<audio controls src={audioUrl} aria-label="Verified private Kokoro narration"/>}
    </div>}
   {error&&<p role="alert">{error}</p>}
