@@ -1313,3 +1313,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## 2026-10-29 — Feature3 private model browser preview failure cleanup (non-GPU)
 - `Feature3PosterHost` now immediately revokes temporary `blob:` URLs for private model candidates whose decode/download fails, while retaining the existing bounded five successful shop-scoped previews and refresh/unmount teardown. Pure Node negative tests reject external/unowned/duplicate revoke, preserving tenant boundaries. Browser source only; no hosted model rights, Azure route, real generated output, spend, PROD or WineShopPOS change. See `docs/feature3/PRIVATE_MODEL_PREVIEW_BLOB_CLEANUP_20261029.md`.
+
+## 2026-10-29 — Feature3 reconciled 33-package evidence tracker
+- Added `docs/feature3/FEATURE3_33_PACKAGE_STATUS_20261029.md` mapping every established baseline package to actual code/current hosted dependencies. Evidence categories: 1 source-integrated, 11 source-partial, 21 blocked or dependent; **0 verified as end-to-end hosted complete**. Do not infer commercial source rights or paid GPU execution from source CI. No hosted SQL changes.
