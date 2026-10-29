@@ -70,6 +70,7 @@ if(req.operation==='actions'){
     checkbox.checked=false;
   }else checkbox.checked=true;
   approve.handlers.click();
+  if(req.operation==='ui_double_click')approve.handlers.click();
   process.stdout.write(JSON.stringify({
     video_url:video.src,video_hidden:video.hidden,
     slider_disabled:slider.disabled,approve_disabled:approve.disabled,
@@ -117,13 +118,21 @@ class Feature7ReviewerTests(unittest.TestCase):
                 r=self.go(**change)
                 self.assertNotEqual(r.returncode,0,r.stdout)
 
+    def test_duplicate_review_click_is_deduplicated_until_edit(self):
+        r=self.go(operation='ui_double_click')
+        self.assertEqual(r.returncode,0,r.stderr)
+        out=json.loads(r.stdout)
+        self.assertEqual(len(out['events']),1)
+        self.assertTrue(out['approve_disabled'])
+        self.assertFalse(out['view']['approved'])
+
     def test_embeddable_review_panel_is_interactive_and_never_claims_approval(self):
         r=self.go(operation='ui_trim')
         self.assertEqual(r.returncode,0,r.stderr)
         x=json.loads(r.stdout)
         self.assertEqual(x['video_url'],'blob:authorized-test-video')
         self.assertFalse(x['video_hidden'])
-        self.assertFalse(x['approve_disabled'])
+        self.assertTrue(x['approve_disabled'])
         self.assertEqual(len(x['events']),1)
         self.assertEqual(x['events'][0]['edited_proposal']['scenes'][0]['trim_start'],2)
         self.assertFalse(x['view']['approved'])
