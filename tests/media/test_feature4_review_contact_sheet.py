@@ -4,10 +4,12 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from PIL import Image
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/"video-engine"))
 from feature4_review_contact_sheet import render_contact_sheet, ContactSheetError
+import feature4_review_contact_sheet
 
 class ContactSheetTests(unittest.TestCase):
     def setUp(self):
@@ -43,6 +45,24 @@ class ContactSheetTests(unittest.TestCase):
         self.assertTrue(result["repetition_warning"])
         self.assertGreater(len(result["possible_repeated_shot_pairs"]),0)
         self.assertFalse(result["visual_diversity_accepted"])
+
+    def test_mid_capture_input_mutation_never_creates_trusted_jpg(self):
+        self.video_fixture(moving=False)
+        actual=feature4_review_contact_sheet._frame
+        changed=[False]
+        def mutate_after_first_decoded_frame(source,at):
+            image=actual(source,at)
+            if not changed[0]:
+                changed[0]=True
+                with self.video.open("ab") as output:
+                    output.write(b"unreviewed-changed-video")
+            return image
+        with patch.object(feature4_review_contact_sheet,"_frame",
+                          side_effect=mutate_after_first_decoded_frame):
+            with self.assertRaisesRegex(ContactSheetError,"changed"):
+                render_contact_sheet(self.video,self.jpg,seconds=15)
+        self.assertTrue(changed[0])
+        self.assertFalse(self.jpg.exists())
 
     def test_invalid_source_or_mismatched_duration_rejected(self):
         self.video_fixture()
