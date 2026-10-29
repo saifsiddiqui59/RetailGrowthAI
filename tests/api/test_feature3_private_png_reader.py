@@ -42,13 +42,16 @@ class FakeTenant:
 
 class Response:
     def __init__(self,url,data,*,redirect=False,status=200,
-                 mime="image/png",content_length=None,on_read=None):
+                 mime="image/png",content_length=None,on_read=None,
+                 content_encoding=None):
         self.url=url+"/redirected" if redirect else url
         self.data=data
         self.status=status
         self.headers={"Content-Type":mime,
                       "Content-Length":str(len(data)) if content_length is None
                       else content_length}
+        if content_encoding is not None:
+            self.headers["Content-Encoding"]=content_encoding
         self.on_read=on_read
     def __enter__(self):return self
     def __exit__(self,*args):return False
@@ -80,6 +83,7 @@ class RevocableReaderTests(unittest.TestCase):
         self.http_status=200
         self.mime="image/png"
         self.content_length=None
+        self.content_encoding=None
         self.on_read=None
         self.reader=self.build()
 
@@ -112,7 +116,7 @@ class RevocableReaderTests(unittest.TestCase):
                         self.png if self.binary is None else self.binary,
                         redirect=self.redirect,status=self.http_status,
                         mime=self.mime,content_length=self.content_length,
-                        on_read=self.on_read)
+                        on_read=self.on_read,content_encoding=self.content_encoding)
 
     def build(self):
         return Feature3RevocablePNGReader(
@@ -191,6 +195,38 @@ class RevocableReaderTests(unittest.TestCase):
                 self.read()
             self.assertEqual(self.rights_called,1)
             self.assertEqual(self.calls,["verify","get"])
+
+    def test_plausible_http_content_length_mismatch_denied_before_second_rights(self):
+        # Even a valid signed-path PNG must not return success when the private
+        # HTTPS response advertises bytes it did not actually deliver.
+        for announced in ("0",str(len(self.png)-1),str(len(self.png)+1),
+                          "000"+str(len(self.png))+"0"):
+            self.setUp()
+            self.content_length=announced
+            with self.subTest(length=announced),self.assertRaisesRegex(
+                    PrivateGeneratedDownloadDenied,"length changed"):
+                self.read()
+            self.assertEqual(self.calls,["verify","get"])
+            self.assertEqual(self.rights_called,1)
+            self.assertEqual(self.tenant.calls.count("member"),1)
+
+    def test_http_content_encoding_cannot_transform_immutable_private_png(self):
+        for coding in ("gzip","br","deflate","x-gzip"):
+            self.setUp()
+            self.content_encoding=coding
+            with self.subTest(coding=coding),self.assertRaises(
+                    PrivateGeneratedDownloadDenied):
+                self.read()
+            self.assertEqual(self.rights_called,1)
+            self.assertEqual(self.calls,["verify","get"])
+        self.setUp()
+        self.content_encoding="identity"
+        self.assertEqual(self.read()["image_sha256"],self.sha)
+        # Chunked/private response without an announced length is still
+        # permitted when the real PNG SHA and current rights both match.
+        self.setUp()
+        self.content_length=None
+        self.assertEqual(self.read()["image_sha256"],self.sha)
 
     def test_invalid_jwt_and_origin_and_source_rights_reader_denied(self):
         for token in ("", "sb_secret_forbidden_key",
