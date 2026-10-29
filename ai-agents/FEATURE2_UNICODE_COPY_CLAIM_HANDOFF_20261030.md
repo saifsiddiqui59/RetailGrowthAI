@@ -10,3 +10,7 @@
 - Required coordinator follow-up: review stacked PR #707 and choose the unified #551 integration path; resolve protected **COORD-PACKAGE-650** (owner: shared coordinator/Azure packager; acceptance: all four protected ZIP limit preflight tests pass without weakening limits); verify four-job exact-head CI and fresh postmerge main CI.
 - Additional live gates: current tenant JWT/RLS, signed approved offers/SKUs, editor review, and Azure #249 reliability. Fixtures never authorize publication, paid inference, or customer claims.
 - No GPU, paid model, PROD, hosted SQL, or WineShopPOS changes.
+
+## Additional independent F2-04 source hardening
+
+The same reviewed bounded private RSS snapshot and relevance scorer now reject invisible word-break and bidi controls inside source headlines. Tests exercise both the direct verified trend-row path and original signed RSS2 XML parsing path; legitimate Marathi relevance remains unchanged. This is **source-only IN_PROGRESS**, not a verified live trend, signed hosted feed fetch, or integrated task completion. The trusted private source, licensing and allowlist readers remain coordinator-owned.
