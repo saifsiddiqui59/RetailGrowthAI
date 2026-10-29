@@ -124,6 +124,17 @@ class Feature3TrustedPrivateSourceProof:
         leaf=parts[-1]
         if not leaf.endswith(ext) or not _SEGMENT.fullmatch(leaf[:-len(ext)]):
             raise SourceProofDenied("Private original image extension mismatch")
+        if parts[1]=="model-library":
+            # Model originals have a server-agreed immutable, SHA-named key,
+            # unlike generic user-upload UUID names. Platform models carry
+            # one additional fixed "platform" namespace segment.
+            model_id = (parts[2] if len(parts)==4 else
+                        parts[3] if len(parts)==5 and parts[2]=="platform"
+                        else None)
+            if (model_id is None or media["mime_type"]!="image/png"
+                    or not _HASH.fullmatch(leaf[:-4])):
+                raise SourceProofDenied("Invalid immutable model-original path")
+            _uuid(model_id)
         return asset,key
 
     def _private_bytes(self,key,mime):
@@ -149,6 +160,11 @@ class Feature3TrustedPrivateSourceProof:
             raise SourceProofDenied("Private source byte read unavailable") from exc
         if type(data) is not bytes or not 100<=len(data)<=_IMAGE_MAX:
             raise SourceProofDenied("Private image incomplete or oversized")
+        # An announced length is authoritative only when it matches the bytes
+        # actually returned. A plausible, decodable truncated response must
+        # never receive an original-byte attestation.
+        if size is not None and int(size)!=len(data):
+            raise SourceProofDenied("Private image response length changed")
         try:
             with Image.open(BytesIO(data)) as image:
                 if (image.format!=_EXT[mime][1] or
@@ -187,6 +203,9 @@ class Feature3TrustedPrivateSourceProof:
         # Real bytes come ONLY from the signed-off service-owned private Storage
         # path; declared metadata cannot substitute for actual bytes.
         digest=self._private_bytes(key,registered_media["mime_type"])
+        if (key.split("/")[1]=="model-library" and
+                key.rsplit("/",1)[-1][:-4]!=digest):
+            raise SourceProofDenied("Original model bytes differ from immutable path SHA")
         revision=self._authorize(shop,asset,digest,registered_media)
         # This second verification is independent of any DB snapshot refresh
         # performed in the parent preflight and catches mid-read revocation.
