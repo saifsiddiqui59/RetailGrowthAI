@@ -435,7 +435,7 @@ import hashlib
 import json
 import re
 
-_CLAIM_PERCENT = re.compile(r"(?<!\d)\d{1,2}\s*(?:%|percent|per[ -]?cent)\s*(?:off|discount|sale)?",re.I)
+_CLAIM_PERCENT = re.compile(r"(?<!\d)\d{1,3}\s*(?:%|percent|per[ -]?cent)\s*(?:off|discount|sale)?",re.I)
 _CLAIM_PRICE = re.compile(r"(?:₹|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
 _CLAIM_URGENCY = re.compile(r"\b(?:only \d+ left|selling out|last chance|guaranteed|best in india|number one|no\.?1|viral|trending now|everyone is buying)\b",re.I)
 _CLAIM_WIDE = re.compile(r"\b(?:everything|all products|storewide|entire store|every item)\b",re.I)
@@ -483,7 +483,7 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
         approved_spans=[]
         for offer in names:
             claim=offer["approved_claim_text"]
-            pattern=r"(?<!\\w)"+re.escape(claim)+r"(?!\\w)"
+            pattern=r"(?<!\w)"+re.escape(claim)+r"(?!\w)"
             approved_spans.extend((m.start(),m.end()) for m in
                                    re.finditer(pattern,text,flags=re.I))
         hits=list(_CLAIM_PERCENT.finditer(text))
