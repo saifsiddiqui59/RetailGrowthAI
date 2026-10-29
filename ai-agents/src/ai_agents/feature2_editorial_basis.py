@@ -57,3 +57,68 @@ def choose_evergreen_when_no_relevant_live_trend(
         kind="EVERGREEN_RETAILER_ORIGINAL_NOT_VERIFIED_TREND",
         message="No relevant authentic trend; create a reviewer-only seasonal storyboard from the shop's verified brief.",
     )
+
+# Reviewer-only claimed-fact audit. It never rewrites text or certifies claims.
+import hashlib
+import json
+import re
+
+_CLAIM_PERCENT = re.compile(r"(?<!\\d)\\d{1,2}\\s*(?:%|percent|per[ -]?cent)\\s*(?:off|discount|sale)?",re.I)
+_CLAIM_PRICE = re.compile(r"(?:₹|Rs\\.?\\s*|INR\\s*)\\d[\\d,.]*",re.I)
+_CLAIM_URGENCY = re.compile(r"\\b(?:only \\d+ left|selling out|last chance|guaranteed|best in india|number one|no\\.?1|viral|trending now|everyone is buying)\\b",re.I)
+_CLAIM_WIDE = re.compile(r"\\b(?:everything|all products|storewide|entire store|every item)\\b",re.I)
+_CLAIM_MATERIAL = re.compile(r"\\b(?:100% pure cotton|genuine silk|authentic gold|organic cotton)\\b",re.I)
+
+def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
+    """Review-only policy based on authoritative original retailer facts.
+
+    Approved numeric offers must be reproduced **exactly** with their existing
+    SKU-limited wording. No inference from fabricated trends or media captions.
+    """
+    if (type(verified_context) is not dict or
+        verified_context.get("server_verified") is not True or
+        verified_context.get("authenticated_owner_or_editor") is not True or
+        not isinstance(verified_context.get("media_grants"),list) or
+        not verified_context["media_grants"] or
+        type(copy) is not dict or
+        set(copy) != {"headline","caption","cta","voiceover_script"}):
+        raise EditorialBasisRejected("Current trusted retailer copy evidence required")
+    names=verified_context.get("approved_offers")
+    if type(names) is not list or len(names)>3:
+        raise EditorialBasisRejected("Approved bounded offer records required")
+    for offer in names:
+        if (type(offer) is not dict or offer.get("approval_status")!="APPROVED" or
+            type(offer.get("approved_claim_text")) is not str or
+            not 10<=len(offer["approved_claim_text"])<=180 or
+            offer.get("shop_id")!=verified_context.get("shop_id")):
+            raise EditorialBasisRejected("Offer evidence not approved for shop")
+    issues=set()
+    for field,text in copy.items():
+        if (type(text) is not str or not 1<=len(text.strip())<=1800 or
+            any(ord(ch)<32 for ch in text) or "<" in text or ">" in text or
+            "https://" in text.lower() or "javascript:" in text.lower()):
+            raise EditorialBasisRejected("Unsafe or unbounded retailer copy")
+        if _CLAIM_PRICE.search(text):
+            issues.add("UNVERIFIED_CURRENCY_PRICE")
+        if _CLAIM_URGENCY.search(text):
+            issues.add("UNVERIFIED_URGENCY_OR_TREND")
+        if _CLAIM_MATERIAL.search(text):
+            issues.add("PRODUCT_MATERIAL_FACTS_NOT_VERIFIED")
+        percent_hits=_CLAIM_PERCENT.findall(text)
+        if percent_hits:
+            legitimate=any(
+                offer["approved_claim_text"].casefold() in text.casefold()
+                for offer in names)
+            if not legitimate or _CLAIM_WIDE.search(text):
+                issues.add("DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED")
+    digest=hashlib.sha256(json.dumps(copy,ensure_ascii=False,sort_keys=True,
+                    separators=(",",":")).encode()).hexdigest()
+    return {
+        "schema":"retailgrowth.feature2-copy-fact-review.v1",
+        "copy_sha256":digest,"issues":sorted(issues),
+        "review_required":True,"customer_editor_approval_required":True,
+        "automatically_corrected":False,
+        "commercial_fact_certified":False,"can_publish":False,
+        "can_dispatch_paid_motion":False,
+        "recommendation":"Edit unsupported claims using currently approved shop facts",
+    }
