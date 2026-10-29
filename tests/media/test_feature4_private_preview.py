@@ -60,6 +60,25 @@ class Feature4PreviewTests(unittest.TestCase):
         self.assertEqual(self.output.read_bytes(),b"another-render-owner")
         self.assertEqual(list(self.root.glob(".preview-*.mp4")),[])
 
+    def test_source_mutation_during_encode_cannot_publish_wrong_provenance(self):
+        self.make_source()
+        original_run = subprocess.run
+        changed = False
+        def mutate_after_encode(args, **kwargs):
+            nonlocal changed
+            result = original_run(args, **kwargs)
+            if not changed and args[0] == "ffmpeg" and "-movflags" in args:
+                with self.source.open("ab") as source:
+                    source.write(b"concurrent-authorized-source-revision")
+                changed = True
+            return result
+        with mock.patch("feature4_private_preview.subprocess.run", side_effect=mutate_after_encode):
+            with self.assertRaisesRegex(PreviewExportError, "changed"):
+                export_private_preview(self.source, self.output, expected_seconds=15)
+        self.assertTrue(changed)
+        self.assertFalse(self.output.exists())
+        self.assertEqual(list(self.root.glob(".preview-*.mp4")), [])
+
     def test_wrong_duration_and_bad_preset_denied(self):
         self.make_source()
         with self.assertRaisesRegex(PreviewExportError, "duration"):
