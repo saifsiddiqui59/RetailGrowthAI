@@ -370,3 +370,39 @@ def test_delivery_and_bogo_claims_are_reviewer_flags_without_source_approval(una
         copy=candidate_copy(caption=unapproved))
     assert "UNVERIFIED_URGENCY_OR_TREND" in report["issues"]
     assert report["can_publish"] is False
+
+
+@pytest.mark.parametrize("control",[
+    "\u202e",  # right-to-left override
+    "\u202a",  # left-to-right embedding
+    "\u2066",  # isolated bidi run
+    "\u200b",  # invisible word separator
+    "\u0085",  # C1 next-line control
+    "\u2028",  # Unicode line separator
+])
+def test_invisible_display_spoof_cannot_enter_signed_rss_or_retail_copy(control):
+    title="Festive kurti collection "+control+" for Diwali 2026"
+    rows=sample_feed()
+    rows[0]["headline"]=title
+    with pytest.raises(EditorialBasisRejected):
+        ranked(rows)
+    xml=rss_xml(items=[("display_override_rss",title,
+                       "Wed, 28 Oct 2026 11:00:00 GMT")])
+    with pytest.raises(EditorialBasisRejected):
+        rank_xml(xml)
+    with pytest.raises(EditorialBasisRejected):
+        inspect_retailer_copy_claims(
+            verified_context=copy_context(),copy=candidate_copy(caption=title))
+
+
+def test_legitimate_indic_conjunct_joiner_remains_review_only_not_denied():
+    # ZWJ used for Devanagari conjunct shaping is not a bidi override.
+    context=trusted_rss()
+    context["creative_brief"]="नवरात्र साडी संग्रह"
+    text="नवरात्र साडी संग्रह आणि क\u200dषेत्रातील वस्त्र परंपरा"
+    xml=rss_xml(items=[("indic_joiner_source",text,
+                       "Wed, 28 Oct 2026 11:00:00 GMT")])
+    result=rank_xml(xml,context=context)
+    assert result["source_items_count"]==1
+    assert result["status"]=="REVIEW_REQUIRED"
+    assert result["can_publish"] is False
