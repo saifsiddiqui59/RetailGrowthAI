@@ -80,7 +80,7 @@ def signed_f7_receipt():
        "source_sha256":WAV_SHA,"transcript_sha256":token_hash,
        "model_id":"faster_whisper_small_cpu_int8",
        "issued_at_ms":NOW,"expires_at_ms":NOW+300000}
-    evidence["mac"]=hmac.digest(KEY,b"retailgrowth.feature7.asr.v1\\n"+
+    evidence["mac"]=hmac.digest(KEY,b"retailgrowth.feature7.asr.v1\n"+
        json.dumps(evidence,separators=(",",":")).encode(),"sha256").hex()
     return {"version":"feature7_signed_faster_whisper_asr_v1",
       "source_media_kind":"audio/wav","shop_id":SHOP,"campaign_id":CAMP,
