@@ -259,3 +259,10 @@ Run exact-head four-job CI after new single-path F3→CPU FFmpeg→Part3→F4 in
 3. Obtain lawful actually verified retailer model/garment/try-on originals from Feature3, with human likeness and marketing rights, immutable source SHA; validate with private reads and revocation.
 4. Build externally reviewed immutable ComfyUI/CUDA + wheel SHA image, verify live native node schemas and private staged model hashes without paid A100 launch. Paid capped inference and real garment/Feature4 visual acceptance remain blocked pending explicit separate authorization.
 5. Generate any technical CPU synthetic samples with explicit NOT WAN/NOT CUSTOMER label. Do not mark sample media as real AI or Pexels original.
+
+## 2026-10-29 — Next independent GPU-OFF and external gates
+
+- Verify exact-head 4/4 CI for mandatory uploaded-object byte readback; fix real failures. Reader contract: trusted service-only `read_back_private_chunks(shop,job,attempt,"retailgrowth-media",key)` yields bounded bytes of the **actual stored object** under existing reserved/leased attempt; never trust browser/storage ACK metadata or a public URL.
+- Coordinator: wire this reader to existing Part3 private bucket/DB/tenant JWT fences; reconcile Wan2.7 premium provider versus separate Wan2.2 704x1280/121-frame native reservation contract, one UNIQUE durable intent CAS, private output media registration and credit/settlement under existing shared schema. Hosted premium table remains absent in last read-only DEV inventory.
+- Obtain actual tenant-owned Feature3 image+garment with independent person/likeness/commercial approval and current server-side rights; perform signed DEV two-shop OWNER/EDITOR/VIEWER foreign/revoked checks and trusted private signed downloads. Offline synthetic fixtures are not hosted identity tests.
+- Independently attest ComfyUI/CUDA wheel/weights exact SHA and licensing, protected live /object_info and image; separately authorize capped paid A100 5s inference and real garment/face human QA before Feature4 Reel release. GPU remains OFF.
