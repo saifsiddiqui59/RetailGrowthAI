@@ -193,6 +193,11 @@ def make_garment_project(source_dir: Path, project_dir: Path, *, seconds: int = 
             "music_beat_source": "Measured offline PCM onset detector, not invented beat grid",
             "measured_beat_timestamps": detected_beats,
             "synced_scene_starts": [scene["start"] for scene in scenes],
+            "scene_windows": [
+                {"start": round(float(scene["start"]),3),
+                 "duration": round(float(scene["duration"]),3)}
+                for scene in scenes
+            ],
             # Offline *editorial titles*, not aligned spoken words. Derived
             # from the actual beat-snapped rendered scene starts, not a fixed grid.
             "editorial_subtitle_kind": "EDITORIAL_TEST_TITLES_NOT_SPOKEN_AUDIO",
