@@ -67,6 +67,33 @@ class WanNativeClipTest(unittest.TestCase):
                 ),self.assertRaises(WanCompatibilityError):
                     inspect_native_mp4(package(),staged_file=f)
 
+    def test_native_silent_clip_rejects_audio_subtitle_or_extra_video_streams(self):
+        import copy,json
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/"silent_only.mp4"
+            path.write_bytes(b"not generated media; offline ffprobe fixture")
+            for extra in (
+                {"codec_type":"audio","codec_name":"aac"},
+                {"codec_type":"subtitle","codec_name":"mov_text"},
+                {"codec_type":"data","codec_name":"bin_data"},
+                copy.deepcopy(GOOD_PROBE["streams"][0]),
+            ):
+                data=copy.deepcopy(GOOD_PROBE)
+                data["streams"].append(extra)
+                with self.subTest(stream=extra["codec_type"]),patch(
+                    "feature5_motion.wan22_clip_validation.subprocess.run",
+                    return_value=SimpleNamespace(stdout=json.dumps(data))
+                ),self.assertRaises(WanCompatibilityError):
+                    inspect_native_mp4(package(),staged_file=path)
+            for streams in ([],[{"codec_type":"audio","codec_name":"aac"}],{"0":"malformed"}):
+                data=copy.deepcopy(GOOD_PROBE)
+                data["streams"]=streams
+                with self.subTest(streams=streams),patch(
+                    "feature5_motion.wan22_clip_validation.subprocess.run",
+                    return_value=SimpleNamespace(stdout=json.dumps(data))
+                ),self.assertRaises(WanCompatibilityError):
+                    inspect_native_mp4(package(),staged_file=path)
+
     def test_rejects_missing_media_symlinks_or_other_lineage(self):
         import json
         with tempfile.TemporaryDirectory() as td:
