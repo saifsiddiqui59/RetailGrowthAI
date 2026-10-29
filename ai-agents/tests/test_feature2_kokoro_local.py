@@ -54,3 +54,25 @@ def test_pure_provenance_hash_verification_fixture(tmp_path):
     assert path==tmp_path
     with pytest.raises(LocalSpeechUnavailable):
         verify_cache(tmp_path)
+
+
+def test_operator_asset_provisioner_has_pinned_cache_and_safe_cli():
+    import json
+    from pathlib import Path
+    import shutil
+    import subprocess
+    script=Path(__file__).resolve().parents[1]/'test-fixtures/retailer-voice/provision-pinned-kokoro-models.sh'
+    pins=Path(__file__).resolve().parents[1]/'oss/kokoro-onnx/pinned-sources.json'
+    source=script.read_text(encoding='utf-8')
+    manifest=json.loads(pins.read_text(encoding='utf-8'))
+    for original in manifest['assets']:
+        assert original['name'] in source
+        assert original['sha256'] in source
+        assert str(original['bytes']) in source
+    assert 'sha256sum --check --status' in source
+    assert 'mv -n --' in source
+    assert '--proto' in source and '--tlsv1.2' in source
+    if shutil.which('bash'):
+        assert subprocess.run(['bash','-n',str(script)],capture_output=True).returncode==0
+        invalid=subprocess.run(['bash',str(script),'relative-path'],capture_output=True,timeout=5)
+        assert invalid.returncode==2
