@@ -175,13 +175,15 @@ def approved_draft_bridge(*,revision=SOURCE_REVISION,
             reply.update(storage_tamper)
         return reply
     def invoke(**overrides):
-        return commit_reviewed_prompt_draft(
+        args=dict(
             shop_id=SHOP,campaign_id=CAMPAIGN,proposal_id=PROPOSAL,
             review_event_id=REVIEW,expected_revision=revision,
             original_prompt=ORIGINAL,improved_prompt=IMPROVED,
             current_editor=editor,read_current_draft=lambda *a:current,
             read_staged_proposal=lambda *a:staged,
-            verify_signed_editor_decision=signed,save_draft_cas=save,**overrides)
+            verify_signed_editor_decision=signed,save_draft_cas=save)
+        args.update(overrides)
+        return commit_reviewed_prompt_draft(**args)
     return invoke,records,verification
 
 
