@@ -304,7 +304,7 @@ def test_signed_rss_source_rechecked_and_wrong_tenant_denied():
     def revoked(*args):
         calls.append(args)
         return len(calls)==1
-    with pytest.raises(EditorialBasisRejected,match="revoked"):
+    with pytest.raises(EditorialBasisRejected,match="signed RSS provenance"):
         rank_xml(grant=revoked)
     assert len(calls)>=2
     ctx=trusted_rss()
