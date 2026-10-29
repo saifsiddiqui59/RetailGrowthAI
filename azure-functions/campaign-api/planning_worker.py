@@ -8,6 +8,7 @@ from ai_agents.providers import AzureFoundryProvider, MockFoundryProvider
 from ai_agents.reviewer import review_campaign
 from ai_agents.schemas import CampaignBrief, validate_campaign
 from tenant_store import StorageUnavailable
+from worker_trace_spans import emit_worker_span
 from ai_agents.observability import emit, ms, trace_id
 import time
 
@@ -16,7 +17,7 @@ class RetryableJob(Exception):
     pass
 
 
-def process_campaign(campaign_id, admin, *, mock_enabled=False, provider=None):
+def process_campaign(campaign_id, admin, *, mock_enabled=False, provider=None, span_sink=None):
     cid = str(UUID(campaign_id))
     trace = trace_id()
     started = time.monotonic()
@@ -31,10 +32,21 @@ def process_campaign(campaign_id, admin, *, mock_enabled=False, provider=None):
         raise RetryableJob("campaign is already leased")
     if row["id"] != cid:
         raise StorageUnavailable("unexpected claim ID")
+    def worker_span(operation, status, *, metadata=None):
+        # Trusted observation only after fenced DB mutation confirms result.
+        try:
+            emit_worker_span(span_sink, feature="F2", operation=operation,
+                             status=status, shop_id=row["shop_id"], job_id=cid,
+                             attempt=row.get("planning_attempts"),
+                             elapsed_ms=ms(started), metadata=metadata)
+        except ValueError:
+            # Diagnostics cannot change the result of a claimed job.
+            pass
     if not admin.still_authorized(row):
         emit("planner.denied", trace=trace, campaign_id=cid, shop_id=row["shop_id"],
              status="denied", latency_ms=ms(started))
         admin.fail(row, "ACCESS_REVOKED", permanent=True)
+        worker_span("planning.denied", "DENIED")
         return "DENIED"
     if provider is None:
         live = AzureFoundryProvider()
@@ -44,6 +56,7 @@ def process_campaign(campaign_id, admin, *, mock_enabled=False, provider=None):
             provider = MockFoundryProvider()
         else:
             admin.fail(row, "FOUNDRY_NOT_CONFIGURED", permanent=True)
+            worker_span("planning.unconfigured", "UNCONFIGURED")
             return "UNCONFIGURED"
     mode = "foundry" if isinstance(provider, AzureFoundryProvider) else "dev_mock"
     emit("planner.start", trace=trace, shop_id=row["shop_id"], campaign_id=cid,
@@ -67,6 +80,9 @@ def process_campaign(campaign_id, admin, *, mock_enabled=False, provider=None):
         ):
             raise ValueError("review rejected draft")
         admin.finish(row, campaign)
+        worker_span("planning.complete", "SUCCEEDED",
+                    metadata={"planner_mode": mode,
+                              "generated_days": len(campaign["days"])})
         emit("planner.complete", trace=trace, shop_id=row["shop_id"], campaign_id=cid,
              status="ok", latency_ms=ms(started), mode=mode)
         return "DRAFT"
@@ -74,4 +90,5 @@ def process_campaign(campaign_id, admin, *, mock_enabled=False, provider=None):
         emit("planner.error", trace=trace, shop_id=row["shop_id"], campaign_id=cid,
              status="failed", latency_ms=ms(started), mode=mode)
         admin.fail(row, "PLANNING_FAILED")
+        worker_span("planning.failed", "FAILED")
         raise

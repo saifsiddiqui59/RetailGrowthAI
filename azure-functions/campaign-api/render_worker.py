@@ -6,11 +6,13 @@ input paths, licenses or Supabase service secrets are taken from queue messages.
 import json
 import sys
 import tempfile
+import time
 from pathlib import Path
 from uuid import UUID
 
 from tenant_store import StorageUnavailable
 from private_media import PrivateMedia
+from worker_trace_spans import emit_worker_span
 
 # Repo packaging must include video-engine; deploying only this directory is forbidden.
 VIDEO_DIR = Path(__file__).resolve().parents[2] / "video-engine"
@@ -25,8 +27,9 @@ class RetryableRender(Exception):
 LICENSES = {"owned", "cc0", "royalty_free", "commercial"}
 
 
-def process_render(job_id, admin, media, *, render_fn=render):
+def process_render(job_id, admin, media, *, render_fn=render, span_sink=None):
     jid = str(UUID(job_id))
+    started = time.monotonic()
     status = admin.render_status(jid)
     if status is None:
         raise StorageUnavailable("unknown render job")
@@ -38,8 +41,19 @@ def process_render(job_id, admin, media, *, render_fn=render):
     if job["id"] != jid or job["preset"] != "instagram_reel_30s":
         raise StorageUnavailable("invalid render job")
     sid, cid, did = job["shop_id"], job["campaign_id"], job["day_id"]
+    def worker_span(operation, status, *, metadata=None):
+        try:
+            emit_worker_span(span_sink, feature="F4", operation=operation,
+                             status=status, shop_id=sid, job_id=jid,
+                             attempt=job.get("attempts"),
+                             elapsed_ms=(time.monotonic()-started)*1000,
+                             metadata=metadata)
+        except ValueError:
+            # Optional observation cannot change a fenced render result.
+            pass
     if not admin.render_authorized(job):
         admin.render_failure(job, "ACCESS_REVOKED", permanent=True)
+        worker_span("render.denied", "DENIED")
         return "DENIED"
     try:
         campaign, day, assets = admin.render_sources(job)
@@ -103,7 +117,12 @@ def process_render(job_id, admin, media, *, render_fn=render):
             else:
                 object_path = media.upload(sid, jid, output)
             admin.complete_render(job, object_path)
+            worker_span("render.complete", "SUCCEEDED",
+                        metadata={"codec": "h264/aac",
+                                  "video_width": 1080, "video_height": 1920,
+                                  "duration_seconds": result["duration_seconds"]})
             return "SUCCEEDED"
     except Exception:
         admin.render_failure(job, "RENDER_FAILED")
+        worker_span("render.failed", "FAILED")
         raise

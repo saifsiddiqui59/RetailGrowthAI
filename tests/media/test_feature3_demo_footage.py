@@ -1,12 +1,12 @@
 """Feature3 MIT demo footage production gates, no network or GPU."""
-from hashlib import sha256
+from hashlib import sha1, sha256
 from io import BytesIO
 import json
 from pathlib import Path
 import sys
 import tempfile
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from PIL import Image
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"poster-engine"))
 import feature3_demo_footage as footage
@@ -25,13 +25,23 @@ class DemoFootageTests(unittest.TestCase):
                 "garment_product_still":"synthetic_garment_front.jpg","publish_approved":False},
             "feature5":{"provider_call_permitted":False},"assets":[],
         }
-        for name,fmt in (("synthetic_avatar.png","PNG"),
-                         ("synthetic_garment_front.jpg","JPEG"),
-                         ("synthetic_model_pose.jpg","JPEG")):
+        pins=[]
+        for name,relative,fmt in (
+            ("synthetic_avatar.png","packages/sdk/openvto/assets/avatars/1.png","PNG"),
+            ("synthetic_garment_front.jpg","packages/sdk/openvto/assets/clothes/shirts/1_front.jpg","JPEG"),
+            ("synthetic_model_pose.jpg","packages/sdk/openvto/assets/people/1_posture.jpg","JPEG"),
+        ):
             im=Image.new("RGB",(512,512),"#42617e");b=BytesIO();im.save(b,format=fmt)
             raw=b.getvalue();(self.root/name).write_bytes(raw)
+            gitsha=sha1(f"blob {len(raw)}\0".encode()+raw).hexdigest()
+            pins.append((name,relative,gitsha,len(raw),fmt))
             source["assets"].append({"filename":name,"bytes":len(raw),
+                "source_path":relative,"source_git_blob_sha1":gitsha,
+                "mime_type":"image/png" if fmt=="PNG" else "image/jpeg",
                 "sha256":sha256(raw).hexdigest(),"rights_verified_for_customer":False})
+        patcher=patch.object(footage,"PINNED_UPSTREAM_SOURCES",tuple(pins))
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.info=source
         self._store()
 
@@ -56,6 +66,41 @@ class DemoFootageTests(unittest.TestCase):
 
     def test_forged_customer_rights_denied(self):
         self.info["assets"][0]["rights_verified_for_customer"]=True;self._store()
+        with self.assertRaises(footage.DemoFootageDenied):
+            footage._verify_inputs(self.root)
+
+    def test_forged_manifest_with_new_sha256_does_not_launder_unknown_image(self):
+        # This used to pass because SHA256 was checked only against the
+        # attacker-controlled manifest, not the actual pinned OpenVTO Git blob.
+        filename="synthetic_avatar.png"
+        fake=BytesIO()
+        Image.new("RGB",(512,512),"#A93512").save(fake,format="PNG")
+        raw=fake.getvalue()
+        (self.root/filename).write_bytes(raw)
+        row=next(a for a in self.info["assets"] if a["filename"]==filename)
+        row["bytes"]=len(raw)
+        row["sha256"]=sha256(raw).hexdigest()
+        self._store()
+        with self.assertRaisesRegex(footage.DemoFootageDenied,"upstream Git blob"):
+            footage._verify_inputs(self.root)
+
+    def test_untampered_bytes_but_forged_source_path_or_blob_pin_denied(self):
+        row=self.info["assets"][0]
+        for field,value in (
+            ("source_path","packages/sdk/openvto/assets/other.png"),
+            ("source_git_blob_sha1","0"*40),
+            ("mime_type","image/jpeg"),
+        ):
+            before=row[field]
+            row[field]=value
+            self._store()
+            with self.assertRaises(footage.DemoFootageDenied):
+                footage._verify_inputs(self.root)
+            row[field]=before
+        self._store()
+
+    def test_all_three_pin_checks_required_including_unused_pose(self):
+        (self.root/"synthetic_model_pose.jpg").unlink()
         with self.assertRaises(footage.DemoFootageDenied):
             footage._verify_inputs(self.root)
 

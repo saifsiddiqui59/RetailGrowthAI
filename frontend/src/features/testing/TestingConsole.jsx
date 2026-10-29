@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
 import { createTrendApi } from '../trends/trend-api.mjs'
@@ -81,6 +81,12 @@ export default function TestingConsole() {
   const [savingReview, setSavingReview] = useState(false)
   const selection = useRef('')
   const busy = useRef(false)
+  const networkEvidence = useRef([])
+  const captureHttpReceipt = useCallback(receipt => {
+    if (busy.current && networkEvidence.current.length < 80) {
+      networkEvidence.current.push(receipt)
+    }
+  }, [])
   const apiOrigin = import.meta.env?.VITE_CAMPAIGN_API_BASE_URL
   const supabaseOrigin = import.meta.env?.VITE_SUPABASE_URL
   const pubKey = import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY
@@ -90,11 +96,13 @@ export default function TestingConsole() {
   }), [client, supabaseOrigin, pubKey])
   const trendApi = useMemo(() => createTrendApi({
     baseUrl: apiOrigin, tokenProvider: () => client.getAccessToken(),
-  }), [apiOrigin, client])
+    onResponse: captureHttpReceipt,
+  }), [apiOrigin, client, captureHttpReceipt])
   const campaignApi = useMemo(() => createCampaignApi({
     baseUrl: apiOrigin, tokenProvider: () => client.getAccessToken(),
     supabaseOrigin: supabaseOrigin || '', supabasePublishableKey: pubKey || '',
-  }), [apiOrigin, client, supabaseOrigin, pubKey])
+    onResponse: captureHttpReceipt,
+  }), [apiOrigin, client, supabaseOrigin, pubKey, captureHttpReceipt])
 
   useEffect(() => {
     let alive = true
@@ -183,6 +191,7 @@ export default function TestingConsole() {
       return
     }
     busy.current = true
+    networkEvidence.current = []
     setRunning(true); setError(''); setOutcome(''); setEvents([])
     setBaselineId(''); setBaselineEvents([]); setBaselineError('')
     setHistoryStats(null)
@@ -194,6 +203,7 @@ export default function TestingConsole() {
       const result = await executeFeatureTrace({
         id, shopId, userId: user.id, prompt: prompt.trim(), mode,
         assetId, startDate, client, trendApi, campaignApi, store,
+        getNetworkEvidence: () => networkEvidence.current,
         onEvent: logged => {
           if (selection.current === shopId) setEvents(current =>
             [...current.filter(e => e.event_seq !== logged.event_seq), logged])

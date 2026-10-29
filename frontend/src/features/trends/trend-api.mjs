@@ -1,7 +1,8 @@
 // Feature #2 v1: authenticated-only HTTP client. No service keys or cached JWT.
+import { collectHttpReceipt } from '../../lib/feature-http-receipt.mjs'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-export function createTrendApi({ baseUrl, tokenProvider, fetchImpl = fetch }) {
+export function createTrendApi({ baseUrl, tokenProvider, fetchImpl = fetch, onResponse = null }) {
   if (!baseUrl) return null
   const endpoint = new URL(baseUrl)
   if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password ||
@@ -13,11 +14,16 @@ export function createTrendApi({ baseUrl, tokenProvider, fetchImpl = fetch }) {
     if (!UUID.test(shopId || '')) throw new Error('Select an authorized shop')
     const token = await tokenProvider()
     if (!token) throw new Error('Please sign in again')
+    const startedAt = Date.now()
     const response = await fetchImpl(endpoint.origin + '/api/shops/' + shopId + '/' + path, {
       method, redirect: 'error', cache: 'no-store',
       headers: { Authorization: 'Bearer ' + token,
         ...(body ? { 'Content-Type': 'application/json' } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}),
+    })
+    collectHttpReceipt(onResponse, {
+      source: 'trend', method, path: '/shops/' + shopId + '/' + path,
+      response, startedAt,
     })
     const data = await response.json().catch(() => null)
     if (response.status === 401) throw new Error('Your session expired; please sign in again')
