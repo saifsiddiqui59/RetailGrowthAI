@@ -6,37 +6,58 @@ import { useEffect, useRef, useState } from 'react'
 import Feature3StudioPanel from './Feature3StudioPanel.jsx'
 import { validateFeature3Design } from './feature3-design.mjs'
 import {scopedFeature3GeneratedLink,SAFE_CLIENT_LIFETIME_MS} from './feature3-signed-link-scope.mjs'
+import { feature3ContextKey } from './feature3-context.mjs'
+import {scopedFeature3WorkspaceValue,currentFeature3WorkspaceRequest} from './feature3-workspace-scope.mjs'
 
 export default function Feature3SecureDraftWorkspace({
   shopId, campaignId, dayId, brandKit, imageMap = {}, approvedModels = [],
   approvedContent = null, feature3Api, disabled = false,
 }) {
-  const [saved, setSaved] = useState([])
-  const [reopened, setReopened] = useState(null)
-  const [message, setMessage] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [generatedJobs, setGeneratedJobs] = useState([])
-  const [generatedLink, setGeneratedLink] = useState(null)
-  const activeScope=useRef({shopId,feature3Api})
-  activeScope.current={shopId,feature3Api}
+  const scopeKey=feature3ContextKey({shopId,campaignId,dayId})
+  const [savedState,setSavedState] = useState({scope:scopeKey,value:[]})
+  const [reopenedState,setReopenedState] = useState({scope:scopeKey,value:null})
+  const [messageState,setMessageState] = useState({scope:scopeKey,value:''})
+  const [busyState,setBusyState] = useState({scope:scopeKey,value:false})
+  const [generatedState,setGeneratedState] = useState({scope:scopeKey,value:[]})
+  const [generatedLink,setGeneratedLink] = useState(null)
+  // Scope at render time, not only in a later useEffect cleanup: no stale
+  // private job/draft/revision can appear on the first paint of a new shop/day.
+  const saved=scopedFeature3WorkspaceValue(savedState,scopeKey,[])
+  const reopened=scopedFeature3WorkspaceValue(reopenedState,scopeKey,null)
+  const message=scopedFeature3WorkspaceValue(messageState,scopeKey,'')
+  const busy=scopedFeature3WorkspaceValue(busyState,scopeKey,false)
+  const generatedJobs=scopedFeature3WorkspaceValue(generatedState,scopeKey,[])
+  const setMessage=value=>setMessageState({scope:scopeKey,value})
+  const setBusy=value=>setBusyState({scope:scopeKey,value})
+  const activeScope=useRef({shopId,scopeKey,feature3Api})
+  activeScope.current={shopId,scopeKey,feature3Api}
   const pendingDownload=useRef(0)
-  const scopeKey=shopId+'|'+campaignId+'|'+dayId
+  const pendingHistory=useRef(0)
+  const pendingJobs=useRef(0)
+  const ticket=useRef({scope:scopeKey,designId:null,revision:0})
+  const pending=useRef({scope:scopeKey,active:false})
+  const currentScope=(scope,provider)=>
+    activeScope.current.scopeKey===scope && activeScope.current.feature3Api===provider
   const visibleGeneratedLink=!disabled ? scopedFeature3GeneratedLink(
     generatedLink,shopId,Date.now(),scopeKey) : null
   useEffect(()=>{
-    // On scope/provider changes, discard links and ignore delayed promises.
     pendingDownload.current+=1
+    pendingHistory.current+=1
+    pendingJobs.current+=1
+    ticket.current={scope:scopeKey,designId:null,revision:0}
+    pending.current={scope:scopeKey,active:false}
     setGeneratedLink(null)
-    setGeneratedJobs([])
+    setSavedState({scope:scopeKey,value:[]})
+    setReopenedState({scope:scopeKey,value:null})
+    setGeneratedState({scope:scopeKey,value:[]})
+    setMessageState({scope:scopeKey,value:''})
+    setBusyState({scope:scopeKey,value:false})
   },[scopeKey,feature3Api])
   useEffect(()=>{
     if(!generatedLink)return
     const timer=setTimeout(()=>setGeneratedLink(null),SAFE_CLIENT_LIFETIME_MS)
     return ()=>clearTimeout(timer)
   },[generatedLink])
-
-  const ticket = useRef({designId:null,revision:0})
-  const pending = useRef(false)
 
   const loadHistory = async () => {
     if (disabled || busy || pending.current) return
