@@ -81,3 +81,59 @@ test('private reviewed draft response is still never publishing approval',()=>{
  ]) assert.throws(()=>verifyReviewedDraftReceipt({
    shopId:SHOP,campaignId:CID,proposal:draftProposal,receipt:{...reply,...change}}))
 })
+
+
+import {makeLocalSentenceRetakeAction,verifyLocalSentenceRetakeReceipt} from
+ '../../frontend/src/features/voiceover/voiceover-model.mjs'
+function retake(overrides={}){
+  return makeLocalSentenceRetakeAction({
+    shopId:SHOP,campaignId:CID,planSha256:SHA,
+    originalAudioSha256:'d'.repeat(64),sentenceIndex:1,
+    jobKey:UUID,voiceId:'af_heart',lang:'en-us',speed:'normal',
+    ...overrides,
+  })
+}
+test('retake is one bounded original-audio proposal, never auto-merge or paid',()=>{
+ const action=retake()
+ assert.equal(action.sentence_index,1)
+ assert.equal(action.requires_current_editor_and_dictionary,true)
+ assert.equal(action.requires_one_durable_local_retake,true)
+ assert.equal(action.auto_azure_fallback,false)
+ assert.equal(action.can_publish,false)
+ assert.ok(Object.isFrozen(action))
+})
+test('retake denies foreign voice, invalid scene and forged original SHA',()=>{
+ for(const change of [
+  {shopId:CID},{originalAudioSha256:'not-a-sha'},
+  {sentenceIndex:13},{sentenceIndex:-1},
+  {sentenceIndex:0.2},{lang:'hi-IN'},
+  {voiceId:'hi-IN-SwaraNeural'},
+  {voiceId:'bm_george',lang:'en-us'},
+  {jobKey:'bad-key'}
+ ]) assert.throws(()=>retake(change))
+})
+test('retake receipt never certifies pronunciation or publishing',()=>{
+ const action=retake()
+ const receipt={
+  schema:'retailgrowth.feature2-sentence-retake.v1',
+  shop_id:SHOP,campaign_id:CID,creative_plan_sha256:SHA,
+  prior_audio_sha256:'d'.repeat(64),
+  sentence_index:1,new_audio_sha256:'e'.repeat(64),
+  private_sentence_audio_asset_id:'44444444-4444-4444-8444-444444444444',
+  review_status:'PENDING_NEW_STT_AND_HUMAN_LISTEN',private:true,
+  can_publish:false,requires_feature4_scene_assembly:true,
+  requires_new_feature7_transcription:true,
+  actual_pronunciation_success_verified:false,azure_fallback_used:false
+ }
+ const good=verifyLocalSentenceRetakeReceipt({request:action,receipt})
+ assert.equal(good.can_publish,false)
+ assert.equal(good.requires_new_feature7_transcription,true)
+ for(const change of [
+  {shop_id:CID},{prior_audio_sha256:'f'.repeat(64)},
+  {sentence_index:3},{review_status:'APPROVED'},
+  {private:false},{can_publish:true},{azure_fallback_used:true},
+  {actual_pronunciation_success_verified:true},
+  {requires_feature4_scene_assembly:false}
+ ]) assert.throws(()=>verifyLocalSentenceRetakeReceipt({
+   request:action,receipt:{...receipt,...change}}))
+})
