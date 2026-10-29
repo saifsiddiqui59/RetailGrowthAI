@@ -44,3 +44,8 @@ The coordinator must map each of Feature #2's 38 assigned task IDs (and other fe
 - Feature5 PR #465 is stacked; Part3 PR #125 has a Wan2.7 vs native Wan2.2 704x1280 / 121-frame contract incompatibility. Ratify before hosted use.
 - Genuine Feature3 garments/models need independently reviewed license and likeness; actual Wan inference requires separate explicit authorization; GPU remains OFF.
 - Azure issue #249 reliability and hosted tenant/rights E2E remain distinct release gates.
+
+## 2026-10-29 — Import of ALL active numbered feature work
+- `coordination/feature_tasks.json` is the full **159-row feature-task inventory**, distinct from the original 16 typed **handoff dependency nodes** in `coordination/dependencies.json`: #2 38, #3 33, #4 31, #5 22, #7 35; #1 source is closed. All rows pin exact owner source/ref SHA and original task ID/acceptance. F5's external dependency strings are kept, not converted into fabricated integration proof. F7 narrative addenda included.
+- The existing ready-Issue dispatcher remains scoped to typed handoff tasks; feature-owned PR #551/#322/#465/#513 are not duplicated. `status.json` now includes `feature_inventory` summary, and Markdown report includes per-feature counts. Source-ready state is not integrated DONE; no automatic new agent execution.
+- Operating guidelines and new-chat starter: `docs/FEATURE_CHAT_OPERATIONS.md` and `coordination/execution_policy.json`. The workflow rechecks dependency status after **successful main CI**, plus the hourly scheduled backup. Maximum 10 worktrees and two silent transient retries only take effect once a permitted executor actually implements them.

@@ -120,3 +120,6 @@ If a workflow change is not yet merged, its manual `workflow_dispatch` trigger m
 
 ## 2026-10-29 — Shared dependency check addition
 The new `RetailGrowthAI dependency coordinator` workflow is separate from the four-job Part 1 CI. PR validation is read-only and checks registry graph/negative tests. Its trusted `main` schedule/manual job queries GitHub PR merge evidence and may create up to three ready GitHub issues (no code/agent execution). Require exact-head existing CI on feature PRs and fresh main CI after integration; the coordinator report is not a provider-quality or release acceptance test. See `docs/DEPENDENCY_COORDINATOR.md`.
+
+## 2026-10-29 — Backlog inventory and postmerge dependency refresh
+The coordinator PR validates the immutable 159-task registry with offline negative tests as well as the existing 16-node DAG. `status.json` and status Markdown include a **separate source-snapshot feature count**, never automatically reclassified as integrated DONE. Its trusted-main coordination can also run following a **successful Part 1 CI workflow run on main**; hourly schedule is a fallback. Existing four-job PR/main CI requirements remain unchanged and cannot be replaced by coordinator-only tests. The task manager is not a paid coding agent and does not execute tasks.

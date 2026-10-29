@@ -90,3 +90,6 @@ Coordinate R/P/Q in parallel but integrate tested changes **R first**, then P an
 
 ## 2026-10-29 — Dependency coordination supplement
 The coordinator owns `coordination/dependencies.json`, `scripts/coordination/**`, the new coordinator GitHub Actions workflow and `docs/DEPENDENCY_COORDINATOR.md`. Worker feature leads publish handoff artifacts from their owned paths; they do not independently change shared dependency IDs/contracts or convert fixture-only tests to production approval. Cross-feature blockers do not stop eligible independent tasks. See the coordinator runbook; only coordinator reviews/merges main.
+
+## 2026-10-29 — Full task inventory + batch concurrency policy
+Coordinator exclusively edits `coordination/feature_tasks.json`, `coordination/execution_policy.json`, `scripts/coordination/**` and `docs/FEATURE_CHAT_OPERATIONS.md`. Feature owners preserve original ledger task IDs, source status and verified branch/PR handoffs. Up to 10 **approved** independent coding worktrees with atomic claims, none provisioned by the current read-only coordinator. Prefer coherent feature-owned batches, targeted tests and exact-head four-job CI at a batch boundary; coordinator alone merges to main and records postmerge four-job success. Preserve protected issue #650, #249 and the no-GPU/no-PROD/no-WineShopPOS boundaries.

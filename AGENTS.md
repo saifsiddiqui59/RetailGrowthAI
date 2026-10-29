@@ -43,3 +43,6 @@ GitHub Actions automation:
 - Every branch push or PR runs the Part 1 CI jobs; inspect the actual GitHub Actions run and logs after pushing.
 - Fix failures only inside your owned branch/files; do not bypass or disable a failing test to obtain green CI.
 - The coordinator owns .github/workflows/**; worker chats must propose CI changes rather than modify it directly.
+
+## Feature-chat operating policy (2026-10-29)
+Read `docs/FEATURE_CHAT_OPERATIONS.md`, `coordination/execution_policy.json` and `coordination/feature_tasks.json` before continuing Feature #2/#3/#4/#5/#7 work. These add a maximum of 10 independently claimed tasks in distinct worktrees (when an approved executor exists), two silent *safe transient* retries, coherent work batching, targeted tests then full CI at batch boundaries, strict source-vs-integrated DONE evidence, and concise DONE / IN PROGRESS / FAILED / BLOCKED user-facing reporting. The task registry pins 159 existing task IDs, **not** verified production completion. No automatic GPU spending, PROD, protected approval bypass or WineShopPOS changes. Only the coordinator integrates to main and updates shared documents.

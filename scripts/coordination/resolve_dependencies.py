@@ -231,6 +231,20 @@ def sync_ready_issues(report, github, max_create=3):
     return created
 
 
+def feature_inventory_snapshot():
+    """Load pinned task snapshot without adding unclaimed feature work to issue dispatch."""
+    import importlib.util
+    module_path = Path(__file__).with_name("feature_inventory.py")
+    spec = importlib.util.spec_from_file_location("_retail_feature_inventory", module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    data = module.load()
+    deps = json.loads(REGISTRY.read_text(encoding="utf-8"))
+    policy = module.load(module.POLICY)
+    module.validate(data, deps, policy)
+    return module.report(data), module.markdown(data)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--registry", default=str(REGISTRY))
@@ -242,15 +256,17 @@ def main(argv=None):
     args = ap.parse_args(argv)
     data = json.loads(Path(args.registry).read_text(encoding="utf-8"))
     validate(data)
+    inventory_report, inventory_markdown = feature_inventory_snapshot()
     if args.validate_only:
-        print(f"Valid dependency DAG: {len(data['tasks'])} nodes")
+        print(f"Valid dependency DAG: {len(data['tasks'])} nodes; {inventory_report['total_active_feature_tasks']} pinned owner tasks")
         return 0
     github = GitHub(args.repository, os.getenv("GITHUB_TOKEN"))
     report = evaluate(data, github)
+    report["feature_inventory"] = inventory_report
     output = Path(args.report_dir)
     output.mkdir(parents=True, exist_ok=True)
     (output / "status.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    (output / "status.md").write_text(markdown_report(report), encoding="utf-8")
+    (output / "status.md").write_text(markdown_report(report) + "\n" + inventory_markdown, encoding="utf-8")
     if args.sync_issues:
         created = sync_ready_issues(report, github, args.max_create)
         print(f"Created {len(created)} ready task issue(s): {json.dumps(created)}")
