@@ -118,7 +118,7 @@ if(['pure','preview','verify'].includes(p.operation)){
  const feedback=nodes(captionField).find(n=>n.tag==='p'&&n.attributes['aria-live']==='polite');
  textarea.value=p.edit??'Our blue shirts';
  save.handlers.click();
- if(p.operation in ['ui_confirmed','ui_double_caption'])confirm.checked=true;
+ if(['ui_confirmed','ui_double_caption'].includes(p.operation))confirm.checked=true;
  submit.handlers.click();
  if(p.operation==='ui_double_caption')submit.handlers.click();
  process.stdout.write(JSON.stringify({
