@@ -865,3 +865,6 @@
 
 ## 2026-10-29 — Testing Chat truthful verification boundary after #614
 - Source merge and all-four offline checks do not install hosted SQL or prove remote user tests. The trace candidate is held outside the exact-approved 31 migrations until a new reviewed canonical release; no unversioned `execute_sql` DDL or browser-user JWT service access shortcut. Current read-only connected DEV query confirmed both new trace tables absent. Label frontend receipts "browser observed"; true worker operations need server-generated spans. No unapproved social publishing, provider spend, Azure SKU change, PROD or WineShopPOS changes.
+
+## 2026-10-29 — Independently pin copyright-attributed demo pixels at consumption time
+- A client/local MIT `manifest.json` with SHA256 and declared rights is **not a trusted license/provenance authority**. Reuse the already existing immutable upstream OpenVTO git commit and three exact Git blob hashes from `feature3_demo_inputs.SOURCES`, independently recomputing Git blob identity from real image bytes before creating downloadable Feature4/7 test footage. Even the otherwise-unused pose photo must match to prevent deceptive bundled-input claims. No new third-party vendor, paid run, production permission or live VTON identity asserted.
