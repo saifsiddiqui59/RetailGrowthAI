@@ -39,6 +39,7 @@ def test_F2_and_F5_benchmarked_source_status_is_distinct_from_acceptance():
 def test_owner_number_collision_and_missing_track_fail_closed():
     bad = copy.deepcopy(DATA)
     bad["tasks"][0]["id"] = bad["tasks"][1]["id"]
+    bad["tasks"][0]["source_number"] = bad["tasks"][1]["source_number"]
     with pytest.raises(inv.InventoryError, match="Duplicate"):
         inv.validate(bad, DAG, POLICY)
     bad = copy.deepcopy(DATA)
