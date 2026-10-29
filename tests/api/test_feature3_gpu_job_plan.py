@@ -5,6 +5,9 @@ authorize spending. The production source-proof must independently verify
 real private source bytes, legal evidence, human approval and current grants.
 """
 import copy
+from hashlib import sha256
+from io import BytesIO
+from PIL import Image
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
@@ -12,7 +15,9 @@ import unittest
 from uuid import uuid4
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"azure-functions/campaign-api"))
-from feature3_gpu_job_plan import Feature3GPUJobPlanPreflight, Feature3PlanDenied
+from feature3_gpu_job_plan import (Feature3GPUJobPlanPreflight, Feature3PlanDenied,
+    make_claimed_gpu_off_rights_callback)
+from feature3_private_source_proof import Feature3TrustedPrivateSourceProof
 from admin_store import AdminStore
 
 
@@ -205,6 +210,106 @@ class CurrentGPUPlanTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             svc.request("feature3_enable_gpu",method="POST",data={})
 
+
+
+    def make_claimed(self):
+        self.token=str(uuid4())
+        self.db.job_row.update({"status":"RUNNING","attempts":1,
+                               "claim_token":self.token,
+                               "lease_until":(datetime.now(timezone.utc)+
+                                   timedelta(minutes=15)).isoformat()})
+        self.lease_reads=[]
+        self.fail_second_lease=False
+        def lease(shop,job,attempt,token):
+            self.lease_reads.append((shop,job,attempt,token))
+            if self.fail_second_lease and len(self.lease_reads)>=2:
+                raise OSError("Lease expired or financial state changed")
+            return {"shop_id":self.db.shop,"job_id":self.db.job,
+                    "attempt":1,"claim_token":self.token,
+                    "reservation_id":self.db.actor,"reserved_usd":"0.050000"}
+        return lease
+
+    def test_claimed_worker_uses_existing_one_shot_lease_and_rechecks_rights(self):
+        lease=self.make_claimed()
+        result=self.preflight.check_claimed(
+            self.db.shop,self.db.job,self.token,(self.db.media,),lease)
+        self.assertTrue(result["claim_observed"])
+        self.assertTrue(result["current_lease_verified"])
+        self.assertFalse(result["provider_call_permitted"])
+        self.assertFalse(result["gpu_started"])
+        self.assertFalse(result["paid_retry_authorized"])
+        self.assertFalse(result["claim_performed"])
+        self.assertEqual(result["source_sha256s"],(self.db.sha,))
+        self.assertEqual(self.db.proofs,2)
+        self.assertEqual(len(self.db.calls),12)
+        self.assertEqual(len(self.lease_reads),2)
+        class Service:
+            read_prepaid_reservation=staticmethod(lease)
+        callback=make_claimed_gpu_off_rights_callback(
+            plan_reader=self.preflight,service=Service())
+        self.assertTrue(callback(self.db.shop,self.db.job,self.token,(self.db.media,)))
+        self.assertEqual(len(self.lease_reads),4)
+
+    def test_claimed_sources_lease_or_approvals_change_fail_closed(self):
+        for bad in ("wrong_token","wrong_source","duplicate_source",
+                    "source_revoked","lease_lost","job_requeued",
+                    "viewer","expired"):
+            self.setUp()
+            lease=self.make_claimed()
+            args=[self.db.shop,self.db.job,self.token,(self.db.media,),lease]
+            if bad=="wrong_token":args[2]=str(uuid4())
+            if bad=="wrong_source":args[3]=(str(uuid4()),)
+            if bad=="duplicate_source":args[3]=(self.db.media,self.db.media)
+            if bad=="source_revoked":self.db.revoke_second_proof=True
+            if bad=="lease_lost":self.fail_second_lease=True
+            if bad=="job_requeued":self.db.job_row["status"]="QUEUED"
+            if bad=="viewer":self.db.member_row["role"]="VIEWER"
+            if bad=="expired":self.db.sub_row["valid_until"]="2020-01-01T00:00:00Z"
+            with self.subTest(bad=bad),self.assertRaises(Feature3PlanDenied):
+                self.preflight.check_claimed(*args)
+            self.assertFalse(any(x[2]!="GET" for x in self.db.calls))
+
+    def test_claimed_real_private_png_storage_and_twice_current_legal_review(self):
+        lease=self.make_claimed()
+        raw=BytesIO()
+        Image.new("RGB",(320,400),"#506f80").save(raw,format="PNG")
+        original=raw.getvalue()
+        digest=sha256(original).hexdigest()
+        self.db.sha=digest
+        self.db.asset_row["object_path"]=(
+            f"{self.db.shop}/model-library/{self.db.model}/{digest}.png")
+        self.db.model_row["image_sha256"]=digest
+        self.review_reads=[]
+        class Response(BytesIO):
+            def __init__(self,url):
+                super().__init__(original)
+                self.url=url
+                self.headers={"Content-Type":"image/png",
+                              "Content-Length":str(len(original))}
+            def geturl(self):return self.url
+            def getcode(self):return 200
+        def private_transport(request,*,timeout):
+            self.assertEqual(request.get_method(),"GET")
+            self.assertEqual(timeout,15)
+            self.assertEqual(request.get_header("Apikey"),"sb_secret_"+"r"*40)
+            return Response(request.full_url)
+        def review(shop,asset,image_sha,row):
+            self.review_reads.append(image_sha)
+            self.assertEqual(row,self.db.asset_row)
+            return {"shop_id":shop,"asset_id":asset,"image_sha256":digest,
+                    "rights_revision":2,"independent_license_verified":True,
+                    "current_customer_approval":True,"rights_revoked":False}
+        proof=Feature3TrustedPrivateSourceProof(
+            origin="https://fixture.supabase.co",
+            backend_secret="sb_secret_"+"r"*40,
+            review_authority=review,transport=private_transport)
+        planner=Feature3GPUJobPlanPreflight(admin_store=self.db,source_proof=proof)
+        receipt=planner.check_claimed(
+            self.db.shop,self.db.job,self.token,(self.db.media,),lease)
+        self.assertEqual(receipt["source_sha256s"],(digest,))
+        self.assertEqual(len(self.review_reads),4)
+        self.assertEqual(len(self.lease_reads),2)
+        self.assertFalse(receipt["provider_call_permitted"])
 
 if __name__=="__main__":
     unittest.main()
