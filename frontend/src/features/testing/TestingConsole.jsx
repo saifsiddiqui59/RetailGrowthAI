@@ -6,6 +6,7 @@ import { createCampaignApi } from '../campaigns/campaign-api.mjs'
 import { createTraceStore } from './trace-store.mjs'
 import { executeFeatureTrace } from './trace-runner.mjs'
 import { summarizeTrace, compareTraceRuns, aggregateFeatureHistory } from './trace-diagnostics.mjs'
+import { analyzeImprovementPriorities } from './trace-guidance.mjs'
 import './testing-console.css'
 
 const MODES = [
@@ -33,6 +34,7 @@ function downloadReport(run, events, workerSpans = []) {
     browser_source: 'browser-observed-not-server-audit', run, events,
     trusted_worker_spans: workerSpans,
     worker_job_link_provenance: 'browser-observed-job-reference-only',
+    suggested_improvements: analyzeImprovementPriorities(events),
   }, null, 2)
   const url = URL.createObjectURL(new Blob([data + '\n'], { type: 'application/json' }))
   const anchor = document.createElement('a')
@@ -203,6 +205,7 @@ export default function TestingConsole() {
     } finally { setWorkerLoading(false) }
   }
   const diagnostics = useMemo(() => summarizeTrace(events), [events])
+  const improvements = useMemo(() => analyzeImprovementPriorities(events), [events])
   const rateableFeatures = useMemo(() => diagnostics.features.filter(f =>
     f.id !== 'F1' && f.status === 'PASS'), [diagnostics])
   async function analyzeHistory() {
@@ -395,6 +398,30 @@ export default function TestingConsole() {
               {item.feature === 'F4' && item.status === 'SUCCEEDED' ? ' (private FFmpeg job)' : ''}
             </p>)}
             {workerSpans.length > 0 && <p>These entries came from the service-only database table. A completed job is not an independently approved marketing output.</p>}
+          </section>
+          <section className="rgt-diagnostics" aria-label="What to improve next">
+            <h3>What to improve next</h3>
+            <p>{improvements.description}</p>
+            <p>{improvements.observed_features} feature(s) returned observed work; {improvements.untested_features} were not run or not observed.</p>
+            {improvements.attention.map(item => <div key={item.feature} className="rgt-guidance-item">
+              <strong>{item.feature} · {item.label}</strong>
+              <p>{item.category === 'LOW_HUMAN_QUALITY'
+                ? 'Output quality: ' + item.latest_human_score + '/5 (human rating)'
+                : item.category === 'UNCONFIRMED_RESULT'
+                  ? 'Unconfirmed result — verify existing job before a new submission'
+                  : 'Observed execution failure — investigate the recorded operation'}</p>
+              <p>{item.reason}</p>
+              <p><strong>Suggested next check:</strong> {item.recommended_action}</p>
+            </div>)}
+            <details>
+              <summary>Review all feature assessments</summary>
+              {improvements.entries.map(item => <p key={item.feature}>
+                <strong>{item.feature} · {item.label}</strong> — {item.category};
+                {item.completed_steps} successful browser-observed stage(s).
+                {' '}{item.recommended_action}
+              </p>)}
+            </details>
+            <p>Suggestions are based on saved browser receipts and human reviews, not automatic diagnosis of backend failures.</p>
           </section>
           <div className="rgt-stages">
             {FEATURES.map(([id, title]) => <StageCard key={id} feature={id} title={title} events={events} />)}
