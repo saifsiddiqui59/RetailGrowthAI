@@ -32,6 +32,13 @@ bash "$ROOT/video-engine/hyperframes/ci-smoke.sh"
 # OWNER_REJECTED illustrated synthetic Reel and mislabel it as a showcase.
 # No workflow mutation, paid resource, GPU, tenant credentials or production use.
 if [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" && "${GITHUB_HEAD_REF:-}" == "feat/feature4-professional-video-studio" ]]; then
+  if [[ -f "$ROOT/video-engine/feature4_qualify_60s.once" ]]; then
+    # ONE-TIME CPU full-HD 60-second ACTUAL licensed-stock source qualification.
+    # No production data or GPU. Preserve default 15/30s PR checks after this
+    # artifact is verified, then delete marker in the next source commit.
+    bash "$ROOT/video-engine/feature4_stock_minute_acceptance.sh" \
+      "$ROOT/ci-artifacts/feature4-real-60s-qualification"
+  else
   STOCK_PROJECT="$TMP/feature4-stock-project"
   STOCK_PROOF="$ROOT/ci-artifacts/feature4-stock-provenance.json"
   STOCK_MP4="$ROOT/ci-artifacts/feature4-stock-real-footage-15s.mp4"
@@ -151,5 +158,5 @@ PY
     --preview-proof "$ROOT/ci-artifacts/feature4-stock-garment-30s-small-proof.json" \
     --editorial-proof "$ROOT/ci-artifacts/feature4-stock-30s-editorial-titles-proof.json" \
     --output "$ROOT/ci-artifacts/feature4-cross-feature-qa-receipt.json"
-
+  fi
 fi
