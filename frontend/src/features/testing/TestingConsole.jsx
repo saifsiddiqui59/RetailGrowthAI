@@ -70,6 +70,10 @@ export default function TestingConsole() {
   const [history, setHistory] = useState([])
   const [activeRun, setActiveRun] = useState(null)
   const [events, setEvents] = useState([])
+  const [workerSpans, setWorkerSpans] = useState([])
+  const [workerError, setWorkerError] = useState('')
+  const [workerLoading, setWorkerLoading] = useState(false)
+  const selectedRunId = useRef('')
   const [baselineId, setBaselineId] = useState('')
   const [baselineEvents, setBaselineEvents] = useState([])
   const [baselineError, setBaselineError] = useState('')
@@ -122,6 +126,8 @@ export default function TestingConsole() {
   useEffect(() => {
     let alive = true
     setHistory([]); setEvents([]); setActiveRun(null); setError(''); setOutcome('')
+    selectedRunId.current = ''
+    setWorkerSpans([]); setWorkerError(''); setWorkerLoading(false)
     setBaselineId(''); setBaselineEvents([]); setBaselineError('')
     setHistoryStats(null); setAnalyzingHistory(false)
     setAssets([]); setAssetId('')
@@ -144,7 +150,9 @@ export default function TestingConsole() {
     try {
       const loaded = await store.listEvents(shopId, run.id)
       if (selection.current !== shopId) return
+      selectedRunId.current = run.id
       setActiveRun(run); setEvents(loaded)
+      setWorkerSpans([]); setWorkerError('')
       setBaselineId(''); setBaselineEvents([]); setBaselineError('')
     } catch {
       setError('Unable to load private trace events for this business.')
@@ -159,6 +167,35 @@ export default function TestingConsole() {
       const items = await store.listEvents(shopId, runId)
       if (selection.current === shopId) setBaselineEvents(items)
     } catch { setBaselineError('Baseline trace could not be loaded. No comparison is available.') }
+  }
+  async function inspectServerSpans() {
+    if (!store || !shopId || !activeRun || busy.current || workerLoading) return
+    const expectedRun = activeRun.id
+    const expectedShop = shopId
+    // Browser event IDs are user-observed references, not an authenticated
+    // server-issued run->job link. RLS independently enforces active membership.
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    const ids = [...new Set(events.flatMap(item => [
+      item.feature === 'F2' ? item.details?.campaign_id : null,
+      item.feature === 'F4' ? item.details?.render_job_id : null,
+    ]).filter(id => typeof id === 'string' && uuid.test(id)))].slice(0, 5)
+    setWorkerSpans([]); setWorkerError('')
+    if (!ids.length) {
+      setWorkerError('This test has no verified job ID references to inspect.')
+      return
+    }
+    setWorkerLoading(true)
+    try {
+      const rows = await store.listWorkerSpans(expectedShop, ids)
+      if (selection.current === expectedShop && selectedRunId.current === expectedRun) {
+        setWorkerSpans(rows)
+        if (!rows.length) setWorkerError('No persisted worker receipts were found for these job references. This is not proof the jobs never ran.')
+      }
+    } catch {
+      if (selection.current === expectedShop && selectedRunId.current === expectedRun) {
+        setWorkerError('Trusted span table is not released, unavailable or access is denied. Browser-only receipts remain unchanged.')
+      }
+    } finally { setWorkerLoading(false) }
   }
   const diagnostics = useMemo(() => summarizeTrace(events), [events])
   const rateableFeatures = useMemo(() => diagnostics.features.filter(f =>
@@ -192,12 +229,15 @@ export default function TestingConsole() {
     }
     busy.current = true
     networkEvidence.current = []
+    selectedRunId.current = ''
+    setWorkerSpans([]); setWorkerError('')
     setRunning(true); setError(''); setOutcome(''); setEvents([])
     setBaselineId(''); setBaselineEvents([]); setBaselineError('')
     setHistoryStats(null)
     const id = crypto.randomUUID()
     const run = { id, shop_id: shopId, created_by: user.id,
       prompt: prompt.trim(), mode, created_at: new Date().toISOString() }
+    selectedRunId.current = run.id
     setActiveRun(run)
     try {
       const result = await executeFeatureTrace({
@@ -335,6 +375,21 @@ export default function TestingConsole() {
               ? <p><strong>{diagnostics.first_problem.feature} · {diagnostics.first_problem.action} ({diagnostics.first_problem.status})</strong>: {diagnostics.first_problem.summary}</p>
               : <p>{diagnostics.event_count ? 'No reported API failure. This does not establish final media quality or unobserved worker health.' : 'No stage receipts observed yet.'}</p>}
             <p>{diagnostics.reviewed_features} feature(s) have human quality ratings. A technically successful run can still need improvement.</p>
+          </section>
+          <section className="rgt-diagnostics" aria-label="Trusted worker evidence">
+            <h3>Server-authored worker receipts</h3>
+            <p>Optional private-RPC job observations, separate from browser logs. Job references came from this test's client receipts and are not independently bound to the run.</p>
+            <button type="button" disabled={running || workerLoading} onClick={inspectServerSpans}>
+              {workerLoading ? 'Checking worker receipts…' : 'Check server worker receipts'}
+            </button>
+            {workerError && <p role="status">{workerError}</p>}
+            {workerSpans.map(item => <p key={item.id}>
+              <strong>{item.feature} · {item.operation} · {item.status}</strong>
+              {' — '}attempt {item.attempt}, {item.elapsed_ms} ms,
+              job {item.job_id.slice(0, 8)}
+              {item.feature === 'F4' && item.status === 'SUCCEEDED' ? ' (private FFmpeg job)' : ''}
+            </p>)}
+            {workerSpans.length > 0 && <p>These entries came from the service-only database table. A completed job is not an independently approved marketing output.</p>}
           </section>
           <div className="rgt-stages">
             {FEATURES.map(([id, title]) => <StageCard key={id} feature={id} title={title} events={events} />)}
