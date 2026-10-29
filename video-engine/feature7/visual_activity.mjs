@@ -62,3 +62,62 @@ export function analyzeLocalVisualActivity({path,duration_seconds,timeout_ms=450
     'Private FFmpeg visual QA failed or timed out');
   return parseVisualQaLog(outcome.stderr,duration_seconds);
 }
+
+/**
+ * Read-only real FFmpeg scene-cut evidence for human hook/pacing review.
+ * Unlike keyword B-roll cues this DOES NOT infer SKU, plot, meaning, acting,
+ * model identity, consent or suitability. No automatic cutting/publishing.
+ */
+export function parseSceneChangeLog(log,duration_seconds){
+  check(typeof log==='string'&&log.length<=300000&&
+    validNumber(duration_seconds,600)&&duration_seconds>=.5,
+    'Invalid scene-change evidence');
+  const timestamps=[];
+  const re=/\bpts_time:\s*([\d.]+)\b/g;
+  let match;
+  while((match=re.exec(log))!==null){
+    const time=Number(match[1]);
+    check(validNumber(time,duration_seconds+0.05),
+      'Out-of-source scene-change time');
+    const rounded=+Math.min(time,duration_seconds).toFixed(3);
+    check(!timestamps.length||rounded>=timestamps.at(-1),
+      'Out-of-order scene changes');
+    if(rounded>=.2 && rounded<=duration_seconds-.2 &&
+      (!timestamps.length||rounded-timestamps.at(-1)>=.1)){
+      timestamps.push(rounded);
+    }
+    check(timestamps.length<=64,'Excess scene cuts');
+  }
+  return Object.freeze({
+    classification:'SCENE_CHANGE_REVIEW_ADVISORY_ONLY',
+    scene_change_seconds:timestamps,
+    first_three_seconds_change_count:timestamps.filter(t=>t<=3).length,
+    hook_pacing_review_needed:timestamps.every(t=>t>3),
+    semantic_product_relevance_verified:false,
+    no_automatic_shot_choice:true,
+    no_scene_deletion:true,
+    human_review_required:true
+  });
+}
+
+export function analyzeLocalSceneChangesCPU({
+  path,duration_seconds,threshold=.12,timeout_ms=45000
+}={}){
+  check(typeof path==='string'&&path.length>0&&
+    !/^(https?:)?\/\//i.test(path)&&
+    validNumber(duration_seconds,600)&&duration_seconds>=.5&&
+    Number.isFinite(threshold)&&threshold>=.08&&threshold<=.6&&
+    Number.isInteger(timeout_ms)&&timeout_ms>=1000&&timeout_ms<=60000,
+    'Invalid local scene-change request');
+  const args=['-hide_banner','-nostdin','-v','info','-threads','1',
+    '-i',path,'-map','0:v:0','-an','-vf',
+    "scale=320:-2,select='gt(scene,"+threshold.toFixed(3)+")',showinfo",
+    '-vsync','0','-f','null','-'];
+  const result=spawnSync('ffmpeg',args,{
+    encoding:'utf8',stdio:['ignore','pipe','pipe'],
+    timeout:timeout_ms,maxBuffer:300000
+  });
+  check(!result.error&&result.status===0,
+    'CPU scene-change analysis failed or timed out');
+  return parseSceneChangeLog(result.stderr,duration_seconds);
+}
