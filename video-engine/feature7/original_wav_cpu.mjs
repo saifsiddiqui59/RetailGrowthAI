@@ -216,6 +216,9 @@ export function transcribeFeature2OriginalWavCPU({
       st.size>0&&st.size<=2*1024*1024,
       'Missing/unsafe original WAV speech inference result');
     const decoded=JSON.parse(fs.readFileSync(output,'utf8'));
+    need(decoded.verified_input_sha256===expected_sha256&&
+      bytesHash(fs.readFileSync(staged))===expected_sha256,
+      'Actual CPU inference must prove original input WAV identity');
     need(decoded.version==='feature7_faster_whisper_cpu_transcript_v1'&&
       decoded.engine==='SYSTRAN/faster-whisper'&&
       decoded.model_project==='Systran/faster-whisper-small'&&
@@ -253,6 +256,8 @@ export function transcribeFeature2OriginalWavCPU({
       source_duration_seconds:original.duration_seconds,
       model_id,model_revision:decoded.model_revision,
       model_bin_sha256:decoded.model_bin_sha256,
+      verified_input_sha256:decoded.verified_input_sha256,
+      process_peak_rss_bytes:decoded.process_peak_rss_bytes??null,
       transcription_status:'real_local_cpu_decoder_output',
       language:decoded.language,
       actual_decode_wall_seconds:decoded.actual_decode_wall_seconds,
