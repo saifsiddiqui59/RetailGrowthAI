@@ -77,6 +77,39 @@ assert all(any(abs(c-b)<.17 for b in proof["measured_beat_timestamps"])
     for c in proof["synced_scene_starts"][1:])
 print("PASS: 30s actual Pexels garment + stock-person Reel, NOT garment identity or production acceptance")
 PY
+  # F4-50: real stock editorial scene-time sidecars in short-retention PR QA.
+  # Explicitly NOT spoken transcription or Feature2-approved speech captions.
+  python3 - "$ROOT/video-engine" "$GARMENT_PROOF" "$ROOT/ci-artifacts" <<'PY'
+import json,sys
+from pathlib import Path
+sys.path.insert(0,sys.argv[1])
+from feature4_subtitles import export_private_subtitle_pair
+p=json.loads(Path(sys.argv[2]).read_text())
+assert p["duration_seconds"]==30 and p["scene_count"]==7
+assert not p["actual_spoken_voiceover"] and not p["commercial_release_eligible"]
+starts=p["synced_scene_starts"]
+titles=["A NEW SEASON","THE GARMENT EDIT","STYLE IN MOTION","TEXTURE AND DETAIL",
+        "THE FASHION STORY","CURATED STYLE","STOCK GARMENT CONCEPT - NOT A RETAILER AD"]
+assert len(starts)==len(titles) and len(set(starts))==len(starts)
+cues=[]
+for i,(start,title) in enumerate(zip(starts,titles)):
+    end=starts[i+1] if i+1<len(starts) else 30
+    # A short editorial title within its existing scene; no fake spoken cues.
+    cue_start=round(start+.2,3)
+    span=min(1.5,round(end-cue_start-.1,3))
+    assert .2<=span<=6
+    cues.append({"start":cue_start,"duration":span,"text":title})
+root=Path(sys.argv[3])
+proof=export_private_subtitle_pair(cues,duration_seconds=30,
+    srt_path=root/"feature4-stock-30s-editorial-titles.srt",
+    vtt_path=root/"feature4-stock-30s-editorial-titles.vtt")
+proof["caption_kind"]="EDITORIAL_TEST_TITLES_NOT_SPOKEN_AUDIO"
+proof["commercial_release_eligible"]=False
+(root/"feature4-stock-30s-editorial-titles-proof.json").write_text(
+    json.dumps(proof,indent=2)+"\n",encoding="utf-8")
+print("PASS: 30s Pexels editorial title sidecars SRT/VTT exactly follow real scene cuts; NOT spoken")
+PY
+
   # F4-47: actual decoded Pexels actor movement; reject frozen footage.
   python3 "$ROOT/video-engine/feature4_encoded_motion_qa.py" \
     --source "$GARMENT_MP4" --duration 30 --moving-starts 0 10 20 \

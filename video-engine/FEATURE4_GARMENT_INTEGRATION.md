@@ -105,3 +105,18 @@ compiler copies source SHA-256, creator and original rights URL into the
 temporary private provenance and does not install product datasets. Offline
 synthetic media tests enforce seven distinct sources and twelve 60s scenes.
 The actual separate 60s runner must still execute and be visually reviewed.
+
+
+### F4-50 — Actual real-stock editorial subtitle artifact integration
+The existing PR-only `ci.sh` real 30-second Pexels output now writes
+`feature4-stock-30s-editorial-titles.srt` and
+`feature4-stock-30s-editorial-titles.vtt` using F4-46's real private
+caption pair exporter. The 7 captions come from original **test editorial
+scene headlines** and exact WAV-measured snapped cut starts in the
+30-second source provenance, never inferred spoken syllable timecodes.
+An explicit report `caption_kind=EDITORIAL_TEST_TITLES_NOT_SPOKEN_AUDIO`
+and `speech_text_alignment_verified_here=false` is preserved.
+Output is limited to public Pexels stock QA in short-retention GitHub
+CI, not any tenant-private or unreviewed customer audio. Real approved
+Feature2 voice clips, spoken transcription accuracy, signed private
+caption downloads, hosted SRT/VTT registration and rights remain pending.
