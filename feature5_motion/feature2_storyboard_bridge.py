@@ -26,7 +26,10 @@ def _digest(value):
     try:
         return sha256(json.dumps(value, sort_keys=True, separators=(",", ":"),
                                  allow_nan=False).encode("utf-8")).hexdigest()
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, OverflowError, RecursionError) as exc:
+        # Direct Python callers can supply nested/cyclic objects that bypass
+        # the bounded JSON stdin decoder. Never leak a recursion traceback or
+        # mistake an unhashable editorial packet for a provider-ready source.
         raise WanCompatibilityError("Non-JSON editorial packet") from exc
 
 
