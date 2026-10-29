@@ -122,3 +122,67 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
         "can_dispatch_paid_motion":False,
         "recommendation":"Edit unsupported claims using currently approved shop facts",
     }
+
+# Ranking is strictly reviewer-only. True RSS retrieval, auth and provenance
+# are separate coordinator-owned services; no fake "viral" claims.
+from datetime import datetime, timezone
+
+_TREND_SHA = re.compile(r"^[0-9a-f]{64}$")
+_TREND_ID = re.compile(r"^[A-Za-z0-9_-]{5,80}$")
+
+def rank_source_backed_trends(*, verified_context, trends, now_utc,
+                              verify_source_provenance):
+    """Bounded relevance for current retailer: never grants trend or posting."""
+    if (type(verified_context) is not dict or
+        verified_context.get("server_verified") is not True or
+        verified_context.get("authenticated_owner_or_editor") is not True or
+        type(verified_context.get("shop_id")) is not str or
+        type(trends) is not list or len(trends)>25 or
+        not isinstance(now_utc,datetime) or now_utc.tzinfo is None or
+        not callable(verify_source_provenance)):
+        raise EditorialBasisRejected("Trusted bounded RSS/source review required")
+    shop=verified_context["shop_id"]
+    script=" ".join(str(verified_context.get(k) or "") for k in
+                   ("creative_brief","target_audience","advertising_objective"))
+    for media in verified_context.get("media_grants",[]):
+        if type(media) is dict:
+            script += " " + str(media.get("product_sku") or "")
+    query=set(re.findall(r"[a-z]{3,}",script.casefold()))
+    selected=[]
+    for row in trends:
+        if (type(row) is not dict or row.get("shop_id")!=shop or
+            row.get("source_type")!="RSS" or
+            not _TREND_ID.fullmatch(str(row.get("id") or "")) or
+            not _TREND_SHA.fullmatch(str(row.get("source_sha256") or "")) or
+            type(row.get("headline")) is not str or
+            not 12<=len(row["headline"])<=180 or
+            type(row.get("published_at")) is not str):
+            raise EditorialBasisRejected("Current authenticated RSS evidence missing")
+        try:
+            published=datetime.fromisoformat(row["published_at"])
+            elapsed=(now_utc.astimezone(timezone.utc)-
+                     published.astimezone(timezone.utc)).total_seconds()
+            if published.tzinfo is None or not 0<=elapsed<=14*86400:
+                raise ValueError("Stale or future")
+        except ValueError as exc:
+            raise EditorialBasisRejected("RSS published-at source invalid") from exc
+        if verify_source_provenance(shop,row["id"],row["source_sha256"],
+                                    row["published_at"]) is not True:
+            raise EditorialBasisRejected("Independent signed RSS provenance unavailable")
+        headline_terms=set(re.findall(r"[a-z]{3,}",row["headline"].casefold()))
+        overlap=len(query & headline_terms)
+        if overlap==0:
+            continue
+        freshness=max(0,14-int(elapsed//86400))
+        selected.append({"trend_id":row["id"],
+                         "source_sha256":row["source_sha256"],
+                         "relevance_points":min(overlap,10)*10,
+                         "freshness_points":freshness,
+                         "review_score":min(overlap,10)*10+freshness})
+    selected.sort(key=lambda x:(-x["review_score"],x["trend_id"]))
+    return {"schema":"retailgrowth.feature2-trend-review.v1",
+            "shop_id":shop,"status":"REVIEW_REQUIRED" if selected else "EVERGREEN_FALLBACK",
+            "candidates":selected[:10],
+            "verified_live_trend_claim":False,
+            "commercial_claim_certified":False,"can_publish":False,
+            "can_auto_create_trend_draft":False}
