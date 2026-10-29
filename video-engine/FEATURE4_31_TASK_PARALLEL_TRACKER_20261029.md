@@ -6,18 +6,18 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 
 | # | P | Required deliverable | Current source/evidence | Remaining gate |
 |---|---|---|---|---|
-| 1 | P0 | Standalone revised native 60s render + caption/visibility | Existing runner calls all modules; earlier artifact real 60s | Regenerate exact current-head runner output |
-| 2 | P0 | Hash-linked final 60s quality receipt | New `feature4_minute_quality_receipt.py` supports caption and v2 visibility | Full updated original/master/preview/caption/contact chain not rerun |
+| 1 | P0 | Standalone revised native 60s render + caption/visibility/endcard | Runner now calls mandatory v2 visibility and encoded 55s endcard QA, plus FFmpeg subtitles | **NEW native 60s exact-head render still needed** |
+| 2 | P0 | Hash-linked final 60s quality receipt | Source now FAILS CLOSED if any caption, v2 visibility or real encoded endcard proof missing; negative tests added | Full updated media+SHA+report chain not rerun |
 | 3 | P0 | 15/30/60 actual export regression matrix | Existing 15/30 CI & separate 60s stock artifact | One unified exact-code acceptance record |
 | 4 | P0 | Encoded editor action parity after split/reorder/duplicate | Trusted JS/Python compiler tests; synthetic edit MP4 | Encoded visual tests for every supported edit |
 | 5 | P0 | Renderer-supported transitions/fades/effects | Existing reviewed HyperFrames subset | Remaining effect/render parity and UI |
 | 6 | P0 | Multi-track independent audio levels | Disabled unsupported controls in UI | Implement only matching actual renderer semantics |
 | 7 | P0 | Actual audio fades/ducking and final QA | Private audio mastering, AAC, SHA tests | Spoken audio and more real mix profiles |
-| 8 | P0 | Accurate timeline frame scrub/playback | OpenReel bridge and mobile test | Frame-exact visual preview parity |
+| 8 | P0 | Accurate timeline frame scrub/playback | Focusable keyboard video region supports 1/10-frame seek without editing draft, new mobile Playwright | Actual visual decoded-preview parity remains |
 | 9 | P1 | Deep OpenReel adopted capabilities | Split/trim/reorder/snap/zoom/undo/repeat implemented | Unsupported advanced controls remain disabled |
-| 10 | P1 | Mobile touch/keyboard/a11y/browser | Playwright mobile and control regressions | Comprehensive manual+browser usability |
-| 11 | P0 | Near-black/repeat/motion/overlay detection | F4-62 five decoded samples/scene, v2 validated receipt; local 12 scenes / 60 samples PASS; F4-63 contact source pin | CI + brief-black/full-frame and human editorial QA |
-| 12 | P0 | Typography/endcard/caption and shot composition | Stock edit, timed SRT/VTT, libass reviewer, contact sheet | Diverse film material and human professional quality signoff |
+| 10 | P1 | Mobile touch/keyboard/a11y/browser | New keyboard jog, approved readonly navigation, keyboard conflict avoidance, Playwright tests | Comprehensive manual accessibility/device usability |
+| 11 | P0 | Near-black/repeat/motion/overlay detection | Added encoded 53/57.5/59.3s endcard proof (old rack repeated); mutation/forged receipts denied; F4-62 60 scene samples remain | Actual new Full-HD minute and human quality review pending |
+| 12 | P0 | Typography/endcard/caption and shot composition | New distinct 55–60s disclaimer storyboard + encoded endcard QA; actual libass reviewer captions | **New native 60s footage + text legibility and human review pending** |
 | 13 | P1 | Private input/license/dependency integrity | SHA-pinned source, npm audit, F4-63 mutation guard | Commercial attribution and transitive notices approval |
 | 14 | P1 | CPU/RSS/latency budgets 15/30/60 | Prior CPU 30s benchmarks; local 60s five-probe QA took ~25.44s/136844 KiB max RSS | Real revised runner Azure budget |
 | 15 | P1 | Worker retry/cancel/race/cleanup tests | Existing feature-owned source tests | Real v2 worker/RLS and hosted concurrency |
@@ -55,3 +55,11 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 - PR merge-base Python/uv failure reproduced in logs at `scripts/deploy/package.py:134`; do not increase member cap or disable tests to make PR green.
 - F2/F5/F7 PRs #551/#465/#513 and F3 merged PR #630 received direct source/rights/approval handoffs.
 - Latest branch/PR CI runs require observation at the actual terminal commit; logs, not assumptions, determine status. Coordinator alone updates `docs/{PROJECT_STATE,NEXT_TASK,DECISIONS,WORK_LOG}.md` after integration.
+
+
+## 2026-10-29 afternoon continued independent sprint — source checkpoints, no false closure
+
+- CI on preceding exact branch head `50e700966f`: push [#40869461422](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40869461422) **4/4 SUCCESS**. Pull-request merged-base [#40869468107](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40869468107) **3/4**, with coordinator-owned Python ZIP >120 member count failure. PR remains draft and unmerged; latest main has advanced since baseline.
+- F4-65: final `feature4_minute_quality_receipt.py` cannot issue `NATIVE_60S_TECHNICAL_EVIDENCE_ONLY` if any actual private captioned MP4/SRT/VTT/burn report, v2 scene visibility proof, or 55–60s encoded endcard QA proof is absent. Tests assert incomplete chains are rejected **before** media scanning and retain real garbage-media, oversized source and symlink negatives.
+- F4-66: new `feature4_endcard_qa.py` performs actual FFmpeg 53/57.5/59.3s source-frame comparison and binds SHA/timestamps to final accepted receipt. Unit tests physically encode synthetic 60s red/blue and red/red H264/AAC scenes and reject old held shot, wrong 58s start, source mutation, forged approval. Local FFmpeg sanity red/blue change 46.83, internal stability 0.0; archived rack hold at 52.5→57.5 changed only 16.397. **Updated 60s HyperFrames media pipeline not yet rerun; do not claim visual acceptance.**
+- F4-67: TimelineStudio video-track keyboard focus and preview-only frame jogging, one or ten frames, including approved direction but never editing assets/rights/copy; Playwright mobile negatives. Source+docs pushed to F4 branch, exact-head CI must be inspected. No WineShopPOS, GPUs, paid APIs, production cloud, coordinator-owned workflows/contracts or shared docs changed.
