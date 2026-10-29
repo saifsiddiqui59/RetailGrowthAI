@@ -209,6 +209,32 @@ class WorkerHandoffTests(unittest.TestCase):
             self.run_worker()
         self.assertEqual(self.media.downloads, [])
 
+    def test_local_staged_source_mutation_or_symlink_swap_fails_before_upload(self):
+        # Genuine CPU render must consume unchanged original downloaded bytes;
+        # a forged probe/result from a renderer is not a waiver.
+        for variant in ("overwrite", "append", "symlink"):
+            with self.subTest(variant=variant):
+                self.media = Media()
+                self.admin.failures.clear()
+                self.admin.completions.clear()
+                def swapped(request, manifest, staged, output):
+                    result = fake_render(request, manifest, staged, output)
+                    source = next(staged.iterdir())
+                    if variant == "overwrite":
+                        source.write_bytes(b"different synthetic source media")
+                    elif variant == "append":
+                        with source.open("ab") as stream:
+                            stream.write(b"tampered")
+                    else:
+                        source.unlink()
+                        source.symlink_to(output / (JOB + ".mp4"))
+                    return result
+                with self.assertRaises(Feature4HandoffError):
+                    process_feature4_render(JOB, self.admin, self.media, render_fn=swapped)
+                self.assertEqual(self.media.uploads, [])
+                self.assertEqual(self.admin.completions, [])
+                self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
+
     def test_renderer_wrong_output_or_cross_job_denied(self):
         def malicious(*args):
             result = fake_render(*args)
