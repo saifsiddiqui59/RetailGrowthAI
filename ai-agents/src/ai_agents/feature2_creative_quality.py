@@ -595,6 +595,13 @@ _CLAIM_PRICE = re.compile(r"(?:₹|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
 _CLAIM_URGENCY = re.compile(r"\b(?:only \d+ left|selling out|last chance|guaranteed|best in india|number one|no\.?1|viral|trending now|everyone is buying|free shipping|free delivery|same-day delivery|cash on delivery|bogo|buy\s+(?:one|1)\s+get\s+(?:one|1)\s+free)\b",re.I)
 _CLAIM_WIDE = re.compile(r"\b(?:everything|all products|storewide|entire store|every item)\b",re.I)
 _CLAIM_MATERIAL = re.compile(r"\b(?:100% pure cotton|genuine silk|authentic gold|organic cotton)\b",re.I)
+# Reject invisible direction/word-break controls that can hide unsupported offers.
+# Keep ZWJ/ZWNJ: they are valid within Hindi/Marathi copy.
+_UNSAFE_COPY_CONTROLS = frozenset(
+    "\u200b\u2060\ufeff\u200e\u200f\u061c"
+    + "".join(chr(n) for n in range(0x202a, 0x202f))
+    + "".join(chr(n) for n in range(0x2066, 0x206a))
+)
 
 def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     """Review-only policy based on authoritative original retailer facts.
@@ -622,14 +629,20 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     issues=set()
     for field,text in copy.items():
         if (type(text) is not str or not 1<=len(text.strip())<=1800 or
-            any(ord(ch)<32 for ch in text) or "<" in text or ">" in text or
+            any(ord(ch)<32 or ch in _UNSAFE_COPY_CONTROLS for ch in text) or
+            "<" in text or ">" in text or
             "https://" in text.lower() or "javascript:" in text.lower()):
             raise EditorialBasisRejected("Unsafe or unbounded retailer copy")
-        if _CLAIM_PRICE.search(text):
+        # NFKC is used for DETECTION only: fullwidth ５０％, Ｒｓ and
+        # ＦＲＥＥ ＳＨＩＰＰＩＮＧ are still commercial claims. Approved offer
+        # spans below must remain byte-for-byte wording from the original text.
+        import unicodedata
+        normalized=unicodedata.normalize("NFKC",text)
+        if _CLAIM_PRICE.search(normalized):
             issues.add("UNVERIFIED_CURRENCY_PRICE")
-        if _CLAIM_URGENCY.search(text):
+        if _CLAIM_URGENCY.search(normalized):
             issues.add("UNVERIFIED_URGENCY_OR_TREND")
-        if _CLAIM_MATERIAL.search(text):
+        if _CLAIM_MATERIAL.search(normalized):
             issues.add("PRODUCT_MATERIAL_FACTS_NOT_VERIFIED")
         # Having ONE legitimate offer substring must not launder a second
         # invented percentage in that same sentence, headline or voiceover.
@@ -642,9 +655,11 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
             approved_spans.extend((m.start(),m.end()) for m in
                                    re.finditer(pattern,text,flags=re.I))
         hits=list(_CLAIM_PERCENT.finditer(text))
-        if hits and (not approved_spans or _CLAIM_WIDE.search(text) or
-                     any(not any(a<=hit.start() and hit.end()<=b
-                                 for a,b in approved_spans) for hit in hits)):
+        normalized_hits=list(_CLAIM_PERCENT.finditer(normalized))
+        if (len(normalized_hits)>len(hits) or
+            (hits and (not approved_spans or _CLAIM_WIDE.search(normalized) or
+             any(not any(a<=hit.start() and hit.end()<=b
+                         for a,b in approved_spans) for hit in hits)))):
             issues.add("DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED")
     digest=hashlib.sha256(json.dumps(copy,ensure_ascii=False,sort_keys=True,
                     separators=(",",":")).encode()).hexdigest()
