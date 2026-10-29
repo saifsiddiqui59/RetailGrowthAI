@@ -311,3 +311,31 @@ def test_signed_rss_source_rechecked_and_wrong_tenant_denied():
     ctx["shop_id"]="foreign"
     with pytest.raises(EditorialBasisRejected):
         rank_xml(context=ctx)
+
+
+def test_private_rss_exact_hash_and_bounded_items_required_before_parse():
+    raw=rss_xml()
+    ctx=trusted_rss()
+    with pytest.raises(EditorialBasisRejected,match="signed private RSS"):
+        rank_verified_rss_snapshot(
+            verified_context=ctx,snapshot_id="verified_rss_shop_feed_2026",
+            raw_xml=raw,expected_xml_sha256="0"*64,
+            now_utc=datetime(2026,10,29,tzinfo=timezone.utc),
+            verify_current_private_snapshot=lambda *a:True)
+    over=[("too_many_"+str(i),"Festive cotton kurti today for a retailer",
+           "Wed, 28 Oct 2026 11:00:00 GMT")
+          for i in range(26)]
+    with pytest.raises(EditorialBasisRejected,match="Too many"):
+        rank_xml(rss_xml(items=over))
+
+def test_signed_marathi_rss_snapshot_has_unicode_relevance_without_viral_claim():
+    ctx=trusted_rss()
+    ctx["creative_brief"]="नवरात्र साडी संग्रह"
+    xml=rss_xml(items=[(
+        "marathi_saree_1","नवरात्र साडी संग्रह — नवीन वस्त्र परंपरा",
+        "Wed, 28 Oct 2026 11:00:00 GMT")])
+    out=rank_xml(xml,context=ctx)
+    assert out["status"]=="REVIEW_REQUIRED"
+    assert out["candidates"][0]["relevance_points"]>=20
+    assert out["source_is_real_time_trending_proof"] is False
+    assert out["can_publish"] is False
