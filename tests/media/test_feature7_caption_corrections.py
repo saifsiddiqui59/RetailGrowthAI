@@ -118,8 +118,9 @@ if(['pure','preview','verify'].includes(p.operation)){
  const feedback=nodes(captionField).find(n=>n.tag==='p'&&n.attributes['aria-live']==='polite');
  textarea.value=p.edit??'Our blue shirts';
  save.handlers.click();
- if(p.operation==='ui_confirmed')confirm.checked=true;
+ if(p.operation in ['ui_confirmed','ui_double_caption'])confirm.checked=true;
  submit.handlers.click();
+ if(p.operation==='ui_double_caption')submit.handlers.click();
  process.stdout.write(JSON.stringify({
   editor_disabled:textarea.disabled,save_disabled:save.disabled,
   submit_disabled:submit.disabled,events,
@@ -186,12 +187,20 @@ class Feature7CaptionCorrectionTests(unittest.TestCase):
             r=self.run_case(**opts)
             self.assertNotEqual(r.returncode,0,r.stdout)
 
+    def test_double_caption_submission_does_not_emit_second_request(self):
+        r=self.run_case(operation="ui_double_caption")
+        self.assertEqual(r.returncode,0,r.stderr)
+        out=json.loads(r.stdout)
+        self.assertEqual(len(out["events"]),1)
+        self.assertTrue(out["submit_disabled"])
+        self.assertFalse(out["events"][0]["approved"])
+
     def test_existing_reviewer_panel_submits_correction_without_scene_approval(self):
         r=self.run_case(operation="ui_confirmed")
         self.assertEqual(r.returncode,0,r.stderr)
         out=json.loads(r.stdout)
         self.assertFalse(out["editor_disabled"])
-        self.assertFalse(out["submit_disabled"])
+        self.assertTrue(out["submit_disabled"])
         self.assertEqual(out["caption_review_count"],1)
         self.assertEqual(len(out["events"]),1)
         self.assertEqual(out["events"][0]["corrections"][0]["corrected_text"],
