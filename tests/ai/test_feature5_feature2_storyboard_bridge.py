@@ -50,6 +50,13 @@ def make_packet(duration=15):
             "duration_seconds": 5, "voiceover_text": "Synthetic cue",
             "real_speech_audio_verified": False,
         })
+    # Recreate the actual Feature2 director's prev/next linked shot chain,
+    # rather than letting a contract-shaped fixture hide missing continuity.
+    for i, request in enumerate(shots):
+        direction = request["original_direction"]
+        direction["previous_shot_id"] = shots[i - 1]["shot_id"] if i else None
+        direction["next_shot_id"] = (shots[i + 1]["shot_id"]
+                                     if i + 1 < len(shots) else None)
     return {
         "schema": "retailgrowth.feature2-f4-f5-offline-fixture.v1",
         "source_engine": "pinned MIT Kuble-Lab Open Creative Director",
@@ -127,6 +134,34 @@ class Feature2F5SourceContractTests(unittest.TestCase):
             change(packet)
             with self.subTest(change=str(change)), self.assertRaises(WanCompatibilityError):
                 qualify_feature2_offline_storyboard(packet)
+
+    def test_linked_storyboard_and_product_identity_must_survive_edits(self):
+        for duration in (15, 30, 60):
+            original = make_packet(duration)
+            self.assertEqual(qualify_feature2_offline_storyboard(original)["segment_count"],
+                             duration // 5)
+            mutations = [
+                lambda p: p["feature5"]["clip_requests"][0]["original_direction"].update(
+                    next_shot_id=None),
+                lambda p: p["feature5"]["clip_requests"][1]["original_direction"].update(
+                    previous_shot_id="shot-999"),
+                lambda p: p["feature5"]["clip_requests"][1]["original_direction"].update(
+                    reference_media_id="different-garment"),
+                lambda p: p["feature5"]["clip_requests"][1]["original_direction"].update(
+                    product_sku="NEW-SKU"),
+                lambda p: p["feature5"]["clip_requests"][1]["original_direction"].update(
+                    reference_facts_sha256="f" * 64),
+                lambda p: p["feature5"]["clip_requests"][1]["original_direction"][
+                    "garment_lock"].update(unapproved_fabric="synthetic leather"),
+                lambda p: p["feature5"]["clip_requests"][1]["original_direction"].update(
+                    scene_id=p["feature5"]["clip_requests"][0]["scene_id"]),
+            ]
+            for mutate in mutations:
+                p = copy.deepcopy(original)
+                mutate(p)
+                with self.subTest(duration=duration, mutation=str(mutate)):
+                    with self.assertRaises(WanCompatibilityError):
+                        qualify_feature2_offline_storyboard(p)
 
     def test_never_promote_unregistered_media_gpu_credits_or_review(self):
         mutators = [
