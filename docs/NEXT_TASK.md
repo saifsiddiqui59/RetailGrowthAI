@@ -1295,3 +1295,6 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 private model preview cleanup gate
 - Review `feat/feature3-private-model-preview-blob-cleanup-20261029` with exact-head four CI jobs; coordinator merge only after prior claimed-lease PR #659 fresh main CI, then independently validate new main 4/4. Keep default-off private binary API, source-rights and model import/approved licensed bytes as hosted gates. A local Blob cleanup is not guaranteed instant revocation of already served pixels or previously signed 60-second URLs.
+
+## 2026-10-29 — Feature3 33-package tracker current evidence
+- Use `docs/feature3/FEATURE3_33_PACKAGE_STATUS_20261029.md` for package-by-package progress instead of counting PRs as hosted completion. Continue rights/lease, private download and browser source-only work, with separate DB owner approval, real licensed sources, cross-feature coordination and Azure #249 release gates. Preserve GPU OFF and 31 existing DEV versions.
