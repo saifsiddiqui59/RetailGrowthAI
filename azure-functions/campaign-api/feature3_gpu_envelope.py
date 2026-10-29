@@ -58,11 +58,13 @@ def decode_dispatch_envelope(payload):
     Never use it as source IDs, rights, cost approval or inference parameters.
     """
     if type(payload) is bytes:
+        if not 2 <= len(payload) <= _MAX:
+            raise GPUEnvelopeDenied("Oversized queue bytes")
         try:
             payload = payload.decode("utf-8", errors="strict")
         except UnicodeError as exc:
             raise GPUEnvelopeDenied("Invalid queue UTF-8") from exc
-    if (type(payload) is not str or not 2 <= len(payload) <= _MAX or
+    if (type(payload) is not str or not 2 <= len(payload.encode("utf-8")) <= _MAX or
             any(ord(c) < 32 and c not in " \t\r\n" for c in payload)):
         raise GPUEnvelopeDenied("GPU queue envelope missing or oversized")
     try:
