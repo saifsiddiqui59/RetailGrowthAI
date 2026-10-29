@@ -6,6 +6,7 @@ const {approveCreativeDraft,approveCreativeDraftFromTrustedReaders,expectedPlanS
 const {auditFeature4Consumer}=require('../consumer-compat');
 const {previewOffline,readinessFromOffline}=require('../offline-acceptance');
 const {projectReviewedCreativeForF4}=require('../feature4-source-projection');
+const {exportCompiled}=require('../export-feature4-feature5-fixture');
 const KEY=Buffer.alloc(48,67);
 const chunks=[];
 process.stdin.on('data',buf=>chunks.push(buf));
@@ -18,6 +19,51 @@ process.stdin.on('end',()=>{
       server_verified:true,current_member:true,
       completed_claims_review:true,completed_media_rights_review:true,
       completed_storyboard_review:true,completed_script_review:true};
+    // THIS is the same compiled object from Python trusted-context + the
+    // pinned MIT director, not a second manufactured exporter fixture.
+    assert.ok(payload.verified_brief && payload.verified_brief.server_verified===true);
+    const exported=exportCompiled(b,payload.verified_brief,c.duration_seconds);
+    assert.equal(exported.schema,'retailgrowth.feature2-f4-f5-offline-fixture.v1');
+    assert.equal(exported.source_plan_sha256,b.approval_record.plan_sha256);
+    assert.equal(exported.original_fixture_shop_id,c.shop_id);
+    assert.equal(exported.original_fixture_campaign_id,c.campaign_id);
+    assert.equal(exported.feature4.timeline.length,b.motion_direction_v1.length);
+    assert.equal(exported.feature5.clip_requests.length,b.motion_direction_v1.length);
+    assert.equal(exported.audio.narration_cues.length,b.motion_direction_v1.length);
+    assert.equal(exported.feature4.ready_to_render_customer_reel,false);
+    assert.equal(exported.feature5.can_run_paid_motion,false);
+    assert.equal(exported.review.can_publish,false);
+    assert.equal(exported.audio.real_word_sync_verified,false);
+    for(const [i,m] of b.motion_direction_v1.entries()){
+      const e=exported.feature4.timeline[i];
+      const f5=exported.feature5.clip_requests[i];
+      const digest=crypto.createHash('sha256').update(m.generation_prompt).digest('hex');
+      assert.equal(e.shot_id,m.shot_id);
+      assert.equal(e.start_seconds,m.shot_start_seconds);
+      assert.deepEqual(e.garment_lock,m.garment_lock);
+      assert.deepEqual(e.camera,m.camera);
+      assert.deepEqual(e.lighting,m.lighting);
+      assert.equal(e.immutable_motion_prompt_sha256,digest);
+      assert.equal(f5.original_prompt_sha256,digest);
+      assert.deepEqual(f5.original_direction,m);
+      assert.equal(f5.native_wan_profile.width,704);
+      assert.equal(f5.native_wan_profile.height,1280);
+      assert.equal(f5.provider_call_permitted,false);
+      assert.equal(f5.first_frame_asset_id,null);
+      assert.equal(f5.first_frame_sha256,null);
+    }
+    const foreignExportSource=structuredClone(payload.verified_brief);
+    foreignExportSource.shop_id='99999999-9999-4999-8999-999999999999';
+    assert.throws(()=>exportCompiled(b,foreignExportSource,c.duration_seconds),
+      /scope mismatch/);
+    const swappedGrant=structuredClone(payload.verified_brief);
+    swappedGrant.media_grants[0].original_media_sha256='x';
+    assert.throws(()=>exportCompiled(b,swappedGrant,c.duration_seconds),
+      /scope mismatch/);
+    const modifiedPrompt=structuredClone(b);
+    modifiedPrompt.motion_direction_v1[0].generation_prompt+=' INJECTED';
+    assert.throws(()=>exportCompiled(modifiedPrompt,payload.verified_brief,c.duration_seconds),
+      /OFFLINE_ACCEPTANCE_INVALID/);
     const mock=previewOffline(b,{gpuEnabled:false});
     assert.equal(mock.can_start_gpu,false);
     assert.equal(mock.billable_calls,0);
@@ -118,6 +164,10 @@ process.stdin.on('end',()=>{
       source_visual_clips_generated:0,billed_calls:0,
       gpu_started:false,ready_to_publish:false,
       consumer_compatibility:compat.compatibility,
+      actual_compiled_export_verified:true,
+      cross_feature_export_plan_sha256:exported.source_plan_sha256,
+      feature4_export_shots:exported.feature4.timeline.length,
+      feature5_export_requests:exported.feature5.clip_requests.length,
     })+'\n');
   } catch(err) {
     process.stderr.write('Feature2 offline unified integration failed: '+err.stack+'\n');
