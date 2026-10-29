@@ -6,6 +6,7 @@ checks signed tenant/lease/current media before using this immutable receipt.
 from __future__ import annotations
 
 from uuid import UUID
+from copy import deepcopy
 import re
 from .feature2_audio_evidence import inspect_private_narration_wav, AudioEvidenceRejected
 
@@ -113,7 +114,7 @@ def prepare_feature4_speech_review_candidate(*,shop_id,campaign_id,audio_asset_i
                 not prev<=w["startMs"]<w["endMs"]<=round(duration*1000)+1):
                 raise Feature4VoiceoverDenied("Untrusted candidate F4 captions")
             prev=w["endMs"]
-        return audio,quality
+        return deepcopy(audio),deepcopy(quality)
     original_a,original_q=current()
     same_a,same_q=current()
     if original_a!=same_a or original_q!=same_q:
