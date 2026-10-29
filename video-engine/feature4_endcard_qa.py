@@ -87,6 +87,8 @@ def verify_stock_endcard(source: Path, provenance: Path):
             or type(scenes[-2].get("start")) not in (int, float)
             or type(scenes[-2].get("duration")) not in (int, float)
             or not isinstance(cues[-1], dict)
+            or type(cues[-1].get("start")) not in (int, float)
+            or not math.isfinite(cues[-1]["start"])
             or not math.isfinite(scenes[-1]["start"])
             or not math.isfinite(scenes[-1]["duration"])
             or not 54.5 <= scenes[-1]["start"] <= 55.5
