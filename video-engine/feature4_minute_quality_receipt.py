@@ -53,11 +53,13 @@ def validate_visibility_evidence(*, original, provenance, visibility_proof):
     v=_record(visibility_proof)
     windows=p.get("scene_windows")
     measured=v.get("checked_scenes")
-    if (v.get("schema")!="feature4_scene_visibility_v1"
+    if (v.get("schema")!="feature4_scene_visibility_v2"
             or v.get("status")!="SAMPLED_SCENES_NOT_BLANK_NOT_CONTENT_APPROVAL"
             or v.get("source_sha256")!=_sha(original)
             or v.get("seconds")!=60
             or v.get("checked_scene_count")!=12
+            or v.get("sample_fractions")!=[.15,.30,.50,.70,.85]
+            or v.get("short_blank_frames_excluded_by_sampling") is not False
             or v.get("sustained_near_black_count")!=0
             or v.get("commercial_release_eligible") is not False
             or v.get("garment_identity_verified") is not False
@@ -72,17 +74,19 @@ def validate_visibility_evidence(*, original, provenance, visibility_proof):
                 or got.get("duration")!=want["duration"]
                 or got.get("sustained_near_black") is not False
                 or not isinstance(got.get("samples"),list)
-                or len(got["samples"])!=2):
+                or len(got["samples"])!=5):
             raise MinuteProofError("Scene visibility proof does not match approved timing")
-        for sample in got["samples"]:
+        for fraction,sample in zip((.15,.30,.50,.70,.85),got["samples"]):
             t=sample.get("time_seconds") if isinstance(sample,dict) else None
             luma=sample.get("mean_luma") if isinstance(sample,dict) else None
             frac=sample.get("near_black_fraction") if isinstance(sample,dict) else None
             if (type(t) not in (int,float) or type(luma) not in (int,float)
                     or type(frac) not in (int,float)
                     or not all(math.isfinite(x) for x in (t,luma,frac))
+                    or abs(t-round(want["start"]+fraction*want["duration"],3))>.0011
                     or t<=want["start"] or t>=want["start"]+want["duration"]
-                    or luma<0 or luma>255 or frac<0 or frac>1):
+                    or luma<0 or luma>255 or frac<0 or frac>1
+                    or (frac>=.985 and luma<=14)):
                 raise MinuteProofError("Invalid decoded scene visibility sample")
     return {"status":"SAMPLED_12_SCENES_VISIBLE_NOT_ARTISTIC_SIGNOFF",
             "source_sha256":v["source_sha256"],"checked_scene_count":12,
