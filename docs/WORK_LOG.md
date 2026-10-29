@@ -730,3 +730,6 @@ Use scripts/checkpoint.sh after completing a task.
 
 ## 2026-10-29 — Feature3 model-library Blob failure cleanup
 - Independent `feat/feature3-private-model-preview-blob-cleanup-20261029` source branch from post-#659 main `6b3218ee0246fda2b8022b36723ec7980c1b3160` fixes a private model-preview object URL retained after a failed image decode. Added testable exact local Blob discard helper, immutable browser-scope tests, new feature-specific handoff and four canonical docs. No new network request, paid operation, SQL migration or PROD/WineShopPOS modification. Verify full PR and postmerge main CI before marking integrated.
+
+## 2026-10-29 — Reconciled 33 Feature3 package baseline
+- Added `docs/feature3/FEATURE3_33_PACKAGE_STATUS_20261029.md` with 33 individual rows, grounded in merged source, read-only DEV evidence (31 migrations, no live models/GPU jobs or current-model/operator evidence RPC) and known external gates. Counts: 1 source-integrated, 11 source-partial, 21 blocked/dependent; 0 fully hosted end-to-end. No migration, queue, provider or PROD/WineShopPOS writes.
