@@ -12,7 +12,7 @@ from feature3_gpu_job_plan import Feature3PlanDenied
 from feature3_gpuoff_queue_intake import Feature3GPUOffQueueIntake, Feature3QueueIntakeBlocked
 
 
-class TestPlan:
+class FakePlan:
     def __init__(self,shop,job,source):
         self.shop,self.job,self.source=shop,job,source
         self.calls=[]
@@ -23,9 +23,11 @@ class TestPlan:
 
     def check(self,shop,job):
         self.calls.append((shop,job))
+        if (shop,job)!=(self.shop,self.job):
+            raise Feature3PlanDenied("foreign queued job absent")
         if self.blocked:
             raise Feature3PlanDenied("source rights revoked")
-        packet={"shop_id":self.shop if self.foreign else shop,
+        packet={"shop_id":str(uuid4()) if self.foreign else shop,
                 "job_id":job, "source_asset_ids":(self.source,),
                 "source_sha256s":("a"*64,),
                 "rights_revisions":(2,),
@@ -41,7 +43,7 @@ class TestPlan:
 class Tests(unittest.TestCase):
     def setUp(self):
         self.shop,self.job,self.asset=[str(uuid4()) for _ in range(3)]
-        self.plan=TestPlan(self.shop,self.job,self.asset)
+        self.plan=FakePlan(self.shop,self.job,self.asset)
         self.enabled=False
         self.queue=Feature3GPUOffQueueIntake(
             plan_reader=self.plan,provider_status=lambda:{"enabled":self.enabled})
@@ -64,18 +66,19 @@ class Tests(unittest.TestCase):
         invalid=(None, "", b"\xff", "{}",
                  json.dumps({**json.loads(self.msg),"source_ids":[self.asset]}),
                  self.msg.replace("dispatch.v1","dispatch.v2"),
-                 self.msg.replace(self.job,self.asset),
                  self.msg+"garbage")
         for raw in invalid:
-            self.setUp()
-            # A *different* valid job UUID is still a legitimate envelope.
-            # Its current real shop/job is independently checked by SQL.
-            if isinstance(raw,str) and raw==self.msg.replace(self.job,self.asset):
-                continue
+            self.plan.calls.clear()
             with self.subTest(raw=str(raw)[:70]),self.assertRaises(
                 Feature3QueueIntakeBlocked):
                 self.queue.inspect(raw)
             self.assertEqual(self.plan.calls,[])
+        # Another canonical UUID is valid syntax but NOT authorized SQL job.
+        # It must reach the trusted DB resolver and be denied there.
+        other_job=str(uuid4())
+        with self.assertRaises(Feature3QueueIntakeBlocked):
+            self.queue.inspect(encode_dispatch_envelope(self.shop,other_job))
+        self.assertEqual(self.plan.calls,[(self.shop,other_job)])
 
     def test_paid_provider_enabled_or_untrusted_status_never_reads(self):
         self.enabled=True
