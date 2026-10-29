@@ -118,7 +118,7 @@ test('poor-quality F4 output is a quality improvement priority, not an execution
  await page.getByRole('button',{name:/Create seven-day garment promotion/}).click()
  const section=page.getByRole('region',{name:'What to improve next'})
  await expect(section.getByText(/Output quality: 1\/5 \(human rating\)/)).toBeVisible()
- await expect(section.getByText(/Review scene pacing, 1080x1920 frame/)).toBeVisible()
+ await expect(section.locator('.rgt-guidance-item').getByText(/Review scene pacing, 1080x1920 frame/)).toBeVisible()
  await expect(section.getByText(/a reviewer rated its quality 1\/5/)).toBeVisible()
  await expect(section.getByText(/observed execution failure/i)).toHaveCount(0)
 })
