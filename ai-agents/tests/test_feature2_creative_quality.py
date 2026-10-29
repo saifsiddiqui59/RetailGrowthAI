@@ -304,3 +304,75 @@ def test_blind_review_denies_unverified_human_receipt_and_stale_revision():
     with pytest.raises(Feature2TraceDenied):
         bad()
     assert writes==[]
+
+
+from ai_agents.feature2_creative_quality import read_private_blind_review_history
+
+HISTORY_EXP="review-history-20261029"
+def history_fixture():
+    return [
+        {"shop_id":TSHOP,"campaign_id":TCAMP,
+         "experiment_id":HISTORY_EXP,"revision":n,
+         "review_status":"HUMAN_SCORE_ONLY","private":True,
+         "can_publish":False,"revoked_at":None,
+         "receipt_digest":str(n)*64,
+         "candidate_digests":{"A":"a"*64,"B":"b"*64},
+         "human_scores":{"A":60.0,"B":80.0}}
+        for n in (1,2)
+    ]
+def test_private_blind_ab_history_returns_only_signed_scored_digest_projection():
+    originals=history_fixture()
+    calls=[]
+    def signer(s,c,e,n,d,keys):
+        calls.append((n,d))
+        return (s,c,e)==(TSHOP,TCAMP,HISTORY_EXP) and n in (1,2)
+    out=read_private_blind_review_history(
+        shop_id=TSHOP,campaign_id=TCAMP,experiment_id=HISTORY_EXP,
+        current_editor=lambda *a:True,
+        read_private_history=lambda *a:copy.deepcopy(originals),
+        verify_signed_history_receipt=signer)
+    assert [x[0] for x in calls]==[1,2]
+    assert len(out["records"])==2
+    assert out["records"][0]["human_scores"]=={"A":60.0,"B":80.0}
+    assert out["records"][0]["can_publish"] is False
+    assert out["private"] and out["human_review_verified"]
+    assert not out["paid_motion_permitted"]
+    assert "reviewer_id" not in str(out) and "raw_prompt" not in str(out)
+    assert originals==history_fixture()
+
+@pytest.mark.parametrize("changed",[
+    {"shop_id":TRUN},{"campaign_id":TRUN},{"revision":3},
+    {"private":False},{"can_publish":True},
+    {"review_status":"PUBLISHED"},{"revoked_at":"2026-10-29"},
+    {"receipt_digest":"untrusted"},{"candidate_digests":{"A":"a"*64}},
+    {"human_scores":{"A":101,"B":0}},
+])
+def test_private_ab_history_denies_foreign_tampered_or_publishable_history(changed):
+    rows=history_fixture()
+    rows[0].update(changed)
+    with pytest.raises(Feature2TraceDenied):
+        read_private_blind_review_history(
+            shop_id=TSHOP,campaign_id=TCAMP,experiment_id=HISTORY_EXP,
+            current_editor=lambda *a:True,
+            read_private_history=lambda *a:copy.deepcopy(rows),
+            verify_signed_history_receipt=lambda *a:True)
+
+def test_blind_history_rejects_unsigned_receipts_and_revoked_editor():
+    rows=history_fixture()
+    with pytest.raises(Feature2TraceDenied,match="signed"):
+        read_private_blind_review_history(
+            shop_id=TSHOP,campaign_id=TCAMP,experiment_id=HISTORY_EXP,
+            current_editor=lambda *a:True,
+            read_private_history=lambda *a:copy.deepcopy(rows),
+            verify_signed_history_receipt=lambda *a:False)
+    calls=[]
+    def revoke(*a):
+        calls.append(1)
+        return len(calls)==1
+    with pytest.raises(Feature2TraceDenied,match="revoked"):
+        read_private_blind_review_history(
+            shop_id=TSHOP,campaign_id=TCAMP,experiment_id=HISTORY_EXP,
+            current_editor=revoke,
+            read_private_history=lambda *a:copy.deepcopy(rows),
+            verify_signed_history_receipt=lambda *a:True)
+    assert len(calls)==2
