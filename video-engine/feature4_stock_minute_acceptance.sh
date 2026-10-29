@@ -47,6 +47,9 @@ PY
 python3 "$ROOT/video-engine/feature4_encoded_motion_qa.py" \
   --source "$VIDEO" --duration 60 --moving-starts 0 10 20 30 40 \
   --report "$OUTPUT/feature4-60s-motion-qa.json"
+python3 "$ROOT/video-engine/feature4_scene_visibility.py" \
+  --source "$VIDEO" --duration 60 --provenance "$PROOF" \
+  --report "$OUTPUT/feature4-60s-visibility-qa.json"
 python3 "$ROOT/video-engine/feature4_audio_master.py" \
   --source "$VIDEO" --duration 60 --output "$MASTER" \
   --report "$OUTPUT/feature4-60s-audio-proof.json"
