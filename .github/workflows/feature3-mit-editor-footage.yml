@@ -24,8 +24,27 @@ jobs:
           python-version: '3.13'
       - name: Install minimal decoder
         run: python -m pip install 'Pillow==11.3.0'
+      - name: Install FFmpeg and ffprobe for actual non-GPU video encode
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Fetch genuine pinned OpenVTO synthetic garment and avatar
         run: python poster-engine/feature3_demo_inputs.py --output test-artifacts/feature3-openvto
+      - name: Preserve pinned upstream MIT license notice
+        shell: bash
+        run: |
+          python - <<'PY'
+          from hashlib import sha1
+          from pathlib import Path
+          from urllib.request import Request,urlopen
+          url='https://raw.githubusercontent.com/Prompt-Haus/OpenVTO/10140178cdb198ff17ad7b226c432bd63d732fc2/LICENSE'
+          with urlopen(Request(url,headers={'User-Agent':'RetailGrowthAI-LicensedDemo/1.0'}),timeout=15) as response:
+              assert response.geturl()==url
+              raw=response.read(2048)
+          assert len(raw)==1068
+          assert sha1(f'blob {len(raw)}\0'.encode()+raw).hexdigest()=='d246e4160c1d8c59bc9e99a90b095ec42ee5cec5'
+          Path('test-artifacts/feature3-openvto/LICENSE-openvto.txt').write_bytes(raw)
+          PY
       - name: Render silent 9s Full HD input for Feature4 / Feature7
         run: |
           ffmpeg -hide_banner -version | head -n 1
