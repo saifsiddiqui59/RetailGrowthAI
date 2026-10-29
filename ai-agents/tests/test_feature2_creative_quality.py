@@ -376,3 +376,72 @@ def test_blind_history_rejects_unsigned_receipts_and_revoked_editor():
             read_private_history=lambda *a:copy.deepcopy(rows),
             verify_signed_history_receipt=lambda *a:True)
     assert len(calls)==2
+
+
+from ai_agents.feature2_creative_quality import read_verified_private_trace
+
+def private_trace_history_case(*,tamper=None,reader=None,current=None):
+    first,rows=trace_case()
+    a=first(stage="TREND",status="STARTED",output=None)
+    first(stage="STORYBOARD",status="SUCCEEDED",
+          eid="66666666-6666-4666-8666-666666666666",
+          num=2,prior=a["event_sha256"])
+    stored=copy.deepcopy(rows)
+    if tamper:
+        stored[1].update(tamper)
+    def read(*a):
+        return copy.deepcopy(stored) if reader is None else reader(stored)
+    def run():
+        return read_verified_private_trace(
+            shop_id=TSHOP,campaign_id=TCAMP,workflow_id=TRUN,
+            source_sha256=TINPUT,service_secret=TKEY,
+            current_scope=(current or
+                (lambda s,c,w,h:(s,c,w,h)==(TSHOP,TCAMP,TRUN,TINPUT))),
+            read_private_events=read)
+    return run,stored
+
+def test_signed_private_trace_roundtrip_preserves_stage_status_no_raw_payload():
+    run,stored=private_trace_history_case()
+    result=run()
+    assert result["all_steps_verified"] and result["private"]
+    assert [e["stage"] for e in result["events"]]==["TREND","STORYBOARD"]
+    assert result["events"][0]["status"]=="STARTED"
+    assert result["events"][1]["status"]=="SUCCEEDED"
+    assert result["last_event_sha256"]==stored[-1]["event_sha256"]
+    assert result["actual_model_inference_verified"] is False
+    assert not result["can_publish"]
+    assert "server_mac" not in str(result)
+    assert "raw_prompt" not in str(result)
+
+@pytest.mark.parametrize("tamper",[
+    {"stage":"PUBLISH"}, {"status":"PUBLISHED"},
+    {"event_sha256":"f"*64}, {"server_mac":"e"*64},
+    {"event_id":TEVENT}, {"input_sha256":"0"*64},
+    {"previous_sha256":"1"*64}, {"can_publish":True},
+    {"customer_data_in_event":True}, {"failure_code":"NO_FAILURE"},
+    {"evidence_class":"REAL_UNVERIFIED"},
+])
+def test_private_trace_history_denies_tampering_publish_elevation(tamper):
+    run,_=private_trace_history_case(tamper=tamper)
+    with pytest.raises(Feature2TraceDenied):
+        run()
+
+def test_private_trace_read_denies_revoked_role_and_changed_database():
+    calls=[]
+    def actor(*a):
+        calls.append(a)
+        return len(calls)==1
+    run,_=private_trace_history_case(current=actor)
+    with pytest.raises(Feature2TraceDenied,match="revoked"):
+        run()
+    assert len(calls)==2
+    count=[]
+    def changing(rows):
+        count.append(1)
+        changed=copy.deepcopy(rows)
+        if len(count)==2:
+            changed.pop()
+        return changed
+    run,_=private_trace_history_case(reader=changing)
+    with pytest.raises(Feature2TraceDenied,match="changed"):
+        run()
