@@ -115,6 +115,40 @@ class SafeQueuePeekTests(unittest.TestCase):
             self.inspect.inspect_visible()
         self.assert_no_mutation()
 
+    def test_empty_queue_does_not_claim_gpu_off_when_provider_enabled_or_unknown(self):
+        self.queue.peek_messages.return_value=[]
+        self.enabled=True
+        with self.assertRaises(Feature3QueuePeekDenied):
+            self.inspect.inspect_visible()
+        self.queue.peek_messages.assert_not_called()
+        self.enabled=False
+        self.intake._status=lambda: (_ for _ in ()).throw(TimeoutError("status"))
+        with self.assertRaises(Feature3QueuePeekDenied):
+            self.inspect.inspect_visible()
+        self.queue.peek_messages.assert_not_called()
+        for forbidden in ("receive_message","delete_message","send_message"):
+            getattr(self.queue,forbidden).assert_not_called()
+
+    def test_gpu_enabling_during_empty_peek_fails_closed(self):
+        def flip_provider(**kwargs):
+            self.enabled=True
+            return []
+        self.queue.peek_messages.side_effect=flip_provider
+        with self.assertRaises(Feature3QueuePeekDenied):
+            self.inspect.inspect_visible()
+        self.assert_no_mutation()
+        self.assertEqual(self.plan.calls,[])
+
+    def test_gpu_turning_on_after_valid_job_peek_fails_closed(self):
+        original=self.queue.peek_messages.return_value
+        def flip_provider(**kwargs):
+            self.enabled=True
+            return original
+        self.queue.peek_messages.side_effect=flip_provider
+        with self.assertRaises(Feature3QueuePeekDenied):
+            self.inspect.inspect_visible()
+        self.assert_no_mutation()
+
     def test_limit_cannot_be_decorative_or_unbounded(self):
         for limit in (0,-1,6,20,None,True,"5"):
             with self.subTest(limit=limit),self.assertRaises(Feature3QueuePeekDenied):
