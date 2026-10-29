@@ -1292,3 +1292,6 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 claimed worker rights bridge next gates
 - Check exact-head 4/4 CI for `feat/feature3-claimed-lease-current-rights-recheck-20261029`, merge only through coordinator into latest main and verify fresh main 4/4. This is read-only post-claim verification; do not attach any Queue trigger, claim a real job, authorize a paid provider or use the test reviewer as commercial legal authority. Before worker activation, implement actual independent model AND garment rights authority, approved source SQL, private worker inputs and one-shot invoice/cost gates, along with retained unknown-ACK operator reconciliation. Hosted DEV signed acceptance and Azure #249 remain unresolved.
+
+## 2026-10-29 — Feature3 private model preview cleanup gate
+- Review `feat/feature3-private-model-preview-blob-cleanup-20261029` with exact-head four CI jobs; coordinator merge only after prior claimed-lease PR #659 fresh main CI, then independently validate new main 4/4. Keep default-off private binary API, source-rights and model import/approved licensed bytes as hosted gates. A local Blob cleanup is not guaranteed instant revocation of already served pixels or previously signed 60-second URLs.
