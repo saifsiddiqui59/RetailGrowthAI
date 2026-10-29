@@ -4,6 +4,7 @@
 import { cloneElement, useEffect, useMemo, useRef, useState } from 'react'
 import { createFeature3Api } from './feature3-api.mjs'
 import { scopedFeature3Preview } from './feature3-private-preview.mjs'
+import Feature3GeneratedHistory from './Feature3GeneratedHistory.jsx'
 
 const enabled = import.meta.env?.VITE_FEATURE3_V2_ENABLED === 'true'
 const MAX_MODEL_PREVIEWS = 5
@@ -108,6 +109,7 @@ export default function Feature3PosterHost({ client, shopId, children }) {
       <small>No paid AI or background downloads. Limited to five private previews.</small>
     </div>
     {scoped.message && <p role="status">{scoped.message}</p>}
+    <Feature3GeneratedHistory key={shopId} shopId={shopId} api={api} />
     {cloneElement(children, {feature3Api:api, approvedModels:scoped.models,
       authenticatedModelImageMap:scoped.imageMap})}
   </section>
