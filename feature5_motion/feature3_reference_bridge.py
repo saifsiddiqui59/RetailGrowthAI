@@ -137,3 +137,69 @@ def stage_approved_fashion_first_frame(
     finally:
         if made and target.is_file() and not target.is_symlink():
             target.unlink()
+
+
+def resolve_feature3_materialized_first_frame(
+    *, expected_manifest, current_readers, verify_worker_job,
+    materialize_feature5_input,
+):
+    """Adapt Feature3's own trusted worker bytes API to existing F5 staging.
+
+    Feature3 PR #604 owns materialize_feature5_input and its current private
+    readers/lease checks. Never accept a browser-produced dict or treat image
+    bytes as paid provider/marketing permission. Inject the actual Feature3
+    function after coordinator integration, not a duplicate media resolver.
+    """
+    if (type(expected_manifest) is not dict or
+        expected_manifest.get("schema") != F3_SCHEMA or
+        expected_manifest.get("purpose") != "image_to_video" or
+        expected_manifest.get("gpu_authorized") is not False or
+        expected_manifest.get("output_approved") is not False or
+        type(current_readers) is not dict or
+        not callable(verify_worker_job) or
+        not callable(materialize_feature5_input)):
+        raise WanCompatibilityError("Trusted Feature3 worker input required")
+    result=materialize_feature5_input(
+        expected_manifest=expected_manifest,
+        current_readers=current_readers,
+        verify_motion_job=verify_worker_job,
+    )
+    exact={
+        "consumer","shop_id","first_frame_asset_id",
+        "reference_fingerprint","sha256","mime_type","dimensions",
+        "image_bytes","provider_call_permitted","gpu_authorized",
+        "publish_approved",
+    }
+    try:
+        frame=expected_manifest["sources"]["first_frame"]
+        valid=(type(result) is dict and set(result)==exact and
+            result["consumer"]=="feature5" and
+            result["shop_id"]==expected_manifest["shop_id"] and
+            result["reference_fingerprint"]==expected_manifest["reference_fingerprint"] and
+            result["first_frame_asset_id"]==frame["source_asset_id"] and
+            result["sha256"]==frame["sha256"] and
+            result["mime_type"]==frame["mime_type"] and
+            result["dimensions"]==frame["dimensions"] and
+            result["provider_call_permitted"] is False and
+            result["gpu_authorized"] is False and
+            result["publish_approved"] is False and
+            type(result["image_bytes"]) is bytes and
+            100<=len(result["image_bytes"])<=MAX_INPUT and
+            sha256(result["image_bytes"]).hexdigest()==frame["sha256"])
+    except (TypeError,KeyError,ValueError):
+        valid=False
+    if not valid:
+        raise WanCompatibilityError(
+            "Feature3 worker supplied stale, unauthorized or changed first frame")
+    # This is the established F3 resolve_first_frame shape. The existing F5
+    # stage_approved_fashion_first_frame still re-decodes, re-hashes,
+    # letterboxes and deletes these private bytes on context exit.
+    return {
+        "shop_id":result["shop_id"],
+        "source_asset_id":result["first_frame_asset_id"],
+        "sha256":result["sha256"],
+        "mime_type":result["mime_type"],
+        "dimensions":result["dimensions"],
+        "image_bytes":result["image_bytes"],
+        "gpu_authorized":False,
+    }
