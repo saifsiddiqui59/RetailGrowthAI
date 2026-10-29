@@ -220,6 +220,24 @@ class Feature5Part3OfflineAcceptanceTests(unittest.TestCase):
                 self.assertEqual((store.uploads,store.commits),(0,0))
                 self.assertFalse(store.intent)
 
+    def test_forged_technical_inspection_cannot_consume_import_intent(self):
+        """A self-issued metadata tuple cannot replace fresh MP4 FFprobe."""
+        for field,value in (
+            ("width",1920),
+            ("height",1080),
+            ("fps",30),
+            ("frames",120),
+            ("codec","mpeg4"),
+            ("duration_seconds",7.0),
+        ):
+            with self.subTest(field=field):
+                store,params,_=self.setup_case()
+                params["inspection"]=replace(params["inspection"],**{field:value})
+                with self.assertRaises(WanCompatibilityError):
+                    import_wan_into_existing_part3(**params)
+                self.assertFalse(store.intent)
+                self.assertEqual((store.uploads,store.commits),(0,0))
+
     def test_unknown_storage_failure_never_retries_or_refunds(self):
         store,params,_=self.setup_case()
         def ambiguous_upload(*values):
