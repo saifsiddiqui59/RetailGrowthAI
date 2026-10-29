@@ -23,11 +23,12 @@ class MinuteEvidenceTests(unittest.TestCase):
               "caption_srt":self.root/"review.srt",
               "caption_vtt":self.root/"review.vtt",
               "caption_proof":self.root/"caption-proof.json",
-              "visibility_proof":self.root/"visibility-proof.json"}
+              "visibility_proof":self.root/"visibility-proof.json",
+              "endcard_proof":self.root/"endcard-proof.json"}
         # No media inspection is allowed before the complete acceptance
         # evidence is present; a false NOT_RUN success must be impossible.
         for missing in ("captioned","caption_srt","caption_vtt",
-                        "caption_proof","visibility_proof"):
+                        "caption_proof","visibility_proof","endcard_proof"):
             with self.subTest(missing=missing):
                 kw={**full,missing:None}
                 with patch("feature4_minute_quality_receipt.inspect_mp4",
