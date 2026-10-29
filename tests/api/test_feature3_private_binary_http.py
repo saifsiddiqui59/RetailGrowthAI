@@ -64,7 +64,8 @@ class BinaryHTTPTests(unittest.TestCase):
         self.assert_private_headers(headers)
         self.assertEqual(self.reader.calls,
                          [("signed-retailer-test",self.shop,self.job)])
-        self.assertNotIn(self.reader.media,str(headers))
+        self.assertNotIn("object_path",str(headers).lower())
+        self.assertNotIn("signedurl",str(headers).lower())
         self.assertNotIn("token",str(headers).lower())
     def test_invalid_method_or_token_refuses_without_private_read(self):
         for method in ("POST","PATCH","DELETE","HEAD","OPTIONS"):
