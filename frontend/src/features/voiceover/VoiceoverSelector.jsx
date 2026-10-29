@@ -33,7 +33,8 @@ export default function VoiceoverSelector({
     file?.name,file?.size,file?.lastModified].join(':')
   useEffect(()=>{
     setSelection(emptyVoiceSelection())
-    setConfirmed(false);setError('');setMessage('');setFile(null);setLocale('en-IN');setVoiceProvider('kokoro')
+    setBusy(false);setConfirmed(false);setError('');setMessage('');setFile(null)
+    setLocale('en-IN');setVoiceProvider('kokoro')
   },[shopId,campaignId,planSha256,sourceScript])
   const authorizedAssets=useMemo(()=>
     (Array.isArray(approvedAudioAssets)?approvedAudioAssets:[])
