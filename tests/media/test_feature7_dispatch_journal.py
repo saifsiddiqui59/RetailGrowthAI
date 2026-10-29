@@ -6,6 +6,9 @@ effect idempotency. No paid GPU, Azure, external APIs or media upload.
 """
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+import json
+import signal
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -255,6 +258,55 @@ class Feature7DispatchJournalTests(unittest.TestCase):
             self.store.finish(context=ctx(),lease=lease,
               result_sha256=OUTPUT,now_ms=2000)
 
+
+
+    @unittest.skipUnless(hasattr(signal, 'SIGKILL'),
+                         'Real SIGKILL requires a POSIX CPU runner')
+    def test_real_worker_sigkill_releases_expired_lease_with_new_fence(self):
+        """The killed worker never ACKs. Reclaim only after expiry with new fence."""
+        job=self.stage()
+        script="""
+import json,os,signal,sys
+from dataclasses import asdict
+sys.path.insert(0,sys.argv[2])
+from review_journal import CurrentReviewContext
+from review_dispatch_journal import LocalApprovedEditDispatch
+store=LocalApprovedEditDispatch(sys.argv[1])
+current=CurrentReviewContext('shop-a','campaign-a','reviewer-a',
+  'EDITOR',True,True,'c'*64)
+lease=store.lease_next(context=current,now_ms=1100,lease_ms=1000)
+assert lease is not None
+print(json.dumps(asdict(lease)),flush=True)
+os.kill(os.getpid(),signal.SIGKILL)
+"""
+        proc=subprocess.run(
+            [sys.executable,'-c',script,str(self.database),
+             str(ROOT/'video-engine'/'feature7')],
+            capture_output=True,text=True,timeout=15)
+        self.assertEqual(proc.returncode,-signal.SIGKILL,proc.stderr)
+        from review_dispatch_journal import DispatchLease
+        first=DispatchLease(**json.loads(proc.stdout.strip()))
+        self.assertEqual(first.attempt,1)
+        self.assertEqual(first.idempotency_key,job['idempotency_key'])
+        self.assertIsNone(self.store.lease_next(
+            context=ctx(),now_ms=1500,lease_ms=1000))
+        # The worker process is dead, but SQLite WAL receipt survives.
+        self.store.close()
+        self.store=LocalApprovedEditDispatch(self.database)
+        second=self.store.lease_next(
+            context=ctx(),now_ms=2100,lease_ms=1000)
+        self.assertIsNotNone(second)
+        self.assertEqual(second.attempt,2)
+        self.assertNotEqual(first.fence,second.fence)
+        self.assertEqual(first.idempotency_key,second.idempotency_key)
+        with self.assertRaises(ReviewStateError):
+            self.store.finish(context=ctx(),lease=first,
+              result_sha256=OUTPUT,now_ms=2150)
+        self.assertEqual(self.store.finish(
+            context=ctx(),lease=second,
+            result_sha256=OUTPUT,now_ms=2200)['state'],'SUCCEEDED')
+        self.assertIsNone(self.store.lease_next(
+            context=ctx(),now_ms=5000,lease_ms=1000))
 
 if __name__=='__main__':
     unittest.main()
