@@ -49,12 +49,13 @@ def published_voices_in_region(*, region, api_key, shop_id, actor_may_read_shop,
             if type(row) is not dict:
                 raise VoiceCatalogUnavailable("Malformed voice catalog entry")
             ident=row.get("ShortName")
-            if ident in {v["id"] for v in catalog()}:
-                if ident in found or (row.get("Locale") not in ("en-IN","hi-IN","mr-IN") or
-                                      row.get("Gender") not in ("Male","Female") or
-                                      row.get("VoiceType") not in ("Neural","Standard","NeuralHD")):
+            curated = next((v for v in catalog() if v["id"] == ident), None)
+            if curated is not None:
+                if (ident in found or row.get("Locale") != curated["locale"] or
+                    row.get("Gender") != curated["gender"] or
+                    row.get("VoiceType") not in ("Neural", "Standard", "NeuralHD")):
                     raise VoiceCatalogUnavailable("Provider voice identity differs")
-                found[ident]=row
+                found[ident] = row
         if actor_may_read_shop(shop_id) is not True:
             raise VoiceCatalogUnavailable("Shop read permission changed")
         result=[{**v,"region_verified":True} for v in catalog()
