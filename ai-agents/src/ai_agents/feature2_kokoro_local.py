@@ -197,7 +197,7 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
     paid Azure/remote model calls. The optional injected runner is TEST ONLY.
     """
     if (type(repeats) is not int or not 1<=repeats<=3 or
-        type(cache_dir) not in (str,Path) or not str(cache_dir) or
+        not isinstance(cache_dir,(str,Path)) or not str(cache_dir) or
         type(voice_id) is not str or SUPPORTED_VOICES.get(voice_id)!=lang or
         type(trusted_for_tests) is not bool or
         (synthesize is not None and
