@@ -42,9 +42,10 @@ def inspect_native_mp4(shot: WanShotPackage, *, staged_file: Path, ffprobe="ffpr
     candidate = Path(staged_file)
     if candidate.is_symlink() or candidate.suffix.lower() != ".mp4" or not candidate.is_file():
         raise WanCompatibilityError("Expected local private .mp4, no symlinks/URLs")
-    size = candidate.stat().st_size
-    if not 0 < size <= MAX_CLIP_BYTES:
-        raise WanCompatibilityError("Generated MP4 missing/oversized")
+    initial = candidate.stat(follow_symlinks=False)
+    size = initial.st_size
+    if not 0 < size <= MAX_CLIP_BYTES or initial.st_nlink != 1:
+        raise WanCompatibilityError("Generated MP4 missing/oversized or linked")
     # Canonical private worker paths are independently scoped by the caller.
     target = candidate.resolve(strict=True)
     try:
@@ -55,7 +56,22 @@ def inspect_native_mp4(shot: WanShotPackage, *, staged_file: Path, ffprobe="ffpr
              "-of","json",str(target)],
             check=True, capture_output=True, text=True, timeout=30,
         )
-        data = json.loads(result.stdout[:50000])
+        # Never parse only a prefix: a forged/oversized ffprobe response
+        # could hide a second audio/video stream after the accepted JSON.
+        if type(result.stdout) is not str or len(result.stdout) > 50000:
+            raise ValueError("Oversized or invalid ffprobe JSON output")
+        def unique_json_keys(pairs):
+            values = {}
+            for key, value in pairs:
+                if key in values:
+                    raise ValueError("Ambiguous ffprobe JSON duplicate key")
+                values[key] = value
+            return values
+        data = json.loads(
+            result.stdout, object_pairs_hook=unique_json_keys,
+            parse_constant=lambda _: (_ for _ in ()).throw(
+                ValueError("Nonfinite ffprobe number")),
+        )
         # Native Wan SaveVideo output is exactly one silent H264 video.
         # Extra audio, subtitles, attachments or second video streams can
         # smuggle unreviewed content into the downstream editor/publisher.
@@ -77,8 +93,11 @@ def inspect_native_mp4(shot: WanShotPackage, *, staged_file: Path, ffprobe="ffpr
         with target.open("rb") as h:
             for part in iter(lambda:h.read(1024*1024),b""):
                 digest.update(part)
-        if target.stat().st_size != size:
-            raise ValueError("File changed during receipt hashing")
+        final = target.stat(follow_symlinks=False)
+        if (final.st_dev, final.st_ino, final.st_size, final.st_mtime_ns) != (
+            initial.st_dev, initial.st_ino, initial.st_size, initial.st_mtime_ns
+        ):
+            raise ValueError("File changed during ffprobe or receipt hashing")
         return NativeClipInspection(digest.hexdigest(),size,704,1280,24,121,
                                     duration,"h264",shot.lineage_sha256)
     except (OSError,ValueError,KeyError,TypeError,subprocess.SubprocessError) as exc:
