@@ -43,7 +43,7 @@ class VisualReview:
             raise MotionError("Missing immutable clip hash for visual review")
         if self.decision not in ("APPROVED", "REJECTED"):
             raise MotionError("Human quality decision required")
-        if type(self.checks) is not dict or set(self.checks) != set(CATEGORIES):
+        if type(self.checks) not in (dict, MappingProxyType) or set(self.checks) != set(CATEGORIES):
             raise MotionError("Incomplete visual acceptance checklist")
         if any(type(v) is not bool for v in self.checks.values()):
             raise MotionError("Each visual check must be manually assessed")
