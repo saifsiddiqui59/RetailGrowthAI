@@ -86,6 +86,18 @@ def evaluate_decoded_video(*,video_path,expected_sha256,
                 and abs(expected_duration_seconds-duration)<=.25,
                 "Render duration does not match expected AutoClip clock")
     width,height=videos[0].get("width"),videos[0].get("height")
+    try:
+        v_start=float(videos[0].get("start_time",0))
+        a_start=float(audios[0].get("start_time",0))
+        v_length=float(videos[0].get("duration"))
+        a_length=float(audios[0].get("duration"))
+    except (ValueError,TypeError) as exc:
+        raise DecodedQualityError("Missing A/V presentation-time evidence") from exc
+    require(all(math.isfinite(v) for v in (v_start,a_start,v_length,a_length))
+            and min(v_length,a_length)>0,
+            "Bad decoded A/V stream timing")
+    start_skew=abs(v_start-a_start)
+    end_skew=abs((v_start+v_length)-(a_start+a_length))
     require(isinstance(width,int) and isinstance(height,int) and
             100<=width<=3840 and 100<=height<=3840,
             "Invalid decoded video dimensions")
@@ -106,6 +118,8 @@ def evaluate_decoded_video(*,video_path,expected_sha256,
     # A pause may be intentional. Thresholds are conservative objective QA
     # flags, not an AI judgement of acting, narrative or products.
     faults=[]
+    if start_skew>.12 or end_skew>.18:
+        faults.append("AUDIO_VIDEO_PRESENTATION_SKEW")
     if levels["mean_volume"] < -45:
         faults.append("AUDIO_TOO_QUIET_FOR_REVIEW")
     if levels["max_volume"] > -.3:
@@ -121,6 +135,10 @@ def evaluate_decoded_video(*,video_path,expected_sha256,
       "source_sha256":expected_sha256,
       "duration_seconds":round(duration,3),
       "frame_dimensions":[width,height],
+      "av_start_skew_seconds":round(start_skew,3),
+      "av_end_skew_seconds":round(end_skew,3),
+      "audio_stream_duration_seconds":round(a_length,3),
+      "video_stream_duration_seconds":round(v_length,3),
       "audio_mean_dbfs":levels["mean_volume"],
       "audio_peak_dbfs":levels["max_volume"],
       "longest_silence_seconds":round(long_audio,3),

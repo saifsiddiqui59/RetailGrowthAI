@@ -46,6 +46,8 @@ class Feature7DecodedQualityTests(unittest.TestCase):
         self.assertTrue(report["objective_checks_passed"],report)
         self.assertLess(report["audio_peak_dbfs"],-.3)
         self.assertEqual(report["frame_dimensions"],[160,288])
+        self.assertLessEqual(report["av_start_skew_seconds"],.12)
+        self.assertLessEqual(report["av_end_skew_seconds"],.18)
         for field in ["commercial_quality_accepted","approved",
             "customer_publishable","lip_sync_measured",
             "spoken_word_accuracy_verified","product_or_model_identity_verified"]:
