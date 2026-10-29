@@ -128,3 +128,29 @@ claiming the 60s stock-concat sample is professionally varied. A genuine
 still-video fixture with repeated frames must trigger this warning.
 This is a heuristic for visual review, NOT automated acceptance or identity
 proof; `visual_diversity_accepted=false` always remains until owner review.
+
+
+## F4-62 — five-point actual scene visibility, immutable media proof (2026-10-29)
+
+Previous proof sampled only 30% and 70% of each scene. A black/blank encoded
+interval between those two frames could pass; the old receipt also did not
+recompute sampled near-black metrics or require exact sample time positions.
+The Feature4-owned `feature4_scene_visibility.py` now decodes **five frames
+at 15%, 30%, 50%, 70%, 85% per scene** from the actual encoded H264/AAC video,
+rejects a nearly entirely black frame at any sampled point, and hashes the
+source before and after decoding to reject mutation while producing proof.
+The linked 60s proof has schema `feature4_scene_visibility_v2` and a fixed
+sample schedule; `feature4_minute_quality_receipt.py` fails closed on a
+missing, shifted, legacy or forged-black probe. Offline FFmpeg regression makes
+an actual 1.5s black interval in the *middle* of the first 5s shot, which the
+old 30%/70% checks missed; a positive colored scene remains accepted as purely
+technical evidence. The standalone minute runner already invokes both helpers.
+
+**Limitations:** 5 samples/scene are not exhaustive frame-by-frame monitoring,
+face/product identification, sound or dialogue review, real spoken subtitle
+alignment, absence of overlays, verified third-party approval or human visual
+acceptance. A brief black flash could still occur between samples. The 60s
+provenance/QA receipt must be regenerated with v2, **not** relabeled from old
+receipts. No GPU, paid service, shared file, hosting, customer data or media
+publishing was added. Source commits `3cb13517`, `d1c7021e`,
+`80b54465`, `52bd614b`; exact-head CI must pass before marking verified.
