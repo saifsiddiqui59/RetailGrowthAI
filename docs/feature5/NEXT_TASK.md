@@ -323,3 +323,10 @@ Run exact-head four-job CI after new single-path F3→CPU FFmpeg→Part3→F4 in
 **COORDINATOR NEXT**: review F3 #630 demo-only byte packet and F2 #551 creative source (both open), then merge in owner-approved order and retest actual authoritative imports. Source F5 can ingest existing real approved worker-media bytes independently, but live F2 writer/VM path not deployed and live F3 customer garment try-on absent. Do not treat separate demo garment/photo as SKU-worn first frame.
 
 **STILL REQUIRED (not solvable from source mocks)**: Part3 #125 hosted durable premium job/claim/lease/credits/one-time intent/actual private output readback+storage; F5 approved immutable CUDA/Comfy runtime and full mounted checkpoint hash, protected native `/object_info`; explicit capped model GPU/API execution cost and real generated 5s video; independent actual garment/face/motion QA + F4 licensed final Reel; signed 2-shop DEV canary after coordinator release. #249 gateway unresolved; PR #465 stays draft.
+
+
+## 2026-10-29 — New F2->F5 15/30/60s offline source gate follow-up
+
+- Validate the *actual* Node `exportFixture(15|30|60)` output through `qualify_feature2_offline_storyboard` after coordinator integrates F2 #551 or provides an approved trusted artifact. The current new tests use contract-shaped source, not direct unmerged exporter execution. Preserve all original prompt/scene/garment SHA and deny customer/GPU permissions.
+- Do not relax this gate to obtain green CI: inspect final exact-head Python, FFmpeg, frontend/Playwright and disposable Supabase jobs, fix F5-owned failures.
+- No synthetic packet is a real garment-wearing approved F3 first frame or a Part3 JWT/lease/credit entitlement. Coordinator still owns actual Part3 contract and private Storage reader; F3 #630 demo-byte consumer remains pending its own merge. No paid native generation authorized.
