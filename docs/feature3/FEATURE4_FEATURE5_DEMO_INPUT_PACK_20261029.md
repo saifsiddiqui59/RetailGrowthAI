@@ -30,7 +30,6 @@ The generated `manifest.json` has `feature4` and `feature5` read-only entries. B
 
 Run workflow `Feature3 pinned OpenVTO real demo source pack` on branch `feat/feature3-real-demo-input-pack-20261029` or use its branch push run, then download short-lived artifact `feature3-openvto-mit-demo-inputs` with original bytes, `manifest.json` and upstream MIT LICENSE. **CI source download success must be separately inspected; workflow trigger alone is not source acceptance.**
 
-
 ## 2026-10-29 ACTUAL original-byte download succeeded (supersedes initial source-only wording)
 - GitHub Actions [#40829987383](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40829987383) completed SUCCESS running the pinned downloader on a GitHub-hosted Ubuntu worker. It verified upstream three raw images against exact Git blob SHA1, length and Pillow format, then pinned upstream `LICENSE` Git blob `d246e4160c1d8c59bc9e99a90b095ec42ee5cec5`, and verified the resulting manifest's explicit no-GPU/no-publish gates.
 - The bundle is available as Actions artifact **`feature3-openvto-mit-inputs`** (GitHub artifact ID `12877664995`, 1,339,123 bytes ZIP, expires 2026-11-28 UTC); users with repository Actions access can download directly from that run. ZIP contains three verified media files, `manifest.json` and `LICENSE-openvto.txt`. This is now actual externally downloaded upstream media evidence, not only mocked Pillow downloader tests.
