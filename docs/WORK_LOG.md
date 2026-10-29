@@ -698,3 +698,6 @@ Use scripts/checkpoint.sh after completing a task.
 - 2026-10-29: Coordinator conflict-reconciled the Feature3 private source byte proof #645 into current-main integration without dropping prior history. Verify four-job exact head CI and postmerge main separately; real legal authority and hosted source approval still pending.
 
 - 2026-10-29 Feature3 resumed after verified #644 successful main CI: implemented actual private Supabase Storage source-byte GET/real Pillow hash+pixel validation for PNG/JPEG/WebP and mandatory separate current licence/customer approval with double rights-revision check; factory composes the adapter into existing read-only GPU-off SQL preflight. Added synthetic real-byte mocked HTTP tests for valid/foreign/unsafe/redirect/revocation/malformed metadata and credential denial. Source-only: external legal authority unimplemented, real media not queried, GPU OFF, no hosted writes, PROD or WineShopPOS. Four-job exact-head CI pending.
+
+
+- 2026-10-29 Feature3 P0 source: added two-phase backend output evidence RPC + actual Storage PNG byte readback/SHA256/Pillow verification, POST-only service RPC allowlist, negative fake HTTP/SQL tests, and unversioned SQL proposal preserving the frozen 31-migration release plan. No paid inference, hosted SQL, operator financial action, PROD or WineShopPOS.

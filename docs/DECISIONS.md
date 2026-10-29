@@ -935,3 +935,7 @@
 
 ## 2026-10-29 — Source hash evidence and legal rights must be independent
 - Feature3 preflight requires an actual private Storage GET and byte-level image decode/hash, plus **independent** separately reviewed current customer/licence authorization bound to that exact shop/media/digest/revision. Read twice around possible revocation and rely on the planner's second SQL snapshot to fence TOCTOU; the database media row's self-reported license label and a browser approval are not commercial rights proof. Keep the receipt free of private byte/path/keys and mark planning GPU off. Only after real operator evidence and live signed DEV can execution be considered under cost approval.
+
+
+## 2026-10-29 — Generated output operator evidence must include real bytes, not only SQL
+- Only service_role may inspect immutable job/output evidence, and a SQL or storage.objects row is insufficient to prove stored pixels. Bound exact same-tenant private PNG GET and SHA256/format/size validation between two authoritative SQL reads before returning a read-only operator receipt. Keep new DDL outside canonical migrations until separate coordinator approval/versioning; 31-current gate, no replay/charge/refund/publish authorization.

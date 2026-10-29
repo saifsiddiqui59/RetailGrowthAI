@@ -48,6 +48,7 @@ class AdminStore:
                         "rpc/feature3_claim_gpu_dispatch",
                         "rpc/feature3_confirm_gpu_dispatch",
                         "rpc/feature3_audit_gpu_recovery",
+                        "rpc/feature3_read_gpu_private_evidence",
                         "rpc/retail_feature_worker_append"):
             raise ValueError("unsupported worker path")
         # Immutable live job/reservation/model/design/subscription snapshots
@@ -63,6 +64,7 @@ class AdminStore:
             "rpc/feature3_claim_gpu_dispatch",
             "rpc/feature3_confirm_gpu_dispatch",
             "rpc/feature3_audit_gpu_recovery",
+            "rpc/feature3_read_gpu_private_evidence",
         } and method != "POST":
             raise ValueError("Feature3 privileged GPU RPC requires POST")
         url = self.origin + "/rest/v1/" + path
