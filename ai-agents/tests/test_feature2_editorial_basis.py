@@ -1,7 +1,7 @@
 """Offline creative preview continues without inventing a clothing RSS trend."""
 from copy import deepcopy
 import pytest
-from ai_agents.feature2_editorial_basis import (
+from ai_agents.feature2_creative_quality import (
     choose_evergreen_when_no_relevant_live_trend, EditorialBasisRejected,
 )
 
@@ -57,7 +57,7 @@ def test_real_trend_list_must_go_through_protected_relevance_and_signed_post():
             relevant_source_backed_trends=[{"trend_id":"invented-id"}]
         )
 
-from ai_agents.feature2_editorial_basis import inspect_retailer_copy_claims
+from ai_agents.feature2_creative_quality import inspect_retailer_copy_claims
 
 def copy_context():
     context=owned_retailer()
@@ -114,7 +114,7 @@ def test_foreign_fake_shop_or_unapproved_offer_copy_is_denied():
                                    copy=candidate_copy(cta="<script>alert(1)</script>"))
 
 from datetime import datetime, timezone
-from ai_agents.feature2_editorial_basis import rank_source_backed_trends
+from ai_agents.feature2_creative_quality import rank_source_backed_trends
 
 def trusted_rss():
     context=owned_retailer()
