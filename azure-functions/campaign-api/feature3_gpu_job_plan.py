@@ -201,6 +201,7 @@ class Feature3GPUJobPlanPreflight:
         snapshot=self._snapshot(shop,job,claimed_token)
         verified=[]
         model_hashes={m["media_asset_id"]:m["image_sha256"] for m in snapshot["models"]}
+        model_revisions={m["media_asset_id"]:m["rights_revision"] for m in snapshot["models"]}
         for asset in snapshot["ids"]:
             raw=self.proof(shop,dict(snapshot["assets"][asset]))
             if (not isinstance(raw,dict) or set(raw)!={
@@ -217,7 +218,8 @@ class Feature3GPUJobPlanPreflight:
                 raw.get("current_customer_approval") is not True or
                 raw.get("rights_revoked") is not False or
                 (asset in model_hashes and
-                 raw["image_sha256"]!=model_hashes[asset])):
+                 (raw["image_sha256"]!=model_hashes[asset] or
+                  raw["rights_revision"]!=model_revisions[asset]))):
                 raise Feature3PlanDenied("Current private bytes or independent rights unconfirmed")
             verified.append((asset,raw["image_sha256"],raw["rights_revision"]))
         # Model and tenant rights might change during actual private image
