@@ -4,6 +4,12 @@ import { analyzeImprovementPriorities } from '../../frontend/src/features/testin
 
 const event=(feature,status,event_seq,action='step',details={})=>
   ({feature,status,event_seq,action,summary:'Observed stage response',details})
+const F2_OUTPUT={improved_prompt:'A complete safe draft about verified boutique products',
+ provider_mode:'deterministic'}
+const F4_OUTPUT={status:'SUCCEEDED',
+ render_job_id:'33333333-3333-4333-8333-333333333333',
+ output_asset_id:'44444444-4444-4444-8444-444444444444'}
+
 
 test('failed stage stays first priority even after a later PASS',()=>{
   const result=analyzeImprovementPriorities([
@@ -35,9 +41,9 @@ test('unknown FFmpeg remains uncertain; recommendation says inspect, not rerun',
 
 test('low human quality targets completed feature without making technical stage fail',()=>{
   const result=analyzeImprovementPriorities([
-    event('F4','PASS',1,'ffmpeg-result'),
+    event('F4','PASS',1,'ffmpeg-result',F4_OUTPUT),
     event('F4','QUALITY_REVIEW',2,'human-quality-review',{score:1}),
-    event('F2','PASS',3,'prompt-improvement'),
+    event('F2','PASS',3,'prompt-improvement',F2_OUTPUT),
     event('F2','QUALITY_REVIEW',4,'human-quality-review',{score:5}),
   ])
   assert.equal(result.attention.length,1)
@@ -85,7 +91,7 @@ test('all empty events present no executed feature, rating or fake diagnosis',()
 
 test('human reviewer can isolate weak audio without claiming a codec or worker failure',()=>{
  const result=analyzeImprovementPriorities([
-   event('F4','PASS',1,'ffmpeg-result'),
+   event('F4','PASS',1,'ffmpeg-result',F4_OUTPUT),
    event('F4','QUALITY_REVIEW',2,'human-quality-review',{score:1,dimension:'audio'}),
  ])
  const item=result.attention[0]
@@ -94,4 +100,13 @@ test('human reviewer can isolate weak audio without claiming a codec or worker f
  assert.equal(item.latest_human_dimension,'audio')
  assert.match(item.reason,/Voiceover and music mix 1\/5/)
  assert.match(item.recommended_action,/Listen for intelligible speech/)
+})
+
+test('an accepted job submission without a finished Reel cannot become a low-quality video',()=>{
+ const report=analyzeImprovementPriorities([
+  event('F4','PASS',1,'ffmpeg-submission',{render_job_id:F4_OUTPUT.render_job_id}),
+  event('F4','QUALITY_REVIEW',2,'human-quality-review',{score:1,dimension:'audio'}),
+ ])
+ assert.equal(report.attention.length,0)
+ assert.equal(report.entries.find(x=>x.feature==='F4').latest_human_score,null)
 })
