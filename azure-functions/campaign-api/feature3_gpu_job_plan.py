@@ -242,6 +242,12 @@ class Feature3GPUJobPlanPreflight:
                 fresh.get("current_customer_approval") is not True or
                 fresh.get("rights_revoked") is not False):
                 raise Feature3PlanDenied("Current source rights changed after DB read")
+        # The final independent media-rights read can itself outlive the
+        # originally valid lease. Never report a claimed lease as current
+        # merely because its DB snapshot was valid before that last read.
+        if (claimed_token is not None and
+                _time(after["job"]["lease_until"]) <= datetime.now(timezone.utc)):
+            raise Feature3PlanDenied("One-shot GPU lease expired during final rights proof")
         return {"shop_id":shop,"job_id":job,
                 "source_asset_ids":snapshot["ids"],
                 "source_sha256s":tuple(x[1] for x in verified),
