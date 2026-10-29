@@ -203,3 +203,77 @@ def resolve_feature3_materialized_first_frame(
         "image_bytes":result["image_bytes"],
         "gpu_authorized":False,
     }
+
+
+def resolve_feature3_worker_handoff_first_frame(
+    *, expected_manifest, current_readers, verify_worker_job,
+    resolve_private_worker_inputs,
+):
+    """Adapt the actual Feature3 whole-fashion private-worker handoff.
+
+    The source-owned resolver independently rereads the reviewed garment,
+    model and actual worn first-frame bytes under the current leased worker,
+    then refreshes approval after those reads. Feature5 also checks each
+    immutable role against its own signed manifest, not only the first frame.
+    Neither this adapter nor the resolver grants GPU/provider/publish access.
+    """
+    if (type(expected_manifest) is not dict or
+        expected_manifest.get("schema") != F3_SCHEMA or
+        expected_manifest.get("purpose") != "image_to_video" or
+        expected_manifest.get("gpu_authorized") is not False or
+        expected_manifest.get("output_approved") is not False or
+        type(current_readers) is not dict or
+        not callable(verify_worker_job) or
+        not callable(resolve_private_worker_inputs)):
+        raise WanCompatibilityError("Current trusted Feature3 full worker handoff required")
+    package = resolve_private_worker_inputs(
+        expected_manifest=expected_manifest,
+        current_readers=current_readers,
+        verify_worker_job=verify_worker_job,
+    )
+    keys = {"schema", "shop_id", "purpose", "source_fingerprint",
+            "garment_identity", "images", "rights_checked",
+            "recheck_before_next_job", "output_approved", "gpu_authorized",
+            "provider_call_permitted"}
+    if (type(package) is not dict or set(package) != keys or
+        package["schema"] != "retailgrowth.feature3-worker-private-inputs.v1" or
+        package["shop_id"] != expected_manifest["shop_id"] or
+        package["purpose"] != "image_to_video" or
+        package["source_fingerprint"] != expected_manifest["reference_fingerprint"] or
+        package["garment_identity"] != expected_manifest["garment"] or
+        package["rights_checked"] is not True or
+        package["recheck_before_next_job"] is not True or
+        package["output_approved"] is not False or
+        package["gpu_authorized"] is not False or
+        package["provider_call_permitted"] is not False or
+        type(package["images"]) is not dict or
+        set(package["images"]) != {"garment", "model", "first_frame"}):
+        raise WanCompatibilityError("Stale or unreviewed Feature3 worker fashion bundle")
+    sources = expected_manifest.get("sources")
+    if type(sources) is not dict or set(sources) != {"garment", "model", "first_frame"}:
+        raise WanCompatibilityError("Missing independently reviewed garment/model/frame")
+    for role in ("garment", "model", "first_frame"):
+        item = package["images"][role]
+        ref = sources[role]
+        if (type(item) is not dict or type(ref) is not dict or
+            set(item) != {"source_asset_id", "sha256", "mime_type",
+                          "dimensions", "image_bytes"} or
+            item["source_asset_id"] != ref["source_asset_id"] or
+            item["sha256"] != ref["sha256"] or
+            item["mime_type"] != ref["mime_type"] or
+            item["dimensions"] != ref["dimensions"] or
+            type(item["image_bytes"]) is not bytes or
+            not 100 <= len(item["image_bytes"]) <= MAX_INPUT or
+            sha256(item["image_bytes"]).hexdigest() != item["sha256"]):
+            raise WanCompatibilityError(
+                "Feature3 private " + role + " does not match reviewed original bytes")
+    frame = package["images"]["first_frame"]
+    return {
+        "shop_id": package["shop_id"],
+        "source_asset_id": frame["source_asset_id"],
+        "sha256": frame["sha256"],
+        "mime_type": frame["mime_type"],
+        "dimensions": frame["dimensions"],
+        "image_bytes": frame["image_bytes"],
+        "gpu_authorized": False,
+    }
