@@ -29,3 +29,12 @@ All synthetic offer/approval markers in existing director test inputs are NOT me
 Repeatable CI: ai-agents/tests/test_feature2_cross_feature_export.py, ai-agents/tests/test_feature2_synthetic_matte.py and the original director upstream tests.
 
 Coordinator: never double-merge #551 with overlapping Feature2 draft PRs. Share these source paths with Feature4 PR #322 and Feature5 PR #465 for immediate independent adoption.
+## Actual 5-second FFmpeg/H264 media source
+
+The checked-in local technical render tool produces ORIGINAL real video bytes (not a feature mock), 1080x1920 at 24 fps with H264/AAC silent audio, plus first-frame PNG, original SHA and a rendered-video receipt:
+
+    python ai-agents/test-fixtures/clothing-shop-pexels/render-offline-reference.py --output-dir /tmp/rgai-feature45-test --render
+
+With no --render flag this tool is a zero-write plan. It validates the final 5-second MP4 using ffprobe, does not upload to private Storage, and cannot create an approved garment/media grant. The actual offline tech render was executed locally and ffprobe returned H264, AAC, 1080x1920, 24 fps and exactly 5.000 seconds. It is a static experimental visual matte, NOT a professional commercial video. Consumer lead should use the emitted original video as test data only, not as Wan-generated or fashion-original stock.
+
+An independent technical sample ZIP was prepared for the owner with generated PNG, MP4, SHA receipts and README. It is not put in GitHub due to generated binary file/repo size and no approval to distribute actual user media.
