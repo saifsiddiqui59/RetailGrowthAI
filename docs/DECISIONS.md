@@ -852,3 +852,7 @@
 
 ## 2026-10-29 — Share exact MIT OpenVTO test images via GitHub Actions artifact, not production media
 - The provider-independent Feature3→Feature4/5 demo handoff uses a repository-run pinned source downloader with exact Git blob/size/Pillow/SHA attestations and the exact upstream MIT LICENSE Git blob. GitHub Actions uploaded a 30-day artifact after **actual** external source retrieval and verification. The same pinned CLI can regenerate if artifact expires. This does not change tenant RLS, storage, paid GPU privileges, publishing acceptance, or provider call authorization; real image-source bytes in a test are not a reviewed commercial fashion advertisement.
+
+
+## 2026-10-29 — Feature3 original photo technical FFmpeg output is not a virtual try-on
+- For Feature4/7 integration, it is safe to provide a reproducible real 9s H264/AAC test video created from genuine, SHA/Git-blob-pinned MIT synthetic avatar+garment stills, with separate product and avatar shots and AAC silence. It proves media decode/composition/writer workflow, not model-on-garment fidelity. Every output receipt asserts `model_wears_product_garment=false`, `vton_inference_performed=false`, `publish_approved=false`, `provider_call_permitted=false`. Keep the actual sources and MIT license notice in the 30-day artifact. Never label it a customer fashion advertisement.
