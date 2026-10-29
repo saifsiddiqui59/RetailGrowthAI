@@ -104,7 +104,8 @@ test('retake is one bounded original-audio proposal, never auto-merge or paid',(
 })
 test('retake denies foreign voice, invalid scene and forged original SHA',()=>{
  for(const change of [
-  {shopId:CID},{originalAudioSha256:'not-a-sha'},
+  {shopId:'invalid-foreign-id'},{campaignId:'not-a-uuid'},
+  {originalAudioSha256:'not-a-sha'},
   {sentenceIndex:13},{sentenceIndex:-1},
   {sentenceIndex:0.2},{lang:'hi-IN'},
   {voiceId:'hi-IN-SwaraNeural'},
