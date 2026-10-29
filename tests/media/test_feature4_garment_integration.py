@@ -49,6 +49,12 @@ class GarmentIntegrationTests(unittest.TestCase):
         self.assertNotIn('id="cta"', html)
         self.assertNotIn('src="https:', html)
         self.assertEqual(len(report["source_media"]), 5)
+        self.assertEqual(report["music_beat_source"], "Measured offline PCM onset detector, not invented beat grid")
+        beats=report["measured_beat_timestamps"]
+        self.assertGreater(len(beats),20)
+        self.assertTrue(all(any(abs(cut-beat)<.17 for beat in beats)
+                        for cut in report["synced_scene_starts"][1:]))
+        self.assertNotEqual(report["synced_scene_starts"][1],5)
         self.assertFalse(report["showcase_eligible"])
         self.assertFalse(report["commercial_release_eligible"])
         self.assertFalse(report["model_garment_match_verified"])

@@ -12,7 +12,8 @@ import urllib.request
 from asset_preflight import inspect_staged_image
 from professional import compile_composition, VideoPlanError
 from feature4_stock_showcase import (CLIPS, DEMO_SHOP, LICENSE_URL, StockShowcaseError,
-    check_input, normalize_for_renderer, original_music, retrieve_stock)
+    check_input, normalize_for_renderer, retrieve_stock)
+from feature4_beat_edit import original_rhythmic_music, snap_scene_cuts, BeatEditError
 
 GARMENTS = (
     ("garment01", "8306370", "Ron Lach",
@@ -111,7 +112,7 @@ def make_garment_project(source_dir: Path, project_dir: Path):
                 "sha256_original": hashlib.sha256(original.read_bytes()).hexdigest(),
                 "retailer_garment": False, "ai_generated": False})
         music = stage / "original-30s.wav"
-        original_music(music, seconds=30)
+        detected_beats = original_rhythmic_music(music, seconds=30)
         manifest["assets"]["test_music"] = {"kind": "audio", "path": music.name,
             "rights": {"commercial_use": True, "license": "owned",
                        "source": "Feature4 original deterministic wave synthesizer",
@@ -125,6 +126,8 @@ def make_garment_project(source_dir: Path, project_dir: Path):
             (25, 3, "garment01", "CURATED STYLE"),
             (28, 2, None, OUTRO),
         ]
+        # Auto-find actual PCM onsets: never manufacture 1s beat coordinates.
+        sequence = snap_scene_cuts(sequence, detected_beats, duration_seconds=30)
         scenes = []
         for idx, (start, dur, aid, headline) in enumerate(sequence):
             scene = {"start": start, "duration": dur, "headline": headline,
@@ -139,7 +142,7 @@ def make_garment_project(source_dir: Path, project_dir: Path):
             "template": "cinematic", "duration_seconds": 30,
             "output": {"width": 1080, "height": 1920, "fps": 24},
             "brand": {"name": "GARMENT / EDIT", "primary_color": "#C8AB82"},
-            "beats": list(range(30)), "scenes": scenes, "cta": OUTRO,
+            "beats": detected_beats, "scenes": scenes, "cta": OUTRO,
             "music_asset_id": "test_music"}
         compiled = compile_composition(plan, manifest, stage, project_dir)
         html = (compiled / "index.html").read_text(encoding="utf-8")
@@ -151,7 +154,10 @@ def make_garment_project(source_dir: Path, project_dir: Path):
             "status": "OFFLINE_CROSS_FEATURE_STOCK_TEST_ONLY",
             "duration_seconds": 30,
             "source_media": evidence, "license_url": LICENSE_URL,
-            "feature2": "Original synthetic music and editorial test copy; no viral song/voice",
+            "feature2": "Original synthesized rhythmic music and editorial test copy; no viral song/voice",
+            "music_beat_source": "Measured offline PCM onset detector, not invented beat grid",
+            "measured_beat_timestamps": detected_beats,
+            "synced_scene_starts": [scene["start"] for scene in scenes],
             "feature3": "Pexels garment PHOTO proxy; not tenant garment or virtual try-on",
             "feature5": "Pexels HUMAN motion proxy; not model-generated motion",
             "feature7": "Basic timed editing; advanced effects not accepted",
@@ -189,6 +195,6 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (StockShowcaseError, VideoPlanError, OSError, ValueError) as exc:
+    except (StockShowcaseError, VideoPlanError, BeatEditError, OSError, ValueError) as exc:
         print("FEATURE4 STOCK GARMENT BLOCKED: " + str(exc), file=sys.stderr)
         raise SystemExit(2)

@@ -71,6 +71,10 @@ assert abs(float(d["format"]["duration"])-30)<.4
 proof=json.load(open(sys.argv[2]))
 assert len(proof["source_media"])==5 and not proof["commercial_release_eligible"]
 assert not proof["model_garment_match_verified"] and not proof["showcase_eligible"]
+assert proof["music_beat_source"].startswith("Measured offline PCM")
+assert len(proof["measured_beat_timestamps"]) > 20
+assert all(any(abs(c-b)<.17 for b in proof["measured_beat_timestamps"])
+    for c in proof["synced_scene_starts"][1:])
 print("PASS: 30s actual Pexels garment + stock-person Reel, NOT garment identity or production acceptance")
 PY
   # CPU-only compressed reviewer proxy from the same verified Full-HD MP4.

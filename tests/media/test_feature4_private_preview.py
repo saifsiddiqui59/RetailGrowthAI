@@ -3,6 +3,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -47,6 +48,17 @@ class Feature4PreviewTests(unittest.TestCase):
         self.assertAlmostEqual(metadata["seconds"], 15, delta=.45)
         with self.assertRaisesRegex(PreviewExportError, "fresh"):
             export_private_preview(self.source, self.output, expected_seconds=15)
+
+    def test_concurrent_destination_race_does_not_replace_existing_preview(self):
+        self.make_source()
+        def raced_link(src,dst):
+            Path(dst).write_bytes(b"another-render-owner")
+            raise FileExistsError("already exists")
+        with mock.patch("feature4_private_preview.os.link",side_effect=raced_link):
+            with self.assertRaisesRegex(PreviewExportError,"Unable to encode"):
+                export_private_preview(self.source,self.output,expected_seconds=15)
+        self.assertEqual(self.output.read_bytes(),b"another-render-owner")
+        self.assertEqual(list(self.root.glob(".preview-*.mp4")),[])
 
     def test_wrong_duration_and_bad_preset_denied(self):
         self.make_source()

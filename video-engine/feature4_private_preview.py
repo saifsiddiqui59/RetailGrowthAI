@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -107,7 +108,10 @@ def export_private_preview(source: Path, target: Path, *, expected_seconds: int)
         # Re-check concurrent target creation. Prevent normal accidental overwrite.
         if target.exists() or target.is_symlink():
             raise PreviewExportError("Preview destination appeared while rendering")
-        partial.replace(target)
+        # Atomic no-clobber: os.link fails if another worker created target
+        # during encoding. Path.replace would silently overwrite that file.
+        os.link(partial, target)
+        partial.unlink()
         partial = None
         return {
             "status": "PRIVATE_PREVIEW_ENCODED_NOT_PUBLISHED",
