@@ -228,7 +228,7 @@ class ProfessionalVideoTests(unittest.TestCase):
         self.assertIn('.footage.trans-fade{animation:editorialFade', transitions)
         self.assertIn('.footage.trans-slide{animation:editorialSlide', transitions)
         self.assertIn('.footage.trans-cut{animation:none}', transitions)
-        self.assertEqual(transitions.count('style="--span:5s"'), 3)
+        self.assertEqual(transitions.count('data-volume="1" style="--span:5s"'), 3)
 
 
 if __name__ == "__main__":
