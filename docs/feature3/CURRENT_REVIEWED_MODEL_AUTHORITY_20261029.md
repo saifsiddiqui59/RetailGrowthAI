@@ -8,7 +8,7 @@
   
 ## External database and legal evidence gate — **not implemented/live**
 
-The corresponding SQL function is a **proposal only**; an executable SQL proposal could not be added through the tool during this change, and no migration was created/applied. Before any Azure runtime may call the bridge, the coordinator/DB owner must review and add a versioned read-only SECURITY DEFINER function, grants restricted to `service_role` and explicit grants revoked from `public`, `anon`, `authenticated`, under an approved migration. An authoritative response must be computed atomically from:
+The corresponding SQL function now has a **source-only, unapplied SQL proposal** at `supabase/proposals/feature3_current_model_review_20261029.sql`, added in a later non-GPU follow-up. It has **not** become a versioned migration and has NOT been executed against disposable or hosted PostgreSQL; static proposal-shape tests do not replace negative SQL acceptance. Before any Azure runtime may call the bridge, the coordinator/DB owner must review and add a versioned read-only SECURITY DEFINER function, grants restricted to `service_role` and explicit grants revoked from `public`, `anon`, `authenticated`, under an approved migration. An authoritative response must be computed atomically from:
 
 1. Current `feature3_models` row with `status=APPROVED`, `rights_verified=true`, matching shop/media/image SHA, synthetic adult and approved poster use, and current `rights_revision`.
 2. The immutable `retail_private.feature3_model_evidence` matching that model/source SHA, licence evidence hash, source kind, commercial re-use, synthetic-adult and component rights.
