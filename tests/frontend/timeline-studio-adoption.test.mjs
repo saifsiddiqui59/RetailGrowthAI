@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { studioRanges, studioSplit, studioReorder, studioTrimPair, studioSourceTrim, studioValidatedDraft } from '../../frontend/src/features/video/timeline-studio-bridge.mjs'
+import { studioRanges, studioSplit, studioDuplicate, studioReorder, studioTrimPair, studioSourceTrim, studioValidatedDraft } from '../../frontend/src/features/video/timeline-studio-bridge.mjs'
 import { inspectCreativeDirection, checkedPreviewCaptionCues } from '../../frontend/src/features/video/creative-direction-adapter.mjs'
 import { createEditorHistory, pushEditorHistory, undoEditorHistory, redoEditorHistory } from '../../frontend/src/features/video/vendor/editorHistoryCore.mjs'
 import { packTimedSegmentsIntoLanes, materializeCaptionTimings, getVisualSegmentTimeline } from '../../frontend/src/features/video/vendor/timeline.js'
@@ -382,4 +382,41 @@ test('OpenReel actual ClipManager snap finds cut/grid boundaries without modifyi
  assert.deepEqual(timeline,original)
  const off=new OpenReelClipSnapper({snapToGridEnabled:false})
  assert.equal(off.snapToGrid(3.46,timeline,'video',100).snappedTime,3.46)
+})
+
+
+test('duplicate visual clip replays authorized in-point in-place with exact 30s duration',()=>{
+ const original=draft()
+ const doubled=studioDuplicate(original,1,assets)
+ assert.equal(original.scenes.length,3)
+ assert.equal(doubled.scenes.length,4)
+ assert.deepEqual(doubled.scenes.map(s=>s.duration),[10,5,5,10])
+ assert.equal(doubled.scenes[1].asset_id,'motion1')
+ assert.equal(doubled.scenes[2].asset_id,'motion1')
+ assert.equal(doubled.scenes[1].trim_start||0,0)
+ assert.equal(doubled.scenes[2].trim_start,0) // Replay, not fake extra footage.
+ assert.equal(doubled.scenes[1].offer,'20% OFF')
+ assert.equal(doubled.scenes[2].offer,'20% OFF')
+ assert.equal(doubled.scenes.reduce((n,s)=>n+s.duration,0),30)
+ assert.deepEqual(validateVideoDraft(doubled,assets,music),[])
+ assert.deepEqual(studioRanges(doubled).map(s=>s.end),[10,15,20,30])
+ const retimed={...original,scenes:original.scenes.map((s,i)=>i===1?{...s,trim_start:2}:s)}
+ const repeat=studioDuplicate(retimed,1,assets)
+ assert.equal(repeat.scenes[2].trim_start,2)
+})
+
+test('duplicate cannot import foreign source, repeat SFX or change total Reel duration',()=>{
+ const base=draft()
+ assert.throws(()=>studioDuplicate(base,99,assets),/Duplication/)
+ const foreign={...base,scenes:base.scenes.map((s,i)=>i===1?{...s,asset_id:'forbidden'}:s)}
+ assert.throws(()=>studioDuplicate(foreign,1,assets),/foreign or unapproved/)
+ const approvedSfx={...base,scenes:base.scenes.map((s,i)=>i===1?{...s,sfx_asset_id:'licensed_music'}:s)}
+ const duplicated=studioDuplicate(approvedSfx,1,assets)
+ assert.equal(duplicated.scenes[1].sfx_asset_id,'licensed_music')
+ assert.equal(duplicated.scenes[2].sfx_asset_id,undefined)
+ assert.deepEqual(validateVideoDraft(duplicated,assets,music),[])
+ const shortFx={...base,scenes:base.scenes.map((s,i)=>i===1?{...s,duration:3,sfx_asset_id:'licensed_music'}:s)}
+ assert.throws(()=>studioDuplicate(shortFx,1,assets),/truncate an approved/)
+ const limited={...base,scenes:Array.from({length:12},(_,i)=>({...base.scenes[0],duration:2.5}))}
+ assert.throws(()=>studioDuplicate(limited,1,assets),/fewer than 12/)
 })
