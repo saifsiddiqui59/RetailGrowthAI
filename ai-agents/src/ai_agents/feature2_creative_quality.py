@@ -189,3 +189,119 @@ def blind_human_comparison(*, experiment_id: str, candidates: dict, reviews: lis
 def content_fingerprint(bundle: dict) -> str:
     """Reproducible SHA receipt only; NOT proof that an authorized reviewer signed."""
     return hashlib.sha256(json.dumps(bundle, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+# Feature2 trace records carry only digests, enumerated state and service names.
+# Shared tracing DB routes/contracts are owned by the integration coordinator.
+# No customer script, media URL, token, title, private user ID or raw prompt.
+import hmac
+import re
+from uuid import UUID
+
+TRACE_STAGES = frozenset({
+    "TREND", "RETAILER_CONTEXT", "AI_WRITER", "PROMPT_IMPROVER",
+    "SCRIPT_REVIEW", "STORYBOARD", "F3_MEDIA", "KOKORO_TTS",
+    "F7_TRANSCRIPTION", "PRONUNCIATION_REVIEW", "F4_EDITOR",
+    "F5_MOTION", "RENDER_HANDOFF",
+})
+TRACE_FAILURE_CODES = frozenset({
+    "SOURCE_UNAVAILABLE", "AUTH_DENIED", "MEDIA_RIGHTS_REVOKED",
+    "MODEL_UNAVAILABLE", "UNSUPPORTED_PROVIDER", "INVALID_INPUT",
+    "WORKER_FAILED", "BUDGET_BLOCKED", "REVIEW_REQUIRED",
+    "CONTRACT_MISMATCH", "HANDOFF_PENDING", "UNKNOWN",
+})
+_TRACE_SHA = re.compile(r"^[0-9a-f]{64}$")
+
+
+class Feature2TraceDenied(ValueError):
+    pass
+
+
+def _trace_uuid(value):
+    try:
+        return type(value) is str and str(UUID(value)) == value and UUID(value).version == 4
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
+def append_feature2_trace(*, shop_id, campaign_id, workflow_id, event_id,
+                          stage, status, source_sha256, output_sha256,
+                          event_number, previous_sha256, created_at_ms,
+                          evidence_class, failure_code, service_secret,
+                          current_scope, last_private_event,
+                          append_once, signed_external_evidence=None):
+    """Append one private, verifiable, CAS-fenced trace. No client callbacks.
+
+    Callback owner must implement a SERIALIZABLE/unique durable append with
+    event ID idempotency, and an authenticated same-shop membership check.
+    Returns source-only trace proof, not completion of the external step.
+    """
+    if (not all(_trace_uuid(v) for v in (shop_id,campaign_id,workflow_id,event_id))
+        or stage not in TRACE_STAGES
+        or status not in ("STARTED","SUCCEEDED","FAILED","BLOCKED")
+        or type(event_number) is not int or not 1 <= event_number <= 100
+        or type(created_at_ms) is not int or not 1_700_000_000_000 <= created_at_ms
+        or type(service_secret) is not bytes or len(service_secret) < 32
+        or type(source_sha256) is not str or not _TRACE_SHA.fullmatch(source_sha256)
+        or type(previous_sha256) is not str or not _TRACE_SHA.fullmatch(previous_sha256)
+        or (output_sha256 is not None and (type(output_sha256) is not str
+            or not _TRACE_SHA.fullmatch(output_sha256)))
+        or evidence_class not in ("SYNTHETIC_TEST_ONLY","SOURCE_ONLY","SIGNED_EXTERNAL")
+        or failure_code not in (TRACE_FAILURE_CODES if status in ("FAILED","BLOCKED") else {None})
+        or (status == "SUCCEEDED" and output_sha256 is None)
+        or not all(callable(v) for v in (current_scope,last_private_event,append_once))):
+        raise Feature2TraceDenied("Invalid bounded trusted private trace event")
+    # Real worker status is a stronger statement than source-only conformance.
+    # It requires a separate current trusted proof supplied by that service.
+    if evidence_class == "SIGNED_EXTERNAL" and (
+        not callable(signed_external_evidence)
+        or signed_external_evidence(shop_id,campaign_id,workflow_id,
+                                    stage,source_sha256,output_sha256) is not True):
+        raise Feature2TraceDenied("Independent signed worker proof missing")
+    def active():
+        return current_scope(shop_id,campaign_id,workflow_id,source_sha256) is True
+    if not active():
+        raise Feature2TraceDenied("Revoked or foreign trace writer")
+    latest=last_private_event(shop_id,campaign_id,workflow_id)
+    if event_number == 1:
+        if latest is not None or previous_sha256 != "0"*64:
+            raise Feature2TraceDenied("First trace must start an empty private chain")
+    elif (type(latest) is not dict or
+          latest.get("sequence") != event_number-1 or
+          latest.get("event_sha256") != previous_sha256):
+        raise Feature2TraceDenied("Current private trace chain changed")
+    event={
+        "schema":"retailgrowth.feature2-private-trace.v1",
+        "shop_id":shop_id,"campaign_id":campaign_id,
+        "workflow_id":workflow_id,"event_id":event_id,
+        "sequence":event_number,"previous_sha256":previous_sha256,
+        "created_at_ms":created_at_ms,"stage":stage,"status":status,
+        "input_sha256":source_sha256,"output_sha256":output_sha256,
+        "evidence_class":evidence_class,"failure_code":failure_code,
+        "can_publish":False,"customer_data_in_event":False,
+    }
+    encoded=json.dumps(event,sort_keys=True,separators=(",",":")).encode()
+    event_sha=hashlib.sha256(encoded).hexdigest()
+    signature=hmac.digest(service_secret,
+                          b"retailgrowth.feature2.trace.v1\\n"+encoded,"sha256").hex()
+    if not active():
+        raise Feature2TraceDenied("Trace source revoked before append")
+    # Backend CAS must enforce (shop/workflow, sequence, previous_sha256),
+    # event_id uniqueness, and exactly-once durable private write.
+    receipt=append_once(shop_id,campaign_id,workflow_id,event_id,
+                        event_number,previous_sha256,event_sha,
+                        {**event,"event_sha256":event_sha,"server_mac":signature})
+    if (type(receipt) is not dict or receipt.get("shop_id") != shop_id
+        or receipt.get("campaign_id") != campaign_id
+        or receipt.get("workflow_id") != workflow_id
+        or receipt.get("event_id") != event_id
+        or receipt.get("sequence") != event_number
+        or receipt.get("event_sha256") != event_sha
+        or receipt.get("private") is not True
+        or receipt.get("committed") is not True):
+        raise Feature2TraceDenied("Durable private trace append not verified")
+    # Only bounded digests + enum; NEVER return the secret or full event body.
+    return {"schema":event["schema"],"event_sha256":event_sha,
+            "event_id":event_id,"sequence":event_number,
+            "stage":stage,"status":status,
+            "evidence_class":evidence_class,
+            "private":True,"can_publish":False}
