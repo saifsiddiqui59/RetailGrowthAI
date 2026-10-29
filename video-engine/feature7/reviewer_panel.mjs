@@ -20,6 +20,7 @@ export function mountFeature7ReviewPanel({
     typeof onReviewRequest!=='function')
     throw new Error('Trusted review container and request callback required');
   let session=createReviewSession({draft,proposal,media_evidence,reviewer_view});
+  let reviewSubmissionPending=false;
   if(caption_correction_input!==null&&
     typeof onCaptionReviewRequest!=='function')
     throw new Error('Trusted caption correction callback required');
@@ -95,8 +96,8 @@ export function mountFeature7ReviewPanel({
     trimReadout.textContent=selected.trim_start.toFixed(3)+' of '+max.toFixed(3)+' seconds';
     trim.disabled=!session.can_request_approval;
     confirm.disabled=!session.can_request_approval;
-    approve.disabled=!session.can_request_approval;
-    reject.disabled=!session.can_request_approval;
+    approve.disabled=!session.can_request_approval||reviewSubmissionPending;
+    reject.disabled=!session.can_request_approval||reviewSubmissionPending;
     const pages=session.captions_advisory
       .filter(c=>c.source_scene_index===index).slice(0,40)
       .map(c=>c.words?.map(w=>w.text).join(' ')??'').filter(Boolean);
@@ -108,29 +109,45 @@ export function mountFeature7ReviewPanel({
     qa.replaceChildren(el('h3','Read-only footage quality'),
       el('p',black+' black intervals; '+freeze+' potentially still intervals. Check manually.'));
   };
-  select.addEventListener('change',()=>{confirm.checked=false;update();});
+  select.addEventListener('change',()=>{
+    reviewSubmissionPending=false;confirm.checked=false;update();
+  });
   trim.addEventListener('input',()=>{
     try{
       session=adjustTrimStart(session,Number(select.value),Number(trim.value));
-      confirm.checked=false;update();
+      reviewSubmissionPending=false;confirm.checked=false;update();
       feedback.textContent='Trim updated locally, not yet saved or approved.';
     }catch(e){feedback.textContent='Trim denied: '+e.message;update();}
   });
   const dispatch=action=>{
+    if(reviewSubmissionPending){
+      feedback.textContent='This review request was already forwarded. Edit the clip before requesting again.';
+      return;
+    }
     try{
       const packet=proposeReviewDecision(session,{
         action,confirmed:confirm.checked});
+      reviewSubmissionPending=true;
+      update();
       const result=onReviewRequest(packet);
+      if(result===false)throw Error('Trusted host rejected review request');
       feedback.textContent='Request forwarded to trusted host. Approval is not confirmed.';
       if(result&&typeof result.then==='function')
-        result.catch(()=>{feedback.textContent='Request failed. No approval was recorded.';});
-    }catch(e){feedback.textContent='Review action denied: '+e.message;}
+        Promise.resolve(result).catch(()=>{
+          reviewSubmissionPending=false;update();
+          feedback.textContent='Request failed. No approval was recorded.';
+        });
+    }catch(e){
+      reviewSubmissionPending=false;update();
+      feedback.textContent='Review action denied: '+e.message;
+    }
   };
   approve.addEventListener('click',()=>dispatch('REQUEST_APPROVAL'));
   reject.addEventListener('click',()=>dispatch('REJECT_PROPOSAL'));
   // Optional review-only, word-time-preserving human captions. This extends
   // the existing F7 reviewer; it is NOT a separate timeline editor.
   let captionUI=null;
+  let captionSubmissionPending=false;
   if(captionSession){
     const field=el('fieldset',null,'rgai-f7-caption-correction');
     const legend=el('legend','Correct recognized caption text');
@@ -167,31 +184,43 @@ export function mountFeature7ReviewPanel({
       save.disabled=!captionSession.can_propose;
       verified.disabled=!captionSession.can_propose;
       send.disabled=!captionSession.can_propose||
-        !captionSession.corrections.length;
+        !captionSession.corrections.length||captionSubmissionPending;
     };
     cueSelect.addEventListener('change',()=>{
-      verified.checked=false;updateCaptionEditor();
+      captionSubmissionPending=false;verified.checked=false;updateCaptionEditor();
     });
     save.addEventListener('click',()=>{
       try{
         captionSession=editCaptionCorrection(
           captionSession,Number(cueSelect.value),editor.value);
-        verified.checked=false;updateCaptionEditor();
+        captionSubmissionPending=false;verified.checked=false;updateCaptionEditor();
         feedbackCaptions.textContent='Caption change proposed locally. Still unapproved.';
       }catch(e){feedbackCaptions.textContent='Correction denied: '+e.message;}
     });
     send.addEventListener('click',()=>{
+      if(captionSubmissionPending){
+        feedbackCaptions.textContent='Correction was already forwarded. Modify it before resubmitting.';
+        return;
+      }
       try{
         const request=requestCaptionCorrectionReview(captionSession,{
           confirmed:verified.checked
         });
+        captionSubmissionPending=true;
+        updateCaptionEditor();
         const result=onCaptionReviewRequest(request);
+        if(result===false)throw Error('Trusted host rejected caption review');
         feedbackCaptions.textContent=
           'Correction request forwarded to trusted host. Approval not confirmed.';
         if(result&&typeof result.then==='function')
-          result.catch(()=>{feedbackCaptions.textContent=
-            'Caption request failed. No approval was recorded.';});
-      }catch(e){feedbackCaptions.textContent='Caption request denied: '+e.message;}
+          Promise.resolve(result).catch(()=>{
+            captionSubmissionPending=false;updateCaptionEditor();
+            feedbackCaptions.textContent='Caption request failed. No approval was recorded.';
+          });
+      }catch(e){
+        captionSubmissionPending=false;updateCaptionEditor();
+        feedbackCaptions.textContent='Caption request denied: '+e.message;
+      }
     });
     field.append(legend,help,cueSelect,editor,save,verifiedLabel,send,
       feedbackCaptions);
