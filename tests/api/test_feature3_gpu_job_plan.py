@@ -159,6 +159,31 @@ class CurrentGPUPlanTests(unittest.TestCase):
                 self.run_plan()
             self.assertEqual(self.db.proofs,0)
 
+    def test_model_approved_uses_requires_exact_distinct_string_array(self):
+        # PostgreSQL text[] should be a list. Strings/maps can otherwise
+        # make 'poster' membership true without legitimate per-use approval.
+        invalid=(
+            "poster", {"poster":False}, ("poster",), {"poster"},
+            None, [], ["try_on"], ["poster","poster"],
+            ["poster","unknown_use"], ["poster",True],
+            ["poster",{"video_reference":True}],
+            ["poster","try_on","video_reference","poster"],
+        )
+        for uses in invalid:
+            self.setUp()
+            self.db.model_row["approved_uses"]=uses
+            with self.subTest(uses=repr(uses)),self.assertRaises(Feature3PlanDenied):
+                self.run_plan()
+            self.assertEqual(self.db.proofs,0)
+        for uses in (["poster"],["poster","try_on"],
+                     ["video_reference","poster","try_on"]):
+            self.setUp()
+            self.db.model_row["approved_uses"]=uses
+            receipt=self.run_plan()
+            self.assertTrue(receipt["preflight_verified"])
+            self.assertFalse(receipt["provider_call_permitted"])
+            self.assertEqual(self.db.proofs,2)
+
     def test_expired_or_wrong_design_source_rejected(self):
         self.db.design_row["design"]["layers"]=[{"type":"text","text":"No source"}]
         with self.assertRaisesRegex(Feature3PlanDenied,"No bounded"):
