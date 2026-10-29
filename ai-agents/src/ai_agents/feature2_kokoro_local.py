@@ -35,6 +35,7 @@ SUPPORTED_VOICES={
 SPEEDS={"slow":0.9,"normal":1.0,"fast":1.1}
 _TEXT=re.compile(r"^[^\x00-\x08\x0b-\x1f\x7f<>]{1,1400}$")
 _lock=threading.Lock()
+_cpu_gate=threading.BoundedSemaphore(1)  # bounded CPU worker, no parallel model storms
 _loaded={}  # worker-local session reused; path+digest bound; no shared user state.
 
 class LocalSpeechUnavailable(ValueError):
@@ -140,6 +141,8 @@ def synthesize_local(*,text,voice_id="af_heart",lang="en-us",
         if voice_id not in engine.get_voices():
             raise LocalSpeechUnavailable("Voice absent in actual Kokoro style pack")
     started=time.perf_counter()
+    if not _cpu_gate.acquire(timeout=5):
+        raise LocalSpeechUnavailable("Kokoro CPU worker busy; inspect existing job before retry")
     try:
         samples,rate=engine.create(text.strip(),voice=voice_id,
                                    speed=SPEEDS[speed],lang=lang)
@@ -148,6 +151,8 @@ def synthesize_local(*,text,voice_id="af_heart",lang="en-us",
         raise
     except Exception as exc:
         raise LocalSpeechUnavailable("Kokoro CPU synthesis failed (no fallback charged)") from exc
+    finally:
+        _cpu_gate.release()
     if duration>60:
         raise LocalSpeechUnavailable("Generated audio is longer than supported Reel")
     return {
