@@ -159,6 +159,12 @@ export function verifyLocalSentenceRetakeReceipt({request,receipt}){
     receipt.creative_plan_sha256!==request.creative_plan_sha256||
     receipt.prior_audio_sha256!==request.flagged_audio_sha256||
     receipt.sentence_index!==request.sentence_index||
+    receipt.job_key!==request.job_key||
+    receipt.voice_id!==request.voice_id||
+    receipt.language!==request.language||
+    receipt.speed!==request.speed||
+    receipt.attempts_reserved!==1||
+    receipt.word_timestamps!==null||
     !SHA.test(receipt.new_audio_sha256||'')||
     !UUID.test(receipt.private_sentence_audio_asset_id)||
     receipt.review_status!=='PENDING_NEW_STT_AND_HUMAN_LISTEN'||

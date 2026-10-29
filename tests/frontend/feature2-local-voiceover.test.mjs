@@ -120,6 +120,8 @@ test('retake receipt never certifies pronunciation or publishing',()=>{
   shop_id:SHOP,campaign_id:CID,creative_plan_sha256:SHA,
   prior_audio_sha256:'d'.repeat(64),
   sentence_index:1,new_audio_sha256:'e'.repeat(64),
+  job_key:UUID,voice_id:'af_heart',language:'en-us',speed:'normal',
+  attempts_reserved:1,word_timestamps:null,
   private_sentence_audio_asset_id:'44444444-4444-4444-8444-444444444444',
   review_status:'PENDING_NEW_STT_AND_HUMAN_LISTEN',private:true,
   can_publish:false,requires_feature4_scene_assembly:true,
@@ -134,7 +136,10 @@ test('retake receipt never certifies pronunciation or publishing',()=>{
   {sentence_index:3},{review_status:'APPROVED'},
   {private:false},{can_publish:true},{azure_fallback_used:true},
   {actual_pronunciation_success_verified:true},
-  {requires_feature4_scene_assembly:false}
+  {requires_feature4_scene_assembly:false},
+  {job_key:REVIEW},{voice_id:'am_adam'},
+  {language:'en-gb'},{speed:'fast'},
+  {attempts_reserved:2},{word_timestamps:[]},
  ]) assert.throws(()=>verifyLocalSentenceRetakeReceipt({
    request:action,receipt:{...receipt,...change}}))
 })

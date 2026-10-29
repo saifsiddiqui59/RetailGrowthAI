@@ -71,6 +71,7 @@ def local_sentence_retake(*,shop_id,campaign_id,source_plan,sentence_index,
     data={"schema":"retailgrowth.feature2-sentence-retake.v1",
           "shop_id":shop_id,"campaign_id":campaign_id,
           "creative_plan_sha256":review["plan_sha256"],
+          "job_key":job_key,
           "original_full_script_sha256":sha256(script.encode()).hexdigest(),
           "original_sentence_sha256":sha256(original.encode()).hexdigest(),
           "correction_input_sha256":sha256(corrected["corrected_text_for_tts"].encode()).hexdigest(),
@@ -86,11 +87,28 @@ def local_sentence_retake(*,shop_id,campaign_id,source_plan,sentence_index,
           "can_publish":False,"azure_fallback_used":False,
           "attempts_reserved":1}
     saved=write_pending_private(shop_id,campaign_id,claim,wav,dict(data))
+    # This is a *trusted backend writer* receipt, not a browser-supplied flag.
+    # Bind it to the exact reserved one-shot job, original private bytes,
+    # requested voice/locale and pending review, not merely a matching SHA.
     if (type(saved) is not dict or not _uuid(saved.get("asset_id")) or
-        saved.get("shop_id")!=shop_id or
+        saved.get("shop_id")!=shop_id or saved.get("campaign_id")!=campaign_id or
+        saved.get("creative_plan_sha256")!=review["plan_sha256"] or
+        saved.get("job_key")!=job_key or
+        saved.get("prior_audio_sha256")!=flagged_audio_sha256 or
         saved.get("new_audio_sha256")!=summary["sha256"] or
-        saved.get("private") is not True):
-        raise RetakeDenied("Private sentence retake not registered")
+        saved.get("voice_id")!=voice_id or saved.get("language")!=language or
+        saved.get("speed")!=speed or
+        saved.get("review_status")!="PENDING_NEW_STT_AND_HUMAN_LISTEN" or
+        saved.get("private") is not True or
+        any(saved.get(k) is True for k in
+            ("can_publish","commercial_use_approved","azure_fallback_used"))):
+        raise RetakeDenied("Exact private one-shot retake receipt not registered")
+    # A successful storage callback does not confer current editor authority.
+    # Real coordinator writes MUST fence their own atomic commit; this
+    # post-write check prevents stale/foreign successes from reaching the UI.
+    if (current_editor(shop_id,campaign_id) is not True or
+        read_plan(shop_id,campaign_id)!=source_plan):
+        raise RetakeDenied("Source revoked after private retake registration")
     return {**data,"private_sentence_audio_asset_id":saved["asset_id"],
             "requires_feature4_scene_assembly":True,
             "requires_new_feature7_transcription":True}
