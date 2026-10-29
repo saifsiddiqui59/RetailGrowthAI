@@ -172,3 +172,131 @@ def test_registered_f7_review_denies_revoked_editor_before_reads():
     with pytest.raises(LocalVoiceJobDenied):run()
     assert saved==[]
     assert state["reads"]==0
+
+
+from ai_agents.feature2_local_voice_workflow import reserve_budgeted_local_voice_job
+
+CPU_JOB="44444444-4444-4444-8444-444444444444"
+CPU_NOW=1793290000000
+def cpu_policy():
+    return {
+        "shop_id":SHOP,"campaign_id":CAMP,"provider":"kokoro-onnx",
+        "paid_api_calls_allowed":False,"budget_revision":7,
+        "reserved_cpu_ms":12000,"used_cpu_ms":8000,
+        "monthly_cpu_limit_ms":100_000,
+        "active_cpu_jobs":0,"max_active_cpu_jobs":1,
+        "per_job_reserved_cpu_ms":30_000,
+        "period_id":"2026-10","policy_state":"ACTIVE",
+    }
+
+def budget_case(*,policy=None,save_tamper=None,source_tamper=None,
+                auth=None,return_state=False):
+    current=plan()
+    if source_tamper is not None:current=source_tamper
+    trusted=cpu_policy() if policy is None else policy
+    attempts=[];reads=[]
+    def approved(*a):
+        reads.append(("auth",a))
+        return True if auth is None else auth(len(reads))
+    def once(shop,campaign,key,digest,revision,ms,body):
+        attempts.append((shop,campaign,key,digest,revision,ms,body))
+        receipt={"schema":"retailgrowth.feature2-local-cpu-reservation.v1",
+                 "shop_id":shop,"campaign_id":campaign,
+                 "creative_plan_sha256":"a"*64,
+                 "job_key":key,"request_sha256":digest,
+                 "provider":"kokoro-onnx","reserved_cpu_ms":ms,
+                 "period_id":"2026-10",
+                 "lease_fence":19,"lease_expires_ms":CPU_NOW+60000,
+                 "status":"RESERVED","private":True,
+                 "paid_api_calls":0,"can_publish":False,
+                 "atomic_unique_commit":True}
+        if save_tamper: receipt.update(save_tamper)
+        return receipt
+    def run(**changes):
+        args={"shop_id":SHOP,"campaign_id":CAMP,
+              "source_plan":plan(),"voice_id":"af_heart",
+              "lang":"en-us","speed":"normal","job_key":CPU_JOB,
+              "now_ms":CPU_NOW,"authorize_current_editor":approved,
+              "read_current_plan":lambda *a:current,
+              "read_authoritative_quota":lambda *a:trusted,
+              "reserve_atomic_once":once}
+        args.update(changes)
+        return reserve_budgeted_local_voice_job(**args)
+    return (run,attempts,reads) if return_state else (run,attempts)
+
+def test_trusted_cpu_job_reservation_requires_atomic_version_fenced_budget_receipt():
+    run,calls=budget_case()
+    result=run()
+    assert len(calls)==1
+    assert calls[0][4]==7 and calls[0][5]==30000
+    assert calls[0][6]["provider"]=="kokoro-onnx"
+    assert calls[0][6]["paid_api_calls_allowed"] is False
+    assert result["lease_fence"]==19
+    assert result["reserved_cpu_ms"]==30000
+    assert result["request_sha256"]==calls[0][3]
+    assert result["reservation_is_not_worker_completion"] is True
+    assert result["real_model_inference_observed"] is False
+    assert result["paid_api_calls"]==0 and not result["can_publish"]
+    assert "audio_wav" not in result and "service_secret" not in result
+
+@pytest.mark.parametrize("override",[
+    {"shop_id":"55555555-5555-4555-8555-555555555555"},
+    {"campaign_id":"bad"},{"voice_id":"hi-IN-SwaraNeural"},
+    {"lang":"hi-IN"},{"speed":"unlimited"},{"job_key":"not-valid"},
+    {"now_ms":0},{"now_ms":True},
+])
+def test_cpu_budget_rejects_invalid_or_foreign_job_scope_before_reserve(override):
+    run,calls=budget_case()
+    with pytest.raises(LocalVoiceJobDenied):
+        run(**override)
+    assert calls==[]
+
+@pytest.mark.parametrize("policy_change",[
+    {"shop_id":"55555555-5555-4555-8555-555555555555"},
+    {"provider":"azure-speech"},{"paid_api_calls_allowed":True},
+    {"policy_state":"SUSPENDED"},{"budget_revision":True},
+    {"per_job_reserved_cpu_ms":"99999"},
+    {"per_job_reserved_cpu_ms":200_000},
+    {"active_cpu_jobs":1},{"max_active_cpu_jobs":0},
+    {"used_cpu_ms":97000},{"reserved_cpu_ms":99000},
+    {"monthly_cpu_limit_ms":0},{"period_id":"2026-00"},
+])
+def test_cpu_budget_denies_untrusted_or_exhausted_policy_before_any_once_job(policy_change):
+    base=cpu_policy();base.update(policy_change)
+    run,calls=budget_case(policy=base)
+    with pytest.raises(LocalVoiceJobDenied):
+        run()
+    assert calls==[]
+
+@pytest.mark.parametrize("alter",[
+    {"shop_id":"55555555-5555-4555-8555-555555555555"},
+    {"campaign_id":"55555555-5555-4555-8555-555555555555"},
+    {"job_key":"55555555-5555-4555-8555-555555555555"},
+    {"request_sha256":"b"*64},{"provider":"azure-speech"},
+    {"period_id":"2026-09"},{"lease_fence":0},
+    {"lease_expires_ms":CPU_NOW-1},
+    {"lease_expires_ms":CPU_NOW+600000},
+    {"status":"COMPLETED"},{"private":False},
+    {"paid_api_calls":1},{"can_publish":True},
+    {"atomic_unique_commit":False},{"reserved_cpu_ms":30001},
+])
+def test_cpu_budget_denies_forged_or_unfenced_database_reservation_receipt(alter):
+    run,calls=budget_case(save_tamper=alter)
+    with pytest.raises(LocalVoiceJobDenied,match="reservation evidence"):
+        run()
+    assert len(calls)==1
+
+def test_cpu_budget_authorization_is_checked_after_atomic_lease():
+    # Database may reserve CPU while the editor gets revoked. The outcome
+    # is denied: worker must fence this lease; never call audio synthesis.
+    run,calls,reads=budget_case(auth=lambda n:n==1,return_state=True)
+    with pytest.raises(LocalVoiceJobDenied,match="revoked after"):
+        run()
+    assert len(calls)==1 and len(reads)==2
+
+def test_cpu_budget_requires_current_exact_plan_before_quota_and_reservation():
+    run,calls=budget_case(source_tamper={**plan(),"approval_record":{
+        **plan()["approval_record"],"plan_sha256":"e"*64}})
+    with pytest.raises(LocalVoiceJobDenied,match="revoked"):
+        run()
+    assert calls==[]
