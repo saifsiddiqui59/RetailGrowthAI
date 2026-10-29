@@ -393,6 +393,55 @@ process.stdout.write(JSON.stringify(projectUpstreamCaptionsAfterAutoClipCuts(p))
         self.assertFalse(qa["commercial_quality_accepted"])
         self.assertFalse(qa["customer_publishable"])
         self.assertEqual(qa["source_sha256"],captioned["preview_sha256"])
+        # One punctuation-only reviewer suggestion on REAL human speech.
+        # The raw words, spoken audio, source timings and original captions
+        # remain immutable. This is NOT evidence of actual customer review.
+        first_cue=result["feature4_caption_track"][0]["text"]
+        corrected_text=(first_cue.rstrip(".!?,")+"." if not
+                        first_cue.endswith(".") else first_cue[:-1]+"!")
+        self.assertNotEqual(corrected_text,first_cue)
+        preview_script=r"""
+import fs from 'node:fs';
+import {createCaptionCorrectionSession,editCaptionCorrection,
+  buildCorrectedCaptionReviewProjection}
+  from './video-engine/feature7/caption_corrections.mjs';
+const p=JSON.parse(fs.readFileSync(0,'utf8'));
+let state=createCaptionCorrectionSession({
+ shop_id:p.shop_id,asset_id:p.asset_id,source_sha256:p.source_sha256,
+ preview_sha256:p.preview_sha256,caption_projection:p.caption_projection,
+ reviewer_view:{shop_id:p.shop_id,reviewer_id:'offline-human-qa-fixture',
+   role:'EDITOR',active_membership:true,revision:0}});
+state=editCaptionCorrection(state,0,p.corrected_text);
+process.stdout.write(JSON.stringify(
+ buildCorrectedCaptionReviewProjection(state,p.caption_projection)));
+"""
+        corrected_request={
+            "shop_id":caption_request["shop_id"],
+            "asset_id":caption_request["asset_id"],
+            "source_sha256":source_sha,
+            "preview_sha256":edited["output_sha256"],
+            "caption_projection":result,
+            "corrected_text":corrected_text
+        }
+        revised=subprocess.run(["node","--input-type=module","-e",
+            preview_script],input=json.dumps(corrected_request),
+            cwd=PROJECT_ROOT,capture_output=True,text=True,timeout=15)
+        self.assertEqual(revised.returncode,0,revised.stderr)
+        corrected_projection=json.loads(revised.stdout)
+        self.assertEqual(corrected_projection["caption_correction_count"],1)
+        self.assertTrue(corrected_projection[
+            "human_caption_correction_preview_only"])
+        self.assertFalse(corrected_projection["approved"])
+        corrected_path=self.home/"cc0_punctuation_corrected_review.mp4"
+        corrected=render_captioned_review_preview(
+            source_path=output,source_sha256=edited["output_sha256"],
+            caption_projection=corrected_projection,output_path=corrected_path)
+        self.assertTrue(corrected["output_aac_packets_identical"])
+        self.assertEqual(corrected["original_aac_packet_sha256"],
+                         captioned["original_aac_packet_sha256"])
+        self.assertNotEqual(corrected["preview_sha256"],
+                            captioned["preview_sha256"])
+        self.assertFalse(corrected["customer_publishable"])
         if os.getenv("CI") == "true":
             # Existing FFmpeg CI uploads ci-artifacts/ without a workflow edit.
             # These bytes come only from a pinned public CC0 speech source.
@@ -405,6 +454,27 @@ process.stdout.write(JSON.stringify(projectUpstreamCaptionsAfterAutoClipCuts(p))
             captioned_target=artifacts/"feature7-cc0-real-voice-retake-captioned.mp4"
             self.assertFalse(captioned_target.exists())
             shutil.copy2(captioned_path,captioned_target)
+            corrected_target=artifacts/"feature7-cc0-real-voice-caption-corrected-review.mp4"
+            self.assertFalse(corrected_target.exists())
+            shutil.copy2(corrected_path,corrected_target)
+            (artifacts/"feature7-cc0-caption-correction-proof.json").write_text(
+                json.dumps({
+                    "public_licensed_source":"shotstack/test-media CC0",
+                    "source_revision":SOURCE_REVISION,
+                    "original_test_source_sha256":source_sha,
+                    "original_speech_words_changed":False,
+                    "punctuation_only_correction":True,
+                    "caption_correction_count":1,
+                    "original_voice_aac_packet_sha256":
+                        corrected["original_aac_packet_sha256"],
+                    "preserved_unmodified_spoken_audio_packets":True,
+                    "corrected_review_preview_sha256":
+                        corrected["preview_sha256"],
+                    "model_asr_inference_executed":False,
+                    "independent_human_review_signed_off":False,
+                    "feature4_renderer_executed":False,
+                    "approved":False,"customer_publishable":False
+                },indent=2),encoding="utf8")
             # The source speech may have near-0dB peaks: publish the actual
             # warning instead of mislabeling a test voice clip 'accepted'.
             (artifacts/"feature7-cc0-real-voice-decoded-qa.json").write_text(
