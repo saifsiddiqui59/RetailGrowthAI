@@ -77,6 +77,9 @@ def export_private_preview(source: Path, target: Path, *, expected_seconds: int)
     if source.resolve() == target.resolve():
         raise PreviewExportError("Preview source cannot be overwritten")
     original = inspect_mp4(source, max_size=MAX_SOURCE_BYTES)
+    # Pin the actual input bytes before encoding. A changed private source must
+    # never receive a SHA/provenance receipt for an older rendered preview.
+    source_sha = hashlib.sha256(source.read_bytes()).hexdigest()
     if abs(original["seconds"] - expected_seconds) > 0.45:
         raise PreviewExportError("Source is not expected approved render duration")
     # tempfile in the same private directory guarantees atomic rename. Never
@@ -105,6 +108,8 @@ def export_private_preview(source: Path, target: Path, *, expected_seconds: int)
                 or abs(preview["seconds"] - expected_seconds) > 0.45
                 or preview["bytes"] >= original["bytes"]):
             raise PreviewExportError("Preview failed bounded size/codec/duration checks")
+        if hashlib.sha256(source.read_bytes()).hexdigest() != source_sha:
+            raise PreviewExportError("Authorized source bytes changed during preview rendering")
         # Re-check concurrent target creation. Prevent normal accidental overwrite.
         if target.exists() or target.is_symlink():
             raise PreviewExportError("Preview destination appeared while rendering")
@@ -115,7 +120,7 @@ def export_private_preview(source: Path, target: Path, *, expected_seconds: int)
         partial = None
         return {
             "status": "PRIVATE_PREVIEW_ENCODED_NOT_PUBLISHED",
-            "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+            "source_sha256": source_sha,
             "preview_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
             "source_bytes": original["bytes"],
             "preview_bytes": preview["bytes"],
