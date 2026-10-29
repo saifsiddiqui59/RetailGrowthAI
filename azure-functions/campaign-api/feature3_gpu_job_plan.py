@@ -182,10 +182,10 @@ class Feature3GPUJobPlanPreflight:
                     model.get("synthetic_adult") is not True or
                     type(model.get("approved_uses")) is not list or
                     not 1 <= len(model["approved_uses"]) <= 3 or
-                    len(set(map(str,model["approved_uses"]))) != len(model["approved_uses"]) or
                     any(type(use) is not str or
                         use not in ("poster","try_on","video_reference")
                         for use in model["approved_uses"]) or
+                    len(set(model["approved_uses"])) != len(model["approved_uses"]) or
                     "poster" not in model["approved_uses"] or
                     type(model.get("rights_revision")) is not int or
                     model["rights_revision"] < 2 or
