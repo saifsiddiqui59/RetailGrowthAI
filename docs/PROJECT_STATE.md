@@ -1304,3 +1304,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## 2026-10-29 — Feature3 GPU-OFF intake strict receipt (source-only follow-up)
 - Read-only queue inspector now refuses malformed/doubled source IDs, invalid content digest tuples, boolean/zero/missing rights revisions, inconsistent cardinalities and uncertain current SQL/provider status; negative integration tests use the real v1 envelope but mocked backend. Still NO Azure Queue trigger, delivery ACK, lease claim, paid inference, hosted schema or WineShopPOS/PROD change. Separate exact-head PR CI and fresh postmerge main CI required.
+
+## 2026-10-29 — Feature3 read-only operator double-snapshot + real PNG source bridge (source-only)
+- Added factory wiring existing service-only operator finance/job inspector to existing actual private PNG SHA/Pillow/second SQL RPC evidence reader. An observed success now requires both job and reservation SQL snapshots to remain identical **after** private bytes are verified; stale/ambiguous statuses, attempt/claim/lease corruption and concurrent financial drift deny. Added real Pillow/mock HTTPS positive and changed SQL negative integration tests. No real hosted evidence RPC, billing invoice, queue/Storage/SQL mutation, paid inference, PROD or WineShopPOS.
