@@ -53,4 +53,27 @@ python3 "$ROOT/video-engine/feature4_audio_master.py" \
 python3 "$ROOT/video-engine/feature4_private_preview.py" \
   --source "$MASTER" --duration 60 --output "$SMALL" \
   --report "$OUTPUT/feature4-60s-preview-proof.json"
+
+# Decode actual frames from the native 60s MP4 and retain repeated-shot warning.
+python3 - "$ROOT/video-engine" "$VIDEO" "$OUTPUT" <<'PY'
+import json,sys
+from pathlib import Path
+sys.path.insert(0,sys.argv[1])
+from feature4_review_contact_sheet import render_contact_sheet
+output=Path(sys.argv[3])
+proof=render_contact_sheet(Path(sys.argv[2]),
+                           output/"feature4-60s-review-contact-sheet.jpg", seconds=60)
+(output/"feature4-60s-contact-sheet-qa.json").write_text(
+    json.dumps(proof,indent=2)+"\n",encoding="utf-8")
+print("Review contact-sheet frame count:",proof["frame_count"],
+      "repetition-warning:",proof["repetition_warning"])
+PY
+python3 "$ROOT/video-engine/feature4_minute_quality_receipt.py" \
+  --original "$VIDEO" --master "$MASTER" --preview "$SMALL" \
+  --provenance "$PROOF" --motion "$OUTPUT/feature4-60s-motion-qa.json" \
+  --master-proof "$OUTPUT/feature4-60s-audio-proof.json" \
+  --preview-proof "$OUTPUT/feature4-60s-preview-proof.json" \
+  --contact-image "$OUTPUT/feature4-60s-review-contact-sheet.jpg" \
+  --contact-proof "$OUTPUT/feature4-60s-contact-sheet-qa.json" \
+  --output "$OUTPUT/feature4-60s-cross-feature-qa-receipt.json"
 echo "PASS 60s stock editor technical source/render/preview only; no customer/owner approval"

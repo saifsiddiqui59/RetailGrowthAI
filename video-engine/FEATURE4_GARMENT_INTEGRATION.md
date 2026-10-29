@@ -120,3 +120,18 @@ Output is limited to public Pexels stock QA in short-retention GitHub
 CI, not any tenant-private or unreviewed customer audio. Real approved
 Feature2 voice clips, spoken transcription accuracy, signed private
 caption downloads, hosted SRT/VTT registration and rights remain pending.
+
+
+## F4-55 — Full-minute exact-file QA chain and decoded review frames
+The native 60-second CPU validation command now produces a 12-frame
+FFmpeg-decoded review JPEG and SHA-256-linked `feature4_stock_minute_qa_receipt_v1`
+across its actual 1080p H264/AAC original, AAC-mastered video,
+540p reviewer MP4, five true moving-scene measurements, contact JPEG, and
+7 real Pexels source IDs/creators. It explicitly records stock reference
+and motion proxies for Features #3/#5; there is NO Feature2 real spoken voice,
+licensed chart song, Feature7 full OpenReel acceptance, owner visual
+approval, signed URL, tenant cloud JWT or Azure DEV deployment proof.
+Repeated-shot warning remains evidence, never a passed visual-quality gate.
+The separate 60-second job must actually succeed and its artifacts be
+inspected before calling the native minute export validated. Same private
+output directory; never upload real retailer/private assets to GitHub.
