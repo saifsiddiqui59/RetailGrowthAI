@@ -6,17 +6,27 @@
  */
 import {createReviewSession,adjustTrimStart,proposeReviewDecision}
   from './review_actions.mjs';
+import {createCaptionCorrectionSession,editCaptionCorrection,
+  requestCaptionCorrectionReview} from './caption_corrections.mjs';
 
 const isObjectURL=x=>typeof x==='string'&&x.startsWith('blob:')&&!/[\u0000-\u001f]/.test(x);
 
 export function mountFeature7ReviewPanel({
   target,draft,proposal,media_evidence,reviewer_view,
-  trusted_media_object_urls={},onReviewRequest
+  trusted_media_object_urls={},onReviewRequest,
+  caption_correction_input=null,onCaptionReviewRequest
 }={}){
   if(!target||typeof target.replaceChildren!=='function'||
     typeof onReviewRequest!=='function')
     throw new Error('Trusted review container and request callback required');
   let session=createReviewSession({draft,proposal,media_evidence,reviewer_view});
+  if(caption_correction_input!==null&&
+    typeof onCaptionReviewRequest!=='function')
+    throw new Error('Trusted caption correction callback required');
+  let captionSession=caption_correction_input===null?null:
+    createCaptionCorrectionSession({
+      ...caption_correction_input,reviewer_view
+    });
   const doc=target.ownerDocument;
   if(!doc||typeof doc.createElement!=='function')
     throw new Error('DOM document unavailable');
@@ -118,8 +128,79 @@ export function mountFeature7ReviewPanel({
   };
   approve.addEventListener('click',()=>dispatch('REQUEST_APPROVAL'));
   reject.addEventListener('click',()=>dispatch('REJECT_PROPOSAL'));
+  // Optional review-only, word-time-preserving human captions. This extends
+  // the existing F7 reviewer; it is NOT a separate timeline editor.
+  let captionUI=null;
+  if(captionSession){
+    const field=el('fieldset',null,'rgai-f7-caption-correction');
+    const legend=el('legend','Correct recognized caption text');
+    const help=el('p','Text only. Cue timing and original spoken audio cannot be changed here.');
+    const cueSelect=el('select');
+    cueSelect.setAttribute('aria-label','Caption to correct');
+    for(const c of captionSession.cues){
+      const option=el('option',
+        'Cue '+(c.index+1)+' — '+(c.start_ms/1000).toFixed(2)+' seconds');
+      option.value=String(c.index);
+      cueSelect.appendChild(option);
+    }
+    const editor=el('textarea');
+    editor.setAttribute('aria-label','Corrected caption text');
+    editor.maxLength=90;
+    editor.rows=2;
+    const save=el('button','Save caption suggestion');
+    save.type='button';
+    const verified=el('input');
+    verified.type='checkbox';
+    const verifiedLabel=el('label','I checked the corrected words against the actual speaker.');
+    verifiedLabel.prepend(verified);
+    const send=el('button','Request caption correction review');
+    send.type='button';
+    const feedbackCaptions=el('p',
+      'Caption corrections are unsaved, unapproved suggestions.');
+    feedbackCaptions.setAttribute('aria-live','polite');
+    const updateCaptionEditor=()=>{
+      const i=Number(cueSelect.value);
+      const original=captionSession.cues[i];
+      const change=captionSession.corrections.find(c=>c.cue_index===i);
+      editor.value=change?.corrected_text??original.text;
+      editor.disabled=!captionSession.can_propose;
+      save.disabled=!captionSession.can_propose;
+      verified.disabled=!captionSession.can_propose;
+      send.disabled=!captionSession.can_propose||
+        !captionSession.corrections.length;
+    };
+    cueSelect.addEventListener('change',()=>{
+      verified.checked=false;updateCaptionEditor();
+    });
+    save.addEventListener('click',()=>{
+      try{
+        captionSession=editCaptionCorrection(
+          captionSession,Number(cueSelect.value),editor.value);
+        verified.checked=false;updateCaptionEditor();
+        feedbackCaptions.textContent='Caption change proposed locally. Still unapproved.';
+      }catch(e){feedbackCaptions.textContent='Correction denied: '+e.message;}
+    });
+    send.addEventListener('click',()=>{
+      try{
+        const request=requestCaptionCorrectionReview(captionSession,{
+          confirmed:verified.checked
+        });
+        const result=onCaptionReviewRequest(request);
+        feedbackCaptions.textContent=
+          'Correction request forwarded to trusted host. Approval not confirmed.';
+        if(result&&typeof result.then==='function')
+          result.catch(()=>{feedbackCaptions.textContent=
+            'Caption request failed. No approval was recorded.';});
+      }catch(e){feedbackCaptions.textContent='Caption request denied: '+e.message;}
+    });
+    field.append(legend,help,cueSelect,editor,save,verifiedLabel,send,
+      feedbackCaptions);
+    captionUI={field,updateCaptionEditor,cueSelect};
+    cueSelect.value='0';updateCaptionEditor();
+  }
   root.append(heading,info,select,video,placeholder,trimLabel,trim,
     trimReadout,captions,qa,confirmLabel,approve,reject,warning,feedback);
+  if(captionUI)root.appendChild(captionUI.field);
   target.replaceChildren(root);
   select.value=String(session.scenes[0].source_scene_index);
   update();
@@ -127,7 +208,9 @@ export function mountFeature7ReviewPanel({
     destroy(){video.removeAttribute('src');target.replaceChildren();},
     getReviewSnapshot(){return {
       shop_id:session.shop_id,campaign_id:session.campaign_id,
-      scenes:session.scenes.map(s=>({...s})),approved:false,renderable:false
+      scenes:session.scenes.map(s=>({...s})),
+      caption_correction_count:captionSession?.corrections.length??0,
+      approved:false,renderable:false
     };}
   });
 }
