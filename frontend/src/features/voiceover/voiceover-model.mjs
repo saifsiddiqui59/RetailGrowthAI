@@ -62,3 +62,28 @@ export function makeVoiceAction({
     idempotency_key:idempotencyKey,
   })
 }
+
+/** Actual upstream 0.6.1 v1 English voices; different from Azure voices. */
+export const F2_LOCAL_VOICES=Object.freeze([
+ {id:'af_heart',locale:'en-us',name:'Heart',gender:'Female'},
+ {id:'af_sarah',locale:'en-us',name:'Sarah',gender:'Female'},
+ {id:'am_adam',locale:'en-us',name:'Adam',gender:'Male'},
+ {id:'am_michael',locale:'en-us',name:'Michael',gender:'Male'},
+ {id:'bf_emma',locale:'en-gb',name:'Emma',gender:'Female'},
+ {id:'bf_isabella',locale:'en-gb',name:'Isabella',gender:'Female'},
+ {id:'bm_george',locale:'en-gb',name:'George',gender:'Male'},
+ {id:'bm_lewis',locale:'en-gb',name:'Lewis',gender:'Male'},
+])
+export function makeLocalVoiceAction({
+ shopId,campaignId,planSha256,idempotencyKey,voiceId,lang,speed,preview=false,
+}){
+ if(!UUID.test(shopId)||!UUID.test(campaignId)||!UUID.test(idempotencyKey)||
+    !SHA.test(planSha256)||!VOICE_SPEEDS.includes(speed)||typeof preview!=='boolean'||
+    !F2_LOCAL_VOICES.some(v=>v.id===voiceId&&v.locale===lang))invalid()
+ return Object.freeze({schema:'retailgrowth.feature2-local-voice-job.v1',
+   shop_id:shopId,campaign_id:campaignId,creative_plan_sha256:planSha256,
+   voice_id:voiceId,language:lang,speed,preview,
+   provider:'kokoro-onnx',request_key:idempotencyKey,
+   needs_current_server_signed_grants:true,
+   may_auto_invoke_azure:false,estimated_paid_cost_usd:0})
+}

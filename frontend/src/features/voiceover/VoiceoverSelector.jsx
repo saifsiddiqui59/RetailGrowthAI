@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {F2_VOICES,VOICE_SPEEDS,voiceChoices,emptyVoiceSelection,makeVoiceAction,validateVoiceSelection} from './voiceover-model.mjs'
+import LocalVoicePanel from './LocalVoicePanel.jsx'
 import './VoiceoverSelector.css'
 
 // Reusable Feature2 source-only panel; coordinator/F4 must mount it with real
@@ -9,9 +10,10 @@ export default function VoiceoverSelector({
   shopId,campaignId,planSha256,sourceScript='',
   enabled=false,approvedAudioAssets=[],
   onSelectionChange=null,onRequestPreview=null,onRequestSynthesis=null,
-  onRequestUpload=null,
+  onRequestUpload=null,onRequestLocalPreview=null,onRequestLocalSynthesis=null,
 }){
   const [selection,setSelection]=useState(emptyVoiceSelection)
+  const [voiceProvider,setVoiceProvider]=useState('kokoro')
   const [confirmed,setConfirmed]=useState(false)
   const [busy,setBusy]=useState(false)
   const [error,setError]=useState('')
@@ -19,7 +21,7 @@ export default function VoiceoverSelector({
   const [file,setFile]=useState(null)
   useEffect(()=>{
     setSelection(emptyVoiceSelection())
-    setConfirmed(false);setError('');setMessage('');setFile(null);setLocale('en-IN')
+    setConfirmed(false);setError('');setMessage('');setFile(null);setLocale('en-IN');setVoiceProvider('kokoro')
   },[shopId,campaignId,planSha256])
   const authorizedAssets=useMemo(()=>
     (Array.isArray(approvedAudioAssets)?approvedAudioAssets:[])
@@ -97,6 +99,18 @@ export default function VoiceoverSelector({
         {label}
       </label>)}
       {selection.mode==='ai'&&<>
+        <label>AI speech provider
+          <select aria-label="AI voice provider" value={voiceProvider} onChange={e=>{setVoiceProvider(e.target.value);setConfirmed(false)}}>
+            <option value="kokoro">Free local Kokoro (English only)</option>
+            <option value="azure">Azure Speech (explicitly paid / Hindi / Marathi)</option>
+          </select>
+        </label>
+        {voiceProvider==='kokoro'?<LocalVoicePanel shopId={shopId}
+          campaignId={campaignId} planSha256={planSha256}
+          enabled={ready} sourceScript={sourceScript}
+          onLocalPreview={onRequestLocalPreview}
+          onLocalGenerate={onRequestLocalSynthesis}/> : <>
+
         <label>Language
           <select value={locale} onChange={e=>{
             const value=e.target.value;setLocale(value)
@@ -126,6 +140,7 @@ export default function VoiceoverSelector({
           onClick={()=>generate(true)}>Generate preview</button>
         <button type="button" disabled={!confirmed||!onRequestSynthesis}
           onClick={()=>generate(false)}>Generate narration</button>
+        </>}
       </>}
       {selection.mode==='uploaded'&&<>
         <label>Approved private narration
