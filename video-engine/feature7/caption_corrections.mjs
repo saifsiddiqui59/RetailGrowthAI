@@ -19,7 +19,7 @@ export function validateReviewerCaptionText(raw){
     'Bounded human correction text required');
   const text=raw.normalize('NFC').trim().replace(/[ \t]+/gu,' ');
   valid(text.length>=1&&text.length<=90&&
-    !/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u2069<>\\{}]/u.test(text)&&
+    !/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u2069<>&\\{}]/u.test(text)&&
     !/[\r\n]/u.test(text)&&
     text.split(' ').length<=16,
     'Unsafe, invisible or excessive caption correction');
@@ -137,4 +137,64 @@ export function requestCaptionCorrectionReview(session,{confirmed=false}={}){
   const packetHash=hash(JSON.stringify(packet));
   return Object.freeze({...packet,corrections:Object.freeze(packet.corrections),
     request_sha256_hint:packetHash});
+}
+
+
+/**
+ * Corrected caption *preview* using existing AutoBroll cue timing and F7
+ * FFmpeg/libass caption overlay. It changes text only; original transcript,
+ * recorded audio, keep segments, and trusted media source are untouched.
+ * This result CANNOT flow into an executable Feature4 render contract.
+ */
+export function buildCorrectedCaptionReviewProjection(session,originalProjection){
+  valid(session?.version==='feature7_caption_review_session_v1'&&
+    Array.isArray(session.corrections)&&session.corrections.length>0&&
+    originalProjection?.version===
+      'feature7_autoclip_autobroll_caption_projection_v1'&&
+    originalProjection.approved===false&&
+    originalProjection.renderable===false&&
+    originalProjection.human_review_required===true&&
+    originalProjection.shop_id===session.shop_id&&
+    originalProjection.asset_id===session.asset_id&&
+    originalProjection.actual_timeline_duration_ms===
+      session.actual_timeline_duration_ms&&
+    Array.isArray(originalProjection.feature4_caption_track)&&
+    originalProjection.feature4_caption_track.length===session.cues.length,
+    'Unmodified source caption clock required for preview');
+  const unchanged=originalProjection.feature4_caption_track;
+  let lastEnd=0;
+  const verified=unchanged.map((cue,index)=>{
+    const saved=session.cues[index];
+    valid(cue&&saved&&
+      Math.round(cue.start*1000)===saved.start_ms&&
+      Math.round((cue.start+cue.duration)*1000)===saved.end_ms&&
+      hash(validateReviewerCaptionText(cue.text))===saved.original_text_sha256&&
+      saved.start_ms>=lastEnd,'Source original captions changed');
+    lastEnd=saved.end_ms;
+    return [saved.start_ms,saved.end_ms,saved.original_text_sha256];
+  });
+  valid(hash(JSON.stringify(verified))===session.source_captions_sha256,
+    'Stale caption revision cannot be previewed');
+  const byId=new Map();
+  for(const c of session.corrections){
+    const original=session.cues[c?.cue_index];
+    valid(original&&original.original_text_sha256===c.original_text_sha256&&
+      original.start_ms===c.start_ms&&original.end_ms===c.end_ms&&
+      !byId.has(c.cue_index),
+      'Foreign or duplicate text correction');
+    byId.set(c.cue_index,validateReviewerCaptionText(c.corrected_text));
+  }
+  const changed=unchanged.map((cue,i)=>({
+    start:cue.start,duration:cue.duration,text:byId.get(i)??cue.text
+  }));
+  return Object.freeze({...originalProjection,
+    feature4_caption_track:Object.freeze(changed),
+    original_caption_track_unchanged:Object.freeze(unchanged.map(c=>({...c}))),
+    caption_correction_source_sha256:session.source_captions_sha256,
+    caption_correction_count:byId.size,
+    human_caption_correction_preview_only:true,
+    human_speech_word_verification_completed:false,
+    original_audio_preservation_required:true,
+    approved:false,renderable:false,human_review_required:true
+  });
 }
