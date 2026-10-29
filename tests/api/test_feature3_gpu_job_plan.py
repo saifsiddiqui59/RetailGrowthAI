@@ -305,6 +305,24 @@ class CurrentGPUPlanTests(unittest.TestCase):
         self.assertEqual(self.db.proofs,1)
         self.assertEqual(len(self.lease_reads),1)
 
+    def test_claimed_lease_expiring_after_final_rights_proof_denies(self):
+        lease=self.make_claimed()
+        original=self.db.proof
+        def late_expiry(shop,media):
+            result=original(shop,media)
+            if self.db.proofs==2:
+                self.db.job_row["lease_until"]=(
+                    datetime.now(timezone.utc)-timedelta(seconds=1)).isoformat()
+            return result
+        self.preflight=Feature3GPUJobPlanPreflight(
+            admin_store=self.db,source_proof=late_expiry)
+        with self.assertRaisesRegex(Feature3PlanDenied,"expired during final rights"):
+            self.preflight.check_claimed(
+                self.db.shop,self.db.job,self.token,(self.db.media,),lease)
+        self.assertEqual(self.db.proofs,2)
+        self.assertEqual(len(self.lease_reads),1)
+        self.assertTrue(all(method=="GET" for _,__,method in self.db.calls))
+
     def test_claimed_real_private_png_storage_and_twice_current_legal_review(self):
         lease=self.make_claimed()
         raw=BytesIO()
