@@ -99,3 +99,30 @@ def audit_full_wan_model_bytes(*, mounted_share_root, trusted_private_manifest):
         "gpu_started": False,
         "real_wan_inference_performed": False,
     }
+
+def main(argv=None):
+    """Explicit opt-in only. Nothing reads 18GB during default CI."""
+    import argparse
+    import json
+
+    parser = argparse.ArgumentParser(
+        description="Read-only SHA256 of three PRIVATE mounted Wan weights; NO GPU")
+    parser.add_argument("--mounted-share",required=True)
+    parser.add_argument("--private-manifest",required=True)
+    args=parser.parse_args(argv)
+    manifest_file=Path(args.private_manifest)
+    if (manifest_file.is_symlink() or not manifest_file.is_file() or
+        not 0 < manifest_file.stat().st_size <= 64*1024):
+        parser.error("Protected small approved source manifest required")
+    try:
+        proof=audit_full_wan_model_bytes(
+            mounted_share_root=args.mounted_share,
+            trusted_private_manifest=json.loads(manifest_file.read_text(encoding="utf-8")))
+    except (PreflightError,ValueError,OSError,UnicodeError) as exc:
+        parser.error("Wan real local checkpoint audit DENIED: "+str(exc))
+    print(json.dumps(proof,sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
