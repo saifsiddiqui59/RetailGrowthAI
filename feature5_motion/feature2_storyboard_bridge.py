@@ -123,10 +123,12 @@ def qualify_feature2_offline_storyboard(packet):
         # silently become a coherent 15/30/60-second motion request.
         expected_previous = (shots[i - 1]["original_direction"].get("shot_id")
                              if i else None)
-        expected_next = (shots[i + 1]["original_direction"].get("shot_id")
-                         if i + 1 < count and
-                         type(shots[i + 1].get("original_direction")) is dict
-                         else None)
+        next_request = shots[i + 1] if i + 1 < count else None
+        if next_request is not None and (type(next_request) is not dict
+                                         or type(next_request.get("original_direction")) is not dict):
+            _deny("invalid following director shot")
+        expected_next = (next_request["original_direction"].get("shot_id")
+                         if next_request is not None else None)
         if (direction.get("previous_shot_id") != expected_previous
                 or direction.get("next_shot_id") != expected_next):
             _deny("broken director shot continuity")
