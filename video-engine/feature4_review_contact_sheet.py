@@ -20,6 +20,14 @@ class ContactSheetError(ValueError):
 WIDTH,HEIGHT=180,320
 COLUMNS=3
 FRAME_COUNT=12
+
+def _sha(path):
+    digest=hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for chunk in iter(lambda:stream.read(1024*1024),b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
 TOP=64
 CELL_H=346
 
@@ -51,6 +59,7 @@ def render_contact_sheet(source: Path, output: Path, *, seconds: int):
         raise ContactSheetError("Source not validated H264/AAC portrait MP4") from exc
     if abs(media["seconds"]-seconds)>.45:
         raise ContactSheetError("Source duration mismatch")
+    source_sha=_sha(source)
     canvas=Image.new("RGB",(WIDTH*COLUMNS,TOP+CELL_H*4),(16,21,28))
     draw=ImageDraw.Draw(canvas)
     draw.text((10,12),"F4 STOCK QA / NOT A RETAILER AD",fill=(250,211,145))
@@ -78,6 +87,8 @@ def render_contact_sheet(source: Path, output: Path, *, seconds: int):
                                          "mean_luma_delta":round(difference,2)})
         fingerprints.append((at,signature))
         frames.append(at)
+    if _sha(source)!=source_sha:
+        raise ContactSheetError("Encoded Reel changed while contact-sheet frames were decoded")
     temp=None
     try:
         with tempfile.NamedTemporaryFile(prefix=".f4-review-",suffix=".jpg",
@@ -93,9 +104,12 @@ def render_contact_sheet(source: Path, output: Path, *, seconds: int):
     finally:
         if temp is not None:
             temp.unlink(missing_ok=True)
-    sha=hashlib.sha256(output.read_bytes()).hexdigest()
+    if _sha(source)!=source_sha:
+        output.unlink(missing_ok=True)  # This invocation created the fresh hard-link.
+        raise ContactSheetError("Encoded Reel changed during private contact-sheet export")
+    sha=_sha(output)
     return {"status":"ENCODED_REVIEW_CONTACT_SHEET_NOT_APPROVAL",
-            "source_sha256":hashlib.sha256(source.read_bytes()).hexdigest(),
+            "source_sha256":source_sha,
             "contact_sheet_sha256":sha,"duration_seconds":seconds,
             "frames_seconds":frames,"frame_count":FRAME_COUNT,
             "possible_repeated_shot_pairs":possible_repeats[:20],
