@@ -50,6 +50,20 @@ begin
                               'codec','video_width','video_height'))
  then raise exception 'INVALID_WORKER_SPAN' using errcode='22023'; end if;
 
+ -- Match the exact service-side operation-specific field contract.
+ if (p_operation='planning.complete' and
+       ((select count(*) from jsonb_object_keys(p_metadata))<>2 or
+        jsonb_typeof(p_metadata->'generated_days')<>'number' or
+        p_metadata->>'planner_mode' not in ('foundry','dev_mock'))) or
+    (p_operation='render.complete' and
+       ((select count(*) from jsonb_object_keys(p_metadata))<>4 or
+        jsonb_typeof(p_metadata->'duration_seconds')<>'number' or
+        jsonb_typeof(p_metadata->'video_width')<>'number' or
+        jsonb_typeof(p_metadata->'video_height')<>'number')) or
+    (p_operation not in ('planning.complete','render.complete')
+      and p_metadata<>'{}'::jsonb)
+ then raise exception 'WORKER_SPAN_METADATA_MISMATCH' using errcode='22023'; end if;
+
  if p_feature='F2' and p_operation in ('planning.complete','planning.denied',
                                       'planning.failed','planning.unconfigured') then
    select shop_id,status,planning_attempts into v_shop,v_status,v_attempt
