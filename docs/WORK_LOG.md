@@ -692,3 +692,7 @@ Use scripts/checkpoint.sh after completing a task.
 
 - 2026-10-29 Coordinator Phase2: #642 frontend generated history direct merge was rejected by GitHub 405 for current-main doc conflict despite exact 4/4 CI; preserved its validated code/tests, combined with #643 read-only GPU billing reconciliation source/test and append-only docs on new current-main integration branch for fresh four-job CI. No GitHub force-push, hosted/cloud settings, paid provider or WineShopPOS change.
 
+
+- 2026-10-29 Phase2 Feature3 independent source work: added actual bounded no-redirect backend Supabase private Storage GET plus Pillow real-image decode and SHA256 checked against an independent current rights review callback twice; source returns only safe metadata attestation into existing job plan and cannot trigger GPU or billing. Mocked-HTTP real PNG tests cover original/rightly approved, revoked mid-GET, foreign/media corrupt, bad MIME/size/redirect and malformed origin. Independent legal approval source and genuine DEV signed testing remain gated; no hosted SQL/provider/WineShopPOS change.
+
+- 2026-10-29: Coordinator conflict-reconciled the Feature3 private source byte proof #645 into current-main integration without dropping prior history. Verify four-job exact head CI and postmerge main separately; real legal authority and hosted source approval still pending.
