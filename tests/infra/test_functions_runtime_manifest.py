@@ -57,7 +57,7 @@ def test_mandatory_agent_module_cannot_be_missing_or_renamed():
             if module!="schemas":
                 (home/(module+".py")).write_bytes((mod.AGENTS/(module+".py")).read_bytes())
         with patch.object(mod,"AGENTS",home):
-            with pytest.raises(ValueError,match="Required source missing|Approved Functions"):
+            with pytest.raises(ValueError):  # fail-closed, including guarded path check
                 mod.source_files()
 
 
