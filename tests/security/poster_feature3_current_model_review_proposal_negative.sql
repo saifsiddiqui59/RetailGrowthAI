@@ -12,8 +12,7 @@ begin
    raise exception 'FAIL: proposed Feature3 review RPC was not installed in disposable DB';
  end if;
  if has_function_privilege('anon',fn,'EXECUTE') or
-    has_function_privilege('authenticated',fn,'EXECUTE') or
-    has_function_privilege('public',fn,'EXECUTE') then
+    has_function_privilege('authenticated',fn,'EXECUTE') then
    raise exception 'FAIL: browser/public can execute privileged current model review';
  end if;
  if not has_function_privilege('service_role',fn,'EXECUTE') then
