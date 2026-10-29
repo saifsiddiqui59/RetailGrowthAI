@@ -11,6 +11,27 @@ function exportFixture(duration){
   if(![15,30,60].includes(duration)) throw Error('Unsupported source-only test duration');
   const input=verifiedBrief(duration);
   const bundle=compile(input,authoredCandidate(duration));
+  return exportCompiled(bundle,input,duration);
+}
+// Use the exact output of the *same* actual MIT director call that the
+// signed-source Python/Node integration just validated. Do not compile
+// a second synthetic fixture in that cross-feature test.
+function exportCompiled(bundle,input,duration){
+  if(![15,30,60].includes(duration)||!input||typeof input!=='object'||
+    input.server_verified!==true||input.authenticated_owner_or_editor!==true||
+    !Array.isArray(input.media_grants)||input.media_grants.length!==1||
+    input.media_grants[0]?.shop_id!==input.shop_id||
+    input.media_grants[0]?.original_media_sha256?.length!==64||
+    bundle?.creative_direction_v1?.shop_id!==input.shop_id||
+    bundle?.creative_direction_v1?.campaign_id!==input.campaign_id||
+    bundle?.creative_direction_v1?.duration_seconds!==duration||
+    !Array.isArray(bundle?.motion_direction_v1)||
+    bundle?.motion_direction_v1?.some(m=>
+      m.reference_media_id!==input.media_grants[0].id ||
+      m.product_sku!==input.media_grants[0].product_sku ||
+      Object.keys(input.media_grants[0].garment_facts||{}).some(k=>
+        m.garment_lock?.[k]!==input.media_grants[0].garment_facts[k])))
+    throw Error('Compiled director plan and original media scope mismatch');
   const checked=previewOffline(bundle,{gpuEnabled:false});
   const original=bundle.creative_direction_v1, motion=bundle.motion_direction_v1;
   if(checked.billable_calls!==0||checked.generated_video_files!==0||
@@ -93,4 +114,4 @@ if(require.main===module){
   }
   process.stdout.write(JSON.stringify(exportFixture(Number(process.argv[2])),null,2)+'\n');
 }
-module.exports={exportFixture};
+module.exports={exportFixture,exportCompiled};
