@@ -75,3 +75,30 @@ Exact **code** SHA `9fdd205c72820b6affe5591db47c8aca07a64162` passed both [GitHu
 
 ## F4-31 verified — real encoded Full-HD timecoded subtitle proof (2026-10-28)
 **Exact source SHA:** `c2c0786710939c27cd167d564aa57f05899f22ba`. [Branch CI #40746342531](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40746342531) and [PR CI #40746345804](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40746345804) each **4/4 SUCCESS** (Python, React/browser, isolated Supabase, real FFmpeg/HyperFrames). The branch job passed **145 media tests**; independent PR job passed **320 media tests**. Both actually encoded the existing 30s/1080×1920/24fps H264/AAC synthetic test Reel with approved timecoded subtitle test cue, decoded 0.6/1.2/2.2s PNG frames, and measured **caption-window pixel difference 16.82 versus same-shot caption-off baseline 0.19** in the fixed subtitle region; the check would fail if caption appears only in HTML or at the wrong time. Existing original narration 863Hz test tone survived AAC and edited 30s/540p real JS→Python→HyperFrames MP4 also passed. The demonstration media is **OWNER_REJECTED, showcase_eligible=false, commercial_fashion_realism_accepted=false, spoken_word_qa_accepted=false, caption_semantic_alignment_accepted=false**. This proves *temporal overlay encoding only*, not realistic human/garment footage, actual speech alignment, visual aesthetics, producer rights, or production deploy. Keep draft PR / no paid GPU.
+
+
+## 2026-10-29 — MVP Batch 1: 30s real encoded editor scene-family parity
+
+The prior CI script asserted actual H264/AAC codec, 30s duration and initial
+caption/offer HTML, but could still accept an exported MP4 with four grossly
+misordered visual shots or a replay starting from the wrong media position.
+We now invoke an immutable, **fixture-specific** 4-frame FFmpeg pixel proof in
+`hyperframes/ci-smoke.sh` after its existing real JS→Python→HyperFrames edited
+30s 540p MP4. The four fixed sample times are 2s (video 0–4s), 7s (first
+product photo 4–14s), 16s (second approved video at source inpoint 4s, timeline
+14–20s), 24s (offer/photo 20–30s). The test demands shared footage similarity
+but a nonidentical repeated source inpoint, photo-vs-video contrast and a
+distinct end photo. It SHA-hashes the same final MP4 before/after decoding.
+This is a *heuristic* for the current synthetic source (not a universal scene
+classifier or precise-frame inpoint comparator); fixed thresholds MUST NOT
+be used on customer artwork. A schema-labeled JSON receipt records false
+`human_visual_approval`, `exact_inpoint_frame_verified` and
+`commercial_release_eligible` flags. It adds no renderer/download/cost.
+
+Local pre-commit inspection of the existing real edited synthetic MP4 from
+prior CI archive: 30.000s 540p H264/AAC, SHA
+`1c69ede47eac07a2dba118ceca59beca118f337d67e801b7eecc4bbe94b57153`;
+video-repeat delta 3.53, photo-photo 19.017 and minimum video-photo 21.095.
+The standalone helper and four mocked negative/positive unit tests pass locally.
+CI at the resulting branch head is the next acceptance gate. This does NOT
+supersede OWNER_REJECTED fashion visual quality or live DEV security/release.

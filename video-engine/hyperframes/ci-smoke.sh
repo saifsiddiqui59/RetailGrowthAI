@@ -107,6 +107,12 @@ PY
 for sec in 2 15 26; do
   ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$sec" -i "$EDITED_MP4" -frames:v 1 "$ROOT/ci-artifacts/feature4-editor-frame-$sec.jpg"
 done
+# F4-MVP-30: verify ACTUAL encoded editor scene order/trim replay and SHA,
+# not just the 30s H264/AAC container. Original synthetic media only.
+python3 "$ROOT/video-engine/feature4_edited_export_qa.py" \
+  --source "$EDITED_MP4" \
+  --report "$ROOT/ci-artifacts/feature4-30s-editor-encoded-parity.json"
+
 
 # Once the first source benchmark is recorded, keep this as an opt-in gate to
 # avoid paying a 60s full-resolution encode on every unrelated branch change.
