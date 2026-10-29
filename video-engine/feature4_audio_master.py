@@ -66,6 +66,7 @@ def master_private_audio(source: Path, target: Path, *, expected_seconds: int):
         original = inspect_mp4(source,max_size=80*1024*1024)
     except PreviewExportError as exc:
         raise AudioMasterError("Source Reel must be a verified H264/AAC MP4") from exc
+    source_sha = hashlib.sha256(source.read_bytes()).hexdigest()
     if abs(original["seconds"]-expected_seconds)>.45 or source.resolve()==target.resolve():
         raise AudioMasterError("Source does not match approved Reel duration/path")
     before = _mean_db(source)
@@ -92,6 +93,8 @@ def master_private_audio(source: Path, target: Path, *, expected_seconds: int):
             raise AudioMasterError("Audio master changed video output profile or duration")
         if _video_packet_hash(partial)!=video_hash:
             raise AudioMasterError("Audio mastering changed original H264 video packets")
+        if hashlib.sha256(source.read_bytes()).hexdigest() != source_sha:
+            raise AudioMasterError("Authorized source bytes changed during audio mastering")
         after=_mean_db(partial)
         if after < -32 or after > -10:
             raise AudioMasterError("Mastered audio is not within reasonable reviewer loudness bounds")
@@ -102,7 +105,7 @@ def master_private_audio(source: Path, target: Path, *, expected_seconds: int):
         partial.unlink()
         partial=None
         return {"status":"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED",
-                "source_sha256":hashlib.sha256(source.read_bytes()).hexdigest(),
+                "source_sha256":source_sha,
                 "master_sha256":hashlib.sha256(target.read_bytes()).hexdigest(),
                 "video_packet_sha256":video_hash,
                 "duration_seconds":expected_seconds,
