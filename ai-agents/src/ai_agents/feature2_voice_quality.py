@@ -175,6 +175,58 @@ def consume_feature7_stt(*,shop_id,campaign_id,source_sha256,
             "pronunciation_verified":False,
             "publish_approved":False}
 
+def project_offline_openpronounce_review(*,audio_sha256,result):
+    """Validate genuine worker schema into safe, *non-authoritative* hints.
+
+    Must only be called with model evidence under a trusted operator boundary.
+    The existence of this projection alone proves NO checkpoint was loaded.
+    """
+    if (type(audio_sha256) is not str or not re.fullmatch(r"[a-f0-9]{64}",audio_sha256)
+        or type(result) is not dict or
+        type(result.get("score")) not in (int,float) or
+        not math.isfinite(result["score"]) or
+        not 0<=result["score"]<=100 or
+        type(result.get("differences")) is not dict):
+        raise VoiceQualityDenied("Untrusted phoneme scoring")
+    errors=result["differences"].get("errors")
+    if type(errors) is not list or len(errors)>80:
+        raise VoiceQualityDenied("Unbounded pronunciation differences")
+    problems=[]
+    for item in errors:
+        if type(item) is not dict:
+            raise VoiceQualityDenied("Invalid phoneme difference")
+        word=item.get("word")
+        index=item.get("position")
+        ipa_expected=item.get("expected")
+        ipa_actual=item.get("actual")
+        confidence=item.get("confidence")
+        if (type(word) is not str or not 1<=len(word)<=80 or
+            any(ord(c)<32 or c in "<>" for c in word) or
+            type(index) is not int or not 0<=index<=600 or
+            type(ipa_expected) is not str or len(ipa_expected)>100 or
+            type(ipa_actual) is not str or len(ipa_actual)>100 or
+            any(ord(c)<32 or c in "<>" for c in ipa_expected+ipa_actual) or
+            (confidence is not None and
+             (type(confidence) not in (int,float) or
+              not math.isfinite(confidence) or
+              not 0<=confidence<=1))):
+            raise VoiceQualityDenied("Invalid unapproved phoneme confidence")
+        problems.append({
+            "problem":"POSSIBLE_PRONUNCIATION_MISMATCH",
+            "word":word,"script_position":index,
+            "expected_ipa":ipa_expected,"heard_ipa":ipa_actual,
+            "confidence":confidence,
+            "manual_review_required":True,
+            "evidence":"OpenPronounce heuristic; possible false positives",
+        })
+    return {"schema":"retailgrowth.feature2-openpronounce-review.v1",
+            "audio_sha256":audio_sha256,
+            "provider":"Halleck45/OpenPronounce","version":"0.3.0",
+            "lang":"en","heuristic_score":result["score"],
+            "issues":problems,"review_required":True,
+            "human_pronunciation_verified":False,"publish_approved":False}
+
+
 def run_openpronounce_lazy(*,original_wav,expected_script,lang="en",enabled=False):
     """Uses real upstream OpenPronounce.compare_audio_with_text directly.
 
@@ -183,9 +235,12 @@ def run_openpronounce_lazy(*,original_wav,expected_script,lang="en",enabled=Fals
     """
     if enabled is not True or os.getenv("RETAIL_F2_OPENPRONOUNCE_ENABLED")!="true":
         raise VoiceQualityDenied("Optional OpenPronounce quality worker OFF")
-    if lang!="en" or os.getenv("OPENPRONOUNCE_TTS") not in ("piper","kokoro") or \
-       os.getenv("HF_HUB_OFFLINE")!="1" or \
-       os.getenv("RETAIL_F2_REFERENCE_AUDIO_PRELOADED")!="true":
+    if (lang!="en" or os.getenv("OPENPRONOUNCE_TTS") not in ("piper","kokoro") or
+        os.getenv("HF_HUB_OFFLINE")!="1" or
+        os.getenv("TRANSFORMERS_OFFLINE")!="1" or
+        os.getenv("OPENPRONOUNCE_DEVICE")!="cpu" or
+        os.getenv("OPENPRONOUNCE_PHONEME_MODEL")=="off" or
+        os.getenv("RETAIL_F2_REFERENCE_AUDIO_PRELOADED")!="true"):
         raise VoiceQualityDenied("Offline calibrated English reference model not approved")
     if type(expected_script) is not str or not 1<=len(expected_script)<=1800:
         raise VoiceQualityDenied("Actual reference script required")
@@ -201,25 +256,8 @@ def run_openpronounce_lazy(*,original_wav,expected_script,lang="en",enabled=Fals
             raise VoiceQualityDenied("Untrusted phoneme scoring")
     except (ImportError, OSError,ValueError) as exc:
         raise VoiceQualityDenied("Offline OpenPronounce model unavailable") from exc
-    problems=[]
-    for item in result["differences"].get("errors",[])[:80]:
-        if not isinstance(item,dict):continue
-        word=item.get("word")
-        if not isinstance(word,str) or not word or len(word)>80:continue
-        c=item.get("confidence")
-        problems.append({"problem":"POSSIBLE_PRONUNCIATION_MISMATCH",
-                         "word":word,"script_position":item.get("position"),
-                         "expected_ipa":str(item.get("expected") or "")[:100],
-                         "heard_ipa":str(item.get("actual") or "")[:100],
-                         "confidence":c if isinstance(c,(float,int)) and 0<=c<=1 else None,
-                         "manual_review_required":True,
-                         "evidence":"OpenPronounce phoneme heuristic; false positives common"})
-    return {"schema":"retailgrowth.feature2-openpronounce-review.v1",
-            "audio_sha256":stats["sha256"],
-            "provider":"Halleck45/OpenPronounce","version":"0.3.0",
-            "lang":"en","heuristic_score":result.get("score"),
-            "issues":problems,"review_required":True,
-            "human_pronunciation_verified":False,"publish_approved":False}
+    return project_offline_openpronounce_review(
+        audio_sha256=stats["sha256"],result=result)
 
 
 # Security-sensitive Feature7 HMAC/WAV adapter kept alongside the existing
