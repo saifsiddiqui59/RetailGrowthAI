@@ -220,3 +220,39 @@ a new complete 60s native render and real encoded endcard visual review are
 required before counting this a validated output-quality improvement. An
 unrelated human-garment stock repeat and real retailer garment fidelity remain
 open; commercial owner approval remains false. No cost/cloud deployment.
+
+
+## F4-65/66 — Final 60s receipt must prove its encoded outro, 2026-10-29
+
+The earlier native 60s MP4 held the same garment-rack source until ~58s.
+Actual independent 120x212 decoded pixel samples on that legacy Full-HD stock
+video measured **16.397** mean absolute grayscale change between 52.5s and
+57.5s, then **59.708** only across 57.5s/58.6s when the two-second disclaimer
+finally arrived. It therefore did NOT satisfy the new 55–60s endcard contract.
+
+Feature4 adds `feature4_endcard_qa.py`: after producing a **new** 60s native
+original, require 12 trusted complete scene windows, distinct 55–60s stock
+disclaimer (still clearly NOT a retailer ad), 60s H264/AAC profile and a
+pre/post-FFmpeg SHA of the original bytes. Decode grayscale at 53.0s (previous
+rack), 57.5s and 59.3s (inside endcard); reject if mean rack→endcard pixel
+delta is below 25 or the endcard unexpectedly shifts more than 22 between its
+own sampled frames. Strict `feature4_stock_endcard_pixel_v1` report carries
+timestamps, media SHA and all false review/rights/legibility/speech flags.
+
+The standalone 60s runner now executes this actual encoded-frame check
+before mastering and requires its report together with 60 v2 visibility
+samples and real captioned review media. The final receipt no longer accepts
+missing caption, visibility or endcard proofs and validates the endcard digest,
+reviewed scene start and decoded metric bounds. New independent tests encode
+**real 60-second** H264/AAC red/blue-color footage (a visible endcard), real
+red/red held footage (must reject), forged/legacy 58-second start and source
+mutation mid-decode. Independent local FFmpeg sanity encode of the red/blue
+fixture measured **46.830** grayscale scene difference and **0.0** endcard
+internal difference; a synthetic two-color test is not product visual QA.
+
+**Critical gate:** a NEW complete 60s native HyperFrames output from exact
+code head, updated captioned source and contact-sheet/quality receipt has
+**not yet** been produced. Never attribute these acceptance improvements to
+the earlier archived stock MP4 or claim this automatic difference metric proves
+disclaimer text readability, model rights, real fashion quality or customer
+approval. PR #322 remains draft. No paid GPU, cloud or WineShopPOS changes.
