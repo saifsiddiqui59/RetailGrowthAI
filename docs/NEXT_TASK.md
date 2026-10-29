@@ -1239,3 +1239,7 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 
 - 2026-10-29 Feature3 Phase2 queue intake gate: current v1 packet parser is now wired to read-only SQL/source preflight under mandatory provider OFF, but **do not register an Azure Queue-trigger handler yet**. Implement legitimate worker+operator intake with explicit handling of queue ACK/deletion, one-shot claim only after actual financial/provider/rights approval and trusted current bytes, loss-of-ACK reconciliation and no paid retry. This queue source test is not operational queue consumption. Verify combined exact-head CI.
+
+
+## 2026-10-29 — Feature3 GPU-off financial reconciliation operator bridge
+- Run exact-head CI and coordinator merge for `feat/feature3-financial-reconciliation-inspection-20261029` and postmerge main 4/4. Source inspection detects missing/uncertain/contradictory job, billing and immutable output proof but cannot run actual operator action without trusted private evidence reader, billed GPU invoice and reviewed human recovery policy. **Never** automatically retry/settle/refund/delete on uncertain ACK; existing provider remains OFF and queued jobs are not consumed by this inspector. Pair with merged output-fence #640 and current-rights #641.

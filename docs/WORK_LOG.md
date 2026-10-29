@@ -684,3 +684,6 @@ Use scripts/checkpoint.sh after completing a task.
 
 
 - 2026-10-29 Feature3 continued P0 non-GPU queue chain: implemented `Feature3GPUOffQueueIntake` to join merged strict queue envelope decoder and current SQL/rights reader, defaulting to provider OFF, no queue delivery ACK/deletion, no SQL claim, no GPU/settlement, and failing closed on forged/future schema, role rights revocation, foreign shop/receipt, or dishonest paid flags. Added no-provider synthetic tests and source release warning against mounting an Azure Queue-trigger. Four-job CI on exact branch required.
+
+
+- 2026-10-29 Feature3 Phase2 no-GPU P0: added read-only operator financial/output unknown-ACK inspector over actual service GET paths, with privately injected immutable evidence reader; classifies QUEUED/RUNNING holds and observed SETTLED terminal cases, denies contradictory USD/tenant/asset/record evidence and never retries/finishes/refunds/deletes. Added synthetic negative tests and ownership handoff. No hosted DB or vendor bill inspection, no real operator action, paid GPU or WineShopPOS.

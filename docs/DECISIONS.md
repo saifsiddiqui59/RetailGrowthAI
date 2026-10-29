@@ -916,3 +916,7 @@
 
 
 - 2026-10-29 Feature3 GPU-off queue preview: inspect queue shop/job IDs only with strict schema and current trusted source/role checks; require provider explicitly OFF, return no ACK/claim/charge permission. Never register an ordinary Azure Queue trigger that silently deletes accepted messages or poison-retries disabled paid work. Preserve independent audited one-shot SQL and operator reconciliation for later enabled-worker activation.
+
+
+## 2026-10-29 — Uncertain private GPU billing state is read-only until independently reconciled
+- Inspect actual same-shop GPU job, reserved/settled spend and *independently trusted* private output evidence before labelling an observed state. No retry or refund may be inferred from lease expiry or a failed Queue/Storage/DB ACK. Only explicit human operator financial evidence can advance a charged unknown; this source module never submits a paid/financial mutation. A SUCCEEDED private PNG is UNREVIEWED and not licensable or publishable by itself.

@@ -1258,3 +1258,7 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 
 - 2026-10-29 Feature3 Phase2 GPU-off queue intake source added: strict existing v1 shop/job envelope -> live backend plan inspector, with provider.status explicit OFF and no SQL claim, queue ACK/deletion, financial charge, GPU execution or generated images. Mocked e2e packet/foreign/source revoked/forged success denials tested. This intentionally has NO Azure Functions queue binding and cannot itself consume a real queue.
+
+
+## 2026-10-29 — Feature3 read-only financial/Storage reconciliation source
+- Added `Feature3GPUOperatorReconciliation` inspecting actual existing GPU job and spend reservation under backend-only GET plus independently trusted private output evidence. Reports pending unknown, observed terminal failure, or observed terminal private-output success; **never** changes job, retries GPU, finalizes/refunds, deletes Storage or grants publishing. Negative CPU tests for foreign/revoked/forged/cost cap. Actual evidence reader/hosted invoice/operator runbook and protected release remain outstanding. [Handoff](feature3/GPU_OPERATOR_RECONCILIATION_20261029.md).
