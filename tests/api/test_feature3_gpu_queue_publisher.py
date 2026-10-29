@@ -87,6 +87,44 @@ class Feature3QueuePublishingTests(unittest.TestCase):
             self.publisher.dispatch_once()
         self.assertEqual(self.queue.send_message.call_count,1)
 
+    def test_invalid_or_duplicate_sql_claim_batch_never_reaches_queue(self):
+        wrong=[
+            None, False, {}, (self.record,),
+            [dict(self.record, gpu_started=True)],
+            [dict(self.record, expires_in_seconds=119)],
+            [dict(self.record, expires_in_seconds=True)],
+            [dict(self.record, provider_call_permitted=True)],
+            [dict(self.record, job_id=str(uuid4()).upper())],
+            [dict(self.record, shop_id="../foreign")],
+            [dict(self.record, dispatch_token=str(uuid4()).upper())],
+            [self.record,self.record],
+            [self.record,{**self.record, "job_id":str(uuid4())}],
+        ]
+        for rows in wrong:
+            self.setUp()
+            self.outbox.claim_dispatch.return_value=rows
+            with self.subTest(rows=str(rows)[:100]),self.assertRaises(StorageUnavailable):
+                self.publisher.dispatch_once()
+            self.queue.send_message.assert_not_called()
+            self.outbox.confirm_dispatch.assert_not_called()
+
+    def test_batch_limit_and_multiple_unique_jobs_validate_before_first_send(self):
+        for limit in (0,11,None,True,False,"5",-1):
+            self.setUp()
+            with self.subTest(limit=limit),self.assertRaises(ValueError):
+                self.publisher.dispatch_once(limit)
+            self.outbox.claim_dispatch.assert_not_called()
+            self.queue.send_message.assert_not_called()
+        self.setUp()
+        self.outbox.claim_dispatch.return_value=[
+            self.record,{**self.record,"job_id":str(uuid4()),
+                          "dispatch_token":str(uuid4())}]
+        result=self.publisher.dispatch_once(2)
+        self.assertEqual(result["acknowledged"],2)
+        self.assertEqual(self.queue.send_message.call_count,2)
+        self.assertEqual(self.outbox.confirm_dispatch.call_count,2)
+        self.assertEqual(result["charged_usd"],"0.00")
+
     def test_no_default_paid_queue_or_resource_provisioning(self):
         with self.assertRaises(ValueError):
             Feature3GPUOutboxPublisher(self.outbox,None)
