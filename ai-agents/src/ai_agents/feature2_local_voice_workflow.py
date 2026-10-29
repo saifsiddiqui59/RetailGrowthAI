@@ -8,7 +8,7 @@ from hashlib import sha256
 from uuid import UUID
 from .feature2_azure_speech import _plan, SpeechRejected
 from .feature2_kokoro_local import synthesize_local
-from .feature2_voice_quality import pcm_stats, consume_feature7_stt, VoiceQualityDenied
+from .feature2_voice_quality import pcm_stats
 from .feature2_pronunciation_dictionary import apply_approved_local_corrections
 
 class LocalVoiceJobDenied(ValueError): pass
@@ -65,18 +65,14 @@ def synthesize_and_stage(*,shop_id,campaign_id,source_plan,voice_id,lang,speed,
     issues=[{"problem":v,"manual_review_required":True}
             for v in ("audio_clipped","too_quiet","too_loud","excessive_silence")
             if metrics[v]]
-    status="F7_NOT_CONNECTED";words=None
+    # A Feature7 transcript must be signed against the *registered* private
+    # original WAV asset ID. F7 currently signs uploaded MP4 source hashes.
+    # Never trust an injected boolean worker_verified (or pre-registration ASR).
+    # Review via feature2_feature7_signed_audio only AFTER private registration.
     if f7_transcript is not None:
-        try: tested=consume_feature7_stt(
-            shop_id=shop_id,campaign_id=campaign_id,
-            source_sha256=review["plan_sha256"],
-            original_audio_sha256=metrics["sha256"],
-            expected_script=script,transcript=f7_transcript)
-        except VoiceQualityDenied as exc:
-            raise LocalVoiceJobDenied("External Feature7 evidence invalid") from exc
-        issues.extend(tested["issues"])
-        status="F7_VERSIONED_RECEIPT_REVIEWED"
-        words=f7_transcript["words"]
+        raise LocalVoiceJobDenied(
+            "Feature7 audio review requires registered WAV and signed receipt")
+    status="F7_PENDING_SIGNED_AUDIO_ADAPTER";words=None
     if (authorize_editor(shop_id,campaign_id) is not True or
         read_current_plan(shop_id,campaign_id)!=source_plan):
         raise LocalVoiceJobDenied("Source tenant/plan revoked after synthesis")
