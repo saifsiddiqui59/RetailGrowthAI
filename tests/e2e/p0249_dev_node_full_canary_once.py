@@ -9,6 +9,7 @@ of the two unique, disposable newly signed-up retailer shops.
 from __future__ import annotations
 
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -58,6 +59,51 @@ def node_preflight(*, include_prompt=False):
     print("P0249_REAL_NODE_WRITE_API_PREFLIGHT_PASSED=true",flush=True)
 
 
+
+def node_preview_headers(headers):
+    """Only a real user JWT may cross into the isolated Node candidate.
+
+    Never forward Supabase apikey, service credentials, cookies, arbitrary
+    caller-supplied Node JWT, proxy identity or browser-origin overrides.
+    The Node dispatcher independently verifies signature, expiry and RLS.
+    """
+    if not isinstance(headers, dict):
+        raise RuntimeError("P0249_INVALID_NODE_HEADER_SET")
+    forwarded = {}
+    token = None
+    for raw_name, value in headers.items():
+        if (not isinstance(raw_name, str) or not isinstance(value, str)
+                or not raw_name or "\r" in raw_name or "\n" in raw_name
+                or "\r" in value or "\n" in value):
+            raise RuntimeError("P0249_INVALID_NODE_HEADER")
+        name = raw_name.lower()
+        if name == "apikey":
+            # Supabase browser publishable key is irrelevant to Node. Never
+            # forward any value, including a mistakenly supplied service key.
+            continue
+        if name == "authorization":
+            if token is not None or not value.startswith("Bearer "):
+                raise RuntimeError("P0249_INVALID_NODE_USER_BEARER")
+            candidate = value[7:]
+            segments = candidate.split(".")
+            if (len(candidate) > 8192 or len(segments) != 3
+                    or not all(re.fullmatch(r"[A-Za-z0-9_-]+", p) for p in segments)):
+                raise RuntimeError("P0249_INVALID_NODE_USER_BEARER")
+            token = candidate
+            continue
+        if name not in {"accept", "content-type", "prefer"}:
+            # Includes a prefilled x-rgai-supabase-jwt, cookies, Origin,
+            # X-Forwarded-*, keys, and any unexpected impersonation header.
+            raise RuntimeError("P0249_UNREVIEWED_NODE_HEADER")
+        if name in forwarded:
+            raise RuntimeError("P0249_DUPLICATE_NODE_HEADER")
+        forwarded[name] = value
+    if token is None:
+        raise RuntimeError("P0249_MISSING_NODE_USER_BEARER")
+    forwarded["x-rgai-supabase-jwt"] = token
+    return forwarded
+
+
 def main():
     if os.environ.get("RGAI_DEV_CANARY_APPROVAL") != "AUTHORIZED_RETAILGROWTHAI_DEV_ONLY":
         raise RuntimeError("ROOT_APPROVAL_PRECONDITION_MISSING")
@@ -71,17 +117,12 @@ def main():
 
     def node_routed_call(url,method="GET",payload=None,headers=None,timeout=30,
                          expect=(200,201,202,204)):
-        original=dict(headers or {})
         is_node=url.startswith(NODE_PREVIEW+"/api/")
         if is_node:
-            # Only the original access JWT minted by Supabase Auth is forwarded
-            # via the custom SWA header; SWA Authorization/principal is ignored.
-            bearer=original.pop("Authorization",original.pop("authorization",None))
-            original.pop("apikey",None)
-            if bearer is not None:
-                if not isinstance(bearer,str) or not bearer.startswith("Bearer "):
-                    raise RuntimeError("UNTRUSTED_SUPABASE_JWT_TRANSPORT")
-                original["x-rgai-supabase-jwt"]=bearer[7:]
+            # One customer JWT only; reject forged inbound Node identity.
+            original=node_preview_headers(headers or {})
+        else:
+            original=dict(headers or {})
         try:
             return previous_call(url,method=method,payload=payload,
                                  headers=original,timeout=timeout,expect=expect)
