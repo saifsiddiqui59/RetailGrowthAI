@@ -3,10 +3,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/"video-engine"))
 from feature4_audio_master import master_private_audio, AudioMasterError
+import feature4_audio_master as audio_master
 
 class Feature4MasterTests(unittest.TestCase):
     def setUp(self):
@@ -46,6 +48,25 @@ class Feature4MasterTests(unittest.TestCase):
         self.assertFalse(result["commercial_release_eligible"])
         with self.assertRaisesRegex(AudioMasterError,"new"):
             master_private_audio(self.source,self.output,expected_seconds=15)
+
+    def test_authorized_source_revision_during_mastering_is_rejected(self):
+        self.make_source()
+        original_run = audio_master._run
+        modified = False
+        def mutate_once(args, **kwargs):
+            nonlocal modified
+            result = original_run(args, **kwargs)
+            if not modified and "-movflags" in args and "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000" in args:
+                with self.source.open("ab") as stream:
+                    stream.write(b"lease-revoked-mid-encode")
+                modified = True
+            return result
+        with patch.object(audio_master, "_run", side_effect=mutate_once):
+            with self.assertRaisesRegex(AudioMasterError, "changed"):
+                master_private_audio(self.source,self.output,expected_seconds=15)
+        self.assertTrue(modified)
+        self.assertFalse(self.output.exists())
+        self.assertEqual(list(self.root.glob(".audio-master-*.mp4")), [])
 
     def test_wrong_duration_invalid_and_symlink_inputs_fail(self):
         self.make_source()
