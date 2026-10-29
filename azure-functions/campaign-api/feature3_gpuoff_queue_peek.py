@@ -15,7 +15,8 @@ class Feature3QueuePeekDenied(PermissionError):
 class Feature3GPUOffAzureQueuePeek:
     def __init__(self, *, queue_client, gpu_off_intake):
         if (not callable(getattr(queue_client,"peek_messages",None)) or
-                not callable(getattr(gpu_off_intake,"inspect",None))):
+                not callable(getattr(gpu_off_intake,"inspect",None)) or
+                not callable(getattr(gpu_off_intake,"require_gpu_off",None))):
             raise ValueError("Real Azure Queue peek client and read-only intake required")
         self.queue=queue_client
         self.intake=gpu_off_intake
@@ -24,6 +25,9 @@ class Feature3GPUOffAzureQueuePeek:
         if type(limit) is not int or not 1<=limit<=5:
             raise Feature3QueuePeekDenied("Bounded read-only queue inspection required")
         try:
+            # Even an empty queue must not be interpreted as GPU-OFF when the
+            # current provider is ON, unknown or changes during inspection.
+            self.intake.require_gpu_off()
             # Exactly ONE SDK peek, never receive_message, update_message,
             # delete_message, clear_messages, send_message or queue binding.
             messages=self.queue.peek_messages(max_messages=limit,timeout=5)
@@ -62,6 +66,9 @@ class Feature3GPUOffAzureQueuePeek:
                                 "queue_delivery_acknowledged":False,
                                 "delete_permitted":False,
                                 "paid_retry_authorized":False})
+            # Revalidate after network I/O; status may change during peek
+            # even when no queued messages are visible.
+            self.intake.require_gpu_off()
         except Feature3QueuePeekDenied:
             raise
         except Exception as exc:
