@@ -46,6 +46,50 @@ def _record(path):
 
 
 
+
+def validate_visibility_evidence(*, original, provenance, visibility_proof):
+    """Require evidence for every real rendered scene without false visual claims."""
+    p=_record(provenance)
+    v=_record(visibility_proof)
+    windows=p.get("scene_windows")
+    measured=v.get("checked_scenes")
+    if (v.get("schema")!="feature4_scene_visibility_v1"
+            or v.get("status")!="SAMPLED_SCENES_NOT_BLANK_NOT_CONTENT_APPROVAL"
+            or v.get("source_sha256")!=_sha(original)
+            or v.get("seconds")!=60
+            or v.get("checked_scene_count")!=12
+            or v.get("sustained_near_black_count")!=0
+            or v.get("commercial_release_eligible") is not False
+            or v.get("garment_identity_verified") is not False
+            or v.get("unexpected_overlay_absence_verified") is not False
+            or not isinstance(windows,list) or len(windows)!=12
+            or not isinstance(measured,list) or len(measured)!=12):
+        raise MinuteProofError("60s visual scene evidence incomplete or overclaimed")
+    for want,got in zip(windows,measured):
+        if (type(want) is not dict or type(got) is not dict
+                or set(want)!={"start","duration"}
+                or got.get("scene_start")!=want["start"]
+                or got.get("duration")!=want["duration"]
+                or got.get("sustained_near_black") is not False
+                or not isinstance(got.get("samples"),list)
+                or len(got["samples"])!=2):
+            raise MinuteProofError("Scene visibility proof does not match approved timing")
+        for sample in got["samples"]:
+            t=sample.get("time_seconds") if isinstance(sample,dict) else None
+            luma=sample.get("mean_luma") if isinstance(sample,dict) else None
+            frac=sample.get("near_black_fraction") if isinstance(sample,dict) else None
+            if (type(t) not in (int,float) or type(luma) not in (int,float)
+                    or type(frac) not in (int,float)
+                    or not all(math.isfinite(x) for x in (t,luma,frac))
+                    or t<=want["start"] or t>=want["start"]+want["duration"]
+                    or luma<0 or luma>255 or frac<0 or frac>1):
+                raise MinuteProofError("Invalid decoded scene visibility sample")
+    return {"status":"SAMPLED_12_SCENES_VISIBLE_NOT_ARTISTIC_SIGNOFF",
+            "source_sha256":v["source_sha256"],"checked_scene_count":12,
+            "commercial_release_eligible":False,
+            "unexpected_overlay_absence_verified":False}
+
+
 def validate_captioned_review(*, preview, provenance, captioned, caption_srt,
                               caption_vtt, caption_proof):
     """Check a real reviewed 60s captioned derivative against its private input.
@@ -112,7 +156,7 @@ def validate_minute_evidence(*, original, master, preview, provenance,
                              motion, master_proof, preview_proof,
                              contact_image, contact_proof,
                              captioned=None, caption_srt=None, caption_vtt=None,
-                             caption_proof=None):
+                             caption_proof=None, visibility_proof=None):
     caption_args=(captioned,caption_srt,caption_vtt,caption_proof)
     if any(x is not None for x in caption_args) and not all(x is not None for x in caption_args):
         raise MinuteProofError("Partial captioned review chain cannot pass")
@@ -173,6 +217,10 @@ def validate_minute_evidence(*, original, master, preview, provenance,
                 or len(asset["sha256_original"])!=64
                 or asset.get("ai_generated") is not False):
             raise MinuteProofError("Attribution, SHA-256, or provenance missing")
+    scene_evidence=validate_visibility_evidence(
+        original=original,provenance=provenance,visibility_proof=visibility_proof
+    ) if visibility_proof is not None else {
+        "status":"NOT_RUN","commercial_release_eligible":False}
     caption_evidence=validate_captioned_review(
         preview=preview,provenance=provenance,captioned=captioned,
         caption_srt=caption_srt,caption_vtt=caption_vtt,caption_proof=caption_proof
@@ -192,6 +240,7 @@ def validate_minute_evidence(*, original, master, preview, provenance,
         "feature5":{"status":"REPEATED_STOCK_MOTION_ONLY","ai_inference_verified":False},
         "feature7":{"status":"LIMITED_TIMELINE_ONLY","advanced_effects_accepted":False},
         "captioned_editorial_review":caption_evidence,
+        "scene_visibility_qa":scene_evidence,
         "repetition_warning":bool(s.get("repetition_warning")),
         "commercial_release_eligible":False,
         "human_approved":False,
@@ -207,6 +256,7 @@ def main():
         ap.add_argument("--"+name,required=True)
     for name in ("captioned","caption-srt","caption-vtt","caption-proof"):
         ap.add_argument("--"+name,required=False)
+    ap.add_argument("--visibility-proof",required=False)
     args=ap.parse_args()
     kw={name.replace("-","_"):Path(getattr(args,name.replace("-","_")))
         for name in ("original","master","preview","provenance","motion",
@@ -214,6 +264,7 @@ def main():
     for name in ("captioned","caption-srt","caption-vtt","caption-proof"):
         value=getattr(args,name.replace("-","_"))
         kw[name.replace("-","_")]=Path(value) if value is not None else None
+    kw["visibility_proof"]=Path(args.visibility_proof) if args.visibility_proof else None
     report=validate_minute_evidence(**kw)
     dest=Path(args.output)
     if dest.is_symlink() or dest.exists() or not dest.parent.is_dir():
