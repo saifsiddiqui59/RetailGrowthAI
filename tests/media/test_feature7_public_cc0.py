@@ -372,6 +372,16 @@ process.stdout.write(JSON.stringify(projectUpstreamCaptionsAfterAutoClipCuts(p))
         self.assertFalse(result["captions_from_real_model_inference_proven"])
         self.assertEqual(hashlib.sha256(self.clip.read_bytes()).hexdigest(),
                          self.sha)
+        # Render a TEST-ONLY caption burn-in on the actual AutoClip voice edit.
+        # Preserve compressed AAC dialogue exactly. This does not approve F4.
+        from captioned_review_preview import render_captioned_review_preview
+        captioned_path=self.home/"cc0_real_voice_captioned_review.mp4"
+        captioned=render_captioned_review_preview(
+            source_path=output,source_sha256=edited["output_sha256"],
+            caption_projection=result,output_path=captioned_path)
+        self.assertTrue(captioned["output_aac_packets_identical"])
+        self.assertEqual(captioned["caption_count"],len(result["captions"]))
+        self.assertFalse(captioned["customer_publishable"])
         if os.getenv("CI") == "true":
             # Existing FFmpeg CI uploads ci-artifacts/ without a workflow edit.
             # These bytes come only from a pinned public CC0 speech source.
@@ -381,6 +391,22 @@ process.stdout.write(JSON.stringify(projectUpstreamCaptionsAfterAutoClipCuts(p))
             target=artifacts/"feature7-cc0-real-voice-retake-cut.mp4"
             self.assertFalse(target.exists())
             shutil.copy2(output,target)
+            captioned_target=artifacts/"feature7-cc0-real-voice-retake-captioned.mp4"
+            self.assertFalse(captioned_target.exists())
+            shutil.copy2(captioned_path,captioned_target)
+            (artifacts/"feature7-cc0-real-voice-captioned-proof.json").write_text(
+                json.dumps({
+                    "source_license":"CC0-1.0",
+                    "unmodified_autoclip_audio_packets":True,
+                    "captioned_preview_sha256":captioned["preview_sha256"],
+                    "original_cut_preview_sha256":edited["output_sha256"],
+                    "caption_count":captioned["caption_count"],
+                    "model_asr_executed":False,
+                    "retake_constructed_for_test":True,
+                    "human_review_accepted":False,
+                    "approved":False,"retailer_publishable":False,
+                    "feature4_final_renderer_executed":False
+                },indent=2),encoding="utf8")
             (artifacts/"feature7-cc0-real-voice-retake-proof.json").write_text(
                 json.dumps({
                     "source_repo":"shotstack/test-media",
