@@ -99,3 +99,7 @@ WineShopPOS, shared coordinator docs or PROD modifications.
 ## 2026-10-29 — F7-03 safety continuation (source, not accepted completion)
 - Implemented stale async response fencing for review and caption submissions, denies duplicates from unchanged scene/cue selection, and prevents callback DOM updates after reviewer destroy. Added offline Node regression and optional real Chromium mobile test.
 - Evidence to verify: `tests/media/test_feature7_reviewer_async.py`, `tests/media/test_feature7_reviewer_actual_browser.py`, and exact final-head PR CI. F7-03 remains **PARTIAL**, not an integrated DONE; authenticated Feature4 mounting and true live account/rights tests are outstanding. No paid services, production operations, shared coordinator documents or WineShopPOS changes.
+
+
+## 2026-10-29 — F7-04 actual worker SIGKILL source regression
+- Added bounded POSIX child-process kill → SQLite WAL reclaim/new fencing token → deny late old-worker completion acceptance test. This closes one previously unexercised local crash path but does not replace coordinator Postgres or remote execution idempotency. F7-04 still PARTIAL. Exact-head CI and actual run evidence must be checked independently before marking the local test passed.
