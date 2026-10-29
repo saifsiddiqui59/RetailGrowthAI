@@ -36,6 +36,8 @@ class PrepaidBridgeTests(unittest.TestCase):
         self.expected_claim_token=None
         self.output_id=str(uuid4())
         self.denied_reservation=False
+        self.output_mode="ok"
+        self.revoke_after_inference=False
     def _callbacks(self):
         def claim(job_id,claim_token):
             self.expected_claim_token=claim_token
@@ -44,7 +46,8 @@ class PrepaidBridgeTests(unittest.TestCase):
                 "job_id":job_id,"attempt":1,"claim_token":claim_token}
         def authorize(shop,job_id,claim_token,ids):
             self.events.append("authorize")
-            return self.enabled and shop==self.shop and ids==(self.asset,)
+            return (self.enabled and shop==self.shop and ids==(self.asset,)
+                    and not (self.revoke_after_inference and self.events.count("authorize")>=2))
         def reserve(shop,job_id,attempt,token):
             self.events.append("read reservation")
             if self.denied_reservation: return None
@@ -53,7 +56,10 @@ class PrepaidBridgeTests(unittest.TestCase):
                 "reserved_usd":0.05}
         def write(shop,job_id,image,metadata):
             self.events.append("private write")
-            return {"shop_id":shop,"job_id":job_id,"attempt":1,
+            if self.output_mode=="timeout":
+                raise TimeoutError("output Storage or DB ACK unknown")
+            return {"shop_id":shop if self.output_mode!="wrong_tenant" else str(uuid4()),
+                    "job_id":job_id,"attempt":1,
                 "claim_token":metadata["claim_token"],
                 "media_asset_id":self.output_id,
                 "image_sha256":sha256(image).hexdigest(),"private":True,
@@ -111,6 +117,34 @@ class PrepaidBridgeTests(unittest.TestCase):
                 with self.assertRaises(ProviderBlocked):
                     self._callbacks().execute(self.job)
                 self.assertNotIn("settled",str(self.events))
+    def test_lost_private_output_ack_never_settles_or_retries_paid_job(self):
+        self.output_mode="timeout"
+        with self.assertRaisesRegex(TimeoutError,"unknown"):
+            self._callbacks().execute(self.job)
+        self.assertEqual(self.events.count("private write"),1)
+        self.assertEqual(self.events.count("read reservation"),1)
+        self.assertNotIn("trusted cost",self.events)
+        self.assertFalse(any(isinstance(x,tuple) and x[0]=="settled" for x in self.events))
+        # Caller must hold RUNNING/reservation for independently measured
+        # operator reconciliation, not label a possible SQL CAS as FAILED.
+
+    def test_wrong_private_output_receipt_never_settles(self):
+        self.output_mode="wrong_tenant"
+        with self.assertRaisesRegex(ProviderBlocked,"cross-tenant"):
+            self._callbacks().execute(self.job)
+        self.assertEqual(self.events.count("private write"),1)
+        self.assertNotIn("trusted cost",self.events)
+        self.assertFalse(any(isinstance(x,tuple) and x[0]=="settled" for x in self.events))
+
+    def test_revocation_before_output_attempt_still_finalizes_failure(self):
+        self.revoke_after_inference=True
+        with self.assertRaisesRegex(ProviderBlocked,"revoked"):
+            self._callbacks().execute(self.job)
+        self.assertNotIn("private write",self.events)
+        self.assertIn("trusted cost",self.events)
+        self.assertTrue(any(isinstance(x,tuple) and x[0]=="settled" and x[2] is None
+                            for x in self.events))
+
     def test_no_second_attempt_or_disabled_provider(self):
         other=InferenceJob(self.shop,self.job_id,"image_edit",(self.asset,),attempt=2)
         with self.assertRaises(ProviderBlocked):
