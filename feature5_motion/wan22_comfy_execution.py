@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from .contracts import canonical_uuid
 from .wan22_motion_adapter import WanShotPackage, WanCompatibilityError
 from .infra.wan22_native_preflight import validate_native_graph_against_object_info
+from .part3_native_claim_gate import verify_native_wan22_claim
 
 MAX_OBJECT_JSON=2*1024*1024
 MAX_OTHER_JSON=512*1024
@@ -93,7 +94,7 @@ class WanPrivateComfyDispatcher:
     def submit_once(
         self, *, package, job_id, attempt_token,
         verify_existing_fenced_paid_claim, verify_current_private_first_frame,
-        record_unique_submission_intent,
+        record_unique_submission_intent, read_current_part3_native_claim,
         operator_image_legal_budget_approved=False,
         production_runtime_approved=False,
     ):
@@ -110,7 +111,8 @@ class WanPrivateComfyDispatcher:
             not callable(self.transport) or
             not callable(verify_existing_fenced_paid_claim) or
             not callable(verify_current_private_first_frame) or
-            not callable(record_unique_submission_intent)):
+            not callable(record_unique_submission_intent) or
+            not callable(read_current_part3_native_claim)):
             raise WanCompatibilityError("Wan local paid submission disabled or not authorized")
         if (not isinstance(package,WanShotPackage) or
             package.provider!="wan22_ti2v_5b_comfy_v1" or
@@ -139,6 +141,17 @@ class WanPrivateComfyDispatcher:
                 separators=(",",":"),allow_nan=False).encode()).hexdigest()
         except (KeyError,TypeError,ValueError,AttributeError) as exc:
             raise WanCompatibilityError("Malformed Feature2 model prompt bundle") from exc
+        # The current Part3 #125 Wan2.7 720P/1080P reservation is NOT a
+        # valid Wan2.2 native claim. A generic boolean paid-claim reader could
+        # otherwise silently spend the wrong model/profile. Require a fresh
+        # strict service-only native reservation in addition to the original
+        # fenced lease check before reading any ComfyUI runtime metadata.
+        try:
+            native_claim = verify_native_wan22_claim(
+                read_current_part3_native_claim(shop, job, token),
+                package=package, shop=shop, job=job, attempt=token)
+        except Exception as exc:
+            raise WanCompatibilityError("Native Part3 Wan2.2 claim unavailable") from exc
         if (positive != package.prompt or
             complete_sha != package.prompt_sha256 or
             verify_existing_fenced_paid_claim(
@@ -163,6 +176,16 @@ class WanPrivateComfyDispatcher:
         validate_native_graph_against_object_info(
             package.graph,object_info,expected_input_filename=proof["staged_basename"],
             expected_negative_prompt=negative)
+        # Runtime node discovery can take time: confirm native reserved
+        # profile, credit and lease have not drifted before durable intent.
+        try:
+            current_claim = verify_native_wan22_claim(
+                read_current_part3_native_claim(shop, job, token),
+                package=package, shop=shop, job=job, attempt=token)
+        except Exception as exc:
+            raise WanCompatibilityError("Native Part3 claim stale before intent") from exc
+        if current_claim != native_claim:
+            raise WanCompatibilityError("Part3 native job or reservation changed before intent")
         # Rights may have been revoked while node/schema preflight ran. Bind
         # the same independent current grant again immediately before CAS.
         refreshed=verify_current_private_first_frame(
@@ -188,6 +211,18 @@ class WanPrivateComfyDispatcher:
             ) from exc
         if recorded is not True:
             raise WanCompatibilityError("Unique durable paid submission intent denied")
+        # After the consumed CAS, a lost/read-only changed reservation is
+        # UNKNOWN rather than a reason to submit/retry a billable request.
+        try:
+            last_claim = verify_native_wan22_claim(
+                read_current_part3_native_claim(shop, job, token),
+                package=package, shop=shop, job=job, attempt=token)
+        except Exception as exc:
+            raise UnknownComfyPaidAttempt(
+                "Part3 native claim unknown after durable intent; never retry") from exc
+        if last_claim != native_claim:
+            raise UnknownComfyPaidAttempt(
+                "Part3 native claim changed after durable intent; never retry")
         # One last independent rights check AFTER committing the unique paid
         # intent, before sending /prompt. An UNKNOWN intent is never replayed.
         try:
