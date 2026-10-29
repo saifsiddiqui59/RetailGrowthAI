@@ -213,7 +213,8 @@ def _deny_if(condition, reason):
 def review_signed_audio_transcript(*, receipt, shop_id, campaign_id,
                                    audio_asset_id, creative_plan_sha256,
                                    original_audio_sha256, audio_duration_seconds,
-                                   expected_script, evidence_key, now_ms):
+                                   expected_script, evidence_key, now_ms,
+                                   expected_job_id=None, assert_current_source=None):
     """Verify F7 HMAC AND original WAV byte identity before reviewing words.
 
     Returns review-only word evidence. Current F7 MP4/video receipts are refused,
@@ -221,6 +222,8 @@ def review_signed_audio_transcript(*, receipt, shop_id, campaign_id,
     """
     _deny_if(not isinstance(receipt, dict) or type(evidence_key) is not bytes or
              len(evidence_key) < 32 or type(now_ms) is not int or now_ms < 0 or
+             type(expected_job_id) is not str or not ID.fullmatch(expected_job_id) or
+             not callable(assert_current_source) or
              not all(isinstance(s, str) and SHA.fullmatch(s) for s in
                      (creative_plan_sha256, original_audio_sha256)) or
              not isinstance(audio_duration_seconds, (float, int)) or
@@ -259,6 +262,15 @@ def review_signed_audio_transcript(*, receipt, shop_id, campaign_id,
              not 0 < evidence["expires_at_ms"]-evidence["issued_at_ms"] <= 600000 or
              not evidence["issued_at_ms"]-30000 <= now_ms <= evidence["expires_at_ms"],
              "Invalid/expired Feature7 signed evidence")
+    _deny_if(evidence["job_id"] != expected_job_id,
+             "F7 transcript job does not match authoritative audio job")
+    # F7's current signed payload omits campaign, creative revision and MIME.
+    # Require an *independently trusted backend* read binding these values to
+    # original private media and the F7 source job before trusting the MAC.
+    scope=(shop_id,campaign_id,audio_asset_id,creative_plan_sha256,
+           original_audio_sha256,expected_job_id)
+    _deny_if(assert_current_source(*scope) is not True,
+             "Current private audio source/creative/job provenance denied")
     _deny_if(any(evidence[k] != receipt[k] for k in
                  ("shop_id", "asset_id", "source_sha256", "transcript_sha256", "model_id")),
              "Feature7 evidence scope mismatch")
@@ -309,7 +321,11 @@ def review_signed_audio_transcript(*, receipt, shop_id, campaign_id,
             audio_duration_seconds=audio_duration_seconds)
     except VoiceQualityDenied as exc:
         raise Feature7AudioEvidenceDenied("Signed STT content invalid") from exc
+    _deny_if(assert_current_source(*scope) is not True,
+             "Registered private source changed during F7 review")
     return {**quality, "evidence_mac_verified": True,
+            "trusted_current_source_verified": True,
+            "source_job_id":expected_job_id,
             "audio_asset_id": audio_asset_id,
             "source_media_kind": "audio/wav",
             "confidence_available": False,
