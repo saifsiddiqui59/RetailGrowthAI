@@ -1,5 +1,6 @@
 // Human QA aggregation only; never an AI judge or trusted backend proof.
 import {QUALITY_RUBRICS,acceptedDimension} from './quality-rubrics.mjs'
+import {isObservedCompletedOutput} from './trace-output-evidence.mjs'
 const validScore = x => Number.isInteger(x) && x >= 1 && x <= 5
 
 export function inspectHumanQuality(events) {
@@ -9,7 +10,7 @@ export function inspectHumanQuality(events) {
   const outputSeen=new Set()
   for(const event of ordered){
     if(!Object.prototype.hasOwnProperty.call(QUALITY_RUBRICS,event.feature))continue
-    if(event.status==='PASS'){outputSeen.add(event.feature);continue}
+    if(isObservedCompletedOutput(event)){outputSeen.add(event.feature);continue}
     if(event.status!=='QUALITY_REVIEW'||!outputSeen.has(event.feature)||!validScore(event.details?.score))continue
     const id=event.details?.dimension===undefined?'overall':event.details.dimension
     if(!acceptedDimension(event.feature,id))continue
