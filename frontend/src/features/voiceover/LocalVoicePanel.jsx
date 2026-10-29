@@ -40,7 +40,7 @@ export default function LocalVoicePanel({
   urlRef.current=null;setAudioUrl('')
  }
  useEffect(()=>{
-  setSaved(null);setQuality(null);setWer(null);setPendingProposal(null)
+  setBusy(false);setSaved(null);setQuality(null);setWer(null);setPendingProposal(null)
   setReviewAcknowledged(false);setSentenceIndex(0)
   setAudioUrl('');setScriptDraft(sourceScript)
   setPronounceWord('');setPronounceAs('')
@@ -86,8 +86,8 @@ export default function LocalVoicePanel({
      setReviewAcknowledged(false)
    }
    setMessage('Proposal sent for human editor review; approved source script is unchanged')
-  }catch(e){setError(e?.message||'Revision proposal rejected')}
-  finally{setBusy(false)}
+  }catch(e){if(scope===scopeRef.current)setError(e?.message||'Revision proposal rejected')}
+  finally{if(scope===scopeRef.current)setBusy(false)}
  }
  async function commitApprovedDraft(){
    if(enabled!==true||typeof onCommitReviewedDraft!=='function'||!pendingProposal){
@@ -107,8 +107,8 @@ export default function LocalVoicePanel({
      setPendingProposal(null);setReviewAcknowledged(false)
      setMessage('Reviewed revision saved as private draft '+checked.revision+
        '. Re-run copy, media rights and human approval before publishing.')
-   }catch(e){setError(e?.message||'Human review is not independently verified')}
-   finally{setBusy(false)}
+   }catch(e){if(scope===scopeRef.current)setError(e?.message||'Human review is not independently verified')}
+   finally{if(scope===scopeRef.current)setBusy(false)}
  }
  async function fetchAudio(){
   if(!saved||typeof onFetchLocalAudio!=='function'||enabled!==true){
@@ -125,8 +125,8 @@ export default function LocalVoicePanel({
    clearAudio()
    const url=URL.createObjectURL(new Blob([checked.bytes],{type:checked.mime_type}))
    urlRef.current=url;setAudioUrl(url)
-  }catch(e){setError(e?.message||'Original private WAV failed verification')}
-  finally{setBusy(false)}
+  }catch(e){if(scope===scopeRef.current)setError(e?.message||'Original private WAV failed verification')}
+  finally{if(scope===scopeRef.current)setBusy(false)}
  }
  async function loadQuality(){
   if(!saved||enabled!==true||typeof onFetchQualityReview!=='function'){
@@ -146,8 +146,8 @@ export default function LocalVoicePanel({
     if(scope!==scopeRef.current)throw Error('Review context revoked during read')
     setQuality(reviewed);setWer(null)
     setMessage('Speech-to-text hints loaded; listen to the original and request human review')
-  }catch(e){setQuality(null);setError(e?.message||'Audio review unavailable')}
-  finally{setBusy(false)}
+  }catch(e){if(scope===scopeRef.current){setQuality(null);setError(e?.message||'Audio review unavailable')}}
+  finally{if(scope===scopeRef.current)setBusy(false)}
  }
  async function loadSignedWer(){
   if(!saved||!quality||enabled!==true||typeof onFetchSignedWerReview!=='function'){
@@ -166,8 +166,8 @@ export default function LocalVoicePanel({
      shopId,campaignId,planSha256,receipt:saved,metrics:record})
    if(scope!==scopeRef.current)throw Error('Signed WAV review context changed')
    setWer(selected)
-  }catch(e){setWer(null);setError(e?.message||'Signed word accuracy review unavailable')}
-  finally{setBusy(false)}
+  }catch(e){if(scope===scopeRef.current){setWer(null);setError(e?.message||'Signed word accuracy review unavailable')}}
+  finally{if(scope===scopeRef.current)setBusy(false)}
  }
  async function proposeSentenceRetake(){
   if(!quality||!saved||!enabled||typeof onRequestSentenceRetake!=='function'){
@@ -184,8 +184,8 @@ export default function LocalVoicePanel({
     if(scope!==scopeRef.current)throw Error('Original audio or campaign changed')
     setMessage('New private sentence proposed. Await a fresh Feature7 transcript, human listening and Feature4 scene assembly.')
     setQuality(null);setWer(null);setSaved(null);clearAudio()
-  }catch(e){setError(e?.message||'Retake rejected; inspect one-shot job before retry')}
-  finally{setBusy(false)}
+  }catch(e){if(scope===scopeRef.current)setError(e?.message||'Retake rejected; inspect one-shot job before retry')}
+  finally{if(scope===scopeRef.current)setBusy(false)}
  }
  async function submit(preview){
   setError('');setMessage('');setSaved(null);setQuality(null);setWer(null);clearAudio()
@@ -217,8 +217,8 @@ export default function LocalVoicePanel({
    if(scope!==scopeRef.current)throw Error('Shop or script changed during local voice job')
    setSaved(proof)
    setMessage('Private original audio saved; human listening and rights review still required')
-  }catch(e){setError(e?.message||'Local voice job status uncertain; check history before retry')}
-  finally{setBusy(false)}
+  }catch(e){if(scope===scopeRef.current)setError(e?.message||'Local voice job status uncertain; check history before retry')}
+  finally{if(scope===scopeRef.current)setBusy(false)}
  }
  return <section className="rg-local-voice" aria-label="Free local Kokoro voiceover">
   <p>Kokoro ONNX / CPU — English voices only. Hindi and Marathi need an explicitly approved compatible provider.</p>
