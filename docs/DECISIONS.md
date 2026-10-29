@@ -967,3 +967,6 @@
 
 ## 2026-10-29 — Feature3 postclaim rights must use shared preflight and current prepaid lease
 - A worker's initial QUEUED planning result cannot authorize an already-claimed RUNNING job. Reuse the exact SQL/tenant/image source-rights verifier with distinct RUNNING attempts=1/token/lease requirements, rereading the existing immutable prepaid reservation both before and after the private original-byte/current approval proofs. Source IDs must match the same versioned design; no source-only receipt authorizes a GPU call, spends budget, extends a lease, retries a job or acknowledges Azure Queue.
+
+## 2026-10-29 — Private model candidate URLs must be revoked on decode failure
+- Each failed private model image candidate must revoke its own browser-created Blob URL immediately and remove it from the host registry, avoiding unused media retention or double revocation at later shop switch/unmount. Successful previews stay scoped to current authenticated shop and bounded list. Never revoke arbitrary remote URLs and never treat local memory cleanup as a legal permission, Storage URL revocation or customer rights check.
