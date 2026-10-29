@@ -131,8 +131,7 @@ class Feature3TrustedPrivateSourceProof:
             model_id = (parts[2] if len(parts)==4 else
                         parts[3] if len(parts)==5 and parts[2]=="platform"
                         else None)
-            if (model_id is None or media["mime_type"]!="image/png"
-                    or not _HASH.fullmatch(leaf[:-4])):
+            if (model_id is None or not _HASH.fullmatch(leaf[:-len(ext)])):
                 raise SourceProofDenied("Invalid immutable model-original path")
             _uuid(model_id)
         return asset,key
@@ -204,7 +203,7 @@ class Feature3TrustedPrivateSourceProof:
         # path; declared metadata cannot substitute for actual bytes.
         digest=self._private_bytes(key,registered_media["mime_type"])
         if (key.split("/")[1]=="model-library" and
-                key.rsplit("/",1)[-1][:-4]!=digest):
+                key.rsplit("/",1)[-1].rsplit(".",1)[0]!=digest):
             raise SourceProofDenied("Original model bytes differ from immutable path SHA")
         revision=self._authorize(shop,asset,digest,registered_media)
         # This second verification is independent of any DB snapshot refresh
