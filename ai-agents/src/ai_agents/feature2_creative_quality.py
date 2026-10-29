@@ -305,3 +305,73 @@ def append_feature2_trace(*, shop_id, campaign_id, workflow_id, event_id,
             "stage":stage,"status":status,
             "evidence_class":evidence_class,
             "private":True,"can_publish":False}
+
+
+def stage_blind_human_review_revision(*,shop_id,campaign_id,experiment_id,
+                                      candidates,reviews,expected_revision,
+                                      current_editor,read_current_candidates,
+                                      verify_human_review,read_current_revision,
+                                      save_review_cas):
+    """Persist a blind A/B scoreboard only with independent signed human proofs.
+
+    Source-only coordinator-injected callbacks: no browser-supplied approvals,
+    reviewer signatures, secret keys, paid provider scores or auto-publishing.
+    """
+    if (not _trace_uuid(shop_id) or not _trace_uuid(campaign_id)
+        or type(expected_revision) is not int or not 0<=expected_revision<=9999
+        or type(candidates) is not dict or set(candidates)!={"A","B"}
+        or not all(callable(v) for v in (
+            current_editor,read_current_candidates,verify_human_review,
+            read_current_revision,save_review_cas))
+        or type(reviews) is not list or len(reviews)!=4):
+        raise Feature2TraceDenied("Authenticated versioned human A/B review required")
+    def live():
+        return (current_editor(shop_id,campaign_id) is True and
+                read_current_candidates(shop_id,campaign_id,experiment_id)==candidates)
+    if not live() or read_current_revision(shop_id,campaign_id,experiment_id)!=expected_revision:
+        raise Feature2TraceDenied("Current blind candidate/role revision revoked")
+    # Structural human rubric checks do not prove that any claimed reviewer
+    # actually exists: each complete exact receipt MUST verify externally.
+    result=blind_human_comparison(experiment_id=experiment_id,
+                                  candidates=candidates,reviews=reviews)
+    try:
+        candidate_digests={key:content_fingerprint(value)
+                           for key,value in candidates.items()}
+        for item in reviews:
+            blob=json.dumps(item,ensure_ascii=False,sort_keys=True,
+                            separators=(",",":")).encode()
+            if len(blob)>4096 or verify_human_review(
+                shop_id,campaign_id,experiment_id,item["candidate_id"],
+                candidate_digests[item["candidate_id"]],
+                hashlib.sha256(blob).hexdigest()) is not True:
+                raise Feature2TraceDenied("Signed individual human review missing")
+    except (TypeError,KeyError,ValueError) as exc:
+        raise Feature2TraceDenied("Invalid individual signed review") from exc
+    receipt_digest=hashlib.sha256(json.dumps(
+        {"candidate_hashes":candidate_digests,"reviews":reviews,
+         "experiment_id":experiment_id},ensure_ascii=False,sort_keys=True,
+         separators=(",",":")).encode()).hexdigest()
+    if not live() or read_current_revision(shop_id,campaign_id,experiment_id)!=expected_revision:
+        raise Feature2TraceDenied("Blind candidate changed before durable revision")
+    stored=save_review_cas(shop_id,campaign_id,experiment_id,
+                           expected_revision,receipt_digest,
+                           {"schema":"retailgrowth.feature2-blind-review.v1",
+                            "candidate_digests":candidate_digests,
+                            "receipt_digest":receipt_digest,
+                            "review_result":result,
+                            "review_status":"HUMAN_SCORE_ONLY",
+                            "can_publish":False,"paid_motion_permitted":False})
+    if (type(stored) is not dict or
+        stored.get("shop_id")!=shop_id or
+        stored.get("campaign_id")!=campaign_id or
+        stored.get("experiment_id")!=experiment_id or
+        stored.get("revision")!=expected_revision+1 or
+        stored.get("receipt_digest")!=receipt_digest or
+        stored.get("private") is not True):
+        raise Feature2TraceDenied("Durable human review revision not confirmed")
+    return {"schema":"retailgrowth.feature2-blind-review.v1",
+            "experiment_id":experiment_id,"revision":expected_revision+1,
+            "receipt_digest":receipt_digest,
+            "human_scores":result["blind_review_results"],
+            "source":"INDEPENDENT_SIGNED_HUMAN_REVIEW_ONLY",
+            "approved_to_publish":False,"paid_motion_permitted":False}
