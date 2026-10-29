@@ -173,3 +173,60 @@ export function verifyLocalSentenceRetakeReceipt({request,receipt}){
    requires_feature4_scene_assembly:true,
    can_publish:false})
 }
+
+
+// Safe job-history readback for an *uncertain* local synthesis response.
+// This cannot authorize a retry, infer actual inference or grant rights.
+export function makePrivateVoiceJobStatusRequest({
+  shopId,campaignId,planSha256,requestKey,provider='kokoro-onnx'
+}={}){
+  if(!UUID.test(shopId||'')||!UUID.test(campaignId||'')||
+     !SHA.test(planSha256||'')||!UUID.test(requestKey||'')||
+     provider!=='kokoro-onnx') invalid()
+  return Object.freeze({
+    schema:'retailgrowth.feature2-private-voice-status-query.v1',
+    shop_id:shopId,campaign_id:campaignId,
+    creative_plan_sha256:planSha256,request_key:requestKey,
+    provider:'kokoro-onnx',read_only:true,can_reissue_job:false,
+  })
+}
+
+export function verifyPrivateVoiceJobStatus({
+  shopId,campaignId,planSha256,requestKey,status
+}={}){
+  const states=new Set(['RESERVED','RUNNING','AWAITING_HUMAN_REVIEW',
+                        'FAILED','DENIED','BLOCKED'])
+  if(!status||typeof status!=='object'||Array.isArray(status)||
+    status.schema!=='retailgrowth.feature2-private-voice-job-status.v1'||
+    status.shop_id!==shopId||status.campaign_id!==campaignId||
+    status.creative_plan_sha256!==planSha256||
+    status.request_key!==requestKey||
+    !UUID.test(shopId||'')||!UUID.test(campaignId||'')||
+    !UUID.test(requestKey||'')||!SHA.test(planSha256||'')||
+    status.provider!=='kokoro-onnx'||!states.has(status.status)||
+    status.private!==true||status.can_publish!==false||
+    status.automatically_retried!==false||
+    status.azure_fallback_used!==false||status.paid_api_calls!==0||
+    typeof status.terminal!=='boolean'||
+    status.terminal!==['AWAITING_HUMAN_REVIEW','FAILED','DENIED','BLOCKED']
+      .includes(status.status)||
+    status.original_audio_sha256!==null&&
+       (status.status!=='AWAITING_HUMAN_REVIEW'||
+        !SHA.test(status.original_audio_sha256||''))||
+    status.audio_asset_id!==null&&
+       (status.status!=='AWAITING_HUMAN_REVIEW'||
+        !UUID.test(status.audio_asset_id||''))||
+    (status.status==='AWAITING_HUMAN_REVIEW'&&
+      (!SHA.test(status.original_audio_sha256||'')||
+       !UUID.test(status.audio_asset_id||'')))||
+    status.review_status!=='PENDING_HUMAN_LISTEN_AND_RIGHTS'
+  )invalid()
+  return Object.freeze({
+    state:status.status,terminal:status.terminal,
+    existing_private_audio:status.status==='AWAITING_HUMAN_REVIEW',
+    original_audio_sha256:status.original_audio_sha256,
+    audio_asset_id:status.audio_asset_id,
+    can_publish:false,can_reissue_job:false,
+    human_review_required:true,
+  })
+}
