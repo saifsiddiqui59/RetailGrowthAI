@@ -23,7 +23,15 @@ class ActualFeature3ConsumerTests(unittest.TestCase):
         # stand-in packet shaped by F5. Synthetic offline files are explicit.
         self.f3fixture = f3fixtures.ConsumerBytesTests(
             "test_each_feature_reads_real_bytes_with_distinct_roles")
-        self.f3fixture.setUp()
+        # Feature3's generic source fixture makes identical RGB images for
+        # both JPEG roles. F5 correctly requires garment != pose bytes;
+        # generate three distinct *synthetic test* images without changing
+        # the real Feature3 source or relaxing the production integrity gate.
+        create_image = Image.new
+        colors = iter(("#316d82", "#bd4e71", "#46a993"))
+        with patch.object(Image, "new", side_effect=lambda mode, size, color:
+                          create_image(mode, size, next(colors))):
+            self.f3fixture.setUp()
         self.addCleanup(self.f3fixture.doCleanups)
         self.parent = self.f3fixture.root
         self.pins = {}
