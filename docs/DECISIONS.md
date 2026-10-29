@@ -976,3 +976,6 @@
 
 ## 2026-10-29 — Execute proposed current-model review only in disposable CI
 - The source-only current-model rights RPC may be imported and ACL/negative-tested against throwaway local Postgres and dropped in the same test script. This does not authorize canonical migration, hosted DEV writes or commercial source approvals. Anonymous/authenticated EXECUTE and mismatched reviewer role claims must stay denied, while missing/unapproved inputs fail closed.
+
+## 2026-10-29 — Operator private output evidence proposal tested only in disposable DB
+- Validate proposed output SQL rights with temporary isolated PostgreSQL import, real service-role-only EXECUTE checks, nonservice JWT claim and missing job/media denial, then explicitly drop it. Do not apply the proposal to hosted DEV as a side effect of CI or infer that synthetic proof is a true generated PNG or billable provider invoice.
