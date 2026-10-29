@@ -112,5 +112,6 @@ python3 "$ROOT/video-engine/feature4_minute_quality_receipt.py" \
   --caption-srt "$OUTPUT/feature4-stock-minute-editorial.srt" \
   --caption-vtt "$OUTPUT/feature4-stock-minute-editorial.vtt" \
   --caption-proof "$OUTPUT/feature4-stock-minute-captioned-proof.json" \
+  --visibility-proof "$OUTPUT/feature4-60s-visibility-qa.json" \
   --output "$OUTPUT/feature4-60s-cross-feature-qa-receipt.json"
 echo "PASS 60s stock editor technical source/render/preview only; no customer/owner approval"
