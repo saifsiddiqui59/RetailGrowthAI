@@ -16,7 +16,8 @@ def response(backend, phase, route, status="401", marked=True, seconds=0.7):
         "timestamp_utc": "2026-10-28T12:00:00+00:00",
         "http_status": status,
         "curl_exit": 0,
-        "application_request_marker": marked,
+        "application_request_marker": marked if backend=="azure_flex_python" else False,
+        "node_adapter_marker": marked if backend=="free_swa_node" else False,
         "category": "EXPECTED_401" if status=="401" else "HTTP_503_UNMARKED_OR_GATEWAY",
         "total_seconds": seconds,
         "dns_seconds":0.05,"tcp_seconds":0.1,"tls_seconds":0.2,
@@ -66,6 +67,23 @@ def test_unmarked_python_handler_and_http503_fail_without_post_retry():
     result=probe["summarize_powered"](observations)
     assert result["azure_flex_python"]["verified_expected_401"] == 0
     assert result["azure_flex_python"]["p95_verified_401_seconds"] is None
+
+
+def test_node_generic_401_no_longer_counts_as_handler_success():
+    unmarked = response("free_swa_node", "warm", "campaign", marked=False)
+    assert probe["accepted"](unmarked) is False
+    s = probe["summarize_powered"]([unmarked])
+    assert s["free_swa_node"]["verified_expected_401"] == 0
+    assert s["free_swa_node"]["p95_verified_401_seconds"] is None
+
+    # Even if all 20 Node responses are syntactically 401, none is verified
+    # unless the *final* Node secure-adapter header was present.
+    samples = [response("free_swa_node", "warm", "campaign", marked=False)
+               for _ in range(20)]
+    summary = probe["summarize_powered"](samples)
+    assert summary["free_swa_node"]["completed_http"] == 20
+    assert summary["free_swa_node"]["verified_expected_401"] == 0
+    assert summary["free_swa_node"]["p95_verified_401_seconds"] is None
 
 
 def test_wrong_backend_or_route_fails_closed():
