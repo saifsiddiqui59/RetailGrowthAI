@@ -112,6 +112,7 @@ class Feature5FullCrossFeatureOfflineTests(unittest.TestCase):
                     check_current_paid_claim_and_source=current,
                     commit_unique_import_intent=store.reserve_intent,
                     upload_private_once=store.upload,
+                    read_back_private_chunks=store.read_back_private_chunks,
                     commit_fenced_storage_and_settlement=store.settle)
                 self.assertEqual(store.uploads,1)
                 self.assertEqual(store.commits,1)
