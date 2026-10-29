@@ -52,7 +52,7 @@ begin
       if new.status<>'SUCCEEDED' or p.status not in ('DRAFT','READY')
          or new.metadata <> pg_catalog.jsonb_build_object(
            'generated_days',7,'planner_mode',new.metadata->>'planner_mode')
-         or new.metadata->>'planner_mode' not in ('foundry','dev_mock')
+         or coalesce(new.metadata->>'planner_mode','') not in ('foundry','dev_mock')
          or (select count(*) from public.campaign_days
              where shop_id=new.shop_id and campaign_id=new.job_id)<>7
       then raise exception 'Unverified seven-day completion' using errcode='22023'; end if;
