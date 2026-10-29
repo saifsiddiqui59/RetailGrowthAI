@@ -102,3 +102,57 @@ def test_real_word_mismatch_is_only_suspected_not_phoneme_certification():
     assert result["human_listen_required"] is True
     assert result["publish_approved"] is False
     assert result["pronunciation_verified"] is False
+
+
+from ai_agents.feature2_voice_quality import project_offline_openpronounce_review
+
+def test_openpronounce_projector_allows_real_missing_phone_as_review_only():
+    result={"score":67.4,"differences":{"errors":[
+        {"word":"kurti","position":2,"expected":"kɜːti",
+         "actual":None,"confidence":0.62}]}}
+    view=project_offline_openpronounce_review(audio_sha256="a"*64,result=result)
+    assert view["lang"]=="en" and view["provider"]=="Halleck45/OpenPronounce"
+    assert view["version"]=="0.3.0"
+    assert view["issues"][0]["heard_ipa"]==""
+    assert view["issues"][0]["confidence"]==0.62
+    assert view["issues"][0]["manual_review_required"]
+    assert view["heuristic_score"]==67.4
+    assert view["review_required"] and not view["publish_approved"]
+    assert not view["human_pronunciation_verified"]
+    assert "transcribe" not in view and "prosody" not in view
+
+@pytest.mark.parametrize("field,value",[
+    ("score",float("nan")),("score",101),("score",True),
+    ("differences",{}),
+    ("differences",{"errors":"not-a-list"}),
+    ("differences",{"errors":[{"word":"hello","position":0,
+                               "expected":"həloʊ","actual":"hɛloʊ",
+                               "confidence":2.2}]}),
+    ("differences",{"errors":[{"word":"<script>","position":0,
+                               "expected":"həloʊ","actual":"hɛloʊ",
+                               "confidence":0.3}]}),
+    ("differences",{"errors":[{"word":"hello","position":True,
+                               "expected":"həloʊ","actual":"hɛloʊ",
+                               "confidence":0.3}]}),
+])
+def test_untrusted_openpronounce_score_or_phones_are_not_human_evidence(field,value):
+    row={"score":70.0,"differences":{"errors":[]}}
+    row[field]=value
+    with pytest.raises(VoiceQualityDenied):
+        project_offline_openpronounce_review(audio_sha256="a"*64,result=row)
+
+def test_openpronounce_needs_offline_only_cpu_reference_before_import(monkeypatch):
+    monkeypatch.setenv("RETAIL_F2_OPENPRONOUNCE_ENABLED","true")
+    monkeypatch.setenv("HF_HUB_OFFLINE","1")
+    monkeypatch.setenv("OPENPRONOUNCE_TTS","piper")
+    monkeypatch.setenv("RETAIL_F2_REFERENCE_AUDIO_PRELOADED","true")
+    monkeypatch.delenv("TRANSFORMERS_OFFLINE",raising=False)
+    monkeypatch.setenv("OPENPRONOUNCE_DEVICE","cpu")
+    with pytest.raises(VoiceQualityDenied,match="Offline calibrated"):
+        run_openpronounce_lazy(original_wav=wav(),expected_script="Hello",
+                               enabled=True)
+    monkeypatch.setenv("TRANSFORMERS_OFFLINE","1")
+    monkeypatch.setenv("OPENPRONOUNCE_DEVICE","cuda")
+    with pytest.raises(VoiceQualityDenied,match="Offline calibrated"):
+        run_openpronounce_lazy(original_wav=wav(),expected_script="Hello",
+                               enabled=True)
