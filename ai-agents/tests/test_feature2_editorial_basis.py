@@ -392,8 +392,8 @@ def test_unicode_compatibility_claims_still_require_editorial_review(draft, issu
     assert report["can_publish"] is False
 
 
-@pytest.mark.parametrize("hidden", ["\\u200b", "\\u2060", "\\ufeff",
-                                     "\\u202e", "\\u2066", "\\u200e"])
+@pytest.mark.parametrize("hidden", ["\u200b", "\u2060", "\ufeff",
+                                     "\u202e", "\u2066", "\u200e"])
 def test_invisible_claim_obfuscation_rejected_before_review(hidden):
     with pytest.raises(EditorialBasisRejected, match="Unsafe"):
         inspect_retailer_copy_claims(
