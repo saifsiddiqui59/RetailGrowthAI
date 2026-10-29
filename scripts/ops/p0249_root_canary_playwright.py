@@ -40,10 +40,31 @@ def read_pending(page) -> set[str]:
     return set(page.locator(".platform-review-item strong").all_inner_texts())
 
 
+def is_onboarding_queue_reply(response) -> bool:
+    """Identify only the real authenticated ROOT queue RPC response."""
+    from urllib.parse import urlsplit
+    url = urlsplit(response.url)
+    return (url.scheme == "https"
+            and url.hostname == "jeearzffnjbvghwjjjrf.supabase.co"
+            and url.path == "/rest/v1/rpc/retail_platform_onboarding_requests"
+            and response.request.method == "POST")
+
+
 def refresh_pending(page) -> set[str]:
-    page.get_by_role("button", name="Refresh queue").click()
+    # A hidden loading spinner alone is NOT a sync barrier: React may not
+    # mount the pending state until after the original click returns. Wait
+    # for the actual signed platform API reply before inspecting DOM rows.
+    with page.expect_response(is_onboarding_queue_reply, timeout=15_000) as result:
+        page.get_by_role("button", name="Refresh queue").click()
+    response = result.value
+    if not response.ok:
+        raise RuntimeError("ROOT approval queue HTTP request failed; no decisions made")
     page.get_by_text("Loading pending retailer requests…", exact=True).wait_for(
         state="hidden", timeout=15_000)
+    # React's resolved Promise updates the row state on a subsequent render.
+    # Give it one browser event-loop turn, never read stale rows immediately
+    # from a response event that fires before its React Promise settles.
+    page.wait_for_timeout(100)
     error = page.locator(".platform-approvals [role='alert']")
     if error.count():
         raise RuntimeError("ROOT approval queue failed to load; no decisions made")
