@@ -41,7 +41,7 @@ class ModelReviewProposalTests(unittest.TestCase):
         self.assertIn("ev.rights_revision <> m.rights_revision",sql)
         self.assertIn("ev.action <> 'approve'",sql)
         self.assertIn("ev.to_status <> 'approved'",sql)
-        self.assertIn("m.status",sql)
+        self.assertIn("and status='approved'",sql)
         self.assertIn("object_path=expected_key",sql)
         self.assertIn("name=expected_key",sql)
         self.assertIn("p_image_sha256",sql)
