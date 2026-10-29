@@ -50,3 +50,8 @@ future reviewed service-only durable writer, **not** production evidence.
 
 No new Azure Functions endpoints, queue payloads, database/grants,
 GPU/LLM paid calls, PROD or WineShopPOS mutation.
+
+## Contract consistency hardening
+- The operation now has an exact status mapping (for example `planning.complete` only `SUCCEEDED`, `render.denied` only `DENIED`). An arbitrary injected sink cannot be handed a contradictory outcome under the current validation contract.
+- Completion metadata must match the observed operation: planning has exactly `planner_mode` and **seven** generated days; 30s FFmpeg completion has verified `h264/aac`, 1080×1920 and the same duration tolerance as the renderer. Denial/failure carries no unverifiable output metadata.
+- Parameterized negative fixtures reject fabricated completion, inconsistent metadata, incomplete fields, invalid media geometry/duration and misreported denial. Actual source worker must still validate all provider and output results independently; these spans do not authorize publication or change billing.
