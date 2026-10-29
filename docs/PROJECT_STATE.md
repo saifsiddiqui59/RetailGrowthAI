@@ -1274,3 +1274,7 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 - `Feature3PrivateSourceProof` implements the real HTTPS Storage/Pillow/SHA256 source proof port used by current GPU-off job plan. Enforces same-shop registered private media path and MIME, separately reviewer-backed current commercial permission, source provenance and customer approval before and after read, denies changed rights and altered bytes. Returns no private object key/URL/image bytes or provider permission. Test-only fake rights authority: actual licensed legal evidence source and signed DEV validation NOT implemented. No GPU, deployment or WineShopPOS change. [Handoff](feature3/PRIVATE_SOURCE_BYTES_RIGHTS_PROOF_20261029.md).
 
 - 2026-10-29: Coordinator conflict-reconciled the Feature3 private source byte proof #645 into current-main integration without dropping prior history. Verify four-job exact head CI and postmerge main separately; real legal authority and hosted source approval still pending.
+
+
+## 2026-10-29 — Feature3 operator private PNG evidence: verified bytes, source-only
+- Implemented service-only generated-output SQL evidence reader and actual private Storage GET/Pillow/SHA256 verification, with a second immutable SQL receipt check. New read-only RPC is explicitly an **unapplied SQL proposal** outside the pinned 31-version canonical migration directory; actual operator financial actions and hosted signed tests remain blocked. [Runbook](feature3/OPERATOR_PRIVATE_EVIDENCE_READ_20261029.md).
