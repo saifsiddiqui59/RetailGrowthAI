@@ -11,6 +11,7 @@ export default function VoiceoverSelector({
   enabled=false,approvedAudioAssets=[],
   onSelectionChange=null,onRequestPreview=null,onRequestSynthesis=null,
   onRequestUpload=null,onRequestLocalPreview=null,onRequestLocalSynthesis=null,
+  onFetchLocalAudio=null,
 }){
   const [selection,setSelection]=useState(emptyVoiceSelection)
   const [voiceProvider,setVoiceProvider]=useState('kokoro')
@@ -109,7 +110,8 @@ export default function VoiceoverSelector({
           campaignId={campaignId} planSha256={planSha256}
           enabled={ready} sourceScript={sourceScript}
           onLocalPreview={onRequestLocalPreview}
-          onLocalGenerate={onRequestLocalSynthesis}/> : <>
+          onLocalGenerate={onRequestLocalSynthesis}
+          onFetchLocalAudio={onFetchLocalAudio}/> : <>
 
         <label>Language
           <select value={locale} onChange={e=>{
