@@ -9,6 +9,7 @@ import { summarizeTrace, compareTraceRuns, aggregateFeatureHistory } from './tra
 import { analyzeImprovementPriorities } from './trace-guidance.mjs'
 import { acceptedDimension, dimensionsFor } from './quality-rubrics.mjs'
 import { inspectHumanQuality, compareHumanQualityAspects } from './trace-quality-analysis.mjs'
+import { hasObservedCompletedOutput } from './trace-output-evidence.mjs'
 import './testing-console.css'
 
 const MODES = [
@@ -217,7 +218,8 @@ export default function TestingConsole() {
   const aspectComparisons = useMemo(() => baselineEvents.length
     ? compareHumanQualityAspects(events,baselineEvents) : [], [events,baselineEvents])
   const rateableFeatures = useMemo(() => diagnostics.features.filter(f =>
-    f.id !== 'F1' && f.status === 'PASS'), [diagnostics])
+    f.id !== 'F1' && f.status === 'PASS' &&
+    hasObservedCompletedOutput(events,f.id)), [diagnostics,events])
   async function analyzeHistory() {
     if (!store || !shopId || running || analyzingHistory || !history.length) return
     const scopedShop = shopId
