@@ -44,12 +44,36 @@ class Feature4SceneVisibilityTests(unittest.TestCase):
         self.assertEqual(report["status"],"SAMPLED_SCENES_NOT_BLANK_NOT_CONTENT_APPROVAL")
         self.assertFalse(report["commercial_release_eligible"])
         self.assertFalse(report["unexpected_overlay_absence_verified"])
-        self.assertEqual(len(report["checked_scenes"][0]["samples"]),2)
+        self.assertEqual(len(report["checked_scenes"][0]["samples"]),5)
+        self.assertEqual(report["schema"],"feature4_scene_visibility_v2")
+        self.assertEqual(report["sample_fractions"],[.15,.30,.50,.70,.85])
+        self.assertFalse(report["short_blank_frames_excluded_by_sampling"])
         self.assertGreater(report["checked_scenes"][0]["samples"][0]["mean_luma"],14)
 
     def test_actual_encoded_fully_black_scene_is_rejected(self):
         self.source(first="black")
         with self.assertRaisesRegex(VisibilityProofError,"nearly entirely blank"):
+            verify_scene_visibility(self.path,seconds=15,scenes=SCENES)
+
+    def test_actual_middle_black_interval_old_two_samples_missed(self):
+        # First 5s shot: 1.75s red + 1.5s black + 1.75s red.
+        # Old 30%/70% checks at 1.5/3.5s saw red; the new 50%
+        # sample at 2.5s sees the real encoded black image.
+        parts=[("red",1.75),("black",1.5),("red",1.75),
+               ("blue",5),("green",5)]
+        args=["ffmpeg","-nostdin","-hide_banner","-loglevel","error"]
+        for color,duration in parts:
+            args+=["-f","lavfi","-i",
+                   f"color=c={color}:s=540x960:r=12:d={duration}"]
+        args+=["-f","lavfi","-i","sine=frequency=430:duration=15",
+               "-filter_complex","".join(f"[{i}:v]" for i in range(5))
+                                 +"concat=n=5:v=1:a=0[v]",
+               "-map","[v]","-map","5:a:0",
+               "-c:v","libx264","-preset","ultrafast",
+               "-pix_fmt","yuv420p","-c:a","aac","-b:a","48k",
+               "-threads","2","-shortest",str(self.path)]
+        subprocess.run(args,check=True,capture_output=True,timeout=120)
+        with self.assertRaisesRegex(VisibilityProofError,"blank/black"):
             verify_scene_visibility(self.path,seconds=15,scenes=SCENES)
 
     def test_malicious_scene_ranges_and_wrong_run_duration_rejected(self):
