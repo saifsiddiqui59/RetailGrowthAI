@@ -41,12 +41,17 @@ def sample():
             "transcript_sha256":digest,"words":words,
             "evidence":{**data,"mac":mac}}
 
-def verify(r,now=NOW):
+def verify(r,now=NOW,source_check=None,expected_job_id="job_123456"):
+    if source_check is None:
+        def source_check(shop,campaign,asset,plan,audio,job):
+            return (shop,campaign,asset,plan,audio,job)==(
+                SHOP,CAMP,AID,PLAN,WAV,"job_123456")
     return review_signed_audio_transcript(receipt=r,shop_id=SHOP,
         campaign_id=CAMP,audio_asset_id=AID,
         creative_plan_sha256=PLAN,original_audio_sha256=WAV,
         audio_duration_seconds=1.0,expected_script="Diwali fashion",
-        evidence_key=KEY,now_ms=now)
+        evidence_key=KEY,now_ms=now,expected_job_id=expected_job_id,
+        assert_current_source=source_check)
 
 def test_signed_fixture_matches_but_remains_manual_review_only():
     report=verify(sample())
@@ -103,3 +108,25 @@ def test_audio_recording_word_duration_must_be_bound_to_original_wav():
     r["words"][-1]["endMs"]=1100
     with pytest.raises(Feature7AudioEvidenceDenied):
         verify(r)
+
+
+def test_signing_provenance_must_be_confirmed_by_current_server_source():
+    with pytest.raises(Feature7AudioEvidenceDenied,match="current private audio"):
+        verify(sample(),source_check=lambda *args:False)
+    with pytest.raises(Feature7AudioEvidenceDenied,match="authoritative audio job"):
+        verify(sample(),expected_job_id="another-job")
+    calls=[]
+    def revoked_mid_review(*scope):
+        calls.append(scope)
+        return len(calls)==1
+    with pytest.raises(Feature7AudioEvidenceDenied,match="changed during F7 review"):
+        verify(sample(),source_check=revoked_mid_review)
+    assert len(calls)==2
+
+def test_external_signing_not_a_substitute_for_source_check():
+    with pytest.raises(Feature7AudioEvidenceDenied):
+        review_signed_audio_transcript(receipt=sample(),shop_id=SHOP,
+            campaign_id=CAMP,audio_asset_id=AID,
+            creative_plan_sha256=PLAN,original_audio_sha256=WAV,
+            audio_duration_seconds=1,expected_script="Diwali fashion",
+            evidence_key=KEY,now_ms=NOW)
