@@ -71,7 +71,7 @@ test('ignore forged/unbounded statuses and reject low score without actual outpu
  ])
  assert.equal(result.attention.length,0)
  assert.equal(result.entries.find(x=>x.feature==='F5').category,'NOT_RUN')
- assert.equal(result.entries.find(x=>x.feature==='F5').latest_human_score,1)
+ assert.equal(result.entries.find(x=>x.feature==='F5').latest_human_score,null)
  assert.equal(result.entries.find(x=>x.feature==='F2').category,'UNOBSERVED')
 })
 
