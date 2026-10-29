@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {F2_VOICES,VOICE_SPEEDS,voiceChoices,emptyVoiceSelection,makeVoiceAction,validateVoiceSelection} from './voiceover-model.mjs'
 import LocalVoicePanel from './LocalVoicePanel.jsx'
+import Feature2TracePanel from './Feature2TracePanel.jsx'
 import './VoiceoverSelector.css'
 
 // Reusable Feature2 source-only panel; coordinator/F4 must mount it with real
@@ -14,6 +15,7 @@ export default function VoiceoverSelector({
   onFetchLocalAudio=null,onFetchLocalQualityReview=null,onProposeLocalScriptRevision=null,
   onProposeLocalPronunciation=null,onCommitReviewedLocalDraft=null,
   onRequestLocalSentenceRetake=null,
+  traceWorkflowId=null,traceSourceSha256=null,onFetchPrivateTrace=null,
 }){
   const [selection,setSelection]=useState(emptyVoiceSelection)
   const [voiceProvider,setVoiceProvider]=useState('kokoro')
@@ -166,6 +168,10 @@ export default function VoiceoverSelector({
         </label>}
       </>}
     </fieldset>
+    {traceWorkflowId&&traceSourceSha256&&<Feature2TracePanel
+      shopId={shopId} campaignId={campaignId}
+      workflowId={traceWorkflowId} sourceSha256={traceSourceSha256}
+      enabled={ready} onFetchPrivateTrace={onFetchPrivateTrace}/>}
     {!ready&&<p role="status">Voiceover source ready; account-backed Speech integration not yet enabled.</p>}
     {error&&<p role="alert">{error}</p>}
     {message&&<p role="status">{message}</p>}
