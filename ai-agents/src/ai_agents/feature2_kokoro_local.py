@@ -81,19 +81,29 @@ def _load_kokoro(path):
     os.environ["ONNX_PROVIDER"]="CPUExecutionProvider"
     try:
         kokoro=Kokoro(str(path/MODEL_NAME),str(path/VOICES_NAME))
-        if "CPUExecutionProvider" not in kokoro.sess.get_providers():
-            raise LocalSpeechUnavailable("ONNX session did not choose CPU")
+        providers=kokoro.sess.get_providers()
+        if providers!=["CPUExecutionProvider"]:
+            raise LocalSpeechUnavailable("ONNX session is not CPU-only")
         return kokoro
     except LocalSpeechUnavailable:
         raise
     except Exception as exc:
         raise LocalSpeechUnavailable("Verified offline Kokoro model cannot load") from exc
+    finally:
+        if old is None:
+            os.environ.pop("ONNX_PROVIDER",None)
+        else:
+            os.environ["ONNX_PROVIDER"]=old
 
 def _session(root):
     with _lock:
         key=(str(root),MODEL_SHA,VOICES_SHA)
         if key not in _loaded:
-            _loaded[key]=_load_kokoro(root)
+            candidate=_load_kokoro(root)
+            # A worker must never accumulate 100 MB+ model sessions every
+            # time the trusted operator switches its immutable model cache.
+            _loaded.clear()
+            _loaded[key]=candidate
         return _loaded[key]
 
 def _riff_wav(samples,rate):
@@ -136,14 +146,18 @@ def synthesize_local(*,text,voice_id="af_heart",lang="en-us",
             raise LocalSpeechUnavailable("Local Kokoro disabled by operator")
         if not isinstance(cache_dir,(str,Path)) or not str(cache_dir):
             raise LocalSpeechUnavailable("Operator configured local cache required")
-        root=verify_cache(cache_dir)
-        engine=_session(root)
-        if voice_id not in engine.get_voices():
-            raise LocalSpeechUnavailable("Voice absent in actual Kokoro style pack")
     started=time.perf_counter()
+    # Include disk integrity checks and ONNX session initialization inside
+    # the ONE active CPU lease. Otherwise concurrent requests can all hash
+    # 140 MB weights and/or start model sessions before acquiring the gate.
     if not _cpu_gate.acquire(timeout=5):
         raise LocalSpeechUnavailable("Kokoro CPU worker busy; inspect existing job before retry")
     try:
+        if engine is None:
+            root=verify_cache(cache_dir)
+            engine=_session(root)
+            if voice_id not in engine.get_voices():
+                raise LocalSpeechUnavailable("Voice absent in actual Kokoro style pack")
         samples,rate=engine.create(text.strip(),voice=voice_id,
                                    speed=SPEEDS[speed],lang=lang)
         data,duration=_riff_wav(samples,rate)
