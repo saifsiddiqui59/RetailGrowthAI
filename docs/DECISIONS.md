@@ -861,3 +861,7 @@
 ## 2026-10-29 — Testing Chat comparison and staged SQL isolation
 - Technical response status is not output quality; keep FAIL/UNKNOWN visible even if a later browser reply succeeds, and show human 1–5 score separately. Compare only actual same-tenant saved runs; bound history evaluation to ten explicit reads and label sampled p95 as observational. Unintegrated feature stages remain NOT_RUN/UNOBSERVED, no pretend Wan/VTON/editor results.
 - Preserve locked 31-version RetailGrowthAI DEV Supabase migration history. Stage trace DDL outside canonical `supabase/migrations` until a separately reviewed DEV release; execute proposed SQL only in disposable CI database, with active-editor revocation, cross-shop/anon/VIEWER denial and append-only tests. No user-JWT forgery, paid model call or PROD/WineShopPOS change.
+
+
+## 2026-10-29 — Independently pin copyright-attributed demo pixels at consumption time
+- A client/local MIT `manifest.json` with SHA256 and declared rights is **not a trusted license/provenance authority**. Reuse the already existing immutable upstream OpenVTO git commit and three exact Git blob hashes from `feature3_demo_inputs.SOURCES`, independently recomputing Git blob identity from real image bytes before creating downloadable Feature4/7 test footage. Even the otherwise-unused pose photo must match to prevent deceptive bundled-input claims. No new third-party vendor, paid run, production permission or live VTON identity asserted.
