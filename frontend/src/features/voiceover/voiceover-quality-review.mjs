@@ -4,7 +4,7 @@
 const SHA=/^[a-f0-9]{64}$/
 const reject=()=>{throw Error('Trusted current narration quality review unavailable')}
 const problems=new Set([
-  'MISSING_OR_SUBSTITUTED_WORD','MISSING_WORD','UNEXPECTED_WORD',
+  'MISSING_OR_SUBSTITUTED_WORD','MISSING_WORD','UNEXPECTED_OR_SUBSTITUTED_WORD','UNEXPECTED_WORD',
   'REPLACED_WORD','INSERTED_WORD','DELETED_WORD'
 ])
 const pcm=new Set(['audio_clipped','too_quiet','too_loud','excessive_silence'])
@@ -55,6 +55,7 @@ export function verifyPrivateVoiceQualityReview({
   const issues=review.asr_issues.map(row=>{
     if(!row||typeof row!=='object'||Array.isArray(row)||
       !problems.has(row.problem)||!safeWord(row.word)||
+      (row.confidence!==undefined && row.confidence!==null)||
       (row.audio_start_seconds!==null&&
         (typeof row.audio_start_seconds!=='number'||
          !Number.isFinite(row.audio_start_seconds)||
