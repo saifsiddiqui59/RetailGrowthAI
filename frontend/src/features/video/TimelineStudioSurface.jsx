@@ -146,7 +146,8 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
       'input,textarea,select,[contenteditable="true"]')
     if (editingField || event.altKey) return
     const onTracks = event.target?.closest?.('.f4-ts-track-scroll')
-    if (onTracks && !event.ctrlKey && !event.metaKey &&
+    if (onTracks && !event.target?.closest?.('button,[role="button"],a[href]') &&
+        !event.ctrlKey && !event.metaKey &&
         (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
       event.preventDefault()
       const direction = event.key === 'ArrowRight' ? 1 : -1
