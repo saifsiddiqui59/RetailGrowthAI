@@ -21,6 +21,9 @@ export function mountFeature7ReviewPanel({
     throw new Error('Trusted review container and request callback required');
   let session=createReviewSession({draft,proposal,media_evidence,reviewer_view});
   let reviewSubmissionPending=false;
+  let reviewRequestEpoch=0;
+  let captionRequestEpoch=0;
+  let disposed=false;
   if(caption_correction_input!==null&&
     typeof onCaptionReviewRequest!=='function')
     throw new Error('Trusted caption correction callback required');
@@ -110,12 +113,18 @@ export function mountFeature7ReviewPanel({
       el('p',black+' black intervals; '+freeze+' potentially still intervals. Check manually.'));
   };
   select.addEventListener('change',()=>{
-    reviewSubmissionPending=false;confirm.checked=false;update();
+    // Changing the visible scene does not change a pending review packet.
+    confirm.checked=false;update();
   });
   trim.addEventListener('input',()=>{
     try{
-      session=adjustTrimStart(session,Number(select.value),Number(trim.value));
-      reviewSubmissionPending=false;confirm.checked=false;update();
+      const index=Number(select.value);
+      const previous=session.scenes.find(s=>s.source_scene_index===index)?.trim_start;
+      const next=adjustTrimStart(session,index,Number(trim.value));
+      const current=next.scenes.find(s=>s.source_scene_index===index)?.trim_start;
+      session=next;
+      if(previous!==current){reviewRequestEpoch++;reviewSubmissionPending=false;}
+      confirm.checked=false;update();
       feedback.textContent='Trim updated locally, not yet saved or approved.';
     }catch(e){feedback.textContent='Trim denied: '+e.message;update();}
   });
@@ -127,6 +136,7 @@ export function mountFeature7ReviewPanel({
     try{
       const packet=proposeReviewDecision(session,{
         action,confirmed:confirm.checked});
+      const epoch=++reviewRequestEpoch;
       reviewSubmissionPending=true;
       update();
       const result=onReviewRequest(packet);
@@ -134,6 +144,7 @@ export function mountFeature7ReviewPanel({
       feedback.textContent='Request forwarded to trusted host. Approval is not confirmed.';
       if(result&&typeof result.then==='function')
         Promise.resolve(result).catch(()=>{
+          if(disposed||epoch!==reviewRequestEpoch)return;
           reviewSubmissionPending=false;update();
           feedback.textContent='Request failed. No approval was recorded.';
         });
@@ -187,13 +198,18 @@ export function mountFeature7ReviewPanel({
         !captionSession.corrections.length||captionSubmissionPending;
     };
     cueSelect.addEventListener('change',()=>{
-      captionSubmissionPending=false;verified.checked=false;updateCaptionEditor();
+      // A cue switch is not a new correction; retain its one-shot lock.
+      verified.checked=false;updateCaptionEditor();
     });
     save.addEventListener('click',()=>{
       try{
-        captionSession=editCaptionCorrection(
+        const next=editCaptionCorrection(
           captionSession,Number(cueSelect.value),editor.value);
-        captionSubmissionPending=false;verified.checked=false;updateCaptionEditor();
+        if(JSON.stringify(next.corrections)!==JSON.stringify(captionSession.corrections)){
+          captionRequestEpoch++;captionSubmissionPending=false;
+        }
+        captionSession=next;
+        verified.checked=false;updateCaptionEditor();
         feedbackCaptions.textContent='Caption change proposed locally. Still unapproved.';
       }catch(e){feedbackCaptions.textContent='Correction denied: '+e.message;}
     });
@@ -206,6 +222,7 @@ export function mountFeature7ReviewPanel({
         const request=requestCaptionCorrectionReview(captionSession,{
           confirmed:verified.checked
         });
+        const epoch=++captionRequestEpoch;
         captionSubmissionPending=true;
         updateCaptionEditor();
         const result=onCaptionReviewRequest(request);
@@ -214,6 +231,7 @@ export function mountFeature7ReviewPanel({
           'Correction request forwarded to trusted host. Approval not confirmed.';
         if(result&&typeof result.then==='function')
           Promise.resolve(result).catch(()=>{
+            if(disposed||epoch!==captionRequestEpoch)return;
             captionSubmissionPending=false;updateCaptionEditor();
             feedbackCaptions.textContent='Caption request failed. No approval was recorded.';
           });
@@ -234,7 +252,10 @@ export function mountFeature7ReviewPanel({
   select.value=String(session.scenes[0].source_scene_index);
   update();
   return Object.freeze({
-    destroy(){video.removeAttribute('src');target.replaceChildren();},
+    destroy(){
+      disposed=true;reviewRequestEpoch++;captionRequestEpoch++;
+      video.removeAttribute('src');target.replaceChildren();
+    },
     getReviewSnapshot(){return {
       shop_id:session.shop_id,campaign_id:session.campaign_id,
       scenes:session.scenes.map(s=>({...s})),
