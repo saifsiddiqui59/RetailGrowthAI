@@ -55,6 +55,7 @@ class FakeCurrentDB:
         self.changed_after_proof=False
         self.proofs=0
         self.proof_ok=True
+        self.revoke_second_proof=False
 
     def request(self,table,*,query=None,data=None,method="GET"):
         self.calls.append((table,copy.deepcopy(query),method))
@@ -77,12 +78,13 @@ class FakeCurrentDB:
             raise AssertionError("Source proof received untrusted media")
         if self.changed_after_proof:
             self.member_row["active"]=False
+        allowed=self.proof_ok and not (self.revoke_second_proof and self.proofs>=2)
         return {"shop_id":shop,"asset_id":media["id"],
                 "image_sha256":self.sha,"rights_revision":2,
-                "private_bytes_verified":self.proof_ok,
-                "independent_license_verified":self.proof_ok,
-                "current_customer_approval":self.proof_ok,
-                "rights_revoked":not self.proof_ok}
+                "private_bytes_verified":allowed,
+                "independent_license_verified":allowed,
+                "current_customer_approval":allowed,
+                "rights_revoked":not allowed}
 
 
 class CurrentGPUPlanTests(unittest.TestCase):
@@ -105,7 +107,7 @@ class CurrentGPUPlanTests(unittest.TestCase):
         self.assertFalse(result["paid_retry_authorized"])
         self.assertFalse(result["gpu_started"])
         self.assertFalse(any("object" in k or "token" in k for k in result))
-        self.assertEqual(self.db.proofs,1)
+        self.assertEqual(self.db.proofs,2)
         # Exactly 6 persisted read paths, twice; no submit, fee or claim.
         self.assertEqual(len(self.db.calls),12)
         self.assertEqual(set(x[0] for x in self.db.calls),
@@ -166,6 +168,13 @@ class CurrentGPUPlanTests(unittest.TestCase):
         with self.assertRaises(Feature3PlanDenied):
             self.run_plan()
         self.assertEqual(self.db.proofs,1)
+
+    def test_legal_rights_revoked_after_stable_sql_rows_deny(self):
+        self.db.revoke_second_proof=True
+        with self.assertRaisesRegex(Feature3PlanDenied,"changed after DB read"):
+            self.run_plan()
+        self.assertEqual(self.db.proofs,2)
+        self.assertEqual(len(self.db.calls),12)
 
     def test_revocation_mid_proof_denies_changed_authority_snapshot(self):
         self.db.changed_after_proof=True
