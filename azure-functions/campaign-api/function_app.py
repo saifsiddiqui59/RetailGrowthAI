@@ -10,6 +10,7 @@ from security import SupabaseJWTVerifier
 from tenant_store import TenantStore
 from queue_adapter import AzurePlanningQueue, AzureRenderQueue
 from admin_store import AdminStore
+from worker_span_store import configured_worker_span_sink
 from planning_worker import process_campaign
 from render_api import RenderAPI
 from poster_draft_api import PosterDraftAPI
@@ -198,6 +199,13 @@ def download_poster_render(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/poster-jobs/" + req.route_params["job_id"] + "/download")
 
 
+def _trusted_worker_span_sink(admin):
+    # Only a separately reviewed, released SQL schema and explicit DEV flag
+    # may activate service-only worker span persistence. OFF by default.
+    return configured_worker_span_sink(
+        admin, os.environ.get("RETAIL_FEATURE_WORKER_SPANS_ENABLED"))
+
+
 @app.queue_trigger(arg_name="message", queue_name="retail-campaign-planning",
                    connection="RETAIL_STORAGE")
 def plan_campaign(message: func.QueueMessage):
@@ -210,6 +218,7 @@ def plan_campaign(message: func.QueueMessage):
     process_campaign(
         cid, admin,
         mock_enabled=os.environ.get("RETAIL_ENABLE_MOCK_CAMPAIGNS") == "true",
+        span_sink=_trusted_worker_span_sink(admin),
     )
 
 
@@ -244,9 +253,11 @@ def render_campaign_reel(message: func.QueueMessage):
     # Queue message contains only a validated job UUID. No paths, tokens or URLs.
     origin = os.environ["RETAIL_SUPABASE_URL"]
     key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
+    admin = AdminStore(origin, key)
     process_render(
         message.get_body().decode("ascii"),
-        AdminStore(origin, key), PrivateMedia(origin, key),
+        admin, PrivateMedia(origin, key),
+        span_sink=_trusted_worker_span_sink(admin),
     )
 
 
