@@ -61,6 +61,7 @@ class FakeCurrentDB:
         self.changed_after_proof=False
         self.proofs=0
         self.proof_ok=True
+        self.proof_revision=2
         self.revoke_second_proof=False
 
     def request(self,table,*,query=None,data=None,method="GET"):
@@ -86,7 +87,7 @@ class FakeCurrentDB:
             self.member_row["active"]=False
         allowed=self.proof_ok and not (self.revoke_second_proof and self.proofs>=2)
         return {"shop_id":shop,"asset_id":media["id"],
-                "image_sha256":self.sha,"rights_revision":2,
+                "image_sha256":self.sha,"rights_revision":self.proof_revision,
                 "private_bytes_verified":allowed,
                 "independent_license_verified":allowed,
                 "current_customer_approval":allowed,
@@ -188,6 +189,21 @@ class CurrentGPUPlanTests(unittest.TestCase):
             self.run_plan()
         self.assertEqual(self.db.proofs,1)
         self.assertEqual(len(self.db.calls),8)
+
+    def test_model_legal_proof_revision_matches_current_catalog_revision(self):
+        self.db.model_row["rights_revision"]=3
+        with self.assertRaisesRegex(Feature3PlanDenied,"current private bytes"):
+            self.run_plan()
+        self.assertEqual(self.db.proofs,1)
+        # The catalog and independently reviewed legal authority must agree
+        # on the current revision, not just on immutable image bytes.
+        self.db.proof_revision=3
+        self.db.calls.clear()
+        self.db.proofs=0
+        approved=self.run_plan()
+        self.assertEqual(approved["rights_revisions"],(3,))
+        self.assertEqual(self.db.proofs,2)
+        self.assertFalse(approved["provider_call_permitted"])
 
     def test_forbidden_implicit_source_recognition_not_production_proof(self):
         self.db.model_row["image_sha256"]="b"*64
