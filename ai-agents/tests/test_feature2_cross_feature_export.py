@@ -105,3 +105,25 @@ def test_real_director_export_is_the_input_to_private_step_trace_not_mock_model_
     assert all(x["can_publish"] is False for x in logs)
     assert all(logs[i]["previous_sha256"]==logs[i-1]["event_sha256"]
                for i in range(1,len(logs)))
+    from ai_agents.feature2_creative_quality import (
+        read_verified_private_trace,Feature2TraceDenied)
+    def read():
+        return read_verified_private_trace(
+            shop_id=shop,campaign_id=campaign,workflow_id=workflow,
+            source_sha256=source_hash,
+            service_secret=b"synthetic-trace-test-only-32-byte-key",
+            current_scope=lambda s,c,w,h:(s,c,w,h)==(shop,campaign,workflow,source_hash),
+            read_private_events=lambda *a:[dict(row) for row in logs])
+    history=read()
+    assert history["schema"]=="retailgrowth.feature2-private-trace-history.v1"
+    assert history["shop_id"]==shop and history["campaign_id"]==campaign
+    assert history["source_sha256"]==source_hash
+    assert len(history["events"])==13
+    assert history["events"][1]["stage"]=="STORYBOARD"
+    assert sum(e["status"]=="BLOCKED" for e in history["events"])==9
+    assert history["actual_model_inference_verified"] is False
+    assert history["can_publish"] is False
+    assert "server_mac" not in str(history)
+    logs[1]["stage"]="F5_MOTION"  # Tamper persisted proof after actual exporter.
+    with pytest.raises(Feature2TraceDenied,match="HMAC"):
+        read()
