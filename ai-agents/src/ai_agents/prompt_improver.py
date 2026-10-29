@@ -221,6 +221,14 @@ def commit_reviewed_prompt_draft(*, shop_id, campaign_id, proposal_id,
         raise PromptRevisionRejected("Unsafe prompt revision") from exc
     if proposed==original or original not in proposed:
         raise PromptRevisionRejected("Original retailer request must remain unchanged")
+    from collections import Counter
+    source_claims=Counter(m.group().casefold() for m in
+                          UNVERIFIED_CLAIM.finditer(original))
+    proposed_claims=Counter(m.group().casefold() for m in
+                            UNVERIFIED_CLAIM.finditer(proposed))
+    if any(count>source_claims[claim]
+           for claim,count in proposed_claims.items()):
+        raise PromptRevisionRejected("New price/offer/guarantee requires independent fact approval")
     # An improvement is still only a suggestion; numeric claims and invented
     # discounts are never implied approved by a reviewer checkbox.
     original_sha=_sha256(original.encode("utf-8")).hexdigest()
