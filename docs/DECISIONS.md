@@ -868,3 +868,8 @@
 
 ## 2026-10-29 — Independently pin copyright-attributed demo pixels at consumption time
 - A client/local MIT `manifest.json` with SHA256 and declared rights is **not a trusted license/provenance authority**. Reuse the already existing immutable upstream OpenVTO git commit and three exact Git blob hashes from `feature3_demo_inputs.SOURCES`, independently recomputing Git blob identity from real image bytes before creating downloadable Feature4/7 test footage. Even the otherwise-unused pose photo must match to prevent deceptive bundled-input claims. No new third-party vendor, paid run, production permission or live VTON identity asserted.
+
+
+## 2026-10-29 — Feature3 readback-confirmed private generated PNG and queue ACK semantics
+- Do not treat a Storage upload ACK or application-declared SHA as proof of persisted bytes: the **trusted service-only** output bridge must perform a bounded same-key private GET, PNG decode, exact SHA and byte comparison before returning a stage receipt; then existing SQL one-shot CAS independently checks lease, source rights and cost. Unknown POST/GET/DB ACK is not a reason to retry or delete an object. Quarantine is allowed only on a definitively verified **pre-CAS** staged output after real rights revocation. No browser secret, signed URL, public object key or VTON model approval escapes.
+- The Azure Queue publisher must observe the real queue-assigned GUID after `send_message` before separately confirming SQL dispatch. A fake response or timeout leaves the durable state uncertain until operator reconciliation; never interpret enqueue as inference or financial settlement. See official Azure Storage Queue Python `QueueMessage.id` contract.
