@@ -222,3 +222,92 @@ def test_injected_rss_headlines_never_reach_director(spoof):
     feeds[0]["headline"]=spoof
     with pytest.raises(EditorialBasisRejected):
         ranked(feeds)
+
+
+from ai_agents.feature2_creative_quality import rank_verified_rss_snapshot
+import hashlib
+
+def rss_xml(*,items=None):
+    if items is None:
+        items=[
+            ("signed_di_1","Festive cotton kurti collection trends for Diwali",
+             "Wed, 28 Oct 2026 11:00:00 GMT"),
+            ("signed_ir_2","Mountain climbing car racing professional news",
+             "Wed, 28 Oct 2026 10:00:00 GMT"),
+        ]
+    rows="".join(
+        "<item><guid>"+guid+"</guid><title>"+title+"</title><pubDate>"+
+        published+"</pubDate></item>"
+        for guid,title,published in items
+    )
+    return ('<?xml version="1.0" encoding="UTF-8"?>'
+            '<rss version="2.0"><channel><title>Trusted Shop Feed</title>'+
+            rows+'</channel></rss>').encode()
+
+def rank_xml(xml=None,grant=None,context=None):
+    xml=rss_xml() if xml is None else xml
+    ctx=trusted_rss() if context is None else context
+    return rank_verified_rss_snapshot(
+        verified_context=ctx,snapshot_id="verified_rss_shop_feed_2026",
+        raw_xml=xml,
+        expected_xml_sha256=hashlib.sha256(xml).hexdigest(),
+        now_utc=datetime(2026,10,29,tzinfo=timezone.utc),
+        verify_current_private_snapshot=(grant or
+            (lambda s,id,d: s==ctx["shop_id"] and
+             id=="verified_rss_shop_feed_2026" and
+             d==hashlib.sha256(xml).hexdigest())))
+
+def test_signed_actual_rss_xml_bytes_rank_only_relevant_shop_terms():
+    result=rank_xml()
+    assert result["source_class"]=="SIGNED_RSS2_PRIVATE_SNAPSHOT_ONLY"
+    assert result["source_items_count"]==2
+    assert len(result["candidates"])==1
+    assert result["status"]=="REVIEW_REQUIRED"
+    assert result["candidates"][0]["source_sha256"]==hashlib.sha256(rss_xml()).hexdigest()
+    assert result["verified_live_trend_claim"] is False
+    assert result["source_is_real_time_trending_proof"] is False
+    assert not result["raw_feed_url_published"]
+    assert not result["can_auto_create_trend_draft"]
+    assert not result["can_publish"]
+
+def test_private_rss_snapshot_evergreen_without_current_relevance_or_when_stale():
+    old=[("old_signal_1","Festive cotton kurti collection trends for Diwali",
+          "Mon, 28 Sep 2026 11:00:00 GMT")]
+    out=rank_xml(rss_xml(items=old))
+    assert out["status"]=="EVERGREEN_FALLBACK"
+    assert out["candidates"]==[]
+    assert out["source_items_count"]==1
+    assert out["stale_items_omitted"]==1
+
+@pytest.mark.parametrize("xml",[
+    b'<!DOCTYPE rss [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><rss/>',
+    b'<?xml version="1.0"?><rss version="2.0"><channel><item><title>bad</title></item></channel></rss>',
+    rss_xml(items=[("x","Festive cotton kurti <script>evil</script>",
+                    "Wed, 28 Oct 2026 11:00:00 GMT")]),
+    rss_xml(items=[("x","Festive cotton kurti story in the future",
+                    "Wed, 28 Oct 2027 11:00:00 GMT")]),
+    rss_xml(items=[("x","Festive cotton kurti news with no timezone",
+                    "Wed, 28 Oct 2026 11:00:00")]),
+    rss_xml(items=[
+        ("replayed","Festive cotton kurti collection A",
+         "Wed, 28 Oct 2026 11:00:00 GMT"),
+        ("replayed","Festive cotton kurti collection B",
+         "Wed, 28 Oct 2026 11:00:00 GMT"),
+    ]),
+])
+def test_rss_source_cannot_smuggle_entities_xss_future_or_duplicate_guid(xml):
+    with pytest.raises(EditorialBasisRejected):
+        rank_xml(xml)
+
+def test_signed_rss_source_rechecked_and_wrong_tenant_denied():
+    calls=[]
+    def revoked(*args):
+        calls.append(args)
+        return len(calls)==1
+    with pytest.raises(EditorialBasisRejected,match="revoked"):
+        rank_xml(grant=revoked)
+    assert len(calls)>=2
+    ctx=trusted_rss()
+    ctx["shop_id"]="foreign"
+    with pytest.raises(EditorialBasisRejected):
+        rank_xml(context=ctx)
