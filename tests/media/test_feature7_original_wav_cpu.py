@@ -247,6 +247,30 @@ fs.writeFileSync(output,JSON.stringify({
                 p=self.call(**case)
                 self.assertNotEqual(p.returncode,0,p.stdout)
 
+    def test_original_wav_changed_during_cpu_inference_is_rejected(self):
+        # Test-only executable mutates the genuine original *after* staging
+        # and before the adapter's fresh original-SHA recheck. Never return
+        # a signed receipt or persist a job for replaced customer audio.
+        saved=self.path.read_bytes()
+        altered=self.base/"mutating_test_only_asr"
+        script=self.stub.read_text()
+        patch_line="fs.writeFileSync(output,JSON.stringify({"
+        self.assertIn(patch_line,script)
+        injection=(
+          "fs.appendFileSync("+json.dumps(str(self.path))+
+          ",Buffer.from('X'));"+patch_line
+        )
+        altered.write_text(script.replace(patch_line,injection))
+        altered.chmod(0o700)
+        try:
+            denied=self.call(python_bin=str(altered))
+            self.assertNotEqual(denied.returncode,0,denied.stdout)
+            self.assertEqual(denied.stdout,"")
+        finally:
+            self.path.write_bytes(saved)
+        self.assertEqual(hashlib.sha256(self.path.read_bytes()).hexdigest(),
+                         self.sha)
+
     def test_malformed_wav_truncation_and_duration_denied(self):
         copy=self.private/"bad.wav"
         data=bytearray(self.path.read_bytes())
