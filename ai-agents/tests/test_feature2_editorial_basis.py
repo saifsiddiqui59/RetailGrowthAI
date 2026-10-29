@@ -163,3 +163,26 @@ def test_foreign_old_fake_trends_are_denied(mutation):
 def test_unsigned_rss_provenance_is_never_sufficient():
     with pytest.raises(EditorialBasisRejected,match="signed RSS provenance"):
         ranked(verified=lambda *a:False)
+
+@pytest.mark.parametrize("unapproved",[
+    "20% off selected kurti styles and 90% off every dress",
+    "20% off selected kurti styles. 50% off selected kurtis",
+    "20% off selected kurti styles, 100% off next order",
+    "99% off tomorrow; 20% off selected kurti styles",
+    "20% off selected kurti stylesZ",
+])
+def test_one_approved_offer_does_not_launder_other_unverified_discounts(unapproved):
+    report=inspect_retailer_copy_claims(
+        verified_context=copy_context(),copy=candidate_copy(caption=unapproved))
+    assert "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED" in report["issues"]
+    assert report["can_publish"] is False
+
+def test_multiple_occurrences_of_exact_approved_sku_limited_claim_allowed_for_review():
+    report=inspect_retailer_copy_claims(
+        verified_context=copy_context(),
+        copy=candidate_copy(caption=
+            "20% off selected kurti styles — explore our boutique. "
+            "20% off selected kurti styles applies only to eligible garments."))
+    assert report["issues"]==[]
+    assert report["customer_editor_approval_required"] is True
+    assert not report["can_publish"]
