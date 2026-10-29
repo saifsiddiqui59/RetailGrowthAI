@@ -1328,3 +1328,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## 2026-10-29 — Feature3 private PNG HTTP/reader full-source integration QA
 - Added real Pillow PNG/mocked private HTTPS end-to-end source contract testing across the existing `Feature3PrivateBinaryHTTP` and real `Feature3RevocablePNGReader`: exact JWT/RLS user/tenant and twice-current source rights, private SHA-named pixels, zero leaked bytes for revoked membership/licence, foreign job, failed job, changed HTTP size or encoded response. No Azure binary route mounted or true commercial rights authority deployed. See `docs/feature3/PRIVATE_BINARY_SOURCE_COMPOSITION_E2E_20261029.md`; four CI jobs required. No GPU, migrations, PROD, WineShopPOS.
+
+## 2026-10-29 — Feature3 generated private history local status views (GPU OFF)
+- Added accessible read-only local status filters for existing 20-row bounded RLS validated job history: All/Queued/Running/Generated (unreviewed)/Failed. Switching filters invalidates pending private binary fetch and revokes any active preview Blob; only visible current-shop SUCCEEDED output may be shown. Node tests cover foreign/malformed statuses and privacy cleanup. Source-only UI, no hosted images or binary route, GPU, queue, billing, migrations, PROD or WineShopPOS. Details: docs/feature3/GENERATED_HISTORY_SCOPED_FILTERS_20261029.md.
