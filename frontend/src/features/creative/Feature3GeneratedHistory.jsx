@@ -26,7 +26,9 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
   const current=useRef({shopId,api,binaryClient})
   current.current={shopId,api,binaryClient}
   const checked=scopedFeature3GeneratedHistory(state,shopId)
-  const visibleJobs=filteredFeature3GeneratedHistory(shopId,checked.jobs,filter)
+  const visibleJobs=checked.jobs.length
+    ? filteredFeature3GeneratedHistory(shopId,checked.jobs,filter)
+    : []
   const displayed=image?.shopId===shopId && image?.binaryClient===binaryClient &&
     visibleJobs.some(row=>row.id===image.jobId && row.status==='SUCCEEDED')
     ? image : null
