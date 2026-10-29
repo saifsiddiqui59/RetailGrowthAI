@@ -4,7 +4,12 @@ Only extract the pure helper AST. Never import the live DEV canary or access
 GitHub Secrets, Supabase, an Azure endpoint, or an operator ROOT session.
 """
 import ast
+import io
+import json
 import re
+import time
+import urllib.error
+import urllib.request
 import unittest
 from pathlib import Path
 
@@ -87,6 +92,87 @@ class NodePreviewHeaderFence(unittest.TestCase):
             with self.subTest(bad_keys=tuple(bad)):
                 with self.assertRaises(RuntimeError):
                     _headers()(bad)
+
+
+    def test_standard_library_redirect_handler_denies_all_redirects(self):
+        source = ast.parse(TARGET.read_text())
+        cls = next(n for n in source.body if isinstance(n, ast.ClassDef)
+                   and n.name == "_NodeNeverRedirect")
+        namespace = {"urllib": urllib}
+        exec(compile(ast.Module(body=[cls], type_ignores=[]), str(TARGET), "exec"),
+             namespace)
+        handler = namespace["_NodeNeverRedirect"]()
+        self.assertIsNone(handler.redirect_request(
+            None, None, 302, "Found",
+            {"Location": "https://attacker.example"}, "https://attacker.example"))
+        self.assertIsNone(handler.redirect_request(
+            None, None, 307, "Temporary Redirect",
+            {"Location": "https://attacker.example"}, "https://attacker.example"))
+
+    def test_node_transport_never_replays_mutations_or_follows_redirect(self):
+        source = ast.parse(TARGET.read_text())
+        fn = next(n for n in source.body if isinstance(n, ast.FunctionDef)
+                  and n.name == "_call_node_preview")
+        url = ("https://purple-dune-06b5da200-p0249writes."
+               "eastasia.2.azurestaticapps.net/api/campaigns")
+        header = {"x-rgai-supabase-jwt": "a.b.c"}
+        actions = []
+
+        class FakeResponse:
+            status = 202
+            def __init__(self, payload=b'{"status":"PLANNING"}'):
+                self.payload = payload
+            def read(self, count):
+                return self.payload[:count]
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+
+        class Opener:
+            def __init__(self, results):
+                self.results = iter(results)
+            def open(self, req, timeout):
+                actions.append((req.full_url, req.get_method(),
+                                req.headers.get("X-rgai-supabase-jwt")))
+                item = next(self.results)
+                if isinstance(item, BaseException):
+                    raise item
+                return item
+
+        def invoke(items, method="POST", expected=(202,)):
+            namespace = {
+                "json": json, "urllib": urllib, "time": time,
+                "NODE_PREVIEW": url[:-len("/api/campaigns")],
+                "_NODE_OPENER": Opener(items),
+            }
+            exec(compile(ast.Module(body=[fn], type_ignores=[]),
+                         str(TARGET), "exec"), namespace)
+            return namespace["_call_node_preview"](
+                url, method=method, payload={} if method=="POST" else None,
+                headers=header, timeout=30, expect=expected)
+
+        self.assertEqual(invoke([FakeResponse()]),
+                         (202, {"status": "PLANNING"}))
+        self.assertEqual(len(actions), 1)
+        self.assertEqual(actions[0][2], "a.b.c")
+        actions.clear()
+        redirect = urllib.error.HTTPError(
+            url, 307, "Temporary Redirect",
+            {"Location": "https://attacker.example"}, io.BytesIO(b""))
+        with self.assertRaisesRegex(RuntimeError, "REDIRECT_DENIED"):
+            invoke([redirect])
+        self.assertEqual(len(actions), 1)
+        actions.clear()
+        transient = urllib.error.HTTPError(
+            url, 503, "Unavailable", {}, io.BytesIO(b""))
+        with self.assertRaisesRegex(RuntimeError, "TRANSACTION_UNCONFIRMED"):
+            invoke([transient])
+        self.assertEqual(len(actions), 1)
+        actions.clear()
+        with self.assertRaisesRegex(RuntimeError, "TRANSACTION_UNCONFIRMED"):
+            invoke([TimeoutError("failed")])
+        self.assertEqual(len(actions), 1)
 
     def test_pure_source_integration_keeps_dev_and_mutation_safety(self):
         source = TARGET.read_text()
