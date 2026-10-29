@@ -741,7 +741,8 @@ def rank_source_backed_trends(*, verified_context, trends, now_utc,
             not _TREND_SHA.fullmatch(str(row.get("source_sha256") or "")) or
             type(row.get("headline")) is not str or
             not 12<=len(row["headline"])<=180 or
-            any(ord(c)<32 or c in "<>" for c in row["headline"]) or
+            any(ord(c)<32 or c in "<>" or c in _UNSAFE_COPY_CONTROLS
+                for c in row["headline"]) or
             type(row.get("published_at")) is not str):
             raise EditorialBasisRejected("Current authenticated RSS evidence missing")
         if row["id"] in seen_ids:
@@ -842,7 +843,8 @@ def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
             raise EditorialBasisRejected("RSS headline/date source invalid")
         headline=title.text.strip()
         if not 12<=len(headline)<=180 or \
-           any(ord(ch)<32 or ch in "<>" for ch in headline):
+           any(ord(ch)<32 or ch in "<>" or ch in _UNSAFE_COPY_CONTROLS
+               for ch in headline):
             raise EditorialBasisRejected("Unsafe unreviewed RSS headline")
         try:
             published=parsedate_to_datetime(pub.text.strip())
