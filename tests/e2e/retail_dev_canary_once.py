@@ -405,6 +405,84 @@ def preflight_dev_http_auth_routes(*, transport=None, clock=None, include_prompt
 
 
 
+
+def stage_two_root_gated_accounts(*, marker, admins, pub, accounts, send=None,
+                                  password_factory=None):
+    """Stage BOTH fresh GoTrue users, not shops, before operator ROOT approval.
+
+    The caller's mutable accounts ledger is updated immediately after every
+    successful Auth create so the existing finally block deletes partial
+    fixtures even if password sign-in or the second create fails. This helper
+    grants no shop, role or approval and never prints credentials.
+    """
+    if accounts or not isinstance(marker, str) or len(marker) != 12 or any(
+            ch not in "0123456789abcdef" for ch in marker):
+        raise RuntimeError("Invalid or reused DEV canary account ledger")
+    send = send or call
+    password_factory = password_factory or (lambda: secrets.token_urlsafe(30))
+    first_password = None
+    for label in ("a", "b"):
+        email = "rgai-canary-" + marker + "-" + label + "@example.invalid"
+        password = password_factory()
+        if not isinstance(password, str) or len(password) < 30:
+            raise RuntimeError("DEV canary password generator invalid")
+        _, item = send(SUPABASE + "/auth/v1/admin/users", method="POST",
+                       payload={"email": email, "password": password,
+                                "email_confirm": True},
+                       headers=admins, expect=(200, 201))
+        uid = item["id"]
+        if not isinstance(uid, str) or str(uuid.UUID(uid)) != uid:
+            raise RuntimeError("Invalid temporary Auth identity from GoTrue")
+        accounts.append(uid)  # cleanup ledger BEFORE first user-token request
+        _, auth = send(SUPABASE + "/auth/v1/token?grant_type=password",
+                       method="POST", payload={"email": email, "password": password},
+                       headers={"apikey": pub}, expect=(200,))
+        token = auth["access_token"]
+        if not isinstance(token, str) or not token:
+            raise RuntimeError("Missing verified disposable Auth session")
+        accounts[-1] = (uid, {"apikey": pub, "Authorization": "Bearer " + token})
+        if label == "a":
+            first_password = password
+    print("CANARY_TWO_DISPOSABLE_AUTH_USERS_STAGED=true", flush=True)
+    return first_password
+
+
+def wait_for_both_root_approvals(accounts, *, send=None, sleep=None, attempts=75):
+    """No shop is provisioned until BOTH unique users are ROOT approved.
+
+    Poll within a SINGLE bounded approval window for A and B; the human ROOT
+    operator may approve them in either order. A denied/unknown status fails
+    closed; no direct SQL, fake user JWT or test-only approval shortcut.
+    """
+    if len(accounts) != 2 or any(
+            not isinstance(item, tuple) or len(item) != 2
+            for item in accounts):
+        raise RuntimeError("Exactly two real signed-in test users required")
+    send = send or call
+    sleep = sleep or time.sleep
+    if not isinstance(attempts, int) or attempts < 1 or attempts > 75:
+        raise RuntimeError("Invalid bounded ROOT approval poll")
+    for round_number in range(attempts):
+        statuses = []
+        for _uid, bearer in accounts:
+            _, state = send(SUPABASE + "/rest/v1/rpc/retail_onboarding_status",
+                            method="POST", payload={}, headers=bearer,
+                            expect=(200,))
+            status = state.get("status") if isinstance(state, dict) else None
+            if status not in ("APPROVED", "PENDING"):
+                raise RuntimeError("Temporary retailer onboarding was rejected")
+            statuses.append(status)
+        if statuses == ["APPROVED", "APPROVED"]:
+            print("CANARY_BOTH_OPERATOR_APPROVALS_VERIFIED=true", flush=True)
+            return
+        if round_number == 0:
+            print("CANARY_WAITING_FOR_TWO_EXPLICIT_DEV_OPERATOR_APPROVALS=true",
+                  flush=True)
+        if round_number + 1 < attempts:
+            sleep(4)
+    raise RuntimeError("Both DEV test fixtures were not approved by authorized ROOT")
+
+
 def main():
     if os.getenv("RGAI_DEV_CANARY_APPROVAL")!="AUTHORIZED_RETAILGROWTHAI_DEV_ONLY":
         raise RuntimeError("No explicit RetailGrowthAI DEV authorization")
@@ -433,38 +511,16 @@ def main():
     paths=[]
     status="NOT_STARTED"
     try:
-        account_password_a = None
-        for label in ("a","b"):
-            email="rgai-canary-"+marker+"-"+label+"@example.invalid"
-            password=secrets.token_urlsafe(30)
-            if label == "a":
-                account_password_a = password
-            _,item=call(SUPABASE+"/auth/v1/admin/users",method="POST",
-                payload={"email":email,"password":password,"email_confirm":True},
-                headers=admins,expect=(200,201))
-            uid=item["id"]
-            accounts.append(uid)
-            _,auth=call(SUPABASE+"/auth/v1/token?grant_type=password",
-                method="POST",payload={"email":email,"password":password},
-                headers={"apikey":pub},expect=(200,))
-            bearer={"apikey":pub,"Authorization":"Bearer "+auth["access_token"]}
-            # RetailGrowthAI requires SaaS ROOT approval before a retailer may
-            # create a shop. The connected DEV operator explicitly approves
-            # ONLY the two newly created example.invalid canary requests.
-            # No test-only auth bypass, privileged browser secret or gate flip.
-            for approval_attempt in range(75):
-                _,onboarding=call(SUPABASE+"/rest/v1/rpc/retail_onboarding_status",
-                    method="POST",payload={},headers=bearer,expect=(200,))
-                if onboarding.get("status")=="APPROVED":
-                    print("CANARY_OPERATOR_APPROVAL_VERIFIED=true",flush=True)
-                    break
-                if onboarding.get("status")!="PENDING":
-                    raise RuntimeError("Temporary retailer onboarding was rejected")
-                if approval_attempt==0:
-                    print("CANARY_WAITING_FOR_EXPLICIT_DEV_OPERATOR_APPROVAL=true",flush=True)
-                time.sleep(4)
-            else:
-                raise RuntimeError("DEV test fixture was not approved by authorized operator")
+        # Expose BOTH test-owned pending Auth accounts to the signed ROOT
+        # queue concurrently. Previously B did not exist until A approval,
+        # doubling operator wait and hiding B from one queue refresh.
+        account_password_a = stage_two_root_gated_accounts(
+            marker=marker, admins=admins, pub=pub, accounts=accounts)
+        wait_for_both_root_approvals(accounts)
+        # Only real ROOT approval authorizes each ordinary caller-JWT shop
+        # creation, as in the prior test; never write owner role directly.
+        for index, (uid, bearer) in enumerate(accounts):
+            label = ("a", "b")[index]
             sid=str(uuid.uuid4())
             # Register for cleanup BEFORE attempting an insert: a partial
             # commit/network failure must not leave an untracked test shop.
@@ -478,7 +534,6 @@ def main():
                 headers=bearer,expect=(200,))
             if not isinstance(shoprows,list) or len(shoprows)!=1 or shoprows[0].get("id")!=sid:
                 raise RuntimeError("RLS failed to reveal newly bootstrapped OWNER shop")
-            accounts[-1]=(uid,bearer)
         a=accounts[0][1];b=accounts[1][1]
         if prompt_only:
             from feature2_dev_live_canary import run_live_feature2_prompt
