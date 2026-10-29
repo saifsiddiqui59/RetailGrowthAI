@@ -21,7 +21,11 @@ export function summarizeTrace(events) {
     const latest = observed.at(-1) || null
     // A prior failure must never be hidden by a later success. If an outcome
     // is UNKNOWN it stays visible even if a later step returned successfully.
-    const status = firstFailure?.status || latest?.status || 'UNOBSERVED'
+    // A prompt-only F2 test emits an actual prompt PASS followed by a
+    // campaign-planning NOT_RUN. The skipped optional substage must never
+    // erase already completed F2 work or its QA eligibility.
+    const status = firstFailure?.status ||
+      (observed.some(e => e.status === 'PASS') ? 'PASS' : latest?.status || 'UNOBSERVED')
     const durations = observed.map(e => e.duration_ms).filter(finite)
     const ratings = ordered.filter(e => e.feature === id && e.status === 'QUALITY_REVIEW' &&
       Number.isInteger(e.details?.score) && e.details.score >= 1 && e.details.score <= 5)

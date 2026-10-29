@@ -40,7 +40,7 @@ function reply(route,body,status=200){return route.fulfill({
     'Access-Control-Allow-Headers':'apikey,authorization,content-type,prefer'},
   body:JSON.stringify(body),
 })}
-async function setup(page,{role='OWNER',rpcMissing=false}={}){
+async function setup(page,{role='OWNER',rpcMissing=false,events=browserEvents}={}){
  const requests=[]
  await page.addInitScript(()=>sessionStorage.setItem('retailgrowthai-auth-v1',
   JSON.stringify({access_token:'signed-testing-jwt',
@@ -55,7 +55,7 @@ async function setup(page,{role='OWNER',rpcMissing=false}={}){
   if(path==='/rest/v1/shops')return reply(route,[{id:SHOP,name:'Boutique Studio',slug:'boutique-test'}])
   if(path==='/rest/v1/media_assets')return reply(route,[])
   if(path==='/rest/v1/feature_test_runs')return reply(route,history)
-  if(path==='/rest/v1/feature_test_events')return reply(route,browserEvents)
+  if(path==='/rest/v1/feature_test_events')return reply(route,events)
   if(path==='/rest/v1/rpc/retail_feature_worker_spans'){
     const input=req.postDataJSON()
     requests.push({path,body:input,auth:req.headers().authorization})
@@ -76,6 +76,9 @@ test('saved trace renders every feature card without runtime error, then reads t
  await expect(page.getByRole('heading',{name:'Testing Chat & Feature Trace'})).toBeVisible()
  await page.getByRole('button',{name:/Create seven-day garment promotion/}).click()
  await expect(page.getByRole('heading',{name:'Server-authored worker receipts'})).toBeVisible()
+ await expect(page.getByRole('heading',{name:'What to improve next'})).toBeVisible()
+ await page.getByText('Review all feature assessments').click()
+ await expect(page.getByText(/F3 · Poster \/ model/)).toBeVisible()
  await expect(page.getByText('Poster studio not invoked')).toBeVisible()
  await page.getByRole('button',{name:'Check server worker receipts'}).click()
  await expect(page.getByText(/F4 · render.complete · SUCCEEDED/)).toBeVisible()
@@ -100,4 +103,22 @@ test('VIEWER cannot enter private trace history or request trusted worker data',
  await expect(page.getByText('No active OWNER/EDITOR business is available.')).toBeVisible()
  await expect(page.getByRole('button',{name:'Check server worker receipts'})).toHaveCount(0)
  expect(calls).toHaveLength(0)
+})
+
+test('poor-quality F4 output is a quality improvement priority, not an execution failure',async({page})=>{
+ const rated=[
+  ...browserEvents,
+  {run_id:RUN,shop_id:SHOP,actor_user_id:USER,event_seq:4,
+   feature:'F4',action:'human-quality-review',status:'QUALITY_REVIEW',
+   summary:'Reviewer judged production quality below the target',
+   duration_ms:null,details:{score:1,note:'Pacing and subtitles are poor'}},
+ ]
+ await setup(page,{events:rated})
+ await page.goto('/testing-chat')
+ await page.getByRole('button',{name:/Create seven-day garment promotion/}).click()
+ const section=page.getByRole('region',{name:'What to improve next'})
+ await expect(section.getByText(/Output quality: 1\/5 \(human rating\)/)).toBeVisible()
+ await expect(section.locator('.rgt-guidance-item').getByText(/Review scene pacing, 1080x1920 frame/)).toBeVisible()
+ await expect(section.getByText(/a reviewer rated its quality 1\/5/)).toBeVisible()
+ await expect(section.getByText(/observed execution failure/i)).toHaveCount(0)
 })
