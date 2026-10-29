@@ -87,3 +87,46 @@ export function makeLocalVoiceAction({
    needs_current_server_signed_grants:true,
    may_auto_invoke_azure:false,estimated_paid_cost_usd:0})
 }
+
+
+// A/B draft reviewer request is non-authoritative. The server must look up
+// exact pending proposal, signed human decision and current RLS revision
+// before executing Feature2 commit_reviewed_prompt_draft CAS.
+export function makeReviewedDraftRequest({shopId,campaignId,planSha256,
+    proposal,reviewEventId,idempotencyKey,explicitComparisonAcknowledged=false}){
+  if(!UUID.test(shopId)||!UUID.test(campaignId)||!SHA.test(planSha256)||
+    !UUID.test(reviewEventId)||!UUID.test(idempotencyKey)||
+    explicitComparisonAcknowledged!==true||
+    !proposal||typeof proposal!=='object'||Array.isArray(proposal)||
+    proposal.shop_id!==shopId||proposal.campaign_id!==campaignId||
+    proposal.creative_plan_sha256!==planSha256||
+    !UUID.test(proposal.proposal_id)||!Number.isInteger(proposal.source_revision)||
+    proposal.source_revision<0||proposal.source_revision>=100000||
+    !SHA.test(proposal.original_prompt_sha256)||
+    !SHA.test(proposal.improved_prompt_sha256)||
+    proposal.review_status!=='NEEDS_REVIEW'||
+    proposal.can_publish!==false||proposal.private!==true)invalid()
+  return Object.freeze({
+    schema:'retailgrowth.feature2-reviewed-draft-request.v1',
+    shop_id:shopId,campaign_id:campaignId,
+    creative_plan_sha256:planSha256,
+    proposal_id:proposal.proposal_id,source_revision:proposal.source_revision,
+    review_event_id:reviewEventId,request_id:idempotencyKey,
+    requires_independently_signed_human_review:true,
+    requires_backend_compare_and_swap:true,
+    allow_publish:false,allow_paid_motion:false,
+  })
+}
+export function verifyReviewedDraftReceipt({shopId,campaignId,proposal,receipt}){
+  if(!receipt||!proposal||
+    receipt.schema!=='retailgrowth.feature2-reviewed-prompt-draft.v1'||
+    receipt.shop_id!==shopId||receipt.campaign_id!==campaignId||
+    receipt.revision!==proposal.source_revision+1||
+    receipt.improved_prompt_sha256!==proposal.improved_prompt_sha256||
+    receipt.review_status!=='DRAFT'||receipt.private!==true||
+    receipt.can_publish!==false||receipt.can_dispatch_paid_motion!==false||
+    receipt.requires_fresh_media_rights!==true||
+    receipt.requires_new_copy_fact_review!==true) invalid()
+  return Object.freeze({revision:receipt.revision,review_status:'DRAFT',
+    requires_fresh_media_rights:true,can_publish:false})
+}
