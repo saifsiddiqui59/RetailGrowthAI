@@ -136,18 +136,45 @@ export async function executeFeatureTrace({
       const result = requireShop(await campaignApi.getCampaign(campaignId), shopId)
       if (result.id !== campaignId) throw new Error('Unexpected campaign identity')
       if (result.status === 'DRAFT') {
-        if (!Array.isArray(result.days) || !result.days.length) throw new Error('Missing planning output')
-        draft = result.days[0]
-        if (!ID.test(draft.id || '') || draft.shop_id !== shopId) throw new Error('Invalid day identity')
+        if (!Array.isArray(result.days) || result.days.length !== 7 ||
+            result.duration_days !== undefined && result.duration_days !== 7) {
+          throw new Error('Incomplete seven-day planning output')
+        }
+        const days = [...result.days].sort((a, b) => a.day_index - b.day_index)
+        if (days.some((day, index) => !ID.test(day.id || '') ||
+             day.day_index !== index + 1 || day.shop_id !== shopId ||
+             day.campaign_id !== campaignId ||
+             typeof day.topic !== 'string' ||
+             typeof day.linkedin?.post_text !== 'string' ||
+             typeof day.instagram?.caption !== 'string' ||
+             !Array.isArray(day.instagram?.reel?.storyboard)) ||
+            new Set(days.map(day => day.id)).size !== 7) {
+          throw new Error('Planning days failed identity or output contract verification')
+        }
+        draft = days[0]
         await log('F2', 'campaign-planning', 'PASS',
-          'Authenticated planner returned a saved draft; first-day output is available for inspection.',
-          { campaign_id: campaignId, generated_days: result.days.length, first_day_id: draft.id,
-            first_day_topic: excerpt(draft.topic, 260),
-            linkedin_post: excerpt(draft.linkedin?.post_text),
-            instagram_caption: excerpt(draft.instagram?.caption),
-            storyboard_scenes: Array.isArray(draft.instagram?.reel?.storyboard)
-              ? draft.instagram.reel.storyboard.length : null },
+          'Seven complete tenant-scoped campaign days returned by authenticated planner.',
+          { campaign_id: campaignId, generated_days: days.length, first_day_id: draft.id },
           elapsed(pollStart))
+        // Store each real day as its own bounded, private trace receipt. This is
+        // selected API output, not a model-internal step or publishing approval.
+        for (const day of days) {
+          await log('F2', 'campaign-day-' + day.day_index, 'PASS',
+            'Saved daily copy and storyboard returned by the campaign API.',
+            { campaign_id: campaignId, day_id: day.id, day_index: day.day_index,
+              scheduled_date: excerpt(day.scheduled_date, 32),
+              topic: excerpt(day.topic, 250),
+              linkedin_post: excerpt(day.linkedin.post_text, 1200),
+              instagram_caption: excerpt(day.instagram.caption, 1200),
+              storyboard: day.instagram.reel.storyboard.slice(0, 12).map(scene => ({
+                asset_id: ID.test(scene?.asset_id || '') ? scene.asset_id : null,
+                start_seconds: Number.isFinite(scene?.start_seconds) ? scene.start_seconds : null,
+                duration_seconds: Number.isFinite(scene?.duration_seconds) ? scene.duration_seconds : null,
+                overlay_text: excerpt(scene?.overlay_text, 120),
+              })),
+              storyboard_total_scenes: day.instagram.reel.storyboard.length,
+            })
+        }
         break
       }
       if (result.status === 'FAILED') {
