@@ -96,7 +96,11 @@ class SafeQueuePeekTests(unittest.TestCase):
             self.enabled=enable
             with self.assertRaises(Feature3QueuePeekDenied):
                 self.inspect.inspect_visible()
-            self.assert_no_mutation()
+            if enable:
+                # Paid provider ON: deny *before* any network queue inspection.
+                self.queue.peek_messages.assert_not_called()
+            else:
+                self.assert_no_mutation()
 
     def test_unknown_read_error_oversized_or_duplicate_batch_denied(self):
         first=SimpleNamespace(content=encode_dispatch_envelope(self.shop,self.job))
