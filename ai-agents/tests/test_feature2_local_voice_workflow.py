@@ -375,7 +375,7 @@ def test_private_wav_read_denies_foreign_revoked_or_fabricated_media(changed):
 
 def test_private_wav_read_rechecks_current_grant_after_bytes_have_been_loaded():
     run,auth,reads=original_wav_read_case(tamper={"revoked_at":"2026-10-29"})
-    with pytest.raises(LocalVoiceJobDenied,match="revoked"):
+    with pytest.raises(LocalVoiceJobDenied,match="registration or rights changed"):
         run()
     assert len(reads)==2
     run,auth,reads=original_wav_read_case(auth=lambda n:n==1)
