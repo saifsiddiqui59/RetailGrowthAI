@@ -1,4 +1,7 @@
 """Human caption correction suggestions in existing Feature7 reviewer, not F4 publish."""
+import hashlib
+import sys
+import tempfile
 import json
 from pathlib import Path
 import shutil
@@ -7,12 +10,13 @@ import unittest
 from test_feature7_semantic import sample
 
 ROOT=Path(__file__).resolve().parents[2]
+sys.path.insert(0,str(ROOT/'video-engine'/'feature7'))
 JS=r"""
 import fs from 'node:fs';
 import {proposeUploadedFootageEdits}
  from './video-engine/feature7/autobroll_semantics.mjs';
 import {createCaptionCorrectionSession,editCaptionCorrection,
- requestCaptionCorrectionReview} from './video-engine/feature7/caption_corrections.mjs';
+ requestCaptionCorrectionReview,buildCorrectedCaptionReviewProjection} from './video-engine/feature7/caption_corrections.mjs';
 import {mountFeature7ReviewPanel} from './video-engine/feature7/reviewer_panel.mjs';
 const p=JSON.parse(fs.readFileSync(0,'utf8'));
 const draft=p.input.draft;
@@ -38,17 +42,22 @@ if(p.bad==='overlap')projection.feature4_caption_track[1].start=.8;
 if(p.bad==='late')projection.feature4_caption_track[2].start=15;
 if(p.bad==='approved')projection.approved=true;
 if(p.bad==='samesha')correctionInput.preview_sha256=correctionInput.source_sha256;
-if(p.operation==='pure'){
+if(p.operation==='pure'||p.operation==='preview'){
  let s=createCaptionCorrectionSession({...correctionInput,reviewer_view:reviewer});
  const original=s;
  if(p.bad==='wrong_index')s=editCaptionCorrection(s,8,'Different words');
  else s=editCaptionCorrection(s,0,p.edit??'Our blue shirts');
  if(p.reset)s=editCaptionCorrection(s,0,'Our red shirts');
- const result=p.bad==='unconfirmed'
-  ? requestCaptionCorrectionReview(s,{confirmed:false})
-  : p.emit===false?null:requestCaptionCorrectionReview(s,{confirmed:true});
- process.stdout.write(JSON.stringify({original:original.corrections,
-  session:s,request:result}));
+ if(p.operation==='preview'){
+   const updated=buildCorrectedCaptionReviewProjection(s,projection);
+   process.stdout.write(JSON.stringify(updated));
+ }else{
+   const result=p.bad==='unconfirmed'
+    ? requestCaptionCorrectionReview(s,{confirmed:false})
+    : p.emit===false?null:requestCaptionCorrectionReview(s,{confirmed:true});
+   process.stdout.write(JSON.stringify({original:original.corrections,
+    session:s,request:result}));
+ }
 }else{
  const plan=proposeUploadedFootageEdits(p.input);
  const evidence=[{asset_id:asset,local_media_verified:'LOCAL_BYTES_VERIFIED',
@@ -175,6 +184,44 @@ class Feature7CaptionCorrectionTests(unittest.TestCase):
         out=json.loads(r.stdout)
         self.assertEqual(out["events"],[])
         self.assertIn("denied",out["feedback"])
+
+    @unittest.skipUnless(all(shutil.which(x) for x in ('ffmpeg','ffprobe')),
+                         'Actual local FFmpeg required')
+    def test_corrected_caption_preview_decodes_and_preserves_exact_aac(self):
+        from captioned_review_preview import render_captioned_review_preview
+        r=self.run_case(operation='preview',edit='Our new shirts')
+        self.assertEqual(r.returncode,0,r.stderr)
+        p=json.loads(r.stdout)
+        self.assertEqual(p['feature4_caption_track'][0]['text'],'Our new shirts')
+        self.assertEqual(p['original_caption_track_unchanged'][0]['text'],
+                         'Our red shirts')
+        self.assertEqual(p['caption_correction_count'],1)
+        self.assertTrue(p['human_caption_correction_preview_only'])
+        self.assertFalse(p['human_speech_word_verification_completed'])
+        self.assertFalse(p['approved'])
+        self.assertFalse(p['renderable'])
+        self.assertEqual(p['feature4_caption_track'][0]['start'],.55)
+        with tempfile.TemporaryDirectory(prefix='f7_caption_edit_') as d:
+            source=Path(d)/'source.mp4'
+            dest=Path(d)/'corrected.mp4'
+            cmd=['ffmpeg','-hide_banner','-v','error','-nostdin','-y',
+                 '-f','lavfi','-i','testsrc2=s=160x288:r=12:d=14.94',
+                 '-f','lavfi','-i','sine=f=440:d=14.94','-t','14.94',
+                 '-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p',
+                 '-c:a','aac',str(source)]
+            x=subprocess.run(cmd,text=True,capture_output=True,timeout=50)
+            self.assertEqual(x.returncode,0,x.stderr[-1000:])
+            original_sha=hashlib.sha256(source.read_bytes()).hexdigest()
+            report=render_captioned_review_preview(
+                source_path=source,source_sha256=original_sha,
+                caption_projection=p,output_path=dest)
+            self.assertTrue(report['visible_captions_in_preview'])
+            self.assertTrue(report['output_aac_packets_identical'])
+            self.assertEqual(report['caption_count'],3)
+            self.assertFalse(report['human_audio_listening_completed'])
+            self.assertFalse(report['customer_publishable'])
+            self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),
+                             original_sha)
 
     def test_panel_viewer_read_only_and_callback_mandatory(self):
         r=self.run_case(operation="ui_confirmed",role="VIEWER")
