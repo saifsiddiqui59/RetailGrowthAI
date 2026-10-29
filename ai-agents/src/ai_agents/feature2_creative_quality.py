@@ -309,6 +309,93 @@ def append_feature2_trace(*, shop_id, campaign_id, workflow_id, event_id,
             "private":True,"can_publish":False}
 
 
+
+def read_verified_private_trace(*,shop_id,campaign_id,workflow_id,
+                                source_sha256,service_secret,
+                                current_scope,read_private_events):
+    """Verify privately persisted HMAC chain before any trace UI projection.
+
+    This validates event integrity only; a SOURCE_ONLY trace cannot be elevated
+    to actual media/model inference. The trusted backend still owns JWT/RLS
+    and row access, and its database must enforce immutable unique events.
+    """
+    if (not all(_trace_uuid(x) for x in (shop_id,campaign_id,workflow_id)) or
+        type(source_sha256) is not str or not _TRACE_SHA.fullmatch(source_sha256) or
+        type(service_secret) is not bytes or len(service_secret)<32 or
+        not callable(current_scope) or not callable(read_private_events)):
+        raise Feature2TraceDenied("Trusted private trace history reader required")
+
+    def fetch():
+        if current_scope(shop_id,campaign_id,workflow_id,source_sha256) is not True:
+            raise Feature2TraceDenied("Trace scope revoked")
+        rows=read_private_events(shop_id,campaign_id,workflow_id)
+        if type(rows) is not list or len(rows)>100:
+            raise Feature2TraceDenied("Bounded private trace history invalid")
+        return rows
+
+    source=fetch()
+    prior="0"*64;verified=[]
+    expected_keys={
+        "schema","shop_id","campaign_id","workflow_id","event_id",
+        "sequence","previous_sha256","created_at_ms","stage","status",
+        "input_sha256","output_sha256","evidence_class","failure_code",
+        "can_publish","customer_data_in_event","event_sha256","server_mac",
+    }
+    for number,stored in enumerate(source,1):
+        if (type(stored) is not dict or set(stored)!=expected_keys or
+            stored.get("schema")!="retailgrowth.feature2-private-trace.v1" or
+            stored.get("shop_id")!=shop_id or
+            stored.get("campaign_id")!=campaign_id or
+            stored.get("workflow_id")!=workflow_id or
+            not _trace_uuid(stored.get("event_id")) or
+            stored.get("sequence")!=number or
+            stored.get("previous_sha256")!=prior or
+            stored.get("input_sha256")!=source_sha256 or
+            stored.get("stage") not in TRACE_STAGES or
+            stored.get("status") not in ("STARTED","SUCCEEDED","FAILED","BLOCKED") or
+            stored.get("evidence_class") not in
+                ("SYNTHETIC_TEST_ONLY","SOURCE_ONLY","SIGNED_EXTERNAL") or
+            type(stored.get("created_at_ms")) is not int or
+            stored["created_at_ms"]<1_700_000_000_000 or
+            stored.get("can_publish") is not False or
+            stored.get("customer_data_in_event") is not False or
+            type(stored.get("event_sha256")) is not str or
+            not _TRACE_SHA.fullmatch(stored["event_sha256"]) or
+            type(stored.get("server_mac")) is not str or
+            not _TRACE_SHA.fullmatch(stored["server_mac"]) or
+            (stored.get("output_sha256") is not None and
+             (type(stored["output_sha256"]) is not str or
+              not _TRACE_SHA.fullmatch(stored["output_sha256"]))) or
+            (stored["status"]=="SUCCEEDED" and
+             stored.get("output_sha256") is None) or
+            stored.get("failure_code") not in
+                (TRACE_FAILURE_CODES if stored["status"] in
+                    ("FAILED","BLOCKED") else {None})):
+            raise Feature2TraceDenied("Missing or altered private stage record")
+        body={key:value for key,value in stored.items()
+              if key not in ("event_sha256","server_mac")}
+        raw=json.dumps(body,sort_keys=True,separators=(",",":")).encode()
+        digest=hashlib.sha256(raw).hexdigest()
+        mac=hmac.digest(service_secret,
+            b"retailgrowth.feature2.trace.v1\n"+raw,"sha256").hex()
+        if (not hmac.compare_digest(digest,stored["event_sha256"]) or
+            not hmac.compare_digest(mac,stored["server_mac"])):
+            raise Feature2TraceDenied("Stored private trace HMAC/chain mismatched")
+        verified.append({"sequence":number,"stage":stored["stage"],
+                         "status":stored["status"],"evidence_class":stored["evidence_class"],
+                         "failure_code":stored["failure_code"],
+                         "event_sha256":digest,"can_publish":False})
+        prior=digest
+    if fetch()!=source:
+        raise Feature2TraceDenied("Private trace changed during readback")
+    return {"schema":"retailgrowth.feature2-private-trace-history.v1",
+            "workflow_id":workflow_id,"events":verified,
+            "last_event_sha256":prior,"private":True,
+            "all_steps_verified":bool(verified),
+            "actual_model_inference_verified":False,
+            "can_publish":False}
+
+
 def stage_blind_human_review_revision(*,shop_id,campaign_id,experiment_id,
                                       candidates,reviews,expected_revision,
                                       current_editor,read_current_candidates,
