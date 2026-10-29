@@ -644,3 +644,6 @@ Use scripts/checkpoint.sh after completing a task.
 
 
 - 2026-10-29: Continued Testing Chat source PR #614 through actual four-job success on first base then added pure per-feature diagnostics, source test comparisons, last-ten bounded quality summary, no-rating-unrun guard, disposable Postgres candidate-schema RLS role denial and coordinator-owned CI gate. Reconciled parallel Feature3 main documentation without overwriting. No hosted migration, frontend release, paid motion/publishing or WineShopPOS changes. Confirm final PR-head and main CI separately.
+
+
+- 2026-10-29 Feature3 continued from latest current `main` after #606/#609/#613 merged; verified real upstream image and technical-video artifact evidence already delivered to Features4/5/7. Found local demo footage trusted manifest-authored SHA256, not hardcoded upstream Git object hash; patched its file verifier to enforce **all three original MIT OpenVTO source Git blobs, paths, exact sizes, MIME and recomputed SHA1**, added spoofed-manifest/altered-byte/pose-denial tests. Source-only, no additional asset license or customer rights claim, cloud/premium inference, credentials or WineShopPOS mutation. CI and merge results must be verified on exact branch before claiming complete.
