@@ -16,6 +16,20 @@ class MinuteEvidenceTests(unittest.TestCase):
         self.paths={name:self.root/(name+('.mp4' if name in ('original','master','preview') else '.json'))
               for name in ('original','master','preview','provenance','motion','master_proof','preview_proof','contact_image','contact_proof')}
         self.paths['contact_image']=self.root/'review.jpg'
+        self.paths.update({
+            "captioned":self.root/"captioned.mp4",
+            "caption_srt":self.root/"review.srt",
+            "caption_vtt":self.root/"review.vtt",
+            "caption_proof":self.root/"caption-proof.json",
+            "visibility_proof":self.root/"visibility-proof.json",
+            "endcard_proof":self.root/"endcard-proof.json",
+        })
+    def fill_test_records(self):
+        # Ensure malformed media/symlinks are reached AFTER the mandatory
+        # evidence-present gate, instead of testing only missing arguments.
+        for key in ("provenance","motion","master_proof",
+                    "preview_proof","contact_proof"):
+            self.paths[key].write_text('{"probe": true}\\n',encoding="utf-8")
     def validate(self):
         return validate_minute_evidence(**self.paths)
     def test_every_caption_and_visibility_receipt_is_required(self):
@@ -38,19 +52,24 @@ class MinuteEvidenceTests(unittest.TestCase):
                         validate_minute_evidence(**kw)
 
     def test_garbage_or_unproven_mp4_rejected(self):
+        self.fill_test_records()
         for k in ('original','master','preview'):
             self.paths[k].write_bytes(b"not media"*100)
-        with self.assertRaises(MinuteProofError):
+        with self.assertRaisesRegex(MinuteProofError,"media/codec preflight"):
             self.validate()
     def test_symlinked_evidence_rejected(self):
+        self.fill_test_records()
+        for k in ("original","master","preview"):
+            self.paths[k].write_bytes(b"not media"*100)
         backing=self.root/'evidence.json'
         backing.write_text('{"valid": false}')
+        self.paths['provenance'].unlink()
         self.paths['provenance'].symlink_to(backing)
-        with self.assertRaises(MinuteProofError):
+        with self.assertRaisesRegex(MinuteProofError,"Unsafe"):
             self.validate()
     def test_oversize_source_fails_without_loading_into_memory(self):
         source=self.paths['original']
         with source.open('wb') as handle:
             handle.truncate(80_000_002)
-        with self.assertRaises(MinuteProofError):
+        with self.assertRaisesRegex(MinuteProofError,"Unsafe"):
             self.validate()
