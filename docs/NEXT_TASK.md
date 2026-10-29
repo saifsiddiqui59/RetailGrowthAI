@@ -1262,3 +1262,6 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 private operator evidence proof gates
 - Verify exact-head 4/4 CI for `feat/feature3-operator-private-evidence-read-20261029`, coordinator merge and postmerge main. No hosted SQL applied: `supabase/proposals/feature3_operator_evidence_read_20261029.sql` awaits separate reviewed version, disposable role-negative tests and DEV approval. Actual independent provider billing and human operator decision are still required. No automatically replayed GPU, financial settlement, refund, output deletion, PROD or WineShopPOS.
+
+## 2026-10-29 — Feature3 bounded GPU-off queue peek (source only)
+- Verify PR exact-head 4/4, coordinator merge and fresh main postmerge 4/4. Queue SDK peek is diagnostic only: operator cannot treat empty/invisible batch as no outstanding claim, cannot delete or drain, cannot infer ACK or paid outcome, cannot use it as an Azure trigger. Actual durable GPU worker, poison queue, private current-rights/lease gate and reconciliation with genuine provider bill are separate planned tasks. Do not turn on GPU/paid provider, change DEV/PROD cloud settings or touch WineShopPOS.
