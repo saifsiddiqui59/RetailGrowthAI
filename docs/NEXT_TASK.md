@@ -1298,3 +1298,6 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 33-package tracker current evidence
 - Use `docs/feature3/FEATURE3_33_PACKAGE_STATUS_20261029.md` for package-by-package progress instead of counting PRs as hosted completion. Continue rights/lease, private download and browser source-only work, with separate DB owner approval, real licensed sources, cross-feature coordination and Azure #249 release gates. Preserve GPU OFF and 31 existing DEV versions.
+
+## 2026-10-29 — Feature3 proposed model RPC disposable SQL check
+- Verify four exact-head PR CI jobs on `feat/feature3-current-model-sql-disposable-gate-20261029` including actual disposable Postgres execution of the proposal and ACL denials. Fix any real SQL failures, preserve the 31 hosted migration history and do not apply the new RPC to live DEV absent separate reviewed migration approval. Later require genuine independently licensed customer original, model review/revoke transitions and two-shop signed DEV acceptance.
