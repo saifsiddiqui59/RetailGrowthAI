@@ -3,6 +3,7 @@ from hashlib import sha256
 from io import BytesIO
 import json
 import sys
+from urllib.error import HTTPError
 from pathlib import Path
 from uuid import uuid4
 from unittest import TestCase, main
@@ -34,6 +35,10 @@ class Transport:
         self.bad_ack=False
         self.redirect=False
         self.send_error=False
+        self.delete_still_present=False
+        self.delete_timeout=False
+        self.verify_after_delete_timeout=False
+        self.deleted_once=False
     def __call__(self,req,timeout):
         assert timeout==30
         url=req.full_url
@@ -47,12 +52,20 @@ class Transport:
             key=url.split("/storage/v1/object/retailgrowth-media/",1)[1]
             return Response(json.dumps({"Key":"bad" if self.bad_ack else key}).encode(),realurl,201)
         if method=="GET":
+            if self.deleted_once and self.verify_after_delete_timeout:
+                raise TimeoutError("unknown verification result")
+            if url not in self.objects:
+                raise HTTPError(url,404,"Not Found",None,None)
             raw=self.objects[url]
             if self.corrupt_read:
                 raw=raw[:-1]+bytes([raw[-1]^1])
             return Response(raw,realurl)
         if method=="DELETE":
-            del self.objects[url]
+            self.deleted_once=True
+            if not self.delete_still_present:
+                self.objects.pop(url,None)
+            if self.delete_timeout:
+                raise TimeoutError("delete ACK lost")
             return Response(b"{}",realurl)
         raise AssertionError("Unsupported private Storage request")
 
@@ -78,7 +91,7 @@ class PrivateStorageStageTests(TestCase):
         self.assertTrue(self.stage.quarantine(self.shop,self.path,self.token))
         self.assertEqual(self.transport.objects,{})
         self.assertFalse(self.stage.quarantine(self.shop,self.path,self.token))
-        self.assertEqual([x[0] for x in self.transport.calls],["POST","GET","DELETE"])
+        self.assertEqual([x[0] for x in self.transport.calls],["POST","GET","DELETE","GET"])
 
     def test_wrong_path_hash_tenant_or_claim_never_writes(self):
         for path in (self.path.replace(self.shop,str(uuid4())),
@@ -98,6 +111,10 @@ class PrivateStorageStageTests(TestCase):
         self.assertEqual([c[0] for c in self.transport.calls],["POST"])
         self.assertFalse(self.stage.quarantine(self.shop,self.path,self.token))
         self.assertEqual(len(self.transport.objects),1)
+        # A second call in this same worker must not retry an uncertain POST.
+        with self.assertRaisesRegex(ProviderBlocked,"already attempted"):
+            self.stage.stage(self.shop,self.path,self.data,self.token)
+        self.assertEqual([c[0] for c in self.transport.calls],["POST"])
 
     def test_readback_difference_blocks_sql_commit_and_quarantine(self):
         self.transport.corrupt_read=True
@@ -105,10 +122,16 @@ class PrivateStorageStageTests(TestCase):
             self.stage.stage(self.shop,self.path,self.data,self.token)
         self.assertEqual([c[0] for c in self.transport.calls],["POST","GET"])
         self.assertFalse(self.stage.quarantine(self.shop,self.path,self.token))
+        with self.assertRaisesRegex(ProviderBlocked,"already attempted"):
+            self.stage.stage(self.shop,self.path,self.data,self.token)
+        self.assertEqual([c[0] for c in self.transport.calls],["POST","GET"])
 
     def test_timeout_and_redirect_are_unknown_without_replay(self):
         self.transport.send_error=True
         with self.assertRaisesRegex(ProviderBlocked,"unknown"):
+            self.stage.stage(self.shop,self.path,self.data,self.token)
+        self.assertEqual(len(self.transport.calls),1)
+        with self.assertRaisesRegex(ProviderBlocked,"already attempted"):
             self.stage.stage(self.shop,self.path,self.data,self.token)
         self.assertEqual(len(self.transport.calls),1)
         self.transport=Transport()
@@ -119,6 +142,34 @@ class PrivateStorageStageTests(TestCase):
         with self.assertRaises(ProviderBlocked):
             other.stage(self.shop,self.path,self.data,self.token)
         self.assertEqual(len(self.transport.calls),1)
+
+    def test_delete_ack_without_removal_is_not_success(self):
+        self.stage.stage(self.shop,self.path,self.data,self.token)
+        self.transport.delete_still_present=True
+        with self.assertRaises(ProviderBlocked):
+            self.stage.quarantine(self.shop,self.path,self.token)
+        self.assertFalse(self.stage.quarantine(self.shop,self.path,self.token))
+        self.assertEqual([c[0] for c in self.transport.calls],
+                         ["POST","GET","DELETE","GET"])
+        self.assertEqual(len(self.transport.objects),1)
+
+    def test_delete_timeout_is_unknown_without_retry(self):
+        self.stage.stage(self.shop,self.path,self.data,self.token)
+        self.transport.delete_timeout=True
+        with self.assertRaisesRegex(ProviderBlocked,"unknown"):
+            self.stage.quarantine(self.shop,self.path,self.token)
+        self.assertFalse(self.stage.quarantine(self.shop,self.path,self.token))
+        self.assertEqual([c[0] for c in self.transport.calls],
+                         ["POST","GET","DELETE"])
+
+    def test_post_delete_read_timeout_remains_unknown(self):
+        self.stage.stage(self.shop,self.path,self.data,self.token)
+        self.transport.verify_after_delete_timeout=True
+        with self.assertRaisesRegex(ProviderBlocked,"unknown"):
+            self.stage.quarantine(self.shop,self.path,self.token)
+        self.assertFalse(self.stage.quarantine(self.shop,self.path,self.token))
+        self.assertEqual([c[0] for c in self.transport.calls],
+                         ["POST","GET","DELETE","GET"])
 
     def test_integrate_real_registrar_rights_revoke_and_no_commit(self):
         calls=[]
