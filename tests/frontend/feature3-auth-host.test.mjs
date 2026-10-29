@@ -18,6 +18,8 @@ test('manual rights-scoped Feature3 host compiles, defaults off and never fetche
   assert.match(host,/fingerprint !== model\.image_sha256/)
   assert.match(host,/api\.listModels\(scope\)/)
   assert.match(host,/scopedFeature3Preview/)
+  assert.match(host,/scopedFeature3Preview\(preview, shopId, api\)/)
+  assert.match(host,/setPreview\(\{scope, api:provider, models:accepted/)
   assert.match(host,/current/)
   assert.match(host,/isCurrent/)
   assert.match(host,/nonce\.current/)
