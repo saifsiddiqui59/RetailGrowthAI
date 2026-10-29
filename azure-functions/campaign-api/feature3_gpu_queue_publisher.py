@@ -7,8 +7,8 @@ fence any duplicated queue delivery.
 """
 from __future__ import annotations
 
-import json
 from uuid import UUID
+from feature3_gpu_envelope import encode_dispatch_envelope
 
 from tenant_store import StorageUnavailable
 
@@ -47,12 +47,9 @@ class Feature3GPUOutboxPublisher:
             # Do not send any media, token, URL, raw licence or image bytes
             # through the Azure Storage Queue. Durable current rights will
             # be rechecked independently by a future approved worker.
-            packet = {
-                "schema": "retailgrowth.feature3.gpu.dispatch.v1",
-                "shop_id": row["shop_id"],
-                "job_id": row["job_id"],
-            }
-            message = json.dumps(packet, separators=(",", ":"), sort_keys=True)
+            # Share exact decoder schema with the eventual trusted worker.
+            # Reject forged/foreign-shaped identifiers before Azure Queue IO.
+            message = encode_dispatch_envelope(row["shop_id"], row["job_id"])
             try:
                 # Queue retries may duplicate envelopes; database claim is
                 # one-shot. Never execute a paid GPU action here.

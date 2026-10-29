@@ -58,6 +58,9 @@ class Feature3PrivateOutputStorage:
         self.headers = _backend_headers(backend_secret)
         self.transport = transport or build_opener(_NoRedirect()).open
         self._staged = set()
+        # A POST with an unconfirmed response may nevertheless have persisted.
+        # Never repeat it in the same worker, even after a timeout/bad ACK.
+        self._attempted = set()
 
     def _identity(self, shop, key, token):
         sid, _ = _uuid4(shop), _uuid4(token)
@@ -71,7 +74,8 @@ class Feature3PrivateOutputStorage:
             raise ProviderBlocked("Immutable output path must be SHA-addressed PNG")
         return sid, parts[4][:-4]
 
-    def _request(self, method, path, *, payload=None, limit=_MAX_RESPONSE):
+    def _request(self, method, path, *, payload=None, limit=_MAX_RESPONSE,
+                 allow_not_found=False):
         url = self.origin + "/storage/v1/object/" + _BUCKET + "/" + quote(path, safe="/")
         headers = {**self.headers, **({"Content-Type":"image/png","x-upsert":"false"}
                      if method == "POST" else {})}
@@ -87,7 +91,13 @@ class Feature3PrivateOutputStorage:
                 if not isinstance(content, bytes) or len(content) > limit:
                     raise ProviderBlocked("Private Storage response oversized")
                 return content
-        except (HTTPError, URLError, OSError, TimeoutError, ValueError) as exc:
+        except HTTPError as exc:
+            if allow_not_found and method == "GET" and exc.code == 404:
+                return None
+            raise ProviderBlocked(
+                "Private Storage outcome unknown: reconcile, never retry automatically"
+            ) from exc
+        except (URLError, OSError, TimeoutError, ValueError) as exc:
             raise ProviderBlocked(
                 "Private Storage outcome unknown: reconcile, never retry automatically"
             ) from exc
@@ -98,10 +108,12 @@ class Feature3PrivateOutputStorage:
             _verified_png(png) != expected
         ):
             raise ProviderBlocked("Untrusted generated PNG bytes")
-        if (sid, key, token) in self._staged:
-            raise ProviderBlocked("Already staged immutable private output")
-        # POST can have an ambiguous response even if the server wrote bytes.
-        # The registrar MUST NOT call stage a second time on this condition.
+        identity = (sid, key, token)
+        if identity in self._attempted:
+            raise ProviderBlocked("Private stage already attempted; reconcile before replay")
+        # A failed POST, malformed ACK or failed readback can leave real bytes.
+        # Fence *before* making the first network request, not after readback.
+        self._attempted.add(identity)
         body = self._request("POST", key, payload=png)
         try:
             receipt = json.loads(body.decode("utf-8"))
@@ -115,7 +127,7 @@ class Feature3PrivateOutputStorage:
         downloaded = self._request("GET", key, limit=_MAX_IMAGE)
         if _verified_png(downloaded) != expected or downloaded != png:
             raise ProviderBlocked("Private staged bytes do not match registered source")
-        self._staged.add((sid, key, token))
+        self._staged.add(identity)
         return {"object_key": key, "sha256": expected,
                 "bytes": len(png), "private": True}
 
@@ -126,6 +138,13 @@ class Feature3PrivateOutputStorage:
             return False
         # Only the registrar may call this BEFORE the SQL CAS attempt, when
         # rights were revoked after stage. Do not call on ambiguous DB commit.
-        self._request("DELETE", key)
+        # A timeout after DELETE could still mean the object was removed.
+        # Fence BEFORE attempting deletion, so a second call cannot replay it.
         self._staged.remove(row)
+        self._request("DELETE", key)
+        # Storage DELETE 2xx alone does not prove actual removal. Check the
+        # same private key with the same service credential. A confirmed 404
+        # is required; 401/403, a timeout, or a still-present object is UNKNOWN.
+        if self._request("GET", key, limit=0, allow_not_found=True) is not None:
+            raise ProviderBlocked("Private deletion unconfirmed; reconcile manually")
         return True

@@ -92,11 +92,14 @@ class GPUJobContractTests(unittest.TestCase):
         with self.assertRaises(ProviderBlocked): agent.execute(self.job(), **calls)
         self.assertEqual(agent.runner.call_count,0)
         self.assertEqual(counts["finalized"],[])
-    def test_cross_tenant_receipt_fails_and_settles_failed(self):
+    def test_cross_tenant_output_receipt_is_unknown_and_never_auto_settled(self):
         agent=provider()
         counts,calls=callbacks(foreign_receipt=True)
         with self.assertRaises(ProviderBlocked): agent.execute(self.job(), **calls)
-        self.assertEqual(counts["finalized"],[False])
+        # SQL/Storage could have persisted before a bad receipt. Reconcile
+        # from authoritative output evidence; never falsely mark FAILED.
+        self.assertEqual(counts["finalized"],[])
+        self.assertEqual(agent.runner.call_count,1)
     def test_revocation_after_gpu_blocks_registering_output(self):
         agent=provider()
         counts,calls=callbacks(revoke_after=True)
