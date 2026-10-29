@@ -3,7 +3,7 @@
  */
 import { cloneElement, useEffect, useMemo, useRef, useState } from 'react'
 import { createFeature3Api } from './feature3-api.mjs'
-import { scopedFeature3Preview } from './feature3-private-preview.mjs'
+import { scopedFeature3Preview, discardFailedPrivateModelPreview } from './feature3-private-preview.mjs'
 import Feature3GeneratedHistory from './Feature3GeneratedHistory.jsx'
 import {createFeature3PrivatePNGClient} from './feature3-private-png-client.mjs'
 
@@ -96,9 +96,7 @@ export default function Feature3PosterHost({ client, shopId, children }) {
           // Absent, corrupt, revoked or non-owned private media is never
           // displayed. Revoke even if decoding failed after URL allocation.
           if (candidateURL !== null) {
-            const index = opened.indexOf(candidateURL)
-            if (index !== -1) opened.splice(index, 1)
-            URL.revokeObjectURL(candidateURL)
+            discardFailedPrivateModelPreview(opened, candidateURL)
           }
         }
       }
