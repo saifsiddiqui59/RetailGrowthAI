@@ -25,7 +25,7 @@ def _ledger_rows():
     # Only the immutable fixed task table. Historical progress notes are not rows.
     rows = {}
     for match in re.finditer(
-        r"^\\|\\s*(\\d+)\\s*\\|[^\\n]*?\\|\\s*(COMPLETE|IN_PROGRESS|BLOCKED)\\s*\\|",
+        r"^\|\s*(\d+)\s*\|[^\n]*?\|\s*(COMPLETE|IN_PROGRESS|BLOCKED)\s*\|",
         LEDGER.read_text(encoding="utf-8"), re.MULTILINE,
     ):
         task_id = int(match.group(1))
