@@ -114,3 +114,7 @@ shared APIs, .github/workflows, the frontend route and main merge.
   changes, regenerate in a loop or call Azure Speech. The UI remains disabled
   until current backend-authenticated callbacks are supplied and the coordinator
   mounts the existing selector into the actual customer route.
+
+## Operator-only one-time pinned model acquisition
+
+The repo now includes `ai-agents/test-fixtures/retailer-voice/provision-pinned-kokoro-models.sh` for a separately authorized Linux/WSL/CI CPU provisioning host with outbound GitHub access. Run with `bash .../provision-pinned-kokoro-models.sh /absolute/private/cache`. It uses the official `thewh1teagle/kokoro-onnx` release `model-files-v1.1`, checks **exact SHA-256 and byte length** for both original files, uses private 0600 storage, reuses already verified cache on subsequent executions, never overwrites a mismatching cached original, and does not start a network request in the actual customer TTS inference path. The provisioning script was **not executed successfully** in this environment (DNS inaccessible), and is not a proof of inference. After independent operator licensing/CPU wheel approval, invoke the existing real-Kokoro runner; never publish customer sample recordings as CI artifacts.
