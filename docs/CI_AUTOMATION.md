@@ -123,3 +123,6 @@ The new `RetailGrowthAI dependency coordinator` workflow is separate from the fo
 
 ## 2026-10-29 — Backlog inventory and postmerge dependency refresh
 The coordinator PR validates the immutable 159-task registry with offline negative tests as well as the existing 16-node DAG. `status.json` and status Markdown include a **separate source-snapshot feature count**, never automatically reclassified as integrated DONE. Its trusted-main coordination can also run following a **successful Part 1 CI workflow run on main**; hourly schedule is a fallback. Existing four-job PR/main CI requirements remain unchanged and cannot be replaced by coordinator-only tests. The task manager is not a paid coding agent and does not execute tasks.
+
+## 2026-10-29 — Advisory task scheduler CI
+The dependency coordinator PR validates `scripts/coordination/task_scheduler.py` and `tests/contracts/test_task_scheduler.py` as read-only source tests, then the existing hourly/main-CI Actions job writes the advisory `scheduler-plan.json/.md` artifact alongside the dependency report. It does not launch coding agents, re-run failed production actions or authorize cloud/GPU. Respect normal four-job exact-head and postmerge main gates. See `docs/SCHEDULER_RUNBOOK.md`.

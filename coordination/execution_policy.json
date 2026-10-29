@@ -98,5 +98,39 @@
     "finish_independent_source_despite_external_ci_blocker": true,
     "never_merge_failing_required_ci": true,
     "do_not_promote_ledger_snapshot_to_verified_task_state_without_evidence": true
+  },
+  "scheduler": {
+    "mode": "advisory_until_authorized_executor_connected",
+    "cron": "17 * * * *",
+    "maximum_parallel_candidate_slots": 10,
+    "worktree_per_claim": true,
+    "require_atomic_claim_before_execution": true,
+    "retry_rounds": 2,
+    "initial_attempts_per_task": 3,
+    "deferred_attempts_per_task": 2,
+    "max_total_attempts_per_task": 5,
+    "first_round_retries_before_other_new_work": true,
+    "second_round_begins_after_first_round_eligible_queue_exhausted": true,
+    "after_second_round_failure": "terminal_failed_for_human_triage",
+    "failure_repair": "coding agent must diagnose cause, propose actual safe code fix, run targeted tests, then retry; never re-run identical known-broken code endlessly",
+    "allowed_retry_classes": [
+      "transient_network",
+      "runner_infrastructure",
+      "fixable_build_or_test"
+    ],
+    "forbidden_retry_classes": [
+      "unknown_billing_ack",
+      "paid_provider_submission",
+      "non_idempotent_write",
+      "approval_missing",
+      "tenant_security_denial",
+      "license_denied",
+      "unknown_classification"
+    ],
+    "event_receipts": "coordination/scheduler_events.json",
+    "source_task_ids": "coordination/feature_tasks.json",
+    "source_snapshot_not_authority_for_integrated_completion": true,
+    "no_auto_coding_without_executor": true,
+    "github_actions_polls_and_writes_report_only": true
   }
 }
