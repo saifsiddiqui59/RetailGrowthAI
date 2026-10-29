@@ -27,7 +27,7 @@ def _words(text):
 
 def word_error_rate(reference, hypothesis):
     a, b = _words(reference), _words(hypothesis)
-    if not a or len(a) > 3000 or len(b) > 3000:
+    if not a or not b or len(a) > 3000 or len(b) > 3000:
         raise CpuAsrBenchmarkError("A human reference and bounded hypothesis are required")
     row = list(range(len(b) + 1))
     for i, token in enumerate(a, 1):
