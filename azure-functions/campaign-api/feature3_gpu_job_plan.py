@@ -86,10 +86,16 @@ class Feature3GPUJobPlanPreflight:
                     j.get("claim_token") is not None or
                     j.get("lease_until") is not None):
                 raise Feature3PlanDenied("Only fresh unclaimed plan allowed")
-        elif (j.get("status")!="RUNNING" or j.get("attempts")!=1 or
-              j.get("claim_token")!=claimed_token or
-              not isinstance(j.get("lease_until"),str)):
-            raise Feature3PlanDenied("Current one-shot claimed job unavailable")
+        else:
+            if (j.get("status")!="RUNNING" or j.get("attempts")!=1 or
+                    j.get("claim_token")!=claimed_token or
+                    type(j.get("lease_until")) is not str):
+                raise Feature3PlanDenied("Current one-shot claimed job unavailable")
+            # The one-shot SQL claim expires after 15 minutes. Matching an
+            # unchanged token does not authorize a stale or naive-timestamp
+            # lease; the database would reject its eventual settlement.
+            if _time(j["lease_until"]) <= datetime.now(timezone.utc):
+                raise Feature3PlanDenied("Current one-shot GPU lease expired")
         actor,design=_uuid(j.get("requested_by")),_uuid(j.get("design_id"))
         members=s.request("shop_memberships",query={
             "select":"shop_id,user_id,role,active",
