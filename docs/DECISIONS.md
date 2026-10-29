@@ -961,3 +961,6 @@
 
 ## 2026-10-29 — Feature3 GPU-OFF queue receipt strictness
 - A read-only preflight result is a typed evidence receipt, not a job-execution permit. It must contain unique canonical source IDs, exact immutable SHA256 and bounded integer rights revisions; malformed arrays, missing provider OFF state or backend outages are denied. Zero-charge queue visibility is not equivalent to a worker's SQL lease or Azure delivery ACK. No automatic queue retry, provider invocation or financial mutation authorized.
+
+## 2026-10-29 — Feature3 operator success evidence requires after-read SQL stability
+- A private PNG byte SHA+Pillow proof plus immutable evidence RPC is necessary but insufficient for financial/Storage ambiguity: the read-only operator inspector must re-read the exact job and reservation fields after the private GET and report UNKNOWN on drift. QUEUED has no claim, RUNNING requires a canonical token and timezone lease, terminal jobs clear claims. An expired RUNNING lease is a hold, not authorization to restart. No billing, queue ACK, object deletion or provider operation is permitted by this evidence.

@@ -8,6 +8,7 @@ duplicates authorize a paid retry, refund, automatic job finish or delete.
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
+from datetime import datetime
 import re
 
 from tenant_store import canonical_uuid
@@ -55,18 +56,43 @@ class Feature3GPUOperatorReconciliation:
 
     def inspect(self, *, shop_id, job_id):
         shop,job=_id(shop_id),_id(job_id)
-        j=_row(self.db.request("feature3_gpu_jobs",query={
+        job_query={
             "select":"id,shop_id,status,reservation_id,attempts,claim_token,lease_until,output_asset_id",
-            "id":"eq."+job,"shop_id":"eq."+shop,"limit":"2"}))
+            "id":"eq."+job,"shop_id":"eq."+shop,"limit":"2"}
+        j=_row(self.db.request("feature3_gpu_jobs",query=job_query))
         if (j.get("id")!=job or j.get("shop_id")!=shop or
                 j.get("status") not in ("QUEUED","RUNNING","SUCCEEDED","FAILED") or
                 type(j.get("attempts")) is not int or
                 not 0<=j["attempts"]<=1):
             raise Feature3ReconciliationUnknown("Current job state untrusted")
+        status=j["status"]
+        # Mirror the existing one-shot claim/finish SQL state machine,
+        # without interpreting an expired RUNNING lease as permission to retry.
+        if status=="QUEUED":
+            if (j["attempts"]!=0 or j.get("claim_token") is not None
+                    or j.get("lease_until") is not None):
+                raise Feature3ReconciliationUnknown("Queued claim state inconsistent")
+        elif status=="RUNNING":
+            if j["attempts"]!=1:
+                raise Feature3ReconciliationUnknown("Running job has no one-shot attempt")
+            _id(j.get("claim_token"))
+            raw_lease=j.get("lease_until")
+            if type(raw_lease) is not str:
+                raise Feature3ReconciliationUnknown("Running lease unavailable")
+            try:
+                parsed=datetime.fromisoformat(raw_lease.replace("Z","+00:00"))
+            except ValueError as exc:
+                raise Feature3ReconciliationUnknown("Running lease malformed") from exc
+            if parsed.tzinfo is None:
+                raise Feature3ReconciliationUnknown("Running lease must be timezone aware")
+        elif (j["attempts"]!=1 or j.get("claim_token") is not None
+              or j.get("lease_until") is not None):
+            raise Feature3ReconciliationUnknown("Terminal claim state inconsistent")
         rid=_id(j.get("reservation_id"))
-        r=_row(self.db.request("shop_ai_spend_reservations",query={
+        reservation_query={
             "select":"id,shop_id,operation,state,reserved_usd,actual_usd",
-            "id":"eq."+rid,"shop_id":"eq."+shop,"limit":"2"}))
+            "id":"eq."+rid,"shop_id":"eq."+shop,"limit":"2"}
+        r=_row(self.db.request("shop_ai_spend_reservations",query=reservation_query))
         if (r.get("id")!=rid or r.get("shop_id")!=shop or
                 r.get("operation")!="image_generation" or
                 r.get("state") not in ("RESERVED","SETTLED")):
@@ -82,7 +108,6 @@ class Feature3GPUOperatorReconciliation:
         elif actual is not None:
             raise Feature3ReconciliationUnknown("RESERVED job has a fabricated actual charge")
         output=j.get("output_asset_id")
-        status=j["status"]
         # No one may assume missing Storage metadata means a failed upload:
         # the DB or Storage ACK may be lost after a real commit.
         classification="UNKNOWN_HOLD_FOR_OPERATOR"
@@ -113,6 +138,15 @@ class Feature3GPUOperatorReconciliation:
                     not isinstance(evidence.get("image_sha256"),str) or
                     not _SHA.fullmatch(evidence["image_sha256"])):
                 raise Feature3ReconciliationUnknown("Private output evidence not authoritative")
+            # SQL reads are not a transaction across an HTTPS Storage GET.
+            # Check BOTH job AND ledger again after the independent PNG byte
+            # and output-evidence verifier completes. Changed/uncertain ACKs
+            # are operator-only unknown, not authorization to charge/replay.
+            if (_row(self.db.request("feature3_gpu_jobs",query=job_query))!=j or
+                    _row(self.db.request(
+                        "shop_ai_spend_reservations",query=reservation_query))!=r):
+                raise Feature3ReconciliationUnknown(
+                    "Job or reservation changed during private verification")
             # Observed means immutable SQL receipt and private proof; still
             # not a decision on licensing, human quality or publication.
             classification="TERMINAL_SUCCESS_EVIDENCE_OBSERVED"
@@ -129,3 +163,18 @@ class Feature3GPUOperatorReconciliation:
             "charged_now_usd":"0.00",
             "operator_review_required":True,
         }
+
+
+def build_verified_feature3_operator_reconciliation(*, admin_store,
+                                                     storage_transport=None):
+    """Wire existing service-only SQL plus actual private Storage/Pillow proof.
+
+    The source-only SQL read RPC must be independently approved/deployed
+    before this can report real hosted success. No fallback to metadata-only
+    receipts, browser URLs or synthetic review callbacks is permitted.
+    """
+    from feature3_verified_output_evidence import Feature3VerifiedOutputEvidenceReader
+    source=Feature3VerifiedOutputEvidenceReader(
+        admin_store=admin_store,transport=storage_transport)
+    return Feature3GPUOperatorReconciliation(
+        admin_store=admin_store,read_private_evidence=source)
