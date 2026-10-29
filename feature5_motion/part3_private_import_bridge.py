@@ -161,19 +161,20 @@ def import_wan_into_existing_part3(
         before = _file_identity(path)
         if before[2] != inspection.size_bytes or _digest(path) != inspection.sha256:
             raise WanCompatibilityError("Private output does not match FFprobe/SHA evidence")
-        # Re-probe these exact private bytes at the settlement boundary.
-        # NativeClipInspection is a Python object a caller can construct or
-        # mutate; its H264/704x1280/121-frame/silent profile is not proof
-        # until actual local FFprobe independently observes those properties.
-        # This must happen BEFORE durable import CAS, not on a paid retry.
-        verified = inspect_native_mp4(package, staged_file=path)
-        if verified != inspection or _file_identity(path) != before:
-            raise WanCompatibilityError("Native MP4 inspection differs from actual private bytes")
     except OSError as exc:
         raise WanCompatibilityError("Private output inaccessible") from exc
     claim_args=(shop, job, token, source, package.lineage_sha256, inspection.sha256)
     if check_current_paid_claim_and_source(*claim_args) is not True:
         raise WanCompatibilityError("Current Part3 lease/rights/reservation missing")
+    # Re-probe the actual private MP4 only AFTER the current Part3 claim and
+    # tenant-source rights reader accepts the worker. This may not be
+    # postponed past the irreversible unique import intent.
+    try:
+        verified = inspect_native_mp4(package, staged_file=path)
+        if verified != inspection or _file_identity(path) != before:
+            raise WanCompatibilityError("Native MP4 inspection differs from actual private bytes")
+    except (OSError, WanCompatibilityError) as exc:
+        raise WanCompatibilityError("Native MP4 re-probe denied before import intent") from exc
     # The existing claim/rights reader can block while another worker changes
     # the staged file. Reject before committing an irreversible import intent.
     try:
