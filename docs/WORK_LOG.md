@@ -733,3 +733,6 @@ Use scripts/checkpoint.sh after completing a task.
 
 ## 2026-10-29 — Reconciled 33 Feature3 package baseline
 - Added `docs/feature3/FEATURE3_33_PACKAGE_STATUS_20261029.md` with 33 individual rows, grounded in merged source, read-only DEV evidence (31 migrations, no live models/GPU jobs or current-model/operator evidence RPC) and known external gates. Counts: 1 source-integrated, 11 source-partial, 21 blocked/dependent; 0 fully hosted end-to-end. No migration, queue, provider or PROD/WineShopPOS writes.
+
+## 2026-10-29 — Feature3 current-model rights service RPC disposable SQL source tests
+- After #663 source integration, created `feat/feature3-current-model-sql-disposable-gate-20261029` from main `bb6c9b043703d370386f2a5ea554d8122aea36d5`. Added actual psql security tests in existing disposable `poster*.sql` CI harness, importing then dropping `supabase/proposals/feature3_current_model_review_20261029.sql`; tests forbid anonymous/JWT calls and bogus model source rights. No hosted migration/provider/queue/storage writes. Verify exact-head four-job CI and fresh main after coordinator merge.
