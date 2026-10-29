@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState} from 'react'
-import {F2_LOCAL_VOICES, VOICE_SPEEDS, makeLocalVoiceAction} from './voiceover-model.mjs'
+import {F2_LOCAL_VOICES, VOICE_SPEEDS, makeLocalVoiceAction,
+  makeReviewedDraftRequest, verifyReviewedDraftReceipt} from './voiceover-model.mjs'
 import {verifyLocalPrivatePlayback} from './voiceover-private-playback.mjs'
 import {verifyPrivateVoiceQualityReview} from './voiceover-quality-review.mjs'
 
@@ -11,6 +12,7 @@ export default function LocalVoicePanel({
  onLocalPreview=null,onLocalGenerate=null,onFetchLocalAudio=null,
  onFetchQualityReview=null,
  onProposeScriptRevision=null,onProposePronunciation=null,
+ onCommitReviewedDraft=null,
 }){
  const [language,setLanguage]=useState('en-us')
  const [voice,setVoice]=useState('af_heart')
@@ -20,6 +22,8 @@ export default function LocalVoicePanel({
  const [message,setMessage]=useState('')
  const [saved,setSaved]=useState(null)
  const [quality,setQuality]=useState(null)
+ const [pendingProposal,setPendingProposal]=useState(null)
+ const [reviewAcknowledged,setReviewAcknowledged]=useState(false)
  const [scriptDraft,setScriptDraft]=useState(sourceScript)
  const [pronounceWord,setPronounceWord]=useState('')
  const [pronounceAs,setPronounceAs]=useState('')
@@ -32,10 +36,11 @@ export default function LocalVoicePanel({
   urlRef.current=null;setAudioUrl('')
  }
  useEffect(()=>{
-  setSaved(null);setQuality(null);setAudioUrl('');setScriptDraft(sourceScript)
+  setSaved(null);setQuality(null);setPendingProposal(null)
+  setReviewAcknowledged(false);setAudioUrl('');setScriptDraft(sourceScript)
   setPronounceWord('');setPronounceAs('')
   return ()=>{if(urlRef.current)URL.revokeObjectURL(urlRef.current);urlRef.current=null}
- },[shopId,campaignId,planSha256])
+ },[shopId,campaignId,planSha256,sourceScript])
  const choices=F2_LOCAL_VOICES.filter(x=>x.locale===language)
  async function propose(kind){
   const callback=kind==='script'?onProposeScriptRevision:onProposePronunciation
@@ -66,9 +71,38 @@ export default function LocalVoicePanel({
       result?.can_publish!==false || result?.automatically_applied===true){
     throw Error('Untrusted correction proposal response')
    }
+   if(kind==='script' && result?.private===true &&
+      /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(result.proposal_id||'') &&
+      /^[a-f0-9]{64}$/.test(result.original_prompt_sha256||'') &&
+      /^[a-f0-9]{64}$/.test(result.improved_prompt_sha256||'') &&
+      Number.isInteger(result.source_revision)){
+     setPendingProposal({...result,creative_plan_sha256:planSha256})
+     setReviewAcknowledged(false)
+   }
    setMessage('Proposal sent for human editor review; approved source script is unchanged')
   }catch(e){setError(e?.message||'Revision proposal rejected')}
   finally{setBusy(false)}
+ }
+ async function commitApprovedDraft(){
+   if(enabled!==true||typeof onCommitReviewedDraft!=='function'||!pendingProposal){
+     setError('Signed editor approval and revision backend unavailable');return
+   }
+   const scope=scopeRef.current
+   setError('');setMessage('');setBusy(true)
+   try{
+     const request=makeReviewedDraftRequest({shopId,campaignId,planSha256,
+       proposal:pendingProposal,reviewEventId:crypto.randomUUID(),
+       idempotencyKey:crypto.randomUUID(),
+       explicitComparisonAcknowledged:reviewAcknowledged})
+     const receipt=await onCommitReviewedDraft(request)
+     const checked=verifyReviewedDraftReceipt({shopId,campaignId,
+       proposal:pendingProposal,receipt})
+     if(scope!==scopeRef.current)throw Error('Review context changed')
+     setPendingProposal(null);setReviewAcknowledged(false)
+     setMessage('Reviewed revision saved as private draft '+checked.revision+
+       '. Re-run copy, media rights and human approval before publishing.')
+   }catch(e){setError(e?.message||'Human review is not independently verified')}
+   finally{setBusy(false)}
  }
  async function fetchAudio(){
   if(!saved||typeof onFetchLocalAudio!=='function'||enabled!==true){
@@ -146,12 +180,30 @@ export default function LocalVoicePanel({
   <p>Kokoro ONNX / CPU — English voices only. Hindi and Marathi need an explicitly approved compatible provider.</p>
   <label>Editable narration draft (changes require editor review)
    <textarea rows={3} maxLength={1400} value={scriptDraft}
-    onChange={e=>setScriptDraft(e.target.value)} aria-label="Narration revision draft"/>
+    onChange={e=>{setScriptDraft(e.target.value);setPendingProposal(null);
+      setReviewAcknowledged(false)}} aria-label="Narration revision draft"/>
   </label>
   <button type="button" disabled={busy||enabled!==true||!onProposeScriptRevision||
     scriptDraft.trim()===sourceScript.trim()} onClick={()=>propose('script')}>
    Submit narration revision for human review
   </button>
+  {scriptDraft.trim()!==sourceScript.trim()&&<section aria-label="Compare source and proposed narration">
+    <h4>Compare A/B narration — review only</h4>
+    <p><strong>A — Current reviewed source</strong></p>
+    <p>{sourceScript}</p>
+    <p><strong>B — Your proposed narration</strong></p>
+    <p>{scriptDraft}</p>
+    <p>Changing words invalidates prior speech alignment, timing and rights reviews.</p>
+    {pendingProposal&&<>
+      <label><input type="checkbox" checked={reviewAcknowledged}
+        onChange={e=>setReviewAcknowledged(e.target.checked)}/>
+        I compared A and B. Server-signed independent editor approval is still required.</label>
+      <button type="button" disabled={!enabled||busy||!reviewAcknowledged||
+        typeof onCommitReviewedDraft!=='function'} onClick={commitApprovedDraft}>
+        Save server-approved revision as a new private draft
+      </button>
+    </>}
+  </section>}
   {onProposePronunciation&&<fieldset disabled={!enabled||busy}>
    <legend>Suggest a shop pronunciation</legend>
    <label>Word <input value={pronounceWord} maxLength={60}
