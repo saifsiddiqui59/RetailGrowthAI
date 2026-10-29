@@ -48,10 +48,14 @@ test('campaign+reel observes actual IDs, but never fabricates F3/F5/F7', async (
   let posts = 0
   const campaignApi = {
     createCampaign: async () => { posts++; return { campaign_id: campaignId, status: 'PLANNING' } },
-    getCampaign: async () => ({ id: campaignId, shop_id: shopId, status: 'DRAFT',
-      days: [{ id: dayId, shop_id: shopId, topic: 'Daily outfits',
-        linkedin: { post_text: 'Wear with confidence' },
-        instagram: { caption: 'Shop your wardrobe', reel: { storyboard: [] } } }] }),
+    getCampaign: async () => ({ id: campaignId, shop_id: shopId, status: 'DRAFT', duration_days: 7,
+      days: Array.from({length:7}, (_,i) => ({
+        id: i === 0 ? dayId : '66666666-6666-4666-8666-' + String(i+1).padStart(12, '0'),
+        shop_id: shopId, campaign_id: campaignId, day_index:i+1,
+        scheduled_date:'2026-11-0'+(i+1),topic:'Daily outfits '+(i+1),
+        linkedin: {post_text:'Wear with confidence '+(i+1)},
+        instagram: {caption:'Shop your wardrobe '+(i+1), reel: {storyboard:[]}},
+      })) }),
     createRender: async () => ({ job_id: jobId, status: 'QUEUED' }),
     getRenderJob: async () => ({ shop_id: shopId, job_id: jobId, status: 'SUCCEEDED' }),
   }
@@ -61,6 +65,8 @@ test('campaign+reel observes actual IDs, but never fabricates F3/F5/F7', async (
   assert.equal(posts, 1)
   assert.equal(store.events.find(e => e.action === 'campaign-planning').details.campaign_id, campaignId)
   assert.equal(store.events.find(e => e.action === 'ffmpeg-result').status, 'PASS')
+  assert.equal(store.events.filter(e => /^campaign-day-/.test(e.action)).length, 7)
+  assert.equal(store.events.find(e => e.action === 'campaign-day-7').details.linkedin_post, 'Wear with confidence 7')
   for (const f of ['F3','F5','F7']) assert.ok(store.events.some(e => e.feature === f && e.status === 'NOT_RUN'))
 })
 test('lost campaign POST acknowledgement stays UNKNOWN and is never replayed', async () => {
@@ -99,4 +105,27 @@ test('PostgREST trace client rejects cross-tenant history and sends user JWT onl
   assert.equal(calls[0].init.headers.Authorization, 'Bearer signed-in-user-token')
   assert.equal(calls[0].init.headers.apikey, 'publishable')
   assert.ok(calls[0].url.includes('shop_id=eq.'))
+})
+
+test('incomplete or cross-campaign draft cannot be credited as seven-day output', async () => {
+  for (const broken of ['short', 'foreign']) {
+    const store=mockStore()
+    const campaignApi={
+      createCampaign:async()=>({campaign_id:campaignId,status:'PLANNING'}),
+      getCampaign:async()=>({
+        id:campaignId,shop_id:shopId,status:'DRAFT',
+        days:Array.from({length:broken==='short'?1:7}, (_,i)=>({
+          id:i===0?dayId:'66666666-6666-4666-8666-'+String(i+1).padStart(12,'0'),
+          shop_id:shopId,campaign_id:broken==='foreign'?'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa':campaignId,
+          day_index:i+1,topic:'Copy',linkedin:{post_text:'Sample'},
+          instagram:{caption:'Copy',reel:{storyboard:[]}},
+        })),
+      }),
+      createRender:async()=>{ throw new Error('Render must never be submitted') },
+    }
+    const outcome=await executeFeatureTrace({...options,mode:'campaign_reel',store,campaignApi})
+    assert.equal(outcome.status,'UNKNOWN')
+    assert.ok(store.events.some(e=>e.action==='campaign-planning'&&e.status==='UNKNOWN'))
+    assert.equal(store.events.filter(e=>e.action.startsWith('campaign-day-')).length,0)
+  }
 })
