@@ -22,3 +22,15 @@ Before Auth creation, five anonymous Node routes must return real application 40
 Existing signed-in read #40354972715, applied caller-authorized Reel RPC and actual Free SWA write-route negative #40380525626 do not prove successful positive two-shop work. The separate real-JWT no-shop negative canary must also pass before full E2E. Owner/VIEWER/foreign and stale/revoked JWT denial, uncertainty reconciliation, real storage rights, quota/outbox idempotency, cloud MP4 and after-idle reliability must be evidenced in completed Actions logs.
 
 Until those gates pass, keep issue #249 OPEN, leave production frontend on Python Flex, do not provision paid Free-SWA upgrades, GPU/always-ready, PROD or WineShopPOS resources.
+
+
+## 2026-10-29 — protected Node canary transport hardening (source PR)
+
+For the **manual, owner-approved** Node canary only, the Python bridge now converts exactly one well-shaped original Supabase user Bearer JWT into the secure Node `x-rgai-supabase-jwt` header. It drops `apikey` regardless of casing and **rejects** forged caller-supplied Node JWT, Cookie/Origin/Host/Forwarded or proxy/Functions/principal headers, duplicate Bearer/header identities, control-character injection and missing/invalid Bearer before calling the Node preview. Only Accept, Content-Type and Prefer may otherwise be forwarded. This syntactic check does not validate JWT authenticity: Node JWKS verification, current Supabase RLS, tenant rights and operator ROOT approval remain mandatory. Direct Supabase Auth/admin cleanup calls are not redirected to Node.
+
+Offline test: `tests/infra/test_p0249_node_header_fence.py` extracts the pure helper AST without importing live canary configuration, then exercises valid user header forwarding and negative spoofing/credential-leak paths. Real DEV tests must use genuine disposable approved user JWTs; never put credentials or raw JWTs in source/CI output.
+
+**Unchanged blockers:** PR #639 ROOT UI exact-ACK integration, #668 OFF-by-default same-origin SPA transport, #676 staged two-account ROOT approval, explicit protected workflow dispatch by owner, media/FFmpeg signed E2E and independent Azure #249 original unmarked ~61-second 503 internal cause. Require exact-head 4/4 CI, coordinator merge, independently verified main CI and real signed live acceptance before claiming any #249 resolution. No PROD or WineShopPOS writes, Azure config changes, paid GPU, or user-facing API cutover.
+
+### Additional Node-preview no-redirect fence
+The canary no longer passes preview calls through the parent `urllib.request.urlopen` automatic redirect handler: its isolated Node-only opener returns an HTTP 30x as a fatal `P0249_NODE_REDIRECT_DENIED`, so even a misconfigured/compromised preview cannot redirect the custom user JWT to a foreign host. Read-only GET may retry bounded transient errors; POST/PATCH is single-attempt and an uncertain 502/503/504/timeout is fatal. Supabase Auth/RLS/admin/cleanup requests keep the existing original transport. This is tested with mock HTTP, **not** live signed acceptance or Azure causality.
