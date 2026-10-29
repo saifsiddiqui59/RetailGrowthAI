@@ -1258,3 +1258,7 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 trusted private input proof implementation checkpoint
 - Verify four exact-head PR and push CI jobs for `feat/feature3-verified-private-input-proof-20261029`; coordinator merge and fresh main CI. The previously missing private byte-reader is now implemented and can be composed into the GPU-off SQL preflight only with a genuine separate current legal/customer approval authority. Next independently connect audited immutable model/license evidence revisions, actual trusted tenant bytes and per-asset current rights, then a reviewed protected private binary output endpoint/React previews. Do not claim image rights from media.license_name, synthetic tests or user consent checkbox; paid GPU, queue trigger, hosted DEV/PROD, WineShopPOS and Azure #249 remain separate.
+
+
+## 2026-10-29 — Feature3 private operator evidence proof gates
+- Verify exact-head 4/4 CI for `feat/feature3-operator-private-evidence-read-20261029`, coordinator merge and postmerge main. No hosted SQL applied: `supabase/proposals/feature3_operator_evidence_read_20261029.sql` awaits separate reviewed version, disposable role-negative tests and DEV approval. Actual independent provider billing and human operator decision are still required. No automatically replayed GPU, financial settlement, refund, output deletion, PROD or WineShopPOS.

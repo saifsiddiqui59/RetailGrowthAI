@@ -1277,3 +1277,7 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## 2026-10-29 — Feature3 real private source bytes and independently reviewed current-rights proof (branch source only)
 - Added backend-only `Feature3TrustedPrivateSourceProof` that reads actual registered same-shop image bytes via private Storage GET, performs real PNG/JPEG/WEBP size/pixel/MIME and SHA256 verification, and requires twice-confirmed independently approved licence/customer consent with stable rights revision. `build_verified_gpu_off_preflight` wires it to existing SQL/source planner; no browser media URLs, claim, GPU or spending. Synthetic negative real-byte/HTTP/revocation tests included. A live independently sourced legal authority must still be supplied; **there is no real hosted garment/model approval proof or inference**. See [handoff](feature3/PRIVATE_SOURCE_PROOF_20261029.md).
+
+
+## 2026-10-29 — Feature3 operator private PNG evidence: verified bytes, source-only
+- Implemented service-only generated-output SQL evidence reader and actual private Storage GET/Pillow/SHA256 verification, with a second immutable SQL receipt check. New read-only RPC is explicitly an **unapplied SQL proposal** outside the pinned 31-version canonical migration directory; actual operator financial actions and hosted signed tests remain blocked. [Runbook](feature3/OPERATOR_PRIVATE_EVIDENCE_READ_20261029.md).
