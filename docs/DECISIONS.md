@@ -932,3 +932,32 @@
 - Feature3 service-only CPU preflight must retrieve immutable same-shop private bytes, real-decode image and recompute SHA256 under a narrowly scoped backend Storage credential. Compare with a **separate independent, current, reviewer-approved legal/provenance/retailer permission record**, and reread that record after fetching bytes. Never infer commercial permission from media `license_name`, OpenVTO demo, model weights or Storage 200; deny unknown/revoked record. Do not expose bytes/keys to browsers or imply spend rights.
 
 - 2026-10-29: Coordinator conflict-reconciled the Feature3 private source byte proof #645 into current-main integration without dropping prior history. Verify four-job exact head CI and postmerge main separately; real legal authority and hosted source approval still pending.
+
+## 2026-10-29 — Source hash evidence and legal rights must be independent
+- Feature3 preflight requires an actual private Storage GET and byte-level image decode/hash, plus **independent** separately reviewed current customer/licence authorization bound to that exact shop/media/digest/revision. Read twice around possible revocation and rely on the planner's second SQL snapshot to fence TOCTOU; the database media row's self-reported license label and a browser approval are not commercial rights proof. Keep the receipt free of private byte/path/keys and mark planning GPU off. Only after real operator evidence and live signed DEV can execution be considered under cost approval.
+
+
+## 2026-10-29 — Generated output operator evidence must include real bytes, not only SQL
+- Only service_role may inspect immutable job/output evidence, and a SQL or storage.objects row is insufficient to prove stored pixels. Bound exact same-tenant private PNG GET and SHA256/format/size validation between two authoritative SQL reads before returning a read-only operator receipt. Keep new DDL outside canonical migrations until separate coordinator approval/versioning; 31-current gate, no replay/charge/refund/publish authorization.
+
+## 2026-10-29 — Peek-only operator inspection is safer than dequeue-based test
+- Use Microsoft Azure Storage Queue SDK `peek_messages` with explicit 1..5 bound to inspect currently visible, v1-only GPU messages during provider-OFF preflight. Never use `receive_message`, implicit QueueTrigger, `delete_message` or mutating operations for inspection because default visibility, retries and auto-deletion could alter a future paid job. A Queue peek does not prove that other invisible messages are absent; only SQL and separately reviewed billing determine a final outcome.
+
+
+## 2026-10-29 — Source-only private PNG binary HTTP contract never implies a live endpoint
+- A backend handler may return exact reauthorized PNG bytes with GET-only JWT, no-store/no-cache/nosniff, content-addressed SHA and opaque denies, but only after `Feature3RevocablePNGReader` independently verifies current tenant, immutable evidence and legal rights. Do not expose service keys or mint signed/public URLs, auto-publish, enable GPU or mount an HTTP route until the genuine output rights gate and coordinator versioned interface are approved. Old 60-second signed links are not retroactively invalidated.
+
+- 2026-10-29 Feature3 binary privacy/integrity source contract: future private PNG endpoint will return same-shop/job/media UUID and actual SHA256 only in integrity headers after current rights+JWT, with no-store/no-referrer browser fetch and independent crypto hash before Blob use. Separate source-only client is intentionally NOT mounted without a genuine secured Azure binary route. Never trust response status/mime alone or expose old signed Storage URLs as instant-revocation.
+
+- 2026-10-29 Feature3 private generated output preview UX: only let a signed active shop user explicitly request a SUCCEEDED job's checksum-verified private PNG behind a separate feature flag. Never preload, auto-generate, auto-publish or use previous signed Storage URLs. Keep decoded local `blob:` within current shop session, clear on reload/scope change/unmount/user clear and reject foreign, signed or approved-content claims. Instant revocation of pixels already displayed is not possible and must not be promised.
+
+
+## 2026-10-29 — Separate immutable model-review proof from media labels
+- Use a service-role-only read RPC to derive current model proof from immutable independent `retail_private.feature3_model_evidence`, latest `feature3_model_review_events` and current APPROVED catalogue/media SHA; browser, declared media `license_name` or synthetic files never grant commercial reuse, consent or GPU. Source bridge accepts only seven fields and requires current revision+approval. Unreviewed source and non-model product/garment images fail closed until separately reviewed. The SQL source is intentionally not deployed and must undergo DB owner/versioning approval before runtime wiring.
+
+## 2026-10-29 — Feature3 immutable original and model-only review SQL, source gate
+- Security decision: for registered `model-library` originals, require a canonical model UUID namespace and real GET image SHA256 equal to the immutable SHA-named filename; reject a mismatched declared HTTP byte length. The separate current-rights authority is still mandatory. Actual byte proof is not inferred from filename, browser metadata, UI consent or a synthetic model.
+- Runtime decision: the current model-review PostgREST function is a **proposal only** outside the canonical 31-migration directory. Service-role receipt requires exact same-shop current model+immutable evidence+latest human APPROVE revision+private Storage record; no historical approval, non-model garment, revoked rights or cross-tenant fallback. No hosted schema mutation or GPU activation follows from source-only review. Coordinator owns schema/release approval.
+
+## 2026-10-29 — Feature3 GPU-OFF queue receipt strictness
+- A read-only preflight result is a typed evidence receipt, not a job-execution permit. It must contain unique canonical source IDs, exact immutable SHA256 and bounded integer rights revisions; malformed arrays, missing provider OFF state or backend outages are denied. Zero-charge queue visibility is not equivalent to a worker's SQL lease or Azure delivery ACK. No automatic queue retry, provider invocation or financial mutation authorized.
