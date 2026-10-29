@@ -80,11 +80,16 @@ test('foreign shop/status, signed URL response or tampered SHA denies',async()=>
   }
 })
 test('no foreign UUID or malformed JWT reaches any binary request',async()=>{
-  for(const bad of ['',null,{},randomUUID(),randomUUID().toUpperCase(),'../../shop']){
+  for(const bad of ['',null,{},randomUUID().toUpperCase(),'../../shop']){
     const {api,calls}=setup()
     await assert.rejects(api.get(bad,JOB))
     assert.equal(calls.length,0)
   }
+  // A different canonical shop id is valid syntax but never an authorized
+  // media receipt. It reaches the server for its independent JWT/RLS check.
+  const {api:otherApi,calls:otherCalls}=setup()
+  await assert.rejects(otherApi.get(randomUUID(),JOB))
+  assert.equal(otherCalls.length,1)
   for(const jwt of ['', 'bad', 'sb_secret_invalid', 'sb_publishable_invalid',
                     'bad\r\nsecret', 'x'.repeat(9000)]){
     const {api,calls}=setup(fakeResponse(),jwt)
