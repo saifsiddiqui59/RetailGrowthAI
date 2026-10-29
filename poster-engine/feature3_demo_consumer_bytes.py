@@ -40,7 +40,7 @@ def load_demo_consumer_bytes(directory, feature):
     The same three originals are independently Git-blob-checked by the
     existing footage verifier AND decoded/hashed again after consumer read.
     """
-    if feature not in _ROLES:
+    if not isinstance(feature, str) or feature not in _ROLES:
         raise DemoFootageDenied("Unknown feature consumer; no privileged demo fallback")
     root = _verify_inputs(directory)
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
