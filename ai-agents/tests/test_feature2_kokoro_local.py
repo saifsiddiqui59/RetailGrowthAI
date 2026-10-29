@@ -160,3 +160,69 @@ def test_cpu_onnx_provider_list_must_be_exclusively_cpu(monkeypatch,tmp_path):
     assert "ONNX_PROVIDER" not in __import__("os").environ
     if old is not None:
         monkeypatch.setenv("ONNX_PROVIDER",old)
+
+
+from ai_agents.feature2_kokoro_local import run_cpu_kokoro_benchmark
+
+def test_cpu_benchmark_is_accurately_labeled_injected_sine_test_not_real():
+    calls=[]
+    def injected(**kwargs):
+        calls.append(kwargs)
+        return synthesize_local(
+            text=kwargs["text"],voice_id=kwargs["voice_id"],
+            lang=kwargs["lang"],speed=kwargs["speed"],
+            engine=SimulatedEngine(),trusted_for_tests=True)
+    results=run_cpu_kokoro_benchmark(
+        cache_dir="/synthetic-test-cache-never-loaded",repeats=2,
+        synthesize=injected,trusted_for_tests=True)
+    assert len(calls)==2
+    assert all(c["text"].startswith("Thread and Loom") for c in calls)
+    assert results["sample_count"]==2
+    assert results["real_model_inference_verified"] is False
+    assert results["cold_start_includes_pinned_weight_hash"] is False
+    assert results["test_only"] is True
+    assert results["service_cost_is_not_certified_free"] is True
+    assert results["cloud_vm_or_electricity_cost_estimate_usd"] is None
+    assert results["billable_provider_calls"]==0
+    assert results["verified_speech_quality"] is False
+    assert not results["can_publish"]
+    assert all(x["audio_seconds"]==1.0 and x["real_time_factor"]>=0
+               and x["process_cpu_seconds"]>=0
+               for x in results["observations"])
+    assert "audio_wav" not in str(results)
+    assert "Thread and Loom" not in str(results)
+
+@pytest.mark.parametrize("changes",[
+    {"repeats":0},{"repeats":4},{"repeats":True},
+    {"voice_id":"hi-IN-SwaraNeural"},{"lang":"mr-IN"},
+    {"voice_id":"bm_george","lang":"en-us"},
+    {"cache_dir":""},{"trusted_for_tests":False},
+])
+def test_cpu_benchmark_rejects_untrusted_runtime_or_unbounded_inference(changes):
+    attempts=[]
+    def mock(**kwargs):
+        attempts.append(1)
+        raise AssertionError("No inference may occur")
+    args={"cache_dir":"/only-test-placeholder","repeats":1,
+          "synthesize":mock,"trusted_for_tests":True}
+    args.update(changes)
+    with pytest.raises(LocalSpeechUnavailable):
+        run_cpu_kokoro_benchmark(**args)
+    assert attempts==[]
+
+def test_cpu_benchmark_rejects_fabricated_actual_voice_proof():
+    def pretend(**kwargs):
+        record=synthesize_local(
+            text=kwargs["text"],voice_id=kwargs["voice_id"],
+            lang=kwargs["lang"],engine=SimulatedEngine(),trusted_for_tests=True)
+        record["actual_inference_verified"]=True
+        record["test_only"]=False
+        return record
+    with pytest.raises(LocalSpeechUnavailable,match="provenance"):
+        run_cpu_kokoro_benchmark(cache_dir="/test",repeats=1,
+            synthesize=pretend,trusted_for_tests=True)
+
+def test_cpu_benchmark_disabled_operator_does_not_load_models(monkeypatch,tmp_path):
+    monkeypatch.delenv("RETAIL_FEATURE2_KOKORO_CPU_ENABLED",raising=False)
+    with pytest.raises(LocalSpeechUnavailable,match="disabled"):
+        run_cpu_kokoro_benchmark(cache_dir=tmp_path)
