@@ -1310,3 +1310,9 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## 2026-10-29 — Feature3 actual claimed-lease source recheck, GPU OFF (source-only)
 - Extended existing preflight to inspect a **previously claimed** RUNNING job without creating or mutating claims: check current service-only prepaid lease twice around the complete revalidated shop/actor/subscription/design/model/private-PNG SHA/source rights proofs. Strict source ID binding, changed rights/lease denial and no provider authorization. Adapter binds to existing `Feature3PrivateGPUWorker` current-rights callback contract; source tests use actual Pillow PNG bytes, fake HTTPS and rights records. No hosted claim, real approved garment/model source or GPU execution, PROD or WineShopPOS touched. Standalone PR exact-head and coordinator postmerge CI must be checked before integration.
+
+## 2026-10-29 — Feature3 private model browser preview failure cleanup (non-GPU)
+- `Feature3PosterHost` now immediately revokes temporary `blob:` URLs for private model candidates whose decode/download fails, while retaining the existing bounded five successful shop-scoped previews and refresh/unmount teardown. Pure Node negative tests reject external/unowned/duplicate revoke, preserving tenant boundaries. Browser source only; no hosted model rights, Azure route, real generated output, spend, PROD or WineShopPOS change. See `docs/feature3/PRIVATE_MODEL_PREVIEW_BLOB_CLEANUP_20261029.md`.
+
+## 2026-10-29 — Feature3 reconciled 33-package evidence tracker
+- Added `docs/feature3/FEATURE3_33_PACKAGE_STATUS_20261029.md` mapping every established baseline package to actual code/current hosted dependencies. Evidence categories: 1 source-integrated, 11 source-partial, 21 blocked or dependent; **0 verified as end-to-end hosted complete**. Do not infer commercial source rights or paid GPU execution from source CI. No hosted SQL changes.
