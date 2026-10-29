@@ -882,3 +882,7 @@
 
 ## 2026-10-29 — ROOT Playwright queue freshness requires authenticated RPC completion
 - On the DEV operator-only local helper, do not consider a hidden React loading spinner evidence of fresh onboarding data. It may still be hidden *before* the React fetch begins. Await the exact existing authenticated HTTPS POST `/rest/v1/rpc/retail_platform_onboarding_requests` to the known DEV Supabase host, fail closed on a non-success HTTP response, then verify no pending/error spinner before reading visible rows. Mocked-page regression asserts ordering and disallows a wrong host/method/route. [PR #633](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/633). This does not relax audited ROOT approval or turn helper CI into positive hosted media acceptance; never use privileged SQL, customer API fallback, PROD or WineShopPOS.
+
+
+## 2026-10-29 — Strict allowlisted Feature3 PostgREST transport is necessary but not authorization
+- Allow only GET of `feature3_gpu_jobs` through signed user-JWT/RLS `TenantStore`. Permit exactly the existing POST-only GPU output registration and outbox dispatch/recovery RPCs through backend-secret `AdminStore`; never expose these to a browser, permit generic public table writes, infer consent from HTTP success or activate GPU. Test the *real Request object and endpoint paths* because mocks of store internals missed an actual universal `unsupported table/worker path` blocker. Current 60-second signed download is NOT instant-revocation safe if already issued; separate live release criterion remains mandatory.
