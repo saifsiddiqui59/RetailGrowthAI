@@ -37,3 +37,6 @@ The machine-readable map `coordination/shared_feature_references.json` is author
 ## After task completion
 
 Feature lead documents verified source result and submits to coordinator. Coordinator evaluates actual PR integration and full CI, records an evidence-backed event in `coordination/task_progress.json`, and the scheduled workflow refreshes `task-status.json/.md` in Actions artifacts. **Neither chat text nor an advisory scheduler candidate automatically means the task ran.**
+
+## Required startup behavior for all five named chats
+At **every** manual or scheduled ChatGPT execution, read `coordination/chat_worker_control.json` and `docs/CHAT_TASK_CONTROL.md` in addition to the files above. Treat their `entrypoint_instruction` and `on_task_resolution_instruction` as the active control manager: perform a real eligible coding task, document evidence, and immediately select the next one without user intervention within the same run. Do not end after a single PR/commit or status count when other independent safe tasks can be addressed. Global ten-claim limit is conditional on real atomic claims; do not pretend ten parallel workers exist. A chat turn cannot keep itself alive after it ends; the next user or automation trigger will reread the current backlog. The scheduler is separate and remains advisory.
