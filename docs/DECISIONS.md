@@ -916,3 +916,7 @@
 
 
 - 2026-10-29 Feature3 GPU-off queue preview: inspect queue shop/job IDs only with strict schema and current trusted source/role checks; require provider explicitly OFF, return no ACK/claim/charge permission. Never register an ordinary Azure Queue trigger that silently deletes accepted messages or poison-retries disabled paid work. Preserve independent audited one-shot SQL and operator reconciliation for later enabled-worker activation.
+
+
+## 2026-10-29 — Real image pixels do not by themselves prove rights
+- Feature3 service-only CPU preflight must retrieve immutable same-shop private bytes, real-decode image and recompute SHA256 under a narrowly scoped backend Storage credential. Compare with a **separate independent, current, reviewer-approved legal/provenance/retailer permission record**, and reread that record after fetching bytes. Never infer commercial permission from media `license_name`, OpenVTO demo, model weights or Storage 200; deny unknown/revoked record. Do not expose bytes/keys to browsers or imply spend rights.

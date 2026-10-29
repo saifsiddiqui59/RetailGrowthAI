@@ -684,3 +684,6 @@ Use scripts/checkpoint.sh after completing a task.
 
 
 - 2026-10-29 Feature3 continued P0 non-GPU queue chain: implemented `Feature3GPUOffQueueIntake` to join merged strict queue envelope decoder and current SQL/rights reader, defaulting to provider OFF, no queue delivery ACK/deletion, no SQL claim, no GPU/settlement, and failing closed on forged/future schema, role rights revocation, foreign shop/receipt, or dishonest paid flags. Added no-provider synthetic tests and source release warning against mounting an Azure Queue-trigger. Four-job CI on exact branch required.
+
+
+- 2026-10-29 Phase2 Feature3 independent source work: added actual bounded no-redirect backend Supabase private Storage GET plus Pillow real-image decode and SHA256 checked against an independent current rights review callback twice; source returns only safe metadata attestation into existing job plan and cannot trigger GPU or billing. Mocked-HTTP real PNG tests cover original/rightly approved, revoked mid-GET, foreign/media corrupt, bad MIME/size/redirect and malformed origin. Independent legal approval source and genuine DEV signed testing remain gated; no hosted SQL/provider/WineShopPOS change.

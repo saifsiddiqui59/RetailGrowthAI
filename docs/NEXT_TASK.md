@@ -1239,3 +1239,7 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 
 - 2026-10-29 Feature3 Phase2 queue intake gate: current v1 packet parser is now wired to read-only SQL/source preflight under mandatory provider OFF, but **do not register an Azure Queue-trigger handler yet**. Implement legitimate worker+operator intake with explicit handling of queue ACK/deletion, one-shot claim only after actual financial/provider/rights approval and trusted current bytes, loss-of-ACK reconciliation and no paid retry. This queue source test is not operational queue consumption. Verify combined exact-head CI.
+
+
+## 2026-10-29 — Feature3 private byte verifier release blockers
+- Verify exact head 4/4 CI on `feat/feature3-private-source-byte-rights-proof-20261029`, coordinator source merge and independent postmerge main CI. Continue source-independent real current image/likeness/license/garment review authority: no production implementation of trusted per-asset legal evidence callback yet. Wire this private source proof to already merged `Feature3GPUJobPlanPreflight` in a real backend runtime only after rights source approval; confirm signed RetailGrowthAI DEV/storage, revocation, one-shot SQL claim, actual queue delete/retries and cost status before enabling worker. No paid GPU, PROD or WineShopPOS.

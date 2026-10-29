@@ -1258,3 +1258,7 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 
 - 2026-10-29 Feature3 Phase2 GPU-off queue intake source added: strict existing v1 shop/job envelope -> live backend plan inspector, with provider.status explicit OFF and no SQL claim, queue ACK/deletion, financial charge, GPU execution or generated images. Mocked e2e packet/foreign/source revoked/forged success denials tested. This intentionally has NO Azure Functions queue binding and cannot itself consume a real queue.
+
+
+## 2026-10-29 — Feature3 actual private source byte attestation (source only)
+- `Feature3PrivateSourceProof` implements the real HTTPS Storage/Pillow/SHA256 source proof port used by current GPU-off job plan. Enforces same-shop registered private media path and MIME, separately reviewer-backed current commercial permission, source provenance and customer approval before and after read, denies changed rights and altered bytes. Returns no private object key/URL/image bytes or provider permission. Test-only fake rights authority: actual licensed legal evidence source and signed DEV validation NOT implemented. No GPU, deployment or WineShopPOS change. [Handoff](feature3/PRIVATE_SOURCE_BYTES_RIGHTS_PROOF_20261029.md).
