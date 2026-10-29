@@ -746,3 +746,103 @@ def rank_source_backed_trends(*, verified_context, trends, now_utc,
             "verified_live_trend_claim":False,
             "commercial_claim_certified":False,"can_publish":False,
             "can_auto_create_trend_draft":False}
+
+
+def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
+                              expected_xml_sha256,now_utc,
+                              verify_current_private_snapshot):
+    """Review signed offline RSS2 snapshot bytes; NEVER fetch arbitrary URLs.
+
+    The upstream reader owns allowlisted feed URLs, TLS, SSRF prevention,
+    source licensing, private storage and current tenant membership. This
+    parser accepts only exact signed source bytes; DTD/entities/network OFF.
+    """
+    from email.utils import parsedate_to_datetime
+    from xml.etree import ElementTree
+    from datetime import timedelta
+    if (type(verified_context) is not dict or
+        verified_context.get("server_verified") is not True or
+        verified_context.get("authenticated_owner_or_editor") is not True or
+        not _trace_uuid(verified_context.get("shop_id")) or
+        type(snapshot_id) is not str or
+        not _TREND_ID.fullmatch(snapshot_id) or
+        type(raw_xml) is not bytes or
+        not 64<=len(raw_xml)<=200_000 or
+        type(expected_xml_sha256) is not str or
+        not _TREND_SHA.fullmatch(expected_xml_sha256) or
+        hashlib.sha256(raw_xml).hexdigest()!=expected_xml_sha256 or
+        not isinstance(now_utc,datetime) or now_utc.tzinfo is None or
+        not callable(verify_current_private_snapshot)):
+        raise EditorialBasisRejected("Current signed private RSS snapshot required")
+    shop_id=verified_context["shop_id"]
+    # DTD and ENTITY are forbidden even in comments. Untrusted external feed
+    # resource references must never be fetched or expanded by a worker.
+    if b"<!" in raw_xml or b"\x00" in raw_xml:
+        raise EditorialBasisRejected("Untrusted RSS entity or markup")
+    def active():
+        return verify_current_private_snapshot(
+            shop_id,snapshot_id,expected_xml_sha256) is True
+    if not active():
+        raise EditorialBasisRejected("Signed RSS source authorization revoked")
+    try:
+        root=ElementTree.fromstring(raw_xml)
+    except ElementTree.ParseError as exc:
+        raise EditorialBasisRejected("Malformed bounded RSS2 source") from exc
+    if root.tag!="rss" or root.get("version") not in ("2.0","2") or \
+       len(root.findall("channel"))!=1:
+        raise EditorialBasisRejected("Only approved RSS2 channel supported")
+    items=root.find("channel").findall("item")
+    if len(items)>25:
+        raise EditorialBasisRejected("Too many private RSS items")
+    seen=set();rows=[];rejected_old=0
+    for item in items:
+        title=item.find("title")
+        pub=item.find("pubDate")
+        guid=item.find("guid")
+        if title is None or pub is None or title.text is None or \
+           pub.text is None or len(title)!=0 or len(pub)!=0:
+            raise EditorialBasisRejected("RSS headline/date source invalid")
+        headline=title.text.strip()
+        if not 12<=len(headline)<=180 or \
+           any(ord(ch)<32 or ch in "<>" for ch in headline):
+            raise EditorialBasisRejected("Unsafe unreviewed RSS headline")
+        try:
+            published=parsedate_to_datetime(pub.text.strip())
+            if published.tzinfo is None:
+                raise ValueError("Unzoned RSS date")
+            elapsed=(now_utc.astimezone(timezone.utc)-
+                     published.astimezone(timezone.utc)).total_seconds()
+        except (TypeError,ValueError,OverflowError) as exc:
+            raise EditorialBasisRejected("RSS source timestamp invalid") from exc
+        identity=(guid.text.strip() if guid is not None and
+                  len(guid)==0 and type(guid.text) is str and
+                  1<=len(guid.text.strip())<=500 else
+                  headline+"|"+published.isoformat())
+        source_id="rss_"+hashlib.sha256(identity.encode("utf-8")).hexdigest()[:32]
+        if source_id in seen:
+            raise EditorialBasisRejected("Duplicated RSS GUID/source in snapshot")
+        seen.add(source_id)
+        if elapsed<0:
+            raise EditorialBasisRejected("Future-dated RSS evidence cannot be ranked")
+        if elapsed>14*86400:
+            rejected_old+=1
+            continue
+        rows.append({"shop_id":shop_id,"source_type":"RSS",
+                     "id":source_id,"source_sha256":expected_xml_sha256,
+                     "published_at":published.astimezone(timezone.utc).isoformat(),
+                     "headline":headline})
+    verified_ids={x["id"]:x["published_at"] for x in rows}
+    def row_from_snapshot(s,rid,digest,published_at):
+        return (s==shop_id and digest==expected_xml_sha256 and
+                verified_ids.get(rid)==published_at and active())
+    result=rank_source_backed_trends(
+        verified_context=verified_context,trends=rows,
+        now_utc=now_utc,verify_source_provenance=row_from_snapshot)
+    if not active():
+        raise EditorialBasisRejected("Snapshot revoked after signed RSS review")
+    return {**result,"source_class":"SIGNED_RSS2_PRIVATE_SNAPSHOT_ONLY",
+            "snapshot_sha256":expected_xml_sha256,
+            "source_items_count":len(items),
+            "stale_items_omitted":rejected_old,
+            "raw_feed_url_published":False,
+            "source_is_real_time_trending_proof":False}
