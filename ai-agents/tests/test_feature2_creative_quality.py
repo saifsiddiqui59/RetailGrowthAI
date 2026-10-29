@@ -253,3 +253,54 @@ def test_trace_revocation_after_initial_read_denies_durable_append():
     with pytest.raises(Feature2TraceDenied,match="revoked"):
         run()
     assert len(calls)==2 and rows==[]
+
+from ai_agents.feature2_creative_quality import stage_blind_human_review_revision
+
+def human_case(*,verify=lambda *v:True,editor=lambda *v:True,rev=0):
+    candidates={"A":fixture(15),"B":fixture(30)}
+    reviews=[{"candidate_id":candidate,"reviewer_id":reviewer,
+              "scores":{k:3 for k in RUBRIC_WEIGHTS}}
+             for candidate in ("A","B")
+             for reviewer in ("signed-human-one","signed-human-two")]
+    stored=[]
+    def save(s,c,e,revision,digest,record):
+        stored.append(record)
+        return {"shop_id":s,"campaign_id":c,
+                "experiment_id":e,"revision":revision+1,
+                "receipt_digest":digest,"private":True}
+    def run(**override):
+        return stage_blind_human_review_revision(
+            shop_id=TSHOP,campaign_id=TCAMP,
+            experiment_id="blind-real-human-reviews-403",
+            candidates=override.get("candidates",candidates),
+            reviews=override.get("reviews",reviews),
+            expected_revision=override.get("revision",rev),
+            current_editor=editor,
+            read_current_candidates=lambda *a:candidates,
+            verify_human_review=verify,
+            read_current_revision=lambda *a:rev,
+            save_review_cas=save)
+    return run,stored
+
+def test_versioned_blind_human_score_requires_external_attestation():
+    call,stored=human_case()
+    result=call()
+    assert result["revision"]==1
+    assert result["human_scores"]=={"A":60.0,"B":60.0}
+    assert result["approved_to_publish"] is False
+    assert not result["paid_motion_permitted"]
+    assert len(stored)==1 and stored[0]["review_status"]=="HUMAN_SCORE_ONLY"
+
+def test_blind_review_denies_unverified_human_receipt_and_stale_revision():
+    bad,writes=human_case(verify=lambda *a:False)
+    with pytest.raises(Feature2TraceDenied,match="Signed individual"):
+        bad()
+    assert writes==[]
+    bad,writes=human_case()
+    with pytest.raises(Feature2TraceDenied,match="revision"):
+        bad(revision=1)
+    assert writes==[]
+    bad,writes=human_case(editor=lambda *a:False)
+    with pytest.raises(Feature2TraceDenied):
+        bad()
+    assert writes==[]
