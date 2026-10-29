@@ -112,3 +112,54 @@ def test_foreign_fake_shop_or_unapproved_offer_copy_is_denied():
     with pytest.raises(EditorialBasisRejected):
         inspect_retailer_copy_claims(verified_context=copy_context(),
                                    copy=candidate_copy(cta="<script>alert(1)</script>"))
+
+from datetime import datetime, timezone
+from ai_agents.feature2_editorial_basis import rank_source_backed_trends
+
+def trusted_rss():
+    context=owned_retailer()
+    context["creative_brief"]="Our Diwali cotton kurti collection for festive shopping."
+    return context
+def sample_feed():
+    shop=trusted_rss()["shop_id"]
+    return [
+      {"shop_id":shop,"source_type":"RSS","id":"rss_kurti_2026",
+       "source_sha256":"a"*64,"published_at":"2026-10-27T11:00:00+00:00",
+       "headline":"Festive kurti collection news for autumn clothing"},
+      {"shop_id":shop,"source_type":"RSS","id":"rss_irrelevant_2026",
+       "source_sha256":"b"*64,"published_at":"2026-10-28T11:00:00+00:00",
+       "headline":"Professional mountain climbing and car racing headlines"},
+    ]
+def ranked(rows=None,verified=lambda *a:True):
+    return rank_source_backed_trends(
+        verified_context=trusted_rss(),
+        trends=sample_feed() if rows is None else rows,
+        now_utc=datetime(2026,10,29,tzinfo=timezone.utc),
+        verify_source_provenance=verified)
+
+def test_signed_rss_relevance_only_no_auto_trend_claim():
+    data=ranked()
+    assert data["status"]=="REVIEW_REQUIRED"
+    assert len(data["candidates"])==1
+    assert data["candidates"][0]["trend_id"]=="rss_kurti_2026"
+    assert not data["verified_live_trend_claim"]
+    assert not data["can_publish"] and not data["can_auto_create_trend_draft"]
+def test_no_real_relevant_rss_is_evergreen_not_invented():
+    data=ranked([])
+    assert data["status"]=="EVERGREEN_FALLBACK"
+    assert data["candidates"]==[]
+@pytest.mark.parametrize("mutation",[
+    {"shop_id":"foreign"},
+    {"source_type":"social_user_claim"},
+    {"source_sha256":"fake"},
+    {"published_at":"2026-08-20T11:00:00+00:00"},
+    {"published_at":"2027-01-01T11:00:00+00:00"},
+])
+def test_foreign_old_fake_trends_are_denied(mutation):
+    rows=sample_feed()
+    rows[0].update(mutation)
+    with pytest.raises(EditorialBasisRejected):
+        ranked(rows)
+def test_unsigned_rss_provenance_is_never_sufficient():
+    with pytest.raises(EditorialBasisRejected,match="signed RSS provenance"):
+        ranked(verified=lambda *a:False)
