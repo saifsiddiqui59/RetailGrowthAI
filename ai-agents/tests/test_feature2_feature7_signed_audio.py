@@ -209,7 +209,7 @@ def test_untrusted_human_or_changed_scope_blocks_wer_review():
     with pytest.raises(VoiceQualityDenied,match="changed"):
         word_review(human="Diwali fashion",human_checker=human)
     assert len(calls)==2
-    with pytest.raises(VoiceQualityDenied,match="changed"):
+    with pytest.raises(Feature7AudioEvidenceDenied,match="source"):
         word_review(human="Diwali fashion",human_checker=lambda *a:True,
                     source_check=lambda *a:False)
 
