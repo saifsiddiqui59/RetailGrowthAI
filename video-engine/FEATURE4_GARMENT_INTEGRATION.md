@@ -135,3 +135,34 @@ Repeated-shot warning remains evidence, never a passed visual-quality gate.
 The separate 60-second job must actually succeed and its artifacts be
 inspected before calling the native minute export validated. Same private
 output directory; never upload real retailer/private assets to GitHub.
+
+## F4-56 — Native real-stock 60-second technical proof, 2026-10-29
+
+The owner-directed one-time real full-minute CPU qualification passed on
+source `010b0a6f1af1d244692d82649ddcdc2479dc408f`:
+[branch run #40836967931](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40836967931)
+and [PR run #40836973617](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40836973617)
+each **4/4 GREEN**. The PR media job ran 467 tests, rendered an
+ACTUAL native 60.000s 1080×1920/24fps H264/AAC Pexels-stock
+HyperFrames Reel (42,396,491 bytes), verified five human-stock-motion
+luma changes **9.74, 34.08, 6.60, 34.07, 10.24** at threshold 5,
+mastered the AAC bed from mean -28.3 to -18.0 dB while preserving
+H264 video packets, and emitted a 60.015s 540×960 H264/AAC
+mobile review MP4 (3,187,684 bytes).
+[Exact-source GitHub proof artifact #12881721743](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40836973617/artifacts/12881721743).
+
+**QUALITY NOT ACCEPTED:** owner-facing decoded 12-frame review shows
+obvious repeated fashion model and clothing-rack footage. Garment
+reference photographs are NOT the outfits seen on those stock models.
+AI-generated model motion, retailer product fidelity, real speech,
+approved soundtrack licensing, Azure DEV integration and owner
+commercial signoff remain **NOT VERIFIED**. No stock editorial/test
+output may be published as a retailer ad. GPU and WineShopPOS untouched.
+
+The one-time PR 60s test marker is removed, and default per-PR/branch
+15s+30s CI is restored without disabling preexisting tests. The
+`feature4_stock_minute_acceptance.sh` standalone full-minute acceptance
+command remains for a dedicated qualified CPU run. F4-55 adds new
+SHA-linked 60s QA receipt and actual review sheet to that command;
+its positive end-to-end receipt requires a separate execution of the
+updated script, not inferred from the earlier successful 60s MP4.

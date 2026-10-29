@@ -184,3 +184,24 @@ The Feature2-approved timecoded subtitle must be immutable between the browser p
 
 ## F4-33 — renderer-exact source boundary and scene SFX preservation (2026-10-28)
 A Timeline Studio clip-boundary edit formerly allowed shortening an existing approved 2-second scene SFX to 1.5 seconds, or extending a shorter approved effect, even while the editor's independent scene timing validator passed. The supported HyperFrames renderer encodes SFX for `min(2s, scene duration)`; such an edit silently changed the audited sound. `studioTrimPair` now fails closed when the approved effect length would change, while retaining legal boundary edits. The same operation now checks newly extended **left-hand** video clips against available tenant-scoped, authorized, measured source duration instead of deferring a preventable overrun. New Node regression tests cover both sides' SFX, immutable source draft, valid edit and disallowed overrun. Backend approval and real ffprobe remain authoritative; frontend metadata never grants rights or commercial acceptance. Source-only, no GPU/cloud, and requires exact-head 4/4 CI before verified.
+
+## F4-55/56 technical closure / remaining editorial and hosted gates
+
+- [x] Native 60s Full-HD stock HyperFrames technical render, exact
+  source PR #40836973617 **4/4 success**, output 60.000s,
+  1080×1920/24fps H264/AAC; no concatenation-only false claim.
+- [x] Five moving-stock-scene pixel checks, AAC mastering, mobile
+  540p 60s preview, Pexels input provenance; proof artifact #12881721743.
+- [x] Standalone 60s QA evidence receipt + actual decoded contact-sheet
+  source prepared; exact current-head CI needed, positive updated runner
+  report not yet produced.
+- [x] Default PR/branch CI restored after one-time full-minute test;
+  no shared workflow/cloud resource/GPU modification.
+- [ ] Replace repeated stock model and clothing-rack shots with new
+  legitimate footage to meet the user's professional visual expectations.
+- [ ] Approved original Feature3 retailer product + matching garment/model,
+  Feature5 actual AI motion, Feature2 licensed song/real spoken voice,
+  Feature7 complete advanced visual editor approval.
+- [ ] Coordinator-owned v2 same-shop JWT/RLS, queue/lease/billing, private
+  signed downloads and Azure issue #249 integration; owner final review.
+  PR #322 stays draft and noncommercial.
