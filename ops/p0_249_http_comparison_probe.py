@@ -149,33 +149,78 @@ def summarize(observations):
     return outcome
 
 
+def verified_route_result(backend, phase, route, observation):
+    """Count only the exact requested DEV route with its expected handler status.
+
+    A generic gateway HTTP 401, a 404 on the campaign route, and a response
+    for another backend/phase must not certify a functioning campaign API.
+    Unknown-route 404 is routing evidence only, not secure handler readiness.
+    """
+    if (not isinstance(observation, dict)
+            or observation.get("backend") != backend
+            or observation.get("phase") != phase
+            or observation.get("route") != route
+            or observation.get("curl_exit") != 0):
+        return False
+    if route == "campaign":
+        if (observation.get("http_status") != "401"
+                or observation.get("category") != "EXPECTED_401"):
+            return False
+        if backend == "azure_flex_python":
+            return observation.get("application_request_marker") is True
+        if backend == "free_swa_node":
+            return observation.get("node_adapter_marker") is True
+        return False
+    if route == "unknown":
+        return (observation.get("http_status") == "404"
+                and observation.get("category") in (
+                    "EXPECTED_404_APP_MARKED",
+                    "EXPECTED_404_HANDLER_UNVERIFIED"))
+    return False
+
+
 def run_series(sender=sample, sleeper=time.sleep, idle=300):
     observations = []
+    requests_verified = []
+    def record(backend, phase, route, future):
+        row = future.result()
+        observations.append(row)
+        requests_verified.append(verified_route_result(backend, phase, route, row))
     # First and repeated anonymous GETs, same synthetic paths on each backend.
     for phase, route in (("initial", "campaign"), ("initial", "unknown"),
                          ("repeat", "campaign"), ("repeat", "unknown")):
         with ThreadPoolExecutor(max_workers=2) as pool:
-            tasks = [pool.submit(sender, backend, phase, route) for backend in ORIGINS]
-            observations.extend(f.result() for f in tasks)
+            tasks = [(backend, pool.submit(sender, backend, phase, route))
+                     for backend in ORIGINS]
+            for backend, future in tasks:
+                record(backend, phase, route, future)
     # Maximum two concurrent GETs per backend; no writes or privileged calls.
     with ThreadPoolExecutor(max_workers=4) as pool:
-        tasks = [pool.submit(sender, backend, "concurrent-" + str(index), "campaign")
+        tasks = [(backend, "concurrent-" + str(index),
+                  pool.submit(sender, backend, "concurrent-" + str(index), "campaign"))
                  for backend in ORIGINS for index in (1, 2)]
-        observations.extend(f.result() for f in tasks)
+        for backend, phase, future in tasks:
+            record(backend, phase, "campaign", future)
     print("P0_249_NEW_PROBE_IDLE_SECONDS=" + str(idle), flush=True)
     sleeper(idle)
     for route in ("campaign", "unknown"):
         with ThreadPoolExecutor(max_workers=2) as pool:
-            tasks = [pool.submit(sender, backend, "post-idle", route) for backend in ORIGINS]
-            observations.extend(f.result() for f in tasks)
+            tasks = [(backend, pool.submit(sender, backend, "post-idle", route))
+                     for backend in ORIGINS]
+            for backend, future in tasks:
+                record(backend, "post-idle", route, future)
     for x in observations:
         print("P0_249_NEW_HTTP_OBSERVATION=" + json.dumps(x, sort_keys=True), flush=True)
     final = summarize(observations)
     print("P0_249_NEW_HTTP_SUMMARY=" + json.dumps(final, sort_keys=True), flush=True)
     print("P0_249_IDLE_NOT_PROVEN_AZURE_COLD_START=true", flush=True)
-    failed = any(x["curl_exit"] != 0 or x["http_status"] == "503" or
-                 x["category"].startswith(("UNEXPECTED", "UNMARKED")) for x in observations)
-    return 4 if failed else 0
+    # 401/404 transport status alone is insufficient evidence of application
+    # dispatch. Any unmatched request, wrong response shape or missing marker
+    # fails this read-only comparison, without retrying or triggering writes.
+    passed = bool(requests_verified) and all(requests_verified)
+    print("P0_249_EXPECTED_ROUTE_HANDLER_GATE=" + ("PASS" if passed else "FAIL"),
+          flush=True)
+    return 0 if passed else 4
 
 
 if __name__ == "__main__":
