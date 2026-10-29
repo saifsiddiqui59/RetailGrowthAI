@@ -55,6 +55,10 @@ class BinaryHTTPTests(unittest.TestCase):
         self.assertEqual(blob,self.reader.png)
         self.assertEqual(headers["Content-Type"],"image/png")
         self.assertEqual(headers["Content-Length"],str(len(blob)))
+        self.assertEqual(headers["X-Feature3-Shop-Id"],self.shop)
+        self.assertEqual(headers["X-Feature3-Job-Id"],self.job)
+        self.assertEqual(headers["X-Feature3-Media-Asset-Id"],self.reader.media)
+        self.assertEqual(headers["X-Feature3-Image-Sha256"],sha256(blob).hexdigest())
         self.assertEqual(headers["Content-Disposition"],
                          f'attachment; filename="feature3-{self.job}.png"')
         self.assert_private_headers(headers)
