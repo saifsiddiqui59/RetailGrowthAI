@@ -10,3 +10,7 @@
 - **Dependency PART3-WAN22-CONTRACT:** Part3 / coordinator; requires JWT/RLS, durable claim/credit, idempotency and single-use paid provider execution, unknown-ACK reconciliation and private output.
 - **GPU/paid inference:** OFF. No real Wan inference, media samples, DEV/PROD deployment, hosted SQL, user credential use or WineShopPOS modifications.
 - **Task-manager proposal:** Keep F5-02 `in_progress`; do not create an `integrated_done` event. Coordinator to review PR, integrate accepted source, and run fresh main 4/4 CI before changing canonical counts.
+
+## CI failure and repaired first retry
+- First exact-head run [40974284532](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40974284532) failed Python: 1 new test failed because 1,600 nested lists were still below Python's active recursion limit; 1,180 other tests passed, 9 skipped, 902 subtests passed. This was a **test fixture error**, not evidence of a production exploit.
+- Corrected regression depth to `max(sys.getrecursionlimit() + 128, 12000)` in commit `8eeeda13a352b4730f7b16144b69316b9121df17`. New exact-head four-job CI pending; no success claimed yet. First safe diagnosis/fix retry, not a paid operation.
