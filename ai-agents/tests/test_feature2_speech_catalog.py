@@ -1,5 +1,5 @@
 import pytest
-from ai_agents.feature2_speech_catalog import (
+from ai_agents.feature2_azure_speech import (
     published_voices_in_region, VoiceCatalogUnavailable,
 )
 
