@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 from uuid import uuid4
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"azure-functions/campaign-api"))
@@ -308,17 +309,26 @@ class CurrentGPUPlanTests(unittest.TestCase):
     def test_claimed_lease_expiring_after_final_rights_proof_denies(self):
         lease=self.make_claimed()
         original=self.db.proof
-        def late_expiry(shop,media):
+        clock={"later":False}
+        # Model the real deadline passing without modifying SQL. The job
+        # row's immutable lease_until stays constant as time advances.
+        class VirtualClock(datetime):
+            @classmethod
+            def now(cls,tz=None):
+                return datetime.now(tz)+(timedelta(minutes=30)
+                                          if clock["later"] else timedelta())
+        def slow_last_proof(shop,media):
             result=original(shop,media)
             if self.db.proofs==2:
-                self.db.job_row["lease_until"]=(
-                    datetime.now(timezone.utc)-timedelta(seconds=1)).isoformat()
+                clock["later"]=True
             return result
         self.preflight=Feature3GPUJobPlanPreflight(
-            admin_store=self.db,source_proof=late_expiry)
-        with self.assertRaisesRegex(Feature3PlanDenied,"expired during final rights"):
-            self.preflight.check_claimed(
-                self.db.shop,self.db.job,self.token,(self.db.media,),lease)
+            admin_store=self.db,source_proof=slow_last_proof)
+        with patch("feature3_gpu_job_plan.datetime",VirtualClock):
+            with self.assertRaisesRegex(Feature3PlanDenied,
+                                        "expired during final rights"):
+                self.preflight.check_claimed(
+                    self.db.shop,self.db.job,self.token,(self.db.media,),lease)
         self.assertEqual(self.db.proofs,2)
         self.assertEqual(len(self.lease_reads),1)
         self.assertTrue(all(method=="GET" for _,__,method in self.db.calls))
