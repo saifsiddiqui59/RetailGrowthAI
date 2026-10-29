@@ -18,8 +18,15 @@ NODE_PREVIEW = "https://purple-dune-06b5da200-p0249writes.eastasia.2.azurestatic
 ALLOWED_MODES = {"node-poster-reel","node-browser-reel"}
 
 
-def node_preflight():
-    """Real handler 401 markers before provisioning even a temporary Auth user."""
+def node_preflight(*, include_prompt=False):
+    """Real handler 401 markers before provisioning even a temporary Auth user.
+
+    Parent canary.main() always supplies include_prompt=prompt_only. This
+    Node-only full poster/Reel acceptance has no Feature2 prompt mode; reject
+    any unexpected request rather than silently skipping that prerequisite.
+    """
+    if include_prompt is not False:
+        raise RuntimeError("P0249_NODE_PREFLIGHT_PROMPT_MODE_NOT_SUPPORTED")
     def check(path, method="GET"):
         body = b"{}" if method == "POST" else None
         req = urllib.request.Request(
