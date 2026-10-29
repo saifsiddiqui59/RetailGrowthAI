@@ -407,3 +407,21 @@ def test_hindi_joiners_remain_legal_in_noncommercial_copy():
         copy=candidate_copy(caption="त्योहारों के लिए सुंदर कुर्ती\u200d स्टाइल"))
     assert report["issues"] == []
     assert report["can_publish"] is False
+
+
+@pytest.mark.parametrize("offer_patch", [
+    {"percent_off": 90},
+    {"percent_off": True},
+    {"percent_off": 0},
+    {"percent_off": 101},
+    {"eligible_product_skus": []},
+    {"eligible_product_skus": [""]},
+    {"eligible_product_skus": ["A" * 81]},
+])
+def test_approved_offer_percentage_and_sku_scope_must_be_consistent(offer_patch):
+    context = copy_context()
+    context["approved_offers"][0].update(offer_patch)
+    with pytest.raises(EditorialBasisRejected, match="percentage or SKU"):
+        inspect_retailer_copy_claims(
+            verified_context=context,
+            copy=candidate_copy(caption="20% off selected kurti styles"))
