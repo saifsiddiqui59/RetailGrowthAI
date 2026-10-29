@@ -59,3 +59,37 @@ def test_optional_sink_error_never_alters_successful_db_result():
     def unavailable(_span):
         raise OSError("simulated sink issue")
     assert emit_worker_span(unavailable, **base()) is False
+
+
+@pytest.mark.parametrize("operation,status,metadata", [
+    ("planning.complete","FAILED",{"planner_mode":"dev_mock","generated_days":7}),
+    ("planning.denied","SUCCEEDED",{}),
+    ("planning.complete","SUCCEEDED",{"planner_mode":"dev_mock","generated_days":6}),
+    ("planning.complete","SUCCEEDED",{"generated_days":7}),
+    ("planning.failed","FAILED",{"planner_mode":"dev_mock"}),
+    ("render.complete","SUCCEEDED",{"codec":"h264/aac","video_width":720,
+       "video_height":1920,"duration_seconds":30}),
+    ("render.complete","SUCCEEDED",{"codec":"h264/aac","video_width":1080,
+       "video_height":1920,"duration_seconds":40}),
+    ("render.denied","DENIED",{"codec":"h264/aac"}),
+])
+def test_operation_status_and_verified_output_must_match(operation,status,metadata):
+    events=[]
+    config=base()
+    config["feature"] = "F4" if operation.startswith("render.") else "F2"
+    config["operation"] = operation
+    config["status"] = status
+    config["metadata"] = metadata
+    with pytest.raises(ValueError):
+        emit_worker_span(events.append, **config)
+    assert not events
+
+
+def test_video_worker_output_contract_accepts_verified_portrait():
+    spans=[]
+    config=base()
+    config.update(feature="F4",operation="render.complete",status="SUCCEEDED",
+      metadata={"codec":"h264/aac","video_width":1080,"video_height":1920,
+                "duration_seconds":30.0})
+    assert emit_worker_span(spans.append, **config) is True
+    assert spans[0]["metadata"]["video_height"] == 1920
