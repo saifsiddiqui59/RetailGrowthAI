@@ -423,7 +423,9 @@ export default function TestingConsole() {
                 ? 'Output quality: ' + item.latest_human_score + '/5 (human rating)'
                 : item.category === 'UNCONFIRMED_RESULT'
                   ? 'Unconfirmed result — verify existing job before a new submission'
-                  : 'Observed execution failure — investigate the recorded operation'}</p>
+                  : item.category === 'AWAITING_OUTPUT'
+                    ? 'Job acknowledged — completed creative output not observed'
+                    : 'Observed execution failure — investigate the recorded operation'}</p>
               <p>{item.reason}</p>
               <p><strong>Suggested next check:</strong> {item.recommended_action}</p>
             </div>)}
