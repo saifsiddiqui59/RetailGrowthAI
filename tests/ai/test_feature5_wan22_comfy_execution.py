@@ -9,6 +9,9 @@ from feature5_motion.wan22_comfy_execution import (
     LoopbackComfyTransport, WanPrivateComfyDispatcher,
     UnknownComfyPaidAttempt, SubmittedWanAttempt,
 )
+from feature5_motion.part3_native_claim_gate import (
+    verify_native_wan22_claim, SCHEMA as PART3_NATIVE_SCHEMA,
+)
 from feature5_motion.wan22_motion_adapter import (
     compile_motion_direction, WanCompatibilityError,
 )
@@ -62,9 +65,32 @@ def private_f3_proof(shop,asset,sha):
             "human_likeness_approved":True}
 
 
+def native_claim(pkg, job, attempt, reservation):
+    """Synthetic server claim ONLY; production Part3 #125 needs a new profile."""
+    lin = pkg.lineage
+    return {
+        "schema": PART3_NATIVE_SCHEMA,
+        "shop_id": lin["shop_id"], "job_id": job,
+        "attempt_token": attempt, "source_asset_id": lin["source_asset_id"],
+        "campaign_id": lin["campaign_id"], "scene_id": lin["scene_id"],
+        "shot_id": lin["shot_id"],
+        "provider": pkg.provider, "mode": "image_to_video",
+        "native_width": 704, "native_height": 1280, "fps": 24,
+        "frames": 121, "duration_seconds": 5,
+        "prompt_sha256": pkg.prompt_sha256,
+        "lineage_sha256": pkg.lineage_sha256,
+        "credit_reservation_id": reservation, "reserved_max_usd": 2.0,
+        "lease_valid": True, "source_rights_current": True,
+        "budget_authorized": True,
+    }
+
+
 def inputs(pkg,**extras):
-    kwargs=dict(package=pkg,job_id=str(uuid4()),attempt_token=str(uuid4()),
+    job, attempt, reservation = str(uuid4()), str(uuid4()), str(uuid4())
+    kwargs=dict(package=pkg,job_id=job,attempt_token=attempt,
                 verify_existing_fenced_paid_claim=lambda *a: True,
+                read_current_part3_native_claim=lambda s, j, t: native_claim(
+                    pkg, job, attempt, reservation),
                 verify_current_private_first_frame=private_f3_proof,
                 record_unique_submission_intent=lambda *a: True,
                 operator_image_legal_budget_approved=True,
@@ -74,6 +100,94 @@ def inputs(pkg,**extras):
 
 
 class WanComfyPrivateProtocolTests(unittest.TestCase):
+    def test_part3_native_profile_requires_exact_model_and_fenced_reservation(self):
+        pkg=synthetic_package()
+        params=inputs(pkg)
+        original=params["read_current_part3_native_claim"](
+            pkg.lineage["shop_id"],params["job_id"],params["attempt_token"])
+        self.assertIsInstance(verify_native_wan22_claim(
+            original, package=pkg, shop=pkg.lineage["shop_id"],
+            job=params["job_id"], attempt=params["attempt_token"]), tuple)
+        cases=[
+            ("legacy wan27", {"provider":"wan2.7-i2v-2026-04-25"}),
+            ("old 720P", {"native_width":720}),
+            ("1080P", {"native_width":1080,"native_height":1920}),
+            ("hunyuan", {"provider":"hunyuanvideo-1.5-480p"}),
+            ("bad fps", {"fps":30}),
+            ("wrong frames", {"frames":120}),
+            ("different source", {"source_asset_id":str(uuid4())}),
+            ("different shop", {"shop_id":str(uuid4())}),
+            ("different job", {"job_id":str(uuid4())}),
+            ("different token", {"attempt_token":str(uuid4())}),
+            ("foreign campaign", {"campaign_id":"foreign-campaign"}),
+            ("different prompt", {"prompt_sha256":"b"*64}),
+            ("different lineage", {"lineage_sha256":"f"*64}),
+            ("unreserved", {"credit_reservation_id":None}),
+            ("revoked", {"source_rights_current":False}),
+            ("lost lease", {"lease_valid":False}),
+            ("no budget", {"budget_authorized":False}),
+            ("zero budget", {"reserved_max_usd":0}),
+            ("NaN budget", {"reserved_max_usd":float("nan")}),
+            ("boolean budget", {"reserved_max_usd":True}),
+            ("unknown key", {"client_can_publish":True}),
+        ]
+        for label, change in cases:
+            bad={**original,**change}
+            fake=FakeLocalComfy(pkg)
+            recorded=[]
+            attempt=inputs(pkg,
+                read_current_part3_native_claim=lambda *a, row=bad: row,
+                record_unique_submission_intent=lambda *a: recorded.append(a) or True)
+            with self.subTest(case=label),self.assertRaises(WanCompatibilityError):
+                WanPrivateComfyDispatcher(fake, enabled=True).submit_once(**attempt)
+            self.assertEqual(fake.calls, [])
+            self.assertEqual(recorded, [])
+
+    def test_part3_claim_drift_before_intent_never_submits(self):
+        pkg=synthetic_package()
+        fake=FakeLocalComfy(pkg)
+        params=inputs(pkg)
+        getter=params["read_current_part3_native_claim"]
+        checked=[]
+        recorded=[]
+        def drifting(*a):
+            checked.append(1)
+            claim=getter(*a)
+            if len(checked)==2:
+                claim["reserved_max_usd"]=1.5
+            return claim
+        params["read_current_part3_native_claim"]=drifting
+        params["record_unique_submission_intent"]=lambda *a: recorded.append(a) or True
+        with self.assertRaisesRegex(WanCompatibilityError,"changed before intent"):
+            WanPrivateComfyDispatcher(fake,enabled=True).submit_once(**params)
+        self.assertEqual(len(checked),2)
+        self.assertEqual(recorded,[])
+        self.assertFalse(any(m=="POST" for m,_,_ in fake.calls))
+
+    def test_part3_claim_revoked_after_cas_becomes_unknown_not_retryable(self):
+        pkg=synthetic_package()
+        fake=FakeLocalComfy(pkg)
+        params=inputs(pkg)
+        getter=params["read_current_part3_native_claim"]
+        calls=[]
+        intents=[]
+        def revoke(*a):
+            calls.append(1)
+            claim=getter(*a)
+            if len(calls)==3:
+                claim["lease_valid"]=False
+            return claim
+        params["read_current_part3_native_claim"]=revoke
+        params["record_unique_submission_intent"]=lambda *a: intents.append(a) or True
+        dispatcher=WanPrivateComfyDispatcher(fake,enabled=True)
+        with self.assertRaisesRegex(UnknownComfyPaidAttempt,"native claim unknown after durable"):
+            dispatcher.submit_once(**params)
+        self.assertEqual(len(calls),3)
+        self.assertEqual(len(intents),1)
+        self.assertFalse(any(m=="POST" for m,_,_ in fake.calls))
+        with self.assertRaisesRegex(WanCompatibilityError,"already consumed"):
+            dispatcher.submit_once(**params)
+
     def test_default_off_even_with_all_mocked_approvals(self):
         pkg=synthetic_package()
         fake=FakeLocalComfy(pkg)
