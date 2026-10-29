@@ -48,7 +48,7 @@ def test_disabled_or_revoked_shop_does_not_call_external_server(monkeypatch):
     with pytest.raises(VoiceCatalogUnavailable):run()
     assert not calls
 
-from ai_agents.feature2_speech_catalog import route_voice_selection
+from ai_agents.feature2_azure_speech import route_voice_selection
 CAMPAIGN="22222222-2222-4222-8222-222222222222"
 
 @pytest.mark.parametrize("locale,voice",[
