@@ -196,3 +196,17 @@ class Feature3TrustedPrivateSourceProof:
                 "rights_revision":revision,"private_bytes_verified":True,
                 "independent_license_verified":True,
                 "current_customer_approval":True,"rights_revoked":False}
+
+
+def build_verified_gpu_off_preflight(*, admin_store, origin, backend_secret,
+                                    review_authority, transport=None):
+    """Connect the real private-byte proof port to existing read-only planning.
+
+    The caller must supply an INDEPENDENT reviewer/current-rights authority;
+    this helper does not turn on GPU, allocate a job or grant spend.
+    """
+    from feature3_gpu_job_plan import Feature3GPUJobPlanPreflight
+    proof=Feature3TrustedPrivateSourceProof(
+        origin=origin,backend_secret=backend_secret,
+        review_authority=review_authority,transport=transport)
+    return Feature3GPUJobPlanPreflight(admin_store=admin_store,source_proof=proof)
