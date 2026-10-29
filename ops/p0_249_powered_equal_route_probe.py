@@ -27,12 +27,14 @@ assert sum(count for _, count in PLAN) == PER_BACKEND
 
 
 def accepted(observation):
-    """Only original application-marked 401 is a verified Python handler."""
+    """Count only exact final-response application-marked anonymous HTTP 401."""
     if observation["curl_exit"] != 0 or observation["http_status"] != "401":
         return False
     if observation["backend"] == "azure_flex_python":
-        return observation["application_request_marker"] is True
-    return True
+        return observation.get("application_request_marker") is True
+    if observation["backend"] == "free_swa_node":
+        return observation.get("node_adapter_marker") is True
+    return False
 
 
 def safe_round(sender, phase, indices):
