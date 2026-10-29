@@ -97,6 +97,9 @@ def qualify_feature2_offline_storyboard(packet):
         _deny("original editorial identity missing")
     checked = []
     seen = set()
+    seen_scenes = set()
+    seen_shots = set()
+    source_identity = None
     for i, (request, item, cue) in enumerate(zip(shots, timeline, cues)):
         if any(type(x) is not dict for x in (request, item, cue)):
             _deny("invalid shot rows")
@@ -110,7 +113,35 @@ def qualify_feature2_offline_storyboard(packet):
                 or type(scene_id) is not str or not scene_id
                 or (scene_id, shot_id) in seen):
             _deny("duplicate or invalid scene")
+        if scene_id in seen_scenes or shot_id in seen_shots:
+            _deny("repeated scene or shot identity")
         seen.add((scene_id, shot_id))
+        seen_scenes.add(scene_id)
+        seen_shots.add(shot_id)
+        # Feature2's actual MIT director emits one linked storyboard over one
+        # immutable product reference. A reordered or spliced shot must not
+        # silently become a coherent 15/30/60-second motion request.
+        expected_previous = (shots[i - 1]["original_direction"].get("shot_id")
+                             if i else None)
+        expected_next = (shots[i + 1]["original_direction"].get("shot_id")
+                         if i + 1 < count and
+                         type(shots[i + 1].get("original_direction")) is dict
+                         else None)
+        if (direction.get("previous_shot_id") != expected_previous
+                or direction.get("next_shot_id") != expected_next):
+            _deny("broken director shot continuity")
+        reference_identity = (direction.get("reference_media_id"),
+                              direction.get("product_sku"),
+                              direction.get("reference_facts_sha256"))
+        if (any(type(value) is not str or not value for value in reference_identity)
+                or not _SHA.fullmatch(reference_identity[2])):
+            _deny("missing immutable product reference")
+        if source_identity is None:
+            source_identity = reference_identity
+        elif reference_identity != source_identity:
+            _deny("product or source revision changed between shots")
+        if direction.get("garment_lock") != facts:
+            _deny("shot garment lock diverged from original facts")
         prompt = direction.get("generation_prompt")
         if type(prompt) is not str or len(prompt) < 180 or len(prompt) > 1600:
             _deny("original director prompt missing or rewritten")
