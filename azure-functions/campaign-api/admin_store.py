@@ -42,12 +42,20 @@ class AdminStore:
                         "rpc/feature3_reserve_gpu_job", "rpc/feature3_claim_gpu_job",
                         "rpc/feature3_finish_gpu_job", "feature3_gpu_jobs",
                         "shop_ai_spend_reservations",
+                        "feature3_poster_designs", "feature3_models",
+                        "shop_subscriptions",
                         "rpc/feature3_commit_gpu_private_output",
                         "rpc/feature3_claim_gpu_dispatch",
                         "rpc/feature3_confirm_gpu_dispatch",
                         "rpc/feature3_audit_gpu_recovery",
                         "rpc/retail_feature_worker_append"):
             raise ValueError("unsupported worker path")
+        # Immutable live job/reservation/model/design/subscription snapshots
+        # are service-role GET-only. All GPU job/ledger changes remain RPC-only.
+        if path in {"feature3_gpu_jobs", "shop_ai_spend_reservations",
+                    "feature3_poster_designs", "feature3_models",
+                    "shop_subscriptions"} and method != "GET":
+            raise ValueError("GPU planning tables are read-only via this transport")
         # A queue claim/financial/media CAS is never exposed via a GET read
         # or a generic table write. Only the service-only POST RPC is valid.
         if path in {
