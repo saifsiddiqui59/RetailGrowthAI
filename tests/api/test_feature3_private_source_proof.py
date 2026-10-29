@@ -17,6 +17,7 @@ from PIL import Image
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"azure-functions/campaign-api"))
 from feature3_private_source_proof import (
     Feature3TrustedPrivateSourceProof,SourceProofDenied,
+    build_verified_gpu_off_preflight,
 )
 
 
@@ -121,6 +122,19 @@ class PrivateSourceProofTests(unittest.TestCase):
         self.assertNotIn("image_bytes",receipt)
         self.assertNotIn("provider_call_permitted",receipt)
         self.assertNotIn("gpu_started",receipt)
+
+    def test_factory_connects_real_byte_verifier_to_gpu_off_job_plan(self):
+        class FakeAdmin:
+            def request(self,*_args,**_kwargs):
+                raise AssertionError("No SQL lookup before explicitly checking")
+        plan=build_verified_gpu_off_preflight(
+            admin_store=FakeAdmin(),
+            origin="https://fictional.supabase.co",
+            backend_secret="sb_secret_"+"z"*36,
+            review_authority=self.review,transport=self.transport)
+        self.assertIsInstance(plan.proof,Feature3TrustedPrivateSourceProof)
+        self.assertEqual(self.calls,[])
+        # No source reader, paid provider, job or queue is started by wiring.
 
     def test_real_jpeg_and_webp_are_allowed_only_with_correct_media(self):
         for kind,mime,ext in (("JPEG","image/jpeg",".jpg"),
