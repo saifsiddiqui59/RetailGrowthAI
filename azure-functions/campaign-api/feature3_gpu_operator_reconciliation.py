@@ -73,6 +73,8 @@ class Feature3GPUOperatorReconciliation:
                     or j.get("lease_until") is not None):
                 raise Feature3ReconciliationUnknown("Queued claim state inconsistent")
         elif status=="RUNNING":
+            if j["attempts"]!=1:
+                raise Feature3ReconciliationUnknown("Running job has no one-shot attempt")
             _id(j.get("claim_token"))
             raw_lease=j.get("lease_until")
             if type(raw_lease) is not str:
