@@ -186,6 +186,8 @@ def infer_audio(*, wav_path: str, model_dir: str, manifest_path: str,
     _check(isinstance(reported_language, str) and
            _LANG.fullmatch(reported_language) is not None,
            "ASR returned an invalid language")
+    _check(reported_language in ("en", "hi", "mr"),
+           "Auto-detected language is not approved for this worker")
     _check(language is None or reported_language == language,
            "Detected language differs from approved source language")
     result = {
