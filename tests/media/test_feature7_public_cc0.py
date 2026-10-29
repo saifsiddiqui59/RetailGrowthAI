@@ -382,6 +382,17 @@ process.stdout.write(JSON.stringify(projectUpstreamCaptionsAfterAutoClipCuts(p))
         self.assertTrue(captioned["output_aac_packets_identical"])
         self.assertEqual(captioned["caption_count"],len(result["captions"]))
         self.assertFalse(captioned["customer_publishable"])
+        # Decode actual speech/audio pixels and video for objective warnings.
+        # Passing or failing metrics is NEVER a human/editor sign-off.
+        from decoded_quality_gate import evaluate_decoded_video
+        qa=evaluate_decoded_video(
+            video_path=captioned_path,
+            expected_sha256=captioned["preview_sha256"],
+            expected_duration_seconds=edited["output_duration_seconds"])
+        self.assertTrue(qa["real_decoding_performed"])
+        self.assertFalse(qa["commercial_quality_accepted"])
+        self.assertFalse(qa["customer_publishable"])
+        self.assertEqual(qa["source_sha256"],captioned["preview_sha256"])
         if os.getenv("CI") == "true":
             # Existing FFmpeg CI uploads ci-artifacts/ without a workflow edit.
             # These bytes come only from a pinned public CC0 speech source.
@@ -394,6 +405,22 @@ process.stdout.write(JSON.stringify(projectUpstreamCaptionsAfterAutoClipCuts(p))
             captioned_target=artifacts/"feature7-cc0-real-voice-retake-captioned.mp4"
             self.assertFalse(captioned_target.exists())
             shutil.copy2(captioned_path,captioned_target)
+            # The source speech may have near-0dB peaks: publish the actual
+            # warning instead of mislabeling a test voice clip 'accepted'.
+            (artifacts/"feature7-cc0-real-voice-decoded-qa.json").write_text(
+                json.dumps(qa,indent=2),encoding="utf8")
+            # Human reviewer contact sheet: six real decoded frames,
+            # no extra media source, no published customer footage.
+            sheet=artifacts/"feature7-cc0-real-voice-caption-contact-sheet.png"
+            if sheet.exists():self.fail("Refusing to overwrite contact sheet")
+            samples=subprocess.run([
+                "ffmpeg","-hide_banner","-v","error","-nostdin","-n",
+                "-i",str(captioned_path),"-vf",
+                "fps=0.4,scale=360:-2,tile=3x2",
+                "-frames:v","1",str(sheet)
+            ],capture_output=True,text=True,timeout=40)
+            self.assertEqual(samples.returncode,0,samples.stderr[-900:])
+            self.assertGreater(sheet.stat().st_size,25000)
             (artifacts/"feature7-cc0-real-voice-captioned-proof.json").write_text(
                 json.dumps({
                     "source_license":"CC0-1.0",
