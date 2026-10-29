@@ -19,11 +19,15 @@ import sys
 import wave
 import unicodedata
 
-class VoiceQualityDenied(Valudef _words(text):
+class VoiceQualityDenied(ValueError):
+    pass
+
+
+def _words(text):
     """Unicode-grapheme-aware candidates; NEVER a pronunciation certificate.
 
-    Python's default \\w drops some Devanagari vowel marks, producing false
-    Hindi/Marathi mismatches. Retain letter/number/combining marks in a token.
+    Python's default \\w drops some Devanagari vowel marks. Retain combining
+    marks inside words; preserve apostrophes, not punctuation.
     """
     if not isinstance(text, str):
         return []
@@ -45,7 +49,7 @@ class VoiceQualityDenied(Valudef _words(text):
         if word:
             tokens.append(word.casefold())
     return tokens
-flags=re.UNICODE)]
+
 
 def pcm_stats(wav_original):
     """Actual PCM16 mono evidence, not fake speech/pronunciation diagnosis."""
