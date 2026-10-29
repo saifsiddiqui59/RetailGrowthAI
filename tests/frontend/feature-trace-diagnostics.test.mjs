@@ -61,3 +61,20 @@ test('empty data remains unobserved rather than falsely passing', () => {
  assert.equal(summary.status,'UNOBSERVED')
  assert.ok(summary.features.every(x=>x.status==='UNOBSERVED'))
 })
+
+test('completed F2 prompt remains PASS when its optional campaign substage was NOT_RUN',()=>{
+ const events=[
+   e('F1','PASS',1,'tenant-and-rights'),
+   e('F2','PASS',2,'prompt-improvement'),
+   e('F2','NOT_RUN',3,'campaign-planning'),
+   e('F3','NOT_RUN',4,'poster-model'),
+   e('F4','NOT_RUN',5,'ffmpeg-reel'),
+ ]
+ const f=summarizeTrace(events).features.find(row=>row.id==='F2')
+ assert.equal(f.status,'PASS')
+ assert.equal(f.observed_steps,2)
+ assert.equal(f.first_problem,null)
+ const historical=aggregateFeatureHistory([{events}]).find(row=>row.id==='F2')
+ assert.equal(historical.passed,1)
+ assert.equal(historical.skipped,0)
+})
