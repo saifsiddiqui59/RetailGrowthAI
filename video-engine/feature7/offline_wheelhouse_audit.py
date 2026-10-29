@@ -29,6 +29,59 @@ MAX_UNPACKED_BYTES=2*1024*1024*1024
 
 def normal(name):return re.sub(r"[-_.]+","-",name).lower()
 
+# This is deliberately a conservative numeric subset of PEP 508/440. It
+# rejects unsupported requirement syntax rather than treating a dependency
+# name alone as proof that a conflicting pinned wheel is installable.
+SPEC = re.compile(r"(~=|==|!=|<=|>=|<|>)\\s*([0-9]+(?:\\.[0-9]+)*)")
+SPEC_LIST = re.compile(
+    r"(?:~=|==|!=|<=|>=|<|>)\\s*[0-9]+(?:\\.[0-9]+)*"
+    r"(?:\\s*,\\s*(?:~=|==|!=|<=|>=|<|>)\\s*[0-9]+(?:\\.[0-9]+)*)*"
+)
+REQ_NAME = re.compile(
+    r"\\s*([A-Za-z0-9][A-Za-z0-9_.-]{0,99})"
+    r"(?:\\[[A-Za-z0-9_,.-]+\\])?\\s*(.*?)\\s*"
+)
+
+def parse_requirement(value):
+    if not isinstance(value,str) or len(value)>512 or any(
+        ch in value for ch in ("\\n","\\r","\\x00","@")
+    ):
+        raise WheelhouseRejected("Unsupported or unsafe declared dependency")
+    base, separator, marker = value.partition(";")
+    # Marker evaluation is intentionally NOT asserted. All marker-qualified
+    # dependencies must still be present, even when not needed on this host.
+    if separator and (not marker.strip() or
+                      re.fullmatch(r"[A-Za-z0-9_.!<>=(),'\\\" \\t-]+",marker) is None):
+        raise WheelhouseRejected("Unsupported dependency environment marker")
+    match = REQ_NAME.fullmatch(base)
+    if not match:
+        raise WheelhouseRejected("Malformed declared dependency")
+    name, specs = match.groups()
+    specs = specs.strip()
+    if specs.startswith("(") and specs.endswith(")"):
+        specs = specs[1:-1].strip()
+    if specs and SPEC_LIST.fullmatch(specs) is None:
+        raise WheelhouseRejected("Unsupported dependency version constraint")
+    return normal(name), SPEC.findall(specs)
+
+def satisfies_numeric_spec(version, operator, required):
+    if re.fullmatch(r"[0-9]+(?:\\.[0-9]+)*",version) is None:
+        raise WheelhouseRejected("Unsupported pinned dependency version")
+    current = tuple(int(p) for p in version.split("."))
+    target = tuple(int(p) for p in required.split("."))
+    width = max(len(current),len(target))
+    left = current + (0,)*(width-len(current))
+    right = target + (0,)*(width-len(target))
+    if operator == "~=":
+        if len(target)<2:
+            raise WheelhouseRejected("Invalid compatible-version constraint")
+        upper = list(target[:-1])
+        upper[-1] += 1
+        bound = tuple(upper)+(0,)*(width-len(upper))
+        return left >= right and left < bound
+    return {"==":left==right,"!=":left!=right,">=":left>=right,
+            "<=":left<=right,">":left>right,"<":left<right}[operator]
+
 def wheel_file_identity(filename, distribution, version):
     """Strict PEP 427 filename envelope; not an ABI/install approval."""
     if not isinstance(filename,str) or not filename.endswith(".whl"):
@@ -96,7 +149,7 @@ def audit_wheelhouse(folder: str,manifest_file: str)->dict:
     if data.get("schema")!="feature7_cpu_wheelhouse_v1" or not isinstance(rows,list) \
        or not 2<=len(rows)<=96:
         raise WheelhouseRejected("Operator pinned wheelhouse inventory required")
-    names=set();files=set();references={}
+    names=set();files=set();references={};versions={}
     for row in rows:
         if not isinstance(row,dict) or set(row)!={"filename","distribution","version","sha256"}:
             raise WheelhouseRejected("Exact wheel inventory shape required")
@@ -110,7 +163,7 @@ def audit_wheelhouse(folder: str,manifest_file: str)->dict:
         key=normal(name)
         if key in names or filename in files:
             raise WheelhouseRejected("Conflicting or duplicate wheel distribution")
-        names.add(key);files.add(filename)
+        names.add(key);files.add(filename);versions[key]=version
         p=root/filename
         st=p.lstat()
         if not stat.S_ISREG(st.st_mode) or p.is_symlink() or \
@@ -130,10 +183,7 @@ def audit_wheelhouse(folder: str,manifest_file: str)->dict:
             raise WheelhouseRejected("Wheel identity metadata mismatch")
         references[key]=[]
         for requirement in msg.get_all("Requires-Dist",[]):
-            m=DEP.match(requirement)
-            if m is None:
-                raise WheelhouseRejected("Malformed declared dependency")
-            references[key].append(normal(m.group(1)))
+            references[key].append(parse_requirement(requirement))
     if {p.name for p in root.iterdir() if p.name.endswith(".whl")}!=files:
         raise WheelhouseRejected("Unlisted or extra wheel in operator directory")
     if "faster-whisper" not in names or "ctranslate2" not in names:
@@ -141,13 +191,20 @@ def audit_wheelhouse(folder: str,manifest_file: str)->dict:
     target=next(r for r in rows if normal(r["distribution"])=="faster-whisper")
     if target["version"]!="1.2.1":
         raise WheelhouseRejected("Faster-Whisper worker requires pinned version 1.2.1")
-    missing=sorted({dep for required in references.values() for dep in required if dep not in names})
+    missing=sorted({dep for required in references.values()
+                    for dep,_ in required if dep not in names})
     if missing:
         raise WheelhouseRejected("Transitive dependencies not pinned in offline wheelhouse: "+", ".join(missing[:12]))
+    for required in references.values():
+        for dep,specs in required:
+            if not all(satisfies_numeric_spec(versions[dep],op,v)
+                       for op,v in specs):
+                raise WheelhouseRejected("Pinned dependency version violates declared constraint: "+dep)
     return {
       "schema":"feature7_cpu_wheelhouse_audit_v1",
       "sha256_verified_wheel_files":len(rows),
       "declared_transitive_requirement_names_present":True,
+      "conservative_numeric_dependency_constraints_checked":True,
       "faster_whisper_version":"1.2.1",
       "offline_only":True,
       "platform_abi_tested":False,
