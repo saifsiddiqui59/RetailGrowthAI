@@ -269,6 +269,42 @@ class CurrentGPUPlanTests(unittest.TestCase):
                 self.preflight.check_claimed(*args)
             self.assertFalse(any(x[2]!="GET" for x in self.db.calls))
 
+    def test_claimed_lease_must_be_live_timezone_aware_before_private_byte_proof(self):
+        now=datetime.now(timezone.utc)
+        invalid=(
+            (now-timedelta(seconds=5)).isoformat(),
+            "2020-01-01T00:00:00Z",
+            now.replace(tzinfo=None).isoformat(),
+            "yesterday",
+            "",
+        )
+        for expires in invalid:
+            self.setUp()
+            lease=self.make_claimed()
+            self.db.job_row["lease_until"]=expires
+            with self.subTest(expires=expires),self.assertRaises(Feature3PlanDenied):
+                self.preflight.check_claimed(
+                    self.db.shop,self.db.job,self.token,(self.db.media,),lease)
+            self.assertEqual(self.db.proofs,0)
+            self.assertEqual(len(self.lease_reads),1)
+            self.assertTrue(all(method=="GET" for _,__,method in self.db.calls))
+
+    def test_claimed_lease_expiring_during_private_rights_read_denies(self):
+        lease=self.make_claimed()
+        original=self.db.proof
+        def expired_during_source(shop,media):
+            result=original(shop,media)
+            self.db.job_row["lease_until"]=(
+                datetime.now(timezone.utc)-timedelta(seconds=1)).isoformat()
+            return result
+        self.preflight=Feature3GPUJobPlanPreflight(
+            admin_store=self.db,source_proof=expired_during_source)
+        with self.assertRaises(Feature3PlanDenied):
+            self.preflight.check_claimed(
+                self.db.shop,self.db.job,self.token,(self.db.media,),lease)
+        self.assertEqual(self.db.proofs,1)
+        self.assertEqual(len(self.lease_reads),1)
+
     def test_claimed_real_private_png_storage_and_twice_current_legal_review(self):
         lease=self.make_claimed()
         raw=BytesIO()
