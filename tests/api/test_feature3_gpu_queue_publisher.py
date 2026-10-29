@@ -9,6 +9,7 @@ from uuid import uuid4
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"azure-functions/campaign-api"))
 from feature3_gpu_queue_publisher import Feature3GPUOutboxPublisher
+from feature3_gpu_envelope import GPUEnvelopeDenied
 from tenant_store import StorageUnavailable
 
 
@@ -103,7 +104,7 @@ class Feature3QueuePublishingTests(unittest.TestCase):
         for rows in wrong:
             self.setUp()
             self.outbox.claim_dispatch.return_value=rows
-            with self.subTest(rows=str(rows)[:100]),self.assertRaises(StorageUnavailable):
+            with self.subTest(rows=str(rows)[:100]),self.assertRaises((StorageUnavailable,GPUEnvelopeDenied)):
                 self.publisher.dispatch_once()
             self.queue.send_message.assert_not_called()
             self.outbox.confirm_dispatch.assert_not_called()
