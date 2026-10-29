@@ -357,3 +357,9 @@ Run exact-head four-job CI after new single-path F3→CPU FFmpeg→Part3→F4 in
 
 
 - Latest F5 branch includes non-force upstream merge `d2bc8741` (latest coordinator main `214a27ff`, 21 disjoint changes); inspect post-merge **new exact branch HEAD** four GitHub Actions jobs, not cancelled predecessor runs. Keep PR #465 DRAFT; new upstream F3 GPU-off producer/history is source-only and does not supply garment-worn model or Part3 paid authority.
+
+## 2026-10-29 — Next after F5 native claim fence
+1. Inspect all four GitHub Actions jobs on exact final Feature5 HEAD and fix real failures. Maintain draft PR #465.
+2. Part3 coordinator: version existing premium jobs and credit/lease tables with a separate native Wan2.2 I2V 704x1280/24FPS/121-frame/5s model contract and authoritative current-claim callback; protect OWNER/EDITOR and reject VIEWER/foreign/revoked, pin source and prompt, one-use CAS, UNKNOWN reconciliation, independent private object SHA readback and atomic settlement. Do not reuse existing 720P/1080P Wan2.7 claim or create duplicate F5 wallet/queue/schema.
+3. Integrate F2 #551 actual source, then run existing source-conditional F5 test executing original Node 15/30/60-second compiled export. Source fixture tests are not real F2 producer execution.
+4. External: valid same-retailer garment-worn and likeness-authorized F3 first frame, actual protected Comfy CUDA runtime + full weight SHA, explicit paid cap, genuine 5s Wan model inference, human quality approval and F4 licensed final Full-HD Reel. Hosted two-tenant/Part3 release and Azure #249 are still separate. No GPU or production operations approved.

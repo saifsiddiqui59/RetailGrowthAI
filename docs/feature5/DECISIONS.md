@@ -266,3 +266,6 @@ The F5 consumer for the actual Node export must accept only bounded UTF-8 JSON w
 
 
 - A source-verified Git merge of new coordinator Feature3 paths into the Feature5 branch is permitted only after comparing both divergent diffs and proving zero intersecting changed paths. Preserve both parents and all new main-owned source unchanged; such a merge is not GPU activation, customer image grant or production rollout. Applied to `main` `214a27ff` in F5 merge `d2bc8741`.
+
+## 2026-10-29 — Native Part3 profile must be independently current
+A boolean paid claim alone cannot distinguish legacy Part3 Wan2.7 720P/1080P from Feature5 Wan2.2 704x1280/24FPS/121f. Require a backend-only, versioned, signed/DB-fenced current job profile with exact model, lease, credit reservation, rights, original tenant and source/prompt lineage. Re-validate both before and after the single-use durable submission intent. After intent, uncertain readback or state drift remains UNKNOWN/CONSUMED; never retry or refund automatically. This is a Feature5 consumer security gate only; Part3 owns the actual SQL and service authority. A synthetic test callback is not live JWT/RLS, and source-conditional F2 tests may not be represented as an executed real exporter until merged.
