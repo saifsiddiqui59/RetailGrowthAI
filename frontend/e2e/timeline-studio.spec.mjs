@@ -213,3 +213,30 @@ test('OpenReel real clip navigation and snapping control work on mobile without 
  expect(out.shop_id).toBe('11111111-1111-4111-8111-111111111111')
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2)
 })
+
+
+test('actual React Timeline Studio shows measured same-shop audio beats and frame-seeks without overflow',async({page})=>{
+ await page.setViewportSize({width:390,height:844})
+ await page.goto('/')
+ await page.evaluate(async ()=>{
+   const {mountFeature4BeatLane}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
+   mountFeature4BeatLane({shop:'11111111-1111-4111-8111-111111111111'})
+ })
+ const lane=page.getByLabel('Proposed music beat positions; server verification required')
+ await expect(lane).toBeVisible()
+ await expect(lane.getByRole('button')).toHaveCount(4)
+ await lane.getByRole('button',{name:'Seek to proposed beat 2 at 3.500s'}).click()
+ await expect(page.getByRole('textbox',{name:'Playhead timecode'})).toHaveValue('00:00:03:12')
+ const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)
+ expect(overflow).toBeLessThanOrEqual(2)
+})
+test('real React beat lane never renders unapproved or foreign-shop audio markers',async({page})=>{
+ await page.goto('/')
+ await page.evaluate(async ()=>{
+   const {mountFeature4BeatLane}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
+   mountFeature4BeatLane({shop:'11111111-1111-4111-8111-111111111111',authorized:false})
+ })
+ await expect(page.getByRole('region',{name:'Professional multi-track video timeline'})).toBeVisible()
+ await expect(page.getByLabel('Proposed music beat positions; server verification required')).toHaveCount(0)
+ await expect(page.getByRole('textbox',{name:'Playhead timecode'})).toHaveValue('00:00:00:00')
+})

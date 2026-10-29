@@ -135,4 +135,17 @@ PY
     --output "$ROOT/ci-artifacts/feature4-stock-garment-30s-small.mp4" \
     --report "$ROOT/ci-artifacts/feature4-stock-garment-30s-small-proof.json"
 
+
+  # F4-51: append independent cross-feature QA ledger only for actual
+  # public-stock test footage; do not copy customer media into CI artifacts.
+  python3 "$ROOT/video-engine/feature4_quality_receipt.py" \
+    --original "$GARMENT_MP4" --master "$GARMENT_MASTER" \
+    --preview "$ROOT/ci-artifacts/feature4-stock-garment-30s-small.mp4" \
+    --provenance "$GARMENT_PROOF" \
+    --motion-proof "$ROOT/ci-artifacts/feature4-stock-garment-moving-pixels-proof.json" \
+    --master-proof "$GARMENT_MASTER_PROOF" \
+    --preview-proof "$ROOT/ci-artifacts/feature4-stock-garment-30s-small-proof.json" \
+    --editorial-proof "$ROOT/ci-artifacts/feature4-stock-30s-editorial-titles-proof.json" \
+    --output "$ROOT/ci-artifacts/feature4-cross-feature-qa-receipt.json"
+
 fi

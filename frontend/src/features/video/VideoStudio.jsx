@@ -161,7 +161,7 @@ export default function VideoStudio({
             </label>
           </div>
           {draft.mode === 'music_sync' && (
-            <p className="f4-guidance">Beat grid must come from an approved music analysis service. Beat extraction and automatic alignment are pending; this mode cannot render without the beat contract.</p>
+            <p className="f4-guidance">Only server-approved, same-shop music can render with a measured beat grid. Offline waveform detection and editor beat navigation are implemented; hosted soundtrack licensing and approved beat attachment remain required.</p>
           )}
           <h3 className="f4-subtitle">Storyboard <span>{draft.scenes.length} scenes</span></h3>
           <div className="f4-scenes">

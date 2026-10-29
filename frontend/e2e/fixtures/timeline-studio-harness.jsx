@@ -45,3 +45,33 @@ export function mountFeature4({shop,approved,seedCompletedRender=false,seedOwner
   }))
 
 }
+
+
+// Isolated read-only beat-lane harness; no hidden server/media rights shortcuts.
+export function mountFeature4BeatLane({shop, authorized=true,approvedDirection=false}) {
+  const holder=document.createElement('div')
+  holder.id='feature4-beat-lane-e2e'
+  document.getElementById('root')?.setAttribute('hidden','')
+  document.body.appendChild(holder)
+  const scenes=Array.from({length:3},(_,i)=>({
+    start:i*5,duration:5,headline:['Intro look','Garment closeup','End editorial'][i],
+    asset_id:'photo1',animation_preset:'subtle_zoom',transition:'fade',
+  }))
+  const draft={
+    version:'rg_video_v2',shop_id:shop,mode:'music_sync',template:'cinematic',
+    duration_seconds:15,output:{width:540,height:960,fps:24},scenes,
+    cta:'Stock editorial sample',music_asset_id:'music01',voiceover_asset_id:null,
+    beats:[1,3.5,7.125,10.5],
+  }
+  const audio=[{
+    id:'music01',kind:'audio',shop_id:authorized?shop:'foreign',
+    authorized:true,title:'Original rhythm test track',
+  }]
+  const media=[{id:'photo1',kind:'image',authorized:true,shop_id:shop}]
+  import('../../src/features/video/TimelineStudioSurface.jsx').then(({default: TimelineStudioSurface})=>{
+    createRoot(holder).render(React.createElement(TimelineStudioSurface,{
+      draft,mediaAssets:media,musicAssets:audio,selectedSceneIndex:0,
+      approvedDirection,onChange:()=>{},onSelectScene:()=>{},
+    }))
+  })
+}

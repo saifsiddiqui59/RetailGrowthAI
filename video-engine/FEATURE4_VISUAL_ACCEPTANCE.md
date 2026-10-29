@@ -82,3 +82,24 @@ forged timestamps or invalid duration. This check proves *pixel motion*,
 not person/garment identity, real AI inference, image attribution,
 voice semantics or owner-level commercial visual quality. DO NOT promote
 the owner-rejected illustrated fixture or generic Pexels stock to an ad.
+
+
+## F4-51: Exact-artifact cross-feature QA and real browser beat navigation (2026-10-29)
+Feature4-only `feature4_quality_receipt.py` verifies a real FFmpeg-produced
+original, AAC-only mastered Full-HD video and compact reviewer MP4 are
+exactly SHA-256 chained to their existing provenance, moving-pixel QA,
+master/preview reports and editorial-only subtitle receipts. Each feature
+(#2, #3, #4, #5, #7) gets its own explicit status and evidence summary,
+with release blockers and `commercial_release_eligible=false` hard-coded.
+The report rejects silent model/garment/voice approval upgrades and forged
+SHA chains. A local immutable QA artifact is not a multi-tenant API or a signed
+download. No user assets are uploaded to GitHub, only permitted Pexels stock QA.
+
+The Playwright suite now mounts the actual React OpenReel timeline with a
+same-shop, 15s measured-music stub and asserts four visible beat markers,
+a precise 3.5s -> 24fps frame seek and mobile body overflow safety; a separate
+cross-shop media stub proves the beat lane stays hidden. This is NOT evidence
+that internet music rights, ASR or commercial scene fidelity are approved.
+The old 'beat detection pending' UI copy is clarified to distinguish already
+implemented offline WAV onset detection from unapproved cloud/signed music
+operations. No new render engine, service, GPU, schema or WineShopPOS edits.
