@@ -45,8 +45,12 @@ class TenantStore:
         self.transport = transport or urlopen
 
     def _request(self, table, token, *, query=None, method="GET", data=None):
-        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs", "business_profiles", "shop_content_drafts"}:
+        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs", "business_profiles", "shop_content_drafts", "feature3_gpu_jobs"}:
             raise ValueError("unsupported table")
+        # Browser-JWT job history/status is SELECT-only. Claim, finish,
+        # financial and private-output writes remain service-role RPCs.
+        if table == "feature3_gpu_jobs" and method != "GET":
+            raise ValueError("Feature3 GPU history is read-only")
         if table == "shop_content_drafts" and method != "GET":
             raise ValueError("content drafts are only writable through the backend")
         url = self.origin + "/rest/v1/" + table
