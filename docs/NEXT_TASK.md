@@ -1265,3 +1265,7 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 bounded GPU-off queue peek (source only)
 - Verify PR exact-head 4/4, coordinator merge and fresh main postmerge 4/4. Queue SDK peek is diagnostic only: operator cannot treat empty/invisible batch as no outstanding claim, cannot delete or drain, cannot infer ACK or paid outcome, cannot use it as an Azure trigger. Actual durable GPU worker, poison queue, private current-rights/lease gate and reconciliation with genuine provider bill are separate planned tasks. Do not turn on GPU/paid provider, change DEV/PROD cloud settings or touch WineShopPOS.
+
+
+## 2026-10-29 — Feature3 binary output source-only response adapter acceptance
+- Verify exact-head 4/4 CI on `feat/feature3-private-byte-http-handoff-20261029`, coordinator merge, independent 4/4 postmerge main. New no-URL PNG HTTP byte-response helper is NOT a public route; add separately reviewed feature-flagged Azure GET handler only after real output/source rights provider and hosted RLS/private binary proof. Browser Blob previews must re-check SHA/job/shop, revoke on shop/session change and never treat UNREVIEWED output as publish approved. Original signed URLs remain valid until expiry. No GPU spend, PROD, migrations or WineShopPOS.

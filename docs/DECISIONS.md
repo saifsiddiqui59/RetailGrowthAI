@@ -942,3 +942,7 @@
 
 ## 2026-10-29 — Peek-only operator inspection is safer than dequeue-based test
 - Use Microsoft Azure Storage Queue SDK `peek_messages` with explicit 1..5 bound to inspect currently visible, v1-only GPU messages during provider-OFF preflight. Never use `receive_message`, implicit QueueTrigger, `delete_message` or mutating operations for inspection because default visibility, retries and auto-deletion could alter a future paid job. A Queue peek does not prove that other invisible messages are absent; only SQL and separately reviewed billing determine a final outcome.
+
+
+## 2026-10-29 — Source-only private PNG binary HTTP contract never implies a live endpoint
+- A backend handler may return exact reauthorized PNG bytes with GET-only JWT, no-store/no-cache/nosniff, content-addressed SHA and opaque denies, but only after `Feature3RevocablePNGReader` independently verifies current tenant, immutable evidence and legal rights. Do not expose service keys or mint signed/public URLs, auto-publish, enable GPU or mount an HTTP route until the genuine output rights gate and coordinator versioned interface are approved. Old 60-second signed links are not retroactively invalidated.

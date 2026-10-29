@@ -703,3 +703,6 @@ Use scripts/checkpoint.sh after completing a task.
 - 2026-10-29 Feature3 P0 source: added two-phase backend output evidence RPC + actual Storage PNG byte readback/SHA256/Pillow verification, POST-only service RPC allowlist, negative fake HTTP/SQL tests, and unversioned SQL proposal preserving the frozen 31-migration release plan. No paid inference, hosted SQL, operator financial action, PROD or WineShopPOS.
 
 - 2026-10-29 Feature3 Phase2: implemented backend-only bounded Azure Queue peek inspecting actual strict existing v1 GPU dispatch IDs under current-rights preflight, explicitly no receive/claim/delete/ACK/charge, plus failure-path/duplicate/forged/foreign/revoked negative SDK-shaped tests. Confirmed Microsoft peek semantics. No new Azure resources/Queue trigger, paid inference, hosted SQL or WineShopPOS.
+
+
+- 2026-10-29 Feature3 Phase2 non-GPU private download continuation: created strictly validated pure Python `Feature3PrivateBinaryHTTP` source adapter over preexisting JWT/RLS/revocable-byte reader, checks binary SHA, exact receipt, no token/signed URL disclosure and private no-store/nosniff response. Offline actual Pillow PNG and malicious/foreign/rights revoked/error tests added; no Azure route, live tenant, provider billing, Supabase write, new migration or WineShopPOS. CI and coordinator integration pending.

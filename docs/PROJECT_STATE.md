@@ -1284,3 +1284,7 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## 2026-10-29 — Feature3 Azure Queue peek-only diagnostics source
 - Added bounded existing Azure SDK `peek_messages` inspection with strict existing Feature3 v1 envelope -> GPU OFF source-rights preflight. No receive, visibility change, dequeue count, SQL claim, ACK/delete, retry, spend, GPU invocation or new storage. Offline test doubles assert that all mutating QueueClient methods remain unused including failure paths. Source only; actual Azure Queue configuration/credentials and hosted E2E unverified. [Handoff](feature3/GPU_OFF_AZURE_QUEUE_PEEK_20261029.md).
+
+
+## 2026-10-29 — Feature3 no-URL private PNG HTTP response contract (source only)
+- Added `Feature3PrivateBinaryHTTP` as an independent secure byte-response adapter over the merged `Feature3RevocablePNGReader`. Strict GET + signed Bearer input, exact own-shop/job/asset/actual PNG SHA receipt, no URL/media path/approval injection, no-cache/nosniff/CSP, opaque 401/404/503 and no automatic GPU charge. CPU Pillow tests include revoked sources, malformed/foreign receipts and hash tampering. **No public Azure route is mounted and existing 60-second signed links are not revoked**; live trusted output rights, coordinator API version, frontend Blob revoke and DEV signed E2E remain gated. [Handoff](feature3/PRIVATE_BINARY_HTTP_ADAPTER_20261029.md).
