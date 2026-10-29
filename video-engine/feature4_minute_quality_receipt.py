@@ -113,6 +113,9 @@ def validate_minute_evidence(*, original, master, preview, provenance,
                              contact_image, contact_proof,
                              captioned=None, caption_srt=None, caption_vtt=None,
                              caption_proof=None):
+    caption_args=(captioned,caption_srt,caption_vtt,caption_proof)
+    if any(x is not None for x in caption_args) and not all(x is not None for x in caption_args):
+        raise MinuteProofError("Partial captioned review chain cannot pass")
     files=[Path(original),Path(master),Path(preview)]
     h0,h1,h2=(_sha(x) for x in files)
     p,m,a,v,s=(_record(x) for x in
@@ -170,9 +173,6 @@ def validate_minute_evidence(*, original, master, preview, provenance,
                 or len(asset["sha256_original"])!=64
                 or asset.get("ai_generated") is not False):
             raise MinuteProofError("Attribution, SHA-256, or provenance missing")
-    caption_args=(captioned,caption_srt,caption_vtt,caption_proof)
-    if any(x is not None for x in caption_args) and not all(x is not None for x in caption_args):
-        raise MinuteProofError("Partial captioned review chain cannot pass")
     caption_evidence=validate_captioned_review(
         preview=preview,provenance=provenance,captioned=captioned,
         caption_srt=caption_srt,caption_vtt=caption_vtt,caption_proof=caption_proof
