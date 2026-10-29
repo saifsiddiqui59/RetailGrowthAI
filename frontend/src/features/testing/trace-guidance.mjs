@@ -57,7 +57,8 @@ export function analyzeImprovementPriorities(events) {
     const successful = relevant.filter(e => e.status === 'PASS')
     const firstIssue = relevant.find(e => e.status === 'FAIL' || e.status === 'UNKNOWN')
     const rubric = ACTIONS[feature.id]
-    const score = feature.quality_latest
+    // A reviewer cannot establish output quality for an absent feature.
+    const score = successful.length ? feature.quality_latest : null
     const lowQuality = score !== null && score <= 2
     let reason, action, category, priority
     if (firstIssue?.status === 'FAIL') {
