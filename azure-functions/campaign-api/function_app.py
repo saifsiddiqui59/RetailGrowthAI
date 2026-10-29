@@ -207,9 +207,16 @@ def plan_campaign(message: func.QueueMessage):
         os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"],
     )
     cid = message.get_body().decode("ascii")
+    # No worker span HTTP endpoint; separate reviewed database release and
+    # explicit runtime flag are mandatory before enabling service-only writes.
+    sink = None
+    if os.environ.get("RETAIL_ENABLE_FEATURE_TEST_WORKER_SPANS") == "true":
+        from worker_span_store import WorkerSpanStore
+        sink = WorkerSpanStore(admin)
     process_campaign(
         cid, admin,
         mock_enabled=os.environ.get("RETAIL_ENABLE_MOCK_CAMPAIGNS") == "true",
+        span_sink=sink,
     )
 
 
@@ -244,9 +251,14 @@ def render_campaign_reel(message: func.QueueMessage):
     # Queue message contains only a validated job UUID. No paths, tokens or URLs.
     origin = os.environ["RETAIL_SUPABASE_URL"]
     key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
+    admin = AdminStore(origin, key)
+    sink = None
+    if os.environ.get("RETAIL_ENABLE_FEATURE_TEST_WORKER_SPANS") == "true":
+        from worker_span_store import WorkerSpanStore
+        sink = WorkerSpanStore(admin)
     process_render(
         message.get_body().decode("ascii"),
-        AdminStore(origin, key), PrivateMedia(origin, key),
+        admin, PrivateMedia(origin, key), span_sink=sink,
     )
 
 
