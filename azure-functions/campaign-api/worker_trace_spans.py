@@ -15,7 +15,14 @@ _OPERATIONS = {
            "planning.unconfigured"},
     "F4": {"render.complete", "render.denied", "render.failed"},
 }
-_STATUSES = {"SUCCEEDED", "DENIED", "FAILED", "UNCONFIGURED"}
+_EXPECTED_STATUS = {
+    "planning.complete": "SUCCEEDED", "planning.denied": "DENIED",
+    "planning.failed": "FAILED", "planning.unconfigured": "UNCONFIGURED",
+    "render.complete": "SUCCEEDED", "render.denied": "DENIED",
+    "render.failed": "FAILED",
+}
+_PLANNER_COMPLETE_FIELDS = {"planner_mode", "generated_days"}
+_RENDER_COMPLETE_FIELDS = {"codec", "video_height", "video_width", "duration_seconds"}
 
 
 def _uuid(value):
@@ -36,8 +43,8 @@ def emit_worker_span(sink, *, feature, operation, status, shop_id, job_id,
         return False
     if feature not in _OPERATIONS or operation not in _OPERATIONS[feature]:
         raise ValueError("Unknown worker operation")
-    if status not in _STATUSES:
-        raise ValueError("Invalid worker outcome")
+    if status != _EXPECTED_STATUS[operation]:
+        raise ValueError("Inconsistent worker operation/outcome")
     if type(attempt) is not int or not 1 <= attempt <= 5:
         raise ValueError("Invalid fenced attempt")
     if not isinstance(elapsed_ms, (int, float)) or not math.isfinite(elapsed_ms):
@@ -46,11 +53,13 @@ def emit_worker_span(sink, *, feature, operation, status, shop_id, job_id,
         raise ValueError("Unbounded worker duration")
     if metadata is None:
         metadata = {}
-    if type(metadata) is not dict or any(k not in {
-        "planner_mode", "generated_days", "duration_seconds", "codec", "video_height",
-        "video_width",
-    } for k in metadata):
+    if type(metadata) is not dict:
         raise ValueError("Unsafe worker metadata")
+    expected_fields = (_PLANNER_COMPLETE_FIELDS if operation == "planning.complete"
+                       else _RENDER_COMPLETE_FIELDS if operation == "render.complete"
+                       else set())
+    if set(metadata) != expected_fields:
+        raise ValueError("Incomplete or unexpected worker metadata")
     safe = {}
     for key, value in metadata.items():
         if key == "planner_mode":
@@ -66,6 +75,13 @@ def emit_worker_span(sink, *, feature, operation, status, shop_id, job_id,
             if type(value) not in (int, float) or not math.isfinite(value) or not 0 < value <= 780:
                 raise ValueError("Invalid video duration")
         safe[key] = value
+    if operation == "planning.complete" and metadata["generated_days"] != 7:
+        raise ValueError("Inconsistent generated campaign days")
+    if operation == "render.complete" and (
+        metadata["video_width"] != 1080 or metadata["video_height"] != 1920
+        or abs(metadata["duration_seconds"] - 30) > 0.12
+    ):
+        raise ValueError("Invalid expected FFmpeg output characteristics")
     span = {
         "schema": "retailgrowth.worker-span.v1",
         "span_id": uuid4().hex, "feature": feature,
