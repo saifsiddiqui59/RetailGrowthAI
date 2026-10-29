@@ -824,7 +824,7 @@ def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
             raise EditorialBasisRejected("RSS headline/date source invalid")
         headline=title.text.strip()
         if not 12<=len(headline)<=180 or \
-           _unsafe_editorial_display(headline)):
+           _unsafe_editorial_display(headline):
             raise EditorialBasisRejected("Unsafe unreviewed RSS headline")
         try:
             published=parsedate_to_datetime(pub.text.strip())
