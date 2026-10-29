@@ -54,3 +54,7 @@ GPU-OFF source security hardening added after prior 4/4 CI #40748330126: fail cl
 ## 2026-10-28 — Parallel/timeout negative proof
 
 New CPU-only negative tests cover local parallel submission races and post-intent rights-reader timeout. No real signed hosted claims or GPU inference were executed; complete exact final-head four-job CI remains required.
+
+## 2026-10-29 — Source completion after merged F3 and multi-track denial
+
+Latest Feature5 branch incorporated actual F3 PR #604 via non-force, zero-overlap two-parent merge from main and now directly tests the merged Feature3 private-worker materializer, rather than only its inferred shape. Technical CPU 704x1280/121-frame FFmpeg synthetic MP4 and secure mock Part3 stored bytes are the **only** positive media examples, not real Wan generation, human-worn licensed garment, signed hosted JWT or public publish approval. Further tightened native private FFprobe: exactly one H264 video stream, **no AAC/VO music/subtitle/data/extra streams**; included a real FFmpeg AAC remux denial test. All Feature5 self-contained source items identified here are submitted to CI; still blocked on coordinator Part3 versioned provider/DB/Storage, authenticated hosted approvals and paid reviewed CUDA/native video. No A100 or WineShopPOS modifications.
