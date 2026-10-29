@@ -53,6 +53,8 @@ const cap={version:'feature7_autoclip_autobroll_caption_projection_v1',
  human_review_required:true,actual_timeline_duration_ms:14940,
  feature4_caption_track:[{start:1,duration:.8,text:'Hello world'}]};
 window.__reviewRequests=[];window.__captionRequests=[];
+window.__reviewDeferred=[];window.__captionDeferred=[];
+const deferred=query.get('async')==='1';
 window.__url=URL.createObjectURL(new Blob(['test-only-no-audio'],{type:'video/mp4'}));
 const app=mountFeature7ReviewPanel({target:document.getElementById('review'),
  draft,proposal:plan,media_evidence:evidence,reviewer_view:reviewer,
@@ -60,8 +62,14 @@ const app=mountFeature7ReviewPanel({target:document.getElementById('review'),
  caption_correction_input:{shop_id:shop,asset_id:'offline_video_a',
  source_sha256:'a'.repeat(64),preview_sha256:'b'.repeat(64),
  caption_projection:cap},
- onReviewRequest:p=>window.__reviewRequests.push(p),
- onCaptionReviewRequest:p=>window.__captionRequests.push(p)});
+ onReviewRequest:p=>{
+   window.__reviewRequests.push(p);
+   if(deferred)return new Promise((resolve,reject)=>window.__reviewDeferred.push({resolve,reject}));
+ },
+ onCaptionReviewRequest:p=>{
+   window.__captionRequests.push(p);
+   if(deferred)return new Promise((resolve,reject)=>window.__captionDeferred.push({resolve,reject}));
+ }});
 window.__snapshot=()=>app.getReviewSnapshot();
 window.__dispose=()=>{app.destroy();URL.revokeObjectURL(window.__url)};
 window.__ready=true;
@@ -146,6 +154,40 @@ class Feature7ActualBrowserReviewQA(unittest.TestCase):
                 self.assertTrue(page.get_by_role("button",name="Request caption correction review").is_disabled())
                 self.assertEqual(page.evaluate("window.__reviewRequests.length"),0)
                 self.assertEqual(page.evaluate("window.__captionRequests.length"),0)
+            finally:browser.close()
+
+
+    def test_stale_async_failure_cannot_reopen_new_review_on_mobile(self):
+        with sync_playwright() as p:
+            browser=p.chromium.launch(headless=True,executable_path=CHROME,
+                                      args=["--no-sandbox"])
+            try:
+                page=browser.new_page(viewport={"width":390,"height":844})
+                page.goto(self.url+"?async=1",wait_until="networkidle")
+                page.wait_for_function("window.__ready===true")
+                approval=page.get_by_role("button",name="Request human approval")
+                confirm=page.get_by_role("checkbox",
+                    name="I have reviewed the selected clip and original speech audio.")
+                confirm.check();approval.click()
+                self.assertEqual(page.evaluate("window.__reviewRequests.length"),1)
+                self.assertTrue(approval.is_disabled())
+                page.get_by_role("combobox",name="Choose uploaded source scene").dispatch_event("change")
+                self.assertTrue(approval.is_disabled(),
+                    "Changing selected scene must not double-submit an unchanged review")
+                page.get_by_role("slider",name="Adjust video trim start").evaluate(
+                    "(el)=>{el.value='1';el.dispatchEvent(new Event('input',{bubbles:true}))}")
+                self.assertTrue(approval.is_enabled())
+                confirm.check();approval.click()
+                self.assertEqual(page.evaluate("window.__reviewRequests.length"),2)
+                page.evaluate("window.__reviewDeferred[0].reject(new Error('old failure'))")
+                page.wait_for_timeout(30)
+                self.assertTrue(approval.is_disabled(),
+                    "Old async failure must not unlock the newer pending request")
+                page.evaluate("window.__reviewDeferred[1].reject(new Error('current failure'))")
+                page.get_by_text("Request failed. No approval was recorded.").wait_for()
+                self.assertTrue(approval.is_enabled())
+                self.assertFalse(page.evaluate("window.__snapshot().approved"))
+                page.evaluate("window.__dispose()")
             finally:browser.close()
 
 if __name__=="__main__":unittest.main()
