@@ -11,7 +11,7 @@ export default function VoiceoverSelector({
   enabled=false,approvedAudioAssets=[],
   onSelectionChange=null,onRequestPreview=null,onRequestSynthesis=null,
   onRequestUpload=null,onRequestLocalPreview=null,onRequestLocalSynthesis=null,
-  onFetchLocalAudio=null,onProposeLocalScriptRevision=null,
+  onFetchLocalAudio=null,onFetchLocalQualityReview=null,onProposeLocalScriptRevision=null,
   onProposeLocalPronunciation=null,
 }){
   const [selection,setSelection]=useState(emptyVoiceSelection)
@@ -113,6 +113,7 @@ export default function VoiceoverSelector({
           onLocalPreview={onRequestLocalPreview}
           onLocalGenerate={onRequestLocalSynthesis}
           onFetchLocalAudio={onFetchLocalAudio}
+          onFetchQualityReview={onFetchLocalQualityReview}
           onProposeScriptRevision={onProposeLocalScriptRevision}
           onProposePronunciation={onProposeLocalPronunciation}/> : <>
 
