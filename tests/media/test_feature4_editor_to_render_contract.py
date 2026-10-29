@@ -46,19 +46,19 @@ def edited_draft():
     return json.loads(output.stdout)
 
 def duplicated_draft():
-    # Execute the actual adopted JS editor operation. The authoritative Python
-    # tenant/rights/compiler/renderer plan remains independently validated.
-    script = NODE_EDITOR.replace(
-        "studioSplit, studioReorder, studioValidatedDraft",
-        "studioDuplicate, studioValidatedDraft"
-    ).replace(
-        "draft=studioSplit(draft,1,4,media)\\ndraft=studioReorder(draft,1,0)",
-        "draft=studioDuplicate(draft,1,media)"
-    )
-    if "draft=studioDuplicate(draft,1,media)" not in script:
+    # Execute the actual adopted JS editor operation. Python independently
+    # validates immutable tenant, rights and HyperFrames source in-point gates.
+    script = (NODE_EDITOR
+        .replace("studioSplit, studioReorder, studioValidatedDraft",
+                 "studioDuplicate, studioValidatedDraft")
+        .replace("draft=studioSplit(draft,1,4,media)",
+                 "draft=studioDuplicate(draft,1,media)")
+        .replace("draft=studioReorder(draft,1,0)", ""))
+    if ("draft=studioDuplicate(draft,1,media)" not in script or
+            "draft=studioSplit(" in script or "draft=studioReorder(" in script):
         raise AssertionError("Required JS duplicate edit was not applied")
     return json.loads(subprocess.run(
-        ["node","--input-type=module","-e",script], cwd=ROOT,
+        ["node","--input-type=module","-e",script],cwd=ROOT,
         capture_output=True,text=True,timeout=20,check=True
     ).stdout)
 
