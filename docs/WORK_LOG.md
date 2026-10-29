@@ -736,3 +736,6 @@ Use scripts/checkpoint.sh after completing a task.
 
 ## 2026-10-29 — Feature3 current-model rights service RPC disposable SQL source tests
 - After #663 source integration, created `feat/feature3-current-model-sql-disposable-gate-20261029` from main `bb6c9b043703d370386f2a5ea554d8122aea36d5`. Added actual psql security tests in existing disposable `poster*.sql` CI harness, importing then dropping `supabase/proposals/feature3_current_model_review_20261029.sql`; tests forbid anonymous/JWT calls and bogus model source rights. No hosted migration/provider/queue/storage writes. Verify exact-head four-job CI and fresh main after coordinator merge.
+
+## 2026-10-29 — Feature3 operator evidence RPC disposable negative SQL tests
+- Branch `feat/feature3-operator-evidence-disposable-sql-20261029` from merged #664 commit `adf5fcc6f620958db96272aae764a8bbf62ac656` adds `tests/security/poster_feature3_operator_evidence_proposal_negative.sql` and source handoff; exercises actual role/missing source/forged claim rejection for existing unapplied operator evidence proposal in disposable PostgreSQL, without creating a migration or hosted operation. Exact-head CI and integration evidence required separately.

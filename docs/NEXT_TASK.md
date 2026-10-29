@@ -1301,3 +1301,6 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 proposed model RPC disposable SQL check
 - Verify four exact-head PR CI jobs on `feat/feature3-current-model-sql-disposable-gate-20261029` including actual disposable Postgres execution of the proposal and ACL denials. Fix any real SQL failures, preserve the 31 hosted migration history and do not apply the new RPC to live DEV absent separate reviewed migration approval. Later require genuine independently licensed customer original, model review/revoke transitions and two-shop signed DEV acceptance.
+
+## 2026-10-29 — Feature3 operator proposed evidence SQL disposable gate
+- Verify exact-head four-job CI on `feat/feature3-operator-evidence-disposable-sql-20261029`, including real isolated PostgreSQL negative tests; coordinator merge and fresh main 4/4. Remaining: DB owner must approve a separately versioned migration and hosted security testing, genuine source/generated PNG bytes and current-rights verifier, reliable one-shot financial invoice observation and manual reconciliation; no automatic retry/refund/delete after uncertain ACK.
