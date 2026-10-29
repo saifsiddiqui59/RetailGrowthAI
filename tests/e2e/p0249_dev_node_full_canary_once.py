@@ -37,7 +37,7 @@ def node_preflight(*, include_prompt=False):
         )
         started = time.monotonic()
         try:
-            with urllib.request.urlopen(req,timeout=12) as response:
+            with _NODE_OPENER.open(req,timeout=12) as response:
                 code,headers = response.status,response.headers
         except urllib.error.HTTPError as response:
             code,headers = response.code,response.headers
@@ -45,7 +45,7 @@ def node_preflight(*, include_prompt=False):
                 or time.monotonic()-started > 12):
             raise RuntimeError("P0249_NODE_PREVIEW_NOT_AUTHENTICATED_OR_HEALTHY")
     health=urllib.request.Request(NODE_PREVIEW+"/api/p0-secure-health",method="GET")
-    with urllib.request.urlopen(health,timeout=12) as response:
+    with _NODE_OPENER.open(health,timeout=12) as response:
         if (response.status != 200 or response.headers.get("X-P0249-Secure-Preview")
                 != "real-jwks-rls-dev-write-v1"):
             raise RuntimeError("P0249_WRONG_NODE_DEV_PREVIEW")
