@@ -22,8 +22,65 @@ class WheelhouseRejected(ValueError):pass
 
 NAME=re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
 SHA=re.compile(r"^[0-9a-f]{64}$")
-DEP=re.compile(r"^\s*([A-Za-z0-9_.-]+)")
+DEP=re.compile(r"^\\s*([A-Za-z0-9_.-]+)(?=\\s|\\[|[<>=!~(;]|$)")
+MAX_MEMBERS=10000
+MAX_METADATA_BYTES=256*1024
+MAX_UNPACKED_BYTES=2*1024*1024*1024
+
 def normal(name):return re.sub(r"[-_.]+","-",name).lower()
+
+def wheel_file_identity(filename, distribution, version):
+    """Strict PEP 427 filename envelope; not an ABI/install approval."""
+    if not isinstance(filename,str) or not filename.endswith(".whl"):
+        raise WheelhouseRejected("Invalid wheel filename")
+    segments=filename[:-4].split("-")
+    if len(segments) not in (5,6):
+        raise WheelhouseRejected("Wheel filename must contain distribution/version/tags")
+    disk_name,disk_version=segments[:2]
+    if normal(disk_name)!=normal(distribution) or disk_version!=version or (
+        len(segments)==6 and not re.fullmatch(r"[0-9][A-Za-z0-9_]*",segments[2])
+    ):
+        raise WheelhouseRejected("Wheel filename identity does not match pinned inventory")
+    if any(not x or re.fullmatch(r"[A-Za-z0-9_.]+",x) is None for x in segments[3 if len(segments)==6 else 2:]):
+        raise WheelhouseRejected("Unsafe or invalid wheel compatibility tags")
+
+def safe_metadata(z, distribution, version):
+    """Verify the ZIP structure without decompressing unbounded metadata."""
+    entries=z.infolist()
+    if not entries or len(entries)>MAX_MEMBERS:
+        raise WheelhouseRejected("Unbounded or empty wheel ZIP")
+    seen=set()
+    expanded=0
+    metadata=[]
+    for info in entries:
+        name=info.filename
+        if (name in seen or name.startswith("/") or "\\\\" in name or
+            "\\x00" in name or any(p in ("", ".", "..") for p in name.rstrip("/").split("/"))):
+            raise WheelhouseRejected("Duplicate or unsafe wheel ZIP member")
+        seen.add(name)
+        mode=info.external_attr >> 16
+        if stat.S_IFMT(mode)==stat.S_IFLNK:
+            raise WheelhouseRejected("Wheel ZIP symlink forbidden")
+        expanded+=info.file_size
+        if expanded>MAX_UNPACKED_BYTES or (
+            info.file_size>MAX_METADATA_BYTES and name.endswith(".dist-info/METADATA")
+        ):
+            raise WheelhouseRejected("Wheel ZIP expansion or metadata exceeds budget")
+        if name.endswith(".dist-info/METADATA"):
+            metadata.append(info)
+    if len(metadata)!=1:
+        raise WheelhouseRejected("Missing or ambiguous wheel package metadata")
+    meta=metadata[0]
+    prefix=meta.filename.split("/")[0]
+    if (meta.filename!=prefix+"/METADATA" or
+        not prefix.endswith(".dist-info") or
+        prefix[:-10].replace("_","-").lower()!=
+          (distribution.replace("_","-")+"-"+version).lower()):
+        raise WheelhouseRejected("Dist-info directory does not match wheel identity")
+    if meta.file_size>MAX_METADATA_BYTES:
+        raise WheelhouseRejected("Metadata too large to inspect")
+    return Parser().parsestr(z.read(meta).decode("utf-8"))
+
 
 def audit_wheelhouse(folder: str,manifest_file: str)->dict:
     root=Path(folder);manifest=Path(manifest_file)
@@ -33,7 +90,9 @@ def audit_wheelhouse(folder: str,manifest_file: str)->dict:
     if manifest.stat().st_size>128*1024:
         raise WheelhouseRejected("Excessive operator manifest")
     data=json.loads(manifest.read_text(encoding="utf-8"))
-    rows=data.get("wheels") if isinstance(data,dict) else None
+    if not isinstance(data,dict):
+        raise WheelhouseRejected("Operator wheelhouse JSON object required")
+    rows=data.get("wheels")
     if data.get("schema")!="feature7_cpu_wheelhouse_v1" or not isinstance(rows,list) \
        or not 2<=len(rows)<=96:
         raise WheelhouseRejected("Operator pinned wheelhouse inventory required")
@@ -47,6 +106,7 @@ def audit_wheelhouse(folder: str,manifest_file: str)->dict:
            not isinstance(filename,str) or re.fullmatch(r"[A-Za-z0-9_.+-]+\.whl",filename) is None or \
            not isinstance(row["sha256"],str) or SHA.fullmatch(row["sha256"]) is None:
             raise WheelhouseRejected("Untrusted wheel name, version or digest")
+        wheel_file_identity(filename,name,version)
         key=normal(name)
         if key in names or filename in files:
             raise WheelhouseRejected("Conflicting or duplicate wheel distribution")
@@ -63,18 +123,19 @@ def audit_wheelhouse(folder: str,manifest_file: str)->dict:
             raise WheelhouseRejected("Wheel bytes differ from operator SHA")
         try:
             with ZipFile(p) as z:
-                metas=[x for x in z.namelist() if x.endswith(".dist-info/METADATA")]
-                if len(metas)!=1 or len(z.namelist())>10000:
-                    raise WheelhouseRejected("Missing/ambiguous wheel package metadata")
-                if any(n.startswith("/") or ".." in n.split("/") for n in z.namelist()):
-                    raise WheelhouseRejected("Unsafe wheel archive member")
-                msg=Parser().parsestr(z.read(metas[0]).decode("utf-8"))
-        except (BadZipFile,UnicodeDecodeError) as exc:
+                msg=safe_metadata(z,name,version)
+        except (BadZipFile,UnicodeDecodeError,RuntimeError) as exc:
             raise WheelhouseRejected("Unreadable wheel metadata") from exc
         if normal(msg.get("Name",""))!=key or msg.get("Version")!=version:
             raise WheelhouseRejected("Wheel identity metadata mismatch")
-        references[key]=[normal(m.group(1)) for v in msg.get_all("Requires-Dist",[])
-                        if (m:=DEP.match(v)) is not None]
+        references[key]=[]
+        for requirement in msg.get_all("Requires-Dist",[]):
+            m=DEP.match(requirement)
+            if m is None:
+                raise WheelhouseRejected("Malformed declared dependency")
+            references[key].append(normal(m.group(1)))
+    if {p.name for p in root.iterdir() if p.name.endswith(".whl")}!=files:
+        raise WheelhouseRejected("Unlisted or extra wheel in operator directory")
     if "faster-whisper" not in names or "ctranslate2" not in names:
         raise WheelhouseRejected("Actual pinned Faster-Whisper and CTranslate2 wheels required")
     target=next(r for r in rows if normal(r["distribution"])=="faster-whisper")

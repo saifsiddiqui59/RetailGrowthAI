@@ -103,3 +103,8 @@ WineShopPOS, shared coordinator docs or PROD modifications.
 
 ## 2026-10-29 — F7-04 actual worker SIGKILL source regression
 - Added bounded POSIX child-process kill → SQLite WAL reclaim/new fencing token → deny late old-worker completion acceptance test. This closes one previously unexercised local crash path but does not replace coordinator Postgres or remote execution idempotency. F7-04 still PARTIAL. Exact-head CI and actual run evidence must be checked independently before marking the local test passed.
+
+
+## 2026-10-29 — F7-05 wheelhouse archive/inventory security continuation
+- The existing offline wheelhouse verifier now validates strict wheel filename distribution/version/tags, root inventory equality (reject extra unapproved .whl), dist-info directory scope, archive member duplication/path/symlinks and bounded decompression of package metadata; malformed Requires-Dist and non-object operator manifests fail closed. New regression cases re-pin altered fake wheel SHAs to prove metadata/ZIP checks aren't only hash checks.
+- This is a **source-only** hardening; real Faster-Whisper+CTranslate2 version constraints, CPU ABI, model licensing, original weights, offline installation and human transcript tests remain external DEP-F7-07/08; no inference/hosting. Exact-head 4/4 branch CI required. F7-05 remains PARTIAL.

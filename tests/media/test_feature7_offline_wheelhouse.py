@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-from zipfile import ZipFile
+from zipfile import ZipFile,ZipInfo,ZIP_DEFLATED
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"video-engine"/"feature7"))
 from offline_wheelhouse_audit import audit_wheelhouse,WheelhouseRejected
@@ -56,6 +56,69 @@ class OfflineWheelhouseTests(unittest.TestCase):
         self.write_wheel("ctranslate2","4.6.0",[])
         self.save()
         (self.root/self.wheels[0]["filename"]).write_bytes(b"tampered")
+        with self.assertRaises(WheelhouseRejected):
+            audit_wheelhouse(str(self.root),str(self.manifest))
+
+
+    def rewrite_wheel(self, name, version, metadata, extra=None):
+        """Re-pin mutation bytes, proving the archive audit is not just SHA."""
+        filename=f"{name.replace('-','_')}-{version}-py3-none-any.whl"
+        p=self.root/filename
+        with ZipFile(p,"w",compression=ZIP_DEFLATED) as z:
+            z.writestr(f"{name.replace('-','_')}-{version}.dist-info/METADATA",
+                       metadata)
+            if extra is not None:
+                z.writestr(extra[0],extra[1])
+        row=next(r for r in self.wheels if r["distribution"]==name)
+        row["sha256"]=hashlib.sha256(p.read_bytes()).hexdigest()
+        self.save()
+
+    def test_repin_wrong_filename_and_unlisted_extra_wheel_denied(self):
+        self.wheels[0]["distribution"]="foreign-whisper"
+        self.save()
+        with self.assertRaisesRegex(WheelhouseRejected,"filename identity"):
+            audit_wheelhouse(str(self.root),str(self.manifest))
+        self.wheels[0]["distribution"]="faster-whisper"
+        self.save()
+        extra=self.root/"unlisted-1.0-py3-none-any.whl"
+        extra.write_bytes(b"unapproved")
+        with self.assertRaisesRegex(WheelhouseRejected,"Unlisted"):
+            audit_wheelhouse(str(self.root),str(self.manifest))
+
+    def test_repin_oversized_metadata_and_zip_symlink_denied(self):
+        name="faster-whisper"
+        metadata="Metadata-Version: 2.1\\nName: faster-whisper\\nVersion: 1.2.1\\n"
+        self.rewrite_wheel(name,"1.2.1",metadata+"X-Note: "+"x"*270000+"\\n")
+        with self.assertRaisesRegex(WheelhouseRejected,"metadata exceeds budget"):
+            audit_wheelhouse(str(self.root),str(self.manifest))
+        archive=self.root/"faster_whisper-1.2.1-py3-none-any.whl"
+        with ZipFile(archive,"w") as z:
+            z.writestr("faster_whisper-1.2.1.dist-info/METADATA",metadata)
+            link=ZipInfo("foo-link")
+            link.create_system=3
+            link.external_attr=(0o120777 << 16)
+            z.writestr(link,"../secret")
+        self.wheels[0]["sha256"]=hashlib.sha256(archive.read_bytes()).hexdigest()
+        self.save()
+        with self.assertRaisesRegex(WheelhouseRejected,"symlink"):
+            audit_wheelhouse(str(self.root),str(self.manifest))
+
+    def test_repin_wrong_dist_info_and_malformed_requirement_denied(self):
+        base="Metadata-Version: 2.1\\nName: faster-whisper\\nVersion: 1.2.1\\n"
+        p=self.root/"faster_whisper-1.2.1-py3-none-any.whl"
+        with ZipFile(p,"w") as z:
+            z.writestr("ctranslate2-1.2.1.dist-info/METADATA",base)
+        self.wheels[0]["sha256"]=hashlib.sha256(p.read_bytes()).hexdigest()
+        self.save()
+        with self.assertRaisesRegex(WheelhouseRejected,"Dist-info"):
+            audit_wheelhouse(str(self.root),str(self.manifest))
+        self.rewrite_wheel("faster-whisper","1.2.1",base+
+                           "Requires-Dist: ???\\n")
+        with self.assertRaisesRegex(WheelhouseRejected,"Malformed"):
+            audit_wheelhouse(str(self.root),str(self.manifest))
+
+    def test_manifest_must_be_json_object(self):
+        self.manifest.write_text('[]')
         with self.assertRaises(WheelhouseRejected):
             audit_wheelhouse(str(self.root),str(self.manifest))
 
