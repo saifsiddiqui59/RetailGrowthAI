@@ -101,3 +101,91 @@ def test_f4_review_audio_rejects_unapproved_and_changed_source(alter):
         prepare_feature4_voiceover(creative_bundle=creative(),original_wav=wav(),
             signed_audio_record=record,audio_asset_id=record["audio_asset_id"],
             active_editor_reader=lambda shop:shop==SHOP)
+
+from ai_agents.feature2_voiceover_upload import (
+    decode_unreviewed_mp3_to_private_wav, accept_unreviewed_mp3)
+import shutil
+import subprocess
+from pathlib import Path
+
+def mp3_fixture():
+    ffmpeg=shutil.which("ffmpeg")
+    if not ffmpeg:
+        pytest.skip("Trusted FFmpeg executable absent on this offline test host")
+    # Synthetic original audio for container/decoder protocol only, NOT speech.
+    command=[ffmpeg,"-nostdin","-hide_banner","-loglevel","error",
+             "-f","lavfi","-i","sine=frequency=220:sample_rate=24000:duration=1",
+             "-vn","-ac","1","-codec:a","libmp3lame","-b:a","128k","-f","mp3","pipe:1"]
+    result=subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+                          timeout=10,check=False)
+    if result.returncode:
+        pytest.skip("Local FFmpeg does not provide licensed MP3 fixture encoder")
+    assert result.stdout.startswith((b"ID3",bytes.fromhex("fff3"),bytes.fromhex("fffb")))
+    return ffmpeg,result.stdout
+
+def test_actual_ffmpeg_mp3_decode_to_private_original_and_wav_sha():
+    ffmpeg,original=mp3_fixture()
+    result=decode_unreviewed_mp3_to_private_wav(
+        original_mp3=original,max_seconds=15,operator_ffmpeg_path=ffmpeg)
+    assert result["original_mp3_sha256"]==sha256(original).hexdigest()
+    assert result["derived_wav_sha256"]==sha256(result["derived_wav"]).hexdigest()
+    assert result["source_mime_type"]=="audio/mpeg"
+    assert result["derived_mime_type"]=="audio/wav"
+    assert .7<=result["duration_seconds"]<=1.3
+    with wave.open(io.BytesIO(result["derived_wav"]),"rb") as frames:
+        assert frames.getframerate()==24000
+        assert frames.getnchannels()==1 and frames.getsampwidth()==2
+    assert result["can_publish"] is False and result["actual_speech_verified"] is False
+    assert result["paid_calls"]==0
+
+def test_private_mp3_intake_preserves_both_original_digests_and_ignores_rights_checkbox():
+    ffmpeg,original=mp3_fixture()
+    events=[]
+    def store(shop,campaign,original_bytes,derived_wav,receipt):
+        assert original_bytes==original
+        assert sha256(derived_wav).hexdigest()==receipt["derived_wav_sha256"]
+        assert receipt["review_state"]=="PENDING_RIGHTS_AND_SPEECH_REVIEW"
+        assert receipt["original_media_rights_verified"] is False
+        events.append(1)
+        return {"asset_id":str(uuid4()),"shop_id":shop,
+                "campaign_id":campaign,
+                "original_mp3_sha256":receipt["original_mp3_sha256"],
+                "derived_wav_sha256":receipt["derived_wav_sha256"],
+                "review_state":"PENDING_RIGHTS_AND_SPEECH_REVIEW",
+                "private":True}
+    result=accept_unreviewed_mp3(
+        shop_id=SHOP,campaign_id=CID,plan=creative(),
+        original_mp3=original,operator_ffmpeg_path=ffmpeg,
+        authenticated_editor=lambda *a:True,
+        read_authoritative_plan=lambda *a:creative(),
+        store_both_private_pending=store,
+        client_declared_rights={"commercial_use_approved":True})
+    assert len(events)==1
+    assert result["original_mp3_sha256"]==sha256(original).hexdigest()
+    assert result["review_state"]=="PENDING_RIGHTS_AND_SPEECH_REVIEW"
+    assert result["original_wav_is_registered_feature7_source"] is False
+    assert result["private_download_url"] is None and result["billing"]=="NONE"
+    assert result["can_publish"] is False
+
+def test_mp3_private_decode_fails_closed_before_writer_on_forgery_and_revocation(tmp_path):
+    ffmpeg,original=mp3_fixture()
+    link=tmp_path/"ffmpeg_link"
+    link.symlink_to(ffmpeg)
+    for original_bytes,binary in (
+        (b"ID3"+b"bad"*100,ffmpeg),(original[:75],ffmpeg),
+        (original,str(link))):
+        with pytest.raises(VoiceUploadRejected):
+            decode_unreviewed_mp3_to_private_wav(
+                original_mp3=original_bytes,max_seconds=30,operator_ffmpeg_path=binary)
+    calls=[];writes=[]
+    def auth(*a):
+        calls.append(1)
+        return len(calls)==1
+    with pytest.raises(VoiceUploadRejected,match="revoked"):
+        accept_unreviewed_mp3(
+            shop_id=SHOP,campaign_id=CID,plan=creative(),
+            original_mp3=original,operator_ffmpeg_path=ffmpeg,
+            authenticated_editor=auth,
+            read_authoritative_plan=lambda *a:creative(),
+            store_both_private_pending=lambda *a:writes.append(a))
+    assert len(calls)==2 and writes==[]
