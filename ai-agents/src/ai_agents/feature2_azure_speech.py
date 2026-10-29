@@ -63,7 +63,9 @@ def _text(value, label, limit):
 
 
 def _plan(plan, *, shop_id, campaign_id):
-    if not isinstance(plan, dict) or set(plan) != {"creative_direction_v1", "approval_record"}:
+    if (not isinstance(plan, dict) or
+        not {"creative_direction_v1", "approval_record"}.issubset(plan) or
+        set(plan) - {"creative_direction_v1", "approval_record", "motion_direction_v1"}):
         raise SpeechRejected("Trusted Feature2 creative source required")
     creative, review = plan["creative_direction_v1"], plan["approval_record"]
     if not isinstance(creative, dict) or not isinstance(review, dict):
@@ -148,13 +150,13 @@ class AzureSpeechNarration:
 
     def __init__(self, *, region, api_key, usd_per_million_characters,
                  approved_max_cost_usd, authorize_current_editor,
-                 reserve_once, write_private_original,
+                 read_authoritative_plan, reserve_once, write_private_original,
                  reconcile_reserved_cost, transport=None):
         if not isinstance(region, str) or not _REGION.fullmatch(region):
             raise SpeechRejected("Invalid Azure Speech region")
         if not isinstance(api_key, str) or len(api_key) < 12:
             raise SpeechRejected("Missing server-only Azure Speech key")
-        for callback in (authorize_current_editor, reserve_once,
+        for callback in (authorize_current_editor, read_authoritative_plan, reserve_once,
                          write_private_original, reconcile_reserved_cost):
             if not callable(callback):
                 raise SpeechRejected("Trusted tenant billing/storage callbacks required")
@@ -163,6 +165,7 @@ class AzureSpeechNarration:
         self._rate = _money(usd_per_million_characters, maximum="10000")
         self._cap = _money(approved_max_cost_usd, maximum="0.25")
         self._authorize = authorize_current_editor
+        self._read_plan = read_authoritative_plan
         self._reserve = reserve_once
         self._write = write_private_original
         self._reconcile = reconcile_reserved_cost
@@ -184,6 +187,8 @@ class AzureSpeechNarration:
             raise SpeechRejected("Voice selection or explicit approval invalid")
         if self._authorize(request.shop_id, request.campaign_id) is not True:
             raise SpeechRejected("Active signed editor and subscription required")
+        if self._read_plan(request.shop_id, request.campaign_id) != plan:
+            raise SpeechRejected("Current authoritative draft script or revision differs")
         # Preview is intentionally billable: never auto-play preview on dropdown.
         # Fixed-length excerpt comes only from the same source-locked script.
         spoken = script[:90].rsplit(" ", 1)[0] if request.preview and len(script) > 90 else script
@@ -223,6 +228,8 @@ class AzureSpeechNarration:
             seconds = _wav(audio, planned_limit)
             if self._authorize(request.shop_id, request.campaign_id) is not True:
                 raise SpeechRejected("Tenant editor revoked before private save")
+            if self._read_plan(request.shop_id, request.campaign_id) != plan:
+                raise SpeechRejected("Creative script changed before private save")
             receipt = {"shop_id": request.shop_id,
                        "campaign_id": request.campaign_id,
                        "plan_sha256": review["plan_sha256"],

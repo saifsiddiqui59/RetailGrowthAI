@@ -19,7 +19,7 @@ export default function VoiceoverSelector({
   const [file,setFile]=useState(null)
   useEffect(()=>{
     setSelection(emptyVoiceSelection())
-    setConfirmed(false);setError('');setMessage('');setFile(null)
+    setConfirmed(false);setError('');setMessage('');setFile(null);setLocale('en-IN')
   },[shopId,campaignId,planSha256])
   const authorizedAssets=useMemo(()=>
     (Array.isArray(approvedAudioAssets)?approvedAudioAssets:[])
@@ -89,11 +89,11 @@ export default function VoiceoverSelector({
         ['none','No voiceover'],
       ].map(([mode,label])=><label key={mode}>
         <input type="radio" name="rgai_voice_mode" checked={selection.mode===mode}
-          onChange={()=>choose(mode==='ai'?{
+          onChange={()=>{if(mode==='ai')setLocale('en-IN');choose(mode==='ai'?{
             mode,language:'en-IN',voice_id:'en-IN-NeerjaNeural',speed:'normal',audio_asset_id:null,
           }:mode==='none'?emptyVoiceSelection():{
             mode,language:null,voice_id:null,speed:'normal',audio_asset_id:null,
-          })}/>
+          })}}/>
         {label}
       </label>)}
       {selection.mode==='ai'&&<>

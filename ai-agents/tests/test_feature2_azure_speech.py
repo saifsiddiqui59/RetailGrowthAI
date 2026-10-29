@@ -57,7 +57,7 @@ def fake_service(monkeypatch, *, denied=False, bad_data=None, revoked=False,
     obj=AzureSpeechNarration(
         region="centralindia",api_key="server-only-test-key-not-real",
         usd_per_million_characters="16",approved_max_cost_usd="0.10",
-        authorize_current_editor=authorize,reserve_once=reserve,
+        authorize_current_editor=authorize,read_authoritative_plan=lambda shop,campaign: creative(),reserve_once=reserve,
         write_private_original=store,reconcile_reserved_cost=reconcile,
         transport=transport)
     return obj,events,checks
@@ -163,7 +163,7 @@ def test_disabled_or_missing_budget_no_egress(monkeypatch):
         AzureSpeechNarration(region="https://evil.example",api_key="not-enough",
          usd_per_million_characters="16",approved_max_cost_usd="100",
          authorize_current_editor=lambda *args:True,
-         reserve_once=None,write_private_original=None,reconcile_reserved_cost=None)
+         read_authoritative_plan=lambda *args:creative(),reserve_once=None,write_private_original=None,reconcile_reserved_cost=None)
 
 def test_unknown_provider_charge_remains_reservation_not_replayed(monkeypatch):
     service,events,_=fake_service(monkeypatch)
@@ -171,3 +171,21 @@ def test_unknown_provider_charge_remains_reservation_not_replayed(monkeypatch):
     with pytest.raises(SpeechRejected,match="do not retry"):
         service.synthesize(plan=creative(),request=req())
     assert [x[0] for x in events]==["reserve"]
+
+def test_existing_real_director_bundle_with_motion_directions_supported(monkeypatch):
+    service,events,_=fake_service(monkeypatch)
+    genuine=creative()
+    genuine["motion_direction_v1"]=[{"shot_id":"scene-1"}]
+    service._read_plan=lambda *args: deepcopy(genuine)
+    out=service.synthesize(plan=genuine,request=req())
+    assert out["source"]=="AZURE_SPEECH_TTS"
+    assert len([x for x in events if x[0]=="transport"])==1
+
+def test_current_plan_revalidated_after_paid_provider_ack(monkeypatch):
+    service,events,_=fake_service(monkeypatch)
+    current=[creative(),creative()]
+    current[1]["creative_direction_v1"]["voiceover_script"]="Different revised narration"
+    service._read_plan=lambda *args: current.pop(0)
+    with pytest.raises(SpeechRejected,match="do not retry"):
+        service.synthesize(plan=creative(),request=req())
+    assert [e[0] for e in events]==["reserve","transport"]
