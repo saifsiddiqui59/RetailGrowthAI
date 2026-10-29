@@ -152,8 +152,10 @@ def make_garment_project(source_dir: Path, project_dir: Path, *, seconds: int = 
                 (35, 5, "garment04", "CLOTHING DETAILS"),
                 (40, 5, "look01", "THE CITY EDIT"),
                 (45, 5, "garment01", "FIND YOUR STYLE"),
-                (50, 8, "garment03", "EDITORIAL FASHION STUDY"),
-                (58, 2, None, OUTRO),
+                # Isolate a five-second disclaimer/endcard rather than hold
+                # the same static clothes-rack frame for eight seconds.
+                (50, 5, "garment03", "EDITORIAL FASHION STUDY"),
+                (55, 5, None, OUTRO),
             ]
         # Auto-find actual PCM onsets; no invented fixed-grid positions.
         sequence = snap_scene_cuts(sequence, detected_beats, duration_seconds=seconds)
