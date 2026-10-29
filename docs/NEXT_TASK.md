@@ -1250,3 +1250,8 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 ## 2026-10-29 — Phase2 UI/reconciliation coordinator closeout
 - Verify all four exact integration CI jobs and postmerge main 4/4 before closing #642/#643 as superseded. Still pending trusted private model+garment actual licensed bytes, operator evidence RPC, binary no-URL endpoint, Azure real queue worker/poison, reviewed source-produced customer images, browser E2E and #249 host fix; no GPU/PROD/WineShopPOS operations.
 
+
+## 2026-10-29 — Feature3 private byte verifier release blockers
+- Verify exact head 4/4 CI on `feat/feature3-private-source-byte-rights-proof-20261029`, coordinator source merge and independent postmerge main CI. Continue source-independent real current image/likeness/license/garment review authority: no production implementation of trusted per-asset legal evidence callback yet. Wire this private source proof to already merged `Feature3GPUJobPlanPreflight` in a real backend runtime only after rights source approval; confirm signed RetailGrowthAI DEV/storage, revocation, one-shot SQL claim, actual queue delete/retries and cost status before enabling worker. No paid GPU, PROD or WineShopPOS.
+
+- 2026-10-29: Coordinator conflict-reconciled the Feature3 private source byte proof #645 into current-main integration without dropping prior history. Verify four-job exact head CI and postmerge main separately; real legal authority and hosted source approval still pending.

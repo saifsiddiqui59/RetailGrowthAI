@@ -1269,3 +1269,8 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 ## 2026-10-29 — Coordinator Phase2 source integration checkpoint
 - Reconciled separate source-ready #642 (on-demand tenant private generated job metadata UI) and #643 (operator read-only uncertain-billing inspection) into a current-main branch with all original source/test docs and CI gates; no new generated private pixels or billable worker. Complete exact integration PR 4/4 and fresh postmerge main CI before treating them merged.
 
+
+## 2026-10-29 — Feature3 actual private source byte attestation (source only)
+- `Feature3PrivateSourceProof` implements the real HTTPS Storage/Pillow/SHA256 source proof port used by current GPU-off job plan. Enforces same-shop registered private media path and MIME, separately reviewer-backed current commercial permission, source provenance and customer approval before and after read, denies changed rights and altered bytes. Returns no private object key/URL/image bytes or provider permission. Test-only fake rights authority: actual licensed legal evidence source and signed DEV validation NOT implemented. No GPU, deployment or WineShopPOS change. [Handoff](feature3/PRIVATE_SOURCE_BYTES_RIGHTS_PROOF_20261029.md).
+
+- 2026-10-29: Coordinator conflict-reconciled the Feature3 private source byte proof #645 into current-main integration without dropping prior history. Verify four-job exact head CI and postmerge main separately; real legal authority and hosted source approval still pending.

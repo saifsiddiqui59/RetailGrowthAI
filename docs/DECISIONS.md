@@ -927,3 +927,8 @@
 ## 2026-10-29 — Integrate disjoint private history and financial inspection without false live claims
 - Preserve original #642 and #643 source/test diffs and append-only docs when main has advanced; never force-merge conflicting canonical docs, silently drop a security negative test or claim that a metadata read settles financial state. Source CI and hosted DEV are distinct.
 
+
+## 2026-10-29 — Real image pixels do not by themselves prove rights
+- Feature3 service-only CPU preflight must retrieve immutable same-shop private bytes, real-decode image and recompute SHA256 under a narrowly scoped backend Storage credential. Compare with a **separate independent, current, reviewer-approved legal/provenance/retailer permission record**, and reread that record after fetching bytes. Never infer commercial permission from media `license_name`, OpenVTO demo, model weights or Storage 200; deny unknown/revoked record. Do not expose bytes/keys to browsers or imply spend rights.
+
+- 2026-10-29: Coordinator conflict-reconciled the Feature3 private source byte proof #645 into current-main integration without dropping prior history. Verify four-job exact head CI and postmerge main separately; real legal authority and hosted source approval still pending.
