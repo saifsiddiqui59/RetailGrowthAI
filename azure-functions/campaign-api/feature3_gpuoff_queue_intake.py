@@ -46,18 +46,22 @@ class Feature3GPUOffQueueIntake:
         self._plan = plan_reader
         self._status = provider_status
 
-    def inspect(self, raw_message):
-        # Must be intentionally OFF, not merely no provider status or a
-        # browser-supplied config. Never inspect a queue in actual paid mode.
+    def require_gpu_off(self):
+        """Reconfirm authoritative paid-provider OFF even with zero visible jobs."""
         try:
             status = self._status()
         except Exception as exc:
             raise Feature3QueueIntakeBlocked(
                 "Current GPU provider OFF status unavailable") from exc
-        if (not isinstance(status,dict) or
+        if (type(status) is not dict or
                 status.get("enabled") is not False):
             raise Feature3QueueIntakeBlocked(
                 "GPU-disabled read-only queue inspection required")
+
+    def inspect(self, raw_message):
+        # Never infer OFF from an empty queue. The caller also checks before
+        # and after the Azure peek, including the zero-message case.
+        self.require_gpu_off()
         try:
             routing = decode_dispatch_envelope(raw_message)
         except GPUEnvelopeDenied as exc:
