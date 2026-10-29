@@ -308,6 +308,9 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
         start, length = scene["start"], scene["duration"]
         aid = scene.get("asset_id")
         media_markup = ""
+        # The separate footage track must carry the same reviewed transition as
+        # its scene overlay; otherwise only the text fades/slides in the MP4.
+        transition = scene.get("transition", "fade")
         if aid:
             _path, kind = ordered[aid]
             src = names[aid]
@@ -316,9 +319,10 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
                 trim = scene.get("trim_start", 0)
                 original_audio = " data-has-audio=\"true\"" if not scene.get("mute_source", False) else ""
                 media_markup = (
-                    f'<video class="footage clip" id="video{i}" src="{src}" '
+                    f'<video class="footage clip trans-{transition}" id="video{i}" src="{src}" '
                     f'data-start="{start}" data-duration="{length}" data-media-start="{trim}" '
-                    f'data-track-index="0" data-volume="1" playsinline{original_audio}{mute}></video>'
+                    f'data-track-index="0" data-volume="1" style="--span:{length}s" '
+                    f'playsinline{original_audio}{mute}></video>'
                 )
             else:
                 media_markup = f'<img class="product-photo" src="{src}" alt="" decoding="sync">'
@@ -379,6 +383,9 @@ html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background
 .photo-wrap{{position:absolute;top:10%;height:72%;width:100%;left:0;display:grid;place-items:center;overflow:hidden}}
 .product-photo{{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 24px 48px #0009);animation:editorialDrift var(--span) ease-in-out both}}
 .footage{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}}
+.footage.trans-fade{{animation:editorialFade var(--span) linear both}}
+.footage.trans-slide{{animation:editorialSlide var(--span) ease-in-out both}}
+.footage.trans-cut{{animation:none}}
 .poster-overlay{{position:absolute;right:4%;top:15%;height:32%;max-width:45%;object-fit:contain;filter:drop-shadow(0 10px 28px #000a);animation:posterReveal var(--span) ease-out both}}
 .glass{{position:absolute;left:6%;right:6%;bottom:8%;padding:4.5% 5%;min-height:17%;
   background:linear-gradient(105deg,#090912ed,#171625ba);border-top:1px solid {accent}83;

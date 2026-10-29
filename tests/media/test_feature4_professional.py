@@ -204,6 +204,32 @@ class ProfessionalVideoTests(unittest.TestCase):
         self.assertIn('id="soundtrack0"', page)
         self.assertIn('data-media-start="0"', page)
 
+        # A separate root video track previously ignored the approved scene
+        # transition: only the text/overlay animated. Check all three bounded
+        # renderer variants compile on the actual footage layer as well.
+        self.plan["scenes"] = [
+            {"start": 0, "duration": 5, "headline": "Opening",
+             "asset_id": "clip1", "transition": "fade"},
+            {"start": 5, "duration": 5, "headline": "Details",
+             "asset_id": "clip1", "transition": "slide"},
+            {"start": 10, "duration": 5, "headline": "Final",
+             "asset_id": "clip1", "transition": "cut"},
+        ]
+        transitions = (compile_composition(
+            self.plan, self.manifest, self.media, self.root / "transitions"
+        ) / "index.html").read_text()
+        for index, transition in enumerate(("fade", "slide", "cut")):
+            self.assertIn(
+                f'<video class="footage clip trans-{transition}" id="video{index}"',
+                transitions,
+            )
+            self.assertIn(f'class="clip scene s{index%3} has-video', transitions)
+            self.assertIn(f'trans-{transition}', transitions)
+        self.assertIn('.footage.trans-fade{animation:editorialFade', transitions)
+        self.assertIn('.footage.trans-slide{animation:editorialSlide', transitions)
+        self.assertIn('.footage.trans-cut{animation:none}', transitions)
+        self.assertEqual(transitions.count('data-volume="1" style="--span:5s"'), 3)
+
 
 if __name__ == "__main__":
     unittest.main()
