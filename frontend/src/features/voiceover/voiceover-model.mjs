@@ -219,7 +219,8 @@ export function verifyPrivateVoiceJobStatus({
     (status.status==='AWAITING_HUMAN_REVIEW'&&
       (!SHA.test(status.original_audio_sha256||'')||
        !UUID.test(status.audio_asset_id||'')))||
-    status.review_status!=='PENDING_HUMAN_LISTEN_AND_RIGHTS'
+    status.review_status!==(status.status==='AWAITING_HUMAN_REVIEW'?
+      'PENDING_HUMAN_LISTEN_AND_RIGHTS':'NOT_READY')
   )invalid()
   return Object.freeze({
     state:status.status,terminal:status.terminal,
