@@ -5,7 +5,6 @@ stdout, approved private garment media, or a Wan model/GPU run.
 """
 from __future__ import annotations
 
-import copy
 import unittest
 
 from feature5_motion.feature2_storyboard_bridge import qualify_feature2_offline_storyboard
