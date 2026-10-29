@@ -995,3 +995,6 @@
 
 ## 2026-10-29 — Private saved draft and GPU job history scope must be enforced before React effects
 - UI authorization data remains valid only for exact `shop_id/campaign_id/day_id` and current signed API provider. Scope-tag private saved designs, generated-job status, reopened draft, transient messages and revision CAS ticket at render time; reject stale in-flight results on scope/API/nonce change, including after uncertain POST. A foreign/previous day DRAFT is never reopened based on its media SHA alone. The backend still owns real JWT/RLS, licence and reviewer authorization.
+
+## 2026-10-29 — #249 protected Node test identity boundary
+- Decision: the protected testing adapter refuses prefilled `x-rgai-supabase-jwt`, browser/proxy/cookie credentials, unreviewed request headers and ambiguous/malformed bearer values. The existing Supabase user JWT is passed through a custom Node header only for the exact pre-reviewed DEV preview `/api/` path; independent Node JWKS and tenant RLS remain authoritative. No live tenant/user privilege or browser header injection can be justified by source tests. Original Python handler routing and service-token Supabase requests are unchanged.
