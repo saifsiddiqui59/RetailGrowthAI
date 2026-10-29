@@ -158,6 +158,8 @@ def infer_audio(*, wav_path: str, model_dir: str, manifest_path: str,
                                    word_timestamps=True, vad_filter=False,
                                    condition_on_previous_text=False)
     words = normalize_actual_words(stream, audio_duration=audio_duration)
+    _check(validate_local_model(model_dir, manifest_path) == provenance,
+           "ASR checkpoint changed during inference")
     reported_language = getattr(info, "language", None)
     _check(isinstance(reported_language, str) and
            _LANG.fullmatch(reported_language) is not None,
