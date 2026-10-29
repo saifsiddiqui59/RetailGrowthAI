@@ -186,6 +186,10 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
         return "DENIED"
     try:
         request, manifest, objects, audit = _bundle(claim, admin.load_feature4_bundle(claim))
+        # Loading approved rows can race with revocation or lease replacement.
+        # Avoid staging private media or running expensive CPU on a stale claim.
+        if admin.render_authorized(claim) is not True or admin.feature4_claim_current(claim) is not True:
+            return "STALE"
         with tempfile.TemporaryDirectory(prefix="retailgrowth-f4-") as tmp:
             root = Path(tmp)
             staging = root / "media"
@@ -201,6 +205,10 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
                 staged_bytes += path.stat().st_size
                 if staged_bytes > MAX_TOTAL_STAGED_BYTES:
                     raise Feature4HandoffError("Total staged media exceeds the private worker budget")
+                # Rights/lease can be revoked while a private download is in flight.
+                # Do not stage additional assets or invoke FFmpeg after revocation.
+                if admin.render_authorized(claim) is not True or admin.feature4_claim_current(claim) is not True:
+                    return "STALE"
             result = render_fn(request, manifest, staging, output)
             result_path, probe = _verified_render_result(result, output, claim, request, audit)
             if admin.render_authorized(claim) is not True or admin.feature4_claim_current(claim) is not True:
