@@ -282,7 +282,7 @@ def append_feature2_trace(*, shop_id, campaign_id, workflow_id, event_id,
     encoded=json.dumps(event,sort_keys=True,separators=(",",":")).encode()
     event_sha=hashlib.sha256(encoded).hexdigest()
     signature=hmac.digest(service_secret,
-                          b"retailgrowth.feature2.trace.v1\\n"+encoded,"sha256").hex()
+                          b"retailgrowth.feature2.trace.v1\n"+encoded,"sha256").hex()
     if not active():
         raise Feature2TraceDenied("Trace source revoked before append")
     # Backend CAS must enforce (shop/workflow, sequence, previous_sha256),
