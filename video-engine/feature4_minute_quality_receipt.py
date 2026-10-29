@@ -156,17 +156,58 @@ def validate_captioned_review(*, preview, provenance, captioned, caption_srt,
             "tenant_rights_checked_here":False}
 
 
+
+def validate_endcard_evidence(*, original, provenance, endcard_proof):
+    """Bind the actual encoded 55-60s *stock* endcard pixels to this render.
+
+    A report is a technical change heuristic, not proof of readable typography
+    or independently authenticated human/retailer acceptance.
+    """
+    p=_record(provenance)
+    report=_record(endcard_proof)
+    windows=p.get("scene_windows")
+    if (not isinstance(windows,list) or len(windows)!=12
+            or not isinstance(windows[-1],dict)
+            or type(windows[-1].get("start")) not in (int,float)
+            or report.get("schema")!="feature4_stock_endcard_pixel_v1"
+            or report.get("status")!="ENCODED_OUTRO_VISUALLY_CHANGED_NOT_TEXT_APPROVAL"
+            or report.get("source_sha256")!=_sha(original)
+            or report.get("duration_seconds")!=60
+            or report.get("outro_start_seconds")!=windows[-1]["start"]
+            or report.get("pre_outro_sample_seconds")!=53.0
+            or report.get("outro_sample_seconds")!=57.5
+            or report.get("outro_tail_sample_seconds")!=59.3
+            or any(report.get(flag) is not False for flag in (
+                "commercial_release_eligible","human_visual_approval",
+                "retailer_garment_verified","text_legibility_verified",
+                "spoken_caption_sync_verified"))):
+        raise MinuteProofError("Encoded 55s endcard evidence incomplete or approval overclaimed")
+    change=report.get("scene_delta_mean_luma")
+    stable=report.get("outro_stability_delta_mean_luma")
+    if (type(change) not in (int,float) or type(stable) not in (int,float)
+            or not math.isfinite(change) or not math.isfinite(stable)
+            or not 25 <= change <= 255 or not 0 <= stable <= 22):
+        raise MinuteProofError("Endcard pixel change or persistence not established")
+    return {"status":"ENCODED_STOCK_OUTRO_CHANGED_NOT_AD_APPROVAL",
+            "source_sha256":report["source_sha256"],
+            "scene_delta_mean_luma":change,
+            "outro_stability_delta_mean_luma":stable,
+            "commercial_release_eligible":False,
+            "text_legibility_verified":False}
+
+
 def validate_minute_evidence(*, original, master, preview, provenance,
                              motion, master_proof, preview_proof,
                              contact_image, contact_proof,
                              captioned=None, caption_srt=None, caption_vtt=None,
-                             caption_proof=None, visibility_proof=None):
+                             caption_proof=None, visibility_proof=None,
+                             endcard_proof=None):
     caption_args=(captioned,caption_srt,caption_vtt,caption_proof)
     # A positive 60s acceptance receipt MUST be complete. Optional old CLI
     # flags once allowed an otherwise-positive receipt with evidence NOT_RUN.
     # Require the actual captioned MP4/SRT/VTT/burn-in and visibility proof.
-    if not all(x is not None for x in (*caption_args, visibility_proof)):
-        raise MinuteProofError("Missing mandatory 60s captioned or scene visibility proof")
+    if not all(x is not None for x in (*caption_args, visibility_proof, endcard_proof)):
+        raise MinuteProofError("Missing mandatory 60s captioned, scene or endcard proof")
     files=[Path(original),Path(master),Path(preview)]
     h0,h1,h2=(_sha(x) for x in files)
     p,m,a,v,s=(_record(x) for x in
@@ -226,6 +267,8 @@ def validate_minute_evidence(*, original, master, preview, provenance,
             raise MinuteProofError("Attribution, SHA-256, or provenance missing")
     scene_evidence=validate_visibility_evidence(
         original=original,provenance=provenance,visibility_proof=visibility_proof)
+    endcard_evidence=validate_endcard_evidence(
+        original=original,provenance=provenance,endcard_proof=endcard_proof)
     caption_evidence=validate_captioned_review(
         preview=preview,provenance=provenance,captioned=captioned,
         caption_srt=caption_srt,caption_vtt=caption_vtt,caption_proof=caption_proof)
@@ -244,6 +287,7 @@ def validate_minute_evidence(*, original, master, preview, provenance,
         "feature7":{"status":"LIMITED_TIMELINE_ONLY","advanced_effects_accepted":False},
         "captioned_editorial_review":caption_evidence,
         "scene_visibility_qa":scene_evidence,
+        "stock_endcard_pixel_qa":endcard_evidence,
         "repetition_warning":bool(s.get("repetition_warning")),
         "commercial_release_eligible":False,
         "human_approved":False,
@@ -260,6 +304,7 @@ def main():
     for name in ("captioned","caption-srt","caption-vtt","caption-proof"):
         ap.add_argument("--"+name,required=True)
     ap.add_argument("--visibility-proof",required=True)
+    ap.add_argument("--endcard-proof",required=True)
     args=ap.parse_args()
     kw={name.replace("-","_"):Path(getattr(args,name.replace("-","_")))
         for name in ("original","master","preview","provenance","motion",
@@ -268,6 +313,7 @@ def main():
         value=getattr(args,name.replace("-","_"))
         kw[name.replace("-","_")]=Path(value) if value is not None else None
     kw["visibility_proof"]=Path(args.visibility_proof) if args.visibility_proof else None
+    kw["endcard_proof"]=Path(args.endcard_proof)
     report=validate_minute_evidence(**kw)
     dest=Path(args.output)
     if dest.is_symlink() or dest.exists() or not dest.parent.is_dir():
