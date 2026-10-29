@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {F2_VOICES,VOICE_SPEEDS,voiceChoices,emptyVoiceSelection,makeVoiceAction,validateVoiceSelection} from './voiceover-model.mjs'
 import LocalVoicePanel from './LocalVoicePanel.jsx'
 import Feature2TracePanel from './Feature2TracePanel.jsx'
@@ -25,10 +25,16 @@ export default function VoiceoverSelector({
   const [error,setError]=useState('')
   const [message,setMessage]=useState('')
   const [file,setFile]=useState(null)
+  const requestScopeRef=useRef('')
+  // A customer revision, shop change, voice selection or revoked role
+  // invalidates every in-flight paid request and upload receipt.
+  requestScopeRef.current=[shopId,campaignId,planSha256,sourceScript,
+    enabled,selection.mode,selection.voice_id,selection.speed,voiceProvider,
+    file?.name,file?.size,file?.lastModified].join(':')
   useEffect(()=>{
     setSelection(emptyVoiceSelection())
     setConfirmed(false);setError('');setMessage('');setFile(null);setLocale('en-IN');setVoiceProvider('kokoro')
-  },[shopId,campaignId,planSha256])
+  },[shopId,campaignId,planSha256,sourceScript])
   const authorizedAssets=useMemo(()=>
     (Array.isArray(approvedAudioAssets)?approvedAudioAssets:[])
     .filter(a=>a?.shop_id===shopId && a?.authorized===true && a?.kind==='audio'),
@@ -54,9 +60,11 @@ export default function VoiceoverSelector({
         approvedAudioAssets:authorizedAssets,userConfirmedCharge:confirmed,
         idempotencyKey:crypto.randomUUID(),preview})
     }catch{setError('Choose an available voice and confirm provider charges');return}
+    const scope=requestScopeRef.current
     setBusy(true)
     try{
       const result=await (preview?onRequestPreview:onRequestSynthesis)(payload)
+      if(scope!==requestScopeRef.current)throw Error('Voice request context changed')
       if(result?.shop_id!==shopId||result?.campaign_id!==campaignId||
         result?.plan_sha256!==planSha256||result?.private!==true||
         typeof result?.asset_id!=='string'||result?.can_publish!==false)
@@ -64,8 +72,9 @@ export default function VoiceoverSelector({
       setMessage(preview?'Private voice preview saved for authorized review.':
         'Private narration generated. It still requires editorial approval.')
       setConfirmed(false)
-    }catch(e){setError(e?.message||'Speech request failed; check original job before retrying')}
-    finally{setBusy(false)}
+    }catch(e){if(scope===requestScopeRef.current)
+      setError(e?.message||'Speech request failed; check original job before retrying')}
+    finally{if(scope===requestScopeRef.current)setBusy(false)}
   }
   async function upload(){
     setError('');setMessage('')
@@ -76,15 +85,19 @@ export default function VoiceoverSelector({
       file.size<100||file.size>25*1024*1024){
       setError('Only WAV or MP3 up to 25 MB is supported');return
     }
+    const scope=requestScopeRef.current
     setBusy(true)
     try{
       const receipt=await onRequestUpload(file,{shop_id:shopId,campaign_id:campaignId,
         creative_plan_sha256:planSha256,requires_rights_review:true})
-      if(receipt?.shop_id!==shopId||receipt?.private!==true||
+      if(scope!==requestScopeRef.current||receipt?.shop_id!==shopId||
+        receipt?.campaign_id!==campaignId||
+        receipt?.private!==true||receipt?.can_publish!==false||
         typeof receipt?.asset_id!=='string')throw Error('Private upload not verified')
       setMessage('Upload received for authorization and rights review.')
-    }catch(e){setError(e?.message||'Private upload failed; no audio was selected')}
-    finally{setBusy(false)}
+    }catch(e){if(scope===requestScopeRef.current)
+      setError(e?.message||'Private upload failed; no audio was selected')}
+    finally{if(scope===requestScopeRef.current)setBusy(false)}
   }
   return <section className="rg-voice" aria-label="Reel voiceover settings">
     <h3>Voiceover</h3>
