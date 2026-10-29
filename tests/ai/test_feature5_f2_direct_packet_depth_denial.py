@@ -6,6 +6,7 @@ stdout, approved private garment media, or a Wan model/GPU run.
 from __future__ import annotations
 
 import unittest
+import sys
 
 from feature5_motion.feature2_storyboard_bridge import qualify_feature2_offline_storyboard
 from feature5_motion.wan22_motion_adapter import WanCompatibilityError
@@ -28,7 +29,7 @@ class Feature2DirectPacketDepthDenialTests(unittest.TestCase):
         packet = make_packet(15)
         nested = []
         root = nested
-        for _ in range(1600):
+        for _ in range(max(sys.getrecursionlimit() + 128, 12000)):
             child = []
             nested.append(child)
             nested = child
