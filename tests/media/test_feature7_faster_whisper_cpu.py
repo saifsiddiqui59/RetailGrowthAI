@@ -188,6 +188,20 @@ class OfflineFasterWhisperCpuTests(unittest.TestCase):
                 mod.infer_audio(**self.arguments())
         self.assertFalse(self.output.exists())
 
+    def test_auto_detected_unapproved_language_never_signs_transcript(self):
+        class UnsupportedLocale:
+            def __init__(self,*args,**kwargs): pass
+            def transcribe(self,*args,**kwargs):
+                return iter([Segment([Word("Bonjour",0.2,0.6)])]),types.SimpleNamespace(
+                    language="fr")
+        with patch.dict(sys.modules,{
+            "faster_whisper":types.SimpleNamespace(WhisperModel=UnsupportedLocale)
+        }):
+            with self.assertRaisesRegex(mod.LocalFasterWhisperError,
+                                        "not approved for this worker"):
+                mod.infer_audio(**self.arguments(language=None))
+        self.assertFalse(self.output.exists())
+
     def test_network_gpu_and_wrong_language_denied(self):
         with patch.dict(os.environ,{"CUDA_VISIBLE_DEVICES":"0"}):
             with self.assertRaises(mod.LocalFasterWhisperError):
