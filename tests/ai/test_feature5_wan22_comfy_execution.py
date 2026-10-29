@@ -86,16 +86,20 @@ def native_claim(pkg, job, attempt, reservation):
 
 
 def inputs(pkg,**extras):
-    job, attempt, reservation = str(uuid4()), str(uuid4()), str(uuid4())
-    kwargs=dict(package=pkg,job_id=job,attempt_token=attempt,
+    kwargs=dict(package=pkg,job_id=str(uuid4()),attempt_token=str(uuid4()),
                 verify_existing_fenced_paid_claim=lambda *a: True,
-                read_current_part3_native_claim=lambda s, j, t: native_claim(
-                    pkg, job, attempt, reservation),
                 verify_current_private_first_frame=private_f3_proof,
                 record_unique_submission_intent=lambda *a: True,
                 operator_image_legal_budget_approved=True,
                 production_runtime_approved=True)
     kwargs.update(extras)
+    # A cross-worker fixture may intentionally override the job or attempt.
+    # The simulated server-side native claim MUST refer to those final IDs,
+    # not the synthetic defaults chosen before kwargs were applied.
+    if "read_current_part3_native_claim" not in extras:
+        job, attempt, reservation = kwargs["job_id"], kwargs["attempt_token"], str(uuid4())
+        kwargs["read_current_part3_native_claim"] = lambda s, j, t: native_claim(
+            pkg, job, attempt, reservation)
     return kwargs
 
 
