@@ -1,0 +1,120 @@
+name: Feature5 Azure OIDC ARM reconcile — read only
+
+# PROPOSAL ONLY: feature-owned handoff file. The main-repo coordinator moves
+# this reviewed YAML into .github/workflows/ under an approved pull request.
+# GitHub Actions cannot load workflows from docs/ paths.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rgai-dev-feature5-arm-reconcile
+  cancel-in-progress: false
+
+jobs:
+  feature5-azure-reconcile:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    name: Verify exact DEV ARM deployment and A100 quota without writes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      EXPECTED_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RG: rg-retailgrowth-dev
+      ENV_NAME: rgai-f5-gpu-canary-eastus
+      DEPLOYMENT: CustomDeployment-20261026093554
+    steps:
+      - name: Azure OIDC login using existing DEV credentials
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify exact DEV subscription, tenant RG and read Azure state
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "${EXPECTED_SUB:-}"
+          test "$(az account show --query id -o tsv)" = "$EXPECTED_SUB"
+          test "$(az account show --query state -o tsv)" = "Enabled"
+          test "$(az group show -n "$RG" --query location -o tsv)" = "centralindia"
+          test "$(az group show -n "$RG" --query tags.environment -o tsv)" = "dev"
+          test "$(az group show -n "$RG" --query tags.app -o tsv | tr '[:upper:]' '[:lower:]')" = "retailgrowthai"
+          echo "PASS: the intended RetailGrowthAI DEV identity and RG (IDs withheld)"
+          echo "Microsoft.App registration:"
+          az provider show --namespace Microsoft.App --query registrationState -o tsv
+
+          # Azure may report Deployment Succeeded while actually deploying zero
+          # ARM resources. Never attempt a second create before reconciling.
+          if az deployment group show -g "$RG" -n "$DEPLOYMENT" -o json > "$RUNNER_TEMP/arm.json" 2>/dev/null; then
+            python3 - "$RUNNER_TEMP/arm.json" <<'PY'
+          import json,sys
+          p=json.load(open(sys.argv[1]))
+          x=p.get("properties", {})
+          template=x.get("template") or {}
+          resources=template.get("resources")
+          print("Deployment:", p.get("name"))
+          print("Deployment state:", x.get("provisioningState"))
+          print("Template resource count:", len(resources) if isinstance(resources,list) else "unavailable")
+          if isinstance(resources,list):
+              for obj in resources:
+                  print("ARM resource declaration:",
+                        obj.get("type"), obj.get("name"), obj.get("location"))
+          PY
+            az deployment operation group list -g "$RG" -n "$DEPLOYMENT" \
+              --query "[].{status:properties.provisioningState,type:properties.targetResource.resourceType,name:properties.targetResource.resourceName}" -o json
+          else
+            echo "BLOCKED: prior deployment not readable; do not rerun a creation"
+          fi
+
+          # Read-only scoped inventory does not require a GPU or new registry.
+          az resource list -g "$RG" \
+            --resource-type Microsoft.App/managedEnvironments \
+            --query "[].{name:name,location:location,state:properties.provisioningState}" -o json
+
+          if az containerapp env show -g "$RG" -n "$ENV_NAME" -o json > "$RUNNER_TEMP/env.json" 2>/dev/null; then
+            python3 - "$RUNNER_TEMP/env.json" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1]))
+          p=x.get("properties") or {}
+          tag={k.lower():str(v).lower() for k,v in (x.get("tags") or {}).items()}
+          assert x.get("name")=="rgai-f5-gpu-canary-eastus", "Wrong environment name"
+          assert str(x.get("location","")).lower().replace(" ","")=="eastus", "Wrong region"
+          assert tag.get("app")=="retailgrowthai" and tag.get("environment")=="dev" and tag.get("feature")=="feature5", "Wrong ownership"
+          print("PASS: exact isolated East US DEV canary exists.")
+          print("ENV provisioning:", p.get("provisioningState"))
+          print("ENV workload profiles:",[(y.get("name"),y.get("workloadProfileType")) for y in p.get("workloadProfiles") or []])
+          print("ENV log destination:", (p.get("appLogsConfiguration") or {}).get("destination"))
+          PY
+            echo "A100 quota rows (if API supports existing environment):"
+            if az containerapp env list-usages -g "$RG" -n "$ENV_NAME" -o json > "$RUNNER_TEMP/usage.json" 2>/dev/null; then
+              python3 - "$RUNNER_TEMP/usage.json" <<'PY'
+          import json,sys
+          a=json.load(open(sys.argv[1]))
+          items=a if isinstance(a,list) else a.get("value",[])
+          relevant=[v for v in items if "NCA100" in str(v.get("name","")).upper()]
+          if not relevant:
+              print("A100 QUOTA UNKNOWN: no NCA100 row from existing environment")
+          else:
+              for v in relevant:
+                  print("A100 QUOTA:", v.get("name"), "limit=",v.get("limit"),"used=",v.get("currentValue"))
+          PY
+            else
+              echo "A100 QUOTA UNKNOWN: env list-usages unavailable (not quota=0)"
+            fi
+          else
+            echo "ENVIRONMENT ABSENT OR UNREADABLE; do not infer quota=0 or redeploy automatically"
+          fi
+          echo "READ-ONLY COMPLETE. No resource created, changed or deleted."
+
+      - name: Logout Azure OIDC session
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
