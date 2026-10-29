@@ -50,11 +50,11 @@ class ModelReviewProposalTests(unittest.TestCase):
         self.assertIn("from public,anon,authenticated;",sql)
 
     def test_proposal_is_read_only_and_not_registered_as_migration(self):
-        sql = re.sub(r"--[^\\n]*", "", self.sql.lower())
+        sql = re.sub(r"--[^\n]*", "", self.sql.lower())
         body = sql.split("as $$", 1)[1].split("end $$;", 1)[0]
-        for pattern in (r"\\binsert\\s+into\\b", r"\\bupdate\\s+\\w",
-                        r"\\bdelete\\s+from\\b", r"\\btruncate\\b",
-                        r"\\bexecute\\s+\\w"):
+        for pattern in (r"\binsert\s+into\b", r"\bupdate\s+\w",
+                        r"\bdelete\s+from\b", r"\btruncate\b",
+                        r"\bexecute\s+\w"):
             with self.subTest(pattern=pattern):
                 self.assertIsNone(re.search(pattern, body))
         self.assertFalse(
