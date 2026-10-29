@@ -75,6 +75,15 @@ class GarmentIntegrationTests(unittest.TestCase):
         self.assertEqual(config["duration_seconds"], 60)
         self.assertEqual((config["width"], config["height"], config["fps"]), (1080,1920,24))
         self.assertEqual(report["scene_count"], 12)
+        self.assertEqual(report["editorial_subtitle_kind"], "EDITORIAL_TEST_TITLES_NOT_SPOKEN_AUDIO")
+        cues = report["editorial_subtitle_cues"]
+        self.assertEqual(len(cues), 12)
+        from feature4_subtitles import compose_approved_subtitles
+        srt, vtt = compose_approved_subtitles(cues, duration_seconds=60)
+        self.assertEqual(srt.count(" --> "), 12)
+        self.assertEqual(vtt.count(" --> "), 12)
+        self.assertEqual([c["start"] for c in cues], report["synced_scene_starts"])
+        self.assertFalse(report["actual_spoken_voiceover"])
         self.assertTrue(report["reused_stock_video_clips"])
         self.assertEqual(html.count('class="footage clip"'), 5)
         self.assertEqual(html.count('class="product-photo"'), 6)
