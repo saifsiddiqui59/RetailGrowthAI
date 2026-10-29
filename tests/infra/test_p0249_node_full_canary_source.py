@@ -79,12 +79,16 @@ class NodeFullCanarySafety(unittest.TestCase):
                 request=types.SimpleNamespace(Request=request, urlopen=urlopen),
                 error=types.SimpleNamespace(HTTPError=urllib.error.HTTPError)),
             "NODE_PREVIEW": origin,
+            "_NODE_OPENER": types.SimpleNamespace(open=urlopen),
             "time": time,
         }
         exec(compile(ast.Module(body=[preflight], type_ignores=[]),
                      str(E2E), "exec"), scope)
         scope["node_preflight"](include_prompt=False)
         self.assertEqual(len(calls), 6)  # health + five protected routes
+        self.assertIn("_NODE_OPENER.open", source)
+        self.assertNotIn("urllib.request.urlopen(", source)
+
         with self.assertRaisesRegex(RuntimeError, "PROMPT_MODE_NOT_SUPPORTED"):
             scope["node_preflight"](include_prompt=True)
         # Unsupported mode is rejected BEFORE any network request.
