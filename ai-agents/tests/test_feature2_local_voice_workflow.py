@@ -89,6 +89,7 @@ def signed_f7_receipt():
       "source_duration_seconds":1.0,
       "model_id":"faster_whisper_small_cpu_int8",
       "model_revision":"5"*40,
+      "model_bin_sha256":"6"*64,
       "local_cpu_inference_invoked":True,
       "no_remote_model_calls":True,
       "transcription_status":"real_local_cpu_decoder_output",
