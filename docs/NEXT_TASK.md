@@ -1250,3 +1250,6 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 ## 2026-10-29 — Phase2 UI/reconciliation coordinator closeout
 - Verify all four exact integration CI jobs and postmerge main 4/4 before closing #642/#643 as superseded. Still pending trusted private model+garment actual licensed bytes, operator evidence RPC, binary no-URL endpoint, Azure real queue worker/poison, reviewed source-produced customer images, browser E2E and #249 host fix; no GPU/PROD/WineShopPOS operations.
 
+
+## 2026-10-29 — Feature3 bounded GPU-off queue peek (source only)
+- Verify PR exact-head 4/4, coordinator merge and fresh main postmerge 4/4. Queue SDK peek is diagnostic only: operator cannot treat empty/invisible batch as no outstanding claim, cannot delete or drain, cannot infer ACK or paid outcome, cannot use it as an Azure trigger. Actual durable GPU worker, poison queue, private current-rights/lease gate and reconciliation with genuine provider bill are separate planned tasks. Do not turn on GPU/paid provider, change DEV/PROD cloud settings or touch WineShopPOS.

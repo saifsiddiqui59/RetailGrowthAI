@@ -692,3 +692,5 @@ Use scripts/checkpoint.sh after completing a task.
 
 - 2026-10-29 Coordinator Phase2: #642 frontend generated history direct merge was rejected by GitHub 405 for current-main doc conflict despite exact 4/4 CI; preserved its validated code/tests, combined with #643 read-only GPU billing reconciliation source/test and append-only docs on new current-main integration branch for fresh four-job CI. No GitHub force-push, hosted/cloud settings, paid provider or WineShopPOS change.
 
+
+- 2026-10-29 Feature3 Phase2: implemented backend-only bounded Azure Queue peek inspecting actual strict existing v1 GPU dispatch IDs under current-rights preflight, explicitly no receive/claim/delete/ACK/charge, plus failure-path/duplicate/forged/foreign/revoked negative SDK-shaped tests. Confirmed Microsoft peek semantics. No new Azure resources/Queue trigger, paid inference, hosted SQL or WineShopPOS.

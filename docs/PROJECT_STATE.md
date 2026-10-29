@@ -1269,3 +1269,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 ## 2026-10-29 — Coordinator Phase2 source integration checkpoint
 - Reconciled separate source-ready #642 (on-demand tenant private generated job metadata UI) and #643 (operator read-only uncertain-billing inspection) into a current-main branch with all original source/test docs and CI gates; no new generated private pixels or billable worker. Complete exact integration PR 4/4 and fresh postmerge main CI before treating them merged.
 
+
+## 2026-10-29 — Feature3 Azure Queue peek-only diagnostics source
+- Added bounded existing Azure SDK `peek_messages` inspection with strict existing Feature3 v1 envelope -> GPU OFF source-rights preflight. No receive, visibility change, dequeue count, SQL claim, ACK/delete, retry, spend, GPU invocation or new storage. Offline test doubles assert that all mutating QueueClient methods remain unused including failure paths. Source only; actual Azure Queue configuration/credentials and hosted E2E unverified. [Handoff](feature3/GPU_OFF_AZURE_QUEUE_PEEK_20261029.md).

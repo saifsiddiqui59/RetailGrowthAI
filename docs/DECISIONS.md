@@ -927,3 +927,6 @@
 ## 2026-10-29 — Integrate disjoint private history and financial inspection without false live claims
 - Preserve original #642 and #643 source/test diffs and append-only docs when main has advanced; never force-merge conflicting canonical docs, silently drop a security negative test or claim that a metadata read settles financial state. Source CI and hosted DEV are distinct.
 
+
+## 2026-10-29 — Peek-only operator inspection is safer than dequeue-based test
+- Use Microsoft Azure Storage Queue SDK `peek_messages` with explicit 1..5 bound to inspect currently visible, v1-only GPU messages during provider-OFF preflight. Never use `receive_message`, implicit QueueTrigger, `delete_message` or mutating operations for inspection because default visibility, retries and auto-deletion could alter a future paid job. A Queue peek does not prove that other invisible messages are absent; only SQL and separately reviewed billing determine a final outcome.
