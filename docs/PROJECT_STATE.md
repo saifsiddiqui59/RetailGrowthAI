@@ -1316,3 +1316,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## 2026-10-29 — Feature3 reconciled 33-package evidence tracker
 - Added `docs/feature3/FEATURE3_33_PACKAGE_STATUS_20261029.md` mapping every established baseline package to actual code/current hosted dependencies. Evidence categories: 1 source-integrated, 11 source-partial, 21 blocked or dependent; **0 verified as end-to-end hosted complete**. Do not infer commercial source rights or paid GPU execution from source CI. No hosted SQL changes.
+
+## 2026-10-29 — Feature3 proposed model-rights RPC actual disposable SQL negative gate
+- Added `tests/security/poster_feature3_current_model_review_proposal_negative.sql` to existing CI local-Supabase security harness. It imports the **unapplied** proposed service-only model-review RPC into disposable Postgres, checks actual EXECUTE ACL, invalid/currently-unreviewed source NULL responses and signed-role-claim rejection, then drops proposal from disposable DB. This cannot turn synthetic proof into legal approval. No hosted DEV migration, GPU, queue, cost, PROD or WineShopPOS.
