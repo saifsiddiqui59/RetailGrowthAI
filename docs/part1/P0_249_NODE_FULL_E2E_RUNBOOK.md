@@ -34,3 +34,5 @@ Offline test: `tests/infra/test_p0249_node_header_fence.py` extracts the pure he
 
 ### Additional Node-preview no-redirect fence
 The canary no longer passes preview calls through the parent `urllib.request.urlopen` automatic redirect handler: its isolated Node-only opener returns an HTTP 30x as a fatal `P0249_NODE_REDIRECT_DENIED`, so even a misconfigured/compromised preview cannot redirect the custom user JWT to a foreign host. Read-only GET may retry bounded transient errors; POST/PATCH is single-attempt and an uncertain 502/503/504/timeout is fatal. Supabase Auth/RLS/admin/cleanup requests keep the existing original transport. This is tested with mock HTTP, **not** live signed acceptance or Azure causality.
+
+The same no-redirect opener also applies to **anonymous initial Node health/401 preflight**, not just signed calls. An untrusted 302/307 cannot spoof secure route readiness by redirecting an unauthenticated request to a different host before protected test-user creation. Offline AST/mock preflight tests exercise the exact health and five route checks; genuine hosted verification still requires owner-controlled canary and ROOT approval.
