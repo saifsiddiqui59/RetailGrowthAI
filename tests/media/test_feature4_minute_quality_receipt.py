@@ -29,7 +29,7 @@ class MinuteEvidenceTests(unittest.TestCase):
         # evidence-present gate, instead of testing only missing arguments.
         for key in ("provenance","motion","master_proof",
                     "preview_proof","contact_proof"):
-            self.paths[key].write_text('{"probe": true}\\n',encoding="utf-8")
+            self.paths[key].write_text('{"probe": true}\n',encoding="utf-8")
     def validate(self):
         return validate_minute_evidence(**self.paths)
     def test_every_caption_and_visibility_receipt_is_required(self):
