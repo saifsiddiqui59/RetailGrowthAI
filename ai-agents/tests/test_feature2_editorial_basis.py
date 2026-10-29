@@ -425,3 +425,16 @@ def test_approved_offer_percentage_and_sku_scope_must_be_consistent(offer_patch)
         inspect_retailer_copy_claims(
             verified_context=context,
             copy=candidate_copy(caption="20% off selected kurti styles"))
+
+
+@pytest.mark.parametrize("control", ["\\u200b", "\\u202e", "\\u2066"])
+def test_rss_headlines_reject_invisible_and_bidi_spoofing(control):
+    feeds = sample_feed()
+    feeds[0]["headline"] = "Festive kurti " + control + "collection news"
+    with pytest.raises(EditorialBasisRejected):
+        ranked(feeds)
+    with pytest.raises(EditorialBasisRejected):
+        rank_xml(rss_xml(items=[(
+            "invisible_spoof_1",
+            "Festive cotton kurti " + control + "collection news",
+            "Wed, 28 Oct 2026 11:00:00 GMT")]))
