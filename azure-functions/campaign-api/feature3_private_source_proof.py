@@ -107,7 +107,7 @@ class Feature3TrustedPrivateSourceProof:
                 media["mime_type"] not in _EXT or
                 (media["license_name"]!="owned" and
                  (not isinstance(media["license_url"],str) or
-                  not media["license_url"].startswith("https://"))):
+                  not media["license_url"].startswith("https://")))):
             raise SourceProofDenied("Private media ownership and licence metadata invalid")
         key=media["object_path"]
         if not isinstance(key,str) or len(key)>256 or not key.startswith(shop+"/"):
