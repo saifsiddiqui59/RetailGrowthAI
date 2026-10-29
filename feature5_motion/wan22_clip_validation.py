@@ -56,8 +56,15 @@ def inspect_native_mp4(shot: WanShotPackage, *, staged_file: Path, ffprobe="ffpr
             check=True, capture_output=True, text=True, timeout=30,
         )
         data = json.loads(result.stdout[:50000])
-        streams = [v for v in data["streams"] if v.get("codec_type")=="video"]
-        if len(streams) != 1: raise ValueError("Wrong number of video streams")
+        # Native Wan SaveVideo output is exactly one silent H264 video.
+        # Extra audio, subtitles, attachments or second video streams can
+        # smuggle unreviewed content into the downstream editor/publisher.
+        # Final Feature4 music/voice is separately licensed and reviewed.
+        streams = data["streams"]
+        if (type(streams) is not list or len(streams) != 1 or
+            type(streams[0]) is not dict or
+            streams[0].get("codec_type") != "video"):
+            raise ValueError("Native silent Wan MP4 must have one video stream only")
         v = streams[0]
         fps = v["r_frame_rate"]
         n = int(v["nb_read_frames"])
