@@ -89,3 +89,9 @@ publishing, licensed stock fetch, real Wan, GPU or provider cost is triggered.
 ## 2026-10-29 — Source additions after original design
 - F2 planner/Part1 F4 FFmpeg worker outcome spans now have strict status/metadata and optional backend-only service RPC sink. A separate private-schema ledger plus signed OWNER/EDITOR read RPC is staged (not applied) and the Testing Chat UI can read it by job IDs already present in browser-observed receipts. This is not a trusted run→job mapping until independently verified. Duplicate public-ledger draft #626 was discarded; no second table.
 - Mocked Chromium now renders the saved StageCards without the former undefined-variable error, checks signed backend RPC, missing-schema fallback and viewer denial. Source PR #628 4/4 CI, merged at 4a3acd3e. Real hosted Supabase, SWA and Functions deployment and genuine tenant/job acceptance are separate gates. F3/F5/F7 continue NOT_RUN.
+
+
+## 2026-10-29 — Source-only human QA improvements
+- `trace-guidance.mjs` ranks observed execution failure, uncertain POST/readback, human-rated low-quality output and NOT_RUN/UNOBSERVED features separately. It suggests feature-specific next checks, never automatically reruns non-idempotent requests.
+- `quality-rubrics.mjs` and `trace-quality-analysis.mjs` define user-selected review dimensions and compare only like-for-like reviewer aspects, not provider scores. A completed API/worker operation is not equivalent to approved creative quality.
+- The pending `trace-output-evidence.mjs` source gate (#666) distinguishes job ACK from actual observed F2 text/seven-day or Part1 F4 finished private output; unintegrated F3/F5/F7 cannot be scored by current Testing Chat path. Test-run→job is still browser-referenced rather than backend attested; hosted SQL/SWA/Functions activation remain separate.

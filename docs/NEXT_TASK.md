@@ -1301,3 +1301,9 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 proposed model RPC disposable SQL check
 - Verify four exact-head PR CI jobs on `feat/feature3-current-model-sql-disposable-gate-20261029` including actual disposable Postgres execution of the proposal and ACL denials. Fix any real SQL failures, preserve the 31 hosted migration history and do not apply the new RPC to live DEV absent separate reviewed migration approval. Later require genuine independently licensed customer original, model review/revoke transitions and two-shop signed DEV acceptance.
+
+
+## 2026-10-29 — Testing Chat next quality/release gates after #660/#662
+- Verify exact PR-head four CI for [#666](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/666), integrate only if green, then independent new main four CI. Its `AWAITING_OUTPUT` classification and read-back gating must preserve UNKNOWN #249 handling and unimplemented F3/F5/F7 outputs.
+- Hosted DEV still lacks reviewed browser trace and backend worker ledger tables (last read-only check: 31 canonical migration versions, all three missing). Separate protected canonical migration/recoverable DEV rollback authorization, real signed two-tenant RLS/owner/editor/VIEWER denial tests, frontend/Function worker deployment, and real private 30s video end-to-end are mandatory before saying Testing Chat is live.
+- Independently bind trusted server-side test-run→job IDs rather than treating client-supplied references as attestation. Adopt actual Feature3/5/7 runtime operations only after private output/rights and cost gates; no fake output/ratings.

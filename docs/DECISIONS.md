@@ -976,3 +976,8 @@
 
 ## 2026-10-29 — Execute proposed current-model review only in disposable CI
 - The source-only current-model rights RPC may be imported and ACL/negative-tested against throwaway local Postgres and dropped in the same test script. This does not authorize canonical migration, hosted DEV writes or commercial source approvals. Anonymous/authenticated EXECUTE and mismatched reviewer role claims must stay denied, while missing/unapproved inputs fail closed.
+
+
+## 2026-10-29 — Testing Chat human QA is not technical or output-existence attestation
+- A feature-status PASS can coexist with a poor human-quality score; a skipped optional substage cannot erase a real earlier PASS. Low human score is not a verified model/worker fault. Compare ratings only for the same feature/aspect; mixed historical averages are labeled as such. F3/F5/F7 are unrated without verified real output.
+- Approval/queue POST acknowledgement is distinct from actual creative output. Pending #666 requires F2 deterministic prompt/seven-day campaign output or F4 completed private render/output ID before enabling subjective quality scores; otherwise classify `AWAITING_OUTPUT`. Do not infer GPU inference, publisher approval or backend run→job ownership from user-written events. Preserve protected canonical migration inventory, #249 uncertain POST handling, paid provider OFF and no WineShopPOS.
