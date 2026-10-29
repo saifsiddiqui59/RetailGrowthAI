@@ -39,6 +39,7 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
     const shop=shopId,source=api,nonce=++epoch.current
     registry.current.clear()
     setImage(null)
+    setImageBusy(false)
     setImageMessage('')
     const still=()=>nonce===epoch.current &&
       current.current.shopId===shop && current.current.api===source
