@@ -1319,3 +1319,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## 2026-10-29 — Feature3 proposed model-rights RPC actual disposable SQL negative gate
 - Added `tests/security/poster_feature3_current_model_review_proposal_negative.sql` to existing CI local-Supabase security harness. It imports the **unapplied** proposed service-only model-review RPC into disposable Postgres, checks actual EXECUTE ACL, invalid/currently-unreviewed source NULL responses and signed-role-claim rejection, then drops proposal from disposable DB. This cannot turn synthetic proof into legal approval. No hosted DEV migration, GPU, queue, cost, PROD or WineShopPOS.
+
+## 2026-10-29 — Feature3 operator private PNG evidence SQL proposal disposable qualification
+- Added `tests/security/poster_feature3_operator_evidence_proposal_negative.sql`: existing CI disposable Supabase PostgreSQL actually imports the **unapplied** service-only operator output evidence RPC proposal, verifies service-only EXECUTE, forged-role denial and absent/foreign synthetic output NULL, then drops the proposed function. No hosted DEV migrations, real output bytes, financial settlement, paid GPU, queue mutation, PROD or WineShopPOS. Handoff: `docs/feature3/OPERATOR_EVIDENCE_DISPOSABLE_SQL_NEGATIVES_20261029.md`.
