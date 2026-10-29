@@ -44,6 +44,7 @@ export function createFeature4SpeechReviewHandoff({
     cap.keep_projection.length===plan.keep_segments.length&&
     Array.isArray(cap.feature4_caption_track)&&
     cap.feature4_caption_track.length>0&&
+    [15,30,60].includes(cap.requested_reel_seconds)&&
     Number.isInteger(cap.actual_timeline_duration_ms)&&
     cap.actual_timeline_duration_ms>0,
     'Feature7 current AutoBroll caption/clock evidence required');
@@ -66,6 +67,7 @@ export function createFeature4SpeechReviewHandoff({
     priorEnd=p.end;current=m.timeline_end_ms;
   }
   check(current===cap.actual_timeline_duration_ms&&
+    current<=cap.requested_reel_seconds*1000+2500&&
     music&&music.version==='feature7_music_ducking_handoff_v1'&&
     music.shop_id===shop_id&&music.asset_id===asset_id&&
     music.source_sha256===original_source_sha256&&
@@ -74,7 +76,11 @@ export function createFeature4SpeechReviewHandoff({
     music.voice_preservation_required===true&&
     music.feature4_mixer_execution_required===true&&
     music.approved===false&&music.renderable===false&&
+    Number.isInteger(music.recommended_music_gain_db)&&
+    music.recommended_music_gain_db>=-24&&
+    music.recommended_music_gain_db<=-8&&
     Array.isArray(music.music_duck_intervals)&&
+    music.music_duck_intervals.length<=100&&
     qa&&qa.version==='feature7_decoded_quality_v1'&&
     qa.source_sha256===preview_sha256&&
     qa.real_decoding_performed===true&&qa.source_bytes_unchanged===true&&
@@ -83,9 +89,22 @@ export function createFeature4SpeechReviewHandoff({
     Array.isArray(qa.faults)&&qa.faults.length<=20&&
     Math.abs(qa.duration_seconds*1000-current)<=250,
     'Real preview quality / dialogue handoff mismatch');
+  let lastDuck=0;
+  for(const cue of music.music_duck_intervals){
+    check(cue&&Number.isInteger(cue.start_ms)&&
+      Number.isInteger(cue.end_ms)&&
+      cue.start_ms>=lastDuck&&
+      cue.end_ms>cue.start_ms&&cue.end_ms<=current,
+      'Invalid, overlapping or out-of-bounds music/voice automation');
+    lastDuck=cue.end_ms;
+  }
+  check(qa.faults.every(f=>typeof f==='string'&&
+    /^[A-Z0-9_]{1,80}$/.test(f)),
+    'Untrusted media QA fault text');
   let last=0;
   for(const cue of cap.feature4_caption_track){
     check(cue&&typeof cue.text==='string'&&cue.text.length>0&&
+      cue.text.length<=90&&!/[<>\u0000-\u001f\u007f]/.test(cue.text)&&
       Number.isFinite(cue.start)&&Number.isFinite(cue.duration)&&
       cue.start>=last&&cue.duration>=.2&&
       (cue.start+cue.duration)*1000<=current+1,
