@@ -370,3 +370,71 @@ def test_delivery_and_bogo_claims_are_reviewer_flags_without_source_approval(una
         copy=candidate_copy(caption=unapproved))
     assert "UNVERIFIED_URGENCY_OR_TREND" in report["issues"]
     assert report["can_publish"] is False
+
+
+@pytest.mark.parametrize("draft,issue", [
+    ({"caption": "５０％ off selected kurti styles"},
+     "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ({"caption": "20% off selected kurti styles and ９０％ off another"},
+     "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ({"cta": "Ｒｓ．１９９ for the festive collection"},
+     "UNVERIFIED_CURRENCY_PRICE"),
+    ({"caption": "ＦＲＥＥ ＳＨＩＰＰＩＮＧ for selected kurtis"},
+     "UNVERIFIED_URGENCY_OR_TREND"),
+    ({"headline": "１００％ pure cotton festive kurti"},
+     "PRODUCT_MATERIAL_FACTS_NOT_VERIFIED"),
+])
+def test_unicode_compatibility_claims_still_require_editorial_review(draft, issue):
+    report = inspect_retailer_copy_claims(
+        verified_context=copy_context(), copy=candidate_copy(**draft))
+    assert issue in report["issues"]
+    assert report["review_required"] is True
+    assert report["can_publish"] is False
+
+
+@pytest.mark.parametrize("hidden", ["\u200b", "\u2060", "\ufeff",
+                                     "\u202e", "\u2066", "\u200e"])
+def test_invisible_claim_obfuscation_rejected_before_review(hidden):
+    with pytest.raises(EditorialBasisRejected, match="Unsafe"):
+        inspect_retailer_copy_claims(
+            verified_context=copy_context(),
+            copy=candidate_copy(caption="50" + hidden + "% off kurtis"))
+
+
+def test_hindi_joiners_remain_legal_in_noncommercial_copy():
+    report = inspect_retailer_copy_claims(
+        verified_context=copy_context(),
+        copy=candidate_copy(caption="त्योहारों के लिए सुंदर कुर्ती\u200d स्टाइल"))
+    assert report["issues"] == []
+    assert report["can_publish"] is False
+
+
+@pytest.mark.parametrize("offer_patch", [
+    {"percent_off": 90},
+    {"percent_off": True},
+    {"percent_off": 0},
+    {"percent_off": 101},
+    {"eligible_product_skus": []},
+    {"eligible_product_skus": [""]},
+    {"eligible_product_skus": ["A" * 81]},
+])
+def test_approved_offer_percentage_and_sku_scope_must_be_consistent(offer_patch):
+    context = copy_context()
+    context["approved_offers"][0].update(offer_patch)
+    with pytest.raises(EditorialBasisRejected, match="percentage or SKU"):
+        inspect_retailer_copy_claims(
+            verified_context=context,
+            copy=candidate_copy(caption="20% off selected kurti styles"))
+
+
+@pytest.mark.parametrize("control", ["\u200b", "\u202e", "\u2066"])
+def test_rss_headlines_reject_invisible_and_bidi_spoofing(control):
+    feeds = sample_feed()
+    feeds[0]["headline"] = "Festive kurti " + control + "collection news"
+    with pytest.raises(EditorialBasisRejected):
+        ranked(feeds)
+    with pytest.raises(EditorialBasisRejected):
+        rank_xml(rss_xml(items=[(
+            "invisible_spoof_1",
+            "Festive cotton kurti " + control + "collection news",
+            "Wed, 28 Oct 2026 11:00:00 GMT")]))

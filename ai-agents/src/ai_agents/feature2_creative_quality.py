@@ -589,12 +589,20 @@ def choose_evergreen_when_no_relevant_live_trend(
 import hashlib
 import json
 import re
+import unicodedata
 
 _CLAIM_PERCENT = re.compile(r"(?<!\d)\d{1,3}\s*(?:%|percent|per[ -]?cent)\s*(?:off|discount|sale)?",re.I)
 _CLAIM_PRICE = re.compile(r"(?:₹|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
 _CLAIM_URGENCY = re.compile(r"\b(?:only \d+ left|selling out|last chance|guaranteed|best in india|number one|no\.?1|viral|trending now|everyone is buying|free shipping|free delivery|same-day delivery|cash on delivery|bogo|buy\s+(?:one|1)\s+get\s+(?:one|1)\s+free)\b",re.I)
 _CLAIM_WIDE = re.compile(r"\b(?:everything|all products|storewide|entire store|every item)\b",re.I)
 _CLAIM_MATERIAL = re.compile(r"\b(?:100% pure cotton|genuine silk|authentic gold|organic cotton)\b",re.I)
+# Reject invisible direction/word-break controls that can hide unsupported offers.
+# Keep ZWJ/ZWNJ: they are valid within Hindi/Marathi copy.
+_UNSAFE_COPY_CONTROLS = frozenset(
+    "\u200b\u2060\ufeff\u200e\u200f\u061c"
+    + "".join(chr(n) for n in range(0x202a, 0x202f))
+    + "".join(chr(n) for n in range(0x2066, 0x206a))
+)
 
 def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     """Review-only policy based on authoritative original retailer facts.
@@ -619,17 +627,36 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
             not 10<=len(offer["approved_claim_text"])<=180 or
             offer.get("shop_id")!=verified_context.get("shop_id")):
             raise EditorialBasisRejected("Offer evidence not approved for shop")
+        # A signed offer row with mismatched percent or missing SKU scope is
+        # inconsistent evidence, even if its claim text appears in the draft.
+        claim_hits=list(_CLAIM_PERCENT.finditer(
+            unicodedata.normalize("NFKC",offer["approved_claim_text"])))
+        if claim_hits:
+            percent=offer.get("percent_off")
+            skus=offer.get("eligible_product_skus")
+            if (type(percent) is not int or not 1<=percent<=100 or
+                type(skus) is not list or not 1<=len(skus)<=100 or
+                any(type(sku) is not str or not 1<=len(sku)<=80
+                    for sku in skus) or
+                any(int(re.match(r"\d+",hit.group()).group())!=percent
+                    for hit in claim_hits)):
+                raise EditorialBasisRejected("Approved percentage or SKU scope inconsistent")
     issues=set()
     for field,text in copy.items():
         if (type(text) is not str or not 1<=len(text.strip())<=1800 or
-            any(ord(ch)<32 for ch in text) or "<" in text or ">" in text or
+            any(ord(ch)<32 or ch in _UNSAFE_COPY_CONTROLS for ch in text) or
+            "<" in text or ">" in text or
             "https://" in text.lower() or "javascript:" in text.lower()):
             raise EditorialBasisRejected("Unsafe or unbounded retailer copy")
-        if _CLAIM_PRICE.search(text):
+        # NFKC is used for DETECTION only: fullwidth ５０％, Ｒｓ and
+        # ＦＲＥＥ ＳＨＩＰＰＩＮＧ are still commercial claims. Approved offer
+        # spans below must remain byte-for-byte wording from the original text.
+        normalized=unicodedata.normalize("NFKC",text)
+        if _CLAIM_PRICE.search(normalized):
             issues.add("UNVERIFIED_CURRENCY_PRICE")
-        if _CLAIM_URGENCY.search(text):
+        if _CLAIM_URGENCY.search(normalized):
             issues.add("UNVERIFIED_URGENCY_OR_TREND")
-        if _CLAIM_MATERIAL.search(text):
+        if _CLAIM_MATERIAL.search(normalized):
             issues.add("PRODUCT_MATERIAL_FACTS_NOT_VERIFIED")
         # Having ONE legitimate offer substring must not launder a second
         # invented percentage in that same sentence, headline or voiceover.
@@ -642,9 +669,11 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
             approved_spans.extend((m.start(),m.end()) for m in
                                    re.finditer(pattern,text,flags=re.I))
         hits=list(_CLAIM_PERCENT.finditer(text))
-        if hits and (not approved_spans or _CLAIM_WIDE.search(text) or
-                     any(not any(a<=hit.start() and hit.end()<=b
-                                 for a,b in approved_spans) for hit in hits)):
+        normalized_hits=list(_CLAIM_PERCENT.finditer(normalized))
+        if (len(normalized_hits)>len(hits) or
+            (hits and (not approved_spans or _CLAIM_WIDE.search(normalized) or
+             any(not any(a<=hit.start() and hit.end()<=b
+                         for a,b in approved_spans) for hit in hits)))):
             issues.add("DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED")
     digest=hashlib.sha256(json.dumps(copy,ensure_ascii=False,sort_keys=True,
                     separators=(",",":")).encode()).hexdigest()
@@ -712,7 +741,8 @@ def rank_source_backed_trends(*, verified_context, trends, now_utc,
             not _TREND_SHA.fullmatch(str(row.get("source_sha256") or "")) or
             type(row.get("headline")) is not str or
             not 12<=len(row["headline"])<=180 or
-            any(ord(c)<32 or c in "<>" for c in row["headline"]) or
+            any(ord(c)<32 or c in "<>" or c in _UNSAFE_COPY_CONTROLS
+                for c in row["headline"]) or
             type(row.get("published_at")) is not str):
             raise EditorialBasisRejected("Current authenticated RSS evidence missing")
         if row["id"] in seen_ids:
@@ -813,7 +843,8 @@ def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
             raise EditorialBasisRejected("RSS headline/date source invalid")
         headline=title.text.strip()
         if not 12<=len(headline)<=180 or \
-           any(ord(ch)<32 or ch in "<>" for ch in headline):
+           any(ord(ch)<32 or ch in "<>" or ch in _UNSAFE_COPY_CONTROLS
+               for ch in headline):
             raise EditorialBasisRejected("Unsafe unreviewed RSS headline")
         try:
             published=parsedate_to_datetime(pub.text.strip())
