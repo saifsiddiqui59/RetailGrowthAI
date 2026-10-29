@@ -7,7 +7,7 @@ shared APIs, .github/workflows, the frontend route and main merge.
 
 ## Verified engineering changes in this continuation
 
-- `feature2_feature7_signed_audio.py` is a *strict, fail-closed* consumer of
+- `feature2_voice_quality.py (signed-audio adapter)` is a *strict, fail-closed* consumer of
   Feature7's existing `feature7_signed_faster_whisper_asr_v1` HMAC envelope.
   It verifies the exact F7 MAC domain/canonical fields, 10-minute lifetime,
   30-second skew, original SHA-256, tenant, campaign/creative, private asset ID,
