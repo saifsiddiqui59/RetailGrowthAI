@@ -335,7 +335,7 @@ test('stale caption resize aborts across synthetic shop switch or approval lock'
  expect(await page.evaluate(()=>window.__feature4ResizeWrites.length)).toBe(0)
  // Explicit pointer cancel must also prevent a late synthetic pointer-up.
  await page.evaluate(other=>window.__feature4ResizeChangeContext(other,false),OTHER)
- await expect(page.getByRole('button',{name:'Split video at playhead'})).toBeEnabled()
+ await expect(page.getByTestId('f4-resize-active-shop')).toHaveText(OTHER)
  await fireDown(23)
  await page.evaluate(()=>{
    window.dispatchEvent(new PointerEvent('pointercancel',{
