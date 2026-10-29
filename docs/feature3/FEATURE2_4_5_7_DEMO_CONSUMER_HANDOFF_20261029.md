@@ -19,6 +19,21 @@ Do not relabel the already completed work as an output of this source PR.
 | `synthetic_garment_front.jpg` | `878fde8857f58862723f85d7f8bd723c65a8e498` | Separately photographed product still |
 | `synthetic_model_pose.jpg` | `72a86a60280976ce5c73db9525d9648b54d1126a` | Separate pose reference |
 
+## Independently observed exact SHA-256 in actual Actions artifact
+
+Downloaded the original `feature3-openvto-mit-inputs` ZIP (Actions #40829987383,
+artifact ID `12877664995`) and recomputed each binary's SHA-256 **and** Git
+blob SHA-1 from the ZIP contents, then compared to its manifest:
+
+| Filename | Actual SHA-256 | Manifest and original Git blob |
+| --- | --- | --- |
+| `synthetic_avatar.png` | `5f04a36a4511c841f17099dab0e934b1fde3a0a8a2f7f62f0ff01d71a2bd86a4` | Both matched |
+| `synthetic_garment_front.jpg` | `03ae4afc28c08a928547d56040f7099a06d2d2dbbb900440f7d33be602731b13` | Both matched |
+| `synthetic_model_pose.jpg` | `191830a241911e6186c4103e72769918353f4d21bb64c6cf7cafca4217341b39` | Both matched |
+
+MIT license file was also present. This is inspection of the **existing**
+artifact, not a new live server release or customer-source rights approval.
+
 ## Commands and executable consumer packet
 
 ```bash
