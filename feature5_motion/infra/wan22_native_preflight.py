@@ -280,13 +280,42 @@ def audit_offline_wheelhouse(root, *, reviewed_wheel_sha256):
             raise WanCompatibilityError("Actual dependency wheel SHA256 does not match approval")
         try:
             with ZipFile(path) as archive:
-                members = archive.namelist()
-                if not members or len(members) > 50000 or any(
-                    x.startswith("/") or "\\" in x or
-                    ".." in x.split("/") or "\x00" in x
-                    for x in members
-                ):
+                entries = archive.infolist()
+                if not entries or len(entries) > 50000:
                     raise WanCompatibilityError("Malformed or unsafe wheel archive entries")
+                # Even a byte-pinned wheel must be safe to install offline.
+                # Reject entries that pip/zipfile could overwrite twice, or
+                # that resolve differently across case-insensitive hosts.
+                members = []
+                normalized_members = set()
+                expanded_bytes = 0
+                for entry in entries:
+                    path_name = entry.filename
+                    is_dir = entry.is_dir()
+                    parts = path_name.split("/")
+                    if (not path_name or len(path_name) > 512 or
+                        path_name.startswith("/") or "\\" in path_name or
+                        ":" in path_name or "\x00" in path_name or
+                        any(ord(ch) < 32 for ch in path_name) or
+                        any(part in ("", ".", "..") for part in
+                            (parts[:-1] if is_dir else parts)) or
+                        (is_dir and parts[-1] != "") or
+                        (not is_dir and parts[-1] == "")):
+                        raise WanCompatibilityError("Malformed or unsafe wheel archive entries")
+                    mode = entry.external_attr >> 16
+                    kind = stat.S_IFMT(mode)
+                    if (kind not in (0, stat.S_IFREG, stat.S_IFDIR) or
+                        (is_dir and kind == stat.S_IFREG) or
+                        (not is_dir and kind == stat.S_IFDIR)):
+                        raise WanCompatibilityError("Unsafe wheel member type")
+                    alias = path_name.casefold()
+                    if alias in normalized_members:
+                        raise WanCompatibilityError("Duplicate/ambiguous wheel archive member")
+                    normalized_members.add(alias)
+                    expanded_bytes += entry.file_size
+                    if expanded_bytes > 24 * 1024 ** 3:
+                        raise WanCompatibilityError("Wheel archive expanded size limit")
+                    members.append(path_name)
                 metadata = [x for x in members if x.endswith(".dist-info/METADATA")]
                 wheelmeta = [x for x in members if x.endswith(".dist-info/WHEEL")]
                 if len(metadata) != 1 or len(wheelmeta) != 1:
