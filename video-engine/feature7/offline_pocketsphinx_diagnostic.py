@@ -92,6 +92,14 @@ def benchmark_local_pocketsphinx(*, video_path, expected_sha256,
         ps.ps_end_utt.argtypes = [ct.c_void_p]
         ps.ps_get_hyp.restype = ct.c_char_p
         ps.ps_get_hyp.argtypes = [ct.c_void_p, ct.c_void_p, ct.c_void_p]
+        ps.ps_seg_iter.restype = ct.c_void_p
+        ps.ps_seg_iter.argtypes = [ct.c_void_p, ct.c_void_p]
+        ps.ps_seg_next.restype = ct.c_void_p
+        ps.ps_seg_next.argtypes = [ct.c_void_p]
+        ps.ps_seg_word.restype = ct.c_char_p
+        ps.ps_seg_word.argtypes = [ct.c_void_p]
+        ps.ps_seg_frames.argtypes = [ct.c_void_p, ct.POINTER(ct.c_int),
+                                     ct.POINTER(ct.c_int)]
         ps.ps_free.argtypes = [ct.c_void_p]
         conf = sph.cmd_ln_init(
             ct.c_void_p(0), ct.c_void_p(ps.ps_args()), ct.c_int(1),
@@ -113,6 +121,21 @@ def benchmark_local_pocketsphinx(*, video_path, expected_sha256,
             if not hypothesis:
                 raise CpuAsrBenchmarkError("No recognizable human words")
             spoken = hypothesis.decode("utf-8")
+            # Native model emits frame-indexed lexical segments. These are
+            # genuine *hypothesis* times, not forced human-SRT alignment.
+            segments = []
+            seg = ps.ps_seg_iter(decoder, None)
+            while seg:
+                st, en = ct.c_int(), ct.c_int()
+                ps.ps_seg_frames(seg, ct.byref(st), ct.byref(en))
+                text = ps.ps_seg_word(seg).decode("utf-8")
+                if text not in ("<s>", "</s>", "<sil>", "[NOISE]"):
+                    segments.append({
+                        "word": re.sub(r"\\(\\d+\\)$", "", text),
+                        "start_ms": max(0, st.value*10),
+                        "end_ms": (en.value+1)*10
+                    })
+                seg = ps.ps_seg_next(seg)
         finally:
             ps.ps_free(decoder)
     except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
@@ -125,6 +148,8 @@ def benchmark_local_pocketsphinx(*, video_path, expected_sha256,
         "genuine_cpu_inference_executed": True, "hypothesis": spoken,
         **score, "meets_accuracy_threshold": score["word_error_rate"] <= max_word_error_rate,
         "no_gpu": True, "no_remote_model_calls": True,
+        "recognized_word_frame_times": segments,
+        "timing_source": "POCKETSPHINX_NATIVE_10MS_HYPOTHESIS",
         "word_level_alignment_verified": False,
         "model_weights_commercial_use_cleared": False,
         "customer_captioning_enabled": False,
