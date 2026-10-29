@@ -38,3 +38,11 @@ The checked-in local technical render tool produces ORIGINAL real video bytes (n
 With no --render flag this tool is a zero-write plan. It validates the final 5-second MP4 using ffprobe, does not upload to private Storage, and cannot create an approved garment/media grant. The actual offline tech render was executed locally and ffprobe returned H264, AAC, 1080x1920, 24 fps and exactly 5.000 seconds. It is a static experimental visual matte, NOT a professional commercial video. Consumer lead should use the emitted original video as test data only, not as Wan-generated or fashion-original stock.
 
 An independent technical sample ZIP was prepared for the owner with generated PNG, MP4, SHA receipts and README. It is not put in GitHub due to generated binary file/repo size and no approval to distribute actual user media.
+
+## Original music input for Feature4 local audio-mix acceptance
+
+Generate original procedure-synthesized mono 48kHz PCM16 WAV beds, without any commercial song, downloads, samples, Azure Speech, Pexels, YouTube or cost:
+
+    python ai-agents/test-fixtures/clothing-shop-pexels/generate-original-test-audio.py --output-dir /tmp/rgai-feature45-test --seconds 30
+
+The builder writes feature2-original-test-bed-30s.wav plus original-audio-provenance.json with SHA256 and duration. Supported 5/15/30/60 seconds. This enables Feature4 to test its existing FFMpeg/HyperFrames audio mix, beat analysis and sound ducking against ORIGINAL local PCM bytes, while the Feature2 packet provides the text script and cue timing. This recording has NO narrated human speech, NO checked commercial music grant, NO tenant-private registered music ID, and NO verified viral rights; it must not be presented as publishable music or an approved campaign soundtrack.
