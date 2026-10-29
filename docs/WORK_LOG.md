@@ -681,3 +681,6 @@ Use scripts/checkpoint.sh after completing a task.
 
 
 - 2026-10-29 Feature3 Phase2 independent no-GPU work: implemented service-only real queued-job plan reader, exact versioned design SHA and registered input layer resolver, current active role/subscription, reviewed model revisions, private media and independently supplied byte/licence/approval evidence; rereads SQL snapshot and per-source proof to deny midfetch model/rights revocation. Restricted generic GPU job/ledger and new plan table writes to GET-only in AdminStore; negative runtime tests included. No real external bytes, paid provider, Azure trigger, hosted migration or WineShopPOS. Four CI gates and coordinator source merge still need exact verification.
+
+
+- 2026-10-29 Feature3 continued P0 non-GPU queue chain: implemented `Feature3GPUOffQueueIntake` to join merged strict queue envelope decoder and current SQL/rights reader, defaulting to provider OFF, no queue delivery ACK/deletion, no SQL claim, no GPU/settlement, and failing closed on forged/future schema, role rights revocation, foreign shop/receipt, or dishonest paid flags. Added no-provider synthetic tests and source release warning against mounting an Azure Queue-trigger. Four-job CI on exact branch required.

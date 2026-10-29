@@ -1255,3 +1255,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## 2026-10-29 — Feature3 Phase2 source-only current-rights preflight
 - Added `Feature3GPUJobPlanPreflight` over REAL existing service-only PostgREST table paths: QUEUED one-shot job, versioned poster SHA, active owner/editor, subscription, private registered media and approved human model catalog; separate independently trusted source byte/license/approval receipt checked twice around a full SQL snapshot refresh, including non-DB rights revocation. Generic GPU/usage table writes explicitly blocked by service transport. Strict offline forged/revoked/foreign/lease tests. This does not provision GPU, claim a job, deploy a queue trigger or establish real licensed source proof. [Runbook](feature3/GPU_OFF_CURRENT_RIGHTS_PREFLIGHT_20261029.md); exact-head CI and postmerge main must be verified separately.
+
+
+- 2026-10-29 Feature3 Phase2 GPU-off queue intake source added: strict existing v1 shop/job envelope -> live backend plan inspector, with provider.status explicit OFF and no SQL claim, queue ACK/deletion, financial charge, GPU execution or generated images. Mocked e2e packet/foreign/source revoked/forged success denials tested. This intentionally has NO Azure Functions queue binding and cannot itself consume a real queue.

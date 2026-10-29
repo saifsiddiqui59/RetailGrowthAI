@@ -913,3 +913,6 @@
 
 ## 2026-10-29 — GPU job preflight may inspect real sources but never grant paid inference
 - Parse only backend-stored versioned job/design/source IDs, require active tenant author/subscription, independent reviewed model and private-byte/license/source-rights proof TWICE separated by fresh authoritative PostgREST reads; refuse changed rights even when core rows have not changed. Preflight is non-mutating and always returns provider_call_permitted=false; a separate current one-shot SQL claim and real billed meter are mandatory for any later paid execution. Ban generic service mutations to GPU planning/ledger tables; retain their established RPCs. No tenant key/blob transfer to browser.
+
+
+- 2026-10-29 Feature3 GPU-off queue preview: inspect queue shop/job IDs only with strict schema and current trusted source/role checks; require provider explicitly OFF, return no ACK/claim/charge permission. Never register an ordinary Azure Queue trigger that silently deletes accepted messages or poison-retries disabled paid work. Preserve independent audited one-shot SQL and operator reconciliation for later enabled-worker activation.
