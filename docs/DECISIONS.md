@@ -927,3 +927,6 @@
 ## 2026-10-29 — Integrate disjoint private history and financial inspection without false live claims
 - Preserve original #642 and #643 source/test diffs and append-only docs when main has advanced; never force-merge conflicting canonical docs, silently drop a security negative test or claim that a metadata read settles financial state. Source CI and hosted DEV are distinct.
 
+
+## 2026-10-29 — Source hash evidence and legal rights must be independent
+- Feature3 preflight requires an actual private Storage GET and byte-level image decode/hash, plus **independent** separately reviewed current customer/licence authorization bound to that exact shop/media/digest/revision. Read twice around possible revocation and rely on the planner's second SQL snapshot to fence TOCTOU; the database media row's self-reported license label and a browser approval are not commercial rights proof. Keep the receipt free of private byte/path/keys and mark planning GPU off. Only after real operator evidence and live signed DEV can execution be considered under cost approval.

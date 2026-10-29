@@ -1250,3 +1250,6 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 ## 2026-10-29 — Phase2 UI/reconciliation coordinator closeout
 - Verify all four exact integration CI jobs and postmerge main 4/4 before closing #642/#643 as superseded. Still pending trusted private model+garment actual licensed bytes, operator evidence RPC, binary no-URL endpoint, Azure real queue worker/poison, reviewed source-produced customer images, browser E2E and #249 host fix; no GPU/PROD/WineShopPOS operations.
 
+
+## 2026-10-29 — Feature3 trusted private input proof implementation checkpoint
+- Verify four exact-head PR and push CI jobs for `feat/feature3-verified-private-input-proof-20261029`; coordinator merge and fresh main CI. The previously missing private byte-reader is now implemented and can be composed into the GPU-off SQL preflight only with a genuine separate current legal/customer approval authority. Next independently connect audited immutable model/license evidence revisions, actual trusted tenant bytes and per-asset current rights, then a reviewed protected private binary output endpoint/React previews. Do not claim image rights from media.license_name, synthetic tests or user consent checkbox; paid GPU, queue trigger, hosted DEV/PROD, WineShopPOS and Azure #249 remain separate.

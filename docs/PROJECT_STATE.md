@@ -1269,3 +1269,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 ## 2026-10-29 — Coordinator Phase2 source integration checkpoint
 - Reconciled separate source-ready #642 (on-demand tenant private generated job metadata UI) and #643 (operator read-only uncertain-billing inspection) into a current-main branch with all original source/test docs and CI gates; no new generated private pixels or billable worker. Complete exact integration PR 4/4 and fresh postmerge main CI before treating them merged.
 
+
+## 2026-10-29 — Feature3 real private source bytes and independently reviewed current-rights proof (branch source only)
+- Added backend-only `Feature3TrustedPrivateSourceProof` that reads actual registered same-shop image bytes via private Storage GET, performs real PNG/JPEG/WEBP size/pixel/MIME and SHA256 verification, and requires twice-confirmed independently approved licence/customer consent with stable rights revision. `build_verified_gpu_off_preflight` wires it to existing SQL/source planner; no browser media URLs, claim, GPU or spending. Synthetic negative real-byte/HTTP/revocation tests included. A live independently sourced legal authority must still be supplied; **there is no real hosted garment/model approval proof or inference**. See [handoff](feature3/PRIVATE_SOURCE_PROOF_20261029.md).

@@ -692,3 +692,5 @@ Use scripts/checkpoint.sh after completing a task.
 
 - 2026-10-29 Coordinator Phase2: #642 frontend generated history direct merge was rejected by GitHub 405 for current-main doc conflict despite exact 4/4 CI; preserved its validated code/tests, combined with #643 read-only GPU billing reconciliation source/test and append-only docs on new current-main integration branch for fresh four-job CI. No GitHub force-push, hosted/cloud settings, paid provider or WineShopPOS change.
 
+
+- 2026-10-29 Feature3 resumed after verified #644 successful main CI: implemented actual private Supabase Storage source-byte GET/real Pillow hash+pixel validation for PNG/JPEG/WebP and mandatory separate current licence/customer approval with double rights-revision check; factory composes the adapter into existing read-only GPU-off SQL preflight. Added synthetic real-byte mocked HTTP tests for valid/foreign/unsafe/redirect/revocation/malformed metadata and credential denial. Source-only: external legal authority unimplemented, real media not queried, GPU OFF, no hosted writes, PROD or WineShopPOS. Four-job exact-head CI pending.
