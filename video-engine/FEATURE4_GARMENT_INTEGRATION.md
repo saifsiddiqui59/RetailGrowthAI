@@ -198,3 +198,25 @@ updated script, not inferred from the earlier successful 60s MP4.
 - The full 60s CPU stock runner now invokes this before sound mastering/private caption derivatives, then links the signed-off-**false** 12-scene visibility JSON to the final technical evidence receipt, including immutable original SHA, twelve exact start/duration windows, finite sample timing/statistics and `unexpected_overlay_absence_verified=false`. New `tests/media/test_feature4_scene_visibility.py` and `tests/media/test_feature4_scene_visibility_receipt.py` exercise full encoded positive/negative media and forged-data rejection.
 - **Evidence limit:** sparse samples cannot rule out subscene flicker, subtitle mistakes, unnatural faces, disputed rights or wrong garments. Previously downloaded real Pexels 60s master passed a separate local sampled luma inspection, but the revised repository full-minute runner and integrated receipt require their own exact-code CPU execution. Stock model/product fidelity and human editorial approval remain failed/unverified.
 - Source commits `47907eba`, `ccd94f13`, `44e85cf7`, `896a7e03`, `393ce974`, `36d68a2a`, `febd4e2f`, `4ecf9bb0`; exact-head CI checks mandatory. PR #322 remains draft, branch-only; shared GitHub PR packaging count >120 and Azure issue #249 are independent coordinator/runtime gates. GPU paid services OFF; WineShopPOS untouched.
+
+
+## F4-64 — final 60s endcard repetition correction (2026-10-29)
+
+Manual review of the genuine earlier CI contact sheet exposed identical
+clothing-rack imagery/headline in two final sampled frames (~52.5/57.5s):
+an 8-second held stock still immediately before a 2-second disclaimer.
+For the NEXT source-produced 60s Reel only, the existing 12-scene
+`feature4_garment_integration.py` storyboard now limits that rack to 50–55s,
+then reserves **55–60s** for a separate text-only `OUTRO` disclaimer
+(`STOCK GARMENT CONCEPT - NOT A RETAILER AD`). No asset, product, discount,
+endorsement, rights or voice is fabricated; no new renderer or GPU needed.
+The beat snapper remains authoritative, so the integration test enforces the
+last scene starts within 54.5–55.5s, is at least 4.5s long and has the
+exact disclaimer cue. The number of media scenes/photos/assets and private
+source rights checks stay unchanged. Source `d6a4eca3`, test `8b1cf3ac`.
+
+The **archived** 60s MP4 and its contact sheet are NOT retroactively improved:
+a new complete 60s native render and real encoded endcard visual review are
+required before counting this a validated output-quality improvement. An
+unrelated human-garment stock repeat and real retailer garment fidelity remain
+open; commercial owner approval remains false. No cost/cloud deployment.
