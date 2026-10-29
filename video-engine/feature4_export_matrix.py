@@ -10,6 +10,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import stat
 from pathlib import Path
 import re
 import subprocess
@@ -28,22 +30,29 @@ class MatrixEvidenceError(ValueError):
 
 def _stable_sha(path):
     """Before/after stat and content check of bounded regular, non-symlink file."""
-    if path.is_symlink() or not path.is_file():
-        raise MatrixEvidenceError("Missing or unsafe encoded MP4")
-    before = path.stat()
-    if not 1024 < before.st_size <= MAX_BYTES:
-        raise MatrixEvidenceError("Output is empty or beyond private reviewer cap")
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for part in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(part)
-    after = path.stat()
-    if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
-            after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
-        raise MatrixEvidenceError("Encoded source mutated during hashing")
-    if path.is_symlink():
-        raise MatrixEvidenceError("Encoded source switched to symlink")
-    return before.st_size, digest.hexdigest()
+    try:
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "rb") as stream:
+            before = os.fstat(stream.fileno())
+            if not stat.S_ISREG(before.st_mode):
+                raise MatrixEvidenceError("Missing or unsafe encoded MP4")
+            if not 1024 < before.st_size <= MAX_BYTES:
+                raise MatrixEvidenceError("Output is empty or beyond private reviewer cap")
+            digest = hashlib.sha256()
+            for part in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(part)
+            after = os.fstat(stream.fileno())
+            if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
+                    after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
+                raise MatrixEvidenceError("Encoded source mutated during hashing")
+            current = os.lstat(path)
+            if (not stat.S_ISREG(current.st_mode) or
+                    (current.st_dev, current.st_ino, current.st_size) !=
+                    (after.st_dev, after.st_ino, after.st_size)):
+                raise MatrixEvidenceError("Encoded source path replaced during hashing")
+            return before.st_size, digest.hexdigest()
+    except OSError as exc:
+        raise MatrixEvidenceError("Missing or unsafe encoded MP4") from exc
 
 
 def verify_export_matrix(manifest, source_root, *, expected_head):
