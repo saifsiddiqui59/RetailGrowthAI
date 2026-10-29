@@ -56,7 +56,7 @@ test('low human quality targets completed feature without making technical stage
 test('an unobserved or NOT_RUN feature is NEVER an improvement failure',()=>{
  const result=analyzeImprovementPriorities([
    event('F1','PASS',1,'tenant-and-rights'),
-   event('F2','PASS',2,'prompt-improvement'),
+   event('F2','PASS',2,'prompt-improvement',F2_OUTPUT),
    event('F3','NOT_RUN',3,'poster-model'),
    event('F5','NOT_RUN',4,'premium-motion'),
    event('F4','NOT_RUN',5,'ffmpeg-reel'),
@@ -107,6 +107,8 @@ test('an accepted job submission without a finished Reel cannot become a low-qua
   event('F4','PASS',1,'ffmpeg-submission',{render_job_id:F4_OUTPUT.render_job_id}),
   event('F4','QUALITY_REVIEW',2,'human-quality-review',{score:1,dimension:'audio'}),
  ])
- assert.equal(report.attention.length,0)
+ assert.equal(report.attention.length,1)
+ assert.equal(report.attention[0].category,'AWAITING_OUTPUT')
+ assert.equal(report.attention[0].feature,'F4')
  assert.equal(report.entries.find(x=>x.feature==='F4').latest_human_score,null)
 })
