@@ -14,3 +14,8 @@ This fixes a classification false-positive in **source only**. Exact-head 4/4 CI
 
 ## Coordinator record update proposal
 After reviewing the isolated PR and observing the **exact** final CI run, coordinator append this finding to `docs/PROJECT_STATE.md`, `docs/NEXT_TASK.md`, `docs/DECISIONS.md`, `docs/WORK_LOG.md`, and update shared task manager status for #249 (source correctness, NOT hosted issue DONE). Do not overwrite concurrent Feature3/coordination document additions.
+
+## Additional 16-GET gate correction
+The legacy comparison `run_series()` also considered any raw **401** from a *nonexistent campaign route* or generic **404** from the *campaign API route* acceptable, as long as it was not 503/UNEXPECTED. A broken Node route with generic 404, or a proxy-issued 401, could therefore make the legacy CLI exit 0. The new source requires each of the 16 fixed synthetic requests to match its exact **backend + phase + route** and outcome: campaign must yield **application-marked 401** (Python nonempty final `X-Request-ID`, Node exact final `candidate-v1`); nonexistent path must yield 404 and remains only routing-negative evidence, *not* handler attestation. No response body/credential is stored and no mutation retries exist.
+
+The summary now keeps raw `success_rate_http_percent` for **HTTP transport observations only**, and separately emits `verified_campaign_handler_401`, `campaign_samples` and `verified_campaign_handler_rate_percent`. A 100% transport 401/404 rate with 0 marked campaign handlers is explicitly a **failure**, not a Node readiness win. New mocked sender tests cover all 16 GETs, 503, mismatched target, unmarked campaign, and zero false verified success. Source CI and real approved hosted acceptance remain separate.
