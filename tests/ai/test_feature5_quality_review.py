@@ -76,6 +76,13 @@ class TestQualityApproval(unittest.TestCase):
         self.assertTrue(review.approved_for_feature4(
             authoritative_shop_id=self.shop,actual_media_sha256=self.hash,
             reviewer_has_write_role=True))
+        from dataclasses import replace
+        cloned=replace(review,reviewed_sha256=self.hash)
+        self.assertTrue(cloned.approved_for_feature4(
+            authoritative_shop_id=self.shop,actual_media_sha256=self.hash,
+            reviewer_has_write_role=True))
+        with self.assertRaises(TypeError):
+            cloned.checks["face_consistency"]=False
         # An unaudited mutation can never turn an initially rejected/failing
         # human checklist into an authorized clip.
         failing=dict(self.row["checks"],face_consistency=False)
