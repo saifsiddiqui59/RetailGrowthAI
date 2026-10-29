@@ -92,13 +92,19 @@ export function inspectOriginalPrivatePCM16Wav({
     bytes.readUInt32LE(4)+8===bytes.length,
     'Not an exact canonical RIFF/WAV');
   let fmt=null,pcmBytes=null;
+  let finalOffset=12,chunkCount=0,seenData=false;
   for(let offset=12;offset+8<=bytes.length;){
+    need(++chunkCount<=24,'Too many untrusted WAV chunks');
+    need(!seenData,'Untrusted WAV chunks after speech samples');
     const tag=bytes.toString('ascii',offset,offset+4);
     const len=bytes.readUInt32LE(offset+4);
     const start=offset+8;
     need(len>=0&&start+len<=bytes.length,'WAV chunk exceeds input');
+    need(['fmt ','data','JUNK','LIST'].includes(tag),
+      'Unrecognized WAV chunk');
     if(tag==='fmt '){
-      need(fmt===null&&len>=16,'Invalid/duplicate PCM format');
+      need(fmt===null&&pcmBytes===null&&len===16,
+        'Invalid, extended or duplicate PCM format');
       fmt={format:bytes.readUInt16LE(start),
         channels:bytes.readUInt16LE(start+2),
         rate:bytes.readUInt32LE(start+4),
@@ -107,11 +113,17 @@ export function inspectOriginalPrivatePCM16Wav({
         bits:bytes.readUInt16LE(start+14)};
     }
     if(tag==='data'){
-      need(pcmBytes===null&&len>0,'Invalid/duplicate PCM samples');
+      need(fmt!==null&&pcmBytes===null&&len>0,
+        'Audio samples require one validated PCM format');
       pcmBytes=len;
+      seenData=true;
     }
+    need((tag==='fmt '||tag==='data')||len<=65536,
+      'Oversized ancillary WAV chunk');
     offset=start+len+(len%2);
+    finalOffset=offset;
   }
+  need(finalOffset===bytes.length,'Trailing/invalid RIFF chunk bytes');
   need(fmt&&fmt.format===1&&fmt.channels===1&&fmt.bits===16&&
     fmt.align===2&&fmt.byteRate===fmt.rate*2&&
     fmt.rate>=16000&&fmt.rate<=48000&&pcmBytes!==null&&pcmBytes%2===0,
