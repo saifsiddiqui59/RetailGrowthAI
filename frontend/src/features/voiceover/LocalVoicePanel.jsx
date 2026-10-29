@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from 'react'
 import {F2_LOCAL_VOICES, VOICE_SPEEDS, makeLocalVoiceAction,
-  makeReviewedDraftRequest, verifyReviewedDraftReceipt} from './voiceover-model.mjs'
+  makeReviewedDraftRequest, verifyReviewedDraftReceipt,
+  makeLocalSentenceRetakeAction, verifyLocalSentenceRetakeReceipt} from './voiceover-model.mjs'
 import {verifyLocalPrivatePlayback} from './voiceover-private-playback.mjs'
 import {verifyPrivateVoiceQualityReview} from './voiceover-quality-review.mjs'
 
@@ -12,7 +13,7 @@ export default function LocalVoicePanel({
  onLocalPreview=null,onLocalGenerate=null,onFetchLocalAudio=null,
  onFetchQualityReview=null,
  onProposeScriptRevision=null,onProposePronunciation=null,
- onCommitReviewedDraft=null,
+ onCommitReviewedDraft=null,onRequestSentenceRetake=null,
 }){
  const [language,setLanguage]=useState('en-us')
  const [voice,setVoice]=useState('af_heart')
@@ -24,6 +25,7 @@ export default function LocalVoicePanel({
  const [quality,setQuality]=useState(null)
  const [pendingProposal,setPendingProposal]=useState(null)
  const [reviewAcknowledged,setReviewAcknowledged]=useState(false)
+ const [sentenceIndex,setSentenceIndex]=useState(0)
  const [scriptDraft,setScriptDraft]=useState(sourceScript)
  const [pronounceWord,setPronounceWord]=useState('')
  const [pronounceAs,setPronounceAs]=useState('')
@@ -37,11 +39,13 @@ export default function LocalVoicePanel({
  }
  useEffect(()=>{
   setSaved(null);setQuality(null);setPendingProposal(null)
-  setReviewAcknowledged(false);setAudioUrl('');setScriptDraft(sourceScript)
+  setReviewAcknowledged(false);setSentenceIndex(0)
+  setAudioUrl('');setScriptDraft(sourceScript)
   setPronounceWord('');setPronounceAs('')
   return ()=>{if(urlRef.current)URL.revokeObjectURL(urlRef.current);urlRef.current=null}
  },[shopId,campaignId,planSha256,sourceScript])
  const choices=F2_LOCAL_VOICES.filter(x=>x.locale===language)
+ const sentences=(typeof sourceScript==='string'?sourceScript.match(/[^.!?]+[.!?]?/g):null)||[]
  async function propose(kind){
   const callback=kind==='script'?onProposeScriptRevision:onProposePronunciation
   if(enabled!==true||typeof callback!=='function'){
@@ -141,6 +145,24 @@ export default function LocalVoicePanel({
     setQuality(reviewed)
     setMessage('Speech-to-text hints loaded; listen to the original and request human review')
   }catch(e){setQuality(null);setError(e?.message||'Audio review unavailable')}
+  finally{setBusy(false)}
+ }
+ async function proposeSentenceRetake(){
+  if(!quality||!saved||!enabled||typeof onRequestSentenceRetake!=='function'){
+    setError('Original private speech and signed quality review required');return
+  }
+  const scope=scopeRef.current
+  setError('');setBusy(true)
+  try{
+    const request=makeLocalSentenceRetakeAction({shopId,campaignId,planSha256,
+      originalAudioSha256:saved.original_audio_sha256,
+      sentenceIndex,jobKey:crypto.randomUUID(),voiceId:voice,lang:language,speed})
+    const result=await onRequestSentenceRetake(request)
+    verifyLocalSentenceRetakeReceipt({request,receipt:result})
+    if(scope!==scopeRef.current)throw Error('Original audio or campaign changed')
+    setMessage('New private sentence proposed. Await a fresh Feature7 transcript, human listening and Feature4 scene assembly.')
+    setQuality(null);setSaved(null);clearAudio()
+  }catch(e){setError(e?.message||'Retake rejected; inspect one-shot job before retry')}
   finally{setBusy(false)}
  }
  async function submit(preview){
@@ -262,6 +284,20 @@ export default function LocalVoicePanel({
       {quality.issues.length>30&&<p>More word warnings exist. Review all of them in your protected editor.</p>}
       <p>Word confidence unavailable. Listening, original media rights and editorial approval are still mandatory before rendering.</p>
     </section>}
+    {quality&&onRequestSentenceRetake&&sentences.length>0&&sentences.length<=13&&<div>
+      <label>Correct one approved-dictionary sentence
+        <select aria-label="Sentence to retake" value={sentenceIndex}
+          onChange={e=>setSentenceIndex(Number(e.target.value))}>
+          {sentences.map((sentence,i)=><option key={i} value={i}>
+            {i+1}. {sentence.trim().slice(0,90)}
+          </option>)}
+        </select>
+      </label>
+      <button type="button" disabled={busy||!enabled} onClick={proposeSentenceRetake}>
+        Request one private sentence retake
+      </button>
+      <p>Retakes are not auto-merged or publishable. F7 speech alignment and human review are required again.</p>
+    </div>}
     {audioUrl&&<audio controls src={audioUrl} aria-label="Verified private Kokoro narration"/>}
    </div>}
   {error&&<p role="alert">{error}</p>}
