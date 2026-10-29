@@ -973,3 +973,6 @@
 
 ## 2026-10-29 — Feature3 source progress is not hosted completion
 - Track the 33 established work packages by source-integrated/source-partial/blocked dependency categories and a separate strict end-to-end completion count. A synthetic Pillow test, an undeployed SQL RPC, a local Blob URL or a merged source PR does not prove genuine customer media rights, hosted public route, paid provider execution or a finished live feature.
+
+## 2026-10-29 — Execute proposed current-model review only in disposable CI
+- The source-only current-model rights RPC may be imported and ACL/negative-tested against throwaway local Postgres and dropped in the same test script. This does not authorize canonical migration, hosted DEV writes or commercial source approvals. Anonymous/authenticated EXECUTE and mismatched reviewer role claims must stay denied, while missing/unapproved inputs fail closed.
