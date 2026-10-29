@@ -83,3 +83,22 @@ def test_foreign_or_unapproved_dictionary_never_applied():
             read_current_entries=lambda *a:[{"word":"kurti","spoken_as":"kur-tee",
                 "shop_id":"foreign","language":"en-us",
                 "approval":"RETAILER_EDITOR_REVIEWED_SPELLING_ONLY"}])
+
+@pytest.mark.parametrize("script,expected",[
+    ("दिवाळी कुर्ती साडी", ["दिवाळी","कुर्ती","साडी"]),
+    ("नमस्ते! परंपरा", ["नमस्ते","परंपरा"]),
+    ("Diwali kurti's collection", ["diwali","kurti's","collection"]),
+    ("कुर्ती — kurti ₹799", ["कुर्ती","kurti","799"]),
+])
+def test_unicode_indian_retail_word_tokenization_is_lossless(script,expected):
+    from ai_agents.feature2_voice_quality import _words
+    assert _words(script)==expected
+
+def test_real_word_mismatch_is_only_suspected_not_phoneme_certification():
+    # These are synthetic *strings*, not WAV or Faster-Whisper inference.
+    result=analyze("सुंदर कुर्ती दिवाळी",["सुंदर","कुर्ती","दिवाली"])
+    assert result["transcript_matches_script"] is False
+    assert any(row.get("word")=="दिवाळी" for row in result["issues"])
+    assert result["human_listen_required"] is True
+    assert result["publish_approved"] is False
+    assert result["pronunciation_verified"] is False
