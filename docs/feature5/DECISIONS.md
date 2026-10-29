@@ -256,3 +256,10 @@ Keep `pending_private_wan_receipt_for_feature4` a non-authorizing, revocation-se
 ## 2026-10-29 — Consume actual merged F3 byte producer, never replay its authority
 
 Feature5 uses the authoritative `feature3_demo_consumer_bytes.load_demo_consumer_bytes` for an offline three-role source-verifiable test, **not** a new asset downloader, customer-media/rights service or shared database. Feature5 independently validates the three original byte identities and prepares a 0600 private native Wan input solely to exercise graph and FFmpeg contracts. Test fixtures may patch upstream Git pins for synthetic locally generated media but the deployed source pins remain exact immutable OpenVTO identities. The test receipt must carry false customer/provider/paid/publishing/wearing flags. Only separate live Feature3 tenant-rights + Part3 signed lease/credits and explicit GPU approval may authorize real work; source integrity alone never becomes permission.
+
+
+## 2026-10-29 — Source continuity plus untrusted original-export bytes
+
+The synthetic Feature2 15/30/60-second storyboard gate must require *one linked chain*, not merely an ordered list of individually 5-second scenes: each `previous_shot_id` and `next_shot_id` matches its neighbor, every scene and shot is independently unique, and the original media ID, SKU, reference facts hash and garment lock remain unchanged. This rejects stitched or replaced editor/motion snippets before a future Part3 paid claim. It does **not** authenticate a publisher, tenant session, grant or signed human review.
+
+The F5 consumer for the actual Node export must accept only bounded UTF-8 JSON with no duplicate object keys or non-finite numbers, an explicit 15/30/60 duration expectation, and an offline non-authorizing receipt. It is a one-way handoff: its output is NEVER valid ComfyUI provider submission, private Storage, payment settlement or Feature4 publication authority. F2 #551 remains coordinator-merge dependent, so fixture tests cannot be reported as live F2 code execution. No coordinator-owned schema, pipeline, other feature source, paid cloud or WineShopPOS changes.
