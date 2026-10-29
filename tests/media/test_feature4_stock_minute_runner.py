@@ -13,6 +13,9 @@ class MinuteRunnerContractTests(unittest.TestCase):
         self.assertIn("feature4-stock-minute-captioned-review.mp4", text)
         self.assertIn("EDITORIAL_TEST_TITLES_NOT_SPOKEN_AUDIO", text)
         self.assertIn("NOT speech alignment", text)
+        self.assertIn("feature4_endcard_qa.py", text)
+        self.assertIn("--endcard-proof", text)
+        self.assertIn("--visibility-proof", text)
 
     def test_no_arguments_and_existing_directory_fail_before_download(self):
         for args in ([],["/tmp"]):
