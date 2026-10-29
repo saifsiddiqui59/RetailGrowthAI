@@ -138,3 +138,81 @@ test('retake receipt never certifies pronunciation or publishing',()=>{
  ]) assert.throws(()=>verifyLocalSentenceRetakeReceipt({
    request:action,receipt:{...receipt,...change}}))
 })
+
+
+import {
+ makePrivateVoiceJobStatusRequest,verifyPrivateVoiceJobStatus
+} from '../../frontend/src/features/voiceover/voiceover-model.mjs'
+
+function privateQuery(overrides={}){
+ return makePrivateVoiceJobStatusRequest({
+   shopId:SHOP,campaignId:CID,planSha256:SHA,requestKey:UUID,...overrides})
+}
+function privateJob(status='RESERVED',overrides={}){
+ const complete=status==='AWAITING_HUMAN_REVIEW'
+ return {
+  schema:'retailgrowth.feature2-private-voice-job-status.v1',
+  shop_id:SHOP,campaign_id:CID,creative_plan_sha256:SHA,
+  request_key:UUID,provider:'kokoro-onnx',status,
+  private:true,can_publish:false,automatically_retried:false,
+  azure_fallback_used:false,paid_api_calls:0,
+  terminal:['AWAITING_HUMAN_REVIEW','FAILED','DENIED','BLOCKED'].includes(status),
+  original_audio_sha256:complete?'c'.repeat(64):null,
+  audio_asset_id:complete?PROPOSAL:null,
+  review_status:complete?'PENDING_HUMAN_LISTEN_AND_RIGHTS':'NOT_READY',
+  ...overrides,
+ }
+}
+function status(s='RESERVED',overrides={}){
+ return verifyPrivateVoiceJobStatus({
+  shopId:SHOP,campaignId:CID,planSha256:SHA,requestKey:UUID,
+  status:privateJob(s,overrides)})
+}
+test('uncertain local TTS may only query existing current request key read-only',()=>{
+ const q=privateQuery()
+ assert.equal(q.read_only,true)
+ assert.equal(q.can_reissue_job,false)
+ assert.equal(q.request_key,UUID)
+ assert.equal(q.provider,'kokoro-onnx')
+ assert.ok(Object.isFrozen(q))
+ for(const change of [
+  {shopId:'not-uuid'}, {campaignId:'not-uuid'},
+  {requestKey:'new-random-key'},{planSha256:'fake'},
+  {provider:'azure-speech'}
+ ])assert.throws(()=>privateQuery(change))
+})
+test('private narration job status cannot imply a real model, rights or publish',()=>{
+ for(const state of ['RESERVED','RUNNING','FAILED','BLOCKED','DENIED',
+                       'AWAITING_HUMAN_REVIEW']){
+  const r=status(state)
+  assert.equal(r.state,state)
+  assert.equal(r.terminal,!['RUNNING','RESERVED'].includes(state))
+  assert.equal(r.can_publish,false)
+  assert.equal(r.can_reissue_job,false)
+  assert.equal(r.human_review_required,true)
+  assert.equal(r.existing_private_audio,state==='AWAITING_HUMAN_REVIEW')
+  assert.ok(Object.isFrozen(r))
+ }
+})
+test('reject foreign, replayed, paid-fallback or fabricated voice job success',()=>{
+ for(const changed of [
+  {shop_id:CID},{campaign_id:SHOP},
+  {creative_plan_sha256:'f'.repeat(64)},
+  {request_key:REVIEW},{provider:'azure-speech'},
+  {status:'PUBLISHED'},{status:'SUCCEEDED'},
+  {can_publish:true},{automatically_retried:true},
+  {azure_fallback_used:true},{paid_api_calls:1},
+  {private:false},{terminal:true},{review_status:'APPROVED'},
+  {original_audio_sha256:'e'.repeat(64)},
+  {audio_asset_id:PROPOSAL},
+ ]){
+  assert.throws(()=>status('RESERVED',changed),undefined,JSON.stringify(changed))
+ }
+ for(const changed of [
+  {original_audio_sha256:null},{audio_asset_id:null},{terminal:false},
+  {review_status:'NOT_READY'}
+ ]){
+  assert.throws(()=>status('AWAITING_HUMAN_REVIEW',changed),
+    undefined,JSON.stringify(changed))
+ }
+})
