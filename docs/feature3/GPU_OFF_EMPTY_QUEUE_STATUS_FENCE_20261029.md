@@ -7,4 +7,5 @@
 
 ## Handoff
 - Branch: `feat/feature3-gpuoff-empty-queue-status-fence-20261029`. Coordinator review, exact-head CI 4/4 and postmerge main CI required before any source-integration claim.
+- Original 33-package ledger is being edited in concurrent Feature3 PR #683. Coordinator must append this handoff to that ledger only after integration; do not send a conflicting second ledger edit.
 - Preserve 0/33 fully hosted DONE; F3-04/F3-05 remain partial/blocked pending F5-GPU-AUTHORIZATION, PART3-WAN22-CONTRACT, actual one-shot runtime/unknown-ACK reconciliation and signed current rights. GPU OFF; no hosted migrations, provider invocation, PROD or WineShopPOS.
