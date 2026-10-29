@@ -247,3 +247,8 @@ Reuse real pinned Feature3 OpenVTO MIT originals for independent CPU media accep
 ## 2026-10-29 — Editorial draft integrity is not spend authority
 
 The Feature2 `retailgrowth.feature2-f4-f5-offline-fixture.v1` is consumed by a new F5-only *read-only* 15/30/60s continuity gate, versioned as `retailgrowth.feature5-f2-offline-qualified.v1`. Preserve verbatim original F2 direction and independent matching F4 timeline prompt hash; never rewrite source text in Feature5. Whole-packet SHA-256 and original prompt SHA-256 detect local drift but are NOT signatures, merchant grants, current rights checks or credit reservations. The return contract explicitly forbids provider submission, release and Feature4 publishing. No parallel billing/database schema, unmerged Feature2 source copy, new paid runtime or shared interface edit.
+
+
+## 2026-10-29 — Split F5->F4 pending metadata from human-approved release
+
+Keep `pending_private_wan_receipt_for_feature4` a non-authorizing, revocation-sensitive **review-candidate** envelope; full immutable lineage digest and private Storage receipt consistency allow technical inspection, but any untrusted callback, even one saying SETTLED, cannot prove real paid job, storage bytes or human visual success. Do not conflate this with existing authenticated `reviewed_wan_clip_for_feature4`. Only Feature4 plus Part3 with current trusted tenant grant and independently verified native model origin/human review may issue final 1080×1920 media. Never infer publication rights from video format, payment status, SHA or a CPU camera pan.
