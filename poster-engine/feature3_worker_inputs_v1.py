@@ -73,7 +73,7 @@ def materialize_feature4_inputs(*, expected_manifest, current_readers,
         )
         # First frame without VTON == the original garment.
         actual, binary = _approved_asset(
-            shop,expected["source_asset_id"],source_role,
+            shop,expected["source_asset_id"],source_role,"editing",
             read_asset=current_readers["read_asset"],
             authorize_asset=current_readers["authorize_asset"],
             read_private_bytes=current_readers["read_private_bytes"]
