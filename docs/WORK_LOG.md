@@ -684,3 +684,11 @@ Use scripts/checkpoint.sh after completing a task.
 
 
 - 2026-10-29 Feature3 continued P0 non-GPU queue chain: implemented `Feature3GPUOffQueueIntake` to join merged strict queue envelope decoder and current SQL/rights reader, defaulting to provider OFF, no queue delivery ACK/deletion, no SQL claim, no GPU/settlement, and failing closed on forged/future schema, role rights revocation, foreign shop/receipt, or dishonest paid flags. Added no-provider synthetic tests and source release warning against mounting an Azure Queue-trigger. Four-job CI on exact branch required.
+
+- 2026-10-29 Feature3 Phase2 P1 parallel independent frontend: implemented strict `validateFeature3GeneratedHistory` and UI `Feature3GeneratedHistory` inside existing feature-flagged authenticated PosterHost, on-demand same-shop GET-only job statuses, no automatic signed URL/GPU/private byte download, stale scope response fencing and safe empty/deny behavior. Added Node tests foreign ID, duplicate status, untrusted extra path/URL/approval, 21+ cap and stale shop scopes. No live role testing, GPU, hosted deployment or WineShopPOS; exact CI/merge pending.
+
+
+- 2026-10-29 Feature3 Phase2 no-GPU P0: added read-only operator financial/output unknown-ACK inspector over actual service GET paths, with privately injected immutable evidence reader; classifies QUEUED/RUNNING holds and observed SETTLED terminal cases, denies contradictory USD/tenant/asset/record evidence and never retries/finishes/refunds/deletes. Added synthetic negative tests and ownership handoff. No hosted DB or vendor bill inspection, no real operator action, paid GPU or WineShopPOS.
+
+- 2026-10-29 Coordinator Phase2: #642 frontend generated history direct merge was rejected by GitHub 405 for current-main doc conflict despite exact 4/4 CI; preserved its validated code/tests, combined with #643 read-only GPU billing reconciliation source/test and append-only docs on new current-main integration branch for fresh four-job CI. No GitHub force-push, hosted/cloud settings, paid provider or WineShopPOS change.
+

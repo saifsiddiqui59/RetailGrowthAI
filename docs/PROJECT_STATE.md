@@ -1258,3 +1258,14 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 
 - 2026-10-29 Feature3 Phase2 GPU-off queue intake source added: strict existing v1 shop/job envelope -> live backend plan inspector, with provider.status explicit OFF and no SQL claim, queue ACK/deletion, financial charge, GPU execution or generated images. Mocked e2e packet/foreign/source revoked/forged success denials tested. This intentionally has NO Azure Functions queue binding and cannot itself consume a real queue.
+
+## 2026-10-29 — Feature3 on-demand private generated history UX (source-only)
+- Added strict tenant-scoped `feature3-generated-history.mjs`, opt-in `Feature3GeneratedHistory.jsx`, mounted only inside existing authorized `Feature3PosterHost`. Authenticated GET reads existing RLS `listGeneratedJobs` without fetching a signed image URL, issuing any GPU POST or granting publish approval. Debounced/epoch-fenced current-shop reads deny stale async responses, cross-shop/duplicate/forged media URL/status data, and show no previews until separate approved downloads. Tests cover current shop and revoked/foreign selection. No DEV live data, rendered images or GPU run claimed.
+
+
+## 2026-10-29 — Feature3 read-only financial/Storage reconciliation source
+- Added `Feature3GPUOperatorReconciliation` inspecting actual existing GPU job and spend reservation under backend-only GET plus independently trusted private output evidence. Reports pending unknown, observed terminal failure, or observed terminal private-output success; **never** changes job, retries GPU, finalizes/refunds, deletes Storage or grants publishing. Negative CPU tests for foreign/revoked/forged/cost cap. Actual evidence reader/hosted invoice/operator runbook and protected release remain outstanding. [Handoff](feature3/GPU_OPERATOR_RECONCILIATION_20261029.md).
+
+## 2026-10-29 — Coordinator Phase2 source integration checkpoint
+- Reconciled separate source-ready #642 (on-demand tenant private generated job metadata UI) and #643 (operator read-only uncertain-billing inspection) into a current-main branch with all original source/test docs and CI gates; no new generated private pixels or billable worker. Complete exact integration PR 4/4 and fresh postmerge main CI before treating them merged.
+
