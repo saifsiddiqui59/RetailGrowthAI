@@ -243,3 +243,112 @@ def review_registered_kokoro_audio(*, shop_id, campaign_id, source_plan,
         saved.get("private") is not True):
         raise LocalVoiceJobDenied("Trusted pending reviewer record unavailable")
     return summary
+
+
+def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
+                                    voice_id,lang,speed,job_key,now_ms,
+                                    authorize_current_editor,read_current_plan,
+                                    read_authoritative_quota,
+                                    reserve_atomic_once):
+    """Fail-closed tenant CPU budget/idempotency/lease handoff.
+
+    The server's reserve_atomic_once callback MUST lock a durable tenant
+    budget row, check request digest uniqueness, cap concurrent CPU leases
+    and commit both a quota reservation and fencing token atomically.
+    This function validates the returned receipt, not database durability.
+    """
+    import json
+    from .feature2_kokoro_local import SUPPORTED_VOICES,SPEEDS
+    if (not all(_uuid(v) for v in (shop_id,campaign_id,job_key)) or
+        type(now_ms) is not int or now_ms<1_700_000_000_000 or
+        type(voice_id) is not str or SUPPORTED_VOICES.get(voice_id)!=lang or
+        type(speed) is not str or speed not in SPEEDS or
+        not all(callable(x) for x in (
+            authorize_current_editor,read_current_plan,
+            read_authoritative_quota,reserve_atomic_once))):
+        raise LocalVoiceJobDenied("Trusted budgeted voice job scope required")
+    try:
+        creative,approval,script=_plan(
+            source_plan,shop_id=shop_id,campaign_id=campaign_id)
+    except SpeechRejected as exc:
+        raise LocalVoiceJobDenied("Current reviewed plan missing") from exc
+    plan_sha=approval["plan_sha256"]
+    if (authorize_current_editor(shop_id,campaign_id) is not True or
+        read_current_plan(shop_id,campaign_id)!=source_plan):
+        raise LocalVoiceJobDenied("Voice editor or original source revoked")
+    quota=read_authoritative_quota(shop_id,campaign_id)
+    # The policy is trusted and signed by the backend, NEVER browser props.
+    if (type(quota) is not dict or
+        quota.get("shop_id")!=shop_id or
+        quota.get("campaign_id")!=campaign_id or
+        quota.get("provider")!="kokoro-onnx" or
+        quota.get("paid_api_calls_allowed") is not False or
+        type(quota.get("budget_revision")) is not int or
+        quota["budget_revision"]<0 or
+        type(quota.get("reserved_cpu_ms")) is not int or
+        type(quota.get("used_cpu_ms")) is not int or
+        type(quota.get("monthly_cpu_limit_ms")) is not int or
+        type(quota.get("active_cpu_jobs")) is not int or
+        type(quota.get("max_active_cpu_jobs")) is not int or
+        not 0<=quota["reserved_cpu_ms"]<=86_400_000 or
+        not 0<=quota["used_cpu_ms"]<=86_400_000 or
+        not 1_000<=quota["monthly_cpu_limit_ms"]<=86_400_000 or
+        not 0<=quota["active_cpu_jobs"]<=4 or
+        not 1<=quota["max_active_cpu_jobs"]<=4 or
+        not 2_000<=quota.get("per_job_reserved_cpu_ms",-1)<=180_000 or
+        type(quota.get("period_id")) is not str or
+        not __import__("re").fullmatch(r"\d{4}-(?:0[1-9]|1[0-2])",
+                                       quota["period_id"]) or
+        quota.get("policy_state")!="ACTIVE"):
+        raise LocalVoiceJobDenied("Signed CPU budget policy invalid")
+    reserved=quota["per_job_reserved_cpu_ms"]
+    if (quota["active_cpu_jobs"]>=quota["max_active_cpu_jobs"] or
+        quota["used_cpu_ms"]+quota["reserved_cpu_ms"]+reserved>
+            quota["monthly_cpu_limit_ms"]):
+        raise LocalVoiceJobDenied("CPU quota exhausted or too many active jobs")
+    req={"shop_id":shop_id,"campaign_id":campaign_id,
+         "creative_plan_sha256":plan_sha,
+         "original_script_sha256":sha256(script.encode()).hexdigest(),
+         "job_key":job_key,"voice_id":voice_id,"language":lang,
+         "speed":speed,"provider":"kokoro-onnx",
+         "period_id":quota["period_id"],
+         "budget_revision":quota["budget_revision"],
+         "reserved_cpu_ms":reserved,
+         "paid_api_calls_allowed":False}
+    request_sha=sha256(json.dumps(req,sort_keys=True,
+                     separators=(",",":")).encode()).hexdigest()
+    receipt=reserve_atomic_once(shop_id,campaign_id,job_key,request_sha,
+                                quota["budget_revision"],reserved,dict(req))
+    if (type(receipt) is not dict or
+        receipt.get("schema")!="retailgrowth.feature2-local-cpu-reservation.v1" or
+        receipt.get("shop_id")!=shop_id or
+        receipt.get("campaign_id")!=campaign_id or
+        receipt.get("creative_plan_sha256")!=plan_sha or
+        receipt.get("job_key")!=job_key or
+        receipt.get("request_sha256")!=request_sha or
+        receipt.get("provider")!="kokoro-onnx" or
+        receipt.get("reserved_cpu_ms")!=reserved or
+        receipt.get("period_id")!=quota["period_id"] or
+        type(receipt.get("lease_fence")) is not int or
+        not 1<=receipt["lease_fence"]<2**63 or
+        type(receipt.get("lease_expires_ms")) is not int or
+        not now_ms<receipt["lease_expires_ms"]<=now_ms+300_000 or
+        receipt.get("status")!="RESERVED" or
+        receipt.get("private") is not True or
+        receipt.get("paid_api_calls")!=0 or
+        receipt.get("can_publish") is not False or
+        receipt.get("atomic_unique_commit") is not True):
+        raise LocalVoiceJobDenied("Durable private CPU reservation evidence invalid")
+    if (authorize_current_editor(shop_id,campaign_id) is not True or
+        read_current_plan(shop_id,campaign_id)!=source_plan):
+        raise LocalVoiceJobDenied("Voice source revoked after CPU budget lease")
+    return {"schema":receipt["schema"],"shop_id":shop_id,
+            "campaign_id":campaign_id,"creative_plan_sha256":plan_sha,
+            "job_key":job_key,"request_sha256":request_sha,
+            "lease_fence":receipt["lease_fence"],
+            "lease_expires_ms":receipt["lease_expires_ms"],
+            "reserved_cpu_ms":reserved,"period_id":quota["period_id"],
+            "provider":"kokoro-onnx","private":True,
+            "can_publish":False,"paid_api_calls":0,
+            "real_model_inference_observed":False,
+            "reservation_is_not_worker_completion":True}
