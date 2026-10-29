@@ -679,3 +679,5 @@ Use scripts/checkpoint.sh after completing a task.
 
 - 2026-10-29 Coordinator Phase1 initiated on `main` with verified source-only #630 squash `7cd4a179`; prepared combined conflict-resolved code/test + six PR append-only doc grafts for #629/#632/#634/#636/#637/#638, retaining all contributors' changes. Observe exact integration four-job CI and merge/postmerge separately. Next Phase2 independent no-GPU tasks prioritized. No hosted schema/PROD/GPU/WineShopPOS changes.
 
+
+- 2026-10-29 Feature3 Phase2 independent no-GPU work: implemented service-only real queued-job plan reader, exact versioned design SHA and registered input layer resolver, current active role/subscription, reviewed model revisions, private media and independently supplied byte/licence/approval evidence; rereads SQL snapshot and per-source proof to deny midfetch model/rights revocation. Restricted generic GPU job/ledger and new plan table writes to GET-only in AdminStore; negative runtime tests included. No real external bytes, paid provider, Azure trigger, hosted migration or WineShopPOS. Four CI gates and coordinator source merge still need exact verification.

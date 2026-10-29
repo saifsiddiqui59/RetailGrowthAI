@@ -910,3 +910,6 @@
 ## 2026-10-29 — Feature3 coordinator conflict-resolved source integration
 - Consolidate disjoint PR #629/#632/#634/#636/#637/#638 code and tests on the current main base with all append-only doc additions preserved, rather than discarding a contributor's decision record or merging stale branch tips over concurrent updates. Existing #630 is integrated separately. Require full four-job CI on combined head and postmerge main; test success does not imply licensed VTON, live signed user acceptance or permission to use a paid GPU.
 
+
+## 2026-10-29 — GPU job preflight may inspect real sources but never grant paid inference
+- Parse only backend-stored versioned job/design/source IDs, require active tenant author/subscription, independent reviewed model and private-byte/license/source-rights proof TWICE separated by fresh authoritative PostgREST reads; refuse changed rights even when core rows have not changed. Preflight is non-mutating and always returns provider_call_permitted=false; a separate current one-shot SQL claim and real billed meter are mandatory for any later paid execution. Ban generic service mutations to GPU planning/ledger tables; retain their established RPCs. No tenant key/blob transfer to browser.
