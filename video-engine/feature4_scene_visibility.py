@@ -38,11 +38,26 @@ def _pixel_frame(path, at):
             "near_black_fraction":round(sum(v<=12 for v in values)/len(values),4)}
 
 
-def verify_scene_visibility(source:Path,*,seconds:int,scenes):
-    """Reject consecutive near-black samples inside a trusted scene window.
+def _sha(path:Path):
+    digest=hashlib.sha256()
+    with Path(path).open("rb") as media:
+        for chunk in iter(lambda:media.read(1024*1024),b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
-    Both sample points must be near-black to avoid false positives for normal
-    fade-to-black transitions. Does not claim no short blank frames elsewhere.
+
+# The scene's interior is sampled, not its transition edges. This is *not* a
+# continuous no-black-frame certification: an intervening flash may be missed.
+INTERIOR_SAMPLE_FRACTIONS=(.15,.30,.50,.70,.85)
+
+
+def verify_scene_visibility(source:Path,*,seconds:int,scenes):
+    """Reject sampled near-black frames *inside* every trusted scene window.
+
+    Two 30/70-percent samples could miss a fully black center interval. Five
+    interior samples catch that regression; intentional full-black interludes
+    must be explicitly edited out before this stock quality acceptance. A
+    sampled pass never certifies all frames or human/editorial acceptance.
     """
     if type(seconds) is not int or seconds not in (15,30,60):
         raise VisibilityProofError("Unsupported fixed Reel duration")
@@ -69,24 +84,25 @@ def verify_scene_visibility(source:Path,*,seconds:int,scenes):
     if (abs(record["seconds"]-seconds)>.45
             or (record["width"],record["height"]) not in ((540,960),(1080,1920))):
         raise VisibilityProofError("Visual QA source profile differs from approved Reel")
+    source_sha=_sha(source)
     checked=[]
     for scene in scenes:
         start,span=scene["start"],scene["duration"]
-        # Samples remain strictly inside the scene, never across a cut.
-        a=_pixel_frame(source,start+.3*span)
-        b=_pixel_frame(source,start+.7*span)
-        blank=all(x["near_black_fraction"]>=.985 and x["mean_luma"]<=14 for x in (a,b))
+        # Exact interior fractions are checked again by the final receipt.
+        samples=[_pixel_frame(source,start+fraction*span)
+                 for fraction in INTERIOR_SAMPLE_FRACTIONS]
+        blank=any(x["near_black_fraction"]>=.985 and x["mean_luma"]<=14
+                  for x in samples)
         checked.append({"scene_start":start,"duration":span,
-                        "samples":[a,b],"sustained_near_black":blank})
+                        "samples":samples,"sustained_near_black":blank})
         if blank:
-            raise VisibilityProofError(f"Encoded scene at {start}s is nearly entirely blank/black")
-    digest=hashlib.sha256()
-    with Path(source).open("rb") as media:
-        for chunk in iter(lambda:media.read(1024*1024),b""):
-            digest.update(chunk)
-    return {"schema":"feature4_scene_visibility_v1",
+            raise VisibilityProofError(f"Encoded scene at {start}s has a nearly entirely blank/black sample")
+    if _sha(source)!=source_sha:
+        raise VisibilityProofError("Encoded Reel bytes changed while scene frames were decoded")
+    return {"schema":"feature4_scene_visibility_v2",
             "status":"SAMPLED_SCENES_NOT_BLANK_NOT_CONTENT_APPROVAL",
-            "source_sha256":digest.hexdigest(),
+            "source_sha256":source_sha,
+            "sample_fractions":list(INTERIOR_SAMPLE_FRACTIONS),
             "seconds":seconds,"checked_scene_count":len(scenes),
             "checked_scenes":checked,"sustained_near_black_count":0,
             "short_blank_frames_excluded_by_sampling":False,
