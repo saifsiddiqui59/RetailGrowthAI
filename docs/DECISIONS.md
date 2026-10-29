@@ -982,3 +982,7 @@
 
 ## 2026-10-29 — Never infer immutable private PNG proof from HTTP Content-Length alone
 - The private generated PNG reader verifies actual payload size against any present Content-Length, rejects unexpected compressed Content-Encoding, and still compares true bytes to SHA-named private path after Pillow validation and second current JWT/rights check. Missing HTTP length for legitimate chunked transfer may be accepted only with real bounded SHA proof. Neither browser preview nor a synthetic signed token establishes legal output authorization or immediate invalidation of previously signed links.
+
+## 2026-10-29 — Shared dependency DAG / dispatcher decision
+- GitHub is authoritative for cross-feature handoff state across chat limits; source-only fixtures, integrated contract and commercial release are separate typed nodes. PR merged state is retrieved from GitHub, and human approvals require explicitly reviewed registry proof. A pending production input must not block unrelated fixture or CPU development.
+- The first implementation limits automation to GitHub dependency evaluation, report output and **up to three ready issues per trusted-main run**, hourly or manual; it does not execute an LLM coding agent, merge feature PRs, make cloud schema changes, deploy, consume queues, spend on GPU or touch WineShopPOS. PR validation is read-only. Owner/coordinator must reconcile actual backlogs and protect cost/security before attaching executor.

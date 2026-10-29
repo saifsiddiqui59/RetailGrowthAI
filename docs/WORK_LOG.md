@@ -742,3 +742,7 @@ Use scripts/checkpoint.sh after completing a task.
 
 ## 2026-10-29 — Feature3 private PNG HTTP byte length and recoding denial
 - Started from main `08b79f19cfb776d4d76926fbd0f5ad777d945023` after confirming #663 and #664 source integrations; existing post-#664 main CI was in progress. On branch `feat/feature3-private-png-transport-immutable-length-20261029`, modified only existing Feature3 private binary reader plus real Pillow/mocked authenticated HTTP tests and canonical/Feature3 handoff docs. Rejects incorrect announced byte length or encoded transport, still enforces current user/rights and byte digest. No actual Azure route, Supabase migrations, GPU, financial/queue effects or WineShopPOS. Exact-head CI/PR and main CI must be checked before integration.
+
+## 2026-10-29 — Coordinator dependency registry + workflow implementation
+- Added auditable seed of F2/F3/F4/F5/F7 handoffs with independently verifiable PR merge gates and manual human approvals. Added cycle/unknown ID/unsafe approval validation, readiness resolver, fail-closed GitHub reads, bounded/idempotent ready-issue creation, scheduled/manual GitHub Actions, report artifacts, negative tests and runbook.
+- This is source proposed via coordinator PR, not proof that new Actions is active on main or that coding continues without a configured executor. Exact-head CI/main integration remain required. No paid GPU, cloud deployments, PROD or WineShopPOS modifications.
