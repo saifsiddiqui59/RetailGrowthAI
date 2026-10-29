@@ -995,3 +995,7 @@
 
 ## 2026-10-29 — Private saved draft and GPU job history scope must be enforced before React effects
 - UI authorization data remains valid only for exact `shop_id/campaign_id/day_id` and current signed API provider. Scope-tag private saved designs, generated-job status, reopened draft, transient messages and revision CAS ticket at render time; reject stale in-flight results on scope/API/nonce change, including after uncertain POST. A foreign/previous day DRAFT is never reopened based on its media SHA alone. The backend still owns real JWT/RLS, licence and reviewer authorization.
+
+
+## 2026-10-29 — Feature3 private browser authorization scopes include signed API provider identity
+- A shop/campaign/day key is insufficient for first-render privacy when the authenticated API client is replaced without changing the tenant/day. Private draft/history/job/message/busy state is tagged with the actual provider object, and an old provider's preview URL or CAS revision is never displayed/carried into the replacement session. Integration must instantiate a fresh provider when the authenticated session changes. Client presentation fencing is defense in depth, never permission to bypass JWT/RLS, current reviewed media rights or 60-second signed URL expiry semantics.

@@ -1321,3 +1321,11 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 private saved draft tenant race completion gate
 - Validate exact-head four CI jobs on `feat/feature3-draft-tenant-epoch-currentmain-20261029`, coordinator merge preserving Testing Chat and other Feature3 changes and verify fresh postmerge main. Source browser cleanup does not verify signed DEV OWNER/EDITOR/VIEWER/foreign/revoked response behavior: retain hosted acceptance and current rights, future no-URL private binary endpoint, real licensed model output and Azure #249 as separate gates.
+
+
+## 2026-10-29 — Feature3 after verified #671 integration
+1. #671 reconciled/merged and postmerge 4/4 complete; #670 is closed. Do not reimplement old history/CAS fencing. Review Feature3 33-package acceptance in `docs/feature3/FEATURE3_33_PACKAGE_STATUS_20261029.md` instead of treating merged source as hosted product.
+2. **#471 / #325 (Feature3 + coordinator):** obtain a coordinator-reviewed versioned same-origin no-URL private PNG route with an independently authorized production output-rights callback; preserve OFF flags, no raw signed URLs. Acceptance: mounted opt-in route and current signed retailer/foreign/revoked/VIEWER negative tests before activation.
+3. **F3-LICENSED-MEDIA (Feature3):** obtain truly licensed retailer originals/garment/model and human commercial/likeness review. Source-only synthetic assets, migration proposals and demo previews do not satisfy this.
+4. **#627 (Testing Chat coordinator):** require versioned signed genuine worker spans and service evidence before #14/#23. **#249 (Azure lead):** independently resolve recurring 503 and confirm signed DEV route reliability. No PROD or migration approval is implied.
+5. **F5-GPU-AUTHORIZATION + PART3-WAN22-CONTRACT (coordinator), F5-REAL-WAN-MOTION (Feature5), F4-F2-CREATIVE-ADAPTER/F4-F7-EDIT-ADAPTER/F4-PROFESSIONAL-REEL (Feature4):** continue separate GPU-OFF fixture contracts, then independently approve paid/inference/quality gates. Current Feature3 package totals remain **0 fully hosted, 12 source-integrated/partial, 21 blocked/dependent**.
