@@ -982,3 +982,6 @@
 
 ## 2026-10-29 — Never infer immutable private PNG proof from HTTP Content-Length alone
 - The private generated PNG reader verifies actual payload size against any present Content-Length, rejects unexpected compressed Content-Encoding, and still compares true bytes to SHA-named private path after Pillow validation and second current JWT/rights check. Missing HTTP length for legitimate chunked transfer may be accepted only with real bounded SHA proof. Neither browser preview nor a synthetic signed token establishes legal output authorization or immediate invalidation of previously signed links.
+
+## 2026-10-29 — Private output response requires composed end-to-end denial evidence
+- Keep the current `Feature3PrivateBinaryHTTP` + `Feature3RevocablePNGReader` source adapters separate from an unapproved Azure route but test their actual composed boundary using real image bytes, twice-current tenant membership and independent rights callback, strict response headers and denial-without-bytes on revocation between authenticated Storage read and final response. Synthetic signed tokens and fake reviewer callbacks are tests only, never commercial licence or production release authorization.
