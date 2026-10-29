@@ -30,6 +30,7 @@ function excerpt(text, max = 1200) {
 export async function executeFeatureTrace({
   id, shopId, userId, prompt, mode, assetId, startDate,
   client, trendApi, campaignApi, store, onEvent = () => {},
+  getNetworkEvidence = () => [],
   sleep = delay, maxPolls = 15,
 }) {
   if (!ID.test(id) || !ID.test(shopId) || !ID.test(userId) ||
@@ -41,9 +42,24 @@ export async function executeFeatureTrace({
   // A rejected first write means no test begins; never generate an unlogged result.
   await store.createRun({ id, shopId, userId, prompt, mode })
   let seq = 0
+  let seenTransport = 0
   const log = async (feature, action, status, summary, details = {}, durationMs = null) => {
+    const all = getNetworkEvidence()
+    const receipts = Array.isArray(all) ? all.slice(seenTransport, seenTransport + 8) : []
+    seenTransport = Array.isArray(all) ? all.length : seenTransport
+    // Keep only sanitized, known fields returned by the existing HTTP clients.
+    // Response marker absent is an observation, never a proven Azure root cause.
+    const safeReceipts = receipts.map(r => ({
+      source: r.source, operation: r.operation, method: r.method,
+      status_code: r.status_code, request_id: r.request_id,
+      handler_marker_seen: r.handler_marker_seen,
+      elapsed_ms: r.elapsed_ms, attempt: r.attempt,
+    }))
+    const persistedDetails = safeReceipts.length
+      ? { ...details, http_receipts: safeReceipts } : details
     const event = await store.append({
-      runId: id, shopId, userId, seq: ++seq, feature, action, status, summary, details, durationMs,
+      runId: id, shopId, userId, seq: ++seq, feature, action, status, summary,
+      details: persistedDetails, durationMs,
     })
     onEvent(event)
     return event
