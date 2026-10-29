@@ -111,7 +111,7 @@ def test_audio_recording_word_duration_must_be_bound_to_original_wav():
 
 
 def test_signing_provenance_must_be_confirmed_by_current_server_source():
-    with pytest.raises(Feature7AudioEvidenceDenied,match="current private audio"):
+    with pytest.raises(Feature7AudioEvidenceDenied,match="private audio source/creative/job provenance denied"):
         verify(sample(),source_check=lambda *args:False)
     with pytest.raises(Feature7AudioEvidenceDenied,match="authoritative audio job"):
         verify(sample(),expected_job_id="another-job")
