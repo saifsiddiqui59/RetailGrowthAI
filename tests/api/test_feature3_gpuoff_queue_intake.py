@@ -20,6 +20,8 @@ class FakePlan:
         self.foreign=False
         self.blocked=False
         self.unsafe_flag=None
+        self.override=None
+        self.raise_backend=False
 
     def check(self,shop,job):
         self.calls.append((shop,job))
@@ -27,6 +29,8 @@ class FakePlan:
             raise Feature3PlanDenied("foreign queued job absent")
         if self.blocked:
             raise Feature3PlanDenied("source rights revoked")
+        if self.raise_backend:
+            raise OSError("unavailable private Storage or SQL")
         packet={"shop_id":str(uuid4()) if self.foreign else shop,
                 "job_id":job, "source_asset_ids":(self.source,),
                 "source_sha256s":("a"*64,),
@@ -37,6 +41,7 @@ class FakePlan:
                 "paid_retry_authorized":False}
         if self.unsafe_flag:packet[self.unsafe_flag]=True
         if self.invalid:packet["public_url"]="https://evil.invalid/asset"
+        if self.override is not None:packet.update(self.override)
         return packet
 
 
@@ -102,6 +107,42 @@ class Tests(unittest.TestCase):
             with self.subTest(attr=attr),self.assertRaises(Feature3QueueIntakeBlocked):
                 self.queue.inspect(self.msg)
             self.assertEqual(len(self.plan.calls),1)
+
+
+    def test_untrusted_plan_receipt_values_never_pass_even_with_off_provider(self):
+        invalid=(
+            ("source_asset_ids",lambda:("not-a-uuid",)),
+            ("source_asset_ids",lambda:(self.asset,self.asset)),
+            ("source_sha256s",lambda:None),
+            ("source_sha256s",lambda:("Z"*64,)),
+            ("source_sha256s",lambda:("a"*64,"b"*64)),
+            ("rights_revisions",lambda:None),
+            ("rights_revisions",lambda:(True,)),
+            ("rights_revisions",lambda:(0,)),
+            ("rights_revisions",lambda:(-1,)),
+            ("rights_revisions",lambda:(2.5,)),
+        )
+        for field,generate in invalid:
+            self.setUp()
+            self.plan.override={field:generate()}
+            with self.subTest(field=field,invalid=repr(self.plan.override)),self.assertRaises(
+                    Feature3QueueIntakeBlocked):
+                self.queue.inspect(self.msg)
+            self.assertEqual(self.plan.calls,[(self.shop,self.job)])
+
+    def test_private_rights_outage_and_unavailable_provider_status_fail_closed(self):
+        self.plan.raise_backend=True
+        with self.assertRaises(Feature3QueueIntakeBlocked):
+            self.queue.inspect(self.msg)
+        self.assertEqual(self.plan.calls,[(self.shop,self.job)])
+        self.plan.calls.clear()
+        def unknown_provider_state():
+            raise OSError("provider gate unavailable")
+        queue=Feature3GPUOffQueueIntake(
+            plan_reader=self.plan,provider_status=unknown_provider_state)
+        with self.assertRaises(Feature3QueueIntakeBlocked):
+            queue.inspect(self.msg)
+        self.assertEqual(self.plan.calls,[])
 
     def test_missing_reader_or_status_denied_before_any_queue(self):
         with self.assertRaises(ValueError):
