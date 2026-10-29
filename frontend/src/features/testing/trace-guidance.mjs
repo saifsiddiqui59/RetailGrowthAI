@@ -3,6 +3,7 @@
 // events and human reviews, not the authoritative worker ledger.
 import { FEATURE_LABELS, summarizeTrace } from './trace-diagnostics.mjs'
 import { acceptedDimension, dimensionAdvice } from './quality-rubrics.mjs'
+import { hasObservedCompletedOutput } from './trace-output-evidence.mjs'
 
 const ACTIONS = Object.freeze({
   F1: Object.freeze({
@@ -62,6 +63,7 @@ export function analyzeImprovementPriorities(events) {
     const score = successful.length ? feature.quality_latest : null
     const aspect = acceptedDimension(feature.id, feature.quality_dimension_latest)
     const lowQuality = score !== null && score <= 2
+    const completedOutput = hasObservedCompletedOutput(normalized,feature.id)
     let reason, action, category, priority
     if (firstIssue?.status === 'FAIL') {
       reason = 'A stage reported failure. Its stored summary is evidence, not a verified root cause.'
@@ -80,6 +82,18 @@ export function analyzeImprovementPriorities(events) {
         ? dimensionAdvice(feature.id, aspect.id) : rubric.quality
       category = 'LOW_HUMAN_QUALITY'
       priority = 2
+    } else if (feature.status === 'PASS' && feature.id === 'F1') {
+      reason = 'Signed-in tenant and registered media metadata checks passed; this is not a creative output.'
+      action = rubric.review
+      category = 'ACCESS_VERIFIED'
+      priority = 3
+    } else if (feature.status === 'PASS' && !completedOutput) {
+      reason = 'A step was acknowledged, but no completed creative output is present in the saved receipts.'
+      action = feature.id === 'F4'
+        ? 'Inspect saved Reel status and private output asset ID before trying to rate or resubmit the job.'
+        : 'Inspect the authorized saved job or campaign until a real output is returned; a queue ACK is not creative success.'
+      category = 'AWAITING_OUTPUT'
+      priority = 2.5
     } else if (feature.status === 'PASS') {
       reason = score === null
         ? 'Observed API stage(s) passed, but this feature has no human quality review.'
@@ -110,7 +124,7 @@ export function analyzeImprovementPriorities(events) {
   })
   // Keep the earliest observed failing or uncertain operation as the starting
   // point, then surface independent low-quality outputs even if APIs passed.
-  const urgent = entries.filter(e => e.priority <= 2).sort((a,b) =>
+  const urgent = entries.filter(e => e.priority <= 2.5).sort((a,b) =>
     a.priority - b.priority || FEATURE_LABELS.findIndex(([id])=>id===a.feature) -
       FEATURE_LABELS.findIndex(([id])=>id===b.feature))
   const observed = entries.filter(e => e.completed_steps > 0).length
@@ -120,7 +134,7 @@ export function analyzeImprovementPriorities(events) {
     first_problem: report.first_problem,
     observed_features: observed, untested_features: untested,
     description: urgent.length
-      ? 'Start with the listed observed execution or human-quality problems. These are investigation leads, not independently proven causes.'
+      ? 'Start with the listed verification or human-quality priorities. These are investigation leads, not proven worker root causes.'
       : 'No observed execution problem or low human rating in this trace. Review actual outputs and test unobserved features separately.',
   })
 }
