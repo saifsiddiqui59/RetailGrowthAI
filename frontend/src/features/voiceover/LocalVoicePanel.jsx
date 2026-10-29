@@ -33,7 +33,8 @@ export default function LocalVoicePanel({
  const [audioUrl,setAudioUrl]=useState('')
  const urlRef=useRef(null)
  const scopeRef=useRef('')
- scopeRef.current=shopId+':'+campaignId+':'+planSha256
+ // A changed script invalidates every pending narration, quality and retake receipt.
+ scopeRef.current=shopId+':'+campaignId+':'+planSha256+':'+sourceScript
  function clearAudio(){
   if(urlRef.current)URL.revokeObjectURL(urlRef.current)
   urlRef.current=null;setAudioUrl('')
