@@ -147,3 +147,44 @@ The Feature4 private builder now accepts **optional** `voiceover_asset_id` (null
 - **F4-26 visual compositor bug CLOSED for video-led openings**: previously a 44%-width root `hero-logo` covered the actor face in the actual editor-driven first scene. `professional.py` now shows that giant logo ONLY for text/brand-only intros while retaining a small corner logo on all compositions. The actual edited mock project fails compilation if the big logo appears over a video-led scene or the small brand logo disappears. Reviewed 2s updated MP4 frame shows unobscured stylized model and corner branding. Text-only intro fixture still retains hero logo.
 - **F4-27 stale signed-preview bug CLOSED in tested UI**: `VideoStudio.jsx` now displays a completed private MP4 as the CURRENT composition only when its draft remains in the submitted state; editing/retiming/source switching invalidates current-display status instead of silently replaying an older signed result. Playwright exercises prior job vs new submission vs changed timeline draft. Backend job snapshot/tenant authorization remains independently authoritative; no new public endpoint.
 - This establishes **Feature4 offline source/editor/mock-render acceptance for the supported subset** and a genuine inspected video artifact, NOT the full professional product definition. Original MIT Timeline Studio full application/advanced PreviewStage tools are not completely adopted. User-specific garment detail, authentic human motion from Feature5, spoken real-voice subtitle sync, live JWT/RLS claim/quota/outbox, issue #249 HTTP reliability, third-party commercial licenses, signed-in hosted DEV E2E, and final commercial human visual signoff remain **OPEN**. The illustrated media and test sine-wave narration are explicitly synthetic and do not meet professional retailer quality. Do not enable paid GPU/cloud deployment, merge or declare production-ready.
+
+
+## 2026-10-29 — Coordinator packaging fix proposal for PR #322 merged CI (task 22)
+
+**Verified merged-base failure:** PR Python/uv job #123425652275 in run
+#40867400353 fails four infra tests at `scripts/deploy/package.py:134`
+with `ValueError: Duplicate or excessive ZIP members`. The validator rightly
+rejects more than 120 entries; it must **not** be disabled or blindly raised.
+Current `source_files()` collects every `video-engine/*.py`, as well as
+`poster-engine/*.py`, `campaign-api/*.py` and agent runtime files. The
+current main root `video-engine` has **4** Python files while Feature4 adds
+**27** QA/editor/fixture/export scripts, many intentionally not used by the
+running Functions host. Blind globs add test/dev machinery to the production
+package, producing ~126 total merged ZIP members, even though branch-only CI
+is green. This package failure is independent of the five-point pixel QA.
+
+**Checked current main runtime import roots:**
+- `azure-functions/campaign-api/render_worker.py` imports `render` from
+  `video-engine` (via its private `VIDEO_DIR` sys.path), not Feature4's
+  Timeline Studio/HyperFrames preview modules.
+- `video-engine/render.py` imports `probe.verify_reel` and
+  `asset_preflight.preflight_assets`.
+- A coordinator-reviewed allowlist for the *existing v1 render worker*
+  therefore begins with `video-engine/render.py`, `probe.py` and
+  `asset_preflight.py`. Do **not** infer poster-engine closure from this
+  observation; the coordinator must run full static+runtime import closure for
+  ALL live workers before changing `source_files()`.
+- `video-engine/generate_test_assets.py`, `feature4_stock_showcase.py`,
+  reviewer-only `feature4_review_contact_sheet.py`, synthetic QA scripts
+  and demo files are not production runtime modules of the **existing v1**
+  Function and should not be included by a wildcard solely to placate tests.
+- No assertion is made that a future v2 HyperFrames worker can run with only
+  these 3 files; it requires separate reviewed Node22/Chromium/FFmpeg packaging
+  and the worker dispatcher/queue/RLS integration.
+
+**Acceptance for coordinator**: runtime-only deterministic manifest, explicit
+missing-required-module negative tests, reject any unexpected source inclusion,
+retain ZIP size/member + Linux ELF/license + lease/rollback guards, rerun
+exact PR merge four-job CI then fresh postmerge main. Feature4 branch **does
+not edit** coordinator-owned `scripts/deploy/**`, workflows, Supabase, Azure,
+shared docs or force-merge PR #322.
