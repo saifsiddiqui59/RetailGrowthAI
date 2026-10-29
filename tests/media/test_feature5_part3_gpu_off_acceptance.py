@@ -88,6 +88,17 @@ class TestOnlyPart3:
         return {"bucket":"retailgrowth-media","path":path,"private":True,
                 "sha256":hashlib.sha256(body).hexdigest(),"bytes":len(body)}
 
+    def read_back_private_chunks(self,shop,job,attempt,bucket,path):
+        """Simulated server-only byte reader, NOT actual Supabase Storage."""
+        if ((shop,job,attempt,bucket,path)!=(
+            self.shop,self.job,self.attempt,"retailgrowth-media",
+            f"{self.shop}/renders/{self.job}/{self.attempt}.mp4")
+            or not self.intent or self.revoked):
+            raise PermissionError("foreign or revoked private Storage read")
+        with (self.root/path).open("rb") as source:
+            for block in iter(lambda:source.read(1024*1024),b""):
+                yield block
+
     def settle(self,shop,job,attempt,asset,source,path,digest,bytes_,
                prompt_sha,lineage_sha):
         if not self.intent or not self.check(shop,job,attempt,source,lineage_sha,digest):
@@ -156,6 +167,7 @@ class Feature5Part3OfflineAcceptanceTests(unittest.TestCase):
             "check_current_paid_claim_and_source":store.check,
             "commit_unique_import_intent":store.reserve_intent,
             "upload_private_once":store.upload,
+            "read_back_private_chunks":store.read_back_private_chunks,
             "commit_fenced_storage_and_settlement":store.settle,
             "current_rights_approved":True,
         }
@@ -245,6 +257,56 @@ class Feature5Part3OfflineAcceptanceTests(unittest.TestCase):
             import_wan_into_existing_part3(**params)
         self.assertTrue(store.intent)
         self.assertEqual(store.commits,0)
+
+    def test_private_storage_ack_lies_about_actual_bytes_never_settles(self):
+        store,params,_=self.setup_case()
+        def corrupt_actual_stored_object(*args):
+            claimed=store.upload(*args)
+            stored=store.root/claimed["path"]
+            with stored.open("r+b") as stream:
+                stream.seek(4096)
+                old=stream.read(1)
+                stream.seek(4096)
+                stream.write(bytes([old[0]^1]))
+            # ACK remains original, falsely describing correct object.
+            return claimed
+        params["upload_private_once"]=corrupt_actual_stored_object
+        with self.assertRaises(UnknownPart3PrivateImport):
+            import_wan_into_existing_part3(**params)
+        self.assertTrue(store.intent)
+        self.assertEqual((store.uploads,store.commits),(1,0))
+        with self.assertRaises(WanCompatibilityError):
+            import_wan_into_existing_part3(**params)
+        self.assertEqual(store.uploads,1)
+
+    def test_private_storage_readback_missing_or_foreign_denies_settlement(self):
+        store,params,_=self.setup_case()
+        params["read_back_private_chunks"]=None
+        with self.assertRaises(WanCompatibilityError):
+            import_wan_into_existing_part3(**params)
+        self.assertFalse(store.intent)
+        self.assertEqual(store.uploads,0)
+
+        params["read_back_private_chunks"]=lambda *args: iter([b"wrong object"])
+        with self.assertRaises(UnknownPart3PrivateImport):
+            import_wan_into_existing_part3(**params)
+        self.assertTrue(store.intent)
+        self.assertEqual((store.uploads,store.commits),(1,0))
+
+    def test_private_storage_readback_denies_invalid_chunks_and_timeout(self):
+        for readback in (
+            lambda *args: iter([b""]),
+            lambda *args: iter(["client supplied text"]),
+            lambda *args: iter([b"x"*(1024*1024+1)]),
+            lambda *args: (_ for _ in ()).throw(TimeoutError("storage read timeout")),
+        ):
+            with self.subTest(readback=repr(readback)):
+                store,params,_=self.setup_case()
+                params["read_back_private_chunks"]=readback
+                with self.assertRaises(UnknownPart3PrivateImport):
+                    import_wan_into_existing_part3(**params)
+                self.assertTrue(store.intent)
+                self.assertEqual((store.uploads,store.commits),(1,0))
 
     def test_lost_unique_intent_ack_is_unknown_and_consumed(self):
         store,params,_=self.setup_case()
