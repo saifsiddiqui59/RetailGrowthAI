@@ -10,3 +10,6 @@
 - Branch `feat/feature3-gpuoutbox-prepublish-batch-validation-20261029`; exact-head 4/4 PR CI and coordinator-reviewed merge + fresh postmerge 4/4 required. Keep 0/33 fully hosted DONE; F3-05 and F3-13 remain source-partial, with actual Azure delivery/unknown ACK, provider/rights grants and real signed DEV acceptance outstanding.
 - Do not change the shared original 33-package tracker from this branch because PR #683 owns a concurrent edit. Coordinator should append this handoff on integration.
 - Never start GPU, deploy, change hosted SQL, approve real sources, modify PROD or WineShopPOS.
+
+## Existing contract compatibility
+- The established GPU envelope validator continues to raise `GPUEnvelopeDenied` for malformed shop/job IDs; it is applied to every claimed row before any queue send. Malformed dispatch tokens/batches remain `StorageUnavailable`. This preserves existing queue sender tests and prevents a malformed source identity being treated as ambiguous transport-ACK.
