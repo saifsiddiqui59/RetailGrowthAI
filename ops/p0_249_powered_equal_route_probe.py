@@ -28,7 +28,10 @@ assert sum(count for _, count in PLAN) == PER_BACKEND
 
 def accepted(observation):
     """Count only exact final-response application-marked anonymous HTTP 401."""
-    if observation["curl_exit"] != 0 or observation["http_status"] != "401":
+    if (observation.get("curl_exit") != 0
+            or observation.get("http_status") != "401"
+            or observation.get("category") != "EXPECTED_401"
+            or observation.get("route") != ROUTE):
         return False
     if observation["backend"] == "azure_flex_python":
         return observation.get("application_request_marker") is True
@@ -45,8 +48,11 @@ def safe_round(sender, phase, indices):
         output = []
         for backend, idx, future in futures:
             result = future.result()
-            if result.get("backend") != backend or result.get("route") != ROUTE:
-                raise ValueError("unexpected probe backend or route")
+            if (not isinstance(result, dict)
+                    or result.get("backend") != backend
+                    or result.get("route") != ROUTE
+                    or result.get("phase") != phase):
+                raise ValueError("unexpected probe backend, route or phase")
             result = dict(result)
             result["sequence"] = idx
             # Fixed paths, marker presence only. Never log header values/bodies.
