@@ -20,8 +20,18 @@ from faster_whisper_cpu import infer_audio, LocalFasterWhisperError
 def tokens(text: str) -> list[str]:
     if not isinstance(text,str) or not text.strip():
         raise LocalFasterWhisperError("Independent human reference required")
-    return re.findall(r"\w+",unicodedata.normalize("NFKC",text).casefold(),
-                      flags=re.UNICODE)
+    # Hindi/Marathi combining vowel signs are part of words (\\w splits
+    # several Devanagari clusters); preserve Unicode letter/mark/number runs.
+    result, current = [], []
+    for char in unicodedata.normalize("NFKC", text).casefold():
+        if unicodedata.category(char)[0] in ("L", "M", "N"):
+            current.append(char)
+        elif current:
+            result.append("".join(current))
+            current = []
+    if current:
+        result.append("".join(current))
+    return result
 
 def word_error_rate(reference: str, hypothesis: str) -> dict:
     ref=tokens(reference); hypo=tokens(hypothesis)
