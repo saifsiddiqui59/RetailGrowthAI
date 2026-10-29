@@ -104,7 +104,7 @@ class OpenVtoInputPackTests(unittest.TestCase):
     def test_unreachable_upstream_fails_without_fake_success(self):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaises(demo.DemoPackDenied):
-                demo.export_demo_input_pack(tmp, opener=lambda _req, _timeout:
+                demo.export_demo_input_pack(tmp, opener=lambda _req, timeout:
                     (_ for _ in ()).throw(OSError("offline")))
             self.assertFalse((Path(tmp) / "manifest.json").exists())
 
