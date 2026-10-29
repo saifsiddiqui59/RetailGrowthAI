@@ -510,6 +510,25 @@ from datetime import datetime, timezone
 _TREND_SHA = re.compile(r"^[0-9a-f]{64}$")
 _TREND_ID = re.compile(r"^[A-Za-z0-9_-]{5,80}$")
 
+def _retailer_trend_tokens(value):
+    """Locale-agnostic word boundaries, preserving Indic combining marks."""
+    import unicodedata
+    if type(value) is not str or len(value)>3500:
+        raise EditorialBasisRejected("Bounded multilingual source required")
+    words=[];buf=[]
+    for ch in unicodedata.normalize("NFC",value).casefold():
+        c=unicodedata.category(ch)
+        if c[0] in ("L","N") or (c[0]=="M" and buf):
+            buf.append(ch)
+        elif buf:
+            if len(buf)>=3:
+                words.append("".join(buf))
+            buf=[]
+    if len(buf)>=3:
+        words.append("".join(buf))
+    return set(words)
+
+
 def rank_source_backed_trends(*, verified_context, trends, now_utc,
                               verify_source_provenance):
     """Bounded relevance for current retailer: never grants trend or posting."""
@@ -529,8 +548,8 @@ def rank_source_backed_trends(*, verified_context, trends, now_utc,
             script += " " + str(media.get("product_sku") or "")
     stopwords={"and","the","for","with","you","your","this","that",
                "from","our","are","today","only","into","all"}
-    query=set(re.findall(r"[a-z]{3,}",script.casefold()))-stopwords
-    selected=[]
+    query=_retailer_trend_tokens(script)-stopwords
+    selected=[];seen_ids=set()
     for row in trends:
         if (type(row) is not dict or row.get("shop_id")!=shop or
             row.get("source_type")!="RSS" or
@@ -538,8 +557,12 @@ def rank_source_backed_trends(*, verified_context, trends, now_utc,
             not _TREND_SHA.fullmatch(str(row.get("source_sha256") or "")) or
             type(row.get("headline")) is not str or
             not 12<=len(row["headline"])<=180 or
+            any(ord(c)<32 or c in "<>" for c in row["headline"]) or
             type(row.get("published_at")) is not str):
             raise EditorialBasisRejected("Current authenticated RSS evidence missing")
+        if row["id"] in seen_ids:
+            raise EditorialBasisRejected("Duplicate trend identity may not inflate relevance")
+        seen_ids.add(row["id"])
         try:
             published=datetime.fromisoformat(row["published_at"])
             elapsed=(now_utc.astimezone(timezone.utc)-
@@ -551,7 +574,7 @@ def rank_source_backed_trends(*, verified_context, trends, now_utc,
         if verify_source_provenance(shop,row["id"],row["source_sha256"],
                                     row["published_at"]) is not True:
             raise EditorialBasisRejected("Independent signed RSS provenance unavailable")
-        headline_terms=set(re.findall(r"[a-z]{3,}",row["headline"].casefold()))-stopwords
+        headline_terms=_retailer_trend_tokens(row["headline"])-stopwords
         overlap=len(query & headline_terms)
         if overlap==0:
             continue
