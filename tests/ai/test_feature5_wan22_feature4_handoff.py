@@ -151,5 +151,73 @@ class WanReviewedFeature4HandoffTests(unittest.TestCase):
             reviewed_wan_clip_for_feature4(**k)
 
 
+class PendingFeature4RichWanReceiptTests(unittest.TestCase):
+    def report(self, options=None):
+        from feature5_motion.wan22_feature4_handoff import pending_private_wan_receipt_for_feature4
+        k=setup_fixture() if options is None else options
+        return pending_private_wan_receipt_for_feature4(
+            package=k["package"], inspection=k["inspection"],
+            storage_receipt=k["storage_receipt"])
+
+    def test_full_private_source_job_and_native_media_provenance_is_not_approval(self):
+        k=setup_fixture()
+        result=self.report(k)
+        self.assertEqual(result["schema"],"retailgrowth.feature5-f4-motion-review-candidate.v1")
+        self.assertEqual(result["job_id"],k["storage_receipt"]["job_id"])
+        self.assertEqual(result["shop_id"],k["package"].lineage["shop_id"])
+        self.assertEqual(result["campaign_id"],k["package"].lineage["campaign_id"])
+        self.assertEqual(result["scene_id"],k["package"].lineage["scene_id"])
+        self.assertEqual(result["output_media"]["private_path"],k["storage_receipt"]["path"])
+        self.assertEqual(result["output_media"]["sha256"],k["inspection"].sha256)
+        self.assertEqual(result["source_media"]["first_frame_sha256"],
+                         k["package"].lineage["staged_first_frame_sha256"])
+        self.assertEqual(result["native_video"]["frames"],121)
+        self.assertEqual(result["native_video"]["fps"],24)
+        self.assertEqual(result["creative"]["generation_prompt"],k["package"].prompt)
+        self.assertEqual(result["creative"]["checkpoint_revision"],
+                         k["package"].lineage["model_revision"])
+        self.assertEqual(result["part3_evidence"]["ledger_status_from_receipt"],"SETTLED")
+        for field in ("approved_for_feature4","can_publish","can_download",
+                      "genuine_wan_origin_proven"):
+            self.assertIs(result[field],False)
+        self.assertIs(result["part3_evidence"]["live_trusted_lease_billing_and_storage_verified"],False)
+        self.assertEqual(result["review_decision"],"NOT_APPROVED")
+        self.assertIsNone(result["output_media"]["public_url"])
+
+    def test_tampered_receipt_and_changed_technical_mp4_are_denied(self):
+        for field,value in (
+            ("shop_id",str(uuid4())),("path","outside.mp4"),
+            ("media_sha256","b"*64),("prompt_sha256","c"*64),
+            ("lineage_sha256","d"*64),("bucket","public"),
+            ("bytes",5),("ledger_status","UNKNOWN"),
+            ("private",False),("rights_approved",False),
+        ):
+            k=setup_fixture()
+            k["storage_receipt"][field]=value
+            with self.subTest(field=field),self.assertRaises(WanCompatibilityError):
+                self.report(k)
+        for field,value in (
+            ("width",1080),("height",1920),("frames",120),
+            ("fps",30),("codec","vp9"),("duration_seconds",12),
+            ("sha256","malformed"),
+        ):
+            k=setup_fixture()
+            k["inspection"]=replace(k["inspection"],**{field:value})
+            with self.subTest(field=field),self.assertRaises(WanCompatibilityError):
+                self.report(k)
+
+    def test_modified_generation_prompt_and_first_frame_are_denied(self):
+        k=setup_fixture()
+        k["package"]=replace(k["package"],prompt="unreviewed rewritten text")
+        with self.assertRaises(WanCompatibilityError):
+            self.report(k)
+        k=setup_fixture()
+        new_lineage=dict(k["package"].lineage)
+        new_lineage["source_sha256"]="bad"
+        k["package"]=replace(k["package"],lineage=new_lineage)
+        with self.assertRaises(WanCompatibilityError):
+            self.report(k)
+
+
 if __name__=="__main__":
     unittest.main()
