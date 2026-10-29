@@ -2,6 +2,7 @@
 // unobserved worker execution. This reads only private browser-observed trace
 // events and human reviews, not the authoritative worker ledger.
 import { FEATURE_LABELS, summarizeTrace } from './trace-diagnostics.mjs'
+import { acceptedDimension, dimensionAdvice } from './quality-rubrics.mjs'
 
 const ACTIONS = Object.freeze({
   F1: Object.freeze({
@@ -59,6 +60,7 @@ export function analyzeImprovementPriorities(events) {
     const rubric = ACTIONS[feature.id]
     // A reviewer cannot establish output quality for an absent feature.
     const score = successful.length ? feature.quality_latest : null
+    const aspect = acceptedDimension(feature.id, feature.quality_dimension_latest)
     const lowQuality = score !== null && score <= 2
     let reason, action, category, priority
     if (firstIssue?.status === 'FAIL') {
@@ -72,8 +74,10 @@ export function analyzeImprovementPriorities(events) {
       category = 'UNCONFIRMED_RESULT'
       priority = 1
     } else if (lowQuality && successful.length) {
-      reason = 'The execution returned an output, but a reviewer rated its quality ' + score + '/5.'
-      action = rubric.quality
+      reason = 'The execution returned an output, but a reviewer rated ' +
+        (aspect?.id && aspect.id !== 'overall' ? aspect.label + ' ' : 'its quality ') + score + '/5.'
+      action = aspect?.id && aspect.id !== 'overall'
+        ? dimensionAdvice(feature.id, aspect.id) : rubric.quality
       category = 'LOW_HUMAN_QUALITY'
       priority = 2
     } else if (feature.status === 'PASS') {
@@ -98,6 +102,7 @@ export function analyzeImprovementPriorities(events) {
       category, priority, status: feature.status,
       completed_steps: successful.length,
       latest_human_score: score,
+      latest_human_dimension: score !== null ? (aspect?.id || 'overall') : null,
       first_problem: issue, reason, recommended_action: action,
       // A model/provider call is never inferred from browser stage labels.
       evidence_type: 'browser_observed_and_human_review',
