@@ -982,3 +982,6 @@
 
 ## 2026-10-29 — Never infer immutable private PNG proof from HTTP Content-Length alone
 - The private generated PNG reader verifies actual payload size against any present Content-Length, rejects unexpected compressed Content-Encoding, and still compares true bytes to SHA-named private path after Pillow validation and second current JWT/rights check. Missing HTTP length for legitimate chunked transfer may be accepted only with real bounded SHA proof. Neither browser preview nor a synthetic signed token establishes legal output authorization or immediate invalidation of previously signed links.
+
+## 2026-10-29 — Private saved draft and GPU job history scope must be enforced before React effects
+- UI authorization data remains valid only for exact `shop_id/campaign_id/day_id` and current signed API provider. Scope-tag private saved designs, generated-job status, reopened draft, transient messages and revision CAS ticket at render time; reject stale in-flight results on scope/API/nonce change, including after uncertain POST. A foreign/previous day DRAFT is never reopened based on its media SHA alone. The backend still owns real JWT/RLS, licence and reviewer authorization.
