@@ -727,3 +727,6 @@ Use scripts/checkpoint.sh after completing a task.
 
 ## 2026-10-29 — Claimed-worker GPU-OFF current rights inspection branch
 - Branch `feat/feature3-claimed-lease-current-rights-recheck-20261029` created from verified main `60d40482fe14d9c36fdf4c5c3d8c0afbbdd384be` in parallel with operator read-only PR #658. Reused `Feature3GPUJobPlanPreflight` SQL/media source verifier for strict RUNNING one-shot claim current token and `Feature3GPUServiceStore.read_prepaid_reservation` lease read before/after full SQL+rights byte rechecks; no changed v1 queue envelope. Added actual Pillow/mock HTTPS+independent reviewer CPU integration and forged/stale/revoked/lost-lease negatives. Does not issue a SQL claim, start GPU or mutate DEV/PROD. Exact-head PR/CI pending.
+
+## 2026-10-29 — Feature3 model-library Blob failure cleanup
+- Independent `feat/feature3-private-model-preview-blob-cleanup-20261029` source branch from post-#659 main `6b3218ee0246fda2b8022b36723ec7980c1b3160` fixes a private model-preview object URL retained after a failed image decode. Added testable exact local Blob discard helper, immutable browser-scope tests, new feature-specific handoff and four canonical docs. No new network request, paid operation, SQL migration or PROD/WineShopPOS modification. Verify full PR and postmerge main CI before marking integrated.
