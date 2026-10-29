@@ -49,3 +49,50 @@
 @media (prefers-reduced-motion: reduce) {
   .rgai-f7-review * { scroll-behavior: auto !important; }
 }
+
+/* Optional human correction inside the same private Feature7 reviewer.
+   Captions are TEXT suggestions until independently approved on server. */
+.rgai-f7-review .rgai-f7-caption-correction {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+  margin: 0;
+  border: 1px solid var(--panel-border, #d3d9e2);
+  border-radius: 10px;
+  background: var(--panel-elevated, transparent);
+}
+.rgai-f7-review .rgai-f7-caption-correction legend {
+  font-weight: 700;
+  padding-inline: 8px;
+}
+.rgai-f7-review .rgai-f7-caption-correction textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 76px;
+  font: inherit;
+  line-height: 1.45;
+  padding: 10px 12px;
+  border: 1px solid var(--panel-border, #d3d9e2);
+  border-radius: 8px;
+  background: var(--input-bg, #fff);
+  color: var(--input-fg, #111827);
+}
+.rgai-f7-review .rgai-f7-caption-correction label {
+  display: flex;
+  align-items: start;
+  gap: 6px;
+}
+.rgai-f7-review .rgai-f7-caption-correction button {
+  width: fit-content;
+  max-width: 100%;
+  white-space: normal;
+}
+@media (max-width: 520px) {
+  .rgai-f7-review .rgai-f7-caption-correction { padding: 12px; }
+  .rgai-f7-review .rgai-f7-caption-correction button { width: 100%; }
+}
