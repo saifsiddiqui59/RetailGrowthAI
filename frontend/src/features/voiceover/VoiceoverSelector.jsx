@@ -13,6 +13,7 @@ export default function VoiceoverSelector({
   onRequestUpload=null,onRequestLocalPreview=null,onRequestLocalSynthesis=null,
   onFetchLocalAudio=null,onFetchLocalQualityReview=null,onProposeLocalScriptRevision=null,
   onProposeLocalPronunciation=null,onCommitReviewedLocalDraft=null,
+  onRequestLocalSentenceRetake=null,
 }){
   const [selection,setSelection]=useState(emptyVoiceSelection)
   const [voiceProvider,setVoiceProvider]=useState('kokoro')
@@ -116,7 +117,8 @@ export default function VoiceoverSelector({
           onFetchQualityReview={onFetchLocalQualityReview}
           onProposeScriptRevision={onProposeLocalScriptRevision}
           onProposePronunciation={onProposeLocalPronunciation}
-          onCommitReviewedDraft={onCommitReviewedLocalDraft}/> : <>
+          onCommitReviewedDraft={onCommitReviewedLocalDraft}
+          onRequestSentenceRetake={onRequestLocalSentenceRetake}/> : <>
 
         <label>Language
           <select value={locale} onChange={e=>{
