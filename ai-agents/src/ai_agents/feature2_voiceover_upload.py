@@ -77,6 +77,12 @@ def accept_unreviewed_wav(*,shop_id,campaign_id,plan,original_audio,
         not _uuid(result.get("asset_id")) or
         result.get("review_state")!="PENDING_RIGHTS_AND_SPEECH_REVIEW"):
         raise VoiceUploadRejected("Private original was not registered pending review")
+    # A valid storage receipt is not a current authorization. The trusted writer
+    # must also fence the commit transaction against revocation; this readback
+    # prevents a stale successful response after an in-flight permission change.
+    if (authenticated_editor(shop_id,campaign_id) is not True or
+        read_authoritative_plan(shop_id,campaign_id)!=plan):
+        raise VoiceUploadRejected("Source or membership revoked after private upload")
     return {**receipt,"asset_id":result["asset_id"],
             "private_download_url":None,"billing":"NONE"}
 
@@ -203,6 +209,12 @@ def accept_unreviewed_mp3(*,shop_id,campaign_id,plan,original_mp3,
             ("can_publish","can_dispatch_motion","commercial_use_approved",
              "original_media_rights_verified","human_speech_alignment_verified"))):
         raise VoiceUploadRejected("Both private MP3/WAV objects must be atomically registered pending review")
+    # The atomic writer owns commit-time tenant fencing and rollback/orphan
+    # cleanup. A valid pair receipt alone cannot authorize a response if the
+    # editor or exact source plan changed while the writer was in flight.
+    if (authenticated_editor(shop_id,campaign_id) is not True or
+        read_authoritative_plan(shop_id,campaign_id)!=plan):
+        raise VoiceUploadRejected("Source or membership revoked after private MP3/WAV upload")
     return {**receipt,"asset_id":original_id,
             "derived_wav_asset_id":derived_id,
             "original_wav_is_registered_feature7_source":False,
