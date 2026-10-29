@@ -21,6 +21,7 @@ from pathlib import Path
 import re
 import stat
 import sys
+import time
 
 _MODEL_FILES = ("config.json", "model.bin", "tokenizer.json")
 _SHA = re.compile(r"^[a-f0-9]{64}$")
@@ -149,6 +150,7 @@ def infer_audio(*, wav_path: str, model_dir: str, manifest_path: str,
     except ImportError as error:
         raise LocalFasterWhisperError(
             "Install pinned reviewed faster-whisper and CTranslate2 wheels") from error
+    started = time.perf_counter()
     model = WhisperModel(str(Path(model_dir).resolve()),
                          device="cpu", compute_type="int8",
                          cpu_threads=threads, num_workers=1,
@@ -158,6 +160,7 @@ def infer_audio(*, wav_path: str, model_dir: str, manifest_path: str,
                                    word_timestamps=True, vad_filter=False,
                                    condition_on_previous_text=False)
     words = normalize_actual_words(stream, audio_duration=audio_duration)
+    decode_seconds = max(0.0, time.perf_counter() - started)
     _check(validate_local_model(model_dir, manifest_path) == provenance,
            "ASR checkpoint changed during inference")
     reported_language = getattr(info, "language", None)
@@ -174,6 +177,8 @@ def infer_audio(*, wav_path: str, model_dir: str, manifest_path: str,
         "model_bin_sha256": provenance["model_bin_sha256"],
         "language": reported_language,
         "source_audio_duration_seconds": audio_duration,
+        "actual_decode_wall_seconds": round(decode_seconds, 3),
+        "actual_decode_realtime_factor": round(decode_seconds/audio_duration, 4),
         "word_timestamps_from_actual_model": True,
         "word_accuracy_benchmarked": False,
         "speech_rights_checked_by_this_process": False,
