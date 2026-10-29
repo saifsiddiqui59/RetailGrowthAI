@@ -25,6 +25,9 @@ from test_feature3_fashion_reference import FashionKurtiReferenceTests
 from feature5_motion.cross_feature_packet_gate import (
     qualify_feature3_packet, stage_fresh_feature3_consumer_input
 )
+from feature5_motion.feature3_reference_bridge import (
+    resolve_feature3_materialized_first_frame
+)
 from feature5_motion.cpu_image_review import compose_review_first_frame
 from feature5_motion.wan22_motion_adapter import WanCompatibilityError
 
@@ -142,6 +145,73 @@ class Feature5RealFeature3SourceIntegrationTests(unittest.TestCase):
                 review_path.unlink()
             self.assertEqual(list(Path(td).iterdir()),[])
         self.assertGreaterEqual(self.producer_reads,3)
+
+    def _test_only_f3_new_worker_shape(self, **kwargs):
+        """Current real F3 bytes, converted to PR #604's shape for CI until merge."""
+        old = resolve_first_frame(
+            expected_manifest=kwargs["expected_manifest"],
+            current_readers=kwargs["current_readers"],
+            verify_worker_job=kwargs["verify_motion_job"],
+        )
+        return {
+            "consumer":"feature5",
+            "shop_id":old["shop_id"],
+            "first_frame_asset_id":old["source_asset_id"],
+            "reference_fingerprint":kwargs["expected_manifest"]["reference_fingerprint"],
+            "sha256":old["sha256"],
+            "mime_type":old["mime_type"],
+            "dimensions":old["dimensions"],
+            "image_bytes":old["image_bytes"],
+            "provider_call_permitted":False,
+            "gpu_authorized":False,
+            "publish_approved":False,
+        }
+
+    def test_feature3_new_private_worker_result_matches_existing_stager(self):
+        packet=self.fresh_packet(self.f3.shop,self.brief_id)
+        def adapt(**kwargs):
+            return resolve_feature3_materialized_first_frame(
+                **kwargs,materialize_feature5_input=self._test_only_f3_new_worker_shape)
+        with tempfile.TemporaryDirectory() as td:
+            with stage_fresh_feature3_consumer_input(
+                    **self.args(packet,td,resolve_first_frame=adapt)
+            ) as (staged,grant,technical,proof):
+                self.assertEqual(grant["source_sha256"],
+                                 packet["source"]["first_frame_sha256"])
+                self.assertEqual(grant["sha256"],sha256(staged.read_bytes()).hexdigest())
+                self.assertEqual(technical["prepared_dimensions"],[704,1280])
+                self.assertFalse(proof.can_submit_provider)
+                self.assertFalse(technical["paid_gpu_approved"])
+            self.assertEqual(list(Path(td).iterdir()),[])
+
+    def test_feature3_new_worker_snapshot_rejects_identity_rights_and_byte_tamper(self):
+        packet=self.fresh_packet(self.f3.shop,self.brief_id)
+        original=self._test_only_f3_new_worker_shape(
+            expected_manifest=self.expected["image_to_video"],
+            current_readers=self.readers,verify_motion_job=self.worker_job)
+        variants={
+            "foreign_shop":lambda v:v.__setitem__("shop_id",str(uuid4())),
+            "wrong_first_frame":lambda v:v.__setitem__("first_frame_asset_id",str(uuid4())),
+            "wrong_sha":lambda v:v.__setitem__("sha256","0"*64),
+            "modified_bytes":lambda v:v.__setitem__("image_bytes",v["image_bytes"]+b"x"),
+            "wrong_fingerprint":lambda v:v.__setitem__("reference_fingerprint","a"*64),
+            "paid_authorized":lambda v:v.__setitem__("provider_call_permitted",True),
+            "published":lambda v:v.__setitem__("publish_approved",True),
+            "extra_url":lambda v:v.__setitem__("signed_url","https://example.test/leak"),
+            "mutable_bytes":lambda v:v.__setitem__("image_bytes",bytearray(v["image_bytes"])),
+        }
+        for name,mutate in variants.items():
+            with self.subTest(case=name),tempfile.TemporaryDirectory() as td:
+                wrong=deepcopy(original)
+                mutate(wrong)
+                def adapt(**kwargs):
+                    return resolve_feature3_materialized_first_frame(
+                        **kwargs,materialize_feature5_input=lambda **_:wrong)
+                with self.assertRaises(WanCompatibilityError):
+                    with stage_fresh_feature3_consumer_input(
+                            **self.args(packet,td,resolve_first_frame=adapt)):
+                        self.fail("untrusted Feature3 worker output must be denied")
+                self.assertEqual(list(Path(td).iterdir()),[])
 
     def test_feature3_model_revocation_after_packet_generation_denied(self):
         packet=self.fresh_packet(self.f3.shop,self.brief_id)
