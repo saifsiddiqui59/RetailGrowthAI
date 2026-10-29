@@ -120,10 +120,10 @@
         "F3-ORIGINAL-HANDOFF"
       ],
       "completion": {
-        "type": "manual",
-        "approved": false
+        "type": "pr_merged",
+        "number": 465
       },
-      "acceptance": "Run original-byte SHA, licensed synthetic fixture and CPU FFmpeg/private-import regression; confirm no Wan or VTON generated media."
+      "acceptance": "Run original-byte SHA, licensed synthetic fixture and CPU FFmpeg/private-import regression; confirm no Wan or VTON generated media. Completion follows existing PR #465; do not recreate source work."
     },
     {
       "id": "F7-F3-VIDEO-CONSUMER",
@@ -136,10 +136,11 @@
         "F3-ORIGINAL-HANDOFF"
       ],
       "completion": {
-        "type": "manual",
-        "approved": false
+        "type": "pr_merged",
+        "number": 513,
+        "base": "main"
       },
-      "acceptance": "Verify exact Actions artifact bytes, video codecs, immutable provenance and negative rights tests; never mark consumer signed E2E passed."
+      "acceptance": "Verify exact Actions artifact bytes, video codecs, immutable provenance and negative rights tests; never mark consumer signed E2E passed. Completion follows existing PR #513; do not duplicate its actual verified asset tests."
     },
     {
       "id": "F3-LICENSED-MEDIA",

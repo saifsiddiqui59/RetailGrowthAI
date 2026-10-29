@@ -42,7 +42,7 @@ def state(report, key):
 def test_baseline_verified_fixture_and_blocked_production():
     report = module.evaluate(BASE, GitHubStub(merged=[609, 630], open_prs=[551, 322, 513, 465]))
     assert state(report, "F3-ORIGINAL-HANDOFF")["status"] == "done"
-    assert state(report, "F5-F3-CPU-CONTRACT")["status"] == "ready"
+    assert state(report, "F5-F3-CPU-CONTRACT")["status"] == "in_progress"
     assert state(report, "F2-CREATIVE-SOURCE")["status"] == "in_progress"
     assert state(report, "F4-F2-CREATIVE-ADAPTER")["status"] == "blocked"
     assert "F2-CREATIVE-SOURCE" in state(report, "F4-F2-CREATIVE-ADAPTER")["unmet_dependencies"]
@@ -99,7 +99,7 @@ def test_issue_sync_is_idempotent_only_for_ready_tasks():
     gh = GitHubStub(merged=[609, 630], open_prs=[551, 322, 513, 465])
     report = module.evaluate(BASE, gh)
     created = module.sync_ready_issues(report, gh, max_create=10)
-    assert {x["id"] for x in created} == {"F2-VOICE-QUALITY", "F5-F3-CPU-CONTRACT", "F7-F3-VIDEO-CONSUMER"}
+    assert {x["id"] for x in created} == {"F2-VOICE-QUALITY"}
     assert module.sync_ready_issues(report, gh, max_create=10) == []
     assert all("This issue does not authorize spend" in issue["body"] for issue in gh.issues)
 
