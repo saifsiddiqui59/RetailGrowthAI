@@ -174,6 +174,88 @@ class NodePreviewHeaderFence(unittest.TestCase):
             invoke([TimeoutError("failed")])
         self.assertEqual(len(actions), 1)
 
+    def test_get_transient_retry_is_bounded_and_never_changes_target(self):
+        """An idempotent GET may retry; a mutating POST/PATCH never may."""
+        source = ast.parse(TARGET.read_text())
+        fn = next(n for n in source.body
+                  if isinstance(n, ast.FunctionDef) and n.name == "_call_node_preview")
+        origin = ("https://purple-dune-06b5da200-p0249writes."
+                  "eastasia.2.azurestaticapps.net")
+        url = origin + "/api/campaigns/11111111-1111-4111-8111-111111111111"
+        headers = {"x-rgai-supabase-jwt": "a.b.c"}
+        seen = []
+        slept = []
+
+        class Response:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def read(self, length):
+                return b'{"status":"DRAFT"}'
+
+        class Opener:
+            def __init__(self, items):
+                self.items = iter(items)
+            def open(self, request, timeout):
+                seen.append((request.full_url, request.get_method(),
+                             request.headers.get("X-rgai-supabase-jwt")))
+                item = next(self.items)
+                if isinstance(item, BaseException):
+                    raise item
+                return item
+
+        def run(items, *, method="GET", payload=None):
+            space = {
+                "json": json, "urllib": urllib,
+                "time": type("FakeTime", (), {"sleep": lambda _, delay: slept.append(delay)})(),
+                "NODE_PREVIEW": origin, "_NODE_OPENER": Opener(items)
+            }
+            exec(compile(ast.Module(body=[fn], type_ignores=[]),
+                         str(TARGET), "exec"), space)
+            return space["_call_node_preview"](
+                url, method=method, payload=payload, headers=headers,
+                timeout=6, expect=(200,))
+
+        err = urllib.error.HTTPError(url, 503, "Unavailable", {},
+                                     io.BytesIO(b"server error"))
+        self.assertEqual(run([err, Response()]), (200, {"status": "DRAFT"}))
+        self.assertEqual(len(seen), 2)
+        self.assertEqual(slept, [4])
+        self.assertTrue(all(item == (url, "GET", "a.b.c") for item in seen))
+
+        seen.clear()
+        slept.clear()
+        with self.assertRaisesRegex(RuntimeError, "TRANSACTION_UNCONFIRMED"):
+            run([TimeoutError("timeout"), TimeoutError("timeout"),
+                 TimeoutError("timeout")])
+        self.assertEqual(len(seen), 3)
+        self.assertEqual(slept, [4, 8])
+
+        for method in ("POST", "PATCH"):
+            seen.clear()
+            slept.clear()
+            with self.subTest(method=method):
+                with self.assertRaisesRegex(RuntimeError, "TRANSACTION_UNCONFIRMED"):
+                    run([err], method=method, payload={})
+                self.assertEqual(len(seen), 1)
+                self.assertEqual(slept, [])
+
+        # Reject same-path redirection (as well as cross-host redirect) and
+        # do not convert it into an opaque success/readback.
+        seen.clear()
+        redirect = urllib.error.HTTPError(
+            url, 302, "Redirect", {"Location": url}, io.BytesIO(b""))
+        with self.assertRaisesRegex(RuntimeError, "REDIRECT_DENIED"):
+            run([redirect])
+        self.assertEqual(len(seen), 1)
+
+        seen.clear()
+        forbidden = urllib.error.HTTPError(url, 403, "Forbidden", {},
+                                           io.BytesIO(b'{"message":"private"}'))
+        with self.assertRaisesRegex(RuntimeError, "UNEXPECTED_HTTP_STATUS_403"):
+            run([forbidden])
+        self.assertEqual(len(seen), 1)
+
     def test_pure_source_integration_keeps_dev_and_mutation_safety(self):
         source = TARGET.read_text()
         self.assertIn("_NODE_OPENER.open(req,timeout=12)", source)
