@@ -419,3 +419,53 @@ test('retailer inbox RPC requires exact JWT/shop/page scope and rejects foreign 
   await assert.rejects(()=>api.setRetailerInboxRead('wrong',5,true),/Invalid retailer inbox update/)
   await assert.rejects(()=>api.setRetailerInboxRead(shop,0,true),/Invalid retailer inbox update/)
 })
+
+test('signed Feature3 immutable model-original upload preserves actual PNG SHA and does not auto-approve',async()=>{
+ const {createHash}=await import('node:crypto')
+ const model='dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+ const calls=[]
+ const client=createRetailClient({
+  url:'https://rg.example.supabase.co',key:'sb_publishable_demo',storage:storage(),
+  fetchImpl:async(url,options)=>{
+   calls.push({url,options})
+   if(url.includes('/auth/v1/token'))return json({
+    access_token:'signed-owner-jwt',refresh_token:'refresh',expires_in:3600})
+   if(url.includes('/storage/v1/object/'))return json({Key:'private'},201)
+   throw Error('Unexpected Feature3 original transport')
+  },
+ })
+ await client.signIn('retailer@example.invalid','fictional-test-password')
+ const png=pngFile()
+ const sha=createHash('sha256').update(new Uint8Array(await png.arrayBuffer())).digest('hex')
+ const result=await client.uploadModelOriginal(mediaShop,{
+  modelId:model,file:png,licenseName:'owned',
+  attribution:'Original fictional adult model created by our team',
+  confirmedRights:true,
+ })
+ assert.equal(result.image_sha256,sha)
+ assert.equal(result.registered,false)
+ assert.equal(result.rights_verified,false)
+ assert.equal(result.object_path,mediaShop+'/model-library/'+model+'/'+sha+'.png')
+ const uploads=calls.filter(x=>x.url.includes('/storage/v1/object/'))
+ assert.equal(uploads.length,1)
+ assert.equal(uploads[0].options.headers.Authorization,'Bearer signed-owner-jwt')
+ assert.equal(uploads[0].options.headers['x-upsert'],'false')
+ assert.equal(calls.filter(x=>x.url.includes('/rest/v1/rpc')).length,0)
+})
+test('Feature3 original upload refuses unsupported file, missing rights or foreign UUID before network',async()=>{
+ const client=createRetailClient({url:'https://rg.example.supabase.co',
+  key:'sb_publishable_demo',storage:storage(),
+  fetchImpl:async(url)=>{if(url.includes('/auth/v1/token'))return json({
+    access_token:'signed-owner',refresh_token:'ref',expires_in:3600})
+    throw Error('Unauthorised network access')},
+ })
+ await client.signIn('editor@example.invalid','fictional-test-password')
+ const model='dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+ const opts={modelId:model,file:pngFile(),licenseName:'owned',
+  attribution:'Self-created fictional adult fashion model',confirmedRights:true}
+ await assert.rejects(client.uploadModelOriginal(mediaShop,{...opts,confirmedRights:false}))
+ await assert.rejects(client.uploadModelOriginal('wrong-shop',opts))
+ await assert.rejects(client.uploadModelOriginal(mediaShop,{...opts,modelId:'bad-model'}))
+ await assert.rejects(client.uploadModelOriginal(mediaShop,{...opts,file:new Blob([new Uint8Array(150)],{type:'image/png'})}))
+ await assert.rejects(client.uploadModelOriginal(mediaShop,{...opts,licenseName:'commercial',licenseUrl:'http://example.invalid'}))
+})
