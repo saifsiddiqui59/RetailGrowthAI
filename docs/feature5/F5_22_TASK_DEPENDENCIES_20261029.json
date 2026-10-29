@@ -109,7 +109,9 @@
       "dependency_id": "F5-OCI",
       "owner": "Feature5/Runtime",
       "required_output": "reviewed CUDA base/wheels licence + immutable OCI",
-      "acceptance_criteria": "Build digest, ABI, legal and SBOM verified"
+      "acceptance_criteria": "Build digest, ABI, legal and SBOM verified",
+      "source_evidence": "2026-10-29 security source hardening: immutable offline OCI source/wheel manifest reader now rejects duplicate keys (including nested), nonfinite JSON values, nonobject roots and deep-recursion input. Unit negatives; no OCI digest, legal SBOM or CUDA image verified.",
+      "remaining_acceptance": "Require independent CUDA OCI digest, licensed pinned wheelhouse/source bytes, legal review/SBOM and secure no-egress runtime; still IN PROGRESS (not DONE)."
     },
     {
       "task": 14,

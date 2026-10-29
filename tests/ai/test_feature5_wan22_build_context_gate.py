@@ -1,6 +1,8 @@
 """Composite no-GPU image-build gate, using SYNTHETIC wheel/source bytes."""
 from __future__ import annotations
 
+import json
+
 import copy
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -10,7 +12,7 @@ from feature5_motion.infra.wan22_native_preflight import (
     render_reviewed_require_hashes,
 )
 from feature5_motion.infra.wan22_build_context_gate import (
-    audit_wan22_build_context,
+    audit_wan22_build_context, _private_review_json,
 )
 from feature5_motion.wan22_motion_adapter import WanCompatibilityError
 from test_feature5_wan22_source_audit import fixture as source_fixture
@@ -33,6 +35,32 @@ def build_fixture(root):
                 wheelhouse=wheelhouse,reviewed_wheel_sha256=reviewed,
                 require_hashes_file=lock,selected_base_image=BASE,
                 independently_approved_base_image=BASE)
+
+
+class PrivateBuildManifestInputTests(unittest.TestCase):
+    def test_valid_non_authorizing_private_json_can_be_read(self):
+        with TemporaryDirectory() as td:
+            path = Path(td) / "review.json"
+            path.write_text(json.dumps({"source_commit": "a" * 40, "files": []}))
+            self.assertEqual(_private_review_json(path)["files"], [])
+
+    def test_ambiguous_nonfinite_nondict_or_recursive_manifest_denied(self):
+        cases = (
+            '{"manifest":{"sha256":"original","sha256":"rewritten"}}',
+            '{"cost":NaN}',
+            '{"size":Infinity}',
+            'null',
+            '[]',
+            "[" * 20000 + "0" + "]" * 20000,
+        )
+        with TemporaryDirectory() as td:
+            path = Path(td) / "review.json"
+            for raw in cases:
+                with self.subTest(size=len(raw), prefix=raw[:24]):
+                    path.write_text(raw)
+                    with self.assertRaisesRegex(WanCompatibilityError,
+                                                "Unreadable reviewed manifest"):
+                        _private_review_json(path)
 
 
 class ComfyOfflineImageBuildGateTests(unittest.TestCase):

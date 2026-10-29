@@ -315,3 +315,6 @@ First documentation-head Actions run #40864647921 exposed **one new Feature5 med
 
 ## 2026-10-29 — Cross-feature task tracking without repeated manual status guesses
 Verified F5 draft #465 `82dad625`, F2 #551 open, F4 #322 open, Part3 #125 open and Feature3 #630 merged; old exact F5 head Actions #40933327353 has four successes. Added `docs/feature5/F5_22_TASK_DEPENDENCIES_20261029.json` (GitHub commit d9d6f57a), enumerating 22 remaining release work packages with explicit owner/dependency/output/acceptance, including three active source/preflight preparations and 19 external blocks. Pure docs/coordination; no GPU, Azure, Supabase or WineShopPOS mutation. Verify latest documentation head CI separately.
+
+## 2026-10-29 — F5-13 offline immutable build manifest JSON hardening
+- Source-only `wan22_build_context_gate._private_review_json` now rejects ambiguous nested duplicate-key, nonfinite, nonobject and recursive JSON documents; added deterministic isolated negative tests. F5-13 still IN PROGRESS because immutable actual OCI/CUDA license/SBOM and model hardware evidence remain missing. See `F5_13_BUILD_MANIFEST_JSON_HARDENING_20261029.md`. Draft stacked review and exact-head 4/4 CI required; no GPU, paid inference, hosted data, PROD or WineShopPOS.

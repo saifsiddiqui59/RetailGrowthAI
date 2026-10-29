@@ -19,13 +19,30 @@ from .wan22_source_audit import audit_complete_vendor_checkout
 MAX_REVIEW_BYTES = 4 * 1024 * 1024
 
 
+def _unique_review_keys(pairs):
+    """Fail closed on ambiguous recursively nested manifest JSON."""
+    parsed = {}
+    for key, value in pairs:
+        if key in parsed:
+            raise ValueError("Duplicate independently reviewed JSON manifest key")
+        parsed[key] = value
+    return parsed
+
+
 def _private_review_json(path):
     item=Path(path)
     if item.is_symlink() or not item.is_file() or not 0 < item.stat().st_size <= MAX_REVIEW_BYTES:
         raise WanCompatibilityError("Missing, linked or oversized reviewed manifest")
     try:
-        return json.loads(item.read_text(encoding="utf8"))
-    except (OSError,UnicodeError,ValueError) as exc:
+        document = json.loads(
+            item.read_text(encoding="utf8"),
+            object_pairs_hook=_unique_review_keys,
+            parse_constant=lambda _: (_ for _ in ()).throw(ValueError("Non-finite reviewed manifest value")),
+        )
+        if type(document) is not dict:
+            raise ValueError("Reviewed manifest must be a JSON object")
+        return document
+    except (OSError,UnicodeError,ValueError,RecursionError) as exc:
         raise WanCompatibilityError("Unreadable reviewed manifest") from exc
 
 
