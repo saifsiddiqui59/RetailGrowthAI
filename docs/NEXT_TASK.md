@@ -1255,3 +1255,7 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 - Verify exact head 4/4 CI on `feat/feature3-private-source-byte-rights-proof-20261029`, coordinator source merge and independent postmerge main CI. Continue source-independent real current image/likeness/license/garment review authority: no production implementation of trusted per-asset legal evidence callback yet. Wire this private source proof to already merged `Feature3GPUJobPlanPreflight` in a real backend runtime only after rights source approval; confirm signed RetailGrowthAI DEV/storage, revocation, one-shot SQL claim, actual queue delete/retries and cost status before enabling worker. No paid GPU, PROD or WineShopPOS.
 
 - 2026-10-29: Coordinator conflict-reconciled the Feature3 private source byte proof #645 into current-main integration without dropping prior history. Verify four-job exact head CI and postmerge main separately; real legal authority and hosted source approval still pending.
+
+
+## 2026-10-29 — Feature3 private operator evidence proof gates
+- Verify exact-head 4/4 CI for `feat/feature3-operator-private-evidence-read-20261029`, coordinator merge and postmerge main. No hosted SQL applied: `supabase/proposals/feature3_operator_evidence_read_20261029.sql` awaits separate reviewed version, disposable role-negative tests and DEV approval. Actual independent provider billing and human operator decision are still required. No automatically replayed GPU, financial settlement, refund, output deletion, PROD or WineShopPOS.
