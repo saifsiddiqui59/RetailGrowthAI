@@ -86,10 +86,16 @@ class Feature3GPUJobPlanPreflight:
                     j.get("claim_token") is not None or
                     j.get("lease_until") is not None):
                 raise Feature3PlanDenied("Only fresh unclaimed plan allowed")
-        elif (j.get("status")!="RUNNING" or j.get("attempts")!=1 or
-              j.get("claim_token")!=claimed_token or
-              not isinstance(j.get("lease_until"),str)):
-            raise Feature3PlanDenied("Current one-shot claimed job unavailable")
+        else:
+            if (j.get("status")!="RUNNING" or j.get("attempts")!=1 or
+                    j.get("claim_token")!=claimed_token or
+                    type(j.get("lease_until")) is not str):
+                raise Feature3PlanDenied("Current one-shot claimed job unavailable")
+            # The one-shot SQL claim expires after 15 minutes. Matching an
+            # unchanged token does not authorize a stale or naive-timestamp
+            # lease; the database would reject its eventual settlement.
+            if _time(j["lease_until"]) <= datetime.now(timezone.utc):
+                raise Feature3PlanDenied("Current one-shot GPU lease expired")
         actor,design=_uuid(j.get("requested_by")),_uuid(j.get("design_id"))
         members=s.request("shop_memberships",query={
             "select":"shop_id,user_id,role,active",
@@ -195,6 +201,7 @@ class Feature3GPUJobPlanPreflight:
         snapshot=self._snapshot(shop,job,claimed_token)
         verified=[]
         model_hashes={m["media_asset_id"]:m["image_sha256"] for m in snapshot["models"]}
+        model_revisions={m["media_asset_id"]:m["rights_revision"] for m in snapshot["models"]}
         for asset in snapshot["ids"]:
             raw=self.proof(shop,dict(snapshot["assets"][asset]))
             if (not isinstance(raw,dict) or set(raw)!={
@@ -211,7 +218,8 @@ class Feature3GPUJobPlanPreflight:
                 raw.get("current_customer_approval") is not True or
                 raw.get("rights_revoked") is not False or
                 (asset in model_hashes and
-                 raw["image_sha256"]!=model_hashes[asset])):
+                 (raw["image_sha256"]!=model_hashes[asset] or
+                  raw["rights_revision"]!=model_revisions[asset]))):
                 raise Feature3PlanDenied("Current private bytes or independent rights unconfirmed")
             verified.append((asset,raw["image_sha256"],raw["rights_revision"]))
         # Model and tenant rights might change during actual private image
@@ -236,6 +244,12 @@ class Feature3GPUJobPlanPreflight:
                 fresh.get("current_customer_approval") is not True or
                 fresh.get("rights_revoked") is not False):
                 raise Feature3PlanDenied("Current source rights changed after DB read")
+        # The final independent media-rights read can itself outlive the
+        # originally valid lease. Never report a claimed lease as current
+        # merely because its DB snapshot was valid before that last read.
+        if (claimed_token is not None and
+                _time(after["job"]["lease_until"]) <= datetime.now(timezone.utc)):
+            raise Feature3PlanDenied("One-shot GPU lease expired during final rights proof")
         return {"shop_id":shop,"job_id":job,
                 "source_asset_ids":snapshot["ids"],
                 "source_sha256s":tuple(x[1] for x in verified),

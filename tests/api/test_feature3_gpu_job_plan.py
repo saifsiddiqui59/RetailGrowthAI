@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 from uuid import uuid4
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"azure-functions/campaign-api"))
@@ -60,6 +61,7 @@ class FakeCurrentDB:
         self.changed_after_proof=False
         self.proofs=0
         self.proof_ok=True
+        self.proof_revision=2
         self.revoke_second_proof=False
 
     def request(self,table,*,query=None,data=None,method="GET"):
@@ -85,7 +87,7 @@ class FakeCurrentDB:
             self.member_row["active"]=False
         allowed=self.proof_ok and not (self.revoke_second_proof and self.proofs>=2)
         return {"shop_id":shop,"asset_id":media["id"],
-                "image_sha256":self.sha,"rights_revision":2,
+                "image_sha256":self.sha,"rights_revision":self.proof_revision,
                 "private_bytes_verified":allowed,
                 "independent_license_verified":allowed,
                 "current_customer_approval":allowed,
@@ -188,6 +190,21 @@ class CurrentGPUPlanTests(unittest.TestCase):
         self.assertEqual(self.db.proofs,1)
         self.assertEqual(len(self.db.calls),8)
 
+    def test_model_legal_proof_revision_matches_current_catalog_revision(self):
+        self.db.model_row["rights_revision"]=3
+        with self.assertRaisesRegex(Feature3PlanDenied,"private bytes or independent rights"):
+            self.run_plan()
+        self.assertEqual(self.db.proofs,1)
+        # The catalog and independently reviewed legal authority must agree
+        # on the current revision, not just on immutable image bytes.
+        self.db.proof_revision=3
+        self.db.calls.clear()
+        self.db.proofs=0
+        approved=self.run_plan()
+        self.assertEqual(approved["rights_revisions"],(3,))
+        self.assertEqual(self.db.proofs,2)
+        self.assertFalse(approved["provider_call_permitted"])
+
     def test_forbidden_implicit_source_recognition_not_production_proof(self):
         self.db.model_row["image_sha256"]="b"*64
         with self.assertRaises(Feature3PlanDenied):
@@ -268,6 +285,69 @@ class CurrentGPUPlanTests(unittest.TestCase):
             with self.subTest(bad=bad),self.assertRaises(Feature3PlanDenied):
                 self.preflight.check_claimed(*args)
             self.assertFalse(any(x[2]!="GET" for x in self.db.calls))
+
+    def test_claimed_lease_must_be_live_timezone_aware_before_private_byte_proof(self):
+        now=datetime.now(timezone.utc)
+        invalid=(
+            (now-timedelta(seconds=5)).isoformat(),
+            "2020-01-01T00:00:00Z",
+            now.replace(tzinfo=None).isoformat(),
+            "yesterday",
+            "",
+        )
+        for expires in invalid:
+            self.setUp()
+            lease=self.make_claimed()
+            self.db.job_row["lease_until"]=expires
+            with self.subTest(expires=expires),self.assertRaises(Feature3PlanDenied):
+                self.preflight.check_claimed(
+                    self.db.shop,self.db.job,self.token,(self.db.media,),lease)
+            self.assertEqual(self.db.proofs,0)
+            self.assertEqual(len(self.lease_reads),1)
+            self.assertTrue(all(method=="GET" for _,__,method in self.db.calls))
+
+    def test_claimed_lease_expiring_during_private_rights_read_denies(self):
+        lease=self.make_claimed()
+        original=self.db.proof
+        def expired_during_source(shop,media):
+            result=original(shop,media)
+            self.db.job_row["lease_until"]=(
+                datetime.now(timezone.utc)-timedelta(seconds=1)).isoformat()
+            return result
+        self.preflight=Feature3GPUJobPlanPreflight(
+            admin_store=self.db,source_proof=expired_during_source)
+        with self.assertRaises(Feature3PlanDenied):
+            self.preflight.check_claimed(
+                self.db.shop,self.db.job,self.token,(self.db.media,),lease)
+        self.assertEqual(self.db.proofs,1)
+        self.assertEqual(len(self.lease_reads),1)
+
+    def test_claimed_lease_expiring_after_final_rights_proof_denies(self):
+        lease=self.make_claimed()
+        original=self.db.proof
+        clock={"later":False}
+        # Model the real deadline passing without modifying SQL. The job
+        # row's immutable lease_until stays constant as time advances.
+        class VirtualClock(datetime):
+            @classmethod
+            def now(cls,tz=None):
+                return datetime.now(tz)+(timedelta(minutes=30)
+                                          if clock["later"] else timedelta())
+        def slow_last_proof(shop,media):
+            result=original(shop,media)
+            if self.db.proofs==2:
+                clock["later"]=True
+            return result
+        self.preflight=Feature3GPUJobPlanPreflight(
+            admin_store=self.db,source_proof=slow_last_proof)
+        with patch("feature3_gpu_job_plan.datetime",VirtualClock):
+            with self.assertRaisesRegex(Feature3PlanDenied,
+                                        "expired during final rights"):
+                self.preflight.check_claimed(
+                    self.db.shop,self.db.job,self.token,(self.db.media,),lease)
+        self.assertEqual(self.db.proofs,2)
+        self.assertEqual(len(self.lease_reads),1)
+        self.assertTrue(all(method=="GET" for _,__,method in self.db.calls))
 
     def test_claimed_real_private_png_storage_and_twice_current_legal_review(self):
         lease=self.make_claimed()
