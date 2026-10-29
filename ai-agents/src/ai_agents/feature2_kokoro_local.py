@@ -182,3 +182,93 @@ def synthesize_local(*,text,voice_id="af_heart",lang="en-us",
         "word_timestamps":None,"speech_transcript_verified":False,
         "approved_to_publish":False,"paid_calls":0,
     }
+
+
+# A measurement harness only. No synthetic timer or mock voice can be labeled
+# real; operation still requires operator-pinned local ONNX weight verification.
+# RSS is a *process high-water mark*, not model-only or instance peak memory.
+def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
+                             lang="en-us",repeats=2,
+                             synthesize=None,trusted_for_tests=False):
+    """Measure real local CPU inference, including cold verified weight load.
+
+    Use only a fixed fictional-business script. Do not benchmark customer
+    scripts, log the generated WAV, assume electricity/VM is free, or dispatch
+    paid Azure/remote model calls. The optional injected runner is TEST ONLY.
+    """
+    if (type(repeats) is not int or not 1<=repeats<=3 or
+        type(cache_dir) not in (str,Path) or not str(cache_dir) or
+        type(voice_id) is not str or SUPPORTED_VOICES.get(voice_id)!=lang or
+        type(trusted_for_tests) is not bool or
+        (synthesize is not None and
+         (trusted_for_tests is not True or not callable(synthesize))) or
+        (trusted_for_tests and synthesize is None)):
+        raise LocalSpeechUnavailable("Trusted bounded Kokoro benchmark required")
+    if not trusted_for_tests and os.getenv("RETAIL_FEATURE2_KOKORO_CPU_ENABLED")!="true":
+        raise LocalSpeechUnavailable("Local benchmark disabled by operator")
+    # Original fixed synthetic voice benchmark, never a customer promotion.
+    phrase="Thread and Loom Studio shares helpful garment styling ideas."
+    try:
+        import resource
+        def rss_kib():
+            value=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            return int(value/1024) if __import__("sys").platform=="darwin" else int(value)
+    except ImportError:
+        def rss_kib():
+            return None
+
+    before=rss_kib()
+    observations=[]
+    engine=synthesize if trusted_for_tests else synthesize_local
+    for _ in range(repeats):
+        wall_start=time.perf_counter()
+        cpu_start=time.process_time()
+        audio=engine(text=phrase,voice_id=voice_id,lang=lang,speed="normal",
+                     cache_dir=cache_dir)
+        wall=time.perf_counter()-wall_start
+        cpu=time.process_time()-cpu_start
+        if (type(audio) is not dict or
+            audio.get("schema")!="retailgrowth.feature2-kokoro-original-audio.v1" or
+            audio.get("provider")!="kokoro-onnx" or
+            audio.get("model")!="Kokoro-82M-v1.0-int8" or
+            audio.get("upstream_revision")!=SOURCE_REVISION or
+            audio.get("voice_id")!=voice_id or audio.get("language")!=lang or
+            audio.get("sample_rate_hz")!=24000 or
+            audio.get("paid_calls")!=0 or
+            audio.get("test_only") is not trusted_for_tests or
+            audio.get("actual_inference_verified") is not (not trusted_for_tests) or
+            type(audio.get("audio_wav")) is not bytes or
+            type(audio.get("audio_sha256")) is not str or
+            sha256(audio["audio_wav"]).hexdigest()!=audio["audio_sha256"] or
+            type(audio.get("duration_seconds")) not in (float,int) or
+            not 0.1<=audio["duration_seconds"]<=60 or
+            not audio["audio_wav"].startswith(b"RIFF") or
+            audio["audio_wav"][8:12]!=b"WAVE"):
+            raise LocalSpeechUnavailable("Benchmark source/audio provenance invalid")
+        observations.append({
+            "wall_seconds":round(wall,4),
+            "process_cpu_seconds":round(cpu,4),
+            "audio_seconds":audio["duration_seconds"],
+            "real_time_factor":round(wall/audio["duration_seconds"],4),
+            "process_high_water_rss_kib":rss_kib(),
+        })
+    after=rss_kib()
+    return {
+        "schema":"retailgrowth.feature2-cpu-benchmark.v1",
+        "engine":"kokoro-onnx",
+        "model":"Kokoro-82M-v1.0-int8",
+        "upstream_revision":SOURCE_REVISION,
+        "voice_id":voice_id,"language":lang,"sample_count":repeats,
+        "observations":observations,
+        "process_hwm_rss_before_kib":before,
+        "process_hwm_rss_after_kib":after,
+        "rss_is_process_high_water_only":True,
+        "cold_start_includes_pinned_weight_hash":not trusted_for_tests,
+        "real_model_inference_verified":not trusted_for_tests,
+        "test_only":trusted_for_tests,
+        "billable_provider_calls":0,
+        "cloud_vm_or_electricity_cost_estimate_usd":None,
+        "service_cost_is_not_certified_free":True,
+        "verified_speech_quality":False,
+        "can_publish":False,
+    }
