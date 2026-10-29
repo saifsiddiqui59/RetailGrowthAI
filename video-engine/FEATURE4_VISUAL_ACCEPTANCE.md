@@ -154,3 +154,18 @@ provenance/QA receipt must be regenerated with v2, **not** relabeled from old
 receipts. No GPU, paid service, shared file, hosting, customer data or media
 publishing was added. Source commits `3cb13517`, `d1c7021e`,
 `80b54465`, `52bd614b`; exact-head CI must pass before marking verified.
+
+
+## F4-63 — immutable source throughout real contact-sheet frame extraction (2026-10-29)
+
+The existing actual 12-frame FFmpeg/Pillow reviewer contact sheet previously
+hashed the input **only after** decoding it. An input modified during 12
+separate FFmpeg seeks could produce a mixed-era JPEG yet a self-consistent
+hash of the *new* video bytes. The source now records a streamed SHA before
+sampling, rehashes before writing the private JPEG and after the atomic
+no-clobber link, removes its own new output on late hash mismatch, and returns
+the original source digest. A negative test mutates the encoded input immediately
+after one physically decoded frame and requires refusal with **no review JPG**.
+This is local media integrity, not proof that the content is tasteful, licensed,
+tenant-authorized or owner approved. No hosted/cloud or renderer change.
+Source commits `3bd94dd6`, `b6acbcc3`; exact-head CI required.
