@@ -101,7 +101,7 @@ class Feature3GPUOperatorReconciliation:
             if r["state"]!="SETTLED" or j["attempts"]!=1:
                 raise Feature3ReconciliationUnknown("Success requires measured settlement")
             evidence=self.private_evidence(shop,job,asset)
-            if not isinstance(evidence,dict) or set(evidence)!={
+            if (not isinstance(evidence,dict) or set(evidence)!={
                 "shop_id","job_id","media_asset_id","image_sha256",
                 "private","attempt","review_status"
             } or evidence.get("shop_id")!=shop or
@@ -111,7 +111,7 @@ class Feature3GPUOperatorReconciliation:
                     evidence.get("attempt")!=1 or
                     evidence.get("review_status")!="UNREVIEWED" or
                     not isinstance(evidence.get("image_sha256"),str) or
-                    not _SHA.fullmatch(evidence["image_sha256"]):
+                    not _SHA.fullmatch(evidence["image_sha256"])):
                 raise Feature3ReconciliationUnknown("Private output evidence not authoritative")
             # Observed means immutable SQL receipt and private proof; still
             # not a decision on licensing, human quality or publication.
