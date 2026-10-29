@@ -861,3 +861,7 @@
 ## 2026-10-29 — Testing Chat comparison and staged SQL isolation
 - Technical response status is not output quality; keep FAIL/UNKNOWN visible even if a later browser reply succeeds, and show human 1–5 score separately. Compare only actual same-tenant saved runs; bound history evaluation to ten explicit reads and label sampled p95 as observational. Unintegrated feature stages remain NOT_RUN/UNOBSERVED, no pretend Wan/VTON/editor results.
 - Preserve locked 31-version RetailGrowthAI DEV Supabase migration history. Stage trace DDL outside canonical `supabase/migrations` until a separately reviewed DEV release; execute proposed SQL only in disposable CI database, with active-editor revocation, cross-shop/anon/VIEWER denial and append-only tests. No user-JWT forgery, paid model call or PROD/WineShopPOS change.
+
+
+## 2026-10-29 — Testing Chat truthful verification boundary after #614
+- Source merge and all-four offline checks do not install hosted SQL or prove remote user tests. The trace candidate is held outside the exact-approved 31 migrations until a new reviewed canonical release; no unversioned `execute_sql` DDL or browser-user JWT service access shortcut. Current read-only connected DEV query confirmed both new trace tables absent. Label frontend receipts "browser observed"; true worker operations need server-generated spans. No unapproved social publishing, provider spend, Azure SKU change, PROD or WineShopPOS changes.
