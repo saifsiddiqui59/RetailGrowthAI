@@ -36,7 +36,7 @@ def test_real_director_export_is_the_input_to_private_step_trace_not_mock_model_
     """
     import hashlib
     import uuid
-    from ai_agents.feature2_editorial_basis import rank_source_backed_trends
+    from ai_agents.feature2_creative_quality import rank_source_backed_trends
     from ai_agents.feature2_creative_quality import append_feature2_trace
     node=shutil.which("node")
     assert node
