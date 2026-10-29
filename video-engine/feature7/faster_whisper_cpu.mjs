@@ -85,6 +85,8 @@ export function transcribePrivateVideoWithFasterWhisperCPU({
     ensure(audioStat.isFile()&&!audioStat.isSymbolicLink()&&
       audioStat.size>44&&audioStat.size<32*1024*1024,
       'Malformed or oversized original speech audio');
+    const stagedWavSha=crypto.createHash('sha256')
+      .update(fs.readFileSync(wav)).digest('hex');
     const script=trustedFile(
       path.join(path.dirname(fileURLToPath(import.meta.url)),
         'faster_whisper_cpu.py'),'repository ASR source');
@@ -97,6 +99,10 @@ export function transcribePrivateVideoWithFasterWhisperCPU({
     ensure(st.isFile()&&!st.isSymbolicLink()&&st.size>0&&st.size<=2*1024*1024,
       'Missing or unsafe real CPU inference result');
     const parsed=JSON.parse(fs.readFileSync(output,'utf8'));
+    ensure(parsed.verified_input_sha256===stagedWavSha&&
+      crypto.createHash('sha256').update(fs.readFileSync(wav))
+        .digest('hex')===stagedWavSha,
+      'Actual ASR source WAV identity changed during inference');
     ensure(parsed.version==='feature7_faster_whisper_cpu_transcript_v1'&&
       parsed.engine==='SYSTRAN/faster-whisper'&&
       parsed.word_timestamps_from_actual_model===true&&
@@ -128,6 +134,8 @@ export function transcribePrivateVideoWithFasterWhisperCPU({
       language:parsed.language,
       actual_decode_wall_seconds:parsed.actual_decode_wall_seconds,
       actual_decode_realtime_factor:parsed.actual_decode_realtime_factor,
+      verified_input_sha256:stagedWavSha,
+      process_peak_rss_bytes:parsed.process_peak_rss_bytes??null,
       asr_word_accuracy_benchmarked:false,
       independent_word_alignment_accepted:false,
       evidence,local_cpu_inference_invoked:true,
