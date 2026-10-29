@@ -739,3 +739,6 @@ Use scripts/checkpoint.sh after completing a task.
 
 ## 2026-10-29 — Feature3 operator evidence RPC disposable negative SQL tests
 - Branch `feat/feature3-operator-evidence-disposable-sql-20261029` from merged #664 commit `adf5fcc6f620958db96272aae764a8bbf62ac656` adds `tests/security/poster_feature3_operator_evidence_proposal_negative.sql` and source handoff; exercises actual role/missing source/forged claim rejection for existing unapplied operator evidence proposal in disposable PostgreSQL, without creating a migration or hosted operation. Exact-head CI and integration evidence required separately.
+
+## 2026-10-29 — Feature3 saved design in-flight tenant/day race hardening
+- Branch `feat/feature3-draft-history-tenant-epoch-fence-20261029` from integrated main `d11933c8aa47d372ab375617b8e546c0d4dde78d` fixes old `Feature3SecureDraftWorkspace` stale private history/jobs/reopened design and save CAS token after tenant/day/provider switch. Added small scope helpers, tests for first-paint leakage and deferred response generations, actual JSX compilation, handoff, and canonical docs. Existing signed JWT API and server-side CAS reused, no paid/DEV/PROD mutation; final exact-head CI and postmerge main remain to be verified.
