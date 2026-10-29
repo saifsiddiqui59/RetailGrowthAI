@@ -596,6 +596,17 @@ _CLAIM_URGENCY = re.compile(r"\b(?:only \d+ left|selling out|last chance|guarant
 _CLAIM_WIDE = re.compile(r"\b(?:everything|all products|storewide|entire store|every item)\b",re.I)
 _CLAIM_MATERIAL = re.compile(r"\b(?:100% pure cotton|genuine silk|authentic gold|organic cotton)\b",re.I)
 
+# Reject invisible direction overrides and C1/Unicode line controls in display
+# text before any human review. Preserve legitimate Indic combining marks and
+# joiners (unlike a blanket ban on every Unicode format character).
+def _unsafe_editorial_display(value):
+    import unicodedata
+    overrides={"RLO","LRO","RLE","LRE","PDF","RLI","LRI","FSI","PDI"}
+    return any(ch in "<>\u200b\u200e\u200f\u061c" or
+               ord(ch)<32 or 0x7f<=ord(ch)<=0x9f or
+               unicodedata.category(ch) in ("Zl","Zp") or
+               unicodedata.bidirectional(ch) in overrides for ch in value)
+
 def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     """Review-only policy based on authoritative original retailer facts.
 
@@ -622,7 +633,7 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     issues=set()
     for field,text in copy.items():
         if (type(text) is not str or not 1<=len(text.strip())<=1800 or
-            any(ord(ch)<32 for ch in text) or "<" in text or ">" in text or
+            _unsafe_editorial_display(text) or
             "https://" in text.lower() or "javascript:" in text.lower()):
             raise EditorialBasisRejected("Unsafe or unbounded retailer copy")
         if _CLAIM_PRICE.search(text):
@@ -712,7 +723,7 @@ def rank_source_backed_trends(*, verified_context, trends, now_utc,
             not _TREND_SHA.fullmatch(str(row.get("source_sha256") or "")) or
             type(row.get("headline")) is not str or
             not 12<=len(row["headline"])<=180 or
-            any(ord(c)<32 or c in "<>" for c in row["headline"]) or
+            _unsafe_editorial_display(row["headline"]) or
             type(row.get("published_at")) is not str):
             raise EditorialBasisRejected("Current authenticated RSS evidence missing")
         if row["id"] in seen_ids:
@@ -813,7 +824,7 @@ def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
             raise EditorialBasisRejected("RSS headline/date source invalid")
         headline=title.text.strip()
         if not 12<=len(headline)<=180 or \
-           any(ord(ch)<32 or ch in "<>" for ch in headline):
+           _unsafe_editorial_display(headline)):
             raise EditorialBasisRejected("Unsafe unreviewed RSS headline")
         try:
             published=parsedate_to_datetime(pub.text.strip())
