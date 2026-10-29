@@ -979,3 +979,6 @@
 
 ## 2026-10-29 — Operator private output evidence proposal tested only in disposable DB
 - Validate proposed output SQL rights with temporary isolated PostgreSQL import, real service-role-only EXECUTE checks, nonservice JWT claim and missing job/media denial, then explicitly drop it. Do not apply the proposal to hosted DEV as a side effect of CI or infer that synthetic proof is a true generated PNG or billable provider invoice.
+
+## 2026-10-29 — Never infer immutable private PNG proof from HTTP Content-Length alone
+- The private generated PNG reader verifies actual payload size against any present Content-Length, rejects unexpected compressed Content-Encoding, and still compares true bytes to SHA-named private path after Pillow validation and second current JWT/rights check. Missing HTTP length for legitimate chunked transfer may be accepted only with real bounded SHA proof. Neither browser preview nor a synthetic signed token establishes legal output authorization or immediate invalidation of previously signed links.

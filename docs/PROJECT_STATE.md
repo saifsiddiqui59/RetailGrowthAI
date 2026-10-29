@@ -1322,3 +1322,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## 2026-10-29 — Feature3 operator private PNG evidence SQL proposal disposable qualification
 - Added `tests/security/poster_feature3_operator_evidence_proposal_negative.sql`: existing CI disposable Supabase PostgreSQL actually imports the **unapplied** service-only operator output evidence RPC proposal, verifies service-only EXECUTE, forged-role denial and absent/foreign synthetic output NULL, then drops the proposed function. No hosted DEV migrations, real output bytes, financial settlement, paid GPU, queue mutation, PROD or WineShopPOS. Handoff: `docs/feature3/OPERATOR_EVIDENCE_DISPOSABLE_SQL_NEGATIVES_20261029.md`.
+
+## 2026-10-29 — Feature3 private PNG transport integrity (source-only)
+- Existing JWT/RLS-authenticated private generated-PNG reader now denies actual Storage byte count disagreement with an announced HTTP Content-Length and unexpected Content-Encoding before serving returned pixels; immutable SHA/Pillow and twice-current rights checks remain. Real Pillow PNG + mocked private HTTPS positive/negative tests added. Binary route is NOT mounted or enabled; rights/output SQL proposals remain unapplied. No GPU, queue, financial/hosted DEV/PROD or WineShopPOS changes. See docs/feature3/PRIVATE_PNG_HTTP_IMMUTABLE_TRANSPORT_20261029.md.

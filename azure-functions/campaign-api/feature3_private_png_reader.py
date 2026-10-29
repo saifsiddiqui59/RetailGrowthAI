@@ -104,6 +104,13 @@ class Feature3RevocablePNGReader:
                 headers = getattr(response,"headers",None)
                 length = headers.get("Content-Length") if headers is not None else None
                 mime = headers.get("Content-Type") if headers is not None else None
+                content_encoding = (headers.get("Content-Encoding")
+                                    if headers is not None else None)
+                if content_encoding is not None and (
+                        not isinstance(content_encoding,str) or
+                        content_encoding.strip().lower()!="identity"):
+                    raise PrivateGeneratedDownloadDenied(
+                        "Untrusted encoded private PNG response")
                 if (length is not None and
                         (not isinstance(length,str) or not length.isascii() or
                          not length.isdigit() or int(length) > _MAX)):
@@ -117,6 +124,13 @@ class Feature3RevocablePNGReader:
                 "Authenticated private media request unavailable") from exc
         if type(raw) is not bytes or not 100 <= len(raw) <= _MAX:
             raise PrivateGeneratedDownloadDenied("Untrusted private image bytes")
+        # A syntactically plausible but incorrect response length is not an
+        # original-byte attestation even if Pillow can decode the payload.
+        # Missing Content-Length is allowed for chunked private transport;
+        # the immutable SHA-named key is independently checked by read().
+        if length is not None and int(length)!=len(raw):
+            raise PrivateGeneratedDownloadDenied(
+                "Private image response length changed")
         try:
             with Image.open(BytesIO(raw)) as img:
                 if (img.format != "PNG" or getattr(img,"n_frames",1) != 1 or

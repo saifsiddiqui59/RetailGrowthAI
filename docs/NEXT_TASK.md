@@ -1304,3 +1304,6 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 operator proposed evidence SQL disposable gate
 - Verify exact-head four-job CI on `feat/feature3-operator-evidence-disposable-sql-20261029`, including real isolated PostgreSQL negative tests; coordinator merge and fresh main 4/4. Remaining: DB owner must approve a separately versioned migration and hosted security testing, genuine source/generated PNG bytes and current-rights verifier, reliable one-shot financial invoice observation and manual reconciliation; no automatic retry/refund/delete after uncertain ACK.
+
+## 2026-10-29 — Feature3 private PNG transport release gates
+- Check all four CI jobs at exact PR head for `feat/feature3-private-png-transport-immutable-length-20261029`, then coordinator integration against current main and fresh main 4/4 before marking merged. Source-only Content-Length/recode hardening does NOT remove the need for genuinely independently reviewed current commercial rights, service-only approved evidence RPCs, authenticated no-URL Azure route review, signed DEV expiry/tenant/503 browser QA and no paid GPU. Keep existing 31 DEV migrations and PROD untouched.
