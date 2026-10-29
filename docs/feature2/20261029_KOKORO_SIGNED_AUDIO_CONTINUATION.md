@@ -101,3 +101,16 @@ shared APIs, .github/workflows, the frontend route and main merge.
 4. Coordinator wires signed tenant/job/private-audio HTTP callbacks,
    Feature1 route and Feature4 editor, then runs live DEV negative E2E
    with same-shop and foreign-shop users; do not assert completed before proof.
+
+## Additional UI source-only review controls
+
+- The existing local voice panel now offers an **editable proposed script** separately
+  from the immutable approved source. Changes are submitted only to an injected
+  signed editor-review callback as `NEEDS_REVIEW`, never directly used for
+  synthesis or authorization. The source creative plan and signed script SHA
+  remain authoritative until a distinct approved revision arrives.
+- A shop pronunciation suggestion form similarly submits a proposed
+  word/spoken-as pair for human editor review; it cannot auto-approve dictionary
+  changes, regenerate in a loop or call Azure Speech. The UI remains disabled
+  until current backend-authenticated callbacks are supplied and the coordinator
+  mounts the existing selector into the actual customer route.
