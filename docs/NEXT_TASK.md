@@ -1286,3 +1286,6 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 GPU-OFF intake follow-up release gate
 - Validate new source-only queue receipt hardening under all four exact PR head CI jobs and coordinator merge, then independent new-main CI. Do **not** register Azure queue trigger or delete/retry messages just because queue inspection passes; current rights/one-shot lease, immutable source/model+garment permission, actual provider cost meter, ambiguous ACK and poison/operator recovery must be reviewed and approved separately. Keep GPU OFF, existing 31 DEV migrations unchanged and public downloads disabled pending reviewed route.
+
+## 2026-10-29 — Feature3 operator double-check release blockers
+- Verify exact-head 4/4 CI for `feat/feature3-operator-live-proof-doublecheck-20261029`; coordinator reconcile and merge after base and head check, then fresh postmerge main 4/4. Actual operator evidence RPC `supabase/proposals/feature3_operator_evidence_read_20261029.sql` remains unapplied; require DBA review/disposable positive+negative SQL, separate approved DEV rollout and genuine independently metered provider invoice before any financial recovery decision. Never blindly replay unknown Storage, SQL or Queue ACK; no source-only success means actual billable output or production approval.
