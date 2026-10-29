@@ -54,6 +54,36 @@ python3 "$ROOT/video-engine/feature4_private_preview.py" \
   --source "$MASTER" --duration 60 --output "$SMALL" \
   --report "$OUTPUT/feature4-60s-preview-proof.json"
 
+# Encode the actual beat-aligned editorial QA titles onto a NEW 540p
+# reviewer MP4. These are not transcribed/approved human speech.
+python3 - "$ROOT/video-engine" "$PROOF" "$SMALL" "$OUTPUT" <<'PY'
+import json,os,sys
+from pathlib import Path
+sys.path.insert(0,sys.argv[1])
+from feature4_subtitles import export_private_subtitle_pair
+from feature4_subtitle_burnin import burn_reviewed_subtitles
+record=json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+if (record.get("editorial_subtitle_kind")!="EDITORIAL_TEST_TITLES_NOT_SPOKEN_AUDIO"
+        or record.get("duration_seconds")!=60
+        or record.get("actual_spoken_voiceover") is not False):
+    raise ValueError("Refuse to invent spoken-subtitle approval for stock demo")
+out=Path(sys.argv[4])
+cues=record["editorial_subtitle_cues"]
+srt=out/"feature4-stock-minute-editorial.srt"
+vtt=out/"feature4-stock-minute-editorial.vtt"
+export_private_subtitle_pair(cues,duration_seconds=60,srt_path=srt,vtt_path=vtt)
+proof=burn_reviewed_subtitles(Path(sys.argv[3]),srt,
+                             out/"feature4-stock-minute-captioned-review.mp4",
+                             cues=cues,expected_seconds=60)
+report=out/"feature4-stock-minute-captioned-proof.json"
+fd=os.open(report,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+with os.fdopen(fd,"w",encoding="utf-8") as file:
+    json.dump(proof,file,indent=2)
+    file.write("\n")
+print("PASS: actual FFmpeg subtitle burn-in",proof["cue_count"],
+      "beat-snapped editorial cue intervals; NOT speech alignment")
+PY
+
 # Decode actual frames from the native 60s MP4 and retain repeated-shot warning.
 python3 - "$ROOT/video-engine" "$VIDEO" "$OUTPUT" <<'PY'
 import json,sys
