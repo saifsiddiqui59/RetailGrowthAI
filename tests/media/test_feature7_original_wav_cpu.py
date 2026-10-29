@@ -297,6 +297,17 @@ fs.writeFileSync(output,JSON.stringify({
         self.assertEqual(run.stdout,"")
         self.assertEqual(hashlib.sha256(self.path.read_bytes()).hexdigest(),self.sha)
 
+    def test_sigkill_cpu_worker_never_returns_signed_receipt(self):
+        killed=self.base/"sigkill_only_worker"
+        killed.write_text(
+           "#!/usr/bin/env node\nprocess.kill(process.pid,'SIGKILL');\n")
+        killed.chmod(0o700)
+        result=self.call(python_bin=str(killed),timeout_ms=6000)
+        self.assertNotEqual(result.returncode,0,result.stdout)
+        self.assertEqual(result.stdout,"")
+        self.assertEqual(hashlib.sha256(self.path.read_bytes()).hexdigest(),
+                         self.sha)
+
     def test_hung_cpu_subprocess_times_out_without_receipt(self):
         sleeping=self.base/"sleep_only_worker"
         sleeping.write_text(
