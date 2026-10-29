@@ -1325,3 +1325,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 
 ## 2026-10-29 — Feature3 private PNG transport integrity (source-only)
 - Existing JWT/RLS-authenticated private generated-PNG reader now denies actual Storage byte count disagreement with an announced HTTP Content-Length and unexpected Content-Encoding before serving returned pixels; immutable SHA/Pillow and twice-current rights checks remain. Real Pillow PNG + mocked private HTTPS positive/negative tests added. Binary route is NOT mounted or enabled; rights/output SQL proposals remain unapplied. No GPU, queue, financial/hosted DEV/PROD or WineShopPOS changes. See docs/feature3/PRIVATE_PNG_HTTP_IMMUTABLE_TRANSPORT_20261029.md.
+
+## 2026-10-29 — Feature3 private PNG HTTP/reader full-source integration QA
+- Added real Pillow PNG/mocked private HTTPS end-to-end source contract testing across the existing `Feature3PrivateBinaryHTTP` and real `Feature3RevocablePNGReader`: exact JWT/RLS user/tenant and twice-current source rights, private SHA-named pixels, zero leaked bytes for revoked membership/licence, foreign job, failed job, changed HTTP size or encoded response. No Azure binary route mounted or true commercial rights authority deployed. See `docs/feature3/PRIVATE_BINARY_SOURCE_COMPOSITION_E2E_20261029.md`; four CI jobs required. No GPU, migrations, PROD, WineShopPOS.
