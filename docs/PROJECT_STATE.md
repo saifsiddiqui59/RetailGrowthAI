@@ -1252,3 +1252,6 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 ## 2026-10-29 — Coordinator Feature3 combined integration under CI
 - PR #630 merged directly as main `7cd4a179f64d4c6ec32a4930e19334a589886c1c` (pinned verified MIT demo bytes). Prepared a **single conflict-reconciled source integration** from approved exact-head #629, #632, #634, #636, #637 and #638, carrying each distinct source/test diff and all six append-only canonical docs updates. Integration is SOURCE ONLY, not a deployed runtime. Await four-job combined CI and protected coordinator merge; no paid GPU, PROD, hosted SQL or WineShopPOS changes.
 
+
+## 2026-10-29 — Feature3 on-demand private generated history UX (source-only)
+- Added strict tenant-scoped `feature3-generated-history.mjs`, opt-in `Feature3GeneratedHistory.jsx`, mounted only inside existing authorized `Feature3PosterHost`. Authenticated GET reads existing RLS `listGeneratedJobs` without fetching a signed image URL, issuing any GPU POST or granting publish approval. Debounced/epoch-fenced current-shop reads deny stale async responses, cross-shop/duplicate/forged media URL/status data, and show no previews until separate approved downloads. Tests cover current shop and revoked/foreign selection. No DEV live data, rendered images or GPU run claimed.

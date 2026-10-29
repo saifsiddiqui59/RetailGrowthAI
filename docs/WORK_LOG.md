@@ -679,3 +679,5 @@ Use scripts/checkpoint.sh after completing a task.
 
 - 2026-10-29 Coordinator Phase1 initiated on `main` with verified source-only #630 squash `7cd4a179`; prepared combined conflict-resolved code/test + six PR append-only doc grafts for #629/#632/#634/#636/#637/#638, retaining all contributors' changes. Observe exact integration four-job CI and merge/postmerge separately. Next Phase2 independent no-GPU tasks prioritized. No hosted schema/PROD/GPU/WineShopPOS changes.
 
+
+- 2026-10-29 Feature3 Phase2 P1 parallel independent frontend: implemented strict `validateFeature3GeneratedHistory` and UI `Feature3GeneratedHistory` inside existing feature-flagged authenticated PosterHost, on-demand same-shop GET-only job statuses, no automatic signed URL/GPU/private byte download, stale scope response fencing and safe empty/deny behavior. Added Node tests foreign ID, duplicate status, untrusted extra path/URL/approval, 21+ cap and stale shop scopes. No live role testing, GPU, hosted deployment or WineShopPOS; exact CI/merge pending.

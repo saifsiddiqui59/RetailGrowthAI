@@ -910,3 +910,6 @@
 ## 2026-10-29 — Feature3 coordinator conflict-resolved source integration
 - Consolidate disjoint PR #629/#632/#634/#636/#637/#638 code and tests on the current main base with all append-only doc additions preserved, rather than discarding a contributor's decision record or merging stale branch tips over concurrent updates. Existing #630 is integrated separately. Require full four-job CI on combined head and postmerge main; test success does not imply licensed VTON, live signed user acceptance or permission to use a paid GPU.
 
+
+## 2026-10-29 — Retailer generated-image history is on-demand metadata before private outputs
+- Feature3 Creative Studio may show an existing authenticated same-shop GPU job status only after explicit retailer GET, with exact normalized id/shop/status allowlist. Never preemptively mint signed Storage URLs, auto-download an unreviewed generated image, imply approval or initiate paid GPU. Scope async UI reads by current shop and discard stale responses on role/account/shop transitions. Binary preview needs separate current-rights endpoint and verified host acceptance.
