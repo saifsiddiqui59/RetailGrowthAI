@@ -74,7 +74,7 @@
     "do_not_modify_WineShopPOS": true,
     "no_unrequested_samples": true
   },
-  "user_output": "STRICT COUNTS ONLY: After doing actual eligible task work, print exactly one line: Feature #N: X/Y completed (verified accepted integrated count) OR Feature #N: completion count not verified. No other user-visible chat output, interim messages, logs, explanations, status labels, links, samples, or narration unless explicitly requested. Keep real logs and evidence in GitHub.",
+  "user_output": "After finishing task work, respond with one line only: Feature #N: X/Y completed, where X/Y comes from verified centralized status. If unavailable, respond only: Feature #N: completion count not verified. Do not include progress narration or task lists unless requested. Preserve internal logs and evidence in GitHub.",
   "suppress_interim_user_messages": true,
   "report_only_after_attempting_work": true
 }
