@@ -748,3 +748,7 @@ Use scripts/checkpoint.sh after completing a task.
 
 ## 2026-10-29 — Feature3 generated-history local status filtering
 - Branch `feat/feature3-generated-history-scoped-filters-20261029` from post-#672 source main `afe78543588adcd7c2ac716720d965337f04e240` improves existing generated job history with five local accessibility-labeled status views, no additional fetch/API/GPU calls, and releases private Blob previews on filter changes. Added pure Node metadata/tenant/immutable filter checks and React source lifecycle assertions, handoff + canonical documents. PR exact-head and postmerge main CI still required; no rights/hosted release implied, WineShopPOS untouched.
+
+## 2026-10-29 — Coordinator dependency registry + workflow implementation
+- Added auditable seed of F2/F3/F4/F5/F7 handoffs with independently verifiable PR merge gates and manual human approvals. Added cycle/unknown ID/unsafe approval validation, readiness resolver, fail-closed GitHub reads, bounded/idempotent ready-issue creation, scheduled/manual GitHub Actions, report artifacts, negative tests and runbook.
+- This is source proposed via coordinator PR, not proof that new Actions is active on main or that coding continues without a configured executor. Exact-head CI/main integration remain required. No paid GPU, cloud deployments, PROD or WineShopPOS modifications.

@@ -988,3 +988,7 @@
 
 ## 2026-10-29 — Generated-history status views never change authorization
 - Client status filtering reuses existing read-only strict shop-scoped metadata, never sends status input as a new private query and never makes a job eligible for paid inference. Filtering a generated job out immediately clears its displayed private Blob and invalidates pending byte acceptance via the existing epoch counter. A SUCCEEDED state is **unreviewed**, not a publication or commercial-rights grant.
+
+## 2026-10-29 — Shared dependency DAG / dispatcher decision
+- GitHub is authoritative for cross-feature handoff state across chat limits; source-only fixtures, integrated contract and commercial release are separate typed nodes. PR merged state is retrieved from GitHub, and human approvals require explicitly reviewed registry proof. A pending production input must not block unrelated fixture or CPU development.
+- The first implementation limits automation to GitHub dependency evaluation, report output and **up to three ready issues per trusted-main run**, hourly or manual; it does not execute an LLM coding agent, merge feature PRs, make cloud schema changes, deploy, consume queues, spend on GPU or touch WineShopPOS. PR validation is read-only. Owner/coordinator must reconcile actual backlogs and protect cost/security before attaching executor.

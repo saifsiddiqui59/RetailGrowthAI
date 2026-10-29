@@ -1313,3 +1313,8 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 generated history filter rollout check
 - Confirm exact branch head four CI jobs for `feat/feature3-generated-history-scoped-filters-20261029`, coordinator merge against latest main and fresh main 4/4. Status filtering is local to already-authorized shop metadata; no actual generated image can be considered reviewed, reusable or published until external rights, real private output evidence and gated signed DEV binary route acceptance. Keep GPU and PROD unchanged.
+
+## 2026-10-29 — Shared dependency coordinator next steps
+1. Review source-only dependency registry, fail-closed DAG validator and GitHub Issues dispatch PR. Require four existing CI jobs plus coordinator offline test; coordinator alone merges to latest main and verifies fresh main CI.
+2. After merge, manually dispatch new coordinator GitHub Actions workflow once to confirm live PR evidence and generated status artifact; ensure the first three ready issues are idempotent on a second run. Do not treat issue creation as autonomous coding.
+3. Map Feature2's **actual** 38 numbered assignments and other verified feature task ledgers into registry incrementally without inventing tasks; connect real PR/acceptance evidence, production approvals and owner handoffs. Attach separately approved coding-agent executor only after budget/security review; keep GPU OFF and PROD untouched.
