@@ -33,6 +33,33 @@ def test_503_and_post_tls_timeout_distinguished():
     assert probe.classify(0, "401", False, "azure_flex_python") == "UNMARKED_401_NOT_PROVEN_HANDLER"
 
 
+def test_final_response_marker_is_trusted_only_when_exact():
+    parse = probe.response_handler_markers
+    python, node = parse("HTTP/2 401\r\nX-Request-ID: server-only-id\r\n\r\n")
+    assert python and not node
+    python, node = parse("HTTP/2 401\r\nX-RGAI-Secure-Adapter: candidate-v1\r\n\r\n")
+    assert node and not python
+    # CONNECT intermediary markers must not be misread as final app responses.
+    python, node = parse(
+        "HTTP/1.1 200 Connection established\r\n"
+        "X-Request-ID: proxy-id\r\n"
+        "X-RGAI-Secure-Adapter: candidate-v1\r\n\r\n"
+        "HTTP/2 401\r\ncontent-length: 0\r\n\r\n"
+    )
+    assert not python and not node
+    assert parse("HTTP/2 401\r\nX-RGAI-Secure-Adapter: other-v1\r\n\r\n") == (False, False)
+    assert parse("HTTP/2 401\r\nX-RGAI-Secure-Adapter: candidate-v1-extra\r\n\r\n") == (False, False)
+    assert parse("HTTP/2 401\r\nX-Request-ID:   \r\n\r\n") == (False, False)
+    assert parse("X-RGAI-Secure-Adapter: candidate-v1") == (False, False)
+
+
+def test_node_plain_401_fails_classification_not_backend_proof():
+    assert probe.classify(0, "401", False, "free_swa_node") == "UNMARKED_401_NOT_PROVEN_HANDLER"
+    assert probe.classify(0, "401", True, "free_swa_node") == "EXPECTED_401"
+    assert probe.classify(0, "503", False, "free_swa_node") == "HTTP_503_UNMARKED_OR_GATEWAY"
+    assert probe.classify(0, "503", True, "free_swa_node") == "HTTP_503_APP_MARKED"
+
+
 def test_percentile_gates_prevent_unsupported_p99_claim():
     rows = [{"backend": b, "curl_exit": 0, "http_status": "401",
              "category": "EXPECTED_401", "total_seconds": 0.8}
