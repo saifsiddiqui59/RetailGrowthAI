@@ -117,3 +117,14 @@ exports this for the actual 30s Pexels garment concept only: do not upload
 customer footage to public GitHub CI artifacts. This does not assert
 human/model identity, transcript semantic alignment, licensing, fashion
 commercial taste or owner-approved production readiness.
+
+
+### F4-54 — source-frame repeated-shot warning
+F4-53 contact-sheet QA now compares luma thumbnails of **decoded source
+frames**, ignoring the timestamp band, across widely separated timestamps.
+Near-identical actor/photo frames in distant parts of a video are recorded
+in `possible_repeated_shot_pairs` and `repetition_warning` instead of
+claiming the 60s stock-concat sample is professionally varied. A genuine
+still-video fixture with repeated frames must trigger this warning.
+This is a heuristic for visual review, NOT automated acceptance or identity
+proof; `visual_diversity_accepted=false` always remains until owner review.

@@ -56,6 +56,8 @@ def render_contact_sheet(source: Path, output: Path, *, seconds: int):
     draw.text((10,12),"F4 STOCK QA / NOT A RETAILER AD",fill=(250,211,145))
     draw.text((10,35),f"ENCODED FRAMES  |  {seconds}s  |  NO PRODUCT MATCH CLAIM",fill=(200,205,210))
     frames=[]
+    fingerprints=[]
+    possible_repeats=[]
     for i in range(FRAME_COUNT):
         at=round((i+.5)*seconds/FRAME_COUNT,3)
         image=_frame(source,at)
@@ -63,6 +65,18 @@ def render_contact_sheet(source: Path, output: Path, *, seconds: int):
         y=TOP+(i//COLUMNS)*CELL_H
         canvas.paste(image,(x,y))
         draw.text((x+6,y+323),f"{at:05.2f}s / STOCK",fill=(236,236,236))
+        # Compare source picture content, not the overlaid timestamp/banner.
+        # Wide separation avoids false positives within an intended shot.
+        signature=image.crop((0,0,WIDTH,250)).convert("L").resize((24,32)).tobytes()
+        for old_time,old_signature in fingerprints:
+            if at-old_time < seconds/3:
+                continue
+            difference=sum(abs(a-b) for a,b in zip(signature,old_signature))/len(signature)
+            if difference < 4.0:
+                possible_repeats.append({"earlier_seconds":old_time,
+                                         "later_seconds":at,
+                                         "mean_luma_delta":round(difference,2)})
+        fingerprints.append((at,signature))
         frames.append(at)
     temp=None
     try:
@@ -84,6 +98,9 @@ def render_contact_sheet(source: Path, output: Path, *, seconds: int):
             "source_sha256":hashlib.sha256(source.read_bytes()).hexdigest(),
             "contact_sheet_sha256":sha,"duration_seconds":seconds,
             "frames_seconds":frames,"frame_count":FRAME_COUNT,
+            "possible_repeated_shot_pairs":possible_repeats[:20],
+            "repetition_warning":bool(possible_repeats),
+            "visual_diversity_accepted":False,
             "commercial_release_eligible":False,
             "owner_visual_approval":False,"garment_identity_verified":False}
 
