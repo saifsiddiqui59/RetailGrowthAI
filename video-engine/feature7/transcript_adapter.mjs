@@ -26,11 +26,15 @@ export function normalizeWhisperx({asset_id,shop_id,source_sha256,transcript,
     return s.words;
   });
   check(raw.length<=3000,'Transcript too large');
+  // Preserve authentic Unicode speech (including Devanagari combining marks)
+  // without accepting controls or bidirectional formatting injection.
+  const forbidden=/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069\ufeff]/u;
   const words=[];
   let previousEnd=-1;
   for(const w of raw) {
     check(w && typeof w.word==='string' && w.word.trim().length>0 &&
-      w.word.trim().length<=80 && typeof w.start==='number' &&
+      [...w.word.trim()].length<=80 && !forbidden.test(w.word) &&
+      !/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/u.test(w.word) && typeof w.start==='number' &&
       typeof w.end==='number' && Number.isFinite(w.start) && Number.isFinite(w.end) &&
       w.start>=0 && w.start>=previousEnd-0.05 && w.end>w.start &&
       w.end<=source_duration_seconds+0.001,'Invalid or missing WhisperX word timing');
