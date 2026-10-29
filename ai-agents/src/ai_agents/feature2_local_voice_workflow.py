@@ -353,3 +353,77 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
             "can_publish":False,"paid_api_calls":0,
             "real_model_inference_observed":False,
             "reservation_is_not_worker_completion":True}
+
+
+def read_registered_private_original_wav(*,shop_id,campaign_id,source_plan,
+        audio_asset_id,requested_audio_sha256,
+        authorize_current_editor,read_current_plan,
+        read_registered_private_asset,read_private_blob):
+    """Return verified *original* WAV bytes only to a trusted JWT/RLS endpoint.
+
+    The endpoint authenticates before calling, sends HTTP no-store and checks
+    current shop/editor rights; this function validates callbacks/bytes twice.
+    Never use a public storage URL or browser-provided file path.
+    """
+    import re
+    if (not all(_uuid(x) for x in (shop_id,campaign_id,audio_asset_id)) or
+        type(requested_audio_sha256) is not str or
+        not re.fullmatch(r"[a-f0-9]{64}",requested_audio_sha256) or
+        not all(callable(x) for x in
+                (authorize_current_editor,read_current_plan,
+                 read_registered_private_asset,read_private_blob))):
+        raise LocalVoiceJobDenied("Trusted original private WAV reader required")
+    try:
+        _,review,script=_plan(source_plan,shop_id=shop_id,campaign_id=campaign_id)
+    except SpeechRejected as exc:
+        raise LocalVoiceJobDenied("Authoritative current narration plan denied") from exc
+    original_script_sha256=sha256(script.encode()).hexdigest()
+    def current():
+        return (authorize_current_editor(shop_id,campaign_id) is True and
+                read_current_plan(shop_id,campaign_id)==source_plan)
+    def registered():
+        media=read_registered_private_asset(shop_id,campaign_id,audio_asset_id)
+        if (type(media) is not dict or
+            media.get("schema")!="retailgrowth.feature2-to-feature4-original-voice.v1" or
+            media.get("shop_id")!=shop_id or
+            media.get("campaign_id")!=campaign_id or
+            media.get("audio_asset_id")!=audio_asset_id or
+            media.get("creative_plan_sha256")!=review["plan_sha256"] or
+            media.get("original_script_sha256")!=original_script_sha256 or
+            media.get("original_audio_sha256")!=requested_audio_sha256 or
+            media.get("provider")!="kokoro-onnx" or
+            media.get("mime_type")!="audio/wav" or
+            media.get("private") is not True or
+            media.get("can_publish") is not False or
+            media.get("review_state")!="PENDING_HUMAN_LISTEN_AND_RIGHTS" or
+            media.get("revoked_at") is not None or
+            media.get("local_inference_evidence") is not True):
+            raise LocalVoiceJobDenied("Private original WAV registration or rights changed")
+        return media
+    if not current():
+        raise LocalVoiceJobDenied("Editor revoked before original WAV download")
+    prior=registered()
+    # Reader is server-selected by the registered asset; no client bucket or
+    # object path. Blob bytes must not be logged or cached in shared state.
+    raw=read_private_blob(shop_id,campaign_id,audio_asset_id)
+    if (type(raw) is not bytes or not 128<=len(raw)<=20_000_000):
+        raise LocalVoiceJobDenied("Original private WAV bytes invalid")
+    try:
+        metrics=pcm_stats(raw)
+    except (VoiceQualityDenied,ValueError,TypeError) as exc:
+        raise LocalVoiceJobDenied("Original private WAV format denied") from exc
+    if (metrics["sha256"]!=requested_audio_sha256 or
+        type(prior.get("duration_seconds")) not in (float,int) or
+        prior["duration_seconds"]!=metrics["duration_seconds"]):
+        raise LocalVoiceJobDenied("Private WAV bytes or duration changed")
+    if not current() or registered()!=prior:
+        raise LocalVoiceJobDenied("Private original WAV rights or shop revoked during read")
+    return {"schema":"retailgrowth.feature2-private-original-wav-read.v1",
+            "shop_id":shop_id,"campaign_id":campaign_id,
+            "asset_id":audio_asset_id,
+            "original_audio_sha256":metrics["sha256"],
+            "mime_type":"audio/wav","audio_bytes":raw,
+            "private":True,"can_publish":False,
+            "can_dispatch_motion":False,
+            "human_listen_required":True,
+            "commercial_rights_not_certified":True}
