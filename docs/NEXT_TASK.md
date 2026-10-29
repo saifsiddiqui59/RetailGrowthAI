@@ -1304,3 +1304,6 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 operator proposed evidence SQL disposable gate
 - Verify exact-head four-job CI on `feat/feature3-operator-evidence-disposable-sql-20261029`, including real isolated PostgreSQL negative tests; coordinator merge and fresh main 4/4. Remaining: DB owner must approve a separately versioned migration and hosted security testing, genuine source/generated PNG bytes and current-rights verifier, reliable one-shot financial invoice observation and manual reconciliation; no automatic retry/refund/delete after uncertain ACK.
+
+## 2026-10-29 — Feature3 private saved draft tenant race completion gate
+- Validate exact-head four CI jobs on `feat/feature3-draft-history-tenant-epoch-fence-20261029`, coordinator merge preserving Testing Chat and other Feature3 changes and verify fresh postmerge main. Source browser cleanup does not verify signed DEV OWNER/EDITOR/VIEWER/foreign/revoked response behavior: retain hosted acceptance and current rights, future no-URL private binary endpoint, real licensed model output and Azure #249 as separate gates.
