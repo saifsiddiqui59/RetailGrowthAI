@@ -745,3 +745,6 @@ Use scripts/checkpoint.sh after completing a task.
 
 ## 2026-10-29 — Feature3 binary HTTP + private SHA/Pillow reader integration source tests
 - After #669 merged at `e900c5a3ffa5a854a702289dddad0872ffd901c3`, new `feat/feature3-private-binary-reader-e2e-20261029` branch adds a full real-source composition test of JWT-scoped binary handler, current RLS/rights and mocked private HTTPS with original Pillow PNG, changed HTTP length/recode, revocation midstream, wrong shop/job and backend uncertainty. No live signed user, true independent licence, provider, activated route, billing, queue, hosted migrations, PROD or WineShopPOS. PR/exact-head and postmerge main CI pending verification.
+
+## 2026-10-29 — Feature3 generated-history local status filtering
+- Branch `feat/feature3-generated-history-scoped-filters-20261029` from post-#672 source main `afe78543588adcd7c2ac716720d965337f04e240` improves existing generated job history with five local accessibility-labeled status views, no additional fetch/API/GPU calls, and releases private Blob previews on filter changes. Added pure Node metadata/tenant/immutable filter checks and React source lifecycle assertions, handoff + canonical documents. PR exact-head and postmerge main CI still required; no rights/hosted release implied, WineShopPOS untouched.

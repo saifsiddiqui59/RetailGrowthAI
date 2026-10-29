@@ -38,3 +38,17 @@ export function scopedFeature3GeneratedHistory(value, shopId) {
     return empty(shopId)
   }
 }
+
+/** Local-only status view; never asks the API for more data or keeps media. */
+export const FEATURE3_HISTORY_FILTERS = Object.freeze([
+  'ALL', 'QUEUED', 'RUNNING', 'SUCCEEDED', 'FAILED',
+])
+
+export function filteredFeature3GeneratedHistory(shopId, jobs, status = 'ALL') {
+  if (!FEATURE3_HISTORY_FILTERS.includes(status)) {
+    throw Error('Unknown generated-image history filter')
+  }
+  const safe = validateFeature3GeneratedHistory(shopId, jobs)
+  return status === 'ALL' ? safe : Object.freeze(
+    safe.filter(row => row.status === status))
+}
