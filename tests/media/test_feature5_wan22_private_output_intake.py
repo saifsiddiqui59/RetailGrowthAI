@@ -93,6 +93,25 @@ class WanPrivateOutputIntakeTests(unittest.TestCase):
                     verify_existing_fenced_output_scope=expiring_lease)
             self.assertEqual(len(calls),2)
 
+            # Real muxed AAC is technically valid MP4, but a native Wan clip
+            # must be silent: Feature4 separately handles reviewed music/VO.
+            extra=Path(td)/"extra_audio.mp4"
+            subprocess.run([
+                "ffmpeg","-hide_banner","-loglevel","error","-nostdin","-y",
+                "-i",str(destination),"-f","lavfi","-i",
+                "sine=frequency=440:sample_rate=44100:duration=5.1",
+                "-map","0:v:0","-map","1:a:0",
+                "-c:v","copy","-c:a","aac","-shortest",str(extra),
+            ],timeout=45,check=True,capture_output=True)
+            destination.unlink()
+            extra.replace(destination)
+            destination.chmod(0o600)
+            with self.assertRaises(WanCompatibilityError):
+                inspect_single_private_wan_output(
+                    shot=shot(),private_output_root=root,
+                    job_id=job,attempt_token=token,
+                    verify_existing_fenced_output_scope=lambda *a: True)
+
     def test_output_bytes_not_read_without_current_tenant_attempt_lease(self):
         with tempfile.TemporaryDirectory() as td:
             root,destination=private_root(td)
