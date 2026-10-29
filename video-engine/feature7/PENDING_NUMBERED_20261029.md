@@ -1,0 +1,71 @@
+# Feature #7 — Numbered Remaining Work Ledger (2026-10-29)
+
+**Scope:** Feature #7 Smart Editing / speech-to-text only. This is NOT a combined
+all-features RetailGrowthAI backlog; Feature2 #551, Feature4 #322, and
+coordinator integration work are identified as dependencies, not claimed as F7
+owned work. Branch `feat/feature7-uploaded-footage-semantics-20261028`; draft PR #513.
+
+**Verified at audit:** F7 HEAD `3c3ec5e59241c12ef30fde0ca87170c8273f9b00`,
+PR CI [#40932986523](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40932986523)
+and push [#40932979014](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40932979014):
+4/4 success, 537 media tests OK, five explicit skips. Feature2 #551
+`0a3c28610cd04fc30080ee1456ab34b291630656`, DRAFT;
+Feature4 #322 `6ffd79b980ac161e9022a7c3fbfabe313b7d1647`, DRAFT;
+Feature3 #630 is MERGED. Main was checked separately. This audit creates
+TASK IDs, not model-inference evidence, production deployment or new passes.
+
+**Counting rule:** Exactly 23 unique remaining acceptance/development work
+items: **6 F7-owned independent CPU/non-GPU source tasks**, **17 gated external,
+owner-dependent or real-asset tasks**. A prepared conditional test is NOT a
+passing live test. Several dependents are non-GPU too. No task requires paid GPU.
+
+## A — Feature7-owned independent non-GPU tasks (6)
+
+| ID | Priority | Task — exact missing acceptance | State |
+|---|---|---|---|
+| F7-01 | P1 | Run the exact SHA-pinned Feature3 original 9s Full-HD MP4 through Feature7's actual **local edit proposal/review pipeline**, not just FFprobe/manifest validation; retain original bytes and do not imply virtual try-on | TODO; genuine artifact acquired/verified, pipeline handoff not tested |
+| F7-02 | P1 | Stage original Feature3 Actions ZIP 12879355229 on a private CPU runner and execute optional **positive** `test_feature7_feature3_artifact_preflight.py` + `test_feature7_feature3_actual_demo.py`; capture independent command result. Routine CI currently skips original-asset tests | CONDITIONAL TEST NOT RUN in normal CI |
+| F7-03 | P1 | Add real (not fake DOM) standalone browser/keyboard/mobile accessibility QA for existing F7 reviewer and caption-correction UI: focus, screenreader labels, pending/retry, blob URL revocation, VIEWER readonly. Feature4 mounting is separately blocked | Partial: source and fake DOM tests pass; browser acceptance pending |
+| F7-04 | P1 | Extend F7-owned worker/job crash, process-timeout, SIGKILL, stale lease/replay and concurrent original-WAV recheck regressions using CPU local backend; **do not** duplicate the coordinator's PostgreSQL persistence | Partial: SQLite CAS/retry tests exist; full worker-failure matrix incomplete |
+| F7-05 | P0 | Prepare reproducible CPU-only **transitive** wheel/dependency lock and offline installation/readiness receipt for pinned Faster-Whisper + CTranslate2 + FFmpeg; record approved hashes/OS targets, no per-job downloads. Do not self-approve model/commercial rights | Partial: model inventory & CPU preflight code exist, deployable dependency closure unverified |
+| F7-06 | P1 | Review latest separate Feature2 signed-original-WAV reviewer and Feature4 review/edit payload against current F7 envelope; maintain machine-readable compatibility fixtures, versioned coordinator proposal and scoped negative tests without changing shared contracts | Partial: versioned signed contract and conditional tests exist; latest cross-branch drift review outstanding |
+
+## B — Dependent release/acceptance tasks (17; all possible without GPU)
+
+| ID | Priority | Task — exact missing acceptance | Blocked on / owner |
+|---|---|---|---|
+| F7-07 | P0 | Provision the actual pinned `Systran/faster-whisper-small` CTranslate2 checkpoint and operator-reviewed commercial model/dependency permissions, immutable SHA256 manifest; do not mistake test-weight bytes for a model | Approved assets/CPU runner + rights reviewer |
+| F7-08 | P0 | Pass real no-egress CPU/INT8 worker preflight with the installed checkpoint and pinned wheels, then execute actual `WhisperModel.transcribe` on non-synthetic speech | F7-07 + infrastructure operator |
+| F7-09 | P0 | Assemble rights-cleared **human voice + independently authored transcript** samples for English (including Indian English), Hindi and Marathi with retailer terms, speech/music/noise/pauses | Audio rights owner + independent human transcriber |
+| F7-10 | P0 | Run genuine source-SHA-bound ASR word-error-rate (WER) tests, per language/accent/retailer term with documented targets and repeated CPU results | F7-08 + F7-09 |
+| F7-11 | P0 | Human-listen verification of actual word-level timestamps, repeated words, mixed languages, speech/music discrimination, mispronunciations and subtitle alignment; record false positives | F7-10 + bilingual reviewers |
+| F7-12 | P1 | Measure real loaded-model CPU RAM, real-time factor, simultaneous jobs, timeouts, throughput and actual hourly CPU-only cost; define tenant safety/scale policy from evidence | F7-08/10 + CPU host price |
+| F7-13 | P0 | Obtain a real approved original Kokoro WAV from Feature2's actual TTS worker, bound to shop/asset/script/creative-plan/source SHA and private rights; no tone fixture | Feature2 #551 weights/voice/legal checks and coordinator |
+| F7-14 | P0 | Run same-checkout **actual** F7 signed original-WAV result through Feature2 Python `review_signed_audio_transcript` and signed WER consumer, with active tenant/job; verify altered SHA, foreign job and revoked grant denials | Feature2 #551 integrated with F7 + F7-08 + F7-13 |
+| F7-15 | P0 | Obtain actual rights-verified retailer-owned spoken MP4 and associated current garment/stock rights; distinguish public CC0 technical test from customer approval | Retailer/asset rights & coordinator |
+| F7-16 | P0 | Implement/enable hosted JWT+RLS authenticated private MP4/WAV upload, media registration, same-shop rights and quotas; bind F7 worker trust to real server registry | Coordinator / existing backend / Supabase DEV |
+| F7-17 | P0 | Implement/verify authorized private video/audio playback, signed upload/download URLs, expiry, asset/source revocation, and no cross-tenant read | Coordinator / media storage backend |
+| F7-18 | P0 | Implement actual Postgres durable ASR/reviewer job record, lease-fenced retry/poison/outbox, atomic human caption/edit approval/reject/revoke and idempotent execution | Coordinator / auth/schema and hosted DB |
+| F7-19 | P0 | Mount the existing Feature7 review/caption editor inside authenticated Feature4 Video Studio with actual private preview, current role, reviewer confirmation and persisted callbacks | Feature4 #322 + coordinator F7-16..18 |
+| F7-20 | P0 | Execute human-approved sparse jump cuts, B-roll, caption overlays, original or generated narration, music ducking and final HD video **in existing Feature4 renderer**, not new F7 render engine | Feature4 #322 + approved F2/F3/F7 source assets |
+| F7-21 | P0 | Run actual final video human quality review: captions/audio/lip-sync/cuts/music/garment congruence and authorized rights; separately obtain signoff before publish | Feature4 output + F7-11, F7-15 |
+| F7-22 | P0 | Run signed-in hosted DEV end-to-end: positive same-tenant upload→ASR→editor→approval→final private playback, and foreign/revoked/expired/replay/lease/rollback negatives | Coordinator + F7-08, 13..21; Azure #249 ingress as applicable |
+| F7-23 | P1 | Resolve coordinator-owned compatible package/import closure (Issue #650 affecting Feature2/4), integrate cross-branch work, verify merge-base and **postmerge exact-head** four-job CI; coordinator updates shared PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG and chooses release | Coordinator + tested Feature2/4/F7 PRs |
+
+## Explicitly NOT counted as pending implementation
+
+Real upstream Faster-Whisper CPU **entrypoints** for private MP4/original WAV,
+true staged WAV SHA rechecks and signed result, unsupported-language/model
+revision hardening, offline model manifest inventory/preflight commands,
+source-timed AutoBroll editing, original-audio-preserving trims, original private
+video integrity, caption correction source/UI, real FFmpeg CC0 smoke, local
+SQLite fencing, safe review-only permissions, 9s original Feature3 artifact
+SHA/FFprobe validation and ZIP negative tests, 537 media tests and four green
+branch jobs. These do not establish actual model weights, live customer
+authorization or release.
+
+**Progress convention:** Refer to `F7-01`...`F7-23`. Mark only observed
+completion, not prepared-source or mock tests as live acceptance. If
+an item moves from dependent to executable (e.g. asset delivered), preserve
+its ID and update owner/status rather than renumbering. No GPU/paid providers,
+WineShopPOS, shared coordinator docs or PROD modifications.
