@@ -211,21 +211,21 @@ class CanaryOperatorSelection(unittest.TestCase):
             req.post_data_json = bad
             with self.subTest(body=repr(bad)):
                 with self.assertRaisesRegex(RuntimeError, "mismatch"):
-                    MOD.verified_approval_reply(req)
+                    MOD.verified_approval_reply(req, user_id)
         req.post_data_json = body
         for bad in [None, SimpleNamespace(request=req, ok=False),
                     SimpleNamespace(request=SimpleNamespace(), ok=True)]:
             req.response = lambda: bad
             with self.subTest(response=repr(bad)):
                 with self.assertRaisesRegex(RuntimeError, "uncertain"):
-                    MOD.verified_approval_reply(req)
+                    MOD.verified_approval_reply(req, user_id)
         for url, method in [(path.replace("supabase.co", "evil.invalid"), "POST"),
                             (path, "GET"),
                             (path.replace("review_onboarding", "onboarding_requests"), "POST")]:
             req.url, req.method = url, method
             self.assertFalse(MOD.is_onboarding_approval_request(req))
             with self.assertRaisesRegex(RuntimeError, "Wrong ROOT decision"):
-                MOD.verified_approval_reply(req)
+                MOD.verified_approval_reply(req, user_id)
 
     def test_ui_approval_waits_for_bound_http_ack_before_considering_row_done(self):
         path = "https://jeearzffnjbvghwjjjrf.supabase.co/rest/v1/rpc/retail_platform_review_onboarding"
