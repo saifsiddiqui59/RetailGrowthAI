@@ -1307,3 +1307,6 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 private PNG transport release gates
 - Check all four CI jobs at exact PR head for `feat/feature3-private-png-transport-immutable-length-20261029`, then coordinator integration against current main and fresh main 4/4 before marking merged. Source-only Content-Length/recode hardening does NOT remove the need for genuinely independently reviewed current commercial rights, service-only approved evidence RPCs, authenticated no-URL Azure route review, signed DEV expiry/tenant/503 browser QA and no paid GPU. Keep existing 31 DEV migrations and PROD untouched.
+
+## 2026-10-29 — Feature3 binary HTTP/reader source E2E next gates
+- Review exact-head all four CI jobs for `feat/feature3-private-binary-reader-e2e-20261029`, preserve latest coordinator main, merge only after 4/4 and recheck fresh main. Actual authorized Azure binary route, true server-only current output/source commercial rights, new signed DEV customer and cross-tenant/expiry tests, verified generated PNG/evidence RPC SQL and existing 503 #249 resolution are independent release blockers. No GPU or hosted migrations from source tests.
