@@ -1,6 +1,11 @@
 import { createRenderReadFallback } from './reel-rls-fallback.mjs'
 import { collectHttpReceipt } from '../../lib/feature-http-receipt.mjs'
 // Browser-only authenticated API gateway; never sends service keys or synthetic media IDs.
+// The only permitted Node transport today is the isolated, existing Free SWA
+// DEV named-preview. No environment flag may rebind a customer's JWT to an
+// arbitrary API origin, including a different azurestaticapps.net subdomain.
+export const P0249_NODE_PREVIEW_ORIGIN =
+  'https://purple-dune-06b5da200-p0249writes.eastasia.2.azurestaticapps.net'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function uuid(value) {
@@ -20,7 +25,8 @@ export function validateSignedVideoUrl(url, supabaseOrigin) {
 }
 
 export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch,
-  supabaseOrigin = '', supabasePublishableKey = '', onResponse = null }) {
+  supabaseOrigin = '', supabasePublishableKey = '', onResponse = null,
+  transport = 'python', browserOrigin = '' }) {
   if (!baseUrl || typeof baseUrl !== 'string') return null
   const parsed = new URL(baseUrl)
   if (parsed.protocol !== 'https:' || parsed.username || parsed.password ||
@@ -28,8 +34,20 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch,
     throw new Error('Campaign API must use an HTTPS origin')
   }
   if (typeof tokenProvider !== 'function') throw new Error('Authenticated token provider required')
+  if (transport !== 'python' && transport !== 'node-preview') {
+    throw new Error('Unsupported campaign API transport')
+  }
   const origin = parsed.origin
-  const statusFallback = createRenderReadFallback({
+  const nodePreview = transport === 'node-preview'
+  // A signed JWT must never be forwarded cross-origin to a preview endpoint.
+  // Build-time opt-in is insufficient: the document itself must be served by
+  // the exact same reviewed and isolated DEV Node SWA preview hostname.
+  if (nodePreview && (origin !== P0249_NODE_PREVIEW_ORIGIN ||
+      browserOrigin !== P0249_NODE_PREVIEW_ORIGIN ||
+      baseUrl !== P0249_NODE_PREVIEW_ORIGIN)) {
+    throw new Error('Node preview transport requires exact same-origin DEV preview')
+  }
+  const statusFallback = nodePreview ? null : createRenderReadFallback({
     supabaseOrigin, publishableKey: supabasePublishableKey,
     tokenProvider, fetchImpl,
   })
@@ -52,7 +70,10 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch,
   const READ_ATTEMPTS = 2
   async function request(method, path, body) {
     const token = await tokenProvider()
-    if (typeof token !== 'string' || !token) throw new Error('Please sign in again')
+    if (typeof token !== 'string' || !token || (nodePreview &&
+        (token.length < 10 || token.length > 8192 || /[\s,\u0000-\u001f\u007f,]/.test(token)))) {
+      throw new Error('Please sign in again')
+    }
     // Only pure reads can be re-issued. A lost acknowledgement of POST/PATCH
     // may mean the DB transaction already committed; never blindly replay it.
     const attempts = method === 'GET' ? READ_ATTEMPTS : 1
@@ -65,7 +86,9 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch,
         response = await fetchImpl(origin + '/api' + path, {
           method, redirect: 'error', cache: 'no-store',
           headers: {
-            Authorization: 'Bearer ' + token,
+            ...(nodePreview
+              ? { 'x-rgai-supabase-jwt': token }
+              : { Authorization: 'Bearer ' + token }),
             ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
           },
           ...(controller ? { signal: controller.signal } : {}),
