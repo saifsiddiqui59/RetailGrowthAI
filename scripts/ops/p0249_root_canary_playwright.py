@@ -67,6 +67,10 @@ def approve_exact_row(page, email: str) -> None:
 def operator_run(page, email: str, password: str, poll_seconds: float = 4,
                  max_seconds: int = 650) -> None:
     page.goto(DEV_ORIGIN + "/platform-admin", wait_until="domcontentloaded", timeout=30_000)
+    # Wait for React to mount before deciding whether this is an existing ROOT
+    # session or the normal sign-in page (domcontentloaded alone is too early).
+    page.locator(".login-screen, .platform-approvals, [aria-label=\'Platform access denied\']").first.wait_for(
+        state="visible", timeout=30_000)
     login = page.get_by_role("button", name="Sign in", exact=True)
     if login.count():
         page.get_by_label("Email", exact=True).fill(email)
