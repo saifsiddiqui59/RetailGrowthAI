@@ -66,7 +66,7 @@ export default function Feature3SecureDraftWorkspace({
       activeScope.current,scope,provider,attempt,pendingHistory.current)
     setBusy(true);setMessage('')
     try {
-      const rows=await feature3Api.listDesigns(shopId,campaignId,dayId)
+      const rows=await feature3Api.listDesigns(shopId, campaignId, dayId)
       if(!current())return
       setSavedState({scope,value:rows})
       setMessage(rows.length ? 'Private draft history loaded.' :
