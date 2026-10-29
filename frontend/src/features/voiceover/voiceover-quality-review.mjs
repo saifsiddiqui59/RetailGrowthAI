@@ -79,3 +79,59 @@ export function verifyPrivateVoiceQualityReview({
     audio_asset_id:review.audio_asset_id
   })
 }
+
+
+// The server, NOT this browser, must validate F7 HMAC and the signed human
+// transcript. Metrics from synthetic F7 fixtures are never a pronunciation or
+// commercial-success claim. A WER over 100% is valid for many insertions.
+export function verifySignedWordErrorReview({
+  shopId,campaignId,planSha256,receipt,metrics
+}={}){
+  if(!metrics||typeof metrics!=='object'||Array.isArray(metrics)||
+    !receipt||receipt.shop_id!==shopId||receipt.campaign_id!==campaignId||
+    receipt.creative_plan_sha256!==planSha256||
+    !SHA.test(receipt.original_audio_sha256||'')||
+    metrics.schema!=='retailgrowth.feature2-verified-word-error-review.v1'||
+    metrics.shop_id!==shopId||metrics.campaign_id!==campaignId||
+    metrics.creative_plan_sha256!==planSha256||
+    metrics.audio_asset_id!==receipt.private_audio_asset_id||
+    metrics.original_audio_sha256!==receipt.original_audio_sha256||
+    metrics.feature7_hmac_and_current_source_verified!==true||
+    metrics.real_worker_execution_independently_observed!==false||
+    metrics.source_only_metric_not_acoustic_certification!==true||
+    metrics.human_accuracy_not_assumed!==true||
+    metrics.pronunciation_verified!==false||
+    metrics.can_publish!==false||
+    typeof metrics.human_signed_transcript_available!=='boolean')reject()
+  function checkCounts(score){
+    if(!score||typeof score!=='object'||Array.isArray(score))reject()
+    const keys=['substitutions','deletions','insertions','edit_distance',
+      'reference_word_count','heard_word_count']
+    if(keys.some(k=>!Number.isSafeInteger(score[k])||score[k]<0)||
+      score.reference_word_count<1||score.reference_word_count>600||
+      score.heard_word_count<1||score.heard_word_count>600||
+      score.edit_distance!==score.substitutions+score.deletions+score.insertions||
+      typeof score.word_error_rate!=='number'||
+      !Number.isFinite(score.word_error_rate)||
+      Math.abs(score.word_error_rate-
+        Math.round(score.edit_distance/score.reference_word_count*100000)/100000)>0.000001||
+      score.word_accuracy_is_not_pronunciation!==true)reject()
+    return Object.freeze({reference_words:score.reference_word_count,
+      recognized_words:score.heard_word_count,
+      substitutions:score.substitutions,deletions:score.deletions,
+      insertions:score.insertions,word_error_rate:score.word_error_rate})
+  }
+  const asr=checkCounts(metrics.feature7_asr_word_error)
+  const reviewed=metrics.human_signed_transcript_available
+  if(reviewed!==(metrics.human_transcript_vs_script_error!==null)||
+     reviewed!==(metrics.feature7_asr_vs_human_error!==null))reject()
+  const human=reviewed?checkCounts(metrics.human_transcript_vs_script_error):null
+  const asrVsHuman=reviewed?checkCounts(metrics.feature7_asr_vs_human_error):null
+  return Object.freeze({
+    asr,manual_human_reference:human,asr_vs_human:asrVsHuman,
+    signed_human_review_reported:reviewed,
+    actual_inference_independently_observed:false,
+    pronunciation_certified:false,can_publish:false,
+    original_audio_sha256:receipt.original_audio_sha256
+  })
+}
