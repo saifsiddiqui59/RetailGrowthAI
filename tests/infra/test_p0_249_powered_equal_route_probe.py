@@ -97,6 +97,34 @@ def test_wrong_backend_or_route_fails_closed():
         raise AssertionError("unapproved backend accepted")
 
 
+def test_mismatched_phase_is_never_counted_as_after_idle_evidence():
+    def wrong_phase(backend, phase, route):
+        return response(backend, "warm" if phase == "post_idle" else phase, route)
+    try:
+        probe["run_powered"](sender=wrong_phase, sleeper=lambda _: None, idle=0)
+    except ValueError as error:
+        assert "phase" in str(error)
+    else:
+        raise AssertionError("stale warm request misclassified as post-idle acceptance")
+
+
+def test_handler_code_and_classification_must_agree():
+    fake = response("free_swa_node", "warm", "campaign")
+    fake["category"] = "UNMARKED_401_NOT_PROVEN_HANDLER"
+    assert probe["accepted"](fake) is False
+    fake["category"] = "EXPECTED_401"
+    fake["route"] = "unknown"
+    assert probe["accepted"](fake) is False
+    fake["route"] = "campaign"
+    assert probe["accepted"](fake) is True
+
+    def mislabeled(backend, phase, route):
+        result = response(backend, phase, route)
+        result["category"] = "UNMARKED_401_NOT_PROVEN_HANDLER"
+        return result
+    assert probe["run_powered"](sender=mislabeled, sleeper=lambda _: None, idle=0) == 4
+
+
 def test_source_probe_uses_only_get_and_fixed_synthetic_ids():
     from p0_249_http_comparison_probe import ROUTES, ORIGINS
     assert ROUTES["campaign"].startswith("/api/campaigns/11111111-")
