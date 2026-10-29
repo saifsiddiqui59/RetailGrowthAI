@@ -60,6 +60,10 @@ process.stdin.on('end',()=>{
     swappedGrant.media_grants[0].original_media_sha256='x';
     assert.throws(()=>exportCompiled(b,swappedGrant,c.duration_seconds),
       /scope mismatch/);
+    const sameLengthAlteredOriginal=structuredClone(payload.verified_brief);
+    sameLengthAlteredOriginal.media_grants[0].original_media_sha256='f'.repeat(64);
+    assert.throws(()=>exportCompiled(b,sameLengthAlteredOriginal,c.duration_seconds),
+      /byte identity was replaced/);
     const modifiedPrompt=structuredClone(b);
     modifiedPrompt.motion_direction_v1[0].generation_prompt+=' INJECTED';
     assert.throws(()=>exportCompiled(modifiedPrompt,payload.verified_brief,c.duration_seconds),
