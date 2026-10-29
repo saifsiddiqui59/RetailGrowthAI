@@ -113,8 +113,14 @@ def test_series_sends_16_fixed_get_observations_and_one_five_minute_idle():
     calls, slept = [], []
     def fake_sender(backend, phase, route):
         calls.append((backend, phase, route))
-        return {"backend": backend, "curl_exit": 0, "http_status": "401",
-                "category": "EXPECTED_401", "total_seconds": 0.3}
+        expected = "401" if route == "campaign" else "404"
+        return {"backend": backend, "phase": phase, "route": route,
+                "curl_exit": 0, "http_status": expected,
+                "category": "EXPECTED_401" if route == "campaign"
+                            else "EXPECTED_404_HANDLER_UNVERIFIED",
+                "application_request_marker": backend == "azure_flex_python",
+                "node_adapter_marker": backend == "free_swa_node",
+                "total_seconds": 0.3}
     assert probe.run_series(sender=fake_sender, sleeper=slept.append) == 0
     assert len(calls) == 16
     assert slept == [300]
@@ -124,11 +130,82 @@ def test_series_sends_16_fixed_get_observations_and_one_five_minute_idle():
 
 def test_failed_503_fails_test_without_automatic_retry():
     def fake_sender(backend, phase, route):
-        code = "503" if backend == "azure_flex_python" and phase == "initial" else "401"
-        return {"backend": backend, "curl_exit": 0, "http_status": code,
-                "category": "HTTP_503_UNMARKED_OR_GATEWAY" if code == "503" else "EXPECTED_401",
+        code = ("503" if backend == "azure_flex_python" and phase == "initial"
+                else "401" if route == "campaign" else "404")
+        category = ("HTTP_503_UNMARKED_OR_GATEWAY" if code == "503"
+                    else "EXPECTED_401" if code == "401"
+                    else "EXPECTED_404_HANDLER_UNVERIFIED")
+        return {"backend": backend, "phase": phase, "route": route,
+                "curl_exit": 0, "http_status": code,
+                "category": category,
+                "application_request_marker": backend == "azure_flex_python" and code == "401",
+                "node_adapter_marker": backend == "free_swa_node" and code == "401",
                 "total_seconds": 60.9 if code == "503" else 0.5}
     assert probe.run_series(sender=fake_sender, sleeper=lambda _: None, idle=0) == 4
+
+
+def test_campaign_missing_handler_marker_or_wrong_route_never_passes():
+    def make(backend, phase, route, *, missing=False, status=None, misroute=False):
+        code = status or ("401" if route == "campaign" else "404")
+        return {
+            "backend": backend, "phase": phase,
+            "route": "unknown" if misroute else route,
+            "curl_exit": 0, "http_status": code,
+            "category": ("EXPECTED_401" if code == "401"
+                         else "EXPECTED_404_HANDLER_UNVERIFIED"),
+            "application_request_marker": backend == "azure_flex_python" and not missing,
+            "node_adapter_marker": backend == "free_swa_node" and not missing,
+            "total_seconds": 0.2,
+        }
+
+    assert probe.verified_route_result(
+        "azure_flex_python", "warm", "campaign",
+        make("azure_flex_python", "warm", "campaign"))
+    assert probe.verified_route_result(
+        "free_swa_node", "warm", "campaign",
+        make("free_swa_node", "warm", "campaign"))
+    for backend in probe.ORIGINS:
+        for case in (
+            make(backend, "warm", "campaign", missing=True),
+            make(backend, "warm", "campaign", status="404"),
+            make(backend, "warm", "campaign", misroute=True),
+            make(backend, "warm", "unknown"),
+            make(backend, "initial", "campaign"),
+            {"backend": backend, "curl_exit": 0, "http_status": "401"},
+        ):
+            assert not probe.verified_route_result(backend, "warm", "campaign", case)
+
+
+def test_16_request_campaign_gate_denies_unmarked_401_without_retry():
+    observed = []
+    def sender(backend, phase, route):
+        observed.append((backend, phase, route))
+        return {
+            "backend": backend, "phase": phase, "route": route,
+            "curl_exit": 0,
+            "http_status": "401" if route == "campaign" else "404",
+            "category": ("UNMARKED_401_NOT_PROVEN_HANDLER" if route == "campaign"
+                         else "EXPECTED_404_HANDLER_UNVERIFIED"),
+            "application_request_marker": False, "node_adapter_marker": False,
+            "total_seconds": 0.2,
+        }
+    assert probe.run_series(sender=sender, sleeper=lambda _: None, idle=0) == 4
+    assert len(observed) == 16
+    assert all(route in {"campaign", "unknown"} for _, _, route in observed)
+
+
+def test_16_request_campaign_gate_denies_transparent_wrong_target():
+    def sender(backend, phase, route):
+        return {
+            "backend": backend, "phase": phase,
+            "route": "unknown" if route == "campaign" else route,
+            "curl_exit": 0, "http_status": "401" if route == "campaign" else "404",
+            "category": ("EXPECTED_401" if route == "campaign"
+                         else "EXPECTED_404_HANDLER_UNVERIFIED"),
+            "application_request_marker": True, "node_adapter_marker": True,
+            "total_seconds": 0.2,
+        }
+    assert probe.run_series(sender=sender, sleeper=lambda _: None, idle=0) == 4
 
 
 def test_azure_metric_definitions_both_cli_shapes():
