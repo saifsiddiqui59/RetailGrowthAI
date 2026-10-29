@@ -942,3 +942,11 @@
 
 ## 2026-10-29 — Peek-only operator inspection is safer than dequeue-based test
 - Use Microsoft Azure Storage Queue SDK `peek_messages` with explicit 1..5 bound to inspect currently visible, v1-only GPU messages during provider-OFF preflight. Never use `receive_message`, implicit QueueTrigger, `delete_message` or mutating operations for inspection because default visibility, retries and auto-deletion could alter a future paid job. A Queue peek does not prove that other invisible messages are absent; only SQL and separately reviewed billing determine a final outcome.
+
+
+## 2026-10-29 — Source-only private PNG binary HTTP contract never implies a live endpoint
+- A backend handler may return exact reauthorized PNG bytes with GET-only JWT, no-store/no-cache/nosniff, content-addressed SHA and opaque denies, but only after `Feature3RevocablePNGReader` independently verifies current tenant, immutable evidence and legal rights. Do not expose service keys or mint signed/public URLs, auto-publish, enable GPU or mount an HTTP route until the genuine output rights gate and coordinator versioned interface are approved. Old 60-second signed links are not retroactively invalidated.
+
+- 2026-10-29 Feature3 binary privacy/integrity source contract: future private PNG endpoint will return same-shop/job/media UUID and actual SHA256 only in integrity headers after current rights+JWT, with no-store/no-referrer browser fetch and independent crypto hash before Blob use. Separate source-only client is intentionally NOT mounted without a genuine secured Azure binary route. Never trust response status/mime alone or expose old signed Storage URLs as instant-revocation.
+
+- 2026-10-29 Feature3 private generated output preview UX: only let a signed active shop user explicitly request a SUCCEEDED job's checksum-verified private PNG behind a separate feature flag. Never preload, auto-generate, auto-publish or use previous signed Storage URLs. Keep decoded local `blob:` within current shop session, clear on reload/scope change/unmount/user clear and reject foreign, signed or approved-content claims. Instant revocation of pixels already displayed is not possible and must not be promised.

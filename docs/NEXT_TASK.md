@@ -1265,3 +1265,11 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 bounded GPU-off queue peek (source only)
 - Verify PR exact-head 4/4, coordinator merge and fresh main postmerge 4/4. Queue SDK peek is diagnostic only: operator cannot treat empty/invisible batch as no outstanding claim, cannot delete or drain, cannot infer ACK or paid outcome, cannot use it as an Azure trigger. Actual durable GPU worker, poison queue, private current-rights/lease gate and reconciliation with genuine provider bill are separate planned tasks. Do not turn on GPU/paid provider, change DEV/PROD cloud settings or touch WineShopPOS.
+
+
+## 2026-10-29 — Feature3 binary output source-only response adapter acceptance
+- Verify exact-head 4/4 CI on `feat/feature3-private-byte-http-handoff-20261029`, coordinator merge, independent 4/4 postmerge main. New no-URL PNG HTTP byte-response helper is NOT a public route; add separately reviewed feature-flagged Azure GET handler only after real output/source rights provider and hosted RLS/private binary proof. Browser Blob previews must re-check SHA/job/shop, revoke on shop/session change and never treat UNREVIEWED output as publish approved. Original signed URLs remain valid until expiry. No GPU spend, PROD, migrations or WineShopPOS.
+
+- 2026-10-29 Binary preview pending release: backend and browser source now agree on integrity-bound `GET /api/shops/{shop_id}/feature3-gpu-jobs/{job_id}/private-png` **proposal** but Azure function route is NOT mounted; coordinator must freeze versioned shared interface, integrate real independently reviewed rights and authenticated no-cache binary handler, then wire Blob URL cleanup and test signed DEV roles/revocation. Browser client never fetches public/signed Storage links or auto-retries. Verify latest exact-head 4/4 CI after contract extension.
+
+- 2026-10-29 Existing Feature3PosterHost now has an opt-in generated PNG Blob preview path, but its separate frontend flag is OFF by default; do not enable until live approved no-URL Azure binary route, verified current rights/canonical license model, signed role acceptance and browser old-Blob cleanup tests. Run latest 4/4 exact-head CI, coordinator integration and fresh main 4/4. Existing signed 60s URL still not instant-revocable. Human review before use or publishing remains mandatory.
