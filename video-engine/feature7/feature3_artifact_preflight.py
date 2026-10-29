@@ -48,8 +48,8 @@ def check_feature3_actual_artifact(zip_file: str) -> dict:
             ensure(len(items) == len(EXPECTED) and
                    {p.filename for p in items} == EXPECTED,
                    "Unexpected Feature3 archive inventory")
-            ensure(all(not p.is_dir() and not (p.external_attr >> 16 &
-                      stat.S_IFMT(stat.S_IFLNK)) and
+            ensure(all(not p.is_dir() and
+                      stat.S_IFMT(p.external_attr >> 16) != stat.S_IFLNK and
                       0 < p.file_size <= MAX_EXTRACTED_BYTES and
                       p.compress_size <= MAX_ZIP_BYTES
                       for p in items),
@@ -73,6 +73,7 @@ def check_feature3_actual_artifact(zip_file: str) -> dict:
            len(manifest.get("assets", [])) == 3,
            "Synthetic-only rights declaration missing")
     for info in manifest["assets"]:
+        ensure(isinstance(info,dict), "Invalid embedded image metadata")
         name=info.get("filename")
         ensure(name in EXPECTED and name.startswith("synthetic_") and
                info.get("rights_verified_for_customer") is False and
