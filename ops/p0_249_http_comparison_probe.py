@@ -26,13 +26,48 @@ DEADLINE_SECONDS = 75
 CURL_FORMAT = "%{http_code} %{time_namelookup} %{time_connect} %{time_appconnect} %{time_starttransfer} %{time_total}"
 
 
+def response_handler_markers(header_text):
+    """Return only trusted marker presence from the FINAL HTTP header block.
+
+    Curl may include an HTTP CONNECT proxy preamble (or interim 1xx).
+    A marker on an earlier header block must not authenticate the final 401.
+    Never emit actual header values, request IDs, cookies or signed links.
+    """
+    if not isinstance(header_text, str):
+        return False, False
+    blocks = []
+    current = []
+    for raw in header_text.splitlines():
+        line = raw.strip()
+        if line.lower().startswith("http/"):
+            if current:
+                blocks.append(current)
+            current = [line]
+        elif current:
+            if not line:
+                blocks.append(current)
+                current = []
+            else:
+                current.append(line)
+    if current:
+        blocks.append(current)
+    if not blocks:
+        return False, False
+    final = blocks[-1]
+    python = any(line.lower().startswith("x-request-id:")
+                 and line.partition(":")[2].strip() for line in final[1:])
+    node = any(line.lower().strip() == "x-rgai-secure-adapter: candidate-v1"
+               for line in final[1:])
+    return bool(python), bool(node)
+
+
 def classify(exit_code, status, marker, backend):
     if exit_code != 0:
         return "CLIENT_TIMEOUT" if exit_code in (28, 124) else "NETWORK_OR_CURL_ERROR"
     if status == "503":
         return "HTTP_503_APP_MARKED" if marker else "HTTP_503_UNMARKED_OR_GATEWAY"
     if status == "401":
-        if backend == "azure_flex_python" and not marker:
+        if not marker:
             return "UNMARKED_401_NOT_PROVEN_HANDLER"
         return "EXPECTED_401"
     if status == "404":
@@ -68,17 +103,19 @@ def sample(backend, phase, route):
             parts = proc.stdout.strip().split()
             status = parts[0] if len(parts) == 6 else "000"
             times = [float(x) for x in parts[1:]] if len(parts) == 6 else [0.0] * 5
-            lines = headers.read_text(errors="replace").lower().splitlines() if headers.is_file() else []
-            marker = any(x.startswith("x-request-id:") for x in lines)
+            captured = headers.read_text(errors="replace") if headers.is_file() else ""
+            python_marker, node_marker = response_handler_markers(captured)
             code = proc.returncode
         except subprocess.TimeoutExpired:
-            status, times, marker, code = "000", [0.0, 0.0, 0.0, 0.0, float(DEADLINE_SECONDS + 5)], False, 124
+            status, times, python_marker, node_marker, code = "000", [0.0, 0.0, 0.0, 0.0, float(DEADLINE_SECONDS + 5)], False, False, 124
+    marked = python_marker if backend == "azure_flex_python" else node_marker
     names = ("dns_seconds", "tcp_seconds", "tls_seconds", "first_byte_seconds", "total_seconds")
     observation = dict(zip(names, (round(x, 3) for x in times)))
     observation.update(
         backend=backend, phase=phase, route=route, timestamp_utc=datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        http_status=status, curl_exit=code, application_request_marker=marker,
-        category=classify(code, status, marker, backend),
+        http_status=status, curl_exit=code, application_request_marker=python_marker,
+        node_adapter_marker=node_marker,
+        category=classify(code, status, marked, backend),
     )
     return observation
 
