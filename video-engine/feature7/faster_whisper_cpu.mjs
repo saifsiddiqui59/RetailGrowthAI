@@ -109,7 +109,7 @@ export function transcribePrivateVideoWithFasterWhisperCPU({
       parsed.word_accuracy_benchmarked===false&&
       parsed.approved===false&&parsed.renderable===false&&
       parsed.model_project==='Systran/faster-whisper-small'&&
-      /^[a-f0-9]{40}$/.test(parsed.model_revision??'')&&
+      parsed.model_revision==='536b0662742c02347bc0e980a01041f333bce120'&&
       SHA.test(parsed.model_bin_sha256??''),
       'Inference model evidence/shape mismatch');
     const normalized=normalizeWhisperx({
