@@ -147,6 +147,9 @@ def infer_audio(*, wav_path: str, model_dir: str, manifest_path: str,
            "Trusted source WAV and separate output required")
     _regular_file(source, max_size=32 * 1024 * 1024)
     _check(source.suffix.lower() == ".wav", "Only private 16 kHz WAV input")
+    # Actual SHA-256 of original private, locally staged audio. No transcript
+    # produced by a replaced source may be counted in real CPU benchmarks.
+    input_sha = _sha256_file(source)
     provenance = validate_local_model(model_dir, manifest_path)
     # This is actual upstream code, not a simulated transcription engine.
     # Local *absolute* model path + local_files_only=True prevents downloads.
@@ -175,6 +178,8 @@ def infer_audio(*, wav_path: str, model_dir: str, manifest_path: str,
     peak_rss_bytes = int(peak_rss * rss_unit) if peak_rss is not None else None
     memory_baseline_bytes = (int(initial_rss * rss_unit)
                              if initial_rss is not None else None)
+    _check(_sha256_file(source) == input_sha,
+           "Original staged WAV mutated during CPU inference")
     _check(validate_local_model(model_dir, manifest_path) == provenance,
            "ASR checkpoint changed during inference")
     reported_language = getattr(info, "language", None)
@@ -191,6 +196,7 @@ def infer_audio(*, wav_path: str, model_dir: str, manifest_path: str,
         "model_bin_sha256": provenance["model_bin_sha256"],
         "language": reported_language,
         "source_audio_duration_seconds": audio_duration,
+        "verified_input_sha256": input_sha,
         "actual_decode_wall_seconds": round(decode_seconds, 3),
         "actual_decode_realtime_factor": round(decode_seconds/audio_duration, 4),
         "process_peak_rss_bytes": peak_rss_bytes,
