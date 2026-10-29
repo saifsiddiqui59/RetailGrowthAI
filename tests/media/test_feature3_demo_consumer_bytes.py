@@ -79,7 +79,7 @@ class ConsumerBytesTests(unittest.TestCase):
             self.assertTrue(packet["requires_live_tenant_rights_and_worker_lease"])
 
     def test_unknown_feature_fails_closed(self):
-        for feature in ("", "F3", "F6", "feature5", None):
+        for feature in ("", "F3", "F6", "feature5", None, [], {}):
             with self.assertRaises(footage.DemoFootageDenied):
                 bridge.load_demo_consumer_bytes(self.root, feature)
 
