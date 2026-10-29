@@ -1,6 +1,9 @@
 /** Opt-in, on-demand GPU job history. No signed-image links or GPU calls. */
 import {useEffect, useRef, useState} from 'react'
-import {scopedFeature3GeneratedHistory,validateFeature3GeneratedHistory} from './feature3-generated-history.mjs'
+import {
+  scopedFeature3GeneratedHistory,validateFeature3GeneratedHistory,
+  filteredFeature3GeneratedHistory,FEATURE3_HISTORY_FILTERS,
+} from './feature3-generated-history.mjs'
 import {createFeature3GeneratedBlobScope} from './feature3-generated-blob-scope.mjs'
 
 const initial = shopId => ({shopId,jobs:[],message:'',busy:false})
@@ -16,14 +19,16 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
   const [image,setImage]=useState(null)
   const [imageBusy,setImageBusy]=useState(false)
   const [imageMessage,setImageMessage]=useState('')
+  const [filter,setFilter]=useState('ALL')
   const epoch=useRef(0)
   const registry=useRef(null)
   if(!registry.current)registry.current=createFeature3GeneratedBlobScope()
   const current=useRef({shopId,api,binaryClient})
   current.current={shopId,api,binaryClient}
   const checked=scopedFeature3GeneratedHistory(state,shopId)
+  const visibleJobs=filteredFeature3GeneratedHistory(shopId,checked.jobs,filter)
   const displayed=image?.shopId===shopId && image?.binaryClient===binaryClient &&
-    checked.jobs.some(row=>row.id===image.jobId && row.status==='SUCCEEDED')
+    visibleJobs.some(row=>row.id===image.jobId && row.status==='SUCCEEDED')
     ? image : null
   useEffect(()=>{
     registry.current.selectScope(shopId)
@@ -31,6 +36,7 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
     setImage(null)
     setImageBusy(false)
     setImageMessage('')
+    setFilter('ALL')
     return ()=>{epoch.current+=1;registry.current.clear()}
   },[shopId,api,binaryClient])
 
@@ -98,8 +104,27 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
       <small>Read-only. No GPU call, no public URL or automatic download.</small>
     </div>
     {checked.message&&<p role="status">{checked.message}</p>}
-    {checked.jobs.length>0&&<ul aria-label="Private generated job statuses">
-      {checked.jobs.map(job=><li key={job.id}>
+    {checked.jobs.length>0&&<div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+      <label>Show generated jobs
+        <select aria-label="Filter private generated jobs by status"
+          value={filter} disabled={checked.busy} onChange={event=>{
+            // A filter switch invalidates in-flight preview fetches and
+            // frees already decoded local private Blob pixels immediately.
+            clearImage()
+            setFilter(event.target.value)
+          }}>
+          {FEATURE3_HISTORY_FILTERS.map(status=><option key={status} value={status}>
+            {status==='ALL'?'All statuses':status==='SUCCEEDED'
+              ?'Generated — unreviewed':status.toLowerCase()}
+          </option>)}
+        </select>
+      </label>
+      <small>{visibleJobs.length} of {checked.jobs.length} private jobs shown</small>
+    </div>}
+    {checked.jobs.length>0&&visibleJobs.length===0&&
+      <p role="status">No private jobs with this status.</p>}
+    {visibleJobs.length>0&&<ul aria-label="Private generated job statuses">
+      {visibleJobs.map(job=><li key={job.id}>
         Job {job.id.slice(0,8)} — {STATUSES[job.status]}
         {binaryClient && job.status==='SUCCEEDED' && <button type="button"
           disabled={imageBusy||checked.busy} onClick={()=>loadImage(job)}>
