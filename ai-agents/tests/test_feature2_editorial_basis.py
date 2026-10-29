@@ -186,3 +186,39 @@ def test_multiple_occurrences_of_exact_approved_sku_limited_claim_allowed_for_re
     assert report["issues"]==[]
     assert report["customer_editor_approval_required"] is True
     assert not report["can_publish"]
+
+
+def test_signed_marathi_and_hindi_rss_can_rank_without_fake_english_trends():
+    ctx=trusted_rss()
+    ctx["creative_brief"]="नवरात्र साडी संग्रह"
+    ctx["advertising_objective"]="उत्सवाच्या साड्या या ग्राहकांसाठी"
+    sample=[{"id":"real_marathi_rss_2026","shop_id":ctx["shop_id"],
+             "source_type":"RSS","source_sha256":"c"*64,
+             "published_at":"2026-10-28T11:00:00+00:00",
+             "headline":"नवरात्र साडी संग्रह — नवीन वस्त्र परंपरा"}]
+    result=rank_source_backed_trends(
+        verified_context=ctx,trends=sample,
+        now_utc=datetime(2026,10,29,tzinfo=timezone.utc),
+        verify_source_provenance=lambda *args:True)
+    assert result["status"]=="REVIEW_REQUIRED"
+    assert result["candidates"][0]["relevance_points"]>=20
+    assert not result["verified_live_trend_claim"]
+    assert not result["can_publish"]
+
+
+def test_duplicate_trend_identity_never_counts_twice_even_if_hash_changes():
+    feeds=sample_feed()
+    duplicate={**feeds[0],"source_sha256":"d"*64}
+    with pytest.raises(EditorialBasisRejected,match="Duplicate trend identity"):
+        ranked(feeds+[duplicate])
+
+
+@pytest.mark.parametrize("spoof",[
+    "Kurti collection <script>steal()</script>",
+    "Diwali collection \u0007 rogue content",
+])
+def test_injected_rss_headlines_never_reach_director(spoof):
+    feeds=sample_feed()
+    feeds[0]["headline"]=spoof
+    with pytest.raises(EditorialBasisRejected):
+        ranked(feeds)
