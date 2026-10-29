@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "description": "Only coordinator-reviewed task status evidence. Source snapshot is separate; no events = no verified new integrated DONE.",
+  "events": []
+}
