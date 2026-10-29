@@ -17,7 +17,7 @@ class EncodedMotionTests(unittest.TestCase):
         self.movie=self.root/"clip.mp4"
 
     def encode(self,moving=True):
-        source="testsrc2=size=540x960:rate=12:duration=15" if moving else "color=c=blue:s=540x960:r=12:d=15"
+        source="testsrc2=size=540x960:rate=12:duration=15,scroll=horizontal=0.03" if moving else "color=c=blue:s=540x960:r=12:d=15"
         cmd=["ffmpeg","-nostdin","-loglevel","error","-y",
              "-f","lavfi","-i",source,
              "-f","lavfi","-i","sine=frequency=440:duration=15",
