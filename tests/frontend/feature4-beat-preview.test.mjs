@@ -1,4 +1,4 @@
-"""Display-only beat markers are bounded, millisecond-precise and tenant-scoped."""
+// Display-only beat markers are bounded, millisecond-precise and tenant-scoped.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {proposedBeatMarkers} from '../../frontend/src/features/video/beat-preview.mjs'
