@@ -1,7 +1,8 @@
 import {useEffect, useRef, useState} from 'react'
 import {F2_LOCAL_VOICES, VOICE_SPEEDS, makeLocalVoiceAction,
   makeReviewedDraftRequest, verifyReviewedDraftReceipt,
-  makeLocalSentenceRetakeAction, verifyLocalSentenceRetakeReceipt} from './voiceover-model.mjs'
+  makeLocalSentenceRetakeAction, verifyLocalSentenceRetakeReceipt,
+  makePrivateVoiceJobStatusRequest,verifyPrivateVoiceJobStatus} from './voiceover-model.mjs'
 import {verifyLocalPrivatePlayback} from './voiceover-private-playback.mjs'
 import {verifyPrivateVoiceQualityReview,verifySignedWordErrorReview} from './voiceover-quality-review.mjs'
 
@@ -12,6 +13,7 @@ export default function LocalVoicePanel({
  shopId,campaignId,planSha256,enabled=false,sourceScript='',
  onLocalPreview=null,onLocalGenerate=null,onFetchLocalAudio=null,
  onFetchQualityReview=null,onFetchSignedWerReview=null,
+ onFetchPrivateJobStatus=null,
  onProposeScriptRevision=null,onProposePronunciation=null,
  onCommitReviewedDraft=null,onRequestSentenceRetake=null,
 }){
@@ -22,6 +24,8 @@ export default function LocalVoicePanel({
  const [error,setError]=useState('')
  const [message,setMessage]=useState('')
  const [saved,setSaved]=useState(null)
+ const [pendingJob,setPendingJob]=useState(null)
+ const [jobStatus,setJobStatus]=useState(null)
  const [quality,setQuality]=useState(null)
  const [wer,setWer]=useState(null)
  const [pendingProposal,setPendingProposal]=useState(null)
@@ -41,6 +45,7 @@ export default function LocalVoicePanel({
  }
  useEffect(()=>{
   setBusy(false);setSaved(null);setQuality(null);setWer(null);setPendingProposal(null)
+  setPendingJob(null);setJobStatus(null)
   setReviewAcknowledged(false);setSentenceIndex(0)
   setAudioUrl('');setScriptDraft(sourceScript)
   setPronounceWord('');setPronounceAs('')
@@ -187,8 +192,32 @@ export default function LocalVoicePanel({
   }catch(e){if(scope===scopeRef.current)setError(e?.message||'Retake rejected; inspect one-shot job before retry')}
   finally{if(scope===scopeRef.current)setBusy(false)}
  }
+ async function refreshPendingJob(){
+  if(!pendingJob||enabled!==true||typeof onFetchPrivateJobStatus!=='function'){
+    setError('Private signed job status reader unavailable');return
+  }
+  const scope=scopeRef.current
+  setError('');setBusy(true)
+  try{
+    const query=makePrivateVoiceJobStatusRequest({shopId,campaignId,planSha256,
+      requestKey:pendingJob.requestKey})
+    const raw=await onFetchPrivateJobStatus(query)
+    const verified=verifyPrivateVoiceJobStatus({shopId,campaignId,planSha256,
+      requestKey:pendingJob.requestKey,status:raw})
+    if(scope!==scopeRef.current)throw Error('Private speech job scope changed')
+    setJobStatus(verified)
+    if(verified.terminal&&verified.state!=='AWAITING_HUMAN_REVIEW'){
+      setPendingJob(null)
+      setMessage('Signed terminal job status checked; a new request requires a new deliberate action')
+    }else if(verified.state==='AWAITING_HUMAN_REVIEW'){
+      setMessage('Existing original private WAV is awaiting review; inspect private job history and do not regenerate')
+    }else setMessage('Speech job is still pending; do not submit a duplicate')
+  }catch(e){if(scope===scopeRef.current)setError(e?.message||'Private job status unavailable')}
+  finally{if(scope===scopeRef.current)setBusy(false)}
+ }
  async function submit(preview){
-  setError('');setMessage('');setSaved(null);setQuality(null);setWer(null);clearAudio()
+  if(pendingJob){setError('Existing speech request status is unresolved; inspect job first');return}
+  setError('');setMessage('');setSaved(null);setQuality(null);setWer(null);setJobStatus(null);clearAudio()
   const callback=preview?onLocalPreview:onLocalGenerate
   if(enabled!==true||typeof callback!=='function'){
    setError('Signed local Kokoro speech worker not connected');return
@@ -203,6 +232,7 @@ export default function LocalVoicePanel({
       lang:language,speed,preview})
   }catch{setError('Invalid local voice choice');return}
   const scope=scopeRef.current
+  setPendingJob({requestKey:request.request_key})
   setBusy(true)
   try{
    const proof=await callback(request)
@@ -215,7 +245,7 @@ export default function LocalVoicePanel({
       proof?.review_state!=='PENDING_HUMAN_LISTEN_AND_RIGHTS')
       throw Error('No verified private local narration')
    if(scope!==scopeRef.current)throw Error('Shop or script changed during local voice job')
-   setSaved(proof)
+   setSaved(proof);setPendingJob(null)
    setMessage('Private original audio saved; human listening and rights review still required')
   }catch(e){if(scope===scopeRef.current)setError(e?.message||'Local voice job status uncertain; check history before retry')}
   finally{if(scope===scopeRef.current)setBusy(false)}
@@ -278,10 +308,18 @@ export default function LocalVoicePanel({
     {VOICE_SPEEDS.map(s=><option key={s} value={s}>{s}</option>)}
    </select>
   </label>
-  <button type="button" disabled={busy||enabled!==true||!onLocalPreview}
+  <button type="button" disabled={busy||!!pendingJob||enabled!==true||!onLocalPreview}
    onClick={()=>submit(true)}>Preview free CPU voice</button>
-  <button type="button" disabled={busy||enabled!==true||!onLocalGenerate}
+  <button type="button" disabled={busy||!!pendingJob||enabled!==true||!onLocalGenerate}
    onClick={()=>submit(false)}>Generate free local narration</button>
+  {pendingJob&&<section aria-label="Original narration job awaiting resolution">
+    <p>Request reference: {pendingJob.requestKey.slice(0,8)}… .
+      Do not create another request until the original private job status is verified.</p>
+    <button type="button" disabled={busy||!enabled||!onFetchPrivateJobStatus}
+      onClick={refreshPendingJob}>Check existing private narration job</button>
+    {jobStatus&&<p>Verified current job: {jobStatus.state}.
+      No automatic retry, Azure fallback or publishing approval.</p>}
+  </section>}
   {saved&&<div aria-label="Private narration review">
     <p>Quality: {saved.quality_issues?.length ?
       saved.quality_issues.map(x=>x.problem).join(', ') :
