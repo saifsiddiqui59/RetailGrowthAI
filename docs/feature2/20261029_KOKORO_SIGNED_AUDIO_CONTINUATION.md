@@ -118,3 +118,44 @@ shared APIs, .github/workflows, the frontend route and main merge.
 ## Operator-only one-time pinned model acquisition
 
 The repo now includes `ai-agents/test-fixtures/retailer-voice/provision-pinned-kokoro-models.sh` for a separately authorized Linux/WSL/CI CPU provisioning host with outbound GitHub access. Run with `bash .../provision-pinned-kokoro-models.sh /absolute/private/cache`. It uses the official `thewh1teagle/kokoro-onnx` release `model-files-v1.1`, checks **exact SHA-256 and byte length** for both original files, uses private 0600 storage, reuses already verified cache on subsequent executions, never overwrites a mismatching cached original, and does not start a network request in the actual customer TTS inference path. The provisioning script was **not executed successfully** in this environment (DNS inaccessible), and is not a proof of inference. After independent operator licensing/CPU wheel approval, invoke the existing real-Kokoro runner; never publish customer sample recordings as CI artifacts.
+
+
+## 2026-10-29 — Handoff recheck and post-registration QA security
+
+Checked connected PR heads (not merely historic comments): Feature7 #513
+`f6457975885a958b1e2b201d7353d779ce57c41a`, Feature4 #322
+`88eeb1e26a0d4ef19dfbd9122f89c1b508ce24b1`.
+Feature7 already implements pinned upstream Faster-Whisper CPU for **MP4 input**.
+It still lacks a separate authoritative **registered original-WAV input adapter**.
+Feature3 #630 supplies fictional demo-only garment/model inputs (unmerged),
+which cannot substitute for a genuine retailer-rights approved model or voice.
+Nothing in this recheck approves paid dispatch or production publication.
+
+Added extra fail-closed defense in `feature2_voice_quality.review_signed_audio_transcript`:
+the F7 HMAC signs shop, asset, job, original SHA and transcript digest, but **not**
+the proposed campaign, original MIME or creative-plan SHA. The F2 consumer
+therefore requires an expected current F7 job ID and a server-only callback
+binding **all** current original private WAV, shop, campaign, immutable script
+plan and job values, both **before and after** signature/word review. The
+absence of that current storage proof, foreign job, revoked source, expired
+MAC or tampered words rejects the review. No browser-supplied boolean is
+treated as current authorization.
+
+Added `feature2_local_voice_workflow.review_registered_kokoro_audio` as a
+**second, separate post-storage phase**: current editor and immutable plan
+check; read original private byte-backed WAV and remeasure SHA, duration and
+PCM warnings; read authoritative F7 original-WAV job; verify signed F7 MAC and
+word timings against original bytes with repeated rights/job checks; save a
+pending quality report through a trusted, injected, durable private writer.
+The emitted `retailgrowth.feature2-verified-audio-qa.v1` packet includes
+proven original SHA, word timing and separate ASR/PCM warnings but remains
+`PENDING_HUMAN_LISTEN_AND_RIGHTS`, never auto-approves phonemes, publishing,
+motion or F4 executable rendering. The F7 authoritative WAV job is not yet
+implemented and normal CI uses a synthetic **fake** source to exercise only
+the contract. No real speech/WER or production rights are claimed.
+
+Tests now reject foreign campaign, stale source, bad model provenance,
+forged HMAC, revoked editor, changed original bytes, video-source reuse,
+stale/foreign job, and mid-review revocation. Coordinator must connect the
+existing signed tenant and audio asset store; Feature7 owns true WAV adapter.
+No F7 or F4 source files or shared interfaces were changed by Feature2.
