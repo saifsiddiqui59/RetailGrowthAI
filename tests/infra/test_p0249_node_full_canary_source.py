@@ -28,7 +28,11 @@ class NodeFullCanarySafety(unittest.TestCase):
         self.assertNotIn('sb_secret_',src)
         self.assertNotIn('https://wineshop',src.lower())
         # Original canary unchanged and still demands real ROOT approval.
-        self.assertIn('CANARY_WAITING_FOR_EXPLICIT_DEV_OPERATOR_APPROVAL=true',original)
+        self.assertIn('CANARY_WAITING_FOR_TWO_EXPLICIT_DEV_OPERATOR_APPROVALS=true',original)
+        self.assertIn('CANARY_BOTH_OPERATOR_APPROVALS_VERIFIED=true',original)
+        self.assertLess(
+            original.index('wait_for_both_root_approvals(accounts)'),
+            original.index('call(SUPABASE+"/rest/v1/shops",'))
         self.assertIn('preflight_dev_http_auth_routes(',original)
         self.assertIn('CANARY_PRIVATE_30S_H264_AAC_MP4_VERIFIED=true',original)
         self.assertIn('CANARY_POSTER_ONLY_LIVE_ACCEPTANCE=PASSED',original)
