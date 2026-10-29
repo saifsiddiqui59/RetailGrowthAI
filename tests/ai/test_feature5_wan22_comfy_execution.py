@@ -132,12 +132,14 @@ class WanComfyPrivateProtocolTests(unittest.TestCase):
             ("unknown key", {"client_can_publish":True}),
         ]
         for label, change in cases:
-            bad={**original,**change}
             fake=FakeLocalComfy(pkg)
             recorded=[]
-            attempt=inputs(pkg,
-                read_current_part3_native_claim=lambda *a, row=bad: row,
-                record_unique_submission_intent=lambda *a: recorded.append(a) or True)
+            attempt=inputs(pkg)
+            source=attempt["read_current_part3_native_claim"](
+                pkg.lineage["shop_id"],attempt["job_id"],attempt["attempt_token"])
+            bad={**source,**change}
+            attempt["read_current_part3_native_claim"]=lambda *a, row=bad: row
+            attempt["record_unique_submission_intent"]=lambda *a: recorded.append(a) or True
             with self.subTest(case=label),self.assertRaises(WanCompatibilityError):
                 WanPrivateComfyDispatcher(fake, enabled=True).submit_once(**attempt)
             self.assertEqual(fake.calls, [])
