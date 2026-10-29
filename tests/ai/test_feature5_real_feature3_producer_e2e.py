@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT / "tests" / "media"))
 
 from fashion_reference_v1 import prepare_fashion_references, resolve_first_frame, FashionReferenceDenied
 from feature3_worker_inputs_v1 import materialize_feature5_input
+from feature3_worker_input_handoff import resolve_private_worker_inputs
 from feature3_consumer_packets_v1 import assemble_consumer_packets
 from test_feature3_fashion_reference import FashionKurtiReferenceTests
 
@@ -27,7 +28,7 @@ from feature5_motion.cross_feature_packet_gate import (
     qualify_feature3_packet, stage_fresh_feature3_consumer_input
 )
 from feature5_motion.feature3_reference_bridge import (
-    resolve_feature3_materialized_first_frame
+    resolve_feature3_materialized_first_frame, resolve_feature3_worker_handoff_first_frame
 )
 from feature5_motion.cpu_image_review import compose_review_first_frame
 from feature5_motion.wan22_motion_adapter import WanCompatibilityError
@@ -210,6 +211,79 @@ class Feature5RealFeature3SourceIntegrationTests(unittest.TestCase):
                 with stage_fresh_feature3_consumer_input(
                     **self.args(packet,td,resolve_first_frame=adapt)):
                     self.fail("F3 worker may not stage revoked original bytes")
+            self.assertEqual(list(Path(td).iterdir()),[])
+
+    def test_real_feature3_full_private_handoff_to_wan_frame_stage(self):
+        """Invoke actual merged F3 current-rights resolver for all 3 roles."""
+        packet=self.fresh_packet(self.f3.shop,self.brief_id)
+        def adapter(**kwargs):
+            return resolve_feature3_worker_handoff_first_frame(
+                **kwargs,resolve_private_worker_inputs=resolve_private_worker_inputs)
+        with tempfile.TemporaryDirectory() as td:
+            with stage_fresh_feature3_consumer_input(
+                **self.args(packet,td,resolve_first_frame=adapter)
+            ) as (file,grant,tech,scope):
+                self.assertTrue(file.is_file())
+                self.assertEqual(grant["shop_id"],self.f3.shop)
+                self.assertEqual(grant["source_sha256"],
+                                 packet["source"]["first_frame_sha256"])
+                self.assertEqual(grant["sha256"],sha256(file.read_bytes()).hexdigest())
+                self.assertEqual(tech["prepared_dimensions"],[704,1280])
+                self.assertFalse(scope.can_submit_provider)
+                self.assertFalse(tech["paid_gpu_approved"])
+            self.assertEqual(list(Path(td).iterdir()),[])
+
+    def test_full_private_handoff_rejects_fake_rights_and_swapped_garment(self):
+        packet=self.fresh_packet(self.f3.shop,self.brief_id)
+        genuine=resolve_private_worker_inputs(
+            expected_manifest=self.expected["image_to_video"],
+            current_readers=self.readers,verify_worker_job=self.worker_job)
+        cases={
+            "wrong_shop": lambda z:z.__setitem__("shop_id",str(uuid4())),
+            "false_current_rights":lambda z:z.__setitem__("rights_checked",False),
+            "no_future_recheck":lambda z:z.__setitem__("recheck_before_next_job",False),
+            "provider_allowed":lambda z:z.__setitem__("provider_call_permitted",True),
+            "fake_output_approval":lambda z:z.__setitem__("output_approved",True),
+            "garment_replaced":lambda z:z["images"]["garment"].__setitem__(
+                "image_bytes",z["images"]["model"]["image_bytes"]),
+            "model_replaced":lambda z:z["images"]["model"].__setitem__(
+                "image_bytes",z["images"]["garment"]["image_bytes"]),
+            "firstframe_replaced":lambda z:z["images"]["first_frame"].__setitem__(
+                "image_bytes",z["images"]["garment"]["image_bytes"]),
+            "wrong_fingerprint":lambda z:z.__setitem__("source_fingerprint","f"*64),
+            "wrong_garment":lambda z:z.__setitem__("garment_identity",{}),
+            "extra_public_url":lambda z:z.__setitem__("signed_url","https://example.test"),
+        }
+        for label,change in cases.items():
+            with self.subTest(label=label),tempfile.TemporaryDirectory() as td:
+                altered=deepcopy(genuine)
+                change(altered)
+                def adapter(**kwargs):
+                    return resolve_feature3_worker_handoff_first_frame(
+                        **kwargs,resolve_private_worker_inputs=lambda **_:altered)
+                with self.assertRaises(WanCompatibilityError):
+                    with stage_fresh_feature3_consumer_input(
+                        **self.args(packet,td,resolve_first_frame=adapter)):
+                        self.fail("F3 media or rights mismatch must not yield")
+                self.assertEqual(list(Path(td).iterdir()),[])
+
+    def test_real_f3_full_worker_denies_revoked_rights_and_missing_lease(self):
+        packet=self.fresh_packet(self.f3.shop,self.brief_id)
+        def adapter(**kwargs):
+            return resolve_feature3_worker_handoff_first_frame(
+                **kwargs,resolve_private_worker_inputs=resolve_private_worker_inputs)
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaises((WanCompatibilityError,FashionReferenceDenied)):
+                with stage_fresh_feature3_consumer_input(
+                    **self.args(packet,td,resolve_first_frame=adapter,
+                        verify_worker_job=lambda *_:False)):
+                    self.fail("missing trusted lease")
+            self.assertEqual(list(Path(td).iterdir()),[])
+            self.f3.grants[self.f3.model_asset]["rights_revoked"]=True
+            with self.assertRaises((WanCompatibilityError,FashionReferenceDenied)):
+                with stage_fresh_feature3_consumer_input(
+                    **self.args(packet,td,resolve_first_frame=adapter)):
+                    self.fail("revoked model consent")
             self.assertEqual(list(Path(td).iterdir()),[])
 
     def test_feature3_model_revocation_after_packet_generation_denied(self):
