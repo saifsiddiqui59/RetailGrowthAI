@@ -139,9 +139,22 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
     m.shop_id===draft.shop_id && m.authorized===true)
     ? [{id:'licensed-audio',start:0,duration:draft.duration_seconds,volume:1}] : []
   const shortcuts = event => {
-    if (approvedDirection || (!event.ctrlKey && !event.metaKey) || event.altKey ||
-        event.key.toLowerCase() !== 'z' || event.target?.closest?.(
-          'input,textarea,select,[contenteditable="true"]')) return
+    // Read-only one-frame navigation on the focused video track also works
+    // for immutable Feature2-approved directions; it never changes the draft.
+    // Do not steal cursor keys from timecode, text, buttons or zoom controls.
+    const editingField = event.target?.closest?.(
+      'input,textarea,select,[contenteditable="true"]')
+    if (editingField || event.altKey) return
+    const onTracks = event.target?.closest?.('.f4-ts-track-scroll')
+    if (onTracks && !event.ctrlKey && !event.metaKey &&
+        (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+      event.preventDefault()
+      const direction = event.key === 'ArrowRight' ? 1 : -1
+      seekToFrame(playhead + direction * (event.shiftKey ? 10 : 1) / previewFps)
+      return
+    }
+    if (approvedDirection || (!event.ctrlKey && !event.metaKey) ||
+        event.key.toLowerCase() !== 'z') return
     event.preventDefault()
     applyHistory(event.shiftKey ? redoEditorHistory : undoEditorHistory)
   }
@@ -182,7 +195,10 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
           value={zoom} onChange={e=>setZoom(Number(e.target.value))} /></label>
       </div>
     </div>
-    <div className="f4-ts-track-scroll" aria-label="Scrollable video tracks">
+    <div className="f4-ts-track-scroll" role="region" tabIndex={0}
+      aria-label="Scrollable video tracks"
+      aria-keyshortcuts="ArrowLeft ArrowRight Shift+ArrowLeft Shift+ArrowRight"
+      title="Focus tracks: left/right jog one frame; Shift+left/right jog ten frames">
       <div className="f4-ts-timeline-content" style={{width:(74 + trackPixels)+'px'}}>
       <div className="f4-ts-ruler" aria-label="Timeline ruler">
         {ticks.map(t=><span key={t.id} style={{left:t.left+'%'}}>{t.label}</span>)}
