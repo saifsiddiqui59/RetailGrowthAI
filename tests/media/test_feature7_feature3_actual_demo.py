@@ -21,6 +21,9 @@ import unittest
 
 ROOT=Path(__file__).resolve().parents[2]
 SOURCE=os.getenv("FEATURE7_F3_REAL_TECH_MP4")
+# Independently verified from actual original Actions artifact 12879355229
+# (technical_footage_manifest.json, offline SHA256 and ffprobe), 2026-10-29.
+PINNED_F3_MP4_SHA256="16ceaa91a5dad57de023f45b21eee45772f361a18299801e9e27b6ae49ce9f22"
 EXPECTED=os.getenv("FEATURE7_F3_REAL_TECH_SHA256")
 
 JS=r"""
@@ -49,7 +52,9 @@ class Feature7RealFeature3ConsumerTests(unittest.TestCase):
         original=source.read_bytes()
         self.assertEqual(len(EXPECTED),64)
         sha=hashlib.sha256(original).hexdigest()
-        self.assertEqual(sha,EXPECTED)
+        self.assertEqual(EXPECTED,PINNED_F3_MP4_SHA256,
+                         "Only exact real Feature3 artifact is eligible")
+        self.assertEqual(sha,PINNED_F3_MP4_SHA256)
         with tempfile.TemporaryDirectory(prefix="f7-f3-technical-") as tmp:
             root=Path(tmp)
             target=root/"licensed_technical_test.mp4"
