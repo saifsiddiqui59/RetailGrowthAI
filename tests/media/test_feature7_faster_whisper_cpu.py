@@ -140,6 +140,11 @@ class OfflineFasterWhisperCpuTests(unittest.TestCase):
         with self.assertRaises(mod.LocalFasterWhisperError):
             mod.validate_local_model(str(self.model),str(self.manifest))
         data["commercial_rights_reviewed"]=True
+        data["model_revision"]="f"*40
+        self.manifest.write_text(json.dumps(data))
+        with self.assertRaises(mod.LocalFasterWhisperError):
+            mod.validate_local_model(str(self.model),str(self.manifest))
+        data["model_revision"]=REVISION
         self.manifest.write_text(json.dumps(data))
         p=self.model/"model.bin"
         p.unlink()
