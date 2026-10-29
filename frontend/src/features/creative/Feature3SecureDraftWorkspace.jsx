@@ -60,40 +60,51 @@ export default function Feature3SecureDraftWorkspace({
   },[generatedLink])
 
   const loadHistory = async () => {
-    if (disabled || busy || pending.current) return
-    setBusy(true); setMessage('')
+    if (disabled || busy || (pending.current.scope===scopeKey && pending.current.active)) return
+    const scope=scopeKey,provider=feature3Api,attempt=++pendingHistory.current
+    const current=()=>currentFeature3WorkspaceRequest(
+      activeScope.current,scope,provider,attempt,pendingHistory.current)
+    setBusy(true);setMessage('')
     try {
-      const rows = await feature3Api.listDesigns(shopId, campaignId, dayId)
-      setSaved(rows)
+      const rows=await feature3Api.listDesigns(shopId,campaignId,dayId)
+      if(!current())return
+      setSavedState({scope,value:rows})
       setMessage(rows.length ? 'Private draft history loaded.' :
         'No v2 private poster drafts exist for this day.')
     } catch {
-      setMessage('Could not read this day’s authorized v2 draft history.')
+      if(current())setMessage('Could not read this day’s authorized v2 draft history.')
     } finally {
-      setBusy(false)
+      if(current())setBusy(false)
     }
   }
 
   const loadGenerated = async () => {
-    if (disabled || busy || pending.current) return
-    setBusy(true); setGeneratedLink(null); setMessage('')
+    if (disabled || busy || (pending.current.scope===scopeKey && pending.current.active)) return
+    const scope=scopeKey,provider=feature3Api,attempt=++pendingJobs.current
+    const current=()=>currentFeature3WorkspaceRequest(
+      activeScope.current,scope,provider,attempt,pendingJobs.current)
+    setBusy(true);setGeneratedLink(null);setMessage('')
     try {
-      const jobs = await feature3Api.listGeneratedJobs(shopId)
-      setGeneratedJobs(jobs)
+      const jobs=await feature3Api.listGeneratedJobs(shopId)
+      if(!current())return
+      setGeneratedState({scope,value:jobs})
       setMessage(jobs.length ? 'Private generated image job history loaded.' :
         'No generated image jobs for this retailer.')
     } catch {
-      setGeneratedJobs([])
-      setMessage('Generated image history is unavailable or access was revoked.')
-    } finally { setBusy(false) }
+      if(current()){
+        setGeneratedState({scope,value:[]})
+        setMessage('Generated image history is unavailable or access was revoked.')
+      }
+    } finally { if(current())setBusy(false) }
   }
 
   const openGenerated = async jobId => {
-    if (disabled || busy || pending.current) return
+    if (disabled || busy || (pending.current.scope===scopeKey && pending.current.active)) return
     const scope=shopId, provider=feature3Api, requestKey=scopeKey
     const attempt=++pendingDownload.current
     const current=()=>attempt===pendingDownload.current &&
       activeScope.current.shopId===scope &&
+      activeScope.current.scopeKey===requestKey &&
       activeScope.current.feature3Api===provider
     setBusy(true); setGeneratedLink(null); setMessage('')
     try {
