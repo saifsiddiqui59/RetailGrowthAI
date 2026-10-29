@@ -1,0 +1,296 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useRetailAuth } from '../../auth/AuthProvider.jsx'
+import { createTrendApi } from '../trends/trend-api.mjs'
+import { createCampaignApi } from '../campaigns/campaign-api.mjs'
+import { createTraceStore } from './trace-store.mjs'
+import { executeFeatureTrace, TRACE_STAGES } from './trace-runner.mjs'
+import './testing-console.css'
+
+const MODES = [
+  { id: 'prompt', label: 'Prompt only · no campaign/render', note: 'Free deterministic Feature #2 request.' },
+  { id: 'campaign', label: 'Create a live 7-day campaign', note: 'Creates a real DEV campaign and consumes available usage quota.' },
+  { id: 'campaign_reel', label: 'Campaign + first-day 30s Reel', note: 'Queues a real FFmpeg job using existing DEV resources and quotas. No paid AI motion.' },
+]
+const FEATURES = [
+  ['F1', 'Dashboard / tenant'], ['F2', 'Creative director / planner'],
+  ['F3', 'Poster studio'], ['F5', 'Premium motion'],
+  ['F4', 'Reel composition'], ['F7', 'Smart editor'],
+]
+function tomorrowInIndia() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric',
+  }).formatToParts(new Date())
+  const get = name => parts.find(p => p.type === name)?.value
+  return new Date(Date.UTC(+get('year'), +get('month') - 1, +get('day') + 1)).toISOString().slice(0, 10)
+}
+function downloadReport(run, events) {
+  // Explicit user action only; URLs, tokens and credentials are never put in receipts.
+  const data = JSON.stringify({ schema: 'retailgrowth.feature-test.v1',
+    source: 'browser-observed-not-server-audit', run, events }, null, 2)
+  const url = URL.createObjectURL(new Blob([data + '\n'], { type: 'application/json' }))
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = 'retailgrowth-test-' + run.id + '.json'
+  anchor.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+function StageCard({ feature, title, events }) {
+  const related = events.filter(e => e.feature === feature && e.status !== 'QUALITY_REVIEW')
+  const latest = related.at(-1)
+  const reviews = events.filter(e => e.feature === feature && e.status === 'QUALITY_REVIEW')
+  return <section className="rgt-stage" aria-label={title}>
+    <div className="rgt-stage-head">
+      <strong>{feature} · {title}</strong>
+      <span className={'rgt-pill rgt-' + (latest?.status || 'UNOBSERVED')}>
+        {latest?.status || 'NOT OBSERVED'}
+      </span>
+    </div>
+    {!latest && <p>No authenticated receipt for this feature in this test.</p>}
+    {related.map(e => <details key={e.event_seq} open={related.length === 1}>
+      <summary>{e.action}: {e.summary}{e.duration_ms !== null ? ' (' + e.duration_ms + 'ms)' : ''}</summary>
+      {Object.keys(e.details || {}).length > 0 && <pre>{JSON.stringify(e.details, null, 2)}</pre>}
+    </details>)}
+    {reviews.map(e => <p className="rgt-review" key={e.event_seq}>Human review: {e.details?.score}/5 · {e.details?.note || 'No notes'}</p>)}
+  </section>
+}
+export default function TestingConsole() {
+  const { client, user, configured } = useRetailAuth()
+  const [shops, setShops] = useState([])
+  const [shopId, setShopId] = useState('')
+  const [assets, setAssets] = useState([])
+  const [assetId, setAssetId] = useState('')
+  const [prompt, setPrompt] = useState('Create a seven-day clothing boutique campaign with useful outfit tips and clear Instagram Reel ideas.')
+  const [mode, setMode] = useState('prompt')
+  const [startDate, setStartDate] = useState(tomorrowInIndia)
+  const [running, setRunning] = useState(false)
+  const [error, setError] = useState('')
+  const [outcome, setOutcome] = useState('')
+  const [history, setHistory] = useState([])
+  const [activeRun, setActiveRun] = useState(null)
+  const [events, setEvents] = useState([])
+  const [ratingFeature, setRatingFeature] = useState('F2')
+  const [rating, setRating] = useState(3)
+  const [reviewNote, setReviewNote] = useState('')
+  const [savingReview, setSavingReview] = useState(false)
+  const selection = useRef('')
+  const busy = useRef(false)
+  const apiOrigin = import.meta.env?.VITE_CAMPAIGN_API_BASE_URL
+  const supabaseOrigin = import.meta.env?.VITE_SUPABASE_URL
+  const pubKey = import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY
+  const store = useMemo(() => createTraceStore({
+    supabaseUrl: supabaseOrigin, publishableKey: pubKey,
+    tokenProvider: () => client.getAccessToken(),
+  }), [client, supabaseOrigin, pubKey])
+  const trendApi = useMemo(() => createTrendApi({
+    baseUrl: apiOrigin, tokenProvider: () => client.getAccessToken(),
+  }), [apiOrigin, client])
+  const campaignApi = useMemo(() => createCampaignApi({
+    baseUrl: apiOrigin, tokenProvider: () => client.getAccessToken(),
+    supabaseOrigin: supabaseOrigin || '', supabasePublishableKey: pubKey || '',
+  }), [apiOrigin, client, supabaseOrigin, pubKey])
+
+  useEffect(() => {
+    let alive = true
+    if (!configured || !user) return
+    client.listShops().then(rows => {
+      if (!alive) return
+      const writers = rows.filter(s => s.membership?.active &&
+        ['OWNER', 'EDITOR'].includes(s.membership.role))
+      setShops(writers)
+      const nextId = writers[0]?.id || ''
+      selection.current = nextId
+      setShopId(nextId)
+    }).catch(() => { if (alive) setError('Authorized businesses could not be loaded.') })
+    return () => { alive = false }
+  }, [client, configured, user?.id])
+
+  useEffect(() => {
+    let alive = true
+    setHistory([]); setEvents([]); setActiveRun(null); setError(''); setOutcome('')
+    setAssets([]); setAssetId('')
+    if (!shopId || !store) return () => { alive = false }
+    Promise.all([store.listRuns(shopId), client.listMediaAssets(shopId)]).then(([runs, media]) => {
+      if (!alive || selection.current !== shopId) return
+      setHistory(runs)
+      const licensed = media.filter(m => m.shop_id === shopId && m.license_name)
+      setAssets(licensed)
+      setAssetId(licensed[0]?.id || '')
+    }).catch(() => {
+      if (alive) setError('Trace schema may be awaiting DEV migration, or private history/media is unavailable.')
+    })
+    return () => { alive = false }
+  }, [shopId, store, client])
+
+  async function selectRun(run) {
+    if (busy.current || run.shop_id !== shopId) return
+    setError(''); setOutcome('')
+    try {
+      const loaded = await store.listEvents(shopId, run.id)
+      if (selection.current !== shopId) return
+      setActiveRun(run); setEvents(loaded)
+    } catch {
+      setError('Unable to load private trace events for this business.')
+    }
+  }
+  async function runTest(event) {
+    event.preventDefault()
+    if (busy.current || !store || !trendApi || !shopId || !user) return
+    if (mode !== 'prompt' && !assets.some(a => a.id === assetId && a.shop_id === shopId)) {
+      setError('Select a licensed image in this business before starting a campaign.')
+      return
+    }
+    busy.current = true
+    setRunning(true); setError(''); setOutcome(''); setEvents([])
+    const id = crypto.randomUUID()
+    const run = { id, shop_id: shopId, created_by: user.id,
+      prompt: prompt.trim(), mode, created_at: new Date().toISOString() }
+    setActiveRun(run)
+    try {
+      const result = await executeFeatureTrace({
+        id, shopId, userId: user.id, prompt: prompt.trim(), mode,
+        assetId, startDate, client, trendApi, campaignApi, store,
+        onEvent: logged => {
+          if (selection.current === shopId) setEvents(current =>
+            [...current.filter(e => e.event_seq !== logged.event_seq), logged])
+        },
+      })
+      setOutcome(result.status === 'PASS' ? 'Live steps verified. Review content quality separately.'
+        : result.status === 'UNKNOWN'
+          ? 'Execution outcome is uncertain. Inspect saved job state before another submission.'
+          : 'A checked stage failed. Inspect its receipt below.')
+      const runs = await store.listRuns(shopId)
+      if (selection.current === shopId) setHistory(runs)
+    } catch {
+      // Never claim a network error means campaign/FFmpeg POST did not commit.
+      setError('Trace storage or execution failed. Check saved history and Campaign Studio before retrying.')
+    } finally {
+      busy.current = false; setRunning(false)
+    }
+  }
+  async function submitReview(event) {
+    event.preventDefault()
+    if (!activeRun || savingReview || running || activeRun.created_by !== user?.id) return
+    const seq = events.reduce((n, e) => Math.max(n, e.event_seq), 0) + 1
+    if (seq > 1000) return setError('Trace event limit reached.')
+    setSavingReview(true); setError('')
+    try {
+      const logged = await store.append({
+        runId: activeRun.id, shopId: activeRun.shop_id, userId: user.id, seq,
+        feature: ratingFeature, action: 'human-quality-review', status: 'QUALITY_REVIEW',
+        summary: 'Reviewer submitted a subjective output-quality rating.',
+        details: { score: rating, note: reviewNote.trim().slice(0, 300) },
+      })
+      setEvents(current => [...current, logged]); setReviewNote('')
+      setOutcome('Human quality rating saved. An execution PASS is not a quality PASS.')
+    } catch {
+      setError('Quality review save was not confirmed. Refresh the trace before retrying.')
+    } finally { setSavingReview(false) }
+  }
+  if (!configured || !user || !store || !trendApi) return <section className="panel">
+    <h1>Testing Chat</h1><p>Sign in with RetailGrowthAI DEV and configure the existing Supabase and campaign API origins to run real authenticated tests.</p>
+    <Link to="/account">Open account</Link>
+  </section>
+  return <div className="rgt-page" aria-label="Feature testing chat">
+    <div className="page-heading"><div>
+      <div className="eyebrow">INTERNAL QUALITY LAB</div>
+      <h1>Testing Chat &amp; Feature Trace</h1>
+      <p className="lead">Run actual retailer requests, inspect each verified feature handoff, and rate output quality. No publishing or paid motion.</p>
+    </div></div>
+    <div className="rgt-layout">
+      <aside className="panel rgt-history" aria-label="Saved test history">
+        <h2>Saved test runs</h2>
+        <p>Private Supabase history · up to 30 recent runs in this business.</p>
+        <label>Business
+          <select disabled={running} value={shopId} onChange={e => {
+            selection.current = e.target.value; setShopId(e.target.value)
+          }}>
+            <option value="">Select a business</option>
+            {shops.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </label>
+        {!shops.length && <p>No active OWNER/EDITOR business is available.</p>}
+        <div className="rgt-run-list">
+          {history.map(run => <button key={run.id} type="button"
+            className={activeRun?.id === run.id ? 'rgt-run selected' : 'rgt-run'}
+            disabled={running} onClick={() => selectRun(run)}>
+            <strong>{run.prompt.slice(0, 76)}</strong>
+            <small>{new Date(run.created_at).toLocaleString()} · {run.mode}</small>
+          </button>)}
+        </div>
+      </aside>
+      <div className="rgt-main">
+        <form className="panel rgt-chat" onSubmit={runTest}>
+          <h2>Your test request</h2>
+          <label>Enter a request like a real retailer
+            <textarea rows={4} maxLength={1500} minLength={10} required disabled={running}
+              value={prompt} onChange={e => setPrompt(e.target.value)} />
+          </label>
+          <div className="rgt-options">
+            <label>Test depth
+              <select value={mode} disabled={running} onChange={e => setMode(e.target.value)}>
+                {MODES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+              </select>
+            </label>
+            <label>Approved input image
+              <select value={assetId} disabled={running || mode === 'prompt'}
+                onChange={e => setAssetId(e.target.value)}>
+                <option value="">Choose licensed media</option>
+                {assets.map(a => <option key={a.id} value={a.id}>{a.id.slice(0, 8)} · {a.license_name}</option>)}
+              </select>
+            </label>
+            <label>Campaign begins
+              <input type="date" value={startDate} min={tomorrowInIndia()}
+                disabled={running || mode === 'prompt'} onChange={e => setStartDate(e.target.value)} />
+            </label>
+          </div>
+          <p>{MODES.find(m => m.id === mode)?.note}</p>
+          <button className="rgt-primary" type="submit"
+            disabled={running || !shopId || prompt.trim().length < 10 ||
+              (mode !== 'prompt' && (!assetId || !startDate))}>
+            {running ? 'Running real feature checks…' : 'Run & save feature trace'}
+          </button>
+          {running && <p role="status">Keep this page open while active API responses are checked. No unsafe POST retries.</p>}
+          {error && <p role="alert" className="rgt-error">{error}</p>}
+          {outcome && <p role="status" className="rgt-outcome">{outcome}</p>}
+        </form>
+        {activeRun && <div className="panel rgt-results">
+          <div className="rgt-results-title"><div>
+            <h2>Feature execution evidence</h2>
+            <small>Run {activeRun.id} · {activeRun.mode}</small>
+          </div><button type="button" disabled={running} onClick={() => downloadReport(activeRun, events)}>
+            Export JSON
+          </button></div>
+          <div className="rgt-message"><strong>You</strong><p>{activeRun.prompt}</p></div>
+          <p className="rgt-disclaimer">Browser-observed receipts, not backend worker spans or independent quality scores. An unobserved feature is not a success or failure.</p>
+          <div className="rgt-stages">
+            {FEATURES.map(([id, title]) => <StageCard key={id} feature={id} title={title} events={events} />)}
+          </div>
+          <form className="rgt-quality" onSubmit={submitReview}>
+            <h3>Rate output quality</h3>
+            <p>Human scores help distinguish successful execution from poor output.</p>
+            <div className="rgt-options">
+              <label>Feature
+                <select value={ratingFeature} onChange={e => setRatingFeature(e.target.value)}>
+                  {FEATURES.map(([id, title]) => <option key={id} value={id}>{id} · {title}</option>)}
+                </select>
+              </label>
+              <label>Score (1 = poor, 5 = excellent)
+                <select value={rating} onChange={e => setRating(Number(e.target.value))}>
+                  {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}/5</option>)}
+                </select>
+              </label>
+            </div>
+            <label>What should be improved?
+              <textarea rows={2} maxLength={300} value={reviewNote}
+                onChange={e => setReviewNote(e.target.value)} />
+            </label>
+            <button type="submit" disabled={running || savingReview ||
+              activeRun.created_by !== user.id}>Save human quality review</button>
+          </form>
+          <p><Link to="/campaigns">Open Campaign Studio for saved campaign and private MP4 status</Link></p>
+        </div>}
+      </div>
+    </div>
+  </div>
+}
