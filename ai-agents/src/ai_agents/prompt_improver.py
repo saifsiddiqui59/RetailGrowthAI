@@ -171,3 +171,124 @@ def improve_prompt(
         "usage": usage,
         "can_publish": False,
     }
+
+
+# Prompt Improver -> draft-save handoff. This uses an existing canonical draft
+# version; coordinator owns real HTTP/JWT/RLS and the PostgreSQL compare/swap.
+# Neither a browser checkbox nor a model result constitutes signed approval.
+from hashlib import sha256 as _sha256
+from uuid import UUID as _UUID
+import hmac as _hmac
+
+class PromptRevisionRejected(PermissionError):
+    pass
+
+
+def _prompt_uuid(value):
+    try:
+        return (type(value) is str and str(_UUID(value))==value
+                and _UUID(value).version==4)
+    except (ValueError,TypeError,AttributeError):
+        return False
+
+
+def commit_reviewed_prompt_draft(*, shop_id, campaign_id, proposal_id,
+                                 review_event_id, expected_revision,
+                                 original_prompt, improved_prompt,
+                                 current_editor, read_current_draft,
+                                 read_staged_proposal,
+                                 verify_signed_editor_decision,
+                                 save_draft_cas):
+    """Stage a human-reviewed improvement as a *new private DRAFT*.
+
+    Callback implementations MUST be trusted server/RLS operations. The saved
+    proposal and independently signed editor decision bind exact draft revision
+    and source/improved hashes. CAS refuses races and stale/replayed approvals.
+    No auto-post, provider call, video dispatch or browser-assumed rights.
+    """
+    if (not all(_prompt_uuid(x) for x in
+                (shop_id,campaign_id,proposal_id,review_event_id)) or
+        type(expected_revision) is not int or
+        not 0 <= expected_revision < 100000 or
+        not all(callable(x) for x in
+                (current_editor,read_current_draft,read_staged_proposal,
+                 verify_signed_editor_decision,save_draft_cas))):
+        raise PromptRevisionRejected("Trusted versioned editor approval required")
+    try:
+        original=_safe_original(original_prompt)
+        proposed=_safe_original(improved_prompt)
+    except ValueError as exc:
+        raise PromptRevisionRejected("Unsafe prompt revision") from exc
+    if proposed==original or original not in proposed:
+        raise PromptRevisionRejected("Original retailer request must remain unchanged")
+    # An improvement is still only a suggestion; numeric claims and invented
+    # discounts are never implied approved by a reviewer checkbox.
+    original_sha=_sha256(original.encode("utf-8")).hexdigest()
+    proposed_sha=_sha256(proposed.encode("utf-8")).hexdigest()
+
+    def active():
+        if current_editor(shop_id,campaign_id) is not True:
+            return False
+        draft=read_current_draft(shop_id,campaign_id)
+        return (type(draft) is dict and draft.get("shop_id")==shop_id and
+                draft.get("campaign_id")==campaign_id and
+                draft.get("revision")==expected_revision and
+                draft.get("brief")==original and
+                draft.get("review_status")=="DRAFT" and
+                draft.get("can_publish") is False)
+
+    def staged():
+        saved=read_staged_proposal(shop_id,campaign_id,proposal_id)
+        return (type(saved) is dict and saved.get("shop_id")==shop_id and
+                saved.get("campaign_id")==campaign_id and
+                saved.get("proposal_id")==proposal_id and
+                saved.get("source_revision")==expected_revision and
+                saved.get("original_prompt_sha256")==original_sha and
+                saved.get("improved_prompt_sha256")==proposed_sha and
+                saved.get("review_status")=="NEEDS_REVIEW" and
+                saved.get("can_publish") is False and
+                saved.get("private") is True and
+                saved.get("revoked_at") is None)
+
+    if not active() or not staged():
+        raise PromptRevisionRejected("Current tenant draft or proposed version revoked")
+    # Independent authoritative evidence: signed human decision is checked
+    # against exact source and revision. It must not be a submitted JS boolean.
+    if verify_signed_editor_decision(
+        shop_id,campaign_id,proposal_id,review_event_id,
+        expected_revision,original_sha,proposed_sha) is not True:
+        raise PromptRevisionRejected("Independent signed editor approval missing")
+    if not active() or not staged():
+        raise PromptRevisionRejected("Editor decision or draft changed before save")
+    record={"schema":"retailgrowth.feature2-reviewed-prompt-draft.v1",
+            "source_revision":expected_revision,
+            "revision":expected_revision+1,
+            "shop_id":shop_id,"campaign_id":campaign_id,
+            "proposal_id":proposal_id,"review_event_id":review_event_id,
+            "original_prompt_sha256":original_sha,
+            "improved_prompt_sha256":proposed_sha,
+            "new_brief":proposed,
+            "review_status":"DRAFT","private":True,
+            "needs_copy_fact_review":True,
+            "needs_media_rights_review":True,
+            "can_publish":False,"can_dispatch_paid_motion":False,
+            "provider_call_made":False}
+    saved=save_draft_cas(shop_id,campaign_id,proposal_id,
+                         expected_revision,review_event_id,dict(record))
+    if (type(saved) is not dict or
+        saved.get("shop_id")!=shop_id or
+        saved.get("campaign_id")!=campaign_id or
+        saved.get("proposal_id")!=proposal_id or
+        saved.get("revision")!=expected_revision+1 or
+        saved.get("improved_prompt_sha256")!=proposed_sha or
+        saved.get("review_event_id")!=review_event_id or
+        saved.get("private") is not True or
+        saved.get("committed") is not True):
+        raise PromptRevisionRejected("Durable source-locked private draft save unavailable")
+    return {"schema":record["schema"],"shop_id":shop_id,
+            "campaign_id":campaign_id,"revision":expected_revision+1,
+            "improved_prompt_sha256":proposed_sha,
+            "review_status":"DRAFT","private":True,
+            "can_publish":False,"can_dispatch_paid_motion":False,
+            "requires_fresh_media_rights":True,
+            "requires_new_copy_fact_review":True}
