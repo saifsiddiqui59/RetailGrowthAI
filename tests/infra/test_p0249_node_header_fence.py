@@ -176,6 +176,9 @@ class NodePreviewHeaderFence(unittest.TestCase):
 
     def test_pure_source_integration_keeps_dev_and_mutation_safety(self):
         source = TARGET.read_text()
+        self.assertIn("_NODE_OPENER.open(req,timeout=12)", source)
+        self.assertIn("_NODE_OPENER.open(health,timeout=12)", source)
+        self.assertNotIn("urllib.request.urlopen(", source)
         self.assertIn("original=node_preview_headers(headers or {})", source)
         self.assertIn("is_node=url.startswith(NODE_PREVIEW+\"/api/\")", source)
         self.assertIn("P0249_REAL_NODE_HTTP_TRANSACTION_UNCONFIRMED", source)
