@@ -706,3 +706,5 @@ Use scripts/checkpoint.sh after completing a task.
 
 
 - 2026-10-29 Feature3 Phase2 non-GPU private download continuation: created strictly validated pure Python `Feature3PrivateBinaryHTTP` source adapter over preexisting JWT/RLS/revocable-byte reader, checks binary SHA, exact receipt, no token/signed URL disclosure and private no-store/nosniff response. Offline actual Pillow PNG and malicious/foreign/rights revoked/error tests added; no Azure route, live tenant, provider billing, Supabase write, new migration or WineShopPOS. CI and coordinator integration pending.
+
+- 2026-10-29 Extended Feature3 private binary source contract with integrity-bound shop/job/media/hash response headers and isolated React/Vite `createFeature3PrivatePNGClient`. Implemented one-shot no-cookie/no-referrer signed JWT GET, strict HTTPS origin, anti-redirect, MIME/length/no-store, actual WebCrypto SHA and safe Blob receipt. Added Node negative tests for changed bytes, forged cross-shop/download headers, signed URL redirect, invalid JWT and no automatic re-fetch. No backend endpoint mounted or production image served; tests/CI pending exact branch verification.
