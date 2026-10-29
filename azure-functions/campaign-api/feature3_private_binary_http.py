@@ -86,6 +86,10 @@ class Feature3PrivateBinaryHTTP:
         return 200,raw,{
             "Content-Type":"image/png",
             "Content-Length":str(len(raw)),
+            "X-Feature3-Shop-Id":shop,
+            "X-Feature3-Job-Id":job,
+            "X-Feature3-Media-Asset-Id":receipt["media_asset_id"],
+            "X-Feature3-Image-Sha256":digest,
             "Content-Disposition":f'attachment; filename="feature3-{job}.png"',
             "Cache-Control":"no-store, private, max-age=0",
             "Pragma":"no-cache",
