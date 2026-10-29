@@ -9,7 +9,7 @@ export function createTraceStore({ supabaseUrl, publishableKey, tokenProvider, f
       !['', '/'].includes(url.pathname)) throw new Error('Trace storage must use a trusted HTTPS origin')
   if (typeof tokenProvider !== 'function') throw new Error('Trace storage requires a signed-in user')
   async function request(table, { method = 'GET', query = {}, body } = {}) {
-    if (!['feature_test_runs', 'feature_test_events'].includes(table)) throw new Error('Unsupported trace table')
+    if (!['feature_test_runs', 'feature_test_events', 'feature_test_worker_spans'].includes(table)) throw new Error('Unsupported trace table')
     const token = await tokenProvider()
     if (!token) throw new Error('Sign in to access private test results')
     const target = new URL(url.origin + '/rest/v1/' + table)
@@ -85,6 +85,27 @@ export function createTraceStore({ supabaseUrl, publishableKey, tokenProvider, f
         shop_id: 'eq.' + shopId, order: 'created_at.desc', limit: 30,
       } })
       if (!Array.isArray(rows) || rows.some(row => row.shop_id !== shopId)) throw new Error('Trace history tenant mismatch')
+      return rows
+    },
+    // Service-authored, verified job outcomes only. The browser has SELECT
+    // under RLS but never INSERT/UPDATE/DELETE. This is distinct from its
+    // user-writable feature_test_events and human quality reviews.
+    async listWorkerSpans(shopId, jobIds) {
+      checkedUuid(shopId)
+      if (!Array.isArray(jobIds) || jobIds.length < 1 || jobIds.length > 5 ||
+          jobIds.some(id => !UUID.test(id)) || new Set(jobIds).size !== jobIds.length) {
+        throw new Error('Choose one to five distinct authorized job IDs')
+      }
+      const rows = await request('feature_test_worker_spans', { query: {
+        select: 'id,shop_id,job_id,feature,operation,status,attempt,elapsed_ms,metadata,created_at',
+        shop_id: 'eq.' + shopId, job_id: 'in.(' + jobIds.join(',') + ')',
+        order: 'created_at.asc', limit: 50,
+      } })
+      if (!Array.isArray(rows) || rows.some(row => row.shop_id !== shopId ||
+          !jobIds.includes(row.job_id) || !['F2','F4'].includes(row.feature) ||
+          !Number.isInteger(row.attempt) || row.attempt < 1 || row.attempt > 3)) {
+        throw new Error('Verified worker trace tenant/job mismatch')
+      }
       return rows
     },
     async listEvents(shopId, runId) {
