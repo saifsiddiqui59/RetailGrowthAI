@@ -1,7 +1,6 @@
 import io, wave
 from hashlib import sha256
 import pytest
-import numpy as np
 from ai_agents.feature2_kokoro_local import (
     synthesize_local,verify_cache,MODEL_NAME,VOICES_NAME,
     LocalSpeechUnavailable, SUPPORTED_VOICES
@@ -10,6 +9,7 @@ class SimulatedEngine:
     def create(self,text,voice,speed,lang):
         assert text and voice in SUPPORTED_VOICES
         assert speed>0 and lang==SUPPORTED_VOICES[voice]
+        np=pytest.importorskip('numpy',reason='NumPy is installed only in approved Kokoro runtime')
         return np.sin(2*np.pi*220*np.arange(24000)/24000).astype(np.float32)*0.15,24000
 
 def test_source_only_mocked_input_is_labeled_test_only_and_pcm_bytes_are_real():
