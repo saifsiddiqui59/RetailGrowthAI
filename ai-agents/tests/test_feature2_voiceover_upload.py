@@ -147,12 +147,13 @@ def test_private_mp3_intake_preserves_both_original_digests_and_ignores_rights_c
         assert receipt["review_state"]=="PENDING_RIGHTS_AND_SPEECH_REVIEW"
         assert receipt["original_media_rights_verified"] is False
         events.append(1)
-        return {"asset_id":str(uuid4()),"shop_id":shop,
-                "campaign_id":campaign,
+        return {"asset_id":str(uuid4()),"derived_wav_asset_id":str(uuid4()),
+                "shop_id":shop,"campaign_id":campaign,
                 "original_mp3_sha256":receipt["original_mp3_sha256"],
                 "derived_wav_sha256":receipt["derived_wav_sha256"],
                 "review_state":"PENDING_RIGHTS_AND_SPEECH_REVIEW",
-                "private":True}
+                "private":True,"derived_wav_private":True,
+                "atomic_pair_registered":True}
     result=accept_unreviewed_mp3(
         shop_id=SHOP,campaign_id=CID,plan=creative(),
         original_mp3=original,operator_ffmpeg_path=ffmpeg,
@@ -189,3 +190,49 @@ def test_mp3_private_decode_fails_closed_before_writer_on_forgery_and_revocation
             read_authoritative_plan=lambda *a:creative(),
             store_both_private_pending=lambda *a:writes.append(a))
     assert len(calls)==2 and writes==[]
+
+
+@pytest.mark.parametrize("tamper",[
+    "missing_derived", "same_asset_id", "invalid_derived",
+    "derived_public", "not_atomic", "foreign_shop",
+    "wrong_derived_sha", "can_publish", "can_dispatch_motion",
+    "commercial_use_approved", "original_media_rights_verified",
+    "human_speech_alignment_verified",
+])
+def test_unreviewed_mp3_requires_two_distinct_private_atomic_objects(monkeypatch,tamper):
+    # No real decoder or claimed customer speech: isolates the writer contract.
+    from ai_agents import feature2_voiceover_upload as upload
+    original=b"ID3-offline-mock-not-real-mp3"
+    derived=wav()
+    monkeypatch.setattr(upload,"decode_unreviewed_mp3_to_private_wav",
+        lambda **kw: {
+            "original_mp3_sha256":sha256(original).hexdigest(),
+            "derived_wav_sha256":sha256(derived).hexdigest(),
+            "duration_seconds":2.0,"derived_wav":derived,
+        })
+    def store(shop,campaign,source,pcm,receipt):
+        assert source==original and pcm==derived
+        saved={"asset_id":str(uuid4()),"derived_wav_asset_id":str(uuid4()),
+            "shop_id":shop,"campaign_id":campaign,
+            "original_mp3_sha256":receipt["original_mp3_sha256"],
+            "derived_wav_sha256":receipt["derived_wav_sha256"],
+            "review_state":"PENDING_RIGHTS_AND_SPEECH_REVIEW",
+            "private":True,"derived_wav_private":True,
+            "atomic_pair_registered":True}
+        if tamper=="missing_derived": del saved["derived_wav_asset_id"]
+        elif tamper=="same_asset_id": saved["derived_wav_asset_id"]=saved["asset_id"]
+        elif tamper=="invalid_derived": saved["derived_wav_asset_id"]="invalid"
+        elif tamper=="derived_public": saved["derived_wav_private"]=False
+        elif tamper=="not_atomic": saved["atomic_pair_registered"]=False
+        elif tamper=="foreign_shop": saved["shop_id"]=str(uuid4())
+        elif tamper=="wrong_derived_sha": saved["derived_wav_sha256"]="0"*64
+        else: saved[tamper]=True
+        return saved
+    with pytest.raises(VoiceUploadRejected,match="atomically registered"):
+        upload.accept_unreviewed_mp3(
+            shop_id=SHOP,campaign_id=CID,plan=creative(),
+            original_mp3=original,operator_ffmpeg_path="/offline/unused-ffmpeg",
+            authenticated_editor=lambda *a:True,
+            read_authoritative_plan=lambda *a:creative(),
+            store_both_private_pending=store,
+            client_declared_rights={"approved":True})
