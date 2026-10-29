@@ -169,3 +169,23 @@ after one physically decoded frame and requires refusal with **no review JPG**.
 This is local media integrity, not proof that the content is tasteful, licensed,
 tenant-authorized or owner approved. No hosted/cloud or renderer change.
 Source commits `3bd94dd6`, `b6acbcc3`; exact-head CI required.
+
+
+## F4-65/66 — Fail-closed full-minute completeness and encoded endcard (2026-10-29)
+
+A previous technical stock-minute receipt could be generated with
+`captioned_editorial_review.status=NOT_RUN` and
+`scene_visibility_qa.status=NOT_RUN` if CLI callers omitted proof flags.
+That was incompatible with the new final QA definition. The 60s acceptance
+function and CLI now **require** every signed-off technical proof path:
+actual private captioned MP4 + reviewed exact SRT/VTT + burn-in evidence,
+v2 full-timeline scene visibility report, and v1 encoded 55–60s endcard
+delta report, each bound to original/preview source SHA. An absent proof
+cannot yield the positive `NATIVE_60S_TECHNICAL_EVIDENCE_ONLY` receipt.
+
+The new pixel endcard check is specifically for the noncommercial stock QA
+fixture, not a universal social/video stylistic rule. The current 60s runner
+must be executed from current source and pass real FFmpeg/media CI before
+claiming successful integration. Repeated human-model stock shots and
+unmatched tenant garment remain explicitly unapproved. Manual screen/mobile,
+speech, copyright and owner visual review remain OPEN.
