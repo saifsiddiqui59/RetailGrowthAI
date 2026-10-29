@@ -47,3 +47,91 @@ def test_disabled_or_revoked_shop_does_not_call_external_server(monkeypatch):
     monkeypatch.delenv("RETAIL_FEATURE2_AZURE_SPEECH_ENABLED")
     with pytest.raises(VoiceCatalogUnavailable):run()
     assert not calls
+
+from ai_agents.feature2_speech_catalog import route_voice_selection
+CAMPAIGN="22222222-2222-4222-8222-222222222222"
+
+@pytest.mark.parametrize("locale,voice",[
+    ("en-us","af_heart"),("en-gb","bm_george"),
+    ("en-IN","en-IN-NeerjaNeural"),("en-IN","en-IN-PrabhatNeural"),
+    ("hi-IN","hi-IN-SwaraNeural"),("hi-IN","hi-IN-MadhurNeural"),
+    ("mr-IN","mr-IN-AarohiNeural"),("mr-IN","mr-IN-ManoharNeural")
+])
+def test_provider_route_is_locale_specific_and_never_dispatches(locale,voice):
+    def trusted_catalog(*a):
+        return {"schema":"retailgrowth.feature2-speech-voices.v1",
+                "resource_catalog_queried":True,
+                "available_voices":[{"id":voice,"locale":locale,"region_verified":True}]}
+    out=route_voice_selection(
+        shop_id=SHOP,campaign_id=CAMPAIGN,
+        locale=locale,voice_id=voice,
+        current_editor=lambda *a:True,
+        user_confirmed_charge=True,
+        read_verified_region_voices=trusted_catalog)
+    expected="kokoro-onnx" if locale in ("en-us","en-gb") else "azure-speech-opt-in"
+    assert out["provider"]==expected
+    assert out["paid_tts"]==(expected=="azure-speech-opt-in")
+    assert out["model_call_made"] is False
+    assert out["cost_reserved"] is False
+    assert out["can_dispatch"] is False
+    assert out["no_automatic_azure_fallback"] is True
+    assert out["can_publish"] is False
+
+@pytest.mark.parametrize("locale,voice",[
+    ("hi-IN","af_heart"),("mr-IN","af_heart"),("en-IN","af_heart"),
+    ("en-us","hi-IN-SwaraNeural"),("mr-IN","hi-IN-SwaraNeural"),
+    ("en-gb","af_heart"),("en-US","af_heart"),
+    ("mr-IN","unverified_mr_voice"),("xx-XX","af_heart")
+])
+def test_cross_locale_and_nonexistent_provider_is_denied_before_cost(locale,voice):
+    calls=[]
+    with pytest.raises(VoiceCatalogUnavailable):
+        route_voice_selection(shop_id=SHOP,campaign_id=CAMPAIGN,
+            locale=locale,voice_id=voice,
+            current_editor=lambda *a:True,
+            user_confirmed_charge=True,
+            read_verified_region_voices=lambda *a:calls.append(a) or {})
+    assert not calls or calls==[(SHOP,CAMPAIGN)]
+
+def test_indian_voices_require_explicit_charge_and_verified_region_catalog():
+    calls=[]
+    def reader(*a):
+        calls.append(a)
+        return {"schema":"retailgrowth.feature2-speech-voices.v1",
+                "resource_catalog_queried":True,"available_voices":[
+                {"id":"hi-IN-SwaraNeural","locale":"hi-IN","region_verified":True}]}
+    with pytest.raises(VoiceCatalogUnavailable,match="opted-in"):
+        route_voice_selection(shop_id=SHOP,campaign_id=CAMPAIGN,
+            locale="hi-IN",voice_id="hi-IN-SwaraNeural",
+            current_editor=lambda *a:True,read_verified_region_voices=reader)
+    assert calls==[]
+    with pytest.raises(VoiceCatalogUnavailable,match="region"):
+        route_voice_selection(shop_id=SHOP,campaign_id=CAMPAIGN,
+            locale="mr-IN",voice_id="mr-IN-AarohiNeural",
+            user_confirmed_charge=True,current_editor=lambda *a:True,
+            read_verified_region_voices=reader)
+
+def test_voice_route_rechecks_editor_after_catalog_lookup():
+    seen=[]
+    def auth(*a):
+        seen.append(1)
+        return len(seen)==1
+    with pytest.raises(VoiceCatalogUnavailable,match="revoked"):
+        route_voice_selection(shop_id=SHOP,campaign_id=CAMPAIGN,
+            locale="hi-IN",voice_id="hi-IN-SwaraNeural",
+            user_confirmed_charge=True,current_editor=auth,
+            read_verified_region_voices=lambda *a:{
+                "schema":"retailgrowth.feature2-speech-voices.v1",
+                "resource_catalog_queried":True,
+                "available_voices":[{"id":"hi-IN-SwaraNeural",
+                    "locale":"hi-IN","region_verified":True}]})
+    assert len(seen)==2
+
+def test_local_kokoro_does_not_need_azure_voice_catalog_or_charge():
+    out=route_voice_selection(
+        shop_id=SHOP,campaign_id=CAMPAIGN,voice_id="af_sarah",
+        locale="en-us",current_editor=lambda *a:True,
+        user_confirmed_charge=False,
+        read_verified_region_voices=lambda *a:(_ for _ in ()).throw(
+            AssertionError("Free Kokoro must not query Azure")))
+    assert out["provider"]=="kokoro-onnx" and not out["paid_tts"]
