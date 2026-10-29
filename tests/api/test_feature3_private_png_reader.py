@@ -210,6 +210,14 @@ class RevocableReaderTests(unittest.TestCase):
             with self.subTest(origin=invalid),self.assertRaises(ValueError):
                 self.build()
         self.tenant.origin=original
+        saved_key=self.tenant.key
+        for secret_key in ("sb_secret_BAD_BACKEND_FOR_TEST",
+                           "some-arbitrary-key",
+                           "eyJ0eXAiOiJKV1QifQ.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.fake"):
+            self.tenant.key=secret_key
+            with self.subTest(key=secret_key[:12]),self.assertRaises(ValueError):
+                self.build()
+        self.tenant.key=saved_key
         with self.assertRaises(ValueError):
             Feature3RevocablePNGReader(
                 tenant_store=self.tenant,verify_user_jwt=self.verify,
