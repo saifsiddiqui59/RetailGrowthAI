@@ -105,5 +105,9 @@ python3 "$ROOT/video-engine/feature4_minute_quality_receipt.py" \
   --preview-proof "$OUTPUT/feature4-60s-preview-proof.json" \
   --contact-image "$OUTPUT/feature4-60s-review-contact-sheet.jpg" \
   --contact-proof "$OUTPUT/feature4-60s-contact-sheet-qa.json" \
+  --captioned "$OUTPUT/feature4-stock-minute-captioned-review.mp4" \
+  --caption-srt "$OUTPUT/feature4-stock-minute-editorial.srt" \
+  --caption-vtt "$OUTPUT/feature4-stock-minute-editorial.vtt" \
+  --caption-proof "$OUTPUT/feature4-stock-minute-captioned-proof.json" \
   --output "$OUTPUT/feature4-60s-cross-feature-qa-receipt.json"
 echo "PASS 60s stock editor technical source/render/preview only; no customer/owner approval"
