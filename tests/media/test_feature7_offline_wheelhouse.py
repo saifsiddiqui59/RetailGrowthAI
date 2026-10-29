@@ -124,27 +124,27 @@ class OfflineWheelhouseTests(unittest.TestCase):
 
 
     def test_repin_incompatible_transitive_version_is_denied(self):
-        base="Metadata-Version: 2.1\\nName: faster-whisper\\nVersion: 1.2.1\\n"
+        base="Metadata-Version: 2.1\nName: faster-whisper\nVersion: 1.2.1\n"
         self.rewrite_wheel("faster-whisper","1.2.1",base+
-                           "Requires-Dist: ctranslate2>=5.0,<6.0\\n")
+                           "Requires-Dist: ctranslate2>=5.0,<6.0\n")
         with self.assertRaisesRegex(WheelhouseRejected,"version violates"):
             audit_wheelhouse(str(self.root),str(self.manifest))
 
     def test_compatible_numeric_version_range_and_marker_are_conservative(self):
-        base="Metadata-Version: 2.1\\nName: faster-whisper\\nVersion: 1.2.1\\n"
+        base="Metadata-Version: 2.1\nName: faster-whisper\nVersion: 1.2.1\n"
         self.rewrite_wheel("faster-whisper","1.2.1",base+
-                           'Requires-Dist: ctranslate2 (>=4.0,<5.0); python_version >= "3.9"\\n')
+                           'Requires-Dist: ctranslate2 (>=4.0,<5.0); python_version >= "3.9"\n')
         out=audit_wheelhouse(str(self.root),str(self.manifest))
         self.assertTrue(out["conservative_numeric_dependency_constraints_checked"])
         self.assertFalse(out["platform_abi_tested"])
         self.assertFalse(out["approved_for_deployment"])
 
     def test_direct_url_or_trailing_unparsed_dependency_syntax_denied(self):
-        base="Metadata-Version: 2.1\\nName: faster-whisper\\nVersion: 1.2.1\\n"
+        base="Metadata-Version: 2.1\nName: faster-whisper\nVersion: 1.2.1\n"
         for req in ("ctranslate2 @ https://invalid.example/evil.whl",
                     "ctranslate2>=4.0 unexpected", "ctranslate2==4.7.0"):
             self.rewrite_wheel("faster-whisper","1.2.1",base+
-                               f"Requires-Dist: {req}\\n")
+                               f"Requires-Dist: {req}\n")
             with self.assertRaises(WheelhouseRejected, msg=req):
                 audit_wheelhouse(str(self.root),str(self.manifest))
 
