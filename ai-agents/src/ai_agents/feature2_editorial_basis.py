@@ -63,11 +63,11 @@ import hashlib
 import json
 import re
 
-_CLAIM_PERCENT = re.compile(r"(?<!\\d)\\d{1,2}\\s*(?:%|percent|per[ -]?cent)\\s*(?:off|discount|sale)?",re.I)
-_CLAIM_PRICE = re.compile(r"(?:₹|Rs\\.?\\s*|INR\\s*)\\d[\\d,.]*",re.I)
-_CLAIM_URGENCY = re.compile(r"\\b(?:only \\d+ left|selling out|last chance|guaranteed|best in india|number one|no\\.?1|viral|trending now|everyone is buying)\\b",re.I)
-_CLAIM_WIDE = re.compile(r"\\b(?:everything|all products|storewide|entire store|every item)\\b",re.I)
-_CLAIM_MATERIAL = re.compile(r"\\b(?:100% pure cotton|genuine silk|authentic gold|organic cotton)\\b",re.I)
+_CLAIM_PERCENT = re.compile(r"(?<!\d)\d{1,2}\s*(?:%|percent|per[ -]?cent)\s*(?:off|discount|sale)?",re.I)
+_CLAIM_PRICE = re.compile(r"(?:₹|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
+_CLAIM_URGENCY = re.compile(r"\b(?:only \d+ left|selling out|last chance|guaranteed|best in india|number one|no\.?1|viral|trending now|everyone is buying)\b",re.I)
+_CLAIM_WIDE = re.compile(r"\b(?:everything|all products|storewide|entire store|every item)\b",re.I)
+_CLAIM_MATERIAL = re.compile(r"\b(?:100% pure cotton|genuine silk|authentic gold|organic cotton)\b",re.I)
 
 def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     """Review-only policy based on authoritative original retailer facts.
@@ -147,7 +147,9 @@ def rank_source_backed_trends(*, verified_context, trends, now_utc,
     for media in verified_context.get("media_grants",[]):
         if type(media) is dict:
             script += " " + str(media.get("product_sku") or "")
-    query=set(re.findall(r"[a-z]{3,}",script.casefold()))
+    stopwords={"and","the","for","with","you","your","this","that",
+               "from","our","are","today","only","into","all"}
+    query=set(re.findall(r"[a-z]{3,}",script.casefold()))-stopwords
     selected=[]
     for row in trends:
         if (type(row) is not dict or row.get("shop_id")!=shop or
@@ -169,7 +171,7 @@ def rank_source_backed_trends(*, verified_context, trends, now_utc,
         if verify_source_provenance(shop,row["id"],row["source_sha256"],
                                     row["published_at"]) is not True:
             raise EditorialBasisRejected("Independent signed RSS provenance unavailable")
-        headline_terms=set(re.findall(r"[a-z]{3,}",row["headline"].casefold()))
+        headline_terms=set(re.findall(r"[a-z]{3,}",row["headline"].casefold()))-stopwords
         overlap=len(query & headline_terms)
         if overlap==0:
             continue
