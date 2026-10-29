@@ -856,3 +856,8 @@
 
 ## 2026-10-29 — Feature3 original photo technical FFmpeg output is not a virtual try-on
 - For Feature4/7 integration, it is safe to provide a reproducible real 9s H264/AAC test video created from genuine, SHA/Git-blob-pinned MIT synthetic avatar+garment stills, with separate product and avatar shots and AAC silence. It proves media decode/composition/writer workflow, not model-on-garment fidelity. Every output receipt asserts `model_wears_product_garment=false`, `vton_inference_performed=false`, `publish_approved=false`, `provider_call_permitted=false`. Keep the actual sources and MIT license notice in the 30-day artifact. Never label it a customer fashion advertisement.
+
+
+## 2026-10-29 — Testing Chat comparison and staged SQL isolation
+- Technical response status is not output quality; keep FAIL/UNKNOWN visible even if a later browser reply succeeds, and show human 1–5 score separately. Compare only actual same-tenant saved runs; bound history evaluation to ten explicit reads and label sampled p95 as observational. Unintegrated feature stages remain NOT_RUN/UNOBSERVED, no pretend Wan/VTON/editor results.
+- Preserve locked 31-version RetailGrowthAI DEV Supabase migration history. Stage trace DDL outside canonical `supabase/migrations` until a separately reviewed DEV release; execute proposed SQL only in disposable CI database, with active-editor revocation, cross-shop/anon/VIEWER denial and append-only tests. No user-JWT forgery, paid model call or PROD/WineShopPOS change.

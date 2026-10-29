@@ -641,3 +641,6 @@ Use scripts/checkpoint.sh after completing a task.
 
 
 - 2026-10-29 Feature3 additional non-paid integration: added pinned MIT source and SHA validation + FFmpeg 1080x1920 H264/AAC technical editor footage generator with source hash/four rights denials, offline source tests and dedicated GitHub Actions. Initial hosted runner failed because FFmpeg was absent; corrected explicit FFmpeg install and pinned MIT notice. Actual [run #40831572603](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40831572603) then SUCCESS, artifact `feature3-openvto-editor-input-mp4` #12879355229 ready for Features4/7 (30 days). No music, VTON, paid generation, tenant upload, publication or WineShopPOS changes.
+
+
+- 2026-10-29: Continued Testing Chat source PR #614 through actual four-job success on first base then added pure per-feature diagnostics, source test comparisons, last-ten bounded quality summary, no-rating-unrun guard, disposable Postgres candidate-schema RLS role denial and coordinator-owned CI gate. Reconciled parallel Feature3 main documentation without overwriting. No hosted migration, frontend release, paid motion/publishing or WineShopPOS changes. Confirm final PR-head and main CI separately.
