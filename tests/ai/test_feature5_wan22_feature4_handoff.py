@@ -213,7 +213,7 @@ class PendingFeature4RichWanReceiptTests(unittest.TestCase):
             self.report(k)
         k=setup_fixture()
         new_lineage=dict(k["package"].lineage)
-        new_lineage["source_sha256"]="bad"
+        new_lineage["source_sha256"]="f"*64  # valid-looking bytes, but stale immutable lineage hash
         k["package"]=replace(k["package"],lineage=new_lineage)
         with self.assertRaises(WanCompatibilityError):
             self.report(k)
