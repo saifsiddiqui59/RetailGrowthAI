@@ -41,7 +41,7 @@ class AdminStore:
                         "rpc/feature2_reserve_ai_budget", "rpc/feature2_settle_ai_budget",
                         "rpc/feature3_reserve_gpu_job", "rpc/feature3_claim_gpu_job",
                         "rpc/feature3_finish_gpu_job", "feature3_gpu_jobs",
-                        "shop_ai_spend_reservations"):
+                        "shop_ai_spend_reservations", "feature_test_worker_spans"):
             raise ValueError("unsupported worker path")
         url = self.origin + "/rest/v1/" + path
         if query:
