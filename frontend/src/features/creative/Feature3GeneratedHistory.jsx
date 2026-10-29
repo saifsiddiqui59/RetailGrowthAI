@@ -137,7 +137,18 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
     {imageMessage && <p role="status">{imageMessage}</p>}
     {displayed && <figure>
       <img src={displayed.url} alt="Unreviewed private generated poster preview"
-        style={{maxWidth:240,maxHeight:320,objectFit:'contain'}}/>
+        style={{maxWidth:240,maxHeight:320,objectFit:'contain'}}
+        onError={()=>{
+          // A malformed but SHA-matching PNG may fail at the browser decoder.
+          // Drop only this exact local URL; stale error events cannot clear
+          // a newer image or another tenant's preview.
+          if(registry.current.discardFailed(displayed.shopId,displayed.jobId,displayed.url)){
+            ++epoch.current
+            setImage(null)
+            setImageBusy(false)
+            setImageMessage('Private PNG preview could not be decoded. Local image was discarded.')
+          }
+        }}/>
       <figcaption>Private output requires independent review before reuse or publication.</figcaption>
       <button type="button" onClick={clearImage}>Clear private preview</button>
     </figure>}
