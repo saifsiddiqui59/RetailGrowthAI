@@ -296,3 +296,6 @@ First documentation-head Actions run #40864647921 exposed **one new Feature5 med
 - Committed `558118b3` and `a65199d1` to strengthen `qualify_feature2_offline_storyboard` against broken adjacent shot chain, repeated scene/shot and mid-story source/SKU/garment drift; `ef04fd9d` adds full 15/30/60 tests and negative cases.
 - Committed `d233f0b2` and `e0b1f85c` for the F5-only 2MiB/strict-UTF8/duplicate-key-denying original-JSON stdout CLI and subprocess/negative acceptance. No F2 code duplicated. The F2 real exporter is not in the F5 branch until coordinator integration, so tests use existing explicit contract fixtures; run real producer→consumer when approved.
 - Four Feature5-owned docs updated for this batch; verify **new** exact final HEAD 4/4 before calling it green. No paid GPU/OCI build, live rights, Azure/Supabase writes, PROD or WineShopPOS touched.
+
+
+- Safely reconciled latest coordinator `main` `214a27ff` (21 Feature3-owned changed files, zero F5 overlap) into current F5 branch via non-force two-parent merge `d2bc8741749d2a5a6adf66ff441bcdde18e5dd01`. All previous linked-storyboard, CLI and tests remain. Previous test-run checks were superseded/cancelled by later pushes; only exact current HEAD 4/4 counts. No GPU, hosted mutations, PROD or WineShopPOS.
