@@ -35,3 +35,8 @@ def test_cost_security_and_done_gates_stay_closed():
     text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
     assert "coordination/chat_worker_control.json" in text
     assert "docs/CHAT_TASK_CONTROL.md" in text
+
+def test_single_line_verified_task_count():
+    control = load("coordination/chat_worker_control.json")
+    assert "one line only" in control["user_output"]
+    assert "completion count not verified" in control["user_output"]
