@@ -85,7 +85,6 @@ def accept_unreviewed_wav(*,shop_id,campaign_id,plan,original_audio,
 # separate immutable identities. Conversion is never a licensing grant, ASR
 # proof or permission to send the generated WAV to Feature4/Part2.
 import os
-import stat
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -127,8 +126,8 @@ def decode_unreviewed_mp3_to_private_wav(*, original_mp3, max_seconds,
                 stderr=subprocess.DEVNULL,timeout=30,check=False,
                 env={"PATH":"/usr/bin:/bin","HOME":str(root),
                      "TMPDIR":str(root),"AV_LOG_FORCE_NOCOLOR":"1"})
-            if process.returncode!=0 or not output.is_file() or
-                output.is_symlink() or not 100<=output.stat().st_size<=_MAX_ORIGINAL:
+            if (process.returncode!=0 or not output.is_file() or
+                output.is_symlink() or not 100<=output.stat().st_size<=_MAX_ORIGINAL):
                 raise VoiceUploadRejected("Original MP3 could not be safely decoded")
             wav=output.read_bytes()
             duration=_inspect(wav,max_seconds)
