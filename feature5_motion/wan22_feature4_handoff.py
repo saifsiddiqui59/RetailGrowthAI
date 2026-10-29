@@ -162,7 +162,11 @@ def pending_private_wan_receipt_for_feature4(*, package, inspection, storage_rec
             separators=(",", ":"), allow_nan=False).encode()).hexdigest()
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
         raise WanCompatibilityError("Missing original reviewed creative identity") from exc
+    lineage_digest = hashlib.sha256(json.dumps(
+        info, sort_keys=True, separators=(",", ":"), allow_nan=False
+    ).encode("utf-8")).hexdigest()
     if (positive != package.prompt or bundle_sha != package.prompt_sha256
+            or lineage_digest != package.lineage_sha256
             or not isinstance(package.lineage_sha256, str)
             or not re.fullmatch(r"[a-f0-9]{64}", package.lineage_sha256)
             or not re.fullmatch(r"[a-f0-9]{64}", package.prompt_sha256)
