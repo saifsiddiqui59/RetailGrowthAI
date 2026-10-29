@@ -49,13 +49,17 @@ def _validated_dispatch_rows(rows, limit):
                 row["expires_in_seconds"] != 120 or
                 row.get("gpu_started") is not False):
             raise StorageUnavailable("Untrusted GPU outbox lease flags")
+        # Preserve the established GPUEnvelopeDenied class for invalid
+        # shop/job envelope identities (existing producer/consumer contract).
+        # Do not turn their denial into an ambiguous transport ACK error.
+        encode_dispatch_envelope(row["shop_id"],row["job_id"])
         try:
-            ids=(row["job_id"],row["shop_id"],row["dispatch_token"])
-            if any(type(value) is not str or UUID(value).version != 4 or
-                   str(UUID(value)) != value for value in ids):
-                raise ValueError("Noncanonical outbox identity")
+            token=row["dispatch_token"]
+            if (type(token) is not str or UUID(token).version != 4 or
+                    str(UUID(token)) != token):
+                raise ValueError("Noncanonical outbox dispatch token")
         except (TypeError,ValueError,AttributeError) as exc:
-            raise StorageUnavailable("Untrusted GPU outbox identity") from exc
+            raise StorageUnavailable("Untrusted GPU outbox dispatch token") from exc
         if row["job_id"] in seen_jobs or row["dispatch_token"] in seen_tokens:
             raise StorageUnavailable("Duplicate GPU outbox claim in one batch")
         seen_jobs.add(row["job_id"])
