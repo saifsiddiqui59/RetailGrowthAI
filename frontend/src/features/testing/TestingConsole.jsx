@@ -332,7 +332,7 @@ export default function TestingConsole() {
           {historyStats.features.map(f => <div key={f.id}>
             <strong>{f.id} · {f.label}</strong>
             <small>PASS {f.passed} · FAIL {f.failed} · UNKNOWN {f.uncertain} · NOT RUN {f.skipped}</small>
-            <small>Human quality: {f.quality_mean === null ? 'Not rated' : f.quality_mean + '/5 (' + f.quality_sample_count + ' ratings)'}</small>
+            <small>Human review average (mixed aspects): {f.quality_mean === null ? 'Not rated' : f.quality_mean + '/5 (' + f.quality_sample_count + ' ratings)'}</small>
           </div>)}
           <p>Only observed browser receipts; not a backend uptime or provider-quality measurement.</p>
         </div>}
@@ -449,7 +449,7 @@ export default function TestingConsole() {
             </label>
             {baselineError && <p role="alert">{baselineError}</p>}
             {comparisons && <div className="rgt-compare-table"><table>
-              <thead><tr><th>Feature</th><th>Baseline</th><th>Current</th><th>Quality change</th><th>Latency change</th></tr></thead>
+              <thead><tr><th>Feature</th><th>Baseline</th><th>Current</th><th>Quality change (same aspect)</th><th>Latency change</th></tr></thead>
               <tbody>{comparisons.map(item => <tr key={item.id}>
                 <td>{item.id} · {item.label}</td><td>{item.baseline_status}</td><td>{item.status}</td>
                 <td>{item.score_delta === null ? 'Not comparable' : (item.score_delta > 0 ? '+' : '') + item.score_delta + '/5'}</td>
