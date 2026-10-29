@@ -3,7 +3,7 @@
  */
 import { cloneElement, useEffect, useMemo, useRef, useState } from 'react'
 import { createFeature3Api } from './feature3-api.mjs'
-import { scopedFeature3Preview } from './feature3-private-preview.mjs'
+import { scopedFeature3Preview, discardFailedPrivateModelPreview } from './feature3-private-preview.mjs'
 import Feature3GeneratedHistory from './Feature3GeneratedHistory.jsx'
 import {createFeature3PrivatePNGClient} from './feature3-private-png-client.mjs'
 
@@ -72,6 +72,9 @@ export default function Feature3PosterHost({ client, shopId, children }) {
       const loaded = {}
       for (const model of rows.slice(0, MAX_MODEL_PREVIEWS)) {
         if (!isCurrent()) break
+        // Track each candidate separately: a failed image decode must not
+        // leave an unused private object URL alive until the next shop reload.
+        let candidateURL = null
         try {
           const result = await client.downloadPrivateImage(scope, model.media_asset_id)
           if (!isCurrent()) break
@@ -83,14 +86,18 @@ export default function Feature3PosterHost({ client, shopId, children }) {
           const fingerprint = Array.from(new Uint8Array(digest), byte =>
             byte.toString(16).padStart(2, '0')).join('')
           if (fingerprint !== model.image_sha256) continue
-          const local = URL.createObjectURL(result.blob)
-          opened.push(local)
-          const picture = await decodeObjectUrl(local)
+          candidateURL = URL.createObjectURL(result.blob)
+          opened.push(candidateURL)
+          const picture = await decodeObjectUrl(candidateURL)
           if (!isCurrent()) break
           loaded[model.media_asset_id] = picture
           accepted.push(model)
         } catch {
-          // Absent, revoked or non-owned private media is never displayed.
+          // Absent, corrupt, revoked or non-owned private media is never
+          // displayed. Revoke even if decoding failed after URL allocation.
+          if (candidateURL !== null) {
+            discardFailedPrivateModelPreview(opened, candidateURL)
+          }
         }
       }
       if (!isCurrent()) return
