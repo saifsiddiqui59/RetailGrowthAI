@@ -87,8 +87,8 @@ class OfflineWheelhouseTests(unittest.TestCase):
 
     def test_repin_oversized_metadata_and_zip_symlink_denied(self):
         name="faster-whisper"
-        metadata="Metadata-Version: 2.1\\nName: faster-whisper\\nVersion: 1.2.1\\n"
-        self.rewrite_wheel(name,"1.2.1",metadata+"X-Note: "+"x"*270000+"\\n")
+        metadata="Metadata-Version: 2.1\nName: faster-whisper\nVersion: 1.2.1\n"
+        self.rewrite_wheel(name,"1.2.1",metadata+"X-Note: "+"x"*270000+"\n")
         with self.assertRaisesRegex(WheelhouseRejected,"metadata exceeds budget"):
             audit_wheelhouse(str(self.root),str(self.manifest))
         archive=self.root/"faster_whisper-1.2.1-py3-none-any.whl"
@@ -104,7 +104,7 @@ class OfflineWheelhouseTests(unittest.TestCase):
             audit_wheelhouse(str(self.root),str(self.manifest))
 
     def test_repin_wrong_dist_info_and_malformed_requirement_denied(self):
-        base="Metadata-Version: 2.1\\nName: faster-whisper\\nVersion: 1.2.1\\n"
+        base="Metadata-Version: 2.1\nName: faster-whisper\nVersion: 1.2.1\n"
         p=self.root/"faster_whisper-1.2.1-py3-none-any.whl"
         with ZipFile(p,"w") as z:
             z.writestr("ctranslate2-1.2.1.dist-info/METADATA",base)
@@ -113,7 +113,7 @@ class OfflineWheelhouseTests(unittest.TestCase):
         with self.assertRaisesRegex(WheelhouseRejected,"Dist-info"):
             audit_wheelhouse(str(self.root),str(self.manifest))
         self.rewrite_wheel("faster-whisper","1.2.1",base+
-                           "Requires-Dist: ???\\n")
+                           "Requires-Dist: ???\n")
         with self.assertRaisesRegex(WheelhouseRejected,"Malformed"):
             audit_wheelhouse(str(self.root),str(self.manifest))
 

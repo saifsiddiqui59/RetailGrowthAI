@@ -22,7 +22,7 @@ class WheelhouseRejected(ValueError):pass
 
 NAME=re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
 SHA=re.compile(r"^[0-9a-f]{64}$")
-DEP=re.compile(r"^\\s*([A-Za-z0-9_.-]+)(?=\\s|\\[|[<>=!~(;]|$)")
+DEP=re.compile(r"^\s*([A-Za-z0-9_.-]+)(?=\s|\[|[<>=!~(;]|$)")
 MAX_MEMBERS=10000
 MAX_METADATA_BYTES=256*1024
 MAX_UNPACKED_BYTES=2*1024*1024*1024
@@ -54,8 +54,8 @@ def safe_metadata(z, distribution, version):
     metadata=[]
     for info in entries:
         name=info.filename
-        if (name in seen or name.startswith("/") or "\\\\" in name or
-            "\\x00" in name or any(p in ("", ".", "..") for p in name.rstrip("/").split("/"))):
+        if (name in seen or name.startswith("/") or "\\" in name or
+            "\x00" in name or any(p in ("", ".", "..") for p in name.rstrip("/").split("/"))):
             raise WheelhouseRejected("Duplicate or unsafe wheel ZIP member")
         seen.add(name)
         mode=info.external_attr >> 16
