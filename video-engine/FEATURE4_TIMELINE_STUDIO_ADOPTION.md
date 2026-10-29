@@ -105,3 +105,16 @@ Continue existing F4-34 pinned [OpenReel](https://github.com/augani/openreel-vid
 Feature4 actually uses these: selected scenes projected read-only into OpenReel media-track layout (IDs/timings only); previous/next cut mobile-accessible controls use returned sorted track selection; Split button requires the original OpenReel interior-time eligibility AND the existing stronger 0.5s/authorization/backend constraints; optional snap-to-cut/grid for direct pointer/range scrub at current zoom uses the real ClipManager snapping algorithm. Typed frame-timecodes remain unsnapped exact user intent, and no renderer-incompatible arbitrary free track editing is exposed. Retains original scene rights and immutable F2 copy, existing HyperFrames final export and source-only default-off live feature switch. Node and mobile Playwright tests verify the actual copied algorithms, same-tenant render draft, navigation, pointer-disabled unsupported split, and snap opt-out.
 
 **Source-only commit does not mean full OpenReel workspace adoption or visual acceptance.** No unsupported effects, GPUs, paid hosting, WineShopPOS or main merge. Exact new-head branch and PR four-job CI required before calling this checkpoint VERIFIED.
+
+
+## F4-44 — independent Timeline Studio visual beat navigation (source-only)
+Proposed audio-beat markers now render on a dedicated read-only timeline lane,
+only for a matching same-shop authorized soundtrack and valid strictly sorted
+millisecond-precision timestamps. Seeking a marker moves the OpenReel frame
+playhead and pointer snapping prefers nearby beat times before the normal
+OpenReel integer grid/cut snapper. At most 120 markers are shown; no changes to
+the server beat-grid, media license, approval, source video or render job occur.
+This is NOT proof of trusted AI viral music selection. Unit tests reject
+unsorted, foreign-shop, unapproved and malformed beat proposals; existing
+React/mobile Playwright tests still cover editor interactions. No new external
+editor fork, paid service, GPU, storage, schema or WineShopPOS modifications.

@@ -6,6 +6,7 @@ import { createEditorHistory, pushEditorHistory, undoEditorHistory, redoEditorHi
 import { studioReorder, studioSplit, studioTrimPair, studioSourceTrim, studioValidatedDraft } from './timeline-studio-bridge.mjs'
 import { FrameTimecodeInput } from './vendor/openreel/FrameTimecodeInput.jsx'
 import { OpenReelClipSnapper } from './vendor/openreel/clip-snap.mjs'
+import { proposedBeatMarkers } from './beat-preview.mjs'
 import { getTimelineItemRanges, getTimelineTrackSelection, getSplittableTimelineItemIds } from './vendor/openreel/timeline-item-actions.mjs'
 import './TimelineStudioSurface.css'
 
@@ -52,6 +53,7 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
   const cutPositions = getTimelineTrackSelection(timelineProject, 'video')
     .map(item => clipRanges.find(clip => clip.id === item.id)?.startTime)
     .filter(Number.isFinite)
+  const beatMarkers = useMemo(() => proposedBeatMarkers(draft, musicAssets), [draft, musicAssets])
   const previousCut = cutPositions.filter(cut => cut < playhead - .0001).at(-1)
   const nextCut = cutPositions.find(cut => cut > playhead + .0001)
   const canSplit = getSplittableTimelineItemIds(
@@ -61,10 +63,16 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
   const seekToFrame = (seconds, withSnap = false) => {
     let requested = seconds
     if (withSnap && snapEnabled) {
-      const snap = new OpenReelClipSnapper({snapThreshold: 8, gridSize: 1})
-        .snapToGrid(seconds, timelineProject.timeline, 'video',
-          trackPixels / draft.duration_seconds)
-      if (snap.didSnap) requested = snap.snappedTime
+      const nearest = beatMarkers.length ? beatMarkers.reduce((a,b) =>
+        Math.abs(b-seconds)<Math.abs(a-seconds)?b:a) : null
+      if (nearest !== null && Math.abs(nearest-seconds) <= 8*draft.duration_seconds/trackPixels) {
+        requested = nearest // UI-only; never authorizes the soundtrack or edit
+      } else {
+        const snap = new OpenReelClipSnapper({snapThreshold: 8, gridSize: 1})
+          .snapToGrid(seconds, timelineProject.timeline, 'video',
+            trackPixels / draft.duration_seconds)
+        if (snap.didSnap) requested = snap.snappedTime
+      }
     }
     const position = Math.min(draft.duration_seconds,
       Math.max(0, Math.round(requested * previewFps) / previewFps))
@@ -172,6 +180,17 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
       <div className="f4-ts-ruler" aria-label="Timeline ruler">
         {ticks.map(t=><span key={t.id} style={{left:t.left+'%'}}>{t.label}</span>)}
       </div>
+      {beatMarkers.length > 0 && <div className="f4-ts-row f4-ts-beat-row">
+        <span className="f4-ts-track-name">BEATS</span>
+        <div className="f4-studio-track-body f4-ts-beat-track"
+          aria-label="Proposed music beat positions; server verification required">
+          {beatMarkers.map((beat,i)=><button type="button" key={beat}
+            className="f4-ts-beat-marker" style={{left:beat/draft.duration_seconds*100+'%'}}
+            aria-label={'Seek to proposed beat '+(i+1)+' at '+beat.toFixed(3)+'s'}
+            title={'Beat proposal '+beat.toFixed(3)+'s'}
+            onClick={()=>seekToFrame(beat)} />)}
+        </div>
+      </div>}
       <div className="f4-ts-row">
         <span className="f4-ts-track-name">VIDEO</span>
         <div className="f4-studio-track-body" onClick={e=>{

@@ -44,3 +44,10 @@
 .f4-frame-timecode output{font-family:ui-monospace,monospace}
 .f4-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .f4-frame-error{position:absolute;top:100%;left:0;z-index:3;background:#301e29;border:1px solid #ffb5b8;color:#ffe0e0;border-radius:5px;min-width:190px;padding:5px;white-space:normal}
+
+/* F4-44: pure visual proposed-beat markers; no editor/media approval. */
+.f4-ts-beat-row{min-height:28px}
+.f4-ts-beat-row .f4-ts-track-name{padding:7px 4px}
+.f4-ts-beat-track{min-height:26px;background:#1b2835}
+.f4-ts-beat-marker{position:absolute;top:3px;bottom:3px;width:3px;border:0;border-radius:2px;padding:0;transform:translateX(-50%);background:#f8ca7b;cursor:pointer}
+.f4-ts-beat-marker:hover,.f4-ts-beat-marker:focus-visible{outline:2px solid white;outline-offset:2px;background:#fff0a0}
