@@ -65,6 +65,11 @@ def test_preflight_latency_over_budget_fails_closed():
 def test_real_main_runs_gateway_probe_before_deleting_or_creating_test_users():
     src=SOURCE.read_text()
     main=src.split("\ndef main():\n",1)[1]
+    # Auth admin POST lives in the stage helper; main still performs the
+    # real HTTP preflight BEFORE calling the helper and creating any user.
     assert main.index("preflight_dev_http_auth_routes(include_prompt=prompt_only)") < main.index(
-        '"/auth/v1/admin/users"')
+        "account_password_a = stage_two_root_gated_accounts(")
+    assert '"/auth/v1/admin/users"' in src
+    assert main.index("wait_for_both_root_approvals(accounts)") < main.index(
+        'call(SUPABASE+"/rest/v1/shops",')
     assert "CANARY_DEV_GATEWAY_AUTH_PREFLIGHT_PASSED=true" in src
