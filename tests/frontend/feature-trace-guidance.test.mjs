@@ -17,7 +17,7 @@ test('failed stage stays first priority even after a later PASS',()=>{
   assert.equal(result.attention[0].category,'EXECUTION_FAILURE')
   assert.equal(result.attention[0].first_problem.action,'campaign-planning')
   assert.equal(result.entries.find(x=>x.feature==='F3').category,'NOT_RUN')
-  assert.equal(result.untested_features,4)
+  assert.equal(result.untested_features,5)
 })
 
 test('unknown FFmpeg remains uncertain; recommendation says inspect, not rerun',()=>{
