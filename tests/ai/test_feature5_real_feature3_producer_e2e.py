@@ -18,7 +18,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "poster-engine"))
 sys.path.insert(0, str(ROOT / "tests" / "media"))
 
-from fashion_reference_v1 import prepare_fashion_references, resolve_first_frame
+from fashion_reference_v1 import prepare_fashion_references, resolve_first_frame, FashionReferenceDenied
+from feature3_worker_inputs_v1 import materialize_feature5_input
 from feature3_consumer_packets_v1 import assemble_consumer_packets
 from test_feature3_fashion_reference import FashionKurtiReferenceTests
 
@@ -146,32 +147,11 @@ class Feature5RealFeature3SourceIntegrationTests(unittest.TestCase):
             self.assertEqual(list(Path(td).iterdir()),[])
         self.assertGreaterEqual(self.producer_reads,3)
 
-    def _test_only_f3_new_worker_shape(self, **kwargs):
-        """Current real F3 bytes, converted to PR #604's shape for CI until merge."""
-        old = resolve_first_frame(
-            expected_manifest=kwargs["expected_manifest"],
-            current_readers=kwargs["current_readers"],
-            verify_worker_job=kwargs["verify_motion_job"],
-        )
-        return {
-            "consumer":"feature5",
-            "shop_id":old["shop_id"],
-            "first_frame_asset_id":old["source_asset_id"],
-            "reference_fingerprint":kwargs["expected_manifest"]["reference_fingerprint"],
-            "sha256":old["sha256"],
-            "mime_type":old["mime_type"],
-            "dimensions":old["dimensions"],
-            "image_bytes":old["image_bytes"],
-            "provider_call_permitted":False,
-            "gpu_authorized":False,
-            "publish_approved":False,
-        }
-
     def test_feature3_new_private_worker_result_matches_existing_stager(self):
         packet=self.fresh_packet(self.f3.shop,self.brief_id)
         def adapt(**kwargs):
             return resolve_feature3_materialized_first_frame(
-                **kwargs,materialize_feature5_input=self._test_only_f3_new_worker_shape)
+                **kwargs,materialize_feature5_input=materialize_feature5_input)
         with tempfile.TemporaryDirectory() as td:
             with stage_fresh_feature3_consumer_input(
                     **self.args(packet,td,resolve_first_frame=adapt)
@@ -186,7 +166,7 @@ class Feature5RealFeature3SourceIntegrationTests(unittest.TestCase):
 
     def test_feature3_new_worker_snapshot_rejects_identity_rights_and_byte_tamper(self):
         packet=self.fresh_packet(self.f3.shop,self.brief_id)
-        original=self._test_only_f3_new_worker_shape(
+        original=materialize_feature5_input(
             expected_manifest=self.expected["image_to_video"],
             current_readers=self.readers,verify_motion_job=self.worker_job)
         variants={
@@ -212,6 +192,25 @@ class Feature5RealFeature3SourceIntegrationTests(unittest.TestCase):
                             **self.args(packet,td,resolve_first_frame=adapt)):
                         self.fail("untrusted Feature3 worker output must be denied")
                 self.assertEqual(list(Path(td).iterdir()),[])
+
+    def test_actual_feature3_worker_rejects_missing_lease_and_revoked_source(self):
+        packet=self.fresh_packet(self.f3.shop,self.brief_id)
+        with tempfile.TemporaryDirectory() as td:
+            def adapt(**kwargs):
+                return resolve_feature3_materialized_first_frame(
+                    **kwargs,materialize_feature5_input=materialize_feature5_input)
+            with self.assertRaises((WanCompatibilityError,FashionReferenceDenied)):
+                with stage_fresh_feature3_consumer_input(
+                    **self.args(packet,td,resolve_first_frame=adapt,
+                                verify_worker_job=lambda *_:False)):
+                    self.fail("F3 worker may not stage without a current lease")
+            self.assertEqual(list(Path(td).iterdir()),[])
+            self.f3.grants[self.f3.tryon]["rights_revoked"]=True
+            with self.assertRaises((WanCompatibilityError,FashionReferenceDenied)):
+                with stage_fresh_feature3_consumer_input(
+                    **self.args(packet,td,resolve_first_frame=adapt)):
+                    self.fail("F3 worker may not stage revoked original bytes")
+            self.assertEqual(list(Path(td).iterdir()),[])
 
     def test_feature3_model_revocation_after_packet_generation_denied(self):
         packet=self.fresh_packet(self.f3.shop,self.brief_id)
