@@ -83,6 +83,13 @@ class GarmentIntegrationTests(unittest.TestCase):
         self.assertEqual(srt.count(" --> "), 12)
         self.assertEqual(vtt.count(" --> "), 12)
         self.assertEqual([c["start"] for c in cues], report["synced_scene_starts"])
+        # The 60s stock candidate previously repeated a clothes-rack still
+        # until ~58s. Reserve a real separate text/disclaimer endcard from ~55s.
+        self.assertGreater(report["synced_scene_starts"][-1],54.5)
+        self.assertLess(report["synced_scene_starts"][-1],55.5)
+        self.assertGreaterEqual(report["scene_windows"][-1]["duration"],4.5)
+        self.assertEqual(cues[-1]["text"],OUTRO)
+        self.assertNotEqual(cues[-2]["text"],OUTRO)
         self.assertFalse(report["actual_spoken_voiceover"])
         self.assertTrue(report["reused_stock_video_clips"])
         self.assertEqual(html.count('class="footage clip"'), 5)
