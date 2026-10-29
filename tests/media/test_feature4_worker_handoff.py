@@ -175,6 +175,51 @@ class WorkerHandoffTests(unittest.TestCase):
         self.assertEqual(len(self.media.uploads), 1)
         self.assertEqual(len(self.admin.completions), 1)
 
+    def test_lease_replaced_while_loading_bundle_never_stages_media(self):
+        """Claim may expire between the initial auth check and DB bundle read."""
+        original = self.admin.load_feature4_bundle
+
+        def load_then_expire(claim):
+            bundle = original(claim)
+            self.admin.current = False
+            return bundle
+
+        self.admin.load_feature4_bundle = load_then_expire
+        self.assertEqual(self.run_worker(), "STALE")
+        self.assertEqual(self.media.downloads, [])
+        self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.completions, [])
+        self.assertEqual(self.admin.failures, [])
+
+    def test_revocation_during_private_download_skips_render_and_publish(self):
+        """No expensive CPU work or signed output after in-flight media revocation."""
+        for lost in ("lease", "rights"):
+            with self.subTest(lost=lost):
+                self.setUp()
+                original = self.media.download
+
+                def download_then_revoke(shop, key, destination):
+                    original(shop, key, destination)
+                    if lost == "lease":
+                        self.admin.current = False
+                    else:
+                        self.admin.authorized = False
+
+                self.media.download = download_then_revoke
+
+                def forbidden_render(*args):
+                    self.fail("Renderer must not run after private media revocation")
+
+                self.assertEqual(
+                    process_feature4_render(JOB, self.admin, self.media,
+                                            render_fn=forbidden_render),
+                    "STALE",
+                )
+                self.assertEqual(len(self.media.downloads), 1)
+                self.assertEqual(self.media.uploads, [])
+                self.assertEqual(self.admin.completions, [])
+                self.assertEqual(self.admin.failures, [])
+
     def test_wrong_job_id_campaign_shop_or_idempotency_rejected(self):
         for field, value in [
             ("shop_id", OTHER), ("campaign_id", OTHER),
