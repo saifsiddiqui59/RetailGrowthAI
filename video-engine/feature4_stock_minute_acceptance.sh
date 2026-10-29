@@ -50,6 +50,9 @@ python3 "$ROOT/video-engine/feature4_encoded_motion_qa.py" \
 python3 "$ROOT/video-engine/feature4_scene_visibility.py" \
   --source "$VIDEO" --duration 60 --provenance "$PROOF" \
   --report "$OUTPUT/feature4-60s-visibility-qa.json"
+python3 "$ROOT/video-engine/feature4_endcard_qa.py" \
+  --source "$VIDEO" --provenance "$PROOF" \
+  --report "$OUTPUT/feature4-60s-endcard-qa.json"
 python3 "$ROOT/video-engine/feature4_audio_master.py" \
   --source "$VIDEO" --duration 60 --output "$MASTER" \
   --report "$OUTPUT/feature4-60s-audio-proof.json"
@@ -113,5 +116,6 @@ python3 "$ROOT/video-engine/feature4_minute_quality_receipt.py" \
   --caption-vtt "$OUTPUT/feature4-stock-minute-editorial.vtt" \
   --caption-proof "$OUTPUT/feature4-stock-minute-captioned-proof.json" \
   --visibility-proof "$OUTPUT/feature4-60s-visibility-qa.json" \
+  --endcard-proof "$OUTPUT/feature4-60s-endcard-qa.json" \
   --output "$OUTPUT/feature4-60s-cross-feature-qa-receipt.json"
 echo "PASS 60s stock editor technical source/render/preview only; no customer/owner approval"
