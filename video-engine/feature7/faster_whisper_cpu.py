@@ -22,6 +22,7 @@ import re
 import stat
 import sys
 import time
+import resource
 
 _MODEL_FILES = ("config.json", "model.bin", "tokenizer.json")
 _APPROVED_MODEL_REVISION = "536b0662742c02347bc0e980a01041f333bce120"
@@ -152,6 +153,7 @@ def infer_audio(*, wav_path: str, model_dir: str, manifest_path: str,
         raise LocalFasterWhisperError(
             "Install pinned reviewed faster-whisper and CTranslate2 wheels") from error
     started = time.perf_counter()
+    initial_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     model = WhisperModel(str(Path(model_dir).resolve()),
                          device="cpu", compute_type="int8",
                          cpu_threads=threads, num_workers=1,
@@ -162,6 +164,12 @@ def infer_audio(*, wav_path: str, model_dir: str, manifest_path: str,
                                    condition_on_previous_text=False)
     words = normalize_actual_words(stream, audio_duration=audio_duration)
     decode_seconds = max(0.0, time.perf_counter() - started)
+    peak_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    # Linux reports KiB; macOS uses bytes. This is process peak RSS, not
+    # exclusive model allocation nor total machine/worker-container memory.
+    rss_unit = 1 if sys.platform == 'darwin' else 1024
+    peak_rss_bytes = int(peak_rss * rss_unit)
+    memory_baseline_bytes = int(initial_rss * rss_unit)
     _check(validate_local_model(model_dir, manifest_path) == provenance,
            "ASR checkpoint changed during inference")
     reported_language = getattr(info, "language", None)
@@ -180,6 +188,9 @@ def infer_audio(*, wav_path: str, model_dir: str, manifest_path: str,
         "source_audio_duration_seconds": audio_duration,
         "actual_decode_wall_seconds": round(decode_seconds, 3),
         "actual_decode_realtime_factor": round(decode_seconds/audio_duration, 4),
+        "process_peak_rss_bytes": peak_rss_bytes,
+        "process_baseline_peak_rss_bytes": memory_baseline_bytes,
+        "peak_rss_is_process_high_watermark": True,
         "word_timestamps_from_actual_model": True,
         "word_accuracy_benchmarked": False,
         "speech_rights_checked_by_this_process": False,
