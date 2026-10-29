@@ -381,6 +381,72 @@ def stage_blind_human_review_revision(*,shop_id,campaign_id,experiment_id,
             "approved_to_publish":False,"paid_motion_permitted":False}
 
 
+
+def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
+                                      current_editor,read_private_history,
+                                      verify_signed_history_receipt):
+    """Authenticated, source-only history projection of durable human A/B CAS.
+
+    No reviewer identifiers, notes, media bytes, prompt text, private JWTs or
+    signing material leave the backend. Readers must independently verify
+    signed server receipts and revocation, including after the first read.
+    """
+    if (not _trace_uuid(shop_id) or not _trace_uuid(campaign_id) or
+        type(experiment_id) is not str or
+        not 10<=len(experiment_id)<=120 or
+        not all(c.isalnum() or c in "_-" for c in experiment_id) or
+        not all(callable(x) for x in
+                (current_editor,read_private_history,verify_signed_history_receipt))):
+        raise Feature2TraceDenied("Authenticated private blind history required")
+    def source():
+        if current_editor(shop_id,campaign_id) is not True:
+            raise Feature2TraceDenied("Editor revoked before private history read")
+        rows=read_private_history(shop_id,campaign_id,experiment_id)
+        if type(rows) is not list or len(rows)>50:
+            raise Feature2TraceDenied("Bounded private A/B review history unavailable")
+        return rows
+    rows=source()
+    result=[]
+    for i,item in enumerate(rows,1):
+        if (type(item) is not dict or item.get("shop_id")!=shop_id or
+            item.get("campaign_id")!=campaign_id or
+            item.get("experiment_id")!=experiment_id or
+            item.get("revision")!=i or
+            item.get("review_status")!="HUMAN_SCORE_ONLY" or
+            item.get("private") is not True or
+            item.get("can_publish") is not False or
+            item.get("revoked_at") is not None or
+            type(item.get("receipt_digest")) is not str or
+            not _TRACE_SHA.fullmatch(item["receipt_digest"]) or
+            type(item.get("candidate_digests")) is not dict or
+            set(item["candidate_digests"])!={"A","B"} or
+            any(type(v) is not str or not _TRACE_SHA.fullmatch(v)
+                for v in item["candidate_digests"].values()) or
+            type(item.get("human_scores")) is not dict or
+            set(item["human_scores"])!={"A","B"} or
+            any(type(v) not in (float,int) or not 0<=v<=100
+                for v in item["human_scores"].values())):
+            raise Feature2TraceDenied("Private A/B score revision invalid")
+        if verify_signed_history_receipt(
+            shop_id,campaign_id,experiment_id,i,
+            item["receipt_digest"],item["candidate_digests"]) is not True:
+            raise Feature2TraceDenied("Missing independent signed A/B history proof")
+        result.append({"revision":i,"candidate_digests":dict(item["candidate_digests"]),
+                       "receipt_digest":item["receipt_digest"],
+                       "human_scores":dict(item["human_scores"]),
+                       "review_state":"HUMAN_SCORE_ONLY",
+                       "can_publish":False})
+    # A revoked role or changed receipt chain between validation and read must
+    # not leak even a summary of historical human preferences.
+    if source()!=rows:
+        raise Feature2TraceDenied("Private A/B review history changed mid-read")
+    return {"schema":"retailgrowth.feature2-private-blind-review-history.v1",
+            "experiment_id":experiment_id,"records":result,
+            "private":True,"human_review_verified":bool(result),
+            "source_quality_not_certified":True,
+            "can_publish":False,"paid_motion_permitted":False}
+
+
 # Feature2 editorial basis, approved-copy and sourced-trend review consolidated
 # from feature2_editorial_basis.py to protect the coordinator's fixed ZIP member cap.
 class EditorialBasisRejected(PermissionError):
