@@ -62,7 +62,7 @@ class FakeStore:
             return None
         if self.denied:return None
         result=dict(self.evidence)
-        if self.flip_second and len(self.calls)>2:
+        if self.flip_second and len(self.calls)>=2:
             result["object_bytes"]+=1
         return result
 
