@@ -330,3 +330,10 @@ Run exact-head four-job CI after new single-path F3→CPU FFmpeg→Part3→F4 in
 - Validate the *actual* Node `exportFixture(15|30|60)` output through `qualify_feature2_offline_storyboard` after coordinator integrates F2 #551 or provides an approved trusted artifact. The current new tests use contract-shaped source, not direct unmerged exporter execution. Preserve all original prompt/scene/garment SHA and deny customer/GPU permissions.
 - Do not relax this gate to obtain green CI: inspect final exact-head Python, FFmpeg, frontend/Playwright and disposable Supabase jobs, fix F5-owned failures.
 - No synthetic packet is a real garment-wearing approved F3 first frame or a Part3 JWT/lease/credit entitlement. Coordinator still owns actual Part3 contract and private Storage reader; F3 #630 demo-byte consumer remains pending its own merge. No paid native generation authorized.
+
+
+## 2026-10-29 — Feature4 review-candidate adoption
+
+- Coordinator/Feature4 should review F5's new `pending_private_wan_receipt_for_feature4` schema as **untrusted review metadata only**. Receiving editor must independently verify signed tenant/lease and current source+garment rights, actual private object bytes, active credit reservation/atomic settlement, real provider execution and human review before converting to the existing approved Feature4 render input.
+- Existing `reviewed_wan_clip_for_feature4` approval gate must not be relaxed. Ask Part3 to expose a versioned service-only settlement + private object readback and ask Feature4 to preserve exact scene/prompt/source identity and a rejected/revoked state. No model-origin proof from source hashes.
+- Verify four exact-head GitHub Actions jobs and attach result URLs after final docs; F2 contract tests are fixture-shaped until F2 #551 actually merges.
