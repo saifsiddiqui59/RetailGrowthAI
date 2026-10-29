@@ -882,3 +882,7 @@
 
 ## 2026-10-29 — ROOT Playwright queue freshness requires authenticated RPC completion
 - On the DEV operator-only local helper, do not consider a hidden React loading spinner evidence of fresh onboarding data. It may still be hidden *before* the React fetch begins. Await the exact existing authenticated HTTPS POST `/rest/v1/rpc/retail_platform_onboarding_requests` to the known DEV Supabase host, fail closed on a non-success HTTP response, then verify no pending/error spinner before reading visible rows. Mocked-page regression asserts ordering and disallows a wrong host/method/route. [PR #633](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/633). This does not relax audited ROOT approval or turn helper CI into positive hosted media acceptance; never use privileged SQL, customer API fallback, PROD or WineShopPOS.
+
+
+## 2026-10-29 — Prefer reauthorized byte proxy for future generated PNG revocation
+- Existing one-minute signed Storage URLs do NOT guarantee instant invalidation after user/model rights changes. Provide a backend-only alternative `Feature3RevocablePNGReader` with signed-user JWT authenticated Storage GET, exact content-addressed PNG SHA, external real current rights/immutable output gate and rechecks after bytes read; never create a signed/public URL in the result or claim old-link invalidation. A real binary endpoint and race-free transaction semantics require separate coordinator interface review and hosted acceptance, not an inference shortcut.
