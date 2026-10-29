@@ -220,6 +220,44 @@ class PrivateSourceProofTests(unittest.TestCase):
                 self.proof(self.shop,self.row)
             self.assertEqual([x[0] for x in self.calls],["get"])
 
+    def test_true_private_content_length_must_match_real_read_bytes(self):
+        for declared in ("0",str(len(self.png)-1),str(len(self.png)+1)):
+            self.setUp()
+            self.length=declared
+            with self.subTest(length=declared),self.assertRaisesRegex(
+                    SourceProofDenied,"length changed"):
+                self.proof(self.shop,self.row)
+            self.assertEqual([c[0] for c in self.calls],["get"])
+
+    def test_immutable_model_object_sha_rejects_replaced_decodable_image(self):
+        out=BytesIO()
+        Image.new("RGB",(320,400),"#4682b4").save(out,format="PNG")
+        self.http_payload=out.getvalue()
+        self.assertNotEqual(sha256(self.http_payload).hexdigest(),self.sha)
+        # A fake reviewer returning any supplied SHA is NOT enough to convert
+        # a replaced original into an approved model source.
+        with self.assertRaisesRegex(SourceProofDenied,"immutable path SHA"):
+            self.proof(self.shop,self.row)
+        self.assertEqual([c[0] for c in self.calls],["get"])
+
+    def test_invalid_model_original_namespace_and_digest_name_denied(self):
+        for key in (
+            f"{self.shop}/model-library/{self.model}/notasha.png",
+            f"{self.shop}/model-library/platform/wrong/{self.sha}.png",
+            f"{self.shop}/model-library/{self.sha}.png",
+            f"{self.shop}/model-library/platform/{self.model}/nested/{self.sha}.png",
+        ):
+            self.setUp()
+            self.row["object_path"]=key
+            with self.subTest(key=key),self.assertRaises(SourceProofDenied):
+                self.proof(self.shop,self.row)
+            self.assertEqual(self.calls,[])
+
+    def test_platform_model_original_sha_name_remains_accepted(self):
+        self.row["object_path"]=(
+            f"{self.shop}/model-library/platform/{self.model}/{self.sha}.png")
+        self.assertEqual(self.proof(self.shop,self.row)["image_sha256"],self.sha)
+
     def test_non_supabase_or_publishable_backend_key_denied(self):
         for origin in ("http://fictional.supabase.co",
                        "https://fictional.supabase.co.evil.org",
