@@ -87,10 +87,35 @@ def _recheck_immutable_input(path, root, before, expected_sha256):
         raise WanCompatibilityError("Private native MP4 changed during import handoff")
 
 
+def _verify_private_storage_readback(read_back_chunks, shop, job, token, key, expected_sha, expected_bytes):
+    """Hash exact private Storage bytes, not only the upload ACK's claims.
+
+    The injected service-only reader MUST authenticate the existing attempt,
+    read from the private bucket without a signed public URL, and deliver
+    chunks of the exact stored object. This is not client-origin metadata.
+    """
+    import hmac
+
+    chunks = read_back_chunks(shop, job, token, BUCKET, key)
+    if isinstance(chunks, (bytes, bytearray, str, dict)) or not hasattr(chunks, "__iter__"):
+        raise UnknownPart3PrivateImport("Private Storage readback is not a streaming reader")
+    length = 0
+    digest = hashlib.sha256()
+    for block in chunks:
+        if type(block) is not bytes or not 0 < len(block) <= 1024 * 1024:
+            raise UnknownPart3PrivateImport("Untrusted private Storage readback chunk")
+        length += len(block)
+        if length > expected_bytes or length > MAX_MEDIA:
+            raise UnknownPart3PrivateImport("Private Storage object exceeds submitted media")
+        digest.update(block)
+    if length != expected_bytes or not hmac.compare_digest(digest.hexdigest(), expected_sha):
+        raise UnknownPart3PrivateImport("Private Storage bytes disagree with immutable clip")
+
+
 def import_wan_into_existing_part3(
     *, package, inspection, private_file, trusted_attempt_root, job_id, attempt_token, output_asset_id,
     check_current_paid_claim_and_source, commit_unique_import_intent,
-    upload_private_once, commit_fenced_storage_and_settlement,
+    upload_private_once, read_back_private_chunks, commit_fenced_storage_and_settlement,
     current_rights_approved=False,
 ):
     """Return a *ledger-settled private receipt*, NOT Feature4 review approval.
@@ -99,6 +124,9 @@ def import_wan_into_existing_part3(
     payloads. commit_unique_import_intent must atomically CAS one attempt into a
     durable single-use state *before* any external Storage write. The upload
     must refuse overwrite and target the same preexisting private bucket.
+    An independent, service-only private Storage byte stream is mandatory
+    after upload and before settlement; the upload ACK is not evidence of
+    object contents. The shared Part3 operator owns this authoritative reader.
     Once the intent commits, any failure is UNKNOWN; do not re-upload, refund,
     retry or pretend to have observed a clean FAILED state.
     """
@@ -111,7 +139,7 @@ def import_wan_into_existing_part3(
         or current_rights_approved is not True
         or not all(callable(cb) for cb in (
             check_current_paid_claim_and_source, commit_unique_import_intent,
-            upload_private_once, commit_fenced_storage_and_settlement))):
+            upload_private_once, read_back_private_chunks, commit_fenced_storage_and_settlement))):
         raise WanCompatibilityError("Fenced, rights-approved native Wan input required")
     try:
         shop = canonical_uuid(package.lineage["shop_id"])
@@ -169,6 +197,13 @@ def import_wan_into_existing_part3(
             type(uploaded["bytes"]) is not int
             or uploaded["bytes"] != inspection.size_bytes):
             raise UnknownPart3PrivateImport("Private upload receipt uncertain")
+        # The Storage ACK can claim the expected SHA while the underlying
+        # private object is absent, truncated, swapped or unreadable. Demand
+        # an independent service-only byte readback before settling credits.
+        # Any failure is post-intent UNKNOWN, never a refundable retry.
+        _verify_private_storage_readback(
+            read_back_private_chunks, shop, job, token, key,
+            inspection.sha256, inspection.size_bytes)
         if (_file_identity(path) != before or _digest(path) != inspection.sha256):
             raise UnknownPart3PrivateImport("Staged MP4 changed during import")
         if check_current_paid_claim_and_source(*claim_args) is not True:
