@@ -882,3 +882,7 @@
 
 ## 2026-10-29 — ROOT Playwright queue freshness requires authenticated RPC completion
 - On the DEV operator-only local helper, do not consider a hidden React loading spinner evidence of fresh onboarding data. It may still be hidden *before* the React fetch begins. Await the exact existing authenticated HTTPS POST `/rest/v1/rpc/retail_platform_onboarding_requests` to the known DEV Supabase host, fail closed on a non-success HTTP response, then verify no pending/error spinner before reading visible rows. Mocked-page regression asserts ordering and disallows a wrong host/method/route. [PR #633](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/633). This does not relax audited ROOT approval or turn helper CI into positive hosted media acceptance; never use privileged SQL, customer API fallback, PROD or WineShopPOS.
+
+
+## 2026-10-29 — GPU queue messages never grant media, cost or inference rights
+- Keep a single fixed v1 dispatch packet with exactly `schema`, `shop_id`, `job_id`, canonical UUIDv4 identities and strict length/duplicate field checks. Shared encoder is used by actual GPU outbox producer; independently validated receiver parser exists for future worker only. All authorization/paid cost must come from fresh service-only job claim/rights/subscription/lease queries and existing reserved ledger, never from untrusted JSON. No queue/worker activation or application host changes while Azure #249 remains open.
