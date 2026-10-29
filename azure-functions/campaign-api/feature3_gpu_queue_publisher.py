@@ -8,8 +8,26 @@ fence any duplicated queue delivery.
 from __future__ import annotations
 
 import json
+from uuid import UUID
 
 from tenant_store import StorageUnavailable
+
+
+def _message_acknowledged(receipt):
+    """Azure QueueClient.send_message returns a QueueMessage with a server ID.
+
+    A non-None empty/dict/False or exception is not evidence of enqueue.
+    The caller must reconcile instead of replaying an uncertain paid job.
+    """
+    identifier = (receipt.get("id") if isinstance(receipt, dict)
+                  else getattr(receipt, "id", None))
+    if type(identifier) is not str or len(identifier) > 64:
+        raise StorageUnavailable("Azure Queue server message ID unconfirmed")
+    try:
+        UUID(identifier)
+    except (ValueError, AttributeError, TypeError) as exc:
+        raise StorageUnavailable("Invalid Azure Queue delivery receipt") from exc
+    return True
 
 
 class Feature3GPUOutboxPublisher:
@@ -39,8 +57,7 @@ class Feature3GPUOutboxPublisher:
                 # Queue retries may duplicate envelopes; database claim is
                 # one-shot. Never execute a paid GPU action here.
                 result = self.queue.send_message(message)
-                if result is None:
-                    raise StorageUnavailable("Azure Queue send ACK missing")
+                _message_acknowledged(result)
             except Exception as exc:
                 raise StorageUnavailable(
                     "Feature3 GPU queue send uncertain; reconcile outbox, do not blindly replay"

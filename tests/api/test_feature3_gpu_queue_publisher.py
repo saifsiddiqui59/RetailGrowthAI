@@ -1,6 +1,7 @@
 """Offline P1 durable outbox queue handoff; never sends paid inference."""
 import json
 import sys
+from types import SimpleNamespace
 import unittest
 from pathlib import Path
 from unittest.mock import Mock
@@ -20,7 +21,7 @@ class Feature3QueuePublishingTests(unittest.TestCase):
         self.outbox=Mock()
         self.outbox.claim_dispatch.return_value=[self.record]
         self.queue=Mock()
-        self.queue.send_message.return_value={"message_id":"queue-ack"}
+        self.queue.send_message.return_value=SimpleNamespace(id=str(uuid4()))
         self.publisher=Feature3GPUOutboxPublisher(self.outbox,self.queue)
 
     def test_bounded_once_with_no_images_keys_or_gpu(self):
@@ -44,7 +45,9 @@ class Feature3QueuePublishingTests(unittest.TestCase):
         self.outbox.confirm_dispatch.assert_not_called()
 
     def test_missing_transport_ack_never_confirms_queue_delivery(self):
-        for result in (None,):
+        for result in (None, False, True, {}, {"message_id":"queue-ack"},
+                       {"id":""}, {"id":"not-a-guid"}, SimpleNamespace(id=None),
+                       SimpleNamespace(id=object())):
             self.queue.send_message.reset_mock()
             self.outbox.confirm_dispatch.reset_mock()
             self.queue.send_message.return_value=result
@@ -52,6 +55,22 @@ class Feature3QueuePublishingTests(unittest.TestCase):
                 self.publisher.dispatch_once()
             self.outbox.confirm_dispatch.assert_not_called()
             self.assertEqual(self.queue.send_message.call_count,1)
+
+    def test_valid_queue_assigned_id_is_necessary_before_database_ack(self):
+        self.queue.send_message.return_value={"id":str(uuid4())}
+        self.assertEqual(self.publisher.dispatch_once()["acknowledged"],1)
+        self.outbox.confirm_dispatch.assert_called_once_with(
+            self.job,self.token,True)
+
+    def test_bogus_receipt_never_reaches_second_claimed_job(self):
+        row={**self.record,"job_id":str(uuid4()),
+             "dispatch_token":str(uuid4())}
+        self.outbox.claim_dispatch.return_value=[self.record,row]
+        self.queue.send_message.return_value={"message_id":"not-a-server-id"}
+        with self.assertRaisesRegex(StorageUnavailable,"uncertain"):
+            self.publisher.dispatch_once()
+        self.queue.send_message.assert_called_once()
+        self.outbox.confirm_dispatch.assert_not_called()
 
     def test_unknown_send_error_does_not_confirm_or_paid_retry(self):
         self.queue.send_message.side_effect=TimeoutError("ACK lost")
