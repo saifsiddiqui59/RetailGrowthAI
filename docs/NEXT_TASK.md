@@ -1307,3 +1307,6 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 
 ## 2026-10-29 — Feature3 private PNG transport release gates
 - Check all four CI jobs at exact PR head for `feat/feature3-private-png-transport-immutable-length-20261029`, then coordinator integration against current main and fresh main 4/4 before marking merged. Source-only Content-Length/recode hardening does NOT remove the need for genuinely independently reviewed current commercial rights, service-only approved evidence RPCs, authenticated no-URL Azure route review, signed DEV expiry/tenant/503 browser QA and no paid GPU. Keep existing 31 DEV migrations and PROD untouched.
+
+## 2026-10-29 — Feature3 private saved draft tenant race completion gate
+- Validate exact-head four CI jobs on `feat/feature3-draft-history-tenant-epoch-fence-20261029`, coordinator merge preserving Testing Chat and other Feature3 changes and verify fresh postmerge main. Source browser cleanup does not verify signed DEV OWNER/EDITOR/VIEWER/foreign/revoked response behavior: retain hosted acceptance and current rights, future no-URL private binary endpoint, real licensed model output and Azure #249 as separate gates.
