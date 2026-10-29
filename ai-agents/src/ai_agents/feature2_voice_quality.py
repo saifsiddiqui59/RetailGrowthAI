@@ -198,7 +198,7 @@ def project_offline_openpronounce_review(*,audio_sha256,result):
         word=item.get("word")
         index=item.get("position")
         ipa_expected=item.get("expected")
-        ipa_actual=item.get("actual")
+        ipa_actual="" if item.get("actual") is None else item.get("actual")
         confidence=item.get("confidence")
         if (type(word) is not str or not 1<=len(word)<=80 or
             any(ord(c)<32 or c in "<>" for c in word) or
