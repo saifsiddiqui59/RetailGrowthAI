@@ -27,6 +27,18 @@ EXPECTED = {
     "synthetic_garment_front.jpg",
     "synthetic_model_pose.jpg",
 }
+# Immutable per-entry SHA256 from the actual GitHub Actions artifact #12879355229.
+# The original MP4 hash alone cannot prove original package provenance:
+# reject altered licensing text, metadata or source image bytes too.
+PINNED_ENTRY_SHA256 = {
+    "LICENSE-openvto.txt": "c2be4c397e95f348ef84ef8ca291ae79fa43926c017fcb3e3e7dd3ed145e8711",
+    "manifest.json": "be0e3a0477904fadba7ff97ba2bf1c257a69e4fa51323ccd12854584f08ddb79",
+    "technical_footage_manifest.json": "5235730a30de17bb9ec9bcfc9cf28dbc56e5e23a1d35f44fcbf11fd1ec840f5b",
+    "feature4-editor-input.mp4": VIDEO_SHA,
+    "synthetic_avatar.png": "5f04a36a4511c841f17099dab0e934b1fde3a0a8a2f7f62f0ff01d71a2bd86a4",
+    "synthetic_garment_front.jpg": "03ae4afc28c08a928547d56040f7099a06d2d2dbbb900440f7d33be602731b13",
+    "synthetic_model_pose.jpg": "191830a241911e6186c4103e72769918353f4d21bb64c6cf7cafca4217341b39",
+}
 MAX_ZIP_BYTES = 4 * 1024 * 1024
 MAX_EXTRACTED_BYTES = 4 * 1024 * 1024
 
@@ -59,6 +71,10 @@ def check_feature3_actual_artifact(zip_file: str) -> dict:
             actual = {name:z.read(name) for name in EXPECTED}
     except (BadZipFile, EOFError, OSError, RuntimeError) as error:
         raise Feature3ArtifactRejected("Corrupted source artifact") from error
+    ensure(set(PINNED_ENTRY_SHA256) == EXPECTED and all(
+           sha256(actual[name]).hexdigest() == expected_digest
+           for name, expected_digest in PINNED_ENTRY_SHA256.items()),
+           "Original Feature3 artifact entry bytes differ from pinned Actions ZIP")
     manifest = json.loads(actual["manifest.json"].decode("utf-8"))
     technical = json.loads(actual["technical_footage_manifest.json"].decode("utf-8"))
     ensure(manifest.get("schema") == "retailgrowth.feature3-demo-input-pack.v1" and

@@ -66,5 +66,23 @@ class Feature7Feature3ArtifactTests(unittest.TestCase):
         self.assertFalse(report["retailer_rights_verified"])
         self.assertFalse(report["publish_approved"])
 
+
+    @unittest.skipUnless(ZIP and shutil.which("ffprobe"),
+                         "Original F3 technical ZIP not staged in CI")
+    def test_repacked_unchanged_mp4_but_altered_original_metadata_denied(self):
+        # The same original 9s MP4 and images must not mask changes to the
+        # embedded manifest, technical source claim or MIT license notice.
+        for changed in ("manifest.json","technical_footage_manifest.json",
+                        "LICENSE-openvto.txt"):
+            with self.subTest(entry=changed):
+                with ZipFile(ZIP) as original, ZipFile(self.path,"w") as altered:
+                    for info in original.infolist():
+                        raw=original.read(info.filename)
+                        if info.filename==changed:raw+=b"\\n"
+                        altered.writestr(info,raw)
+                with self.assertRaisesRegex(Feature3ArtifactRejected,
+                                            "pinned Actions ZIP"):
+                    check_feature3_actual_artifact(str(self.path))
+
 if __name__=="__main__":
     unittest.main()
