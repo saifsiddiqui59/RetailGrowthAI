@@ -37,7 +37,7 @@ class _NoRedirect(HTTPRedirectHandler):
 def git_blob_sha1(data):
     if type(data) is not bytes:
         raise DemoInputDenied("Binary Git blob required")
-    return sha1(b"blob " + str(len(data)).encode("ascii") + b"\\0" + data).hexdigest()
+    return sha1(b"blob " + str(len(data)).encode("ascii") + bytes((0,)) + data).hexdigest()
 
 
 def validated_manifest(manifest):
@@ -162,14 +162,14 @@ def download_demo_inputs(output_dir, *, fetch=_fetch, manifest=None):
             "files":evidence,
         }
         path=folder/"verified_manifest.json"
-        path.write_text(json.dumps(package,indent=2)+"\\n",encoding="utf-8")
+        path.write_text(json.dumps(package,indent=2)+"\n",encoding="utf-8")
         written.append(path)
         notice=folder/"SOURCE_AND_RIGHTS_NOTICE.txt"
         notice.write_text(
-            "OpenVTO synthetic demo images copyright (c) 2026 Prompt Haus. MIT License.\\n"
-            "See pinned source https://github.com/Prompt-Haus/OpenVTO/tree/"+REV+"\\n"
-            "Only test/demo; do not claim customer product ownership, actual try-on,\\n"
-            "published brand rights or GPU provider output.\\n",encoding="utf-8")
+            "OpenVTO synthetic demo images copyright (c) 2026 Prompt Haus. MIT License.\n"
+            "See pinned source https://github.com/Prompt-Haus/OpenVTO/tree/"+REV+"\n"
+            "Only test/demo; do not claim customer product ownership, actual try-on,\n"
+            "published brand rights or GPU provider output.\n",encoding="utf-8")
         written.append(notice)
         return package
     except BaseException:
