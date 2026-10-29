@@ -166,4 +166,6 @@ test('acknowledged Reel submission cannot be rated without completed private out
  await page.getByRole('button',{name:/Create seven-day garment promotion/}).click()
  await expect(page.getByRole('button',{name:'Save human quality review'})).toBeDisabled()
  await expect(page.getByRole('region',{name:'Human review by quality aspect'})).toHaveCount(0)
+ await expect(page.getByRole('region',{name:'What to improve next'})
+   .getByText('Job acknowledged — completed creative output not observed').first()).toBeVisible()
 })
