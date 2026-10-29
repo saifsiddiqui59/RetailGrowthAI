@@ -193,6 +193,14 @@ def make_garment_project(source_dir: Path, project_dir: Path, *, seconds: int = 
             "music_beat_source": "Measured offline PCM onset detector, not invented beat grid",
             "measured_beat_timestamps": detected_beats,
             "synced_scene_starts": [scene["start"] for scene in scenes],
+            # Offline *editorial titles*, not aligned spoken words. Derived
+            # from the actual beat-snapped rendered scene starts, not a fixed grid.
+            "editorial_subtitle_kind": "EDITORIAL_TEST_TITLES_NOT_SPOKEN_AUDIO",
+            "editorial_subtitle_cues": [
+                {"start": round(float(scene["start"]), 3),
+                 "duration": min(5.5, round(float(scene["duration"]), 3)),
+                 "text": scene["headline"]} for scene in scenes
+            ],
             "feature3": "Pexels garment PHOTO proxy; not tenant garment or virtual try-on",
             "feature5": "Pexels HUMAN motion proxy; not model-generated motion",
             "feature7": "Basic timed editing; advanced effects not accepted",
