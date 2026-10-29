@@ -32,26 +32,26 @@ def normal(name):return re.sub(r"[-_.]+","-",name).lower()
 # This is deliberately a conservative numeric subset of PEP 508/440. It
 # rejects unsupported requirement syntax rather than treating a dependency
 # name alone as proof that a conflicting pinned wheel is installable.
-SPEC = re.compile(r"(~=|==|!=|<=|>=|<|>)\\s*([0-9]+(?:\\.[0-9]+)*)")
+SPEC = re.compile(r"(~=|==|!=|<=|>=|<|>)\s*([0-9]+(?:\.[0-9]+)*)")
 SPEC_LIST = re.compile(
-    r"(?:~=|==|!=|<=|>=|<|>)\\s*[0-9]+(?:\\.[0-9]+)*"
-    r"(?:\\s*,\\s*(?:~=|==|!=|<=|>=|<|>)\\s*[0-9]+(?:\\.[0-9]+)*)*"
+    r"(?:~=|==|!=|<=|>=|<|>)\s*[0-9]+(?:\.[0-9]+)*"
+    r"(?:\s*,\s*(?:~=|==|!=|<=|>=|<|>)\s*[0-9]+(?:\.[0-9]+)*)*"
 )
 REQ_NAME = re.compile(
-    r"\\s*([A-Za-z0-9][A-Za-z0-9_.-]{0,99})"
-    r"(?:\\[[A-Za-z0-9_,.-]+\\])?\\s*(.*?)\\s*"
+    r"\s*([A-Za-z0-9][A-Za-z0-9_.-]{0,99})"
+    r"(?:\[[A-Za-z0-9_,.-]+\])?\s*(.*?)\s*"
 )
 
 def parse_requirement(value):
     if not isinstance(value,str) or len(value)>512 or any(
-        ch in value for ch in ("\\n","\\r","\\x00","@")
+        ch in value for ch in ("\n","\r","\x00","@")
     ):
         raise WheelhouseRejected("Unsupported or unsafe declared dependency")
     base, separator, marker = value.partition(";")
     # Marker evaluation is intentionally NOT asserted. All marker-qualified
     # dependencies must still be present, even when not needed on this host.
     if separator and (not marker.strip() or
-                      re.fullmatch(r"[A-Za-z0-9_.!<>=(),'\\\" \\t-]+",marker) is None):
+                      re.fullmatch(r"[A-Za-z0-9_.!<>=(),'\\" \t-]+",marker) is None):
         raise WheelhouseRejected("Unsupported dependency environment marker")
     match = REQ_NAME.fullmatch(base)
     if not match:
@@ -65,7 +65,7 @@ def parse_requirement(value):
     return normal(name), SPEC.findall(specs)
 
 def satisfies_numeric_spec(version, operator, required):
-    if re.fullmatch(r"[0-9]+(?:\\.[0-9]+)*",version) is None:
+    if re.fullmatch(r"[0-9]+(?:\.[0-9]+)*",version) is None:
         raise WheelhouseRejected("Unsupported pinned dependency version")
     current = tuple(int(p) for p in version.split("."))
     target = tuple(int(p) for p in required.split("."))
