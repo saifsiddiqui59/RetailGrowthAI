@@ -58,5 +58,5 @@ def test_test_double_claims_positive_remains_pending_review():
     assert receipt["review_state"]=="PENDING_HUMAN_LISTEN_AND_RIGHTS"
     assert not receipt["can_publish"] and not receipt["pronunciation_verified"]
     assert receipt["audio_bytes"] is None and receipt["signed_url"] is None
-    assert receipt["stt_status"]=="F7_NOT_CONNECTED"
+    assert receipt["stt_status"]=="F7_PENDING_SIGNED_AUDIO_ADAPTER"
     assert events==["reserve","write"]
