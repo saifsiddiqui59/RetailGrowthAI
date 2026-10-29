@@ -739,3 +739,6 @@ Use scripts/checkpoint.sh after completing a task.
 
 ## 2026-10-29 — Feature3 operator evidence RPC disposable negative SQL tests
 - Branch `feat/feature3-operator-evidence-disposable-sql-20261029` from merged #664 commit `adf5fcc6f620958db96272aae764a8bbf62ac656` adds `tests/security/poster_feature3_operator_evidence_proposal_negative.sql` and source handoff; exercises actual role/missing source/forged claim rejection for existing unapplied operator evidence proposal in disposable PostgreSQL, without creating a migration or hosted operation. Exact-head CI and integration evidence required separately.
+
+## 2026-10-29 — Feature3 private PNG HTTP byte length and recoding denial
+- Started from main `08b79f19cfb776d4d76926fbd0f5ad777d945023` after confirming #663 and #664 source integrations; existing post-#664 main CI was in progress. On branch `feat/feature3-private-png-transport-immutable-length-20261029`, modified only existing Feature3 private binary reader plus real Pillow/mocked authenticated HTTP tests and canonical/Feature3 handoff docs. Rejects incorrect announced byte length or encoded transport, still enforces current user/rights and byte digest. No actual Azure route, Supabase migrations, GPU, financial/queue effects or WineShopPOS. Exact-head CI/PR and main CI must be checked before integration.
