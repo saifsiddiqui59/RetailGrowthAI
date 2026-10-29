@@ -7,6 +7,9 @@ It is not proof that a usable campaign, MP4, poster or motion output exists.
 Previously Testing Chat could enable a human output-quality review after an
 ACK-only PASS when no final result was read back. The resulting 1/5 rating
 would misidentify a delivery/reliability problem as bad creative quality.
+The actionable diagnostic now calls these receipt sets `AWAITING_OUTPUT`:
+no verified creative output yet, **not** a quality failure, technical
+failure or permission to replay a potentially committed POST.
 
 ## Source implementation
 `trace-output-evidence.mjs` exposes strict deterministic checks:
