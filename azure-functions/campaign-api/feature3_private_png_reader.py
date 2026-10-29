@@ -49,8 +49,11 @@ class Feature3RevocablePNGReader:
                 u.path not in ("", "/") or u.query or u.fragment):
             raise ValueError("Exact private Supabase HTTPS project origin required")
         public_key = getattr(tenant_store, "key", None)
-        if (not isinstance(public_key, str) or len(public_key) < 8 or
-                public_key.startswith("sb_secret_")):
+        # A service_role JWT API key or arbitrary key must not be supplied
+        # as an authenticated user's private Storage apikey.
+        if (not isinstance(public_key, str) or
+                not public_key.startswith("sb_publishable_") or
+                len(public_key) < 20):
             raise ValueError("User JWT private reader requires public client key")
         self.tenant = tenant_store
         self.verify = verify_user_jwt
@@ -137,7 +140,7 @@ class Feature3RevocablePNGReader:
         Neither a successful read nor an output receipt grants publication.
         """
         if (not isinstance(user_token,str) or not 12 <= len(user_token) <= 8192 or
-                "\n" in user_token or "\r" in user_token or
+                any(ord(ch) < 33 or ord(ch) == 127 for ch in user_token) or
                 user_token.startswith(("sb_secret_","sb_publishable_"))):
             raise PrivateGeneratedDownloadDenied("Signed retailer token required")
         try:
