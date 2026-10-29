@@ -12,7 +12,8 @@ export default function VoiceoverSelector({
   enabled=false,approvedAudioAssets=[],
   onSelectionChange=null,onRequestPreview=null,onRequestSynthesis=null,
   onRequestUpload=null,onRequestLocalPreview=null,onRequestLocalSynthesis=null,
-  onFetchLocalAudio=null,onFetchLocalQualityReview=null,onProposeLocalScriptRevision=null,
+  onFetchLocalAudio=null,onFetchLocalQualityReview=null,
+  onFetchLocalSignedWerReview=null,onProposeLocalScriptRevision=null,
   onProposeLocalPronunciation=null,onCommitReviewedLocalDraft=null,
   onRequestLocalSentenceRetake=null,
   traceWorkflowId=null,traceSourceSha256=null,onFetchPrivateTrace=null,
@@ -117,6 +118,7 @@ export default function VoiceoverSelector({
           onLocalGenerate={onRequestLocalSynthesis}
           onFetchLocalAudio={onFetchLocalAudio}
           onFetchQualityReview={onFetchLocalQualityReview}
+          onFetchSignedWerReview={onFetchLocalSignedWerReview}
           onProposeScriptRevision={onProposeLocalScriptRevision}
           onProposePronunciation={onProposeLocalPronunciation}
           onCommitReviewedDraft={onCommitReviewedLocalDraft}
