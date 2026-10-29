@@ -229,3 +229,7 @@ The existing live Feature3 source bridge and private packet staging were source 
 ## 2026-10-28 — Feature5 GPU-free import integrity continuation
 
 Added two additional immutable staged-clip checkpoints in `feature5_motion/part3_private_import_bridge.py` around existing lease/rights and unique intent CAS callbacks, plus two explicit mutation tests using separately copied synthetic FFmpeg videos in `tests/media/test_feature5_part3_gpu_off_acceptance.py`. Tests are submitted to GitHub CI, not yet claimed successful at documentation time. Original upstream/multi-tenant/Part3 integration blockers remain. No paid model inference, Azure/A100, customer image or WineShopPOS modification.
+
+## 2026-10-29 — CPU-only source integration: independent private object readback
+
+Continued existing Feature5 draft PR #465 at preceding verified `0befe0c29dd50255b344f6873492d5c316ffc385` (previous exact 4/4 success #40776932482). Implemented mandatory bounded private object streaming SHA256/length confirmation after upload ACK and before immutable Part3 settlement. Updated actual Feature3→synthetic FFmpeg→mock Part3→Feature4 full path, 2-shop private mock reader, and negative tests for forged correct-ACK/wrong object, missing reader, invalid/truncated chunks and timeout. All input rights/credentials remain fake/offline; exact new-head CI must be observed separately. Shared Part3 paid schema, real signed hosted accounts, true Wan inference and human review are still blocked. A100 OFF, no Cloud/PROD/WineShopPOS edits.
