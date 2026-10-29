@@ -137,10 +137,15 @@ def test_actual_unified_director_from_signed_mock_context_to_nonbillable_editor(
     assert structural.actual_ai_generated is False
     assert structural.can_publish is False
     process=subprocess.run([node,str(JS_CHECK)],
-                           input=json.dumps({"bundle":compiled,"reviewer_id":ACTOR}),
+                           input=json.dumps({"bundle":compiled,"reviewer_id":ACTOR,
+                                             "verified_brief":approved}),
                            text=True,capture_output=True,timeout=20,check=False)
     assert process.returncode==0,process.stderr[-7000:]
     outcome=json.loads(process.stdout)
+    assert outcome["actual_compiled_export_verified"] is True
+    assert outcome["cross_feature_export_plan_sha256"]==compiled["approval_record"]["plan_sha256"]
+    assert outcome["feature4_export_shots"]==duration//5
+    assert outcome["feature5_export_requests"]==duration//5
     assert outcome["duration_seconds"]==duration
     assert outcome["shots"]==duration//5
     assert outcome["gpu_started"] is False
