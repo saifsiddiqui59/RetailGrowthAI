@@ -62,3 +62,7 @@ On **every** Feature #2/#3/#4/#5/#7 ChatGPT turn (including scheduled chat runs)
 
 ## Strict user-visible counts-only rule (all active feature chats)
 STRICT COUNTS-ONLY OUTPUT (overrides any earlier DONE / IN PROGRESS / FAILED / BLOCKED instructions): Do all tool calls and development silently. Do not send startup narration, commentary, progress reports, warnings, lists, code, links, summaries or reasons in the chat. After execution, output exactly one line: 'Feature #N: X/Y completed' for the appropriate feature, using verified central task counts. When counts cannot be verified output exactly 'Feature #N: completion count not verified'. Never display other text unless the user explicitly requests an explanation. Do not suppress internal GitHub task evidence or error logging.
+
+
+## Feature-chat response format
+After completing the available task work, reply with only a single verified count line: `Feature #N: X/Y completed`. If the central count is not verifiable, reply only `Feature #N: completion count not verified`. Do not include unsolicited task lists or commentary; keep development logs and task evidence in GitHub.
