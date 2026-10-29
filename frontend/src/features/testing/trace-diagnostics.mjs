@@ -1,4 +1,5 @@
 // Pure, deterministic browser-receipt analysis. NOT trusted server telemetry.
+import { acceptedDimension } from './quality-rubrics.mjs'
 // Every metric preserves the distinction between API execution and subjective QA.
 export const FEATURE_LABELS = Object.freeze([
   ['F1', 'Tenant and rights'], ['F2', 'Creative director'],
@@ -27,16 +28,28 @@ export function summarizeTrace(events) {
     const status = firstFailure?.status ||
       (observed.some(e => e.status === 'PASS') ? 'PASS' : latest?.status || 'UNOBSERVED')
     const durations = observed.map(e => e.duration_ms).filter(finite)
-    const ratings = ordered.filter(e => e.feature === id && e.status === 'QUALITY_REVIEW' &&
-      Number.isInteger(e.details?.score) && e.details.score >= 1 && e.details.score <= 5)
-      .map(e => e.details.score)
+    // Ignore a forged review before any observed output. Legacy reviews without
+    // dimensions are 'overall'; unrecognized explicit aspects do not count.
+    const ratings = []
+    let completedOutputSeen = false
+    for (const e of ordered) {
+      if (e.feature !== id) continue
+      if (e.status === 'PASS') completedOutputSeen = true
+      if (e.status !== 'QUALITY_REVIEW' || !completedOutputSeen ||
+          !Number.isInteger(e.details?.score) || e.details.score < 1 ||
+          e.details.score > 5) continue
+      const dimension = e.details?.dimension === undefined ? 'overall' : e.details.dimension
+      if (!acceptedDimension(id, dimension)) continue
+      ratings.push({score:e.details.score,dimension})
+    }
     return {
       id, label, status, observed_steps: observed.length,
       first_problem: firstFailure ? { action: firstFailure.action,
         status: firstFailure.status, summary: firstFailure.summary } : null,
       latest_action: latest?.action || null,
       duration_ms: durations.length ? Math.max(...durations) : null,
-      quality_latest: ratings.at(-1) ?? null,
+      quality_latest: ratings.at(-1)?.score ?? null,
+      quality_dimension_latest: ratings.at(-1)?.dimension ?? null,
       quality_count: ratings.length,
     }
   })
@@ -57,7 +70,11 @@ export function compareTraceRuns(current, baseline) {
   const a = summarizeTrace(current), b = summarizeTrace(baseline)
   return a.features.map(row => {
     const previous = b.features.find(x => x.id === row.id)
-    const scoreDelta = row.quality_latest !== null && previous.quality_latest !== null
+    // A 1/5 sound review must not compare to a 4/5 caption review.
+    const sameAspect = row.quality_dimension_latest !== null &&
+      row.quality_dimension_latest === previous.quality_dimension_latest
+    const scoreDelta = sameAspect && row.quality_latest !== null &&
+      previous.quality_latest !== null
       ? row.quality_latest - previous.quality_latest : null
     // Durations from separately sampled browser requests are informative
     // indicators only, not statistically significant performance conclusions.
@@ -67,6 +84,8 @@ export function compareTraceRuns(current, baseline) {
       id: row.id, label: row.label, status: row.status,
       baseline_status: previous.status, score: row.quality_latest,
       baseline_score: previous.quality_latest, score_delta: scoreDelta,
+      quality_dimension: row.quality_dimension_latest,
+      baseline_quality_dimension: previous.quality_dimension_latest,
       duration_delta_ms: durationDelta,
     }
   })
