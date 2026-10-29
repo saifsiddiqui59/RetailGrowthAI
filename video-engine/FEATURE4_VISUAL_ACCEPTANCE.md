@@ -103,3 +103,17 @@ that internet music rights, ASR or commercial scene fidelity are approved.
 The old 'beat detection pending' UI copy is clarified to distinguish already
 implemented offline WAV onset detection from unapproved cloud/signed music
 operations. No new render engine, service, GPU, schema or WineShopPOS edits.
+
+
+## F4-53 — actual encoded Pexels reel visual reviewer sheet
+Added `feature4_review_contact_sheet.py`: source-only CPU/FFmpeg and Pillow
+generator of a 12-frame 3×4 contact sheet from a *real verified* 15/30/60s
+H264/AAC output (including an explicit stock-not-ad banner and frame
+timestamps). The output is a private new JPEG and never overwrites an
+existing review; source and output SHA-256, frame timestamps and
+`owner_visual_approval=false` are returned. Unit tests verify physical
+frame decoding (not HTML-only) with synthetic video. The PR media CI
+exports this for the actual 30s Pexels garment concept only: do not upload
+customer footage to public GitHub CI artifacts. This does not assert
+human/model identity, transcript semantic alignment, licensing, fashion
+commercial taste or owner-approved production readiness.

@@ -110,6 +110,10 @@ proof["commercial_release_eligible"]=False
 print("PASS: 30s Pexels editorial title sidecars SRT/VTT exactly follow real scene cuts; NOT spoken")
 PY
 
+  # F4-53: reviewer sees 12 REAL decoded Pexels frames, not only HTML.
+  python3 "$ROOT/video-engine/feature4_review_contact_sheet.py" \
+    --source "$GARMENT_MP4" --duration 30 \
+    --output "$ROOT/ci-artifacts/feature4-stock-garment-review-contact-sheet.jpg"
   # F4-47: actual decoded Pexels actor movement; reject frozen footage.
   python3 "$ROOT/video-engine/feature4_encoded_motion_qa.py" \
     --source "$GARMENT_MP4" --duration 30 --moving-starts 0 10 20 \
