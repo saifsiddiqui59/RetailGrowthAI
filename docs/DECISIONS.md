@@ -964,3 +964,6 @@
 
 ## 2026-10-29 — Feature3 operator success evidence requires after-read SQL stability
 - A private PNG byte SHA+Pillow proof plus immutable evidence RPC is necessary but insufficient for financial/Storage ambiguity: the read-only operator inspector must re-read the exact job and reservation fields after the private GET and report UNKNOWN on drift. QUEUED has no claim, RUNNING requires a canonical token and timezone lease, terminal jobs clear claims. An expired RUNNING lease is a hold, not authorization to restart. No billing, queue ACK, object deletion or provider operation is permitted by this evidence.
+
+## 2026-10-29 — Feature3 postclaim rights must use shared preflight and current prepaid lease
+- A worker's initial QUEUED planning result cannot authorize an already-claimed RUNNING job. Reuse the exact SQL/tenant/image source-rights verifier with distinct RUNNING attempts=1/token/lease requirements, rereading the existing immutable prepaid reservation both before and after the private original-byte/current approval proofs. Source IDs must match the same versioned design; no source-only receipt authorizes a GPU call, spends budget, extends a lease, retries a job or acknowledges Azure Queue.
