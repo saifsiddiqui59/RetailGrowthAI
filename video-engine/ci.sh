@@ -77,6 +77,10 @@ assert all(any(abs(c-b)<.17 for b in proof["measured_beat_timestamps"])
     for c in proof["synced_scene_starts"][1:])
 print("PASS: 30s actual Pexels garment + stock-person Reel, NOT garment identity or production acceptance")
 PY
+  # F4-47: actual decoded Pexels actor movement; reject frozen footage.
+  python3 "$ROOT/video-engine/feature4_encoded_motion_qa.py" \
+    --source "$GARMENT_MP4" --duration 30 --moving-starts 0 10 20 \
+    --report "$ROOT/ci-artifacts/feature4-stock-garment-moving-pixels-proof.json"
   # F4-43: audio-only loudness mastering; H264 packet hash must not change.
   GARMENT_MASTER="$ROOT/ci-artifacts/feature4-stock-garment-30s-mastered.mp4"
   GARMENT_MASTER_PROOF="$ROOT/ci-artifacts/feature4-stock-garment-master-proof.json"

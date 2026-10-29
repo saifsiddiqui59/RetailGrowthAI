@@ -67,3 +67,18 @@ The accepted Feature2 timecode/voice track already passed 4/4 PR CI #40732044387
 
 ## F4-31 verified — real encoded Full-HD timecoded subtitle proof (2026-10-28)
 **Exact source SHA:** `c2c0786710939c27cd167d564aa57f05899f22ba`. [Branch CI #40746342531](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40746342531) and [PR CI #40746345804](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40746345804) each **4/4 SUCCESS** (Python, React/browser, isolated Supabase, real FFmpeg/HyperFrames). The branch job passed **145 media tests**; independent PR job passed **320 media tests**. Both actually encoded the existing 30s/1080×1920/24fps H264/AAC synthetic test Reel with approved timecoded subtitle test cue, decoded 0.6/1.2/2.2s PNG frames, and measured **caption-window pixel difference 16.82 versus same-shot caption-off baseline 0.19** in the fixed subtitle region; the check would fail if caption appears only in HTML or at the wrong time. Existing original narration 863Hz test tone survived AAC and edited 30s/540p real JS→Python→HyperFrames MP4 also passed. The demonstration media is **OWNER_REJECTED, showcase_eligible=false, commercial_fashion_realism_accepted=false, spoken_word_qa_accepted=false, caption_semantic_alignment_accepted=false**. This proves *temporal overlay encoding only*, not realistic human/garment footage, actual speech alignment, visual aesthetics, producer rights, or production deploy. Keep draft PR / no paid GPU.
+
+
+## F4-47 — encoded actual stock-human-motion verification
+Added a fail-closed moving-pixel gate to the 30s real Pexels QA render
+(`video-engine/feature4_encoded_motion_qa.py`). The verifier checks the
+already fully encoded, probed 9:16 H264/AAC MP4, decodes *two actual frames*
+per fixed reviewed actor-motion interval at 0–5, 10–15 and 20–25 seconds,
+and computes normalized per-pixel grayscale differences. A static/frozen
+'video' cannot pass the same contract. Source SHA-256 and per-scene values
+are written to a noncommercial QA report in the PR CI artifact. Offline tests
+use genuinely encoded synthetic moving and nonmoving videos, and reject
+forged timestamps or invalid duration. This check proves *pixel motion*,
+not person/garment identity, real AI inference, image attribution,
+voice semantics or owner-level commercial visual quality. DO NOT promote
+the owner-rejected illustrated fixture or generic Pexels stock to an ad.
