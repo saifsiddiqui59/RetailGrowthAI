@@ -985,3 +985,6 @@
 
 ## 2026-10-29 — Private output response requires composed end-to-end denial evidence
 - Keep the current `Feature3PrivateBinaryHTTP` + `Feature3RevocablePNGReader` source adapters separate from an unapproved Azure route but test their actual composed boundary using real image bytes, twice-current tenant membership and independent rights callback, strict response headers and denial-without-bytes on revocation between authenticated Storage read and final response. Synthetic signed tokens and fake reviewer callbacks are tests only, never commercial licence or production release authorization.
+
+## 2026-10-29 — Generated-history status views never change authorization
+- Client status filtering reuses existing read-only strict shop-scoped metadata, never sends status input as a new private query and never makes a job eligible for paid inference. Filtering a generated job out immediately clears its displayed private Blob and invalidates pending byte acceptance via the existing epoch counter. A SUCCEEDED state is **unreviewed**, not a publication or commercial-rights grant.
