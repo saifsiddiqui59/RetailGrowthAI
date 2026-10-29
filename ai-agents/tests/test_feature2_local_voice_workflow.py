@@ -1,9 +1,10 @@
 """Mocked trusted callbacks cannot prove local inference or customer approval."""
 from hashlib import sha256
 from uuid import uuid4
-import io,wave
+import io,wave,json,hmac
+from copy import deepcopy
 import pytest
-from ai_agents.feature2_local_voice_workflow import synthesize_and_stage,LocalVoiceJobDenied
+from ai_agents.feature2_local_voice_workflow import synthesize_and_stage,review_registered_kokoro_audio,LocalVoiceJobDenied
 SHOP="11111111-1111-4111-8111-111111111111"
 CAMP="22222222-2222-4222-8222-222222222222"
 def plan():
@@ -60,3 +61,113 @@ def test_test_double_claims_positive_remains_pending_review():
     assert receipt["audio_bytes"] is None and receipt["signed_url"] is None
     assert receipt["stt_status"]=="F7_PENDING_SIGNED_AUDIO_ADAPTER"
     assert events==["reserve","write"]
+
+
+# Mock-only *signed* transcription and trusted store tests: no model executed.
+AID="33333333-3333-4333-8333-333333333333"
+WAV_SHA=sha256(wav()).hexdigest()
+KEY=b"fake-worker-only-f7-key-for-fixtures"
+NOW=1700000000000
+F7_JOB="f7_original_wav_job"
+WORDS=[{"word":v,"startMs":i*140+10,"endMs":i*140+90}
+       for i,v in enumerate("Diwali kurti and festive fashion".split())]
+
+def signed_f7_receipt():
+    token_hash=sha256(json.dumps(WORDS,separators=(",",":")).encode()).hexdigest()
+    evidence={
+       "version":"feature7_asr_evidence_v1",
+       "shop_id":SHOP,"asset_id":AID,"job_id":F7_JOB,
+       "source_sha256":WAV_SHA,"transcript_sha256":token_hash,
+       "model_id":"faster_whisper_small_cpu_int8",
+       "issued_at_ms":NOW,"expires_at_ms":NOW+300000}
+    evidence["mac"]=hmac.digest(KEY,b"retailgrowth.feature7.asr.v1\\n"+
+       json.dumps(evidence,separators=(",",":")).encode(),"sha256").hex()
+    return {"version":"feature7_signed_faster_whisper_asr_v1",
+      "source_media_kind":"audio/wav","shop_id":SHOP,"campaign_id":CAMP,
+      "creative_plan_sha256":"a"*64,"asset_id":AID,
+      "source_sha256":WAV_SHA,"original_media_sha256":WAV_SHA,
+      "source_duration_seconds":1.0,
+      "model_id":"faster_whisper_small_cpu_int8",
+      "model_revision":"5"*40,
+      "local_cpu_inference_invoked":True,
+      "no_remote_model_calls":True,
+      "transcription_status":"real_local_cpu_decoder_output",
+      "approved":False,"renderable":False,"customer_publishable":False,
+      "transcript_sha256":token_hash,"words":deepcopy(WORDS),
+      "evidence":evidence}
+
+def f7_review_case(*,bad=None,auth=lambda *args:True):
+    state={"plan":plan(),"revoked":False,"reads":0}
+    saved=[]
+    original={
+      "schema":"retailgrowth.feature2-to-feature4-original-voice.v1",
+      "shop_id":SHOP,"campaign_id":CAMP,
+      "creative_plan_sha256":"a"*64,
+      "original_script_sha256":sha256(
+        b"Diwali kurti and festive fashion").hexdigest(),
+      "audio_asset_id":AID,"mime_type":"audio/wav",
+      "provider":"kokoro-onnx","private":True,"can_publish":False,
+      "review_state":"PENDING_HUMAN_LISTEN_AND_RIGHTS",
+      "revoked_at":None,"feature7_audio_job_id":F7_JOB,
+      "local_inference_evidence":True,"audio_wav":wav(),
+      "original_audio_sha256":WAV_SHA,"duration_seconds":1.0}
+    receipt=signed_f7_receipt()
+    f7={"job_id":F7_JOB,"shop_id":SHOP,"campaign_id":CAMP,
+        "audio_asset_id":AID,"source_media_kind":"audio/wav",
+        "original_audio_sha256":WAV_SHA,
+        "origin":"trusted_feature7_original_audio_worker",
+        "revoked_at":None,"receipt":receipt}
+    if bad=="wrong-audio":original["original_audio_sha256"]="0"*64
+    if bad=="not-real":original["local_inference_evidence"]=False
+    if bad=="revoked":original["revoked_at"]="2026-10-29"
+    if bad=="bad-job":f7["origin"]="retailer_form"
+    if bad=="wrong-media":f7["source_media_kind"]="video/mp4"
+    if bad=="forged-f7":receipt["evidence"]["mac"]="0"*64
+    if bad=="foreign-campaign":original["campaign_id"]="44444444-4444-4444-8444-444444444444"
+    def read_original(*args):
+        state["reads"]+=1
+        if bad=="revoked-during-read" and state["reads"]>=3:
+            return {**original,"revoked_at":"2026-10-29"}
+        return original
+    def write(*args):
+        saved.append(args)
+        return {"shop_id":SHOP,"campaign_id":CAMP,"audio_asset_id":AID,
+                "original_audio_sha256":WAV_SHA,
+                "private":True,"review_state":"PENDING_HUMAN_LISTEN_AND_RIGHTS"}
+    def run():
+        return review_registered_kokoro_audio(
+          shop_id=SHOP,campaign_id=CAMP,source_plan=state["plan"],
+          audio_asset_id=AID,f7_job_id=F7_JOB,evidence_key=KEY,
+          now_ms=NOW,authorize_editor=auth,
+          read_current_plan=lambda *args:state["plan"],
+          read_original_private=read_original,
+          read_feature7_job=lambda *args:f7,
+          save_pending_review=write)
+    return run,saved,state
+
+def test_registered_original_audio_f7_signed_qa_still_requires_human_review():
+    run,saved,state=f7_review_case()
+    result=run()
+    assert result["schema"]=="retailgrowth.feature2-verified-audio-qa.v1"
+    assert result["asr_transcript_matched_script"] is True
+    assert result["asr_word_confidence_available"] is False
+    assert result["review_state"]=="PENDING_HUMAN_LISTEN_AND_RIGHTS"
+    assert result["pronunciation_verified"] is False
+    assert result["approved_for_editing"] is False
+    assert result["can_publish"] is False
+    assert len(saved)==1 and state["reads"]>=4
+
+@pytest.mark.parametrize("bad",[
+    "wrong-audio","not-real","revoked","bad-job","wrong-media",
+    "forged-f7","foreign-campaign","revoked-during-read"
+])
+def test_registered_f7_review_denies_bad_source_forgery_or_revocation(bad):
+    run,saved,_=f7_review_case(bad=bad)
+    with pytest.raises(LocalVoiceJobDenied):run()
+    assert saved==[]
+
+def test_registered_f7_review_denies_revoked_editor_before_reads():
+    run,saved,state=f7_review_case(auth=lambda *args:False)
+    with pytest.raises(LocalVoiceJobDenied):run()
+    assert saved==[]
+    assert state["reads"]==0
