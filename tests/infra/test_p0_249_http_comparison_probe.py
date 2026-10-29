@@ -176,6 +176,24 @@ def test_campaign_missing_handler_marker_or_wrong_route_never_passes():
             assert not probe.verified_route_result(backend, "warm", "campaign", case)
 
 
+def test_transport_http_401_rate_is_not_verifiable_campaign_rate():
+    rows = []
+    for backend in probe.ORIGINS:
+        rows.append({
+            "backend": backend, "phase": "initial", "route": "campaign",
+            "curl_exit": 0, "http_status": "401",
+            "category": "UNMARKED_401_NOT_PROVEN_HANDLER",
+            "application_request_marker": False,
+            "node_adapter_marker": False, "total_seconds": 0.3,
+        })
+    totals = probe.summarize(rows)
+    for backend in probe.ORIGINS:
+        assert totals[backend]["success_rate_http_percent"] == 100.0
+        assert totals[backend]["verified_campaign_handler_401"] == 0
+        assert totals[backend]["verified_campaign_handler_rate_percent"] == 0.0
+        assert totals[backend]["transport_success_does_not_prove_handler"] is True
+
+
 def test_16_request_campaign_gate_denies_unmarked_401_without_retry():
     observed = []
     def sender(backend, phase, route):
