@@ -241,6 +241,10 @@ def review_signed_audio_transcript(*, receipt, shop_id, campaign_id,
              receipt.get("original_media_sha256") != original_audio_sha256 or
              receipt.get("source_duration_seconds") != audio_duration_seconds or
              receipt.get("model_id") != "faster_whisper_small_cpu_int8" or
+             not isinstance(receipt.get("model_revision"),str) or
+             not re.fullmatch("[a-f0-9]{40}",receipt["model_revision"]) or
+             not isinstance(receipt.get("model_bin_sha256"),str) or
+             not SHA.fullmatch(receipt["model_bin_sha256"]) or
              receipt.get("local_cpu_inference_invoked") is not True or
              receipt.get("no_remote_model_calls") is not True or
              receipt.get("transcription_status") != "real_local_cpu_decoder_output" or
