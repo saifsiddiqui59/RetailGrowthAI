@@ -6,7 +6,7 @@ VTON, licensed music, a human-wearing-garment demonstration, or publishable.
 """
 from __future__ import annotations
 
-from hashlib import sha256
+from hashlib import sha1, sha256
 import json
 import os
 from pathlib import Path
@@ -14,10 +14,14 @@ import re
 import subprocess
 import tempfile
 
+from feature3_demo_inputs import SOURCES as PINNED_UPSTREAM_SOURCES
+
 SCHEMA = "retailgrowth.feature3-demo-input-pack.v1"
 _VIDEO_SCHEMA = "retailgrowth.feature3-technical-edit-footage.v1"
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 _FILES = ("synthetic_avatar.png", "synthetic_garment_front.jpg")
+# Import pins from the same immutable OpenVTO downloader used by our actual
+# GitHub artifact. Never accept a locally authored manifest as license proof.
 _RAW_INPUT_CAP = 3 * 1024 * 1024
 
 
@@ -54,20 +58,31 @@ def _verify_inputs(directory):
     if not isinstance(rows, list) or len(rows) != 3:
         raise DemoFootageDenied("Exactly three pinned upstream originals required")
     by_name = {row.get("filename"): row for row in rows if isinstance(row, dict)}
-    if len(by_name) != 3 or set(_FILES) - set(by_name):
-        raise DemoFootageDenied("Missing pinned original avatar/garment")
-    for filename in _FILES:
+    expected = {name: (relative, gitsha, nbytes, fmt)
+                for name, relative, gitsha, nbytes, fmt in PINNED_UPSTREAM_SOURCES}
+    if (len(by_name) != 3 or set(by_name) != set(expected) or
+        len(expected) != 3):
+        raise DemoFootageDenied("Exactly three original pinned MIT assets required")
+    for filename, (source, gitsha, size, fmt) in expected.items():
         row = by_name[filename]
         candidate = root / filename
         if (candidate.is_symlink() or not candidate.is_file() or
             not isinstance(row.get("sha256"), str) or
             not _SHA.fullmatch(row["sha256"]) or
+            row.get("source_path") != source or
+            row.get("source_git_blob_sha1") != gitsha or
             row.get("rights_verified_for_customer") is not False or
-            not isinstance(row.get("bytes"), int) or
-            row["bytes"] < 100 or row["bytes"] > _RAW_INPUT_CAP or
-            candidate.stat().st_size != row["bytes"] or
-            sha256(candidate.read_bytes()).hexdigest() != row["sha256"]):
-            raise DemoFootageDenied("Demo source image bytes changed or lacked rights limits")
+            type(row.get("bytes")) is not int or row["bytes"] != size or
+            size < 100 or size > _RAW_INPUT_CAP or
+            candidate.stat().st_size != size or
+            row.get("mime_type") != ("image/png" if fmt == "PNG" else "image/jpeg")):
+            raise DemoFootageDenied("Demo asset does not match pinned upstream source")
+        raw = candidate.read_bytes()
+        if sha256(raw).hexdigest() != row["sha256"]:
+            raise DemoFootageDenied("Local demo image content differs from manifest")
+        original_blob = sha1(f"blob {len(raw)}\0".encode("ascii") + raw).hexdigest()
+        if original_blob != gitsha:
+            raise DemoFootageDenied("Original upstream Git blob identity mismatch")
     return root
 
 
