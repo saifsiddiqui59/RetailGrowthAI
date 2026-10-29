@@ -4,7 +4,7 @@ Owner instruction: pursue all independent items without pausing between PRs; coo
 
 **Definition:** COMPLETE means the *scoped task* has concrete source/test evidence and successful exact-head CI. It does not mean hosted or commercially approved. BLOCKED means a live service, independent feature, license, model binary, or coordinator-owned interface is required. IN_PROGRESS is actionable in F2 branch. No fake proofs; synthetic source tests are labeled synthetic.
 
-**Initial verified checkpoint:** 2 COMPLETE / 38, 17 IN_PROGRESS / 19 BLOCKED. (CI 4/4 #40852286469; 1126 Python passed + 96 Playwright mock). Task 5 is source-only structural scene QA; task 11 is source-only PCM objective QA. No real TTS.
+**Current verified checkpoint: 5 COMPLETE / 38, 14 IN_PROGRESS / 19 BLOCKED.** Evidence source head `77f758ae9977dd259c01fb2c97d0aebf41b57abf`, [CI #40855183923](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40855183923) 4/4 SUCCESS: Python 1,160 passed, 1 skipped, 155 subtests; 96 mocked Playwright pass; FFmpeg and disposable Supabase PASS. Only scoped source-level completion is counted (#5, #7, #11, #13, #28). Neither actual human pronunciation nor hosted paid/rights acceptance completed.\n\n**Initial verified checkpoint:** 2 COMPLETE / 38, 17 IN_PROGRESS / 19 BLOCKED. (CI 4/4 #40852286469; 1126 Python passed + 96 Playwright mock). Task 5 is source-only structural scene QA; task 11 is source-only PCM objective QA. No real TTS.
 
 | ID | Fixed work item | Status | Owner | Completion requirement / blocker |
 |---:|---|---|---|---|
@@ -14,13 +14,13 @@ Owner instruction: pursue all independent items without pausing between PRs; coo
 | 4 | Trend/RSS relevance, scoring, evergreen fallback | IN_PROGRESS | F2 | F2-owned implementation, durable tests and exact-head CI |
 | 5 | 15/30/60-second script/storyboard structural quality checks | COMPLETE | F2 | Offline 15/30/60 contracted QA; no human video claim |
 | 6 | Feature3 original demo garment/model packet tests | IN_PROGRESS | F2 | F2-owned implementation, durable tests and exact-head CI |
-| 7 | Indian retailer-brand pronunciation regression coverage | IN_PROGRESS | F2 | F2-owned implementation, durable tests and exact-head CI |
+| 7 | Indian retailer-brand pronunciation regression coverage | COMPLETE | F2 | Indic combining marks and brand names; synthetic ASR mismatch tests only; genuine speech remains task 17 |
 | 8 | Blind A/B review, scoring and durable revision history | IN_PROGRESS | F2 | F2-owned implementation, durable tests and exact-head CI |
 | 9 | Kokoro CPU worker cache/startup/concurrency/failures | IN_PROGRESS | F2 | F2-owned implementation, durable tests and exact-head CI |
 | 10 | Voice selector, human corrections and retake UI wiring | IN_PROGRESS | F2 | F2-owned implementation, durable tests and exact-head CI |
 | 11 | PCM clipping, silence, volume and review diagnostics | COMPLETE | F2 | Actual PCM checks + negative fixtures; no acoustic correctness claim |
 | 12 | Feature2 step-by-step auditable workflow trace | IN_PROGRESS | F2 | F2-owned implementation, durable tests and exact-head CI |
-| 13 | Security negative paths, CI regression and source consistency | IN_PROGRESS | F2 | F2-owned implementation, durable tests and exact-head CI |
+| 13 | Security negative paths, CI regression and source consistency | COMPLETE | F2 | Exact F2 head 77f758ae 4/4 CI, private audit/tenant replay and source negative tests; hosted E2E task 33 |
 | 14 | Real Kokoro WAV/MP3 inference, playback and QA | BLOCKED | F2 | External live/approved media/contract/merge evidence needed |
 | 15 | Real CPU time/RSS/cost benchmark | BLOCKED | F2 | External live/approved media/contract/merge evidence needed |
 | 16 | Feature7 signed registered original-WAV ASR | BLOCKED | F7 + F2 | External live/approved media/contract/merge evidence needed |
@@ -35,7 +35,7 @@ Owner instruction: pursue all independent items without pausing between PRs; coo
 | 25 | Azure #249 503 reliability root-cause/fix | BLOCKED | Azure #249 lead | External live/approved media/contract/merge evidence needed |
 | 26 | Voice quality review panel and correction guidance | IN_PROGRESS | F2 | F2-owned implementation, durable tests and exact-head CI |
 | 27 | Single-sentence human-approved retake and replacement | IN_PROGRESS | F2 | F2-owned implementation, durable tests and exact-head CI |
-| 28 | Free/paid provider voice and cost disclosures | IN_PROGRESS | F2 | F2-owned implementation, durable tests and exact-head CI |
+| 28 | Free/paid provider voice and cost disclosures | COMPLETE | F2 | Existing voice selector: Kokoro local default, paid Azure explicit charge/locale review; mounted live UI remains task 22 |
 | 29 | Private MP3 decode and safety validation | BLOCKED | F2 | External live/approved media/contract/merge evidence needed |
 | 30 | English/Indian-English/Hindi/Marathi voice route tests | IN_PROGRESS | F2 | F2-owned implementation, durable tests and exact-head CI |
 | 31 | Editor script A/B preview and explicit approval UX | IN_PROGRESS | F2 | F2-owned implementation, durable tests and exact-head CI |
@@ -50,6 +50,15 @@ Owner instruction: pursue all independent items without pausing between PRs; coo
 ## Task updates (append here after each implementation/CI checkpoint)
 
 - 2026-10-29: Established fixed IDs from user's 38-item task request. No new deployment, APIs, paid model, WineShopPOS changes. 2/38 scoped completion baseline; all remaining work stays visible. Coordinator alone updates canonical docs after integration.
+
+- 2026-10-29, task **#2 IN_PROGRESS**: Added strict retailer-origin fact audit in `feature2_editorial_basis.inspect_retailer_copy_claims`; exact authorized offer text, bogus price/broad discount/urgency/material claims produce editor-only warnings. Source-only tests added. Live model/service integration remains.
+- 2026-10-29, task **#4 IN_PROGRESS**: Added source-provenance-verified bounded 14-day RSS ranking, generic-word filtering, reviewer-only results and evergreen fallback. Signed real feed reader/hosted source approval remain.
+- 2026-10-29, task **#7 COMPLETE scoped source**: Unicode grapheme tokenization preserves Hindi/Marathi vowel marks; branded-word mismatch tests explicitly do not grant pronunciation approval. Real audio is separately #17/#18.
+- 2026-10-29, task **#8 IN_PROGRESS**: Added independently attested, blind human A/B score and revision CAS callback; no self-attested browser human reviewers or publication. Persisted hosted review/UI still pending.
+- 2026-10-29, task **#12 IN_PROGRESS**: Added private, HMAC-sealed 100-event bounded workflow stages, SHA-only input/output, error code enums and durable CAS callback in existing `feature2_creative_quality.py`. No raw prompt/audio/token, no live trace route/persistence until coordinator ratification.
+- 2026-10-29, task **#13 COMPLETE scoped source**: [CI #40855183923](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40855183923) 4/4 successful after resolving Unicode tokenizer splice, copied regex escapes and RSS noise; final source head `77f758ae` includes the corresponding negative tests.
+- 2026-10-29, task **#28 COMPLETE scoped source**: Free local Kokoro and explicit-cost Azure Speech UI/language choices already implemented and tested. Not a mounted authenticated checkout/real provider bill; those belong to #19/#22.
+- 2026-10-29: F7/F4/Feature3 ownership still independent; no live weights, real retailer audio/rights, paid calls, deployed APIs, GPU, main merge, Azure setting or WineShopPOS modification. #2/#4/#8/#12 remain uncompleted despite source milestones.
 
 ## Coordination
 
