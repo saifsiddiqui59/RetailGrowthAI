@@ -279,6 +279,58 @@ process.stdout.write(JSON.stringify(preparePrivateReview(data)));
 
 
 
+
+    def test_entirely_silent_real_aac_cannot_support_fabricated_asr_words(self):
+        # FFmpeg silence activity cannot establish speech, but a wholly silent
+        # decoded source cannot be used to endorse invented recognized words.
+        js="""
+import fs from 'node:fs';
+import {preparePrivateReview} from './video-engine/feature7/private_review_pipeline.mjs';
+const request=JSON.parse(fs.readFileSync(0,'utf8'));
+const result=preparePrivateReview(request);
+process.stdout.write(JSON.stringify({status:result.review_status,
+  activity:result.media_evidence[0].audio_activity,
+  captions:result.captions_advisory,
+  approved:result.approved,renderable:result.renderable}));
+"""
+        silent=self.private/'silent_owned_fixture.mp4'
+        ff=subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-y',
+           '-f','lavfi','-i','color=c=navy:size=160x288:rate=10:duration=16',
+           '-f','lavfi','-i','anullsrc=r=16000:cl=mono',
+           '-t','16','-c:v','libx264','-preset','ultrafast',
+           '-pix_fmt','yuv420p','-c:a','aac','-b:a','64k',str(silent)],
+           capture_output=True,text=True,timeout=65)
+        self.assertEqual(ff.returncode,0,ff.stderr)
+        digest=hashlib.sha256(silent.read_bytes()).hexdigest()
+        upload=self.request()
+        upload['grant'].update(asset_id='silent-clip',relative_path=silent.name,
+                               sha256=digest,has_audio=True)
+        payload={'shop_id':'shop-alpha','campaign_id':'campaign-123',
+          'root':str(self.private),
+          'draft':{'shop_id':'shop-alpha','campaign_id':'campaign-123',
+             'duration_seconds':15,'scenes':[{'asset_id':'silent-clip',
+               'asset_type':'video','source_feature':'retailer',
+               'duration':15,'start':0}]},
+          'media':[{'scene_index':0,'asset_id':'silent-clip',
+             'relative_path':silent.name,'expected_sha256':digest,
+             'grant':upload['grant'],
+             'whisperx_json':{'segments':[{'words':[]}]}}]}
+        ok=invoke_js(js,payload)
+        self.assertEqual(ok.returncode,0,ok.stderr)
+        result=json.loads(ok.stdout)
+        self.assertEqual(result['status'],'NEEDS_REVIEW')
+        self.assertFalse(result['approved'])
+        self.assertFalse(result['renderable'])
+        self.assertEqual(result['activity']['non_silent_intervals'],[])
+        self.assertEqual(result['captions'],[])
+        payload['media'][0]['whisperx_json']['segments'][0]['words']=[
+          {'word':'fabricated speech','start':1.0,'end':1.5}]
+        denied=invoke_js(js,payload)
+        self.assertNotEqual(denied.returncode,0,denied.stdout)
+        self.assertEqual(denied.stdout,'')
+        self.assertIn('entirely silent source audio',denied.stderr)
+        self.assertEqual(hashlib.sha256(silent.read_bytes()).hexdigest(),digest)
+
     def test_signed_evidence_binds_approved_16s_video_to_15s_review(self):
         script=r"""
 import fs from 'node:fs';

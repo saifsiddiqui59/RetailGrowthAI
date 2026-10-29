@@ -43,6 +43,13 @@ export function preparePrivateReview({shop_id,campaign_id,draft,root,media,
         duration_seconds:verified.duration_seconds,has_audio:true})
       : {silence_intervals:[],non_silent_intervals:[],
         classification:'NO_AUDIO_TRACK',original_audio_preserved:true};
+    // This is only an objective contradiction check. FFmpeg activity is NOT
+    // human-speech VAD or ASR provenance: real model accuracy still needs
+    // independently signed private-worker evidence and human listening.
+    if(transcript.words.length>0 &&
+      (!verified.has_audio || activity.non_silent_intervals.length===0))
+      throw new EditValidationError(
+        'Supplied speech words contradict absent or entirely silent source audio');
     grants.push({...item.grant,asset_id:item.asset_id,
       shop_id,media_type:'video',has_audio:verified.has_audio});
     approvedFootage.push({

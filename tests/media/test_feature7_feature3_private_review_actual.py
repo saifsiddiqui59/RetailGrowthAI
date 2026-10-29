@@ -119,11 +119,10 @@ class Feature7RealF3TechnicalReviewPipeline(unittest.TestCase):
             elif case=="bad_sha":
                 p["media"][0]["expected_sha256"]="0"*64
             else:
-                # A fabricated transcript of silent demo AAC must NEVER be
-                # accepted as independent real speech evidence. This test
-                # intentionally avoids invoking a fake speech recognizer.
-                self.assertEqual(p["media"][0]["whisperx_json"]["segments"][0]["words"],[])
-                continue
+                # Real downloaded F3 source is entirely silent. A supplied
+                # invented ASR token must fail before captions/review output.
+                p["media"][0]["whisperx_json"]["segments"][0]["words"]=[
+                    {"word":"fabricated","start":1.0,"end":1.5}]
             out=self.invoke(p)
             self.assertNotEqual(out.returncode,0,out.stdout)
             self.assertEqual(out.stdout,"")
