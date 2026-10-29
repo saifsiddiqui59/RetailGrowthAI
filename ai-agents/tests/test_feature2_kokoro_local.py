@@ -226,3 +226,24 @@ def test_cpu_benchmark_disabled_operator_does_not_load_models(monkeypatch,tmp_pa
     monkeypatch.delenv("RETAIL_FEATURE2_KOKORO_CPU_ENABLED",raising=False)
     with pytest.raises(LocalSpeechUnavailable,match="disabled"):
         run_cpu_kokoro_benchmark(cache_dir=tmp_path)
+
+
+def test_operator_cpu_benchmark_cli_no_customer_prompt_or_synthetic_positive(monkeypatch,tmp_path):
+    import subprocess
+    import sys
+    from pathlib import Path
+    cli=Path(__file__).resolve().parents[1]/"test-fixtures/retailer-voice/benchmark-pinned-kokoro-cpu.py"
+    assert cli.is_file()
+    relative=subprocess.run([sys.executable,str(cli),"--cache-dir","relative"],
+                            capture_output=True,text=True,timeout=10)
+    assert relative.returncode==2
+    assert relative.stdout==""
+    assert "absolute" in relative.stderr
+    monkeypatch.delenv("RETAIL_FEATURE2_KOKORO_CPU_ENABLED",raising=False)
+    offline=subprocess.run([sys.executable,str(cli),"--cache-dir",str(tmp_path)],
+                           capture_output=True,text=True,timeout=10,
+                           env={k:v for k,v in __import__("os").environ.items()
+                                if k!="RETAIL_FEATURE2_KOKORO_CPU_ENABLED"})
+    assert offline.returncode==2
+    assert offline.stdout==""
+    assert "no positive proof" in offline.stderr
