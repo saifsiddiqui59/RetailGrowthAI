@@ -9,6 +9,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {verifyPrivateVideo,resolveApprovedLocalVideo} from './media_preflight.mjs';
 import {normalizeWhisperx} from './transcript_adapter.mjs';
@@ -85,7 +86,7 @@ export function transcribePrivateVideoWithFasterWhisperCPU({
       audioStat.size>44&&audioStat.size<32*1024*1024,
       'Malformed or oversized original speech audio');
     const script=trustedFile(
-      path.join(path.dirname(new URL(import.meta.url).pathname),
+      path.join(path.dirname(fileURLToPath(import.meta.url)),
         'faster_whisper_cpu.py'),'repository ASR source');
     spawnChecked(binary,[script,'--wav',wav,
       '--model-dir',model,'--model-manifest',manifest,
