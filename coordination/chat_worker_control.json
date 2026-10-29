@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "purpose": "ChatGPT task-control instructions, not a background coding executor or a GitHub Actions trigger",
+  "active_features": [
+    "2",
+    "3",
+    "4",
+    "5",
+    "7"
+  ],
+  "read_at_start_of_every_chat_execution": [
+    "AGENTS.md",
+    "docs/CHAT_TASK_CONTROL.md",
+    "docs/FEATURE_CHAT_OPERATIONS.md",
+    "coordination/feature_tasks.json",
+    "coordination/task_progress.json",
+    "coordination/shared_feature_references.json",
+    "coordination/dependencies.json",
+    "coordination/execution_policy.json",
+    "docs/PROJECT_STATE.md",
+    "docs/NEXT_TASK.md",
+    "docs/DECISIONS.md",
+    "docs/WORK_LOG.md"
+  ],
+  "entrypoint_instruction": "You are the coding worker for the requested feature in THIS chat execution. Before answering, read the control files and current GitHub evidence. Select and actually attempt the next eligible owned pending task. Do not respond with a count before attempting feasible development work.",
+  "on_task_resolution_instruction": "Immediately reread live task ownership, dependency, PR/CI evidence and task progress. Then select the next independent eligible pending task and continue work within this same execution. Repeat after DONE, BLOCKED, FAILED or DEFERRED, including while unrelated CI is pending. Do not request another user 'continue' message between tasks.",
+  "end_of_execution_instruction": "Stop only if no safe eligible tasks remain or the current chat/tool execution reaches its limit. At the next user or scheduled trigger reread the control table and resume. Do not claim the chat runs continuously between triggers.",
+  "planning": {
+    "preferred_independent_tasks_per_batch": 10,
+    "maximum_global_simultaneous_claims": 10,
+    "requires_atomic_global_claims_for_parallel_execution": true,
+    "requires_distinct_nonoverlapping_owned_branches_and_worktrees": true,
+    "without_atomic_claim_store": "Do not claim concurrent execution or reserve ten tasks; process independent eligible items sequentially or as a nonconflicting coding batch, one actual task at a time.",
+    "existing_scheduler_candidates_are_not_active_claims": true
+  },
+  "pick_next_task": {
+    "registry": "coordination/feature_tasks.json",
+    "reviewed_status_events": "coordination/task_progress.json",
+    "dependency_registry": "coordination/dependencies.json",
+    "cross_feature_reference_registry": "coordination/shared_feature_references.json",
+    "verify_branch_pr_and_exact_head_ci": true,
+    "skip_source_complete_and_verified_integrated": true,
+    "skip_other_owner_and_conflicting_active_work": true,
+    "skip_external_approval_gates_but_continue_unrelated_items": true,
+    "never_assume_source_snapshot_means_verified_done": true
+  },
+  "repair": {
+    "first_pass_total_attempts": 3,
+    "deferred_second_pass_additional_attempts": 2,
+    "maximum_total_safe_attempts": 5,
+    "diagnose_and_fix_before_retry": true,
+    "unsafe_errors_never_auto_retry": [
+      "unknown_billing_ack",
+      "paid_provider_submission",
+      "non_idempotent_write",
+      "approval_missing",
+      "tenant_security_denial",
+      "license_denied",
+      "unknown_classification"
+    ]
+  },
+  "evidence": {
+    "task_acceptance_required": true,
+    "source_tests_do_not_equal_integrated_done": true,
+    "integrated_done_requires_reviewed_main_merge_and_fresh_four_job_ci": true,
+    "update_owned_handoff_and_propose_reviewed_task_progress_event": true,
+    "canonical_docs_and_main_merges_coordinator_owned": true,
+    "do_not_fabricate_claims_test_results_or_completion_counts": true
+  },
+  "safety": {
+    "GPU_off": true,
+    "paid_models_off_by_default": true,
+    "no_prod_or_unapproved_hosted_migrations": true,
+    "do_not_modify_WineShopPOS": true,
+    "no_unrequested_samples": true
+  },
+  "user_output": "After finishing task work, respond with one line only: Feature #N: X/Y completed, where X/Y comes from verified centralized status. If unavailable, respond only: Feature #N: completion count not verified. Do not include progress narration or task lists unless requested. Preserve internal logs and evidence in GitHub.",
+  "suppress_interim_user_messages": true,
+  "report_only_after_attempting_work": true
+}

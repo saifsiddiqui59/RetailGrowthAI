@@ -99,6 +99,16 @@
     "never_merge_failing_required_ci": true,
     "do_not_promote_ledger_snapshot_to_verified_task_state_without_evidence": true
   },
+  "chat_worker_control": {
+    "path": "coordination/chat_worker_control.json",
+    "read_on_each_chat_execution": true,
+    "continue_after_each_task_within_current_execution": true,
+    "prefer_up_to_ten_independent_tasks_per_batch": true,
+    "maximum_parallel_claims_global": 10,
+    "parallel_requires_atomic_claims": true,
+    "no_continuous_chat_between_triggers": true,
+    "do_not_replace_advisory_scheduler_with_fake_executor": true
+  },
   "scheduler": {
     "mode": "advisory_until_authorized_executor_connected",
     "cron": "17 * * * *",

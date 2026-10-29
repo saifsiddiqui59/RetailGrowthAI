@@ -1346,3 +1346,9 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 2. Verify new task-progress acceptance contract rejects fake DONE, requires merged PR, coordinator-reviewed evidence and four successful main CI jobs; the live coordinator report must produce `task-status.json/.md`, not mark 159 tasks done.
 3. For DEV test logins, operator must supply trusted Supabase **Auth Admin** access and two unique strong secrets to run safe script, then verify signed login and separate role/RLS assignment. No direct auth.users SQL, approval-account password change, or automated approval. If unsupported, leave two accounts BLOCKED and do not assert hosted UI success.
 4. Continue independent source and Playwright mock tests without generating review samples during owner absence. No paid GPU/FLUX/Wan or AI coding calls. GPT-4.1 Mini optional one-off test only after metered hard cap. Merge after full exact-head and postmerge CI.
+
+
+## 2026-10-29 — Chat backlog pickup control next steps
+- Review coordinator PR from `chore/chat-backlog-pickup-control-20261029` for `coordination/chat_worker_control.json`, `docs/CHAT_TASK_CONTROL.md` and startup instructions on each feature chat.
+- Verify exact-head mandatory CI, have coordinator merge only after checks, then verify fresh main 4/4. This is a chat instruction/control-manager change; **not** a new background coding executor.
+- On every subsequent ChatGPT feature trigger, read the control file and immediately attempt the next safe independent owned task; after finishing/defer/block, pick another within the same run. Without atomic claim backend, process sequentially; never claim ten active parallel tasks merely from the advisory schedule. Retain cost and safety approvals.

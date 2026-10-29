@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "chat_execution_control": "coordination/chat_worker_control.json",
   "generated_from_verified_sources": "2026-10-29",
   "description": "All 159 explicitly numbered active feature tasks, preserving owner ledger evidence without falsely treating source completion as production/integrated DONE. Additional 16 typed handoffs remain in coordination/dependencies.json.",
   "source_ledgers": [
