@@ -91,7 +91,7 @@ export default function LocalVoicePanel({
   if(enabled!==true||typeof callback!=='function'){
    setError('Signed local Kokoro speech worker not connected');return
   }
-  if(typeof sourceScript!=='string'||sourceScript.length===0||sourceScript.length>1800){
+  if(typeof sourceScript!=='string'||sourceScript.length===0||sourceScript.length>1400){
    setError('Reviewed script unavailable');return
   }
   let request
