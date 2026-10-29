@@ -300,3 +300,101 @@ def test_cpu_budget_requires_current_exact_plan_before_quota_and_reservation():
     with pytest.raises(LocalVoiceJobDenied,match="revoked"):
         run()
     assert calls==[]
+
+
+from ai_agents.feature2_local_voice_workflow import read_registered_private_original_wav
+
+def original_wav_read_case(*, tamper=None, auth=None, blob=None, metadata=None):
+    base={
+      "schema":"retailgrowth.feature2-to-feature4-original-voice.v1",
+      "shop_id":SHOP,"campaign_id":CAMP,"audio_asset_id":AID,
+      "creative_plan_sha256":"a"*64,
+      "original_script_sha256":sha256(
+          b"Diwali kurti and festive fashion").hexdigest(),
+      "original_audio_sha256":WAV_SHA,
+      "provider":"kokoro-onnx","mime_type":"audio/wav",
+      "duration_seconds":1.0,"private":True,"can_publish":False,
+      "review_state":"PENDING_HUMAN_LISTEN_AND_RIGHTS",
+      "revoked_at":None,"local_inference_evidence":True,
+    }
+    if metadata:base.update(metadata)
+    calls=[];read_count=[]
+    def editor(*args):
+        calls.append(args)
+        return True if auth is None else auth(len(calls))
+    def registered(*args):
+        read_count.append(args)
+        fresh=dict(base)
+        if tamper is not None and len(read_count)>=2:
+            fresh.update(tamper)
+        return fresh
+    def run(**changes):
+        kwargs={
+          "shop_id":SHOP,"campaign_id":CAMP,
+          "source_plan":plan(),"audio_asset_id":AID,
+          "requested_audio_sha256":WAV_SHA,
+          "authorize_current_editor":editor,
+          "read_current_plan":lambda *a:plan(),
+          "read_registered_private_asset":registered,
+          "read_private_blob":lambda *a:wav() if blob is None else blob,
+        }
+        kwargs.update(changes)
+        return read_registered_private_original_wav(**kwargs)
+    return run,calls,read_count
+
+def test_private_original_wav_read_rechecks_tenant_sha_and_never_grants_rights():
+    run,auth,reads=original_wav_read_case()
+    result=run()
+    assert result["audio_bytes"]==wav()
+    assert result["original_audio_sha256"]==WAV_SHA
+    assert result["asset_id"]==AID and result["mime_type"]=="audio/wav"
+    assert result["private"] is True and result["human_listen_required"]
+    assert result["can_publish"] is False
+    assert result["commercial_rights_not_certified"] is True
+    assert len(auth)==2 and len(reads)==2
+    assert "signed_url" not in result and "storage_key" not in result
+
+@pytest.mark.parametrize("changed",[
+    {"shop_id":"55555555-5555-4555-8555-555555555555"},
+    {"campaign_id":"55555555-5555-4555-8555-555555555555"},
+    {"audio_asset_id":"55555555-5555-4555-8555-555555555555"},
+    {"creative_plan_sha256":"f"*64},
+    {"original_script_sha256":"0"*64},
+    {"original_audio_sha256":"f"*64},
+    {"provider":"azure-speech"},{"mime_type":"audio/mpeg"},
+    {"private":False},{"can_publish":True},
+    {"review_state":"APPROVED_FOR_PUBLISH"},{"revoked_at":"2026-10-29"},
+    {"local_inference_evidence":False},
+    {"duration_seconds":10.0},
+])
+def test_private_wav_read_denies_foreign_revoked_or_fabricated_media(changed):
+    run,auth,reads=original_wav_read_case(metadata=changed)
+    with pytest.raises(LocalVoiceJobDenied):
+        run()
+    assert len(reads)==1
+
+def test_private_wav_read_rechecks_current_grant_after_bytes_have_been_loaded():
+    run,auth,reads=original_wav_read_case(tamper={"revoked_at":"2026-10-29"})
+    with pytest.raises(LocalVoiceJobDenied,match="revoked"):
+        run()
+    assert len(reads)==2
+    run,auth,reads=original_wav_read_case(auth=lambda n:n==1)
+    with pytest.raises(LocalVoiceJobDenied,match="revoked"):
+        run()
+    assert len(auth)==2
+
+@pytest.mark.parametrize("bad",[
+    b"ID3"+b"not-wav"*60,
+    b"RIFF"+b"\x00"*200,
+    b"",
+])
+def test_private_wav_read_rejects_spoofed_or_missing_original_bytes(bad):
+    run,_,_=original_wav_read_case(blob=bad)
+    with pytest.raises(LocalVoiceJobDenied):
+        run()
+
+def test_private_wav_requires_exact_requested_original_digest():
+    run,_,reads=original_wav_read_case()
+    with pytest.raises(LocalVoiceJobDenied):
+        run(requested_audio_sha256="f"*64)
+    assert len(reads)==1
