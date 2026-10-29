@@ -398,3 +398,23 @@ def test_private_wav_requires_exact_requested_original_digest():
     with pytest.raises(LocalVoiceJobDenied):
         run(requested_audio_sha256="f"*64)
     assert len(reads)==1
+
+
+@pytest.mark.parametrize("period,when", [
+    ("2026-09", CPU_NOW),
+    ("2026-11", CPU_NOW),
+    ("2026-10", 1793491200000),  # 2026-11-01T00:00:00Z
+])
+def test_cpu_budget_denies_stale_or_future_month_before_atomic_reservation(period, when):
+    policy=cpu_policy()
+    policy["period_id"]=period
+    run,calls=budget_case(policy=policy)
+    with pytest.raises(LocalVoiceJobDenied,match="budget policy"):
+        run(now_ms=when)
+    assert calls==[]
+
+def test_cpu_budget_rejects_unbounded_future_clock_before_quota_lookup():
+    run,calls=budget_case()
+    with pytest.raises(LocalVoiceJobDenied,match="scope"):
+        run(now_ms=9_999_999_999_999)
+    assert calls==[]

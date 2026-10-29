@@ -258,9 +258,10 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
     This function validates the returned receipt, not database durability.
     """
     import json
+    from datetime import datetime, timezone
     from .feature2_kokoro_local import SUPPORTED_VOICES,SPEEDS
     if (not all(_uuid(v) for v in (shop_id,campaign_id,job_key)) or
-        type(now_ms) is not int or now_ms<1_700_000_000_000 or
+        type(now_ms) is not int or not 1_700_000_000_000<=now_ms<4_102_444_800_000 or
         type(voice_id) is not str or SUPPORTED_VOICES.get(voice_id)!=lang or
         type(speed) is not str or speed not in SPEEDS or
         not all(callable(x) for x in (
@@ -300,6 +301,8 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
         type(quota.get("period_id")) is not str or
         not __import__("re").fullmatch(r"\d{4}-(?:0[1-9]|1[0-2])",
                                        quota["period_id"]) or
+        quota["period_id"]!=datetime.fromtimestamp(
+            now_ms/1000,timezone.utc).strftime("%Y-%m") or
         quota.get("policy_state")!="ACTIVE"):
         raise LocalVoiceJobDenied("Signed CPU budget policy invalid")
     reserved=quota["per_job_reserved_cpu_ms"]

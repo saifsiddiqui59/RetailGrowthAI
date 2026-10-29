@@ -23,7 +23,9 @@ FORMATS = {
 LANGUAGES = {"en-IN": "English (India)", "hi-IN": "Hindi", "mr-IN": "Marathi"}
 UNVERIFIED_CLAIM = re.compile(
     r"(?i)(?:\b\d+(?:\.\d+)?\s*%\s*(?:off|discount)|"
-    r"\b(?:in stock|limited stock|free delivery|guaranteed|certified|licensed)\b|"
+    r"\b(?:in stock|limited stock|free delivery|free shipping|"\
+    r"same-day delivery|cash on delivery|bogo|buy\s+(?:one|1)\s+get\s+(?:one|1)\s+free|"\
+    r"guaranteed|certified|licensed)\b|"
     r"(?:₹|rs\.?\s*)\s*\d+|\b(?:at|address:)\s+\d{1,5}\s+[a-z]+\s+(?:road|street))"
 )
 UNSAFE_INPUT = re.compile(

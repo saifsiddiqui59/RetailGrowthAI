@@ -339,3 +339,34 @@ def test_signed_marathi_rss_snapshot_has_unicode_relevance_without_viral_claim()
     assert out["candidates"][0]["relevance_points"]>=20
     assert out["source_is_real_time_trending_proof"] is False
     assert out["can_publish"] is False
+
+
+@pytest.mark.parametrize("xml,reason", [
+    (
+        b'<rss version="2.0"><channel>' + b'<x>'*25 + b'</x>'*25 +
+        b'</channel></rss>',
+        "depth",
+    ),
+    (
+        b'<rss version="2.0"><channel>' + b'<x/>'*520 +
+        b'</channel></rss>',
+        "element",
+    ),
+])
+def test_signed_rss_xml_rejects_nested_or_high_cardinality_payload(xml,reason):
+    with pytest.raises(EditorialBasisRejected,match="depth or element"):
+        rank_xml(xml)
+
+@pytest.mark.parametrize("unapproved",[
+    "Enjoy free shipping across Nagpur",
+    "Cash on delivery available today",
+    "Same-day delivery for every kurti",
+    "Buy one get one free now",
+    "BOGO on all selected designs",
+])
+def test_delivery_and_bogo_claims_are_reviewer_flags_without_source_approval(unapproved):
+    report=inspect_retailer_copy_claims(
+        verified_context=copy_context(),
+        copy=candidate_copy(caption=unapproved))
+    assert "UNVERIFIED_URGENCY_OR_TREND" in report["issues"]
+    assert report["can_publish"] is False

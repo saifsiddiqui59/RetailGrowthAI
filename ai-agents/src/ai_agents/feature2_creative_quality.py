@@ -592,7 +592,7 @@ import re
 
 _CLAIM_PERCENT = re.compile(r"(?<!\d)\d{1,3}\s*(?:%|percent|per[ -]?cent)\s*(?:off|discount|sale)?",re.I)
 _CLAIM_PRICE = re.compile(r"(?:₹|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
-_CLAIM_URGENCY = re.compile(r"\b(?:only \d+ left|selling out|last chance|guaranteed|best in india|number one|no\.?1|viral|trending now|everyone is buying)\b",re.I)
+_CLAIM_URGENCY = re.compile(r"\b(?:only \d+ left|selling out|last chance|guaranteed|best in india|number one|no\.?1|viral|trending now|everyone is buying|free shipping|free delivery|same-day delivery|cash on delivery|bogo|buy\s+(?:one|1)\s+get\s+(?:one|1)\s+free)\b",re.I)
 _CLAIM_WIDE = re.compile(r"\b(?:everything|all products|storewide|entire store|every item)\b",re.I)
 _CLAIM_MATERIAL = re.compile(r"\b(?:100% pure cotton|genuine silk|authentic gold|organic cotton)\b",re.I)
 
@@ -759,7 +759,7 @@ def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
     """
     from email.utils import parsedate_to_datetime
     from xml.etree import ElementTree
-    from datetime import timedelta
+    from io import BytesIO
     if (type(verified_context) is not dict or
         verified_context.get("server_verified") is not True or
         verified_context.get("authenticated_owner_or_editor") is not True or
@@ -785,7 +785,16 @@ def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
     if not active():
         raise EditorialBasisRejected("Signed RSS source authorization revoked")
     try:
-        root=ElementTree.fromstring(raw_xml)
+        reader=ElementTree.iterparse(BytesIO(raw_xml),events=("start","end"))
+        depth=0;elements=0
+        for event,_ in reader:
+            if event=="start":
+                depth+=1;elements+=1
+                if depth>16 or elements>500:
+                    raise EditorialBasisRejected("RSS source depth or element budget exceeded")
+            else:
+                depth-=1
+        root=reader.root
     except ElementTree.ParseError as exc:
         raise EditorialBasisRejected("Malformed bounded RSS2 source") from exc
     if root.tag!="rss" or root.get("version") not in ("2.0","2") or \
