@@ -221,7 +221,7 @@ def pending_private_wan_receipt_for_feature4(*, package, inspection, storage_rec
         },
         "review_status": "PENDING_INDEPENDENT_HUMAN_VISUAL_REVIEW",
         "review_decision": "NOT_APPROVED",
-        "revoked": False,
+        "revocation_status": "UNVERIFIED_RECHECK_CURRENT_RIGHTS",
         "requires_fresh_rights_and_revocation_recheck": True,
         "genuine_wan_origin_proven": False,
         "approved_for_feature4": False,
