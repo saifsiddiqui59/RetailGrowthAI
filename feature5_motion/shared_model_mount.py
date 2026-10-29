@@ -35,6 +35,45 @@ class PreflightError(ValueError):
     pass
 
 
+MAX_PRIVATE_MANIFEST_BYTES = 64 * 1024
+
+
+def _reject_duplicate_manifest_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate private model manifest field")
+        result[key] = value
+    return result
+
+
+def read_private_manifest(path):
+    """Read only a small, unambiguous private inventory, never model bytes.
+
+    A completion manifest is NOT an independent provenance signature. The
+    existing hard-coded six-file hash and revision validation still applies.
+    """
+    item = Path(path)
+    if item.is_symlink() or not item.is_file():
+        raise PreflightError("Private existing non-symlinked manifest required")
+    try:
+        with item.open("rb") as handle:
+            data = handle.read(MAX_PRIVATE_MANIFEST_BYTES + 1)
+        if not 0 < len(data) <= MAX_PRIVATE_MANIFEST_BYTES:
+            raise ValueError("Missing or oversized model manifest")
+        manifest = json.loads(
+            data.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_manifest_keys,
+            parse_constant=lambda _: (_ for _ in ()).throw(
+                ValueError("Non-finite model manifest field")),
+        )
+        if type(manifest) is not dict:
+            raise ValueError("Private model manifest must be an object")
+    except (OSError, UnicodeError, ValueError, RecursionError) as exc:
+        raise PreflightError("Malformed or ambiguous private model manifest") from exc
+    return manifest
+
+
 def validate_manifest(obj):
     """Validate independently obtained PRIVATE manifest against Oct28 job evidence."""
     if not isinstance(obj, dict) or obj.get("gpu_started") is not False:
@@ -127,8 +166,8 @@ def main(argv=None):
     p.add_argument("--format", choices=["plan", "yaml"], default="plan")
     args = p.parse_args(argv)
     if args.manifest:
-        with open(args.manifest, encoding="utf8") as f:
-            print("Manifest revisions validated:", json.dumps(validate_manifest(json.load(f)), sort_keys=True))
+        print("Manifest revisions validated:", json.dumps(
+            validate_manifest(read_private_manifest(args.manifest)), sort_keys=True))
     if args.mounted_root:
         check_mounted_files(args.mounted_root)
         print("Six mounted model paths and byte counts pass STAT-only check (not SHA rehash)")
