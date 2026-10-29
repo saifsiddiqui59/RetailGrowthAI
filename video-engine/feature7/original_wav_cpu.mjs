@@ -222,7 +222,7 @@ export function transcribeFeature2OriginalWavCPU({
     need(decoded.version==='feature7_faster_whisper_cpu_transcript_v1'&&
       decoded.engine==='SYSTRAN/faster-whisper'&&
       decoded.model_project==='Systran/faster-whisper-small'&&
-      /^[a-f0-9]{40}$/.test(decoded.model_revision??'')&&
+      decoded.model_revision==='536b0662742c02347bc0e980a01041f333bce120'&&
       validSha(decoded.model_bin_sha256)&&
       decoded.word_timestamps_from_actual_model===true&&
       decoded.word_accuracy_benchmarked===false&&
