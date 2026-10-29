@@ -290,6 +290,16 @@ jobs:
               psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f "$source"
             fi
           done
+          # Test the not-yet-released trace schema only inside disposable local Postgres.
+          # Do NOT add its candidate SQL to canonical migrations or execute against DEV.
+          if [ -f tests/security/feature_test_trace_negative.sql ]; then
+            psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f tests/security/feature_test_trace_negative.sql
+          fi
+          # The backend-authoritative ledger is a second independently staged
+          # release candidate, checked only on disposable Postgres.
+          if [ -f tests/security/feature_worker_trace_negative.sql ]; then
+            psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f tests/security/feature_worker_trace_negative.sql
+          fi
       - name: Verify concurrent Reel intents in two real SQL sessions (disposable only)
         shell: bash
         env:

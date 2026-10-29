@@ -28,8 +28,15 @@ def test_scope_has_only_fixed_failed_canary_and_postrollback_windows():
             assert "rgai-dev-functions-d4e5ddbd" in text
             assert "TimeGenerated between" in text
             assert "summarize events=count()" in text
-            assert "take 80" in text
-            assert "project " not in text
+            assert ("take 25" if label in ("host_timeline", "request_status_timeline", "startup_401_link") else "take 80") in text
+            # Join must project only timestamp + transient host-instance key;
+            # never project the original raw log message or URL to output.
+            if label == "startup_401_link":
+                assert text.count("| project TimeGenerated, instance") == 1
+                assert "| project Message" not in text
+                assert "| project Url" not in text
+            else:
+                assert "project " not in text
             assert "raw" not in text.lower()
             if label != "activity":
                 assert "AppRoleName" in text
@@ -74,6 +81,91 @@ def test_sanitization_never_exposes_raw_instance_or_log_message():
     assert "secret" not in repr(sanitized) and "private" not in repr(sanitized)
 
 
+def test_kusto_aggregate_counts_accept_bounded_decimal_strings():
+    rows = [
+        {"bucket": "2026-10-28T19:40:00Z", "events": "17",
+         "category": "worker_start", "instance": "same-host"},
+        {"bucket": "2026-10-28T19:41:00Z", "events": 2.0,
+         "category": "grpc_pending_timeout"},
+        {"bucket": "2026-10-28T19:42:00Z", "events": "1e5",
+         "category": "worker_startstream"},
+        {"bucket": "2026-10-28T19:43:00Z", "events": "90000000000000",
+         "category": "rpc_exception"},
+        {"bucket": "2026-10-28T19:44:00Z", "events": False,
+         "category": "worker_exit"},
+    ]
+    cleaned = module.safe_rows(rows)
+    assert len(cleaned) == 2
+    assert [r["events"] for r in cleaned] == [17, 2]
+    assert all("instance" not in r for r in cleaned)
+
+
+def test_full_window_timeline_separates_routine_initialization_from_timeouts():
+    q = module.queries(*module.WINDOWS[0][1:])["host_timeline"]
+    assert "by bucket=bin(TimeGenerated,1m)" in q
+    assert "AppRoleInstance" not in q
+    assert 'worker_start=countif(' in q
+    assert 'host_initialization=countif(' in q
+    assert 'grpc_pending_timeout=countif(' in q
+    assert 'worker_exit=countif(' in q
+    assert 'take 25' in q
+    source = module.queries(*module.WINDOWS[0][1:])["traces"]
+    assert '"host_initialization"' in source
+    assert '"host_error"' not in source
+    sample = [
+        {"bucket": "2026-10-28T19:40:00Z", "events": "12",
+         "worker_start": "4", "host_initialization": "3",
+         "grpc_pending_timeout": "0", "worker_exit": 2.0,
+         "Message": "untrusted message with sensitive identifiers"},
+    ]
+    result = module.safe_rows(sample)
+    assert result == [{"bucket": "2026-10-28T19:40:00Z", "events": 12,
+                       "worker_start": 4, "host_initialization": 3,
+                       "grpc_pending_timeout": 0, "worker_exit": 2}]
+    assert module._safe_count("-1") is None
+    assert module._safe_count(True) is None
+
+
+def test_http_scale_group_link_is_only_401_evidence_not_a_503_claim():
+    q = module.queries(*module.WINDOWS[0][1:])
+    request = q["request_status_timeline"]
+    assert 'result=="503"' in request and 'result=="401"' in request
+    assert 'missing_or_zero=countif(' in request
+    assert 'by bucket=bin(TimeGenerated,1m)' in request
+    assert 'url' not in request.lower() and 'jwt' not in request.lower()
+    link = q["startup_401_link"]
+    assert 'let starts = AppTraces' in link
+    assert 'let authenticated = AppRequests' in link
+    assert 'join kind=leftouter authenticated on instance' in link
+    assert 'linked_401=countif(' in link
+    assert 'unlinked=countif(' in link
+    assert 'ResultCode' in link and '"401"' in link
+    assert '"503"' not in link
+    for _, start, end in module.WINDOWS:
+        each_link = module.queries(start, end)["startup_401_link"]
+        assert start in each_link and end in each_link
+        assert "2026-10-27" not in each_link
+
+
+def test_safe_http_and_startup_link_counts_no_sensitive_fields():
+    raw = [
+        {"bucket": "2026-10-28T19:40:00Z", "events": "8",
+         "app_401": "3", "reported_503": "0", "missing_or_zero": "5",
+         "other_5xx": 0, "url": "https://private/api/shop/jwt"},
+        {"bucket": "2026-10-28T19:41:00Z", "events": 4,
+         "linked_401": 2, "unlinked": 2, "instance": "raw-host-worker-guid"},
+    ]
+    out = module.safe_rows(raw)
+    assert out[0] == {"bucket": "2026-10-28T19:40:00Z", "events": 8,
+                      "app_401": 3, "reported_503": 0,
+                      "missing_or_zero": 5, "other_5xx": 0}
+    assert out[1]["linked_401"] == 2
+    assert out[1]["unlinked"] == 2
+    assert "host_hash" in out[1]
+    assert "raw-host-worker-guid" not in repr(out)
+    assert "private" not in repr(out)
+
+
 def test_only_aggregate_read_operations_reachable():
     calls = []
     module.audit_scope = lambda: calls.append("scoped")
@@ -89,7 +181,7 @@ def test_only_aggregate_read_operations_reachable():
     assert module.collect() == 0
     assert calls[0] == "scoped"
     assert len([c for c in calls if isinstance(c, tuple) and c[:3] ==
-                ("monitor", "log-analytics", "query")]) == 10
+                ("monitor", "log-analytics", "query")]) == 16
     assert all(c == "scoped" or c[:3] in (
         ("monitor", "log-analytics", "query"),
         ("monitor", "log-analytics", "workspace"),

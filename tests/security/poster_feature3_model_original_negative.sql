@@ -36,6 +36,50 @@ begin
  end if;
 end $test$;
 select set_config('request.jwt.claim.sub','f3000000-0000-4000-8000-000000000001',true);
+
+-- Real RLS insertion contract (not just fake SQL registration): the current
+-- signed OWNER can create a new immutable canonical model-library PNG. VIEWER,
+-- foreign, wrong-hash paths and generated GPU namespaces must be denied.
+do $storage_rls$
+declare denied boolean;
+begin
+ insert into storage.objects(bucket_id,name,owner_id,metadata)
+ values('retailgrowth-media',
+ 'f3000000-0000-4000-8000-000000000011/model-library/f3000000-0000-4000-8000-000000000032/'||repeat('c',64)||'.png',
+ 'f3000000-0000-4000-8000-000000000001',
+ '{"mimetype":"image/png","size":4096}'::jsonb);
+ denied:=false;
+ begin
+  insert into storage.objects(bucket_id,name,owner_id,metadata)
+  values('retailgrowth-media',
+  'f3000000-0000-4000-8000-000000000011/model-library/f3000000-0000-4000-8000-000000000033/'||repeat('d',64)||'.png',
+  'f3000000-0000-4000-8000-000000000002',
+  '{"mimetype":"image/png","size":4096}'::jsonb);
+ exception when insufficient_privilege then denied:=true;
+ end;
+ if not denied then raise exception 'FAIL: owner forged another model-original Storage owner'; end if;
+ denied:=false;
+ begin
+  insert into storage.objects(bucket_id,name,owner_id,metadata)
+  values('retailgrowth-media',
+  'f3000000-0000-4000-8000-000000000011/model-library/f3000000-0000-4000-8000-000000000034/bad.png',
+  'f3000000-0000-4000-8000-000000000001',
+  '{"mimetype":"image/png","size":4096}'::jsonb);
+ exception when insufficient_privilege then denied:=true;
+ end;
+ if not denied then raise exception 'FAIL: noncanonical model-original SHA accepted'; end if;
+ denied:=false;
+ begin
+  insert into storage.objects(bucket_id,name,owner_id,metadata)
+  values('retailgrowth-media',
+  'f3000000-0000-4000-8000-000000000011/feature3/gpu/f3000000-0000-4000-8000-000000000035/'||repeat('e',64)||'.png',
+  'f3000000-0000-4000-8000-000000000001',
+  '{"mimetype":"image/png","size":4096}'::jsonb);
+ exception when insufficient_privilege then denied:=true;
+ end;
+ if not denied then raise exception 'FAIL: browser uploaded generated GPU output'; end if;
+end $storage_rls$;
+
 do $test$
 declare
  r jsonb;

@@ -22,8 +22,7 @@ async function signedIn(page) {
         checked_at:'2026-10-28T11:00:00Z'
       },
       '/rest/v1/media_assets': [
-        {id: 'a1000000-0000-4000-8000-000000000010', shop_id: SHOP, source:'UPLOAD', license_name: 'owned', mime_type:'image/png',created_at:'2026-10-28T12:00:00Z'},
-        {id: 'a1000000-0000-4000-8000-000000000020', shop_id: 'a1000000-0000-4000-8000-000000000002', source:'UPLOAD', license_name:'owned',mime_type:'image/jpeg',created_at:'2026-10-28T11:59:00Z'}
+        {id: 'a1000000-0000-4000-8000-000000000010', shop_id: SHOP, source:'UPLOAD', license_name: 'owned', mime_type:'image/png',created_at:'2026-10-28T12:00:00Z'}
       ],
     }
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, body: '',
@@ -296,6 +295,33 @@ test('media library filters business-owned records without public blob URLs', as
   await expect(page.locator('a[href*="/storage/v1/object"]')).toHaveCount(0)
 })
 
+test('Media Library rejects mixed-tenant media responses rather than silently filtering',async({page})=>{
+  await signedIn(page)
+  let privateReads=0
+  await page.route(HOST+'/rest/v1/media_assets**',route=>{
+    expect(route.request().headers().authorization).toBe('Bearer offline-test-JWT')
+    const own={id:'a1000000-0000-4000-8000-000000000010',shop_id:SHOP,
+      source:'UPLOAD',license_name:'owned',mime_type:'image/png',
+      created_at:'2026-10-28T12:00:00Z'}
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify([own,{...own,id:'a1000000-0000-4000-8000-000000000011',
+        shop_id:'a1000000-0000-4000-8000-000000000002',
+        created_at:'2026-10-28T11:59:00Z'}])})
+  })
+  await page.route(HOST+'/storage/v1/object/authenticated/**',route=>{
+    privateReads++;return route.abort()
+  })
+  await page.setViewportSize({width:320,height:740})
+  await page.goto('/media-library')
+  await expect(page.getByRole('alert').filter({hasText:'Private media metadata could not be verified'})).toBeVisible()
+  await expect(page.getByRole('region',{name:'Authorized media records'})).toHaveCount(0)
+  await expect(page.getByRole('button',{name:/Preview Image/})).toHaveCount(0)
+  expect(privateReads).toBe(0)
+  await expect.poll(()=>page.evaluate(()=>
+    document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
+})
+
 test('Media Library pages 27 RLS-verified records locally and resets on filters without more calls', async ({page})=>{
   await signedIn(page)
   let mediaReads=0
@@ -309,8 +335,7 @@ test('Media Library pages 27 RLS-verified records locally and resets on filters 
     return route.fulfill({
     status:200,contentType:'application/json',
     headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
-    body:JSON.stringify([...rows,{...rows[0],shop_id:'a1000000-0000-4000-8000-000000000002',
-      created_at:'2026-10-28T11:55:00Z'}])
+    body:JSON.stringify(rows)
   })
   })
   await page.setViewportSize({width:320,height:740})

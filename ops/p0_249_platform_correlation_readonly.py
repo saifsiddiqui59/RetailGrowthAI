@@ -30,11 +30,11 @@ TYPES = (
     "specialization_timeout", "grpc_pending_timeout", "worker_startstream",
     "worker_startup_timeout", "worker_start", "worker_exit",
     "host_start", "rpc_exception", "connection_aborted",
-    "host_error", "other",
+    "host_initialization", "other",
 )
 CATEGORIES = frozenset(TYPES)
 INSTANCE = 'tostring(column_ifexists("AppRoleInstance",""))'
-STATES = frozenset(("requests", "traces", "exceptions", "function_logs", "activity"))
+STATES = frozenset(("requests", "traces", "exceptions", "function_logs", "activity", "host_timeline", "request_status_timeline", "startup_401_link"))
 STATUS = re.compile(r"^[1-5][0-9]{2}$")
 BUCKET = re.compile(r"^2026-10-28T(19|20):[0-5][0-9]:00(?:Z|\+00:00)$")
 
@@ -51,7 +51,7 @@ def classify_expr(*, field: str) -> str:
         ("host startup", "host_start"),
         ("RpcException", "rpc_exception"),
         ("ConnectionAbortedException", "connection_aborted"),
-        ("host initialization", "host_error"),
+        ("host initialization", "host_initialization"),
     )
     return 'case(' + ', '.join(
         f'{field} contains "{needle}", "{label}"' for needle, label in clauses
@@ -82,6 +82,62 @@ def queries(start: str, end: str) -> dict[str, str]:
             + f' | summarize events=count() by {bucket}, category, instance'
             + ' | order by bucket asc | take 80'
         ),
+        # A full-window minute timeline does not group by host instance, so
+        # the first 30 rows cannot conceal later startup/timeout events. Counts
+        # distinguish routine initialization from actual timeout/exit hints.
+        "host_timeline": (
+            prefix("AppTraces")
+            + ' | summarize events=count(), '
+              'worker_start=countif(Message contains "Worker process started"), '
+              'host_initialization=countif(Message contains "host initialization"), '
+              'worker_exit=countif(Message contains "Worker process exited"), '
+              'specialization_timeout=countif(Message contains "SpecializeAsync"), '
+              'grpc_pending_timeout=countif(Message contains "PendingItem.OnTimeout"), '
+              'worker_startstream=countif(Message contains "StartStream"), '
+              'worker_startup_timeout=countif(Message contains "ProcessStartupTimeout"), '
+              'rpc_exception=countif(Message contains "RpcException") '
+              'by bucket=bin(TimeGenerated,1m)'
+            + ' | order by bucket asc | take 25'
+        ),
+        # ResultCode in AppRequests can contain non-HTTP/internal values.
+        # Count classes without outputting raw codes or request paths.
+        # An internal/unclassified request is NOT a client HTTP 503.
+        "request_status_timeline": (
+            prefix("AppRequests")
+            + ' | extend result=tostring(column_ifexists("ResultCode", ""))'
+              ' | summarize events=count(),'
+              ' app_401=countif(result=="401"),'
+              ' reported_503=countif(result=="503"),'
+              ' other_4xx=countif(result startswith "4" and result!="401"),'
+              ' other_5xx=countif(result startswith "5" and result!="503"),'
+              ' missing_or_zero=countif(isempty(result) or result=="0"),'
+              ' other_status=countif(isnotempty(result) and result!="0"'
+              ' and not(result startswith "4") and not(result startswith "5"))'
+              ' by bucket=bin(TimeGenerated,1m)'
+            + ' | order by bucket asc | take 25'
+        ),
+        # A startup trace on an instance that also handled an app-auth 401
+        # shows HTTP handler activity on the SAME logging role instance.
+        # No matching 401 does NOT imply a failed HTTP request; it may be
+        # another Flex trigger scale group or sampled/missing requests.
+        "startup_401_link": (
+            'let starts = ' + prefix("AppTraces")
+            + ' | where Message contains "Worker process started"'
+            + f' | extend instance={INSTANCE}'
+            + ' | where isnotempty(instance)'
+            + ' | project TimeGenerated, instance; '
+            + 'let authenticated = ' + prefix("AppRequests")
+            + ' | where tostring(column_ifexists("ResultCode", "")) == "401"'
+            + f' | extend instance={INSTANCE}'
+            + ' | where isnotempty(instance)'
+            + ' | summarize app_401=count() by instance; '
+            + 'starts | join kind=leftouter authenticated on instance'
+            + ' | summarize events=count(),'
+              ' linked_401=countif(coalesce(app_401,0)>0),'
+              ' unlinked=countif(coalesce(app_401,0)==0)'
+              ' by bucket=bin(TimeGenerated,1m)'
+            + ' | order by bucket asc | take 25'
+        ),
         "exceptions": (
             prefix("AppExceptions") + instance
             + f' | extend category={classify_expr(field=exception_message)}'
@@ -107,14 +163,36 @@ def queries(start: str, end: str) -> dict[str, str]:
     }
 
 
+def _safe_count(value):
+    """Only a small, nonnegative integer; never turn arbitrary log fields into output."""
+    if isinstance(value, str) and value.isascii() and value.isdecimal() and len(value) <= 8:
+        value = int(value)
+    elif type(value) is float and value.is_integer():
+        value = int(value)
+    return value if type(value) is int and 0 <= value <= 10000000 else None
+
+
+COUNT_FIELDS = frozenset((
+    "worker_start", "host_initialization", "worker_exit",
+    "specialization_timeout", "grpc_pending_timeout", "worker_startstream",
+    "worker_startup_timeout", "rpc_exception",
+    "app_401", "reported_503", "other_4xx", "other_5xx",
+    "missing_or_zero", "other_status", "linked_401", "unlinked",
+))
+
+
 def safe_rows(payload) -> list[dict]:
     """Sanitize before reporting; never serialize complete Azure query output."""
     out = []
     for raw in aggregate_records(payload)[:80]:
         row = {}
-        count = raw.get("events")
-        if type(count) is int and 0 <= count <= 10000000:
+        count = _safe_count(raw.get("events"))
+        if count is not None:
             row["events"] = count
+        for key in COUNT_FIELDS:
+            value = _safe_count(raw.get(key))
+            if value is not None:
+                row[key] = value
         when = raw.get("bucket")
         if isinstance(when, str) and BUCKET.fullmatch(when):
             row["bucket"] = when
@@ -146,8 +224,20 @@ def collect() -> int:
             try:
                 result = azure("monitor", "log-analytics", "query",
                                "-w", wid, "--analytics-query", q)
+                raw_rows = aggregate_records(result)
                 rows = safe_rows(result)
                 outcome = "AGGREGATED" if rows else "EMPTY_OR_FILTERED"
+                # Only report schema presence/type of fixed allowlisted fields,
+                # never values/messages or dynamic Kusto column names.
+                if not rows and raw_rows:
+                    sample = raw_rows[0]
+                    known = ("bucket", "events", "status", "category", "instance")
+                    print("P0249_SCHEMA=" + json.dumps({
+                        "window": label, "source": kind,
+                        "total_rows_capped": len(raw_rows),
+                        "field_types": {key: type(sample[key]).__name__
+                                        for key in known if key in sample},
+                    }, sort_keys=True), flush=True)
             except (RuntimeError, ValueError, TypeError, subprocess.TimeoutExpired):
                 rows, outcome = [], "UNAVAILABLE"
             print("P0249_CAUSAL=" + json.dumps({

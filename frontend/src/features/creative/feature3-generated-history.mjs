@@ -1,0 +1,40 @@
+/** Strict tenant-private generated GPU job metadata; never accepts URLs.
+ * Browser GET history can be displayed without generating, charging, signing
+ * a Storage URL, or marking an unreviewed image customer/publish-approved.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+const STATES = new Set(['QUEUED','RUNNING','SUCCEEDED','FAILED'])
+const ROW_KEYS = ['id','shop_id','status']
+const empty = shopId => Object.freeze({
+  shopId, jobs: Object.freeze([]), message: '', busy: false,
+})
+
+export function validateFeature3GeneratedHistory(shopId, jobs) {
+  if (!UUID.test(shopId || '') || !Array.isArray(jobs) || jobs.length > 20)
+    throw Error('Invalid private generated job scope')
+  const unique = new Set()
+  const checked = []
+  for (const row of jobs) {
+    if (!row || typeof row !== 'object' || Array.isArray(row) ||
+        Object.keys(row).length !== ROW_KEYS.length ||
+        ROW_KEYS.some(key => !Object.hasOwn(row,key)) ||
+        row.shop_id !== shopId || !UUID.test(row.id) ||
+        !STATES.has(row.status) || unique.has(row.id)) {
+      throw Error('Untrusted private generated image job row')
+    }
+    unique.add(row.id)
+    checked.push(Object.freeze({id:row.id,shop_id:shopId,status:row.status}))
+  }
+  return Object.freeze(checked)
+}
+
+export function scopedFeature3GeneratedHistory(value, shopId) {
+  if (!UUID.test(shopId || '') || !value || value.shopId !== shopId ||
+      !Array.isArray(value.jobs)) return empty(shopId)
+  try {
+    return Object.freeze({...value,
+      jobs:validateFeature3GeneratedHistory(shopId,value.jobs)})
+  } catch {
+    return empty(shopId)
+  }
+}

@@ -187,3 +187,11 @@
 - Pin each currently opened private preview to the exact current JWT/RLS keyset-visible media identity (`id`, `shop_id`, `source`, `mime_type`, `license_name`, `created_at`). Revalidation denies missing records, changed metadata, foreign shop, unavailable page, or duplicate IDs across loaded pages, and existing revocation/epoch fencing destroys the old object URL and any pending read.
 - New pure-model negatives verify metadata changes and duplicate loaded IDs; mocked 320px Chromium with signed fictional login verifies UPLOAD licence reclassification withdraws the image/download and `fetch(blob:)` fails without a second Storage request. No new provider/route, service key, licence assertion, hosted auth, database, paid GPU, deployment, PROD or WineShopPOS change.
 - This tightens already source-complete Feature #1; CI on exact branch head and coordinator postmerge main still need independent confirmation. It does not solve licensing of STOCK/GENERATED, hosted inbox, social receipts/OAuth or Azure #249.
+
+
+## 2026-10-28 — Close remaining keyset mixed-tenant source defect (#534)
+
+- Final code review found #534's mixed-tenant-response acceptance incomplete even after its earlier six-digit PostgreSQL microsecond ordering fix: `listMediaAssetsKeysetPage` still silently filtered foreign `shop_id` rows and then returned an allegedly RLS-verified page. This is not safe proof of tenant isolation.
+- The scoped user-JWT keyset reader now rejects **the entire response** when *any* row (including the 101st lookahead) belongs to another shop; original 100+1 bounded ordering/cursor semantics remain. No untrusted foreign row is returned or used to advance the page.
+- Existing offline Playwright fixtures were corrected to reflect ordinary RLS-only same-shop responses; an explicit 320px mocked signed-in mixed-tenant negative now verifies an unavailable/error state with no gallery, private preview or Storage byte read. Node negatives cover a single foreign record and foreign row in lookahead/mixed pages.
+- This fixes the **source/offline** gap only. Exact-head CI and postmerge main must pass before marking #534's source defect resolved. This does not replace signed-in hosted tenant RLS evidence, licensing, OAuth, provider receipts or the pending hosted inbox migration.
