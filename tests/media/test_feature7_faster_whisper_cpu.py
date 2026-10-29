@@ -109,6 +109,9 @@ class OfflineFasterWhisperCpuTests(unittest.TestCase):
         self.assertEqual(calls["wav"],str(self.wav))
         self.assertEqual(actual["segments"][0]["words"][1]["word"],"to")
         self.assertTrue(actual["word_timestamps_from_actual_model"])
+        self.assertEqual(actual["verified_input_sha256"],
+                         hashlib.sha256(self.wav.read_bytes()).hexdigest())
+        self.assertIsInstance(actual["actual_decode_wall_seconds"],float)
         self.assertFalse(actual["word_accuracy_benchmarked"])
         self.assertFalse(actual["approved"])
         self.assertEqual(json.loads(self.output.read_text())["engine"],
@@ -167,6 +170,21 @@ class OfflineFasterWhisperCpuTests(unittest.TestCase):
         with patch.dict(sys.modules,{"faster_whisper":types.SimpleNamespace(
             WhisperModel=Empty)}):
             with self.assertRaises(mod.LocalFasterWhisperError):
+                mod.infer_audio(**self.arguments())
+        self.assertFalse(self.output.exists())
+
+    def test_original_audio_mutated_during_actual_decode_denied(self):
+        source=self.wav
+        class MutatingModel:
+            def __init__(self,*args,**kwargs): pass
+            def transcribe(self,*args,**kwargs):
+                source.write_bytes(source.read_bytes()+b"tamper")
+                return iter([Segment([Word("sale",0.5,0.9)])]),types.SimpleNamespace(language="en")
+        with patch.dict(sys.modules,{
+            "faster_whisper":types.SimpleNamespace(WhisperModel=MutatingModel)
+        }):
+            with self.assertRaisesRegex(mod.LocalFasterWhisperError,
+                                        "mutated during CPU inference"):
                 mod.infer_audio(**self.arguments())
         self.assertFalse(self.output.exists())
 
