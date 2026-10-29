@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import re
+import subprocess
 import sys
 import time
 
@@ -64,8 +65,27 @@ def approve_exact_row(page, email: str) -> None:
         raise RuntimeError("No audited UI approval confirmation; stop without retry")
 
 
+def dispatch_owner_approved_dev_canary() -> None:
+    """Optional explicit operator gh dispatch, after ROOT UI is fully ARMED.
+
+    This uses the operator's *existing* GitHub CLI authentication; no access
+    token, test password or Supabase service key is supplied or stored.
+    The GitHub workflow keeps its protected DEV environment and ROOT gate.
+    """
+    try:
+        subprocess.run([
+            "gh", "workflow", "run", "retail-dev-test-accounts-canary-once.yml",
+            "--repo", "saifsiddiqui59/RetailGrowthAI", "--ref", "main",
+            "-f", "approval_code=AUTHORIZED_RETAILGROWTHAI_DEV_ONLY",
+            "-f", "mode=node-poster-reel",
+        ], check=True, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError("Protected DEV workflow dispatch failed; check gh auth and repo access") from exc
+    print("Protected node-poster-reel workflow was intentionally dispatched.", flush=True)
+
+
 def operator_run(page, email: str, password: str, poll_seconds: float = 4,
-                 max_seconds: int = 650) -> None:
+                 max_seconds: int = 650, dispatch: bool = False) -> None:
     page.goto(DEV_ORIGIN + "/platform-admin", wait_until="domcontentloaded", timeout=30_000)
     # Wait for React to mount before deciding whether this is an existing ROOT
     # session or the normal sign-in page (domcontentloaded alone is too early).
@@ -82,6 +102,8 @@ def operator_run(page, email: str, password: str, poll_seconds: float = 4,
     baseline = refresh_pending(page)
     print("ARMED: ROOT authenticated. Start the GitHub node-poster-reel manual DEV canary now.", flush=True)
     print("Previously pending accounts excluded: " + str(len(baseline)), flush=True)
+    if dispatch:
+        dispatch_owner_approved_dev_canary()
     deadline = time.monotonic() + max_seconds
     prefix: str | None = None
     approved: set[str] = set()
@@ -111,6 +133,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="Explicitly permit only fresh synthetic example.invalid [ab] canary UI approvals")
     parser.add_argument("--headless", action="store_true",
                         help="Use headless Chromium; default shows the browser for human oversight")
+    parser.add_argument("--dispatch-dev-canary", action="store_true",
+                        help="Once ROOT UI is armed, intentionally start protected GitHub node-poster-reel via gh CLI")
     args = parser.parse_args(argv)
     if not args.approve_test_only:
         parser.error("Pass --approve-test-only explicitly; this command makes audited ROOT decisions")
@@ -127,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             context = browser.new_context(accept_downloads=False)
             page = context.new_page()
-            operator_run(page, email, password)
+            operator_run(page, email, password, dispatch=args.dispatch_dev_canary)
         finally:
             browser.close()
     return 0
