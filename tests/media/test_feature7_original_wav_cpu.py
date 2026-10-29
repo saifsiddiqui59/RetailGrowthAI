@@ -275,6 +275,19 @@ fs.writeFileSync(output,JSON.stringify({
         self.assertEqual(hashlib.sha256(self.path.read_bytes()).hexdigest(),
                          self.sha)
 
+    def test_wrong_signed_model_revision_denied_even_with_valid_looking_sha(self):
+        # A compromised subprocess claiming a different 40-char revision
+        # must not turn its output into a trusted F7-to-F2 signed packet.
+        modified=self.base/"wrong_model_revision_test_only_asr"
+        original="536b0662742c02347bc0e980a01041f333bce120"
+        src=self.stub.read_text()
+        self.assertIn(original,src)
+        modified.write_text(src.replace(original,"f"*40))
+        modified.chmod(0o700)
+        result=self.call(python_bin=str(modified))
+        self.assertNotEqual(result.returncode,0,result.stdout)
+        self.assertEqual(result.stdout,"")
+
     def test_malformed_wav_truncation_and_duration_denied(self):
         copy=self.private/"bad.wav"
         data=bytearray(self.path.read_bytes())
