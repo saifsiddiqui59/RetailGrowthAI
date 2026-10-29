@@ -126,3 +126,25 @@ editor fork, paid service, GPU, storage, schema or WineShopPOS modifications.
 - Exact original image/poster/video ID, approved copy, promo and CTA are preserved. Extra clip is not allowed to replay an approved 2s scene SFX, cut that SFX short, create >12 scenes, use a foreign/revoked source, or create sub-0.5s scenes. This is **bounded visual-loop duplication**, not a general infinite-duration timeline. The UI button is disabled on immutable Feature2-approved direction and clearly describes the repeated half-length result.
 - `tests/frontend/timeline-studio-adoption.test.mjs` now tests source in-point restart, exact 30s duration, retained media/promo/rights, one-off SFX and denials. `frontend/e2e/timeline-studio.spec.mjs` tests mobile duplicate → undo → redo → authorized v2 draft submission, time and shop identity, and approval-locked control. Real HyperFrames export consumes this unchanged `rg_video_v2` contract; a separate real encoded duplicate-specific 15/30s media sample is **not claimed**.
 - Commits `cd1f6dec`, `2d5ab41b`, `eff0054a`, `41c171c6`. Exact-head branch/PR CI must be checked. Remaining independent advanced multi-track mix, general effects, real photoreal garment-worn model, narration semantics and hosted deployment stay open; PR #322 remains draft, no GPU/paid resources, PROD/WineShopPOS untouched.
+
+## F4-67 — focused keyboard frame jog on the actual editor tracks (2026-10-29)
+
+The existing imported OpenReel `FrameTimecodeInput` already supported
+Up/Down one-frame stepping while **typing in that input**, but the video-track
+surface could not receive a keyboard focus or step its global playhead. The
+adopted `TimelineStudioSurface.jsx` now gives the tracks a separate focusable
+named region with `aria-keyshortcuts`; left/right step exactly 1 output frame,
+Shift+left/right 10, with the existing 24/30 fps clamp and actual
+`seekToFrame` scene-selection calculation. Source timing, asset grants,
+voice/music, approved promo, submitted draft and history are NOT mutated.
+An immutable Feature2-approved direction still permits this preview-only
+navigation; it does not grant edit permission.
+
+Text/timecode fields, native buttons/links, audio controls and modified
+Ctrl/Meta/Alt keys retain their native behavior. Mobile Playwright tests seek
+00:00:00:01 -> 00:00:00:11 -> 00:00:00:10 -> 00:00:00:09, assert the same 3
+render scenes/15s/shop after submit, and verify approved direction's disabled
+edit controls despite working seek. Commits `4f8c260f`, `ca281aac`,
+`a552dfa8`. Browser/source CI at exact head required before claiming
+verified. This is not a true frame-accurate decoded preview or mobile human
+usability approval; real hosted signed-media preview remains a separate gate.
