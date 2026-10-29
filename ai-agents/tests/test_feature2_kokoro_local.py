@@ -76,3 +76,87 @@ def test_operator_asset_provisioner_has_pinned_cache_and_safe_cli():
         assert subprocess.run(['bash','-n',str(script)],capture_output=True).returncode==0
         invalid=subprocess.run(['bash',str(script),'relative-path'],capture_output=True,timeout=5)
         assert invalid.returncode==2
+
+
+def test_cpu_slot_is_acquired_before_any_140mb_weight_hash_or_model_load(monkeypatch):
+    # A busy worker must reject before hashing large ONNX weights or loading
+    # another runtime. This is an injected gate, NOT genuine neural inference.
+    from ai_agents import feature2_kokoro_local as local
+    events=[]
+    class Busy:
+        def acquire(self,timeout):
+            events.append(("slot",timeout))
+            return False
+        def release(self):
+            raise AssertionError("busy slot was never held")
+    def never(*args,**kwargs):
+        raise AssertionError("Expensive model/file IO occurred before CPU lease")
+    monkeypatch.setattr(local,"_cpu_gate",Busy())
+    monkeypatch.setattr(local,"verify_cache",never)
+    monkeypatch.setattr(local,"_session",never)
+    monkeypatch.setenv("RETAIL_FEATURE2_KOKORO_CPU_ENABLED","true")
+    with pytest.raises(LocalSpeechUnavailable,match="busy"):
+        synthesize_local(text="Diwali preview",cache_dir="/operator-pinned-cache")
+    assert events==[("slot",5)]
+
+def test_busy_slot_keeps_original_model_output_unavailable(monkeypatch):
+    from ai_agents import feature2_kokoro_local as local
+    class Busy:
+        def acquire(self,timeout):return False
+        def release(self):raise AssertionError("Never acquired")
+    monkeypatch.setattr(local,"_cpu_gate",Busy())
+    with pytest.raises(LocalSpeechUnavailable,match="busy"):
+        synthesize_local(text="Kurtis for Diwali",engine=SimulatedEngine(),
+                         trusted_for_tests=True)
+
+def test_cpu_slot_released_after_failed_pcm_conversion(monkeypatch):
+    from ai_agents import feature2_kokoro_local as local
+    events=[]
+    class Gate:
+        def acquire(self,timeout):events.append("acquire");return True
+        def release(self):events.append("release")
+    class WrongEngine:
+        def create(self,*args,**kwargs):return [], 24000
+    monkeypatch.setattr(local,"_cpu_gate",Gate())
+    with pytest.raises(LocalSpeechUnavailable):
+        synthesize_local(text="Diwali",engine=WrongEngine(),trusted_for_tests=True)
+    assert events==["acquire","release"]
+
+def test_worker_session_cache_is_bounded_to_one_immutable_operator_root(monkeypatch,tmp_path):
+    from ai_agents import feature2_kokoro_local as local
+    local._loaded.clear()
+    loads=[]
+    def fake_load(path):
+        loads.append(str(path))
+        return object()
+    monkeypatch.setattr(local,"_load_kokoro",fake_load)
+    try:
+        first=local._session(tmp_path/"first")
+        assert local._session(tmp_path/"first") is first
+        local._session(tmp_path/"second")
+        assert len(local._loaded)==1
+        assert len(loads)==2
+        assert next(iter(local._loaded))[0].endswith("second")
+    finally:
+        local._loaded.clear()
+
+def test_cpu_onnx_provider_list_must_be_exclusively_cpu(monkeypatch,tmp_path):
+    from ai_agents import feature2_kokoro_local as local
+    import sys
+    from types import SimpleNamespace
+    old=__import__("os").environ.get("ONNX_PROVIDER")
+    class Unapproved:
+        def __init__(self,*args):self.sess=self
+        def get_providers(self):return ["CUDAExecutionProvider","CPUExecutionProvider"]
+    monkeypatch.setitem(sys.modules,"kokoro_onnx",SimpleNamespace(Kokoro=Unapproved))
+    monkeypatch.delenv("ONNX_PROVIDER",raising=False)
+    with pytest.raises(LocalSpeechUnavailable,match="CPU-only"):
+        local._load_kokoro(tmp_path)
+    assert "ONNX_PROVIDER" not in __import__("os").environ
+    class OnlyCPU(Unapproved):
+        def get_providers(self):return ["CPUExecutionProvider"]
+    monkeypatch.setitem(sys.modules,"kokoro_onnx",SimpleNamespace(Kokoro=OnlyCPU))
+    assert local._load_kokoro(tmp_path).sess.get_providers()==["CPUExecutionProvider"]
+    assert "ONNX_PROVIDER" not in __import__("os").environ
+    if old is not None:
+        monkeypatch.setenv("ONNX_PROVIDER",old)
