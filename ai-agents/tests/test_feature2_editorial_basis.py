@@ -427,7 +427,7 @@ def test_approved_offer_percentage_and_sku_scope_must_be_consistent(offer_patch)
             copy=candidate_copy(caption="20% off selected kurti styles"))
 
 
-@pytest.mark.parametrize("control", ["\\u200b", "\\u202e", "\\u2066"])
+@pytest.mark.parametrize("control", ["\u200b", "\u202e", "\u2066"])
 def test_rss_headlines_reject_invisible_and_bidi_spoofing(control):
     feeds = sample_feed()
     feeds[0]["headline"] = "Festive kurti " + control + "collection news"
