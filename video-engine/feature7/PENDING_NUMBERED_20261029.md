@@ -69,3 +69,14 @@ completion, not prepared-source or mock tests as live acceptance. If
 an item moves from dependent to executable (e.g. asset delivered), preserve
 its ID and update owner/status rather than renumbering. No GPU/paid providers,
 WineShopPOS, shared coordinator docs or PROD modifications.
+
+
+## 2026-10-29 — Continue independent source work while dependencies remain blocked
+
+- **A new coordinator intake matrix** `video-engine/feature7/DEPENDENCIES_F7_07_23.md` records 17 exact stable `DEP-F7-07` ... `DEP-F7-23` IDs, each with owning feature, required output and measurable acceptance, without changing or renumbering the 23 fixed F7 task IDs.
+- **F7-01**: new conditional original-artifact source-to-`preparePrivateReview` two-scene **test-only** pipeline (`test_feature7_feature3_private_review_actual.py`) uses the authentic F3 9s technical MP4 SHA twice as distinct local scene inputs (two 7.5s trims to fill 15s). Transcript fixture has **zero words**, F7 yields no captions and zero paid/model calls; claims neither inference nor a garment-wearing model, production ownership, final render or approval. Since ordinary PR CI has no original F3 ZIP, **actual pipeline positive is NOT accepted until staged external artifact test succeeds**. Asset ZIP/hash/ffprobe verified independently in session, not as actual model speech.
+- **F7-02**: authentic original ZIP is available to operator and SHA/stream verification already observed; the exact positive CI test remains opt-in using `FEATURE7_F3_ORIGINAL_ARTIFACT_ZIP`, not counted as passed in an ordinary CI run with skip.
+- **F7-04**: incrementally added CPU worker crash / bounded-timeout failure-denial regression (see `test_feature7_original_wav_cpu.py`); this is local source behavior, not production PostgreSQL crash recovery.
+- **F7-06**: reviewed Feature2 separate current `docs/feature2/F7_SIGNED_WER_HANDOFF_20261029.md` and Feature7 `feature4_speech_review_handoff.mjs`; F2 requires actual signed original WAV+human reference, F4 requires real kept-source preview evidence; an advisory/fixture cannot be coerced to publishable. True cross-branch integrated test remains DEP-F7-14/19.
+- **F7-03 and F7-05**: real installed browser/worker wheelhouse evidence still missing; existing fake-DOM and mocked dependency tests remain source evidence only, and no checkpoint/rights license approval is inferred. Continue their source test enhancements independently; don't block other tasks.
+- The feature remains **DRAFT** and F7-owned code/docs only. Shared coordinator docs and `.github/workflows` are intentionally unchanged. Each pending acceptance is preserved under the existing ID.

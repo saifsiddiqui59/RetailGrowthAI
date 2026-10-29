@@ -288,6 +288,27 @@ fs.writeFileSync(output,JSON.stringify({
         self.assertNotEqual(result.returncode,0,result.stdout)
         self.assertEqual(result.stdout,"")
 
+    def test_broken_cpu_subprocess_never_returns_signed_stt(self):
+        broken=self.base/"fail_only_worker"
+        broken.write_text("#!/usr/bin/env node\nprocess.exit(77);\n")
+        broken.chmod(0o700)
+        run=self.call(python_bin=str(broken))
+        self.assertNotEqual(run.returncode,0,run.stdout)
+        self.assertEqual(run.stdout,"")
+        self.assertEqual(hashlib.sha256(self.path.read_bytes()).hexdigest(),self.sha)
+
+    def test_hung_cpu_subprocess_times_out_without_receipt(self):
+        sleeping=self.base/"sleep_only_worker"
+        sleeping.write_text(
+          "#!/usr/bin/env node\nsetTimeout(()=>{},30000);\n")
+        sleeping.chmod(0o700)
+        # 5s is the minimum bounded worker timeout; test must NOT wait the
+        # process's 30s planned runtime or accept unknown future status.
+        run=self.call(python_bin=str(sleeping),timeout_ms=5000)
+        self.assertNotEqual(run.returncode,0,run.stdout)
+        self.assertEqual(run.stdout,"")
+        self.assertEqual(hashlib.sha256(self.path.read_bytes()).hexdigest(),self.sha)
+
     def test_malformed_wav_truncation_and_duration_denied(self):
         copy=self.private/"bad.wav"
         data=bytearray(self.path.read_bytes())
