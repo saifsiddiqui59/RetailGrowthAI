@@ -1,182 +1,239 @@
-"""Actual image bytes plus independently injected rights authority, GPU off."""
+"""Feature3 real-private-pixel GPU OFF proof tests (all network mocked).
+
+Pillow creates genuine image bytes. Trust authority is an explicitly separate
+service-only TEST DOUBLE, never a browser approval. No cloud, claim or billing.
+"""
+import copy
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
 import sys
 import unittest
+from urllib.error import HTTPError
 from uuid import uuid4
 
 from PIL import Image
 
-sys.path.insert(0,str(Path(__file__).resolve().parents[2]/
-                       "azure-functions"/"campaign-api"))
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"azure-functions/campaign-api"))
 from feature3_private_source_proof import (
-    Feature3PrivateSourceProof,Feature3SourceProofDenied,
+    Feature3TrustedPrivateSourceProof,SourceProofDenied,
+    build_verified_gpu_off_preflight,
 )
 
 
+def image_bytes(kind="PNG"):
+    out=BytesIO()
+    Image.new("RGB",(320,400),"#e08943").save(out,format=kind)
+    return out.getvalue()
+
+
 class FakeResponse:
-    def __init__(self,url,data,*,status=200,redirect=False,mime="image/png",
-                 length=None,on_read=None):
-        self.url=url+"/redirect" if redirect else url
-        self.code=status
-        self.data=data
+    def __init__(self,url,payload,*,mime,status,redirect=False,read_hook=None,content_length=None):
+        self.url=url+("/evil" if redirect else "")
+        self.payload=payload
+        self.status=status
+        self.read_hook=read_hook
         self.headers={"Content-Type":mime,
-                      "Content-Length":str(len(data)) if length is None else length}
-        self.on_read=on_read
-    def __enter__(self): return self
-    def __exit__(self,*args): return False
-    def geturl(self): return self.url
-    def getcode(self): return self.code
+                      "Content-Length":str(len(payload)) if content_length is None else content_length}
+    def __enter__(self):return self
+    def __exit__(self,*_):return False
+    def geturl(self):return self.url
+    def getcode(self):return self.status
     def read(self,limit):
-        if self.on_read:self.on_read()
-        return self.data[:limit]
+        if self.read_hook:self.read_hook()
+        return self.payload[:limit]
 
 
-class ProofTests(unittest.TestCase):
+class PrivateSourceProofTests(unittest.TestCase):
     def setUp(self):
         self.shop,self.asset,self.model=(str(uuid4()) for _ in range(3))
-        buffer=BytesIO()
-        Image.new("RGB",(320,400),"#894315").save(buffer,"PNG")
-        self.png=buffer.getvalue()
-        self.digest=sha256(self.png).hexdigest()
-        self.key=f"{self.shop}/model-library/{self.model}/{self.digest}.png"
-        self.media={"id":self.asset,"shop_id":self.shop,
-                    "storage_bucket":"retailgrowth-media",
-                    "object_path":self.key,"mime_type":"image/png",
-                    "source":"UPLOAD"}
-        self.review={"shop_id":self.shop,"asset_id":self.asset,
-                     "image_sha256":self.digest,"rights_revision":2,
-                     "license_review_status":"APPROVED",
-                     "customer_approved":True,
-                     "commercial_use_approved":True,
-                     "provenance_verified":True,
-                     "rights_revoked":False}
+        self.png=image_bytes()
+        self.sha=sha256(self.png).hexdigest()
+        self.row={
+            "id":self.asset,"shop_id":self.shop,
+            "storage_bucket":"retailgrowth-media",
+            "object_path":f"{self.shop}/model-library/{self.model}/{self.sha}.png",
+            "mime_type":"image/png","source":"UPLOAD",
+            "license_name":"owned","license_url":None,
+            "attribution":"Independently licensed synthetic adult source.",
+        }
         self.calls=[]
-        self.http=[]
-        self.response_bytes=self.png
+        self.authorized=True
+        self.revoke_second=False
+        self.review_revision=3
+        self.change_revision_second=False
+        self.http_payload=self.png
+        self.http_mime="image/png"
+        self.http_status=200
         self.redirect=False
-        self.status=200
-        self.mime="image/png"
         self.length=None
-        self.on_read=None
-        self.proof=Feature3PrivateSourceProof(
-            "https://tenantfixture.supabase.co",
-            "sb_secret_DO_NOT_USE_OUTSIDE_TEST",
-            current_rights=self.current_rights,transport=self.transport)
+        self.read_hook=None
+        self.proof=self.build()
 
-    def current_rights(self,shop,asset):
-        self.calls.append((shop,asset))
-        if shop!=self.shop or asset!=self.asset:
-            raise AssertionError("Authoritative source identity mismatch")
-        return dict(self.review)
+    def review(self,shop,asset,digest,row):
+        self.calls.append(("review",digest))
+        self.assertEqual((shop,asset),(self.shop,self.asset))
+        self.assertEqual(row,self.row)
+        count=len([x for x in self.calls if x[0]=="review"])
+        valid=self.authorized and not (self.revoke_second and count>=2)
+        return {
+            "shop_id":shop,"asset_id":asset,
+            "image_sha256":digest if valid else self.sha,
+            "rights_revision":self.review_revision+(1 if count>=2 and
+                              self.change_revision_second else 0),
+            "independent_license_verified":valid,
+            "current_customer_approval":valid,
+            "rights_revoked":not valid,
+        }
 
-    def transport(self,req,timeout):
+    def transport(self,req,*,timeout):
+        self.calls.append(("get",req.full_url))
         self.assertEqual(timeout,15)
         self.assertEqual(req.get_method(),"GET")
         self.assertEqual(req.get_header("Apikey"),
-                         "sb_secret_DO_NOT_USE_OUTSIDE_TEST")
+                         "sb_secret_"+"z"*36)
         self.assertEqual(req.get_header("Cache-control"),"no-store")
-        self.assertFalse(req.get_header("Authorization"))
         self.assertIn("/storage/v1/object/retailgrowth-media/",req.full_url)
-        self.assertTrue(req.full_url.endswith(self.key))
-        self.assertNotIn("sign",req.full_url)
-        self.http.append(req)
-        return FakeResponse(req.full_url,self.response_bytes,
-                            status=self.status,redirect=self.redirect,
-                            mime=self.mime,length=self.length,
-                            on_read=self.on_read)
+        self.assertIn(self.row["object_path"],req.full_url)
+        self.assertNotIn("object/sign/",req.full_url)
+        self.assertNotIn("object/public/",req.full_url)
+        self.assertNotIn("http://",req.full_url)
+        return FakeResponse(
+            req.full_url,self.http_payload,mime=self.http_mime,
+            status=self.http_status,redirect=self.redirect,
+            read_hook=self.read_hook,content_length=self.length)
 
-    def inspect(self):
-        return self.proof(self.shop,self.media)
+    def build(self):
+        return Feature3TrustedPrivateSourceProof(
+            origin="https://fictional.supabase.co",
+            backend_secret="sb_secret_"+"z"*36,
+            review_authority=self.review,transport=self.transport)
 
-    def test_private_actual_png_bytes_and_legal_current_rights_twice(self):
-        result=self.inspect()
-        self.assertEqual(result,{
-            "shop_id":self.shop,"asset_id":self.asset,
-            "image_sha256":self.digest,"rights_revision":2,
-            "private_bytes_verified":True,
+    def test_real_png_bytes_recheck_current_rights_and_no_secrets(self):
+        receipt=self.proof(self.shop,self.row)
+        self.assertEqual(receipt,{
+            "shop_id":self.shop,"asset_id":self.asset,"image_sha256":self.sha,
+            "rights_revision":3,"private_bytes_verified":True,
             "independent_license_verified":True,
             "current_customer_approval":True,"rights_revoked":False})
-        self.assertEqual(self.calls,[(self.shop,self.asset)]*2)
-        self.assertEqual(len(self.http),1)
-        self.assertNotIn("object_path",result)
-        self.assertNotIn("image_bytes",result)
-        self.assertNotIn("publish_approved",result)
-        self.assertNotIn("provider_call_permitted",result)
+        self.assertEqual([x[0] for x in self.calls],["get","review","review"])
+        self.assertNotIn("object_path",receipt)
+        self.assertNotIn("url",receipt)
+        self.assertNotIn("image_bytes",receipt)
+        self.assertNotIn("provider_call_permitted",receipt)
+        self.assertNotIn("gpu_started",receipt)
 
-    def test_rights_revoked_during_storage_get_denies_data(self):
-        self.on_read=lambda:self.review.update({
-            "rights_revoked":True,"rights_revision":3})
-        with self.assertRaises(Feature3SourceProofDenied):
-            self.inspect()
-        self.assertEqual(len(self.calls),2)
+    def test_factory_connects_real_byte_verifier_to_gpu_off_job_plan(self):
+        class FakeAdmin:
+            def request(self,*_args,**_kwargs):
+                raise AssertionError("No SQL lookup before explicitly checking")
+        plan=build_verified_gpu_off_preflight(
+            admin_store=FakeAdmin(),
+            origin="https://fictional.supabase.co",
+            backend_secret="sb_secret_"+"z"*36,
+            review_authority=self.review,transport=self.transport)
+        self.assertIsInstance(plan.proof,Feature3TrustedPrivateSourceProof)
+        self.assertEqual(self.calls,[])
+        # No source reader, paid provider, job or queue is started by wiring.
 
-    def test_rights_revoked_before_storage_get_does_not_fetch(self):
-        for field,value in (("license_review_status","PENDING"),
-                            ("customer_approved",False),
-                            ("commercial_use_approved",False),
-                            ("provenance_verified",False),
-                            ("rights_revoked",True),
-                            ("rights_revision",0),
-                            ("image_sha256","not-sha")):
+    def test_real_jpeg_and_webp_are_allowed_only_with_correct_media(self):
+        for kind,mime,ext in (("JPEG","image/jpeg",".jpg"),
+                              ("WEBP","image/webp",".webp")):
             self.setUp()
-            self.review[field]=value
-            with self.subTest(field=field),self.assertRaises(Feature3SourceProofDenied):
-                self.inspect()
-            self.assertEqual(self.http,[])
+            payload=image_bytes(kind)
+            digest=sha256(payload).hexdigest()
+            self.http_payload=payload
+            self.http_mime=mime
+            self.row["mime_type"]=mime
+            self.row["object_path"]=(
+                f"{self.shop}/model-library/{self.model}/{digest}{ext}")
+            self.assertEqual(self.proof(self.shop,self.row)["image_sha256"],digest)
 
-    def test_invalid_private_registered_media_denies_before_rights_or_http(self):
-        for field,value in (("shop_id",str(uuid4())),
-                            ("storage_bucket","public"),
-                            ("object_path","https://evil.invalid/file.png"),
-                            ("object_path",f"{self.shop}/../bad.png"),
-                            ("object_path",f"{self.shop}/%2fprivate.png"),
-                            ("mime_type","text/html"),
-                            ("source","STOCK")):
+    def test_revoked_rights_after_private_bytes_read_denied(self):
+        self.revoke_second=True
+        with self.assertRaises(SourceProofDenied):
+            self.proof(self.shop,self.row)
+        self.assertEqual([x[0] for x in self.calls],["get","review","review"])
+
+    def test_revision_change_after_first_review_denied(self):
+        self.change_revision_second=True
+        with self.assertRaisesRegex(SourceProofDenied,"changed"):
+            self.proof(self.shop,self.row)
+
+    def test_revoked_during_http_get_denied(self):
+        self.read_hook=lambda:setattr(self,"authorized",False)
+        with self.assertRaises(SourceProofDenied):
+            self.proof(self.shop,self.row)
+        self.assertEqual([x[0] for x in self.calls],["get","review"])
+
+    def test_missing_authority_refuses_even_real_original_png(self):
+        self.authorized=False
+        with self.assertRaises(SourceProofDenied):
+            self.proof(self.shop,self.row)
+        with self.assertRaises(ValueError):
+            Feature3TrustedPrivateSourceProof(
+                origin="https://fictional.supabase.co",
+                backend_secret="sb_secret_"+"z"*36,
+                review_authority=None,transport=self.transport)
+
+    def test_foreign_and_unsafe_object_names_denied_before_network(self):
+        bad=[
+            ("shop_id",str(uuid4())),
+            ("id","foreign"),
+            ("storage_bucket","public"),
+            ("object_path",f"{str(uuid4())}/model-library/{self.model}/{self.sha}.png"),
+            ("object_path",f"{self.shop}/../../owned/{self.sha}.png"),
+            ("object_path",f"{self.shop}/%2e%2e/{self.sha}.png"),
+            ("object_path",f"{self.shop}//{self.sha}.png"),
+            ("object_path",f"{self.shop}/model-library/{self.model}/{self.sha}.exe"),
+            ("mime_type","text/html"),
+            ("license_name","forged_public"),
+            ("attribution","bad"),
+            ("source","STOCK"),
+        ]
+        for key,value in bad:
             self.setUp()
-            self.media[field]=value
-            with self.subTest(field=field),self.assertRaises(Feature3SourceProofDenied):
-                self.inspect()
-            self.assertEqual(self.http,[])
+            row={**self.row,key:value}
+            with self.subTest(key=key,value=str(value)[:22]), self.assertRaises(SourceProofDenied):
+                self.proof(self.shop,row)
             self.assertEqual(self.calls,[])
 
-    def test_tampered_png_real_byte_sha_denied(self):
-        buf=BytesIO()
-        Image.new("RGB",(320,400),"#123456").save(buf,"PNG")
-        self.response_bytes=buf.getvalue()
-        with self.assertRaises(Feature3SourceProofDenied):
-            self.inspect()
-        self.assertEqual(len(self.calls),1)
+    def test_duplicate_approval_extra_fields_or_untrusted_source_row_denied(self):
+        self.row["browser_verified"]=True
+        with self.assertRaises(SourceProofDenied):
+            self.proof(self.shop,self.row)
+        self.assertEqual(self.calls,[])
 
-    def test_corrupt_mime_redirect_wrong_http_content_size_denied(self):
-        for field,value in (("response_bytes",b"x"*500),
-                            ("redirect",True),
-                            ("status",302),
-                            ("mime","image/jpeg"),
-                            ("length","314159265"),
-                            ("length","unknown")):
+    def test_changed_image_wrong_mime_redirect_status_and_length_denied(self):
+        for flag,value in (
+            ("http_payload",image_bytes("JPEG")),
+            ("http_payload",b"evil"*100),
+            ("http_mime","text/html"),
+            ("redirect",True),
+            ("http_status",302),
+            ("length","not-number"),
+            ("length",str(26*1024*1024)),
+        ):
             self.setUp()
-            setattr(self,field,value)
-            with self.subTest(field=field),self.assertRaises(Feature3SourceProofDenied):
-                self.inspect()
-            self.assertEqual(len(self.http),1)
-            self.assertEqual(len(self.calls),1)
+            setattr(self,flag,value)
+            with self.subTest(flag=flag),self.assertRaises(SourceProofDenied):
+                self.proof(self.shop,self.row)
+            self.assertEqual([x[0] for x in self.calls],["get"])
 
-    def test_strict_origin_credentials_and_independent_review_required(self):
-        for origin in ("http://tenantfixture.supabase.co",
-                       "https://tenantfixture.supabase.co.evil.invalid",
-                       "https://user:pass@tenantfixture.supabase.co",
-                       "https://tenantfixture.supabase.co/private"):
+    def test_non_supabase_or_publishable_backend_key_denied(self):
+        for origin in ("http://fictional.supabase.co",
+                       "https://fictional.supabase.co.evil.org",
+                       "https://bob:pass@fictional.supabase.co",
+                       "https://fictional.supabase.co/path"):
             with self.subTest(origin=origin),self.assertRaises(ValueError):
-                Feature3PrivateSourceProof(
-                    origin,"sb_secret_DO_NOT_USE_OUTSIDE_TEST",
-                    current_rights=self.current_rights,transport=self.transport)
+                Feature3TrustedPrivateSourceProof(
+                    origin=origin,backend_secret="sb_secret_"+"z"*36,
+                    review_authority=self.review,transport=self.transport)
         with self.assertRaises(ValueError):
-            Feature3PrivateSourceProof(
-                "https://tenantfixture.supabase.co","sb_secret_DO_NOT_USE_OUTSIDE_TEST",
-                current_rights=None,transport=self.transport)
-
+            Feature3TrustedPrivateSourceProof(
+                origin="https://fictional.supabase.co",
+                backend_secret="sb_publishable_NO",
+                review_authority=self.review,transport=self.transport)
 
 if __name__=="__main__":
     unittest.main()
