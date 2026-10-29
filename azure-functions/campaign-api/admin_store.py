@@ -42,8 +42,21 @@ class AdminStore:
                         "rpc/feature3_reserve_gpu_job", "rpc/feature3_claim_gpu_job",
                         "rpc/feature3_finish_gpu_job", "feature3_gpu_jobs",
                         "shop_ai_spend_reservations",
+                        "rpc/feature3_commit_gpu_private_output",
+                        "rpc/feature3_claim_gpu_dispatch",
+                        "rpc/feature3_confirm_gpu_dispatch",
+                        "rpc/feature3_audit_gpu_recovery",
                         "rpc/retail_feature_worker_append"):
             raise ValueError("unsupported worker path")
+        # A queue claim/financial/media CAS is never exposed via a GET read
+        # or a generic table write. Only the service-only POST RPC is valid.
+        if path in {
+            "rpc/feature3_commit_gpu_private_output",
+            "rpc/feature3_claim_gpu_dispatch",
+            "rpc/feature3_confirm_gpu_dispatch",
+            "rpc/feature3_audit_gpu_recovery",
+        } and method != "POST":
+            raise ValueError("Feature3 privileged GPU RPC requires POST")
         url = self.origin + "/rest/v1/" + path
         if query:
             url += "?" + urlencode(query, safe="(),.*")

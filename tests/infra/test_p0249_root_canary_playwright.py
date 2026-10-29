@@ -7,6 +7,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
 TARGET = ROOT / "scripts/ops/p0249_root_canary_playwright.py"
@@ -51,6 +52,84 @@ class CanaryOperatorSelection(unittest.TestCase):
                            "execute_sql", "Authorization: Bearer", "sami9049@gmail.com",
                            "Ppp#2020"):
             self.assertNotIn(prohibited, source)
+
+    def test_refresh_waits_for_real_root_rpc_before_reading_new_rows(self):
+        """Regression: a React loading-hidden check alone can read old rows."""
+        target = "rgai-canary-012345abcdef-a@example.invalid"
+        calls = []
+
+        class FakePage:
+            def expect_response(self, predicate, *, timeout):
+                calls.append(("expect", timeout))
+                reply = SimpleNamespace(
+                    url="https://jeearzffnjbvghwjjjrf.supabase.co/rest/v1/rpc/retail_platform_onboarding_requests",
+                    request=SimpleNamespace(method="POST"), ok=True)
+                assert predicate(reply)
+                class Waiter:
+                    value = reply
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *_):
+                        calls.append(("response", "ok"))
+                return Waiter()
+
+            def get_by_role(self, role, *, name):
+                assert (role, name) == ("button", "Refresh queue")
+                return SimpleNamespace(click=lambda: calls.append(("click", None)))
+
+            def get_by_text(self, text, *, exact):
+                assert text == "Loading pending retailer requests…"
+                assert exact
+                return SimpleNamespace(wait_for=lambda **k: calls.append(("hidden", k["state"])))
+
+            def wait_for_timeout(self, ms):
+                calls.append(("render", ms))
+
+            def locator(self, selector):
+                if selector == ".platform-approvals [role='alert']":
+                    return SimpleNamespace(count=lambda: 0)
+                assert selector == ".platform-review-item strong"
+                # Reading the newly created row BEFORE response finished is
+                # the regression: the old list must never be accepted.
+                assert ("response", "ok") in calls
+                assert ("render", 100) in calls
+                calls.append(("rows", None))
+                return SimpleNamespace(all_inner_texts=lambda: [target])
+
+        self.assertEqual(MOD.refresh_pending(FakePage()), {target})
+        self.assertEqual([entry[0] for entry in calls],
+                         ["expect", "click", "response", "hidden", "render", "rows"])
+
+    def test_refresh_denies_failed_rpc_and_wrong_route_or_method(self):
+        reply = SimpleNamespace(
+            url="https://jeearzffnjbvghwjjjrf.supabase.co/rest/v1/rpc/retail_platform_onboarding_requests",
+            request=SimpleNamespace(method="POST"), ok=False)
+        self.assertTrue(MOD.is_onboarding_queue_reply(reply))
+        for path, method in [
+            ("https://evil.example.invalid/rest/v1/rpc/retail_platform_onboarding_requests", "POST"),
+            ("http://jeearzffnjbvghwjjjrf.supabase.co/rest/v1/rpc/retail_platform_onboarding_requests", "POST"),
+            ("https://jeearzffnjbvghwjjjrf.supabase.co/rest/v1/rpc/retail_platform_review_onboarding", "POST"),
+            (reply.url, "GET"),
+        ]:
+            with self.subTest(path=path, method=method):
+                self.assertFalse(MOD.is_onboarding_queue_reply(
+                    SimpleNamespace(url=path, request=SimpleNamespace(method=method))))
+        class Page:
+            def expect_response(self, predicate, *, timeout):
+                assert predicate(reply)
+                class Waiter:
+                    value = reply
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *_):
+                        return False
+                return Waiter()
+            def get_by_role(self, role, *, name):
+                return SimpleNamespace(click=lambda: None)
+            def get_by_text(self, *_args, **_kwargs):
+                raise AssertionError("No DOM read after bad HTTP response")
+        with self.assertRaisesRegex(RuntimeError, "HTTP request failed"):
+            MOD.refresh_pending(Page())
 
     def test_dispatch_only_uses_existing_gh_auth_and_protected_choice(self):
         with patch.object(MOD.subprocess, "run") as run:

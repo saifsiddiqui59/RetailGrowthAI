@@ -879,3 +879,34 @@
 
 ## 2026-10-29 — One private ledger, not two test-audit tables
 - The authoritative source-only backend worker store is retail_private.feature_worker_spans with service-only append and signed role-checked retail_feature_worker_spans read RPC. Client feature_test_events remains browser-observed, not backend proof. An overlapping public-schema candidate PR #626 was closed without merging. Do not expose the private ledger directly to authenticated browser roles, spoof a backend run binding, turn on worker span writes before verified DEV release, or infer #249 root cause from missing HTTP markers. No publishing, paid provider spend or WineShopPOS mutation.
+
+## 2026-10-29 — ROOT Playwright queue freshness requires authenticated RPC completion
+- On the DEV operator-only local helper, do not consider a hidden React loading spinner evidence of fresh onboarding data. It may still be hidden *before* the React fetch begins. Await the exact existing authenticated HTTPS POST `/rest/v1/rpc/retail_platform_onboarding_requests` to the known DEV Supabase host, fail closed on a non-success HTTP response, then verify no pending/error spinner before reading visible rows. Mocked-page regression asserts ordering and disallows a wrong host/method/route. [PR #633](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/633). This does not relax audited ROOT approval or turn helper CI into positive hosted media acceptance; never use privileged SQL, customer API fallback, PROD or WineShopPOS.
+
+
+## 2026-10-29 — Conservative Feature3 Storage uncertainty protocol
+- For generated private PNG, treat any upload ACK/readback failure as unknown and irreplayable within the worker: mark `(shop, key, claim)` attempted **before** HTTPS POST. Pre-CAS rights-revocation cleanup may run only once even on timeout. DELETE ACK is insufficient; only a fresh exact-key authenticated 404 proves local removal. GET 401/403/timeout/object still present means unresolved, not success. The existing durable DB CAS and human review gates remain authoritative; do not delete after unknown SQL settlement. This source hardening does not activate live GPU, waive genuine customer image provenance or resolve Azure #249.
+
+
+## 2026-10-29 — Unconfirmed Feature3 output means no automatic financial settlement
+- After any private generated-output write attempt, an exception or untrusted output ACK could conceal successful Supabase Storage or SQL registration. The GPU provider must **not** call its FAILED financial settlement in that uncertain state; preserve RUNNING/reserved for supervised reconciliation against immutable DB evidence and trustworthy provider metering. Only validated private output or failure before an attempted write can proceed through the existing measured single settlement. Neither unknown ACK nor one-shot queue delivery authorizes billable retry, refund, GPU activation or source rights relaxation.
+
+
+## 2026-10-29 — Feature3 private output is composed only in service-owned worker
+- Reuse existing PostgREST service claim/lease/reservation/output CAS/finish, Supabase private binary stage/readback and pre-reserved GPU callbacks instead of adding a second job, price or media ledger. The composer requires service-only credentials, independently fresh rights/bytes and measured provider meter; its user-facing output omits object URLs and cannot activate GPU. Current SQL lease must be reread just before Storage, rights checked before/after upload, and SQL one-shot CAS validated. Failure after output attempt is unknown until reconciliation (see separate #632); never invent a customer rights grant, replay or paid inference from a demo source.
+
+
+## 2026-10-29 — GPU queue messages never grant media, cost or inference rights
+- Keep a single fixed v1 dispatch packet with exactly `schema`, `shop_id`, `job_id`, canonical UUIDv4 identities and strict length/duplicate field checks. Shared encoder is used by actual GPU outbox producer; independently validated receiver parser exists for future worker only. All authorization/paid cost must come from fresh service-only job claim/rights/subscription/lease queries and existing reserved ledger, never from untrusted JSON. No queue/worker activation or application host changes while Azure #249 remains open.
+
+
+## 2026-10-29 — Strict allowlisted Feature3 PostgREST transport is necessary but not authorization
+- Allow only GET of `feature3_gpu_jobs` through signed user-JWT/RLS `TenantStore`. Permit exactly the existing POST-only GPU output registration and outbox dispatch/recovery RPCs through backend-secret `AdminStore`; never expose these to a browser, permit generic public table writes, infer consent from HTTP success or activate GPU. Test the *real Request object and endpoint paths* because mocks of store internals missed an actual universal `unsupported table/worker path` blocker. Current 60-second signed download is NOT instant-revocation safe if already issued; separate live release criterion remains mandatory.
+
+
+## 2026-10-29 — Prefer reauthorized byte proxy for future generated PNG revocation
+- Existing one-minute signed Storage URLs do NOT guarantee instant invalidation after user/model rights changes. Provide a backend-only alternative `Feature3RevocablePNGReader` with signed-user JWT authenticated Storage GET, exact content-addressed PNG SHA, external real current rights/immutable output gate and rechecks after bytes read; never create a signed/public URL in the result or claim old-link invalidation. A real binary endpoint and race-free transaction semantics require separate coordinator interface review and hosted acceptance, not an inference shortcut.
+
+## 2026-10-29 — Feature3 coordinator conflict-resolved source integration
+- Consolidate disjoint PR #629/#632/#634/#636/#637/#638 code and tests on the current main base with all append-only doc additions preserved, rather than discarding a contributor's decision record or merging stale branch tips over concurrent updates. Existing #630 is integrated separately. Require full four-job CI on combined head and postmerge main; test success does not imply licensed VTON, live signed user acceptance or permission to use a paid GPU.
+

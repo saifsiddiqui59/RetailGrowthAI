@@ -204,6 +204,7 @@ class OptionalGPUProvider:
         wall = 0.0
         completed = False
         receipt = None
+        output_write_started = False
         try:
             started = time.monotonic()
             output = self.runner(job, inputs)
@@ -214,6 +215,9 @@ class OptionalGPUProvider:
             if reauthorize(job.shop_id, job.job_id, claim_token, job.source_asset_ids) is not True:
                 raise ProviderBlocked("Retailer/media rights revoked during GPU execution")
             digest = sha256(clean).hexdigest()
+            # Set before the first output write: an exception or malformed ACK
+            # cannot prove whether Storage/SQL already persisted the result.
+            output_write_started = True
             receipt = write_private_output(job.shop_id, job.job_id, clean, {
                 "provider": self.config.name,
                 "provider_version": self.config.version,
@@ -248,16 +252,20 @@ class OptionalGPUProvider:
                 raise ProviderBlocked("No registered private output media identity") from exc
             completed = True
         finally:
-            # A failed finalize denies success; the caller's fenced DB
-            # transaction must also quarantine orphaned staged objects.
-            outcome = finalize_usage(
-                reservation_id, round(wall, 3), completed, claim_token,
-            )
-            if (not isinstance(outcome, dict) or
-                outcome != {"shop_id": job.shop_id, "job_id": job.job_id,
-                            "attempt": job.attempt, "claim_token": claim_token,
-                            "finalized": True}):
-                raise ProviderBlocked("Durable GPU usage settlement was not acknowledged")
+            # Once an output write was attempted, any exception or untrusted
+            # returned receipt may hide a successful Storage/SQL CAS. Never
+            # finalize as FAILED and never release/charge the reservation in
+            # that ambiguous state. Operator reconciliation must inspect the
+            # persisted job/output and measured provider billing first.
+            if not output_write_started or completed:
+                outcome = finalize_usage(
+                    reservation_id, round(wall, 3), completed, claim_token,
+                )
+                if (not isinstance(outcome, dict) or
+                    outcome != {"shop_id": job.shop_id, "job_id": job.job_id,
+                                "attempt": job.attempt, "claim_token": claim_token,
+                                "finalized": True}):
+                    raise ProviderBlocked("Durable GPU usage settlement was not acknowledged")
         return receipt
 
 
