@@ -56,3 +56,59 @@ def test_real_trend_list_must_go_through_protected_relevance_and_signed_post():
             server_verified_retailer_brief=owned_retailer(),
             relevant_source_backed_trends=[{"trend_id":"invented-id"}]
         )
+
+from ai_agents.feature2_editorial_basis import inspect_retailer_copy_claims
+
+def copy_context():
+    context=owned_retailer()
+    context["approved_offers"]=[{
+        "shop_id":context["shop_id"],
+        "approval_status":"APPROVED",
+        "approved_claim_text":"20% off selected kurti styles",
+        "percent_off":20,
+        "eligible_product_skus":["KURTI-RED-001"]
+    }]
+    return context
+
+def candidate_copy(**overrides):
+    result={
+        "headline":"Festive kurti styling",
+        "caption":"A fresh look for this Diwali season.",
+        "cta":"Visit our boutique to discover our collection.",
+        "voiceover_script":"See our red kurti and festive collection."
+    }
+    result.update(overrides)
+    return result
+
+def test_review_only_copy_with_exact_retailer_approved_offer():
+    report=inspect_retailer_copy_claims(
+        verified_context=copy_context(),
+        copy=candidate_copy(caption="20% off selected kurti styles, subject to availability."))
+    assert report["issues"]==[]
+    assert report["review_required"] and not report["can_publish"]
+    assert not report["commercial_fact_certified"]
+
+@pytest.mark.parametrize("draft,issue",[
+    ({"headline":"50% off everything today"},"DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ({"caption":"20% off all products"},"DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ({"cta":"Everything just ₹199!"},"UNVERIFIED_CURRENCY_PRICE"),
+    ({"headline":"Everyone is buying now!"},"UNVERIFIED_URGENCY_OR_TREND"),
+    ({"caption":"Made with 100% pure cotton"},"PRODUCT_MATERIAL_FACTS_NOT_VERIFIED"),
+])
+def test_unverified_retail_claims_are_flagged_not_published(draft,issue):
+    report=inspect_retailer_copy_claims(
+        verified_context=copy_context(),copy=candidate_copy(**draft))
+    assert issue in report["issues"] and not report["can_publish"]
+
+def test_foreign_fake_shop_or_unapproved_offer_copy_is_denied():
+    context=copy_context()
+    context["approved_offers"][0]["shop_id"]="foreign"
+    with pytest.raises(EditorialBasisRejected):
+        inspect_retailer_copy_claims(verified_context=context,copy=candidate_copy())
+    context=copy_context()
+    context["server_verified"]=False
+    with pytest.raises(EditorialBasisRejected):
+        inspect_retailer_copy_claims(verified_context=context,copy=candidate_copy())
+    with pytest.raises(EditorialBasisRejected):
+        inspect_retailer_copy_claims(verified_context=copy_context(),
+                                   copy=candidate_copy(cta="<script>alert(1)</script>"))
