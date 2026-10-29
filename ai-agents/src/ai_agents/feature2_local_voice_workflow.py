@@ -295,7 +295,8 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
         not 1_000<=quota["monthly_cpu_limit_ms"]<=86_400_000 or
         not 0<=quota["active_cpu_jobs"]<=4 or
         not 1<=quota["max_active_cpu_jobs"]<=4 or
-        not 2_000<=quota.get("per_job_reserved_cpu_ms",-1)<=180_000 or
+        type(quota.get("per_job_reserved_cpu_ms")) is not int or
+        not 2_000<=quota["per_job_reserved_cpu_ms"]<=180_000 or
         type(quota.get("period_id")) is not str or
         not __import__("re").fullmatch(r"\d{4}-(?:0[1-9]|1[0-2])",
                                        quota["period_id"]) or
