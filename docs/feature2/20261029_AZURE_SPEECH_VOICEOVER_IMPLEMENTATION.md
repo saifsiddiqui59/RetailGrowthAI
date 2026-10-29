@@ -1,0 +1,43 @@
+# RetailGrowthAI Feature #2 — Azure AI Speech TTS and voice selector
+Date: 2026-10-29. Source branch \`feat/feature2-unified-offline-source-20261028\`, single integrated draft PR #551.
+
+## Exact implemented source (NOT a live deployed feature)
+
+**Server, no paid tests:**
+
+- \`ai-agents/src/ai_agents/feature2_azure_speech.py\`: six real Microsoft-documented standard neural voices (English India, Hindi, Marathi; one female/male each), fixed voice+locale+speed allowlist, protected **opt-in** Azure Speech REST \`/cognitiveservices/v1\`, bounded *riff-24khz-16bit-mono-pcm* original WAV bytes, server-side XML-escaped SSML, cost estimate **from operator-verified price, not hardcoded guessed retail pricing**, durable once-only reservation callback before egress, no retry after uncertain provider ACK, active same-shop OWNER/EDITOR/subscription before **and after** the request, current authoritative source script re-read twice, same-shop **private original** persistence callback and fixed metadata SHA256. The output never returns bearer JWT, service key, public URL, customer rights grant or billed invoice claim. A provider response may be chargeable even if output fails review; reservation remains held pending reconciliation.
+- \`ai-agents/src/ai_agents/feature2_speech_catalog.py\`: actual voice list verification against the official server-side regional \`/cognitiveservices/voices/list\` endpoint; only the six approved voices with **exact** provider ID, locale and gender may appear as \`region_verified=true\`. Reject spoofed duplicates, mismatched values, missing authorized shop or unavailable endpoint. No fallback that claims universal region availability.
+- \`ai-agents/src/ai_agents/feature2_voiceover_upload.py\`: **no Azure Speech required** for an already recorded original WAV. Recheck exact approved source script / same-shop actor twice and inspect PCM16 16/24/44.1/48kHz original WAV bytes/length/SHA. Write to signed-private tenant store via *injected* authenticated backend writer as **PENDING_RIGHTS_AND_SPEECH_REVIEW**. Browser "I own rights" cannot set \`commercial_use_approved\`; no publish grant. MP3 source upload still requires an approved FFmpeg decoder/registration in the coordinator/F4 backend; this writer currently handles verified WAV only.
+- \`ai-agents/src/ai_agents/feature2_feature4_voiceover.py\`: after independent ORIGINAL voiceover license and speech review, reuse existing \`feature2_audio_evidence.inspect_private_narration_wav\` to reverify private SHA, duration, same shop and twice-current membership; return no public URLs, source-only \`voiceover_asset_id\`, and an explicit F4 final rights/lease revalidation requirement. F4 retains its existing \`rg_video_v2\` and original FFmpeg mixing/ducking/audio mastering responsibility. No actual video rendering or real voice file claimed here.
+
+**Frontend source, NOT attached to live route:**
+
+- \`frontend/src/features/voiceover/voiceover-model.mjs\` and \`VoiceoverSelector.jsx/.css\`: mode \`ai\` / \`uploaded\` / \`none\`; Indian English/Hindi/Marathi language, female/male voice, normal/slow/fast speaking speed; **explicit per-request charge consent** and separate Generate Preview / Generate Narration actions, no auto-billing on option change. Upload review is a separately injected authenticated callback; existing file selection filters same-shop authorized audio. The UI is intentionally \`enabled=false\` until coordinator/F4 connects current JWT/RLS tenant verified routes and private source/media APIs. The component contains **NO browser Speech API key**.
+
+**Unit tests** (no actual Azure charges): \`ai-agents/tests/test_feature2_azure_speech.py\`, \`test_feature2_speech_catalog.py\`, \`test_feature2_voiceover_upload.py\`, \`tests/frontend/feature2-voiceover-model.test.mjs\`. Validate 3 languages and explicit consent, trusted current script re-fetch, role revocation before private save, request idempotency callback, output WAV size/duration/format/SHA, private writer, original self-upload, fake rights/voice and cross-shop denial, no automatic provider reattempt. Existing 15/30/60s pinned MIT source storyboards and F2→F3→F4/F5 handoffs remain unchanged.
+
+## Reality and safety gates
+
+- **Production feature flag is OFF**: \`RETAIL_FEATURE2_AZURE_SPEECH_ENABLED\` must be literally \`true\` in approved **server** config. No new Azure resource/key was created, no Voice List API called live, no paid TTS request sent, no real narration audio generated or uploaded. No presumed free character quota.
+- Actual signed backend must provide all five server callbacks using its existing trusted JWT/RLS, active OWNER/EDITOR subscription, authoritative source plan, private object registration, durable atomic budget reserve and cost reconciliation. A frontend-supplied plan/approval bool is not authoritative. A retry of an unknown-cost/idempotent request must inspect existing receipt; do not call Azure Speech again.
+- Need **separately verified Azure Speech regional availability + current per-character price**; set per-shop cap and manually approved call. TTS cost is per text character, not the existing GPT-4.1-mini per-token price; do not reuse GPT ledger cost as if it were speech.
+- Generated WAV has real sample/decode/duration evidence **only if an authentic provider response was received**. Our fake CI response is synthetic WAV, not voice, phoneme, transcript accuracy, actual word boundaries, speaker likeness, authentic commercial license, or reliable alignment. Azure Speech REST TTS alone does not certify word-level boundaries. For real caption/word alignment, the Speech SDK's synthesis WordBoundary events or separately authorized alignment must be integrated and checked by Feature4. Do not manufacture timestamps.
+- File upload acceptance does not certify the user has commercial permission for the source recording. Human rights, source-owner permission, voice cloning concerns, platform policies, and actual narration correctness remain reviewed by signed editor before real use.
+- Speech previews may be billable, so are **explicitly opt-in**, never triggered when choosing a voice. Never put passwords, API keys, original user WAV, JWTs, raw scripts or provider receipts in public CI artifacts or GitHub issues.
+- Original static Azure gateway Python Functions Issue #249 is unresolved. This source work does **not** add public HTTP routes, mutate Supabase migrations, mount F4 UI into shared router, provision Speech, perform protected hosted acceptance, create private Storage or change WineShopPOS/PROD.
+
+## Responsibility/handoff to coordinator and Feature #4
+
+Coordinator must review new additive authenticated \`GET voices\`, explicit \`POST preview\`, one-time \`POST synthesize\`, and signed private upload/review routes, including existing quota, subscription, audit/outbox and duplicate charge fencing. Do not modify \`docs/INTERFACES_V1.md\` from Feature2 branch.
+
+Feature4 PR #322 already has **Approved full-Reel narration** dropdown but cannot synthesize. It should mount F2 VoiceoverSelector under authenticated Video Studio and implement/inject the *real* callbacks. Upon receipt of approved, private \`voiceover_asset_id\`, use existing F4 source-audio/FFmpeg mixer and replay-proof private media store; preserve original F2 script, shot timing, source hash and music licensing. F5 generates motion images only and must not duplicate Speech audio or edit dialogue. F3 supplies garment/model frames, not TTS.
+
+**Manual release checklist:** coordinator merge #551 once (not overlapping F2 drafts), exact-head CI 4/4 and independent postmerge main CI, server-only Azure Speech resource/key, real regional voice catalog GET, actual signed tenant role and subscription tests, approved price/cap/reconcile, genuine paid one-time preview+full TTS with exact provider bill, independent original WAV validation and human listening, registered private asset and authorized F4 usage, final 15/30/60s synced Reel with verified captions/mix, production tenant isolation and Azure #249 reliability. Until those pass, **source-ready only, not hosted/prod complete**.
+
+## Official reference
+
+- Microsoft Azure Speech TTS REST: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/rest-text-to-speech
+- Microsoft Speech supported voices: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support
+- Microsoft Speech SDK synthesis: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/how-to-speech-synthesis
+
+PR/issue review and integration evidence should be placed in scoped Feature2 docs/PR and Feature4 issue. Canonical PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG are coordinator-owned after merge.
