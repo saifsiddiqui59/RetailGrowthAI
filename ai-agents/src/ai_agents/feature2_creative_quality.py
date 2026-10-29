@@ -589,6 +589,7 @@ def choose_evergreen_when_no_relevant_live_trend(
 import hashlib
 import json
 import re
+import unicodedata
 
 _CLAIM_PERCENT = re.compile(r"(?<!\d)\d{1,3}\s*(?:%|percent|per[ -]?cent)\s*(?:off|discount|sale)?",re.I)
 _CLAIM_PRICE = re.compile(r"(?:₹|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
@@ -626,6 +627,20 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
             not 10<=len(offer["approved_claim_text"])<=180 or
             offer.get("shop_id")!=verified_context.get("shop_id")):
             raise EditorialBasisRejected("Offer evidence not approved for shop")
+        # A signed offer row with mismatched percent or missing SKU scope is
+        # inconsistent evidence, even if its claim text appears in the draft.
+        claim_hits=list(_CLAIM_PERCENT.finditer(
+            unicodedata.normalize("NFKC",offer["approved_claim_text"])))
+        if claim_hits:
+            percent=offer.get("percent_off")
+            skus=offer.get("eligible_product_skus")
+            if (type(percent) is not int or not 1<=percent<=100 or
+                type(skus) is not list or not 1<=len(skus)<=100 or
+                any(type(sku) is not str or not 1<=len(sku)<=80
+                    for sku in skus) or
+                any(int(re.match(r"\d+",hit.group()).group())!=percent
+                    for hit in claim_hits)):
+                raise EditorialBasisRejected("Approved percentage or SKU scope inconsistent")
     issues=set()
     for field,text in copy.items():
         if (type(text) is not str or not 1<=len(text.strip())<=1800 or
@@ -636,7 +651,6 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
         # NFKC is used for DETECTION only: fullwidth ５０％, Ｒｓ and
         # ＦＲＥＥ ＳＨＩＰＰＩＮＧ are still commercial claims. Approved offer
         # spans below must remain byte-for-byte wording from the original text.
-        import unicodedata
         normalized=unicodedata.normalize("NFKC",text)
         if _CLAIM_PRICE.search(normalized):
             issues.add("UNVERIFIED_CURRENCY_PRICE")
