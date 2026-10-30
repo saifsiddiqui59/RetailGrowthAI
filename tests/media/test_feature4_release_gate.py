@@ -131,7 +131,7 @@ class ReleaseGateTests(unittest.TestCase):
             self.run_gate(j, l, r, m)
 
     def test_release_rejects_malformed_or_duplicate_media_lineage_and_output_id(self):
-        for bad_id in ("", "not-a-uuid", OTHER.upper(), 123, True):
+        for bad_id in ("", "not-a-uuid", "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA", 123, True):
             j, l, r, m = baseline()
             j["output_asset_id"] = bad_id
             with self.subTest(output_id=bad_id), self.assertRaises(ReleaseNotApproved):
