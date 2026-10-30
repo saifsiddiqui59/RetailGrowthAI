@@ -23,6 +23,14 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
   const dragFrom = useRef(null)
   const lastSent = useRef(null)
   const handlers = useRef({})
+  const pendingResize = useRef(null)
+  const liveDraft = useRef(draft)
+  const liveApproval = useRef(approvedDirection)
+  liveDraft.current = draft
+  liveApproval.current = approvedDirection
+  // An in-flight pointer resize must never apply an obsolete tenant/draft
+  // after account switch, approval lock, external draft update or unmount.
+  useEffect(() => () => pendingResize.current?.cancel(), [draft, approvedDirection])
   useEffect(() => {
     if (draft !== lastSent.current) {
       setHistory(createEditorHistory(draft))
@@ -114,20 +122,34 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
     selectCaptionClip: (_event,_id,index,start) => { onSelectScene(index); setPlayhead(start) },
     startCaptionResize: (event,_id,index,edge) => {
       const boundary = edge === 'start' ? index - 1 : index
-      if (approvedDirection || boundary < 0 || boundary >= draft.scenes.length - 1) return
+      if (approvedDirection || boundary < 0 || boundary >= draft.scenes.length - 1 ||
+          event.button !== 0 || event.isPrimary === false) return
       event.stopPropagation()
+      // No duplicate listeners or stale closure may outlive an edit gesture.
+      pendingResize.current?.cancel()
       const target = event.currentTarget.closest('.f4-studio-track-body')
       const width = target?.getBoundingClientRect().width || 1
       const startX = event.clientX
+      const pointerId = event.pointerId
       const original = draft
-      const release = e => {
+      const cancel = () => {
         window.removeEventListener('pointerup', release)
-        const delta = (e.clientX - startX) * draft.duration_seconds / width
+        window.removeEventListener('pointercancel', abort)
+        if (pendingResize.current?.cancel === cancel) pendingResize.current = null
+      }
+      const abort = e => { if (e.pointerId === pointerId) cancel() }
+      const release = e => {
+        if (e.pointerId !== pointerId) return
+        cancel()
+        if (liveDraft.current !== original || liveApproval.current) return
+        const delta = (e.clientX - startX) * original.duration_seconds / width
         if (Math.abs(delta) > 0.03) {
           change(() => studioTrimPair(original, boundary, Math.round(delta * 10) / 10, mediaAssets))
         }
       }
-      window.addEventListener('pointerup', release, { once: true })
+      pendingResize.current = {cancel}
+      window.addEventListener('pointerup', release)
+      window.addEventListener('pointercancel', abort)
     },
     startAudioSegmentMove: () => {},
     selectAudioClip: () => {},

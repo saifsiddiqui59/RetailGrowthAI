@@ -2,6 +2,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import VideoStudio from '../../src/features/video/VideoStudio.jsx'
+import TimelineStudioSurface from '../../src/features/video/TimelineStudioSurface.jsx'
 
 export function mountFeature4({shop,approved,seedCompletedRender=false,seedOwnerRejectedRender=false}) {
   const holder=document.createElement('div')
@@ -74,4 +75,39 @@ export function mountFeature4BeatLane({shop, authorized=true,approvedDirection=f
       approvedDirection,onChange:()=>{},onSelectScene:()=>{},
     }))
   })
+}
+
+
+// Race-only Playwright harness. Two isolated synthetic shops, no API or real
+// media rights. Changing the owner/draft while dragging must discard the
+// original pointer-up event before any unreviewed edit reaches onChange.
+export function mountFeature4ResizeRace({shop}) {
+  const holder = document.createElement('div')
+  holder.id = 'feature4-resize-race'
+  document.getElementById('root')?.setAttribute('hidden', '')
+  document.body.appendChild(holder)
+  const root = createRoot(holder)
+  window.__feature4ResizeWrites = []
+  const render = (currentShop, approved = false) => {
+    const scenes = Array.from({length:3}, (_, i) => ({
+      start:i*5, duration:5, headline:['Intro','Product','End card'][i],
+      asset_id:'photo1', animation_preset:'fade', transition:'cut',
+    }))
+    const draft = {
+      version:'rg_video_v2', mode:'media', shop_id:currentShop,
+      duration_seconds:15, template:'cinematic',
+      output:{width:540,height:960,fps:24},scenes,
+      cta:'Test only',music_asset_id:null,voiceover_asset_id:null,
+    }
+    const media = [{id:'photo1',kind:'image',authorized:true,shop_id:currentShop}]
+    root.render(React.createElement(React.Fragment,null,
+      React.createElement('output',{'data-testid':'f4-resize-active-shop'},currentShop),
+      React.createElement(TimelineStudioSurface,{
+        draft,mediaAssets:media,musicAssets:[],approvedDirection:approved,
+        selectedSceneIndex:0,onSelectScene:()=>{},
+        onChange:next=>window.__feature4ResizeWrites.push(next),
+      })))
+  }
+  window.__feature4ResizeChangeContext = render
+  render(shop)
 }
