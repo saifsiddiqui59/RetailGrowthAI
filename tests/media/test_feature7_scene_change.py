@@ -69,6 +69,10 @@ class Feature7SceneChangeAdvisoryTests(unittest.TestCase):
         for p in [
             {"log":"pts_time:10.4","duration_seconds":5},
             {"log":"pts_time:3.0 pts_time:2.0","duration_seconds":5},
+            {"log":"pts_time:-1.0","duration_seconds":5},
+            {"log":"pts_time:NaN","duration_seconds":5},
+            {"log":"pts_time:1e309","duration_seconds":5},
+            {"log":"pts_time:2.0junk","duration_seconds":5},
             {"path":"https://example.com/video.mp4","duration_seconds":6},
             {"path":"/missing/private/video.mp4","duration_seconds":6},
             {"path":"/tmp/video.mp4","duration_seconds":6,"threshold":0.02},
