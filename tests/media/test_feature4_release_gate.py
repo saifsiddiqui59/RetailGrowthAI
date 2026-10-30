@@ -122,8 +122,10 @@ class ReleaseGateTests(unittest.TestCase):
         ):
             j, l, r, m = copy.deepcopy((job, lineage, review, media))
             m[audio_id][field] = value
+            expected_error = ("Synthetic" if field == "synthetic_fixture"
+                              else "Every rendered media asset")
             with self.subTest(field=field), self.assertRaisesRegex(
-                    ReleaseNotApproved, "Every rendered media asset"):
+                    ReleaseNotApproved, expected_error):
                 self.run_gate(j, l, r, m)
         j, l, r, m = copy.deepcopy((job, lineage, review, media))
         del m[audio_id]
