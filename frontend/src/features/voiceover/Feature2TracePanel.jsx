@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState} from 'react'
 import {verifyPrivateFeature2Trace} from './voiceover-trace-model.mjs'
+import {createPrivateTraceRequestGate} from './voiceover-trace-request-gate.mjs'
 
 // Source-only view: coordinator must supply a trusted authenticated RLS-backed
 // private trace endpoint, NOT a browser-held HMAC secret or a fixture response.
@@ -10,17 +11,23 @@ export default function Feature2TracePanel({
   const [result,setResult]=useState(null)
   const [error,setError]=useState('')
   const [busy,setBusy]=useState(false)
-  const current=shopId+':'+campaignId+':'+workflowId+':'+sourceSha256
-  const scope=useRef(current)
-  scope.current=current
+  const current=[shopId,campaignId,workflowId,sourceSha256,enabled===true].join(':')
+  const gate=useRef(null)
+  if(!gate.current)gate.current=createPrivateTraceRequestGate()
+  gate.current.setScope(current)
+  const readerRef=useRef(onFetchPrivateTrace)
+  readerRef.current=onFetchPrivateTrace
   useEffect(()=>{
-    setResult(null);setError('')
-  },[current])
+    gate.current.invalidate()
+    setResult(null);setError('');setBusy(false)
+  },[current,onFetchPrivateTrace])
   async function refresh(){
     if(enabled!==true||typeof onFetchPrivateTrace!=='function'){
       setError('Authenticated private trace reader unavailable');return
     }
-    const old=scope.current
+    const ticket=gate.current.begin(current)
+    const reader=onFetchPrivateTrace
+    const stillCurrent=()=>gate.current.valid(ticket,current) && reader===readerRef.current
     setError('');setBusy(true)
     try{
       const receipt=await onFetchPrivateTrace({
@@ -30,12 +37,14 @@ export default function Feature2TracePanel({
       const clean=verifyPrivateFeature2Trace({
         shopId,campaignId,workflowId,sourceSha256,receipt,
       })
-      if(old!==scope.current)throw Error('Campaign or workflow revoked during read')
+      if(!stillCurrent())return
       setResult(clean)
     }catch(e){
-      setResult(null)
-      setError(e?.message||'Current private trace could not be verified')
-    }finally{setBusy(false)}
+      if(stillCurrent()){
+        setResult(null)
+        setError(e?.message||'Current private trace could not be verified')
+      }
+    }finally{if(stillCurrent())setBusy(false)}
   }
   if(!workflowId||!sourceSha256)return null
   return <section aria-label="Private creative workflow trace">
