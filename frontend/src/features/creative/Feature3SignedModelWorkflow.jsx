@@ -133,8 +133,13 @@ function Feature3SignedModelWorkflowEditor({shopId,api,disabled,isCurrent}) {
     result=await api.revokeModel(shopId,modelId,{
      expected_revision:Number(revision),image_sha256:imageSha,reason:notes,
     })
+    // Revocation is a non-idempotent signed POST. When the signed shop/API
+    // switches while awaiting the response, never mutate the newer review
+    // session or claim a confirmed receipt from an older actor.
+    if(!isCurrent())return
     setRevision(String(result.rights_revision))
    }
+   if(!isCurrent())return
    setReceipt(result)
    setStatus('Server confirmed '+result.status+'. This does not authorize GPU or publishing.')
   }catch{

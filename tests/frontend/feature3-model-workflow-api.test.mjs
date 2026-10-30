@@ -18,7 +18,8 @@ function api(receipt,opts={}) {
  let calls=[]
  const client=createFeature3ModelWorkflowApi({baseUrl:'https://example.test',tokenProvider:opts.tokenProvider||(()=> 'test-jwt'),
   fetchImpl:async(url,options)=>{calls.push({url,options});if(opts.fail)throw Error('503 timeout')
-   return {ok:opts.status===undefined,status:opts.status||200,json:async()=>receipt}
+   const contractStatus = /\/(import|register)$/.test(url) ? 201 : 200
+   return {ok:opts.status===undefined,status:opts.status||contractStatus,json:async()=>receipt}
   }})
  return {client,calls}
 }
@@ -86,6 +87,74 @@ test('browser cannot substitute service or publishable project keys for signed u
   assert.equal(calls.length,0)
  }
 })
+test('signed model POST denies redirected, foreign or asynchronous receipts without replay',async()=>{
+ const urls=['https://different.test/api/foreign','https://example.test/unexpected']
+ for(const scenario of [
+   {redirected:true,url:'https://example.test'},
+   ...urls.map(url=>({url})),
+   {status:202},
+   {status:200},
+   {status:204},
+ ]) {
+   const calls=[]
+   const client=createFeature3ModelWorkflowApi({
+     baseUrl:'https://example.test',tokenProvider:()=> 'test-jwt',
+     fetchImpl:async(url,options)=>{
+       calls.push({url,options})
+       return {ok:true,status:201,redirected:false,...scenario,
+               json:async()=>imported}
+     },
+   })
+   await assert.rejects(client.importPendingModel(shop,newModel))
+   assert.equal(calls.length,1,'unknown POST must never replay')
+   assert.equal(calls[0].options.redirect,'error')
+   assert.equal(calls[0].options.credentials,'omit')
+ }
+})
+
+test('model REST status contract accepts import/register 201 and review/revoke 200 only',async()=>{
+ const tested = []
+ const registered={shop_id:shop,model_id:model,media_asset_id:media,
+  image_sha256:'a'.repeat(64),registered:true,byte_sha_verified:false,
+  license_verified:false,status:'SOURCE_REGISTERED_PENDING_EVIDENCE',gpu_authorized:false}
+ const approved={shop_id:shop,model_id:model,status:'APPROVED',rights_revision:2,
+  review_event_id:event,audit_persisted:true,gpu_enabled:false,generation_executed:false}
+ for(const [method,body,success,wrongStatus] of [
+  ['importPendingModel',newModel,imported,200],
+  ['registerModelOriginal',sourceRegistration,registered,200],
+  ['reviewModel',review,approved,201],
+ ]) {
+  const run=async status=>{
+   const calls=[]
+   const client=createFeature3ModelWorkflowApi({
+    baseUrl:'https://example.test',tokenProvider:()=> 'test-jwt',
+    fetchImpl:async(url,opts)=>{calls.push(url);return {
+     ok:true,status,json:async()=>success
+    }},
+   })
+   if(method==='reviewModel')return {run:client[method](shop,model,body),calls}
+   return {run:client[method](shop,body),calls}
+  }
+  const good=await run(method==='reviewModel'?200:201)
+  await good.run
+  assert.equal(good.calls.length,1)
+  const bad=await run(wrongStatus)
+  await assert.rejects(bad.run,/confirmation unknown/)
+  assert.equal(bad.calls.length,1)
+  tested.push(method)
+ }
+ assert.deepEqual(tested,['importPendingModel','registerModelOriginal','reviewModel'])
+})
+
+test('signed reviewer does not apply a late revoke confirmation after session change',()=>{
+ const ui=readFileSync(new URL(
+   '../../frontend/src/features/creative/Feature3SignedModelWorkflow.jsx',
+   import.meta.url),'utf8')
+ assert.match(ui,/result=await api\.revokeModel[\s\S]*?if\(!isCurrent\(\)\)return\s+setRevision/)
+ assert.match(ui,/if\(!isCurrent\(\)\)return\s+setReceipt\(result\)/)
+ assert.match(ui,/const isCurrent=\(\)=>current\.current\.revision===revision/)
+})
+
 test('ambiguous 409 or 503 POST does not retry',async()=>{
  for(const opt of [{status:409},{fail:true}]) {
   const {client,calls}=api(null,opt)
