@@ -39,3 +39,12 @@ Central `coordination/feature_tasks.json` snapshot: F5 total 22, source-complete
 - Source guard: `feature5_motion/shared_model_mount.py` commit `b84489e803100c2e249c4db8a3c4ce9be5e63740`.
 - **Verification:** no local repository checkout (network DNS unavailable), so `python -m unittest discover -s tests/ai -p 'test_feature5_parent_guard_20261030.py'` NOT RUN. GitHub PR-run/status API returned no checks on the observed intermediate head; new exact-head 4/4 CI must be inspected before TESTED/PR-ready claims.
 - **Next:** F5-14 exact-head CI and merge conflict reconciliation by coordinator; independently eligible F5-13 OCI/SBOM source review if CI pending. No actual mounted checkpoint readback, Azure deployment or GPU inference.
+
+## 2026-10-30 F5-14 same-size rewrite / restored-mtime guard
+
+- **Source:** `feature5_motion/shared_model_mount.py` now compares `st_ctime_ns` alongside device, inode, size, mtime and link count before and after the bounded descriptor read. This detects in-place writes followed by restoration of the old mtime that the previous identity tuple could miss. Source commit `d1193f49e70cd3c720d847f4b6ec076bbbc150bd`.
+- **Regression:** `tests/ai/test_feature5_shared_model_mount.py` now rewrites the manifest in-place after `os.read`, preserves byte count and restores the old mtime, and expects `PreflightError`. Test commit `112bc2a4f07acdd379ea2caade8357aa5c8c37f8`.
+- **Verification:** GitHub PR-triggered workflow lookup on exact code/test head `112bc2a4f07acdd379ea2caade8357aa5c8c37f8` returned **zero runs**; local repository tests **NOT RUN** (no local checkout). This is **not** TESTED or PR-ready. Suggested command: `python -m unittest discover -s tests/ai -p 'test_feature5_shared_model_mount.py'`.
+- **PR:** stacked draft [#819](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/819), `mergeable=false` against parent Feature5 batch PR #781; coordinator owns stack reconciliation, CI and merge. New checkpoint commit itself requires a fresh exact-head check.
+- **Limits:** ctime identity is defense in depth, not cryptographic provenance or an atomic mount attestation. Actual 3 original Wan checkpoint SHA-256 reads, OCI/CUDA review, hosted mount and real inference remain unverified. GPU OFF; no paid services or PROD changes.
+- **NEXT:** F5-14 targeted test + exact-head 4/4 CI after stack reconciliation; meanwhile F5-13 independent OCI digest/license/SBOM review (no image build or GPU), or F5-02 original exporter review after verifying PR #804 to avoid duplicate work.
