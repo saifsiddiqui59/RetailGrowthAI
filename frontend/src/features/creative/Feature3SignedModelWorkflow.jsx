@@ -4,6 +4,7 @@
  */
 import {useState} from 'react'
 import {getRetailClient} from '../../lib/supabase.js'
+import {verifyPrivateModelOriginalUploadReceipt} from './feature3-model-workflow-api.mjs'
 const FIELDS = [
  ['adult_synthetic','Confirmed adult synthetic model'],
  ['likeness_and_consent','Independently confirmed likeness/consent'],
@@ -56,17 +57,20 @@ export default function Feature3SignedModelWorkflow({shopId,api,enabled=false,di
     file:sourceFile,modelId,licenseName:sourceLicense,
     licenseUrl:sourceLicenseUrl,attribution,confirmedRights:true,
    })
+   // Fail closed before the separate registration POST if Storage returned
+   // an unexpected tenant, model, path, digest or forged approval state.
+   const verifiedUpload=verifyPrivateModelOriginalUploadReceipt(uploaded,shopId,modelId)
    const registration=await api.registerModelOriginal(shopId,{
-    model_id:modelId,image_sha256:uploaded.image_sha256,
+    model_id:modelId,image_sha256:verifiedUpload.image_sha256,
     license_name:sourceLicense,
     license_url:sourceLicenseUrl||null,attribution:attribution.trim(),
    })
    if(registration.model_id!==uploaded.model_id ||
-       registration.image_sha256!==uploaded.image_sha256){
+       registration.image_sha256!==verifiedUpload.image_sha256){
     throw Error('Storage and signed registration identities do not match')
    }
    setMediaId(registration.media_asset_id)
-   setImageSha(uploaded.image_sha256)
+   setImageSha(verifiedUpload.image_sha256)
    setConfirmedRights(false)
    setStatus('Private model PNG registered as unverified source. Independent SHA and license evidence still required before review or reuse.')
   }catch{
