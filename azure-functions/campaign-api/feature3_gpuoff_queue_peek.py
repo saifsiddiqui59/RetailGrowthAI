@@ -7,6 +7,18 @@ current-rights preflight. This is explicitly NOT a queue worker or GPU trigger.
 """
 from __future__ import annotations
 
+from feature3_gpu_envelope import decode_dispatch_envelope
+
+# The read-only operator presentation is a second, independent trust
+# boundary. The current-rights intake callback must not smuggle private
+# source identifiers, URLs, approval fields or altered tenant/job identities.
+_INTAKE_KEYS=frozenset((
+    "shop_id","job_id","source_count","preflight_checked","gpu_enabled",
+    "provider_call_permitted","claim_performed",
+    "queue_message_delete_permitted","queue_delivery_acknowledged",
+    "paid_retry_authorized","charged_usd",
+))
+
 
 class Feature3QueuePeekDenied(PermissionError):
     """Untrusted/ambiguous visible queue state; no delivery side effects."""
@@ -40,8 +52,14 @@ class Feature3GPUOffAzureQueuePeek:
                 data=getattr(message,"content",None)
                 if not isinstance(data,(str,bytes)):
                     raise Feature3QueuePeekDenied("No safe queue message content")
+                # Even if an injected adapter returns a superficially safe
+                # preflight, the visible job must match the original exact
+                # signed-free Queue routing envelope (not an arbitrary row).
+                routing=decode_dispatch_envelope(data)
                 inspected=self.intake.inspect(data)
-                if (not isinstance(inspected,dict) or
+                if (type(inspected) is not dict or set(inspected)!=_INTAKE_KEYS or
+                        inspected.get("shop_id")!=routing["shop_id"] or
+                        inspected.get("job_id")!=routing["job_id"] or
                         inspected.get("preflight_checked") is not True or
                         inspected.get("gpu_enabled") is not False or
                         inspected.get("provider_call_permitted") is not False or
@@ -52,7 +70,8 @@ class Feature3GPUOffAzureQueuePeek:
                         inspected.get("charged_usd")!="0.00" or
                         type(inspected.get("source_count")) is not int or
                         not 1<=inspected["source_count"]<=12 or
-                        "job_id" not in inspected or "shop_id" not in inspected):
+                        type(inspected.get("shop_id")) is not str or
+                        type(inspected.get("job_id")) is not str):
                     raise Feature3QueuePeekDenied("Untrusted zero-GPU intake result")
                 identity=(inspected["shop_id"],inspected["job_id"])
                 if identity in seen:

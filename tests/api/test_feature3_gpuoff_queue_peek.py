@@ -113,6 +113,55 @@ class SafeQueuePeekTests(unittest.TestCase):
                 self.inspect.inspect_visible()
             self.assert_no_mutation()
 
+    def test_mutated_or_expanded_intake_receipt_never_escapes_as_visible_job(self):
+        # A compromised/misconfigured delegate must never replace the
+        # envelope's shop/job, add protected information, or forge paid flags.
+        for corrupt in (
+            {"shop_id":str(uuid4())},
+            {"job_id":str(uuid4())},
+            {"url":"https://example.invalid/private.png"},
+            {"source_asset_ids":[self.source]},
+            {"preflight_checked":1},
+            {"gpu_enabled":0},
+            {"source_count":True},
+            {"queue_delivery_acknowledged":0},
+            {"charged_usd":0},
+        ):
+            self.setUp()
+            real=self.intake
+            class ModifiedIntake:
+                def require_gpu_off(self):
+                    real.require_gpu_off()
+                def inspect(self,content):
+                    return {**real.inspect(content),**corrupt}
+            self.inspect=Feature3GPUOffAzureQueuePeek(
+                queue_client=self.queue,gpu_off_intake=ModifiedIntake())
+            with self.subTest(corrupt=corrupt),self.assertRaises(
+                    Feature3QueuePeekDenied):
+                self.inspect.inspect_visible()
+            self.assert_no_mutation()
+            self.assertEqual(self.plan.calls,[(self.shop,self.job)])
+
+    def test_noncanonical_envelope_rejected_before_untrusted_inspector(self):
+        delegate=Mock()
+        delegate.require_gpu_off.return_value=None
+        delegate.inspect.return_value={
+            "shop_id":self.shop,"job_id":self.job,"source_count":1,
+            "preflight_checked":True,"gpu_enabled":False,
+            "provider_call_permitted":False,"claim_performed":False,
+            "queue_message_delete_permitted":False,
+            "queue_delivery_acknowledged":False,
+            "paid_retry_authorized":False,"charged_usd":"0.00",
+        }
+        self.inspect=Feature3GPUOffAzureQueuePeek(
+            queue_client=self.queue,gpu_off_intake=delegate)
+        self.queue.peek_messages.return_value=[
+            SimpleNamespace(content="not a valid envelope")]
+        with self.assertRaises(Feature3QueuePeekDenied):
+            self.inspect.inspect_visible()
+        delegate.inspect.assert_not_called()
+        self.assert_no_mutation()
+
     def test_transport_timeout_denies_instead_of_reporting_empty(self):
         self.queue.peek_messages.side_effect=TimeoutError("network unknown")
         with self.assertRaises(Feature3QueuePeekDenied):
