@@ -56,6 +56,37 @@ class FunctionsRuntimeManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"Undeclared ai_agents runtime import"):
             mod.verify_runtime_agent_imports(candidate)
 
+    def test_excluded_source_module_package_import_forms_fail_closed(self):
+        # These import forms were invisible to the original manifest audit.
+        # Synthetic modules avoid any real model or provider dependency.
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp)
+            (home / "offline_voice.py").write_text("SAFE_TEST_FIXTURE = True\n", encoding="utf-8")
+            (home / "schemas.py").write_text("SAFE_TEST_FIXTURE = True\n", encoding="utf-8")
+            forms = (
+                b"from ai_agents import offline_voice\n",
+                b"from . import offline_voice\n",
+                b"worker = __import__('ai_agents.offline_voice')\n",
+            )
+            with patch.object(mod, "AGENTS", home):
+                for statement in forms:
+                    with self.subTest(statement=statement):
+                        candidate = {"ai_agents/schemas.py": statement}
+                        with self.assertRaisesRegex(
+                            ValueError, "Undeclared ai_agents runtime import"
+                        ):
+                            mod.verify_runtime_agent_imports(candidate)
+
+    def test_exported_symbol_is_not_mistaken_for_excluded_module(self):
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp)
+            (home / "schemas.py").write_text("SAFE_TEST_FIXTURE = True\n", encoding="utf-8")
+            candidate = {
+                "ai_agents/schemas.py": b"from ai_agents import exported_symbol\n"
+            }
+            with patch.object(mod, "AGENTS", home):
+                self.assertTrue(mod.verify_runtime_agent_imports(candidate))
+
     def test_mandatory_agent_missing_fails_closed_even_with_test_fixture(self):
         with tempfile.TemporaryDirectory() as temp:
             home=Path(temp)
