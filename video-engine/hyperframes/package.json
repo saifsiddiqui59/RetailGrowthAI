@@ -1,0 +1,14 @@
+{
+  "name": "@retailgrowthai/feature4-render-adapter",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@hyperframes/producer": "0.8.185"
+  },
+  "scripts": {
+    "render": "node render.mjs"
+  }
+}
