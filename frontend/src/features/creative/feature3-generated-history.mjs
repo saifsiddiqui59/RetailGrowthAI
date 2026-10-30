@@ -29,11 +29,27 @@ export function validateFeature3GeneratedHistory(shopId, jobs) {
 }
 
 export function scopedFeature3GeneratedHistory(value, shopId) {
-  if (!UUID.test(shopId || '') || !value || value.shopId !== shopId ||
-      !Array.isArray(value.jobs)) return empty(shopId)
+  if (!UUID.test(shopId || '') || !value || typeof value !== 'object' ||
+      Array.isArray(value)) return empty(shopId)
   try {
-    return Object.freeze({...value,
-      jobs:validateFeature3GeneratedHistory(shopId,value.jobs)})
+    // A validated jobs array is not enough: spreading the surrounding state
+    // could accidentally expose untrusted signed URLs, approval flags or
+    // private object paths to a later consumer. Accept only presentation data.
+    if (!Object.hasOwn(value, 'shopId') || !Object.hasOwn(value, 'jobs') ||
+        value.shopId !== shopId || !Array.isArray(value.jobs) ||
+        Object.keys(value).some(key =>
+          !['shopId', 'jobs', 'message', 'busy'].includes(key)) ||
+        (Object.hasOwn(value, 'message') &&
+          (typeof value.message !== 'string' || value.message.length > 240)) ||
+        (Object.hasOwn(value, 'busy') && typeof value.busy !== 'boolean')) {
+      return empty(shopId)
+    }
+    return Object.freeze({
+      shopId,
+      jobs: validateFeature3GeneratedHistory(shopId, value.jobs),
+      message: Object.hasOwn(value, 'message') ? value.message : '',
+      busy: Object.hasOwn(value, 'busy') ? value.busy : false,
+    })
   } catch {
     return empty(shopId)
   }
