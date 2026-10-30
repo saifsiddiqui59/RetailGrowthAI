@@ -138,10 +138,72 @@ class RevocableReaderTests(unittest.TestCase):
         self.assertFalse(result["publish_approved"])
         self.assertNotIn("url",result)
         self.assertNotIn("object_path",result)
-        self.assertEqual(self.calls,["verify","get"])
+        self.assertEqual(self.calls,["verify","get","verify"])
         self.assertEqual(self.tenant.calls,
                          ["member","job","asset","member","job","asset"])
         self.assertEqual(self.rights_called,2)
+
+    def test_jwt_expires_during_binary_stream_denies_private_output(self):
+        state={"expired":False}
+        original=self.verify
+        def verifier(token):
+            if state["expired"]:
+                raise RuntimeError("SECRET_JWT_DIAGNOSTIC_NEVER_EXPOSE")
+            return original(token)
+        self.verify=verifier
+        self.reader=self.build()
+        self.on_read=lambda:state.__setitem__("expired",True)
+        with self.assertRaises(PrivateGeneratedDownloadDenied) as caught:
+            self.read()
+        self.assertNotIn("SECRET_JWT",str(caught.exception))
+        self.assertEqual(self.calls,["verify","get"])
+        self.assertEqual(self.tenant.calls.count("member"),2)
+        self.assertEqual(self.rights_called,2)
+
+    def test_jwt_actor_changes_after_binary_stream_denies_private_output(self):
+        original=self.verify
+        state={"switched":False}
+        def verifier(token):
+            return str(uuid4()) if state["switched"] else original(token)
+        self.verify=verifier
+        self.reader=self.build()
+        self.on_read=lambda:state.__setitem__("switched",True)
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            self.read()
+        self.assertEqual(self.tenant.calls.count("member"),2)
+        self.assertEqual(self.rights_called,2)
+
+    def test_jwt_revoked_during_final_rights_check_denies_private_output(self):
+        original_verify=self.verify
+        original_rights=self.rights
+        state={"revoked":False}
+        def verifier(token):
+            if state["revoked"]:
+                raise PermissionError("sensitive verifier internal token")
+            return original_verify(token)
+        def rights_and_revoke(shop,job,asset):
+            allowed=original_rights(shop,job,asset)
+            if self.rights_called==2:
+                state["revoked"]=True
+            return allowed
+        self.verify=verifier
+        self.rights=rights_and_revoke
+        self.reader=self.build()
+        with self.assertRaises(PrivateGeneratedDownloadDenied) as caught:
+            self.read()
+        self.assertNotIn("sensitive verifier",str(caught.exception))
+        self.assertEqual(self.rights_called,2)
+
+    def test_failing_initial_jwt_verifier_never_leaks_or_reads_private_media(self):
+        def broken(_token):
+            raise RuntimeError("SECRET_AUTH_ADMIN_DIAGNOSTIC")
+        self.verify=broken
+        self.reader=self.build()
+        with self.assertRaises(PrivateGeneratedDownloadDenied) as caught:
+            self.read()
+        self.assertNotIn("SECRET_AUTH_ADMIN",str(caught.exception))
+        self.assertEqual(self.tenant.calls,[])
+        self.assertNotIn("get",self.calls)
 
     def test_revocation_during_private_read_blocks_returned_png(self):
         self.on_read=lambda:setattr(self.tenant,"active",False)
