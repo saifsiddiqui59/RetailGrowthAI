@@ -164,6 +164,36 @@ class SharedModelMountTests(unittest.TestCase):
                     m.read_private_manifest(manifest)
             self.assertTrue(swapped)
 
+    def test_private_manifest_rejects_inplace_rewrite_with_restored_mtime(self):
+        from unittest.mock import patch
+        import time
+        with tempfile.TemporaryDirectory() as temp:
+            manifest = Path(temp) / "private.json"
+            manifest.write_text(json.dumps(sample()), encoding="utf-8")
+            original = manifest.stat()
+            real_read = os.read
+            modified = False
+
+            def rewrite_after_read(fd, count):
+                nonlocal modified
+                data = real_read(fd, count)
+                if data and not modified:
+                    modified = True
+                    # Rewrite identical-size bytes, then restore the mtime;
+                    # inode/size/mtime alone would falsely look unchanged.
+                    time.sleep(0.02)
+                    with manifest.open("r+b") as handle:
+                        handle.seek(0)
+                        handle.write(b" " * len(data))
+                    os.utime(manifest, ns=(original.st_atime_ns, original.st_mtime_ns))
+                return data
+
+            with patch.object(m.os, "read", side_effect=rewrite_after_read):
+                with self.assertRaises(m.PreflightError):
+                    m.read_private_manifest(manifest)
+            self.assertTrue(modified)
+            self.assertEqual(manifest.stat().st_mtime_ns, original.st_mtime_ns)
+
     def test_stat_only_mount_rejects_intermediate_links_and_hardlinks(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as td:
