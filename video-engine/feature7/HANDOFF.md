@@ -326,3 +326,8 @@ The optional system-PocketSphinx CPU trial now also exports the recognizer's **a
 ## 2026-10-29 — Nonblocking source + coordinator dependency handoff
 
 Source-only: F7 real original F3 technical artifact pipeline test, browser Chromium reviewer test, nonzero/SIGKILL/timeout CPU worker negatives, verified SHA-pinned wheelhouse closure audit and strict F2/F4 contract review. See `PENDING_NUMBERED_20261029.md` (IDs F7-01..23) and `DEPENDENCIES_F7_07_23.md` (each dependent owner/output/acceptance). Actual original F3 ZIP manually checked but positive optional repo integration test requires its bytes staged. These tests never turn synthetic silent video into ASR speech, model wearing garment, or production approval. Real model checkpoint, private JWT/RLS, durable Postgres and F4 final renderer remain separately coordinated. This worker PR does not modify other feature-owned or shared code.
+
+
+## 2026-10-30 — F7-R short utterance safety handoff (draft PR #764)
+
+The source-only gap-cut advisory must never propose removing a verified word, even if AutoBroll speech-run filtering drops a very short utterance. The stacked draft PR #764 adds a word-overlap denial for each candidate gap and a deterministic 40ms-word regression. Feature4 must continue to treat all such gaps as human-review-only; no executable jump-cut, automatic deletion or approval is authorized. Exact-head four-job CI and coordinator integration remain pending; F7-R is IN PROGRESS, not integrated DONE. No hosted tenant or real speech model evidence is implied.
