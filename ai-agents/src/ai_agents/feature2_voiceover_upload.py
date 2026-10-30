@@ -141,7 +141,7 @@ def decode_unreviewed_mp3_to_private_wav(*, original_mp3, max_seconds,
         not (original_mp3.startswith(b"ID3") or
              (original_mp3[0]==0xff and original_mp3[1] & 0xe0==0xe0)) or
         type(max_seconds) is not int or max_seconds not in (15,30,60) or
-        type(operator_ffmpeg_path) not in (str,Path)):
+        type(operator_ffmpeg_path) not in (str,type(Path()))):
         raise VoiceUploadRejected("Bounded MPEG layer-3 original required")
     binary=Path(operator_ffmpeg_path)
     if (not binary.is_absolute() or not binary.is_file() or
