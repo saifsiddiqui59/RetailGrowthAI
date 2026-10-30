@@ -9,6 +9,7 @@ import argparse
 import json
 import os
 import re
+import stat
 from pathlib import Path, PurePosixPath
 
 ACCOUNT = "rgaimodelseastus26"
@@ -48,19 +49,42 @@ def _reject_duplicate_manifest_keys(pairs):
 
 
 def read_private_manifest(path):
-    """Read only a small, unambiguous private inventory, never model bytes.
+    """Read a bounded PRIVATE manifest without following a swapped symlink.
 
-    A completion manifest is NOT an independent provenance signature. The
-    existing hard-coded six-file hash and revision validation still applies.
+    The inode, link count, size and modification time must remain stable from
+    lstat through descriptor read. Fail closed if the OS cannot enforce
+    O_NOFOLLOW; do not interpret a manifest as independent rights approval.
     """
     item = Path(path)
-    if item.is_symlink() or not item.is_file():
-        raise PreflightError("Private existing non-symlinked manifest required")
     try:
-        with item.open("rb") as handle:
-            data = handle.read(MAX_PRIVATE_MANIFEST_BYTES + 1)
-        if not 0 < len(data) <= MAX_PRIVATE_MANIFEST_BYTES:
-            raise ValueError("Missing or oversized model manifest")
+        if not hasattr(os, "O_NOFOLLOW"):
+            raise PreflightError("Secure no-follow private manifest open unavailable")
+        before = item.stat(follow_symlinks=False)
+        if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or
+                not 0 < before.st_size <= MAX_PRIVATE_MANIFEST_BYTES):
+            raise PreflightError("Private manifest must be one bounded regular file")
+        flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0)
+        fd = os.open(item, flags)
+        try:
+            opened = os.fstat(fd)
+            identity = lambda st: (st.st_dev, st.st_ino, st.st_size,
+                                   st.st_mtime_ns, st.st_nlink)
+            if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1 or
+                    identity(opened) != identity(before)):
+                raise PreflightError("Private manifest changed before read")
+            data = bytearray()
+            while len(data) <= MAX_PRIVATE_MANIFEST_BYTES:
+                block = os.read(fd, min(16384, MAX_PRIVATE_MANIFEST_BYTES + 1 - len(data)))
+                if not block:
+                    break
+                data.extend(block)
+            after = os.fstat(fd)
+            if identity(after) != identity(opened):
+                raise PreflightError("Private manifest changed during read")
+            if not 0 < len(data) <= MAX_PRIVATE_MANIFEST_BYTES:
+                raise PreflightError("Missing or oversized private model manifest")
+        finally:
+            os.close(fd)
         manifest = json.loads(
             data.decode("utf-8"),
             object_pairs_hook=_reject_duplicate_manifest_keys,
