@@ -11,7 +11,7 @@ import {preparePrivateReview} from './private_review_pipeline.mjs';
 import {EditValidationError} from './autobroll_semantics.mjs';
 
 export function prepareEvidenceBoundReview({shop_id,campaign_id,draft,root,
-  media,broll_grants=[],job_id,asr_key,now_ms=Date.now()}={}) {
+  media,broll_grants=[],job_id,asr_key,expected_asr_model_id,now_ms=Date.now()}={}) {
   if(!Array.isArray(media) || media.length===0 || media.length>12 ||
      typeof job_id!=='string' || job_id.length===0)
     throw new EditValidationError('Private evidence-bound review required');
@@ -31,7 +31,9 @@ export function prepareEvidenceBoundReview({shop_id,campaign_id,draft,root,
     verifyTranscriptEvidence({evidence:item.asr_evidence,key:asr_key,now_ms,
       expect:{shop_id,asset_id:item.asset_id,job_id,
         source_sha256:item.expected_sha256,
-        transcript_sha256:normalized.transcript_sha256}});
+        transcript_sha256:normalized.transcript_sha256,
+        ...(expected_asr_model_id===undefined ? {} :
+          {model_id:expected_asr_model_id})}});
     verifiedMedia.push(item);
   }
   const proposal=preparePrivateReview({
