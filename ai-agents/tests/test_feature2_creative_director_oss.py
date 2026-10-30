@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1] / "creative-director"
     "upstream/scripts/test-explainer-cues.js",
     "upstream/scripts/test-explainer-scene.js",
     "tests/test-director.js",
+    "tests/test-diwali-offline-e2e.js",
 ])
 def test_creative_director_node_source(script):
     node = shutil.which("node")
