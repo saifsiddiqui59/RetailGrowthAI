@@ -430,3 +430,115 @@ def read_registered_private_original_wav(*,shop_id,campaign_id,source_plan,
             "can_dispatch_motion":False,
             "human_listen_required":True,
             "commercial_rights_not_certified":True}
+
+
+def read_private_local_voice_job_status(*,shop_id,campaign_id,source_plan,
+        request_key,authorize_current_editor,read_current_plan,
+        read_registered_job,read_registered_private_asset):
+    """Read a once-submitted private Kokoro job; NEVER reserve/retry it.
+
+    Callbacks must be trusted JWT/RLS readers. This function only checks
+    their scoped evidence and returns the minimal UI status projection;
+    it does not authenticate a browser, lease a worker or create media.
+    """
+    import re
+    from .feature2_kokoro_local import SUPPORTED_VOICES
+    if (not all(_uuid(x) for x in (shop_id,campaign_id,request_key))
+        or not all(callable(f) for f in
+            (authorize_current_editor,read_current_plan,
+             read_registered_job,read_registered_private_asset))):
+        raise LocalVoiceJobDenied("Trusted original private status scope required")
+    try:
+        _,review,script=_plan(source_plan,shop_id=shop_id,campaign_id=campaign_id)
+    except SpeechRejected as exc:
+        raise LocalVoiceJobDenied("Current reviewed source plan required") from exc
+    plan_sha=review["plan_sha256"]
+    script_sha=sha256(script.encode("utf-8")).hexdigest()
+    def current():
+        return (authorize_current_editor(shop_id,campaign_id) is True
+                and read_current_plan(shop_id,campaign_id)==source_plan)
+    if not current():
+        raise LocalVoiceJobDenied("Private speech status editor or plan revoked")
+    states={"RESERVED","RUNNING","AWAITING_HUMAN_REVIEW",
+            "FAILED","DENIED","BLOCKED"}
+    terminal={"AWAITING_HUMAN_REVIEW","FAILED","DENIED","BLOCKED"}
+    def job_snapshot():
+        row=read_registered_job(shop_id,campaign_id,request_key)
+        if (type(row) is not dict or
+            row.get("schema")!="retailgrowth.feature2-private-voice-job-status.v1" or
+            row.get("shop_id")!=shop_id or row.get("campaign_id")!=campaign_id or
+            row.get("request_key")!=request_key or
+            row.get("creative_plan_sha256")!=plan_sha or
+            row.get("original_script_sha256")!=script_sha or
+            row.get("provider")!="kokoro-onnx" or
+            row.get("status") not in states or
+            row.get("private") is not True or
+            row.get("can_publish") is not False or
+            row.get("can_dispatch_motion") is not False or
+            row.get("automatically_retried") is not False or
+            row.get("azure_fallback_used") is not False or
+            type(row.get("paid_api_calls")) is not int or
+            row["paid_api_calls"]!=0 or
+            row.get("revoked_at") is not None or
+            type(row.get("terminal")) is not bool or
+            row["terminal"]!=(row["status"] in terminal) or
+            row.get("review_status")!=(
+                "PENDING_HUMAN_LISTEN_AND_RIGHTS"
+                if row["status"]=="AWAITING_HUMAN_REVIEW" else "NOT_READY") or
+            type(row.get("request_sha256")) is not str or
+            not re.fullmatch(r"[a-f0-9]{64}",row["request_sha256"]) or
+            type(row.get("lease_fence")) is not int or
+            not 1<=row["lease_fence"]<2**63 or
+            row.get("voice_id") not in SUPPORTED_VOICES or
+            row.get("language")!=SUPPORTED_VOICES[row["voice_id"]]):
+            raise LocalVoiceJobDenied("Tenant-private original voice job not verified")
+        completed=row["status"]=="AWAITING_HUMAN_REVIEW"
+        if completed:
+            if (not _uuid(row.get("audio_asset_id")) or
+                type(row.get("original_audio_sha256")) is not str or
+                not re.fullmatch(r"[a-f0-9]{64}",row["original_audio_sha256"])):
+                raise LocalVoiceJobDenied("Private job lacks registered original WAV")
+        elif row.get("audio_asset_id") is not None or row.get("original_audio_sha256") is not None:
+            raise LocalVoiceJobDenied("Nonreviewed job cannot expose original audio")
+        return row
+    job=job_snapshot()
+    def private_media():
+        if job["status"]!="AWAITING_HUMAN_REVIEW":
+            return None
+        asset=read_registered_private_asset(
+            shop_id,campaign_id,job["audio_asset_id"])
+        if (type(asset) is not dict or
+            asset.get("schema")!="retailgrowth.feature2-to-feature4-original-voice.v1" or
+            asset.get("shop_id")!=shop_id or
+            asset.get("campaign_id")!=campaign_id or
+            asset.get("source_request_key")!=request_key or
+            asset.get("audio_asset_id")!=job["audio_asset_id"] or
+            asset.get("creative_plan_sha256")!=plan_sha or
+            asset.get("original_script_sha256")!=script_sha or
+            asset.get("original_audio_sha256")!=job["original_audio_sha256"] or
+            asset.get("provider")!="kokoro-onnx" or
+            asset.get("mime_type")!="audio/wav" or
+            asset.get("private") is not True or
+            asset.get("can_publish") is not False or
+            asset.get("review_state")!="PENDING_HUMAN_LISTEN_AND_RIGHTS" or
+            asset.get("revoked_at") is not None or
+            asset.get("local_inference_evidence") is not True):
+            raise LocalVoiceJobDenied("Original job WAV rights or source revoked")
+        return asset
+    original=private_media()
+    if not current() or job_snapshot()!=job or private_media()!=original:
+        raise LocalVoiceJobDenied("Private voice status revoked during read")
+    # Do not return the durable reservation digest, lease fence, actor claims,
+    # blob path, signed URL, tokens, raw transcript or unverified worker logs.
+    return {
+        "schema":"retailgrowth.feature2-private-voice-job-status.v1",
+        "shop_id":shop_id,"campaign_id":campaign_id,
+        "creative_plan_sha256":plan_sha,"request_key":request_key,
+        "provider":"kokoro-onnx","status":job["status"],
+        "private":True,"terminal":job["terminal"],
+        "review_status":job["review_status"],
+        "original_audio_sha256":job["original_audio_sha256"],
+        "audio_asset_id":job["audio_asset_id"],
+        "can_publish":False,"automatically_retried":False,
+        "azure_fallback_used":False,"paid_api_calls":0,
+    }
