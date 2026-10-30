@@ -310,7 +310,7 @@ def published_voices_in_region(*, region, api_key, shop_id, actor_may_read_shop,
             if curated is not None:
                 if (ident in found or row.get("Locale") != curated["locale"] or
                     row.get("Gender") != curated["gender"] or
-                    row.get("VoiceType") not in ("Neural", "Standard", "NeuralHD")):
+                    row.get("VoiceType") not in ("Neural", "NeuralHD")):
                     raise VoiceCatalogUnavailable("Provider voice identity differs")
                 found[ident] = row
         if actor_may_read_shop(shop_id) is not True:
