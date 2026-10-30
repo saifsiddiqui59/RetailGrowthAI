@@ -188,6 +188,21 @@ class Feature2F5SourceContractTests(unittest.TestCase):
             with self.subTest(change=str(change)), self.assertRaises(WanCompatibilityError):
                 qualify_feature2_offline_storyboard(packet)
 
+    def test_original_director_timing_requires_exact_integer_types(self):
+        # Python considers False == 0 and 5.0 == 5; a signed director
+        # timeline must not accept these ambiguous serialized JSON types.
+        for index, field, value in (
+            (0, "shot_start_seconds", False),
+            (0, "shot_start_seconds", 0.0),
+            (1, "shot_start_seconds", 5.0),
+            (0, "duration_seconds", 5.0),
+        ):
+            packet = make_packet(15)
+            packet["feature5"]["clip_requests"][index]["original_direction"][field] = value
+            with self.subTest(index=index, field=field, value=value):
+                with self.assertRaises(WanCompatibilityError):
+                    qualify_feature2_offline_storyboard(packet)
+
     def test_reject_noncontiguous_and_unsupported_durations(self):
         for duration in (5, 10, 25, 20, 90, True):
             packet = make_packet(15)
