@@ -64,8 +64,13 @@ class Feature7VisualProtocolTests(unittest.TestCase):
                 run = self.invoke(self.source, mode)
                 self.assertEqual(run.returncode, 0, run.stderr)
                 result = json.loads(run.stdout)
-                self.assertTrue(result['human_review_required'])
-                self.assertTrue(result['no_scene_deletion'])
+                if mode == 'audio':
+                    self.assertTrue(result['original_audio_preserved'])
+                    self.assertEqual(result['classification'],
+                                     'AUDIO_ACTIVITY_NOT_SPEECH')
+                else:
+                    self.assertTrue(result['human_review_required'])
+                    self.assertTrue(result['no_scene_deletion'])
                 self.assertEqual(
                     hashlib.sha256(self.source.read_bytes()).hexdigest(),
                     self.digest)
