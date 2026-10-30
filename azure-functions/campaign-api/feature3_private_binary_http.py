@@ -34,7 +34,11 @@ def _valid_png_chunks(raw):
         return False
     offset=8
     saw_idat=False
+    chunks=0
     while offset+12<=len(raw):
+        chunks+=1
+        if chunks>4096:
+            return False
         length=int.from_bytes(raw[offset:offset+4],"big")
         kind=raw[offset+4:offset+8]
         end=offset+12+length
