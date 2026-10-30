@@ -166,6 +166,57 @@ def test_safe_http_and_startup_link_counts_no_sensitive_fields():
     assert "private" not in repr(out)
 
 
+def test_historical_platform_diagnostic_preserves_rows_31_to_80():
+    # 80 is the reviewed Kusto query limit, NOT an authority to log raw data.
+    rows = [
+        {"bucket": "2026-10-28T19:40:00Z", "events": 1,
+         "category": "worker_exit" if i == 79 else "worker_start",
+         "instance": "private-host-ident-" + str(i),
+         "Message": "private token string must never be printed"}
+        for i in range(90)
+    ]
+    for payload in (rows, {"value": rows}):
+        raw = module.platform_aggregate_rows(payload)
+        assert len(raw) == 80
+        assert raw[79]["category"] == "worker_exit"
+        assert module.safe_rows(payload)[79]["category"] == "worker_exit"
+        assert len(module.safe_rows(payload)) == 80
+        assert "private-host-ident" not in str(module.safe_rows(payload))
+        assert "private token" not in str(module.safe_rows(payload))
+    # Nested table output from Azure CLI is subject to the same 80-row cap.
+    payload = {"tables": [
+        {"columns": [{"name": name} for name in
+                     ("bucket", "events", "category", "instance", "Message")],
+         "rows": [[r[name] for name in
+                   ("bucket", "events", "category", "instance", "Message")]
+                  for r in rows[:65]]},
+        {"columns": [{"name": name} for name in
+                     ("bucket", "events", "category", "instance", "Message")],
+         "rows": [[r[name] for name in
+                   ("bucket", "events", "category", "instance", "Message")]
+                  for r in rows[65:]]},
+    ]}
+    assert len(module.platform_aggregate_rows(payload)) == 80
+    sanitized = module.safe_rows(payload)
+    assert len(sanitized) == 80
+    assert sanitized[79]["category"] == "worker_exit"
+    assert "instance" not in sanitized[79]
+    assert "Message" not in sanitized[79]
+
+
+def test_historical_decoder_rejects_bad_shapes_and_untrusted_columns():
+    assert module.platform_aggregate_rows(None) == []
+    assert module.platform_aggregate_rows({"tables": "not a list"}) == []
+    assert module.platform_aggregate_rows({"tables": [
+        {"columns": [{"name": "events"}, {"name": "events"}],
+         "rows": [[1, 2]]},
+        {"columns": [{"name": "events"}], "rows": ["not a row"]},
+    ]}) == []
+    assert module.safe_rows({"value": [
+        {"events": 99, "bucket": "untrusted date", "Message": "private"}
+    ]}) == []
+
+
 def test_only_aggregate_read_operations_reachable():
     calls = []
     module.audit_scope = lambda: calls.append("scoped")
