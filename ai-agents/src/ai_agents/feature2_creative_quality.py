@@ -306,8 +306,14 @@ def append_feature2_trace(*, shop_id, campaign_id, workflow_id, event_id,
         or receipt.get("sequence") != event_number
         or receipt.get("event_sha256") != event_sha
         or receipt.get("private") is not True
-        or receipt.get("committed") is not True):
+        or receipt.get("committed") is not True
+        or receipt.get("can_publish") is True
+        or receipt.get("paid_motion_permitted") is True):
         raise Feature2TraceDenied("Durable private trace append not verified")
+    # Coordinator-owned transactional writer must fence its own commit.
+    # This readback denies success after in-flight scope revocation.
+    if not active():
+        raise Feature2TraceDenied("Trace source revoked during private append")
     # Only bounded digests + enum; NEVER return the secret or full event body.
     return {"schema":event["schema"],"event_sha256":event_sha,
             "event_id":event_id,"sequence":event_number,
@@ -467,8 +473,14 @@ def stage_blind_human_review_revision(*,shop_id,campaign_id,experiment_id,
         stored.get("experiment_id")!=experiment_id or
         stored.get("revision")!=expected_revision+1 or
         stored.get("receipt_digest")!=receipt_digest or
-        stored.get("private") is not True):
+        stored.get("private") is not True or
+        stored.get("can_publish") is True or
+        stored.get("paid_motion_permitted") is True or
+        stored.get("review_status") not in (None,"HUMAN_SCORE_ONLY")):
         raise Feature2TraceDenied("Durable human review revision not confirmed")
+    # CAS legitimately increments revision: recheck role/candidates, not old revision.
+    if not live():
+        raise Feature2TraceDenied("Blind review source revoked during private revision")
     return {"schema":"retailgrowth.feature2-blind-review.v1",
             "experiment_id":experiment_id,"revision":expected_revision+1,
             "receipt_digest":receipt_digest,
