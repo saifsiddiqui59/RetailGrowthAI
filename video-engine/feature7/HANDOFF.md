@@ -326,3 +326,9 @@ The optional system-PocketSphinx CPU trial now also exports the recognizer's **a
 ## 2026-10-29 — Nonblocking source + coordinator dependency handoff
 
 Source-only: F7 real original F3 technical artifact pipeline test, browser Chromium reviewer test, nonzero/SIGKILL/timeout CPU worker negatives, verified SHA-pinned wheelhouse closure audit and strict F2/F4 contract review. See `PENDING_NUMBERED_20261029.md` (IDs F7-01..23) and `DEPENDENCIES_F7_07_23.md` (each dependent owner/output/acceptance). Actual original F3 ZIP manually checked but positive optional repo integration test requires its bytes staged. These tests never turn synthetic silent video into ASR speech, model wearing garment, or production approval. Real model checkpoint, private JWT/RLS, durable Postgres and F4 final renderer remain separately coordinated. This worker PR does not modify other feature-owned or shared code.
+
+
+### 2026-10-30 — F7-U scene-change timestamp evidence hardening (source-only)
+
+- FFmpeg scene parser previously matched only a numeric prefix: malformed `pts_time:-1.0`, `pts_time:NaN`, `pts_time:1e309` or `pts_time:2.0junk` could be silently ignored or misinterpreted as a valid cut time. Parser now captures the complete timestamp token and rejects invalid/nonfinite/out-of-source values.
+- Added negative cases in `tests/media/test_feature7_scene_change.py`. Human-review advisory only; no automatic edits, actual customer media, inference or deployment. Exact-head CI and coordinator integration not yet verified; F7-U remains IN PROGRESS, not integrated DONE.
