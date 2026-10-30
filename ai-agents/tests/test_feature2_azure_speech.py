@@ -189,3 +189,28 @@ def test_current_plan_revalidated_after_paid_provider_ack(monkeypatch):
     with pytest.raises(SpeechRejected,match="do not retry"):
         service.synthesize(plan=creative(),request=req())
     assert [e[0] for e in events]==["reserve","transport"]
+
+@pytest.mark.parametrize("field,bad", [
+    ("voice_id", []),
+    ("voice_id", {"voice": "en-IN-NeerjaNeural"}),
+    ("voice_id", None),
+    ("language", ["en-IN"]),
+    ("language", {"locale": "en-IN"}),
+    ("speed", ["normal"]),
+    ("speed", {"rate": "normal"}),
+])
+def test_unhashable_voice_selection_fails_closed_before_paid_reservation(
+    monkeypatch, field, bad
+):
+    service, events, checks = fake_service(monkeypatch)
+    fields = dict(
+        shop_id=SHOP, campaign_id=CID,
+        voice_id="en-IN-NeerjaNeural", language="en-IN",
+        speed="normal", preview=False, user_confirmed_charge=True,
+        idempotency_key=str(uuid4()),
+    )
+    fields[field] = bad
+    with pytest.raises(SpeechRejected, match="Voice selection"):
+        service.synthesize(plan=creative(), request=VoiceRequest(**fields))
+    assert events == []
+    assert checks == []
