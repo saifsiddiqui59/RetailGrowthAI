@@ -457,3 +457,18 @@ def test_broadened_discount_scope_and_price_variants_require_editor_review(
     assert report["review_required"] is True
     assert report["commercial_fact_certified"] is False
     assert report["can_publish"] is False
+
+
+@pytest.mark.parametrize("second_title", [
+    "Festive cotton kurti collection trends for Diwali",
+    "FESTIVE COTTON KURTI COLLECTION TRENDS FOR DIWALI",
+    "Festive  cotton   kurti collection trends for Diwali",
+])
+def test_signed_rss_distinct_guids_cannot_duplicate_same_headline(second_title):
+    xml = rss_xml(items=[
+        ("guid_first", "Festive cotton kurti collection trends for Diwali",
+         "Wed, 28 Oct 2026 11:00:00 GMT"),
+        ("guid_second", second_title, "Wed, 28 Oct 2026 10:00:00 GMT"),
+    ])
+    with pytest.raises(EditorialBasisRejected, match="Duplicated RSS headline"):
+        rank_xml(xml)
