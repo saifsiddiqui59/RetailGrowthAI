@@ -64,9 +64,10 @@ export function buildReviewTimeline({proposal,draft,approved_asset_grants}={}) {
       cap.timeline_start_ms>=sc.start_ms &&
       cap.timeline_end_ms<=sc.end_ms &&
       Array.isArray(cap.words) && cap.words.length<=7 &&
-      cap.words.every(w=>typeof w.text==='string' &&
+      cap.words.every(w=>w && typeof w.text==='string' &&
         w.text.length>0 && w.text.length<=80 &&
-        !/[\u0000-\u001f\u007f<>]/.test(w.text)),
+        !/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069\ufeff<>]/u.test(w.text) &&
+        !/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/u.test(w.text)),
       'Caption outside scene or unsafe text');
     captions.push({scene_index:sc.source_scene_index,asset_id:sc.asset_id,
       start_ms:cap.timeline_start_ms,end_ms:cap.timeline_end_ms,
