@@ -38,6 +38,14 @@ def test_real_runtime_disabled_no_weight_or_network(monkeypatch):
     monkeypatch.delenv("RETAIL_FEATURE2_KOKORO_CPU_ENABLED",raising=False)
     with pytest.raises(LocalSpeechUnavailable,match="disabled"):
         synthesize_local(text="Hello")
+def test_missing_operator_cache_is_denied_without_raw_path_exception(tmp_path):
+    # An absent/unmounted operator cache must produce a controlled denial,
+    # never a FileNotFoundError that bubbles into the speech worker.
+    missing = tmp_path / "operator-cache-not-provisioned"
+    with pytest.raises(LocalSpeechUnavailable, match="Trusted speech cache required"):
+        verify_cache(missing)
+
+
 def test_wrong_local_weights_are_denied_before_inference(tmp_path):
     (tmp_path/MODEL_NAME).write_bytes(b"fake-onxx")
     (tmp_path/VOICES_NAME).write_bytes(b"fake-voices")
