@@ -64,8 +64,16 @@ def decode_dispatch_envelope(payload):
             payload = payload.decode("utf-8", errors="strict")
         except UnicodeError as exc:
             raise GPUEnvelopeDenied("Invalid queue UTF-8") from exc
-    if (type(payload) is not str or not 2 <= len(payload.encode("utf-8")) <= _MAX or
-            any(ord(c) < 32 and c not in " \t\r\n" for c in payload)):
+    if type(payload) is not str:
+        raise GPUEnvelopeDenied("GPU queue envelope must be UTF-8 text")
+    try:
+        encoded_size = len(payload.encode("utf-8", errors="strict"))
+    except UnicodeError as exc:
+        # Python str can contain lone surrogates even though Azure Queue
+        # messages must be valid UTF-8. Deny before any SQL/queue ACK.
+        raise GPUEnvelopeDenied("Invalid GPU queue Unicode") from exc
+    if (not 2 <= encoded_size <= _MAX or
+            any(ord(c) < 32 and c not in " \\t\\r\\n" for c in payload)):
         raise GPUEnvelopeDenied("GPU queue envelope missing or oversized")
     try:
         parsed = json.loads(payload, object_pairs_hook=_unique_pairs,
