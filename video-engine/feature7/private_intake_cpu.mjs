@@ -18,6 +18,14 @@ const ID=/^[A-Za-z0-9_-]{1,120}$/;
 const SHA=/^[a-f0-9]{64}$/;
 const MAX=128*1024*1024;
 const O=fs.constants;
+function currentAuthorization(auth,shop_id,asset_id){
+  return auth&&auth.shop_id===shop_id&&auth.asset_id===asset_id&&
+    auth.active_membership===true&&
+    ['OWNER','EDITOR'].includes(auth.role)&&
+    auth.intake_authorized===true&&auth.video_rights_declared===true&&
+    Number.isInteger(auth.max_bytes)&&auth.max_bytes>0&&
+    auth.max_bytes<=MAX;
+}
 function directory(p){
   const st=fs.lstatSync(p);
   check(st.isDirectory()&&!st.isSymbolicLink(),'Private storage cannot be linked');
@@ -44,13 +52,14 @@ export function stagePrivateFootageCPU({
     'Only a server-staged absolute local MP4 source is supported');
   // Auth callback MUST use current server JWT membership and upload policy.
   const auth=getCurrentIntakeAuthorization({shop_id,asset_id});
-  check(auth&&auth.shop_id===shop_id&&auth.asset_id===asset_id&&
-    auth.active_membership===true&&
-    ['OWNER','EDITOR'].includes(auth.role)&&
-    auth.intake_authorized===true&&auth.video_rights_declared===true&&
-    Number.isInteger(auth.max_bytes)&&auth.max_bytes>0&&
-    auth.max_bytes<=MAX,
-  'Current OWNER/EDITOR and bounded video intake authorization required');
+  check(currentAuthorization(auth,shop_id,asset_id),
+    'Current OWNER/EDITOR and bounded video intake authorization required');
+  // A trusted backend may supply an immutable registry revision. If supplied,
+  // it must remain unchanged throughout the intake; this is not a DB lease.
+  check(auth.authorization_revision===undefined||
+    (typeof auth.authorization_revision==='string'&&
+      /^[A-Za-z0-9_-]{1,128}$/.test(auth.authorization_revision)),
+    'Invalid intake authorization revision');
   check(expected_sha256===undefined||
     (typeof expected_sha256==='string'&&SHA.test(expected_sha256)),
   'Invalid expected video digest');
@@ -106,6 +115,16 @@ export function stagePrivateFootageCPU({
       root:private_root,relative_path,expected_sha256:sha
     });
     check(probe.bytes<=auth.max_bytes,'Media over server intake quota');
+    // Re-query the authoritative callback AFTER staging and probing. If the
+    // membership, rights, quota or optional registry revision changed during
+    // the CPU work, the catch block removes the newly staged private object.
+    // Production still requires a transaction/lease and current JWT/RLS.
+    const fresh=getCurrentIntakeAuthorization({shop_id,asset_id});
+    check(currentAuthorization(fresh,shop_id,asset_id)&&
+      probe.bytes<=fresh.max_bytes&&
+      (auth.authorization_revision===undefined||
+        fresh.authorization_revision===auth.authorization_revision),
+      'Intake authorization revoked or changed during staging');
     return Object.freeze({
       shop_id,asset_id,relative_path,source_sha256:sha,
       bytes:probe.bytes,width:probe.width,height:probe.height,
