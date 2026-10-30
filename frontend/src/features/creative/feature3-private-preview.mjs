@@ -21,7 +21,9 @@ export function discardFailedPrivateModelPreview(opened, url, revokeURL = value 
       typeof revokeURL !== 'function') throw Error('Only local model-preview Blob cleanup allowed')
   const index = opened.indexOf(url)
   if (index < 0) return false
-  opened.splice(index, 1)
+  // Preserve the ownership ledger on revoke failure so caller cleanup can
+  // retry without losing the only reference to a private local URL.
   revokeURL(url)
+  opened.splice(index, 1)
   return true
 }

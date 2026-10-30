@@ -94,31 +94,42 @@ test('React history filter cancels pending binary work and frees local previews'
   assert.doesNotMatch(jsx,/getGeneratedImageDownload\(/)
 })
 
-test('scoped generated history strips forged approvals, URLs and arbitrary private metadata',()=>{
-  const contaminated={
-    shopId:SHOP,jobs:JOBS,busy:'true',message:'Current shop only',
-    signed_url:'https://foreign.example/private.png',
-    storage_path:'other-shop/secret.png',
-    access_token:'fake-test-token',
-    reviewed_for_publication:true,
-    gpu_authorized:true,
-  }
-  const safe=scopedFeature3GeneratedHistory(contaminated,SHOP)
+test('scoped generated history rejects forged state instead of forwarding private metadata',()=>{
+  const api={session:'current'}
+  const clean={shopId:SHOP,api,jobs:JOBS,busy:true,message:'Current shop only'}
+  const safe=scopedFeature3GeneratedHistory(clean,SHOP,api)
   assert.deepEqual(Object.keys(safe).sort(),['busy','jobs','message','shopId'])
-  assert.equal(safe.shopId,SHOP)
   assert.equal(safe.jobs.length,JOBS.length)
+  assert.equal(safe.busy,true)
   assert.equal(safe.message,'Current shop only')
-  assert.equal(safe.busy,false)
   assert.equal(Object.isFrozen(safe),true)
-  assert.equal('signed_url' in safe,false)
-  assert.equal('storage_path' in safe,false)
-  assert.equal('access_token' in safe,false)
-  assert.equal('reviewed_for_publication' in safe,false)
-  assert.equal('gpu_authorized' in safe,false)
-  assert.equal(scopedFeature3GeneratedHistory({...contaminated,busy:true},SHOP).busy,true)
-  assert.equal(scopedFeature3GeneratedHistory({...contaminated,message:'x'.repeat(301)},SHOP).message,'')
-  assert.equal(scopedFeature3GeneratedHistory({...contaminated,message:{private:'value'}},SHOP).message,'')
-  assert.equal(scopedFeature3GeneratedHistory({...contaminated,shopId:OTHER},SHOP).jobs.length,0)
+  assert.equal('api' in safe,false)
+  for (const injected of [
+    {signed_url:'https://foreign.example/private.png'},
+    {storage_path:'other-shop/secret.png'},
+    {access_token:'fake-test-token'},
+    {reviewed_for_publication:true},
+    {gpu_authorized:true},
+    {approved:true},
+    {publishApproved:true},
+    {provider:'external'},
+    {busy:'true'},
+    {busy:{approved:true}},
+    {message:'x'.repeat(241)},
+    {message:{private:'value'}},
+  ]) {
+    const invalid=scopedFeature3GeneratedHistory({...clean,...injected},SHOP,api)
+    assert.deepEqual(invalid.jobs,[])
+    assert.equal(invalid.message,'')
+    assert.equal(invalid.busy,false)
+    assert.deepEqual(Object.keys(invalid).sort(),['busy','jobs','message','shopId'])
+  }
+  assert.equal(scopedFeature3GeneratedHistory({...clean,shopId:OTHER},SHOP,api).jobs.length,0)
+  assert.equal(scopedFeature3GeneratedHistory({...clean,api:{session:'changed'}},SHOP,api).jobs.length,0)
+  const minimal=scopedFeature3GeneratedHistory({shopId:SHOP,jobs:JOBS},SHOP)
+  assert.equal(minimal.jobs.length,4)
+  assert.equal(minimal.message,'')
+  assert.equal(minimal.busy,false)
 })
 
 test('same-shop API identity rotation hides stale generated jobs before React effect cleanup',()=>{

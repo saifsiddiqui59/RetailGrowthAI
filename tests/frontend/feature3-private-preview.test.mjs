@@ -60,3 +60,16 @@ test('same-shop JWT/API identity rotation hides old decoded model pixels before 
   assert.deepEqual(scopedFeature3Preview({...previous,api:null},one,apiA),
     {models:[],imageMap:{},busy:false,message:''})
 })
+
+test('F3-10 private-model Blob revocation failures keep the owned URL for an explicit retry',()=>{
+  const privateURL='blob:https://fixture.test/retry-private'
+  const opened=[privateURL]
+  assert.throws(()=>discardFailedPrivateModelPreview(opened,privateURL,()=>{
+    throw Error('Browser revoke unavailable')
+  }),/Browser revoke unavailable/)
+  assert.deepEqual(opened,[privateURL])
+  const revoked=[]
+  assert.equal(discardFailedPrivateModelPreview(opened,privateURL,url=>revoked.push(url)),true)
+  assert.deepEqual(revoked,[privateURL])
+  assert.deepEqual(opened,[])
+})
