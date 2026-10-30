@@ -12,7 +12,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "video-engine"))
 
 from creative_contract import CreativeContractError, render_inputs
-from feature4_edit_execution import draft_fingerprint, execute_approved_edit
+from feature4_edit_execution import (
+    draft_fingerprint, edit_decision_fingerprint, execute_approved_edit,
+)
 from test_feature4_intent_compiler import pair, OTHER
 
 
@@ -38,6 +40,7 @@ def reviewed_pair():
              "animation_preset": "pop", "transition": "cut"},
         ],
     }
+    trusted["edit_decision_sha256"] = edit_decision_fingerprint(edits)
     return draft, trusted, edits
 
 
@@ -58,6 +61,9 @@ class TrustedEditExecutionTests(unittest.TestCase):
         self.assertEqual(request["scenes"][2]["text_overlay"], "20% OFF")
         self.assertEqual(request["script"]["cta"], "Visit Our Store")
         self.assertEqual(request["edit_plan"], trusted["edit_plan"])
+        self.assertNotIn("edit_decision_sha256", request)
+        self.assertEqual(
+            trusted["edit_decision_sha256"], edit_decision_fingerprint(edits))
         self.assertEqual(result["lineage"]["source_edit_approval"],
                          "approved-feature7-timeline-001")
         lowered = render_inputs(request, result["manifest"])
@@ -86,6 +92,11 @@ class TrustedEditExecutionTests(unittest.TestCase):
             ("missing review", lambda d,s,e: s.pop("edit_plan")),
             ("invalid sha", lambda d,s,e: e.update(draft_sha256="abc")),
             ("stale sha", lambda d,s,e: e.update(draft_sha256="f" * 64)),
+            ("missing persisted decision", lambda d,s,e: s.pop("edit_decision_sha256")),
+            ("forged persisted decision", lambda d,s,e: s.update(edit_decision_sha256="f" * 64)),
+            ("reordered without reapproval", lambda d,s,e: e["scenes"].reverse()),
+            ("altered trim without reapproval", lambda d,s,e: e["scenes"][0].update(trim_start=2.5)),
+            ("altered duration without reapproval", lambda d,s,e: e["scenes"][0].update(duration=8)),
             ("unknown instruction", lambda d,s,e: e.update(shell="rm -rf /")),
             ("source changed", lambda d,s,e: d["scenes"][1].update(asset_id="another")),
         ]
@@ -94,6 +105,22 @@ class TrustedEditExecutionTests(unittest.TestCase):
             change(draft, trusted, edits)
             with self.subTest(name=name), self.assertRaises(CreativeContractError):
                 execute_approved_edit(draft, trusted, edits)
+
+    def test_approved_review_digest_covers_every_edit_and_is_not_renderer_metadata(self):
+        draft, trusted, edits = reviewed_pair()
+        original_snapshot = copy.deepcopy(trusted)
+        first = execute_approved_edit(draft, trusted, edits)
+        self.assertEqual(trusted, original_snapshot)
+        self.assertNotIn("edit_decision_sha256", first["request"]["edit_plan"])
+
+        # An independently reviewed *new* trim is allowed when the persisted
+        # server receipt is replaced; merely replaying the old ID is not.
+        edits["scenes"][0]["trim_start"] = 2.5
+        with self.assertRaisesRegex(CreativeContractError, "persisted review"):
+            execute_approved_edit(draft, trusted, edits)
+        trusted["edit_decision_sha256"] = edit_decision_fingerprint(edits)
+        revised = execute_approved_edit(draft, trusted, edits)
+        self.assertEqual(revised["request"]["scenes"][0]["trim_start"], 2.5)
 
     def test_invalid_or_dangerous_edit_commands_fail_closed(self):
         cases = [
@@ -115,18 +142,23 @@ class TrustedEditExecutionTests(unittest.TestCase):
         for name, change in cases:
             draft, trusted, edits = reviewed_pair()
             change(edits)
+            # Independently persisted approval can be validly bound to a
+            # malformed decision; still test downstream schema rejection.
+            trusted["edit_decision_sha256"] = edit_decision_fingerprint(edits)
             with self.subTest(name=name), self.assertRaises(CreativeContractError):
                 execute_approved_edit(draft, trusted, edits)
 
     def test_existing_compiler_rejects_retimed_image_trim_or_forged_offer(self):
         draft, trusted, edits = reviewed_pair()
         edits["scenes"][1]["trim_start"] = 2
+        trusted["edit_decision_sha256"] = edit_decision_fingerprint(edits)
         with self.assertRaisesRegex(CreativeContractError, "Trimming requires"):
             execute_approved_edit(draft, trusted, edits)
 
         draft, trusted, edits = reviewed_pair()
         draft["scenes"][2]["offer"] = "95% OFF"
         edits["draft_sha256"] = draft_fingerprint(draft)
+        trusted["edit_decision_sha256"] = edit_decision_fingerprint(edits)
         with self.assertRaisesRegex(CreativeContractError, "Unreviewed promotional offer"):
             execute_approved_edit(draft, trusted, edits)
 
