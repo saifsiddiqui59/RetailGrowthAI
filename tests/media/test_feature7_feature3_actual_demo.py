@@ -16,8 +16,10 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
+from zipfile import ZipFile
 
 ROOT=Path(__file__).resolve().parents[2]
 SOURCE=os.getenv("FEATURE7_F3_REAL_TECH_MP4")
@@ -25,6 +27,7 @@ SOURCE=os.getenv("FEATURE7_F3_REAL_TECH_MP4")
 # (technical_footage_manifest.json, offline SHA256 and ffprobe), 2026-10-29.
 PINNED_F3_MP4_SHA256="16ceaa91a5dad57de023f45b21eee45772f361a18299801e9e27b6ae49ce9f22"
 EXPECTED=os.getenv("FEATURE7_F3_REAL_TECH_SHA256")
+ARCHIVE=os.getenv("FEATURE7_F3_ORIGINAL_ARTIFACT_ZIP")
 
 JS=r"""
 import fs from 'node:fs';
@@ -41,20 +44,38 @@ process.stdout.write(JSON.stringify({
  customer_publishable:false,not_virtual_try_on:true
 }));
 """
-@unittest.skipUnless(SOURCE and EXPECTED and all(shutil.which(c)
+@unittest.skipUnless((ARCHIVE or (SOURCE and EXPECTED)) and all(shutil.which(c)
                        for c in ("node","ffprobe","ffmpeg")),
-                     "Real pinned F3 Actions technical MP4 not staged")
+                     "Real pinned F3 Actions technical ZIP or MP4 not staged")
 class Feature7RealFeature3ConsumerTests(unittest.TestCase):
     def test_actual_pinned_feature3_demo_source_preserved(self):
-        source=Path(SOURCE)
-        self.assertTrue(source.is_file())
-        self.assertFalse(source.is_symlink())
-        original=source.read_bytes()
-        self.assertEqual(len(EXPECTED),64)
+        source=Path(SOURCE) if SOURCE else None
+        if ARCHIVE:
+            # The exact Actions ZIP alone enables this opt-in positive test.
+            # Never trust a separately extracted file or asserted hash instead
+            # of verifying the complete pinned source/license bundle.
+            sys.path.insert(0,str(ROOT/"video-engine"/"feature7"))
+            from feature3_artifact_preflight import check_feature3_actual_artifact
+            report=check_feature3_actual_artifact(str(Path(ARCHIVE).resolve()))
+            self.assertTrue(report["feature3_original_file_integrity_verified"])
+            self.assertFalse(report["retailer_rights_verified"])
+            self.assertFalse(report["actual_model_try_on_performed"])
+            with ZipFile(ARCHIVE) as archive:
+                original=archive.read("feature4-editor-input.mp4")
+        else:
+            self.assertIsNotNone(source)
+            self.assertTrue(source.is_file())
+            self.assertFalse(source.is_symlink())
+            original=source.read_bytes()
+        if EXPECTED is not None:
+            self.assertEqual(EXPECTED,PINNED_F3_MP4_SHA256,
+                             "Only exact real Feature3 artifact is eligible")
         sha=hashlib.sha256(original).hexdigest()
-        self.assertEqual(EXPECTED,PINNED_F3_MP4_SHA256,
-                         "Only exact real Feature3 artifact is eligible")
         self.assertEqual(sha,PINNED_F3_MP4_SHA256)
+        if source is not None:
+            self.assertTrue(source.is_file())
+            self.assertFalse(source.is_symlink())
+            self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),sha)
         with tempfile.TemporaryDirectory(prefix="f7-f3-technical-") as tmp:
             root=Path(tmp)
             target=root/"licensed_technical_test.mp4"
@@ -83,7 +104,8 @@ class Feature7RealFeature3ConsumerTests(unittest.TestCase):
             self.assertFalse(out["customer_publishable"])
             self.assertTrue(out["not_virtual_try_on"])
             self.assertEqual(hashlib.sha256(target.read_bytes()).hexdigest(),sha)
-            self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),sha)
+            if source is not None:
+                self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(),sha)
 
 if __name__=="__main__":
     unittest.main()
