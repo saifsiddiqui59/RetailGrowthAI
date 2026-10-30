@@ -122,6 +122,25 @@ class Feature7DispatchJournalTests(unittest.TestCase):
         self.assertEqual(self.store.finish(context=ctx(),lease=extended,
           result_sha256=OUTPUT,now_ms=3000)['state'],'SUCCEEDED')
 
+    def test_short_heartbeat_cannot_shorten_live_lease_or_trigger_replay(self):
+        """An unchanged long lease must survive a later short heartbeat."""
+        job=self.stage()
+        lease=self.store.lease_next(
+          context=ctx(),now_ms=1100,lease_ms=90000)
+        self.assertEqual(lease.expires_ms,91100)
+        same=self.store.heartbeat(
+          context=ctx(),lease=lease,now_ms=1200,lease_ms=1000)
+        self.assertEqual(same.expires_ms,lease.expires_ms)
+        self.assertEqual(same.fence,lease.fence)
+        self.assertEqual(same.attempt,1)
+        self.assertIsNone(self.store.lease_next(
+          context=ctx(),now_ms=5000,lease_ms=1000))
+        self.assertEqual(self.store.inspect(
+          context=ctx(),dispatch_id=job['dispatch_id'])['attempt'],1)
+        self.assertEqual(self.store.finish(
+          context=ctx(),lease=same,result_sha256=OUTPUT,
+          now_ms=5000)['state'],'SUCCEEDED')
+
     def test_denied_foreign_revoked_viewer_and_unknown_source(self):
         job=self.stage()
         for wrong in (ctx(shop='foreign'),ctx(rights=False),

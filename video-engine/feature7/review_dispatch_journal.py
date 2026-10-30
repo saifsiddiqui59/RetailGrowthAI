@@ -283,10 +283,14 @@ class LocalApprovedEditDispatch:
             if row is None:
                 raise ReviewStateError("Unknown dispatch")
             self._leased(row, ctx, lease, now)
-            new_expiry = now + lease_ms
-            self.db.execute(
-                "UPDATE f7_approved_edit_dispatch SET lease_expires_ms=? "
-                "WHERE dispatch_id=?", (new_expiry, lease.dispatch_id))
+            # A short heartbeat must never reduce an already granted lease:
+            # otherwise a second worker could reclaim while the first is live.
+            # Keep the original fence and expiry unless this heartbeat extends.
+            new_expiry = max(row["lease_expires_ms"], now + lease_ms)
+            if new_expiry != row["lease_expires_ms"]:
+                self.db.execute(
+                    "UPDATE f7_approved_edit_dispatch SET lease_expires_ms=? "
+                    "WHERE dispatch_id=?", (new_expiry, lease.dispatch_id))
             return DispatchLease(lease.dispatch_id, lease.idempotency_key,
                                  lease.attempt, lease.fence, new_expiry,
                                  lease.shop_id, lease.campaign_id,
