@@ -595,6 +595,7 @@ def choose_evergreen_when_no_relevant_live_trend(
 import hashlib
 import json
 import re
+import unicodedata
 
 _CLAIM_PERCENT = re.compile(r"(?<!\d)\d{1,3}\s*(?:%|％|٪|percent|per[ -]?cent)\s*(?:off|discount|sale)?",re.I)
 # Reviewer-only warning for written-out percentages, including hyphenated
@@ -639,13 +640,16 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
         if (type(offer) is not dict or offer.get("approval_status")!="APPROVED" or
             type(offer.get("approved_claim_text")) is not str or
             not 10<=len(offer["approved_claim_text"])<=180 or
-            offer.get("shop_id")!=verified_context.get("shop_id")):
+            offer.get("shop_id")!=verified_context.get("shop_id") or
+            any(unicodedata.category(ch) in ("Cc", "Cf")
+                for ch in offer["approved_claim_text"])):
             raise EditorialBasisRejected("Offer evidence not approved for shop")
     issues=set()
     for field,text in copy.items():
         if (type(text) is not str or not 1<=len(text.strip())<=1800 or
             any(ord(ch)<32 for ch in text) or "<" in text or ">" in text or
-            "https://" in text.lower() or "javascript:" in text.lower()):
+            "https://" in text.lower() or "javascript:" in text.lower() or
+            any(unicodedata.category(ch) in ("Cc", "Cf") for ch in text)):
             raise EditorialBasisRejected("Unsafe or unbounded retailer copy")
         if _CLAIM_PRICE.search(text):
             issues.add("UNVERIFIED_CURRENCY_PRICE")
