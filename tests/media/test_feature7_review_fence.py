@@ -11,6 +11,7 @@ ROOT=Path(__file__).resolve().parents[2]
 
 JS=r"""
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import {proposeUploadedFootageEdits} from './video-engine/feature7/autobroll_semantics.mjs';
 import {sealHumanEditApproval,buildFeature4EditHandoff}
   from './video-engine/feature7/review_fence.mjs';
@@ -32,14 +33,25 @@ if(bad.context_rights===false)context.video_rights_current=false;
 if(bad.context_shop)context.shop_id=bad.context_shop;
 const originalHash=request.canonical_hash;
 if(operation==='seal'){
- const receipt=sealHumanEditApproval({proposal,draft,context,key,
+ let receipt=sealHumanEditApproval({proposal,draft,context,key,
    approval_id:'approved-feature7-001',
-   canonical_draft_sha256:originalHash,now_ms:1000000});
+   canonical_draft_sha256:originalHash,now_ms:request.now_ms??1000000});
  process.stdout.write(JSON.stringify({receipt,proposal}));
 }else {
  const receipt=sealHumanEditApproval({proposal,draft,context,key,
    approval_id:'approved-feature7-001',
    canonical_draft_sha256:originalHash,now_ms:1000000});
+ if(bad.signed_bad_time){
+   // Test-only: construct a correctly MAC'd but invalid timestamp payload.
+   // A production caller must never have access to this service key.
+   const {mac:ignored,...payload}=receipt;
+   if(bad.signed_bad_time==='string_epoch')payload.issued_at_ms='1000000';
+   if(bad.signed_bad_time==='zero_ttl')payload.expires_at_ms=payload.issued_at_ms;
+   if(bad.signed_bad_time==='fractional_expiry')payload.expires_at_ms+=0.5;
+   const mac=crypto.createHmac('sha256',key).update(
+     'retailgrowth.feature7.review.v1\\n'+JSON.stringify(payload)).digest('hex');
+   receipt={...payload,mac};
+ }
  if(bad.stale_revision)context.revision=3;
  if(bad.expired)request.now_ms=1700000;
  if(bad.different_owner)context.reviewer_id='foreign-user';
@@ -102,6 +114,27 @@ class Feature7ReviewFenceTests(unittest.TestCase):
             with self.subTest(bad=bad):
                 r=self.run_js({'input':sample(),'bad':bad})
                 self.assertNotEqual(r.returncode,0,r.stdout)
+
+    def test_receipt_expiry_never_overflows_safe_integer_clock(self):
+        maximum=9007199254740991
+        ttl=600000
+        for now in (-1, 1000000.5, maximum-ttl+1, maximum):
+            with self.subTest(now=now):
+                r=self.run_js({'input':sample(),'operation':'seal','now_ms':now})
+                self.assertNotEqual(r.returncode,0,r.stdout)
+        r=self.run_js({'input':sample(),'operation':'seal',
+                       'now_ms':maximum-ttl})
+        self.assertEqual(r.returncode,0,r.stderr)
+        receipt=json.loads(r.stdout)['receipt']
+        self.assertEqual(receipt['expires_at_ms'],maximum)
+
+    def test_even_validly_signed_malformed_receipt_times_are_denied(self):
+        for invalid in ('string_epoch','zero_ttl','fractional_expiry'):
+            with self.subTest(invalid=invalid):
+                r=self.run_js({'input':sample(),
+                               'bad':{'signed_bad_time':invalid}})
+                self.assertNotEqual(r.returncode,0,r.stdout)
+                self.assertIn('Stale, revoked or cross-tenant review',r.stderr)
 
     def test_unreviewed_json_never_yields_executable_decision(self):
         r=self.run_js({'input':sample(),'operation':'seal'})
