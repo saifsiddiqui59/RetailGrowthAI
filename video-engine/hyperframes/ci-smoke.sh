@@ -113,6 +113,23 @@ python3 "$ROOT/video-engine/feature4_edited_export_qa.py" \
   --source "$EDITED_MP4" \
   --report "$ROOT/ci-artifacts/feature4-30s-editor-encoded-parity.json"
 
+# F4-04: separately opt-in the *actual* duplicate command and encoded pixel
+# restart proof. Keep the default branch render budget unchanged. A successful
+# unit test is NOT evidence that this second 30s video was actually encoded.
+if [[ "${FEATURE4_DUPLICATE_PARITY_CI:-0}" == "1" ]]; then
+  DUPLICATE_PROJECT="$TEMP/duplicate-30s-composition"
+  DUPLICATE_MP4="$ROOT/ci-artifacts/feature4-30s-540p-actual-duplicate-mock.mp4"
+  python3 "$ROOT/video-engine/demo_feature4_edited_reel.py" "$DUPLICATE_PROJECT" --width 540 --edit-mode duplicate
+  if (( NODE_MAJOR >= 22 )); then
+    timeout --signal=TERM --kill-after=10s 420s node "$ROOT/video-engine/hyperframes/render.mjs" "$DUPLICATE_PROJECT" "$DUPLICATE_MP4"
+  else
+    timeout --signal=TERM --kill-after=10s 420s npm exec --yes --package=node@22 -- node "$ROOT/video-engine/hyperframes/render.mjs" "$DUPLICATE_PROJECT" "$DUPLICATE_MP4"
+  fi
+  python3 "$ROOT/video-engine/feature4_edited_export_qa.py" \
+    --source "$DUPLICATE_MP4" --edit-mode duplicate \
+    --report "$ROOT/ci-artifacts/feature4-30s-duplicate-encoded-parity.json"
+fi
+
 
 # Once the first source benchmark is recorded, keep this as an opt-in gate to
 # avoid paying a 60s full-resolution encode on every unrelated branch change.
