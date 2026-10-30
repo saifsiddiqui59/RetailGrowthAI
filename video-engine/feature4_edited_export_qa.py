@@ -45,6 +45,11 @@ def _frame(path, at):
 
 
 def _luma_delta(a, b):
+    # A raw gray 72x128 frame is exactly 9216 bytes.  Never let zip()
+    # silently truncate a damaged/mismatched decode into a passing receipt.
+    if (not isinstance(a, bytes) or not isinstance(b, bytes)
+            or len(a) != 72 * 128 or len(b) != 72 * 128):
+        raise EditorExportProofError("Malformed encoded editor grayscale frame")
     return sum(abs(x-y) for x, y in zip(a, b)) / len(a)
 
 
