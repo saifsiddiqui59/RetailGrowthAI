@@ -144,8 +144,8 @@ class TrustedEditExecutionTests(unittest.TestCase):
             change(edits)
             # Independently persisted approval can be validly bound to a
             # malformed decision; still test downstream schema rejection.
-            trusted["edit_decision_sha256"] = edit_decision_fingerprint(edits)
             with self.subTest(name=name), self.assertRaises(CreativeContractError):
+                trusted["edit_decision_sha256"] = edit_decision_fingerprint(edits)
                 execute_approved_edit(draft, trusted, edits)
 
     def test_existing_compiler_rejects_retimed_image_trim_or_forged_offer(self):
