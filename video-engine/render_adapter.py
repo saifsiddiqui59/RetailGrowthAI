@@ -5,9 +5,11 @@ job state, quota reservation, retries, private upload and signed access.
 The coordinator can call this only AFTER atomic existing-job claim and server
 authorization; never accept a browser-created manifest or HTML.
 """
+import hashlib
 import json
 import math
 import os
+import stat
 import signal
 import subprocess
 import tempfile
@@ -22,6 +24,41 @@ MAX_RENDER_SECONDS = 780
 
 class CreativeRenderError(CreativeContractError):
     pass
+
+
+def _stable_encoded_fingerprint(path):
+    """Private 80MiB MP4 original-object and byte fingerprint, without links.
+
+    The source object must remain unchanged across FFprobe and the scratch ->
+    output copy. Metadata alone is never an acceptable proof of encoded bytes.
+    """
+    try:
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "rb") as source:
+            before = os.fstat(source.fileno())
+            if not stat.S_ISREG(before.st_mode) or not 1024 < before.st_size <= 80*1024*1024:
+                raise CreativeRenderError("Private encoded MP4 must be bounded regular file")
+            sha = hashlib.sha256()
+            read_bytes = 0
+            for chunk in iter(lambda: source.read(1024*1024), b""):
+                read_bytes += len(chunk)
+                if read_bytes > before.st_size:
+                    raise CreativeRenderError("Private encoded MP4 grew while hashing")
+                sha.update(chunk)
+            after = os.fstat(source.fileno())
+            live = os.lstat(path)
+            identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+            if (read_bytes != before.st_size or
+                    identity != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+                    or not stat.S_ISREG(live.st_mode)
+                    or identity != (live.st_dev, live.st_ino, live.st_size, live.st_mtime_ns)):
+                raise CreativeRenderError("Private encoded MP4 changed or was replaced")
+            return (before.st_size, sha.hexdigest(), before.st_dev,
+                    before.st_ino, before.st_mtime_ns)
+    except CreativeRenderError:
+        raise
+    except OSError as exc:
+        raise CreativeRenderError("Private encoded MP4 could not be verified") from exc
 
 
 def verify_mp4(path, *, duration, width, height, fps):
@@ -114,9 +151,12 @@ def run_compiled_reel(request, manifest, asset_root, private_output_dir, *,
         if process.returncode != 0:
             raise CreativeRenderError("HyperFrames failed: " + stderr[-500:])
         required = request["output"]
+        scratch_fingerprint = _stable_encoded_fingerprint(scratch_out)
         proof = verify_mp4(scratch_out, duration=request["duration_seconds"],
                            width=required["width"], height=required["height"],
                            fps=required["fps"])
+        if _stable_encoded_fingerprint(scratch_out) != scratch_fingerprint:
+            raise CreativeRenderError("Encoded source changed during FFprobe")
         # The output is private/local. The caller's existing backend uploads using
         # attempt token, registers a service-only media row, then issues signed URLs.
         if dest.exists() or dest.is_symlink():
@@ -128,7 +168,16 @@ def run_compiled_reel(request, manifest, asset_root, private_output_dir, *,
             import shutil
             with staged.open("xb") as target, scratch_out.open("rb") as source:
                 shutil.copyfileobj(source, target, length=1024*1024)
+            if _stable_encoded_fingerprint(scratch_out) != scratch_fingerprint:
+                raise CreativeRenderError("Encoded source changed during private copy")
+            staged_fingerprint = _stable_encoded_fingerprint(staged)
+            if staged_fingerprint[:2] != scratch_fingerprint[:2]:
+                raise CreativeRenderError("Private output copy differs from verified encoder output")
             os.link(staged, dest)  # raises FileExistsError on another claimed attempt
+            final_fingerprint = _stable_encoded_fingerprint(dest)
+            if final_fingerprint != staged_fingerprint:
+                raise CreativeRenderError("Private encoded output changed during publication")
+            proof["sha256"] = final_fingerprint[1]
         except (OSError, FileExistsError) as exc:
             raise CreativeRenderError("Atomic private output publication failed") from exc
         finally:

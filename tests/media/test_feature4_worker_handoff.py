@@ -132,6 +132,7 @@ def fake_render(request, manifest, staged, output):
             "output_probe": {"duration_seconds": 15.0,
                              "width": 1080, "height": 1920, "fps": 24,
                              "bytes": destination.stat().st_size,
+                             "sha256": hashlib.sha256(destination.read_bytes()).hexdigest(),
                              "video_codec": "h264", "audio_codec": "aac"}}
 
 
@@ -305,6 +306,52 @@ class WorkerHandoffTests(unittest.TestCase):
                 self.assertEqual(self.admin.completions, [])
                 self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
 
+    def test_original_input_same_byte_inode_swap_during_cpu_is_denied(self):
+        # Regression: the original _staged_fingerprint returned size+SHA
+        # only, so an identical-byte new inode between checks went unseen.
+        def swapped(request, manifest, staged, output):
+            result = fake_render(request, manifest, staged, output)
+            source = next(staged.iterdir())
+            original = source.read_bytes()
+            replacement = staged / "different-inode.png"
+            replacement.write_bytes(original)
+            os.replace(replacement, source)
+            return result
+        with self.assertRaisesRegex(Feature4HandoffError, "staged media changed"):
+            process_feature4_render(JOB, self.admin, self.media, render_fn=swapped)
+        self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.completions, [])
+        self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
+
+    def test_verified_output_cannot_change_during_private_upload(self):
+        for variant in ("append", "overwrite", "same-byte-atomic-swap"):
+            with self.subTest(variant=variant):
+                self.media = Media()
+                self.admin.failures.clear()
+                self.admin.completions.clear()
+                class CorruptDuringUpload(Media):
+                    def upload(media_self, sid, job_id, file_path, *, lease_token):
+                        key = super().upload(sid, job_id, file_path,
+                                             lease_token=lease_token)
+                        if variant == "append":
+                            with file_path.open("ab") as out:
+                                out.write(b"late data")
+                        elif variant == "overwrite":
+                            file_path.write_bytes(b"changed output" * 100)
+                        else:
+                            replacement = file_path.parent / "new-inode-output.mp4"
+                            replacement.write_bytes(file_path.read_bytes())
+                            os.replace(replacement, file_path)
+                        return key
+                self.media = CorruptDuringUpload()
+                with self.assertRaisesRegex(
+                        Feature4HandoffError, "Encoded output changed during private upload"):
+                    self.run_worker()
+                # An orphan upload can exist, but completion MUST NOT occur.
+                self.assertEqual(len(self.media.uploads), 1)
+                self.assertEqual(self.admin.completions, [])
+                self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
+
     def test_renderer_wrong_output_or_cross_job_denied(self):
         def malicious(*args):
             result = fake_render(*args)
@@ -372,6 +419,7 @@ class WorkerHandoffTests(unittest.TestCase):
             ("duration_seconds", 60.0), ("width", 540), ("fps", 30),
             ("video_codec", "mpeg4"), ("audio_codec", "mp3"),
             ("bytes", 999999), ("bytes", True),
+            ("sha256", "0" * 64), ("sha256", "garbled"), ("sha256", None),
         )
         for key, value in examples:
             with self.subTest(key=key, value=value):
