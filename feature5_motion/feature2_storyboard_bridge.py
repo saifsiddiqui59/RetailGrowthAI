@@ -159,8 +159,10 @@ def qualify_feature2_offline_storyboard(packet):
                 row["start_seconds"] != i * 5 or
                 type(row.get("duration_seconds")) is not int or
                 row["duration_seconds"] != 5 for row in (request, item, cue))
-                or direction.get("shot_start_seconds") != i * 5
-                or direction.get("duration_seconds") != 5
+                or type(direction.get("shot_start_seconds")) is not int
+                or direction["shot_start_seconds"] != i * 5
+                or type(direction.get("duration_seconds")) is not int
+                or direction["duration_seconds"] != 5
                 or any(row.get("shot_id") != shot_id for row in (request, item, cue))
                 or any(row.get("scene_id") != scene_id for row in (request, item))):
             _deny("five-second scene boundaries drifted")
