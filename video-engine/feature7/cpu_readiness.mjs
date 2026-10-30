@@ -8,12 +8,14 @@ import path from 'node:path';
 
 export class Feature7ComputePolicyError extends Error {}
 const deny=(ok,msg)=>{if(!ok)throw new Feature7ComputePolicyError(msg);};
-const ON=new Set(['true','1','yes','on']);
+const OFF=new Set(['','0','false','no','off']);
 export function feature7CpuOnlyEnv(input={}){
   deny(input&&typeof input==='object'&&!Array.isArray(input),'Invalid compute config');
   for(const key of ['FEATURE7_GPU_ENABLED','FEATURE7_ALLOW_PAID_INFERENCE',
     'FEATURE7_NETWORK_MODELS','FEATURE7_ENABLE_REMOTE_PROVIDER']){
-    deny(!ON.has(String(input[key]??'').toLowerCase()),
+    // Unknown or ambiguous switches are unsafe, even if the child env would
+    // later override them. Only explicit OFF values are accepted.
+    deny(OFF.has(String(input[key]??'').trim().toLowerCase()),
       'GPU, network models and paid inference are disabled for Feature7');
   }
   return Object.freeze({
@@ -29,12 +31,26 @@ export function feature7CpuOnlyEnv(input={}){
 }
 function safeLocalFile(p){
   if(typeof p!=='string'||!path.isAbsolute(p))return false;
-  try{const s=fs.lstatSync(p);return s.isFile()&&!s.isSymbolicLink();}
+  try{
+    const s=fs.lstatSync(p);
+    if(!s.isFile()||s.isSymbolicLink())return false;
+    fs.accessSync(p,fs.constants.X_OK);
+    return true;
+  }
   catch{return false;}
 }
 function safeLocalDir(p){
   if(typeof p!=='string'||!path.isAbsolute(p))return false;
-  try{const s=fs.lstatSync(p);return s.isDirectory()&&!s.isSymbolicLink();}
+  try{
+    const s=fs.lstatSync(p);
+    if(!s.isDirectory()||s.isSymbolicLink())return false;
+    // An empty directory cannot stand in for an installed ASR model.
+    // Presence alone still does NOT prove weights, licensing or inference.
+    return fs.readdirSync(p).some(name=>{
+      const item=fs.lstatSync(path.join(p,name));
+      return item.isFile()&&!item.isSymbolicLink();
+    });
+  }
   catch{return false;}
 }
 /**
