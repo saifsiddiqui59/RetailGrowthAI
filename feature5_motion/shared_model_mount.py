@@ -85,8 +85,10 @@ def read_private_manifest(path):
         fd = os.open(item, flags)
         try:
             opened = os.fstat(fd)
+            # ctime detects in-place rewrites followed by mtime restoration.
+            # This is only a race-reduction guard, not a trusted signature.
             identity = lambda st: (st.st_dev, st.st_ino, st.st_size,
-                                   st.st_mtime_ns, st.st_nlink)
+                                   st.st_mtime_ns, st.st_ctime_ns, st.st_nlink)
             if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1 or
                     identity(opened) != identity(before)):
                 raise PreflightError("Private manifest changed before read")
