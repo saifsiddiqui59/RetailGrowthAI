@@ -48,3 +48,15 @@ test('never use external or unowned image URLs as private preview cleanup input'
   assert.deepEqual(opened,[valid])
   assert.deepEqual(revoked,[])
 })
+
+test('same-shop JWT/API identity rotation hides old decoded model pixels before effect cleanup',()=>{
+  const apiA={session:'fictional-test-A'}
+  const apiB={session:'fictional-test-B'}
+  const previous={scope:one,api:apiA,models:[{model_id:'private-model'}],
+    imageMap:{'asset-1':{secret:true}},busy:false,message:'private'}
+  assert.strictEqual(scopedFeature3Preview(previous,one,apiA),previous)
+  assert.deepEqual(scopedFeature3Preview(previous,one,apiB),
+    {models:[],imageMap:{},busy:false,message:''})
+  assert.deepEqual(scopedFeature3Preview({...previous,api:null},one,apiA),
+    {models:[],imageMap:{},busy:false,message:''})
+})
