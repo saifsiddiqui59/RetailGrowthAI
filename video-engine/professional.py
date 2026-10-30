@@ -24,6 +24,9 @@ from render import checked_path, validate_rights
 VERSION = "rg_video_v2"
 MODES = {"text", "image", "poster", "media", "music_sync"}
 TEMPLATES = {"streetwear", "cinematic", "festival"}
+# Single, fixed renderer-authorized vocabulary. Client/user CSS is never accepted.
+SUPPORTED_ANIMATIONS = frozenset({"subtle_zoom", "fade", "slide", "pop", "glow"})
+SUPPORTED_TRANSITIONS = frozenset({"fade", "slide", "cut"})
 UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F-]{27,36}$")
 ASSET_ID = re.compile(r"^[a-zA-Z0-9_-]{1,100}$")
 IMAGES = {".png", ".jpg", ".jpeg", ".webp"}
@@ -150,9 +153,9 @@ def validate(plan, manifest, asset_root, allow_test_media=False):
         clean_text(scene["headline"], "approved headline", 110)
         if "offer" in scene:
             clean_text(scene["offer"], "approved offer", 70)
-        if scene.get("animation_preset", "subtle_zoom") not in ("subtle_zoom", "pop", "fade", "slide", "glow"):
+        if scene.get("animation_preset", "subtle_zoom") not in SUPPORTED_ANIMATIONS:
             raise VideoPlanError("Unknown approved animation preset")
-        if scene.get("transition", "fade") not in ("fade", "slide", "cut"):
+        if scene.get("transition", "fade") not in SUPPORTED_TRANSITIONS:
             raise VideoPlanError("Unknown reviewed transition")
         sfx_id = scene.get("sfx_asset_id")
         if sfx_id is not None:
@@ -431,9 +434,17 @@ h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.01
   font-weight:500;font-size:{width//12}px!important}}
 .role-outro .kicker{{margin:0 0 2%}}
 .role-outro .editorial-rule{{display:none}}
+.anim-subtle_zoom .glass{{animation:presetSubtleZoom var(--span) ease-in-out both}}
+.anim-fade .glass{{animation:presetFade var(--span) linear both}}
 .anim-pop .glass{{animation:promoPop var(--span) ease-in-out both}}
+.anim-glow .glass{{animation:presetGlow var(--span) ease-in-out both}}
 .anim-glow .offer{{text-shadow:0 0 15px {accent},0 0 30px {accent}75}}
+.anim-slide .glass{{animation:presetSlide var(--span) ease-out both}}
 .anim-slide .photo-wrap{{animation:editorialDrift var(--span) ease both}}
+@keyframes presetSubtleZoom{{0%{{opacity:.88;transform:scale(.975)}}18%{{opacity:1}}100%{{opacity:1;transform:scale(1.025)}}}}
+@keyframes presetFade{{0%{{opacity:0}}18%{{opacity:1}}100%{{opacity:1}}}}
+@keyframes presetSlide{{0%{{opacity:0;transform:translateY(7%)}}18%{{opacity:1;transform:translateY(0)}}100%{{opacity:1}}}}
+@keyframes presetGlow{{0%{{filter:drop-shadow(0 0 0 {accent}00)}}35%{{filter:drop-shadow(0 0 16px {accent}75)}}100%{{filter:drop-shadow(0 0 5px {accent}30)}}}}
 @keyframes editorialFade{{0%{{opacity:0}}7%{{opacity:1}}96%{{opacity:1}}100%{{opacity:.98}}}}
 @keyframes editorialSlide{{0%{{opacity:0;transform:translate3d(7%,0,0)}}14%{{opacity:1;transform:translate3d(0,0,0)}}100%{{opacity:1;transform:translate3d(0,0,0)}}}}
 @keyframes editorialDrift{{0%{{transform:scale(1.025) translate3d(-1%,1%,0)}}100%{{transform:scale(1.12) translate3d(1%,-1%,0)}}}}
