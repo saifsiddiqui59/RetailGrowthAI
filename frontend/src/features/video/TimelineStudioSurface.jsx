@@ -7,6 +7,7 @@ import { studioReorder, studioSplit, studioDuplicate, studioTrimPair, studioSour
 import { FrameTimecodeInput } from './vendor/openreel/FrameTimecodeInput.jsx'
 import { OpenReelClipSnapper } from './vendor/openreel/clip-snap.mjs'
 import { proposedBeatMarkers } from './beat-preview.mjs'
+import { boundedFrameSeek } from './frame-seek.mjs'
 import { getTimelineItemRanges, getTimelineTrackSelection, getSplittableTimelineItemIds } from './vendor/openreel/timeline-item-actions.mjs'
 import './TimelineStudioSurface.css'
 
@@ -61,6 +62,8 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
     spans[selected] && playhead - spans[selected].start >= .5 &&
     spans[selected].end - playhead >= .5
   const seekToFrame = (seconds, withSnap = false) => {
+    // Never propagate NaN/Infinity from malformed pointer geometry or beat data.
+    if (!Number.isFinite(seconds)) return
     let requested = seconds
     if (withSnap && snapEnabled) {
       const nearest = beatMarkers.length ? beatMarkers.reduce((a,b) =>
@@ -74,8 +77,8 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
         if (snap.didSnap) requested = snap.snappedTime
       }
     }
-    const position = Math.min(draft.duration_seconds,
-      Math.max(0, Math.round(requested * previewFps) / previewFps))
+    const position = boundedFrameSeek(requested, draft.duration_seconds, previewFps)
+    if (position === null) return
     setPlayhead(position)
     const index = spans.findIndex(span => position >= span.start && position < span.end)
     if (index >= 0) onSelectScene(index)
