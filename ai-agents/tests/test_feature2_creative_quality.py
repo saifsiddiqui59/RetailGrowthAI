@@ -377,6 +377,26 @@ def test_private_ab_history_denies_foreign_tampered_or_publishable_history(chang
             read_private_history=lambda *a:copy.deepcopy(rows),
             verify_signed_history_receipt=lambda *a:True)
 
+@pytest.mark.parametrize("tamper", [
+    "boolean_revision", "same_candidate_digests", "replayed_receipt"
+])
+def test_private_blind_history_denies_ambiguous_or_replayed_score_receipts(tamper):
+    rows = history_fixture()
+    if tamper == "boolean_revision":
+        rows[0]["revision"] = True  # bool compares equal to integer 1 in Python
+    elif tamper == "same_candidate_digests":
+        rows[0]["candidate_digests"]["B"] = rows[0]["candidate_digests"]["A"]
+    else:
+        rows[1]["receipt_digest"] = rows[0]["receipt_digest"]
+    with pytest.raises(Feature2TraceDenied, match="revision"):
+        read_private_blind_review_history(
+            shop_id=TSHOP, campaign_id=TCAMP, experiment_id=HISTORY_EXP,
+            current_editor=lambda *a: True,
+            read_private_history=lambda *a: copy.deepcopy(rows),
+            verify_signed_history_receipt=lambda *a: True,
+        )
+
+
 def test_blind_history_rejects_unsigned_receipts_and_revoked_editor():
     rows=history_fixture()
     with pytest.raises(Feature2TraceDenied,match="signed"):
