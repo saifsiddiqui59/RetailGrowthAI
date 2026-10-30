@@ -176,6 +176,13 @@ def qualify_feature2_offline_storyboard(packet):
                 or item.get("ready_to_render") is not False
                 or cue.get("real_speech_audio_verified") is not False):
             _deny("untrusted first frame, cost, speech or runtime authorization")
+        camera = direction.get("camera")
+        lighting = direction.get("lighting")
+        if (type(camera) is not dict
+                or set(camera) != {"framing", "lens", "composition", "movement"}
+                or any(type(v) is not str or not v.strip() for v in camera.values())
+                or type(lighting) is not str or not lighting.strip()):
+            _deny("malformed original director camera or lighting")
         if (item.get("camera") != direction.get("camera")
                 or item.get("lighting") != direction.get("lighting")
                 or item.get("garment_lock") != direction.get("garment_lock")):
