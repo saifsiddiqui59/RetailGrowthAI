@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import unittest
 from uuid import uuid4
+from zlib import crc32
 from PIL import Image
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"azure-functions"/"campaign-api"))
@@ -149,6 +150,22 @@ class BinaryHTTPTests(unittest.TestCase):
                 self.assertEqual(status,503)
                 self.assertEqual(body,b"")
                 self.assert_private_headers(headers)
+        self.reader.png=original
+        self.assertEqual(self.call()[0],200)
+
+    def test_pathological_png_chunk_count_is_denied(self):
+        # Repeated valid ancillary chunks must not turn private download into
+        # unbounded CPU work, even with a matching forged receipt SHA.
+        original=self.reader.png
+        kind=b"tEXt"
+        payload=b"k\\x00v"
+        crc=(crc32(kind+payload)&0xffffffff).to_bytes(4,"big")
+        chunk=len(payload).to_bytes(4,"big")+kind+payload+crc
+        self.reader.png=original[:33]+chunk*4097+original[33:]
+        status,body,headers=self.call()
+        self.assertEqual(status,503)
+        self.assertEqual(body,b"")
+        self.assert_private_headers(headers)
         self.reader.png=original
         self.assertEqual(self.call()[0],200)
 
