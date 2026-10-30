@@ -117,7 +117,8 @@
       "dependency_id": "F5-WEIGHTS",
       "owner": "Feature5/Runtime",
       "required_output": "read-only mounted actual Wan checkpoint files",
-      "acceptance_criteria": "Stream full original 3 files, exact SHA/size"
+      "acceptance_criteria": "Stream full original 3 files, exact SHA/size",
+      "source_progress": "GPU-OFF optional full SHA-256 mounted-byte scanner and tiny-local-fixture negative tests proposed on feat/feature5-readonly-model-sha256-audit-20261030; actual 34GB readback, approved runtime and exact-head CI NOT yet verified. Do not count as DONE."
     },
     {
       "task": 15,

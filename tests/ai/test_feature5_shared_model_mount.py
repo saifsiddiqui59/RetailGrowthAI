@@ -1,7 +1,9 @@
 """CPU-only, zero-cloud tests for shared Feature3/Feature5 Azure Files mount plan."""
+from hashlib import sha256
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from feature5_motion import shared_model_mount as m
 
@@ -76,6 +78,47 @@ class SharedModelMountTests(unittest.TestCase):
             bad_root.symlink_to(temp, target_is_directory=True)
             with self.assertRaises(m.PreflightError):
                 m.check_mounted_files(bad_root)
+
+
+    def test_explicit_full_sha256_readback_of_small_local_fixture_only(self):
+        """Never read the actual 34GB Azure share in automated tests."""
+        relative = "feature5/vae/wan2.2_vae.safetensors"
+        original = b"tiny CPU-only fixture, NOT real Wan weights"
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / relative
+            path.parent.mkdir(parents=True)
+            path.write_bytes(original)
+            expected = {relative: (len(original), sha256(original).hexdigest(), "fixture-only")}
+            with patch.dict(m.EXPECTED, expected, clear=True):
+                self.assertTrue(m.check_mounted_files(temp))
+                self.assertEqual(m.verify_mounted_sha256(temp), {relative: sha256(original).hexdigest()})
+                # Same byte count and metadata shape do not establish integrity.
+                path.write_bytes(b"x" * len(original))
+                self.assertTrue(m.check_mounted_files(temp))
+                with self.assertRaisesRegex(m.PreflightError, "SHA-256 mismatch"):
+                    m.verify_mounted_sha256(temp)
+
+    def test_full_scan_rejects_parent_directory_symlinks(self):
+        relative = "feature5/vae/wan2.2_vae.safetensors"
+        payload = b"safe synthetic bytes"
+        with tempfile.TemporaryDirectory() as temp:
+            real = Path(temp) / "actual" / "vae"
+            real.mkdir(parents=True)
+            (real / "wan2.2_vae.safetensors").write_bytes(payload)
+            (Path(temp) / "feature5").symlink_to(Path(temp) / "actual", target_is_directory=True)
+            with patch.dict(m.EXPECTED, {relative: (len(payload), sha256(payload).hexdigest(), "fixture")}, clear=True):
+                with self.assertRaises(m.PreflightError):
+                    m.check_mounted_files(temp)
+                with self.assertRaises(m.PreflightError):
+                    m.verify_mounted_sha256(temp)
+
+    def test_full_scan_never_runs_without_two_explicit_cli_flags(self):
+        with tempfile.TemporaryDirectory() as temp:
+            for args in (["--verify-sha256"], ["--verify-sha256", "--mounted-root", temp],
+                         ["--confirm-full-scan", "--mounted-root", temp]):
+                with self.subTest(args=args), self.assertRaises(SystemExit) as caught:
+                    m.main(args)
+                self.assertEqual(caught.exception.code, 2)
 
 
 if __name__ == "__main__":
