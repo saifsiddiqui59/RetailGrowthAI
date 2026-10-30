@@ -27,3 +27,9 @@ Central `coordination/feature_tasks.json` snapshot: F5 total 22, source-complete
 - GitHub PR-triggered workflow runs for that head: **none returned**; combined commit statuses: **none returned**. This is **not** passing CI.
 - GitHub PR metadata currently reports `mergeable=false` against moving parent branch `feat/feature5-batched-gpuoff-hardening-20261030`. Coordinator must reconcile/rebase safely before merging; do not assume a clean stack.
 - Local targeted tests were not executed because this environment cannot resolve github.com for a local checkout. Existing tests are proposed, not independently verified.
+
+## 2026-10-30 follow-up F5-14 source change
+- Added static parent-directory no-symlink validation before and after reading the private manifest in `feature5_motion/shared_model_mount.py`, commit `b84489e803100c2e249c4db8a3c4ce9be5e63740`.
+- This denies symlinked ancestors but is NOT an atomic trusted mount attestation; original checkpoint bytes and Azure mount remain unverified.
+- Test file write failed due GitHub connector internal error; targeted tests and exact-head CI **NOT RUN**. Next run must add negative regression and verify source CI before claiming tested or PR-ready.
+- Next task: F5-14 regression and exact-head CI; then F5-13 OCI evidence. GPU OFF.
