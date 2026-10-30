@@ -49,6 +49,8 @@ def parse_reviewed_json(raw):
     try:
         return json.loads(raw, object_pairs_hook=unique_object,
                           parse_constant=reject_constant)
+    except SourceAuditError:
+        raise
     except (ValueError, TypeError, RecursionError) as exc:
         raise SourceAuditError("Invalid or ambiguous reviewed manifest JSON") from exc
 
