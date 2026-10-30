@@ -106,6 +106,25 @@ class SpeechReferenceBenchmarkTests(unittest.TestCase):
         r=self.evaluate(p)
         self.assertNotEqual(r.returncode,0,r.stdout)
 
+    def test_indic_combining_marks_and_decomposed_accents_are_words(self):
+        p=fixture()
+        p['reference_srt']=(
+          '1\\n00:00:00,500 --> 00:00:01,500\\nCafé नमस्ते.\\n'
+        )
+        p['normalized_asr']['words']=[
+          {'word':'Cafe\\u0301','startMs':520,'endMs':720},
+          {'word':'नमस्ते','startMs':760,'endMs':1200},
+        ]
+        r=self.evaluate(p)
+        self.assertEqual(r.returncode,0,r.stderr)
+        data=json.loads(r.stdout)
+        self.assertEqual(data['reference_word_count'],2)
+        self.assertEqual(data['recognized_word_count'],2)
+        self.assertEqual(data['word_error_rate'],0)
+        self.assertEqual(data['cue_coverage_ratio'],1)
+        self.assertTrue(data['thresholds_passed'])
+        self.assertFalse(data['actual_model_inference_proven'])
+
     def test_foreign_source_bad_srt_and_out_of_range_words_fail(self):
         bad_cases=[]
         p=fixture();p['normalized_asr']['source_sha256']='b'*64;bad_cases.append(p)
