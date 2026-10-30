@@ -10,7 +10,7 @@ const problems=new Set([
 const pcm=new Set(['audio_clipped','too_quiet','too_loud','excessive_silence'])
 // Reject visual direction and invisible-control spoofing in untrusted ASR
 // review words. Keep Indic combining marks and U+200C/U+200D joiners.
-const UNSAFE_REVIEW_WORD=/[<>\\x00-\\x1f\\x7f-\\x9f\\u200b\\u200e\\u200f\\u2028-\\u202e\\u2060-\\u2069\\ufeff]/
+const UNSAFE_REVIEW_WORD=/[<>\x00-\x1f\x7f-\x9f\u200b\u200e\u200f\u2028-\u202e\u2060-\u2069\ufeff]/
 const safeWord=value=>typeof value==='string'&&value.trim().length>0&&
   value.length<=80&&!UNSAFE_REVIEW_WORD.test(value)
 export function verifyPrivateVoiceQualityReview({
