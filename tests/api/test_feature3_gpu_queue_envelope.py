@@ -79,7 +79,7 @@ class GPUEnvelopeTests(unittest.TestCase):
         for payload in (self.encoded + chr(0xD800),
                         self.encoded + chr(0xDFFF),
                         self.encoded.replace(self.shop, chr(0xD800) + self.shop[1:]),
-                        b"\\xed\\xa0\\x80"):
+                        b"\xed\xa0\x80"):
             with self.subTest(payload_type=type(payload).__name__), self.assertRaises(GPUEnvelopeDenied):
                 decode_dispatch_envelope(payload)
 
