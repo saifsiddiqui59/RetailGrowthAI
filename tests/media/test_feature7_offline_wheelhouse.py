@@ -118,8 +118,8 @@ class OfflineWheelhouseTests(unittest.TestCase):
             audit_wheelhouse(str(self.root),str(self.manifest))
 
     def test_repin_foreign_dist_info_root_is_denied(self):
-        base=("Metadata-Version: 2.1\\nName: faster-whisper\\n"
-              "Version: 1.2.1\\nRequires-Dist: ctranslate2\\n")
+        base=("Metadata-Version: 2.1\nName: faster-whisper\n"
+              "Version: 1.2.1\nRequires-Dist: ctranslate2\n")
         self.rewrite_wheel("faster-whisper","1.2.1",base,
                            extra=("foreign-9.0.dist-info/RECORD","unexpected"))
         with self.assertRaisesRegex(WheelhouseRejected,"Foreign wheel dist-info"):
@@ -130,8 +130,8 @@ class OfflineWheelhouseTests(unittest.TestCase):
             audit_wheelhouse(str(self.root),str(self.manifest))
 
     def test_repin_fifo_archive_member_is_denied(self):
-        base=("Metadata-Version: 2.1\\nName: faster-whisper\\n"
-              "Version: 1.2.1\\nRequires-Dist: ctranslate2\\n")
+        base=("Metadata-Version: 2.1\nName: faster-whisper\n"
+              "Version: 1.2.1\nRequires-Dist: ctranslate2\n")
         archive=self.root/"faster_whisper-1.2.1-py3-none-any.whl"
         with ZipFile(archive,"w") as z:
             z.writestr("faster_whisper-1.2.1.dist-info/METADATA",base)
@@ -145,14 +145,14 @@ class OfflineWheelhouseTests(unittest.TestCase):
             audit_wheelhouse(str(self.root),str(self.manifest))
 
     def test_repin_duplicate_identity_header_is_denied(self):
-        base=("Metadata-Version: 2.1\\nName: faster-whisper\\n"
-              "Version: 1.2.1\\nRequires-Dist: ctranslate2\\n")
+        base=("Metadata-Version: 2.1\nName: faster-whisper\n"
+              "Version: 1.2.1\nRequires-Dist: ctranslate2\n")
         self.rewrite_wheel("faster-whisper","1.2.1",base+
-                           "Name: foreign-wheel\\n")
+                           "Name: foreign-wheel\n")
         with self.assertRaisesRegex(WheelhouseRejected,"identity metadata mismatch"):
             audit_wheelhouse(str(self.root),str(self.manifest))
         self.rewrite_wheel("faster-whisper","1.2.1",base+
-                           "Version: 9.9\\n")
+                           "Version: 9.9\n")
         with self.assertRaisesRegex(WheelhouseRejected,"identity metadata mismatch"):
             audit_wheelhouse(str(self.root),str(self.manifest))
 
