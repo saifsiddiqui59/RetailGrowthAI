@@ -31,10 +31,18 @@ function localModel(model_dir) {
   requireOk(st.isDirectory() && !st.isSymbolicLink(),'WhisperX model missing');
   return fs.realpathSync(model_dir);
 }
-function run(binary,args,timeoutMs,env,step) {
+// Kept as a small exported primitive for real subprocess timeout regression
+// tests. SIGKILL is deliberate: SIGTERM can be caught/ignored by a hung CPU
+// model process, leaving a synchronous worker blocked past its time budget.
+export function runBoundedOfflineCommand(binary,args,timeoutMs,env,step) {
+  requireOk(typeof binary==='string'&&binary.length>0&&
+    Array.isArray(args)&&args.every(arg=>typeof arg==='string')&&
+    Number.isSafeInteger(timeoutMs)&&timeoutMs>0&&timeoutMs<=600000&&
+    typeof step==='string'&&step.length>0,
+  'Invalid bounded offline command');
   const p=spawnSync(binary,args,{
-    env,encoding:'utf8',timeout:timeoutMs,maxBuffer:256*1024,
-    stdio:['ignore','pipe','pipe']
+    env,encoding:'utf8',timeout:timeoutMs,killSignal:'SIGKILL',
+    maxBuffer:256*1024,stdio:['ignore','pipe','pipe']
   });
   requireOk(!p.error && p.status===0,step+' failed or timed out (no transcript approved)');
 }
@@ -69,7 +77,7 @@ export function transcribePrivateClipCPU({
   };
   try {
     const wav=path.join(working,'source.wav');
-    run(ffmpeg_bin,['-hide_banner','-nostdin','-v','error','-y',
+    runBoundedOfflineCommand(ffmpeg_bin,['-hide_banner','-nostdin','-v','error','-y',
       '-protocol_whitelist','file,pipe',
       '-i',source,'-vn','-ac','1','-ar','16000','-f','wav',wav],
     60000,env,'Private WAV extraction');
@@ -79,7 +87,7 @@ export function transcribePrivateClipCPU({
     // WhisperX accepts an explicitly staged local faster-whisper model path.
     // VAD/aligner dependencies must already be cached in the egress-disabled
     // runtime; otherwise the command fails closed.
-    run(binary,[wav,'--model',model,'--device','cpu',
+    runBoundedOfflineCommand(binary,[wav,'--model',model,'--device','cpu',
       '--compute_type','int8','--output_format','json',
       '--output_dir',outDir],timeout_ms,env,'WhisperX CPU inference');
     const jsonFile=path.join(outDir,'source.json');
