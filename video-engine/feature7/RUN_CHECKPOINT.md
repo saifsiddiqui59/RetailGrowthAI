@@ -20,3 +20,10 @@
 - **Verification:** GitHub exact-current-head 4/4 CI must be rechecked after this checkpoint commit; the earlier successful #41090018122 applied to the old parent SHA only. No claim that this combined head has passed yet.
 - **Merge gate:** PR #513 returned `mergeable=false` immediately after the first integration; determine whether this is a transient GitHub calculation or a real main conflict before requesting coordinator merge. Never force-merge or edit main.
 - **NEXT:** F7-G PR #840 (review receipt time bounds), compare base-to-parent paths first. If conflict, stop copying and prepare exact conflict evidence for coordinator. Then review #825 and #847/#846 source presence before closing any child PR.
+
+## Third compatible source integration — F7-G / F7-F review receipt
+- **Source PR:** #840, original child head `1791c3dce9620be48b461b6873fe48748e77f613` (draft). Compared the parent since #840 base `0166d719be7e13cf8d5280217c97f9dcf9a050f7`; neither review path was modified by parent.
+- **Files integrated:** `video-engine/feature7/review_fence.mjs` commit `112d0e77a485ab0f5aaf4a5ebb8ddabb43607c25`, and `tests/media/test_feature7_review_fence.py` commit `e83eec422e9bc0825cdd9c7ae797b0ea02ccacfa`. Imported existing overflow/invalid signed receipt negative checks.
+- **Parent mergeability:** GitHub recomputed #513 as `mergeable=true` after earlier transient `false`; do not treat that alone as accepted review or green CI.
+- **Current exact-head CI:** unverified; previous run #41090018122 was 4/4 on `7ca3b6b...`, before all three integrations. Inspect latest head, CI job results and any conflicts before coordinator merge. This checkpoint is the last write in this run.
+- **NEXT:** investigate PR #513 exact-head four-job CI and targeted F7-L/F7-G tests; then compare #825 (caption cue validation) for compatible integration. PRs #847, #846 and #840 should remain open until coordinator confirms their source is accepted in #513.
