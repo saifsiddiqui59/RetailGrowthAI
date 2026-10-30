@@ -324,3 +324,75 @@ def test_post_storage_revocation_does_not_return_private_audio_receipt(
     assert writes == [1]
     assert len(auth_calls) == 3
     assert len(plan_calls) == (2 if revocation == "editor" else 3)
+
+
+# Source-only offline regressions for F2-29. No Speech API, model or paid GPU.
+from ai_agents.feature2_voiceover_upload import _inspect
+
+def test_original_pcm_inspection_denies_riff_trailing_bytes_and_hidden_streams():
+    original=wav()
+    assert _inspect(original,30)==2.0
+    appended=original+b"TRAILER"
+    with pytest.raises(VoiceUploadRejected,match="RIFF extent"):
+        _inspect(appended,30)
+    # Even after re-signing the RIFF top-level size, extra data chunks must be
+    # denied: wave.open alone would accept only the first PCM data chunk.
+    second=b"data"+(2).to_bytes(4,"little")+b"\x00\x00"
+    forged=bytearray(original+second)
+    forged[4:8]=(len(forged)-8).to_bytes(4,"little")
+    with pytest.raises(VoiceUploadRejected,match="Multiple or unbound"):
+        _inspect(bytes(forged),30)
+
+def test_original_pcm_inspection_denies_bad_chunk_sizes_and_reordered_format():
+    original=wav()
+    # Header size matches the byte count, but an internal chunk claims more.
+    corrupt=bytearray(original)
+    corrupt[16:20]=(len(original)).to_bytes(4,"little")
+    with pytest.raises(VoiceUploadRejected,match="chunk exceeds"):
+        _inspect(bytes(corrupt),30)
+    # Insert duplicate format chunk before data and adjust the outer size.
+    fmt=original[12:36]
+    duplicate=bytearray(original[:36]+fmt+original[36:])
+    duplicate[4:8]=(len(duplicate)-8).to_bytes(4,"little")
+    with pytest.raises(VoiceUploadRejected,match="Duplicate"):
+        _inspect(bytes(duplicate),30)
+
+def test_mp3_private_decode_rejects_fake_success_with_trailing_riff(monkeypatch,tmp_path):
+    from ai_agents import feature2_voiceover_upload as upload
+    from types import SimpleNamespace
+    # Executable path and byte source are deterministic offline fixtures, not
+    # an actual MP3 decoder. Test the subprocess return/RIFF boundary only.
+    binary=tmp_path/"ffmpeg-fixture"
+    binary.write_bytes(b"fixture")
+    binary.chmod(0o700)
+    original=b"ID3"+b"x"*250
+    def fake_run(command,**kwargs):
+        output=Path(command[-1])
+        output.write_bytes(wav()+b"hidden trailing bytes")
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(upload.subprocess,"run",fake_run)
+    with pytest.raises(VoiceUploadRejected,match="RIFF extent"):
+        upload.decode_unreviewed_mp3_to_private_wav(
+            original_mp3=original,max_seconds=15,
+            operator_ffmpeg_path=binary)
+
+def test_mp3_private_decode_fixtured_positive_still_pending_rights(monkeypatch,tmp_path):
+    from ai_agents import feature2_voiceover_upload as upload
+    from types import SimpleNamespace
+    binary=tmp_path/"ffmpeg-fixture"
+    binary.write_bytes(b"fixture")
+    binary.chmod(0o700)
+    fake_mp3=b"ID3"+b"y"*250
+    def fake_run(command,**kwargs):
+        Path(command[-1]).write_bytes(wav())
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(upload.subprocess,"run",fake_run)
+    result=upload.decode_unreviewed_mp3_to_private_wav(
+        original_mp3=fake_mp3,max_seconds=30,
+        operator_ffmpeg_path=binary)
+    assert result["original_mp3_sha256"]==sha256(fake_mp3).hexdigest()
+    assert result["derived_wav_sha256"]==sha256(wav()).hexdigest()
+    assert result["duration_seconds"]==2
+    assert not result["original_rights_verified"]
+    assert not result["actual_speech_verified"]
+    assert not result["can_publish"] and result["paid_calls"]==0
