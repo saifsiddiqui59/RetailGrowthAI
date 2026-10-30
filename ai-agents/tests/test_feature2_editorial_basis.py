@@ -435,3 +435,29 @@ def test_exact_approved_indic_offer_is_still_review_only(approved):
     assert report["customer_editor_approval_required"] is True
     assert report["commercial_fact_certified"] is False
     assert report["can_publish"] is False
+
+
+@pytest.mark.parametrize("spoofed", [
+    "20% off selected kurti styles; extra 50\u200b% off",
+    "20% off selected kurti styles; extra 50\u2060percent off",
+    "20% off selected kurti styles; ₹\u200b999 only",
+    "20% off selected kurti styles; all\u200b items included",
+    "20% off selected kurti styles \u202e offer",
+    "20% off selected kurti styles \u2028 second line",
+])
+def test_invisible_unicode_cannot_hide_unapproved_commercial_claims(spoofed):
+    # These are hostile text fixtures, not approved customer offers.
+    with pytest.raises(EditorialBasisRejected, match="Unsafe or unbounded retailer copy"):
+        inspect_retailer_copy_claims(
+            verified_context=copy_context(), copy=candidate_copy(caption=spoofed)
+        )
+
+
+def test_normal_indic_combining_marks_remain_allowed_for_manual_review():
+    report = inspect_retailer_copy_claims(
+        verified_context=copy_context(),
+        copy=candidate_copy(caption="सुंदर कुर्ती — 20% off selected kurti styles"),
+    )
+    assert report["can_publish"] is False
+    assert report["review_required"] is True
+    assert "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED" not in report["issues"]
