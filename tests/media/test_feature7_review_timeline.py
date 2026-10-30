@@ -16,6 +16,9 @@ const proposal=proposeUploadedFootageEdits(data);
 if(data.modify==='foreign_caption')proposal.captions_advisory[0].clipId='other-asset';
 if(data.modify==='caption_overflow')proposal.captions_advisory[0].timeline_end_ms=99000;
 if(data.modify==='caption_html')proposal.captions_advisory[0].words[0].text='<script>';
+if(data.modify==='caption_bidi')proposal.captions_advisory[0].words[0].text='Sale\\u202e!'; 
+if(data.modify==='caption_c1')proposal.captions_advisory[0].words[0].text='Sale\\u0085'; 
+if(data.modify==='caption_unpaired_surrogate')proposal.captions_advisory[0].words[0].text='Sale\\ud800';
 if(data.modify==='outside_broll')proposal.broll_advisory[0].timeline_end_ms=99000;
 if(data.modify==='fake_media')proposal.broll_advisory[0].asset_id='unknown';
 const grants=data.grants.map(g=>({...g}));
@@ -51,6 +54,7 @@ class ReviewTimelineTests(unittest.TestCase):
 
     def test_security_and_timing_edits_fail_closed(self):
         for mutation in ['foreign_caption','caption_overflow','caption_html',
+          'caption_bidi','caption_c1','caption_unpaired_surrogate',
           'outside_broll','fake_media','revoked_broll','foreign_shop']:
             with self.subTest(mutation=mutation):
                 p=sample();p['modify']=mutation
