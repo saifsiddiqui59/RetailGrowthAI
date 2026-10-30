@@ -13,6 +13,7 @@ from io import BytesIO
 from pathlib import Path
 import os
 import re
+import stat
 import threading
 import time
 import wave
@@ -42,14 +43,33 @@ class LocalSpeechUnavailable(ValueError):
     pass
 
 def _file_proof(path:Path,expected_name,expected_bytes,expected_sha):
-    if not path.is_file() or path.is_symlink() or path.name!=expected_name:
+    """Hash pinned bytes through one regular-file descriptor, without symlinks.
+
+    The operator must keep the verified cache immutable while the upstream
+    loader opens model paths. This check itself is not a filesystem lease.
+    """
+    if path.name!=expected_name or path.is_symlink():
         raise LocalSpeechUnavailable("Pinned local model original unavailable")
-    if path.stat().st_size!=expected_bytes:
-        raise LocalSpeechUnavailable("Pinned ONNX/voice size mismatch")
     h=__import__("hashlib").sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda:stream.read(1024*1024),b""):
-            h.update(chunk)
+    try:
+        # O_NOFOLLOW also protects an attacker swapping a regular file for
+        # a symlink between the initial path check and the actual open.
+        flags=os.O_RDONLY | getattr(os,"O_NOFOLLOW",0)
+        with os.fdopen(os.open(path,flags),"rb") as stream:
+            before=os.fstat(stream.fileno())
+            if not stat.S_ISREG(before.st_mode):
+                raise LocalSpeechUnavailable("Pinned local model original unavailable")
+            if before.st_size!=expected_bytes:
+                raise LocalSpeechUnavailable("Pinned ONNX/voice size mismatch")
+            for chunk in iter(lambda:stream.read(1024*1024),b""):
+                h.update(chunk)
+            after=os.fstat(stream.fileno())
+            if (after.st_size!=expected_bytes or
+                after.st_ino!=before.st_ino or
+                after.st_dev!=before.st_dev):
+                raise LocalSpeechUnavailable("Pinned ONNX/voice changed during verification")
+    except OSError as exc:
+        raise LocalSpeechUnavailable("Pinned local model original unavailable") from exc
     if h.hexdigest()!=expected_sha:
         raise LocalSpeechUnavailable("Pinned ONNX/voice digest mismatch")
     return h.hexdigest()
@@ -63,7 +83,10 @@ def verify_cache(cache_dir, *, model_sha=MODEL_SHA, voice_sha=VOICES_SHA,
     """
     if not isinstance(cache_dir,(str,Path)) or not str(cache_dir):
         raise LocalSpeechUnavailable("Trusted speech cache required")
-    root=Path(cache_dir).resolve(strict=True)
+    try:
+        root=Path(cache_dir).resolve(strict=True)
+    except (OSError,RuntimeError) as exc:
+        raise LocalSpeechUnavailable("Trusted speech cache required") from exc
     if not root.is_dir():
         raise LocalSpeechUnavailable("Trusted speech cache required")
     _file_proof(root/MODEL_NAME,MODEL_NAME,model_size,model_sha)
@@ -235,6 +258,9 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
             audio.get("voice_id")!=voice_id or audio.get("language")!=lang or
             audio.get("sample_rate_hz")!=24000 or
             audio.get("paid_calls")!=0 or
+            audio.get("approved_to_publish") is not False or
+            audio.get("speech_transcript_verified") is not False or
+            audio.get("word_timestamps") is not None or
             audio.get("test_only") is not trusted_for_tests or
             audio.get("actual_inference_verified") is not (not trusted_for_tests) or
             type(audio.get("audio_wav")) is not bytes or
@@ -245,6 +271,23 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
             not audio["audio_wav"].startswith(b"RIFF") or
             audio["audio_wav"][8:12]!=b"WAVE"):
             raise LocalSpeechUnavailable("Benchmark source/audio provenance invalid")
+        # RIFF/WAVE magic is not sufficient: an injected malformed buffer or
+        # a forged declared duration must not become a real CPU benchmark.
+        try:
+            with wave.open(BytesIO(audio["audio_wav"]),"rb") as reader:
+                count=reader.getnframes()
+                if (reader.getnchannels()!=1 or reader.getsampwidth()!=2 or
+                    reader.getframerate()!=24000 or
+                    reader.getcomptype()!="NONE" or count<2400 or count>24000*60):
+                    raise LocalSpeechUnavailable("Benchmark original WAV PCM invalid")
+                raw=reader.readframes(count)
+                if len(raw)!=2*count:
+                    raise LocalSpeechUnavailable("Benchmark original WAV truncated")
+                measured=round(count/24000,4)
+        except (OSError,ValueError,EOFError,wave.Error) as exc:
+            raise LocalSpeechUnavailable("Benchmark original WAV invalid") from exc
+        if abs(measured-audio["duration_seconds"])>0.0001:
+            raise LocalSpeechUnavailable("Benchmark original WAV duration mismatch")
         observations.append({
             "wall_seconds":round(wall,4),
             "process_cpu_seconds":round(cpu,4),
