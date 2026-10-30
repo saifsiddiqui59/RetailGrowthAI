@@ -57,13 +57,13 @@ def read_private_manifest(path):
     """
     item = Path(path)
     try:
-        if not hasattr(os, "O_NOFOLLOW"):
-            raise PreflightError("Secure no-follow private manifest open unavailable")
+        if not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_NONBLOCK"):
+            raise PreflightError("Secure nonblocking no-follow manifest open unavailable")
         before = item.stat(follow_symlinks=False)
         if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or
                 not 0 < before.st_size <= MAX_PRIVATE_MANIFEST_BYTES):
             raise PreflightError("Private manifest must be one bounded regular file")
-        flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0)
+        flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
         fd = os.open(item, flags)
         try:
             opened = os.fstat(fd)
@@ -81,6 +81,13 @@ def read_private_manifest(path):
             after = os.fstat(fd)
             if identity(after) != identity(opened):
                 raise PreflightError("Private manifest changed during read")
+            # A stable descriptor is not sufficient: the path may have been
+            # unlinked/replaced after open while the old inode remains readable.
+            # Deny a swapped path rather than validating stale provenance.
+            path_after = item.stat(follow_symlinks=False)
+            if (not stat.S_ISREG(path_after.st_mode) or
+                    identity(path_after) != identity(after)):
+                raise PreflightError("Private manifest path changed during read")
             if not 0 < len(data) <= MAX_PRIVATE_MANIFEST_BYTES:
                 raise PreflightError("Missing or oversized private model manifest")
         finally:
