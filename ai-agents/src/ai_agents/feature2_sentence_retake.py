@@ -91,6 +91,18 @@ def local_sentence_retake(*,shop_id,campaign_id,source_plan,sentence_index,
         saved.get("new_audio_sha256")!=summary["sha256"] or
         saved.get("private") is not True):
         raise RetakeDenied("Private sentence retake not registered")
+    # A private writer may run after editor access or the original plan was
+    # revoked. Do not return a successful retake receipt in that race.
+    # The real storage adapter MUST make its commit conditional on current
+    # tenant authorization and clean up orphaned pending bytes atomically;
+    # this source-only recheck does not prove such a transaction exists.
+    if (current_editor(shop_id,campaign_id) is not True or
+        read_plan(shop_id,campaign_id)!=source_plan):
+        raise RetakeDenied("Retake source revoked during private registration")
+    if (saved.get("can_publish") is True or
+        saved.get("review_status") in ("APPROVED","PUBLISHED") or
+        saved.get("requires_new_feature7_transcription") is False):
+        raise RetakeDenied("Private writer attempted to bypass retake review")
     return {**data,"private_sentence_audio_asset_id":saved["asset_id"],
             "requires_feature4_scene_assembly":True,
             "requires_new_feature7_transcription":True}
