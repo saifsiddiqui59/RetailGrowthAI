@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import copy
 import json
+import os
+from types import SimpleNamespace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 from feature5_motion.infra.wan22_native_preflight import (
     render_reviewed_require_hashes,
@@ -61,6 +64,72 @@ class PrivateBuildManifestInputTests(unittest.TestCase):
                                                 "Unreadable or ambiguous reviewed manifest"):
                         _private_review_json(path)
 
+
+    def test_reviewed_manifest_path_swap_denied_even_when_bytes_match(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "review.json"
+            manifest.write_text('{"approved":"test-only"}')
+            other = root / "other.json"
+            other.write_bytes(manifest.read_bytes())
+            displaced = root / "displaced.json"
+            original_fstat = os.fstat
+            reads = []
+
+            def replace_on_final_fstat(fd):
+                reads.append(1)
+                if len(reads) == 2:
+                    os.replace(manifest, displaced)
+                    os.replace(other, manifest)
+                return original_fstat(fd)
+
+            with patch(
+                "feature5_motion.infra.wan22_build_context_gate.os.fstat",
+                side_effect=replace_on_final_fstat,
+            ), self.assertRaisesRegex(WanCompatibilityError, "Unreadable"):
+                _private_review_json(manifest)
+            self.assertEqual(len(reads), 2)
+            self.assertNotEqual(displaced.stat().st_ino, manifest.stat().st_ino)
+
+    def test_symlink_hardlink_and_ctime_drift_rejected_before_review(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "review.json"
+            manifest.write_text('{"source":"synthetic"}')
+            linked = root / "link.json"
+            linked.symlink_to(manifest)
+            with self.assertRaises(WanCompatibilityError):
+                _private_review_json(linked)
+            hardlinked = root / "hardlink.json"
+            os.link(manifest, hardlinked)
+            with self.assertRaises(WanCompatibilityError):
+                _private_review_json(manifest)
+            hardlinked.unlink()
+
+            real_fstat = os.fstat
+            calls = []
+            def changed_ctime_on_second_fstat(fd):
+                actual = real_fstat(fd)
+                calls.append(1)
+                if len(calls) != 2:
+                    return actual
+                # Same inode, bytes, size and mtime; only ctime has changed.
+                fields = {
+                    field: getattr(actual, field) for field in (
+                        "st_dev", "st_ino", "st_mode", "st_nlink",
+                        "st_size", "st_mtime_ns", "st_ctime_ns"
+                    )
+                }
+                fields["st_ctime_ns"] += 1
+                return SimpleNamespace(**fields)
+
+            # Construct the ctime-drift stat surrogate without retaining any
+            # customer file or changing the original reviewed manifest.
+            with patch("feature5_motion.infra.wan22_build_context_gate.os.fstat",
+                       side_effect=changed_ctime_on_second_fstat), self.assertRaises(
+                           WanCompatibilityError):
+                _private_review_json(manifest)
+            self.assertEqual(len(calls), 2)
 
 class ComfyOfflineImageBuildGateTests(unittest.TestCase):
     def test_complete_real_byte_audit_of_synthetic_artifacts_is_explicitly_gpu_off(self):

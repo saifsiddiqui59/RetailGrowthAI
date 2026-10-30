@@ -125,7 +125,8 @@
       "source_evidence_20261030": "OCI/source and wheel security hardening #688/#694/#698; each separate exact-head 4/4 CI pass. Genuine immutable CUDA image, legal distribution, ABI/SBOM remain unverified.",
       "no_production_authority": true,
       "source_evidence_batch2_20261030": "Hardens actual local safetensors header parser: duplicate-key/nonfinite/deep JSON rejection, tensor offset and shape validation, symlink/hardlink refusal; synthetic CPU negative tests. Not original weight full SHA, actual OCI or legal approval.",
-      "source_evidence_parent_20261030": "Latest F5 parent #465 OCI reader #41040856412 4/4 exact-head: descriptor identity, symlink/hardlink refusal, read stability; #781 reconciliation preserves duplicate-key/nonfinite/deep JSON denial. Still no real independently approved OCI, CUDA ABI/SBOM/licenses."
+      "source_evidence_parent_20261030": "Latest F5 parent #465 OCI reader #41040856412 4/4 exact-head: descriptor identity, symlink/hardlink refusal, read stability; #781 reconciliation preserves duplicate-key/nonfinite/deep JSON denial. Still no real independently approved OCI, CUDA ABI/SBOM/licenses.",
+      "source_evidence_manifest_stable_path_reconciled_20261031": "Reconciled original F5-13 draft #786 against current combined Feature5 batch #781 after REST merge refused conflicting stale source. _private_review_json now requires OS O_NOFOLLOW/O_NONBLOCK, stable descriptor and original pathname dev/inode/mode/nlink/size/mtime_ns/ctime_ns before/after bounded JSON read; denies same-byte path substitution and restored-mtime rewrite; two CPU negative unittest methods added (symlink/hardlink/path-swap/ctime drift). This integrates audited source changes into the existing batch, not the original PR merge. Does not verify independently approved real CUDA image digest, SBOM/legal/ABI/rights, or GPU. Source tests and fresh combined exact-head CI still required."
     },
     {
       "task": 14,
