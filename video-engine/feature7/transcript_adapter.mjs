@@ -56,15 +56,38 @@ export function normalizeWhisperx({asset_id,shop_id,source_sha256,transcript,
 }
 
 export function projectCaptionsToTrim(captions, trim_start_seconds, duration_seconds, timeline_offset_seconds=0) {
-  check(Array.isArray(captions) && Number.isFinite(trim_start_seconds) &&
-    trim_start_seconds>=0 && Number.isFinite(duration_seconds) &&
-    duration_seconds>0 && Number.isFinite(timeline_offset_seconds) &&
-    timeline_offset_seconds>=0, 'Invalid caption clip projection');
-  const start=trim_start_seconds*1000,end=start+duration_seconds*1000;
+  check(Array.isArray(captions) && captions.length<=3000 &&
+    Number.isFinite(trim_start_seconds) && trim_start_seconds>=0 &&
+    trim_start_seconds<=3600 && Number.isFinite(duration_seconds) &&
+    duration_seconds>0 && duration_seconds<=600 &&
+    Number.isFinite(timeline_offset_seconds) && timeline_offset_seconds>=0 &&
+    timeline_offset_seconds<=3600, 'Invalid caption clip projection');
+  const start=Math.round(trim_start_seconds*1000);
+  const end=start+Math.round(duration_seconds*1000);
+  let totalWords=0;
+  // Validate EVERY supplied cue before time filtering: an out-of-range cue
+  // must not be able to hide malformed or forged word timings.
+  for(const c of captions) {
+    check(c && typeof c==='object' && !Array.isArray(c) &&
+      typeof c.clipId==='string' && c.clipId.length>0 &&
+      c.clipId.length<=120 && Array.isArray(c.words) &&
+      c.words.length>0 && c.words.length<=100 &&
+      Number.isSafeInteger(c.startMs) && Number.isSafeInteger(c.endMs) &&
+      c.startMs>=0 && c.endMs>c.startMs && c.endMs<=3600000,
+      'Invalid caption source timing');
+    totalWords+=c.words.length;
+    check(totalWords<=3000,'Too many caption words');
+    for(const w of c.words) {
+      check(w && typeof w==='object' && !Array.isArray(w) &&
+        typeof w.text==='string' && w.text.trim().length>0 &&
+        [...w.text].length<=80 &&
+        Number.isSafeInteger(w.startMs) && Number.isSafeInteger(w.endMs) &&
+        w.startMs>=c.startMs && w.endMs<=c.endMs &&
+        w.endMs>w.startMs,
+        'Invalid caption word timing');
+    }
+  }
   return captions.filter(c=>c.endMs>start && c.startMs<end).map(c=>{
-    check(c && typeof c.clipId==='string' && Array.isArray(c.words) &&
-      Number.isFinite(c.startMs) && Number.isFinite(c.endMs) &&
-      c.startMs<c.endMs, 'Invalid caption source timing');
     const clippedWords=c.words.filter(w=>w.endMs>start && w.startMs<end).map(w=>({
       ...w,startMs:Math.round(timeline_offset_seconds*1000+Math.max(w.startMs,start)-start),
       endMs:Math.round(timeline_offset_seconds*1000+Math.min(w.endMs,end)-start)
