@@ -193,6 +193,50 @@ class Feature7DispatchJournalTests(unittest.TestCase):
         self.assertEqual(self.store.finish(context=ctx(),lease=extended,
           result_sha256=OUTPUT,now_ms=3000)['state'],'SUCCEEDED')
 
+    def test_shorter_heartbeat_cannot_reap_active_renderer_early(self):
+        """Short renewals may retain but never truncate an owned worker lease.
+
+        One idle worker and another SQLite connection simulate cross-process
+        expiry/reclaim without calling a paid or real Feature4 renderer.
+        """
+        job=self.stage()
+        original=self.store.lease_next(context=ctx(),now_ms=1100,lease_ms=5000)
+        self.assertEqual(original.expires_ms,6100)
+        unchanged=self.store.heartbeat(context=ctx(),lease=original,
+          now_ms=1600,lease_ms=1000)
+        self.assertEqual(unchanged.expires_ms,6100)
+        self.assertEqual(unchanged.fence,original.fence)
+        self.assertEqual(unchanged.attempt,1)
+        other=LocalApprovedEditDispatch(self.database)
+        try:
+            self.assertIsNone(other.lease_next(context=ctx(),now_ms=2600))
+            self.assertIsNone(other.lease_next(context=ctx(),now_ms=6000))
+            extended=self.store.heartbeat(context=ctx(),lease=unchanged,
+              now_ms=5600,lease_ms=4000)
+            self.assertEqual(extended.expires_ms,9600)
+            self.assertEqual(extended.fence,original.fence)
+            with self.assertRaises(ReviewStateError):
+                self.store.finish(context=ctx(),lease=original,
+                  result_sha256=OUTPUT,now_ms=5700)
+            self.assertIsNone(other.lease_next(context=ctx(),now_ms=6100))
+            self.assertIsNone(other.lease_next(context=ctx(),now_ms=9599))
+            # Real crash/timeout: the old worker never acknowledges.
+            second=other.lease_next(context=ctx(),now_ms=9600,lease_ms=1000)
+            self.assertEqual(second.attempt,2)
+            self.assertEqual(second.idempotency_key,job['idempotency_key'])
+            self.assertNotEqual(second.fence,original.fence)
+            with self.assertRaises(ReviewStateError):
+                self.store.finish(context=ctx(),lease=extended,
+                  result_sha256=OUTPUT,now_ms=9650)
+            result=other.finish(context=ctx(),lease=second,
+              result_sha256=OUTPUT,now_ms=9650)
+            self.assertEqual(result['state'],'SUCCEEDED')
+            self.assertEqual(self.store.reconcile_by_idempotency(
+              context=ctx(),idempotency_key=job['idempotency_key'])['result_sha256'],
+              OUTPUT)
+        finally:
+            other.close()
+
     def test_denied_foreign_revoked_viewer_and_unknown_source(self):
         job=self.stage()
         for wrong in (ctx(shop='foreign'),ctx(rights=False),

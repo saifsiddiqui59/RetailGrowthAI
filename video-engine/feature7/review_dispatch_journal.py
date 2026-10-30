@@ -301,7 +301,12 @@ class LocalApprovedEditDispatch:
             if row is None:
                 raise ReviewStateError("Unknown dispatch")
             self._leased(row, ctx, lease, now)
-            new_expiry = now + lease_ms
+            # A valid in-flight renderer must never lose its existing
+            # lease because a heartbeat requested a shorter renewal.
+            # Shortening would permit a second worker to claim the same
+            # idempotency key while the original is still legitimately
+            # running. The heartbeat may extend or retain, never shorten.
+            new_expiry = max(row["lease_expires_ms"], now + lease_ms)
             self.db.execute(
                 "UPDATE f7_approved_edit_dispatch SET lease_expires_ms=? "
                 "WHERE dispatch_id=?", (new_expiry, lease.dispatch_id))
