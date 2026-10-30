@@ -149,8 +149,9 @@ def accept_unreviewed_mp3(*,shop_id,campaign_id,plan,original_mp3,
                           client_declared_rights=None):
     """Source-only MP3 upload: preserve ORIGINAL and derived audio under RLS.
 
-    Server writer must atomically register BOTH byte streams, their digests
-    and original rights review. Do not overwrite an existing asset or infer
+    Server writer must atomically register BOTH byte streams, their digests,
+    two distinct same-tenant private asset IDs and original rights review.
+    A partial writer receipt is never an accepted private upload. Do not overwrite an existing asset or infer
     a customer right from checkbox data.
     """
     if not all(callable(cb) for cb in
@@ -185,6 +186,9 @@ def accept_unreviewed_mp3(*,shop_id,campaign_id,plan,original_mp3,
     saved=store_both_private_pending(
         shop_id,campaign_id,original_mp3,decoded["derived_wav"],dict(receipt))
     if (type(saved) is not dict or not _uuid(saved.get("asset_id")) or
+        not _uuid(saved.get("derived_wav_asset_id")) or
+        saved.get("derived_wav_asset_id")==saved.get("asset_id") or
+        saved.get("atomic_pair_committed") is not True or
         saved.get("shop_id")!=shop_id or saved.get("campaign_id")!=campaign_id or
         saved.get("original_mp3_sha256")!=receipt["original_mp3_sha256"] or
         saved.get("derived_wav_sha256")!=receipt["derived_wav_sha256"] or
