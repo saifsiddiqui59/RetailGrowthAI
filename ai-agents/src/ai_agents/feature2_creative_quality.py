@@ -827,7 +827,7 @@ def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
     items=root.find("channel").findall("item")
     if len(items)>25:
         raise EditorialBasisRejected("Too many private RSS items")
-    seen=set();rows=[];rejected_old=0
+    seen=set();seen_headlines=set();rows=[];rejected_old=0
     for item in items:
         title=item.find("title")
         pub=item.find("pubDate")
@@ -847,6 +847,13 @@ def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
                      published.astimezone(timezone.utc)).total_seconds()
         except (TypeError,ValueError,OverflowError) as exc:
             raise EditorialBasisRejected("RSS source timestamp invalid") from exc
+        # Distinct RSS GUIDs must not inflate a repeated headline's rank.
+        # NFKC + whitespace folding also catches simple case/spacing aliases.
+        import unicodedata
+        headline_key=" ".join(unicodedata.normalize("NFKC",headline).casefold().split())
+        if headline_key in seen_headlines:
+            raise EditorialBasisRejected("Duplicated RSS headline in signed snapshot")
+        seen_headlines.add(headline_key)
         identity=(guid.text.strip() if guid is not None and
                   len(guid)==0 and type(guid.text) is str and
                   1<=len(guid.text.strip())<=500 else
