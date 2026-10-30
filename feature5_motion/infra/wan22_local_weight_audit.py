@@ -22,6 +22,20 @@ WAN_FILES = tuple(sorted(k for k in EXPECTED if k.startswith("feature5/")))
 CHUNK = 1024 * 1024
 
 
+def _path_identity(path, *, directory):
+    """Stat a named path without following links; bind the final readback to its inode."""
+    try:
+        info = Path(path).stat(follow_symlinks=False)
+    except OSError as exc:
+        raise PreflightError("Approved model path disappeared during audit") from exc
+    if directory:
+        if not stat.S_ISDIR(info.st_mode):
+            raise PreflightError("Approved model directory was replaced")
+    elif not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+        raise PreflightError("Approved model file was replaced or linked")
+    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
 def _actual_full_sha(path, expected_size, expected_sha):
     """Stream a single approved local regular file, rejecting TOCTOU/link drift."""
     path = Path(path)
@@ -52,8 +66,8 @@ def _actual_full_sha(path, expected_size, expected_sha):
                         raise PreflightError("Checkpoint grew during hashing")
                     digest.update(block)
                 after = os.fstat(stream.fileno())
-                if (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns) != (
-                    before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns):
+                if (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns) != (
+                    before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns):
                     raise PreflightError("Checkpoint modified during hashing")
         finally:
             if fd != -1:
@@ -77,15 +91,24 @@ def audit_full_wan_model_bytes(*, mounted_share_root, trusted_private_manifest):
         raise PreflightError("Actual existing private model mount required")
     verified = 0
     total = 0
+    # The three hashes are sequential: a prior file or mount could be swapped
+    # while later files are read. Recheck ALL named path identities at the end.
+    # This is not a durable filesystem snapshot or authorization for inference.
+    protected_paths = {root: (_path_identity(root, directory=True), True)}
     for name in WAN_FILES:
         current = root
         for segment in PurePosixPath(name).parts[:-1]:
             current = current / segment
-            if current.is_symlink() or not current.is_dir():
-                raise PreflightError("Untrusted intermediate checkpoint directory")
+            protected_paths.setdefault(
+                current, (_path_identity(current, directory=True), True))
+        path = root.joinpath(*PurePosixPath(name).parts)
+        protected_paths[path] = (_path_identity(path, directory=False), False)
         size, digest, _source = EXPECTED[name]
-        total += _actual_full_sha(root.joinpath(*PurePosixPath(name).parts),size,digest)
+        total += _actual_full_sha(path, size, digest)
         verified += 1
+    for path, (identity, is_dir) in protected_paths.items():
+        if _path_identity(path, directory=is_dir) != identity:
+            raise PreflightError("Approved model path identity changed during full audit")
     return {
         "schema": "retailgrowth.feature5.wan22-full-weight-byte-audit.v1",
         "checkpoint_count": verified,
