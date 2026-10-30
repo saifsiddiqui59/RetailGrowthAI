@@ -149,7 +149,7 @@ class Feature4MasterTests(unittest.TestCase):
                 raise OSError("simulated partial proof write")
         def fake_open(path,*args,**kwargs):
             stream=original_open(path,*args,**kwargs)
-            if path==proof and args and args[0]=="x":
+            if path==proof:
                 return FailingProof(stream)
             return stream
         def fake_master(*_args,**_kwargs):
