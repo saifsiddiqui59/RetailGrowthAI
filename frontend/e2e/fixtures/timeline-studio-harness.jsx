@@ -111,3 +111,34 @@ export function mountFeature4ResizeRace({shop}) {
   window.__feature4ResizeChangeContext = render
   render(shop)
 }
+
+
+// Deferred network-ACK race harness: fake same-shop status but NO cloud API.
+// A late old-shop render completion must not unlock another tenant's preview.
+export function mountFeature4RenderRace({shop}) {
+  const holder = document.createElement('div')
+  holder.id = 'feature4-render-race'
+  document.getElementById('root')?.setAttribute('hidden','')
+  document.body.appendChild(holder)
+  const root = createRoot(holder)
+  window.__feature4RaceRequests = []
+  const render = currentShop => {
+    const assets = [{id:'photo1',kind:'image',authorized:true,shop_id:currentShop}]
+    root.render(React.createElement(VideoStudio,{
+      shopId:currentShop, mediaAssets:assets, musicAssets:[],
+      renderStatus:{shop_id:currentShop,status:'SUCCEEDED',job_id:'synthetic-job'},
+      signedVideoUrl:'https://example.invalid/signed-fixture.mp4',
+      onRender:plan => new Promise((resolve,reject) => {
+        window.__feature4RaceRequests.push({plan,resolve,reject})
+      }),
+    }))
+  }
+  window.__feature4RaceSwitchShop = render
+  window.__feature4RaceSettle = (index, reject=false) => {
+    const pending = window.__feature4RaceRequests[index]
+    if (!pending) throw Error('Missing synthetic pending job')
+    if (reject) pending.reject(Error('Stale shop media permission denial'))
+    else pending.resolve()
+  }
+  render(shop)
+}
