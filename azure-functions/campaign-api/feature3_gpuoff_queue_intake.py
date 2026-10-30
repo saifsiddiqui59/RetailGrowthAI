@@ -46,18 +46,23 @@ class Feature3GPUOffQueueIntake:
         self._plan = plan_reader
         self._status = provider_status
 
-    def inspect(self, raw_message):
-        # Must be intentionally OFF, not merely no provider status or a
-        # browser-supplied config. Never inspect a queue in actual paid mode.
+    def _require_gpu_off(self):
+        # A trusted status callback can change while SQL/Storage reads run.
+        # Require a fresh authoritative OFF snapshot at both boundaries.
         try:
             status = self._status()
         except Exception as exc:
             raise Feature3QueueIntakeBlocked(
                 "Current GPU provider OFF status unavailable") from exc
-        if (not isinstance(status,dict) or
+        if (not isinstance(status, dict) or
                 status.get("enabled") is not False):
             raise Feature3QueueIntakeBlocked(
                 "GPU-disabled read-only queue inspection required")
+
+    def inspect(self, raw_message):
+        # Must be intentionally OFF, not merely no provider status or a
+        # browser-supplied config. Never inspect a queue in actual paid mode.
+        self._require_gpu_off()
         try:
             routing = decode_dispatch_envelope(raw_message)
         except GPUEnvelopeDenied as exc:
@@ -91,6 +96,9 @@ class Feature3GPUOffQueueIntake:
                 any(type(v) is not int or not 1 <= v <= 2_147_483_647
                     for v in plan["rights_revisions"])):
             raise Feature3QueueIntakeBlocked("Untrusted private queue preflight receipt")
+        # A provider may be enabled while the authoritative plan was read.
+        # Never issue a stale GPU-OFF receipt after that transition.
+        self._require_gpu_off()
         return {
             "shop_id":routing["shop_id"],"job_id":routing["job_id"],
             "source_count":len(plan["source_asset_ids"]),
