@@ -95,6 +95,7 @@ def make_edited_project(destination: Path, *, width: int = 540, edit_mode: str =
                 page.count('data-media-start="0"') < (2 if edit_mode == "duplicate" else 1) or
                 (edit_mode == "split" and 'data-media-start="4"' not in page) or
                 '20% OFF' not in page or 'Visit Our Store' not in page or
+                (edit_mode == "split" and 'id="intro-logo"' in page) or
                 'id="brand-logo"' not in page or
                 "90% OFF" in page):
             raise AssertionError("Actual edited HyperFrames composition diverged from approved timeline")
