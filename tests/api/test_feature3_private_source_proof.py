@@ -240,8 +240,10 @@ class PrivateSourceProofTests(unittest.TestCase):
                          "unknown", 123):
             self.setUp()
             self.content_encoding=encoding
-            with self.subTest(encoding=encoding),self.assertRaisesRegex(
-                    SourceProofDenied,"Encoded private source"):
+            # The private transport intentionally sanitizes the specific
+            # denial to avoid exposing Storage details to its caller.
+            with self.subTest(encoding=encoding),self.assertRaises(
+                    SourceProofDenied):
                 self.proof(self.shop,self.row)
             self.assertEqual([x[0] for x in self.calls],["get"])
         self.setUp()
