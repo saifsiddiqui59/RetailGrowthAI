@@ -125,6 +125,15 @@ def master_private_audio(source: Path, target: Path, *, expected_seconds: int):
             partial.unlink(missing_ok=True)
 
 
+def _private_report_path(path: Path):
+    """Reject unusable proof destinations before touching authorized media."""
+    path = Path(path)
+    if (path.suffix.lower() != ".json" or path.is_symlink() or path.exists() or
+            not path.parent.is_dir() or path.parent.is_symlink()):
+        raise AudioMasterError("Proof report must be a new private JSON file")
+    return path
+
+
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--source",required=True)
@@ -133,12 +142,16 @@ def main():
     ap.add_argument("--report",required=True)
     args=ap.parse_args()
     try:
+        # Check proof destination before expensive mastering, then use exclusive
+        # creation so a concurrent receipt cannot be overwritten.
+        proof=_private_report_path(Path(args.report))
         report=master_private_audio(Path(args.source),Path(args.output),
                                     expected_seconds=args.duration)
-        proof=Path(args.report)
-        if proof.is_symlink() or proof.exists() or not proof.parent.is_dir():
-            raise AudioMasterError("Proof report must be new and private")
-        proof.write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
+        try:
+            with proof.open("x",encoding="utf-8") as stream:
+                stream.write(json.dumps(report,indent=2)+"\\n")
+        except OSError as exc:
+            raise AudioMasterError("Proof report could not be committed privately") from exc
         print(json.dumps({"status":report["status"],
                           "source_mean_db":report["source_audio_mean_db"],
                           "mastered_mean_db":report["mastered_audio_mean_db"]}))
