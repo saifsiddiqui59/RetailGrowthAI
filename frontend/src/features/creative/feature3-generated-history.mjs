@@ -28,8 +28,9 @@ export function validateFeature3GeneratedHistory(shopId, jobs) {
   return Object.freeze(checked)
 }
 
-export function scopedFeature3GeneratedHistory(value, shopId) {
+export function scopedFeature3GeneratedHistory(value, shopId, currentApi = undefined) {
   if (!UUID.test(shopId || '') || !value || value.shopId !== shopId ||
+      (currentApi !== undefined && value.api !== currentApi) ||
       !Array.isArray(value.jobs)) return empty(shopId)
   try {
     // Never propagate arbitrary caller state (URLs, tokens, approval hints,
