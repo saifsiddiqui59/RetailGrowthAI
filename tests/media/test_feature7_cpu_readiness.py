@@ -49,17 +49,43 @@ class Feature7GpuOffReadinessTests(unittest.TestCase):
                 run=self.go({'env':{k:'1'}})
                 self.assertNotEqual(run.returncode,0,run.stdout)
 
+    def test_unknown_or_ambiguous_compute_switches_are_denied(self):
+        for value in ['2','auto','enabled','maybe','true ','-1']:
+            with self.subTest(value=value):
+                run=self.go({'env':{'FEATURE7_GPU_ENABLED':value}})
+                self.assertNotEqual(run.returncode,0,run.stdout)
+
     def test_empty_local_model_dir_does_not_certify_accuracy_or_release(self):
         with tempfile.TemporaryDirectory(prefix='f7-cpu-ready-') as home:
             p=Path(home)
             executable=p/'cli-test'
             executable.write_text('test-only')
+            executable.chmod(0o700)
+            model=p/'empty-model'
+            model.mkdir()
             r=self.go({'env':{},'whisperx_bin':str(executable),
-                'model_dir':str(p),'independent_license_approved':True})
+                'model_dir':str(model),'independent_license_approved':True,
+                'word_accuracy_verified':True})
             self.assertEqual(r.returncode,0,r.stderr)
             data=json.loads(r.stdout)['report']
             self.assertTrue(data['actual_whisperx_executable_present'])
-            self.assertTrue(data['actual_local_model_directory_present'])
+            self.assertFalse(data['actual_local_model_directory_present'])
+            self.assertFalse(data['genuine_cpu_asr_ready'])
+            self.assertFalse(data['feature7_release_ready'])
+
+    def test_nonexecutable_cli_cannot_be_reported_as_present(self):
+        with tempfile.TemporaryDirectory(prefix='f7-cpu-ready-') as home:
+            p=Path(home)
+            (p/'weights.bin').write_bytes(b'test-only-not-model-weights')
+            executable=p/'not-executable'
+            executable.write_text('test-only')
+            executable.chmod(0o600)
+            r=self.go({'env':{},'whisperx_bin':str(executable),
+                'model_dir':str(p),'independent_license_approved':True,
+                'word_accuracy_verified':True})
+            self.assertEqual(r.returncode,0,r.stderr)
+            data=json.loads(r.stdout)['report']
+            self.assertFalse(data['actual_whisperx_executable_present'])
             self.assertFalse(data['genuine_cpu_asr_ready'])
             self.assertFalse(data['feature7_release_ready'])
 
