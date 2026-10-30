@@ -126,7 +126,8 @@
       "acceptance_criteria": "Stream full original 3 files, exact SHA/size",
       "source_evidence_20261030": "Private mounted weight-manifest byte-input hardening #691, exact-head 4/4 CI pass. Actual protected original 3 checkpoint full streamed SHA not executed.",
       "no_production_authority": true,
-      "source_evidence_batch2_20261030": "Hardens existing private shared Azure Files stat-only check: each intermediate path must be real non-symlink directory, model must be single-link correct-size file; fake tiny local test cases. No real mounted 18GiB original checkpoint readback."
+      "source_evidence_batch2_20261030": "Hardens existing private shared Azure Files stat-only check: each intermediate path must be real non-symlink directory, model must be single-link correct-size file; fake tiny local test cases. No real mounted 18GiB original checkpoint readback.",
+      "source_evidence_remote_and_private_manifest_20261030": "GPU-off F5-14 original read-only Azure Files completion marker: exact bounded download, duplicate/nested/nonfinite/deep JSON rejection, marker size and optional ETag/last-modified drift check before six model HEAD metadata inspections. Local private manifest: no-follow fd regular single-link read with pre/post identity, size and mtime verification plus path replacement denial. Synthetic CPU negative tests; no existing private Azure share contacted or real 18GB checkpoint SHA streamed; not licensing/hosted provenance approval."
     },
     {
       "task": 15,

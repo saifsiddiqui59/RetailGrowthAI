@@ -95,6 +95,36 @@ class SharedModelMountTests(unittest.TestCase):
             with self.assertRaises(m.PreflightError):
                 m.read_private_manifest(linked)
 
+    def test_manifest_reader_does_not_follow_hardlinks_or_changed_descriptor(self):
+        import os
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "private-models.json"
+            path.write_text(json.dumps(sample()), encoding="utf-8")
+            self.assertEqual(m.validate_manifest(m.read_private_manifest(path)),
+                             m.validate_manifest(sample()))
+            linked = Path(td) / "other-name.json"
+            os.link(path,linked)
+            with self.assertRaises(m.PreflightError):
+                m.read_private_manifest(path)
+            linked.unlink()
+            real_fstat = os.fstat
+            calls = []
+            def changing_fstat(fd):
+                info = real_fstat(fd)
+                calls.append(1)
+                if len(calls) == 2:
+                    return SimpleNamespace(
+                        st_mode=info.st_mode, st_nlink=info.st_nlink,
+                        st_dev=info.st_dev, st_ino=info.st_ino,
+                        st_size=info.st_size, st_mtime_ns=info.st_mtime_ns+1)
+                return info
+            with patch.object(m.os, "fstat", side_effect=changing_fstat):
+                with self.assertRaises(m.PreflightError):
+                    m.read_private_manifest(path)
+            self.assertEqual(len(calls),2)
+
     def test_stat_only_mount_rejects_intermediate_links_and_hardlinks(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as td:

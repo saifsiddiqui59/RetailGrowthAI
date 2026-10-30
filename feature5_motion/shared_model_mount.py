@@ -9,6 +9,7 @@ import argparse
 import json
 import os
 import re
+import stat
 from pathlib import Path, PurePosixPath
 
 ACCOUNT = "rgaimodelseastus26"
@@ -54,13 +55,37 @@ def read_private_manifest(path):
     existing hard-coded six-file hash and revision validation still applies.
     """
     item = Path(path)
-    if item.is_symlink() or not item.is_file():
-        raise PreflightError("Private existing non-symlinked manifest required")
     try:
-        with item.open("rb") as handle:
-            data = handle.read(MAX_PRIVATE_MANIFEST_BYTES + 1)
-        if not 0 < len(data) <= MAX_PRIVATE_MANIFEST_BYTES:
-            raise ValueError("Missing or oversized model manifest")
+        before = item.stat(follow_symlinks=False)
+        if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or
+            not 0 < before.st_size <= MAX_PRIVATE_MANIFEST_BYTES):
+            raise ValueError("Missing, linked, or oversized private model manifest")
+        fd = os.open(item, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) |
+                     getattr(os, "O_NONBLOCK", 0))
+        try:
+            with os.fdopen(fd, "rb") as handle:
+                fd = -1
+                opened = os.fstat(handle.fileno())
+                identity = (before.st_dev, before.st_ino,
+                            before.st_size, before.st_mtime_ns)
+                if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1 or
+                    (opened.st_dev, opened.st_ino, opened.st_size,
+                     opened.st_mtime_ns) != identity):
+                    raise ValueError("Private model manifest replaced before read")
+                data = handle.read(MAX_PRIVATE_MANIFEST_BYTES + 1)
+                after = os.fstat(handle.fileno())
+                if (len(data) != before.st_size or
+                    (after.st_dev, after.st_ino, after.st_size,
+                     after.st_mtime_ns) != identity):
+                    raise ValueError("Private model manifest changed during read")
+        finally:
+            if fd != -1:
+                os.close(fd)
+        final = item.stat(follow_symlinks=False)
+        if (not stat.S_ISREG(final.st_mode) or final.st_nlink != 1 or
+            (final.st_dev, final.st_ino, final.st_size, final.st_mtime_ns)
+            != identity):
+            raise ValueError("Private model manifest path replaced during read")
         manifest = json.loads(
             data.decode("utf-8"),
             object_pairs_hook=_reject_duplicate_manifest_keys,
