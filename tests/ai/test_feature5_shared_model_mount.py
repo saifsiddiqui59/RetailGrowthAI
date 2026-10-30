@@ -1,5 +1,6 @@
 """CPU-only, zero-cloud tests for shared Feature3/Feature5 Azure Files mount plan."""
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -94,6 +95,24 @@ class SharedModelMountTests(unittest.TestCase):
             linked.symlink_to(manifest)
             with self.assertRaises(m.PreflightError):
                 m.read_private_manifest(linked)
+
+    def test_private_manifest_denies_hardlinks_and_nonregular_files(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            manifest = root / "private.json"
+            manifest.write_text(json.dumps(sample()), encoding="utf-8")
+            linked = root / "another-name.json"
+            os.link(manifest, linked)
+            with self.assertRaises(m.PreflightError):
+                m.read_private_manifest(manifest)
+            linked.unlink()
+            self.assertEqual(m.validate_manifest(m.read_private_manifest(manifest)),
+                             m.validate_manifest(sample()))
+            if hasattr(os, "mkfifo"):
+                fifo = root / "pipe.json"
+                os.mkfifo(fifo)
+                with self.assertRaises(m.PreflightError):
+                    m.read_private_manifest(fifo)
 
     def test_stat_only_mount_rejects_intermediate_links_and_hardlinks(self):
         from unittest.mock import patch
