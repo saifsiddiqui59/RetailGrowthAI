@@ -52,11 +52,23 @@ def _node_binary_attested(payload: bytes, expected_sha256: str | None) -> bool:
         return False
     if phoff + phentsize * phnum > len(payload):
         return False
-    if not any(
-        struct.unpack_from("<I", payload, phoff + n * phentsize)[0] == 1
-        and struct.unpack_from("<I", payload, phoff + n * phentsize + 4)[0] & 1
-        for n in range(phnum)
-    ):
+    executable_load=False
+    for n in range(phnum):
+        offset=phoff+n*phentsize
+        p_type,p_flags=struct.unpack_from("<II",payload,offset)
+        if p_type!=1 or not (p_flags & 1):
+            continue
+        # ELF64 PT_LOAD: file offset, file bytes and mapped memory bytes.
+        # A header advertising an executable segment outside the signed file
+        # (or an empty executable segment) is not an executable Node image.
+        file_offset=struct.unpack_from("<Q",payload,offset+8)[0]
+        file_size,memory_size=struct.unpack_from("<QQ",payload,offset+32)
+        if (file_size>0 and memory_size>=file_size and
+            file_offset<=len(payload) and
+            file_size<=len(payload)-file_offset):
+            executable_load=True
+            break
+    if not executable_load:
         return False
     return compare_digest(sha256(payload).hexdigest(), expected_sha256)
 PIN = "4ab1a40d15ee8c1a1427c092dce08dc7dfbefa6f"
