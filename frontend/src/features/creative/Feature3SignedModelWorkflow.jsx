@@ -2,9 +2,10 @@
  * An actual registered, tenant-owned private PNG must already exist. Client
  * inputs never certify likeness, image rights, JWT role or human curator.
  */
-import {useState} from 'react'
+import {useRef,useState} from 'react'
 import {getRetailClient} from '../../lib/supabase.js'
 import {verifyPrivateModelOriginalUploadReceipt} from './feature3-model-workflow-api.mjs'
+import {feature3ModelWorkflowSessionKey} from './feature3-model-workflow-scope.mjs'
 const FIELDS = [
  ['adult_synthetic','Confirmed adult synthetic model'],
  ['likeness_and_consent','Independently confirmed likeness/consent'],
@@ -17,6 +18,29 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 const SHA=/^[0-9a-f]{64}$/
 const field={display:'grid',gap:4,minWidth:0}
 export default function Feature3SignedModelWorkflow({shopId,api,enabled=false,disabled=false}) {
+ const current=useRef({shopId,api,enabled,disabled,revision:0})
+ // A->B->A must NOT revive pending callbacks from the first A session.
+ const prior=current.current
+ if(prior.shopId!==shopId || prior.api!==api ||
+    prior.enabled!==enabled || prior.disabled!==disabled){
+  current.current={shopId,api,enabled,disabled,revision:prior.revision+1}
+ }
+ const revision=current.current.revision
+ const scopeKey=feature3ModelWorkflowSessionKey(shopId,api)
+ if(!enabled||!scopeKey)return <p role="note">
+  Signed model import and review are disabled pending protected release authorization.
+ </p>
+ const isCurrent=()=>current.current.revision===revision &&
+  current.current.shopId===shopId &&
+  current.current.api===api && current.current.enabled===true &&
+  current.current.disabled!==true
+ return <Feature3SignedModelWorkflowEditor
+  key={scopeKey+':'+(disabled?'disabled':'enabled')}
+  shopId={shopId} api={api} disabled={disabled} isCurrent={isCurrent}/>
+}
+
+// Shop/API changes remount all private file, reviewer, consent and rights state.
+function Feature3SignedModelWorkflowEditor({shopId,api,disabled,isCurrent}) {
  const [modelId,setModelId]=useState('')
  const [mediaId,setMediaId]=useState('')
  const [imageSha,setImageSha]=useState('')
@@ -37,9 +61,6 @@ export default function Feature3SignedModelWorkflow({shopId,api,enabled=false,di
  const [sourceLicense,setSourceLicense]=useState('owned')
  const [sourceLicenseUrl,setSourceLicenseUrl]=useState('')
  const [confirmedRights,setConfirmedRights]=useState(false)
- if (!enabled || !api || !shopId || !UUID.test(shopId)) return <p role="note">
-  Signed model import and review are disabled pending protected release authorization.
- </p>
  const blocked=disabled||busy
  const uploadReady=UUID.test(modelId)&&sourceFile?.type==='image/png'&&
   sourceFile?.size>=100&&sourceFile.size<=25*1024*1024&&confirmedRights&&
@@ -48,7 +69,7 @@ export default function Feature3SignedModelWorkflow({shopId,api,enabled=false,di
   (sourceLicense==='owned'||sourceLicenseUrl.startsWith('https://'))&&
   typeof api.registerModelOriginal==='function'
  const submitUpload=async()=>{
-  if(blocked||!uploadReady)return
+  if(blocked||!uploadReady||!isCurrent())return
   setBusy(true);setReceipt(null);setStatus('')
   try{
    const client=getRetailClient()
@@ -59,12 +80,14 @@ export default function Feature3SignedModelWorkflow({shopId,api,enabled=false,di
    })
    // Fail closed before the separate registration POST if Storage returned
    // an unexpected tenant, model, path, digest or forged approval state.
+   if(!isCurrent())return // Never start a second POST after session rotation.
    const verifiedUpload=verifyPrivateModelOriginalUploadReceipt(uploaded,shopId,modelId)
    const registration=await api.registerModelOriginal(shopId,{
     model_id:modelId,image_sha256:verifiedUpload.image_sha256,
     license_name:sourceLicense,
     license_url:sourceLicenseUrl||null,attribution:attribution.trim(),
    })
+   if(!isCurrent())return
    if(registration.model_id!==uploaded.model_id ||
        registration.image_sha256!==verifiedUpload.image_sha256){
     throw Error('Storage and signed registration identities do not match')
@@ -76,8 +99,8 @@ export default function Feature3SignedModelWorkflow({shopId,api,enabled=false,di
   }catch{
    // Upload may have succeeded before an uncertain RPC response.
    // Never repeat an upload or POST automatically after a network failure.
-   setStatus('Upload or registration unconfirmed. Check private asset history before any new attempt; do not upload again blindly.')
-  }finally{setBusy(false)}
+   if(isCurrent())setStatus('Upload or registration unconfirmed. Check private asset history before any new attempt; do not upload again blindly.')
+  }finally{if(isCurrent())setBusy(false)}
  }
 
  const importReady=UUID.test(modelId)&&UUID.test(mediaId)&&SHA.test(imageSha)&&SHA.test(licenseSha)&&label.trim().length>0&&uses.length>0
@@ -85,7 +108,7 @@ export default function Feature3SignedModelWorkflow({shopId,api,enabled=false,di
  const verified=FIELDS.every(([k])=>checks[k]===true)
  const toggleUse=k=>setUses(a=>a.includes(k)?a.filter(v=>v!==k):[...a,k])
  const submit=async action=>{
-  if(blocked)return
+  if(blocked||!isCurrent())return
   setBusy(true);setReceipt(null);setStatus('')
   try{
    let result
@@ -95,6 +118,7 @@ export default function Feature3SignedModelWorkflow({shopId,api,enabled=false,di
      image_sha256:imageSha,license_id:license,license_evidence_sha256:licenseSha,
      attribution,approved_uses:uses,
     })
+    if(!isCurrent())return
     setRevision('1')
    } else if(action==='approve'||action==='reject'){
     result=await api.reviewModel(shopId,modelId,{
@@ -103,19 +127,25 @@ export default function Feature3SignedModelWorkflow({shopId,api,enabled=false,di
      evidence_revision:Number(evidence),
      checks:Object.fromEntries(FIELDS.map(([k])=>[k,checks[k]===true])),notes,
     })
+    if(!isCurrent())return
     setRevision(String(result.rights_revision))
    } else{
     result=await api.revokeModel(shopId,modelId,{
      expected_revision:Number(revision),image_sha256:imageSha,reason:notes,
     })
+    // Revocation is a non-idempotent signed POST. When the signed shop/API
+    // switches while awaiting the response, never mutate the newer review
+    // session or claim a confirmed receipt from an older actor.
+    if(!isCurrent())return
     setRevision(String(result.rights_revision))
    }
+   if(!isCurrent())return
    setReceipt(result)
    setStatus('Server confirmed '+result.status+'. This does not authorize GPU or publishing.')
   }catch{
    // No automatic retry of a stale/ambiguous POST, never infer success.
-   setStatus('No confirmed result. Check signed shop, real evidence and current DB revision before a new attempt.')
-  }finally{setBusy(false)}
+   if(isCurrent())setStatus('No confirmed result. Check signed shop, real evidence and current DB revision before a new attempt.')
+  }finally{if(isCurrent())setBusy(false)}
  }
  return <section aria-label="Signed retailer model import and human review" style={{display:'grid',gap:10,padding:12,border:'1px solid #aaa',borderRadius:10}}>
   <h4>Private model registration and independent review</h4>

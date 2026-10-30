@@ -151,6 +151,11 @@ def resolve_private_worker_inputs(*, expected_manifest, current_readers,
     if verify_worker_job(fresh["shop_id"], _ids(fresh),
                          fresh["reference_fingerprint"]) is not True:
         _reject()
+    # The final trusted lease read may invoke a callback whose completion
+    # races a product-rights revocation. Require an additional authoritative
+    # private rights/bytes snapshot AFTER that lease check; never hand the
+    # already decoded bytes to a worker if this snapshot changed.
+    _fresh(expected_manifest, current_readers, purpose)
     return {
         "schema": "retailgrowth.feature3-worker-private-inputs.v1",
         "shop_id": fresh["shop_id"], "purpose": purpose,
@@ -211,6 +216,10 @@ def temporary_private_worker_inputs(*, expected_manifest, current_readers,
         if verify_worker_job(payload["shop_id"], staged_ids,
                              payload["source_fingerprint"]) is not True:
             _reject()
+        # File staging may span a rights revocation. Even a still-valid
+        # lease must not expose private paths after an independent grant,
+        # garment revision or immutable byte proof changes during staging.
+        _fresh(expected_manifest, current_readers, payload["purpose"])
         try:
             yield {"temporary_directory": folder, "manifest": metadata}
         finally:

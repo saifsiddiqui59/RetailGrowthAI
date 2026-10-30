@@ -28,12 +28,30 @@ export function validateFeature3GeneratedHistory(shopId, jobs) {
   return Object.freeze(checked)
 }
 
-export function scopedFeature3GeneratedHistory(value, shopId) {
-  if (!UUID.test(shopId || '') || !value || value.shopId !== shopId ||
-      !Array.isArray(value.jobs)) return empty(shopId)
+export function scopedFeature3GeneratedHistory(value, shopId, currentApi = undefined) {
+  if (!UUID.test(shopId || '') || !value || typeof value !== 'object' ||
+      Array.isArray(value)) return empty(shopId)
   try {
-    return Object.freeze({...value,
-      jobs:validateFeature3GeneratedHistory(shopId,value.jobs)})
+    // Preserve the actual React session/API identity fence, while returning
+    // only four status-only fields. Never spread arbitrary state or copy api,
+    // media URLs, rights flags or credentials into the presentation object.
+    if (!Object.hasOwn(value,'shopId') || !Object.hasOwn(value,'jobs') ||
+        value.shopId !== shopId ||
+        (currentApi !== undefined && value.api !== currentApi) ||
+        !Array.isArray(value.jobs) ||
+        Object.keys(value).some(key =>
+          !['shopId','api','jobs','message','busy'].includes(key)) ||
+        (Object.hasOwn(value,'message') &&
+          (typeof value.message !== 'string' || value.message.length > 240)) ||
+        (Object.hasOwn(value,'busy') && typeof value.busy !== 'boolean')) {
+      return empty(shopId)
+    }
+    return Object.freeze({
+      shopId,
+      jobs:validateFeature3GeneratedHistory(shopId,value.jobs),
+      message:Object.hasOwn(value,'message') ? value.message : '',
+      busy:Object.hasOwn(value,'busy') ? value.busy : false,
+    })
   } catch {
     return empty(shopId)
   }

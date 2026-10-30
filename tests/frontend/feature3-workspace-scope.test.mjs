@@ -82,3 +82,16 @@ test('mounted workspace fences same-day provider, CAS and signed links before ef
   assert.match(source,/pending\.current\.provider===feature3Api/)
   assert.match(source,/scopedFeature3WorkspaceValue\(savedState,scopeKey,\[\],feature3Api\)/)
 })
+
+test('workspace busy and status setters preserve signed API identity for current first paint', async()=>{
+  const source=await readFile(new URL('../../frontend/src/features/creative/Feature3SecureDraftWorkspace.jsx',import.meta.url),'utf8')
+  assert.ok(source.includes('const setMessage=value=>setMessageState({scope:scopeKey,provider:feature3Api,value})'))
+  assert.ok(source.includes('const setBusy=value=>setBusyState({scope:scopeKey,provider:feature3Api,value})'))
+  const api={session:'owner'},replacement={session:'other'}
+  const busy={scope,provider:api,value:true}
+  const status={scope,provider:api,value:'Private save still pending'}
+  assert.equal(scopedFeature3WorkspaceValue(busy,scope,false,api),true)
+  assert.equal(scopedFeature3WorkspaceValue(status,scope,'',api),'Private save still pending')
+  assert.equal(scopedFeature3WorkspaceValue(busy,scope,false,replacement),false)
+  assert.equal(scopedFeature3WorkspaceValue(status,scope,'',replacement),'')
+})

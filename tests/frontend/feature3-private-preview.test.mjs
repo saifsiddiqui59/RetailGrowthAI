@@ -48,3 +48,28 @@ test('never use external or unowned image URLs as private preview cleanup input'
   assert.deepEqual(opened,[valid])
   assert.deepEqual(revoked,[])
 })
+
+test('same-shop JWT/API identity rotation hides old decoded model pixels before effect cleanup',()=>{
+  const apiA={session:'fictional-test-A'}
+  const apiB={session:'fictional-test-B'}
+  const previous={scope:one,api:apiA,models:[{model_id:'private-model'}],
+    imageMap:{'asset-1':{secret:true}},busy:false,message:'private'}
+  assert.strictEqual(scopedFeature3Preview(previous,one,apiA),previous)
+  assert.deepEqual(scopedFeature3Preview(previous,one,apiB),
+    {models:[],imageMap:{},busy:false,message:''})
+  assert.deepEqual(scopedFeature3Preview({...previous,api:null},one,apiA),
+    {models:[],imageMap:{},busy:false,message:''})
+})
+
+test('F3-10 private-model Blob revocation failures keep the owned URL for an explicit retry',()=>{
+  const privateURL='blob:https://fixture.test/retry-private'
+  const opened=[privateURL]
+  assert.throws(()=>discardFailedPrivateModelPreview(opened,privateURL,()=>{
+    throw Error('Browser revoke unavailable')
+  }),/Browser revoke unavailable/)
+  assert.deepEqual(opened,[privateURL])
+  const revoked=[]
+  assert.equal(discardFailedPrivateModelPreview(opened,privateURL,url=>revoked.push(url)),true)
+  assert.deepEqual(revoked,[privateURL])
+  assert.deepEqual(opened,[])
+})

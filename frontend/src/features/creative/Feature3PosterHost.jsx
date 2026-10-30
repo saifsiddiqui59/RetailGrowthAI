@@ -42,7 +42,7 @@ export default function Feature3PosterHost({ client, shopId, children }) {
       }):null,[client])
   const [preview, setPreview] = useState(() => empty(shopId))
   // Guard on RENDER too: useEffect cleanup happens after the first paint.
-  const scoped = scopedFeature3Preview(preview, shopId)
+  const scoped = scopedFeature3Preview(preview, shopId, api)
   const nonce = useRef(0)
   const current = useRef({shopId, api})
   current.current = {shopId, api}
@@ -64,7 +64,7 @@ export default function Feature3PosterHost({ client, shopId, children }) {
     const isCurrent = () => request === nonce.current &&
       current.current.shopId === scope && current.current.api === provider
     release()
-    setPreview({...empty(scope), busy:true})
+    setPreview({...empty(scope), api:provider, busy:true})
     const opened = []
     try {
       const rows = await api.listModels(scope)
@@ -103,14 +103,14 @@ export default function Feature3PosterHost({ client, shopId, children }) {
       if (!isCurrent()) return
       // The current session exclusively owns these object URLs until cleanup.
       urls.current = opened.slice()
-      setPreview({scope, models:accepted, imageMap:loaded, busy:false,
+      setPreview({scope, api:provider, models:accepted, imageMap:loaded, busy:false,
         message:accepted.length
           ? 'Private shop models loaded. Rights are checked again on save.'
           : 'No accessible approved shop models. Other shops’ media remains private.'})
     } catch {
       if (isCurrent()) {
         opened.forEach(url => URL.revokeObjectURL(url))
-        setPreview({...empty(scope),
+        setPreview({...empty(scope), api:provider,
           message:'Private model library unavailable; existing poster tools remain usable.'})
       }
     } finally {

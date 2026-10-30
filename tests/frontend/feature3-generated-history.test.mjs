@@ -93,3 +93,57 @@ test('React history filter cancels pending binary work and frees local previews'
   assert.match(jsx,/Generated — unreviewed/)
   assert.doesNotMatch(jsx,/getGeneratedImageDownload\(/)
 })
+
+test('scoped generated history rejects forged state instead of forwarding private metadata',()=>{
+  const api={session:'current'}
+  const clean={shopId:SHOP,api,jobs:JOBS,busy:true,message:'Current shop only'}
+  const safe=scopedFeature3GeneratedHistory(clean,SHOP,api)
+  assert.deepEqual(Object.keys(safe).sort(),['busy','jobs','message','shopId'])
+  assert.equal(safe.jobs.length,JOBS.length)
+  assert.equal(safe.busy,true)
+  assert.equal(safe.message,'Current shop only')
+  assert.equal(Object.isFrozen(safe),true)
+  assert.equal('api' in safe,false)
+  for (const injected of [
+    {signed_url:'https://foreign.example/private.png'},
+    {storage_path:'other-shop/secret.png'},
+    {access_token:'fake-test-token'},
+    {reviewed_for_publication:true},
+    {gpu_authorized:true},
+    {approved:true},
+    {publishApproved:true},
+    {provider:'external'},
+    {busy:'true'},
+    {busy:{approved:true}},
+    {message:'x'.repeat(241)},
+    {message:{private:'value'}},
+  ]) {
+    const invalid=scopedFeature3GeneratedHistory({...clean,...injected},SHOP,api)
+    assert.deepEqual(invalid.jobs,[])
+    assert.equal(invalid.message,'')
+    assert.equal(invalid.busy,false)
+    assert.deepEqual(Object.keys(invalid).sort(),['busy','jobs','message','shopId'])
+  }
+  assert.equal(scopedFeature3GeneratedHistory({...clean,shopId:OTHER},SHOP,api).jobs.length,0)
+  assert.equal(scopedFeature3GeneratedHistory({...clean,api:{session:'changed'}},SHOP,api).jobs.length,0)
+  const minimal=scopedFeature3GeneratedHistory({shopId:SHOP,jobs:JOBS},SHOP)
+  assert.equal(minimal.jobs.length,4)
+  assert.equal(minimal.message,'')
+  assert.equal(minimal.busy,false)
+})
+
+test('same-shop API identity rotation hides stale generated jobs before React effect cleanup',()=>{
+  const apiA={kind:'old-session'},apiB={kind:'new-session'}
+  const previous={shopId:SHOP,api:apiA,jobs:JOBS,busy:false,message:'private history'}
+  assert.equal(scopedFeature3GeneratedHistory(previous,SHOP,apiA).jobs.length,4)
+  assert.equal(scopedFeature3GeneratedHistory(previous,SHOP,apiB).jobs.length,0)
+  assert.equal(scopedFeature3GeneratedHistory(previous,SHOP,apiB).message,'')
+  assert.equal(scopedFeature3GeneratedHistory(previous,SHOP,null).jobs.length,0)
+  assert.equal(scopedFeature3GeneratedHistory(previous,SHOP).jobs.length,4)
+  const jsx=readFileSync(new URL(
+    '../../frontend/src/features/creative/Feature3GeneratedHistory.jsx',import.meta.url),'utf8')
+  assert.match(jsx,/scopedFeature3GeneratedHistory\(state,shopId,api\)/)
+  assert.match(jsx,/image\?\.api===api/)
+  assert.match(jsx,/current\.current\.api===historyApi/)
+  assert.match(jsx,/setImage\(\{shopId:shop,jobId:job\.id,api:historyApi/)
+})

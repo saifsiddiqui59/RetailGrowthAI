@@ -92,6 +92,8 @@ class GPUEnvelopeTests(unittest.TestCase):
         }]
         queue=Mock()
         queue.send_message.return_value=SimpleNamespace(id=str(uuid4()))
+        # A mocked SQL ACK must explicitly commit, not just return Mock().
+        outbox.confirm_dispatch.return_value=True
         publication=Feature3GPUOutboxPublisher(outbox,queue).dispatch_once(1)
         self.assertEqual(publication["gpu_started"],False)
         sent=queue.send_message.call_args.args[0]

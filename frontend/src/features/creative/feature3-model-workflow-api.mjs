@@ -56,20 +56,34 @@ export function createFeature3ModelWorkflowApi({baseUrl,tokenProvider,fetchImpl 
   if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash ||
       !['','/'].includes(url.pathname) || typeof tokenProvider !== 'function' || typeof fetchImpl !== 'function')
     throw Error('Strict HTTPS model API and authenticated JWT provider required')
-  async function request(shopId, path, body) {
+  async function request(shopId, path, body, expectedStatus = 200) {
     const token = await tokenProvider()
-    if (typeof token !== 'string' || token.length > 8192 || !token.trim() ||
+    if (typeof token !== 'string' || token.length < 1 || token.length > 8192 ||
+        /[^\x21-\x7e]/.test(token) ||
         token.startsWith('sb_secret_') || token.startsWith('sb_publishable_'))
       throw Error('Please sign in again')
     // POST once, never retry after ambiguous 409, timeout or 503.
-    const response = await fetchImpl(url.origin + '/api/shops/' + id(shopId) + path, {
+    const endpoint = url.origin + '/api/shops/' + id(shopId) + path
+    const response = await fetchImpl(endpoint, {
       method:'POST',redirect:'error',cache:'no-store',
+      credentials:'omit',referrerPolicy:'no-referrer',
       headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
       body:JSON.stringify(body),
     })
+    // POST is non-idempotent: redirects, unknown final origins or an async
+    // 202 acceptance are not a durable review/registration confirmation.
+    // Keep the only permitted receipt on the exact signed app URL.
+    if (!response || response.redirected === true ||
+        (typeof response.url === 'string' && response.url &&
+         response.url !== endpoint)) {
+      throw Error('Model operation response origin unconfirmed; reconcile before retry')
+    }
     if (!response.ok) throw Error(response.status === 401 ? 'Please sign in again' :
       response.status === 409 ? 'Model changed or access revoked. Refresh before retrying.' :
       'Model operation unavailable or denied')
+    if (response.status !== expectedStatus) {
+      throw Error('Model operation confirmation unknown; reconcile before retry')
+    }
     const payload = await response.json().catch(() => null)
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw Error('Untrusted model operation receipt')
     return payload
@@ -112,7 +126,7 @@ export function createFeature3ModelWorkflowApi({baseUrl,tokenProvider,fetchImpl 
       }
       const result = await request(sid,'/feature3-model-originals/register',{
         ...input,model_id:mid,attribution:input.attribution.trim(),
-      })
+      },201)
       exact(result,['shop_id','model_id','media_asset_id','image_sha256',
         'registered','byte_sha_verified','license_verified','status','gpu_authorized'])
       must(result.shop_id===sid && result.model_id===mid &&
@@ -140,7 +154,7 @@ export function createFeature3ModelWorkflowApi({baseUrl,tokenProvider,fetchImpl 
           new Set(input.approved_uses).size !== input.approved_uses.length ||
           [...input.label,...input.attribution].some(c=>c.charCodeAt(0)<32 || c.charCodeAt(0)===127))
         throw Error('Invalid pending model metadata')
-      const data = await request(sid,'/feature3-models/import',{...input,model_id:model,media_asset_id:asset})
+      const data = await request(sid,'/feature3-models/import',{...input,model_id:model,media_asset_id:asset},201)
       exact(data,['shop_id','model_id','media_asset_id','status','rights_revision',
         'rights_verified','evidence_verified','gpu_authorized','generation_executed'])
       must(data.shop_id === sid && data.model_id === model && data.media_asset_id === asset &&

@@ -73,6 +73,8 @@ class ComposedBinaryContractTests(unittest.TestCase):
         self.calls=[]
         self.license_active=True
         self.revoke_at_second_check=False
+        self.expire_jwt_after_last_rights=False
+        self.jwt_active=True
         self.change_during_get=False
         self.spoof_length=None
         self.content_encoding=None
@@ -81,15 +83,18 @@ class ComposedBinaryContractTests(unittest.TestCase):
 
         def verify(token):
             self.calls.append("jwt")
-            if token!="fixture-signed-retailer-token":
+            if token!="fixture-signed-retailer-token" or not self.jwt_active:
                 raise ValueError("Synthetic JWT invalid")
             return self.actor
 
         def current_rights(shop,job,asset):
             self.rights_calls+=1
-            return ((shop,job,asset)==(self.shop,self.job,self.media)
+            allowed=((shop,job,asset)==(self.shop,self.job,self.media)
                     and self.license_active
                     and not (self.revoke_at_second_check and self.rights_calls>=2))
+            if self.expire_jwt_after_last_rights and self.rights_calls==2:
+                self.jwt_active=False
+            return allowed
 
         def transport(request,timeout):
             self.calls.append("private_get")
@@ -140,7 +145,7 @@ class ComposedBinaryContractTests(unittest.TestCase):
         self.assertEqual(headers["X-Feature3-Job-Id"],self.job)
         self.assertEqual(headers["X-Feature3-Media-Asset-Id"],self.media)
         self.assertEqual(headers["X-Feature3-Image-Sha256"],self.digest)
-        self.assertEqual(self.calls,["jwt","private_get"])
+        self.assertEqual(self.calls,["jwt","private_get","jwt"])
         self.assertEqual(self.tenant.calls,
                          ["member","job","asset","member","job","asset"])
         self.assertEqual(self.rights_calls,2)
@@ -149,6 +154,16 @@ class ComposedBinaryContractTests(unittest.TestCase):
         self.assertNotIn("jwt",str(headers).lower())
         self.assertNotIn("signed_url",str(headers).lower())
         self.assertNotIn("provider",str(headers).lower())
+
+    def test_jwt_expired_during_final_rights_yields_opaque_http_404_not_png(self):
+        # The composed route must not return an image even when current
+        # membership, media object and legal rights still appear unchanged.
+        self.expire_jwt_after_last_rights=True
+        response=self.request()
+        self.assert_denied_without_png(response,404)
+        self.assertEqual(self.calls,["jwt","private_get","jwt"])
+        self.assertEqual(self.tenant.calls.count("member"),2)
+        self.assertEqual(self.rights_calls,2)
 
     def test_revoke_membership_or_source_during_real_https_read_denies_body(self):
         for cause in ("membership","license"):

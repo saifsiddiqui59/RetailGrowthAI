@@ -7,6 +7,23 @@ current-rights preflight. This is explicitly NOT a queue worker or GPU trigger.
 """
 from __future__ import annotations
 
+import re
+
+from feature3_gpu_envelope import decode_dispatch_envelope
+
+_SHA256=re.compile(r"^[a-f0-9]{64}$")
+
+# The read-only operator presentation is a second, independent trust
+# boundary. The current-rights intake callback must not smuggle private
+# source identifiers, URLs, approval fields or altered tenant/job identities.
+_INTAKE_KEYS=frozenset((
+    "shop_id","job_id","source_count","source_snapshot_sha256",
+    "preflight_checked","gpu_enabled",
+    "provider_call_permitted","claim_performed",
+    "queue_message_delete_permitted","queue_delivery_acknowledged",
+    "paid_retry_authorized","charged_usd",
+))
+
 
 class Feature3QueuePeekDenied(PermissionError):
     """Untrusted/ambiguous visible queue state; no delivery side effects."""
@@ -35,13 +52,24 @@ class Feature3GPUOffAzureQueuePeek:
                     len(messages)>limit):
                 raise Feature3QueuePeekDenied("Untrusted Azure Queue peek batch")
             records=[]
+            # Keep only tiny bounded public routing envelopes and immutable
+            # validated summaries. The authoritative plan is read AGAIN
+            # after all 1..5 items pass the first read, to avoid returning
+            # a stale earlier tenant/source approval from a long peek batch.
+            first_pass=[]
             seen=set()
             for message in messages:
                 data=getattr(message,"content",None)
                 if not isinstance(data,(str,bytes)):
                     raise Feature3QueuePeekDenied("No safe queue message content")
+                # Even if an injected adapter returns a superficially safe
+                # preflight, the visible job must match the original exact
+                # signed-free Queue routing envelope (not an arbitrary row).
+                routing=decode_dispatch_envelope(data)
                 inspected=self.intake.inspect(data)
-                if (not isinstance(inspected,dict) or
+                if (type(inspected) is not dict or set(inspected)!=_INTAKE_KEYS or
+                        inspected.get("shop_id")!=routing["shop_id"] or
+                        inspected.get("job_id")!=routing["job_id"] or
                         inspected.get("preflight_checked") is not True or
                         inspected.get("gpu_enabled") is not False or
                         inspected.get("provider_call_permitted") is not False or
@@ -52,12 +80,16 @@ class Feature3GPUOffAzureQueuePeek:
                         inspected.get("charged_usd")!="0.00" or
                         type(inspected.get("source_count")) is not int or
                         not 1<=inspected["source_count"]<=12 or
-                        "job_id" not in inspected or "shop_id" not in inspected):
+                        type(inspected.get("source_snapshot_sha256")) is not str or
+                        not _SHA256.fullmatch(inspected["source_snapshot_sha256"]) or
+                        type(inspected.get("shop_id")) is not str or
+                        type(inspected.get("job_id")) is not str):
                     raise Feature3QueuePeekDenied("Untrusted zero-GPU intake result")
                 identity=(inspected["shop_id"],inspected["job_id"])
                 if identity in seen:
                     raise Feature3QueuePeekDenied("Duplicate visible queue job held")
                 seen.add(identity)
+                first_pass.append((data,dict(inspected)))
                 # Never return private source IDs, byte hashes or Azure pop
                 # receipt to the operator/UI; only scoped visible-job summary.
                 records.append({"shop_id":identity[0],"job_id":identity[1],
@@ -66,8 +98,22 @@ class Feature3GPUOffAzureQueuePeek:
                                 "queue_delivery_acknowledged":False,
                                 "delete_permitted":False,
                                 "paid_retry_authorized":False})
-            # Revalidate after network I/O; status may change during peek
-            # even when no queued messages are visible.
+            # Receipt includes a private internal checksum over source IDs,
+            # immutable hashes and legal revisions. Compare it in the second
+            # pass without exposing the checksum in operator-visible records.
+            # Once a later item was checked, earlier source rights might
+            # have been revoked or replaced. The last bounded pass must see
+            # exactly the same current-rights receipt for every original
+            # envelope; otherwise return NOTHING, not a partial batch.
+            # Only this read-only callback is repeated: no second Azure
+            # peek, queue receive/delete/send, SQL claim, or paid action.
+            for data,old in first_pass:
+                fresh=self.intake.inspect(data)
+                if type(fresh) is not dict or fresh!=old:
+                    raise Feature3QueuePeekDenied(
+                        "Private queue source rights changed during inspection")
+            # Revalidate even for an empty queue: GPU state may flip during
+            # the network peek or the final rights snapshot.
             self.intake.require_gpu_off()
         except Feature3QueuePeekDenied:
             raise

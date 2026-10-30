@@ -146,6 +146,15 @@ class Feature3RevocablePNGReader:
             raise PrivateGeneratedDownloadDenied("Untrusted private PNG pixels") from exc
         return raw
 
+    def _verified_actor(self, token):
+        # JWT expiration, revocation and actor identity are checked at BOTH
+        # ends of a private byte read. Never expose verifier error details.
+        try:
+            return canonical_uuid(self.verify(token))
+        except Exception:
+            raise PrivateGeneratedDownloadDenied(
+                "Authenticated private output unavailable") from None
+
     def read(self, *, user_token, shop_id, job_id):
         """Return private binary *in process*; no public or signed URLs.
 
@@ -159,7 +168,7 @@ class Feature3RevocablePNGReader:
             raise PrivateGeneratedDownloadDenied("Signed retailer token required")
         try:
             shop,job=canonical_uuid(shop_id),canonical_uuid(job_id)
-            actor=canonical_uuid(self.verify(user_token))
+            actor=self._verified_actor(user_token)
             asset_id,key,digest=self._current(user_token,actor,shop,job)
             image=self._read(key,user_token)
             if sha256(image).hexdigest()!=digest:
@@ -170,6 +179,11 @@ class Feature3RevocablePNGReader:
             after_id,after_key,after_digest=self._current(user_token,actor,shop,job)
             if (after_id,after_key,after_digest)!=(asset_id,key,digest):
                 raise PrivateGeneratedDownloadDenied("Private output changed during read")
+            # Even a matching RLS/media snapshot cannot authorize an expired
+            # JWT or a replaced actor by the time the final bytes are served.
+            if self._verified_actor(user_token)!=actor:
+                raise PrivateGeneratedDownloadDenied(
+                    "Authenticated private output unavailable")
         except (KeyError, TypeError, ValueError, AttributeError) as exc:
             raise PrivateGeneratedDownloadDenied(
                 "Authenticated private output unavailable") from exc

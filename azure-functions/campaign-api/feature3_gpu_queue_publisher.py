@@ -100,7 +100,21 @@ class Feature3GPUOutboxPublisher:
                 ) from exc
             # ACK is a separate DB RPC and may itself be uncertain. The caller
             # must not infer delivery, billing or retry permission on failure.
-            self.outbox.confirm_dispatch(row["job_id"],row["dispatch_token"],True)
+            try:
+                # A Queue-assigned message ID proves only that send_message
+                # responded. The *separate* durable SQL confirmation must
+                # explicitly return True; None/False/truthy strings mean the
+                # outbox may already be SENT, so do not publish later rows.
+                confirmed = self.outbox.confirm_dispatch(
+                    row["job_id"],row["dispatch_token"],True)
+                if confirmed is not True:
+                    raise StorageUnavailable("GPU outbox SQL ACK unconfirmed")
+            except Exception:
+                # Fail closed on an ambiguous committed SQL ACK without
+                # logging private backend errors or blindly sending again.
+                raise StorageUnavailable(
+                    "Feature3 GPU dispatch ACK uncertain; reconcile before retry"
+                ) from None
             accepted += 1
         return {"acknowledged": accepted, "gpu_started": False,
                 "inference_executed": False, "charged_usd": "0.00"}
