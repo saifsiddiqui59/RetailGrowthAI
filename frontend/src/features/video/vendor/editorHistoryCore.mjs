@@ -6,7 +6,11 @@ export function pushEditorHistory(
   history,
   next, limit = 50,
 ) {
-  const safeLimit = Math.max(1, Math.floor(limit));
+  // The adapted upstream editor keeps snapshots in memory. Invalid limits
+  // (NaN/Infinity) must never silently disable the bound during long edits.
+  const safeLimit = Number.isFinite(limit)
+    ? Math.min(50, Math.max(1, Math.floor(limit))) : 50;
+  if (Object.is(next, history.current)) return history;
   return {
     past: [...history.past, history.current].slice(-safeLimit),
     current: next,
