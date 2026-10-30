@@ -82,6 +82,49 @@ class SpeechReferenceBenchmarkTests(unittest.TestCase):
         self.assertEqual(data['cue_coverage_ratio'],0)
         self.assertFalse(data['thresholds_passed'])
 
+    def test_global_word_match_does_not_hide_wrong_cue_timing(self):
+        p=fixture()
+        # Every recognized token is correct and ordered, but only one word
+        # per subtitle occurs inside its actual spoken cue. Global WER=0
+        # must not be mistaken for acceptable local caption alignment.
+        intervals=[(520,630),(1450,1490),(1500,1540),(1550,1590),
+                   (2050,2120),(3200,3240),(3300,3340),(3400,3440)]
+        for w,(start,end) in zip(p['normalized_asr']['words'],intervals):
+            w['startMs'],w['endMs']=start,end
+        r=self.evaluate(p)
+        self.assertEqual(r.returncode,0,r.stderr)
+        data=json.loads(r.stdout)
+        self.assertEqual(data['word_error_rate'],0)
+        self.assertLess(data['cue_coverage_ratio'],.8)
+        self.assertTrue(data['cue_word_alignment_required'])
+        self.assertFalse(data['thresholds_passed'])
+        self.assertFalse(data['customer_release_ready'])
+
+    def test_punctuation_only_asr_word_is_not_speech_evidence(self):
+        p=fixture()
+        p['normalized_asr']['words'][0]['word']='...'
+        r=self.evaluate(p)
+        self.assertNotEqual(r.returncode,0,r.stdout)
+
+    def test_indic_combining_marks_and_decomposed_accents_are_words(self):
+        p=fixture()
+        p['reference_srt']=(
+          '1\n00:00:00,500 --> 00:00:01,500\nCafé नमस्ते.\n'
+        )
+        p['normalized_asr']['words']=[
+          {'word':'Cafe\u0301','startMs':520,'endMs':720},
+          {'word':'नमस्ते','startMs':760,'endMs':1200},
+        ]
+        r=self.evaluate(p)
+        self.assertEqual(r.returncode,0,r.stderr)
+        data=json.loads(r.stdout)
+        self.assertEqual(data['reference_word_count'],2)
+        self.assertEqual(data['recognized_word_count'],2)
+        self.assertEqual(data['word_error_rate'],0)
+        self.assertEqual(data['cue_coverage_ratio'],1)
+        self.assertTrue(data['thresholds_passed'])
+        self.assertFalse(data['actual_model_inference_proven'])
+
     def test_foreign_source_bad_srt_and_out_of_range_words_fail(self):
         bad_cases=[]
         p=fixture();p['normalized_asr']['source_sha256']='b'*64;bad_cases.append(p)

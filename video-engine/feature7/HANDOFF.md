@@ -326,3 +326,10 @@ The optional system-PocketSphinx CPU trial now also exports the recognizer's **a
 ## 2026-10-29 — Nonblocking source + coordinator dependency handoff
 
 Source-only: F7 real original F3 technical artifact pipeline test, browser Chromium reviewer test, nonzero/SIGKILL/timeout CPU worker negatives, verified SHA-pinned wheelhouse closure audit and strict F2/F4 contract review. See `PENDING_NUMBERED_20261029.md` (IDs F7-01..23) and `DEPENDENCIES_F7_07_23.md` (each dependent owner/output/acceptance). Actual original F3 ZIP manually checked but positive optional repo integration test requires its bytes staged. These tests never turn synthetic silent video into ASR speech, model wearing garment, or production approval. Real model checkpoint, private JWT/RLS, durable Postgres and F4 final renderer remain separately coordinated. This worker PR does not modify other feature-owned or shared code.
+
+
+## 2026-10-30 — F7-AG/F7-P speech-cue QA hardening (stacked review)
+
+- Stacked branch `feat/feature7-cue-alignment-qa-20261030` adds **cue-local word alignment** to `speech_quality.mjs`: global WER alone can falsely pass when the correct transcript words appear at the wrong subtitle times. Each recognized word is assigned to at most one nearby reference cue; that cue must have <=50% local word error to count as covered. Empty/punctuation-only ASR tokens now fail closed.
+- Two deterministic negative tests cover correct-global-WER/wrong-cue-timing and punctuation-only ASR words. Added NFC normalization and Unicode combining-mark-aware word tokenization for Indian-language speech; a third regression verifies Devanagari vowel signs and canonically decomposed accented Latin text. Existing synthetic reference remains a **fixture**, not actual WhisperX inference or production-approved voice. No GPU, paid model, live tenant calls, shared API, or WineShopPOS edits.
+- This is **source under review**, not integrated DONE. Exact-head CI and coordinator acceptance/main 4/4 are required; preserve all hosted rights/ASR/editor blockers.
