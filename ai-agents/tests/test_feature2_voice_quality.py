@@ -56,7 +56,7 @@ def test_untrusted_f7_transcript_rejected(tamper):
            expected_script="hello",transcript=p)
 @pytest.mark.parametrize("tamper", [
     {"model_version": 123},
-    {"model_version": "model\\nforged"},
+    {"model_version": "model" + chr(10) + "forged"},
     {"model_version": " "},
     {"model_version": "x" * 121},
 ])
