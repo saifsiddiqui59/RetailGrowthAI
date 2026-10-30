@@ -41,6 +41,9 @@ def verify_runtime_agent_imports(entries: dict[str, bytes]):
     """
     available = {p[:-3].split("/")[-1] for p in entries
                  if p.startswith("ai_agents/") and p.endswith(".py")}
+    # Detect package-form imports of source modules excluded from the ZIP.
+    # Names that are not source modules may be symbols exported by __init__.
+    known_modules = {path.stem for path in AGENTS.glob("*.py")}
     for name, payload in entries.items():
         if not name.endswith(".py"):
             continue
@@ -58,16 +61,23 @@ def verify_runtime_agent_imports(entries: dict[str, bytes]):
                     required.add(node.module.split(".")[1])
                 elif node.module == "ai_agents":
                     required.update(a.name for a in node.names
-                                    if a.name in RUNTIME_AGENT_MODULES)
+                                    if a.name in known_modules)
                 elif name.startswith("ai_agents/") and node.level == 1:
                     if node.module:
                         required.add(node.module.split(".")[0])
                     else:
                         required.update(a.name for a in node.names
-                                        if a.name in RUNTIME_AGENT_MODULES)
+                                        if a.name in known_modules)
             elif (isinstance(node, ast.Call) and
                   isinstance(node.func, ast.Attribute) and
                   node.func.attr == "import_module" and node.args and
+                  isinstance(node.args[0], ast.Constant) and
+                  isinstance(node.args[0].value, str) and
+                  node.args[0].value.startswith("ai_agents.")):
+                required.add(node.args[0].value.split(".")[1])
+            elif (isinstance(node, ast.Call) and
+                  isinstance(node.func, ast.Name) and
+                  node.func.id == "__import__" and node.args and
                   isinstance(node.args[0], ast.Constant) and
                   isinstance(node.args[0].value, str) and
                   node.args[0].value.startswith("ai_agents.")):
