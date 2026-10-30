@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import math
 import os
+import re
 import stat
 import tempfile
 from pathlib import Path
@@ -69,7 +70,10 @@ def _staged_fingerprint(path):
                     or (last.st_dev, last.st_ino, last.st_size, last.st_mtime_ns) !=
                        (current.st_dev, current.st_ino, current.st_size, current.st_mtime_ns)):
                 raise Feature4HandoffError("Private staged asset path changed while hashing")
-            return first.st_size, digest.hexdigest()
+            # Track original source OBJECT as well as content across renderer
+            # stages; identical-byte atomic swaps must not pass later hashes.
+            return (first.st_size, digest.hexdigest(), first.st_dev,
+                    first.st_ino, first.st_mtime_ns)
     except Feature4HandoffError:
         raise
     except OSError as exc:
@@ -177,7 +181,13 @@ def _verified_render_result(result, output, job, request, audit):
                 or probe["bytes"] != file.stat().st_size
                 or not 1024 < probe["bytes"] <= 80 * 1024 * 1024):
             raise Feature4HandoffError("Renderer media proof contradicts approved output")
-        return file, probe
+        actual = _staged_fingerprint(file)
+        if (type(probe.get("sha256")) is not str
+                or not re.fullmatch(r"[0-9a-f]{64}", probe["sha256"])
+                or probe["sha256"] != actual[1]
+                or probe["bytes"] != actual[0]):
+            raise Feature4HandoffError("Renderer output SHA disagrees with encoded artifact")
+        return file, probe, actual
     except Feature4HandoffError:
         raise
     except (KeyError, TypeError, ValueError, OSError) as exc:
@@ -249,7 +259,8 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
                     or admin.feature4_claim_current(claim) is not True):
                 return "STALE"
             result = render_fn(request, manifest, staging, output)
-            result_path, probe = _verified_render_result(result, output, claim, request, audit)
+            result_path, probe, output_fingerprint = _verified_render_result(
+                result, output, claim, request, audit)
             # The renderer must consume the exact approved staged originals.
             # Reject late replacement, append/truncation and symlink swap before
             # the worker uploads any private output or finalizes billing.
@@ -264,6 +275,13 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
             # no upsert. Completion RPC must CAS same claim token and ledger once.
             key = media.upload(claim["shop_id"], jid, result_path,
                                lease_token=claim["render_claim_token"])
+            # Upload itself may race a late local write or same-byte inode swap.
+            # In either case leave any uploaded object ORPHANED for the
+            # coordinator's cleanup policy; never finalize/charge/issue URL.
+            if _staged_fingerprint(result_path) != output_fingerprint:
+                raise Feature4HandoffError("Encoded output changed during private upload")
+            if admin.render_authorized(claim) is not True or admin.feature4_claim_current(claim) is not True:
+                return "STALE"
             finalized = admin.complete_feature4_render(
                 claim, key, probe, audit["rendered_as"])
             if finalized is not True:
