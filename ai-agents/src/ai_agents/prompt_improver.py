@@ -293,8 +293,22 @@ def commit_reviewed_prompt_draft(*, shop_id, campaign_id, proposal_id,
         saved.get("improved_prompt_sha256")!=proposed_sha or
         saved.get("review_event_id")!=review_event_id or
         saved.get("private") is not True or
-        saved.get("committed") is not True):
+        saved.get("committed") is not True or
+        (saved.get("review_status") not in (None, "DRAFT")) or
+        any(saved.get(flag) is not False for flag in
+            ("can_publish", "can_dispatch_paid_motion", "provider_call_made")
+            if flag in saved) or
+        any(saved.get(flag) is not True for flag in
+            ("needs_copy_fact_review", "needs_media_rights_review")
+            if flag in saved)):
         raise PromptRevisionRejected("Durable source-locked private draft save unavailable")
+    # A signed decision and pre-write role checks cannot prevent an editor from
+    # losing membership while the storage callback is in flight. Do not return
+    # success after that revocation. The coordinator's durable CAS transaction
+    # must independently enforce the same authorization at commit time: this
+    # post-write check alone cannot roll back bytes already persisted.
+    if current_editor(shop_id, campaign_id) is not True:
+        raise PromptRevisionRejected("Editor revoked during private draft commit")
     return {"schema":record["schema"],"shop_id":shop_id,
             "campaign_id":campaign_id,"revision":expected_revision+1,
             "improved_prompt_sha256":proposed_sha,
