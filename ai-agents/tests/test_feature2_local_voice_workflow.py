@@ -524,6 +524,9 @@ def test_status_backend_reads_original_once_only_without_auto_retry(state):
     {"request_sha256":"not-sha"},{"lease_fence":True},
     {"review_status":"APPROVED"},{"revoked_at":"now"},
     {"voice_id":"not-model-voice"},{"language":"mr-in"},
+    {"voice_id":[]},{"status":[]},{"status":{}},
+    {"commercial_use_approved":True},{"may_auto_invoke_azure":True},
+    {"paid_inference_authorized":True},{"customer_publishable":True},
     {"audio_asset_id":AID},
     {"original_audio_sha256":WAV_SHA},
 ])
