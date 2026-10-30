@@ -37,3 +37,8 @@
 - **Remaining:** Verify full repository tests and 4/4 exact-head CI, assess actual multi-track fade/duck behavior with licensed audio, commercial reviewer signoff, and coordinator integration. No new live media, user sample, paid model, GPU, PROD, SQL or WineShopPOS.
 - **NEXT:** F4-07 exact-checkout targeted `python -m unittest tests/media/test_feature4_audio_master.py` (adjust module invocation to repository convention) and required 4-job CI. If still CI-blocked, inspect F4-09 existing PR #769 or F4-06 #830/#739 for nonoverlapping tests rather than duplicating their work. Coordinator owns review, main merge and task receipt.
 - **Final head:** checkpoint commit will advance branch beyond the pre-checkpoint code SHA; reread PR #845 head before claiming CI.
+
+### Additional fail-closed regression (same run)
+
+- Commit `9175f746fe20d0796898204326bccdeaddeed9a5` adds a mocked `os.fsync` failure regression. Expected behavior: CLI exits code 2 and removes only its own private proof and matching output; no success is reported. This test is **committed but not executed in exact repository checkout**. It supplements, not replaces, the three local source-equivalent checks.
+- NEXT remains exact-head repository test/4-job CI verification followed by F4-07 actual licensed fade/ducking acceptance. No verified task DONE.
