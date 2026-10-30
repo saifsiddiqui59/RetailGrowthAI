@@ -48,6 +48,23 @@ def _reject_duplicate_manifest_keys(pairs):
     return result
 
 
+
+def _reject_linked_manifest_parents(item):
+    """Deny static symlinked parent paths before/after private manifest read.
+
+    This is a conservative path-policy check, not an atomic mount attestation.
+    An authorized runtime must separately verify its trusted mount namespace.
+    """
+    parent = item.parent
+    while True:
+        mode = parent.stat(follow_symlinks=False).st_mode
+        if not stat.S_ISDIR(mode):
+            raise PreflightError("Private manifest has a linked or non-directory parent")
+        if parent == parent.parent:
+            return
+        parent = parent.parent
+
+
 def read_private_manifest(path):
     """Read a bounded PRIVATE manifest without following a swapped symlink.
 
@@ -59,6 +76,7 @@ def read_private_manifest(path):
     try:
         if not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_NONBLOCK"):
             raise PreflightError("Secure nonblocking no-follow manifest open unavailable")
+        _reject_linked_manifest_parents(item)
         before = item.stat(follow_symlinks=False)
         if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or
                 not 0 < before.st_size <= MAX_PRIVATE_MANIFEST_BYTES):
@@ -84,6 +102,7 @@ def read_private_manifest(path):
             # A stable descriptor is not sufficient: the path may have been
             # unlinked/replaced after open while the old inode remains readable.
             # Deny a swapped path rather than validating stale provenance.
+            _reject_linked_manifest_parents(item)
             path_after = item.stat(follow_symlinks=False)
             if (not stat.S_ISREG(path_after.st_mode) or
                     identity(path_after) != identity(after)):
