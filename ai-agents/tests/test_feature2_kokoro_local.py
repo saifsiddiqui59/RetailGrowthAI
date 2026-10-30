@@ -247,3 +247,30 @@ def test_operator_cpu_benchmark_cli_no_customer_prompt_or_synthetic_positive(mon
     assert offline.returncode==2
     assert offline.stdout==""
     assert "no positive proof" in offline.stderr
+
+
+@pytest.mark.parametrize("tamper",["truncated","fake_frame_count","wrong_duration","wrong_sample_rate"])
+def test_cpu_benchmark_requires_complete_pcm_wav_not_just_riff_magic(tamper):
+    # This test uses a synthetic sine wave, NEVER real model/retailer audio.
+    import struct
+    def forged(**kwargs):
+        audio=synthesize_local(
+            text=kwargs["text"],voice_id=kwargs["voice_id"],
+            lang=kwargs["lang"],speed=kwargs["speed"],
+            engine=SimulatedEngine(),trusted_for_tests=True)
+        wav=bytearray(audio["audio_wav"])
+        if tamper=="truncated":
+            wav=wav[:24]
+        elif tamper=="fake_frame_count":
+            struct.pack_into("<I",wav,40,96000)  # declares 2s; bytes contain 1s
+        elif tamper=="wrong_duration":
+            audio["duration_seconds"]=2.0
+        elif tamper=="wrong_sample_rate":
+            struct.pack_into("<I",wav,24,48000)
+            struct.pack_into("<I",wav,28,96000)
+        audio["audio_wav"]=bytes(wav)
+        audio["audio_sha256"]=sha256(audio["audio_wav"]).hexdigest()
+        return audio
+    with pytest.raises(LocalSpeechUnavailable,match="Benchmark WAV"):
+        run_cpu_kokoro_benchmark(cache_dir="/synthetic-only",repeats=1,
+            synthesize=forged,trusted_for_tests=True)
