@@ -41,8 +41,8 @@ def _actual_full_sha(path, expected_size, expected_sha):
             with os.fdopen(fd, "rb") as stream:
                 fd = -1
                 opened = os.fstat(stream.fileno())
-                if (opened.st_ino, opened.st_dev, opened.st_size) != (
-                    before.st_ino, before.st_dev, expected_size):
+                if (opened.st_ino, opened.st_dev, opened.st_size, opened.st_nlink) != (
+                    before.st_ino, before.st_dev, expected_size, 1):
                     raise PreflightError("Checkpoint identity changed before read")
                 digest = hashlib.sha256()
                 total = 0
@@ -52,9 +52,20 @@ def _actual_full_sha(path, expected_size, expected_sha):
                         raise PreflightError("Checkpoint grew during hashing")
                     digest.update(block)
                 after = os.fstat(stream.fileno())
-                if (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns) != (
-                    before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns):
+                # The descriptor can still refer to approved bytes after its
+                # pathname was replaced or a second hardlink was introduced.
+                # Recheck both the open inode and its original path before
+                # returning any evidence of a full installed-weight audit.
+                identity = lambda s: (
+                    s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns,
+                    s.st_ctime_ns, s.st_mode, s.st_nlink,
+                )
+                if identity(after) != identity(before):
                     raise PreflightError("Checkpoint modified during hashing")
+                pathname_after = path.stat(follow_symlinks=False)
+                if (not stat.S_ISREG(pathname_after.st_mode) or
+                    identity(pathname_after) != identity(after)):
+                    raise PreflightError("Checkpoint pathname changed during hashing")
         finally:
             if fd != -1:
                 os.close(fd)

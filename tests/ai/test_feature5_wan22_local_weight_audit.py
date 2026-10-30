@@ -80,3 +80,58 @@ class FullWeightByteAuditTests(unittest.TestCase):
                 audit._actual_full_sha(linked,len(content),digest)
             with self.assertRaises(PreflightError):
                 audit._actual_full_sha(file,len(content),"INVALID")
+
+    def test_path_swapped_after_stream_read_denied(self):
+        """A valid open inode cannot attest a newly substituted path."""
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            path = root / "approved.safetensors"
+            old_path = root / "displaced.safetensors"
+            replacement = root / "replacement.safetensors"
+            payload = b"ORIGINAL-TEST-ONLY-WEIGHT-BYTES" * 4
+            path.write_bytes(payload)
+            replacement.write_bytes(payload)
+            original_fstat = os.fstat
+            calls = 0
+
+            def swap_on_final_fstat(fd):
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    os.replace(path, old_path)
+                    os.replace(replacement, path)
+                return original_fstat(fd)
+
+            with patch.object(audit.os, "fstat", side_effect=swap_on_final_fstat):
+                with self.assertRaises(PreflightError):
+                    audit._actual_full_sha(
+                        path, len(payload), hashlib.sha256(payload).hexdigest()
+                    )
+            self.assertEqual(calls, 2)
+            self.assertNotEqual(path.stat().st_ino, old_path.stat().st_ino)
+
+    def test_hardlink_added_after_open_denied(self):
+        """A checkpoint made multiply linked mid-read must not pass."""
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            path = root / "approved.safetensors"
+            second_link = root / "unexpected-hardlink.safetensors"
+            payload = b"ORIGINAL-TEST-ONLY-WEIGHT-BYTES" * 4
+            path.write_bytes(payload)
+            original_fstat = os.fstat
+            calls = 0
+
+            def link_on_final_fstat(fd):
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    os.link(path, second_link)
+                return original_fstat(fd)
+
+            with patch.object(audit.os, "fstat", side_effect=link_on_final_fstat):
+                with self.assertRaises(PreflightError):
+                    audit._actual_full_sha(
+                        path, len(payload), hashlib.sha256(payload).hexdigest()
+                    )
+            self.assertEqual(calls, 2)
+            self.assertEqual(path.stat().st_nlink, 2)
