@@ -39,11 +39,36 @@ def _node_binary_attested(payload: bytes, expected_sha256: str | None) -> bool:
     if (len(payload) < 64 or payload[:7] != b"\x7fELF\x02\x01\x01"
             or struct.unpack_from("<H", payload, 18)[0] != 62):
         return False
+    # A magic prefix and x86_64 machine ID alone also match forged ELF-like
+    # blobs. Check the ELF64 executable/shared-object header and an executable
+    # PT_LOAD segment before consulting the independently approved digest.
+    e_type, e_machine, e_version = struct.unpack_from("<HHI", payload, 16)
+    e_ehsize = struct.unpack_from("<H", payload, 52)[0]
+    if e_type not in (2, 3) or e_machine != 62 or e_version != 1 or e_ehsize != 64:
+        return False
     phoff = struct.unpack_from("<Q", payload, 32)[0]
     phentsize, phnum = struct.unpack_from("<HH", payload, 54)
     if not phoff or phentsize < 56 or not 1 <= phnum <= 1024:
         return False
     if phoff + phentsize * phnum > len(payload):
+        return False
+    executable_load=False
+    for n in range(phnum):
+        offset=phoff+n*phentsize
+        p_type,p_flags=struct.unpack_from("<II",payload,offset)
+        if p_type!=1 or not (p_flags & 1):
+            continue
+        # ELF64 PT_LOAD: file offset, file bytes and mapped memory bytes.
+        # A header advertising an executable segment outside the signed file
+        # (or an empty executable segment) is not an executable Node image.
+        file_offset=struct.unpack_from("<Q",payload,offset+8)[0]
+        file_size,memory_size=struct.unpack_from("<QQ",payload,offset+32)
+        if (file_size>0 and memory_size>=file_size and
+            file_offset<=len(payload) and
+            file_size<=len(payload)-file_offset):
+            executable_load=True
+            break
+    if not executable_load:
         return False
     return compare_digest(sha256(payload).hexdigest(), expected_sha256)
 PIN = "4ab1a40d15ee8c1a1427c092dce08dc7dfbefa6f"
