@@ -75,7 +75,10 @@ export function evaluateSpeechAgainstReference({
       Number.isInteger(w.startMs)&&Number.isInteger(w.endMs)&&
       w.startMs>=0&&w.startMs>=prior-50&&w.endMs>w.startMs&&
       w.endMs<=sourceMs+1,'Bad ASR word timing');
-    observed.push(...tokens(w.word));
+    const wordTokens=tokens(w.word);
+    check(wordTokens.length>0&&wordTokens.length<=3,
+      'Empty or invalid ASR word tokens');
+    observed.push(...wordTokens);
     prior=w.endMs;
   }
   const expected=cues.flatMap(c=>c.words);
@@ -83,8 +86,25 @@ export function evaluateSpeechAgainstReference({
     'Out-of-bounds human speech reference');
   const errors=levenshtein(expected,observed);
   const wer=errors/expected.length;
-  const covered=cues.filter(c=>words.some(w=>
-    w.startMs<=c.end_ms+350&&w.endMs>=c.start_ms-350)).length;
+  // A single correctly timed word cannot certify an entire subtitle cue.
+  // Assign each ASR word to at most one nearby human-reference cue, then
+  // compare its local vocabulary. This catches a perfect global WER with
+  // most words incorrectly concentrated in pauses or another subtitle.
+  const cueWords=cues.map(()=>[]);
+  for(const w of words){
+    const midpoint=(w.startMs+w.endMs)/2;
+    let chosen=-1,nearest=Infinity;
+    for(let i=0;i<cues.length;i++){
+      const cue=cues[i];
+      if(midpoint<cue.start_ms-150||midpoint>cue.end_ms+150)continue;
+      const distance=midpoint<cue.start_ms?cue.start_ms-midpoint:
+        midpoint>cue.end_ms?midpoint-cue.end_ms:0;
+      if(distance<nearest){nearest=distance;chosen=i;}
+    }
+    if(chosen>=0)cueWords[chosen].push(...tokens(w.word));
+  }
+  const covered=cues.filter((cue,i)=>
+    levenshtein(cue.words,cueWords[i])/cue.words.length<=0.5).length;
   const coverage=covered/cues.length;
   return Object.freeze({
     version:'feature7_cpu_speech_quality_v1',
@@ -93,6 +113,7 @@ export function evaluateSpeechAgainstReference({
     reference_cue_count:cues.length,covered_cue_count:covered,
     word_edit_distance:errors,word_error_rate:+wer.toFixed(4),
     cue_coverage_ratio:+coverage.toFixed(4),
+    cue_word_alignment_required:true,
     thresholds_passed:wer<=max_word_error_rate&&
       coverage>=minimum_cue_coverage,
     original_media_preserved:true,
