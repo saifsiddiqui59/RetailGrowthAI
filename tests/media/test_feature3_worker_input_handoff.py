@@ -134,6 +134,53 @@ class PrivateHandoffTests(unittest.TestCase):
             self.assertEqual(list(Path(root).iterdir()), [])
 
 
+    def test_rights_revoked_in_final_lease_callback_denies_memory_bytes(self):
+        calls = []
+        def lease_and_revoke(shop, ids, fingerprint):
+            calls.append((shop, ids, fingerprint))
+            if len(calls) == 2:
+                self.fixture.grants[self.fixture.garment]["rights_revoked"] = True
+            return True
+        with self.assertRaises(FashionReferenceDenied):
+            self.call(self.editor, verify_worker_job=lease_and_revoke)
+        self.assertEqual(len(calls), 2)
+
+    def test_rights_revoked_after_file_staging_denies_ephemeral_paths(self):
+        calls = []
+        def lease_and_revoke(shop, ids, fingerprint):
+            calls.append((shop, ids, fingerprint))
+            if len(calls) == 3:
+                self.fixture.grants[self.fixture.model_asset]["rights_revoked"] = True
+            return True
+        with tempfile.TemporaryDirectory() as root:
+            with self.assertRaises(FashionReferenceDenied):
+                with temporary_private_worker_inputs(
+                        expected_manifest=self.editor,
+                        current_readers=self.readers,
+                        verify_worker_job=lease_and_revoke,
+                        trusted_temp_root=root):
+                    self.fail("Revoked rights exposed staged private paths")
+            self.assertEqual(len(calls), 3)
+            self.assertEqual(list(Path(root).iterdir()), [])
+
+    def test_garment_revision_changing_during_final_file_lease_denies(self):
+        calls = []
+        def lease_and_change_product(shop, ids, fingerprint):
+            calls.append((shop, ids, fingerprint))
+            if len(calls) == 3:
+                self.fixture.product_revision += 1
+            return True
+        with tempfile.TemporaryDirectory() as root:
+            with self.assertRaises(FashionReferenceDenied):
+                with temporary_private_worker_inputs(
+                        expected_manifest=self.editor,
+                        current_readers=self.readers,
+                        verify_worker_job=lease_and_change_product,
+                        trusted_temp_root=root):
+                    self.fail("Changed garment revision exposed private files")
+            self.assertEqual(len(calls), 3)
+            self.assertEqual(list(Path(root).iterdir()), [])
+
     def test_reject_arbitrary_browser_claim_reader_or_unapproved_tryon(self):
         with self.assertRaises(FashionReferenceDenied):
             self.call({"purpose": "editing"})
