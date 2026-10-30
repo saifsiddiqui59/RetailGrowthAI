@@ -125,6 +125,30 @@ def master_private_audio(source: Path, target: Path, *, expected_seconds: int):
             partial.unlink(missing_ok=True)
 
 
+def _check_private_receipt_path(proof: Path):
+    """Reject invalid output before the expensive encode and again before write."""
+    proof = Path(proof)
+    if (proof.suffix.lower() != ".json" or proof.is_symlink()
+            or proof.exists() or not proof.parent.is_dir()
+            or proof.parent.is_symlink()):
+        raise AudioMasterError("Proof report must be new JSON in a private directory")
+
+
+def _write_private_receipt(proof: Path, report: dict):
+    """Exclusive create: never overwrite a report raced in after preflight."""
+    _check_private_receipt_path(proof)
+    created = False
+    try:
+        with proof.open("x", encoding="utf-8") as handle:
+            created = True
+            json.dump(report, handle, indent=2, allow_nan=False)
+            handle.write("\n")
+    except (OSError, TypeError, ValueError) as exc:
+        if created:
+            proof.unlink(missing_ok=True)
+        raise AudioMasterError("Could not safely create private audio proof") from exc
+
+
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--source",required=True)
@@ -132,13 +156,20 @@ def main():
     ap.add_argument("--duration",type=int,choices=(15,30,60),required=True)
     ap.add_argument("--report",required=True)
     args=ap.parse_args()
+    proof = Path(args.report)
+    output = Path(args.output)
     try:
-        report=master_private_audio(Path(args.source),Path(args.output),
+        # Fail before a CPU-heavy encode if the receipt cannot be private.
+        _check_private_receipt_path(proof)
+        report=master_private_audio(Path(args.source),output,
                                     expected_seconds=args.duration)
-        proof=Path(args.report)
-        if proof.is_symlink() or proof.exists() or not proof.parent.is_dir():
-            raise AudioMasterError("Proof report must be new and private")
-        proof.write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
+        try:
+            _write_private_receipt(proof, report)
+        except AudioMasterError:
+            # Never leave a newly mastered but unreceipted orphan behind.
+            # This is only the fresh output produced by this invocation.
+            output.unlink(missing_ok=True)
+            raise
         print(json.dumps({"status":report["status"],
                           "source_mean_db":report["source_audio_mean_db"],
                           "mastered_mean_db":report["mastered_audio_mean_db"]}))
