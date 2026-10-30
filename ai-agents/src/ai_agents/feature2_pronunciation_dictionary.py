@@ -75,14 +75,14 @@ def apply_approved_local_corrections(*,script,shop_id,lang,read_current_entries)
         raise PronunciationDenied("Too many unverified pronunciation entries")
     substitutions={}
     for row in entries:
-        if type(row) is not dict or row.get("shop_id")!=shop_id or \
-           row.get("language")!=lang or row.get("approval")!=\
-           "RETAILER_EDITOR_REVIEWED_SPELLING_ONLY" or \
-           not _word(row.get("word")) or
-           not _word(row.get("spoken_as"),correction=True) or
-           any(row.get(flag) is True for flag in
-               ("can_publish","audio_pronunciation_verified",
-                "paid_motion_permitted","may_auto_retry")):
+        if (type(row) is not dict or row.get("shop_id")!=shop_id or
+            row.get("language")!=lang or
+            row.get("approval")!="RETAILER_EDITOR_REVIEWED_SPELLING_ONLY" or
+            not _word(row.get("word")) or
+            not _word(row.get("spoken_as"),correction=True) or
+            any(row.get(flag) is True for flag in
+                ("can_publish","audio_pronunciation_verified",
+                 "paid_motion_permitted","may_auto_retry"))):
             raise PronunciationDenied("Current signed pronunciation review missing")
         key=row["word"].casefold()
         if key in substitutions:raise PronunciationDenied("Duplicated preferred spelling")
