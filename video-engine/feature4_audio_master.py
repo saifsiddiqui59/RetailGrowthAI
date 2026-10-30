@@ -125,11 +125,28 @@ def master_private_audio(source: Path, target: Path, *, expected_seconds: int):
             partial.unlink(missing_ok=True)
 
 
+def _open_private_report(proof: Path):
+    """Atomically create a private, no-clobber receipt with owner-only permissions.
+
+    Path.open('x') defaults to 0666 before umask and can expose private media
+    metadata to other local users. Never chmod after creation: that leaks briefly.
+    """
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(proof, flags, 0o600)
+    try:
+        return os.fdopen(fd, "w", encoding="utf-8")
+    except BaseException:
+        os.close(fd)
+        raise
+
+
 def _private_report_path(path: Path):
     """Reject unusable proof destinations before touching authorized media."""
     path = Path(path)
     if (path.suffix.lower() != ".json" or path.is_symlink() or path.exists() or
-            not path.parent.is_dir() or path.parent.is_symlink()):
+            not path.parent.is_dir() or\n            any(parent.is_symlink() for parent in (path.parent, *path.parent.parents))):
         raise AudioMasterError("Proof report must be a new private JSON file")
     return path
 
@@ -149,7 +166,7 @@ def main():
                                     expected_seconds=args.duration)
         proof_identity=None
         try:
-            with proof.open("x",encoding="utf-8") as stream:
+            with _open_private_report(proof) as stream:
                 st=os.fstat(stream.fileno())
                 proof_identity=(st.st_dev,st.st_ino)
                 stream.write(json.dumps(report,indent=2)+"\n")
