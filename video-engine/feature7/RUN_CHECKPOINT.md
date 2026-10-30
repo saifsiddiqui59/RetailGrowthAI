@@ -27,3 +27,14 @@
 - **Parent mergeability:** GitHub recomputed #513 as `mergeable=true` after earlier transient `false`; do not treat that alone as accepted review or green CI.
 - **Current exact-head CI:** unverified; previous run #41090018122 was 4/4 on `7ca3b6b...`, before all three integrations. Inspect latest head, CI job results and any conflicts before coordinator merge. This checkpoint is the last write in this run.
 - **NEXT:** investigate PR #513 exact-head four-job CI and targeted F7-L/F7-G tests; then compare #825 (caption cue validation) for compatible integration. PRs #847, #846 and #840 should remain open until coordinator confirms their source is accepted in #513.
+
+## Fourth compatible source integration — F7-G caption projection (2026-10-30)
+- Source PR #825 (stacked), source branch `feat/feature7-caption-projection-validation-20261030` head `5fb4c258d4bc59531d417ab867243e8cb54613a4`.
+- Source file `video-engine/feature7/transcript_adapter.mjs` imported unchanged from source blob `03746f42c4cdcec58ef690e695f631b2e9c237a8` at commit `13cb7d8112bd12865a15b8afd51bfa381333727f`.
+- Test file `tests/media/test_feature7_caption_projection.py` imported unchanged from source blob `fc260b1d0f7ca3c410d4dd659c20655a0ddb45e0` at commit `061f97f1a0185fa0e85fba381f8e1387e00b9257`.
+- Exact code-head verification: GitHub compare `2184fdc...061f97f` shows exactly these two paths, +116/-8 lines. Parent #513 remained mergeable=true against main at code head `061f97f`.
+- Prior parent head `2184fdcea47c976b1d2505a02abc01f29d0b8a44` had Part 1 CI run `41098097292` with all four jobs successful (FFmpeg, Python/uv, Supabase, Frontend). This is **not** evidence for the new code or this checkpoint.
+- New code head `061f97f` had **no PR-triggered workflow runs returned** at inspection. No local test suite executed in this run. Current checkpoint commit changes head again; require fresh exact-head 4/4 CI and coordinator review before PR-ready or accepted integration.
+- Child PR #825 remains open until coordinator verifies this integration; no source PRs closed, no main merge. Hosted signed tenant rights/ASR/Feature4 live approval remain blocked separately.
+- NEXT: inspect #513 exact-head four-job CI and run targeted caption projection regression if runner permits. If CI awaits, compare source PR #806 (F7-AC CPU readiness policy) against current parent for a conflict-free existing-source integration. Do not duplicate code or open micro-PRs.
+- Snapshot remains source-complete 8/35, blocked 8/35, integrated DONE 0/35; tested and PR-ready task counts unverified on new head. GPU OFF, no paid inference, PROD, SQL, WineShopPOS or samples.
