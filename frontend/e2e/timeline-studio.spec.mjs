@@ -384,3 +384,90 @@ test('timeline frame seek actually targets current signed preview without changi
   await page.getByLabel('Animated headline').first().fill('New review-required edit')
   await expect(video).toHaveCount(0)
 })
+
+
+test('late old-shop render ACK never submits or reveals a different shops signed preview',async({page})=>{
+ await page.goto('/')
+ await page.evaluate(async shop=>{
+   const {mountFeature4RenderRace}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
+   mountFeature4RenderRace({shop})
+ },SHOP)
+ await expect(page.getByRole('heading',{name:'Professional Video Studio'})).toBeVisible()
+ await page.getByRole('button',{name:'Submit authorized render'}).click()
+ await expect.poll(()=>page.evaluate(()=>window.__feature4RaceRequests.length)).toBe(1)
+ const SECOND='44444444-4444-4444-8444-444444444444'
+ await page.evaluate(shop=>window.__feature4RaceSwitchShop(shop),SECOND)
+ await expect(page.getByRole('button',{name:'Submit authorized render'})).toBeEnabled()
+ await page.evaluate(()=>window.__feature4RaceSettle(0))
+ await expect(page.getByLabel('Signed private rendered video')).toHaveCount(0)
+ await page.getByRole('button',{name:'Submit authorized render'}).click()
+ await expect.poll(()=>page.evaluate(()=>window.__feature4RaceRequests.length)).toBe(2)
+ const jobShop=await page.evaluate(()=>window.__feature4RaceRequests[1].plan.shop_id)
+ expect(jobShop).toBe(SECOND)
+ await page.evaluate(()=>window.__feature4RaceSettle(1))
+ await expect(page.getByLabel('Signed private rendered video')).toBeVisible()
+})
+
+test('late render rejection cannot overwrite new-shop in-flight render or expose stale error',async({page})=>{
+ await page.goto('/')
+ await page.evaluate(async shop=>{
+   const {mountFeature4RenderRace}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
+   mountFeature4RenderRace({shop})
+ },SHOP)
+ await expect(page.getByRole('heading',{name:'Professional Video Studio'})).toBeVisible()
+ await page.getByRole('button',{name:'Submit authorized render'}).click()
+ await expect.poll(()=>page.evaluate(()=>window.__feature4RaceRequests.length)).toBe(1)
+ await page.evaluate(()=>window.__feature4RaceSwitchShop('44444444-4444-4444-8444-444444444444'))
+ await page.getByRole('button',{name:'Submit authorized render'}).click()
+ await expect.poll(()=>page.evaluate(()=>window.__feature4RaceRequests.length)).toBe(2)
+ await page.evaluate(()=>window.__feature4RaceSettle(0,true))
+ await expect(page.getByRole('button',{name:'Submitting…'})).toBeDisabled()
+ await expect(page.getByRole('alert')).toHaveCount(0)
+ await page.evaluate(()=>window.__feature4RaceSettle(1))
+ await expect(page.getByLabel('Signed private rendered video')).toBeVisible()
+})
+
+test('editing the draft while render ACK pending invalidates old response and permits fresh submit',async({page})=>{
+ await page.goto('/')
+ await page.evaluate(async shop=>{
+   const {mountFeature4RenderRace}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
+   mountFeature4RenderRace({shop})
+ },SHOP)
+ await expect(page.getByRole('heading',{name:'Professional Video Studio'})).toBeVisible()
+ await page.getByRole('button',{name:'Submit authorized render'}).click()
+ await expect.poll(()=>page.evaluate(()=>window.__feature4RaceRequests.length)).toBe(1)
+ await page.getByLabel('Animated headline').first().fill('Edited draft requires fresh render')
+ await expect(page.getByRole('button',{name:'Submit authorized render'})).toBeEnabled()
+ await page.evaluate(()=>window.__feature4RaceSettle(0))
+ await expect(page.getByLabel('Signed private rendered video')).toHaveCount(0)
+ await page.getByRole('button',{name:'Submit authorized render'}).click()
+ await expect.poll(()=>page.evaluate(()=>window.__feature4RaceRequests.length)).toBe(2)
+ const next=await page.evaluate(()=>window.__feature4RaceRequests[1].plan.scenes[0].headline)
+ expect(next).toBe('Edited draft requires fresh render')
+ await page.evaluate(()=>window.__feature4RaceSettle(1))
+ await expect(page.getByLabel('Signed private rendered video')).toBeVisible()
+})
+
+
+test('creative approval revoke-and-restore invalidates prior render ACK',async({page})=>{
+ await page.goto('/')
+ await page.evaluate(async shop=>{
+   const {mountFeature4RenderRace}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
+   mountFeature4RenderRace({shop})
+ },SHOP)
+ await expect(page.getByRole('heading',{name:'Professional Video Studio'})).toBeVisible()
+ await page.getByRole('button',{name:'Submit authorized render'}).click()
+ await expect.poll(()=>page.evaluate(()=>window.__feature4RaceRequests.length)).toBe(1)
+ // A new (intentionally invalid) approval locks render options; revoking
+ // it without replacing the shop must still invalidate prior ACK authority.
+ await page.evaluate(()=>window.__feature4RaceSetDirection({invalid:true}))
+ await expect(page.getByRole('button',{name:'Submit authorized render'})).toBeDisabled()
+ await page.evaluate(()=>window.__feature4RaceSetDirection(null))
+ await expect(page.getByRole('button',{name:'Submit authorized render'})).toBeEnabled()
+ await page.evaluate(()=>window.__feature4RaceSettle(0))
+ await expect(page.getByLabel('Signed private rendered video')).toHaveCount(0)
+ await page.getByRole('button',{name:'Submit authorized render'}).click()
+ await expect.poll(()=>page.evaluate(()=>window.__feature4RaceRequests.length)).toBe(2)
+ await page.evaluate(()=>window.__feature4RaceSettle(1))
+ await expect(page.getByLabel('Signed private rendered video')).toBeVisible()
+})

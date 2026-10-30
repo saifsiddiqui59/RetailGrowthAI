@@ -29,8 +29,22 @@ export default function VideoStudio({
   const [previewPlayhead, setPreviewPlayhead] = useState(null)
   const previewVideo = useRef(null)
   const renderedVideo = useRef(null)
+  // This is only a browser response fence. The authenticated backend still
+  // owns durable jobs, cancellation, idempotency and quota/accounting.
+  const renderEpoch = useRef(0)
+  const renderInFlight = useRef(false)
+  const liveRenderContext = useRef({ shopId, creativeDirection })
+  liveRenderContext.current = { shopId, creativeDirection }
+  const invalidateRender = () => {
+    renderEpoch.current += 1
+    renderInFlight.current = false
+    setBusy(false)
+  }
+  // Never let late network acknowledgement update an unmounted editor.
+  useEffect(() => () => { renderEpoch.current += 1 }, [])
   // A login/shop switch cannot retain the previous tenant's composition draft.
   useEffect(() => {
+    invalidateRender()
     setDraft(makeVideoDraft({ shopId, mediaAssets }))
     setSelectedSceneIndex(0)
     setPreviewPlayhead(null)
@@ -38,13 +52,16 @@ export default function VideoStudio({
     setError('')
   }, [shopId])
   useEffect(() => {
+    // A direction being revoked is as important as one being newly approved.
+    // Invalidate even when approvedRead no longer contains a draft.
+    invalidateRender()
     if (approvedRead?.draft) {
       setDraft(approvedRead.draft)
       setSelectedSceneIndex(0)
       setPreviewPlayhead(null)
       setSubmitted(false)
     }
-  }, [approvedRead])
+  }, [approvedRead, creativeDirection])
   const assets = useMemo(() => compatibleMedia(draft.mode, mediaAssets, shopId), [draft.mode, mediaAssets, shopId])
   const approvedPosters = useMemo(() => (Array.isArray(mediaAssets) ? mediaAssets : [])
     .filter(asset => asset?.authorized === true && asset?.kind === 'poster' &&
@@ -55,6 +72,7 @@ export default function VideoStudio({
   )
   const patch = (changes) => {
     if (creativeDirection) return
+    invalidateRender()
     setDraft(prev => ({ ...prev, ...changes }))
     setPreviewPlayhead(null)
     setSubmitted(false)
@@ -89,6 +107,7 @@ export default function VideoStudio({
 
   function newDraft({ mode = draft.mode, template = draft.template, duration = draft.duration_seconds } = {}) {
     if (creativeDirection) return
+    invalidateRender()
     setDraft(makeVideoDraft({ shopId, mode, template, duration, mediaAssets }))
     setError('')
     setSubmitted(false)
@@ -97,16 +116,29 @@ export default function VideoStudio({
   }
   async function submit(event) {
     event.preventDefault()
+    if (renderInFlight.current || issues.length || !onRender ||
+        (creativeDirection && !approvedRead?.draft)) return
+    const epoch = ++renderEpoch.current
+    const submittedShop = shopId
+    const submittedDirection = creativeDirection
+    const isCurrent = () => epoch === renderEpoch.current &&
+      liveRenderContext.current.shopId === submittedShop &&
+      liveRenderContext.current.creativeDirection === submittedDirection
+    renderInFlight.current = true
     setError('')
-    if (issues.length || !onRender || (creativeDirection && !approvedRead?.draft)) return
+    // A new request cannot inherit the last job's signed preview approval.
+    setSubmitted(false)
     setBusy(true)
     try {
       await onRender(structuredClone(draft))
-      setSubmitted(true)
+      if (isCurrent()) setSubmitted(true)
     } catch (exc) {
-      setError(exc?.message || 'Video request was not accepted')
+      if (isCurrent()) setError(exc?.message || 'Video request was not accepted')
     } finally {
-      setBusy(false)
+      if (isCurrent()) {
+        renderInFlight.current = false
+        setBusy(false)
+      }
     }
   }
   // The coordinator must return the trusted tenant identity with an output.
@@ -369,7 +401,12 @@ export default function VideoStudio({
         approvedDirection={Boolean(creativeDirection)}
         spokenCaptions={approvedRead?.captionCues || []}
         onPreviewSeek={setPreviewPlayhead}
-        onChange={next => { setDraft(next); setSubmitted(false); setPreviewPlayhead(null) }} />
+        onChange={next => {
+          invalidateRender()
+          setDraft(next)
+          setSubmitted(false)
+          setPreviewPlayhead(null)
+        }} />
     </section>
   )
 }
