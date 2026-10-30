@@ -114,6 +114,31 @@ class SharedModelMountTests(unittest.TestCase):
                 with self.assertRaises(m.PreflightError):
                     m.read_private_manifest(fifo)
 
+    def test_private_manifest_path_swap_between_stat_and_open_denied(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            manifest = root / "manifest.json"
+            alternate = root / "alternate.json"
+            alternate.write_text(json.dumps(sample()), encoding="utf-8")
+            real_open = os.open
+            for as_symlink in (False, True):
+                with self.subTest(as_symlink=as_symlink):
+                    manifest.write_text(json.dumps(sample()), encoding="utf-8")
+                    original = root / "original.json"
+                    def swap_open(path, flags, *args, **kwargs):
+                        manifest.rename(original)
+                        if as_symlink:
+                            manifest.symlink_to(alternate)
+                        else:
+                            manifest.write_text(json.dumps(sample()), encoding="utf-8")
+                        return real_open(path, flags, *args, **kwargs)
+                    with patch.object(m.os, "open", side_effect=swap_open):
+                        with self.assertRaises(m.PreflightError):
+                            m.read_private_manifest(manifest)
+                    manifest.unlink()
+                    original.unlink()
+
     def test_stat_only_mount_rejects_intermediate_links_and_hardlinks(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as td:
