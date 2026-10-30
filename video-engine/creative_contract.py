@@ -12,7 +12,7 @@ from uuid import UUID
 
 from feature4_caption_track import checked_caption_cues
 from professional import (
-    VideoPlanError, compile_composition, validate,
+    VideoPlanError, compile_composition, validate, checked_audio_mix,
     SUPPORTED_ANIMATIONS, SUPPORTED_TRANSITIONS,
 )
 
@@ -94,7 +94,7 @@ def render_inputs(request, media_manifest, *, allow_synthetic_test=False):
     require_fields(request, {
         "version", "shop_id", "campaign_id", "video_job_id", "idempotency_key",
         "script", "brand", "scenes", "template", "duration_seconds", "output",
-        "music_asset_id", "music_source", "voiceover_asset_id", "voiceover_source", "beat_grid", "edit_plan",
+        "music_asset_id", "music_source", "voiceover_asset_id", "voiceover_source", "audio_mix", "beat_grid", "edit_plan",
         "allow_image_fallback", "mode",
     }, {"version", "shop_id", "campaign_id", "video_job_id", "idempotency_key",
         "script", "brand", "scenes", "template", "duration_seconds", "output"}, "reel request")
@@ -227,6 +227,15 @@ def render_inputs(request, media_manifest, *, allow_synthetic_test=False):
         if scene.get("mute_source") is not None:
             base["mute_source"] = scene["mute_source"]
         lowered.append(base)
+    mix = checked_audio_mix(
+        request.get("audio_mix"), has_music=sound_id is not None,
+        has_voice=voice_id is not None,
+        has_source=any(
+            x.get("asset_id") is not None
+            and media_manifest["assets"][x["asset_id"]]["kind"] == "video"
+            and not x.get("mute_source", False) for x in lowered),
+        has_sfx=any(x.get("sfx_asset_id") for x in lowered),
+    )
     if logo_id:
         used_ids.add(logo_id)
     if sound_id:
@@ -261,7 +270,8 @@ def render_inputs(request, media_manifest, *, allow_synthetic_test=False):
                                 if "secondary_color" in brand else {})},
                    "logo_asset_id": logo_id,
                    "music_asset_id": sound_id,
-                   "voiceover_asset_id": voice_id}
+                   "voiceover_asset_id": voice_id,
+                   **({"audio_mix": mix} if mix else {})}
     if request.get("beat_grid") is not None:
         composition["beats"] = copy.deepcopy(request["beat_grid"])
     if captions is not None:

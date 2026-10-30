@@ -27,6 +27,35 @@ TEMPLATES = {"streetwear", "cinematic", "festival"}
 # Single, fixed renderer-authorized vocabulary. Client/user CSS is never accepted.
 SUPPORTED_ANIMATIONS = frozenset({"subtle_zoom", "fade", "slide", "pop", "glow"})
 SUPPORTED_TRANSITIONS = frozenset({"fade", "slide", "cut"})
+# Four strictly bounded, server-reviewed channel gains. No arbitrary filters.
+AUDIO_GAIN_LIMITS = {
+    "source": (0.2, 1.0), "music": (0.0, 1.0),
+    "voiceover": (0.2, 1.0), "sfx": (0.0, 0.5),
+}
+
+
+def checked_audio_mix(value, *, has_music, has_voice, has_source, has_sfx):
+    """Deny unknown, inactive, unbounded or unapproved gain controls."""
+    if value is None:
+        return {}
+    if type(value) is not dict or set(value) - set(AUDIO_GAIN_LIMITS):
+        raise VideoPlanError("Unknown or unapproved audio mix controls")
+    available = {"source": has_source, "music": has_music,
+                 "voiceover": has_voice, "sfx": has_sfx}
+    levels = {}
+    for name, raw in value.items():
+        low, high = AUDIO_GAIN_LIMITS[name]
+        if (available[name] is not True or type(raw) not in (int, float)
+                or not math.isfinite(raw) or not low <= raw <= high
+                or abs(raw * 100 - round(raw * 100)) > 1e-7):
+            raise VideoPlanError("Audio mix requires present approved track and bounded 0.01 gain")
+        levels[name] = round(float(raw), 2)
+    return levels
+
+
+def _gain_text(gain):
+    return f"{gain:.2f}".rstrip("0").rstrip(".")
+
 UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F-]{27,36}$")
 ASSET_ID = re.compile(r"^[a-zA-Z0-9_-]{1,100}$")
 IMAGES = {".png", ".jpg", ".jpeg", ".webp"}
@@ -101,7 +130,7 @@ def checked_video(path):
 
 def validate(plan, manifest, asset_root, allow_test_media=False):
     fields(plan, {"version", "shop_id", "mode", "template", "duration_seconds", "output",
-                  "scenes", "cta", "music_asset_id", "voiceover_asset_id", "caption_cues", "beats", "brand", "logo_asset_id"},
+                  "scenes", "cta", "music_asset_id", "voiceover_asset_id", "audio_mix", "caption_cues", "beats", "brand", "logo_asset_id"},
            {"version", "shop_id", "mode", "template", "duration_seconds", "output", "scenes", "cta"}, "plan")
     fields(manifest, {"shop_id", "assets"}, {"shop_id", "assets"}, "manifest")
     if plan["version"] != VERSION or plan["shop_id"] != manifest["shop_id"] or not UUID.fullmatch(str(plan["shop_id"])):
@@ -262,6 +291,11 @@ def validate(plan, manifest, asset_root, allow_test_media=False):
         if b <= prev:
             raise VideoPlanError("Beats must be strictly ascending")
         prev = b
+    checked_audio_mix(
+        plan.get("audio_mix"), has_music=music_id is not None,
+        has_voice=voice_id is not None, has_source=source_audio,
+        has_sfx=any(s.get("sfx_asset_id") is not None for s in scenes),
+    )
     if plan["mode"] == "music_sync":
         if music_id is None or len(beats) < 2:
             raise VideoPlanError("Beat-sync requires rights-cleared music and beat timestamps")
@@ -306,6 +340,11 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
     if brand.get("primary_color"):
         accent = brand["primary_color"]
     k = html.escape(kicker)
+    mix = checked_audio_mix(
+        plan.get("audio_mix"), has_music=plan.get("music_asset_id") is not None,
+        has_voice=plan.get("voiceover_asset_id") is not None, has_source=source_audio,
+        has_sfx=any(s.get("sfx_asset_id") is not None for s in plan["scenes"]),
+    )
     components = []
     for i, scene in enumerate(plan["scenes"]):
         start, length = scene["start"], scene["duration"]
@@ -321,7 +360,7 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
                 media_markup = (
                     f'<video class="footage clip" id="video{i}" src="{src}" '
                     f'data-start="{start}" data-duration="{length}" data-media-start="{trim}" '
-                    f'data-track-index="0" data-volume="1" playsinline{original_audio}{mute}></video>'
+                    f'data-track-index="0" data-volume="{_gain_text(mix.get("source", 1.0))}" playsinline{original_audio}{mute}></video>'
                 )
             else:
                 media_markup = f'<img class="product-photo" src="{src}" alt="" decoding="sync">'
@@ -339,7 +378,7 @@ def compile_composition(plan, manifest, asset_root, output_dir, allow_test_media
             src = names[scene["sfx_asset_id"]]
             components.append(
                 f'<audio id="sfx{i}" src="{src}" data-start="{start}" '
-                f'data-duration="{min(2, length)}" data-track-index="6" data-volume="0.25"></audio>'
+                f'data-duration="{min(2, length)}" data-track-index="6" data-volume="{_gain_text(mix.get("sfx", .25))}"></audio>'
             )
         animation = scene.get("animation_preset", "subtle_zoom")
         transition = scene.get("transition", "fade")
@@ -498,13 +537,13 @@ h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.01
             f'data-start="{cue["start"]}" data-duration="{cue["duration"]}" '
             f'data-track-index="8"><span>{safe}</span></div>'
         )
-    # Narration is a full-length approved audio source, not 2-second SFX.
-    # Fix gain in the trusted renderer until an advanced audio-mix contract exists.
+    # Narration is an approved full-length audio source; fixed per-track gains
+    # do not imply arbitrary mix automation or actual speech QA.
     if plan.get("voiceover_asset_id") is not None:
         src = names[plan["voiceover_asset_id"]]
         components.append(
             f'<audio id="approved-voiceover" src="{src}" data-start="0" '
-            f'data-duration="{duration}" data-track-index="7" data-volume="1" '
+            f'data-duration="{duration}" data-track-index="7" data-volume="{_gain_text(mix.get("voiceover", 1.0))}" '
             f'data-fade-in="0.10" data-fade-out="0.16"></audio>'
         )
     # Duck ONLY the licensed bed beneath clips retaining their original sound.
@@ -515,7 +554,10 @@ h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.01
             aid = scene.get("asset_id")
             is_source_sound = bool(aid and ordered[aid][1] == "video"
                                    and not scene.get("mute_source", False))
-            gain = "0.12" if (is_source_sound or plan.get("voiceover_asset_id") is not None) else "0.55"
+            music_gain = mix.get("music", .55)
+            gain = _gain_text(min(music_gain, .12) if
+                              (is_source_sound or plan.get("voiceover_asset_id") is not None)
+                              else music_gain)
             start, length = scene["start"], scene["duration"]
             fade = min(0.12, length / 6)
             components.append(
@@ -525,7 +567,10 @@ h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.01
                 f'data-fade-in="{fade}" data-fade-out="{fade}"></audio>'
             )
     else:
-        gain = "0.15" if (source_audio or plan.get("voiceover_asset_id") is not None) else "0.55"
+        music_gain = mix.get("music", .55)
+        gain = _gain_text(min(music_gain, .15) if
+                          (source_audio or plan.get("voiceover_asset_id") is not None)
+                          else music_gain)
         components.append(
             f'<audio id="soundtrack" src="{soundtrack}" data-start="0" '
             f'data-duration="{duration}" data-track-index="5" data-volume="{gain}" '
