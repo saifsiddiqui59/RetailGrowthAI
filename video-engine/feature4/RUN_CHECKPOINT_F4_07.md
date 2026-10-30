@@ -25,3 +25,15 @@
 - Rechecked candidate **F4-06**: existing open PRs **#830** (independent gain contract) and **#739** (truthful fixed-gain preview); do not duplicate those implementations.
 - F4-05 already has PRs #711/#822; F4-15 has multiple in-flight branches. The next run should first inspect the freshest exact heads and focus on **F4-07 exact-checkout tests/CI and receipt failure semantics** or another truly unclaimed scoped task. No atomic worktree lease was claimed.
 - **Checkpoint commit context:** code/test head `b816782c3b8578f63203e31f40add544e5517390`; previous checkpoint commit `5bee81aab0e4e26e76d3a72b0ef3ceb4bdb6d558`. Recheck the final head after this update.
+
+## Continuation — private proof confidentiality and durability (2026-10-30)
+
+- **Task:** F4-07, partial security/reliability hardening only; real audio fades/ducking and final QA remain incomplete.
+- **PR/branch:** Draft #845, `feat/feature4-f4-07-proof-preflight-20261030`, stacked on draft #322; no merge or task DONE claimed.
+- **Code commits:** `06ca86b6fe778f2b5bf64b941e4dbe7a13fc0aea`, `b60bf4215e8203493485b61507e89ef789623454`. **Tests commit:** `118d925337e772d959c95e63c20008fcc7b135da`.
+- **Changed:** `video-engine/feature4_audio_master.py` uses atomic `os.open(O_CREAT|O_EXCL|O_NOFOLLOW, mode=0600)` for private proof receipts, rejects symlinked ancestors, flushes and fsyncs receipt before reporting success. This prevents permissive-umask disclosure and nested symlink traversal; failure continues to use existing receipt/output cleanup.
+- **Tests added/updated:** `tests/media/test_feature4_audio_master.py` now patches the secure report opener for injected errors and checks owner-only 0600 permissions under umask 000, plus nested symlink-parent rejection.
+- **Verification:** Three isolated **source-equivalent** local Python checks passed (0600 mode, no-clobber, nested symlink denial). Exact repository tests **not run**: this runtime cannot resolve GitHub for local checkout. At pre-checkpoint head `b60bf4215e8203493485b61507e89ef789623454`, GitHub PR-triggered workflow lookup returned **0 runs**, combined status **0**; exact-head 4/4 CI **not verified**. Source-equivalent checks are not full CI.
+- **Remaining:** Verify full repository tests and 4/4 exact-head CI, assess actual multi-track fade/duck behavior with licensed audio, commercial reviewer signoff, and coordinator integration. No new live media, user sample, paid model, GPU, PROD, SQL or WineShopPOS.
+- **NEXT:** F4-07 exact-checkout targeted `python -m unittest tests/media/test_feature4_audio_master.py` (adjust module invocation to repository convention) and required 4-job CI. If still CI-blocked, inspect F4-09 existing PR #769 or F4-06 #830/#739 for nonoverlapping tests rather than duplicating their work. Coordinator owns review, main merge and task receipt.
+- **Final head:** checkpoint commit will advance branch beyond the pre-checkpoint code SHA; reread PR #845 head before claiming CI.
