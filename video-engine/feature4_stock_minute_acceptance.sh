@@ -41,6 +41,10 @@ then
   echo "Unsafe private output path (traversal, symlink ancestor or missing parent)" >&2
   exit 2
 fi
+# Missing local codecs/Node must not leave an orphan private directory.
+command -v ffmpeg >/dev/null
+command -v ffprobe >/dev/null
+node -e 'if(Number(process.versions.node.split(".")[0])<22) process.exit(2)'
 mkdir -m 700 -- "$OUTPUT"
 WORK="$(mktemp -d)"
 trap 'rm -rf -- "$WORK"' EXIT
@@ -49,9 +53,6 @@ PROOF="$OUTPUT/feature4-stock-60s-provenance.json"
 VIDEO="$OUTPUT/feature4-stock-garment-60s.mp4"
 MASTER="$OUTPUT/feature4-stock-garment-60s-mastered.mp4"
 SMALL="$OUTPUT/feature4-stock-garment-60s-small.mp4"
-command -v ffmpeg >/dev/null
-command -v ffprobe >/dev/null
-node -e 'if(Number(process.versions.node.split(".")[0])<22) process.exit(2)'
 python3 "$ROOT/video-engine/feature4_garment_integration.py" --download \
   --seconds 60 --project "$PROJECT" --provenance "$PROOF"
 timeout --signal=TERM --kill-after=12s 750s \
