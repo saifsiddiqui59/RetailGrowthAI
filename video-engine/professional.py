@@ -18,7 +18,7 @@ import wave
 from pathlib import Path
 
 from asset_preflight import inspect_staged_audio, inspect_staged_image
-from feature4_caption_track import checked_caption_cues
+from feature4_caption_track import checked_caption_cues, caption_font_px
 from render import checked_path, validate_rights
 
 VERSION = "rg_video_v2"
@@ -434,7 +434,7 @@ h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.01
 .spoken-caption span{{display:inline-block;max-width:100%;padding:2.2% 4%;
  color:#fff;background:#090a13e8;border-radius:{max(7,width//100)}px;
  font-size:{max(22,width//19)}px;line-height:1.2;font-weight:800;
- text-shadow:0 1px 3px #000;overflow-wrap:anywhere;
+ text-shadow:0 1px 3px #000;overflow-wrap:anywhere;text-wrap:balance;
  animation:subtitlePop .18s ease-out both}}
 @keyframes subtitlePop{{from{{opacity:0;transform:translateY(10%)}}to{{opacity:1;transform:translateY(0)}}}}
 .s2 .glass{{border-top-color:{fg}66}}
@@ -532,10 +532,13 @@ h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.01
     # Source of truth is the Feature2-reviewed transcript, never browser HTML.
     for index,cue in enumerate(plan.get("caption_cues") or []):
         safe=clean_text(cue["text"],"approved timed subtitle",90)
+        # Exact approved text/times stay untouched; renderer adapts type size
+        # to reduce 9:16 portrait collisions for longer spoken captions.
+        caption_font = caption_font_px(cue["text"],width)
         components.append(
             f'<div id="spoken-caption{index}" class="clip spoken-caption" '
             f'data-start="{cue["start"]}" data-duration="{cue["duration"]}" '
-            f'data-track-index="8"><span>{safe}</span></div>'
+            f'data-track-index="8"><span style="font-size:{caption_font}px">{safe}</span></div>'
         )
     # Narration is an approved full-length audio source; fixed per-track gains
     # do not imply arbitrary mix automation or actual speech QA.

@@ -190,6 +190,29 @@ class ProfessionalVideoTests(unittest.TestCase):
         self.assertEqual(ordered, {})
         self.assertFalse(has_source_audio)
 
+    def test_spoken_caption_typography_adjusts_without_rewriting_approved_text(self):
+        self.audio()
+        self.plan["voiceover_asset_id"] = "music1"
+        self.plan["output"] = {"width": 1080, "height": 1920, "fps": 24}
+        short = "Approved voice"
+        medium = "New autumn jackets and fresh boutique arrivals reviewed"
+        long = "A long approved editorial announcement for the new seasonal clothing collection and retailer offer"[:90]
+        self.plan["caption_cues"] = [
+            {"start": 0, "duration": 2, "text": short},
+            {"start": 2, "duration": 3, "text": medium},
+            {"start": 5, "duration": 4, "text": long},
+        ]
+        from feature4_caption_track import caption_font_px
+        page=(compile_composition(
+            self.plan,self.manifest,self.media,self.output)/"index.html").read_text()
+        for cue in self.plan["caption_cues"]:
+            font=caption_font_px(cue["text"],1080)
+            self.assertIn(f'style="font-size:{font}px"',page)
+            self.assertIn(cue["text"],page)
+        self.assertGreater(caption_font_px(short,1080), caption_font_px(long,1080))
+        self.assertIn("text-wrap:balance",page)
+        self.assertNotIn("<script",page)
+
     def test_mode_b_image_to_video_reuses_actual_media(self):
         self.image()
         self.plan["mode"] = "image"
