@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import json
+import os
 
 import copy
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 from feature5_motion.infra.wan22_native_preflight import (
     render_reviewed_require_hashes,
@@ -61,6 +63,44 @@ class PrivateBuildManifestInputTests(unittest.TestCase):
                     with self.assertRaisesRegex(WanCompatibilityError,
                                                 "Unreadable reviewed manifest"):
                         _private_review_json(path)
+
+
+    def test_review_json_symlink_hardlink_and_same_byte_path_swap_denied(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            approved = root / "review.json"
+            approved.write_text('{"source_commit":"original"}')
+            linked = root / "linked.json"
+            linked.symlink_to(approved)
+            with self.assertRaises(WanCompatibilityError):
+                _private_review_json(linked)
+            hardlink = root / "hardlink.json"
+            os.link(approved, hardlink)
+            with self.assertRaises(WanCompatibilityError):
+                _private_review_json(approved)
+            hardlink.unlink()
+
+            replacement = root / "replacement.json"
+            displaced = root / "displaced.json"
+            replacement.write_bytes(approved.read_bytes())
+            real_fstat = os.fstat
+            calls = 0
+
+            def replace_on_final_stat(fd):
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    os.replace(approved, displaced)
+                    os.replace(replacement, approved)
+                return real_fstat(fd)
+
+            with patch("feature5_motion.infra.wan22_build_context_gate.os.fstat",
+                       side_effect=replace_on_final_stat):
+                with self.assertRaisesRegex(WanCompatibilityError,
+                                            "Unreadable reviewed manifest"):
+                    _private_review_json(approved)
+            self.assertEqual(calls, 2)
+            self.assertNotEqual(approved.stat().st_ino, displaced.stat().st_ino)
 
 
 class ComfyOfflineImageBuildGateTests(unittest.TestCase):
