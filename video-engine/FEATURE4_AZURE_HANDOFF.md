@@ -188,3 +188,9 @@ retain ZIP size/member + Linux ELF/license + lease/rollback guards, rerun
 exact PR merge four-job CI then fresh postmerge main. Feature4 branch **does
 not edit** coordinator-owned `scripts/deploy/**`, workflows, Supabase, Azure,
 shared docs or force-merge PR #322.
+
+## 2026-10-30 — Feature7 reviewed scene-decision binding (PR #714)
+
+The source-only `feature4_edit_execution.execute_approved_edit` now requires a **trusted, persisted** `snapshot.edit_decision_sha256` matching the canonical JSON SHA-256 of the full `approved_edits` object. This closes a review-ID replay gap: the prior check verified review metadata and original draft hash, not the approved edit commands themselves. The function removes the internal digest field before invoking the unchanged `creative_reel_v1` compiler.
+
+**Coordinator-owned blocker:** within an authenticated, same-shop, RLS-authorized approval transaction, persist the exact approved Feature7 decision hash; when rendering, independently reload the immutable reviewed decision and its digest alongside the original draft. Never compute the *trusted* digest from the browser/model-supplied decision, never accept unapproved edits, and never bypass the existing quota/outbox and media rights checks. Acceptance requires tests for modified scene order, trim, transition, cross-tenant review, revoked review and stale draft plus hosted negative paths. PR #714 is stacked source-only and does not attest real DEV sign-in or production release.
