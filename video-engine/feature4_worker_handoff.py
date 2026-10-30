@@ -53,8 +53,8 @@ def _staged_fingerprint(path):
         fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
         with os.fdopen(fd, "rb") as stream:
             first = os.fstat(stream.fileno())
-            if not stat.S_ISREG(first.st_mode):
-                raise Feature4HandoffError("Private staged asset must be a regular file")
+            if not stat.S_ISREG(first.st_mode) or not 0 < first.st_size <= MAX_TOTAL_STAGED_BYTES:
+                raise Feature4HandoffError("Private staged asset must be nonempty bounded regular file")
             digest = hashlib.sha256()
             for block in iter(lambda: stream.read(1024 * 1024), b""):
                 digest.update(block)
@@ -62,6 +62,13 @@ def _staged_fingerprint(path):
             if (first.st_dev, first.st_ino, first.st_size, first.st_mtime_ns) != (
                     last.st_dev, last.st_ino, last.st_size, last.st_mtime_ns):
                 raise Feature4HandoffError("Private staged asset changed while hashing")
+            # An opened descriptor can still contain approved OLD bytes when
+            # the path was atomically replaced with a same-content new inode.
+            current = os.lstat(path)
+            if (not stat.S_ISREG(current.st_mode)
+                    or (last.st_dev, last.st_ino, last.st_size, last.st_mtime_ns) !=
+                       (current.st_dev, current.st_ino, current.st_size, current.st_mtime_ns)):
+                raise Feature4HandoffError("Private staged asset path changed while hashing")
             return first.st_size, digest.hexdigest()
     except Feature4HandoffError:
         raise
@@ -214,6 +221,9 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
     if admin.render_authorized(claim) is not True:
         admin.render_failure(claim, "ACCESS_REVOKED", permanent=True)
         return "DENIED"
+    # Stale claims must never initiate private source download or CPU work.
+    if admin.feature4_claim_current(claim) is not True:
+        return "STALE"
     try:
         request, manifest, objects, audit = _bundle(claim, admin.load_feature4_bundle(claim))
         with tempfile.TemporaryDirectory(prefix="retailgrowth-f4-") as tmp:
@@ -234,6 +244,10 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
                 if staged_bytes > MAX_TOTAL_STAGED_BYTES:
                     raise Feature4HandoffError("Total staged media exceeds the private worker budget")
                 staged_fingerprints[asset_id] = fingerprint
+            # Lost lease or revoked rights during stage: prevent expensive CPU.
+            if (admin.render_authorized(claim) is not True
+                    or admin.feature4_claim_current(claim) is not True):
+                return "STALE"
             result = render_fn(request, manifest, staging, output)
             result_path, probe = _verified_render_result(result, output, claim, request, audit)
             # The renderer must consume the exact approved staged originals.
