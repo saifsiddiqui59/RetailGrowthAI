@@ -102,7 +102,8 @@ def validate_feature4_release(*, job, lineage, reviewed, media, now=None):
                 row.get("approved") is not True or
                 row.get("commercial_use") is not True or
                 row.get("synthetic_fixture") is not False or
-                row.get("kind") not in {"image", "poster", "logo", "video", "audio"} or
+                type(row.get("kind")) is not str or
+                row["kind"] not in {"image", "poster", "logo", "video", "audio"} or
                 type(row.get("source_feature")) is not str or
                 not row["source_feature"].strip() or
                 type(row.get("rights_evidence")) is not str or
