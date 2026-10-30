@@ -19,9 +19,13 @@ import {stagePrivateFootageCPU}
  from './video-engine/feature7/private_intake_cpu.mjs';
 const p=JSON.parse(fs.readFileSync(0,'utf8'));
 const a=p.authorization;
+const hasAfter=Object.hasOwn(p,'authorization_after');
+const after=p.authorization_after;
 delete p.authorization;
+delete p.authorization_after;
+let calls=0;
 const result=stagePrivateFootageCPU({...p,
- getCurrentIntakeAuthorization:()=>a});
+ getCurrentIntakeAuthorization:()=>++calls===1?a:(hasAfter?after:a)});
 process.stdout.write(JSON.stringify(result));
 """
 
@@ -107,6 +111,41 @@ class Feature7CpuPrivateIntakeTests(unittest.TestCase):
                 result=self.js(p)
                 self.assertNotEqual(result.returncode,0,result.stdout)
                 self.assertFalse((self.root/'shop-a'/('bad-'+label+'.mp4')).exists())
+
+    def test_revoked_or_changed_rights_during_staging_roll_back(self):
+        cases=[
+          ('membership',{'active_membership':False}),
+          ('role',{'role':'VIEWER'}),
+          ('rights',{'video_rights_declared':False}),
+          ('quota',{'max_bytes':10}),
+          ('tenant',{'shop_id':'shop-b'}),
+          ('missing',None),
+          ('revision',{'authorization_revision':'revision-two'}),
+        ]
+        for label,change in cases:
+            with self.subTest(label=label):
+                asset='recheck-'+label
+                p=self.payload(asset)
+                p['authorization']['authorization_revision']='revision-one'
+                if change is None:
+                    p['authorization_after']=None
+                else:
+                    p['authorization_after']={**p['authorization'],**change}
+                result=self.js(p)
+                self.assertNotEqual(result.returncode,0,result.stdout)
+                self.assertFalse((self.root/'shop-a'/f'{asset}.mp4').exists())
+                self.assertEqual(list((self.root/'shop-a').glob(f'.{asset}.*.tmp')),[])
+
+    def test_stable_current_rights_allow_unapproved_private_staging(self):
+        p=self.payload('stable-recheck')
+        p['authorization']['authorization_revision']='revision-one'
+        p['authorization_after']=dict(p['authorization'])
+        result=self.js(p)
+        self.assertEqual(result.returncode,0,result.stderr)
+        item=json.loads(result.stdout)
+        self.assertFalse(item['approved'])
+        self.assertEqual(item['registration_status'],'NOT_REGISTERED_IN_SUPABASE')
+        self.assertTrue((self.root/'shop-a/stable-recheck.mp4').exists())
 
     def test_bad_hash_symlink_and_malformed_video_fail_closed(self):
         p=self.payload('wrong-hash')
