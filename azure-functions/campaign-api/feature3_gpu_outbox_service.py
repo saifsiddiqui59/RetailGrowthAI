@@ -24,6 +24,7 @@ class Feature3GPUOutboxService:
             raise StorageUnavailable("Untrusted dispatch claim batch; do not publish")
         validated = []
         seen = set()
+        seen_tokens = set()
         for record in result:
             if not isinstance(record, dict) or set(record) != {
                     "job_id", "shop_id", "dispatch_token", "expires_in_seconds"}:
@@ -36,9 +37,12 @@ class Feature3GPUOutboxService:
                 raise StorageUnavailable("Invalid queued GPU claim ID") from exc
             if (record["expires_in_seconds"] != 120 or
                 type(record["expires_in_seconds"]) is not int or
-                job in seen):
+                job in seen or token in seen_tokens):
+                # A single dispatch lease token must never identify two jobs,
+                # even if a malformed service-role RPC returns distinct IDs.
                 raise StorageUnavailable("Stale or repeated GPU dispatch claim")
             seen.add(job)
+            seen_tokens.add(token)
             validated.append({"job_id":job, "shop_id":shop,
                               "dispatch_token":token, "expires_in_seconds":120,
                               "gpu_started":False})
