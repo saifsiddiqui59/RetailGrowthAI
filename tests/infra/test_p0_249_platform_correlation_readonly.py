@@ -32,7 +32,8 @@ def test_scope_has_only_fixed_failed_canary_and_postrollback_windows():
             # Join must project only timestamp + transient host-instance key;
             # never project the original raw log message or URL to output.
             if label == "startup_401_link":
-                assert text.count("| project TimeGenerated, instance") == 1
+                assert text.count("| project start_time=TimeGenerated, instance") == 1
+                assert text.count("| project request_time=TimeGenerated, instance") == 1
                 assert "| project Message" not in text
                 assert "| project Url" not in text
             else:
@@ -141,6 +142,16 @@ def test_http_scale_group_link_is_only_401_evidence_not_a_503_claim():
     assert 'unlinked=countif(' in link
     assert 'ResultCode' in link and '"401"' in link
     assert '"503"' not in link
+    # Correlate a startup only with 401 logs on the same instance AFTER
+    # startup and within two minutes. A whole-window instance match was a
+    # false-positive hint; even this bounded link is NOT request-level proof.
+    assert "request_time >= start_time" in link
+    assert "request_time <= start_time + 2m" in link
+    assert "nearby_401=max(iff(isnotnull(request_time)" in link
+    assert "by start_time, instance" in link
+    assert "by bucket=bin(start_time,1m)" in link
+    assert "app_401=count() by instance" not in link
+    assert "| project Message" not in link and "| project Url" not in link
     for _, start, end in module.WINDOWS:
         each_link = module.queries(start, end)["startup_401_link"]
         assert start in each_link and end in each_link

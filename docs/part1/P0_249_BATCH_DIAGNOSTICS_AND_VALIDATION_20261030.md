@@ -17,3 +17,9 @@ Real acceptance sequencing, with explicit operator approval: (a) resolve actual 
 ## Tracking for coordinator
 
 Both sub-tasks are **SOURCE PROPOSED** pending this PR's exact-head tests, review, merge and postmerge CI. The Azure ingress→HTTP scale-group→worker causal trace is **BLOCKED** on platform-side evidence `AZURE_INTERNAL_TRACE_REQUIRED`; the ROOT-gated signed live canary remains **BLOCKED** on human review/dependent merged PRs. Do not mark a source proposal as integrated DONE.
+
+## Follow-up batched fix: temporal incident evidence and public telemetry safety
+
+- The prior startup-versus-auth401 indicator joined **all** 401 responses on a host-instance over the entire incident window; a 401 *before* worker startup or many minutes afterward falsely implied nearby readiness. Restrict aggregate evidence to the same instance and at most 120 seconds **after** each worker start using Kusto datetime comparisons, and deduplicate per instance/start timestamp before counting. This is still *not* ingress→worker per-request causal proof and never establishes a fixed original 503.
+- Historical telemetry redaction now allows only numeric finite nonnegative bounded metrics, bounded nonnegative integer event counts, exact UTC timestamp shapes on the fixed investigation date, trusted status categories and boolean dependency success. Never print a malicious timestamp suffix or NaN/Infinity as if valid JSON. Preserve all fixed DEV scopes and no-cloud-write boundaries.
+- Offline negative checks cover the temporal join guard, timestamp smuggling, nonfinite numbers, true/false dependency receipt and metric whitelists. Scope remains source-only awaiting exact-head four-job CI, coordinator review/merge and fresh main four-job CI.
