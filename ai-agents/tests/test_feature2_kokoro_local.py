@@ -289,10 +289,28 @@ def test_pinned_model_file_symlink_swap_during_open_fails_closed(tmp_path,monkey
 def test_cpu_benchmark_denies_forged_wav_or_authority_receipts(corrupt):
     # No real model/weights, network or billed provider calls in this test.
     def fake(**kwargs):
-        record=synthesize_local(
-            text=kwargs["text"],voice_id=kwargs["voice_id"],
-            lang=kwargs["lang"],speed=kwargs["speed"],
-            engine=SimulatedEngine(),trusted_for_tests=True)
+        # Pure standard-library PCM fixture: never skip critical negative
+        # guards because optional NumPy/neural runtime is absent in CI.
+        from ai_agents.feature2_kokoro_local import SOURCE_REVISION
+        stream=io.BytesIO()
+        with wave.open(stream,"wb") as recording:
+            recording.setnchannels(1)
+            recording.setsampwidth(2)
+            recording.setframerate(24000)
+            recording.writeframes(b"\\x00\\x10"*24000)
+        pcm=stream.getvalue()
+        record={
+            "schema":"retailgrowth.feature2-kokoro-original-audio.v1",
+            "provider":"kokoro-onnx","model":"Kokoro-82M-v1.0-int8",
+            "upstream_revision":SOURCE_REVISION,
+            "voice_id":kwargs["voice_id"],"language":kwargs["lang"],
+            "sample_rate_hz":24000,"paid_calls":0,
+            "approved_to_publish":False,"speech_transcript_verified":False,
+            "word_timestamps":None,
+            "test_only":True,"actual_inference_verified":False,
+            "audio_wav":pcm,"audio_sha256":sha256(pcm).hexdigest(),
+            "duration_seconds":1.0,
+        }
         if corrupt=="riff_only":
             record["audio_wav"]=b"RIFF"+b"\x00"*4+b"WAVE"+b"\x00"*36
             record["audio_sha256"]=sha256(record["audio_wav"]).hexdigest()
@@ -309,3 +327,32 @@ def test_cpu_benchmark_denies_forged_wav_or_authority_receipts(corrupt):
         run_cpu_kokoro_benchmark(
             cache_dir="/synthetic-test-cache",repeats=1,
             synthesize=fake,trusted_for_tests=True)
+
+
+def test_benchmark_pcm_integrity_positive_without_numpy_or_model_weights():
+    from ai_agents.feature2_kokoro_local import SOURCE_REVISION
+    def pure_stdlib_pcm(**kwargs):
+        stream=io.BytesIO()
+        with wave.open(stream,"wb") as recording:
+            recording.setnchannels(1)
+            recording.setsampwidth(2)
+            recording.setframerate(24000)
+            recording.writeframes(b"\x00\x10"*24000)
+        pcm=stream.getvalue()
+        return {"schema":"retailgrowth.feature2-kokoro-original-audio.v1",
+                "provider":"kokoro-onnx","model":"Kokoro-82M-v1.0-int8",
+                "upstream_revision":SOURCE_REVISION,
+                "voice_id":kwargs["voice_id"],"language":kwargs["lang"],
+                "sample_rate_hz":24000,"paid_calls":0,
+                "approved_to_publish":False,"speech_transcript_verified":False,
+                "word_timestamps":None,
+                "test_only":True,"actual_inference_verified":False,
+                "audio_wav":pcm,"audio_sha256":sha256(pcm).hexdigest(),
+                "duration_seconds":1.0}
+    outcome=run_cpu_kokoro_benchmark(
+        cache_dir="/nonexistent-operator-cache-not-read",
+        repeats=1,synthesize=pure_stdlib_pcm,trusted_for_tests=True)
+    assert outcome["sample_count"]==1
+    assert outcome["observations"][0]["audio_seconds"]==1.0
+    assert outcome["test_only"] and not outcome["real_model_inference_verified"]
+    assert not outcome["can_publish"]
