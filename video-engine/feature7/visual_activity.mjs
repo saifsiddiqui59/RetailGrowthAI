@@ -5,39 +5,11 @@
  * often intentional, so freeze detection must NEVER auto-discard frames.
  */
 import {spawnSync} from 'node:child_process';
-import fs from 'node:fs';
-import nodePath from 'node:path';
 import {EditValidationError} from './autobroll_semantics.mjs';
+import {verifiedLocalMp4Path} from './local_mp4_guard.mjs';
 
 const check=(ok,msg)=>{if(!ok)throw new EditValidationError(msg);};
 const validNumber=(value,max)=>Number.isFinite(value)&&value>=0&&value<=max;
-
-/**
- * Only inspect an existing, ordinary, local MP4 file. FFmpeg recognizes
- * protocols beyond HTTP (concat:, pipe:, ftp:, etc.) and may otherwise
- * dereference playlists or remote sources from a seemingly local request.
- * The caller must still supply an immutable, rights-checked private snapshot.
- */
-function privateLocalMp4(sourcePath){
-  check(typeof sourcePath==='string' && sourcePath.length<=4096 &&
-    nodePath.isAbsolute(sourcePath),'Absolute private MP4 path required');
-  const before=fs.lstatSync(sourcePath);
-  check(before.isFile() && !before.isSymbolicLink() && before.size>12,
-    'Private visual QA requires a regular MP4, not a link');
-  const fd=fs.openSync(sourcePath,
-    fs.constants.O_RDONLY|(fs.constants.O_NOFOLLOW??0));
-  try{
-    const current=fs.fstatSync(fd);
-    check(current.isFile() && current.dev===before.dev &&
-      current.ino===before.ino && current.size===before.size,
-    'Private visual QA source changed before inspection');
-    const signature=Buffer.alloc(8);
-    check(fs.readSync(fd,signature,0,8,0)===8 &&
-      signature.toString('ascii',4,8)==='ftyp',
-    'Private visual QA requires MP4 bytes');
-  }finally{fs.closeSync(fd);}
-  return fs.realpathSync(sourcePath);
-}
 
 function readIntervals(log,pattern,duration_seconds,maxEvents=32) {
   const ranges=[];
@@ -79,7 +51,7 @@ export function analyzeLocalVisualActivity({path,duration_seconds,timeout_ms=450
     validNumber(duration_seconds,600)&&duration_seconds>=.5 &&
     Number.isInteger(timeout_ms)&&timeout_ms>=1000&&timeout_ms<=60000,
   'Invalid private visual QA source');
-  const source=privateLocalMp4(path);
+  const source=verifiedLocalMp4Path(path,EditValidationError);
   const args=['-hide_banner','-nostdin','-v','info','-threads','1',
     '-protocol_whitelist','file,pipe','-f','mp4',
     '-i',source,'-map','0:v:0','-an','-vf',
@@ -140,7 +112,7 @@ export function analyzeLocalSceneChangesCPU({
     Number.isFinite(threshold)&&threshold>=.08&&threshold<=.6&&
     Number.isInteger(timeout_ms)&&timeout_ms>=1000&&timeout_ms<=60000,
     'Invalid local scene-change request');
-  const source=privateLocalMp4(path);
+  const source=verifiedLocalMp4Path(path,EditValidationError);
   const args=['-hide_banner','-nostdin','-v','info','-threads','1',
     '-protocol_whitelist','file,pipe','-f','mp4',
     '-i',source,'-map','0:v:0','-an','-vf',
