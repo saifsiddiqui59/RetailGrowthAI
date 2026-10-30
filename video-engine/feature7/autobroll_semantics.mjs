@@ -272,7 +272,9 @@ export function proposeUploadedFootageEdits(input) {
 
 // CLI for isolated offline fixtures. No external media paths, credentials or renderer.
 // stdin JSON -> stdout review-only JSON. Do not pass through an HTTP route.
-if (process.argv[1] && import.meta.url === new URL('file://' + process.argv[1]).href) {
+// Browser import is allowed; CLI-only Node globals must not be dereferenced.
+if (typeof process !== 'undefined' && process.argv?.[1] &&
+    import.meta.url === new URL('file://' + process.argv[1]).href) {
   let body='';
   for await (const chunk of process.stdin) {
     body+=chunk;
