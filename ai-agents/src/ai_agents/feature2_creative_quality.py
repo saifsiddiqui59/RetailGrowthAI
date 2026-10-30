@@ -501,12 +501,19 @@ def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
             raise Feature2TraceDenied("Bounded private A/B review history unavailable")
         return rows
     rows=source()
+    # A private history reader may return the same mutable list on both reads.
+    # Freeze the first observation before independent receipt verification: a
+    # signer/reader callback must not mutate that shared object unnoticed.
+    initial_snapshot=deepcopy(rows)
     result=[]
+    seen_receipts=set()
+    baseline_candidates=None
     for i,item in enumerate(rows,1):
         if (type(item) is not dict or item.get("shop_id")!=shop_id or
             item.get("campaign_id")!=campaign_id or
             item.get("experiment_id")!=experiment_id or
-            item.get("revision")!=i or
+            type(item.get("revision")) is not int or
+            item["revision"]!=i or
             item.get("review_status")!="HUMAN_SCORE_ONLY" or
             item.get("private") is not True or
             item.get("can_publish") is not False or
@@ -517,15 +524,27 @@ def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
             set(item["candidate_digests"])!={"A","B"} or
             any(type(v) is not str or not _TRACE_SHA.fullmatch(v)
                 for v in item["candidate_digests"].values()) or
+            item["candidate_digests"]["A"]==item["candidate_digests"]["B"] or
+            item["receipt_digest"] in seen_receipts or
             type(item.get("human_scores")) is not dict or
             set(item["human_scores"])!={"A","B"} or
             any(type(v) not in (float,int) or not 0<=v<=100
                 for v in item["human_scores"].values())):
             raise Feature2TraceDenied("Private A/B score revision invalid")
+        # An experiment's blinded A/B assignments are immutable across score
+        # revisions. A signed receipt for a different candidate pair (or a
+        # swapped A/B label) must not silently rewrite historical comparisons.
+        if baseline_candidates is None:
+            baseline_candidates=dict(item["candidate_digests"])
+        elif item["candidate_digests"]!=baseline_candidates:
+            raise Feature2TraceDenied("Private A/B experiment candidates changed")
         if verify_signed_history_receipt(
             shop_id,campaign_id,experiment_id,i,
             item["receipt_digest"],item["candidate_digests"]) is not True:
             raise Feature2TraceDenied("Missing independent signed A/B history proof")
+        # A and B must identify different candidate bytes; a revision cannot
+        # replay an earlier signed score receipt as fresh editorial evidence.
+        seen_receipts.add(item["receipt_digest"])
         result.append({"revision":i,"candidate_digests":dict(item["candidate_digests"]),
                        "receipt_digest":item["receipt_digest"],
                        "human_scores":dict(item["human_scores"]),
@@ -533,7 +552,7 @@ def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
                        "can_publish":False})
     # A revoked role or changed receipt chain between validation and read must
     # not leak even a summary of historical human preferences.
-    if source()!=rows:
+    if source()!=initial_snapshot or rows!=initial_snapshot:
         raise Feature2TraceDenied("Private A/B review history changed mid-read")
     return {"schema":"retailgrowth.feature2-private-blind-review-history.v1",
             "experiment_id":experiment_id,"records":result,
