@@ -8,7 +8,8 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "video-engine"))
-from feature4_edited_export_qa import EditorExportProofError, verify_mock_editor_output
+from feature4_edited_export_qa import (EditorExportProofError, verify_mock_editor_output,
+                                       verify_mock_editor_duplicate_output)
 import feature4_edited_export_qa as qa
 
 
@@ -59,6 +60,45 @@ class EncodedEditorParityTests(unittest.TestCase):
         self.profile["seconds"] = 29.0
         with self.assertRaisesRegex(EditorExportProofError, "30s"):
             self.prove()
+
+    def test_duplicate_encoded_restart_requires_two_matching_moving_frames(self):
+        a, b = bytes([20])*9216, bytes([70])*9216
+        with patch.object(qa, "inspect_mp4", return_value=self.profile), \
+             patch.object(qa, "_frame", side_effect=[a, b, a, b]):
+            proof = verify_mock_editor_duplicate_output(self.file)
+        self.assertEqual(proof["timeline_starts_seconds"], [0, 10, 15, 20])
+        self.assertEqual(proof["source_video_inpoints_seconds"], [0, 0])
+        self.assertEqual(proof["repeat_frame_deltas"], [0, 0])
+        self.assertFalse(proof["exact_inpoint_frame_verified"])
+        self.assertFalse(proof["commercial_release_eligible"])
+
+    def test_duplicate_replay_and_frozen_source_are_rejected(self):
+        a, b = bytes([20])*9216, bytes([70])*9216
+        c = bytes([40])*9216
+        for frames in ([a, b, c, b], [a, b, a, c],
+                       [a, a, a, a], [a, b, b, a]):
+            with self.subTest(frames=[x[0] for x in frames]), \
+                 patch.object(qa, "inspect_mp4", return_value=self.profile), \
+                 patch.object(qa, "_frame", side_effect=frames), \
+                 self.assertRaises(EditorExportProofError):
+                verify_mock_editor_duplicate_output(self.file)
+
+    def test_duplicate_wrong_duration_and_source_mutation_denied(self):
+        a, b = bytes([20])*9216, bytes([70])*9216
+        self.profile["seconds"] = 31
+        with patch.object(qa, "inspect_mp4", return_value=self.profile), \
+             self.assertRaisesRegex(EditorExportProofError, "30s"):
+            verify_mock_editor_duplicate_output(self.file)
+        self.profile["seconds"] = 30
+        def tamper(src, at):
+            if at == 17.0:
+                with self.file.open("ab") as out:
+                    out.write(b"tamper")
+            return a if at in (12.0, 17.0) else b
+        with patch.object(qa, "inspect_mp4", return_value=self.profile), \
+             patch.object(qa, "_frame", side_effect=tamper), \
+             self.assertRaisesRegex(EditorExportProofError, "changed"):
+            verify_mock_editor_duplicate_output(self.file)
 
     def test_nonvideo_and_symlink_source_denied(self):
         with self.assertRaises(EditorExportProofError):
