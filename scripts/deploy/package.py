@@ -50,6 +50,20 @@ def verify_runtime_agent_imports(entries: dict[str, bytes]):
         # Include all Azure HTTP/queue, poster/video workers and packaged
         # agents, not just currently enabled Feature2 routes.
         tree = ast.parse(payload, filename=name)
+        # Imported aliases are the only trusted names for importlib calls.
+        # A similarly named method on an arbitrary object is not importlib.
+        importlib_modules = {
+            alias.asname or alias.name
+            for node in ast.walk(tree) if isinstance(node, ast.Import)
+            for alias in node.names if alias.name == "importlib"
+        }
+        import_module_names = {
+            alias.asname or alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom) and node.level == 0
+            and node.module == "importlib"
+            for alias in node.names if alias.name == "import_module"
+        }
         for node in ast.walk(tree):
             required = set()
             if isinstance(node, ast.Import):
@@ -69,9 +83,13 @@ def verify_runtime_agent_imports(entries: dict[str, bytes]):
                         required.update(a.name for a in node.names
                                         if a.name in known_modules)
             elif (isinstance(node, ast.Call) and
-                  isinstance(node.func, ast.Attribute) and
-                  node.func.attr == "import_module" and node.args and
-                  isinstance(node.args[0], ast.Constant) and
+                  ((isinstance(node.func, ast.Attribute) and
+                    node.func.attr == "import_module" and
+                    isinstance(node.func.value, ast.Name) and
+                    node.func.value.id in importlib_modules) or
+                   (isinstance(node.func, ast.Name) and
+                    node.func.id in import_module_names)) and
+                  node.args and isinstance(node.args[0], ast.Constant) and
                   isinstance(node.args[0].value, str) and
                   node.args[0].value.startswith("ai_agents.")):
                 required.add(node.args[0].value.split(".")[1])
