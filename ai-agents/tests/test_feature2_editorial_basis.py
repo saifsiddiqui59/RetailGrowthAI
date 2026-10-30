@@ -461,3 +461,43 @@ def test_normal_indic_combining_marks_remain_allowed_for_manual_review():
     assert report["can_publish"] is False
     assert report["review_required"] is True
     assert "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED" not in report["issues"]
+
+
+# Existing F2-04 offline regression cases reconciled from source PRs #780/#801.
+# Signed test fixtures are not live trend or publishing approval.
+def test_trend_ranking_denies_source_revoked_after_initial_provenance():
+    reads={}
+    def source_grant(shop,item,digest,published):
+        reads[item]=reads.get(item,0)+1
+        return item!="rss_kurti_2026" or reads[item]==1
+    with pytest.raises(EditorialBasisRejected,match="revoked during ranking"):
+        ranked(verified=source_grant)
+    assert reads.get("rss_kurti_2026")==2
+
+
+@pytest.mark.parametrize("bad_item",[
+    "<item><guid></guid><title>Festive cotton kurti collection</title>"
+    "<pubDate>Wed, 28 Oct 2026 11:00:00 GMT</pubDate></item>",
+    "<item><guid><b>duplicate</b></guid><title>Festive cotton kurti collection</title>"
+    "<pubDate>Wed, 28 Oct 2026 11:00:00 GMT</pubDate></item>",
+])
+def test_signed_rss_present_invalid_guid_denied_not_silently_rekeyed(bad_item):
+    xml=('<?xml version="1.0"?><rss version="2.0"><channel>'+
+         bad_item+'</channel></rss>').encode()
+    with pytest.raises(EditorialBasisRejected,match="Malformed signed RSS GUID"):
+        rank_xml(xml)
+
+
+@pytest.mark.parametrize("second_title",[
+    "Festive cotton kurti collection trends for Diwali",
+    "FESTIVE COTTON KURTI COLLECTION TRENDS FOR DIWALI",
+    "Festive  cotton   kurti collection trends for Diwali",
+])
+def test_signed_rss_distinct_guids_cannot_duplicate_same_headline(second_title):
+    xml = rss_xml(items=[
+        ("guid_first", "Festive cotton kurti collection trends for Diwali",
+         "Wed, 28 Oct 2026 11:00:00 GMT"),
+        ("guid_second", second_title, "Wed, 28 Oct 2026 10:00:00 GMT"),
+    ])
+    with pytest.raises(EditorialBasisRejected, match="Duplicated RSS headline"):
+        rank_xml(xml)
