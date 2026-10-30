@@ -147,8 +147,8 @@ def test_private_mp3_intake_preserves_both_original_digests_and_ignores_rights_c
         assert receipt["review_state"]=="PENDING_RIGHTS_AND_SPEECH_REVIEW"
         assert receipt["original_media_rights_verified"] is False
         events.append(1)
-        return {"asset_id":str(uuid4()),"shop_id":shop,
-                "campaign_id":campaign,
+        return {"asset_id":str(uuid4()),"derived_wav_asset_id":str(uuid4()),
+                "shop_id":shop,"campaign_id":campaign,
                 "original_mp3_sha256":receipt["original_mp3_sha256"],
                 "derived_wav_sha256":receipt["derived_wav_sha256"],
                 "review_state":"PENDING_RIGHTS_AND_SPEECH_REVIEW",
@@ -189,3 +189,44 @@ def test_mp3_private_decode_fails_closed_before_writer_on_forgery_and_revocation
             read_authoritative_plan=lambda *a:creative(),
             store_both_private_pending=lambda *a:writes.append(a))
     assert len(calls)==2 and writes==[]
+
+
+@pytest.mark.parametrize("derived_asset_id", [None, "foreign", "same"])
+def test_private_mp3_registration_requires_distinct_derived_wav_identity(
+    monkeypatch, derived_asset_id
+):
+    # Offline fixture: test registration semantics without needing FFmpeg or
+    # implying genuine speech/rights/model verification.
+    from ai_agents import feature2_voiceover_upload as upload
+    original = b"ID3" + b"x" * 128
+    derived = wav()
+    monkeypatch.setattr(upload, "decode_unreviewed_mp3_to_private_wav",
+        lambda **kwargs: {
+            "original_mp3_sha256": sha256(original).hexdigest(),
+            "derived_wav_sha256": sha256(derived).hexdigest(),
+            "derived_wav": derived, "duration_seconds": 2.0,
+        })
+    original_id = str(uuid4())
+    calls = []
+    def writer(shop, campaign, original_bytes, derived_bytes, receipt):
+        calls.append(1)
+        return {
+            "asset_id": original_id,
+            "derived_wav_asset_id": (
+                original_id if derived_asset_id == "same" else derived_asset_id
+            ),
+            "shop_id": shop, "campaign_id": campaign,
+            "original_mp3_sha256": receipt["original_mp3_sha256"],
+            "derived_wav_sha256": receipt["derived_wav_sha256"],
+            "review_state": "PENDING_RIGHTS_AND_SPEECH_REVIEW",
+            "private": True,
+        }
+    with pytest.raises(VoiceUploadRejected, match="not registered"):
+        upload.accept_unreviewed_mp3(
+            shop_id=SHOP, campaign_id=CID, plan=creative(),
+            original_mp3=original, operator_ffmpeg_path="/unused/offline/fixture",
+            authenticated_editor=lambda *a: True,
+            read_authoritative_plan=lambda *a: creative(),
+            store_both_private_pending=writer,
+        )
+    assert calls == [1]
