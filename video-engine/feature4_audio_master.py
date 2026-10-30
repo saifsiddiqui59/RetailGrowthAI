@@ -147,10 +147,23 @@ def main():
         proof=_private_report_path(Path(args.report))
         report=master_private_audio(Path(args.source),Path(args.output),
                                     expected_seconds=args.duration)
+        proof_identity=None
         try:
             with proof.open("x",encoding="utf-8") as stream:
+                st=os.fstat(stream.fileno())
+                proof_identity=(st.st_dev,st.st_ino)
                 stream.write(json.dumps(report,indent=2)+"\n")
         except OSError as exc:
+            # Remove an incomplete receipt only when it is still our own
+            # exclusive file, not a symlink or a replacement by another writer.
+            if proof_identity is not None:
+                try:
+                    st=proof.lstat()
+                    if (not proof.is_symlink() and
+                            (st.st_dev,st.st_ino)==proof_identity):
+                        proof.unlink()
+                except OSError:
+                    pass
             # An exclusively created MP4 is not usable without its matching
             # private proof. Remove only our exact output bytes; never delete
             # a symlink or a different file that appeared after mastering.
