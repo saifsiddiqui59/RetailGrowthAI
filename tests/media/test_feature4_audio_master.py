@@ -129,6 +129,44 @@ class Feature4MasterTests(unittest.TestCase):
                     self.assertEqual(self.output.read_bytes(),b"other-process-output")
                 self.assertFalse(proof.exists())
 
+    def test_partial_proof_write_failure_removes_owned_receipt_and_output(self):
+        proof=self.root/"partial.json"
+        original_open=Path.open
+        payload=b"synthetic-private-master"
+        class FailingProof:
+            def __init__(self,stream):
+                self.stream=stream
+            def __enter__(self):
+                return self
+            def __exit__(self,*_args):
+                self.stream.close()
+            def fileno(self):
+                return self.stream.fileno()
+            def write(self,_value):
+                self.stream.write("{")
+                self.stream.flush()
+                raise OSError("simulated partial proof write")
+        def fake_open(path,*args,**kwargs):
+            stream=original_open(path,*args,**kwargs)
+            if path==proof and args and args[0]=="x":
+                return FailingProof(stream)
+            return stream
+        def fake_master(*_args,**_kwargs):
+            self.output.write_bytes(payload)
+            return {"master_sha256":hashlib.sha256(payload).hexdigest(),
+                    "status":"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED"}
+        argv=["feature4_audio_master.py","--source",str(self.source),
+              "--output",str(self.output),"--duration","15",
+              "--report",str(proof)]
+        with patch.object(sys,"argv",argv), patch.object(
+                audio_master,"master_private_audio",side_effect=fake_master), patch.object(
+                audio_master.Path,"open",new=fake_open):
+            with self.assertRaises(SystemExit) as caught:
+                audio_master.main()
+        self.assertEqual(caught.exception.code,2)
+        self.assertFalse(proof.exists())
+        self.assertFalse(self.output.exists())
+
     def test_proof_preflight_rejects_symlink_parent_and_non_json(self):
         private=self.root/"private"
         private.mkdir()
