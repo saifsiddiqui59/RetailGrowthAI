@@ -48,7 +48,7 @@ export function mountFeature4({shop,approved,seedCompletedRender=false,seedOwner
 
 
 // Isolated read-only beat-lane harness; no hidden server/media rights shortcuts.
-export function mountFeature4BeatLane({shop, authorized=true,approvedDirection=false}) {
+export function mountFeature4BeatLane({shop, authorized=true,approvedDirection=false,fps=24}) {
   const holder=document.createElement('div')
   holder.id='feature4-beat-lane-e2e'
   document.getElementById('root')?.setAttribute('hidden','')
@@ -59,7 +59,7 @@ export function mountFeature4BeatLane({shop, authorized=true,approvedDirection=f
   }))
   const draft={
     version:'rg_video_v2',shop_id:shop,mode:'music_sync',template:'cinematic',
-    duration_seconds:15,output:{width:540,height:960,fps:24},scenes,
+    duration_seconds:15,output:{width:540,height:960,fps},scenes,
     cta:'Stock editorial sample',music_asset_id:'music01',voiceover_asset_id:null,
     beats:[1,3.5,7.125,10.5],
   }
