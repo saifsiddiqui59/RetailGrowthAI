@@ -274,3 +274,21 @@ def test_cpu_benchmark_requires_complete_pcm_wav_not_just_riff_magic(tamper):
     with pytest.raises(LocalSpeechUnavailable,match="Benchmark WAV"):
         run_cpu_kokoro_benchmark(cache_dir="/synthetic-only",repeats=1,
             synthesize=forged,trusted_for_tests=True)
+
+
+@pytest.mark.parametrize("bad",[
+    {"voice_id":[]},{"voice_id":{}},{"lang":[]},{"lang":None},
+    {"speed":[]},{"speed":{}},{"speed":True},
+])
+def test_kokoro_invalid_nonstring_inputs_fail_closed_without_model_calls(bad):
+    class NeverCalled:
+        def create(self,*args,**kwargs):
+            raise AssertionError("Untrusted voice input reached CPU inference")
+    with pytest.raises(LocalSpeechUnavailable,match="Unsupported"):
+        synthesize_local(text="Safe fictional retailer script",
+            engine=NeverCalled(),trusted_for_tests=True,**bad)
+
+
+def test_missing_operator_model_cache_fails_closed_with_stable_error(tmp_path):
+    with pytest.raises(LocalSpeechUnavailable,match="Trusted speech cache required"):
+        verify_cache(tmp_path/"does-not-exist")
