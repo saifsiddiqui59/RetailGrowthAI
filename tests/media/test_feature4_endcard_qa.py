@@ -1,5 +1,6 @@
 """Actual FFmpeg pixel acceptance of the 60s stock endcard, never text OCR."""
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -108,6 +109,29 @@ class StockEndcardTests(unittest.TestCase):
             with self.assertRaisesRegex(EndcardProofError,"mutated"):
                 verify_stock_endcard(self.video,self.provenance)
         self.assertTrue(modified[0])
+
+    def test_byte_identical_inode_swap_during_ffmpeg_frame_checks_is_denied(self):
+        # SHA alone cannot see an atomic replacement containing identical
+        # bytes. Decode a real 60s H264/AAC fixture and change its pathname
+        # inode after the first actual encoded pixel sample.
+        self.video_fixture(changed=True)
+        authorized_bytes = self.video.read_bytes()
+        original_pixels = feature4_endcard_qa._pixels
+        mutated = [False]
+        def replace_after_first_real_decode(src, at):
+            frame = original_pixels(src, at)
+            if not mutated[0]:
+                mutated[0] = True
+                candidate = self.root / "new-inode-same-original.mp4"
+                candidate.write_bytes(authorized_bytes)
+                os.replace(candidate, self.video)
+            return frame
+        with patch.object(feature4_endcard_qa, "_pixels",
+                          side_effect=replace_after_first_real_decode):
+            with self.assertRaisesRegex(EndcardProofError, "mutated"):
+                verify_stock_endcard(self.video, self.provenance)
+        self.assertTrue(mutated[0])
+        self.assertEqual(self.video.read_bytes(), authorized_bytes)
 
     def test_untrusted_symlink_or_missing_video_denied(self):
         with self.assertRaises(EndcardProofError):

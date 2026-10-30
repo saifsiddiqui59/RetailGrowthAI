@@ -9,25 +9,17 @@ any tenant. Run on the PRIVATE original render before audio mastering.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import math
 from pathlib import Path
 import subprocess
 
 from feature4_private_preview import inspect_mp4, PreviewExportError
+from feature4_encoded_motion_qa import _stable_source, MotionProofError
 
 
 class EndcardProofError(ValueError):
     pass
-
-
-def _sha(path):
-    digest = hashlib.sha256()
-    with Path(path).open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def _pixels(path, at):
@@ -101,12 +93,18 @@ def verify_stock_endcard(source: Path, provenance: Path):
     if (abs(media["seconds"] - 60) > .45
             or (media["width"], media["height"]) not in ((540, 960), (1080, 1920))):
         raise EndcardProofError("Unexpected encoded source profile")
-    source_sha = _sha(source)
+    try:
+        source_identity, source_sha = _stable_source(source)
+    except MotionProofError as exc:
+        raise EndcardProofError("Source video mutated or unsafe before endcard proof") from exc
     before = _pixels(source, 53.0)
     middle = _pixels(source, 57.5)
     tail = _pixels(source, 59.3)
-    if _sha(source) != source_sha:
-        raise EndcardProofError("Source video mutated during endcard pixel verification")
+    try:
+        if _stable_source(source) != (source_identity, source_sha):
+            raise EndcardProofError("Source video mutated during endcard pixel verification")
+    except MotionProofError as exc:
+        raise EndcardProofError("Source video mutated during endcard pixel verification") from exc
     visual_change = _difference(before, middle)
     endcard_stability = _difference(middle, tail)
     # Full-screen card must no longer look like the previously repeated rack.
