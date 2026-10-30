@@ -1,0 +1,13 @@
+# Feature #7 run checkpoint — 2026-10-30
+
+- **Task:** F7-G (negative validation); source-only music-ducking advisory hardening. Also supports F7-06 Feature4 review-only audio contract.
+- **Base:** `feat/feature7-uploaded-footage-semantics-20261028` (parent draft PR #513). Do not merge this child before the parent is integrated/reconciled.
+- **Branch:** `feat/feature7-music-duck-source-safety-20261030`.
+- **Draft PR:** [#846](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/846).
+- **Code/test commit:** `58e625dffec973b56128d36d6e6323f5034cb39f` (preceded by code commit `c196f8673687e40bbf01163127ab6f33f7068a1b`).
+- **Files changed:** `video-engine/feature7/speech_music_handoff.mjs` and `tests/media/test_feature7_music_ducking.py`. Reject Unicode bidirectional controls, NUL/control characters, malformed UTF-16, oversized text and unsafe integer source clocks before generating non-executable music ducking intervals. Test cases include malformed speech and valid Hindi text.
+- **Verification:** Source and test files committed to GitHub. Isolated Node 22 regex smoke **passed** for Hindi, bidi controls, newline, lone surrogate and valid emoji; this is **not** the full source-module or Python test suite. Full targeted tests **not run** in this chat environment (repository not mounted; outbound GitHub raw access unavailable). GitHub connector returned no PR-triggered runs or combined statuses for checkpoint head `072d3166702bb700735ffd007fd7a1e3c5ddfcfa` at inspection; this is **not proof of CI failure or success**. Required exact-final-head four-job GitHub CI **pending independent inspection**; do not claim green from a previous commit. No real ASR, audio mixing, paid inference or customer rights tested.
+- **Status:** SOURCE CHANGE COMMITTED / NOT TESTED ON EXACT FINAL HEAD / DRAFT / NOT INTEGRATED. Coordinator-owned central task registry and main unchanged.
+- **Blockers:** F7-16 / DEP-F7-16, coordinator: authenticated JWT/RLS private MP4 registration and tenant quotas; acceptance real same-shop/foreign/revoked checks. F7-19/20 / DEP-F7-19/20, Feature4/coordinator: actual authenticated reviewer and original-audio-preserving Feature4 renderer; acceptance signed approval and real final media. None blocks this offline negative test.
+- **NEXT eligible task:** F7-04 — add bounded CPU-only worker failure/timeout regression, after checking recent PRs to avoid duplicate source work. If another worker owns it, inspect F7-03 real Chromium reviewer QA or F7-06 contract tests instead. Never count the source-only change as integrated DONE.
+- **Global safety:** GPU OFF; no paid model, DEV/PROD mutation, shared coordinator files or WineShopPOS changes.
