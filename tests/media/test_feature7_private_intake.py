@@ -19,9 +19,15 @@ import {stagePrivateFootageCPU}
  from './video-engine/feature7/private_intake_cpu.mjs';
 const p=JSON.parse(fs.readFileSync(0,'utf8'));
 const a=p.authorization;
+const change=p.recheck_change;
 delete p.authorization;
+delete p.recheck_change;
+let reads=0;
 const result=stagePrivateFootageCPU({...p,
- getCurrentIntakeAuthorization:()=>a});
+ getCurrentIntakeAuthorization:()=>{
+   reads++;
+   return reads===2 && change ? {...a,...change} : {...a};
+ }});
 process.stdout.write(JSON.stringify(result));
 """
 
@@ -107,6 +113,38 @@ class Feature7CpuPrivateIntakeTests(unittest.TestCase):
                 result=self.js(p)
                 self.assertNotEqual(result.returncode,0,result.stdout)
                 self.assertFalse((self.root/'shop-a'/('bad-'+label+'.mp4')).exists())
+
+    def test_mid_staging_rights_revocation_role_and_revision_denied(self):
+        # The second authorization read happens AFTER real FFprobe validation.
+        # A fabricated grant is not a hosted JWT/RLS test; this is the local
+        # source-level revocation fence only.
+        cases=[
+          ('revoked',{'active_membership':False}),
+          ('viewer',{'role':'VIEWER'}),
+          ('rights',{'video_rights_declared':False}),
+          ('foreign',{'shop_id':'other-shop'}),
+          ('quota',{'max_bytes':100}),
+          ('revision',{'registry_revision':8})
+        ]
+        for label,change in cases:
+            with self.subTest(label=label):
+                asset='mid-'+label
+                p=self.payload(asset)
+                p['authorization']['registry_revision']=7
+                p['recheck_change']=change
+                result=self.js(p)
+                self.assertNotEqual(result.returncode,0,result.stdout)
+                self.assertEqual(result.stdout,'')
+                self.assertFalse((self.root/'shop-a'/(asset+'.mp4')).exists())
+                self.assertEqual(list((self.root/'shop-a').glob('*.tmp')),[])
+
+    def test_stable_registry_revision_allows_private_unapproved_staging(self):
+        p=self.payload('stable-recheck')
+        p['authorization']['registry_revision']=7
+        result=self.js(p)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertFalse(json.loads(result.stdout)['approved'])
+        self.assertTrue((self.root/'shop-a/stable-recheck.mp4').is_file())
 
     def test_bad_hash_symlink_and_malformed_video_fail_closed(self):
         p=self.payload('wrong-hash')
