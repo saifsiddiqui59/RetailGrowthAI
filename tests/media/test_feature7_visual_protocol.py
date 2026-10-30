@@ -103,5 +103,16 @@ class Feature7VisualProtocolTests(unittest.TestCase):
                     self.assertNotEqual(run.returncode, 0, run.stdout)
 
 
+    def test_oversized_sparse_mp4_is_rejected_before_ffmpeg(self):
+        oversized = self.home / 'oversized.mp4'
+        oversized.write_bytes(b'0000ftyp')
+        with oversized.open('r+b') as stream:
+            stream.truncate(128 * 1024 * 1024 + 1)
+        for mode in ('visual', 'scene', 'audio'):
+            with self.subTest(mode=mode):
+                run = self.invoke(oversized, mode)
+                self.assertNotEqual(run.returncode, 0, run.stdout)
+
+
 if __name__ == '__main__':
     unittest.main()
