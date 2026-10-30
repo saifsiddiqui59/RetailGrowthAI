@@ -224,7 +224,7 @@ class WorkerHandoffTests(unittest.TestCase):
             ("object_path", SHOP + "/"),
             ("object_path", SHOP + "/."),
             ("object_path", SHOP + "/images/./product.png"),
-            ("object_path", SHOP + "/images/bad\\nname.png"),
+            ("object_path", SHOP + "/images/bad\nname.png"),
             ("license_name", "unspecified"),
             ("rights_evidence", ""), ("mime_type", "text/html"),
             ("approved", False), ("source_feature", "feature5"),
