@@ -168,6 +168,25 @@ class Feature4MasterTests(unittest.TestCase):
         self.assertFalse(proof.exists())
         self.assertFalse(self.output.exists())
 
+    def test_proof_fsync_failure_invalidates_receipt_and_output(self):
+        proof=self.root/"fsync-fail.json"
+        payload=b"synthetic-private-master"
+        def fake_master(*_args,**_kwargs):
+            self.output.write_bytes(payload)
+            return {"master_sha256":hashlib.sha256(payload).hexdigest(),
+                    "status":"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED"}
+        argv=["feature4_audio_master.py","--source",str(self.source),
+              "--output",str(self.output),"--duration","15",
+              "--report",str(proof)]
+        with patch.object(sys,"argv",argv), patch.object(
+                audio_master,"master_private_audio",side_effect=fake_master), patch.object(
+                audio_master.os,"fsync",side_effect=OSError("simulated durability failure")):
+            with self.assertRaises(SystemExit) as caught:
+                audio_master.main()
+        self.assertEqual(caught.exception.code,2)
+        self.assertFalse(proof.exists())
+        self.assertFalse(self.output.exists())
+
     def test_proof_receipt_owner_only_even_under_permissive_umask(self):
         proof=self.root/"owner-only.json"
         payload=b"synthetic-private-master"
