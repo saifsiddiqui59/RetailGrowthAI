@@ -20,7 +20,7 @@ class NativeMediaRunnerContracts(unittest.TestCase):
             top_level_dir=str(ci_native_media.ROOT / "tests" / "ai"),
         )
         names = ci_native_media._test_names(suite)
-        self.assertEqual(len(names), 3)
+        self.assertEqual(len(names), 4)
         self.assertEqual(set(names), ci_native_media.REQUIRED_TEST_METHODS)
 
     def test_missing_ffmpeg_must_fail_instead_of_skip(self):
@@ -30,8 +30,8 @@ class NativeMediaRunnerContracts(unittest.TestCase):
                    side_effect=RuntimeError("ffprobe unavailable")):
             self.assertEqual(ci_native_media.main([]), 2)
 
-    def test_success_requires_three_executed_and_no_skips(self):
-        def completed(*, tests_run=3, skipped=None, successful=True,
+    def test_success_requires_four_executed_and_no_skips(self):
+        def completed(*, tests_run=4, skipped=None, successful=True,
                       expected_failures=None, unexpected_successes=None):
             return SimpleNamespace(
                 testsRun=tests_run, skipped=skipped or [],
@@ -45,9 +45,9 @@ class NativeMediaRunnerContracts(unittest.TestCase):
                    return_value=True):
             with patch("feature5_motion.ci_native_media.unittest.TextTestRunner") as runner:
                 runner.return_value.run.return_value = completed()
-                self.assertEqual(ci_native_media.run_cpu_media_suite(), 3)
+                self.assertEqual(ci_native_media.run_cpu_media_suite(), 4)
                 for invalid in (
-                    completed(tests_run=2),
+                    completed(tests_run=3),
                     completed(skipped=[("test", "ffmpeg absent")]),
                     completed(successful=False),
                     completed(expected_failures=[("test", "expected failure")]),
@@ -59,7 +59,7 @@ class NativeMediaRunnerContracts(unittest.TestCase):
                         ci_native_media.run_cpu_media_suite()
 
     def test_entrypoint_never_claims_source_only_green_as_model_inference(self):
-        with patch("feature5_motion.ci_native_media.run_cpu_media_suite", return_value=3):
+        with patch("feature5_motion.ci_native_media.run_cpu_media_suite", return_value=4):
             self.assertEqual(ci_native_media.main([]), 0)
 
 

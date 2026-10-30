@@ -1,7 +1,7 @@
 """Feature5 real-CPU native media test runner for existing FFmpeg CI job.
 
 Deliberately FAILS rather than skips if FFmpeg, ffprobe, Pillow or any of
-the three required F5 tests are unavailable. No GPU, ComfyUI, cloud, model
+the four required F5 tests are unavailable. No GPU, ComfyUI, cloud, model
 download, Azure, hosted Postgres, or customer media operations occur here.
 
 Coordinator-owned FFmpeg workflow (already has FFmpeg + Pillow) can run:
@@ -22,6 +22,7 @@ REQUIRED_TEST_METHODS = frozenset({
     "test_real_nonstatic_native_mp4_is_only_pending_not_ai_or_approved",
     "test_real_static_native_mp4_is_rejected_by_motion_screening",
     "test_real_native_shaped_mp4_with_audio_is_denied_before_screening",
+    "test_real_single_flash_only_is_rejected_not_motion",
 })
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -61,7 +62,7 @@ def validate_media_environment(*, find_executable=shutil.which, python=sys.execu
 
 
 def run_cpu_media_suite(*, stream=None):
-    """Actual unittest execution, exactly three required tests, zero skips."""
+    """Actual unittest execution, exactly four required tests, zero skips."""
     validate_media_environment()
     tests_dir = ROOT / "tests" / "ai"
     if not tests_dir.is_dir() or not (tests_dir / REQUIRED_TEST_MODULE).is_file():
@@ -72,17 +73,17 @@ def run_cpu_media_suite(*, stream=None):
         top_level_dir=str(tests_dir),
     )
     names = _test_names(suite)
-    if len(names) != 3 or set(names) != REQUIRED_TEST_METHODS:
+    if len(names) != 4 or set(names) != REQUIRED_TEST_METHODS:
         raise RuntimeError("Unexpected or incomplete native media acceptance tests")
     result = unittest.TextTestRunner(
         stream=stream or sys.stderr,
         verbosity=2,
         failfast=False,
     ).run(suite)
-    if (result.testsRun != 3 or not result.wasSuccessful() or result.skipped or
+    if (result.testsRun != 4 or not result.wasSuccessful() or result.skipped or
         result.expectedFailures or result.unexpectedSuccesses):
         raise RuntimeError(
-            "Native CPU media CI gate DENIED: all three tests must actually PASS; "
+            "Native CPU media CI gate DENIED: all four tests must actually PASS; "
             "failed or skipped media is not acceptance"
         )
     return result.testsRun
@@ -90,7 +91,7 @@ def run_cpu_media_suite(*, stream=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        description="GPU-off native MP4 acceptance gate: actual FFmpeg, 3 tests, zero skips")
+        description="GPU-off native MP4 acceptance gate: actual FFmpeg, 4 tests, zero skips")
     parser.parse_args(argv)
     try:
         count = run_cpu_media_suite()
@@ -98,7 +99,7 @@ def main(argv=None):
         print("Feature5 real native-CPU media CI gate FAILED: " + str(exc), file=sys.stderr)
         return 2
     print(
-        f"Feature5 real native-CPU media CI gate PASS: {count}/3 actual "
+        f"Feature5 real native-CPU media CI gate PASS: {count}/4 actual "
         "FFmpeg/ffprobe private-intake tests; 0 skipped; "
         "NOT genuine Wan inference or signed human approval"
     )

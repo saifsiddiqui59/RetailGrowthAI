@@ -38,9 +38,11 @@ def private_root(root):
     return subdir / "feature5_00001_.mp4"
 
 
-def encode_native_synthetic(target, *, moving=True, extra_audio=False):
+def encode_native_synthetic(target, *, moving=True, extra_audio=False, flash_only=False):
     """Produce exactly 121 frames at native Wan-shaped profile, CPU-only."""
     target = Path(target)
+    if flash_only and moving:
+        raise ValueError("A flash-only source must use a stationary background")
     signal = ("testsrc2=size=704x1280:rate=24"
               if moving else "color=c=navy:s=704x1280:r=24")
     cmd = [
@@ -49,6 +51,12 @@ def encode_native_synthetic(target, *, moving=True, extra_audio=False):
     ]
     if extra_audio:
         cmd += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono"]
+    if flash_only:
+        # One brief white flash at the middle probe timestamp, not actual
+        # motion. Real FFmpeg sample deltas should be [0, high, high, 0].
+        cmd += ["-vf",
+                "drawbox=x=0:y=0:w=iw:h=ih:color=white:t=fill:"
+                "enable=between(t\\,2.35\\,2.65)"]
     cmd += [
         "-frames:v", "121", "-c:v", "libx264", "-threads", "2",
         "-preset", "ultrafast", "-pix_fmt", "yuv420p",
@@ -121,6 +129,32 @@ class WanPrivateCPURealMediaTests(unittest.TestCase):
             self.assertEqual(screening.decision, "OBVIOUSLY_STATIC_REJECTED")
             self.assertFalse(screening.approved_for_feature4)
             self.assertFalse(screening.garment_fidelity_approved)
+            with self.assertRaisesRegex(WanCompatibilityError, "static"):
+                inspect_single_private_wan_output(
+                    shot=shot, private_output_root=td,
+                    job_id=str(uuid4()), attempt_token=str(uuid4()),
+                    verify_existing_fenced_output_scope=lambda *_: True,
+                    ffprobe=FFPROBE, ffmpeg=FFMPEG,
+                )
+
+    def test_real_single_flash_only_is_rejected_not_motion(self):
+        # This case used to pass under the former max(difference) rule.
+        # Genuine 121-frame FFmpeg H264 with one flash cannot imply motion.
+        shot = synthetic_package()
+        with TemporaryDirectory(prefix="f5-real-flash-only-") as td:
+            clip = encode_native_synthetic(
+                private_root(td), moving=False, flash_only=True)
+            inspection = inspect_native_mp4(
+                shot, staged_file=clip, ffprobe=FFPROBE)
+            screen = screen_motion_frames(
+                clip_path=clip, inspected=inspection, ffmpeg=FFMPEG)
+            self.assertEqual((inspection.fps, inspection.frames), (24, 121))
+            self.assertEqual(screen.decision, "OBVIOUSLY_STATIC_REJECTED")
+            self.assertEqual(
+                sum(d > 0.5 for d in screen.adjacent_luma_difference), 2)
+            self.assertGreater(max(screen.adjacent_luma_difference), 100)
+            self.assertFalse(screen.garment_fidelity_approved)
+            self.assertFalse(screen.approved_for_feature4)
             with self.assertRaisesRegex(WanCompatibilityError, "static"):
                 inspect_single_private_wan_output(
                     shot=shot, private_output_root=td,

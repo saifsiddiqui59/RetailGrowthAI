@@ -19,6 +19,9 @@ from .wan22_motion_adapter import WanCompatibilityError
 
 SMALL_FRAME = (176, 320)
 TIMES = ("0.25", "1.25", "2.50", "3.75", "4.90")
+# A single flash/cut is NOT persuasive motion in a 5-second output.
+# Require motion in at least 3 of the 4 sampled time intervals.
+MIN_ACTIVE_INTERVALS = 3
 
 
 @dataclass(frozen=True)
@@ -36,9 +39,11 @@ def screen_motion_frames(*, clip_path, inspected: NativeClipInspection,
                          ffmpeg="ffmpeg", static_threshold=0.5):
     """Stage no images: read five bounded RGB samples, in memory only.
 
-    A static/color-identical AI output is REJECTED for motion review.
-    Passing this probe means only NOT OBVIOUSLY FROZEN; human approval
-    remains mandatory for identities, garment, motion, anatomy and claims.
+    Static, flash-only, or mostly-frozen AI output is REJECTED.
+    One bright frame or scene cut must not transform an otherwise frozen
+    clip into a plausible native motion candidate. Passing this *screen*
+    does not establish continuous motion, authenticity, garment fidelity,
+    human visual acceptance or permission for Feature4/publishing.
     """
     if (not isinstance(inspected, NativeClipInspection) or
         inspected.width != 704 or inspected.height != 1280 or
@@ -96,7 +101,8 @@ def screen_motion_frames(*, clip_path, inspected: NativeClipInspection,
         round(ImageStat.Stat(ImageChops.difference(a,b).convert("L")).mean[0],3)
         for a,b in zip(frames,frames[1:])
     )
+    active_intervals = sum(diff > static_threshold for diff in differences)
     state=("OBVIOUSLY_STATIC_REJECTED" if
-           max(differences)<=static_threshold else
+           active_intervals < MIN_ACTIVE_INTERVALS else
            "NONSTATIC_AWAITING_HUMAN_VISUAL_REVIEW")
     return FrameScreening(state,TIMES,tuple(fingerprints),differences)

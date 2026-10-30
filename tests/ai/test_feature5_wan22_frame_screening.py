@@ -58,6 +58,53 @@ class OfflineFrameScreeningTest(unittest.TestCase):
             self.assertEqual(result.decision,"OBVIOUSLY_STATIC_REJECTED")
             self.assertFalse(result.approved_for_feature4)
 
+    def test_flash_only_sampled_video_rejected_as_mostly_frozen(self):
+        # Actual RGB sample bytes are synthetic. FFmpeg is a mocked decoder,
+        # never actual Wan footage or model output.
+        with TemporaryDirectory() as td:
+            clip = Path(td) / "original.mp4"
+            clip.write_bytes(b"TEST-ONLY-F5-FLASH-ARTIFACT")
+            px = SMALL_FRAME[0] * SMALL_FRAME[1]
+            for levels, expected_active in (
+                ([0, 0, 230, 0, 0], 2),  # single flash: bright then dark
+                ([0, 0, 0, 230, 230], 1),  # abrupt cut then frozen
+                ([0, 70, 70, 70, 150], 2),  # motion only at ends
+            ):
+                frames = [bytes((v, v, v)) * px for v in levels]
+                with self.subTest(levels=levels), patch(
+                        "feature5_motion.wan22_frame_screening.subprocess.run",
+                        side_effect=[SimpleNamespace(stdout=x) for x in frames]) as runner:
+                    result = screen_motion_frames(
+                        clip_path=clip, inspected=inspected_for(clip))
+                self.assertEqual(runner.call_count, 5)
+                self.assertEqual(result.decision, "OBVIOUSLY_STATIC_REJECTED")
+                self.assertEqual(
+                    sum(x > 0.5 for x in result.adjacent_luma_difference),
+                    expected_active)
+                self.assertTrue(result.human_visual_review_required)
+                self.assertFalse(result.approved_for_feature4)
+
+    def test_three_active_intervals_can_only_reach_human_review(self):
+        with TemporaryDirectory() as td:
+            clip = Path(td) / "original.mp4"
+            clip.write_bytes(b"TEST-ONLY-F5-THREE-MOTION-INTERVALS")
+            px = SMALL_FRAME[0] * SMALL_FRAME[1]
+            levels = (0, 40, 80, 140, 140)
+            frames = [bytes((v, v, v)) * px for v in levels]
+            with patch(
+                    "feature5_motion.wan22_frame_screening.subprocess.run",
+                    side_effect=[SimpleNamespace(stdout=x) for x in frames]) as runner:
+                result = screen_motion_frames(
+                    clip_path=clip, inspected=inspected_for(clip))
+            self.assertEqual(runner.call_count, 5)
+            self.assertEqual(
+                sum(x > 0.5 for x in result.adjacent_luma_difference), 3)
+            self.assertEqual(result.decision,
+                             "NONSTATIC_AWAITING_HUMAN_VISUAL_REVIEW")
+            self.assertTrue(result.human_visual_review_required)
+            self.assertFalse(result.garment_fidelity_approved)
+            self.assertFalse(result.approved_for_feature4)
+
     def test_swap_between_sampled_timestamps_is_rejected(self):
         with TemporaryDirectory() as td:
             clip=Path(td)/"original.mp4"
