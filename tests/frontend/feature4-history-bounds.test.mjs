@@ -40,14 +40,14 @@ test('F4-09: invalid/unbounded custom history limits fail to bounded defaults', 
   assert.equal(limited.past.length, 2)
 })
 
-test('F4-09: no-op edits preserve redo; a genuine new edit clears it', () => {
+test('F4-09: upstream history branching clears redo even for a same-reference edit', () => {
   const first = { frame: 0 }
   const second = { frame: 1 }
   const history = pushEditorHistory(createEditorHistory(first), second)
   const undone = undoEditorHistory(history).history
-  assert.equal(pushEditorHistory(undone, first), undone)
   assert.equal(redoEditorHistory(undone).value, second)
-  const branch = pushEditorHistory(undone, { frame: 2 })
+  const branch = pushEditorHistory(undone, first)
+  assert.equal(branch.current, first)
   assert.equal(branch.future.length, 0)
   assert.equal(redoEditorHistory(branch).changed, false)
   assert.equal(history.current, second)
