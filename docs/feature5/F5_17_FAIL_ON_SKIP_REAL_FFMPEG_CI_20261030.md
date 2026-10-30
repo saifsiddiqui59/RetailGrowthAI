@@ -32,3 +32,18 @@ python3 -m feature5_motion.ci_native_media
 No new workflow/job/provider, no new sample video uploads or approval bypass is needed. This command fails on missing tools, skips, changed tests and actual decoder/private-intake errors. Verify its log prints `PASS: 4/4 actual FFmpeg/ffprobe private-intake tests; 0 skipped` and independently confirm **all four jobs green on the updated exact PR head**. These four real decoded-video checks are required, not the Python mocked gate tests or previous FFmpeg smoke. Coordinator owns global CI workflow files, so Feature5 worker **did not edit .github/workflows/**.
 
 This only advances **F5-17 source testing**. Genuine commercially licensed Wan2.2 5s model output, approved private input/licence rights, durable native Part3 claims, operator budget and signed human fashion QA are still missing. F5-17 remains BLOCKED, not released. Original ledger remains **0 integrated DONE / 3 IN PROGRESS / 19 BLOCKED / 22 total**. PR #781 remains source-review-ready; coordinator owns its integration into #465, remaining stack and eventual main with fresh CI.
+
+## 2026-10-30 — Verified real FFmpeg CPU private intake in existing CI
+
+**Actual execution proof, not mocks:** PR #781 exact head `8783fc172d3b58be9070b5593071dcf60dfb9650`; [Actions #41115123091](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41115123091), **FFmpeg/video job #124267216516 SUCCESS**. The job's native logs show the new `test_four_real_cpu_ffmpeg_private_intake_cases_not_skipped` bridge discovered by `video-engine/ci.sh`, and each nested real-FFmpeg private-intake test concluded `... ok`:
+
+- `test_real_native_shaped_mp4_with_audio_is_denied_before_screening`
+- `test_real_nonstatic_native_mp4_is_only_pending_not_ai_or_approved`
+- `test_real_single_flash_only_is_rejected_not_motion`
+- `test_real_static_native_mp4_is_rejected_by_motion_screening`
+
+Log: `Ran 4 tests in 4.267s`; `Feature5 native media CI gate PASS: 4/4 real ffmpeg/ffprobe private-intake tests, 0 skipped. No Wan inference or approval.`
+
+These four checks **actually executed** against the Feature5 private-intake source using disposable synthetic test signals. This closes the former *CI test-skipped* blocker. The Python/uv job still may skip its duplicate FFmpeg tests because its worker does not install FFmpeg; that is acceptable because the separate required FFmpeg job now executes every case with zero skipped.
+
+**Limit:** F5-17 original production acceptance still BLOCKED on authentic 5s Wan2.2 video with authorized model/source rights and independently signed human garment/likeness review. Source test integration is not release integration. This is a new one-file bridge under historically media-owned `tests/media`, so coordinator/media owner must review before merging the ready PR #781 into parent #465. Do not additionally invoke the same four tests in the workflow; that would duplicate CI latency. **At the point of writing this evidence, standard current-head 4/4 run completion remains pending**; inspect entire Actions result and update handoff. GPU OFF, no paid inference, Azure/SQL/PROD, customer media, or WineShopPOS.
