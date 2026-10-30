@@ -507,6 +507,7 @@ def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
     initial_snapshot=deepcopy(rows)
     result=[]
     seen_receipts=set()
+    baseline_candidates=None
     for i,item in enumerate(rows,1):
         if (type(item) is not dict or item.get("shop_id")!=shop_id or
             item.get("campaign_id")!=campaign_id or
@@ -530,6 +531,13 @@ def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
             any(type(v) not in (float,int) or not 0<=v<=100
                 for v in item["human_scores"].values())):
             raise Feature2TraceDenied("Private A/B score revision invalid")
+        # An experiment's blinded A/B assignments are immutable across score
+        # revisions. A signed receipt for a different candidate pair (or a
+        # swapped A/B label) must not silently rewrite historical comparisons.
+        if baseline_candidates is None:
+            baseline_candidates=dict(item["candidate_digests"])
+        elif item["candidate_digests"]!=baseline_candidates:
+            raise Feature2TraceDenied("Private A/B experiment candidates changed")
         if verify_signed_history_receipt(
             shop_id,campaign_id,experiment_id,i,
             item["receipt_digest"],item["candidate_digests"]) is not True:
