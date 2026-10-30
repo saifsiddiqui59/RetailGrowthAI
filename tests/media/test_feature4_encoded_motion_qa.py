@@ -1,13 +1,16 @@
 """Actually encoded MP4 motion verification cannot be bypassed by frozen video."""
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/"video-engine"))
 from feature4_encoded_motion_qa import verify_moving_scenes, MotionProofError
+import feature4_encoded_motion_qa as motion
 
 class EncodedMotionTests(unittest.TestCase):
     def setUp(self):
@@ -44,6 +47,47 @@ class EncodedMotionTests(unittest.TestCase):
         self.movie.write_bytes(b"fake encoded sample"*500)
         with self.assertRaises(MotionProofError):
             verify_moving_scenes(self.movie,seconds=15,scene_starts=[0])
+
+    def test_motion_original_bytes_and_inode_stable_during_sampling(self):
+        self.encode(moving=True)
+        authorized_bytes = self.movie.read_bytes()
+        actual = motion._frame
+        for variant in ("append", "same-content-atomic-swap"):
+            with self.subTest(variant=variant):
+                self.movie.write_bytes(authorized_bytes)
+                touched = [False]
+                def change_source_after_real_decode(path, at):
+                    result = actual(path, at)
+                    if not touched[0]:
+                        touched[0] = True
+                        if variant == "append":
+                            with self.movie.open("ab") as stream:
+                                stream.write(b"unauthorized-suffix")
+                        else:
+                            replacement = self.root / "different-inode.mp4"
+                            replacement.write_bytes(authorized_bytes)
+                            os.replace(replacement, self.movie)
+                    return result
+                with patch.object(motion, "_frame",
+                                  side_effect=change_source_after_real_decode):
+                    with self.assertRaisesRegex(MotionProofError, "source changed"):
+                        verify_moving_scenes(
+                            self.movie, seconds=15, scene_starts=[0,5,10])
+                self.assertTrue(touched[0])
+
+    def test_invalid_nan_motion_threshold_and_cross_scene_probes_rejected(self):
+        for kwargs in (
+            {"threshold": float("nan")},
+            {"threshold": float("inf")},
+            {"sample_offset": float("nan")},
+            {"separation": float("nan")},
+            {"sample_offset": True},
+            {"scene_starts": [0, 1, 10]},
+        ):
+            params = {"seconds": 15, "scene_starts": [0,5,10]}
+            params.update(kwargs)
+            with self.subTest(kwargs=kwargs), self.assertRaises(MotionProofError):
+                verify_moving_scenes(self.movie, **params)
 
     def test_forged_scene_offsets_rejected(self):
         for starts in ([-1], [20], [5,5], [float("nan")], [],list(range(11))):
