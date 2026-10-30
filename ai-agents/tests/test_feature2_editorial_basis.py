@@ -370,3 +370,36 @@ def test_delivery_and_bogo_claims_are_reviewer_flags_without_source_approval(una
         copy=candidate_copy(caption=unapproved))
     assert "UNVERIFIED_URGENCY_OR_TREND" in report["issues"]
     assert report["can_publish"] is False
+
+
+@pytest.mark.parametrize("unapproved", [
+    "Fifty percent off every kurti",
+    "Ninety per cent off all items",
+    "One hundred percent off your next order",
+    "Twenty-five percent off selected scarves",
+    "50％ off all products",
+    "९०% off every kurti",
+    "20% off selected kurti styles; fifty percent off all dresses",
+])
+def test_written_out_and_unicode_discount_claims_cannot_bypass_offer_scope(unapproved):
+    report = inspect_retailer_copy_claims(
+        verified_context=copy_context(),
+        copy=candidate_copy(caption=unapproved),
+    )
+    assert "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED" in report["issues"]
+    assert report["review_required"] and not report["can_publish"]
+
+
+def test_exact_approved_written_out_offer_remains_review_only():
+    context = copy_context()
+    context["approved_offers"][0]["approved_claim_text"] = (
+        "Fifty percent off selected scarves"
+    )
+    report = inspect_retailer_copy_claims(
+        verified_context=context,
+        copy=candidate_copy(caption="Fifty percent off selected scarves"),
+    )
+    assert report["issues"] == []
+    assert report["customer_editor_approval_required"]
+    assert not report["commercial_fact_certified"]
+    assert not report["can_publish"]
