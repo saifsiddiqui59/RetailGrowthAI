@@ -173,6 +173,35 @@ test('approved direction still permits keyboard preview jogging without editing'
  await expect(page.getByRole('button',{name:'Split video at playhead'})).toBeDisabled()
 })
 
+test('30fps read-only timeline jogging clamps at both ends without mutating draft',async({page})=>{
+ await page.setViewportSize({width:390,height:844})
+ await page.goto('/')
+ await page.evaluate(async()=>{
+   const {mountFeature4BeatLane}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
+   mountFeature4BeatLane({shop:'11111111-1111-4111-8111-111111111111',
+     approvedDirection:true,fps:30})
+ })
+ const tracks=page.getByRole('region',{name:'Scrollable video tracks'})
+ const timecode=page.getByRole('textbox',{name:'Playhead timecode'})
+ await tracks.focus()
+ await page.keyboard.press('ArrowLeft')
+ await expect(timecode).toHaveValue('00:00:00:00')
+ await timecode.fill('00:00:14:29')
+ await timecode.press('Enter')
+ await expect(timecode).toHaveValue('00:00:14:29')
+ await tracks.focus()
+ await page.keyboard.press('ArrowRight')
+ await expect(timecode).toHaveValue('00:00:15:00')
+ await page.keyboard.press('ArrowRight')
+ await expect(timecode).toHaveValue('00:00:15:00')
+ await page.keyboard.press('ArrowLeft')
+ await expect(timecode).toHaveValue('00:00:14:29')
+ await page.keyboard.press('Shift+ArrowLeft')
+ await expect(timecode).toHaveValue('00:00:14:19')
+ await expect(page.getByRole('button',{name:'Undo timeline edit'})).toBeDisabled()
+ await expect(page.getByRole('button',{name:'Split video at playhead'})).toBeDisabled()
+})
+
 test('editing after a successful render hides stale signed MP4 rather than displaying old footage',async({page})=>{
   await page.route('https://example.invalid/**',route=>route.abort())
   await page.goto('/')
