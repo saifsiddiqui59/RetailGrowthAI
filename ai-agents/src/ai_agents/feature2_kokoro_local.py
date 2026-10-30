@@ -63,7 +63,10 @@ def verify_cache(cache_dir, *, model_sha=MODEL_SHA, voice_sha=VOICES_SHA,
     """
     if not isinstance(cache_dir,(str,Path)) or not str(cache_dir):
         raise LocalSpeechUnavailable("Trusted speech cache required")
-    root=Path(cache_dir).resolve(strict=True)
+    try:
+        root=Path(cache_dir).resolve(strict=True)
+    except (OSError,ValueError,RuntimeError) as exc:
+        raise LocalSpeechUnavailable("Trusted speech cache required") from exc
     if not root.is_dir():
         raise LocalSpeechUnavailable("Trusted speech cache required")
     _file_proof(root/MODEL_NAME,MODEL_NAME,model_size,model_sha)
@@ -137,6 +140,7 @@ def synthesize_local(*,text,voice_id="af_heart",lang="en-us",
     """
     if (type(text) is not str or not _TEXT.fullmatch(text.strip()) or
         len(text.strip())>1400 or type(voice_id) is not str or
+        type(lang) is not str or type(speed) is not str or
         SUPPORTED_VOICES.get(voice_id)!=lang or speed not in SPEEDS):
         raise LocalSpeechUnavailable("Unsupported text/voice/language/speed")
     if engine is not None and trusted_for_tests is not True:
