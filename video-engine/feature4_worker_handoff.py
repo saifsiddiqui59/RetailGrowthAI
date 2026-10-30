@@ -86,8 +86,10 @@ def _bundle(job, source):
             raise Feature4HandoffError("Missing verified commercial rights or MIME")
         key = row["object_path"]
         if (type(key) is not str or not key.startswith(sid + "/")
-                or ".." in key.split("/") or "\\" in key or "//" in key
-                or "://" in key or len(key) > 1000):
+                or ".." in key.split("/") or "." in key.split("/")
+                or "\\" in key or "//" in key or key.endswith("/")
+                or "://" in key or len(key) > 1000
+                or any(ord(char) < 32 or ord(char) == 127 for char in key)):
             raise Feature4HandoffError("Media storage path escapes tenant")
         # Use enumeration-generated filenames: no untrusted object keys in local path.
         rel = "in" + str(len(assets)).zfill(2) + suffix
