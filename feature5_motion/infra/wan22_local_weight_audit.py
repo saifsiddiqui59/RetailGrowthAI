@@ -17,6 +17,7 @@ import stat
 from pathlib import Path, PurePosixPath
 
 from feature5_motion.shared_model_mount import EXPECTED, PreflightError, validate_manifest
+from feature5_motion.infra.wan22_source_audit import parse_reviewed_json
 
 WAN_FILES = tuple(sorted(k for k in EXPECTED if k.startswith("feature5/")))
 CHUNK = 1024 * 1024
@@ -117,7 +118,7 @@ def main(argv=None):
     try:
         proof=audit_full_wan_model_bytes(
             mounted_share_root=args.mounted_share,
-            trusted_private_manifest=json.loads(manifest_file.read_text(encoding="utf-8")))
+            trusted_private_manifest=parse_reviewed_json(manifest_file.read_text(encoding="utf-8")))
     except (PreflightError,ValueError,OSError,UnicodeError) as exc:
         parser.error("Wan real local checkpoint audit DENIED: "+str(exc))
     print(json.dumps(proof,sort_keys=True))
