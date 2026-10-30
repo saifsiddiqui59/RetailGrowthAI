@@ -1,5 +1,6 @@
 """Stock full-minute standalone CPU acceptance script is safe and well formed."""
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 SCRIPT=Path(__file__).resolve().parents[2]/"video-engine/feature4_stock_minute_acceptance.sh"
@@ -22,3 +23,36 @@ class MinuteRunnerContractTests(unittest.TestCase):
             p=subprocess.run(["bash",str(SCRIPT),*args],capture_output=True,text=True,timeout=10)
             self.assertEqual(p.returncode,2)
             self.assertIn("Usage:",p.stderr)
+
+    def test_symlinked_parent_rejected_before_creating_private_output(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            real = root / "real"
+            real.mkdir()
+            (root / "redirect").symlink_to(real, target_is_directory=True)
+            output = root / "redirect" / "minute"
+            result = subprocess.run(
+                ["bash", str(SCRIPT), str(output)],
+                capture_output=True, text=True, timeout=10,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("Unsafe private output path", result.stderr)
+            self.assertFalse((real / "minute").exists())
+
+    def test_parent_traversal_and_missing_parent_rejected_before_render(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "safe").mkdir()
+            for output in (
+                str(root / "safe" / ".." / "escape"),
+                str(root / "missing" / "minute"),
+            ):
+                with self.subTest(output=output):
+                    result = subprocess.run(
+                        ["bash", str(SCRIPT), output],
+                        capture_output=True, text=True, timeout=10,
+                    )
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn("Unsafe private output path", result.stderr)
+            self.assertFalse((root / "escape").exists())
+            self.assertFalse((root / "missing").exists())
