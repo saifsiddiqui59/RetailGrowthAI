@@ -370,3 +370,26 @@ def test_signed_prompt_revision_rejects_hidden_control_before_private_cas():
     with pytest.raises(PromptRevisionRejected, match="Unsafe prompt revision"):
         run(improved_prompt=IMPROVED + "\u200b")
     assert writes == [] and decisions == []
+
+
+@pytest.mark.parametrize("bad_formats", [
+    [["instagram_caption"]],
+    [{"format": "instagram_caption"}],
+    [None],
+    [False],
+    ["instagram_caption", ["facebook_post"]],
+])
+def test_prompt_improver_rejects_unhashable_or_non_string_format_inputs(bad_formats):
+    with pytest.raises(ValueError, match="Unsupported or duplicate output format"):
+        improve_prompt(ORIGINAL, profile(), output_formats=bad_formats)
+
+
+@pytest.mark.parametrize("bad_locale", [
+    {"locale": "en-IN"},
+    ["en-IN"],
+    None,
+    False,
+])
+def test_prompt_improver_rejects_non_string_locale_without_type_error(bad_locale):
+    with pytest.raises(ValueError, match="Unsupported language"):
+        improve_prompt(ORIGINAL, profile(), output_formats=["instagram_caption"], language=bad_locale)
