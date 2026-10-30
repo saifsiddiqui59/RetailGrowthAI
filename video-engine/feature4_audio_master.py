@@ -170,6 +170,8 @@ def main():
                 st=os.fstat(stream.fileno())
                 proof_identity=(st.st_dev,st.st_ino)
                 stream.write(json.dumps(report,indent=2)+"\n")
+                stream.flush()
+                os.fsync(stream.fileno())  # Do not announce success before proof bytes are durable.
         except OSError as exc:
             # Remove an incomplete receipt only when it is still our own
             # exclusive file, not a symlink or a replacement by another writer.
