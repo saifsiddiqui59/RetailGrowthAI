@@ -29,6 +29,32 @@ MAX_TOTAL_BYTES = 1024 * 1024 * 1024
 class SourceAuditError(ValueError):
     """Input is missing, changed, extra, or not independently attested."""
 
+def parse_reviewed_json(raw):
+    """Fail closed on duplicate keys and non-finite values in reviewer manifests.
+
+    Python's default JSON parser silently takes the last duplicate key and
+    accepts NaN/Infinity. Neither is suitable for immutable build attestation.
+    """
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise SourceAuditError("Duplicate reviewed manifest JSON key")
+            result[key] = value
+        return result
+
+    def reject_constant(value):
+        raise SourceAuditError("Non-finite reviewed manifest JSON value")
+
+    try:
+        return json.loads(raw, object_pairs_hook=unique_object,
+                          parse_constant=reject_constant)
+    except SourceAuditError:
+        raise
+    except (ValueError, TypeError, RecursionError) as exc:
+        raise SourceAuditError("Invalid or ambiguous reviewed manifest JSON") from exc
+
+
 
 def _valid_path(name):
     if not isinstance(name, str) or len(name) > 400 or not name:
@@ -113,7 +139,7 @@ def main(argv=None):
     if path.is_symlink() or not path.is_file() or not 0 < path.stat().st_size <= MAX_MANIFEST_BYTES:
         parser.error("Missing, linked or oversized private reviewed source manifest")
     try:
-        manifest = json.loads(path.read_text(encoding="utf8"))
+        manifest = parse_reviewed_json(path.read_text(encoding="utf8"))
         proof = audit_complete_vendor_checkout(opts.source,reviewed_manifest=manifest)
     except (SourceAuditError,ValueError,UnicodeError,OSError) as exc:
         parser.error("ComfyUI source audit FAILED: "+str(exc))
