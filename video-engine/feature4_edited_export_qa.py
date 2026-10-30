@@ -5,7 +5,8 @@ Bounded CPU fixture with exact, frozen JS split/reorder edit layout:
 source-video, product-photo, trimmed source-video, offer-poster scene.
 Full video decoding (not HTML or mock proof) guards gross scene reorder,
 second-video inpoint replay, missing video clip and missing distinct images.
-Not an exact trim-frame correspondence proof or a commercial-quality gate.
+Additional near-cut interior probes reject scene-family delays, but do NOT
+certify exact transition frames, trim inpoints or commercial visual quality.
 """
 from __future__ import annotations
 import argparse
@@ -66,6 +67,14 @@ def verify_mock_editor_output(source: Path):
     first_video, first_photo, trimmed_video, offer_photo = [
         _frame(source, time) for time in at
     ]
+    # Probe within each segment on BOTH sides of the edited cuts, not just
+    # one frame per scene. One-second margins avoid confusing a legitimate
+    # fade/transition with a missing or delayed clip. This proves only broad
+    # scene-family parity, not frame-accurate trim or transition semantics.
+    boundary_at = (5.0, 13.0, 15.0, 21.0)
+    early_photo, late_photo, early_trimmed_video, early_offer = [
+        _frame(source, time) for time in boundary_at
+    ]
     if _sha(source) != source_digest:
         raise EditorExportProofError("Encoded MP4 changed during export QA sampling")
     video_pair = _luma_delta(first_video, trimmed_video)
@@ -80,8 +89,18 @@ def verify_mock_editor_output(source: Path):
     # The two video segments share footage, but the second is nonidentical
     # due to its reviewed 4s media in-point, not an exact identical replay.
     # Both product-photo scenes must remain distinct from each other and video.
+    boundary_photo_delta = max(_luma_delta(early_photo, first_photo),
+                               _luma_delta(late_photo, first_photo))
+    boundary_offer_delta = _luma_delta(early_offer, offer_photo)
+    boundary_video_separation = min(
+        _luma_delta(early_trimmed_video, first_photo),
+        _luma_delta(early_trimmed_video, offer_photo),
+    )
     if not (2.0 < video_pair < .65 * cross and
-            photo_pair >= 10.0 and cross >= 12.0):
+            photo_pair >= 10.0 and cross >= 12.0 and
+            boundary_photo_delta < .65 * photo_pair and
+            boundary_offer_delta < .65 * photo_pair and
+            boundary_video_separation >= .65 * cross):
         raise EditorExportProofError(
             "Actual encoded editor order/inpoint or image distinction regressed")
     return {
@@ -91,6 +110,12 @@ def verify_mock_editor_output(source: Path):
         "profile": "30s/540x960/H264/AAC",
         "timeline_starts_seconds": [0, 4, 14, 20],
         "pixel_times_seconds": list(at),
+        "boundary_probe_times_seconds": list(boundary_at),
+        "boundary_photo_max_delta": round(boundary_photo_delta, 3),
+        "boundary_offer_delta": round(boundary_offer_delta, 3),
+        "boundary_video_min_separation": round(boundary_video_separation, 3),
+        "boundary_scene_family_verified": True,
+        "exact_transition_frame_verified": False,
         "repeated_source_video_delta": round(video_pair, 3),
         "different_photo_scene_delta": round(photo_pair, 3),
         "minimum_video_vs_photo_delta": round(cross, 3),
