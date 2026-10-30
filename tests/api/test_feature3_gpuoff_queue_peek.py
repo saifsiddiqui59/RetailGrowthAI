@@ -63,7 +63,8 @@ class SafeQueuePeekTests(unittest.TestCase):
                       "gpu_enabled","paid_retry_authorized"):
             self.assertIs(result[field],False)
         self.assertNotIn(self.source,str(result))
-        self.assertEqual(self.plan.calls,[(self.shop,self.job)])
+        self.assertNotIn("source_snapshot_sha256",str(result))
+        self.assertEqual(self.plan.calls,[(self.shop,self.job)]*2)
         self.assert_no_mutation()
 
     def test_empty_queue_is_safe_but_never_treated_as_claimed(self):
@@ -124,6 +125,7 @@ class SafeQueuePeekTests(unittest.TestCase):
             {"preflight_checked":1},
             {"gpu_enabled":0},
             {"source_count":True},
+            {"source_snapshot_sha256":"Z"*64},
             {"queue_delivery_acknowledged":0},
             {"charged_usd":0},
         ):
@@ -160,6 +162,87 @@ class SafeQueuePeekTests(unittest.TestCase):
         with self.assertRaises(Feature3QueuePeekDenied):
             self.inspect.inspect_visible()
         delegate.inspect.assert_not_called()
+        self.assert_no_mutation()
+
+    def test_internal_source_checksum_never_exposes_raw_media_ids(self):
+        packet=self.intake.inspect(
+            encode_dispatch_envelope(self.shop,self.job))
+        self.assertEqual(len(packet["source_snapshot_sha256"]),64)
+        self.assertNotIn(self.source,str(packet))
+        result=self.inspect.inspect_visible()
+        self.assertNotIn("source_snapshot_sha256",str(result))
+        self.assertNotIn(self.source,str(result))
+        self.assert_no_mutation()
+
+    def test_revoked_rights_between_two_passes_denies_whole_peek(self):
+        original=self.plan.check
+        def revoke_after_first(shop,job):
+            packet=original(shop,job)
+            self.plan.revoked=True
+            return packet
+        self.plan.check=revoke_after_first
+        with self.assertRaises(Feature3QueuePeekDenied):
+            self.inspect.inspect_visible()
+        self.assertEqual(self.plan.calls,[(self.shop,self.job)]*2)
+        self.assert_no_mutation()
+
+    def test_source_revision_or_count_changing_at_final_pass_is_denied(self):
+        original=self.plan.check
+        for field in ("rights_revisions","source_asset_ids"):
+            self.setUp()
+            original=self.plan.check
+            count=[0]
+            def change_plan(shop,job):
+                count[0]+=1
+                packet=original(shop,job)
+                if count[0]==2:
+                    packet[field]=((3,) if field=="rights_revisions"
+                                   else (str(uuid4()),))
+                return packet
+            self.plan.check=change_plan
+            with self.subTest(field=field),self.assertRaises(
+                    Feature3QueuePeekDenied):
+                self.inspect.inspect_visible()
+            self.assertEqual(self.plan.calls,[(self.shop,self.job)]*2)
+            self.assert_no_mutation()
+
+    def test_forged_changed_final_preflight_receipt_is_denied(self):
+        original=self.intake
+        class ChangingDelegate:
+            def __init__(self):
+                self.calls=0
+            def require_gpu_off(self):
+                return original.require_gpu_off()
+            def inspect(self,raw):
+                self.calls+=1
+                result=original.inspect(raw)
+                if self.calls==2:
+                    return {**result,"source_count":2}
+                return result
+        modified=ChangingDelegate()
+        self.inspect=Feature3GPUOffAzureQueuePeek(
+            queue_client=self.queue,gpu_off_intake=modified)
+        with self.assertRaises(Feature3QueuePeekDenied):
+            self.inspect.inspect_visible()
+        self.assertEqual(modified.calls,2)
+        self.assertEqual(self.plan.calls,[(self.shop,self.job)]*2)
+        self.assert_no_mutation()
+
+    def test_gpu_enabling_after_first_preflight_fails_final_pass(self):
+        original=self.intake
+        class ChangingDelegate:
+            def require_gpu_off(self):
+                return original.require_gpu_off()
+            def inspect(self,raw):
+                receipt=original.inspect(raw)
+                self_outer.enabled=True
+                return receipt
+        self_outer=self
+        self.inspect=Feature3GPUOffAzureQueuePeek(
+            queue_client=self.queue,gpu_off_intake=ChangingDelegate())
+        with self.assertRaises(Feature3QueuePeekDenied):
+            self.inspect.inspect_visible()
+        self.assertEqual(self.plan.calls,[(self.shop,self.job)])
         self.assert_no_mutation()
 
     def test_transport_timeout_denies_instead_of_reporting_empty(self):
