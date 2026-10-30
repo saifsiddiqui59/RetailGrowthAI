@@ -258,12 +258,29 @@ class LocalApprovedEditDispatch:
 
         return self._transaction(claim)
 
+    @staticmethod
+    def _validate_lease(lease):
+        # A caller-provided token is not trusted merely because it is a
+        # frozen dataclass. Fail with a domain denial before SQL lookup.
+        if (not isinstance(lease, DispatchLease) or
+                type(lease.attempt) is not int or lease.attempt < 1 or
+                type(lease.expires_ms) is not int or lease.expires_ms <= 0 or
+                not all(isinstance(value, str) and value for value in (
+                    lease.dispatch_id, lease.idempotency_key, lease.fence,
+                    lease.shop_id, lease.campaign_id,
+                    lease.draft_sha256, lease.candidate_sha256))):
+            raise ReviewStateError("Invalid or missing worker lease")
+        return lease
+
     def _leased(self, row, ctx, lease, now):
         self._scope(row, ctx)
-        self._approval_live(row,now)
-        if (not isinstance(lease, DispatchLease) or
-                row["dispatch_id"] != lease.dispatch_id or
+        self._approval_live(row, now)
+        if (row["dispatch_id"] != lease.dispatch_id or
                 row["idempotency_key"] != lease.idempotency_key or
+                row["shop_id"] != lease.shop_id or
+                row["campaign_id"] != lease.campaign_id or
+                row["draft_sha256"] != lease.draft_sha256 or
+                row["candidate_sha256"] != lease.candidate_sha256 or
                 row["state"] != "LEASED" or
                 row["attempt"] != lease.attempt or
                 row["fence"] != lease.fence or
@@ -272,6 +289,7 @@ class LocalApprovedEditDispatch:
             raise ReviewStateError("Expired, foreign or stale worker fencing token")
 
     def heartbeat(self, *, context, lease, now_ms=None, lease_ms=LEASE_MS):
+        lease = self._validate_lease(lease)
         ctx = self._ctx(context)
         now = _clock(now_ms)
         if type(lease_ms) is not int or not 1000 <= lease_ms <= LEASE_MS:
@@ -294,6 +312,7 @@ class LocalApprovedEditDispatch:
         return self._transaction(extend)
 
     def finish(self, *, context, lease, result_sha256, now_ms=None):
+        lease = self._validate_lease(lease)
         ctx = self._ctx(context)
         now = _clock(now_ms)
         _digest(result_sha256, "private render result")
@@ -316,6 +335,7 @@ class LocalApprovedEditDispatch:
         return self._transaction(complete)
 
     def fail_and_retry(self, *, context, lease, now_ms=None, retry_delay_ms=1000):
+        lease = self._validate_lease(lease)
         ctx = self._ctx(context)
         now = _clock(now_ms)
         if type(retry_delay_ms) is not int or not 100 <= retry_delay_ms <= 60000:

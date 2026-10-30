@@ -5,6 +5,7 @@ local SQLite stand-in for coordinator-owned Postgres outbox + renderer side
 effect idempotency. No paid GPU, Azure, external APIs or media upload.
 """
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 import json
 import signal
@@ -72,6 +73,76 @@ class Feature7DispatchJournalTests(unittest.TestCase):
         with self.assertRaises(ReviewStateError):
             self.store.finish(context=ctx(),lease=lease,
               result_sha256=OUTPUT,now_ms=1400)
+
+
+    def test_all_lease_identity_fields_fenced_on_heartbeat_retry_and_ack(self):
+        job=self.stage()
+        lease=self.store.lease_next(context=ctx(),now_ms=1100,lease_ms=2000)
+        altered={
+          'shop_id':'foreign-shop','campaign_id':'foreign-campaign',
+          'draft_sha256':'e'*64,'candidate_sha256':'f'*64,
+          'idempotency_key':'f7job_wrong','dispatch_id':'f7d_unknown',
+          'fence':'a'*32,'expires_ms':lease.expires_ms+1,
+          'attempt':lease.attempt+1
+        }
+        for key,value in altered.items():
+            forged=replace(lease,**{key:value})
+            with self.subTest(field=key):
+                operations=(
+                  lambda:self.store.heartbeat(context=ctx(),lease=forged,
+                                               now_ms=1200,lease_ms=1000),
+                  lambda:self.store.fail_and_retry(context=ctx(),lease=forged,
+                                                    now_ms=1200),
+                  lambda:self.store.finish(context=ctx(),lease=forged,
+                                           result_sha256=OUTPUT,now_ms=1200))
+                for operation in operations:
+                    with self.assertRaises(ReviewStateError):
+                        operation()
+                self.assertEqual(self.store.inspect(
+                  context=ctx(),dispatch_id=job['dispatch_id'])['state'],'LEASED')
+        self.assertEqual(self.store.finish(context=ctx(),lease=lease,
+          result_sha256=OUTPUT,now_ms=1250)['state'],'SUCCEEDED')
+        self.assertIsNone(self.store.lease_next(context=ctx(),now_ms=5000))
+
+    def test_malformed_worker_lease_denied_without_changing_dispatch(self):
+        job=self.stage()
+        lease=self.store.lease_next(context=ctx(),now_ms=1100,lease_ms=2000)
+        invalid=(None,{},'not-a-lease',replace(lease,attempt=True),
+                 replace(lease,expires_ms='late'),
+                 replace(lease,fence=None))
+        for forged in invalid:
+            with self.subTest(forged=repr(forged)):
+                for method in (
+                  lambda:self.store.heartbeat(context=ctx(),lease=forged,
+                                               now_ms=1200),
+                  lambda:self.store.fail_and_retry(context=ctx(),lease=forged,
+                                                    now_ms=1200),
+                  lambda:self.store.finish(context=ctx(),lease=forged,
+                                           result_sha256=OUTPUT,now_ms=1200)):
+                    with self.assertRaises(ReviewStateError):
+                        method()
+        self.assertEqual(self.store.inspect(context=ctx(),
+          dispatch_id=job['dispatch_id'])['attempt'],1)
+        self.assertEqual(self.store.finish(context=ctx(),lease=lease,
+          result_sha256=OUTPUT,now_ms=1300)['state'],'SUCCEEDED')
+
+    def test_revoked_approval_blocks_heartbeat_retry_and_late_ack(self):
+        job=self.stage()
+        lease=self.store.lease_next(context=ctx(),now_ms=1100,lease_ms=2000)
+        self.reviews.revoke(review_id=job['review_id'],
+          context=ctx(),expected_revision=1)
+        for method in (
+          lambda:self.store.heartbeat(context=ctx(),lease=lease,now_ms=1200),
+          lambda:self.store.fail_and_retry(context=ctx(),lease=lease,now_ms=1200),
+          lambda:self.store.finish(context=ctx(),lease=lease,
+                                   result_sha256=OUTPUT,now_ms=1200)):
+            with self.assertRaises(ReviewStateError):
+                method()
+        self.assertIsNone(self.store.lease_next(context=ctx(),now_ms=1300))
+        self.assertEqual(self.store.inspect(context=ctx(),
+          dispatch_id=job['dispatch_id'])['state'],'REVOKED')
+        self.assertIsNone(self.store.reconcile_by_idempotency(
+          context=ctx(),idempotency_key=job['idempotency_key'])['result_sha256'])
 
     def test_crash_then_retry_reopens_with_new_attempt_and_fence(self):
         job=self.stage()
