@@ -77,6 +77,11 @@ def accept_unreviewed_wav(*,shop_id,campaign_id,plan,original_audio,
         not _uuid(result.get("asset_id")) or
         result.get("review_state")!="PENDING_RIGHTS_AND_SPEECH_REVIEW"):
         raise VoiceUploadRejected("Private original was not registered pending review")
+    # A private write callback may race with editor revocation or a new draft.
+    # A persisted PENDING object is not evidence of current access rights.
+    if (authenticated_editor(shop_id,campaign_id) is not True or
+        read_authoritative_plan(shop_id,campaign_id)!=plan):
+        raise VoiceUploadRejected("Source or membership revoked after private upload")
     return {**receipt,"asset_id":result["asset_id"],
             "private_download_url":None,"billing":"NONE"}
 
@@ -193,6 +198,11 @@ def accept_unreviewed_mp3(*,shop_id,campaign_id,plan,original_mp3,
         saved.get("review_state")!="PENDING_RIGHTS_AND_SPEECH_REVIEW" or
         saved.get("private") is not True):
         raise VoiceUploadRejected("Private original/derived MP3 pair not registered")
+    # Do not return a success receipt if the pending private registration
+    # coincided with revocation or a replacement authoritative script.
+    if (authenticated_editor(shop_id,campaign_id) is not True or
+        read_authoritative_plan(shop_id,campaign_id)!=plan):
+        raise VoiceUploadRejected("Source editor revoked after private MP3 registration")
     return {**receipt,"asset_id":saved["asset_id"],
             "derived_wav_asset_id":saved.get("derived_wav_asset_id"),
             "original_wav_is_registered_feature7_source":False,

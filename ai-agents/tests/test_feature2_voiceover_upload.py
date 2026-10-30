@@ -230,3 +230,70 @@ def test_private_mp3_registration_requires_distinct_derived_wav_identity(
             store_both_private_pending=writer,
         )
     assert calls == [1]
+
+
+@pytest.mark.parametrize("revocation", ["membership", "plan"])
+def test_private_wav_writer_revocation_cannot_return_success_receipt(revocation):
+    # Synthetic source only. A persisted PENDING object must not become a
+    # successful current-editor upload response after callback-side revocation.
+    state = {"active": True, "plan": creative(), "writes": 0}
+    original = wav()
+    def writer(shop, campaign, audio, receipt):
+        state["writes"] += 1
+        if revocation == "membership":
+            state["active"] = False
+        else:
+            state["plan"] = {"replaced": True}
+        return {
+            "asset_id": str(uuid4()), "shop_id": shop, "campaign_id": campaign,
+            "original_audio_sha256": sha256(audio).hexdigest(),
+            "private": True, "review_state": "PENDING_RIGHTS_AND_SPEECH_REVIEW",
+        }
+    with pytest.raises(VoiceUploadRejected, match="revoked after private upload"):
+        accept_unreviewed_wav(
+            shop_id=SHOP, campaign_id=CID, plan=creative(),
+            original_audio=original,
+            authenticated_editor=lambda *a: state["active"],
+            read_authoritative_plan=lambda *a: state["plan"],
+            store_private_pending=writer,
+        )
+    assert state["writes"] == 1
+
+
+@pytest.mark.parametrize("revocation", ["membership", "plan"])
+def test_private_mp3_writer_revocation_cannot_return_success_receipt(monkeypatch, revocation):
+    # Inject an explicitly synthetic decoder fixture: no model, audio rights,
+    # live FFmpeg execution or hosted storage is asserted by this test.
+    from ai_agents import feature2_voiceover_upload as upload
+    original = b"ID3" + b"x" * 128
+    derivative = wav()
+    monkeypatch.setattr(upload, "decode_unreviewed_mp3_to_private_wav",
+        lambda **kwargs: {
+            "original_mp3_sha256": sha256(original).hexdigest(),
+            "derived_wav_sha256": sha256(derivative).hexdigest(),
+            "derived_wav": derivative, "duration_seconds": 2.0,
+        })
+    state = {"active": True, "plan": creative(), "writes": 0}
+    def writer(shop, campaign, original_bytes, derived_bytes, receipt):
+        state["writes"] += 1
+        if revocation == "membership":
+            state["active"] = False
+        else:
+            state["plan"] = {"replaced": True}
+        return {
+            "asset_id": str(uuid4()), "derived_wav_asset_id": str(uuid4()),
+            "shop_id": shop, "campaign_id": campaign,
+            "original_mp3_sha256": receipt["original_mp3_sha256"],
+            "derived_wav_sha256": receipt["derived_wav_sha256"],
+            "review_state": "PENDING_RIGHTS_AND_SPEECH_REVIEW",
+            "private": True,
+        }
+    with pytest.raises(VoiceUploadRejected, match="revoked after private MP3 registration"):
+        upload.accept_unreviewed_mp3(
+            shop_id=SHOP, campaign_id=CID, plan=creative(),
+            original_mp3=original, operator_ffmpeg_path="/unused/offline/fixture",
+            authenticated_editor=lambda *a: state["active"],
+            read_authoritative_plan=lambda *a: state["plan"],
+            store_both_private_pending=writer,
+        )
+    assert state["writes"] == 1
