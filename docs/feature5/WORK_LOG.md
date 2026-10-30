@@ -315,3 +315,10 @@ First documentation-head Actions run #40864647921 exposed **one new Feature5 med
 
 ## 2026-10-29 — Cross-feature task tracking without repeated manual status guesses
 Verified F5 draft #465 `82dad625`, F2 #551 open, F4 #322 open, Part3 #125 open and Feature3 #630 merged; old exact F5 head Actions #40933327353 has four successes. Added `docs/feature5/F5_22_TASK_DEPENDENCIES_20261029.json` (GitHub commit d9d6f57a), enumerating 22 remaining release work packages with explicit owner/dependency/output/acceptance, including three active source/preflight preparations and 19 external blocks. Pure docs/coordination; no GPU, Azure, Supabase or WineShopPOS mutation. Verify latest documentation head CI separately.
+
+## 2026-10-30 — F5-15 offline ComfyUI loopback response JSON hardening
+
+- Branch `feat/feature5-comfy-response-json-boundary-20261030`, stacked on existing draft F5 PR #465; changed `feature5_motion/wan22_comfy_execution.py` and added `tests/ai/test_feature5_comfy_transport_json_boundary.py`.
+- Fail closed on nested duplicate JSON members, NaN/Infinity/overflow floats, invalid UTF-8, excessive depth or node count from local ComfyUI `/object_info`, `/prompt` and `/history`. Existing no-redirect/loopback, one-use durable intent and UNKNOWN paid-submission semantics remain unchanged.
+- The new tests use a patched in-memory HTTP connection. No real socket, inference, model downloads, paid resources, credentials, hosted SQL or Azure mutations were used. Exact-head CI must be verified independently after opening the draft PR; no test success is claimed here.
+- Central task `F5-15` remains **BLOCKED** for independently authenticated live native ComfyUI node inventory and approved immutable runtime. This change is a proposed source-only hardening increment, **not** integrated DONE or a human/rights/production approval. Coordinator must review the stacked PR and evidence before changing central task status.
