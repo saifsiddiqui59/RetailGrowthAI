@@ -1,0 +1,23 @@
+# Feature #5 scheduled-run checkpoint — 2026-10-30
+
+## Current task
+- **F5-14** — read-only mounted Wan checkpoint files / private manifest source preflight.
+- **State:** source hardening proposed on stacked draft [PR #819](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/819), not integrated, not production verified.
+- **Parent:** Feature5 consolidated draft [PR #781](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/781). Coordinator must reconcile stacked PRs; do not merge out of order.
+
+## Changes in this run
+- `feature5_motion/shared_model_mount.py`: fail closed when O_NONBLOCK is unavailable and recheck the original manifest pathname's inode after descriptor read. The original descriptor remaining valid does not prove that its path was not replaced.
+- `tests/ai/test_feature5_shared_model_mount.py`: deterministic CPU-only test replacing the original path after the first successful descriptor read; preflight must reject the changed path.
+- Source commits: `3d85700dbd92329c577add57f61deb8d5be4d3ff` and `a1ffbc0076cdc0c7e9c781b0bac61550c5b3cbb0`.
+- **Verification:** test source added; local Python unittest execution NOT RUN in this GitHub connector run. Exact-head CI pending inspection; do not claim TESTED or PR-READY from source alone.
+- **No Azure Files bytes inspected:** actual three Wan checkpoint SHA-256 hashes, private mounted Azure Files identity, CUDA/OCI licenses and GPU runtime remain unverified.
+- No GPU inference, Azure mutations, PROD, paid model, SQL, external samples or WineShopPOS changes.
+
+## Next safe tasks
+1. Recheck [PR #819](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/819) exact-head CI; run `python -m unittest discover -s tests/ai -p 'test_feature5_shared_model_mount.py'` in authorized CI/local test runner and fix any failure.
+2. **F5-13** — independently review pinned OCI/CUDA dependency license, image digest and SBOM source evidence, CPU-only; do not claim image build until independently verified.
+3. **F5-02** — review existing [PR #804](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/804) and its latest source/CI before choosing additional independent work; avoid duplicate code.
+4. Coordinator: reconcile stacked Feature5 drafts, exact-head 4/4 CI, fresh main 4/4 and reviewed task receipts. Until then F5-14 is IN PROGRESS.
+
+## Reporting
+Central `coordination/feature_tasks.json` snapshot: F5 total 22, source-complete 0, blocked 19, in-progress 3. `coordination/task_progress.json` currently has no verified events. This does not imply zero code exists. TESTED, PR-READY and integrated DONE are not verified.
