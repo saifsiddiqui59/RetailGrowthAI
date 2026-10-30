@@ -10,7 +10,7 @@ from feature5_motion.infra.wan22_native_preflight import (
     render_reviewed_require_hashes,
 )
 from feature5_motion.infra.wan22_build_context_gate import (
-    audit_wan22_build_context,
+    audit_wan22_build_context, _private_review_json,
 )
 from feature5_motion.wan22_motion_adapter import WanCompatibilityError
 from test_feature5_wan22_source_audit import fixture as source_fixture
@@ -70,6 +70,21 @@ class ComfyOfflineImageBuildGateTests(unittest.TestCase):
             k["require_hashes_file"].write_text("torch\n--extra-index-url http://not-allowed\n")
             with self.assertRaisesRegex(WanCompatibilityError,"differ"):
                 audit_wan22_build_context(**k)
+
+    def test_reviewed_build_input_json_rejects_duplicate_keys_and_nan(self):
+        with TemporaryDirectory() as td:
+            path = Path(td) / "review.json"
+            for raw, reason in (
+                ('{"torch":"a","torch":"b"}', "Duplicate"),
+                ('{"nested":{"x":1,"x":2}}', "Duplicate"),
+                ('{"torch":NaN}', "Non-finite"),
+                ('{"torch":-Infinity}', "Non-finite"),
+            ):
+                path.write_text(raw)
+                with self.subTest(raw=raw), self.assertRaisesRegex(ValueError, reason):
+                    _private_review_json(path)
+            path.write_text('{"test":"synthetic"}')
+            self.assertEqual(_private_review_json(path), {"test":"synthetic"})
 
     def test_manifest_is_not_auto_commercial_approval(self):
         with TemporaryDirectory() as td:
