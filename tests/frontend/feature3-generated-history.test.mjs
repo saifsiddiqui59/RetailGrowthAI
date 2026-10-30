@@ -93,3 +93,37 @@ test('React history filter cancels pending binary work and frees local previews'
   assert.match(jsx,/Generated — unreviewed/)
   assert.doesNotMatch(jsx,/getGeneratedImageDownload\(/)
 })
+
+test('F3-13 private history state envelope never forwards signed URLs or approval flags',()=>{
+  const clean=scopedFeature3GeneratedHistory({
+    shopId:SHOP,jobs:JOBS,busy:true,message:'Checking private jobs',
+  },SHOP)
+  assert.deepEqual(Object.keys(clean).sort(),['busy','jobs','message','shopId'])
+  assert.equal(clean.busy,true)
+  assert.equal(clean.message,'Checking private jobs')
+  assert.equal(clean.jobs.length,4)
+  assert.equal(Object.isFrozen(clean),true)
+
+  for(const injected of [
+    {signed_url:'https://evil.invalid/private.png'},
+    {object_path:'foreign-shop/private.png'},
+    {approved:true},
+    {publishApproved:true},
+    {provider:'external'},
+    {message:{url:'https://evil.invalid'}},
+    {message:'x'.repeat(241)},
+    {busy:{approved:true}},
+  ]) {
+    const result=scopedFeature3GeneratedHistory({
+      shopId:SHOP,jobs:JOBS,busy:false,message:'',...injected,
+    },SHOP)
+    assert.deepEqual(result.jobs,[])
+    assert.equal(result.message,'')
+    assert.equal(result.busy,false)
+    assert.equal(Object.keys(result).length,4)
+  }
+  const minimal=scopedFeature3GeneratedHistory({shopId:SHOP,jobs:JOBS},SHOP)
+  assert.equal(minimal.jobs.length,4)
+  assert.equal(minimal.message,'')
+  assert.equal(minimal.busy,false)
+})

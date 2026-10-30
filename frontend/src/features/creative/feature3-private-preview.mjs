@@ -20,7 +20,9 @@ export function discardFailedPrivateModelPreview(opened, url, revokeURL = value 
       typeof revokeURL !== 'function') throw Error('Only local model-preview Blob cleanup allowed')
   const index = opened.indexOf(url)
   if (index < 0) return false
-  opened.splice(index, 1)
+  // Keep ownership in the cleanup ledger until revocation succeeds.
+  // If the browser hook throws, outer teardown must still be able to retry.
   revokeURL(url)
+  opened.splice(index, 1)
   return true
 }

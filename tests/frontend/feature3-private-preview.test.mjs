@@ -48,3 +48,17 @@ test('never use external or unowned image URLs as private preview cleanup input'
   assert.deepEqual(opened,[valid])
   assert.deepEqual(revoked,[])
 })
+
+test('F3-10 failed Blob revocation retains ownership for later cleanup retry',()=>{
+  const privateURL='blob:https://fixture.test/retry-private'
+  const opened=[privateURL]
+  assert.throws(()=>discardFailedPrivateModelPreview(opened,privateURL,()=>{
+    throw Error('Browser revoke unavailable')
+  }),/Browser revoke unavailable/)
+  assert.deepEqual(opened,[privateURL],
+    'failed revoke must not discard the only tracked private URL')
+  const revoked=[]
+  assert.equal(discardFailedPrivateModelPreview(opened,privateURL,url=>revoked.push(url)),true)
+  assert.deepEqual(revoked,[privateURL])
+  assert.deepEqual(opened,[])
+})
