@@ -7,6 +7,7 @@ and real F3/F5 rendered-fidelity inspection remain separate release gates.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import unicodedata
 import hashlib
 import json
 from collections.abc import Mapping
@@ -643,8 +644,12 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
             raise EditorialBasisRejected("Offer evidence not approved for shop")
     issues=set()
     for field,text in copy.items():
+        # Invisible Unicode format controls can hide an extra discount or
+        # currency claim from the exact approved-span reviewer (e.g. 50\u200b%).
+        # Fail closed rather than silently normalizing signed retailer copy.
         if (type(text) is not str or not 1<=len(text.strip())<=1800 or
-            any(ord(ch)<32 for ch in text) or "<" in text or ">" in text or
+            any(ord(ch)<32 or unicodedata.category(ch) in ("Cf","Cs","Zl","Zp")
+                for ch in text) or "<" in text or ">" in text or
             "https://" in text.lower() or "javascript:" in text.lower()):
             raise EditorialBasisRejected("Unsafe or unbounded retailer copy")
         if _CLAIM_PRICE.search(text):
