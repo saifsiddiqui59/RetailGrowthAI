@@ -185,6 +185,52 @@ class BinaryHTTPTests(unittest.TestCase):
         self.reader.png=original
         self.assertEqual(self.call()[0],200)
 
+    def test_palette_rules_fail_closed_even_with_matching_receipt_sha(self):
+        # Synthetic PNGs: the fake reader recomputes SHA for every variant.
+        original=self.reader.png
+        def chunk(kind,payload):
+            return (len(payload).to_bytes(4,"big")+kind+payload+
+                    (crc32(kind+payload)&0xffffffff).to_bytes(4,"big"))
+        rgb_ihdr=original[:33]
+        rgb_rest=original[33:]
+        # Truecolor may carry a valid optional palette.
+        valid_rgb=rgb_ihdr+chunk(b"PLTE",b"\\x00\\x11\\x22")+rgb_rest
+        self.reader.png=valid_rgb
+        self.assertEqual(self.call()[0],200)
+
+        indexed=BytesIO()
+        palette_image=Image.new("P",(320,400),0)
+        palette_image.putpalette([0,17,34]*256)
+        palette_image.save(indexed,format="PNG")
+        indexed_png=indexed.getvalue()
+        self.assertIn(b"PLTE",indexed_png)
+        self.reader.png=indexed_png
+        self.assertEqual(self.call()[0],200)
+        palette_offset=indexed_png.index(b"PLTE")-4
+        palette_length=int.from_bytes(indexed_png[palette_offset:palette_offset+4],"big")
+        palette_end=palette_offset+12+palette_length
+        # Indexed PNG must have a palette, even if IDAT and SHA are valid.
+        missing_palette=indexed_png[:palette_offset]+indexed_png[palette_end:]
+
+        gray=BytesIO()
+        Image.new("L",(320,400),128).save(gray,format="PNG")
+        gray_png=gray.getvalue()
+        for forged in (
+            rgb_ihdr+chunk(b"PLTE",b"")+rgb_rest,
+            rgb_ihdr+chunk(b"PLTE",b"\\x00\\x11")+rgb_rest,
+            rgb_ihdr+chunk(b"PLTE",b"\\x00\\x11\\x22"*257)+rgb_rest,
+            gray_png[:33]+chunk(b"PLTE",b"\\x00\\x11\\x22")+gray_png[33:],
+            missing_palette,
+        ):
+            self.reader.png=forged
+            with self.subTest(sha=sha256(forged).hexdigest()):
+                status,body,headers=self.call()
+                self.assertEqual(status,503)
+                self.assertEqual(body,b"")
+                self.assert_private_headers(headers)
+        self.reader.png=original
+        self.assertEqual(self.call()[0],200)
+
     def test_pathological_png_chunk_count_is_denied(self):
         # Repeated valid ancillary chunks must not turn private download into
         # unbounded CPU work, even with a matching forged receipt SHA.
