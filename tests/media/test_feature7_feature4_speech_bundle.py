@@ -12,6 +12,26 @@ import {createFeature4SpeechReviewHandoff}
 const p=JSON.parse(fs.readFileSync(0,'utf8'));
 process.stdout.write(JSON.stringify(createFeature4SpeechReviewHandoff(p)));
 """
+IMMUTABLE_JS=r"""
+import fs from 'node:fs';
+import {createFeature4SpeechReviewHandoff} from './video-engine/feature7/feature4_speech_review_handoff.mjs';
+const p=JSON.parse(fs.readFileSync(0,'utf8'));
+const out=createFeature4SpeechReviewHandoff(p),initial=JSON.stringify(out);
+const keys=['source_keep_segments','caption_projection','caption_track','music_duck_intervals'];
+const frozen=Object.isFrozen(out)&&keys.every(k=>Object.isFrozen(out[k])&&out[k].every(Object.isFrozen))&&Object.isFrozen(out.objective_qa_faults);
+let denied=0;
+for(const change of [
+ ()=>out.source_keep_segments[0].start=20,
+ ()=>out.caption_projection[0].timeline_start_ms=9000,
+ ()=>out.caption_track[0].text='FORGED',
+ ()=>out.music_duck_intervals[0].start_ms=99,
+ ()=>out.objective_qa_faults.push('FORGED'),
+ ()=>out.review_payload_sha256='0'.repeat(64)]){
+ try{change()}catch(e){if(e instanceof TypeError)denied++;}
+}
+process.stdout.write(JSON.stringify({frozen,denied,unchanged:JSON.stringify(out)===initial,
+ inputMutable:!Object.isFrozen(p.autoclip_plan.keep_segments[0]),approved:out.approved}));
+"""
 SHA1="a"*64
 SHA2="b"*64
 def fixture():
@@ -92,6 +112,27 @@ class Feature7F4ReviewBundleTests(unittest.TestCase):
         self.assertFalse(x["objective_qa_passed"])
         self.assertEqual(x["objective_qa_faults"],["POSSIBLE_CLIPPING_OR_EXCESSIVE_PEAK"])
         self.assertFalse(x["approved"])
+    def test_nested_review_evidence_is_immutable_after_digest(self):
+        r=subprocess.run(["node","--input-type=module","-e",IMMUTABLE_JS],
+          input=json.dumps(fixture()),cwd=ROOT,text=True,
+          capture_output=True,timeout=15)
+        self.assertEqual(r.returncode,0,r.stderr)
+        value=json.loads(r.stdout)
+        self.assertTrue(value["frozen"])
+        self.assertEqual(value["denied"],6)
+        self.assertTrue(value["unchanged"])
+        self.assertTrue(value["inputMutable"])
+        self.assertFalse(value["approved"])
+
+    def test_empty_or_reversed_visible_cut_denied(self):
+        for case in ("empty","reversed"):
+            p=fixture()
+            cut=p["caption_projection"]["keep_projection"][1]
+            cut["visible_source_end_ms"]=cut["visible_source_start_ms"]-(case=="reversed")
+            with self.subTest(case=case):
+                result=self.call(p)
+                self.assertNotEqual(result.returncode,0,result.stdout)
+
     def test_cross_shop_stale_hash_fake_approval_and_cut_tampering_denied(self):
         alterations=[
           lambda p:p.update(shop_id="foreign"),

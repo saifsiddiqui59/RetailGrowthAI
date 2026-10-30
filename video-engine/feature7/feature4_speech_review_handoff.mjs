@@ -14,6 +14,16 @@ const check=(ok,message)=>{if(!ok)throw new EditValidationError(message);};
 const ID=/^[A-Za-z0-9_-]{1,120}$/;
 const SHA=/^[a-f0-9]{64}$/;
 const round=(x)=>Math.round(x*1000);
+// Keep signed review-only evidence immutable after its digest is computed.
+const freezeReviewPacket=(packet)=>{
+  for(const key of ['source_keep_segments','caption_projection',
+    'caption_track','music_duck_intervals']){
+    packet[key].forEach(row=>Object.freeze(row));
+    Object.freeze(packet[key]);
+  }
+  Object.freeze(packet.objective_qa_faults);
+  return Object.freeze(packet);
+};
 export function createFeature4SpeechReviewHandoff({
   shop_id,asset_id,original_source_sha256,preview_sha256,
   autoclip_plan,caption_projection,music_handoff,decoded_quality
@@ -59,6 +69,7 @@ export function createFeature4SpeechReviewHandoff({
       Number.isInteger(m.visible_source_start_ms)&&
       Number.isInteger(m.visible_source_end_ms)&&
       m.visible_source_start_ms>=m.source_start_ms&&
+      m.visible_source_start_ms<m.visible_source_end_ms&&
       m.visible_source_end_ms<=m.source_end_ms&&
       m.timeline_start_ms===current&&
       m.timeline_end_ms===current+
@@ -134,6 +145,6 @@ export function createFeature4SpeechReviewHandoff({
     approved:false,renderable:false,customer_publishable:false
   };
   const canonical=JSON.stringify(envelope);
-  return Object.freeze({...envelope,
+  return freezeReviewPacket({...envelope,
     review_payload_sha256:crypto.createHash('sha256').update(canonical).digest('hex')});
 }

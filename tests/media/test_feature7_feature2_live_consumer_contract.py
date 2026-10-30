@@ -83,5 +83,26 @@ class Feature7Feature2ActualConsumerIntegration(unittest.TestCase):
                 with self.assertRaises(Feature7AudioEvidenceDenied):
                     review_signed_audio_transcript(**(common|alter))
 
+    def test_source_revoked_between_authoritative_checks_denied(self):
+        worker=F7()
+        run=worker.call()
+        self.assertEqual(run.returncode,0,run.stderr)
+        receipt=json.loads(run.stdout)["receipt"]
+        q=F7.req()
+        calls=[]
+        def current(*scope):
+            calls.append(scope)
+            return len(calls)==1
+        with self.assertRaises(Feature7AudioEvidenceDenied):
+            review_signed_audio_transcript(
+              receipt=receipt,shop_id=q["shop_id"],
+              campaign_id=q["campaign_id"],audio_asset_id=q["asset_id"],
+              creative_plan_sha256=q["creative_plan_sha256"],
+              original_audio_sha256=q["expected_sha256"],
+              audio_duration_seconds=1.0,expected_script="Diwali fashion",
+              evidence_key=bytes.fromhex("ab"*32),now_ms=q["now_ms"],
+              expected_job_id=q["job_id"],assert_current_source=current)
+        self.assertEqual(len(calls),2)
+
 if __name__=="__main__":
     unittest.main()
