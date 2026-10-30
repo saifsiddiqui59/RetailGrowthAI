@@ -81,5 +81,50 @@ class Feature4MasterTests(unittest.TestCase):
             master_private_audio(self.source,self.output,expected_seconds=15)
         self.assertFalse(self.output.exists())
 
+    def test_receipt_preflight_rejects_existing_or_symlink_before_mastering(self):
+        report=self.root/"receipt.json"
+        report.write_text("other-job-receipt",encoding="utf-8")
+        with patch.object(sys,"argv",["master","--source",str(self.source),
+                                     "--output",str(self.output),
+                                     "--duration","15","--report",str(report)]), \
+             patch.object(audio_master,"master_private_audio") as master:
+            with self.assertRaises(SystemExit) as err:
+                audio_master.main()
+            self.assertEqual(err.exception.code,2)
+            master.assert_not_called()
+        self.assertEqual(report.read_text(encoding="utf-8"),"other-job-receipt")
+        report.unlink()
+        link=self.root/"linked-receipts"
+        link.symlink_to(self.root,target_is_directory=True)
+        with self.assertRaises(AudioMasterError):
+            audio_master._check_private_receipt_path(link/"receipt.json")
+
+    def test_report_race_preserves_other_job_and_removes_unreceipted_master(self):
+        report=self.root/"receipt.json"
+        def raced_master(src,output,*,expected_seconds):
+            Path(output).write_bytes(b"new-private-master")
+            report.write_text("another-job-receipt",encoding="utf-8")
+            return {"status":"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED",
+                    "source_audio_mean_db":-28.0,"mastered_audio_mean_db":-16.0}
+        with patch.object(sys,"argv",["master","--source",str(self.source),
+                                     "--output",str(self.output),
+                                     "--duration","15","--report",str(report)]), \
+             patch.object(audio_master,"master_private_audio",side_effect=raced_master):
+            with self.assertRaises(SystemExit) as err:
+                audio_master.main()
+            self.assertEqual(err.exception.code,2)
+        self.assertEqual(report.read_text(encoding="utf-8"),"another-job-receipt")
+        self.assertFalse(self.output.exists())
+
+    def test_exclusive_audio_receipt_writes_json_once(self):
+        report=self.root/"receipt.json"
+        payload={"status":"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED",
+                 "commercial_release_eligible":False}
+        audio_master._write_private_receipt(report,payload)
+        self.assertEqual(__import__("json").loads(report.read_text()),payload)
+        with self.assertRaisesRegex(AudioMasterError,"new JSON"):
+            audio_master._write_private_receipt(report,payload)
+        self.assertEqual(__import__("json").loads(report.read_text()),payload)
+
 if __name__=="__main__":
     unittest.main()
