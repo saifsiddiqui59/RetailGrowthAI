@@ -81,5 +81,32 @@ class Feature4MasterTests(unittest.TestCase):
             master_private_audio(self.source,self.output,expected_seconds=15)
         self.assertFalse(self.output.exists())
 
+
+    def test_existing_proof_is_rejected_before_any_mastering(self):
+        proof=self.root/"already.json"
+        proof.write_text("existing approved receipt",encoding="utf-8")
+        argv=["feature4_audio_master.py","--source",str(self.source),
+              "--output",str(self.output),"--duration","15",
+              "--report",str(proof)]
+        with patch.object(sys,"argv",argv), patch.object(
+                audio_master,"master_private_audio",
+                side_effect=AssertionError("must not encode before proof preflight")):
+            with self.assertRaises(SystemExit) as caught:
+                audio_master.main()
+        self.assertEqual(caught.exception.code,2)
+        self.assertEqual(proof.read_text(encoding="utf-8"),"existing approved receipt")
+        self.assertFalse(self.output.exists())
+
+    def test_proof_preflight_rejects_symlink_parent_and_non_json(self):
+        private=self.root/"private"
+        private.mkdir()
+        linked=self.root/"linked"
+        linked.symlink_to(private,target_is_directory=True)
+        for path in (linked/"proof.json",private/"proof.txt",private/"missing"/"proof.json"):
+            with self.assertRaisesRegex(AudioMasterError,"private JSON"):
+                audio_master._private_report_path(path)
+        self.assertEqual(audio_master._private_report_path(private/"new.json"),
+                         private/"new.json")
+
 if __name__=="__main__":
     unittest.main()
