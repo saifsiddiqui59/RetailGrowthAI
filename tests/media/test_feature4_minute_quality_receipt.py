@@ -1,4 +1,6 @@
 """Offline fail-closed checks for native minute trace verification."""
+import json
+import os
 import sys
 import tempfile
 import unittest
@@ -7,6 +9,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/"video-engine"))
 from feature4_minute_quality_receipt import MinuteProofError,validate_minute_evidence
+import feature4_minute_quality_receipt as minute
 
 class MinuteEvidenceTests(unittest.TestCase):
     def setUp(self):
@@ -73,3 +76,62 @@ class MinuteEvidenceTests(unittest.TestCase):
             handle.truncate(80_000_002)
         with self.assertRaisesRegex(MinuteProofError,"Unsafe"):
             self.validate()
+
+
+class MinuteSourceIdentityTests(unittest.TestCase):
+    """Synthetic local evidence, not a real 60s encoded media acceptance."""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(prefix="f4-min-proof-")
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.receipt = self.root / "minute-proof.json"
+        self.record = {"status": "TECHNICAL_ONLY", "human_approved": False}
+        self.receipt.write_text(json.dumps(self.record), encoding="utf-8")
+
+    def test_proof_json_parsed_from_one_exact_checked_inode_and_bytes(self):
+        self.assertEqual(minute._record(self.receipt), self.record)
+        expected = minute.hashlib.sha256(self.receipt.read_bytes()).hexdigest()
+        self.assertEqual(minute._sha(self.receipt), expected)
+
+    def test_unchanged_sha_cannot_hide_same_content_atomic_file_replacement(self):
+        original_bytes = self.receipt.read_bytes()
+        true_sha = minute.hashlib.sha256
+        for verify in (
+            lambda: minute._sha(self.receipt, size_limit=2_000_000),
+            lambda: minute._record(self.receipt),
+        ):
+            with self.subTest(verify=verify):
+                self.receipt.write_bytes(original_bytes)
+                changed = [False]
+                class SwappingHash:
+                    def __init__(self):
+                        self.inner = true_sha()
+                    def update(self, block):
+                        self.inner.update(block)
+                        if not changed[0]:
+                            changed[0] = True
+                            replacement = self.root / "same-bytes-new-inode"
+                            replacement.write_bytes(original_bytes)
+                            os.replace(replacement, self.receipt)
+                    def hexdigest(self):
+                        return self.inner.hexdigest()
+                with patch.object(minute.hashlib, "sha256", side_effect=SwappingHash):
+                    with self.assertRaisesRegex(MinuteProofError, "replaced"):
+                        verify()
+                self.assertTrue(changed[0])
+                self.assertEqual(self.receipt.read_bytes(), original_bytes)
+
+    def test_missing_symlink_oversized_and_non_json_denied(self):
+        target = self.root / "backing.json"
+        target.write_bytes(self.receipt.read_bytes())
+        self.receipt.unlink()
+        self.receipt.symlink_to(target)
+        with self.assertRaisesRegex(MinuteProofError, "Unsafe"):
+            minute._record(self.receipt)
+        self.receipt.unlink()
+        self.receipt.write_bytes(b"x" * 2000001)
+        with self.assertRaisesRegex(MinuteProofError, "Unsafe"):
+            minute._record(self.receipt)
+        self.receipt.write_bytes(b"{garbled-but-longer-than-ten")
+        with self.assertRaisesRegex(MinuteProofError, "parseable JSON"):
+            minute._record(self.receipt)

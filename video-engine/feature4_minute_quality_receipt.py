@@ -10,6 +10,8 @@ import argparse
 import hashlib
 import json
 import math
+import os
+import stat
 from pathlib import Path
 from urllib.parse import urlsplit
 from feature4_private_preview import inspect_mp4, PreviewExportError
@@ -20,31 +22,71 @@ class MinuteProofError(ValueError):
     pass
 
 
+def _stable_file(path, *, size_limit, include_bytes=False):
+    """Read one bounded regular local inode through a no-follow descriptor.
+
+    A path can be replaced with identical bytes while a descriptor still
+    references the original file. Recheck inode/device/size/mtime on BOTH the
+    descriptor and pathname before accepting any digest or parsed JSON.
+    No cloud object/lease authority is inferred from these local checks.
+    """
+    path = Path(path)
+    if path.is_symlink():
+        raise MinuteProofError("Unsafe local 60s QA file")
+    try:
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(path, flags)
+        with os.fdopen(fd, "rb") as handle:
+            first = os.fstat(handle.fileno())
+            if not stat.S_ISREG(first.st_mode) or not 10 <= first.st_size <= size_limit:
+                raise MinuteProofError("Unsafe, absent or oversized local 60s QA file")
+            digest = hashlib.sha256()
+            chunks = [] if include_bytes else None
+            received = 0
+            while True:
+                block = handle.read(min(1024*1024, first.st_size + 1 - received))
+                if not block:
+                    break
+                received += len(block)
+                if received > size_limit or received > first.st_size:
+                    raise MinuteProofError("60s QA file exceeded verified bounds during read")
+                digest.update(block)
+                if include_bytes:
+                    chunks.append(block)
+            last = os.fstat(handle.fileno())
+            current = os.lstat(path)
+            identity = (first.st_dev, first.st_ino, first.st_size, first.st_mtime_ns)
+            if (received != first.st_size or
+                    identity != (last.st_dev, last.st_ino, last.st_size, last.st_mtime_ns)
+                    or not stat.S_ISREG(current.st_mode)
+                    or identity != (current.st_dev, current.st_ino, current.st_size,
+                                    current.st_mtime_ns)):
+                raise MinuteProofError("60s QA file changed or was replaced during read")
+            return digest.hexdigest(), b"".join(chunks) if include_bytes else None
+    except MinuteProofError:
+        raise
+    except OSError as exc:
+        raise MinuteProofError("Unsafe or missing local 60s QA file") from exc
+
+
 def _sha(path, *, size_limit=80_000_000):
-    path=Path(path)
-    if path.is_symlink() or not path.is_file() or not 10 <= path.stat().st_size <= size_limit:
-        raise MinuteProofError("Unsafe, absent or oversized local 60s QA file")
-    h=hashlib.sha256()
-    with path.open("rb") as f:
-        while chunk:=f.read(1024*1024):
-            h.update(chunk)
-    return h.hexdigest()
+    return _stable_file(path, size_limit=size_limit)[0]
 
 
 def _record(path):
-    path=Path(path)
-    if path.suffix.lower()!=".json":
+    path = Path(path)
+    if path.suffix.lower() != ".json":
         raise MinuteProofError("QA source must be a JSON file")
-    _sha(path,size_limit=2_000_000)
+    # Read+hash the SAME bounded bytes exactly once; the old code called
+    # _sha(path), then reopened read_text(path), creating a second-file race.
+    _, raw = _stable_file(path, size_limit=2_000_000, include_bytes=True)
     try:
-        data=json.loads(path.read_text(encoding="utf-8"))
-    except (UnicodeDecodeError,OSError,ValueError) as exc:
+        data = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as exc:
         raise MinuteProofError("QA file was not parseable JSON") from exc
-    if not isinstance(data,dict):
+    if type(data) is not dict:
         raise MinuteProofError("QA evidence must be a JSON object")
     return data
-
-
 
 
 def validate_visibility_evidence(*, original, provenance, visibility_proof):
