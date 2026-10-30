@@ -185,6 +185,8 @@ def accept_unreviewed_mp3(*,shop_id,campaign_id,plan,original_mp3,
     saved=store_both_private_pending(
         shop_id,campaign_id,original_mp3,decoded["derived_wav"],dict(receipt))
     if (type(saved) is not dict or not _uuid(saved.get("asset_id")) or
+        not _uuid(saved.get("derived_wav_asset_id")) or
+        saved.get("derived_wav_asset_id")==saved.get("asset_id") or
         saved.get("shop_id")!=shop_id or saved.get("campaign_id")!=campaign_id or
         saved.get("original_mp3_sha256")!=receipt["original_mp3_sha256"] or
         saved.get("derived_wav_sha256")!=receipt["derived_wav_sha256"] or
