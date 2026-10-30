@@ -502,11 +502,13 @@ def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
         return rows
     rows=source()
     result=[]
+    seen_receipts=set()
     for i,item in enumerate(rows,1):
         if (type(item) is not dict or item.get("shop_id")!=shop_id or
             item.get("campaign_id")!=campaign_id or
             item.get("experiment_id")!=experiment_id or
-            item.get("revision")!=i or
+            type(item.get("revision")) is not int or
+            item["revision"]!=i or
             item.get("review_status")!="HUMAN_SCORE_ONLY" or
             item.get("private") is not True or
             item.get("can_publish") is not False or
@@ -517,6 +519,8 @@ def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
             set(item["candidate_digests"])!={"A","B"} or
             any(type(v) is not str or not _TRACE_SHA.fullmatch(v)
                 for v in item["candidate_digests"].values()) or
+            item["candidate_digests"]["A"]==item["candidate_digests"]["B"] or
+            item["receipt_digest"] in seen_receipts or
             type(item.get("human_scores")) is not dict or
             set(item["human_scores"])!={"A","B"} or
             any(type(v) not in (float,int) or not 0<=v<=100
@@ -526,6 +530,9 @@ def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
             shop_id,campaign_id,experiment_id,i,
             item["receipt_digest"],item["candidate_digests"]) is not True:
             raise Feature2TraceDenied("Missing independent signed A/B history proof")
+        # A and B must identify different candidate bytes; a revision cannot
+        # replay an earlier signed score receipt as fresh editorial evidence.
+        seen_receipts.add(item["receipt_digest"])
         result.append({"revision":i,"candidate_digests":dict(item["candidate_digests"]),
                        "receipt_digest":item["receipt_digest"],
                        "human_scores":dict(item["human_scores"]),
