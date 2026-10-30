@@ -176,3 +176,31 @@ test('WER higher than 100 percent is allowed when there are extra spoken words',
  const x=verifyWer(p)
  assert.equal(x.asr.word_error_rate,3)
 })
+
+
+test('F2-26 rejects invisible and bidi control spoofing in ASR review words',()=>{
+ for(const control of ['\u202e','\u202a','\u2066','\u2069',
+                       '\u200b','\u200f','\u0085','\ufeff']){
+  const timed=review()
+  timed.asr_word_timing[0].word='kur'+control+'ti'
+  assert.throws(()=>verifyPrivateVoiceQualityReview({
+   shopId,campaignId,planSha256,receipt,review:timed}),undefined,
+   'timed ASR word must reject '+control.codePointAt(0).toString(16))
+  const issue=review()
+  issue.asr_issues[0].word='kur'+control+'ti'
+  assert.throws(()=>verifyPrivateVoiceQualityReview({
+   shopId,campaignId,planSha256,receipt,review:issue}),undefined,
+   'review issue must reject '+control.codePointAt(0).toString(16))
+ }
+})
+
+test('F2-26 preserves legitimate Indic joiners and combining marks',()=>{
+ const genuine=review()
+ genuine.asr_word_timing[0].word='क्\u200dष'
+ genuine.asr_issues[0].word='दिवाळी'
+ const result=verifyPrivateVoiceQualityReview({
+  shopId,campaignId,planSha256,receipt,review:genuine})
+ assert.equal(result.words[0].word,'क्\u200dष')
+ assert.equal(result.issues[0].word,'दिवाळी')
+ assert.equal(result.can_publish,false)
+})
