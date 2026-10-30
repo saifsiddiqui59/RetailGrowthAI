@@ -169,6 +169,36 @@ class WorkerHandoffTests(unittest.TestCase):
         self.assertEqual(self.media.uploads, [])
         self.assertEqual(self.admin.completions, [])
 
+    def test_download_time_revocation_prevents_expensive_render_and_publication(self):
+        # A private-media download may finish after a lease expires or a
+        # retailer revokes rights. Do not waste CPU or produce a stale upload.
+        for revoked in ("current", "authorized"):
+            with self.subTest(revoked=revoked):
+                claim, bundle = sample()
+                admin = Admin(claim, bundle)
+                media = Media()
+                original_download = media.download
+
+                def revoke_after_download(sid, key, destination):
+                    original_download(sid, key, destination)
+                    setattr(admin, revoked, False)
+
+                media.download = revoke_after_download
+
+                def render_must_not_run(*_args):
+                    self.fail("Stale or unauthorized worker reached CPU renderer")
+
+                self.assertEqual(
+                    process_feature4_render(
+                        JOB, admin, media, render_fn=render_must_not_run
+                    ),
+                    "STALE",
+                )
+                self.assertEqual(len(media.downloads), 1)
+                self.assertEqual(media.uploads, [])
+                self.assertEqual(admin.completions, [])
+                self.assertEqual(admin.failures, [])
+
     def test_fencing_race_on_finalization_has_no_signed_url(self):
         self.admin.can_finalize = False
         self.assertEqual(self.run_worker(), "STALE")
@@ -191,6 +221,10 @@ class WorkerHandoffTests(unittest.TestCase):
             ("shop_id", OTHER), ("storage_bucket", "public-bucket"),
             ("object_path", OTHER + "/private.png"),
             ("object_path", SHOP + "/../stolen.png"),
+            ("object_path", SHOP + "/"),
+            ("object_path", SHOP + "/."),
+            ("object_path", SHOP + "/images/./product.png"),
+            ("object_path", SHOP + "/images/bad\nname.png"),
             ("license_name", "unspecified"),
             ("rights_evidence", ""), ("mime_type", "text/html"),
             ("approved", False), ("source_feature", "feature5"),
