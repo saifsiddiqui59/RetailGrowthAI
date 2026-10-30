@@ -75,6 +75,13 @@ assert.equal(approval.disabled,true,'Old request failure reopened new request');
 assert.doesNotMatch(feedback.textContent,/Request failed/);
 reviewDeferred[1].reject(new Error('current'));await Promise.resolve();await Promise.resolve();
 assert.equal(approval.disabled,false,'Current failed request should allow safe manual retry');
+confirm.checked=true;approval.handlers.click();
+assert.equal(decisions.length,3);assert.equal(approval.disabled,true);
+reviewDeferred[2].resolve(false);
+await Promise.resolve();await Promise.resolve();await Promise.resolve();
+assert.equal(approval.disabled,false,
+  'Async host refusal must release review pending lock for a manual retry');
+assert.match(feedback.textContent,/Request failed/);
 assert.equal(app.getReviewSnapshot().approved,false);
 const field=nodes(target).find(n=>n.className==='rgai-f7-caption-correction');
 const captionNodes=nodes(field);
@@ -99,6 +106,12 @@ assert.equal(send.disabled,true,'Old caption callback reopened new request');
 captionDeferred[1].reject(new Error('new caption'));
 await Promise.resolve();await Promise.resolve();
 assert.equal(send.disabled,false);
+verified.checked=true;send.handlers.click();
+assert.equal(captionDecisions.length,3);assert.equal(send.disabled,true);
+captionDeferred[2].resolve(false);
+await Promise.resolve();await Promise.resolve();await Promise.resolve();
+assert.equal(send.disabled,false,
+  'Async host refusal must release caption pending lock for a manual retry');
 assert.equal(app.getReviewSnapshot().approved,false);
 app.destroy();assert.equal(target.children.length,0);
 process.stdout.write('OK: stale async callbacks fenced and duplicate requests denied');
