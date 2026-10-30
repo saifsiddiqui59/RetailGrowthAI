@@ -273,6 +273,33 @@ class WorkerHandoffTests(unittest.TestCase):
         self.assertEqual(len(self.media.downloads), 0)
         self.assertEqual(len(self.media.uploads), 0)
 
+    def test_ambiguous_encoded_or_dot_private_object_paths_denied_before_download(self):
+        # All these names formerly passed the worker path prefix / '..'
+        # segment checks, yet are not canonical signed source paths.
+        for suffix in (
+            "/approved/./asset.png", "/approved/%2e%2e/asset.png",
+            "/approved/photo%2fother.png", "/approved/img.png?token=foreign",
+            "/approved/img.png#signed", "/approved/control\n.png",
+            "/approved/fi\u200ble.png", "/approved/space name.png",
+            "/approved/../other.png", "/approved//image.png",
+        ):
+            with self.subTest(suffix=repr(suffix)):
+                self.admin.bundle = copy.deepcopy(sample()[1])
+                self.admin.bundle["assets"]["product01"]["object_path"] = SHOP + suffix
+                with self.assertRaisesRegex(Feature4HandoffError,
+                                            "Media storage path escapes tenant"):
+                    self.run_worker()
+                self.assertEqual(self.media.downloads, [])
+                self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.completions, [])
+
+    def test_canonical_nested_private_object_path_remains_supported(self):
+        self.admin.bundle["assets"]["product01"]["object_path"] = (
+            SHOP + "/approved/F4_Products/2026-10/Look_01.png")
+        self.assertEqual(self.run_worker(), "SUCCEEDED")
+        self.assertEqual(self.media.downloads[0][1], (
+            SHOP + "/approved/F4_Products/2026-10/Look_01.png"))
+
     def test_bundle_extraneous_private_asset_fails_closed(self):
         self.admin.bundle["assets"]["unrelated"] = copy.deepcopy(
             self.admin.bundle["assets"]["product01"])
