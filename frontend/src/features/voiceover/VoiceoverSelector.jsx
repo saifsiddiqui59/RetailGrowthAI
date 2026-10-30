@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {F2_VOICES,VOICE_SPEEDS,voiceChoices,emptyVoiceSelection,makeVoiceAction,validateVoiceSelection} from './voiceover-model.mjs'
+import {F2_VOICES,VOICE_SPEEDS,voiceChoices,emptyVoiceSelection,makeVoiceAction,validateVoiceSelection,isCurrentPrivateUpload} from './voiceover-model.mjs'
 import LocalVoicePanel from './LocalVoicePanel.jsx'
 import Feature2TracePanel from './Feature2TracePanel.jsx'
 import './VoiceoverSelector.css'
@@ -27,14 +27,17 @@ export default function VoiceoverSelector({
   const [message,setMessage]=useState('')
   const [file,setFile]=useState(null)
   const requestScopeRef=useRef('')
+  const selectedUploadFileRef=useRef(null)
   // A customer revision, shop change, voice selection or revoked role
   // invalidates every in-flight paid request and upload receipt.
+  selectedUploadFileRef.current=file
   requestScopeRef.current=[shopId,campaignId,planSha256,sourceScript,
     enabled,selection.mode,selection.voice_id,selection.speed,voiceProvider,
     file?.name,file?.size,file?.lastModified].join(':')
   useEffect(()=>{
     setSelection(emptyVoiceSelection())
     setBusy(false);setConfirmed(false);setError('');setMessage('');setFile(null)
+    selectedUploadFileRef.current=null
     setLocale('en-IN');setVoiceProvider('kokoro')
   },[shopId,campaignId,planSha256,sourceScript])
   const authorizedAssets=useMemo(()=>
@@ -88,18 +91,22 @@ export default function VoiceoverSelector({
       setError('Only WAV or MP3 up to 25 MB is supported');return
     }
     const scope=requestScopeRef.current
+    const uploadIsCurrent=()=>isCurrentPrivateUpload({
+      submittedFile:file,currentFile:selectedUploadFileRef.current,
+      submittedScope:scope,currentScope:requestScopeRef.current,
+    })
     setBusy(true)
     try{
       const receipt=await onRequestUpload(file,{shop_id:shopId,campaign_id:campaignId,
         creative_plan_sha256:planSha256,requires_rights_review:true})
-      if(scope!==requestScopeRef.current||receipt?.shop_id!==shopId||
+      if(!uploadIsCurrent()||receipt?.shop_id!==shopId||
         receipt?.campaign_id!==campaignId||
         receipt?.private!==true||receipt?.can_publish!==false||
         typeof receipt?.asset_id!=='string')throw Error('Private upload not verified')
       setMessage('Upload received for authorization and rights review.')
-    }catch(e){if(scope===requestScopeRef.current)
+    }catch(e){if(uploadIsCurrent())
       setError(e?.message||'Private upload failed; no audio was selected')}
-    finally{if(scope===requestScopeRef.current)setBusy(false)}
+    finally{if(uploadIsCurrent())setBusy(false)}
   }
   return <section className="rg-voice" aria-label="Reel voiceover settings">
     <h3>Voiceover</h3>
@@ -181,7 +188,8 @@ export default function VoiceoverSelector({
         </label>
         {onRequestUpload&&<label>Upload your recording for review (WAV/MP3)
           <input type="file" accept=".wav,.mp3,audio/wav,audio/mpeg"
-            onChange={e=>{setFile(e.target.files?.[0]||null);setError('');setMessage('')}}/>
+            onChange={e=>{const next=e.target.files?.[0]||null;
+              selectedUploadFileRef.current=next;setFile(next);setError('');setMessage('')}}/>
           <button type="button" disabled={!file} onClick={upload}>Upload for private review</button>
         </label>}
       </>}
