@@ -147,7 +147,13 @@ def qualify_feature2_offline_storyboard(packet):
         prompt = direction.get("generation_prompt")
         if type(prompt) is not str or len(prompt) < 180 or len(prompt) > 1600:
             _deny("original director prompt missing or rewritten")
-        digest = sha256(prompt.encode("utf-8")).hexdigest()
+        try:
+            # JSON accepts escaped lone UTF-16 surrogates, but a Wan prompt
+            # must be valid UTF-8. Deny malformed editorial text without
+            # leaking UnicodeEncodeError from the trust boundary.
+            digest = sha256(prompt.encode("utf-8")).hexdigest()
+        except UnicodeEncodeError as exc:
+            raise WanCompatibilityError("Invalid Unicode in original director prompt") from exc
         if (request.get("original_prompt_sha256") != digest
                 or item.get("immutable_motion_prompt_sha256") != digest):
             _deny("Feature2/F4/F5 original prompt SHA changed")
