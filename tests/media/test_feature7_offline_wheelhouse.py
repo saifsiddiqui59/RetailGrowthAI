@@ -1,5 +1,8 @@
 """Synthetic fake wheels for protocol ONLY; no dependency installation."""
+import base64
+import csv
 import hashlib
+import io
 import json
 from pathlib import Path
 import sys
@@ -26,15 +29,32 @@ class OfflineWheelhouseTests(unittest.TestCase):
         return ("Wheel-Version: 1.0\nGenerator: feature7-test-only\n"
                 "Root-Is-Purelib: true\nTag: "+tag+"\n")
 
+    @staticmethod
+    def write_complete_wheel(archive, prefix, contents):
+        """Synthesize an internally consistent but NOT installable test wheel."""
+        buffer=io.StringIO(newline="")
+        writer=csv.writer(buffer,lineterminator="\n")
+        for name,data in contents.items():
+            raw=data.encode("utf-8") if isinstance(data,str) else data
+            archive.writestr(name,raw)
+            digest=base64.urlsafe_b64encode(hashlib.sha256(raw).digest())
+            writer.writerow([name,"sha256="+digest.rstrip(b"=").decode("ascii"),
+                             str(len(raw))])
+        record=prefix+".dist-info/RECORD"
+        writer.writerow([record,"",""])
+        archive.writestr(record,buffer.getvalue())
+
     def write_wheel(self,name,version,requires):
         filename=f"{name.replace('-','_')}-{version}-py3-none-any.whl"
         file=self.root/filename
         with ZipFile(file,"w") as z:
             data=f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n"+\
                 "".join(f"Requires-Dist: {x}\n" for x in requires)
-            z.writestr(f"{name.replace('-','_')}-{version}.dist-info/METADATA",data)
-            z.writestr(f"{name.replace('-','_')}-{version}.dist-info/WHEEL",
-                       self.wheel_record())
+            prefix=f"{name.replace('-','_')}-{version}"
+            self.write_complete_wheel(z,prefix,{
+                prefix+".dist-info/METADATA":data,
+                prefix+".dist-info/WHEEL":self.wheel_record()
+            })
         self.wheels.append({"filename":filename,"distribution":name,
           "version":version,"sha256":hashlib.sha256(file.read_bytes()).hexdigest()})
 
@@ -48,6 +68,7 @@ class OfflineWheelhouseTests(unittest.TestCase):
         self.assertFalse(out["platform_abi_tested"])
         self.assertFalse(out["approved_for_deployment"])
         self.assertFalse(out["model_weights_loaded"])
+        self.assertTrue(out["wheel_record_sha256_and_size_verified"])
 
     def test_unlisted_dependency_or_tamper_is_denied(self):
         self.wheels.clear()
@@ -72,12 +93,14 @@ class OfflineWheelhouseTests(unittest.TestCase):
         filename=f"{name.replace('-','_')}-{version}-py3-none-any.whl"
         p=self.root/filename
         with ZipFile(p,"w",compression=ZIP_DEFLATED) as z:
-            z.writestr(f"{name.replace('-','_')}-{version}.dist-info/METADATA",
-                       metadata)
-            z.writestr(f"{name.replace('-','_')}-{version}.dist-info/WHEEL",
-                       self.wheel_record())
+            prefix=f"{name.replace('-','_')}-{version}"
+            contents={
+                prefix+".dist-info/METADATA":metadata,
+                prefix+".dist-info/WHEEL":self.wheel_record()
+            }
             if extra is not None:
-                z.writestr(extra[0],extra[1])
+                contents[extra[0]]=extra[1]
+            self.write_complete_wheel(z,prefix,contents)
         row=next(r for r in self.wheels if r["distribution"]==name)
         row["sha256"]=hashlib.sha256(p.read_bytes()).hexdigest()
         self.save()
@@ -156,6 +179,52 @@ class OfflineWheelhouseTests(unittest.TestCase):
                 self.wheels[0]["sha256"]=hashlib.sha256(archive.read_bytes()).hexdigest()
                 self.save()
                 with self.assertRaises(WheelhouseRejected):
+                    audit_wheelhouse(str(self.root),str(self.manifest))
+
+    def test_repin_missing_or_tampered_record_and_hidden_files_denied(self):
+        """A new operator digest alone cannot attest forged package contents."""
+        name,version="faster-whisper","1.2.1"
+        prefix="faster_whisper-1.2.1"
+        archive=self.root/(prefix+"-py3-none-any.whl")
+        meta="Metadata-Version: 2.1\nName: faster-whisper\nVersion: 1.2.1\n"
+        wheel=self.wheel_record()
+        def pinned(contents,record=None):
+            with ZipFile(archive,"w") as z:
+                for filename,data in contents.items():
+                    z.writestr(filename,data)
+                if record is not None:
+                    z.writestr(prefix+".dist-info/RECORD",record)
+            self.wheels[0]["sha256"]=hashlib.sha256(archive.read_bytes()).hexdigest()
+            self.save()
+        files={prefix+".dist-info/METADATA":meta,
+               prefix+".dist-info/WHEEL":wheel}
+        # Omitted RECORD must fail even if outer digest is correctly re-pinned.
+        pinned(files)
+        with self.assertRaisesRegex(WheelhouseRejected,"RECORD"):
+            audit_wheelhouse(str(self.root),str(self.manifest))
+        for failure in ("wrong_hash","wrong_size","hidden_file","record_self_hash",
+                        "duplicate_record_row"):
+            with self.subTest(tamper=failure):
+                tmp=io.StringIO(newline="")
+                writer=csv.writer(tmp,lineterminator="\n")
+                for filename,data in files.items():
+                    digest=base64.urlsafe_b64encode(
+                        hashlib.sha256(data.encode()).digest()).rstrip(b"=").decode()
+                    if failure=="wrong_hash" and filename.endswith("/METADATA"):
+                        digest="A"*43
+                    size=len(data)+(1 if failure=="wrong_size" else 0)
+                    writer.writerow([filename,"sha256="+digest,str(size)])
+                record_name=prefix+".dist-info/RECORD"
+                if failure=="duplicate_record_row":
+                    writer.writerow([next(iter(files)),"sha256="+"A"*43,"1"])
+                writer.writerow([record_name,"sha256="+"A"*43 if
+                                 failure=="record_self_hash" else "",
+                                 "1" if failure=="record_self_hash" else ""])
+                current=dict(files)
+                if failure=="hidden_file":
+                    current["hidden.py"]="malicious-but-fixture-only"
+                pinned(current,tmp.getvalue())
+                with self.assertRaisesRegex(WheelhouseRejected,"RECORD"):
                     audit_wheelhouse(str(self.root),str(self.manifest))
 
     def test_manifest_must_be_json_object(self):

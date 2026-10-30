@@ -9,7 +9,10 @@ platform ABI safety, commercial-license review or real-model inference.
 from __future__ import annotations
 
 import argparse
+import base64
+import csv
 import hashlib
+import io
 import json
 from email.parser import Parser
 from pathlib import Path
@@ -25,6 +28,7 @@ SHA=re.compile(r"^[0-9a-f]{64}$")
 DEP=re.compile(r"^\s*([A-Za-z0-9_.-]+)(?=\s|\[|[<>=!~(;]|$)")
 MAX_MEMBERS=10000
 MAX_METADATA_BYTES=256*1024
+MAX_RECORD_BYTES=1024*1024
 MAX_UNPACKED_BYTES=2*1024*1024*1024
 
 def normal(name):return re.sub(r"[-_.]+","-",name).lower()
@@ -122,6 +126,52 @@ def validate_wheel_tags(filename, wheel_message):
     return True
 
 
+def validate_record_contents(z, prefix, entries):
+    """Check PEP 427 RECORD completeness and per-member SHA-256/size.
+
+    This checks the pinned archive's internal consistency without installing,
+    executing or trusting its package code. No unbounded decompression.
+    """
+    records=[i for i in entries if i.filename.endswith(".dist-info/RECORD")]
+    if len(records)!=1 or records[0].filename!=prefix+"/RECORD":
+        raise WheelhouseRejected("Missing, foreign or ambiguous wheel RECORD")
+    record=records[0]
+    if not 0 < record.file_size <= MAX_RECORD_BYTES:
+        raise WheelhouseRejected("Wheel RECORD exceeds bounded inventory")
+    try:
+        rows=list(csv.reader(io.StringIO(z.read(record).decode("utf-8"))))
+    except (csv.Error,UnicodeDecodeError) as exc:
+        raise WheelhouseRejected("Unreadable wheel RECORD") from exc
+    files={i.filename:i for i in entries if not i.is_dir()}
+    if len(rows)!=len(files):
+        raise WheelhouseRejected("Wheel RECORD inventory mismatch")
+    reported=set()
+    for fields in rows:
+        if len(fields)!=3:
+            raise WheelhouseRejected("Malformed wheel RECORD fields")
+        filename, digest, size=fields
+        if filename not in files or filename in reported:
+            raise WheelhouseRejected("Unlisted or duplicate wheel RECORD member")
+        reported.add(filename)
+        if filename==record.filename:
+            if digest or size:
+                raise WheelhouseRejected("Wheel RECORD cannot hash itself")
+            continue
+        if (not digest.startswith("sha256=") or
+            re.fullmatch(r"[A-Za-z0-9_-]{43}",digest[7:]) is None or
+            size!=str(files[filename].file_size)):
+            raise WheelhouseRejected("Wheel RECORD hash or size invalid")
+        hasher=hashlib.sha256()
+        with z.open(files[filename]) as content:
+            while part:=content.read(1024*1024):
+                hasher.update(part)
+        encoded=base64.urlsafe_b64encode(hasher.digest()).rstrip(b"=").decode("ascii")
+        if digest[7:]!=encoded:
+            raise WheelhouseRejected("Wheel RECORD member digest mismatch")
+    if reported!=set(files):
+        raise WheelhouseRejected("Wheel RECORD inventory incomplete")
+
+
 def safe_metadata(z, distribution, version, filename):
     """Verify ZIP structure, package metadata and matching WHEEL tags."""
     entries=z.infolist()
@@ -151,6 +201,8 @@ def safe_metadata(z, distribution, version, filename):
             metadata.append(info)
         if name.endswith(".dist-info/WHEEL"):
             wheel_info.append(info)
+        if name.endswith(".dist-info/RECORD") and info.file_size>MAX_RECORD_BYTES:
+            raise WheelhouseRejected("Wheel RECORD exceeds bounded inventory")
     if len(wheel_info)!=1 or len(metadata)!=1:
         raise WheelhouseRejected("Missing or ambiguous wheel WHEEL/METADATA")
     if len(metadata)!=1:
@@ -169,6 +221,7 @@ def safe_metadata(z, distribution, version, filename):
             wheel.file_size>MAX_METADATA_BYTES):
         raise WheelhouseRejected("WHEEL metadata does not match package identity")
     validate_wheel_tags(filename,Parser().parsestr(z.read(wheel).decode("utf-8")))
+    validate_record_contents(z,prefix,entries)
     return Parser().parsestr(z.read(meta).decode("utf-8"))
 
 
@@ -240,6 +293,7 @@ def audit_wheelhouse(folder: str,manifest_file: str)->dict:
     return {
       "schema":"feature7_cpu_wheelhouse_audit_v1",
       "sha256_verified_wheel_files":len(rows),
+      "wheel_record_sha256_and_size_verified":True,
       "declared_transitive_requirement_names_present":True,
       "conservative_numeric_dependency_constraints_checked":True,
       "faster_whisper_version":"1.2.1",
