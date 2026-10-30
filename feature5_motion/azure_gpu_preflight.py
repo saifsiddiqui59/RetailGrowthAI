@@ -7,6 +7,7 @@ actual available GPU quota. No cloud calls or access tokens in this module.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 from typing import Any
 
 from .contracts import MotionError
@@ -85,6 +86,8 @@ def assess_azure_a100_preflight(*, account: dict, resource_group: dict,
         profiles != [{"name": "Consumption", "workloadProfileType": "Consumption"}]):
         return A100Readiness("BLOCKED", ("Unexpected environment, tags or paid profile",), CANARY_ENV)
     target = CANARY_ENV
+    if not isinstance(usage_by_environment, dict):
+        return A100Readiness("BLOCKED", ("GPU quota inventory is malformed",), target)
     rows = usage_by_environment.get(target)
     if not isinstance(rows, list):
         return A100Readiness("BLOCKED", ("GPU quota not readable for selected environment",), target)
@@ -95,12 +98,22 @@ def assess_azure_a100_preflight(*, account: dict, resource_group: dict,
         return A100Readiness("BLOCKED", ("A100 quota row absent or ambiguous",), target)
     q = gpu_rows[0]
     try:
-        limit = float(q["limit"])
-        used = float(q.get("currentValue", q.get("value", 0)))
-    except (ValueError, TypeError, KeyError):
+        # A missing current-usage field is NOT evidence of zero GPUs in use.
+        # Reject booleans, which Python otherwise coerces to 0 and 1.
+        raw_limit = q["limit"]
+        raw_used = q["currentValue"] if "currentValue" in q else q["value"]
+        if type(raw_limit) is bool or type(raw_used) is bool:
+            raise ValueError("Boolean GPU quota is not a count")
+        limit = float(raw_limit)
+        used = float(raw_used)
+    except (ValueError, TypeError, KeyError, OverflowError):
         return A100Readiness("BLOCKED", ("A100 quota values invalid",), target)
-    if not (0 <= used < limit and limit >= 1):
-        return A100Readiness("BLOCKED", ("No unconsumed A100 environment GPU quota",), target)
+    # Float accepts Infinity/NaN and 1e309; a fabricated infinite limit
+    # must never qualify an environment for a later paid GPU launch.
+    if not (isfinite(limit) and isfinite(used) and
+            limit.is_integer() and used.is_integer() and
+            0 <= used < limit and limit >= 1):
+        return A100Readiness("BLOCKED", ("No verified finite A100 GPU quota",), target)
     return A100Readiness(
         "INSPECTION_PASS_ONLY",
         ("Quota is available, but image/weights/identity/approved budget not verified",
