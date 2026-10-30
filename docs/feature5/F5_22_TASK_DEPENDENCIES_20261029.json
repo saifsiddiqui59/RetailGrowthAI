@@ -113,7 +113,8 @@
       "required_output": "reviewed CUDA base/wheels licence + immutable OCI",
       "acceptance_criteria": "Build digest, ABI, legal and SBOM verified",
       "source_evidence_20261030": "OCI/source and wheel security hardening #688/#694/#698; each separate exact-head 4/4 CI pass. Genuine immutable CUDA image, legal distribution, ABI/SBOM remain unverified.",
-      "no_production_authority": true
+      "no_production_authority": true,
+      "source_evidence_batch2_20261030": "Hardens actual local safetensors header parser: duplicate-key/nonfinite/deep JSON rejection, tensor offset and shape validation, symlink/hardlink refusal; synthetic CPU negative tests. Not original weight full SHA, actual OCI or legal approval."
     },
     {
       "task": 14,
@@ -123,7 +124,8 @@
       "required_output": "read-only mounted actual Wan checkpoint files",
       "acceptance_criteria": "Stream full original 3 files, exact SHA/size",
       "source_evidence_20261030": "Private mounted weight-manifest byte-input hardening #691, exact-head 4/4 CI pass. Actual protected original 3 checkpoint full streamed SHA not executed.",
-      "no_production_authority": true
+      "no_production_authority": true,
+      "source_evidence_batch2_20261030": "Hardens existing private shared Azure Files stat-only check: each intermediate path must be real non-symlink directory, model must be single-link correct-size file; fake tiny local test cases. No real mounted 18GiB original checkpoint readback."
     },
     {
       "task": 15,
@@ -149,7 +151,8 @@
       "required_output": "genuine 5s model-rendered native MP4",
       "acceptance_criteria": "704x1280,24fps,121f and original model provenance",
       "source_evidence_20261030": "Native MP4 local ffprobe + SHA change-detection boundary hardened #702, exact-head 4/4 CI pass. No real licensed Wan2.2 motion or human garment acceptance.",
-      "no_production_authority": true
+      "no_production_authority": true,
+      "source_evidence_batch2_20261030": "Hardens native ffprobe acceptance with strict decimal ASCII frame/duration types, deep JSON parser denial and type-coercion negative tests; hardens five-stage RGB screening with byte identity recheck after FFmpeg and fake-clip tamper tests. Not real inference or human fashion approval."
     },
     {
       "task": 18,

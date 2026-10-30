@@ -95,6 +95,34 @@ class SharedModelMountTests(unittest.TestCase):
             with self.assertRaises(m.PreflightError):
                 m.read_private_manifest(linked)
 
+    def test_stat_only_mount_rejects_intermediate_links_and_hardlinks(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as td:
+            base=Path(td)
+            root=base/"mounted"
+            root.mkdir()
+            item_path="feature5/diffusion_models/fake-model.safetensors"
+            approved={"feature5/diffusion_models/fake-model.safetensors":
+                      (4,"f"*64,"synthetic/fixture")}
+            with patch.object(m,"EXPECTED",approved):
+                original=root/item_path
+                original.parent.mkdir(parents=True)
+                original.write_bytes(b"FAKE")
+                self.assertTrue(m.check_mounted_files(root))
+                hardlink=base/"hardlink.safetensors"
+                hardlink.hardlink_to(original)
+                with self.assertRaises(m.PreflightError):
+                    m.check_mounted_files(root)
+                hardlink.unlink()
+                original.unlink()
+                real_dir=base/"outside"
+                real_dir.mkdir()
+                (real_dir/"fake-model.safetensors").write_bytes(b"FAKE")
+                original.parent.rmdir()
+                original.parent.symlink_to(real_dir,target_is_directory=True)
+                with self.assertRaises(m.PreflightError):
+                    m.check_mounted_files(root)
+
     def test_mounted_files_must_exist_and_not_be_symlinks(self):
         with tempfile.TemporaryDirectory() as temp:
             with self.assertRaises(m.PreflightError):

@@ -202,7 +202,8 @@ def check_small_safetensors_header(path, *, expected_size, max_header_bytes=10*1
     general CI. Reject links and malformed lengths without loading 10GB.
     """
     p=Path(path)
-    if p.is_symlink() or not p.is_file() or p.stat().st_size != expected_size:
+    if (p.is_symlink() or not p.is_file() or p.stat().st_size != expected_size or
+        p.stat().st_nlink != 1):
         raise WanCompatibilityError("Wrong model file identity/byte count")
     try:
         with p.open("rb") as f:
@@ -212,13 +213,49 @@ def check_small_safetensors_header(path, *, expected_size, max_header_bytes=10*1
             raw=f.read(size)
             if len(raw)!=size:
                 raise ValueError("Truncated model header")
-            doc=json.loads(raw)
-            if type(doc) is not dict or not doc or any(
-                not isinstance(k,str) or not isinstance(v,dict)
-                for k,v in doc.items()
-            ):
+            def unique_keys(pairs):
+                result = {}
+                for name, value in pairs:
+                    if name in result:
+                        raise ValueError("Ambiguous duplicate safetensors header key")
+                    result[name] = value
+                return result
+            doc=json.loads(
+                raw, object_pairs_hook=unique_keys,
+                parse_constant=lambda _: (_ for _ in ()).throw(
+                    ValueError("Nonfinite safetensors metadata")),
+            )
+            if type(doc) is not dict or not doc:
                 raise ValueError("Unrecognized safetensors header")
-    except (OSError,ValueError,UnicodeError,TypeError) as exc:
+            payload_size = expected_size - 8 - size
+            tensors = 0
+            for name, item in doc.items():
+                if not isinstance(name, str) or not name:
+                    raise ValueError("Invalid tensor name")
+                if name == "__metadata__":
+                    if (type(item) is not dict or
+                        any(type(k) is not str or type(v) is not str
+                            for k, v in item.items())):
+                        raise ValueError("Invalid tensor metadata")
+                    continue
+                if (type(item) is not dict or
+                    set(item) != {"dtype", "shape", "data_offsets"} or
+                    type(item["dtype"]) is not str or
+                    not 1 <= len(item["dtype"]) <= 32 or
+                    type(item["shape"]) is not list or
+                    len(item["shape"]) > 16 or
+                    any(type(n) is not int or n < 0 for n in item["shape"]) or
+                    type(item["data_offsets"]) is not list or
+                    len(item["data_offsets"]) != 2):
+                    raise ValueError("Malformed safetensors tensor descriptor")
+                start, end = item["data_offsets"]
+                if (type(start) is not int or type(end) is not int or
+                    not 0 <= start <= end <= payload_size):
+                    raise ValueError("Unsafe tensor data offset")
+                tensors += 1
+            if not tensors:
+                raise ValueError("Safetensors header has no tensors")
+    except (OSError,ValueError,UnicodeError,TypeError,RecursionError) as exc:
         raise WanCompatibilityError("Invalid local safetensors metadata") from exc
     return {"stat_bytes":expected_size,"header_sha256":hashlib.sha256(raw).hexdigest(),
             "model_sha256_verified":False,"gpu_started":False}

@@ -49,8 +49,10 @@ def screen_motion_frames(*, clip_path, inspected: NativeClipInspection,
     path=Path(clip_path)
     if path.is_symlink() or path.suffix.lower()!=".mp4" or not path.is_file():
         raise WanCompatibilityError("Private local clip required for frame screening")
-    if path.stat().st_size != inspected.size_bytes:
-        raise WanCompatibilityError("Clip changed since native inspection")
+    initial=path.stat(follow_symlinks=False)
+    if (initial.st_size != inspected.size_bytes or initial.st_nlink != 1 or
+        inspected.status != "PENDING_PRIVATE_IMPORT_AND_VISUAL_REVIEW"):
+        raise WanCompatibilityError("Clip changed/linked since native inspection")
     sha=sha256()
     with path.open("rb") as stream:
         for part in iter(lambda:stream.read(1024*1024),b""):
@@ -72,10 +74,24 @@ def screen_motion_frames(*, clip_path, inspected: NativeClipInspection,
             )
         except (OSError,subprocess.SubprocessError) as exc:
             raise WanCompatibilityError("Private decoded frame unavailable") from exc
-        if len(proc.stdout)!=length:
+        if type(proc.stdout) is not bytes or len(proc.stdout)!=length:
             raise WanCompatibilityError("Missing/invalid private decoded frame size")
         frames.append(Image.frombytes("RGB",SMALL_FRAME,proc.stdout))
         fingerprints.append(sha256(proc.stdout).hexdigest())
+    # All five FFmpeg invocations must have consumed exactly the same
+    # already-inspected private MP4. An attacker must not swap bytes between
+    # sampling timestamps and get a human-review-pending receipt.
+    final=path.stat(follow_symlinks=False)
+    if (final.st_dev,final.st_ino,final.st_size,final.st_mtime_ns)!=(
+        initial.st_dev,initial.st_ino,initial.st_size,initial.st_mtime_ns
+    ):
+        raise WanCompatibilityError("Private clip changed during frame sampling")
+    after=sha256()
+    with path.open("rb") as stream:
+        for part in iter(lambda:stream.read(1024*1024),b""):
+            after.update(part)
+    if after.hexdigest()!=inspected.sha256:
+        raise WanCompatibilityError("Private clip bytes changed during frame sampling")
     differences=tuple(
         round(ImageStat.Stat(ImageChops.difference(a,b).convert("L")).mean[0],3)
         for a,b in zip(frames,frames[1:])

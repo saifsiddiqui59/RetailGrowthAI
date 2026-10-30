@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -72,6 +73,8 @@ def inspect_native_mp4(shot: WanShotPackage, *, staged_file: Path, ffprobe="ffpr
             parse_constant=lambda _: (_ for _ in ()).throw(
                 ValueError("Nonfinite ffprobe number")),
         )
+        if type(data) is not dict or type(data.get("format")) is not dict:
+            raise ValueError("Malformed ffprobe root or format")
         # Native Wan SaveVideo output is exactly one silent H264 video.
         # Extra audio, subtitles, attachments or second video streams can
         # smuggle unreviewed content into the downstream editor/publisher.
@@ -83,8 +86,18 @@ def inspect_native_mp4(shot: WanShotPackage, *, staged_file: Path, ffprobe="ffpr
             raise ValueError("Native silent Wan MP4 must have one video stream only")
         v = streams[0]
         fps = v["r_frame_rate"]
-        n = int(v["nb_read_frames"])
-        duration = float(data["format"]["duration"])
+        frame_count = v.get("nb_read_frames")
+        duration_raw = data["format"].get("duration")
+        # ffprobe's JSON fields are decimal ASCII strings. Never silently
+        # truncate fractional frame counts or accept nonfinite/spoofed values.
+        if (type(frame_count) is not str or not frame_count.isascii() or
+            not frame_count.isdigit() or len(frame_count) > 6 or
+            type(duration_raw) is not str or len(duration_raw) > 24 or
+            not re.fullmatch(r"[0-9]{1,4}(?:\.[0-9]{1,12})?", duration_raw) or
+            type(v.get("width")) is not int or type(v.get("height")) is not int):
+            raise ValueError("Invalid native frame count, size or duration types")
+        n = int(frame_count)
+        duration = float(duration_raw)
         if (data["format"].get("format_name","").split(",")[0] not in ("mov","mp4") or
             v["codec_name"] != "h264" or (v["width"],v["height"])!=(704,1280) or
             fps != "24/1" or n != 121 or not 4.9 <= duration <= 5.2):
@@ -100,7 +113,7 @@ def inspect_native_mp4(shot: WanShotPackage, *, staged_file: Path, ffprobe="ffpr
             raise ValueError("File changed during ffprobe or receipt hashing")
         return NativeClipInspection(digest.hexdigest(),size,704,1280,24,121,
                                     duration,"h264",shot.lineage_sha256)
-    except (OSError,ValueError,KeyError,TypeError,subprocess.SubprocessError) as exc:
+    except (OSError,ValueError,KeyError,TypeError,RecursionError,subprocess.SubprocessError) as exc:
         raise WanCompatibilityError("Native video not accepted; no Feature4 approval") from exc
 
 

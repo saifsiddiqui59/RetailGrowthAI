@@ -115,9 +115,20 @@ def check_mounted_files(root):
     if not base.is_dir() or base.is_symlink():
         raise PreflightError("Private model root not mounted as a directory")
     for relative, (size, _, _) in EXPECTED.items():
-        file = base.joinpath(*PurePosixPath(relative).parts)
-        if file.is_symlink() or not file.is_file() or file.stat().st_size != size:
-            raise PreflightError("Missing, symlinked or wrong-sized model: " + relative)
+        segments = PurePosixPath(relative).parts
+        parent = base
+        for segment in segments[:-1]:
+            parent = parent / segment
+            # A symlinked intermediate directory can silently redirect a
+            # stat-only model gate outside the approved private mount.
+            if parent.is_symlink() or not parent.is_dir():
+                raise PreflightError("Linked or missing checkpoint directory: " + relative)
+        file = parent / segments[-1]
+        if file.is_symlink() or not file.is_file():
+            raise PreflightError("Missing or linked checkpoint file: " + relative)
+        stat = file.stat(follow_symlinks=False)
+        if stat.st_size != size or stat.st_nlink != 1:
+            raise PreflightError("Wrong-sized or hardlinked model: " + relative)
     return True
 
 
