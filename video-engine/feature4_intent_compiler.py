@@ -77,6 +77,16 @@ def compile_approved_storyboard(draft, snapshot):
         "script", "brand", "assets", "idempotency_key",
     }.issubset(snapshot):
         raise CreativeContractError("Missing trusted approval snapshot")
+    # The approved copy must be a structured exact-match list. A bare string
+    # would turn Python's "headline in approved_text" into a substring check,
+    # allowing unreviewed promotional claims through the trusted compiler.
+    script = snapshot["script"]
+    if type(script) is not dict:
+        raise CreativeContractError("Malformed trusted Feature2 script")
+    approved_text = script.get("approved_text")
+    if (type(approved_text) is not list or not approved_text or
+            any(type(item) is not str or not item for item in approved_text)):
+        raise CreativeContractError("Malformed trusted approved text")
     shop_id = uuid(snapshot["shop_id"], "shop ID")
     campaign_id = uuid(snapshot["campaign_id"], "campaign ID")
     job_id = uuid(snapshot["video_job_id"], "render job")

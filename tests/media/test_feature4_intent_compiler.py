@@ -129,6 +129,37 @@ class ApprovedIntentTests(unittest.TestCase):
             with self.subTest(label=label), self.assertRaises((CreativeContractError, TypeError)):
                 compile_approved_storyboard(draft, trusted)
 
+    def test_trusted_approved_copy_requires_exact_list_not_substring(self):
+        # A JSON string is iterable in Python: before this fence an unreviewed
+        # shorter headline could pass as a substring of a longer approved ad.
+        for malformed in (
+            "Diwali Fashion Luxury Boutique Visit Our Store 20% OFF",
+            ("Diwali Fashion", "Luxury Boutique"),
+            {"Diwali Fashion": True},
+            [],
+            ["Diwali Fashion", None],
+            ["Diwali Fashion", ""],
+        ):
+            draft, trusted = pair()
+            trusted["script"]["approved_text"] = malformed
+            with self.subTest(malformed=repr(malformed)), self.assertRaises(
+                    CreativeContractError):
+                compile_approved_storyboard(draft, trusted)
+
+    def test_malformed_trusted_script_fails_as_contract_error(self):
+        for malformed in (None, [], "approved", True):
+            draft, trusted = pair()
+            trusted["script"] = malformed
+            with self.subTest(malformed=repr(malformed)), self.assertRaises(
+                    CreativeContractError):
+                compile_approved_storyboard(draft, trusted)
+
+    def test_partial_headline_is_not_approved_even_with_valid_list(self):
+        draft, trusted = pair()
+        draft["scenes"][0]["headline"] = "Fashion"
+        with self.assertRaisesRegex(CreativeContractError, "Unreviewed"):
+            compile_approved_storyboard(draft, trusted)
+
     def test_only_selected_approved_records_may_enter_media_bundle(self):
         draft, trusted = pair()
         trusted["assets"]["unrelated"] = copy.deepcopy(trusted["assets"]["photokurti"])
