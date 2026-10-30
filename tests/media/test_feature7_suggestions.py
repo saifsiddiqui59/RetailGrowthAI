@@ -102,7 +102,7 @@ class Feature7SemanticSuggestionsTests(unittest.TestCase):
           lambda p:p['words'][3].update(endMs=920),
           lambda p:p['words'][3].update(startMs=500),
           lambda p:p['words'][3].update(endMs=600001),
-          lambda p:p['words'][3].update(word='bad\\u202e'),
+          lambda p:p['words'][3].update(word='bad\u202e'),
           lambda p:p['words'][3].update(word=''),
           lambda p:p['footage'][1]['words'][3].update(startMs=100),
           lambda p:p['footage'][1]['words'][3].update(endMs=0),
