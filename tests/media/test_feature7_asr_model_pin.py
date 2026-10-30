@@ -15,11 +15,12 @@ import {sealTranscriptEvidence,verifyTranscriptEvidence} from './video-engine/fe
 const input=JSON.parse(fs.readFileSync(0,'utf8'));
 const key=Buffer.alloc(32,0x42); // isolated deterministic test-only secret
 const now_ms=1700000000000;
-const evidence=sealTranscriptEvidence({key,now_ms,data:{
+const signed=sealTranscriptEvidence({key,now_ms,data:{
   shop_id:'shop7',asset_id:'asset7',job_id:'job7',
   source_sha256:'a'.repeat(64),transcript_sha256:'b'.repeat(64),
   model_id:'approved_cpu_asr_v1',issued_at_ms:now_ms,
   expires_at_ms:now_ms+60000}});
+const evidence={...signed};
 if(input.tamper) evidence.model_id='other_cpu_model';
 const expect={shop_id:'shop7',asset_id:'asset7',job_id:'job7',
   source_sha256:'a'.repeat(64),transcript_sha256:'b'.repeat(64)};
