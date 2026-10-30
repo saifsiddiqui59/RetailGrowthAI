@@ -67,6 +67,22 @@ def validate_visibility_evidence(*, original, provenance, visibility_proof):
             or not isinstance(windows,list) or len(windows)!=12
             or not isinstance(measured,list) or len(measured)!=12):
         raise MinuteProofError("60s visual scene evidence incomplete or overclaimed")
+    # A complete receipt must sample the entire minute exactly once. Matching
+    # two forged JSON timelines is not proof if both omit or overlap scenes.
+    # The source fixture permits variable scene durations, not missing time.
+    cursor=0.0
+    for window in windows:
+        if (type(window) is not dict or set(window)!={"start","duration"}
+                or type(window["start"]) not in (int,float)
+                or type(window["duration"]) not in (int,float)
+                or not math.isfinite(window["start"])
+                or not math.isfinite(window["duration"])
+                or window["duration"]<=0
+                or abs(window["start"]-cursor)>.003):
+            raise MinuteProofError("60s visibility scene windows are not contiguous")
+        cursor=window["start"]+window["duration"]
+    if abs(cursor-60)>.003:
+        raise MinuteProofError("60s visibility scenes do not cover the full minute")
     for want,got in zip(windows,measured):
         if (type(want) is not dict or type(got) is not dict
                 or set(want)!={"start","duration"}
