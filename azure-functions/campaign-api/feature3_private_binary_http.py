@@ -36,6 +36,10 @@ def _valid_png_chunks(raw):
     saw_idat=False
     idat_closed=False
     saw_plte=False
+    # IHDR color type is fixed at byte 25 of a PNG stream. Only indexed
+    # color requires a palette; grayscale must never carry one.
+    color_type=raw[25] if len(raw)>=29 else -1
+    bit_depth=raw[24] if len(raw)>=29 else -1
     chunks=0
     while offset+12<=len(raw):
         chunks+=1
@@ -57,7 +61,9 @@ def _valid_png_chunks(raw):
         if kind[0] in range(65,91) and kind not in (b"IHDR",b"PLTE",b"IDAT",b"IEND"):
             return False
         if kind==b"PLTE":
-            if saw_plte or saw_idat:
+            if (saw_plte or saw_idat or color_type in (0,4) or
+                    length==0 or length>768 or length%3!=0 or
+                    (color_type==3 and length//3>(1<<bit_depth))):
                 return False
             saw_plte=True
         if kind==b"IDAT":
@@ -67,7 +73,8 @@ def _valid_png_chunks(raw):
         elif saw_idat:
             idat_closed=True
         if kind==b"IEND":
-            return length==0 and saw_idat and end==len(raw)
+            return (length==0 and saw_idat and end==len(raw) and
+                    (color_type!=3 or saw_plte))
         offset=end
     return False
 _KEYS=frozenset((
