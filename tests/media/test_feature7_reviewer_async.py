@@ -100,8 +100,37 @@ captionDeferred[1].reject(new Error('new caption'));
 await Promise.resolve();await Promise.resolve();
 assert.equal(send.disabled,false);
 assert.equal(app.getReviewSnapshot().approved,false);
-app.destroy();assert.equal(target.children.length,0);
-process.stdout.write('OK: stale async callbacks fenced and duplicate requests denied');
+// A promise that fulfils with false is a host REJECTION, not approval or a
+// successful submission. Both paths must permit a safe explicit retry.
+verified.checked=true;send.handlers.click();
+assert.equal(captionDecisions.length,3);
+captionDeferred[2].resolve(false);
+await Promise.resolve();await Promise.resolve();
+assert.equal(send.disabled,false);
+assert.match(captionNodes.find(n=>n.tag==='p'&&
+  n.attributes['aria-live']==='polite').textContent,/rejected by trusted host/i);
+confirm.checked=true;approval.handlers.click();
+assert.equal(decisions.length,3);
+reviewDeferred[2].resolve(false);
+await Promise.resolve();await Promise.resolve();
+assert.equal(approval.disabled,false);
+assert.match(feedback.textContent,/rejected by trusted host/i);
+const before=JSON.stringify(app.getReviewSnapshot());
+const decisionsBefore=decisions.length, captionsBefore=captionDecisions.length;
+app.destroy();app.destroy();
+assert.equal(target.children.length,0);
+// A malicious caller can retain removed DOM elements and call their
+// listeners; detached controls must never emit host review/caption requests.
+confirm.checked=true;approval.handlers.click();
+trim.value='2';trim.handlers.input();
+select.handlers.change();
+textarea.value='Changed after destroy';save.handlers.click();
+verified.checked=true;send.handlers.click();
+cueSelect.handlers.change();
+assert.equal(decisions.length,decisionsBefore);
+assert.equal(captionDecisions.length,captionsBefore);
+assert.equal(JSON.stringify(app.getReviewSnapshot()),before);
+process.stdout.write('OK: stale callbacks, false host responses and detached controls denied');
 '''
 
 @unittest.skipUnless(shutil.which("node"),"Requires Node.js")
@@ -110,6 +139,6 @@ class Feature7ReviewAsyncSafetyTests(unittest.TestCase):
         proc=subprocess.run(["node","--input-type=module","-e",JS],
             cwd=ROOT,text=True,capture_output=True,timeout=25)
         self.assertEqual(proc.returncode,0,proc.stderr[-3000:])
-        self.assertIn("stale async callbacks fenced",proc.stdout)
+        self.assertIn("false host responses and detached controls denied",proc.stdout)
 
 if __name__=="__main__":unittest.main()

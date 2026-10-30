@@ -80,6 +80,7 @@ export function mountFeature7ReviewPanel({
   reject.type='button';
   const warning=el('p','Caption overlays, B-roll and multi-cut changes are suggestions only. Final renderer integration is pending.');
   const update=()=>{
+    if(disposed)return;
     const index=Number(select.value);
     const selected=session.scenes.find(item=>item.source_scene_index===index);
     if(!selected)throw Error('Missing selected scene');
@@ -113,10 +114,12 @@ export function mountFeature7ReviewPanel({
       el('p',black+' black intervals; '+freeze+' potentially still intervals. Check manually.'));
   };
   select.addEventListener('change',()=>{
+    if(disposed)return;
     // Changing the visible scene does not change a pending review packet.
     confirm.checked=false;update();
   });
   trim.addEventListener('input',()=>{
+    if(disposed)return;
     try{
       const index=Number(select.value);
       const previous=session.scenes.find(s=>s.source_scene_index===index)?.trim_start;
@@ -129,6 +132,9 @@ export function mountFeature7ReviewPanel({
     }catch(e){feedback.textContent='Trim denied: '+e.message;update();}
   });
   const dispatch=action=>{
+    // Detached host controls can retain listeners after unmount.
+    // They must never emit another stale review request.
+    if(disposed)return;
     if(reviewSubmissionPending){
       feedback.textContent='This review request was already forwarded. Edit the clip before requesting again.';
       return;
@@ -143,7 +149,11 @@ export function mountFeature7ReviewPanel({
       if(result===false)throw Error('Trusted host rejected review request');
       feedback.textContent='Request forwarded to trusted host. Approval is not confirmed.';
       if(result&&typeof result.then==='function')
-        Promise.resolve(result).catch(()=>{
+        Promise.resolve(result).then(value=>{
+          if(disposed||epoch!==reviewRequestEpoch||value!==false)return;
+          reviewSubmissionPending=false;update();
+          feedback.textContent='Request rejected by trusted host. No approval was recorded.';
+        }).catch(()=>{
           if(disposed||epoch!==reviewRequestEpoch)return;
           reviewSubmissionPending=false;update();
           feedback.textContent='Request failed. No approval was recorded.';
@@ -198,10 +208,12 @@ export function mountFeature7ReviewPanel({
         !captionSession.corrections.length||captionSubmissionPending;
     };
     cueSelect.addEventListener('change',()=>{
+      if(disposed)return;
       // A cue switch is not a new correction; retain its one-shot lock.
       verified.checked=false;updateCaptionEditor();
     });
     save.addEventListener('click',()=>{
+      if(disposed)return;
       try{
         const next=editCaptionCorrection(
           captionSession,Number(cueSelect.value),editor.value);
@@ -214,6 +226,7 @@ export function mountFeature7ReviewPanel({
       }catch(e){feedbackCaptions.textContent='Correction denied: '+e.message;}
     });
     send.addEventListener('click',()=>{
+      if(disposed)return;
       if(captionSubmissionPending){
         feedbackCaptions.textContent='Correction was already forwarded. Modify it before resubmitting.';
         return;
@@ -230,7 +243,12 @@ export function mountFeature7ReviewPanel({
         feedbackCaptions.textContent=
           'Correction request forwarded to trusted host. Approval not confirmed.';
         if(result&&typeof result.then==='function')
-          Promise.resolve(result).catch(()=>{
+          Promise.resolve(result).then(value=>{
+            if(disposed||epoch!==captionRequestEpoch||value!==false)return;
+            captionSubmissionPending=false;updateCaptionEditor();
+            feedbackCaptions.textContent=
+              'Caption request rejected by trusted host. No approval was recorded.';
+          }).catch(()=>{
             if(disposed||epoch!==captionRequestEpoch)return;
             captionSubmissionPending=false;updateCaptionEditor();
             feedbackCaptions.textContent='Caption request failed. No approval was recorded.';
@@ -253,7 +271,11 @@ export function mountFeature7ReviewPanel({
   update();
   return Object.freeze({
     destroy(){
+      if(disposed)return;
       disposed=true;reviewRequestEpoch++;captionRequestEpoch++;
+      // Browser may retain detached media and control references.
+      // Blob URL ownership stays with the trusted host, which must revoke it.
+      video.pause?.();
       video.removeAttribute('src');target.replaceChildren();
     },
     getReviewSnapshot(){return {

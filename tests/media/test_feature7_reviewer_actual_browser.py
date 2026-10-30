@@ -157,6 +157,49 @@ class Feature7ActualBrowserReviewQA(unittest.TestCase):
             finally:browser.close()
 
 
+    def test_detached_controls_cannot_emit_requests_after_host_url_revocation(self):
+        # This is an OPTIONAL actual Chromium test. CI runners without Python
+        # Playwright + a local Chromium binary SKIP it, never claim acceptance.
+        with sync_playwright() as p:
+            browser=p.chromium.launch(headless=True,executable_path=CHROME,
+                                      args=["--no-sandbox"])
+            try:
+                page=browser.new_page(viewport={"width":360,"height":780})
+                page.goto(self.url,wait_until="networkidle")
+                page.wait_for_function("window.__ready===true")
+                region=page.get_by_role("region",name="Feature 7 media editing review")
+                self.assertEqual(region.count(),1)
+                self.assertEqual(page.get_by_role(
+                    "combobox",name="Caption to correct").count(),1)
+                page.evaluate("""() => {
+                  const root=document.querySelector('.rgai-f7-review');
+                  const buttons=[...root.querySelectorAll('button')];
+                  window.__oldApprove=buttons.find(x=>x.textContent==='Request human approval');
+                  window.__oldReject=buttons.find(x=>x.textContent==='Reject AI suggestion');
+                  window.__oldSend=buttons.find(x=>x.textContent==='Request caption correction review');
+                  window.__oldSave=buttons.find(x=>x.textContent==='Save caption suggestion');
+                  window.__oldTrim=root.querySelector('input[type=range]');
+                  window.__oldEditor=root.querySelector('textarea');
+                }""")
+                self.assertTrue(page.evaluate(
+                  "fetch(window.__url).then(r=>r.ok,()=>false)"),
+                  "Host-owned blob should be available before host cleanup")
+                page.evaluate("window.__dispose()")
+                self.assertFalse(page.evaluate(
+                  "fetch(window.__url).then(r=>r.ok,()=>false)"),
+                  "The trusted host, not F7's reviewer, must revoke its blob URL")
+                page.evaluate("""() => {
+                  window.__oldApprove.click();window.__oldReject.click();
+                  window.__oldEditor.value='After unmount';
+                  window.__oldSave.click();window.__oldSend.click();
+                  window.__oldTrim.value='1';
+                  window.__oldTrim.dispatchEvent(new Event('input'));
+                }""")
+                self.assertEqual(page.evaluate("window.__reviewRequests.length"),0)
+                self.assertEqual(page.evaluate("window.__captionRequests.length"),0)
+                self.assertFalse(page.evaluate("window.__snapshot().approved"))
+            finally:browser.close()
+
     def test_stale_async_failure_cannot_reopen_new_review_on_mobile(self):
         with sync_playwright() as p:
             browser=p.chromium.launch(headless=True,executable_path=CHROME,
