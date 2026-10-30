@@ -74,14 +74,18 @@ class ComfyOfflineImageBuildGateTests(unittest.TestCase):
     def test_reviewed_build_input_json_rejects_duplicate_keys_and_nan(self):
         with TemporaryDirectory() as td:
             path = Path(td) / "review.json"
-            for raw, reason in (
-                ('{"torch":"a","torch":"b"}', "Duplicate"),
-                ('{"nested":{"x":1,"x":2}}', "Duplicate"),
-                ('{"torch":NaN}', "Non-finite"),
-                ('{"torch":-Infinity}', "Non-finite"),
+            # The outer build gate deliberately redacts parser details; the
+            # lower-level source audit tests assert exact denial categories.
+            for raw in (
+                '{"torch":"a","torch":"b"}',
+                '{"nested":{"x":1,"x":2}}',
+                '{"torch":NaN}',
+                '{"torch":-Infinity}',
             ):
                 path.write_text(raw)
-                with self.subTest(raw=raw), self.assertRaisesRegex(ValueError, reason):
+                with self.subTest(raw=raw), self.assertRaisesRegex(
+                    WanCompatibilityError, "Unreadable reviewed manifest"
+                ):
                     _private_review_json(path)
             path.write_text('{"test":"synthetic"}')
             self.assertEqual(_private_review_json(path), {"test":"synthetic"})
