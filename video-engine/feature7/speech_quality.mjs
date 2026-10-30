@@ -15,7 +15,7 @@ const stamp=(t)=>{
   check(mm<60&&ss<60,'Invalid reference subtitle clock');
   return ((hh*60+mm)*60+ss)*1000+ms;
 };
-const tokens=t=>(t.toLocaleLowerCase('en').match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu)??[]);
+const tokens=t=>(t.normalize('NFC').toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}\p{M}]*(?:['’][\p{L}\p{N}][\p{L}\p{N}\p{M}]*)*/gu)??[]);
 function cuesFromSrt(text,sourceMs){
   check(typeof text==='string'&&text.length>0&&text.length<=120000,
     'Human reference subtitle required');
