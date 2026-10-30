@@ -66,10 +66,18 @@ def verify_mock_editor_output(source: Path):
     first_video, first_photo, trimmed_video, offer_photo = [
         _frame(source, time) for time in at
     ]
+    # Sample two additional *encoded* frames within the actual source-video
+    # segments. Distinct scenes alone cannot prove that an editor preserved
+    # moving footage: a frozen frame with a different overlay could pass the
+    # four-scene order gate. These probes remain interior to 0..4 and 14..20.
+    moving_first = _frame(source, 3.0)
+    moving_trimmed = _frame(source, 17.0)
     if _sha(source) != source_digest:
         raise EditorExportProofError("Encoded MP4 changed during export QA sampling")
     video_pair = _luma_delta(first_video, trimmed_video)
     photo_pair = _luma_delta(first_photo, offer_photo)
+    motion_first = _luma_delta(first_video, moving_first)
+    motion_trimmed = _luma_delta(trimmed_video, moving_trimmed)
     cross = min(
         _luma_delta(first_video, first_photo),
         _luma_delta(first_video, offer_photo),
@@ -80,8 +88,12 @@ def verify_mock_editor_output(source: Path):
     # The two video segments share footage, but the second is nonidentical
     # due to its reviewed 4s media in-point, not an exact identical replay.
     # Both product-photo scenes must remain distinct from each other and video.
+    # Deliberately fixture-specific, low threshold: rejects a frozen/replayed
+    # still while tolerating slow motion and lossy H.264. This does NOT prove
+    # frame-accurate source in-points or commercial motion quality.
     if not (2.0 < video_pair < .65 * cross and
-            photo_pair >= 10.0 and cross >= 12.0):
+            photo_pair >= 10.0 and cross >= 12.0 and
+            motion_first >= 0.25 and motion_trimmed >= 0.25):
         raise EditorExportProofError(
             "Actual encoded editor order/inpoint or image distinction regressed")
     return {
@@ -94,6 +106,9 @@ def verify_mock_editor_output(source: Path):
         "repeated_source_video_delta": round(video_pair, 3),
         "different_photo_scene_delta": round(photo_pair, 3),
         "minimum_video_vs_photo_delta": round(cross, 3),
+        "first_video_encoded_motion_delta": round(motion_first, 3),
+        "trimmed_video_encoded_motion_delta": round(motion_trimmed, 3),
+        "encoded_motion_threshold": 0.25,
         "exact_inpoint_frame_verified": False,
         "human_visual_approval": False,
         "stock_model_product_match_verified": False,
