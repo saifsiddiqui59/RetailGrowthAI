@@ -39,11 +39,24 @@ def _node_binary_attested(payload: bytes, expected_sha256: str | None) -> bool:
     if (len(payload) < 64 or payload[:7] != b"\x7fELF\x02\x01\x01"
             or struct.unpack_from("<H", payload, 18)[0] != 62):
         return False
+    # A magic prefix and x86_64 machine ID alone also match forged ELF-like
+    # blobs. Check the ELF64 executable/shared-object header and an executable
+    # PT_LOAD segment before consulting the independently approved digest.
+    e_type, e_machine, e_version = struct.unpack_from("<HHI", payload, 16)
+    e_ehsize = struct.unpack_from("<H", payload, 52)[0]
+    if e_type not in (2, 3) or e_machine != 62 or e_version != 1 or e_ehsize != 64:
+        return False
     phoff = struct.unpack_from("<Q", payload, 32)[0]
     phentsize, phnum = struct.unpack_from("<HH", payload, 54)
     if not phoff or phentsize < 56 or not 1 <= phnum <= 1024:
         return False
     if phoff + phentsize * phnum > len(payload):
+        return False
+    if not any(
+        struct.unpack_from("<I", payload, phoff + n * phentsize)[0] == 1
+        and struct.unpack_from("<I", payload, phoff + n * phentsize + 4)[0] & 1
+        for n in range(phnum)
+    ):
         return False
     return compare_digest(sha256(payload).hexdigest(), expected_sha256)
 PIN = "4ab1a40d15ee8c1a1427c092dce08dc7dfbefa6f"
