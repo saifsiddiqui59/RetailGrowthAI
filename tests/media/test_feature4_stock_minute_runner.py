@@ -1,4 +1,6 @@
 """Stock full-minute standalone CPU acceptance script is safe and well formed."""
+import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -56,3 +58,22 @@ class MinuteRunnerContractTests(unittest.TestCase):
                     self.assertIn("Unsafe private output path", result.stderr)
             self.assertFalse((root / "escape").exists())
             self.assertFalse((root / "missing").exists())
+
+    def test_missing_ffmpeg_does_not_create_orphan_output_directory(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            tools = root / "minimal-bin"
+            tools.mkdir()
+            for name in ("python3", "dirname"):
+                binary = shutil.which(name)
+                self.assertIsNotNone(binary)
+                (tools / name).symlink_to(Path(binary).resolve())
+            output = root / "fresh-private-minute"
+            result = subprocess.run(
+                ["/bin/bash", str(SCRIPT), str(output)],
+                env={**os.environ, "PATH": str(tools)},
+                capture_output=True, text=True, timeout=10,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse(output.exists(),
+                             "Missing local encoder must fail before mkdir")
