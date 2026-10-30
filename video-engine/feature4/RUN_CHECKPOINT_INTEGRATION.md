@@ -22,3 +22,16 @@
 1. Verify PR #779 new exact head and full four-job CI. Diagnose actual failing job logs, fix owned batch source only, and rerun checks as permitted; never infer pass from missing runs.
 2. Coordinator to review #779 relative to parent #322 and reconcile stacked branches / issue #650 packaging before any main merge. Review rights and integration boundaries; do not merge automatically.
 3. Compare existing F4 batches #828 and #779 plus F4-07 donor #845 for compatible changes. Preserve original PR evidence and avoid double-merge. If CI is blocked by external owner #650/#249, work on a different independently reviewable batch.
+
+
+## Integration continuation — F4-08 source reconciliation, 2026-10-30
+
+- **PR #779** remains OPEN/DRAFT, stacked on **PR #322** (`feat/feature4-professional-video-studio`), not on `main`. Exact observed batch code head before this checkpoint: `027adec234691779ab508d8781926f8a5b8f7c3b`; current PR head after this checkpoint must be re-read from GitHub.
+- **Donor PR #838** (F4-08 finite frame seeking), donor head `74bc376af78c55c2e3fc1fb93ede681c603594ac`, was reconciled into the *existing* batch rather than opening a new micro-PR.
+- Reused byte-identical donor files `frontend/src/features/video/frame-seek.mjs` (blob `195e6e53041635dc4ad120eda76af506857120fd`) and `tests/frontend/feature4-frame-seek.test.mjs` (blob `7de58dcfc7be031afd74ebdd2a409b058dd617ef`).
+- **Conflict resolution:** `frontend/src/features/video/TimelineStudioSurface.jsx` overlaps existing F4-10 tenant/pointer fences in #779. Did **not** replace the entire component with donor version. Instead integrated five bounded seek edits (import, invalid-input guard, normalized seek, caption click, scene midpoint click) while retaining F4-10 `pendingResize` cancellation and live approval checks. Integrated component blob `04c9d76fdf6e602522628aa035a63b4100750dc3`. Source commits `c7072319`, `1c01bee6`, `027adec2`.
+- **Targeted test:** `node --test tests/frontend/feature4-frame-seek.test.mjs` on a source-equivalent isolated Node v22.16.0 copy: **4 passed, 0 failed**. This is **not** a full PR checkout, Playwright, decoded-media parity, nor 4-job CI. GitHub donor/recipient blob SHAs were independently verified equal for the pure helper and test.
+- **Exact-head CI:** GitHub commit workflow lookup returned no PR-triggered runs for `027adec2`; push-triggered run visibility is not established by that lookup. Treat 4/4 as **NOT VERIFIED**, not passed or failed. No merge, no integrated DONE, no production rights/hosted approval.
+- **Task state:** F4-08 remains IN PROGRESS until full acceptance and coordinator integration. Central registry snapshot remains source-complete 0/31, blocked 16/31, integrated 0/31; tested and PR-ready per-task counts remain unverified.
+- **NEXT:** inspect exact PR #779 head and actual *push* CI on that SHA; resolve failures without bypassing required jobs. Run F4-10 pointer-lifecycle regressions against the combined branch; then reconcile #828 and other existing F4 stacks only after file-overlap review. Coordinator owns #650 packaging, main merge and fresh postmerge 4/4. Do not separately merge donor #838 without checking for duplicate code.
+- No GPU, paid models, PROD, hosted SQL, customer samples or WineShopPOS changes.
