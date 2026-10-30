@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "feature": "7",
+  "source_pr": 795,
+  "parent_pr": 513,
+  "proposed_events": [
+    {
+      "task_id": "F7-G",
+      "proposed_status": "IN PROGRESS",
+      "source_status": "source_hardening_ci_verified",
+      "code_head_sha": "86da3c8ba440ac784fe6aaf28566c529127800f6",
+      "ci_run_id": 41035754061,
+      "ci_jobs_passed": 4,
+      "ci_jobs_required": 4,
+      "acceptance_pending": [
+        "coordinator PR integration",
+        "fresh 4/4 postmerge main CI",
+        "real JWT/RLS and rights acceptance remain separate"
+      ]
+    },
+    {
+      "task_id": "F7-K",
+      "proposed_status": "BLOCKED",
+      "dependency_id": "DEP-F7-22",
+      "owner": "coordinator/Auth Admin + DEV integration",
+      "required_output": "Two distinct nonprivileged DEV Auth identities and two properly isolated shop memberships, supported signed media APIs",
+      "acceptance": "Real hosted sign-in and positive same-tenant, foreign/revoked/expired/VIEWER negative checks",
+      "evidence": "Read-only DEV auth.users aggregate counts 0 and 0 on 2026-10-30; no credentials or auth mutation"
+    }
+  ],
+  "note": "Coordinator alone edits coordination/task_progress.json and canonical docs; this receipt does not assert integrated DONE."
+}
