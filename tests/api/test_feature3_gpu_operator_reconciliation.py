@@ -115,7 +115,8 @@ class ReconciliationTests(unittest.TestCase):
         self.db.spending.update({"state":"SETTLED","actual_usd":"0.011000"})
         for corrupt in ({"shop_id":str(uuid4())},
                         {"private":False},{"review_status":"APPROVED"},
-                        {"attempt":2},{"image_sha256":"b"*63},
+                        {"attempt":2},{"attempt":True},{"attempt":1.0},
+                        {"attempt":"1"},{"image_sha256":"b"*63},
                         {"media_asset_id":str(uuid4())},{"url":"public"}):
             self.db.evidence={"shop_id":self.db.shop,"job_id":self.db.job,
                 "media_asset_id":self.db.asset,"image_sha256":"a"*64,
