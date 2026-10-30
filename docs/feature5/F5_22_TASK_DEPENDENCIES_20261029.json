@@ -153,7 +153,8 @@
       "acceptance_criteria": "704x1280,24fps,121f and original model provenance",
       "source_evidence_20261030": "Native MP4 local ffprobe + SHA change-detection boundary hardened #702, exact-head 4/4 CI pass. No real licensed Wan2.2 motion or human garment acceptance.",
       "no_production_authority": true,
-      "source_evidence_batch2_20261030": "Hardens native ffprobe acceptance with strict decimal ASCII frame/duration types, deep JSON parser denial and type-coercion negative tests; hardens five-stage RGB screening with byte identity recheck after FFmpeg and fake-clip tamper tests. Not real inference or human fashion approval."
+      "source_evidence_batch2_20261030": "Hardens native ffprobe acceptance with strict decimal ASCII frame/duration types, deep JSON parser denial and type-coercion negative tests; hardens five-stage RGB screening with byte identity recheck after FFmpeg and fake-clip tamper tests. Not real inference or human fashion approval.",
+      "source_evidence_private_intake_20261030": "Added CPU-only output intake source guard to deny foreign-owned private 0700 root/subdirectory/MP4 on POSIX workers, and dedicated synthetic filesystem tests for exactly-one Comfy SaveVideo result, extra results, symlink, hardlink, wrong permissions, revocation after media screening, byte-swaps, receipt SHA and immutable pending-not-publish state. New exact-head CI and coordinator integration required; no real Wan inference performed."
     },
     {
       "task": 18,
