@@ -38,3 +38,13 @@
 - Child PR #825 remains open until coordinator verifies this integration; no source PRs closed, no main merge. Hosted signed tenant rights/ASR/Feature4 live approval remain blocked separately.
 - NEXT: inspect #513 exact-head four-job CI and run targeted caption projection regression if runner permits. If CI awaits, compare source PR #806 (F7-AC CPU readiness policy) against current parent for a conflict-free existing-source integration. Do not duplicate code or open micro-PRs.
 - Snapshot remains source-complete 8/35, blocked 8/35, integrated DONE 0/35; tested and PR-ready task counts unverified on new head. GPU OFF, no paid inference, PROD, SQL, WineShopPOS or samples.
+
+## Fifth compatible source integration — F7-AC CPU readiness (2026-10-30)
+- Source stacked PR #806 `feat/feature7-cpu-policy-failclosed-20261030` at `83a7e935824e67b484bf0f9895821cdb1adc972d`; source changes compared against parent base `332eab48020bb9bad6aa105332cf5f162c76b793`.
+- Imported unchanged code `video-engine/feature7/cpu_readiness.mjs` from blob `baf20790fbf4a8638e5440f321b1c840fdf1e3f3` at commit `58c907e8e3b467c618c0aa62723b6f75e4f6ecc0`.
+- Imported unchanged regression `tests/media/test_feature7_cpu_readiness.py` from blob `81fb14ef6d4e593dc7b74769ed0929f80bfafe52` at commit `f51507c5a5424a7e04d8b8942d2ae61fb775d9f7`.
+- Parent had not modified either source/test path since #806 base; only feature-owned TASKS ledger overlapped and was intentionally NOT overwritten. Existing ledger source remains authoritative pending coordinator review.
+- GitHub compare from prior checkpoint `89eb2a8` to code head `f51507c` showed only the two imported files (+48/-6 lines). PR #513 mergeable=true at code head, against main.
+- **Verification boundary:** No local targeted suite was executed. No PR-triggered workflow runs returned on code head `f51507c` at inspection. Earlier 4/4 green CI run `41098097292` applies ONLY to stale pre-integration parent head `2184fdc`; it cannot certify these imports. Current checkpoint commit changes the head again; require exact-head 4/4 and coordinator review.
+- NEXT: check new PR #513 exact-head Part 1 CI, run targeted caption projection and CPU readiness tests if possible; diagnose any failure before integration. If pending, inspect source PR #800 for nonoverlapping private-intake rights safety and compare with parent. Do not merge main or close child #806/#825 until accepted.
+- Snapshot: source-complete 8/35; blocked 8/35; integrated DONE 0/35; tested and PR-ready not yet verified on current combined head. No GPU, paid inference, PROD, SQL, WineShopPOS or samples.
