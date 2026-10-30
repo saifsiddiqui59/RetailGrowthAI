@@ -1,5 +1,6 @@
 """Actual H264 stream-copy + loudness mastering tests (synthetic audio only)."""
 import hashlib
+import stat
 import subprocess
 import sys
 import tempfile
@@ -100,7 +101,7 @@ class Feature4MasterTests(unittest.TestCase):
 
     def test_report_write_failure_invalidates_only_matching_private_master(self):
         proof=self.root/"proof.json"
-        original_open=Path.open
+        original_open=audio_master._open_private_report
         original=b"offline-synthetic-master"
         for replace_output in (False, True):
             with self.subTest(replace_output=replace_output):
@@ -112,15 +113,15 @@ class Feature4MasterTests(unittest.TestCase):
                     return {"master_sha256":hashlib.sha256(original).hexdigest(),
                             "status":"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED"}
                 def fail_proof_open(path,*args,**kwargs):
-                    if path==proof and args and args[0]=="x":
+                    if path==proof:
                         raise OSError("simulated proof disk failure")
-                    return original_open(path,*args,**kwargs)
+                    return original_open(path)
                 argv=["feature4_audio_master.py","--source",str(self.source),
                       "--output",str(self.output),"--duration","15",
                       "--report",str(proof)]
                 with patch.object(sys,"argv",argv), patch.object(
                         audio_master,"master_private_audio",side_effect=fake_master), patch.object(
-                        audio_master.Path,"open",new=fail_proof_open):
+                        audio_master,"_open_private_report",new=fail_proof_open):
                     with self.assertRaises(SystemExit) as caught:
                         audio_master.main()
                 self.assertEqual(caught.exception.code,2)
@@ -131,7 +132,7 @@ class Feature4MasterTests(unittest.TestCase):
 
     def test_partial_proof_write_failure_removes_owned_receipt_and_output(self):
         proof=self.root/"partial.json"
-        original_open=Path.open
+        original_open=audio_master._open_private_report
         payload=b"synthetic-private-master"
         class FailingProof:
             def __init__(self,stream):
@@ -160,19 +161,45 @@ class Feature4MasterTests(unittest.TestCase):
               "--report",str(proof)]
         with patch.object(sys,"argv",argv), patch.object(
                 audio_master,"master_private_audio",side_effect=fake_master), patch.object(
-                audio_master.Path,"open",new=fake_open):
+                audio_master,"_open_private_report",new=fake_open):
             with self.assertRaises(SystemExit) as caught:
                 audio_master.main()
         self.assertEqual(caught.exception.code,2)
         self.assertFalse(proof.exists())
         self.assertFalse(self.output.exists())
 
+    def test_proof_receipt_owner_only_even_under_permissive_umask(self):
+        proof=self.root/"owner-only.json"
+        payload=b"synthetic-private-master"
+        def fake_master(*_args,**_kwargs):
+            self.output.write_bytes(payload)
+            return {"master_sha256":hashlib.sha256(payload).hexdigest(),
+                    "status":"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED",
+                    "source_audio_mean_db":-28.0,
+                    "mastered_audio_mean_db":-16.0}
+        argv=["feature4_audio_master.py","--source",str(self.source),
+              "--output",str(self.output),"--duration","15",
+              "--report",str(proof)]
+        import os
+        old_umask=os.umask(0)
+        try:
+            with patch.object(sys,"argv",argv), patch.object(
+                    audio_master,"master_private_audio",side_effect=fake_master):
+                audio_master.main()
+        finally:
+            os.umask(old_umask)
+        self.assertEqual(stat.S_IMODE(proof.stat().st_mode),0o600)
+        self.assertEqual(proof.read_text(encoding="utf-8").count(
+                         "PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED"),1)
+
     def test_proof_preflight_rejects_symlink_parent_and_non_json(self):
         private=self.root/"private"
         private.mkdir()
         linked=self.root/"linked"
         linked.symlink_to(private,target_is_directory=True)
-        for path in (linked/"proof.json",private/"proof.txt",private/"missing"/"proof.json"):
+        nested=linked/"nested"
+        (private/"nested").mkdir()
+        for path in (linked/"proof.json",nested/"proof.json",private/"proof.txt",private/"missing"/"proof.json"):
             with self.assertRaisesRegex(AudioMasterError,"private JSON"):
                 audio_master._private_report_path(path)
         self.assertEqual(audio_master._private_report_path(private/"new.json"),
