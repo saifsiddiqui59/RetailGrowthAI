@@ -153,6 +153,38 @@ class BinaryHTTPTests(unittest.TestCase):
         self.reader.png=original
         self.assertEqual(self.call()[0],200)
 
+    def test_unknown_critical_and_interleaved_idat_fail_closed(self):
+        # These receipts have self-consistent SHA values and correct chunk CRCs.
+        original=self.reader.png
+        def chunk(kind,payload):
+            return (len(payload).to_bytes(4,"big")+kind+payload+
+                    (crc32(kind+payload)&0xffffffff).to_bytes(4,"big"))
+        ihdr=original[:33]
+        idat=original[33:-12]
+        self.assertEqual(idat[4:8],b"IDAT")
+        payload=idat[8:-4]
+        split=max(1,len(payload)//2)
+        first=chunk(b"IDAT",payload[:split])
+        second=chunk(b"IDAT",payload[split:])
+        ancillary=chunk(b"tEXt",b"note\\x00synthetic")
+        unknown_critical=chunk(b"ABCD",b"forged")
+        valid_split=ihdr+first+second+original[-12:]
+        self.reader.png=valid_split
+        self.assertEqual(self.call()[0],200)
+        for forged in (
+            ihdr+unknown_critical+idat+original[-12:],
+            ihdr+first+ancillary+second+original[-12:],
+            ihdr+idat+chunk(b"PLTE",b"\\x00\\x00\\x00")+original[-12:],
+        ):
+            self.reader.png=forged
+            with self.subTest(forged_sha=sha256(forged).hexdigest()):
+                status,body,headers=self.call()
+                self.assertEqual(status,503)
+                self.assertEqual(body,b"")
+                self.assert_private_headers(headers)
+        self.reader.png=original
+        self.assertEqual(self.call()[0],200)
+
     def test_pathological_png_chunk_count_is_denied(self):
         # Repeated valid ancillary chunks must not turn private download into
         # unbounded CPU work, even with a matching forged receipt SHA.
