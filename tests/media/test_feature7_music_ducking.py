@@ -86,7 +86,10 @@ class Feature7MusicDuckingTests(unittest.TestCase):
         # Trusted-ASR-shaped words must not carry invisible reviewer UI controls.
         for word in ("shop\\u202e", "shop\\u2066", "shop\\ufeff",
                      "shop\\n", "shop\\x00", "\\ud800",
-                     "a" * 81):
+                     "a" * 81, "shop"+chr(0x202e),
+                     "shop"+chr(0x2066), "shop"+chr(0xfeff),
+                     "shop"+chr(0), chr(0xd800),
+                     "shop\\\\promo"):
             with self.subTest(word=repr(word)):
                 p=fixture()
                 p["words"][1]["word"]=word

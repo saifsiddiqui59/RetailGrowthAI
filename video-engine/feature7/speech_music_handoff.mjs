@@ -13,7 +13,9 @@ const REF=/^[A-Za-z0-9_-]{1,120}$/;
 const SHA=/^[a-f0-9]{64}$/;
 // Speech text is later shown to reviewers; reject display-control spoofing
 // and malformed UTF-16 even when no renderer is invoked here.
-const UNSAFE_WORD=/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069\ufeff]/u;
+// Literal backslash escapes are not spoken words: reject double-encoded
+// display controls before a downstream reviewer or caption parser can decode.
+const UNSAFE_WORD=/[\\\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069\ufeff]/u;
 const UNPAIRED_SURROGATE=/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/u;
 
 export function suggestSpeechMusicDucking({
