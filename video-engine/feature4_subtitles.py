@@ -44,6 +44,40 @@ def compose_approved_subtitles(cues, *, duration_seconds: int):
     return "\n".join(srt) + "\n", "\n".join(vtt) + "\n"
 
 
+def caption_readability_flags(cues, *, duration_seconds: int):
+    """Conservative mobile subtitle review hints, never visual approval.
+
+    This checks text geometry/read-rate only; font, pixels, language, contrast
+    and actual encoded placement still require independent visual inspection.
+    The approved words/timing are not rewritten and no transcript is logged.
+    """
+    try:
+        approved = checked_caption_cues(cues, duration_seconds)
+    except (ValueError, TypeError) as exc:
+        raise SubtitleExportError("Invalid or unapproved caption timecodes") from exc
+    risks = []
+    for index, cue in enumerate(approved, 1):
+        words = cue["text"].split()
+        width, lines = 0, 1
+        for word in words:
+            next_width = len(word) if width == 0 else width + 1 + len(word)
+            if next_width > 36 and width:
+                lines += 1
+                width = len(word)
+            else:
+                width = next_width
+        codes = []
+        if any(len(word) > 36 for word in words):
+            codes.append("UNBROKEN_TOKEN_OVER_36")
+        if lines > 2:
+            codes.append("OVER_TWO_MOBILE_LINES")
+        if len(cue["text"]) / cue["duration"] > 20:
+            codes.append("FAST_CAPTION_OVER_20_CHARS_PER_SECOND")
+        if codes:
+            risks.append({"cue_index": index, "codes": codes})
+    return risks
+
+
 def export_private_subtitle_pair(cues, *, duration_seconds: int,
                                  srt_path: Path, vtt_path: Path):
     """Exclusive-create two private files; rollback on failure; never overwrite.
@@ -58,6 +92,7 @@ def export_private_subtitle_pair(cues, *, duration_seconds: int,
                    p.parent.is_symlink() for p in (srt_path, vtt_path))):
         raise SubtitleExportError("Subtitle destinations must be fresh local private files")
     srt, vtt = compose_approved_subtitles(cues, duration_seconds=duration_seconds)
+    readability_risks = caption_readability_flags(cues, duration_seconds=duration_seconds)
     created = []
     try:
         for path, content in ((srt_path, srt), (vtt_path, vtt)):
@@ -74,6 +109,10 @@ def export_private_subtitle_pair(cues, *, duration_seconds: int,
             "signed_download_ready": False,
             "speech_text_alignment_verified_here": False,
             "tenant_authorization_checked_here": False,
+            "caption_layout_review_required": bool(readability_risks),
+            "caption_layout_risks": readability_risks,
+            "encoded_text_legibility_verified_here": False,
+            "human_visual_approval": False,
         }
     except OSError as exc:
         for path in created:
