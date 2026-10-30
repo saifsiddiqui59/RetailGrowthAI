@@ -149,7 +149,7 @@ def main():
                                     expected_seconds=args.duration)
         try:
             with proof.open("x",encoding="utf-8") as stream:
-                stream.write(json.dumps(report,indent=2)+"\\n")
+                stream.write(json.dumps(report,indent=2)+"\n")
         except OSError as exc:
             raise AudioMasterError("Proof report could not be committed privately") from exc
         print(json.dumps({"status":report["status"],
