@@ -1,0 +1,49 @@
+name: RetailGrowthAI #249 signed-in Supabase JWT isolated DEV read canary
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0249-signed-jwt-read-canary-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-live-canary
+  cancel-in-progress: false
+jobs:
+  signed-jwt-read-canary:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'test(dev): RetailGrowthAI P0 249 temporary signed JWT Free SWA read canary')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    env:
+      RGAI_DEV_P0249_JWT_CANARY_APPROVAL: OWNER_APPROVED_READ_ONLY_JWT_TEST
+      RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+      RGAI_DEV_PUBLISHABLE_KEY: sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify only exact RetailGrowthAI synthetic Auth account scope, never DB/Queue/PROD
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RGAI_DEV_SERVICE_KEY"
+          test "$GITHUB_REPOSITORY" = 'saifsiddiqui59/RetailGrowthAI'
+          test "$GITHUB_REF" = 'refs/heads/main'
+          python3 -m py_compile tests/e2e/p0249_dev_signed_jwt_read_once.py
+          python3 tests/infra/test_p0249_signed_jwt_canary_source.py
+          grep -Fq 'P0249_GENUINE_SIGNED_JWT_JWKS_RLS_READ=PASSED' tests/e2e/p0249_dev_signed_jwt_read_once.py
+          grep -Fq 'P0249_DISPOSABLE_AUTH_ACCOUNT_DELETED=true' tests/e2e/p0249_dev_signed_jwt_read_once.py
+          grep -Fq 'P0249_MODIFIED_SIGNATURE_REJECTED=PASSED' tests/e2e/p0249_dev_signed_jwt_read_once.py
+          echo 'P0249_DEV_AUTH_ONLY_CANARY_SOURCE_GUARDS=true'
+      - name: Exercise genuine signed JWT against existing Free SWA read-only preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u tests/e2e/p0249_dev_signed_jwt_read_once.py
+          echo 'P0249_NO_CUSTOMER_SHOP_MEDIA_OR_RENDER_CREATED=true'

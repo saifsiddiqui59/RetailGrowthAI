@@ -290,6 +290,52 @@ jobs:
               psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f "$source"
             fi
           done
+          # Test the not-yet-released trace schema only inside disposable local Postgres.
+          # Do NOT add its candidate SQL to canonical migrations or execute against DEV.
+          if [ -f tests/security/feature_test_trace_negative.sql ]; then
+            psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f tests/security/feature_test_trace_negative.sql
+          fi
+          # The backend-authoritative ledger is a second independently staged
+          # release candidate, checked only on disposable Postgres.
+          if [ -f tests/security/feature_worker_trace_negative.sql ]; then
+            psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f tests/security/feature_worker_trace_negative.sql
+          fi
+      - name: Verify concurrent Reel intents in two real SQL sessions (disposable only)
+        shell: bash
+        env:
+          PGPASSWORD: postgres
+          PGHOST: 127.0.0.1
+          PGPORT: '54322'
+          PGDATABASE: postgres
+          PGUSER: postgres
+          RETAIL_DISPOSABLE_POSTGRES: '1'
+        run: python3 tests/security/poster_reel_intent_concurrency.py
+
+      - name: Validate versioned Feature2 AI budget SQL in disposable local PostgreSQL
+        shell: bash
+        env:
+          PGPASSWORD: postgres
+          PGHOST: 127.0.0.1
+          PGPORT: '54322'
+          PGDATABASE: postgres
+          PGUSER: postgres
+          RETAIL_DISPOSABLE_POSTGRES: '1'
+        run: |
+          set -euo pipefail
+          # Hard pin the standalone disposable port and explicit opt-in marker.
+          # Canonical migration was applied by isolated local Supabase db start.
+          # No hosted SQL, credentials or paid inference.
+          test "$PGHOST" = '127.0.0.1'
+          test "$PGPORT" = '54322'
+          test "$PGDATABASE" = 'postgres'
+          test "$RETAIL_DISPOSABLE_POSTGRES" = '1'
+          psql -X -v ON_ERROR_STOP=1 -c "select 'public.feature2_reserve_ai_budget(uuid,uuid,text,numeric,uuid)'::regprocedure;"
+          psql -X -v ON_ERROR_STOP=1 -f tests/security/feature2_ai_budget_negative.sql
+          python3 tests/security/feature2_ai_budget_concurrency.py
+          # Disposable-only: exercise exactly Feature2's reversible DDL and ROLLBACK.
+          # Never expose this operation to hosted DEV or modify the migration ledger.
+          PGAPPNAME=rgai_feature2_disposable_rollback_ci psql -X -v ON_ERROR_STOP=1 -f tests/security/feature2_ai_budget_rollback_rehearsal.sql
+
       - name: Stop isolated Supabase database
         if: always()
         shell: bash

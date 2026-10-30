@@ -1,0 +1,336 @@
+/* Feature 1: progressively enhanced, tenant-safe SaaS workspace. */
+.rg-state-label {display:inline-flex;align-items:center;gap:6px;border:1px solid #c8ded6;border-radius:999px;padding:7px 11px;font-size:11px;font-weight:750;color:#225e50;background:#f1faf6}
+.rg-availability-panel {display:flex;gap:20px;align-items:flex-start;margin:20px 0;max-width:850px}
+.rg-availability-mark {display:grid;place-items:center;border-radius:15px;width:52px;height:52px;flex:0 0 52px;background:#e5f4ed;color:#276f57;font-size:26px}
+.rg-availability-panel h2,.rg-next-actions h2 {margin:0 0 9px}
+.rg-availability-panel p {margin:0 0 15px}
+.rg-next-actions {max-width:850px}
+.rg-action-list {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px;margin-top:17px}
+.rg-action-tile {display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #d5e3df;background:#fafdfb;border-radius:12px;padding:17px;text-decoration:none;font-weight:750;color:#1d6050}
+.rg-action-tile:hover,.rg-action-tile:focus-visible {background:#e8f6f0;border-color:#80bda7}
+.rg-chart-panel {margin:18px 0 26px}
+.rg-chart-canvas {height:250px;max-width:100%;position:relative}
+.rg-chart-source {font-size:12px!important}
+.rg-skeleton {min-height:105px;background:linear-gradient(95deg,#edf2f5,#f8fafb 45%,#edf2f5);border-radius:14px}
+.rg-skeleton:focus {outline:0}
+.rg-theme-button {border:1px solid #d5e1e9;border-radius:9px;background:transparent;color:inherit;min-height:38px;padding:6px 10px;cursor:pointer;font:inherit;font-weight:700}
+.rg-nav-section {color:#a4b9ce;font-size:10px;letter-spacing:.12em;font-weight:800;margin:17px 10px 8px}
+.rg-nav-section:first-of-type {margin-top:20px}
+.retail-shell .sidebar nav {align-content:start;gap:3px}
+.retail-shell .nav-link {padding:10px 12px;min-height:39px}
+.retail-shell .nav-glyph {font-size:17px}
+.retail-shell .sidebar nav .rg-nav-section + .nav-link {margin-top:2px}
+.retail-shell.sidebar-collapsed .rg-nav-section {font-size:0;min-height:1px;border-top:1px solid #30425a;margin:12px 0 8px}
+.retail-shell .rg-nav-group {display:grid;gap:2px}
+.retail-shell .rg-nav-group:first-of-type .rg-nav-section{margin-top:20px}
+.retail-shell .rg-nav-group .rg-nav-section{margin-top:19px}
+.retail-shell.sidebar-collapsed .rg-nav-group .rg-nav-section{margin:10px 0 5px}
+.retail-shell .sidebar {overflow-y:auto}
+.retail-shell .topbar-right {flex-wrap:nowrap}
+.retail-shell .rg-theme-button {white-space:nowrap}
+.rg-workspace-page {min-width:0}
+@media(max-width:760px) {
+ .retail-shell .rg-nav-group {display:grid;gap:5px;width:100%}
+ .retail-shell .nav-link {min-height:44px}
+ .retail-shell .rg-nav-section {display:block!important;font-size:10px}
+ .retail-shell .sidebar nav {display:block}
+ .retail-shell .topbar-right .environment {display:none}
+ .retail-shell .topbar-right {gap:6px}
+ .retail-shell .rg-theme-button{font-size:11px;padding:5px 8px}
+ .rg-availability-panel{padding:19px;gap:12px}
+}
+@media(max-width:360px){
+ .retail-shell .content {padding-left:12px;padding-right:12px}
+ .retail-shell .topbar {padding-left:12px;padding-right:12px}
+ .retail-shell .account-trigger-copy {display:none}
+ .rg-action-tile {padding:13px}
+}
+:root[data-rg-theme="dark"] {color-scheme:dark;background:#0c1825;color:#e4edf4}
+:root[data-rg-theme="dark"] body,:root[data-rg-theme="dark"] .retail-shell {background:#0c1825;color:#e4edf4}
+:root[data-rg-theme="dark"] .retail-shell .page,:root[data-rg-theme="dark"] .retail-shell .content {background:#0c1825}
+:root[data-rg-theme="dark"] .retail-shell .topbar,:root[data-rg-theme="dark"] .retail-shell .panel,:root[data-rg-theme="dark"] .retail-shell .metric,:root[data-rg-theme="dark"] .retail-shell .day-card {background:#172736;border-color:#334c5d;color:#e4edf4}
+:root[data-rg-theme="dark"] .retail-shell .topbar-context strong,:root[data-rg-theme="dark"] .retail-shell h1,:root[data-rg-theme="dark"] .retail-shell h2,:root[data-rg-theme="dark"] .retail-shell .metric strong {color:#f0f7fd}
+:root[data-rg-theme="dark"] .retail-shell .lead,:root[data-rg-theme="dark"] .retail-shell .panel p,:root[data-rg-theme="dark"] .retail-shell small,:root[data-rg-theme="dark"] .retail-shell .metric span {color:#b0c1d1}
+:root[data-rg-theme="dark"] .retail-shell input,:root[data-rg-theme="dark"] .retail-shell select,:root[data-rg-theme="dark"] .retail-shell textarea,:root[data-rg-theme="dark"] .retail-shell .account-trigger,:root[data-rg-theme="dark"] .retail-shell .account-popover {background:#253747;color:#f2f7fb;border-color:#43576a}
+:root[data-rg-theme="dark"] .retail-shell .account-popover a,:root[data-rg-theme="dark"] .retail-shell .account-popover button{color:#e4edf4}
+:root[data-rg-theme="dark"] .retail-shell .rg-action-tile {background:#253747;color:#a9ebd7;border-color:#43576a}
+:root[data-rg-theme="dark"] .retail-shell .rg-state-label {color:#a9ebd7;background:#173f35;border-color:#336a5e}
+:root[data-rg-theme="dark"] .retail-shell .rg-skeleton {background:#283a4b}
+@media(prefers-reduced-motion:reduce){.retail-shell .sidebar,.retail-shell *{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+@media(max-width:360px){
+ .retail-shell .topbar {gap:7px;padding-inline:8px}
+ .retail-shell .topbar-context {gap:7px;flex:1;min-width:0}
+ .retail-shell .topbar-context > div {min-width:0}
+ .retail-shell .topbar-context strong {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+ .retail-shell .topbar-right {gap:5px;flex:0 0 auto}
+ .retail-shell .rg-theme-copy {display:none}
+ .retail-shell .rg-theme-button {width:34px;height:34px;min-height:34px;display:grid;place-items:center;padding:0}
+ .retail-shell .account-trigger {padding:4px;border-radius:9px}
+ .retail-shell .account-trigger .avatar {width:30px;height:30px;flex-basis:30px}
+}
+
+/* Private media metadata browser: no thumbnails or public object URLs. */
+.rg-library .panel{min-width:0}
+.rg-library-tools{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+.rg-library-tools label{display:grid;gap:6px;flex:1 1 155px;min-width:0;font-size:12px;font-weight:750;color:#405d69}
+.rg-library-tools input,.rg-library-tools select{width:100%;min-width:0;min-height:42px;padding:9px;border:1px solid #c3d6da;border-radius:9px;background:#fff;color:#243b48;font:inherit}
+.rg-library-tools button{min-height:42px}
+.rg-library-summary{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0}
+.rg-library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:13px}
+.rg-library-record{min-width:0;border:1px solid #d8e5e5;background:#f8fcfb;border-radius:13px;padding:15px;display:flex;align-items:center;gap:12px}
+.rg-library-icon{flex:0 0 44px;height:44px;display:grid;place-items:center;border-radius:12px;background:#e4f6ee;color:#1e765c;font-size:25px}
+.rg-library-record strong{overflow-wrap:anywhere}
+.rg-library-record p{margin:4px 0;font-size:12px}
+.rg-library-record span{color:#5a716d;font-size:12px}
+.rg-library-safety{font-size:12px!important;margin-top:22px!important}
+:root[data-rg-theme="dark"] .rg-library-record{background:#213647;border-color:#446374}
+:root[data-rg-theme="dark"] .rg-library-tools label{color:#d1e3eb}
+@media(max-width:360px){.rg-library .panel{padding:16px}.rg-library-tools{display:grid;grid-template-columns:minmax(0,1fr)}}
+
+.rg-calendar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:12px}
+.rg-verified-calendar-day{min-width:0;border:1px solid #d9e6e4;border-radius:13px;padding:17px;background:#f7fbfa}
+.rg-calendar-date{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.rg-calendar-date strong{font-size:12px;color:#20745d}
+.rg-verified-calendar-day h2{font-size:16px;line-height:1.4;margin:14px 0;overflow-wrap:anywhere}
+.rg-verified-calendar-day span{font-size:12px;color:#6b7f88}
+:root[data-rg-theme="dark"] .rg-verified-calendar-day{background:#233846;border-color:#466471}
+:root[data-rg-theme="dark"] .rg-verified-calendar-day span{color:#a7c1c6}
+
+/* Feature 1 authenticated account/business settings. No external UI runtime. */
+.rg-settings .rg-settings-card {max-width:940px}
+.rg-settings-top{display:flex;justify-content:space-between;gap:16px;align-items:start;flex-wrap:wrap}
+.rg-settings-top h2{margin:0 0 6px}
+.rg-settings-top p{margin:0 0 18px}
+.rg-settings-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.rg-settings-fields label{display:grid;gap:7px;min-width:0;font-size:13px;font-weight:730;color:#395466}
+.rg-settings-fields label:has(textarea){grid-column:1/-1}
+.rg-settings-fields input,.rg-settings-fields textarea{box-sizing:border-box;width:100%;min-width:0;border:1px solid #cedcdd;border-radius:10px;padding:11px 12px;background:#fff;color:#1d3444;font:inherit;line-height:1.5}
+.rg-settings-fields input:read-only,.rg-settings-fields textarea:read-only{background:#eef3f4;color:#435a68}
+.rg-settings-fields :is(input,textarea):focus-visible{outline:2px solid #159b76;outline-offset:2px}
+.rg-settings-actions{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:20px}
+.rg-settings-hint{margin-top:16px;color:#9e4c21}
+.rg-settings-foot{margin-top:18px;max-width:940px}
+.rg-settings-foot h2{margin:0 0 6px}
+:root[data-rg-theme="dark"] .rg-settings-fields label{color:#c3d9e3}
+:root[data-rg-theme="dark"] .rg-settings-fields input:read-only,:root[data-rg-theme="dark"] .rg-settings-fields textarea:read-only{background:#263b4a;color:#aec4d0}
+@media(max-width:560px){.rg-settings-fields{grid-template-columns:minmax(0,1fr)}.rg-settings-fields label:has(textarea){grid-column:1}}
+
+
+/* A translated sidebar is still keyboard-focusable unless hidden. Keep the
+   collapsed mobile drawer out of the tab/screen-reader tree until opened.
+   Desktop navigation remains visible and unchanged. */
+@media (max-width:760px) {
+  .retail-shell:not(.mobile-open) .sidebar {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .retail-shell.mobile-open .sidebar {
+    visibility: visible;
+    pointer-events: auto;
+  }
+}
+
+/* Feature #1 no-cost, verified-context Creative Studio entry. */
+.rg-creative-launchpad .rg-creative-tools{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:0 0 20px}
+.rg-creative-tools>span:last-child{color:#556e7b;font-size:13px}
+.rg-creative-layout{display:grid;grid-template-columns:minmax(290px,0.88fr) minmax(360px,1.12fr);gap:18px;align-items:start}
+.rg-creative-layout>.panel{min-width:0;margin:0}
+.rg-creative-shop{display:grid;gap:8px;font-weight:700;font-size:13px;color:#385361;margin:8px 0 20px}
+.rg-creative-shop select{width:100%;min-height:42px;border:1px solid #c9dadb;padding:9px;border-radius:9px;background:#fff;color:#233b48}
+.rg-creative-score{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:12px 0!important}
+.rg-creative-score strong{font-size:24px;font-weight:800;color:#196b50}
+.rg-creative-readiness progress{width:100%;height:12px;accent-color:#168564}
+.rg-creative-checklist{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:12px}
+.rg-creative-checklist li{display:flex;align-items:flex-start;gap:12px}
+.rg-creative-checklist li>div{display:grid;gap:3px;min-width:0}
+.rg-creative-checklist li strong{font-size:13px}
+.rg-creative-checklist li div>span{font-size:12px;color:#5c7583;line-height:1.5}
+.rg-creative-check{width:25px;height:25px;border:1px solid #cbd4df;border-radius:50%;display:grid;place-items:center;flex:0 0 25px;font-weight:800;color:#6d7c88}
+.rg-creative-check.done{background:#dbf4e9;color:#137b54;border-color:#8bd0b2}
+.rg-creative-stages{list-style:none;padding:0;margin:19px 0 0;display:grid;gap:13px}
+.rg-creative-stages li{display:flex;gap:14px;padding:0 0 17px;border-bottom:1px solid #d8e5e7;min-width:0}
+.rg-creative-stages li:last-child{border-bottom:0;padding-bottom:0}
+.rg-creative-number{width:40px;height:40px;display:grid;place-items:center;background:#e0f3ec;color:#156349;border-radius:11px;flex:0 0 40px;font-weight:800}
+.rg-creative-stages h3{margin:0 0 4px;font-size:16px;line-height:1.4}
+.rg-creative-stages p{margin:0 0 11px!important;line-height:1.55;font-size:13px}
+.rg-creative-notice{margin:18px 0 0;max-width:none}
+.rg-creative-notice p{margin:8px 0 0}
+:root[data-rg-theme="dark"] .rg-creative-tools>span:last-child,
+:root[data-rg-theme="dark"] .rg-creative-checklist li div>span{color:#b2c9d4}
+:root[data-rg-theme="dark"] .rg-creative-shop{color:#ccdee8}
+:root[data-rg-theme="dark"] .rg-creative-number{background:#214a3d;color:#a7e8c5}
+:root[data-rg-theme="dark"] .rg-creative-score strong{color:#9ee2c4}
+:root[data-rg-theme="dark"] .rg-creative-stages li{border-color:#3a5262}
+@media(max-width:900px){.rg-creative-layout{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:360px){.rg-creative-launchpad .panel{padding:17px}.rg-creative-stages li{gap:9px}.rg-creative-number{width:34px;flex-basis:34px;height:34px}}
+
+/* Feature #1: accessible, responsive shadcn-compatible Overview migration.
+   Pure CSS/UI changes; metrics remain backend-verified and on-demand. */
+.rg-overview-primary {display:inline-flex;align-items:center;gap:8px;text-decoration:none;white-space:normal;min-height:42px}
+.rg-overview-metric{min-width:0;position:relative;isolation:isolate;overflow:hidden;transition:border-color .18s ease,box-shadow .18s ease}
+.rg-overview-metric::before{content:"";display:block;width:34px;height:4px;border-radius:20px;background:linear-gradient(90deg,#166a54,#6cbea1);margin-bottom:13px}
+.rg-overview-metric strong{font-variant-numeric:tabular-nums;font-size:clamp(1.7rem,2.5vw,2.35rem);line-height:1.12;overflow-wrap:anywhere}
+.rg-overview-metric small{line-height:1.45}
+.rg-overview-actions>.rg-overview-action-card{min-width:0}
+.rg-overview-action-card .text-link{display:inline-block;max-width:100%;overflow-wrap:anywhere;min-height:27px}
+.overview .dashboard-filter-row{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
+.overview .dashboard-filter-row select{min-height:42px;max-width:100%}
+.overview .dashboard-filter-row [data-slot="button"]{min-height:42px}
+:root[data-rg-theme="dark"] .rg-overview-metric::before{background:linear-gradient(90deg,#80dbb7,#b2ecda)}
+:root[data-rg-theme="dark"] .rg-overview-primary{color:#fff}
+@media(max-width:560px){
+  .overview .page-heading{gap:15px}
+  .overview .rg-overview-primary{width:100%;justify-content:center}
+  .overview .dashboard-filter-row>label{flex:1 1 100%;min-width:0}
+  .overview .dashboard-filter-row>label select{width:100%}
+  .overview .dashboard-filter-row [data-slot="button"]{flex:1 1 auto}
+  .overview .dashboard-section-grid{grid-template-columns:minmax(0,1fr)}
+  .overview .rg-overview-action-card{padding:18px}
+}
+@media(prefers-reduced-motion:reduce){.rg-overview-metric{transition:none}}
+
+/* Complete Feature #1 remaining retailer-view shadcn-compatible migration:
+   license metadata only, session-verified drafts, and RLS-edited profiles. */
+.rg-workspace-cta{display:inline-flex;align-items:center;justify-content:center;min-height:42px;text-decoration:none;white-space:normal;text-align:center}
+.rg-library-record[data-slot="card"],.rg-verified-calendar-day[data-slot="card"]{min-width:0;box-sizing:border-box}
+.rg-library-record>div:last-child{min-width:0;overflow-wrap:anywhere}
+.rg-library-record>div:last-child strong,.rg-library-record>div:last-child span{overflow-wrap:anywhere}
+.rg-library .rg-library-tools,.rg-campaign-calendar-page .rg-library-tools{min-width:0}
+.rg-library .rg-library-tools [data-slot="button"],.rg-campaign-calendar-page .rg-library-tools [data-slot="button"]{min-height:42px}
+.rg-campaign-calendar-page .rg-verified-calendar-day h2{overflow-wrap:anywhere}
+.rg-settings .page-heading{align-items:flex-start}
+.rg-workspace-page .rg-workspace-cta:focus-visible{outline:2px solid #15966f;outline-offset:3px}
+:root[data-rg-theme="dark"] .rg-workspace-page .rg-workspace-cta{background:#176b59;color:#fff}
+:root[data-rg-theme="dark"] .rg-library-record strong,:root[data-rg-theme="dark"] .rg-verified-calendar-day h2{color:#ecf7f7}
+:root[data-rg-theme="dark"] .rg-calendar-date strong{color:#a6ecd4}
+@media(max-width:560px){
+  .rg-library .page-heading,.rg-campaign-calendar-page .page-heading,.rg-settings .page-heading{gap:14px}
+  .rg-library .rg-workspace-cta,.rg-campaign-calendar-page .rg-workspace-cta,.rg-settings .rg-workspace-cta{width:100%}
+  .rg-library .rg-library-tools,.rg-campaign-calendar-page .rg-library-tools{display:grid;grid-template-columns:minmax(0,1fr);align-items:stretch}
+  .rg-library .rg-library-tools label,.rg-campaign-calendar-page .rg-library-tools label{min-width:0;width:100%}
+  .rg-library .rg-library-tools select,.rg-library .rg-library-tools input,
+  .rg-campaign-calendar-page .rg-library-tools select{box-sizing:border-box;min-width:0}
+  .rg-library .rg-library-tools [data-slot="button"],.rg-campaign-calendar-page .rg-library-tools [data-slot="button"]{width:100%}
+  .rg-library .rg-library-record{padding:12px;gap:10px}
+  .rg-campaign-calendar-page .rg-verified-calendar-day{padding:14px}
+}
+
+/* Feature #1 static integration guidance: no mock account/post/notification
+   status, no new API requests or polling before backend contracts are approved. */
+.rg-integration-guide{margin:0 0 18px;max-width:950px;min-width:0}
+.rg-integration-guide h2{margin:7px 0 15px}
+.rg-integration-steps{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;padding:0;margin:0 0 15px}
+.rg-integration-steps li{min-width:0;display:flex;align-items:flex-start;gap:10px;padding:14px;border:1px solid #d9e5e3;border-radius:12px;background:#f8fcfa}
+.rg-integration-number{display:grid;place-items:center;width:27px;height:27px;flex:0 0 27px;border-radius:9px;background:#e3f5ed;color:#176750;font-weight:800}
+.rg-integration-steps li div{min-width:0;overflow-wrap:anywhere}
+.rg-integration-steps strong{font-size:13px;color:#284e45}
+.rg-integration-steps p{font-size:12px;line-height:1.55;margin:6px 0 0}
+.rg-integration-safety{font-size:12px!important;margin:15px 0 0!important;color:#54766b}
+:root[data-rg-theme="dark"] .rg-integration-steps li{background:#223a40;border-color:#48646c}
+:root[data-rg-theme="dark"] .rg-integration-number{background:#245745;color:#caf3dd}
+:root[data-rg-theme="dark"] .rg-integration-steps strong{color:#e1f7ec}
+:root[data-rg-theme="dark"] .rg-integration-safety{color:#a1cdbd}
+@media(max-width:900px){.rg-integration-steps{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:360px){.rg-integration-guide{padding:16px}.rg-integration-steps li{padding:12px}}
+
+/* Verified recent-draft monthly calendar; client-only UTC date layout.
+   No scheduled/published values beyond authorized DRAFT API content. */
+.rg-calendar-month{margin:17px 0 24px;min-width:0;max-width:100%}
+.rg-calendar-month-toolbar{display:flex;justify-content:space-between;align-items:end;gap:13px;flex-wrap:wrap;margin-bottom:12px}
+.rg-calendar-month-toolbar h2{font-size:18px;margin:0 0 5px}
+.rg-calendar-month-toolbar p{font-size:12px;line-height:1.55;margin:0}
+.rg-calendar-month-toolbar label{display:grid;gap:5px;min-width:0;font-weight:700;font-size:12px}
+.rg-calendar-month-toolbar select{box-sizing:border-box;border:1px solid #cbdbd5;border-radius:9px;background:#fff;color:#213e34;padding:9px;min-height:42px;max-width:100%}
+.rg-calendar-month-table{border-collapse:separate;border-spacing:3px;width:100%;table-layout:fixed}
+.rg-calendar-month-table th{text-align:center;color:#667c75;font-size:11px;padding:9px 2px}
+.rg-calendar-month-table td{vertical-align:top;background:#f7fbf9;border:1px solid #dcebe4;border-radius:8px;min-width:0;height:67px;padding:7px 4px;overflow-wrap:anywhere}
+.rg-calendar-month-table td.is-outside{background:#f4f5f6;color:#899a96}
+.rg-month-date{display:block;font-size:12px;font-weight:800;text-align:right;padding-right:2px}
+.rg-month-count{display:block;color:#15533c;background:#dbf3e6;text-align:center;border-radius:5px;padding:4px 1px;margin-top:6px;font-size:10px;line-height:1.3;font-weight:800}
+:root[data-rg-theme="dark"] .rg-calendar-month-table td{background:#1c3040;border-color:#3e5b63;color:#d7f3ed}
+:root[data-rg-theme="dark"] .rg-calendar-month-table td.is-outside{background:#172633;color:#97a8ac}
+:root[data-rg-theme="dark"] .rg-month-count{background:#245943;color:#d5f8e7}
+:root[data-rg-theme="dark"] .rg-calendar-month-toolbar label{color:#c9dfe4}
+@media(max-width:560px){
+ .rg-calendar-month-table{border-spacing:1px}
+ .rg-calendar-month-table td{height:53px;padding:4px 1px;border-radius:5px}
+ .rg-calendar-month-table th{font-size:10px;padding:6px 0}
+ .rg-month-date{font-size:11px;padding-right:2px}
+ .rg-month-count{font-size:9px;padding:3px 0;margin-top:4px}
+ .rg-calendar-month-toolbar label{width:100%}
+ .rg-calendar-month-toolbar select{width:100%}
+}
+
+/* Feature #1: zero-request page navigation for 100-record RLS metadata slice. */
+.rg-library-pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:18px;min-width:0}
+.rg-library-pager [data-slot="button"]{min-height:42px}
+.rg-library-pager span{font-size:12px;color:#506c66;overflow-wrap:anywhere}
+:root[data-rg-theme="dark"] .rg-library-pager span{color:#badbd0}
+@media(max-width:560px){
+  .rg-library-pager{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rg-library-pager span{grid-column:1/-1;grid-row:1;text-align:center}
+  .rg-library-pager [data-slot="button"]{min-width:0}
+}
+
+/* Feature1 cross-campaign read-only monthly planning, no paid backend or polling. */
+.rg-shop-month{margin-top:20px;min-width:0}
+.rg-shop-month-heading{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;align-items:start}
+.rg-shop-month-heading h2{font-size:19px;margin:6px 0}
+.rg-shop-month-heading p{max-width:720px;line-height:1.5}
+.rg-shop-month-controls{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin:15px 0}
+.rg-shop-month-controls label{display:grid;gap:5px;font-size:12px;font-weight:700;min-width:0}
+.rg-shop-month-controls input{font:inherit;color:inherit;box-sizing:border-box;min-height:42px;padding:8px;border-radius:9px;border:1px solid #cadad4;background:transparent}
+.rg-shop-month-controls [data-slot="button"]{min-height:42px}
+.rg-shop-month-list{list-style:none;margin:18px 0;padding:0;display:grid;gap:9px}
+.rg-shop-month-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;border:1px solid #cee3da;border-radius:10px;padding:12px}
+.rg-shop-month-list li div{display:grid;gap:5px;min-width:0;overflow-wrap:anywhere}
+.rg-shop-month-list li span{font-size:12px}
+:root[data-rg-theme="dark"] .rg-shop-month-list li{border-color:#4b6970}
+@media(max-width:560px){.rg-shop-month-list li{flex-wrap:wrap}.rg-shop-month-controls label,.rg-shop-month-controls [data-slot="button"]{flex:1 1 100%;width:100%}.rg-shop-month-controls input{width:100%}}
+
+/* Feature #1 private-user-JWT image preview: no public or signed Storage URL. */
+.rg-private-preview{display:grid;justify-items:start;gap:12px;min-width:0;margin-top:18px;padding:16px}
+.rg-private-preview img{max-width:min(100%,480px);max-height:360px;width:auto;height:auto;object-fit:contain;border-radius:8px;border:1px solid #cadad7;background:transparent}
+.rg-private-preview [data-slot="button"]{min-height:42px}
+.rg-library-record [data-slot="button"]{max-width:100%;white-space:normal;margin-top:10px}
+@media(max-width:560px){.rg-private-preview{padding:12px}.rg-private-preview [data-slot="button"]{width:100%}}
+
+/* The campaign studio owns .rg-calendar (seven-column day picker). Keep the
+   full calendar route's page root separate, including after SPA navigation. */
+.retail-shell .rg-campaign-calendar-page{display:block;width:100%;min-width:0}
+.retail-shell .rg-campaign-calendar-page>.page-heading,
+.retail-shell .rg-campaign-calendar-page>.panel{width:100%;box-sizing:border-box;min-width:0}
+.retail-shell .rg-campaign-calendar-page>.rg-shop-month{margin-top:20px}
+
+/* Feature #1 retailer inbox: scoping prevents Studio and root-alert CSS bleed. */
+.rg-retailer-inbox-controls { display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px; margin-bottom:18px; }
+.rg-retailer-inbox-controls label { min-width:150px; flex:1 1 150px; display:grid; gap:6px; }
+.rg-retailer-inbox-controls select { max-width:100%; min-height:40px; }
+.rg-retailer-inbox .rg-inbox-cards { display:grid; gap:12px; }
+.rg-retailer-inbox .rg-inbox-item { padding:16px; display:grid; gap:8px; min-width:0; overflow-wrap:anywhere; }
+.rg-retailer-inbox .rg-inbox-item h2 { margin:0; font-size:1.05rem; }
+.rg-retailer-inbox .rg-inbox-item p { margin:0; }
+.rg-retailer-inbox .rg-inbox-actions,.rg-retailer-inbox .rg-inbox-pager { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.rg-retailer-inbox .rg-inbox-pager { margin-top:18px; justify-content:space-between; }
+@media(max-width:480px) {
+ .rg-retailer-inbox .rg-inbox-item { padding:12px; }
+ .rg-retailer-inbox-controls { flex-direction:column; align-items:stretch; }
+ .rg-retailer-inbox-controls label { min-width:0; flex:0 0 auto; }
+}
+
+/* Feature #1 opt-in fictional integration samples; never provider UI actions. */
+.rg-f1-fixture-preview, .rg-f1-fixture-content {min-width:0;overflow-wrap:anywhere}
+.rg-f1-fixture-content {display:grid;gap:14px;margin-top:14px}
+.rg-f1-fixture-warning {padding:12px;border:1px solid var(--border, #878787);border-radius:10px}
+.rg-f1-fixture-content>label, .rg-f1-read-view>label {display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.rg-f1-fixture-content select, .rg-f1-read-view select {max-width:100%;min-height:40px}
+.rg-f1-read-view {min-width:0;display:grid;gap:12px}
+.rg-f1-read-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;min-width:0}
+.rg-f1-read-card {display:grid;gap:8px;min-width:0;padding:16px;overflow-wrap:anywhere}
+.rg-f1-read-card p {margin:0}
+.rg-f1-read-pager {display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+@media(max-width:390px) {
+ .rg-f1-read-card {padding:12px}
+ .rg-f1-read-pager {flex-direction:column;align-items:stretch}
+}

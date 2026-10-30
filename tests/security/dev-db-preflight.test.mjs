@@ -29,7 +29,21 @@ test('read-only remote DEV snapshot identifies exact prefix and pending ordered 
   assert.equal(result.appliedCount, 3);
   assert.equal(result.pending.length, known.local.length - 3);
   assert.equal(result.pending[0].file, '20261022100400_p1_durable_planning.sql');
-  assert.equal(result.pending.at(-1).file, '20261024190000_p1_platform_operations.sql');
+  assert.deepEqual(result.pending.slice(-13).map(x=>x.file), [
+    '20261024190000_p1_platform_operations.sql',
+    '20261026152000_feature2_trends_drafts.sql',
+    '20261026152102_p0_249_reel_render_intent.sql',
+    '20261026194000_feature2_ai_cost_ledger.sql',
+    '20261028092346_feature3_model_catalog_drafts.sql',
+    '20261028101328_feature3_gpu_budget_jobs.sql',
+    '20261028173000_feature1_retailer_inbox.sql',
+    '20261028190000_feature3_model_review_audit.sql',
+    '20261028210000_feature3_private_evidence_commit.sql',
+    '20261028223000_feature3_pending_model_import.sql',
+    '20261028230000_feature3_gpu_private_output_cas.sql',
+    '20261028231000_feature3_gpu_outbox_recovery.sql',
+    '20261028232000_feature3_model_original_registration.sql',
+  ]);
 });
 test('refuses missing snapshot, wrong project, gaps, duplicates, renamed or newer remote versions', () => {
   assert.throws(() => verifyPreflight({ requireRemoteHistory: true }), /history is required/);
@@ -60,5 +74,11 @@ test('rejects gaps, duplicate version files and stripped service-only migration 
   temporaryMigrationCopy(dir => {
     renameSync(resolve(dir, '20261022180000_p1_dev_media_integrity.sql'), resolve(dir, 'broken.sql'));
     assert.throws(() => verifyPreflight({ migrationDir: dir }), /invalid migration file name|missing canonical/);
+  });
+  temporaryMigrationCopy(dir => {
+    const path = resolve(dir, '20261026152102_p0_249_reel_render_intent.sql');
+    const sql = readFileSync(path, 'utf8').replace('if music = any(ids) then return null; end if;', '-- removed mixed media rights denial');
+    writeFileSync(path, sql);
+    assert.throws(() => verifyPreflight({ migrationDir: dir }), /missing required SQL capability/);
   });
 });

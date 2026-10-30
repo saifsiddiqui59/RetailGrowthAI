@@ -1,0 +1,58 @@
+name: RetailGrowthAI DEV P0249 original Flex read-only ARM detectors
+# Repeat to decode allowlisted statusId/section row counts for six known detector responses; audit-only existing tagged DEV resource; this job NEVER sends customer HTTP,
+# changes app settings, creates resources, or runs GPU/premium models.
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/p0-249-azure-detectors-once.yml
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-original-flex-arm-detectors
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'audit(dev): RetailGrowthAI 249 ARM detector audit')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Fail-closed offline tests, before OIDC
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/p0_249_arm_detectors.py tests/infra/test_p0_249_arm_detectors.py
+          python3 - <<'PY'
+          import runpy
+          tests=runpy.run_path("tests/infra/test_p0_249_arm_detectors.py")
+          for name, value in sorted(tests.items()):
+              if name.startswith("test_") and callable(value):
+                  value()
+                  print("P0249_SAFE_TEST=" + name + "=PASS")
+          PY
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Inspect existing original Flex read-only detector summaries
+        shell: bash
+        env:
+          RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0_249_arm_detectors.py
+      - name: End read-only Azure session
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true

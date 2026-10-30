@@ -66,6 +66,34 @@ class TestQualityApproval(unittest.TestCase):
                     authoritative_shop_id=self.shop, actual_media_sha256=self.hash,
                     reviewer_has_write_role=True)
 
+    def test_review_checks_are_deeply_frozen_before_feature4_handoff(self):
+        original=dict(self.row["checks"])
+        review=VisualReview(**dict(self.row,checks=original))
+        original["garment_color"]=False
+        self.assertTrue(review.checks["garment_color"])
+        with self.assertRaises(TypeError):
+            review.checks["garment_color"]=False
+        self.assertTrue(review.approved_for_feature4(
+            authoritative_shop_id=self.shop,actual_media_sha256=self.hash,
+            reviewer_has_write_role=True))
+        from dataclasses import replace
+        cloned=replace(review,reviewed_sha256=self.hash)
+        self.assertTrue(cloned.approved_for_feature4(
+            authoritative_shop_id=self.shop,actual_media_sha256=self.hash,
+            reviewer_has_write_role=True))
+        with self.assertRaises(TypeError):
+            cloned.checks["face_consistency"]=False
+        # An unaudited mutation can never turn an initially rejected/failing
+        # human checklist into an authorized clip.
+        failing=dict(self.row["checks"],face_consistency=False)
+        denied=VisualReview(**dict(self.row,checks=failing))
+        failing["face_consistency"]=True
+        self.assertFalse(denied.checks["face_consistency"])
+        with self.assertRaises(MotionError):
+            denied.approved_for_feature4(
+                authoritative_shop_id=self.shop,actual_media_sha256=self.hash,
+                reviewer_has_write_role=True)
+
     def test_missing_checks_and_unsafe_review_structure(self):
         for values in ({}, {"garment_color": True}, dict(self.row["checks"], lip_sync="ignored")):
             with self.assertRaises(MotionError):

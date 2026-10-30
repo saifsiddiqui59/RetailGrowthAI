@@ -1,0 +1,14 @@
+{
+  "name": "retailgrowthai-node-http-control",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check src/index.mjs && node --check src/routes.mjs"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.0.0"
+  },
+  "main": "src/index.mjs"
+}

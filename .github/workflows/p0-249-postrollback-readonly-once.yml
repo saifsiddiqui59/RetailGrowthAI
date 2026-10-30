@@ -1,0 +1,115 @@
+name: RetailGrowthAI 249 original Flex read-only post-rollback check
+# Existing tagged DEV only; no Azure mutation, no credentials in outputs.
+# Diagnostic 401/503 is not a reliability acceptance gate.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0-249-postrollback-readonly-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-original-postrollback-readonly
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'audit(dev): RetailGrowthAI 249 source rollback verification')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-retailgrowth-dev
+      APP: rgai-dev-functions-d4e5ddbd
+      LAW: rgai-dev-law
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Offline code and fixed-path safety before OIDC
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/flex_ingress_correlation.py ops/p0_249_http_comparison_probe.py
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0,'ops')
+          from p0_249_http_comparison_probe import ROUTES,ORIGINS,DEADLINE_SECONDS
+          assert ROUTES['campaign']=='/api/campaigns/11111111-1111-4111-8111-111111111111'
+          assert ORIGINS['azure_flex_python']=='https://rgai-dev-functions-d4e5ddbd.azurewebsites.net'
+          assert DEADLINE_SECONDS==75
+          print('P0249_POSTROLLBACK_SAFE_FIXED_GET=PASS')
+          PY
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify original tagged DEV app and all core HTTP/worker trigger names
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0,'ops')
+          from flex_ingress_correlation import audit_scope
+          assert audit_scope()
+          print('P0249_POSTROLLBACK_TAGGED_DEV_SCOPE=PASS')
+          PY
+          az functionapp function list -g "$RG" -n "$APP" --query '[].name' -o tsv > "$RUNNER_TEMP/functions.txt"
+          for fn in read_campaign create_campaign plan_campaign render_campaign_reel \
+                    recover_stale_jobs render_campaign_poster dispatch_pending_posters; do
+            grep -Eq "/$fn$" "$RUNNER_TEMP/functions.txt" || {
+              echo "::error::Missing original app HTTP/Queue/Poster function: $fn"; exit 4;
+            }
+          done
+          echo 'P0249_POSTROLLBACK_ORIGINAL_HTTP_QUEUE_POSTER_TRIGGER_INDEX=PASS'
+      - name: Two safe existing original-host GET observations (not a fix certification)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u - <<'PY'
+          import sys,json
+          sys.path.insert(0,'ops')
+          from p0_249_http_comparison_probe import sample
+          for i in (1,2):
+              r=sample('azure_flex_python','post_rollback_check','campaign')
+              print('P0249_POSTROLLBACK_HTTP='+json.dumps(
+                  {'attempt':i,'http_status':r['http_status'],'curl_exit':r['curl_exit'],
+                   'category':r['category'],'app_marker':r['application_request_marker'],
+                   'total_seconds':r['total_seconds']},sort_keys=True),flush=True)
+              # A genuine upstream 503 remains a documented unresolved issue;
+              # no naive "health pass" is inferred from a broken HTTP.
+              if r['curl_exit']!=0 or r['http_status'] not in ('401','503'):
+                  raise SystemExit(4)
+          print('P0249_POSTROLLBACK_HTTP_MEASUREMENTS_CAPTURED_NOT_RELIABILITY_PASS=true',flush=True)
+          PY
+      - name: Existing DEV log-analytics minute aggregates for exact failed canary window
+        shell: bash
+        run: |
+          set -euo pipefail
+          wid="$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query customerId -o tsv || true)"
+          if [ -z "$wid" ]; then echo "P0249_CANARY_LAW=UNAVAILABLE"; exit 0; fi
+          query='AppTraces | where TimeGenerated between (datetime(2026-10-28T19:35:00Z)..datetime(2026-10-28T19:51:00Z)) | where (tolower(tostring(column_ifexists("AppRoleName",""))) contains "rgai-dev-functions-d4e5ddbd" or tolower(tostring(column_ifexists("_ResourceId",""))) contains "rgai-dev-functions-d4e5ddbd") | extend category=case(Message contains "Worker process started","worker_start",Message contains "Worker process exited","worker_exit",Message contains "host startup","host_start","other") | where category!="other" | summarize events=count() by bucket=bin(TimeGenerated,1m),category | order by bucket asc | take 30'
+          if az monitor log-analytics query -w "$wid" --analytics-query "$query" -o json > "$RUNNER_TEMP/aggregate.json" 2>/dev/null; then
+            python3 - "$RUNNER_TEMP/aggregate.json" <<'PY'
+          import json,sys
+          sys.path.insert(0,'ops')
+          from p0_249_historical_telemetry import safe_aggregate_rows
+          v=json.load(open(sys.argv[1]))
+          print('P0249_CANARY_WORKER_MINUTE_BUCKETS='+json.dumps(
+                safe_aggregate_rows(v),sort_keys=True),flush=True)
+          print('P0249_MINUTE_BUCKETS_NOT_CAUSAL_PLATFORM_503_PROOF=true',flush=True)
+          PY
+          else
+            echo 'P0249_CANARY_WORKER_MINUTE_BUCKETS=UNAVAILABLE'
+          fi
+      - name: Logout read-only Azure OIDC
+        if: always()
+        run: az logout >/dev/null 2>&1 || true

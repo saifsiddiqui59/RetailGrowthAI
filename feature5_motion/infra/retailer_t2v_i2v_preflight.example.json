@@ -1,0 +1,53 @@
+{
+  "schema": "retailgrowth.feature35.fictional.acceptance.v1",
+  "actual_model_output": false,
+  "fictional_retailer": "Aster Kurti Studio (fictional)",
+  "script_source": "Feature #2 reviewed creative brief, not a model-authored legal claim",
+  "user_offer_requires_approval": "Diwali Sale — 20% OFF",
+  "fashion_visual_scene": "An adult model in an elegant teal kurti walks through a tasteful Indian boutique, soft golden festive lighting, realistic fabric texture, consistent garment, camera dolly",
+  "feature3": {
+    "mode": "text-to-image-or-reference-edit",
+    "model": "FLUX.2-klein-4b",
+    "prompt": "Premium festive fashion campaign image of an adult Indian model wearing an elegant teal kurti in a boutique, photorealistic fabric, warm lighting, clean background, no text or brand marks",
+    "reference_media_asset_id": null,
+    "require_owned_private_image_for_edit": true,
+    "human_identity_fabric_rights_review": true
+  },
+  "feature5": {
+    "model": "Wan2.2-TI2V-5B",
+    "workflow": "video_wan2_2_5B_ti2v.json",
+    "target_duration_seconds": 5,
+    "frame_rate": 24,
+    "t2v": {
+      "mode": "text-to-video",
+      "prompt": "Cinematic five-second boutique fashion advertisement, adult model in teal kurti walks gently past hanging garments, warm festive lights, camera tracks forward, natural hands and fabric, no embedded text"
+    },
+    "i2v": {
+      "mode": "image-to-video",
+      "source_media_asset_id": null,
+      "requires_private_tenant_ownership_and_approved_rights": true,
+      "prompt": "Animate only the licensed reference image: adult boutique model takes a few natural steps; preserve exact kurti and face; gentle dolly motion; no embedded text"
+    }
+  },
+  "feature4": {
+    "responsibility": "Compose/overlay approved offer text and tenant logo, licensed music, export MP4. Neither generated model guarantees accurate typography.",
+    "text_overlay": "Diwali Sale — 20% OFF",
+    "shop_logo_media_asset_id": null
+  },
+  "safety": {
+    "provider_calls_disabled": true,
+    "automatic_retry_count": 0,
+    "paid_gpu_run_approved": false,
+    "require_tenant_budget": true,
+    "require_human_quality_review": true
+  },
+  "quality_review": [
+    "adult/person rights",
+    "garment design consistency",
+    "hands/face correctness",
+    "motion continuity",
+    "brand/offer accuracy",
+    "licensed references and music"
+  ],
+  "note": "Planning fixture only. No frame, image, video, or licensed retailer media was generated."
+}

@@ -98,3 +98,230 @@
 - 2026-10-28 procurement recommendation: read current AGENTS.md, canonical PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG and Feature5 handoff. Compared official Wan 24GB minimum with real vendor offerings: Runpod RTX 4090 ($0.34 community up to $0.89/hr listed types), Vast.ai verified RTX 4090 variable USD marketplace and host/storage charges, and JarvisLabs India A30 ₹38.88/h, L4 ₹41.31/h, A100 40GB ₹84.24/h, A100 80GB ₹140.94/h. Selected JarvisLabs India **A100 80GB on-demand** for initial genuine upstream proof because of 80GB VRAM, dedicated GPU, per-minute billing, INR Indian-card checkout/GST, private deployment option. Storage ₹0.013/GB/h and possible 18% GST are additional. Did NOT make a purchase, access paid GPUs, provision any cloud resource, alter Part3 or WineShopPOS, or generate an MP4; owner approval and exact checkout rate remain gate.
 
 - 2026-10-28: Owner posted Azure Portal managed-environment Quota screenshot showing RetailGrowthAI DEV `rgai-f5-gpu-canary-eastus` **NCA100 0 used/2 limit**, T4 0/0, after prior request. Explained authorization capacity != allocated billed GPU usage, confirmed Azure official Consumption billing says zero replicas have no GPU resource charges; independent storage/logging/network can still bill. Updated issue #400 with screenshot-derived status and ARM verification/paid-GPU safeguards. No live Azure API readback, GPU deployment, paid runtime or video generation happened.
+
+- 2026-10-28: Prepared A100-only, default-off Azure manual-job start/status/emergency stop source for ComfyUI+Wan2.2, plus non-executable deployment manifest, operator runbook and CPU-only mocked safety tests in isolated Feature5 child branch. No actual V100/A100 hardware invoked, Azure changes, ComfyUI deployment, paid API call, real sample, or WineShopPOS edits. Parent Feature5 PR #323 remains draft; activation is gated.
+
+- 2026-10-28: Read-only verification of official ComfyUI 5B TI2V native workflow and three required model/encoder/VAE filenames; pinned upstream reference commits in non-executable Feature5 manifest. Actual weights, image, runtime tests and deployment still absent.
+
+
+## 2026-10-28 — Feature5 official Comfy native implementation/source work
+- Read current main and AGENTS/PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG/ARCHITECTURE/INTERFACES/PARALLEL_WORK and exact PR #323/#465/#514/#322. Confirmed existing source-only Feature5 I2V adapter/CPU model and media tests were green at #40688451976.
+- Inspected the REAL pinned official ComfyUI nodes_wan.py and nodes_video.py: SaveVideo optional codec argument must be a dictionary; old codec="auto" string was a real latent GPU-runtime mismatch. Fixed the existing graph to dynamic format={"format":"mp4","codec":{"codec":"h264"}}. No alternate renderer.
+- Added independently testable native runtime schema/checkpoint/immutability/rights/wheel-hash checks and cheap local safetensors header validator; it never downloads 34GB or infers. Added source-only, deliberately incomplete Containerfile to document safe no-network hash-locked build inputs and GPL notice requirement, not a built OCI image.
+- CI exposed a missing optional SaveVideo.codec entry in synthetic object_info; corrected fixture rather than removing runtime drift test. Following exact-head full 4-job CI must be checked. GPU remains OFF; no Azure or Supabase live changes, no model runs, no WineShopPOS.
+
+
+## 2026-10-28 — Feature5 P0 supply-chain preflight continuation
+- Read current main AGENTS, PROJECT_STATE/NEXT_TASK/DECISIONS/WORK_LOG/ARCHITECTURE/INTERFACES/PARALLEL_WORK/CI_AUTOMATION, draft #323/#465 and feature #2/#4 references. Verified prior four-job exact-head CI #40692037019.
+- Implemented actual offline wheelhouse SHA-256 streaming checks, package/version + zipped WHEEL/METADATA identity, complete reviewed package inventory, symlink/extra/duplicate/changed/missing wheel negative tests. Added deterministic PIP --require-hashes lock rendering and on-disk equality validation; rejects injected index source and aliased dependency names. None uses network, pip install, Docker, Azure or GPU.
+- Initial CI failure was a loss of specific wheel-identity error text due to ValueError superclass catch; corrected to preserve explicit fail-closed reason rather than weakening the test. Latest source and CI are recorded in draft PR #465 after checks conclude.
+- Synthetic ZIP wheel fixtures prove file-audit logic only. Real transitive wheelhouse, pinned NVIDIA CUDA/torch base and production image remain missing; real model/tenant paid generation, Part3 wallet/claim wiring and human review still blocked pending separate authorization. No WineShopPOS changes.
+
+
+## 2026-10-28 — CPU-only preflight/loopback sprint, no A100
+- Read root AGENTS and four canonical docs plus architecture, interfaces, parallel ownership and CI, draft #323/#465 and actual pinned upstream ComfyUI node/server/CLI source.
+- Implemented complete Wan graph canonical topology check and current F3 basename binding; CI caught valid-looking source substitution during regression, corrected by requiring independent approved staging input rather than bypassing the test.
+- Implemented whole-checkout SHA audit, combined no-build source+wheel+pip hashlock+OCI preflight, synthetic negative tests and guarded rootless/no-metadata Containerfile preparation.
+- Implemented loopback-only 127.0.0.1:8188 ComfyUI transport, default-OFF one-attempt POST and read-only history with no-retry UNKNOWN accounting, current fenced lease and current tenant image approval callbacks. Synthetic tests do not use a socket, GPU or human model.
+- Exact final-head GitHub 4-job CI to be verified; do not claim image built, real model startup, GPU spend, licensed source approval, private media release or coordinator merge. No WineShopPOS/PROD writes.
+
+
+## 2026-10-28 — Feature5 non-A100 completion sprint
+- Rechecked repo main/Feature5 draft #323/#465, five canonical docs, AGENTS/ARCHITECTURE/INTERFACES/PARALLEL_WORK/CI, prior completed exact-head 4/4 CI #40705818193, and existing Feature2/3/4 handoff files. Retained existing source branch and all old work.
+- Implemented default-OFF local Wan dispatcher unique durable submission intent callback against existing paid job/lease to prevent same-UUID paid replays, including fail-closed repeated dispatcher and simulated second independent worker tests. No coordinator DB migration/real claim implementation claimed.
+- Implemented private result intake, 0700 lease-scoped output root authorization before file read, one official MP4 result, actual local ffprobe/decoded frame motion and pending-only output receipt. Added real FFmpeg testsrc2 704×1280 121-frame synthetic motion CPU integration test and multiple unsafe output/source/second-shop negative checks.
+- Authored detailed SOURCE_READINESS_AND_PENDING_20261028.md matrix, listing remaining independent runtime artifact/licensing, integrated real Part3 DB/tenant/private-media callbacks, operator-approved A100 and human editorial review, Feature4 composition and coordinator-owned merge/hosted acceptance. No GPU/image build, Azure writes, real fashion video, WineShopPOS or PROD changes. Final exact-head CI must be checked and any real failures fixed before source-ready signoff.
+
+
+## 2026-10-28 — GPU-OFF private output hardening and mock-to-media acceptance
+- Resumed #40726978755: FFmpeg media negative test mismatched MotionError/WanCompatibilityError; a concurrently landed 6b1cfeb0 correction was verified in #40727265840 as all four jobs success. Subsequently extended source output-directory denial, late mutation check, receipt metadata hash/job/attempt binding and one-shot synthetic mock Comfy protocol-to-real-FFmpeg pending receipt/lease revocation test. New CI evidence required after push; tests have no paid GPU, live customer rights, Wan inference, Azure write or WineShopPOS touch.
+
+
+## 2026-10-28 — GPU-OFF source qualification and exact external gates
+
+Resume checkpoint #40726978755 failed/cancelled at 2fd85b6 from malformed UUID negative; concurrent corrective 6b1cfeb0 passed replacement 4/4 in #40727265840. Added branch commit 005c92d1 with strict foreign folder rejection, post-screen SHA/identity validation, sealed pending receipt and mock Comfy one-POST/history -> real synthetic moving FFmpeg MP4 -> revoked-lease denial. Code SHA 005c92d1d254a925d22fadeee9270f900b061a2d: GitHub Actions #40733254877 completed 4/4 SUCCESS; Python/uv 622 passed, 7 skipped and 343 subtests passed; FFmpeg/media 51 tests OK plus synthetic renderer; frontend/Playwright and disposable Supabase succeeded. URL: https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40733254877. Mark feature-owned CPU source ready pending final docs SHA CI. No actual Wan, GPU, Azure/paid, live media or WineShopPOS changes.
+
+
+## 2026-10-28 — Public stock candidates / hosted read-only audit / recovery continuation
+- Added default-off no-network local stock photo/video inspector and CPU FFmpeg tests; selected verified public Pexels 9s walking clip + red-kurti image as *separate* candidates, not matched model or product. File bytes could not be downloaded from restricted runtime; no real media probe or license/likeness approval falsely claimed.
+- Used connected DEV Supabase read-only list_tables and pg_catalog policy/column queries; verified RLS enabled on relevant auth/asset/job/ledger tables, but no render_jobs or shop_usage_reservations rows; no signed JWT, transactions, hosted write or tenant-negative execution. Documented exact existing schema and coordinator-only integration in stock/hosted handoff.
+- Added durable intent callback uncertainty -> UnknownComfyPaidAttempt and existing-readonly-reconciliation with independent current claim; test doubles cover forged receipts and stale tenant claims. Pending current-head Actions must be verified for four jobs after this update.
+
+
+## 2026-10-28 — Coordinated eight-task security and public-media QA continuation
+
+Checkpoint continuation completed code on existing Feature5 branch: added negative tests for unknown commit acknowledgement, forged recovery receipts, foreign/expired Part3 authorization and history access, repeated POST denial, private stage mode 0600/preexisting destination/cleanup, broad output file permission/hard links/subdir 0700, mutation/revoked output lease after screening, and independent F3 reference revocation during node preflight. New optional local Pexels downloaded media technical inspector and tests use only generated synthetic CPU FFmpeg data; actual public content was not downloaded. Reviewed hosted DEV Supabase read-only tables, column shapes, RLS policies and advisors; live signed JWT/billable attempt acceptance not executed. Supabase advisor has 9 INFO no-policy rows (potentially intended private/worker tables) and 16 WARN authenticated-executable SECURITY DEFINER functions requiring coordinator function-by-function review, not automatic revocation. The exact latest source prior to this documentation commit is d747b6b9d622baba9198f80dcf81a9a2f14235f0; run final four GitHub CI jobs again on the documentation commit before claiming current-head success. Earlier independent 858e5e598d6348fb2849c7497550d109d7660a7f run #40747182176 was 4/4 SUCCESS. A100 and paid API use remain OFF; no actual Pexels bytes, Wan inference or WineShopPOS change.
+
+
+## 2026-10-28 — Continued fail-closed source sprint after previous green CI
+
+2026-10-28: Continued Feature5 owned security sprint. Commits 92689b1ed753b77a7b2ff2a81cb68cc198e623d4 and 9281880c30bfb04ec4b653c7abc4ee542537fbdb: atomic local Comfy attempt slot, immutable F3 approval comparison, rights recheck after durable intent, invalid acknowledgment => UNKNOWN, local history receipt identity, F4 private handoff boundary UUID normalization and no needless DB callbacks on invalid fields. Added CPU-only negative regression tests. No A100, paid calls, hosted data writes, schema changes, main merge or WineShopPOS changes. Final exact-head CI must be verified independently.
+
+
+## 2026-10-28 — Parallel/timeout negative proof
+
+2026-10-28: Added CPU negative tests for parallel same-dispatcher submission (one POST only) and F3 rights resolver outage after durable intent (zero POST, consumed). Source test commit a0929fff705274fb22e5876e38b2410b70cd62c7. Final documentation-head 4/4 CI pending, no paid or hosted writes.
+
+
+## 2026-10-28 — Read-only hosted policy denial (not signed-JWT acceptance)
+Connected DEV project was queried in a read-only rolled-back transaction. Synthetic authenticated user had 0 rows across shops, media_assets, render_jobs, shop_usage_reservations, usage_events, memberships. Anonymous role got 42501 permission denied on shops. No signed JWT, cross-shop actual user, protected HTTP request or paid model transaction was exercised. All GPU/paid resources remained off.
+
+
+## 2026-10-28 — Stock media decoded-frame screening continuation
+
+- 2026-10-28: Existing optional stock candidate inspector now decodes two bounded portrait FFmpeg frames and reports nonstatic-vs-obviously-frozen screening, SHA256 frame fingerprints and luma difference. It verifies compressed photo pixels and checks video/photo hash+inode+mtime again after decoding; rejects mutable files. Added real CPU-encoded moving/still synthetic negative cases and post-probe mutation test. Still NOT actual downloaded Pexels file, real person/garment/consent approval, model-origin proof, or Feature4 publication.
+
+
+## 2026-10-28 — Image-generation A100-free source qualification
+
+2026-10-28: Implemented Feature5 isolated CPU image review composite and negative rights/tenant/fencing tests on branch. It stages exclusively from F3-approved hash-bound private portrait first frame; 0700/0600, O_EXCL, no outside URL and revocation cleanup. Generates labeled private PNG for editorial diagnostic ONLY, never a publishable or AI-generated asset. No paid providers, GPU, infrastructure changes, customer media or WineShopPOS touched. External Pexels bytes unavailable from restricted runtime; no false stock acceptance. Official Klein 4B does not require A100 hardware.
+
+
+## 2026-10-28 — CPU first-frame cross-feature integration regression
+
+2026-10-28: Added an independent full CPU first-frame F3->Feature5->Pillow board integration test: actual private prepared pixels, hash-bound SKU source, 0600 output, explicit no-FLUX/no-Wan flags and current-rights revocation refusal. No hosted DB writes, GPU or paid API. CI must pass exact newest commit before marking source done.
+
+
+## 2026-10-28 — Part3 native private import GPU-OFF acceptance
+
+2026-10-28: Implemented GPU-OFF native output → private Part3 import/ledger/source rights callback bridge and 6 offline test flows using separate fabricated test-login identities and actual ffmpeg testsrc2 MP4; strict duplicate/revoked/foreign+unknown safety; synthetic only (no model, tenant SQL, hosted JWT or cloud Storage). Branch PR #465, pending exact-head CI. No shared migrations, Azure or WineShopPOS modifications.
+
+
+## 2026-10-28 — Import intent ambiguous ACK + private staging path guards
+
+- 2026-10-28: Closed source-only import-intent lost-ack ambiguity and staged path escape/symlink risk; verified expected negative tests added. No database changes, hosted JWT, real Storage or paid providers. Exact-head CI awaited.
+
+
+## 2026-10-28 — Two-shop parallel offline acceptance and Pexels rights audit
+
+- 2026-10-28: Added 12-thread CAS/Storage source acceptance and two independent mock shops with fake signed tokens; updated Pexels rights audit based on official pages. Video/photo originals could not be downloaded (DNS blocked), so commercial and real-media fidelity remain unverified. GPU OFF.
+
+
+## 2026-10-28 — Pinned official Wan2.2 weight source inventory
+
+- 2026-10-28: Recorded upstream Wan2.2 5B official model files/estimated weight volumes and pinned ComfyUI workflow. No 16GB+ actual weights, hashes, CUDA runtime, no model execution. No A100, paid API, WineShopPOS or main changes.
+
+
+## 2026-10-28 — Current Feature3 / Feature4 / Part3 real source contract audit
+
+- 2026-10-28: Read current separate Feature3/Feature4/Part3 GitHub source and wrote exact F3 packet + F4 timeline freshness/model incompatibility guard and CPU tests on Feature5 branch, no duplication of other features, no GPU. Cross-feature integration still source-only pending coordinator merges and actual signed tenant/auth/DB calls.
+
+
+## 2026-10-28 — F3 verified consumer-to-private first-frame staging + hosted catalog reality
+
+The existing live Feature3 source bridge and private packet staging were source tested. Hosted Part3 SQL/Storage JWT integration and a real commercially cleared model remain unverified.
+
+
+## 2026-10-28 — Deterministic fake token corruption regression fix
+
+- 2026-10-28: GitHub Actions surfaced flaky negative signed test-token assertion in source-only two-shop suite (unchanged last char). Fixed deterministic mutation, keeping denial test. Earlier Python, media, Supabase and frontend source suites passed separately; exact final SHA must be verified.
+
+
+## 2026-10-28 — Current main real F3 producer source integration
+
+- 2026-10-28: Synced latest main into Feature5 via conflict-free 2-parent merge; 101 feature-owned added files preserved, all 222 newer main commits included. Added four exact cross-feature tests using actual F3 producer, actual prepared private PNG and CPU test board, revocation and changed garment/timeline denies. No cloud/GPU/paid provider. Replaced erroneous literal `undefined` previous work-log entry with accurate note.
+
+
+## 2026-10-28 — F3→CPU motion→Part3→F4 continuous offline acceptance
+
+- 2026-10-28: Continued without restart; committed full-path GPU-OFF source smoke using real F3 source code and FFmpeg-animated synthetic first-frame, strict native clip screening, independent fake Part3 upload+settlement/login protection, Feature4 faux human QA contract. Marked test-only. No actual media product or paid compute, WineShopPOS untouched.
+
+## 2026-10-28 — Feature5 GPU-free import integrity continuation
+
+Added two additional immutable staged-clip checkpoints in `feature5_motion/part3_private_import_bridge.py` around existing lease/rights and unique intent CAS callbacks, plus two explicit mutation tests using separately copied synthetic FFmpeg videos in `tests/media/test_feature5_part3_gpu_off_acceptance.py`. Tests are submitted to GitHub CI, not yet claimed successful at documentation time. Original upstream/multi-tenant/Part3 integration blockers remain. No paid model inference, Azure/A100, customer image or WineShopPOS modification.
+
+## 2026-10-29 — CPU-only source integration: independent private object readback
+
+Continued existing Feature5 draft PR #465 at preceding verified `0befe0c29dd50255b344f6873492d5c316ffc385` (previous exact 4/4 success #40776932482). Implemented mandatory bounded private object streaming SHA256/length confirmation after upload ACK and before immutable Part3 settlement. Updated actual Feature3→synthetic FFmpeg→mock Part3→Feature4 full path, 2-shop private mock reader, and negative tests for forged correct-ACK/wrong object, missing reader, invalid/truncated chunks and timeout. All input rights/credentials remain fake/offline; exact new-head CI must be observed separately. Shared Part3 paid schema, real signed hosted accounts, true Wan inference and human review are still blocked. A100 OFF, no Cloud/PROD/WineShopPOS edits.
+
+## 2026-10-29 — Feature3 #604 real source inspection and F5 GPU-free adapter
+
+Inspected F3 #604 actual `feature3_worker_inputs_v1.materialize_feature5_input`, OpenVTO pinned source manifest, handoff and tests directly, and posted Feature5 needs on #604. Added owned `resolve_feature3_materialized_first_frame` strict adapter to connect new F3 worker shape to existing Wan private staging without duplicating F3 producer; added positive/foreign/revocation-like/fingerprint/byte/paid-flag negative source tests using current F3 real Pillow bytes + a clearly labeled test-only new-shape callback until PR604 merges. Source CI pending at documentation commit; no tenant signed JWT, actual human garment-worn VTON, customer rights, paid inference, A100, PROD or WineShopPOS modifications.
+
+## 2026-10-29 — Batch continuation without GPU or feature approvals
+
+Verified full canonical instructions, Feature5 HEAD `498a133de95422b494bf4260761656ddce5b10c6` and previously exact-head 4/4 PASS `40822173769`, current latest main `459d01d5`, Feature3 #604 **merged**, Part3 #125 still draft. Compared branches from common base `0f2e848c`: 46 changed main paths had **zero** overlaps with F5; constructed non-force two-parent merge `0d81adf0d103a6169ea393153b4cb9d161a001b8` preserving all F5 changes and main F3 code.
+
+Updated F5 source tests to import/run the genuine merged F3 `materialize_feature5_input`, exercising byte-for-byte reference SHA, revoked source/current lease checks, ephemeral protected 704x1280 frame, and full F3→synthetic CPU FFmpeg→mock Part3→F4 path. Hardened native H.264 validation to exactly one video stream: fake FFprobe negatives for AAC/subtitle/data/second-video plus an actual FFmpeg audio-muxed MP4 negative. This prevents accepting unreviewed audio in raw Wan output, separate from F4 approved soundtrack. Existing media mutation/readback and two-shop GPU-off security tests remain present. After source changes run exact latest SHA four-job CI; fix genuine failures, do not hide/skip tests. No paid runtime/GPU/PROD/WineShopPOS or DB/migration modification.
+
+## 2026-10-29 — Autonomous GPU-OFF F3 role lineage + private MP4 re-probe
+
+Re-read repo instructions/root and owner docs; checked current Feature5 #465 draft and latest main, Feature3 #604 merged. Newer `main` introduced `poster-engine/feature3_worker_input_handoff.py`. Compared feature/main since `459d01d5` and confirmed zero overlap of eight changed paths; merged via actual two-parent commit `5fc52ec2af4fbde2dde36b0752eff192eac34875`, no force. Added F5-only adapter to call actual F3 trusted bundle resolver, cross-check all garment/model/first-frame bytes, and feed reviewed original to native F5 staging. Three positive/negative Python tests and changed full FFmpeg synthetic→Part3 private readback→F4 test. Hardens import to replay native FFprobe and reject fabricated inspection (six adversarial metadata cases) before unique intent; rights checked before re-probe.
+
+Connected Supabase DEV read-only (no SQL writes): **31 migrations**, latest Feature3 model original registration; zero model/Feature3 GPU jobs and absent premium jobs. Supabase advisor reports six private tables without RLS, but separate pg_catalog grants confirm anon/authenticated cannot SELECT/INSERT those private tables directly; coordinator owns review of remaining service security, do not auto-enable RLS. No real signed-in tenant test, commercial rights, CUDA model, A100/paid provider, PROD/WineShopPOS. Final source+docs head CI 4/4 to be verified.
+
+## 2026-10-29 — Selected GPU-OFF runtime/weight/negative/DEV/live/visual/integration work
+
+Read AGENTS/root five docs and CI/architecture/parallel contracts. Verified source PR #465 still DRAFT, Part3 #125 DRAFT; exact old F5 head `9d9884621238b485b3fa6bb9e65580d39b79a033` CI #40831916007 had 4/4. Inspected existing ComfyUI native/build-context/source audit + Wan2.2 checkpoint/composition source; confirmed pinned upstream ComfyUI and Wan2.2 GitHub commit/tree/license/blob identities via real GitHub calls. Verified ComfyUI GPL and original Wan/model Apache representations; actual reviewed full CUDA base/wheels/OCI still absent. Added `wan22_local_weight_audit.py` stream-all-bytes, hardlink/symlink/mutation/length/digest gate and CPU synthetic tests; opt-in protected mount command available, **not run** on real model bytes. Prior protected Azure share manifest and readonly binding Actions green, no ComfyUI live `/object_info` or GPU.
+
+Hardened Feature5 human checklist to immutable bool mapping; Python CI initial regression from dataclasses.replace failed on narrow dict type check. Corrected validator to accept trusted mappingproxy and deep-copy/re-freeze; added direct replace/mutation negative tests, no tests disabled. Synced latest main three commits without any overlap via two-parent commit `3e807c664f33d53a4736875c3ca5e76c7b0bf9ea`, pulling real Feature3 source-verifiable MIT 9s editor footage and user testing chat. It does not establish wearing-garment source, real Wan or visual approval.
+
+READ-ONLY connected Supabase: 31 migrations, 0 Feature3 models/GPU jobs, no premium/video job tables. Six private RLS disabled but anon/auth SELECT/INSERT/UPDATE grants all false. Advisor finds 15 informational no-policy tables, 22 WARN authenticated security definer callable RPCs, one WARN leaked-password protection. Root/shared RLS changes not permitted in F5. Reported exact tasks and blockers at `docs/feature5/WAN22_GPU_OFF_RELEASE_AUDIT_20261029.md`. No cloud/paid/runtime/PROD/WineShopPOS changes; check final four-job CI.
+
+## 2026-10-29 — Took actual Feature3 garment/model images into Feature5 without GPU
+
+Read AGENTS/root mandatory state/task/decisions/worklog, architecture and F5 docs. Confirmed latest upstream Feature3 demo download passed protected Actions #40820810387, inspected actual F3 `openvto_demo_sources_v1.json`, `feature3_demo_inputs_v1.py` and exact upstream Git blob SHA. **Actually transferred verified source bytes** for both 103,914-byte model pose JPEG and 32,633-byte garment JPEG from `Prompt-Haus/OpenVTO@10140178cdb198ff17ad7b226c432bd63d732fc2` to F5-only `tests/fixtures/feature5/f3_real_openvto/` via GitHub source read/base64 Git blob creation; both destination blob SHAs identically match verified upstream; copied exact MIT LICENSE. No original external image fetch is needed by CI. New F5 `feature3_mit_demo_input.py` runs actual Feature3 `validated_manifest` + `verify_demo_image` against these original image bytes, stages non-cropped/letterboxed private PNG 704x1280 and constructs never-posted Wan2.2 native graph with false publish/GPU/cost flags. New `test_feature5_real_feature3_mit_input.py` exercises original images, actual Pillow decode and SHA, and tamper/symlink/source-flag/gpu-authorization negatives. External imagery is two separate sources, **not** an image of model wearing the selected garment.
+
+Pulled newer main source/Feature3 private output Storage without overlapping owned paths by actual two-parent merge `eab1368f3a6af622217254b93caacf2357fa810a`. Only F5 module/tests/fixtures/docs changed directly. Feature2's offline creative director already has source handoff PR #551; no need to re-request input. No actual approved customer clothing or human-wearing SKU, no live signed rights/reviewer/Part3 or genuine Wan inference/AI video, no GPU/A100/payment, hosted migration, PROD or WineShopPOS changes. Verify final exact-head four-job GitHub Actions before claiming CI green.
+
+## 2026-10-29 — Continued cross-feature handoff; full real-original JPEG-to-private media pipeline (GPU OFF)
+
+Inspected latest actual GitHub [Feature2 unified PR #551](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/551), [Feature3 F2/4/5/7 demo byte handoff PR #630](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/630), F4 draft #322, Part3 draft #125, plus canonical root instructions/docs and F5 state. Received F2 source creative handoff and previously merged F3 MIT model+garment originals; observed F3 #630 offers a new, **not-yet-merged** F5 avatar+garment+pose verified-byte object; no direct copying of its module. Matched active Feature5 PR #465 to original branch. Synced two newer main testing-trace commits in non-force two-parent `61c50d03d3bf9fdc05d8c79dd51d1b002cbab3da` with zero owned-path overlap.
+
+Added real-binary media test `tests/media/test_feature5_f3_original_bytes_to_private_import.py`: real original OpenVTO person pose and distinct shirt JPEG checks, image decode, 0600 first frame, never-submitted Wan API graph, actual 121-frame 704×1280 silent H264 zoom-pan on that original image, real ffprobe/screen, mock Part3 exclusive intent+private upload/object readback+test-login tenant negatives, replay denied and human commercial approval still rejected. Source-only correct: no Wan VTON footage, no real retailer rights or signed JWT, no hosted cloud writes or paid GPU. Owner docs and [handoff report](CROSS_FEATURE_HANDOFF_AND_REAL_IMAGE_CPU_VIDEO_20261029.md) updated. Exact final PR-head 4/4 CI verification still required. No PROD/WineShopPOS.
+
+
+## 2026-10-29 — Continuation: F2 verified versioned offline story preview bridge
+
+Re-read mandatory root/F5 docs, live F5 draft #465, F2 #551, F3 #630, F4 #322, Part3 #125 and actual code. Verified existing F5 SHA `a17125a4827f598b4d7a013b1d339edcdb77df90` and its previous successful 4/4 CI #40851898156, while F3 #630 is open and real garment-wearing first frame remains unavailable. Created `feature5_motion/feature2_storyboard_bridge.py` and `tests/ai/test_feature5_feature2_storyboard_bridge.py` on the SAME feature5 branch. Tests exercise 3/6/12 five-second storyboard rows using existing F5 direction fixture and reject changed source SHA, scene IDs, garment morphology, foreign shop, unapproved media, cost/paid/GPU flags, licensed speech/music claims or fake F4 render readiness. This newly written contract gate does NOT yet run the unmerged F2 Node compiler or live ComfyUI; verify exact-head CI before claiming a pass. Commits: e4644dcebfd4293bb15e4ee8488702c6ca878802 and c084cc071dcbf54f5d645be9cee6b3dbcefaba4e. NO inference, Azure/GPU charge, Supabase writes, schema, PROD or WineShopPOS.
+
+
+## 2026-10-29 — F5->F4 detailed pending review boundary, negative source checks
+
+Extended existing F5-owned `feature5_motion/wan22_feature4_handoff.py` with a versioned **non-authorizing** full technical candidate containing identity, five-second native codec/dimensions, exact private Storage reference, source/prompt/model revision, presented Part3 settlement status and pending human review. It rejects mismatched job/source/private key, forged SHA/codec/frames, source identity changes and an altered generation prompt; strengthened validation to independently recompute the entire original lineage SHA (including valid-looking modified source image SHA) before reporting. Existing approved F4 handoff is not weakened. Appended dedicated rich-receipt tests to `tests/ai/test_feature5_wan22_feature4_handoff.py`. Commits 4e203e1d552854a0471b177a814de4702f039eb1, 403bce48a031e20535e26f7f4616991fcd2fbae8, 3c88a9b73ca8106b87fc3fe760457426a5ae8190, 1abc3263dd09729da8d19addde7e24de8fb756b4. Source-only no signed DEV, true Wan/garment-worn output, image cost, external licensed music, cloud resources or WineShopPOS. Verify latest full CI separately.
+
+## 2026-10-29 — Actual merged F3 three-role bytes consumed by Feature5 (GPU OFF)
+
+Read root and Feature5 instructions, state and interfaces; verified F5 #465 remains draft, F3 #630 **merged**, F2 #551/F4 #322/Part3 #125 remain draft. Compared latest main with F5: four new main commits, 28 changed files, no Feature5 path overlaps; created two-parent, non-force sync `0849bfe2905d2ede9d35c846af547c9df9f62d9b`. Implemented new Feature5-only native demo byte bridge and tests that call actual merged F3 `load_demo_consumer_bytes` via actual F3 export/test validation, check roles/pinned hashes/decoding, build private 704x1280/121f graph and reject forged rights or changed source. New code commits `9a316b18b8a058ff5c0c326c38b1348f37c2a6d8` and `5436dd893245db5eb684550baa66e30eed6cb3ff`. Github Actions #40864458522 initially observed IN PROGRESS on new test commit; must check final exact documentation-head CI separately. No true garment try-on, Wan model inference, private DEV readback, signed customer E2E, GPU charge, WineShopPOS or production edit.
+
+## 2026-10-29 — Follow-up: real CI failure repaired without weakening source gate
+
+First documentation-head Actions run #40864647921 exposed **one new Feature5 media test fixture failure**, not a model/runtime failure: Feature3's generic locally synthesized mock exporter used byte-identical RGB data for its different JPEG garment and pose roles. The new Feature5 integrity rule correctly denied two supposedly distinct role assets. Updated **only** `tests/media/test_feature5_feature3_demo_byte_bridge.py` to produce three distinguishable synthetic test colors (no Feature3 source or production gate changes), commit `09f29b20259260f904b7f54d7df73372fbb1fca5`. Exact source-head [GitHub Actions #40864920493](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40864920493) **4/4 SUCCESS**: Python/uv, FFmpeg/media, frontend/Playwright and disposable Supabase isolation jobs all completed green. A subsequent documentation-only commit must be independently inspected before calling its own HEAD green. Posted coordinated owned-boundary handoff on F5 draft #465 and Part3 draft #125. New actual source F3 packet CPU-only, NOT a true Wan, retailer rights approval, signed hosted DEV, or paid service.
+
+
+## 2026-10-29 — Continued independent F5 source work without GPU/cloud spend
+
+- Read and verified root/F5 docs, current draft Feature5 PR #465, merged Feature3 #630, and unmerged F2 #551 / F4 #322 / Part3 #125; inspected authentic F2 `export-feature4-feature5-fixture.js` and MIT director `previous_shot_id`/`next_shot_id` construction from its exact source PR head.
+- Verified Feature5 prior doc HEAD `ce52576` [run #40865478409](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40865478409) **4/4 success** by querying the actual four GitHub Actions jobs.
+- Committed `558118b3` and `a65199d1` to strengthen `qualify_feature2_offline_storyboard` against broken adjacent shot chain, repeated scene/shot and mid-story source/SKU/garment drift; `ef04fd9d` adds full 15/30/60 tests and negative cases.
+- Committed `d233f0b2` and `e0b1f85c` for the F5-only 2MiB/strict-UTF8/duplicate-key-denying original-JSON stdout CLI and subprocess/negative acceptance. No F2 code duplicated. The F2 real exporter is not in the F5 branch until coordinator integration, so tests use existing explicit contract fixtures; run real producer→consumer when approved.
+- Four Feature5-owned docs updated for this batch; verify **new** exact final HEAD 4/4 before calling it green. No paid GPU/OCI build, live rights, Azure/Supabase writes, PROD or WineShopPOS touched.
+
+
+- Safely reconciled latest coordinator `main` `214a27ff` (21 Feature3-owned changed files, zero F5 overlap) into current F5 branch via non-force two-parent merge `d2bc8741749d2a5a6adf66ff441bcdde18e5dd01`. All previous linked-storyboard, CLI and tests remain. Previous test-run checks were superseded/cancelled by later pushes; only exact current HEAD 4/4 counts. No GPU, hosted mutations, PROD or WineShopPOS.
+
+## 2026-10-29 — Continue independent source tasks
+- Read mandatory AGENTS/root and Feature5 state/task/decision/log, architecture, interfaces, parallel ownership and CI instructions; verified open F5 #465, open F2 #551 and F4 #322, open Part3 #125 and merged F3 #630. Verified previous exact head 690525fd CI 40868457276 4/4.
+- Nonforce two-parent F5 sync d4d4148e from latest main 60d40482, 33 disjoint source paths, no conflicting Feature5 files.
+- New F5 native Part3 profile check 351acc9e, wired into actual Comfy dispatcher at three boundaries 6224a152. Added 20+ negative mismatch and pre/post CAS drift tests 9e797756 and corrected independent-field test setup 2a7b8969.
+- New source-conditional real Feature2 exporter integration test 41e5c8b7: executes actual Node compiled output at 15,30,60s only once source merges, otherwise explicitly skips.
+- RetailGrowthAI DEV metadata read-only: 31 migrations; existing shop_ai_spend_reservations/shop_usage_reservations but no premium-video job table in public/retail_private schemas. Sent precise external backend contract to Part3 PR #125 comment 6505212109.
+- No actual hosted JWT, genuine Wan inference, GPU spend, signed human garment review, storage settlement, production or WineShopPOS modifications. Verify exact final HEAD 4/4 CI before marking passed.
+
+## 2026-10-29 — Real CI feedback, repaired without bypassing test
+- Inspected [Actions #40932450519](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40932450519) Python failure (one failure; 1176 tests passed, 9 skipped): actual test_two_workers_same_fenced_claim_only_one_durable_intent used custom job/attempt while fake native lease reader had the initial independently-generated IDs. Correct refusal by production gate, incorrect test setup.
+- Fixed tests/ai/test_feature5_wan22_comfy_execution.py::inputs in commit 82a9b8602de4d4db5595848f4759b9839e22ec04: attach simulated current Part3 lease claim to the FINAL job/attempt after caller overrides. Preserved all model/reservation identity, unique CAS, and UNKNOWN retry fences.
+- CI on fixed source [#40933090198](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40933090198) started/pending on latest source check; final documentation-head 4/4 must be examined separately. No GPU, hosted mutation, billing, WineShopPOS or production touched.
+
+## 2026-10-29 — Cross-feature task tracking without repeated manual status guesses
+Verified F5 draft #465 `82dad625`, F2 #551 open, F4 #322 open, Part3 #125 open and Feature3 #630 merged; old exact F5 head Actions #40933327353 has four successes. Added `docs/feature5/F5_22_TASK_DEPENDENCIES_20261029.json` (GitHub commit d9d6f57a), enumerating 22 remaining release work packages with explicit owner/dependency/output/acceptance, including three active source/preflight preparations and 19 external blocks. Pure docs/coordination; no GPU, Azure, Supabase or WineShopPOS mutation. Verify latest documentation head CI separately.
+
+## 2026-10-30 — F5-13 offline OCI review-manifest fail-closed hardening (source only)
+
+- Task ID: **F5-13** / dependency **F5-OCI**, owner Feature5/Runtime. Current task status remains **IN PROGRESS**, not integrated DONE.
+- Verified coordinator task registry and source ledger; PR #465 remains open/unmerged, stacked on PR #323. Feature2 PR #551 remains unmerged; no real original exporter integration claimed.
+- Implemented review JSON hardening in feature5_motion/infra/wan22_build_context_gate.py: bounded opened file, no symlink/hardlink, stable file identity/size/mtime across read, reject duplicate nested keys, non-finite JSON constants and non-object roots. Added deterministic synthetic negative tests in tests/ai/test_feature5_wan22_build_context_gate.py. Source commits 3dd7a2858d6e98e1beef9c19450da92133817912 and 5ecc363a62efb7e694085541154f868969f50f21.
+- Exact-head CI for 5ecc363a62efb7e694085541154f868969f50f21 was queued at checkpoint (Actions #41040798957); **not** claimed passed. Prior af4cc21b four-job success is not evidence for these changes. No local full checkout/test runner was available.
+- Remaining F5-13 acceptance: independently reviewed real CUDA base image digest/bytes, complete pinned wheelhouse, license/SBOM/ABI review and actual OCI build digest. Owner Feature5/Runtime; source-only tests cannot satisfy these gates.
+- F5-14 requires private read-only mount and streaming original three Wan checkpoints with exact SHA/size; no real weights read. F5-02 requires authentic F2 PR #551 exporter bytes (owner Feature2/Coordinator). Fixtures are not customer media.
+- GPU OFF; no paid inference, model download, Azure/Supabase writes, PROD edits, user samples or WineShopPOS changes. Only coordinator may merge and update canonical shared docs/task_progress after verified acceptance.

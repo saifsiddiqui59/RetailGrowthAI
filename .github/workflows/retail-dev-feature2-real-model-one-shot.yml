@@ -1,0 +1,70 @@
+name: RetailGrowthAI Feature2 REAL isolated existing GPT-4.1-mini canary (one-time)
+# Protected exact DEV shop, signed identity and atomic SQL reserve only.
+# Owner-confirmed 2026-10-27: one synthetic account's platform-admin onboarding
+# APPROVED in exact DEV; initial zero-shop/zero-reservation state verified.
+# One-time release trigger remains contingent on exact merge message, main SHA,
+# protected DEV environment/OIDC, signed JWT and atomic expiring cost cap.
+# Real requests must not be rerun after a potentially billed completion.
+# 2026-10-27 pre-inference HTTP403 confirmed with zero shops/reservations;
+# rerun approved once after correcting POST return=minimal bootstrap RLS behavior.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature2-real-model-one-shot.yml'
+  workflow_dispatch:
+    inputs:
+      approval_code:
+        description: 'Enter AUTHORIZED_FEATURE2_DEV_020_AFTER_ONBOARDING_APPROVAL'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: rgai-feature2-dev-one-shot-403
+  cancel-in-progress: false
+jobs:
+  real_model:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'push' &&
+        startsWith(github.event.head_commit.message, 'release(dev): isolated Feature2 genuine GPT-4.1-mini test')) ||
+       (github.event_name == 'workflow_dispatch' &&
+        inputs.approval_code == 'AUTHORIZED_FEATURE2_DEV_020_AFTER_ONBOARDING_APPROVAL'))
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_F2_ONESHOT_AUTHORIZED: FEATURE2_APPROVED_ONE_SHOT_020
+      RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      PYTHONPATH: ai-agents/src:azure-functions/campaign-api
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: One authenticated synthetic DEV tenant, capped reserve then one real text-only seven-day request
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/ops/feature2_real_model_one_shot.py
+          python3 scripts/ops/feature2_real_model_one_shot.py
+      - name: Upload genuine response for owner review, never publish to social channels
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RetailGrowthAI-Feature2-Actual-Azure-GPT41Mini-7Day-DRAFT
+          path: output/feature2-real-azure-dev/thread-loom-real-seven-days.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Azure logout even when model is unavailable
+        if: always()
+        run: az logout >/dev/null 2>&1 || true

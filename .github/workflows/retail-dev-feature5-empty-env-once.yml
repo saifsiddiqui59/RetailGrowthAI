@@ -1,0 +1,178 @@
+name: RetailGrowthAI Feature5 DEV empty GPU quota environment (one-time)
+
+# Coordinator-owned and scoped to an EMPTY v2 Consumption environment.
+# Does NOT create a GPU profile, Container App, Job, VM or new log workspace.
+# The first merge to main runs once; there is NO rerun/dispatch trigger.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature5-empty-env-once.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retailgrowth-dev-f5-create-empty-environment-once
+  cancel-in-progress: false
+
+jobs:
+  create-empty-dev-env:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    name: Verify DEV ARM what-if, create empty environment, read A100 quota
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RG: rg-retailgrowth-dev
+      TARGET_ENV: rgai-f5-gpu-canary-eastus
+      TEMPLATE: infra/azure/feature5-empty-env-dev.json
+    steps:
+      - name: Checkout reviewed one-resource template
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Authenticate with dedicated DEV OIDC identity
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify exact DEV scope and immutable one-resource ARM template
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "${AZ_SUB:-}"
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          test "$(az account show --query state -o tsv)" = Enabled
+          test "$(az group show -n "$RG" --query location -o tsv)" = centralindia
+          test "$(az group show -n "$RG" --query tags.environment -o tsv | tr '[:upper:]' '[:lower:]')" = dev
+          test "$(az group show -n "$RG" --query tags.app -o tsv | tr '[:upper:]' '[:lower:]')" = retailgrowthai
+          test "$(az provider show -n Microsoft.App --query registrationState -o tsv)" = Registered
+          python3 - "$TEMPLATE" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1]))
+          expected={
+            "type":"Microsoft.App/managedEnvironments",
+            "apiVersion":"2024-03-01",
+            "name":"rgai-f5-gpu-canary-eastus",
+            "location":"eastus",
+            "tags":{"app":"RetailGrowthAI","environment":"dev","feature":"feature5",
+                    "purpose":"zero-compute-gpu-quota-probe"},
+            "properties":{"appLogsConfiguration":{},
+                          "workloadProfiles":[{"name":"Consumption","workloadProfileType":"Consumption"}]},
+          }
+          assert (d.get("$schema")=="https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
+                  and d.get("parameters") in (None,{})
+                  and d.get("resources")==[expected]
+                  and not d.get("variables")), "BLOCKED: template deviated from reviewed zero-cost DEV scope"
+          print("PASS: pinned single empty DEV managedEnvironment; no GPU/apps/logging workspace")
+          PY
+          # IMPORTANT: do not re-run a potentially successful or partially created
+          # environment deployment. A readable pre-existing target is a blocker.
+          if az resource show -g "$RG" -n "$TARGET_ENV" \
+               --resource-type Microsoft.App/managedEnvironments \
+               --api-version 2024-03-01 -o json > "$RUNNER_TEMP/preexisting.json" 2>/dev/null; then
+            echo "::error::BLOCKED: target already exists; reconcile before any further create"
+            exit 4
+          fi
+          # Resource list requires successful read permissions and avoids
+          # treating ARM show 403 as proof the target is absent.
+          az resource list -g "$RG" --resource-type Microsoft.App/managedEnvironments -o json > "$RUNNER_TEMP/existing.json"
+          python3 - "$RUNNER_TEMP/existing.json" <<'PY'
+          import json,sys
+          objects=json.load(open(sys.argv[1]))
+          assert isinstance(objects,list)
+          assert not any(o.get("name")=="rgai-f5-gpu-canary-eastus" for o in objects), "BLOCKED: target appeared in inventory"
+          print("PASS: no preexisting target in exact DEV resource group")
+          PY
+
+      - name: Require Azure what-if of exactly one new empty resource (fixed no-log destination)
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          az deployment group what-if --resource-group "$RG" \
+            --template-file "$TEMPLATE" --no-pretty-print --output json > "$RUNNER_TEMP/whatif.json"
+          python3 - "$RUNNER_TEMP/whatif.json" "$AZ_SUB" "$RG" "$TARGET_ENV" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1]))
+          rows=data.get("changes",(data.get("properties") or {}).get("changes"))
+          # Public-safe diagnostic: print action + resource type/name only.
+          # Do not dump full ARM what-if data (subscription IDs or values).
+          print("ARM what-if envelope keys:",sorted(data.keys()))
+          print("ARM what-if change count:",len(rows) if isinstance(rows,list) else "not-a-list")
+          if isinstance(rows,list):
+              for r in rows[:10]:
+                  identifier=str(r.get("resourceId") or "")
+                  print("ARM what-if change:",r.get("changeType"),
+                        "/".join(identifier.split("/")[-2:]))
+          from scripts.ci.feature5_arm_whatif_policy import validate_what_if
+          result=validate_what_if(data,sys.argv[2],sys.argv[3],sys.argv[4])
+          print("PASS: Azure what-if permits",result["creates"],"Create and",result["ignored"],"known unchanged DEV resources")
+          PY
+
+      - name: One approved empty environment creation, no GPU or app
+        shell: bash
+        run: |
+          set -euo pipefail
+          az deployment group create --resource-group "$RG" \
+            --name rgai-f5-empty-env-20261026 --mode Incremental \
+            --template-file "$TEMPLATE" --output none
+          echo "Azure ARM deployment finished; verifying actual target"
+
+      - name: Verify only Consumption profile and show environment A100 quota
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          az resource show -g "$RG" -n "$TARGET_ENV" \
+            --resource-type Microsoft.App/managedEnvironments \
+            --api-version 2024-03-01 -o json > "$RUNNER_TEMP/created.json"
+          python3 - "$RUNNER_TEMP/created.json" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1]))
+          p=r.get("properties") or {}
+          tags={str(k).lower():str(v).lower() for k,v in (r.get("tags") or {}).items()}
+          assert r.get("name")=="rgai-f5-gpu-canary-eastus"
+          assert str(r.get("location","")).lower().replace(" ","")=="eastus"
+          assert tags.get("app")=="retailgrowthai" and tags.get("environment")=="dev" and tags.get("feature")=="feature5"
+          assert p.get("provisioningState")=="Succeeded", "BLOCKED: creation not fully completed"
+          profiles=p.get("workloadProfiles") or []
+          assert all(x.get("workloadProfileType")=="Consumption" for x in profiles), "BLOCKED: dedicated or GPU profile unexpectedly provisioned"
+          assert (p.get("appLogsConfiguration") or {}).get("destination") in ("none",None), "BLOCKED: unexpected log destination"
+          print("PASS: real Azure empty Consumption DEV environment exists; no GPU workload profiles")
+          PY
+          if az containerapp env list-usages -g "$RG" -n "$TARGET_ENV" --output json > "$RUNNER_TEMP/usage.json" 2>/dev/null; then
+            python3 - "$RUNNER_TEMP/usage.json" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1]))
+          items=d if isinstance(d,list) else d.get("value",[])
+          hits=[]
+          for q in items:
+              label=q.get("name")
+              label=label.get("value") if isinstance(label,dict) else label
+              if "NCA100" in str(label).upper():
+                  hits.append((label,q.get("limit"),q.get("currentValue")))
+          if hits:
+              for name,limit,used in hits:
+                  print(f"A100 managed-environment quota: {name} limit={limit} used={used}")
+          else:
+              print("A100 managed-environment quota UNKNOWN: no NCA100 quota row shown")
+          PY
+          else
+            echo "A100 quota UNKNOWN: env list-usages CLI unavailable or requires additional read role"
+          fi
+          echo "DONE: created one EMPTY Consumption DEV environment. GPU execution is still OFF."
+
+      - name: Logout short-lived Azure OIDC credentials
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true

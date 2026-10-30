@@ -1,0 +1,9 @@
+# Feature #2 — existing-resource DEV writer refresh (2026-10-26)
+
+Feature2 English clothing copy, word-safe YouTube titles and richer authorized-photo 30s scene drafts are **merged** in PR #362. The existing Function release #40319956057 predates that code. Source CI/fixture output alone does not prove a hosted release.
+
+A **one-time** coordinator-owned workflow `retail-dev-feature2-writer-refresh-once.yml` reuses the same GitHub OIDC `dev` environment and existing Central India Python Flex app; only its workflow path on `main` with the exact reviewed squash title `release(dev): refresh reviewed RetailGrowthAI Feature2 writer` triggers deployment. The workflow has NO `workflow_dispatch`. It verifies the existing dedicated RG/resource tags, subscription, one existing storage account, Feature2 enabled settings and same public Supabase origin. It packages the existing Functions with content-pinned FFmpeg/ffprobe, publishes a ZIP into **only** that existing Function, rechecks indexed Function names and probes no-JWT GET.
+
+No new resource, GPU, paid text provider, YouTube API, schema, SWA deployment, app setting or PROD/WineShopPOS mutation. It neither reruns shared RSS nor creates accounts/drafts. No extra background automation. If the actual Actions job isn't `success`, or `#249` prevents a remote 401, record the exact partial state without pretending hosted E2E.
+
+After the isolated review PR is merged and GitHub Actions independently reports deployment success, separately plan Feature2 hosted positive JWT/RLS source→POST→saved GET canary. The existing India snapshot only has category `general`; **do not invent a verified clothing trend** or edit the real retailer. Real sign-in, relevant observed source, two approved disposable accounts and registered original synthetic media are prerequisites for the positive hosted acceptance test.

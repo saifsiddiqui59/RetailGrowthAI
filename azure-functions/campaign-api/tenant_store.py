@@ -6,6 +6,7 @@ server-side. HTTP errors never return raw PostgREST error bodies to clients.
 from __future__ import annotations
 
 import json
+import re
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -44,8 +45,14 @@ class TenantStore:
         self.transport = transport or urlopen
 
     def _request(self, table, token, *, query=None, method="GET", data=None):
-        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs"}:
+        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs", "business_profiles", "shop_content_drafts", "feature3_gpu_jobs"}:
             raise ValueError("unsupported table")
+        # Browser-JWT job history/status is SELECT-only. Claim, finish,
+        # financial and private-output writes remain service-role RPCs.
+        if table == "feature3_gpu_jobs" and method != "GET":
+            raise ValueError("Feature3 GPU history is read-only")
+        if table == "shop_content_drafts" and method != "GET":
+            raise ValueError("content drafts are only writable through the backend")
         url = self.origin + "/rest/v1/" + table
         if query:
             url += "?" + urlencode(query, safe="(),.*")
@@ -152,6 +159,36 @@ class TenantStore:
             return None
         return item
 
+    def feature3_source_asset(self, token, shop_id, asset_id):
+        """JWT/RLS-backed registration proof, never a blob rights grant."""
+        sid, aid = canonical_uuid(shop_id), canonical_uuid(asset_id)
+        rows = self._request("media_assets", token, query={
+            "select": "id,shop_id,storage_bucket,object_path,mime_type,"
+                      "source,license_name,license_url,attribution",
+            "shop_id": "eq." + sid, "id": "eq." + aid, "limit": "2",
+        })
+        if not isinstance(rows, list) or len(rows) != 1:
+            return None
+        item = rows[0]
+        extensions = {"image/png": ".png", "image/jpeg": ".jpg",
+                      "image/webp": ".webp"}
+        ext = extensions.get(item.get("mime_type"))
+        if not ext or item.get("id") != aid or item.get("shop_id") != sid or (
+            item.get("storage_bucket") != "retailgrowth-media" or
+            item.get("source") != "UPLOAD" or
+            item.get("object_path") != f"{sid}/uploads/{aid}{ext}" or
+            item.get("license_name") not in
+                ("owned", "cc0", "royalty_free", "commercial") or
+            not isinstance(item.get("attribution"), str) or
+            len(item["attribution"].strip()) < 10 or
+            (item["license_name"] != "owned" and
+             (not isinstance(item.get("license_url"), str) or
+              not item["license_url"].startswith("https://")))
+        ):
+            return None
+        return {"mime_type": item["mime_type"],
+                "license_name": item["license_name"]}
+
     def asset(self, token, shop_id, asset_id):
         sid, aid = canonical_uuid(shop_id), canonical_uuid(asset_id)
         rows = self._request("media_assets", token, query={
@@ -164,6 +201,61 @@ class TenantStore:
         if result["storage_bucket"] != "retailgrowth-media" or not result["object_path"].startswith(sid + "/"):
             return None
         return result
+
+    def feature3_gpu_jobs(self, token, shop_id):
+        """Current JWT/RLS-visible image job list, never a paid claim."""
+        sid = canonical_uuid(shop_id)
+        rows = self._request("feature3_gpu_jobs", token, query={
+            "select": "id,shop_id,status,created_at",
+            "shop_id": "eq." + sid, "order": "created_at.desc", "limit": "21",
+        })
+        if not isinstance(rows, list) or len(rows) > 20:
+            raise StorageUnavailable("malformed generated image history")
+        checked = []
+        for row in rows:
+            if not isinstance(row, dict) or row.get("shop_id") != sid or (
+                row.get("status") not in ("QUEUED", "RUNNING", "SUCCEEDED", "FAILED")
+            ):
+                raise StorageUnavailable("foreign or malformed generated image job")
+            jid = canonical_uuid(row.get("id"))
+            checked.append({"id": jid, "shop_id": sid, "status": row["status"]})
+        return checked
+
+    def feature3_gpu_job(self, token, shop_id, job_id):
+        """User-JWT/RLS-backed generated job read, never a paid job claim."""
+        sid, jid = canonical_uuid(shop_id), canonical_uuid(job_id)
+        rows = self._request("feature3_gpu_jobs", token, query={
+            "select": "id,shop_id,status,output_asset_id",
+            "id": "eq." + jid, "shop_id": "eq." + sid, "limit": "2",
+        })
+        if not isinstance(rows, list) or len(rows) != 1:
+            return None
+        item = rows[0]
+        if item.get("shop_id") != sid or item.get("id") != jid:
+            return None
+        if item.get("status") not in ("QUEUED","RUNNING","SUCCEEDED","FAILED"):
+            return None
+        return item
+
+    def feature3_generated_asset(self, token, shop_id, job_id, asset_id):
+        """Only the precise versioned private PNG object for this GPU job."""
+        sid, jid, aid = map(canonical_uuid, (shop_id,job_id,asset_id))
+        rows = self._request("media_assets", token, query={
+            "select": "id,shop_id,storage_bucket,object_path,mime_type,source",
+            "id": "eq." + aid, "shop_id": "eq." + sid, "limit": "2",
+        })
+        if not isinstance(rows, list) or len(rows)!=1:
+            return None
+        item=rows[0]
+        expected_prefix=f"{sid}/feature3/gpu/{jid}/"
+        key=item.get("object_path")
+        if (item.get("id")!=aid or item.get("shop_id")!=sid or
+            item.get("storage_bucket")!="retailgrowth-media" or
+            item.get("source")!="GENERATED" or item.get("mime_type")!="image/png" or
+            not isinstance(key,str) or not key.startswith(expected_prefix) or
+            not re.fullmatch(r"[a-f0-9]{64}[.]png",key[len(expected_prefix):])):
+            return None
+        return {"object_path":key,"mime_type":"image/png"}
 
     def sign_download(self, token, shop_id, object_path):
         """Request a short-lived link with the real user's RLS-scoped JWT."""

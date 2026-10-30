@@ -10,7 +10,7 @@ from draft_api import DraftAPI
 
 
 class HTTPAPI:
-    def __init__(self, verify_token, store, planning_queue=None, render_api=None, failure_store=None, durable_outbox=False, poster_api=None, poster_render_api=None):
+    def __init__(self, verify_token, store, planning_queue=None, render_api=None, failure_store=None, durable_outbox=False, poster_api=None, poster_render_api=None, feature3_api=None):
         self.verify_token = verify_token
         self.store = store
         self.planning_queue = planning_queue
@@ -19,6 +19,7 @@ class HTTPAPI:
         self.durable_outbox = durable_outbox
         self.poster_api = poster_api
         self.poster_render_api = poster_render_api
+        self.feature3_api = feature3_api
 
     def handle(self, method, path, authorization, body=None):
         try:
@@ -26,6 +27,82 @@ class HTTPAPI:
                 raise AuthenticationError("bearer token required")
             token = authorization[7:].strip()
             user_id = self.verify_token(token)
+            # Feature3 is additive and OFF unless specifically configured.
+            if "/feature3-source-assets/" in path:
+                if self.feature3_api is None:
+                    return 503, {"error": "FEATURE3_V2_DISABLED"}
+                parts = path.strip("/").split("/")
+                if (method != "GET" or len(parts) != 4 or
+                    parts[0] != "shops" or parts[2] != "feature3-source-assets"):
+                    return 404, {"error": "NOT_FOUND"}
+                return self.feature3_api.source_asset(
+                    token, user_id, parts[1], parts[3])
+            if path.endswith("/download") and "/feature3-gpu-jobs/" in path:
+                if self.feature3_api is None:
+                    return 503, {"error": "FEATURE3_V2_DISABLED"}
+                parts=path.strip("/").split("/")
+                if (method != "GET" or len(parts)!=5 or
+                    parts[0]!="shops" or parts[2]!="feature3-gpu-jobs" or
+                    parts[4]!="download"):
+                    return 404, {"error": "NOT_FOUND"}
+                return self.feature3_api.gpu_download(
+                    token,user_id,parts[1],parts[3])
+            if path.startswith("/shops/") and path.endswith("/feature3-gpu-jobs"):
+                parts = path.strip("/").split("/")
+                # No browser route can launch a GPU, even while Feature3 is OFF.
+                if (method != "GET" or len(parts) != 3 or
+                    parts[0] != "shops" or parts[2] != "feature3-gpu-jobs"):
+                    return 404, {"error": "NOT_FOUND"}
+                if self.feature3_api is None:
+                    return 503, {"error": "FEATURE3_V2_DISABLED"}
+                return self.feature3_api.gpu_jobs(token, user_id, parts[1])
+            if path.startswith("/shops/") and path.endswith("/feature3-model-originals/register"):
+                parts = path.strip("/").split("/")
+                if (method != "POST" or len(parts) != 4 or
+                    parts[0] != "shops" or parts[2] != "feature3-model-originals" or
+                    parts[3] != "register"):
+                    return 404, {"error": "NOT_FOUND"}
+                if self.feature3_api is None:
+                    return 503, {"error": "FEATURE3_V2_DISABLED"}
+                return self.feature3_api.register_model_original(
+                    token, user_id, parts[1], body)
+            if path.startswith("/shops/") and path.endswith("/feature3-models/import"):
+                parts = path.strip("/").split("/")
+                if (method != "POST" or len(parts) != 4
+                    or parts[0] != "shops" or parts[2] != "feature3-models"
+                    or parts[3] != "import"):
+                    return 404, {"error": "NOT_FOUND"}
+                if self.feature3_api is None:
+                    return 503, {"error": "FEATURE3_V2_DISABLED"}
+                return self.feature3_api.import_model(token, user_id, parts[1], body)
+            if "/feature3-models/" in path:
+                # Model decisions are strictly signed OWNER/EDITOR writes.
+                # This route never starts generation, uploads files or
+                # invokes privileged service-role evidence insertion.
+                parts = path.strip("/").split("/")
+                if (method != "POST" or len(parts) != 5 or
+                    parts[0] != "shops" or parts[2] != "feature3-models" or
+                    parts[4] not in ("review", "revoke")):
+                    return 404, {"error": "NOT_FOUND"}
+                if self.feature3_api is None:
+                    return 503, {"error": "FEATURE3_V2_DISABLED"}
+                return self.feature3_api.review_model(
+                    token, user_id, parts[1], parts[3], body,
+                    action=parts[4])
+            if path.startswith("/shops/") and path.endswith("/feature3-models"):
+                if self.feature3_api is None:
+                    return 503, {"error": "FEATURE3_V2_DISABLED"}
+                parts = path.strip("/").split("/")
+                if method != "GET" or len(parts) != 3 or parts[0] != "shops":
+                    return 404, {"error": "NOT_FOUND"}
+                return self.feature3_api.models(token, user_id, parts[1])
+            if "/feature3-designs" in path:
+                if self.feature3_api is None:
+                    return 503, {"error": "FEATURE3_V2_DISABLED"}
+                parts = path.strip("/").split("/")
+                if len(parts) != 5 or parts[0] != "campaigns" or parts[2] != "days" or parts[4] != "feature3-designs":
+                    return 404, {"error": "NOT_FOUND"}
+                return self.feature3_api.day(token, user_id, parts[1], parts[3], method, body)
             if method == "POST" and path.startswith("/campaigns/") and path.endswith("/posters"):
                 if self.poster_api is None:
                     return 503, {"error": "POSTER_DRAFT_NOT_CONFIGURED"}

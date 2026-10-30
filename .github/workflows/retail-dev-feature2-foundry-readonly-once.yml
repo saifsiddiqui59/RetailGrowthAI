@@ -1,0 +1,129 @@
+name: RetailGrowthAI Feature2 existing Azure Foundry readiness (read only)
+
+# Self-scoped, once-per-approved-source-merge inspection. Never creates
+# cloud resources, obtains API keys, enables an app setting or calls inference.
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/retail-dev-feature2-foundry-readonly-once.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retailgrowthai-feature2-existing-foundry-readonly
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'chore(feature2): inspect existing Azure Foundry readiness without provisioning')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-retailgrowth-dev
+      APP: rgai-dev-functions-d4e5ddbd
+      ACCOUNT: rgai-dev-openai-d4e5ddbd
+      MODEL: rgai-gpt-41-mini
+      EXPECTED_REGION: southindia
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Fail closed unless scoped RetailGrowthAI DEV
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AZ_SUB"
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          az group show -g "$RG" -o json > "$RUNNER_TEMP/rgroup.json"
+          python3 - "$RUNNER_TEMP/rgroup.json" <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1]))
+          tags=r.get('tags') or {}
+          assert tags.get('app')=='RetailGrowthAI' and tags.get('environment')=='dev', 'Not exact RetailGrowthAI DEV resource group'
+          print('FEATURE2_READONLY_EXACT_DEV_RG=PASS')
+          PY
+          test "$(az functionapp show -g "$RG" -n "$APP" --query name -o tsv)" = "$APP"
+      - name: Read-only OpenAI account and model inventory (no secret keys)
+        shell: bash
+        run: |
+          set -euo pipefail
+          az cognitiveservices account list -g "$RG" -o json > "$RUNNER_TEMP/accounts.json"
+          python3 - "$RUNNER_TEMP/accounts.json" <<'PY'
+          import json,sys
+          accounts=json.load(open(sys.argv[1]))
+          assert isinstance(accounts,list)
+          matches=[a for a in accounts if a.get('name')=='rgai-dev-openai-d4e5ddbd']
+          assert len(matches)<=1, 'Unexpected duplicate dedicated Foundry account'
+          if not matches:
+              print('FEATURE2_READONLY_FOUNDRY_ACCOUNT=ABSENT')
+          else:
+              a=matches[0]; region=(a.get('location') or '').replace(' ','').lower()
+              good=(region=='southindia' and (a.get('kind') or '').lower()=='openai'
+                    and (a.get('sku') or {}).get('name')=='S0')
+              print('FEATURE2_READONLY_FOUNDRY_ACCOUNT='+('MATCHED' if good else 'UNEXPECTED_CONFIGURATION'))
+          PY
+          if python3 - "$RUNNER_TEMP/accounts.json" <<'PY'
+          import json,sys
+          xs=json.load(open(sys.argv[1]))
+          sys.exit(0 if any(a.get('name')=='rgai-dev-openai-d4e5ddbd' for a in xs) else 1)
+          PY
+          then
+            az cognitiveservices account deployment list -g "$RG" -n "$ACCOUNT" -o json > "$RUNNER_TEMP/deployments.json"
+            python3 - "$RUNNER_TEMP/deployments.json" <<'PY'
+          import json,sys
+          ds=json.load(open(sys.argv[1]))
+          matches=[d for d in ds if d.get('name')=='rgai-gpt-41-mini']
+          assert len(matches)<=1, 'Unexpected duplicate Foundry deployment'
+          if not matches:
+              print('FEATURE2_READONLY_FOUNDRY_GPT41_MINI=ABSENT')
+          else:
+              dep=matches[0]
+              props=dep.get('properties') or {}
+              model=props.get('model') or {}
+              good=(model.get('name')=='gpt-4.1-mini'
+                    and (dep.get('sku') or {}).get('name')=='Standard'
+                    and (dep.get('sku') or {}).get('capacity',0)>0)
+              print('FEATURE2_READONLY_FOUNDRY_GPT41_MINI='+('MATCHED' if good else 'UNEXPECTED_CONFIGURATION'))
+          PY
+          else
+            echo 'FEATURE2_READONLY_FOUNDRY_GPT41_MINI=ACCOUNT_ABSENT'
+          fi
+      - name: Inspect only app setting NAMES and non-secret enablement flag
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp config appsettings list -g "$RG" -n "$APP" --query '[].name' -o json > "$RUNNER_TEMP/setting-names.json"
+          python3 - "$RUNNER_TEMP/setting-names.json" <<'PY'
+          import json,sys
+          names=set(json.load(open(sys.argv[1])))
+          required={
+              'RETAIL_FOUNDRY_ENDPOINT','RETAIL_FOUNDRY_DEPLOYMENT',
+              'RETAIL_FOUNDRY_API_KEY','RETAIL_FEATURE2_REAL_AI_ENABLED',
+              'RETAIL_FEATURE2_INPUT_USD_PER_MILLION',
+              'RETAIL_FEATURE2_OUTPUT_USD_PER_MILLION',
+              'RETAIL_FEATURE2_MAX_CALL_USD',
+          }
+          # Print only setting names, never values, passwords, tokens or keys.
+          print('FEATURE2_READONLY_APP_SETTINGS_NAME_COVERAGE='+('COMPLETE' if required.issubset(names) else 'INCOMPLETE'))
+          print('FEATURE2_READONLY_MISSING_SETTING_NAMES='+','.join(sorted(required-names)))
+          print('FEATURE2_READONLY_PAID_MODEL_INFERENCE=NOT_ATTEMPTED')
+          print('FEATURE2_READONLY_DEPLOYMENT_MUTATIONS=NONE')
+          PY
+      - name: Sign out
+        if: always()
+        run: az logout || true

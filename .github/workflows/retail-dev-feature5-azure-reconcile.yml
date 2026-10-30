@@ -1,0 +1,137 @@
+name: RetailGrowthAI DEV Feature5 Azure OIDC ARM reconciliation (read-only)
+
+# Coordinator-owned, single-run-on-merge diagnostic + optional manual rerun.
+# Neither path deploys GPU, provisions Azure resources, nor requests quotas.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature5-azure-reconcile.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retail-dev-feature5-arm-reconcile
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    name: Verify Azure DEV ARM deployment and A100 quota (no writes)
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      EXPECTED_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RG: rg-retailgrowth-dev
+      TARGET_ENV: rgai-f5-gpu-canary-eastus
+      DEPLOYMENT: CustomDeployment-20261026093554
+    steps:
+      - name: Sign in using existing short-lived Azure DEV OIDC federation
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Read ARM deployment operations, existing environment and A100 usage
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "${EXPECTED_SUB:-}"
+          test "$(az account show --query id -o tsv)" = "$EXPECTED_SUB"
+          test "$(az account show --query state -o tsv)" = "Enabled"
+
+          test "$(az group show --name "$RG" --query location -o tsv)" = "centralindia"
+          test "$(az group show --name "$RG" --query tags.environment -o tsv | tr '[:upper:]' '[:lower:]')" = "dev"
+          test "$(az group show --name "$RG" --query tags.app -o tsv | tr '[:upper:]' '[:lower:]')" = "retailgrowthai"
+          echo "PASS: signed into the exact dedicated RetailGrowthAI DEV subscription and RG"
+          echo "Microsoft.App provider registration:"
+          az provider show --namespace Microsoft.App --query registrationState -o tsv || echo "UNKNOWN: provider registration not readable"
+
+          echo "::group::Original ARM deployment (READ ONLY)"
+          if az deployment group show -g "$RG" -n "$DEPLOYMENT" -o json > "$RUNNER_TEMP/rgai-feature5-arm.json" 2>/dev/null; then
+            python3 - "$RUNNER_TEMP/rgai-feature5-arm.json" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1]))
+          p=d.get("properties") or {}
+          t=p.get("template") or {}
+          items=t.get("resources")
+          print("Deployment:", d.get("name"))
+          print("ARM state:",p.get("provisioningState"))
+          print("ARM template resource count:", len(items) if isinstance(items,list) else "unavailable")
+          if isinstance(items,list):
+              for row in items:
+                  print("Template item:",row.get("type"),row.get("name"),row.get("location"))
+          PY
+            if ! az deployment operation group list -g "$RG" -n "$DEPLOYMENT" \
+              --query "[].{state:properties.provisioningState,kind:properties.targetResource.resourceType,name:properties.targetResource.resourceName,status:properties.statusCode}" -o json; then
+              echo "UNKNOWN: ARM deployment operations not accessible"
+            fi
+          else
+            echo "UNKNOWN: named ARM deployment not accessible; do not redeploy automatically"
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Existing scoped DEV Container Apps managed environments"
+          az resource list --resource-group "$RG" \
+            --resource-type Microsoft.App/managedEnvironments \
+            --query "[].{name:name,region:location,state:properties.provisioningState}" -o json
+          echo "::endgroup::"
+
+          echo "::group::Feature5 environment and exact A100 GPU quota"
+          if az resource show --resource-group "$RG" --name "$TARGET_ENV" \
+            --resource-type Microsoft.App/managedEnvironments \
+            --api-version 2024-03-01 -o json > "$RUNNER_TEMP/rgai-feature5-env.json" 2>/dev/null; then
+            python3 - "$RUNNER_TEMP/rgai-feature5-env.json" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1]))
+          p=d.get("properties") or {}
+          tags={str(k).lower():str(v).lower() for k,v in (d.get("tags") or {}).items()}
+          if (d.get("name")!="rgai-f5-gpu-canary-eastus" or
+              str(d.get("location","")).lower().replace(" ","")!="eastus" or
+              tags.get("app")!="retailgrowthai" or tags.get("environment")!="dev" or
+              tags.get("feature")!="feature5"):
+              raise SystemExit("BLOCKED: target resource is not the reviewed DEV canary")
+          print("PASS: exact East US DEV managed environment exists")
+          print("Provisioning:",p.get("provisioningState"))
+          print("Workload profiles:",[(x.get("name"),x.get("workloadProfileType")) for x in p.get("workloadProfiles") or []])
+          print("Log destination:",(p.get("appLogsConfiguration") or {}).get("destination"))
+          PY
+            if az containerapp env list-usages --resource-group "$RG" \
+              --name "$TARGET_ENV" --output json > "$RUNNER_TEMP/rgai-feature5-usage.json" 2>/dev/null; then
+              python3 - "$RUNNER_TEMP/rgai-feature5-usage.json" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1]))
+          entries=data if isinstance(data,list) else data.get("value",[])
+          matches=[]
+          for item in entries:
+              name=item.get("name")
+              label=(name.get("value") if isinstance(name,dict) else name) or ""
+              if "NCA100" in str(label).upper():
+                  matches.append((label,item.get("limit"),item.get("currentValue")))
+          if not matches:
+              print("A100 quota UNKNOWN: no NCA100 quota row returned")
+          else:
+              for label,limit,used in matches:
+                  print(f"A100 quota label={label!r} limit={limit!r} used={used!r}")
+          PY
+            else
+              echo "A100 quota UNKNOWN: quota CLI command unavailable or insufficient read permission"
+            fi
+          else
+            echo "ENVIRONMENT ABSENT OR UNREADABLE: NCA100 environment quota cannot yet be determined"
+          fi
+          echo "::endgroup::"
+
+          echo "DONE: read-only OIDC inventory. No Azure resources created/updated/deleted."
+      - name: Clear short-lived Azure login on runner
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true

@@ -1,0 +1,108 @@
+name: RetailGrowthAI Feature2 safe no-trend fallback existing Free SWA release
+# One-shot existing-resource upload only when merged on main with explicit
+# reviewed squash title. No manual dispatch and no PR credentials.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature2-evergreen-fallback-swa-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-free-swa-ui-release
+  cancel-in-progress: false
+jobs:
+  existing_swa_only:
+    if: "github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release(dev): publish Feature2 honest no-trend Free SWA')"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-retailgrowth-dev
+      SWA: retailgrowthai-dev-preview
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Compile and contract-test original frontend without privileged keys
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f src/features/trends/trend-empty-state.mjs
+          grep -Fq 'Create a standard campaign without a trend' src/features/trends/TrendWorkspace.jsx
+          grep -Fxq 'VITE_SUPABASE_URL=https://jeearzffnjbvghwjjjrf.supabase.co' .env.production
+          grep -Fxq 'VITE_CAMPAIGN_API_BASE_URL=https://rgai-dev-functions-d4e5ddbd.azurewebsites.net' .env.production
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          npm test
+          npm run build
+          test -s dist/index.html
+          test -s dist/staticwebapp.config.json
+          grep -FRq 'Create a standard campaign without a trend' dist/assets/
+          if grep -REq 'sb_secret_|RETAIL_SUPABASE_SERVICE_ROLE_KEY|RETAIL_FOUNDRY_API_KEY' dist; then
+            echo '::error::Unexpected privileged key marker in public artifact'; exit 3
+          fi
+          echo 'PASS: ordinary campaign fallback present in reviewed public-only build'
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Check dedicated pre-existing Central India tagged resource group and Free SWA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AZ_SUB"
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          az group show -g "$RG" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          g=json.load(open(sys.argv[1]))
+          tags={k.lower():str(v).lower() for k,v in (g.get('tags') or {}).items()}
+          assert g['name']=='rg-retailgrowth-dev'
+          assert g['location'].replace(' ','').lower()=='centralindia'
+          assert tags.get('app')=='retailgrowthai' and tags.get('environment')=='dev'
+          PY
+          az staticwebapp show -g "$RG" -n "$SWA" -o json > "$RUNNER_TEMP/swa.json"
+          python3 - "$RUNNER_TEMP/swa.json" <<'PY'
+          import json,sys
+          s=json.load(open(sys.argv[1]))
+          assert s['name']=='retailgrowthai-dev-preview'
+          assert s['defaultHostname']=='purple-dune-06b5da200.2.azurestaticapps.net'
+          assert s['sku']['name'].lower()=='free'
+          PY
+          echo 'PASS: same exact existing Free SWA only; no resource creates or tier changes'
+      - name: Obtain existing SWA upload credential transiently and mask it
+        id: token
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="$(az staticwebapp secrets list -g "$RG" -n "$SWA" --query 'properties.apiKey' -o tsv)"
+          test -n "$key"
+          echo "::add-mask::$key"
+          echo "value=$key" >> "$GITHUB_OUTPUT"
+      - uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9
+        with:
+          azure_static_web_apps_api_token: ${{ steps.token.outputs.value }}
+          action: upload
+          app_location: frontend
+          api_location: ''
+          output_location: dist
+          app_build_command: npm run build
+          production_branch: main
+      - name: Verify actual public SPA and hashed lazy Feature2 route chunk
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/deploy/verify_feature2_lazy_swa.py
+          echo "FEATURE2_FREE_SWA_NO_TREND_FALLBACK=PASS source_sha=$GITHUB_SHA"
+      - name: Clear Azure session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true

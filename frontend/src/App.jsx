@@ -1,18 +1,47 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import CampaignDashboard from './features/campaigns/CampaignDashboard.jsx'
+
 import { AuthProvider, useRetailAuth } from './auth/AuthProvider.jsx'
-import { AccountWorkspace } from './auth/AccountWorkspace.jsx'
-import DashboardOverview from './features/dashboard/DashboardOverview.jsx'
-import SubscriptionPage from './features/subscription/SubscriptionPage.jsx'
-import PlatformAdmin from './features/platform/PlatformAdmin.jsx'
-import PlatformAlerts from './features/platform/PlatformAlerts.jsx'
+
+
+
+
+
 import LoginPage from './auth/LoginPage.jsx'
 
+
+
+import './features/dashboard/dashboard-v2.css'
+
+// Download only the authenticated workspace the user opens. This keeps the
+// public login small and avoids loading video editor and Chart.js on entry.
+const CampaignDashboard = lazy(() => import('./features/campaigns/CampaignDashboard.jsx'))
+const TrendWorkspace = lazy(() => import('./features/trends/TrendWorkspace.jsx'))
+const TestingConsole = lazy(() => import('./features/testing/TestingConsole.jsx'))
+const AccountWorkspace = lazy(() => import('./auth/AccountWorkspace.jsx').then(m => ({ default: m.AccountWorkspace })))
+const DashboardOverview = lazy(() => import('./features/dashboard/DashboardOverview.jsx'))
+const SubscriptionPage = lazy(() => import('./features/subscription/SubscriptionPage.jsx'))
+const PlatformAdmin = lazy(() => import('./features/platform/PlatformAdmin.jsx'))
+const PlatformAlerts = lazy(() => import('./features/platform/PlatformAlerts.jsx'))
+const WorkspacePage = lazy(() => import('./features/dashboard/WorkspacePages.jsx'))
+const MediaLibrary = lazy(() => import('./features/dashboard/MediaLibrary.jsx'))
+const RetailerInbox = lazy(() => import('./features/dashboard/RetailerInbox.jsx'))
+const RecentCampaignCalendar = lazy(() => import('./features/dashboard/RecentCampaignCalendar.jsx'))
+const BusinessSettings = lazy(() => import('./features/dashboard/BusinessSettings.jsx'))
+
 const links = [
-  { to: '/', label: 'Overview', icon: '▦', end: true },
+  { to: '/', label: 'Overview', icon: '▦', end: true, group: 'WORKSPACE' },
   { to: '/campaigns', label: 'Campaigns', icon: '▤' },
-  { to: '/subscription', label: 'Subscription', icon: '◈' },
+  { to: '/trends', label: 'Trend Intelligence', icon: '◉', group: 'CREATE & MANAGE' },
+  { to: '/testing-chat', label: 'Testing Chat', icon: '⌘', group: 'QUALITY LAB' },
+  { to: '/calendar', label: 'Campaign calendar', icon: '▦' },
+  { to: '/creative-studio', label: 'Creative Studio', icon: '✧', group: 'CREATE & MANAGE' },
+  { to: '/media-library', label: 'Media library', icon: '▧' },
+  { to: '/connections', label: 'Social accounts', icon: '◎', group: 'PUBLISH' },
+  { to: '/publishing', label: 'Publishing history', icon: '◷' },
+  { to: '/subscription', label: 'Subscription', icon: '◈', group: 'ACCOUNT' },
+  { to: '/notifications', label: 'My inbox', icon: '◇' },
+  { to: '/settings', label: 'Settings', icon: '⚙' },
 ]
 
 function PlatformBoundary({ children }) {
@@ -82,6 +111,15 @@ function AppShell() {
     try { return window.localStorage.getItem('rgai-sidebar-collapsed') === '1' } catch { return false }
   })
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [theme, setTheme] = useState(() => {
+    try { return window.localStorage.getItem('rgai-theme') === 'dark' ? 'dark' : 'light' }
+    catch { return 'light' }
+  })
+  useEffect(() => {
+    document.documentElement.dataset.rgTheme = theme
+    try { window.localStorage.setItem('rgai-theme', theme) } catch { /* storage unavailable */ }
+    return () => { delete document.documentElement.dataset.rgTheme }
+  }, [theme])
 
   useEffect(() => {
     try { window.localStorage.setItem('rgai-sidebar-collapsed', collapsed ? '1' : '0') } catch { /* storage unavailable */ }
@@ -102,10 +140,10 @@ function AppShell() {
   if (configured && recoveryMode) return <LoginPage />
   if (configured && platformLoading) return <div className="login-loading" role="status">Verifying dashboard access…</div>
   const availableLinks = platformAdmin
-    ? [{ to: '/platform-admin', label: 'Platform Control', icon: '⚙' },
+    ? [{ to: '/platform-admin', label: 'Platform Control', icon: '⚙', group: 'PLATFORM' },
         { to: '/platform-alerts', label: 'Notifications', icon: '◇' },
-        { to: '/business', label: 'My business', icon: '▦' },
-        { to: '/campaigns', label: 'Campaigns', icon: '▤' }, { to: '/subscription', label: 'Subscription', icon: '◈' }]
+        { to: '/business', label: 'My business', icon: '▦', group: 'WORKSPACE' },
+        ...links.filter(item => item.to !== '/' && item.to !== '/notifications')]
     : links
   const title = availableLinks.find((item) => item.to === location.pathname)?.label ||
     (location.pathname === '/account' ? 'Account' : 'Workspace')
@@ -116,14 +154,17 @@ function AppShell() {
           <span className="brand-mark" aria-hidden="true">R</span>
           <span className="brand-copy"><strong>RetailGrowthAI</strong><small>Marketing studio</small></span>
         </Link>
-        <div className="nav-label">WORKSPACE</div>
         <nav aria-label="Main navigation">
           {availableLinks.map((link) => (
-            <NavLink key={link.to} to={link.to} end={link.end}
-              title={collapsed ? link.label : undefined}
-              className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-              <span className="nav-glyph" aria-hidden="true">{link.icon}</span><span className="nav-text">{link.label}</span>
-            </NavLink>
+            <div className="rg-nav-group" key={link.to}>
+              {link.group && <span className="rg-nav-section">{link.group}</span>}
+              <NavLink to={link.to} end={link.end}
+                aria-label={link.label}
+                title={collapsed ? link.label : undefined}
+                className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                <span className="nav-glyph" aria-hidden="true">{link.icon}</span><span className="nav-text">{link.label}</span>
+              </NavLink>
+            </div>
           ))}
         </nav>
         <div className="sidebar-bottom"><span className="sidebar-caption">RetailGrowthAI DEV</span>
@@ -145,22 +186,36 @@ function AppShell() {
             <div><span className="topbar-kicker">RETAILGROWTHAI / DEV</span><strong>{title}</strong></div>
           </div>
           <div className="topbar-right">
+            <button className="rg-theme-button" type="button" onClick={() => setTheme(value => value === 'dark' ? 'light' : 'dark')}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-pressed={theme === 'dark'}><span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span><span className="rg-theme-copy">{theme === 'dark' ? 'Light' : 'Dark'}</span></button>
             <span className="environment">{import.meta.env?.VITE_CAMPAIGN_API_BASE_URL && import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY
-              ? 'DEV connected' : 'Demo / setup'}</span>
+              ? 'API configured' : configured && user ? 'Supabase only' : 'Demo / setup'}</span>
             <AccountMenu />
           </div>
         </header>
         <main className="content">
+          <Suspense fallback={<div className="rg-route-loading" role="status">Loading workspace…</div>}>
           <Routes>
             <Route path="/" element={platformAdmin ? <Navigate to="/platform-admin" replace /> : <DashboardOverview />} />
             <Route path="/business" element={<DashboardOverview />} />
             <Route path="/campaigns" element={<CampaignDashboard />} />
+            <Route path="/trends" element={<TrendWorkspace />} />
+            <Route path="/testing-chat" element={<TestingConsole />} />
             <Route path="/subscription" element={<SubscriptionPage />} />
+            <Route path="/calendar" element={<RecentCampaignCalendar />} />
+            <Route path="/creative-studio" element={<WorkspacePage section="creative" />} />
+            <Route path="/media-library" element={<MediaLibrary />} />
+            <Route path="/connections" element={<WorkspacePage section="connections" />} />
+            <Route path="/publishing" element={<WorkspacePage section="publishing" />} />
+            <Route path="/notifications" element={<RetailerInbox />} />
+            <Route path="/settings" element={<BusinessSettings />} />
             <Route path="/platform-admin" element={<PlatformBoundary />} />
             <Route path="/platform-alerts" element={<PlatformBoundary><PlatformAlerts /></PlatformBoundary>} />
             <Route path="/account" element={<AccountWorkspace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
         </main>
       </div>
     </div>

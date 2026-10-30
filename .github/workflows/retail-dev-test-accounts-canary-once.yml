@@ -17,6 +17,10 @@ on:
         options:
           - browser-upload
           - poster
+          - feature2
+          - feature2-prompt
+          - node-poster-reel
+          - node-browser-reel
 permissions:
   contents: read
 concurrency:
@@ -32,8 +36,12 @@ jobs:
       contents: read
     env:
       RGAI_DEV_CANARY_APPROVAL: AUTHORIZED_RETAILGROWTHAI_DEV_ONLY
-      RGAI_DEV_PLAYWRIGHT_UPLOAD: ${{ inputs.mode == 'browser-upload' && '1' || '0' }}
+      RGAI_DEV_PLAYWRIGHT_UPLOAD: ${{ (inputs.mode == 'browser-upload' || inputs.mode == 'node-browser-reel') && '1' || '0' }}
+      RGAI_DEV_FEATURE2_CANARY: ${{ inputs.mode == 'feature2' && '1' || '0' }}
+      RGAI_DEV_FEATURE2_PROMPT_CANARY: ${{ inputs.mode == 'feature2-prompt' && '1' || '0' }}
       RGAI_DEV_VIDEO_ARTIFACT_DIR: output/video-acceptance
+      RGAI_DEV_NODE_PREVIEW_MODE: ${{ startsWith(inputs.mode, 'node-') && inputs.mode || 'disabled' }}
+      RGAI_DEV_POSTER_ARTIFACT_DIR: ${{ inputs.mode == 'node-poster-reel' && 'output/poster-acceptance' || '' }}
       RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
       RGAI_DEV_PUBLISHABLE_KEY: sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq
     steps:
@@ -41,12 +49,12 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Node for approved browser-upload mode
-        if: inputs.mode == 'browser-upload'
+        if: inputs.mode == 'browser-upload' || inputs.mode == 'node-browser-reel'
         uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Install Chromium only for approved browser-upload mode
-        if: inputs.mode == 'browser-upload'
+        if: inputs.mode == 'browser-upload' || inputs.mode == 'node-browser-reel'
         shell: bash
         run: |
           set -euo pipefail
@@ -59,6 +67,7 @@ jobs:
           test -n "$RGAI_DEV_SERVICE_KEY"
           # The Ubuntu hosted runner lacks ffprobe on this image: bounded
           # install from the official Ubuntu archive, never skip MP4 verification.
+          if [ "$RGAI_DEV_FEATURE2_PROMPT_CANARY" != "1" ]; then
           if ! command -v ffprobe >/dev/null 2>&1; then
             if [ -f /etc/apt/apt-mirrors.txt ]; then
               printf '%s\n' 'http://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
@@ -70,14 +79,41 @@ jobs:
             timeout 360s sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ffmpeg
           fi
           ffprobe -version | head -n 1
+          else
+            echo 'FEATURE2_PROMPT_ONLY=NO_FFMPEG_INSTALL_NO_VIDEO'
+          fi
           python3 -m py_compile tests/e2e/retail_dev_canary_once.py
-      - name: Run bounded hosted DEV synthetic image + 2 disposable accounts
-        run: python3 tests/e2e/retail_dev_canary_once.py
+          python3 -m py_compile tests/e2e/p0249_dev_node_full_canary_once.py
+      - name: Run bounded hosted DEV synthetic image + 2 ROOT-approved disposable accounts
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$RGAI_DEV_NODE_PREVIEW_MODE" == node-poster-reel || "$RGAI_DEV_NODE_PREVIEW_MODE" == node-browser-reel ]]; then
+            python3 -u tests/e2e/p0249_dev_node_full_canary_once.py
+          else
+            python3 tests/e2e/retail_dev_canary_once.py
+          fi
       - name: Upload only FFprobe-verified synthetic cloud Reel media after cleanup
         if: always() && inputs.mode == 'browser-upload'
         uses: actions/upload-artifact@v4
         with:
           name: retailgrowthai-dev-live-cloud-30s-reel
           path: output/video-acceptance/retailgrowthai-dev-cloud-reel.mp4
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Preserve genuine signed private 30-second cloud Reel only for ROOT-approved Node modes
+        if: always() && (inputs.mode == 'node-browser-reel' || inputs.mode == 'node-poster-reel')
+        uses: actions/upload-artifact@v4
+        with:
+          name: retailgrowthai-dev-node-cloud-30s-h264-aac-reel
+          path: output/video-acceptance/retailgrowthai-dev-cloud-reel.mp4
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Preserve byte-verified first-party private poster PNG only after root-approved Node mode
+        if: always() && inputs.mode == 'node-poster-reel'
+        uses: actions/upload-artifact@v4
+        with:
+          name: retailgrowthai-dev-node-private-poster-after-ffprobe
+          path: output/poster-acceptance/retailgrowthai-dev-cloud-poster.png
           retention-days: 7
           if-no-files-found: warn

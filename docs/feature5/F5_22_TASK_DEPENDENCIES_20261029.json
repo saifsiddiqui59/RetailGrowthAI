@@ -1,0 +1,187 @@
+{
+  "schema": "retailgrowth.feature5.remaining-dependencies.v1",
+  "as_of": "2026-10-29",
+  "done": 0,
+  "in_progress": 3,
+  "blocked": 19,
+  "total": 22,
+  "notice": "Fixtures do not prove real AI inference or production rights; only coordinator merges; GPU OFF",
+  "tasks": [
+    {
+      "task": 1,
+      "status": "blocked",
+      "dependency_id": "F2#551",
+      "owner": "Feature2/Coordinator",
+      "required_output": "merged original Creative Director exporter",
+      "acceptance_criteria": "Original F2 source runnable in shared integration branch"
+    },
+    {
+      "task": 2,
+      "status": "in_progress",
+      "dependency_id": "F2#551",
+      "owner": "Feature5",
+      "required_output": "actual 15/30/60 Node exporter stdout",
+      "acceptance_criteria": "F5 runs all original durations and negative tamper tests"
+    },
+    {
+      "task": 3,
+      "status": "blocked",
+      "dependency_id": "F3-WORN-SKU",
+      "owner": "Feature3",
+      "required_output": "same-shop wearer actually wearing approved garment",
+      "acceptance_criteria": "Human verifies exact SKU, private first-frame hash"
+    },
+    {
+      "task": 4,
+      "status": "blocked",
+      "dependency_id": "F3-RIGHTS",
+      "owner": "Feature3",
+      "required_output": "current signed likeness and garment licences",
+      "acceptance_criteria": "Independent reviewer proves commercial permissions and revocation"
+    },
+    {
+      "task": 5,
+      "status": "blocked",
+      "dependency_id": "F3-PRIVATE",
+      "owner": "Feature3",
+      "required_output": "approved tenant-private current original bytes",
+      "acceptance_criteria": "Actual SHA and tenant/rights current-readback"
+    },
+    {
+      "task": 6,
+      "status": "blocked",
+      "dependency_id": "Part3#125-NATIVE",
+      "owner": "Part3",
+      "required_output": "separate Wan2.2 provider 704x1280/24fps/121f",
+      "acceptance_criteria": "Legacy Wan2.7 profile denied"
+    },
+    {
+      "task": 7,
+      "status": "blocked",
+      "dependency_id": "Part3-JWT",
+      "owner": "Part3",
+      "required_output": "hosted signed same-shop role checks",
+      "acceptance_criteria": "OWNER/EDITOR allowed; viewer, foreign and revoked denied"
+    },
+    {
+      "task": 8,
+      "status": "blocked",
+      "dependency_id": "Part3-CREDIT",
+      "owner": "Part3",
+      "required_output": "active bounded credit reservation",
+      "acceptance_criteria": "Server verifies cost reservation against current leased job"
+    },
+    {
+      "task": 9,
+      "status": "blocked",
+      "dependency_id": "Part3-LEASE",
+      "owner": "Part3",
+      "required_output": "durable single-use claimed attempt",
+      "acceptance_criteria": "Two workers cannot both post paid prompt"
+    },
+    {
+      "task": 10,
+      "status": "blocked",
+      "dependency_id": "Part3-UNKNOWN",
+      "owner": "Part3",
+      "required_output": "persisted ambiguous submission recovery",
+      "acceptance_criteria": "No auto-retry or automatic refund"
+    },
+    {
+      "task": 11,
+      "status": "blocked",
+      "dependency_id": "Part3-STORAGE",
+      "owner": "Part3",
+      "required_output": "private clip upload and actual object readback",
+      "acceptance_criteria": "Real bytes SHA and atomic job/credit settlement"
+    },
+    {
+      "task": 12,
+      "status": "blocked",
+      "dependency_id": "Part3-SECURITY",
+      "owner": "Part3",
+      "required_output": "signed private download and RLS tests",
+      "acceptance_criteria": "Two tenant role isolation and rights revocation live"
+    },
+    {
+      "task": 13,
+      "status": "in_progress",
+      "dependency_id": "F5-OCI",
+      "owner": "Feature5/Runtime",
+      "required_output": "reviewed CUDA base/wheels licence + immutable OCI",
+      "acceptance_criteria": "Build digest, ABI, legal and SBOM verified"
+    },
+    {
+      "task": 14,
+      "status": "in_progress",
+      "dependency_id": "F5-WEIGHTS",
+      "owner": "Feature5/Runtime",
+      "required_output": "read-only mounted actual Wan checkpoint files",
+      "acceptance_criteria": "Stream full original 3 files, exact SHA/size"
+    },
+    {
+      "task": 15,
+      "status": "blocked",
+      "dependency_id": "F5-OBJECT_INFO",
+      "owner": "Feature5/Runtime",
+      "required_output": "approved protected running native ComfyUI",
+      "acceptance_criteria": "Authenticated real node inventory, no public ingress"
+    },
+    {
+      "task": 16,
+      "status": "blocked",
+      "dependency_id": "F5-GPU-APPROVAL",
+      "owner": "User/Operator",
+      "required_output": "explicit capped budget and teardown approval",
+      "acceptance_criteria": "Region, ceiling and shutdown independently authorized"
+    },
+    {
+      "task": 17,
+      "status": "blocked",
+      "dependency_id": "F5-REAL-WAN",
+      "owner": "Feature5",
+      "required_output": "genuine 5s model-rendered native MP4",
+      "acceptance_criteria": "704x1280,24fps,121f and original model provenance"
+    },
+    {
+      "task": 18,
+      "status": "blocked",
+      "dependency_id": "F5-HUMAN-QA",
+      "owner": "Feature5/Reviewer",
+      "required_output": "real video and 11 signed fashion QA criteria",
+      "acceptance_criteria": "Reviewer inspects original bytes, immutable clip SHA"
+    },
+    {
+      "task": 19,
+      "status": "blocked",
+      "dependency_id": "F4#322",
+      "owner": "Feature4",
+      "required_output": "approved 1080x1920 licensed final reel",
+      "acceptance_criteria": "Actual approved native clip, lawful VO/music and H264/AAC"
+    },
+    {
+      "task": 20,
+      "status": "blocked",
+      "dependency_id": "DEV-TWO-SHOP",
+      "owner": "Part3/QA",
+      "required_output": "hosted signed two-tenant full end-to-end",
+      "acceptance_criteria": "Job, roles, lease, private storage, settlement and failures"
+    },
+    {
+      "task": 21,
+      "status": "blocked",
+      "dependency_id": "Azure#249",
+      "owner": "Azure Coordinator",
+      "required_output": "resolved 503 gateway and hosted request path",
+      "acceptance_criteria": "Live authenticated DEV checks with regression proof"
+    },
+    {
+      "task": 22,
+      "status": "blocked",
+      "dependency_id": "F5#465",
+      "owner": "Coordinator",
+      "required_output": "merged independently accepted F5 branch",
+      "acceptance_criteria": "All owner gates met; 4/4 exact postmerge main CI"
+    }
+  ]
+}

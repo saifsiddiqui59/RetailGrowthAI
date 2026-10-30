@@ -1,0 +1,58 @@
+# 2026-10-28 owner-authorized free verification continuation after #40659456731:
+# Exact signed PNG SHA readback and deterministic prompt passed; source-backed
+# fashion trend was absent; probing invalid draft POST met Azure gateway 503.
+# Correctly stop with BLOCKED_NO_RELEVANT_LIVE_TREND without sending ANY POST.
+# This is not a successful hosted DRAFT persistence or positive E2E proof.
+# 2026-10-28 one-time continuation after run 40655976341:
+# Signed original PNG/owner registration and deterministic prompt PASS, live trend
+# GET returned 503 without any Supabase trend_snapshots hit. Exact existing
+# synthetic asset is reused/byte-verified, not uploaded again; GET-only bounded
+# 503 retry and sanitized classification added. POST is never retried.
+# Budget disabled; membership re-revoked even on uncertain PATCH acknowledgement.
+name: RetailGrowthAI Feature2 free signed DEV media and draft verification (one-time)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature2-free-hosted-smoke.yml'
+  workflow_dispatch:
+    inputs:
+      approval_code:
+        description: 'Enter AUTHORIZED_FEATURE2_DEV_FREE_MEDIA_NOT_AI'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: rgai-f2-free-hosted-media-403
+  cancel-in-progress: false
+jobs:
+  protected_dev:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'push' &&
+        startsWith(github.event.head_commit.message,
+          'release(dev): Feature2 zero-paid signed media')) ||
+       (github.event_name == 'workflow_dispatch' &&
+        inputs.approval_code == 'AUTHORIZED_FEATURE2_DEV_FREE_MEDIA_NOT_AI'))
+    runs-on: ubuntu-24.04
+    environment: dev
+    timeout-minutes: 10
+    env:
+      RGAI_F2_FREE_DEV_ONCE: APPROVED_SIGNED_DEV_ZERO_COST
+      RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Exact DEV guard, no model credentials, no paid requests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RGAI_DEV_SERVICE_KEY"
+          test -f frontend/.env.production
+          ! grep -q 'AzureFeature2PromptLLM\|AzureFeature2ContentLLM\|cognitiveservices.*keys' scripts/ops/feature2_free_signed_dev_canary.py
+          python3 -m py_compile scripts/ops/feature2_free_signed_dev_canary.py
+      - name: Signed owner and real Supabase private test-media, trend and DRAFT checks
+        run: python3 scripts/ops/feature2_free_signed_dev_canary.py

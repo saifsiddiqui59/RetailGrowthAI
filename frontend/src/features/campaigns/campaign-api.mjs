@@ -1,4 +1,5 @@
 import { createRenderReadFallback } from './reel-rls-fallback.mjs'
+import { collectHttpReceipt } from '../../lib/feature-http-receipt.mjs'
 // Browser-only authenticated API gateway; never sends service keys or synthetic media IDs.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -19,7 +20,7 @@ export function validateSignedVideoUrl(url, supabaseOrigin) {
 }
 
 export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch,
-  supabaseOrigin = '', supabasePublishableKey = '' }) {
+  supabaseOrigin = '', supabasePublishableKey = '', onResponse = null }) {
   if (!baseUrl || typeof baseUrl !== 'string') return null
   const parsed = new URL(baseUrl)
   if (parsed.protocol !== 'https:' || parsed.username || parsed.password ||
@@ -59,6 +60,7 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch,
       const controller = method === 'GET' ? new AbortController() : null
       const timer = controller ? setTimeout(() => controller.abort(), READ_TIMEOUT_MS) : null
       let response
+      const startedAt = Date.now()
       try {
         response = await fetchImpl(origin + '/api' + path, {
           method, redirect: 'error', cache: 'no-store',
@@ -81,6 +83,9 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch,
       } finally {
         if (timer !== null) clearTimeout(timer)
       }
+      collectHttpReceipt(onResponse, {
+        source: 'campaign', method, path, response, startedAt, attempt: attempt + 1,
+      })
       if (method === 'GET' && [502, 503, 504].includes(response.status) &&
           attempt + 1 < attempts) continue
       const data = await response.json().catch(() => null)

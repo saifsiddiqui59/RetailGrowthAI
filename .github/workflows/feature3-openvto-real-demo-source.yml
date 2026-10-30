@@ -1,0 +1,53 @@
+name: Feature3 pinned OpenVTO real demo source pack
+on:
+  push:
+    branches:
+      - feat/feature3-real-demo-input-pack-20261029
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-pack-real-synthetic-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install source PNG/JPEG decoder
+        run: python -m pip install 'Pillow==11.3.0'
+      - name: Verify exactly three real original OpenVTO MIT demo inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python poster-engine/feature3_demo_inputs.py --output /tmp/feature3-openvto
+          curl --fail --silent --show-error --location --retry 0 --max-time 20 \
+            --user-agent 'RetailGrowthAI-DemoSource/1.0' \
+            'https://raw.githubusercontent.com/Prompt-Haus/OpenVTO/10140178cdb198ff17ad7b226c432bd63d732fc2/LICENSE' \
+            -o /tmp/feature3-openvto/LICENSE.OpenVTO.txt
+          python - <<'PY'
+          import json,pathlib
+          from hashlib import sha256
+          base=pathlib.Path('/tmp/feature3-openvto')
+          m=json.loads((base/'manifest.json').read_text())
+          assert len(m['assets'])==3 and not m['publish_approved']
+          assert not m['feature5']['provider_call_permitted']
+          for file in m['assets']:
+            raw=(base/file['filename']).read_bytes()
+            assert sha256(raw).hexdigest()==file['sha256']
+          assert 'MIT License' in (base/'LICENSE.OpenVTO.txt').read_text()
+          print('OPENVTO_REAL_IMAGE_BYTES_AND_MIT_LICENSE_VERIFIED=yes')
+          print('F4_F5_DEMO_ONLY_NO_GPU_NO_VTON_NO_SIGNED_CUSTOMER=yes')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: feature3-openvto-mit-demo-inputs
+          path: /tmp/feature3-openvto/
+          if-no-files-found: error
+          retention-days: 3
+      - name: Cleanup original files
+        if: always()
+        run: rm -rf /tmp/feature3-openvto

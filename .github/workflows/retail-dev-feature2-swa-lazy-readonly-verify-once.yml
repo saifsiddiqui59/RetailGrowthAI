@@ -1,0 +1,26 @@
+name: RetailGrowthAI Feature2 existing Free SWA lazy chunk public verification
+# Public read-only verification of ALREADY-uploaded Free SWA. NOT a deployment.
+# Trigger only on this workflow entering main with the reviewed commit message.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature2-swa-lazy-readonly-verify-once.yml'
+permissions:
+  contents: read
+jobs:
+  verify_public_existing_dev:
+    if: "github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'verify(dev): Feature2 lazy chunk Free SWA')"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify original existing DEV SPA and hashed lazy trends route (read-only HTTPS)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Offline unit tests run in the mandatory Python CI job; no network pip install here.
+          python3 scripts/deploy/verify_feature2_lazy_swa.py
+          echo "FEATURE2_EXISTING_FREE_SWA_LIVE_READONLY_VERIFIED=true"

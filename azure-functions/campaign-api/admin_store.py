@@ -35,8 +35,40 @@ class AdminStore:
                         "rpc/complete_render_claim", "rpc/fail_render_claim",
                         "rpc/claim_outbox_events", "rpc/confirm_outbox_event",
                         "rpc/record_poison_event", "rpc/reconcile_stale_jobs",
-                        "campaigns", "campaign_days", "shop_memberships", "media_assets", "render_jobs"):
+                        "campaigns", "campaign_days", "shop_memberships", "media_assets", "render_jobs",
+                        "trend_snapshots", "rpc/feature2_claim_collection", "rpc/feature2_finish_collection",
+                        "shop_content_drafts",
+                        "rpc/feature2_reserve_ai_budget", "rpc/feature2_settle_ai_budget",
+                        "rpc/feature3_reserve_gpu_job", "rpc/feature3_claim_gpu_job",
+                        "rpc/feature3_finish_gpu_job", "feature3_gpu_jobs",
+                        "shop_ai_spend_reservations",
+                        "feature3_poster_designs", "feature3_models",
+                        "shop_subscriptions",
+                        "rpc/feature3_commit_gpu_private_output",
+                        "rpc/feature3_claim_gpu_dispatch",
+                        "rpc/feature3_confirm_gpu_dispatch",
+                        "rpc/feature3_audit_gpu_recovery",
+                        "rpc/feature3_read_gpu_private_evidence",
+                        "rpc/feature3_read_current_model_review",
+                        "rpc/retail_feature_worker_append"):
             raise ValueError("unsupported worker path")
+        # Immutable live job/reservation/model/design/subscription snapshots
+        # are service-role GET-only. All GPU job/ledger changes remain RPC-only.
+        if path in {"feature3_gpu_jobs", "shop_ai_spend_reservations",
+                    "feature3_poster_designs", "feature3_models",
+                    "shop_subscriptions"} and method != "GET":
+            raise ValueError("GPU planning tables are read-only via this transport")
+        # A queue claim/financial/media CAS is never exposed via a GET read
+        # or a generic table write. Only the service-only POST RPC is valid.
+        if path in {
+            "rpc/feature3_commit_gpu_private_output",
+            "rpc/feature3_claim_gpu_dispatch",
+            "rpc/feature3_confirm_gpu_dispatch",
+            "rpc/feature3_audit_gpu_recovery",
+            "rpc/feature3_read_gpu_private_evidence",
+            "rpc/feature3_read_current_model_review",
+        } and method != "POST":
+            raise ValueError("Feature3 privileged GPU RPC requires POST")
         url = self.origin + "/rest/v1/" + path
         if query:
             url += "?" + urlencode(query, safe="(),.*")
@@ -58,7 +90,7 @@ class AdminStore:
                 response_code = json.loads(exc.read(4096)).get("code")
             except (ValueError, AttributeError, TypeError):
                 response_code = None
-            if response_code in ("RG001", "RG002"):
+            if response_code in ("RG001", "RG002", "RG003", "RG004"):
                 raise SubscriptionDenied(response_code) from exc
             raise StorageUnavailable("worker database request failed") from exc
         except (URLError, OSError, json.JSONDecodeError) as exc:

@@ -1,0 +1,4 @@
+/* Scoped Tailwind utilities for incremental shadcn-style source components.
+   Do not load preflight: legacy RetailGrowthAI forms and authored CSS remain intact. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);

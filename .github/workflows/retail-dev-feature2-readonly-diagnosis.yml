@@ -1,0 +1,47 @@
+name: RetailGrowthAI Feature2 read-only hosted trend diagnostics (exact DEV)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature2-readonly-diagnosis.yml'
+  workflow_dispatch:
+    inputs:
+      approval_code:
+        description: 'Enter AUTHORIZED_FEATURE2_DEV_READONLY_DIAG'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: rgai-feature2-readonly-dev-diag-403
+  cancel-in-progress: false
+jobs:
+  diagnosis:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'push' &&
+        startsWith(github.event.head_commit.message,
+          'release(dev): Feature2 read-only trend diagnostics')) ||
+       (github.event_name == 'workflow_dispatch' &&
+        inputs.approval_code == 'AUTHORIZED_FEATURE2_DEV_READONLY_DIAG'))
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    env:
+      RGAI_F2_READONLY_DIAG: SIGNED_DEV_GET_ONLY
+      RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify exact read-only diagnostic and no paid model keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RGAI_DEV_SERVICE_KEY"
+          test -f frontend/.env.production
+          ! grep -q 'AzureFeature2ContentLLM\|AzureFeature2PromptLLM\|openai/v1/chat' scripts/ops/feature2_dev_trend_readonly_diagnosis.py
+          python3 -m py_compile scripts/ops/feature2_dev_trend_readonly_diagnosis.py
+      - name: Signed existing synthetic user read-only GET and error-code diagnostics
+        run: python3 scripts/ops/feature2_dev_trend_readonly_diagnosis.py
