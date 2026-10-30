@@ -156,3 +156,35 @@ def test_openpronounce_needs_offline_only_cpu_reference_before_import(monkeypatc
     with pytest.raises(VoiceQualityDenied,match="Offline calibrated"):
         run_openpronounce_lazy(original_wav=wav(),expected_script="Hello",
                                enabled=True)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("word", "kurti\u202Eevil"),  # right-to-left override
+    ("word", "kurti\u200b"),      # invisible word break
+    ("word", "kurti\u2066"),      # bidi isolate
+    ("expected", "k\u200dɜːti"), # invisible format character in IPA
+    ("actual", "k\u202eɜːti"),
+    ("actual", "k\u0000ɜːti"),
+])
+def test_openpronounce_review_rejects_hidden_control_spoofing(field, value):
+    # Synthetic score projection only; no checkpoint or real WAV inference.
+    error = {"word": "kurti", "position": 0, "expected": "kɜːti",
+             "actual": "kɜːti", "confidence": 0.7}
+    error[field] = value
+    with pytest.raises(VoiceQualityDenied, match="phoneme confidence"):
+        project_offline_openpronounce_review(
+            audio_sha256="a" * 64,
+            result={"score": 70, "differences": {"errors": [error]}})
+
+
+def test_openpronounce_review_allows_visible_indic_and_combining_ipa():
+    # Combining marks are meaningful in IPA and Indic words, not controls.
+    result = project_offline_openpronounce_review(
+        audio_sha256="a" * 64,
+        result={"score": 71.0, "differences": {"errors": [{
+            "word": "कुर्ती", "position": 1, "expected": "kʊrtĩ",
+            "actual": "kʊrti", "confidence": 0.5
+        }]}})
+    assert result["issues"][0]["word"] == "कुर्ती"
+    assert result["review_required"] is True
+    assert result["publish_approved"] is False
