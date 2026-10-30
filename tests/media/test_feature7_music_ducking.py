@@ -81,5 +81,41 @@ class Feature7MusicDuckingTests(unittest.TestCase):
                 r=self.invoke(p)
                 self.assertNotEqual(r.returncode,0,r.stdout)
 
+
+    def test_review_display_spoofing_and_malformed_unicode_denied(self):
+        # Trusted-ASR-shaped words must not carry invisible reviewer UI controls.
+        for word in ("shop\\u202e", "shop\\u2066", "shop\\ufeff",
+                     "shop\\n", "shop\\x00", "\\ud800",
+                     "a" * 81):
+            with self.subTest(word=repr(word)):
+                p=fixture()
+                p["words"][1]["word"]=word
+                r=self.invoke(p)
+                self.assertNotEqual(r.returncode,0,r.stdout)
+
+    def test_safe_multilingual_speech_word_keeps_advisory_only(self):
+        p=fixture()
+        p["words"][0]["word"]="नमस्ते"
+        p["words"][1]["word"]="दुकान"
+        r=self.invoke(p)
+        self.assertEqual(r.returncode,0,r.stderr)
+        out=json.loads(r.stdout)
+        self.assertTrue(out["human_review_required"])
+        self.assertFalse(out["approved"])
+        self.assertFalse(out["renderable"])
+
+    def test_unsafe_source_clock_and_timeline_integer_denied(self):
+        for mutate in (
+            lambda p:p["keep_projection"][0].update(visible_source_end_ms=2**53),
+            lambda p:p["keep_projection"][0].update(timeline_start_ms=2**53),
+            lambda p:p["keep_projection"][2].update(visible_source_end_ms=600001),
+            lambda p:p["words"][0].update(startMs=2**53),
+        ):
+            with self.subTest(mutate=mutate):
+                p=fixture()
+                mutate(p)
+                r=self.invoke(p)
+                self.assertNotEqual(r.returncode,0,r.stdout)
+
 if __name__=="__main__":
     unittest.main()
