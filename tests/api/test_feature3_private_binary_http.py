@@ -158,7 +158,7 @@ class BinaryHTTPTests(unittest.TestCase):
         # unbounded CPU work, even with a matching forged receipt SHA.
         original=self.reader.png
         kind=b"tEXt"
-        payload=b"k\\x00v"
+        payload=b"k\x00v"
         crc=(crc32(kind+payload)&0xffffffff).to_bytes(4,"big")
         chunk=len(payload).to_bytes(4,"big")+kind+payload+crc
         self.reader.png=original[:33]+chunk*4097+original[33:]
