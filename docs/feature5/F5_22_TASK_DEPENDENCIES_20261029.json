@@ -58,7 +58,8 @@
       "dependency_id": "Part3#125-NATIVE",
       "owner": "Part3",
       "required_output": "separate Wan2.2 provider 704x1280/24fps/121f",
-      "acceptance_criteria": "Legacy Wan2.7 profile denied"
+      "acceptance_criteria": "Legacy Wan2.7 profile denied",
+      "part3_real_source_gap_verified_20261030": "Read original Part3 PR #125 source at 3d985127e495d839e3e1f657080cbd8885561e6e: `ai-agents/src/ai_agents/premium_video.py` and `premium_video_jobs.py` expose only Wan2.7 720P/1080P provider identities, and proposed Part3 reservation SQL whitelist accepts only Wan2.7 IDs and 720P/1080P. F5 strict native-claim gate requires separate Wan2.2 704x1280/24fps/121 frames/5s claim, credit/lease/rights. Part3 draft PR #125 is merge-conflicted against main (`mergeable_state=dirty`). No F5 source-alone path can upgrade hosted claims. Coordinator Part3 owner must reconcile."
     },
     {
       "task": 7,
@@ -66,7 +67,8 @@
       "dependency_id": "Part3-JWT",
       "owner": "Part3",
       "required_output": "hosted signed same-shop role checks",
-      "acceptance_criteria": "OWNER/EDITOR allowed; viewer, foreign and revoked denied"
+      "acceptance_criteria": "OWNER/EDITOR allowed; viewer, foreign and revoked denied",
+      "part3_real_source_gap_verified_20261030": "Read original Part3 PR #125 source at 3d985127e495d839e3e1f657080cbd8885561e6e: `ai-agents/src/ai_agents/premium_video.py` and `premium_video_jobs.py` expose only Wan2.7 720P/1080P provider identities, and proposed Part3 reservation SQL whitelist accepts only Wan2.7 IDs and 720P/1080P. F5 strict native-claim gate requires separate Wan2.2 704x1280/24fps/121 frames/5s claim, credit/lease/rights. Part3 draft PR #125 is merge-conflicted against main (`mergeable_state=dirty`). No F5 source-alone path can upgrade hosted claims. Coordinator Part3 owner must reconcile."
     },
     {
       "task": 8,
@@ -74,7 +76,8 @@
       "dependency_id": "Part3-CREDIT",
       "owner": "Part3",
       "required_output": "active bounded credit reservation",
-      "acceptance_criteria": "Server verifies cost reservation against current leased job"
+      "acceptance_criteria": "Server verifies cost reservation against current leased job",
+      "part3_real_source_gap_verified_20261030": "Read original Part3 PR #125 source at 3d985127e495d839e3e1f657080cbd8885561e6e: `ai-agents/src/ai_agents/premium_video.py` and `premium_video_jobs.py` expose only Wan2.7 720P/1080P provider identities, and proposed Part3 reservation SQL whitelist accepts only Wan2.7 IDs and 720P/1080P. F5 strict native-claim gate requires separate Wan2.2 704x1280/24fps/121 frames/5s claim, credit/lease/rights. Part3 draft PR #125 is merge-conflicted against main (`mergeable_state=dirty`). No F5 source-alone path can upgrade hosted claims. Coordinator Part3 owner must reconcile."
     },
     {
       "task": 9,
@@ -82,7 +85,8 @@
       "dependency_id": "Part3-LEASE",
       "owner": "Part3",
       "required_output": "durable single-use claimed attempt",
-      "acceptance_criteria": "Two workers cannot both post paid prompt"
+      "acceptance_criteria": "Two workers cannot both post paid prompt",
+      "part3_real_source_gap_verified_20261030": "Read original Part3 PR #125 source at 3d985127e495d839e3e1f657080cbd8885561e6e: `ai-agents/src/ai_agents/premium_video.py` and `premium_video_jobs.py` expose only Wan2.7 720P/1080P provider identities, and proposed Part3 reservation SQL whitelist accepts only Wan2.7 IDs and 720P/1080P. F5 strict native-claim gate requires separate Wan2.2 704x1280/24fps/121 frames/5s claim, credit/lease/rights. Part3 draft PR #125 is merge-conflicted against main (`mergeable_state=dirty`). No F5 source-alone path can upgrade hosted claims. Coordinator Part3 owner must reconcile."
     },
     {
       "task": 10,
@@ -90,7 +94,8 @@
       "dependency_id": "Part3-UNKNOWN",
       "owner": "Part3",
       "required_output": "persisted ambiguous submission recovery",
-      "acceptance_criteria": "No auto-retry or automatic refund"
+      "acceptance_criteria": "No auto-retry or automatic refund",
+      "part3_real_source_gap_verified_20261030": "Read original Part3 PR #125 source at 3d985127e495d839e3e1f657080cbd8885561e6e: `ai-agents/src/ai_agents/premium_video.py` and `premium_video_jobs.py` expose only Wan2.7 720P/1080P provider identities, and proposed Part3 reservation SQL whitelist accepts only Wan2.7 IDs and 720P/1080P. F5 strict native-claim gate requires separate Wan2.2 704x1280/24fps/121 frames/5s claim, credit/lease/rights. Part3 draft PR #125 is merge-conflicted against main (`mergeable_state=dirty`). No F5 source-alone path can upgrade hosted claims. Coordinator Part3 owner must reconcile."
     },
     {
       "task": 11,
@@ -98,7 +103,8 @@
       "dependency_id": "Part3-STORAGE",
       "owner": "Part3",
       "required_output": "private clip upload and actual object readback",
-      "acceptance_criteria": "Real bytes SHA and atomic job/credit settlement"
+      "acceptance_criteria": "Real bytes SHA and atomic job/credit settlement",
+      "part3_real_source_gap_verified_20261030": "Read original Part3 PR #125 source at 3d985127e495d839e3e1f657080cbd8885561e6e: `ai-agents/src/ai_agents/premium_video.py` and `premium_video_jobs.py` expose only Wan2.7 720P/1080P provider identities, and proposed Part3 reservation SQL whitelist accepts only Wan2.7 IDs and 720P/1080P. F5 strict native-claim gate requires separate Wan2.2 704x1280/24fps/121 frames/5s claim, credit/lease/rights. Part3 draft PR #125 is merge-conflicted against main (`mergeable_state=dirty`). No F5 source-alone path can upgrade hosted claims. Coordinator Part3 owner must reconcile."
     },
     {
       "task": 12,
@@ -106,7 +112,8 @@
       "dependency_id": "Part3-SECURITY",
       "owner": "Part3",
       "required_output": "signed private download and RLS tests",
-      "acceptance_criteria": "Two tenant role isolation and rights revocation live"
+      "acceptance_criteria": "Two tenant role isolation and rights revocation live",
+      "part3_real_source_gap_verified_20261030": "Read original Part3 PR #125 source at 3d985127e495d839e3e1f657080cbd8885561e6e: `ai-agents/src/ai_agents/premium_video.py` and `premium_video_jobs.py` expose only Wan2.7 720P/1080P provider identities, and proposed Part3 reservation SQL whitelist accepts only Wan2.7 IDs and 720P/1080P. F5 strict native-claim gate requires separate Wan2.2 704x1280/24fps/121 frames/5s claim, credit/lease/rights. Part3 draft PR #125 is merge-conflicted against main (`mergeable_state=dirty`). No F5 source-alone path can upgrade hosted claims. Coordinator Part3 owner must reconcile."
     },
     {
       "task": 13,
