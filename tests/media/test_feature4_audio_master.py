@@ -1,4 +1,5 @@
 """Actual H264 stream-copy + loudness mastering tests (synthetic audio only)."""
+import os
 import subprocess
 import sys
 import tempfile
@@ -68,13 +69,45 @@ class Feature4MasterTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
         self.assertEqual(list(self.root.glob(".audio-master-*.mp4")), [])
 
+    def test_same_byte_atomic_original_replacement_rejected_before_output(self):
+        self.make_source()
+        source_bytes = self.source.read_bytes()
+        original_run = audio_master._run
+        replaced = False
+        def swap_once(args, **kwargs):
+            nonlocal replaced
+            result = original_run(args, **kwargs)
+            if not replaced and "-movflags" in args:
+                replacement = self.root / "same-bytes-new-inode.mp4"
+                replacement.write_bytes(source_bytes)
+                os.replace(replacement, self.source)
+                replaced = True
+            return result
+        with patch.object(audio_master, "_run", side_effect=swap_once):
+            with self.assertRaisesRegex(AudioMasterError, "source changed"):
+                master_private_audio(self.source, self.output, expected_seconds=15)
+        self.assertTrue(replaced)
+        self.assertEqual(self.source.read_bytes(), source_bytes)
+        self.assertFalse(self.output.exists())
+        self.assertEqual(list(self.root.glob(".audio-master-*.mp4")), [])
+
+    def test_empty_and_unsafe_master_source_denied_before_decode(self):
+        self.source.write_bytes(b"")
+        with self.assertRaisesRegex(AudioMasterError, "bounded regular"):
+            master_private_audio(self.source, self.output, expected_seconds=15)
+        unsafe = self.root / "alias.mp4"
+        unsafe.symlink_to(self.source)
+        with self.assertRaises(AudioMasterError):
+            master_private_audio(unsafe, self.output, expected_seconds=15)
+        self.assertFalse(self.output.exists())
+
     def test_wrong_duration_invalid_and_symlink_inputs_fail(self):
         self.make_source()
         with self.assertRaisesRegex(AudioMasterError,"duration"):
             master_private_audio(self.source,self.output,expected_seconds=30)
         unsafe=self.root/"symlink.mp4"
         unsafe.symlink_to(self.source)
-        with self.assertRaisesRegex(AudioMasterError,"verified"):
+        with self.assertRaisesRegex(AudioMasterError,"verified|unsafe"):
             master_private_audio(unsafe,self.output,expected_seconds=15)
         self.source.write_bytes(b"bad video"*1000)
         with self.assertRaises(AudioMasterError):

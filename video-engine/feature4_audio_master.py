@@ -12,6 +12,7 @@ import math
 import os
 from pathlib import Path
 import re
+import stat
 import subprocess
 import sys
 import tempfile
@@ -29,6 +30,38 @@ def _run(args, *, timeout=50):
                               text=True, timeout=timeout)
     except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         raise AudioMasterError("Local media mastering/verification process failed") from exc
+
+
+
+def _stable_source(path):
+    """Verify original local MP4 bytes and pathname/inode without symlink follows.
+
+    Hash alone is insufficient: a same-content atomic replacement during
+    mastering could bind the decoded audio to a different, unapproved file.
+    This does NOT provide server-side approval/lease or cloud object custody.
+    """
+    try:
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "rb") as stream:
+            before = os.fstat(stream.fileno())
+            if not stat.S_ISREG(before.st_mode) or not 1024 < before.st_size <= 80*1024*1024:
+                raise AudioMasterError("Authorized source must be a bounded regular MP4")
+            digest = hashlib.sha256()
+            for block in iter(lambda: stream.read(1024*1024), b""):
+                digest.update(block)
+            after = os.fstat(stream.fileno())
+            current = os.lstat(path)
+            identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+            if (identity != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+                    or not stat.S_ISREG(current.st_mode)
+                    or identity != (current.st_dev, current.st_ino, current.st_size,
+                                    current.st_mtime_ns)):
+                raise AudioMasterError("Authorized source changed while hashing")
+            return identity, digest.hexdigest()
+    except AudioMasterError:
+        raise
+    except OSError as exc:
+        raise AudioMasterError("Authorized source missing, replaced or unsafe") from exc
 
 
 def _mean_db(path):
@@ -62,11 +95,13 @@ def master_private_audio(source: Path, target: Path, *, expected_seconds: int):
         raise AudioMasterError("Master destination must be a new local MP4")
     if not target.parent.is_dir() or target.parent.is_symlink():
         raise AudioMasterError("Master destination must be a pre-existing private directory")
+    source_identity, source_sha = _stable_source(source)
     try:
         original = inspect_mp4(source,max_size=80*1024*1024)
     except PreviewExportError as exc:
         raise AudioMasterError("Source Reel must be a verified H264/AAC MP4") from exc
-    source_sha = hashlib.sha256(source.read_bytes()).hexdigest()
+    if _stable_source(source) != (source_identity, source_sha):
+        raise AudioMasterError("Authorized source changed during codec preflight")
     if abs(original["seconds"]-expected_seconds)>.45 or source.resolve()==target.resolve():
         raise AudioMasterError("Source does not match approved Reel duration/path")
     before = _mean_db(source)
@@ -93,11 +128,13 @@ def master_private_audio(source: Path, target: Path, *, expected_seconds: int):
             raise AudioMasterError("Audio master changed video output profile or duration")
         if _video_packet_hash(partial)!=video_hash:
             raise AudioMasterError("Audio mastering changed original H264 video packets")
-        if hashlib.sha256(source.read_bytes()).hexdigest() != source_sha:
-            raise AudioMasterError("Authorized source bytes changed during audio mastering")
+        if _stable_source(source) != (source_identity, source_sha):
+            raise AudioMasterError("Authorized source changed during audio mastering")
         after=_mean_db(partial)
         if after < -32 or after > -10:
             raise AudioMasterError("Mastered audio is not within reasonable reviewer loudness bounds")
+        if _stable_source(source) != (source_identity, source_sha):
+            raise AudioMasterError("Authorized source changed before final audio publishing")
         if target.exists() or target.is_symlink():
             raise AudioMasterError("Destination appeared during mastering")
         # Hard link is atomic no-clobber (unlike os.replace), then cleanup temp.
