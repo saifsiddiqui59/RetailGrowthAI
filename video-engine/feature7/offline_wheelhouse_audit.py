@@ -112,8 +112,21 @@ def safe_metadata(z, distribution, version):
             raise WheelhouseRejected("Duplicate or unsafe wheel ZIP member")
         seen.add(name)
         mode=info.external_attr >> 16
-        if stat.S_IFMT(mode)==stat.S_IFLNK:
+        file_type=stat.S_IFMT(mode)
+        if file_type==stat.S_IFLNK:
             raise WheelhouseRejected("Wheel ZIP symlink forbidden")
+        if file_type not in (0,stat.S_IFREG,stat.S_IFDIR):
+            raise WheelhouseRejected("Unsafe wheel ZIP member type")
+        if info.flag_bits & 1:
+            raise WheelhouseRejected("Encrypted wheel ZIP member forbidden")
+        # A re-pinned archive must not smuggle another distribution's
+        # metadata or a nested dist-info root into the offline installer.
+        for index,component in enumerate(name.rstrip("/").split("/")):
+            if component.lower().endswith(".dist-info") and (
+                index!=0 or component[:-10].replace("_","-").lower()!=
+                (distribution.replace("_","-")+"-"+version).lower()
+            ):
+                raise WheelhouseRejected("Foreign wheel dist-info root forbidden")
         expanded+=info.file_size
         if expanded>MAX_UNPACKED_BYTES or (
             info.file_size>MAX_METADATA_BYTES and name.endswith(".dist-info/METADATA")
@@ -179,7 +192,11 @@ def audit_wheelhouse(folder: str,manifest_file: str)->dict:
                 msg=safe_metadata(z,name,version)
         except (BadZipFile,UnicodeDecodeError,RuntimeError) as exc:
             raise WheelhouseRejected("Unreadable wheel metadata") from exc
-        if normal(msg.get("Name",""))!=key or msg.get("Version")!=version:
+        # Duplicate identity headers are ambiguous even when the first value
+        # matches the pinned filename. Reject rather than trusting Parser.get.
+        if (len(msg.get_all("Name",[]))!=1 or
+            len(msg.get_all("Version",[]))!=1 or
+            normal(msg.get("Name",""))!=key or msg.get("Version")!=version):
             raise WheelhouseRejected("Wheel identity metadata mismatch")
         references[key]=[]
         for requirement in msg.get_all("Requires-Dist",[]):
