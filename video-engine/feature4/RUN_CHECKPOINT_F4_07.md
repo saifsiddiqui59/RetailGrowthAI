@@ -1,0 +1,9 @@
+# Feature4 F4-07 source-only checkpoint — 2026-10-30
+
+- **Task:** F4-07 actual audio fades/ducking and final QA. This PR is a *partial security/reliability hardening*, not the full task or an accepted output.
+- **PR:** #845, draft, stacked onto Feature4 parent draft #322 (`feat/feature4-professional-video-studio`). Pre-checkpoint head `e45a9bc833584bb85f74c0993cf17ac9e9454a89`.
+- **Changes:** `video-engine/feature4_audio_master.py` now checks a new private JSON proof path before running local FFmpeg and creates the receipt exclusively; `tests/media/test_feature4_audio_master.py` checks existing proof causes no mastering and rejects symlink parent/non-JSON destinations.
+- **Verification:** Python 4/4 isolated *source-equivalent* preflight tests passed in temporary local copy. These are not full repository tests. Exact-checkout tests, FFmpeg regression and 4-job exact-head CI are **not verified**; inspect after this checkpoint commit.
+- **Why:** Prior CLI ran mastering and created private output before discovering an existing proof path, leaving an unreceipted output. New preflight denies that known unsafe case. Concurrent proof creation after preflight still requires error/cleanup review; do not claim fully atomic output/report transaction.
+- **Next:** F4-07: inspect audio-master report-write failure/cleanup semantics and real fade/ducking test coverage without introducing unsupported UI gain automation. Alternative independent F4-09: test currently disabled unsupported controls and history correctness.
+- **Ownership:** Feature4-owned code/test/handoff only. Coordinator controls shared task status, PR merge, fresh main CI, hosted validation and commercial release. F2 licensed voice/audio remains required. GPU OFF; no paid model, PROD, Azure deployment, SQL or WineShopPOS changes.
