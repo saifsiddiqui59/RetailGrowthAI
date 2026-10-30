@@ -169,6 +169,33 @@ class WorkerHandoffTests(unittest.TestCase):
         self.assertEqual(self.media.uploads, [])
         self.assertEqual(self.admin.completions, [])
 
+    def test_mid_download_rights_or_lease_revocation_stops_before_render(self):
+        # A claimed job may lose its tenant grant or fencing token while the
+        # private media download is in progress. Neither case can render,
+        # upload, finalize or trigger a new billing action.
+        for field in ("authorized", "current"):
+            with self.subTest(revoked=field):
+                claim, bundle = sample()
+                self.admin = Admin(claim, bundle)
+                self.media = Media()
+                original_download = self.media.download
+
+                def revoke_during_download(*args):
+                    original_download(*args)
+                    setattr(self.admin, field, False)
+
+                self.media.download = revoke_during_download
+
+                def forbidden_render(*args):
+                    self.fail("Render ran after private source authorization expired")
+
+                self.assertEqual(process_feature4_render(
+                    JOB, self.admin, self.media, render_fn=forbidden_render), "STALE")
+                self.assertEqual(len(self.media.downloads), 1)
+                self.assertEqual(self.media.uploads, [])
+                self.assertEqual(self.admin.completions, [])
+                self.assertEqual(self.admin.failures, [])
+
     def test_fencing_race_on_finalization_has_no_signed_url(self):
         self.admin.can_finalize = False
         self.assertEqual(self.run_worker(), "STALE")
