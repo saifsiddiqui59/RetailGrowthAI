@@ -61,8 +61,10 @@ class Feature7GpuOffReadinessTests(unittest.TestCase):
             executable=p/'cli-test'
             executable.write_text('test-only')
             executable.chmod(0o700)
+            model=p/'empty-model'
+            model.mkdir()
             r=self.go({'env':{},'whisperx_bin':str(executable),
-                'model_dir':str(p),'independent_license_approved':True,
+                'model_dir':str(model),'independent_license_approved':True,
                 'word_accuracy_verified':True})
             self.assertEqual(r.returncode,0,r.stderr)
             data=json.loads(r.stdout)['report']
