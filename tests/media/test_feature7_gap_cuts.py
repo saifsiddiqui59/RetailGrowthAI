@@ -51,6 +51,27 @@ class Feature7GapCutPreviewTests(unittest.TestCase):
         self.assertEqual(out['source_duration_ms'],16000)
         self.assertLess(out['remaining_if_all_candidates_removed_ms'],16000)
 
+    def test_short_isolated_utterance_is_never_proposed_for_deletion(self):
+        # speechRuns filters very short runs. A meaningful short word such as
+        # "no" must still fence the source interval against deletion.
+        p=input_fixture()
+        p['words'].insert(4, {'word':'no','startMs':7200,'endMs':7240})
+        r=self.run_js(p)
+        self.assertEqual(r.returncode,0,r.stderr)
+        out=json.loads(r.stdout)
+        self.assertGreaterEqual(len(out['removable_gap_candidates']),1)
+        for gap in out['removable_gap_candidates']:
+            for word in p['words']:
+                self.assertFalse(
+                    word['startMs'] < gap['source_end_ms'] and
+                    word['endMs'] > gap['source_start_ms'],
+                    f"Candidate would erase speech: {gap}, {word}")
+        self.assertEqual(
+            out['potential_removed_ms'],
+            sum(g['proposed_remove_ms'] for g in out['removable_gap_candidates']))
+        self.assertTrue(out['advisory_only'])
+        self.assertFalse(out['feature4_executable'])
+
     def test_empty_words_do_not_invent_speech_gaps(self):
         p=input_fixture()
         p['words']=[]
