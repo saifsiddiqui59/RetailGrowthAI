@@ -79,21 +79,38 @@ def audit_complete_vendor_checkout(root, *, reviewed_manifest):
             item = Path(directory) / filename
             relative = item.relative_to(base).as_posix()
             if (not _valid_path(relative) or relative not in expected or
-                item.is_symlink() or
-                not stat.S_ISREG(item.stat(follow_symlinks=False).st_mode)):
+                item.is_symlink()):
+                raise SourceAuditError("Unexpected, linked or unreviewed source file")
+            before = item.stat(follow_symlinks=False)
+            if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
                 raise SourceAuditError("Unexpected, linked or unreviewed source file")
             if relative in actual:
                 raise SourceAuditError("Duplicate source inventory entry")
             actual.add(relative)
-            size = item.stat().st_size
+            size = before.st_size
             total += size
             if total > MAX_TOTAL_BYTES or len(actual) > MAX_FILES:
                 raise SourceAuditError("Vendored source exceeds reviewed file/byte envelope")
             digest = hashlib.sha256()
+            identity = lambda s: (
+                s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns,
+                s.st_ctime_ns, s.st_mode, s.st_nlink,
+            )
             with item.open("rb") as stream:
-                for part in iter(lambda:stream.read(1024 * 1024), b""):
+                opened = os.fstat(stream.fileno())
+                if identity(opened) != identity(before):
+                    raise SourceAuditError("Vendored ComfyUI source changed before read")
+                for part in iter(lambda: stream.read(1024 * 1024), b""):
                     digest.update(part)
-            if digest.hexdigest() != expected[relative] or item.stat().st_size != size:
+                after = os.fstat(stream.fileno())
+                if identity(after) != identity(before):
+                    raise SourceAuditError("Vendored ComfyUI source changed during read")
+            # Matching the open descriptor alone is insufficient if a reviewed
+            # pathname was replaced while its original bytes were being hashed.
+            pathname_after = item.stat(follow_symlinks=False)
+            if (not stat.S_ISREG(pathname_after.st_mode) or
+                identity(pathname_after) != identity(after) or
+                digest.hexdigest() != expected[relative]):
                 raise SourceAuditError("Vendored ComfyUI source bytes changed")
     if actual != set(expected):
         raise SourceAuditError("Incomplete vendored source tree")
