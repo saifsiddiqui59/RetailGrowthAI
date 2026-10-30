@@ -186,6 +186,37 @@ class FashionKurtiReferenceTests(unittest.TestCase):
             self.prepare(model_asset_id=self.model_asset,model_id=self.model_id,
                          try_on_asset_id=self.tryon)
 
+    def test_video_reference_uses_must_be_explicit_unique_string_array(self):
+        # Transport coercion must not turn a substring or mapping key into
+        # independently reviewed video_reference permission.
+        invalid = (
+            "video_reference", {"video_reference": True},
+            ("video_reference",), {"video_reference"}, None, [],
+            ["poster"], ["video_reference", "video_reference"],
+            ["video_reference", "unknown"], ["video_reference", True],
+            ["video_reference", {"poster": True}],
+            ["video_reference", "poster", "try_on", "poster"],
+        )
+        original = self.model_data["approved_uses"]
+        try:
+            for uses in invalid:
+                self.model_data["approved_uses"] = uses
+                with self.subTest(uses=repr(uses)):
+                    with self.assertRaises(FashionReferenceDenied):
+                        self.prepare(model_asset_id=self.model_asset,
+                                     model_id=self.model_id)
+            for uses in (["video_reference"],
+                         ["poster", "video_reference"],
+                         ["poster", "try_on", "video_reference"]):
+                self.model_data["approved_uses"] = uses
+                with self.subTest(uses=repr(uses)):
+                    bundle = self.prepare(model_asset_id=self.model_asset,
+                                          model_id=self.model_id)
+                    self.assertFalse(bundle["gpu_authorized"])
+                    self.assertEqual(bundle["model"]["model_id"], self.model_id)
+        finally:
+            self.model_data["approved_uses"] = original
+
     def test_revoked_model_and_foreign_image_deny(self):
         with self.assertRaises(FashionReferenceDenied):
             self.prepare(shop_id=self.other)
