@@ -21,6 +21,7 @@ class Feature3QueuePublishingTests(unittest.TestCase):
                      "gpu_started":False}
         self.outbox=Mock()
         self.outbox.claim_dispatch.return_value=[self.record]
+        self.outbox.confirm_dispatch.return_value=True
         self.queue=Mock()
         self.queue.send_message.return_value=SimpleNamespace(id=str(uuid4()))
         self.publisher=Feature3GPUOutboxPublisher(self.outbox,self.queue)
@@ -87,6 +88,33 @@ class Feature3QueuePublishingTests(unittest.TestCase):
         with self.assertRaises(StorageUnavailable):
             self.publisher.dispatch_once()
         self.assertEqual(self.queue.send_message.call_count,1)
+
+    def test_false_or_missing_sql_ack_stops_batch_after_first_send(self):
+        second={**self.record,"job_id":str(uuid4()),
+                "dispatch_token":str(uuid4())}
+        for returned in (None,False,0,1,"true",{"sent":True},[]):
+            self.setUp()
+            self.outbox.claim_dispatch.return_value=[self.record,second]
+            self.outbox.confirm_dispatch.return_value=returned
+            with self.subTest(ack=str(returned)),self.assertRaisesRegex(
+                    StorageUnavailable,"ACK uncertain"):
+                self.publisher.dispatch_once(2)
+            self.assertEqual(self.queue.send_message.call_count,1)
+            self.outbox.confirm_dispatch.assert_called_once_with(
+                self.job,self.token,True)
+
+    def test_ack_exception_is_opaque_and_stops_before_second_queue_send(self):
+        self.outbox.claim_dispatch.return_value=[
+            self.record,{**self.record,"job_id":str(uuid4()),
+                         "dispatch_token":str(uuid4())}]
+        self.outbox.confirm_dispatch.side_effect=RuntimeError(
+            "PRIVATE-SQL-SERVICE-KEY-DIAGNOSTIC")
+        with self.assertRaises(StorageUnavailable) as caught:
+            self.publisher.dispatch_once(2)
+        self.assertIn("ACK uncertain",str(caught.exception))
+        self.assertNotIn("PRIVATE-SQL",str(caught.exception))
+        self.assertIsNone(caught.exception.__cause__)
+        self.queue.send_message.assert_called_once()
 
     def test_invalid_or_duplicate_sql_claim_batch_never_reaches_queue(self):
         wrong=[
