@@ -201,11 +201,13 @@ def project_offline_openpronounce_review(*,audio_sha256,result):
         ipa_actual="" if item.get("actual") is None else item.get("actual")
         confidence=item.get("confidence")
         if (type(word) is not str or not 1<=len(word)<=80 or
-            any(ord(c)<32 or c in "<>" for c in word) or
+            any(unicodedata.category(c).startswith("C") or c in "<>"
+                for c in word) or
             type(index) is not int or not 0<=index<=600 or
             type(ipa_expected) is not str or len(ipa_expected)>100 or
             type(ipa_actual) is not str or len(ipa_actual)>100 or
-            any(ord(c)<32 or c in "<>" for c in ipa_expected+ipa_actual) or
+            any(unicodedata.category(c).startswith("C") or c in "<>"
+                for c in ipa_expected+ipa_actual) or
             (confidence is not None and
              (type(confidence) not in (int,float) or
               not math.isfinite(confidence) or
