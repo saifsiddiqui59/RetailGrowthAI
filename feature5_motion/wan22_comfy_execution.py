@@ -15,6 +15,7 @@ from __future__ import annotations
 import http.client
 import hashlib
 import json
+import math
 import re
 import threading
 from dataclasses import dataclass
@@ -27,6 +28,60 @@ from .part3_native_claim_gate import verify_native_wan22_claim
 MAX_OBJECT_JSON=2*1024*1024
 MAX_OTHER_JSON=512*1024
 HISTORY=re.compile(r"^/history/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+# The untrusted local ComfyUI server has no authentication on port 8188.
+# Reject ambiguous JSON, nonfinite numeric values and deeply nested replies
+# before passing schema/ack/history fields into a paid attempt state machine.
+MAX_COMFY_JSON_DEPTH = 64
+MAX_COMFY_JSON_NODES = 100_000
+
+
+def _unique_json_object(pairs):
+    obj = {}
+    for key, value in pairs:
+        if key in obj:
+            raise ValueError("Duplicate ComfyUI JSON member")
+        obj[key] = value
+    return obj
+
+
+def _finite_json_float(value):
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("Nonfinite ComfyUI JSON number")
+    return number
+
+
+def _reject_json_constant(value):
+    raise ValueError("Nonstandard ComfyUI JSON constant")
+
+
+def _decode_comfy_response(raw):
+    """Strict bounded JSON object; never authorize GPU or private imports."""
+    try:
+        data = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_unique_json_object,
+            parse_float=_finite_json_float,
+            parse_constant=_reject_json_constant,
+        )
+    except (ValueError, UnicodeError, RecursionError) as exc:
+        raise WanCompatibilityError("Malformed private ComfyUI JSON") from exc
+    if type(data) is not dict:
+        raise WanCompatibilityError("Invalid private ComfyUI response")
+    pending = [(data, 1)]
+    visited = 0
+    while pending:
+        value, depth = pending.pop()
+        visited += 1
+        if visited > MAX_COMFY_JSON_NODES or depth > MAX_COMFY_JSON_DEPTH:
+            raise WanCompatibilityError("Private ComfyUI JSON complexity limit exceeded")
+        if type(value) is dict:
+            pending.extend((child, depth + 1) for child in value.values())
+        elif type(value) is list:
+            pending.extend((child, depth + 1) for child in value)
+    return data
+
 
 
 class UnknownComfyPaidAttempt(WanCompatibilityError):
@@ -63,10 +118,7 @@ class LoopbackComfyTransport:
             raw=reply.read(size+1)
             if reply.status!=200 or len(raw)>size:
                 raise WanCompatibilityError("Private ComfyUI response denied/oversized")
-            data=json.loads(raw)
-            if type(data) is not dict:
-                raise WanCompatibilityError("Invalid private ComfyUI response")
-            return data
+            return _decode_comfy_response(raw)
         except (OSError,ValueError,UnicodeError,http.client.HTTPException) as exc:
             raise WanCompatibilityError("Private ComfyUI transport did not return valid JSON") from exc
         finally:
