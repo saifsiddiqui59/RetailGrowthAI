@@ -49,7 +49,7 @@ if(operation==='seal'){
    if(bad.signed_bad_time==='zero_ttl')payload.expires_at_ms=payload.issued_at_ms;
    if(bad.signed_bad_time==='fractional_expiry')payload.expires_at_ms+=0.5;
    const mac=crypto.createHmac('sha256',key).update(
-     'retailgrowth.feature7.review.v1\\n'+JSON.stringify(payload)).digest('hex');
+     'retailgrowth.feature7.review.v1\n'+JSON.stringify(payload)).digest('hex');
    receipt={...payload,mac};
  }
  if(bad.stale_revision)context.revision=3;
