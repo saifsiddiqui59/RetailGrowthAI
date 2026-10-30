@@ -1,5 +1,4 @@
 """Feature #4 F4-02: no positive 60s visibility receipt for gapped/overlapping time."""
-import copy
 import sys
 import unittest
 from pathlib import Path
