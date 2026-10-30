@@ -6,9 +6,10 @@ run 40831572603, artifact 12879355229. This is not approved retailer media
 or a model actually wearing the garment. Ordinary PR CI has no downloaded
 artifact and SKIPS, never treats a synthetic stand-in as Feature3 evidence.
 
-To execute privately, operator stages the pinned artifact MP4 under an
-isolated directory and passes its actual SHA256 through env after checking
-the original model/garment/LICENSE/manifest bundle.
+To execute privately, set FEATURE7_F3_ORIGINAL_ARTIFACT_ZIP to the
+original pinned Actions ZIP. The test verifies every original source/license
+entry before consuming its MP4. The legacy MP4 + pinned SHA environment
+variables are also supported, but never imply production ownership.
 """
 import hashlib
 import json
