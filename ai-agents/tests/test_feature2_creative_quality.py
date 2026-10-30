@@ -398,7 +398,6 @@ def test_private_blind_history_denies_ambiguous_or_replayed_score_receipts(tampe
 
 
 
-@pytest.mark.parametrize("tamper", ["score", "receipt"])
 @pytest.mark.parametrize("tamper", ["swapped_labels", "replacement_candidate"])
 def test_private_blind_history_rejects_candidate_identity_changes_between_revisions(tamper):
     # Even individually signed revision receipts cannot redefine an existing
@@ -425,6 +424,7 @@ def test_private_blind_history_rejects_candidate_identity_changes_between_revisi
     assert len(calls) == 1
 
 
+@pytest.mark.parametrize("tamper", ["score", "receipt"])
 def test_private_blind_history_denies_mutable_reader_alias_changed_by_signer(tamper):
     # A backend reader may hand out the SAME mutable rows object twice.
     # Previously comparing source() with rows could compare an object to itself
