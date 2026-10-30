@@ -148,6 +148,15 @@ class Feature3TrustedPrivateSourceProof:
                 headers=getattr(response,"headers",{})
                 size=headers.get("Content-Length") if headers is not None else None
                 kind=headers.get("Content-Type") if headers is not None else None
+                encoding=(headers.get("Content-Encoding")
+                          if headers is not None else None)
+                # Encoded transport bytes cannot be attested as the exact
+                # registered original. No transparent decompression or
+                # intermediary transformation is accepted.
+                if (encoding is not None and
+                        (not isinstance(encoding,str) or
+                         encoding.strip().lower()!="identity")):
+                    raise SourceProofDenied("Encoded private source response denied")
                 if (kind is not None and kind.split(";",1)[0].strip().lower()!=mime):
                     raise SourceProofDenied("Private Storage returned another media format")
                 if size is not None and (not isinstance(size,str) or
