@@ -95,5 +95,39 @@ class Feature7SemanticSuggestionsTests(unittest.TestCase):
         self.assertEqual(json.loads(result.stdout)['cutaways'],[])
 
 
+    def test_invalid_source_clocks_rejected_even_when_cues_disabled(self):
+        # A short cue budget must not hide a malformed later word.
+        mutations=[
+          lambda p:p['words'][3].update(startMs=-1),
+          lambda p:p['words'][3].update(endMs=920),
+          lambda p:p['words'][3].update(startMs=500),
+          lambda p:p['words'][3].update(endMs=600001),
+          lambda p:p['words'][3].update(word='bad\\u202e'),
+          lambda p:p['words'][3].update(word=''),
+          lambda p:p['footage'][1]['words'][3].update(startMs=100),
+          lambda p:p['footage'][1]['words'][3].update(endMs=0),
+        ]
+        for mutate in mutations:
+            with self.subTest(mutate=mutate):
+                data=fixture()
+                data['max_cues']=0
+                mutate(data)
+                self.assertNotEqual(self.go(data).returncode,0)
+        valid=fixture()
+        valid['max_cues']=0
+        run=self.go(valid)
+        self.assertEqual(run.returncode,0,run.stderr)
+        self.assertEqual(json.loads(run.stdout)['cutaways'],[])
+
+    def test_duplicate_scene_and_duplicate_asset_grants_rejected(self):
+        data=fixture()
+        data['footage'][1]['scene_index']=0
+        self.assertNotEqual(self.go(data).returncode,0)
+        data=fixture()
+        data['approved_assets'].append(dict(data['approved_assets'][0]))
+        self.assertNotEqual(self.go(data).returncode,0)
+
+
+
 if __name__=='__main__':
     unittest.main()
