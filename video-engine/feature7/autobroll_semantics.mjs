@@ -10,7 +10,7 @@
  * execution, strict trusted same-shop uploaded media grants, no Remotion.
  * See AUTOBROLL_MIT_LICENSE.txt and HANDOFF.md.
  */
-import crypto from 'node:crypto';
+import {sha256Hex} from './sha256_sync.mjs';
 
 const GAP_THRESH = 600; // AutoBroll: gap larger than 600ms creates a cut
 const LEAD_PAD = 0.1;
@@ -54,7 +54,7 @@ function sortJSON(value) {
   return value;
 }
 export function draftHashHint(draft) {
-  return crypto.createHash('sha256').update(JSON.stringify(sortJSON(draft))).digest('hex');
+  return sha256Hex(JSON.stringify(sortJSON(draft)));
 }
 
 // AutoBroll scripts/trim-silence.mjs, translated from its standalone CLI to

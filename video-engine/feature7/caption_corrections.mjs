@@ -5,13 +5,13 @@
  * A trusted host must reload the current tenant, rights, source bytes, revision,
  * and human approval in its database transaction before Feature4 renders.
  */
-import crypto from 'node:crypto';
+import {sha256Hex} from './sha256_sync.mjs';
 import {EditValidationError} from './autobroll_semantics.mjs';
 
 const valid=(ok,msg)=>{if(!ok)throw new EditValidationError(msg);};
 const ID=/^[A-Za-z0-9_-]{1,120}$/;
 const SHA=/^[a-f0-9]{64}$/;
-const hash=s=>crypto.createHash('sha256').update(s,'utf8').digest('hex');
+const hash=s=>sha256Hex(s);
 // Deliberately fail closed on HTML, invisible direction changes, bidi isolates,
 // zero-width controls, newlines, and ffmpeg/ASS markup metacharacters.
 export function validateReviewerCaptionText(raw){
