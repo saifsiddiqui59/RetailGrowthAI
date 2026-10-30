@@ -120,3 +120,19 @@ test('scoped generated history strips forged approvals, URLs and arbitrary priva
   assert.equal(scopedFeature3GeneratedHistory({...contaminated,message:{private:'value'}},SHOP).message,'')
   assert.equal(scopedFeature3GeneratedHistory({...contaminated,shopId:OTHER},SHOP).jobs.length,0)
 })
+
+test('same-shop API identity rotation hides stale generated jobs before React effect cleanup',()=>{
+  const apiA={kind:'old-session'},apiB={kind:'new-session'}
+  const previous={shopId:SHOP,api:apiA,jobs:JOBS,busy:false,message:'private history'}
+  assert.equal(scopedFeature3GeneratedHistory(previous,SHOP,apiA).jobs.length,4)
+  assert.equal(scopedFeature3GeneratedHistory(previous,SHOP,apiB).jobs.length,0)
+  assert.equal(scopedFeature3GeneratedHistory(previous,SHOP,apiB).message,'')
+  assert.equal(scopedFeature3GeneratedHistory(previous,SHOP,null).jobs.length,0)
+  assert.equal(scopedFeature3GeneratedHistory(previous,SHOP).jobs.length,4)
+  const jsx=readFileSync(new URL(
+    '../../frontend/src/features/creative/Feature3GeneratedHistory.jsx',import.meta.url),'utf8')
+  assert.match(jsx,/scopedFeature3GeneratedHistory\(state,shopId,api\)/)
+  assert.match(jsx,/image\?\.api===api/)
+  assert.match(jsx,/current\.current\.api===historyApi/)
+  assert.match(jsx,/setImage\(\{shopId:shop,jobId:job\.id,api:historyApi/)
+})
