@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 from pathlib import Path
 import subprocess
 
@@ -46,9 +47,40 @@ def _sha(path:Path):
     return digest.hexdigest()
 
 
-# The scene's interior is sampled, not its transition edges. This is *not* a
-# continuous no-black-frame certification: an intervening flash may be missed.
+# Independent full-file decoder detects sustained black holds between sample
+# probes without claiming that every sub-second blank frame is impossible.
 INTERIOR_SAMPLE_FRACTIONS=(.15,.30,.50,.70,.85)
+BLACK_HOLD_MIN_SECONDS=.65
+_BLACK_HOLD_RX=re.compile(
+    r"black_start:(\\d+(?:\\.\\d+)?)\\s+black_end:(\\d+(?:\\.\\d+)?)"
+    r"\\s+black_duration:(\\d+(?:\\.\\d+)?)"
+)
+
+
+def _continuous_black_holds(source, *, seconds):
+    """Scan all decoded video frames for >=.65s near-uniform black holds."""
+    try:
+        run=subprocess.run([
+            "ffmpeg","-nostdin","-hide_banner","-loglevel","info",
+            "-protocol_whitelist","file","-i",str(source),
+            "-map","0:v:0",
+            "-vf","blackdetect=d=0.65:pix_th=0.05:pic_th=0.98",
+            "-an","-f","null","-",
+        ],capture_output=True,text=True,check=True,timeout=160)
+    except (OSError,subprocess.SubprocessError) as exc:
+        raise VisibilityProofError("Continuous actual encoded black-frame scan failed") from exc
+    matches=list(_BLACK_HOLD_RX.finditer(run.stderr))
+    if run.stderr.count("black_start:")!=len(matches):
+        raise VisibilityProofError("Incomplete black-frame scan evidence")
+    holds=[]
+    for match in matches:
+        start,end,span=map(float,match.groups())
+        if (not all(math.isfinite(x) for x in (start,end,span))
+                or start<0 or end<=start or end>seconds+.5
+                or abs(end-start-span)>.08 or span<BLACK_HOLD_MIN_SECONDS-.09):
+            raise VisibilityProofError("Inconsistent continuous black-frame event")
+        holds.append((round(start,3),round(end,3),round(span,3)))
+    return holds
 
 
 def verify_scene_visibility(source:Path,*,seconds:int,scenes):
@@ -97,14 +129,21 @@ def verify_scene_visibility(source:Path,*,seconds:int,scenes):
                         "samples":samples,"sustained_near_black":blank})
         if blank:
             raise VisibilityProofError(f"Encoded scene at {start}s has a nearly entirely blank/black sample")
+    holds=_continuous_black_holds(source,seconds=seconds)
     if _sha(source)!=source_sha:
         raise VisibilityProofError("Encoded Reel bytes changed while scene frames were decoded")
-    return {"schema":"feature4_scene_visibility_v2",
+    if holds:
+        raise VisibilityProofError("Encoded Reel contains a sustained continuous black hold")
+    return {"schema":"feature4_scene_visibility_v3",
             "status":"SAMPLED_SCENES_NOT_BLANK_NOT_CONTENT_APPROVAL",
             "source_sha256":source_sha,
             "sample_fractions":list(INTERIOR_SAMPLE_FRACTIONS),
             "seconds":seconds,"checked_scene_count":len(scenes),
             "checked_scenes":checked,"sustained_near_black_count":0,
+            "continuous_full_reel_black_scan":True,
+            "continuous_black_hold_threshold_seconds":BLACK_HOLD_MIN_SECONDS,
+            "continuous_long_black_holds_count":0,
+            "sub_threshold_blank_frames_certified_absent":False,
             "short_blank_frames_excluded_by_sampling":False,
             "unexpected_overlay_absence_verified":False,
             "commercial_release_eligible":False,

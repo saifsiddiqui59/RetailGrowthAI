@@ -47,7 +47,11 @@ class Feature4SceneVisibilityTests(unittest.TestCase):
         self.assertFalse(report["commercial_release_eligible"])
         self.assertFalse(report["unexpected_overlay_absence_verified"])
         self.assertEqual(len(report["checked_scenes"][0]["samples"]),5)
-        self.assertEqual(report["schema"],"feature4_scene_visibility_v2")
+        self.assertEqual(report["schema"],"feature4_scene_visibility_v3")
+        self.assertTrue(report["continuous_full_reel_black_scan"])
+        self.assertEqual(report["continuous_black_hold_threshold_seconds"],.65)
+        self.assertEqual(report["continuous_long_black_holds_count"],0)
+        self.assertFalse(report["sub_threshold_blank_frames_certified_absent"])
         self.assertEqual(report["sample_fractions"],[.15,.30,.50,.70,.85])
         self.assertFalse(report["short_blank_frames_excluded_by_sampling"])
         self.assertGreater(report["checked_scenes"][0]["samples"][0]["mean_luma"],14)
@@ -76,6 +80,26 @@ class Feature4SceneVisibilityTests(unittest.TestCase):
                "-threads","2","-shortest",str(self.path)]
         subprocess.run(args,check=True,capture_output=True,timeout=120)
         with self.assertRaisesRegex(VisibilityProofError,"blank/black"):
+            verify_scene_visibility(self.path,seconds=15,scenes=SCENES)
+
+    def test_sustained_black_hold_between_all_five_interior_probes_rejected(self):
+        # First five-second scene: red 1.6s, BLACK .8s, red 2.6s.
+        # Interior samples .75/1.5/2.5/3.5/4.25 all see nonblack red.
+        parts=[("red",1.6),("black",.8),("red",2.6),
+               ("blue",5),("green",5)]
+        args=["ffmpeg","-nostdin","-hide_banner","-loglevel","error"]
+        for color,duration in parts:
+            args+=["-f","lavfi","-i",
+                   f"color=c={color}:s=540x960:r=12:d={duration}"]
+        args+=["-f","lavfi","-i","sine=frequency=430:duration=15",
+               "-filter_complex","".join(f"[{i}:v]" for i in range(5))
+                 +"concat=n=5:v=1:a=0[v]",
+               "-map","[v]","-map","5:a:0",
+               "-c:v","libx264","-preset","ultrafast","-pix_fmt","yuv420p",
+               "-c:a","aac","-b:a","48k","-threads","2","-shortest",str(self.path)]
+        subprocess.run(args,check=True,capture_output=True,timeout=120)
+        # The real FFmpeg full-frame scan rejects what five probes miss.
+        with self.assertRaisesRegex(VisibilityProofError,"continuous black hold"):
             verify_scene_visibility(self.path,seconds=15,scenes=SCENES)
 
     def test_encoded_media_changed_during_sampling_rejected(self):
