@@ -194,7 +194,7 @@ class BinaryHTTPTests(unittest.TestCase):
         rgb_ihdr=original[:33]
         rgb_rest=original[33:]
         # Truecolor may carry a valid optional palette.
-        valid_rgb=rgb_ihdr+chunk(b"PLTE",b"\\x00\\x11\\x22")+rgb_rest
+        valid_rgb=rgb_ihdr+chunk(b"PLTE",b"\x00\x11\x22")+rgb_rest
         self.reader.png=valid_rgb
         self.assertEqual(self.call()[0],200)
 
@@ -217,9 +217,9 @@ class BinaryHTTPTests(unittest.TestCase):
         gray_png=gray.getvalue()
         for forged in (
             rgb_ihdr+chunk(b"PLTE",b"")+rgb_rest,
-            rgb_ihdr+chunk(b"PLTE",b"\\x00\\x11")+rgb_rest,
-            rgb_ihdr+chunk(b"PLTE",b"\\x00\\x11\\x22"*257)+rgb_rest,
-            gray_png[:33]+chunk(b"PLTE",b"\\x00\\x11\\x22")+gray_png[33:],
+            rgb_ihdr+chunk(b"PLTE",b"\x00\x11")+rgb_rest,
+            rgb_ihdr+chunk(b"PLTE",b"\x00\x11\x22"*257)+rgb_rest,
+            gray_png[:33]+chunk(b"PLTE",b"\x00\x11\x22")+gray_png[33:],
             missing_palette,
         ):
             self.reader.png=forged
