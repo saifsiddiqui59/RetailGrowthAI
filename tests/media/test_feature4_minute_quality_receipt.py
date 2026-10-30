@@ -6,7 +6,8 @@ from unittest.mock import patch
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/"video-engine"))
-from feature4_minute_quality_receipt import MinuteProofError,validate_minute_evidence
+from feature4_minute_quality_receipt import (MinuteProofError, validate_minute_evidence,
+    _require_distinct_render_stages, _require_changed_render_bytes)
 
 class MinuteEvidenceTests(unittest.TestCase):
     def setUp(self):
@@ -50,6 +51,35 @@ class MinuteEvidenceTests(unittest.TestCase):
                     with self.assertRaisesRegex(MinuteProofError,
                                                 "Missing mandatory 60s"):
                         validate_minute_evidence(**kw)
+
+    def test_same_path_cannot_be_source_and_master(self):
+        self.paths["original"].write_bytes(b"fake mp4 bytes"*8)
+        self.paths["master"]=self.paths["original"]
+        with patch("feature4_minute_quality_receipt.inspect_mp4",
+                   side_effect=AssertionError("alias must fail before media probe")):
+            with self.assertRaisesRegex(MinuteProofError,"distinct files"):
+                self.validate()
+
+    def test_hardlink_cannot_masquerade_as_new_master(self):
+        self.paths["original"].write_bytes(b"fake mp4 bytes"*8)
+        self.paths["master"].hardlink_to(self.paths["original"])
+        with patch("feature4_minute_quality_receipt.inspect_mp4",
+                   side_effect=AssertionError("hardlink must fail before media probe")):
+            with self.assertRaisesRegex(MinuteProofError,"distinct files"):
+                self.validate()
+
+    def test_all_four_stages_require_distinct_paths(self):
+        files=[self.root/name for name in ("source.mp4","master.mp4","preview.mp4")]
+        with self.assertRaisesRegex(MinuteProofError,"distinct files"):
+            _require_distinct_render_stages(*files,files[2])
+
+    def test_copy_without_mastering_or_reencode_is_not_evidence(self):
+        a,b,c=("a"*64,"b"*64,"c"*64)
+        _require_changed_render_bytes(a,b,c)
+        for stages in ((a,a,c),(a,b,b),(a,b,a)):
+            with self.subTest(stages=stages):
+                with self.assertRaisesRegex(MinuteProofError,"distinct encoded bytes"):
+                    _require_changed_render_bytes(*stages)
 
     def test_garbage_or_unproven_mp4_rejected(self):
         self.fill_test_records()
