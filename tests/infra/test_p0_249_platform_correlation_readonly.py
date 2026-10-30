@@ -32,7 +32,8 @@ def test_scope_has_only_fixed_failed_canary_and_postrollback_windows():
             # Join must project only timestamp + transient host-instance key;
             # never project the original raw log message or URL to output.
             if label == "startup_401_link":
-                assert text.count("| project TimeGenerated, instance") == 1
+                assert text.count("| project start_time=TimeGenerated, instance") == 1
+                assert text.count("| project request_time=TimeGenerated, instance") == 1
                 assert "| project Message" not in text
                 assert "| project Url" not in text
             else:
@@ -141,6 +142,16 @@ def test_http_scale_group_link_is_only_401_evidence_not_a_503_claim():
     assert 'unlinked=countif(' in link
     assert 'ResultCode' in link and '"401"' in link
     assert '"503"' not in link
+    # Correlate a startup only with 401 logs on the same instance AFTER
+    # startup and within two minutes. A whole-window instance match was a
+    # false-positive hint; even this bounded link is NOT request-level proof.
+    assert "request_time >= start_time" in link
+    assert "request_time <= start_time + 2m" in link
+    assert "nearby_401=max(iff(isnotnull(request_time)" in link
+    assert "by start_time, instance" in link
+    assert "by bucket=bin(start_time,1m)" in link
+    assert "app_401=count() by instance" not in link
+    assert "| project Message" not in link and "| project Url" not in link
     for _, start, end in module.WINDOWS:
         each_link = module.queries(start, end)["startup_401_link"]
         assert start in each_link and end in each_link
@@ -164,6 +175,57 @@ def test_safe_http_and_startup_link_counts_no_sensitive_fields():
     assert "host_hash" in out[1]
     assert "raw-host-worker-guid" not in repr(out)
     assert "private" not in repr(out)
+
+
+def test_historical_platform_diagnostic_preserves_rows_31_to_80():
+    # 80 is the reviewed Kusto query limit, NOT an authority to log raw data.
+    rows = [
+        {"bucket": "2026-10-28T19:40:00Z", "events": 1,
+         "category": "worker_exit" if i == 79 else "worker_start",
+         "instance": "private-host-ident-" + str(i),
+         "Message": "private token string must never be printed"}
+        for i in range(90)
+    ]
+    for payload in (rows, {"value": rows}):
+        raw = module.platform_aggregate_rows(payload)
+        assert len(raw) == 80
+        assert raw[79]["category"] == "worker_exit"
+        assert module.safe_rows(payload)[79]["category"] == "worker_exit"
+        assert len(module.safe_rows(payload)) == 80
+        assert "private-host-ident" not in str(module.safe_rows(payload))
+        assert "private token" not in str(module.safe_rows(payload))
+    # Nested table output from Azure CLI is subject to the same 80-row cap.
+    payload = {"tables": [
+        {"columns": [{"name": name} for name in
+                     ("bucket", "events", "category", "instance", "Message")],
+         "rows": [[r[name] for name in
+                   ("bucket", "events", "category", "instance", "Message")]
+                  for r in rows[:65]]},
+        {"columns": [{"name": name} for name in
+                     ("bucket", "events", "category", "instance", "Message")],
+         "rows": [[r[name] for name in
+                   ("bucket", "events", "category", "instance", "Message")]
+                  for r in rows[65:]]},
+    ]}
+    assert len(module.platform_aggregate_rows(payload)) == 80
+    sanitized = module.safe_rows(payload)
+    assert len(sanitized) == 80
+    assert sanitized[79]["category"] == "worker_exit"
+    assert "instance" not in sanitized[79]
+    assert "Message" not in sanitized[79]
+
+
+def test_historical_decoder_rejects_bad_shapes_and_untrusted_columns():
+    assert module.platform_aggregate_rows(None) == []
+    assert module.platform_aggregate_rows({"tables": "not a list"}) == []
+    assert module.platform_aggregate_rows({"tables": [
+        {"columns": [{"name": "events"}, {"name": "events"}],
+         "rows": [[1, 2]]},
+        {"columns": [{"name": "events"}], "rows": ["not a row"]},
+    ]}) == []
+    assert module.safe_rows({"value": [
+        {"events": 99, "bucket": "untrusted date", "Message": "private"}
+    ]}) == []
 
 
 def test_only_aggregate_read_operations_reachable():
