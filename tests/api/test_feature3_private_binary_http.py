@@ -128,6 +128,30 @@ class BinaryHTTPTests(unittest.TestCase):
         self.reader.png=original
         self.assertEqual(self.call()[0],200)
 
+    def test_self_consistent_sha_cannot_hide_png_chunk_crc_or_structure_damage(self):
+        # The fake reader recalculates SHA from its own bytes, simulating a
+        # compromised receipt. The HTTP boundary must still reject corruption.
+        original=self.reader.png
+        # Corrupt a real IHDR CRC without touching the canonical IEND framing.
+        corrupt_crc=bytearray(original)
+        corrupt_crc[29]^=1
+        # Duplicate the original IHDR before the first IDAT. Both copies have
+        # individually correct CRCs but PNG requires exactly one IHDR.
+        ihdr_chunk=original[8:33]
+        duplicate_ihdr=original[:33]+ihdr_chunk+original[33:]
+        # Change the first chunk's type while retaining valid-looking IEND.
+        invalid_first=bytearray(original)
+        invalid_first[12:16]=b"tEXt"
+        for forged in (bytes(corrupt_crc),duplicate_ihdr,bytes(invalid_first)):
+            self.reader.png=forged
+            with self.subTest(case=forged[:36].hex()):
+                status,body,headers=self.call()
+                self.assertEqual(status,503)
+                self.assertEqual(body,b"")
+                self.assert_private_headers(headers)
+        self.reader.png=original
+        self.assertEqual(self.call()[0],200)
+
     def test_invalid_job_shop_or_missing_verifier_never_emits_private_body(self):
         status,body,_=self.api.handle(
             method="GET",authorization="Bearer signed-retailer-test",
