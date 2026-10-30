@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import stat
 from pathlib import Path
 
 from .wan22_native_preflight import (
@@ -30,21 +32,45 @@ def _unique_review_keys(pairs):
 
 
 def _private_review_json(path):
-    item=Path(path)
-    if item.is_symlink() or not item.is_file() or not 0 < item.stat().st_size <= MAX_REVIEW_BYTES:
-        raise WanCompatibilityError("Missing, linked or oversized reviewed manifest")
+    """Read one reviewed manifest by stable, non-linked file identity.
+
+    Checking only Path.is_symlink() before read_text() permits a path-swap
+    race. Hold the opened regular-file descriptor while checking the original
+    path and exact file identity before accepting any review evidence.
+    """
+    item = Path(path)
+    if not hasattr(os, "O_NOFOLLOW"):
+        raise WanCompatibilityError("Secure no-follow reviewed manifest read unavailable")
     try:
+        before = item.stat(follow_symlinks=False)
+        if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+                or not 0 < before.st_size <= MAX_REVIEW_BYTES):
+            raise ValueError("Reviewed manifest must be a bounded private regular file")
+        flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0)
+        with os.fdopen(os.open(item, flags), "rb") as stream:
+            opened = os.fstat(stream.fileno())
+            identity = lambda s: (
+                s.st_dev, s.st_ino, s.st_mode, s.st_nlink,
+                s.st_size, s.st_mtime_ns, s.st_ctime_ns,
+            )
+            if not stat.S_ISREG(opened.st_mode) or identity(opened) != identity(before):
+                raise ValueError("Reviewed manifest changed before open")
+            raw = stream.read(MAX_REVIEW_BYTES + 1)
+            after = os.fstat(stream.fileno())
+            if (len(raw) != before.st_size or identity(after) != identity(before)
+                    or identity(item.stat(follow_symlinks=False)) != identity(after)):
+                raise ValueError("Reviewed manifest changed during read")
         document = json.loads(
-            item.read_text(encoding="utf8"),
+            raw.decode("utf-8"),
             object_pairs_hook=_unique_review_keys,
-            parse_constant=lambda _: (_ for _ in ()).throw(ValueError("Non-finite reviewed manifest value")),
+            parse_constant=lambda _: (_ for _ in ()).throw(
+                ValueError("Non-finite reviewed manifest value")),
         )
         if type(document) is not dict:
             raise ValueError("Reviewed manifest must be a JSON object")
         return document
-    except (OSError,UnicodeError,ValueError,RecursionError) as exc:
+    except (OSError, UnicodeError, ValueError, RecursionError, OverflowError) as exc:
         raise WanCompatibilityError("Unreadable reviewed manifest") from exc
-
 
 def audit_wan22_build_context(
     *, vendored_comfyui, source_manifest, wheelhouse,
