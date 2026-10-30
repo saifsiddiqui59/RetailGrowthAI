@@ -39,6 +39,27 @@ def test_invalid_catalog_or_spoofed_provider_voice_fails_closed(monkeypatch,bad)
     run,_=call(monkeypatch,bad)
     with pytest.raises(VoiceCatalogUnavailable):run()
 
+def test_standard_voice_type_is_not_misreported_as_neural(monkeypatch):
+    # A provider catalog row may reuse a curated ShortName with a non-neural
+    # VoiceType. Never offer it as a premium neural voice or imply readiness.
+    row = valid_row()
+    row["VoiceType"] = "Standard"
+    run, calls = call(monkeypatch, [row])
+    with pytest.raises(VoiceCatalogUnavailable, match="identity"):
+        run()
+    assert len(calls) == 1  # Mocked catalog lookup only; no synthesis.
+
+
+def test_verified_neural_hd_voice_remains_selectable_metadata_only(monkeypatch):
+    row = valid_row()
+    row["VoiceType"] = "NeuralHD"
+    run, calls = call(monkeypatch, [row])
+    out = run()
+    assert [v["id"] for v in out["available_voices"]] == ["hi-IN-SwaraNeural"]
+    assert out["tts_call_made"] is False and out["published"] is False
+    assert len(calls) == 1
+
+
 def test_disabled_or_revoked_shop_does_not_call_external_server(monkeypatch):
     run,calls=call(monkeypatch,actor=lambda _:False)
     with pytest.raises(VoiceCatalogUnavailable):run()
