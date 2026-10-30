@@ -648,7 +648,7 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     for field,text in copy.items():
         if (type(text) is not str or not 1<=len(text.strip())<=1800 or
             _unsafe_editorial_display(text) or
-            re.search(r"(?:https?://|www\\.)", text, flags=re.I) or
+            re.search(r"(?:https?://|www\.)", text, flags=re.I) or
             "javascript:" in text.lower()):
             raise EditorialBasisRejected("Unsafe or unbounded retailer copy")
         if _CLAIM_PRICE.search(text):
