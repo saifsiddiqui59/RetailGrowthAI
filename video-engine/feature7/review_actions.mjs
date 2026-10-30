@@ -103,5 +103,16 @@ export function proposeReviewDecision(session,{action,confirmed}={}){
     approved:false,renderable:false,
     requires_authoritative_server_transaction:true
   };
-  return Object.freeze(packet);
+  // The host may enqueue this object asynchronously. Freeze the complete
+  // already-cloned proposal so the candidate cannot change after dispatch.
+  // This is client-side integrity only; the server still MUST reload and
+  // authorize current tenant/source/revision before persisting human review.
+  const deepFreeze=(value)=>{
+    if(value&&typeof value==='object'&&!Object.isFrozen(value)){
+      Object.values(value).forEach(deepFreeze);
+      Object.freeze(value);
+    }
+    return value;
+  };
+  return deepFreeze(packet);
 }

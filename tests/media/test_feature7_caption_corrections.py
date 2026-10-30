@@ -43,13 +43,30 @@ if(p.bad==='overlap')projection.feature4_caption_track[1].start=.8;
 if(p.bad==='late')projection.feature4_caption_track[2].start=15;
 if(p.bad==='approved')projection.approved=true;
 if(p.bad==='samesha')correctionInput.preview_sha256=correctionInput.source_sha256;
-if(['pure','preview','verify'].includes(p.operation)){
+if(['pure','preview','verify','immutable'].includes(p.operation)){
  let s=createCaptionCorrectionSession({...correctionInput,reviewer_view:reviewer});
  const original=s;
  if(p.bad==='wrong_index')s=editCaptionCorrection(s,8,'Different words');
  else s=editCaptionCorrection(s,0,p.edit??'Our blue shirts');
  if(p.reset)s=editCaptionCorrection(s,0,'Our red shirts');
- if(p.operation==='verify'){
+ if(p.operation==='immutable'){
+   const request=requestCaptionCorrectionReview(s,{confirmed:true});
+   const before=JSON.stringify(request),changes=[
+     ()=>{request.corrections[0].corrected_text='tampered';},
+     ()=>{request.corrections.push({cue_index:9});},
+     ()=>{request.request_sha256_hint='0'.repeat(64);}
+   ];
+   let denied=0;
+   for(const change of changes){
+     try{change()}catch(e){if(e instanceof TypeError)denied++;}
+   }
+   process.stdout.write(JSON.stringify({
+      arrayFrozen:Object.isFrozen(request.corrections),
+      rowsFrozen:request.corrections.every(Object.isFrozen),
+      denied,unchanged:JSON.stringify(request)===before,
+      originalSessionEditable:!Object.isFrozen(s.corrections[0]),
+      publishApproved:request.approved}));
+ }else if(p.operation==='verify'){
    const request=requestCaptionCorrectionReview(s,{confirmed:true});
    if(p.bad==='request_text_changed')
      request.corrections[0].corrected_text='Adversarial';
@@ -157,6 +174,18 @@ class Feature7CaptionCorrectionTests(unittest.TestCase):
         self.assertFalse(request["customer_publishable"])
         self.assertTrue(request["requires_authoritative_server_transaction"])
         self.assertEqual(len(request["request_sha256_hint"]),64)
+
+    def test_digest_bound_caption_rows_are_immutable_at_host_boundary(self):
+        r=self.run_case(operation="immutable")
+        self.assertEqual(r.returncode,0,r.stderr)
+        out=json.loads(r.stdout)
+        self.assertTrue(out["arrayFrozen"])
+        self.assertTrue(out["rowsFrozen"])
+        self.assertEqual(out["denied"],3)
+        self.assertTrue(out["unchanged"])
+        # The original session row is separately immutable already.
+        self.assertFalse(out["originalSessionEditable"])
+        self.assertFalse(out["publishApproved"])
 
     def test_reset_to_source_removes_change_and_blocks_empty_request(self):
         r=self.run_case(operation="pure",reset=True,emit=False)

@@ -135,7 +135,11 @@ export function requestCaptionCorrectionReview(session,{confirmed=false}={}){
     approved:false,renderable:false,customer_publishable:false
   };
   const packetHash=hash(JSON.stringify(packet));
-  return Object.freeze({...packet,corrections:Object.freeze(packet.corrections),
+  // Snapshot each correction BEFORE handing an asynchronous host callback its
+  // digest-bound packet. Freezing only the array would leave row text mutable.
+  const corrections=Object.freeze(
+    packet.corrections.map(row=>Object.freeze({...row})));
+  return Object.freeze({...packet,corrections,
     request_sha256_hint:packetHash});
 }
 

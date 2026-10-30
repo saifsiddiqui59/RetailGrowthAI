@@ -28,12 +28,31 @@ const reviewer={shop_id:req.input.shop_id,
 if(req.bad==='revoked')reviewer.active_membership=false;
 let session=createReviewSession({draft:req.input.draft,
   proposal:plan,media_evidence:evidence,reviewer_view:reviewer});
-if(req.operation==='actions'){
+if(req.operation==='actions'||req.operation==='immutable_actions'){
   if(req.bad==='bad_trim')session=adjustTrimStart(session,0,999);
   else session=adjustTrimStart(session,0,2);
   const result=proposeReviewDecision(session,{
     action:req.action??'REQUEST_APPROVAL',confirmed:req.confirmed??true});
-  process.stdout.write(JSON.stringify(result));
+  if(req.operation==='immutable_actions'){
+    const before=JSON.stringify(result);
+    const frozen=Object.isFrozen(result)&&
+      Object.isFrozen(result.edited_proposal)&&
+      Object.isFrozen(result.edited_proposal.scenes)&&
+      Object.isFrozen(result.edited_proposal.scenes[0]);
+    let denied=0;
+    for(const change of [
+      ()=>{result.edited_proposal.scenes[0].trim_start=999;},
+      ()=>{result.edited_proposal.scenes.push({trim_start:999});},
+      ()=>{result.edited_proposal.approved=true;},
+      ()=>{result.expected_revision=999;}
+    ]){
+      try{change()}catch(e){if(e instanceof TypeError)denied++;}
+    }
+    process.stdout.write(JSON.stringify({frozen,denied,
+      unchanged:JSON.stringify(result)===before,
+      sessionStillEditable:!Object.isFrozen(session.scenes[0]),
+      approved:result.approved}));
+  }else process.stdout.write(JSON.stringify(result));
 }else{
   class Node {
     constructor(tag,doc){this.tag=tag;this.ownerDocument=doc;this.children=[];
@@ -98,6 +117,16 @@ class Feature7ReviewerTests(unittest.TestCase):
         self.assertEqual(x['edited_proposal']['scenes'][0]['trim_start'],2)
         self.assertFalse(x['edited_proposal']['scenes'][0]['mute_source'])
         self.assertTrue(x['requires_authoritative_server_transaction'])
+
+    def test_nested_review_request_cannot_change_after_submission(self):
+        r=self.go(operation='immutable_actions')
+        self.assertEqual(r.returncode,0,r.stderr)
+        out=json.loads(r.stdout)
+        self.assertTrue(out['frozen'])
+        self.assertEqual(out['denied'],4)
+        self.assertTrue(out['unchanged'])
+        self.assertTrue(out['sessionStillEditable'])
+        self.assertFalse(out['approved'])
 
     def test_viewer_cannot_approve_or_reject(self):
         for action in ('REQUEST_APPROVAL','REJECT_PROPOSAL'):
