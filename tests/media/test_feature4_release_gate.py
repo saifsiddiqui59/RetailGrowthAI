@@ -101,6 +101,52 @@ class ReleaseGateTests(unittest.TestCase):
             with self.subTest(mutation=str(mutate)), self.assertRaises(ReleaseNotApproved):
                 self.run_gate(j,l,r,m)
 
+    def test_all_rendered_media_not_just_product_and_motion_require_current_rights(self):
+        # A licensed soundtrack can be part of a technical review, but an
+        # unapproved/foreign/synthetic auxiliary asset must block release.
+        job, lineage, review, media = baseline()
+        audio_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+        lineage["media_asset_ids"].append(audio_id)
+        media[audio_id] = {
+            "shop_id": SHOP, "kind": "audio", "source_feature": "feature2",
+            "approved": True, "commercial_use": True,
+            "synthetic_fixture": False,
+            "rights_evidence": "Independently reviewed commercial audio grant",
+        }
+        self.assertEqual(self.run_gate(job, lineage, review, media).video_job_id, JOB)
+        for field, value in (
+            ("shop_id", OTHER), ("kind", "unknown"),
+            ("source_feature", ""), ("approved", False),
+            ("commercial_use", False), ("synthetic_fixture", True),
+            ("rights_evidence", ""), ("rights_evidence", True),
+        ):
+            j, l, r, m = copy.deepcopy((job, lineage, review, media))
+            m[audio_id][field] = value
+            with self.subTest(field=field), self.assertRaisesRegex(
+                    ReleaseNotApproved, "Every rendered media asset"):
+                self.run_gate(j, l, r, m)
+        j, l, r, m = copy.deepcopy((job, lineage, review, media))
+        del m[audio_id]
+        with self.assertRaisesRegex(ReleaseNotApproved, "Every rendered media asset"):
+            self.run_gate(j, l, r, m)
+
+    def test_release_rejects_malformed_or_duplicate_media_lineage_and_output_id(self):
+        for bad_id in ("", "not-a-uuid", OTHER.upper(), 123, True):
+            j, l, r, m = baseline()
+            j["output_asset_id"] = bad_id
+            with self.subTest(output_id=bad_id), self.assertRaises(ReleaseNotApproved):
+                self.run_gate(j, l, r, m)
+        for bad_assets in (
+            [PRODUCT, MOTION, PRODUCT],
+            [PRODUCT, MOTION, "not-a-uuid"],
+            [PRODUCT, MOTION, None],
+            [PRODUCT, MOTION] * 19,
+        ):
+            j, l, r, m = baseline()
+            l["media_asset_ids"] = bad_assets
+            with self.subTest(media_ids=bad_assets[:3]), self.assertRaises(ReleaseNotApproved):
+                self.run_gate(j, l, r, m)
+
     def test_unreviewed_rejection_and_no_missing_checks(self):
         for mutate in (
             lambda r: r.update(approved=False),
