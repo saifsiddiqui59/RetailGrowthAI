@@ -103,6 +103,10 @@ class MinuteSourceIdentityTests(unittest.TestCase):
             with self.subTest(verify=verify):
                 self.receipt.write_bytes(original_bytes)
                 changed = [False]
+                # Nested digest self is NOT the unittest case; bind the
+                # immutable target path from the enclosing test scope.
+                receipt_path = self.receipt
+                replacement_path = self.root / "same-bytes-new-inode"
                 class SwappingHash:
                     def __init__(self):
                         self.inner = true_sha()
@@ -110,9 +114,8 @@ class MinuteSourceIdentityTests(unittest.TestCase):
                         self.inner.update(block)
                         if not changed[0]:
                             changed[0] = True
-                            replacement = self.root / "same-bytes-new-inode"
-                            replacement.write_bytes(original_bytes)
-                            os.replace(replacement, self.receipt)
+                            replacement_path.write_bytes(original_bytes)
+                            os.replace(replacement_path, receipt_path)
                     def hexdigest(self):
                         return self.inner.hexdigest()
                 with patch.object(minute.hashlib, "sha256", side_effect=SwappingHash):
