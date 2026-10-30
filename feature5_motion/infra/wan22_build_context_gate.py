@@ -19,15 +19,58 @@ from .wan22_source_audit import audit_complete_vendor_checkout
 MAX_REVIEW_BYTES = 4 * 1024 * 1024
 
 
-def _private_review_json(path):
-    item=Path(path)
-    if item.is_symlink() or not item.is_file() or not 0 < item.stat().st_size <= MAX_REVIEW_BYTES:
-        raise WanCompatibilityError("Missing, linked or oversized reviewed manifest")
-    try:
-        return json.loads(item.read_text(encoding="utf8"))
-    except (OSError,UnicodeError,ValueError) as exc:
-        raise WanCompatibilityError("Unreadable reviewed manifest") from exc
+def _unique_review_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate reviewed manifest JSON key")
+        result[key] = value
+    return result
 
+
+def _private_review_json(path):
+    """Read a bounded, regular, immutable-for-this-read reviewed manifest.
+
+    This is only a CPU source-input gate. JSON supplied by an operator is not
+    itself independent approval of a CUDA image, model licence or wheel bytes.
+    """
+    import os
+    import stat
+
+    item = Path(path)
+    try:
+        before = item.stat(follow_symlinks=False)
+        if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+                or not 0 < before.st_size <= MAX_REVIEW_BYTES):
+            raise WanCompatibilityError("Missing, linked or oversized reviewed manifest")
+        fd = os.open(item, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        try:
+            with os.fdopen(fd, "rb") as stream:
+                fd = -1
+                opened = os.fstat(stream.fileno())
+                identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+                if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1
+                        or (opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns) != identity):
+                    raise WanCompatibilityError("Reviewed manifest changed before read")
+                raw = stream.read(MAX_REVIEW_BYTES + 1)
+                after = os.fstat(stream.fileno())
+                if ((after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns) != identity
+                        or len(raw) != before.st_size):
+                    raise WanCompatibilityError("Reviewed manifest changed during read")
+        finally:
+            if fd != -1:
+                os.close(fd)
+        value = json.loads(
+            raw.decode("utf-8"),
+            object_pairs_hook=_unique_review_keys,
+            parse_constant=lambda _: (_ for _ in ()).throw(
+                ValueError("Non-finite reviewed manifest JSON number")),
+        )
+        if type(value) is not dict:
+            raise ValueError("Reviewed manifest must be a JSON object")
+        return value
+    except (OSError, UnicodeError, ValueError) as exc:
+        raise WanCompatibilityError("Unreadable or ambiguous reviewed manifest") from exc
 
 def audit_wan22_build_context(
     *, vendored_comfyui, source_manifest, wheelhouse,
