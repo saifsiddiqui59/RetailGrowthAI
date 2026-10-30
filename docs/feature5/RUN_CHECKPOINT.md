@@ -33,3 +33,9 @@ Central `coordination/feature_tasks.json` snapshot: F5 total 22, source-complete
 - This denies symlinked ancestors but is NOT an atomic trusted mount attestation; original checkpoint bytes and Azure mount remain unverified.
 - Test file write failed due GitHub connector internal error; targeted tests and exact-head CI **NOT RUN**. Next run must add negative regression and verify source CI before claiming tested or PR-ready.
 - Next task: F5-14 regression and exact-head CI; then F5-13 OCI evidence. GPU OFF.
+
+## 2026-10-30 follow-up — regression committed
+- F5-14 parent-symlink negative test now committed: `tests/ai/test_feature5_parent_guard_20261030.py`, commit `e6189df9f0f1cf8fafd84e4df58cce487206958a`; earlier test write connector failures were transient and resolved by a small create-then-update.
+- Source guard: `feature5_motion/shared_model_mount.py` commit `b84489e803100c2e249c4db8a3c4ce9be5e63740`.
+- **Verification:** no local repository checkout (network DNS unavailable), so `python -m unittest discover -s tests/ai -p 'test_feature5_parent_guard_20261030.py'` NOT RUN. GitHub PR-run/status API returned no checks on the observed intermediate head; new exact-head 4/4 CI must be inspected before TESTED/PR-ready claims.
+- **Next:** F5-14 exact-head CI and merge conflict reconciliation by coordinator; independently eligible F5-13 OCI/SBOM source review if CI pending. No actual mounted checkpoint readback, Azure deployment or GPU inference.
