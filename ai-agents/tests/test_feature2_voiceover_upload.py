@@ -147,7 +147,8 @@ def test_private_mp3_intake_preserves_both_original_digests_and_ignores_rights_c
         assert receipt["review_state"]=="PENDING_RIGHTS_AND_SPEECH_REVIEW"
         assert receipt["original_media_rights_verified"] is False
         events.append(1)
-        return {"asset_id":str(uuid4()),"shop_id":shop,
+        return {"asset_id":str(uuid4()),"derived_wav_asset_id":str(uuid4()),
+                "atomic_pair_committed":True,"shop_id":shop,
                 "campaign_id":campaign,
                 "original_mp3_sha256":receipt["original_mp3_sha256"],
                 "derived_wav_sha256":receipt["derived_wav_sha256"],
@@ -189,3 +190,62 @@ def test_mp3_private_decode_fails_closed_before_writer_on_forgery_and_revocation
             read_authoritative_plan=lambda *a:creative(),
             store_both_private_pending=lambda *a:writes.append(a))
     assert len(calls)==2 and writes==[]
+
+
+@pytest.mark.parametrize("invalid_receipt", [
+    {"derived_wav_asset_id": None},
+    {"derived_wav_asset_id": "foreign-untrusted-object"},
+    {"atomic_pair_committed": False},
+    {"atomic_pair_committed": None},
+    {"private": False},
+    {"derived_wav_sha256": "f" * 64},
+])
+def test_mp3_intake_rejects_partial_or_untrusted_dual_asset_commit(invalid_receipt):
+    ffmpeg, original = mp3_fixture()
+    def writer(shop, campaign, mp3, wav_bytes, receipt):
+        assert sha256(mp3).hexdigest() == receipt["original_mp3_sha256"]
+        assert sha256(wav_bytes).hexdigest() == receipt["derived_wav_sha256"]
+        saved = {
+            "asset_id": str(uuid4()),
+            "derived_wav_asset_id": str(uuid4()),
+            "atomic_pair_committed": True,
+            "shop_id": shop,
+            "campaign_id": campaign,
+            "original_mp3_sha256": receipt["original_mp3_sha256"],
+            "derived_wav_sha256": receipt["derived_wav_sha256"],
+            "review_state": "PENDING_RIGHTS_AND_SPEECH_REVIEW",
+            "private": True,
+        }
+        saved.update(invalid_receipt)
+        return saved
+    with pytest.raises(VoiceUploadRejected, match="pair not registered"):
+        accept_unreviewed_mp3(
+            shop_id=SHOP, campaign_id=CID, plan=creative(),
+            original_mp3=original, operator_ffmpeg_path=ffmpeg,
+            authenticated_editor=lambda *a: True,
+            read_authoritative_plan=lambda *a: creative(),
+            store_both_private_pending=writer,
+        )
+
+
+def test_mp3_intake_rejects_aliasing_original_and_derived_asset_ids():
+    ffmpeg, original = mp3_fixture()
+    def writer(shop, campaign, mp3, wav_bytes, receipt):
+        alias = str(uuid4())
+        return {
+            "asset_id": alias, "derived_wav_asset_id": alias,
+            "atomic_pair_committed": True,
+            "shop_id": shop, "campaign_id": campaign,
+            "original_mp3_sha256": receipt["original_mp3_sha256"],
+            "derived_wav_sha256": receipt["derived_wav_sha256"],
+            "review_state": "PENDING_RIGHTS_AND_SPEECH_REVIEW",
+            "private": True,
+        }
+    with pytest.raises(VoiceUploadRejected, match="pair not registered"):
+        accept_unreviewed_mp3(
+            shop_id=SHOP, campaign_id=CID, plan=creative(),
+            original_mp3=original, operator_ffmpeg_path=ffmpeg,
+            authenticated_editor=lambda *a: True,
+            read_authoritative_plan=lambda *a: creative(),
+            store_both_private_pending=writer,
+        )
