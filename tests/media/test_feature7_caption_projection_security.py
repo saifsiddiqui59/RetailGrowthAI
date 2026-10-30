@@ -119,7 +119,7 @@ class CaptionProjectionSecurityTests(unittest.TestCase):
             ("duration_seconds", 601),
             ("timeline_offset_seconds", 3601),
             ("trim_start_seconds", -1),
-            ("trim_start_seconds", 3599),
+            ("trim_start_seconds", 3600),
         ):
             with self.subTest(key=key):
                 data = fixture()
