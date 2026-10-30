@@ -320,5 +320,5 @@ test('cancelled native clip drag cannot reorder on a later unrelated drop',async
  await page.getByRole('button',{name:'Submit authorized render'}).click()
  await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
  const submitted=await page.evaluate(()=>window.__feature4Renders[0].scenes.map(scene=>scene.headline))
- expect(submitted).toEqual(original.map(label=>label.replace(/^Scene \\d+: /,'')))
+ expect(submitted).toEqual(original.map(label=>label.replace(/^Scene \d+: /,'')))
 })
