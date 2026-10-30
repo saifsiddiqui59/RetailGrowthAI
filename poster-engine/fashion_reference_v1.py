@@ -151,13 +151,20 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
 
 def _model_approval(shop, model_id, image, read_model):
     model = read_model(shop, _id(model_id, require_random=False))
+    # PostgreSQL text[] must remain an explicit, bounded list. A string or
+    # mapping containing "video_reference" is not an approved use grant.
+    uses = model.get("approved_uses") if isinstance(model, dict) else None
+    allowed_uses = {"poster", "try_on", "video_reference"}
+    if (type(uses) is not list or not 1 <= len(uses) <= 3 or
+        any(type(use) is not str or use not in allowed_uses for use in uses) or
+        len(set(uses)) != len(uses) or "video_reference" not in uses):
+        raise FashionReferenceDenied("Model catalog approval or current rights missing")
     if (not isinstance(model, dict) or model.get("model_id") != model_id or
         model.get("owner_shop_id") != shop or
         model.get("media_asset_id") != image["source_asset_id"] or
         model.get("status") != "APPROVED" or
         model.get("rights_verified") is not True or
         model.get("synthetic_adult") is not True or
-        "video_reference" not in (model.get("approved_uses") or []) or
         model.get("image_sha256") != image["sha256"] or
         type(model.get("rights_revision")) is not int or
         model["rights_revision"] < 1 or
