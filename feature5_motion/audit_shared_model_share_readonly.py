@@ -16,6 +16,34 @@ MARKER = "models-sha256-manifest.json"
 MANIFEST_MAX_BYTES = 64 * 1024
 
 
+def _decode_private_marker(data):
+    """Fail closed on ambiguous untrusted Azure marker JSON (not weight proof)."""
+    if type(data) is not bytes or not 1 <= len(data) <= MANIFEST_MAX_BYTES:
+        raise PreflightError("Completion marker bytes missing or oversized")
+
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise PreflightError("Duplicate completion marker JSON key")
+            result[key] = value
+        return result
+
+    def reject_nonfinite(_value):
+        raise PreflightError("Nonfinite completion marker JSON number")
+
+    try:
+        parsed = json.loads(
+            data.decode("utf-8"), object_pairs_hook=unique_object,
+            parse_constant=reject_nonfinite,
+        )
+    except (ValueError, UnicodeError, RecursionError, OverflowError) as exc:
+        raise PreflightError("Malformed or ambiguous completion marker JSON") from exc
+    if type(parsed) is not dict:
+        raise PreflightError("Completion marker must be a JSON object")
+    return parsed
+
+
 def audit_share(share):
     """Pure read-only SDK interface; trivial to test with a fake share."""
     properties = share.get_share_properties()
@@ -25,20 +53,34 @@ def audit_share(share):
     marker_info = marker.get_file_properties()
     if type(marker_info.size) is not int or not 1 <= marker_info.size <= MANIFEST_MAX_BYTES:
         raise PreflightError("Missing, empty or oversized completion marker")
-    data = marker.download_file(max_concurrency=1).readall()
-    if not isinstance(data, bytes) or len(data) != marker_info.size:
+    # Bound network bytes to the small HEAD-verified marker, even if a writer
+    # expands the object between properties and download. This never reads weights.
+    data = marker.download_file(
+        offset=0, length=marker_info.size, max_concurrency=1,
+    ).readall()
+    if type(data) is not bytes or len(data) != marker_info.size:
         raise PreflightError("Manifest readback size mismatch")
+    after_info = marker.get_file_properties()
+    if type(after_info.size) is not int or after_info.size != marker_info.size:
+        raise PreflightError("Completion marker changed during readback")
+    before_etag = getattr(marker_info, "etag", None)
+    after_etag = getattr(after_info, "etag", None)
+    if ((before_etag is None) != (after_etag is None) or
+        (before_etag is not None and (
+            type(before_etag) is not str or not before_etag or
+            after_etag != before_etag))):
+        raise PreflightError("Completion marker ETag changed during readback")
+    manifest = _decode_private_marker(data)
     try:
-        manifest = json.loads(data.decode("utf-8"))
-    except (ValueError, UnicodeError) as exc:
-        raise PreflightError("Completion marker is not valid UTF8 JSON") from exc
-    revisions = validate_manifest(manifest)
+        revisions = validate_manifest(manifest)
+    except (TypeError, KeyError, AttributeError) as exc:
+        raise PreflightError("Malformed completion marker fields") from exc
     for proof in manifest["files"]:
         path = proof["path"]
         file_info = share.get_file_client(path).get_file_properties()
         meta = file_info.metadata or {}
         size, sha256, _ = EXPECTED[path]
-        if file_info.size != size or meta.get("complete") != "true" or meta.get("sha256") != sha256:
+        if type(file_info.size) is not int or file_info.size != size or type(meta) is not dict or meta.get("complete") != "true" or meta.get("sha256") != sha256:
             raise PreflightError("Azure file properties differ from integrity-proved upload: " + path)
         if meta.get("revision") != proof["revision"]:
             raise PreflightError("Azure file pinned upstream revision differs from manifest: " + path)
