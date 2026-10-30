@@ -447,3 +447,27 @@ test('editing the draft while render ACK pending invalidates old response and pe
  await page.evaluate(()=>window.__feature4RaceSettle(1))
  await expect(page.getByLabel('Signed private rendered video')).toBeVisible()
 })
+
+
+test('creative approval revoke-and-restore invalidates prior render ACK',async({page})=>{
+ await page.goto('/')
+ await page.evaluate(async shop=>{
+   const {mountFeature4RenderRace}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
+   mountFeature4RenderRace({shop})
+ },SHOP)
+ await expect(page.getByRole('heading',{name:'Professional Video Studio'})).toBeVisible()
+ await page.getByRole('button',{name:'Submit authorized render'}).click()
+ await expect.poll(()=>page.evaluate(()=>window.__feature4RaceRequests.length)).toBe(1)
+ // A new (intentionally invalid) approval locks render options; revoking
+ // it without replacing the shop must still invalidate prior ACK authority.
+ await page.evaluate(()=>window.__feature4RaceSetDirection({invalid:true}))
+ await expect(page.getByRole('button',{name:'Submit authorized render'})).toBeDisabled()
+ await page.evaluate(()=>window.__feature4RaceSetDirection(null))
+ await expect(page.getByRole('button',{name:'Submit authorized render'})).toBeEnabled()
+ await page.evaluate(()=>window.__feature4RaceSettle(0))
+ await expect(page.getByLabel('Signed private rendered video')).toHaveCount(0)
+ await page.getByRole('button',{name:'Submit authorized render'}).click()
+ await expect.poll(()=>page.evaluate(()=>window.__feature4RaceRequests.length)).toBe(2)
+ await page.evaluate(()=>window.__feature4RaceSettle(1))
+ await expect(page.getByLabel('Signed private rendered video')).toBeVisible()
+})
