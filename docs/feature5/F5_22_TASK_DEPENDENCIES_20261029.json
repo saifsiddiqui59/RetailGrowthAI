@@ -114,7 +114,8 @@
       "acceptance_criteria": "Build digest, ABI, legal and SBOM verified",
       "source_evidence_20261030": "OCI/source and wheel security hardening #688/#694/#698; each separate exact-head 4/4 CI pass. Genuine immutable CUDA image, legal distribution, ABI/SBOM remain unverified.",
       "no_production_authority": true,
-      "source_evidence_batch2_20261030": "Hardens actual local safetensors header parser: duplicate-key/nonfinite/deep JSON rejection, tensor offset and shape validation, symlink/hardlink refusal; synthetic CPU negative tests. Not original weight full SHA, actual OCI or legal approval."
+      "source_evidence_batch2_20261030": "Hardens actual local safetensors header parser: duplicate-key/nonfinite/deep JSON rejection, tensor offset and shape validation, symlink/hardlink refusal; synthetic CPU negative tests. Not original weight full SHA, actual OCI or legal approval.",
+      "source_evidence_parent_20261030": "Latest F5 parent #465 OCI reader #41040856412 4/4 exact-head: descriptor identity, symlink/hardlink refusal, read stability; #781 reconciliation preserves duplicate-key/nonfinite/deep JSON denial. Still no real independently approved OCI, CUDA ABI/SBOM/licenses."
     },
     {
       "task": 14,

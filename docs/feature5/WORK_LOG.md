@@ -330,3 +330,16 @@ Verified F5 draft #465 `82dad625`, F2 #551 open, F4 #322 open, Part3 #125 open a
 - **F5-14:** private mount stat gate rejects symlinked *intermediate directories* and hardlinked model paths, with fake tiny file tests. Real Azure Files mount/current protected SHA unverified.
 - **F5-17:** native ffprobe intake rejects non-ASCII/fractional/type-coerced 121-frame receipts and malformed deep JSON. Objective five-timepoint RGB frame screening revalidates the same original MP4 hash after decode, denying replaced bytes; tests mock local FFmpeg and do not produce a genuine Wan clip.
 - Preserve original 22-task ledger **0 integrated DONE, 3 IN PROGRESS, 19 BLOCKED**. The final #781 head needs a fresh four-job combined CI. Only the coordinator integrates parent/main and updates shared docs/status receipts. GPU, paid models, PROD/hosted SQL, user-visible samples and WineShopPOS untouched.
+
+## 2026-10-30 — F5-13 offline OCI review-manifest fail-closed hardening (source only)
+
+- Task ID: **F5-13** / dependency **F5-OCI**, owner Feature5/Runtime. Current task status remains **IN PROGRESS**, not integrated DONE.
+- Verified coordinator task registry and source ledger; PR #465 remains open/unmerged, stacked on PR #323. Feature2 PR #551 remains unmerged; no real original exporter integration claimed.
+- Implemented review JSON hardening in feature5_motion/infra/wan22_build_context_gate.py: bounded opened file, no symlink/hardlink, stable file identity/size/mtime across read, reject duplicate nested keys, non-finite JSON constants and non-object roots. Added deterministic synthetic negative tests in tests/ai/test_feature5_wan22_build_context_gate.py. Source commits 3dd7a2858d6e98e1beef9c19450da92133817912 and 5ecc363a62efb7e694085541154f868969f50f21.
+- Exact-head CI for 5ecc363a62efb7e694085541154f868969f50f21 was queued at checkpoint (Actions #41040798957); **not** claimed passed. Prior af4cc21b four-job success is not evidence for these changes. No local full checkout/test runner was available.
+- Remaining F5-13 acceptance: independently reviewed real CUDA base image digest/bytes, complete pinned wheelhouse, license/SBOM/ABI review and actual OCI build digest. Owner Feature5/Runtime; source-only tests cannot satisfy these gates.
+- F5-14 requires private read-only mount and streaming original three Wan checkpoints with exact SHA/size; no real weights read. F5-02 requires authentic F2 PR #551 exporter bytes (owner Feature2/Coordinator). Fixtures are not customer media.
+- GPU OFF; no paid inference, model download, Azure/Supabase writes, PROD edits, user samples or WineShopPOS changes. Only coordinator may merge and update canonical shared docs/task_progress after verified acceptance.
+
+## 2026-10-30 — F5-13 parent reconciliation with combined GPU-OFF branch
+- Confirmed F5 parent #465 source revision `692a4955` passed 4/4 Actions #41040856412. Parent newly added file-descriptor-stable/symlink/hardlink-safe OCI review-manifest input (#F5-13). Reconciled this stricter parser into #781 while retaining the batched recursive JSON denial tests and all disjoint F5-02/F5-14/F5-17 code. Review/CI must use the **merged exact two-parent head**, not earlier green branches. No CUDA/GPU/paid inference/hosted mutation/PROD/WineShopPOS.

@@ -1,9 +1,8 @@
 """Composite no-GPU image-build gate, using SYNTHETIC wheel/source bytes."""
 from __future__ import annotations
 
-import json
-
 import copy
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -59,7 +58,7 @@ class PrivateBuildManifestInputTests(unittest.TestCase):
                 with self.subTest(size=len(raw), prefix=raw[:24]):
                     path.write_text(raw)
                     with self.assertRaisesRegex(WanCompatibilityError,
-                                                "Unreadable reviewed manifest"):
+                                                "Unreadable or ambiguous reviewed manifest"):
                         _private_review_json(path)
 
 
@@ -106,6 +105,41 @@ class ComfyOfflineImageBuildGateTests(unittest.TestCase):
             copied["source_manifest"]["source_commit"]="0"*40
             with self.assertRaises(ValueError):
                 audit_wan22_build_context(**copied)
+
+
+    def test_review_manifest_rejects_duplicate_nonfinite_linked_and_non_object_json(self):
+        """Synthetic review inputs must not turn into an ambiguous OCI approval."""
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "review.json"
+            for raw in (
+                '{"source_commit":"a","source_commit":"b"}',
+                '{"nested":{"sha":"a","sha":"b"}}',
+                '{"digest":NaN}',
+                '{"digest":Infinity}',
+                '["not", "a", "manifest"]',
+                'null',
+                '{} trailing',
+            ):
+                with self.subTest(raw=raw):
+                    manifest.write_text(raw, encoding="utf-8")
+                    with self.assertRaises(WanCompatibilityError):
+                        _private_review_json(manifest)
+            manifest.write_text('{"sha":"synthetic-test-only"}', encoding="utf-8")
+            self.assertEqual(
+                _private_review_json(manifest), {"sha": "synthetic-test-only"}
+            )
+            symlink = root / "linked.json"
+            symlink.symlink_to(manifest)
+            with self.assertRaises(WanCompatibilityError):
+                _private_review_json(symlink)
+            import os
+            hardlink = root / "hardlinked.json"
+            os.link(manifest, hardlink)
+            with self.assertRaises(WanCompatibilityError):
+                _private_review_json(manifest)
+            with self.assertRaises(WanCompatibilityError):
+                _private_review_json(hardlink)
 
 
 if __name__=="__main__":
