@@ -18,3 +18,10 @@
 - Test commit `33753aee27bd38f18994b040533c9cc5dd452621`: two synthetic malicious callbacks mutate score or signed receipt after first verification; expect fail-closed history-change denial.
 - Test execution: **not run locally** (connected GitHub file-edit interface; no local authenticated repository checkout). Exact-head PR CI must be inspected separately. No hosted reviewer, RLS, real voice, or commercial approval evidence.
 - NEXT eligible independent task: **F2-15** offline CPU benchmark evidence verification if not already covered in another active PR; otherwise inspect F2-29 FFmpeg decoder security. Do not modify canonical shared registry; coordinator reviews and merges.
+
+
+## Follow-up review after F2-08 code/test commits
+
+- Exact PR #842 head `2fd2d2c93d93e4eb66a99047a14df8a2a2147b47` had **no PR-triggered workflow runs returned** by the connected workflow lookup. This is **CI unverified**, not green.
+- Parent draft PR #551 head `f38bf815cad7d77b7cadd9aa8bff55759e86947c` has Actions run `40994887695`: frontend, FFmpeg, and Supabase jobs passed; Python failed **4 tests** (1523 passed, 6 skipped). Failure: `scripts/deploy/package.py` rejects `Duplicate or excessive ZIP members` (>120) in Gate2/release/rollback fixtures. Owner: **coordinator / issue #650**. Required output: approved packaging closure and exact-head 4/4, then postmerge main 4/4. Feature2 worker must not weaken ZIP-member security limits.
+- Independent-task search: F2-15 has draft PR #814, F2-29 #777/#720, F2-12 #829, F2-21 #780/#821, F2-10 #836; these are already in-flight, so no duplicate branch was opened. Next run should check their latest heads and choose a distinct owned task or advance F2-08 tests/CI.
