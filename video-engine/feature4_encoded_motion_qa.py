@@ -36,6 +36,15 @@ def _frame(path: Path, sec: float):
     return data
 
 
+def _media_sha256(path: Path):
+    """Stream original media SHA without buffering the entire private MP4."""
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def verify_moving_scenes(mp4: Path, *, seconds: int, scene_starts,
                          sample_offset=.8, separation=.7, threshold=5.0):
     """Measure mean absolute luma differences of reviewed moving scene windows.
@@ -64,6 +73,7 @@ def verify_moving_scenes(mp4: Path, *, seconds: int, scene_starts,
         raise MotionProofError("Rendered MP4 failed trusted codec/input preflight") from exc
     if abs(source["seconds"]-seconds) > .45:
         raise MotionProofError("Encoded video duration not as expected")
+    original_sha = _media_sha256(mp4)
     measured = []
     for start in scene_starts:
         a=_frame(Path(mp4),round(start+sample_offset,3))
@@ -73,10 +83,12 @@ def verify_moving_scenes(mp4: Path, *, seconds: int, scene_starts,
         if average < threshold:
             raise MotionProofError(
                 f"Expected moving scene near {start}s is frozen or insufficiently distinct")
+    if _media_sha256(mp4) != original_sha:
+        raise MotionProofError("Encoded Reel bytes changed during motion sampling")
     return {
         "status":"MOVING_PIXELS_VERIFIED_NOT_CONTENT_APPROVAL",
         "duration_seconds":seconds,
-        "source_sha256":hashlib.sha256(Path(mp4).read_bytes()).hexdigest(),
+        "source_sha256":original_sha,
         "threshold_luma_difference":threshold,
         "checked_moving_scenes":measured,
         "garment_fidelity_verified":False,
