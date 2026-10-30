@@ -11,3 +11,8 @@ New 15s actual FFmpeg synthetic regression encodes a real 0.8s black hold hidden
 Run full four-job exact-head branch CI, coordinator-reviewed integration to main and fresh main 4/4. Real **updated** 60s full-HD garment/motion/outro source and actual reviewer approval remain F4-01/F4-11/F4-12 separate gates. This technical control neither proves every isolated black frame nor transforms synthetic media into a commercial render.
 
 Ownership: Feature4 files only. Do not modify workflows, shared coordinator docs, signed auth, Azure, WineShopPOS, or launch GPU.
+
+## CI failure and actual corrective action (bounded first repair)
+
+- [Branch CI #41052416541](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41052416541) at `ae68b1f57f0166446e404e18ad4eba71aff39570`: 3/4 PASS, FFmpeg media 239/240 tests PASS, new real encoded gap regression FAILED closed with `Incomplete black-frame scan evidence`. Root cause was **over-escaped Python raw regex**: the pattern contained two backslashes before `d` and `s`, so FFmpeg `black_start:1.6 ...` numeric log never matched. No security/media acceptance gates were weakened.
+- Fixed regex to single-backslash Python raw digit/whitespace expressions and added an explicit numeric FFmpeg log parser unit test. New exact-head four-job CI required; do not count F4-11 as verified until green. Attempts: initial #1 failed, repaired #2 pending.

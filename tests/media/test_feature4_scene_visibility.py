@@ -82,6 +82,12 @@ class Feature4SceneVisibilityTests(unittest.TestCase):
         with self.assertRaisesRegex(VisibilityProofError,"blank/black"):
             verify_scene_visibility(self.path,seconds=15,scenes=SCENES)
 
+    def test_blackdetect_log_parses_numeric_events_not_literal_backslashes(self):
+        sample="[blackdetect @ 0x1] black_start:1.6 black_end:2.4 black_duration:0.8"
+        match=feature4_scene_visibility._BLACK_HOLD_RX.search(sample)
+        self.assertIsNotNone(match)
+        self.assertEqual(tuple(map(float,match.groups())),(1.6,2.4,0.8))
+
     def test_sustained_black_hold_between_all_five_interior_probes_rejected(self):
         # First five-second scene: red 1.6s, BLACK .8s, red 2.6s.
         # Interior samples .75/1.5/2.5/3.5/4.25 all see nonblack red.

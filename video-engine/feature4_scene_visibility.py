@@ -52,8 +52,8 @@ def _sha(path:Path):
 INTERIOR_SAMPLE_FRACTIONS=(.15,.30,.50,.70,.85)
 BLACK_HOLD_MIN_SECONDS=.65
 _BLACK_HOLD_RX=re.compile(
-    r"black_start:(\\d+(?:\\.\\d+)?)\\s+black_end:(\\d+(?:\\.\\d+)?)"
-    r"\\s+black_duration:(\\d+(?:\\.\\d+)?)"
+    r"black_start:(\d+(?:\.\d+)?)\s+black_end:(\d+(?:\.\d+)?)"
+    r"\s+black_duration:(\d+(?:\.\d+)?)"
 )
 
 
