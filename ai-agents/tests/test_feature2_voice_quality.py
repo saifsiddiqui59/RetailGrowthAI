@@ -54,6 +54,35 @@ def test_untrusted_f7_transcript_rejected(tamper):
         consume_feature7_stt(shop_id=SHOP,campaign_id=CID,
            source_sha256=PLAN,original_audio_sha256=SHA,
            expected_script="hello",transcript=p)
+@pytest.mark.parametrize("tamper", [
+    {"model_version": 123},
+    {"model_version": "model\\nforged"},
+    {"model_version": " "},
+    {"model_version": "x" * 121},
+])
+def test_f7_model_provenance_must_be_bounded_printable_text(tamper):
+    candidate = receipt(["hello"])
+    candidate.update(tamper)
+    with pytest.raises(VoiceQualityDenied, match="trusted Feature7"):
+        consume_feature7_stt(
+            shop_id=SHOP, campaign_id=CID, source_sha256=PLAN,
+            original_audio_sha256=SHA, expected_script="hello",
+            transcript=candidate)
+
+
+@pytest.mark.parametrize("bad_sha", ["foreign", "A" * 64, "a" * 63, None])
+def test_f7_source_and_original_audio_hashes_require_exact_lower_hex(bad_sha):
+    for source, original in ((bad_sha, SHA), (PLAN, bad_sha)):
+        candidate = receipt(["hello"])
+        candidate["creative_plan_sha256"] = source
+        candidate["original_audio_sha256"] = original
+        with pytest.raises(VoiceQualityDenied, match="trusted Feature7"):
+            consume_feature7_stt(
+                shop_id=SHOP, campaign_id=CID, source_sha256=source,
+                original_audio_sha256=original, expected_script="hello",
+                transcript=candidate)
+
+
 def test_nonmonotonic_word_timing_denied():
     p=receipt(["a","b"]);p["words"][1]["start"]=0.01
     with pytest.raises(VoiceQualityDenied):consume_feature7_stt(
