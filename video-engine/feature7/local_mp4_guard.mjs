@@ -12,7 +12,7 @@ export function verifiedLocalMp4Path(sourcePath, ErrorType=Error){
   check(typeof sourcePath==='string' && sourcePath.length<=4096 &&
     path.isAbsolute(sourcePath),'Absolute private MP4 path required');
   const before=fs.lstatSync(sourcePath);
-  check(before.isFile() && !before.isSymbolicLink() && before.size>12,
+  check(before.isFile() && !before.isSymbolicLink() && before.size>12 && before.size<=128*1024*1024,
     'Private analysis requires a regular MP4, not a link');
   const fd=fs.openSync(sourcePath,
     fs.constants.O_RDONLY|(fs.constants.O_NOFOLLOW??0));
