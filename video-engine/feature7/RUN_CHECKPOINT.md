@@ -13,3 +13,10 @@
 - **External acceptance blockers:** F7-L genuine licensed offline WhisperX weights, human reference speech and CPU accuracy benchmark; F7-H/K hosted tenant JWT/RLS and signed private intake; F7-J Feature4 reviewed editor/renderer execution. None is claimed complete by this offline subprocess fix.
 - **NEXT integration candidate:** F7-G stacked PR #846 (music ducking speech-cue validation). Check its base/parent diff, exact head and overlapping files before copying; then #840 review receipt time validation. Do not open another micro-PR or duplicate work already in #513.
 - **Safety:** GPU OFF; no paid inference, hosted SQL, PROD, WineShopPOS, or samples.
+
+## Second compatible source integration — F7-G
+- **Source PR:** #846, original child head `2e2106945cafa05ca38402d6b163d64a46e0195c` (draft, stacked). This branch was compared with the current parent since its base `0166d719be7e13cf8d5280217c97f9dcf9a050f7`; parent had no changes to either imported path.
+- **Files imported:** `video-engine/feature7/speech_music_handoff.mjs` (commit `5e1577ffbe0c6edd62b38190af9ce3172f493158`); `tests/media/test_feature7_music_ducking.py` (commit `2b942874bbf84c2d30848bdd1ed02879d28287ca`). These are existing speech-cue Unicode/clock validation changes and their offline regressions, not newly authored functionality.
+- **Verification:** GitHub exact-current-head 4/4 CI must be rechecked after this checkpoint commit; the earlier successful #41090018122 applied to the old parent SHA only. No claim that this combined head has passed yet.
+- **Merge gate:** PR #513 returned `mergeable=false` immediately after the first integration; determine whether this is a transient GitHub calculation or a real main conflict before requesting coordinator merge. Never force-merge or edit main.
+- **NEXT:** F7-G PR #840 (review receipt time bounds), compare base-to-parent paths first. If conflict, stop copying and prepare exact conflict evidence for coordinator. Then review #825 and #847/#846 source presence before closing any child PR.
