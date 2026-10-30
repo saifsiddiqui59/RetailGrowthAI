@@ -226,9 +226,19 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
             className={'f4-ts-clip '+(selected===i?'is-selected':'')}
             style={{left:span.start/draft.duration_seconds*100+'%',
               width:span.duration/draft.duration_seconds*100+'%'}}
-            onDragStart={()=>{dragFrom.current=i}}
-            onDragOver={e=>e.preventDefault()}
-            onDrop={e=>{e.preventDefault();if(dragFrom.current!==null){move(dragFrom.current,i);onSelectScene(i)}dragFrom.current=null}}
+            onDragStart={e=>{if (approvedDirection) {e.preventDefault();return} dragFrom.current=i}}
+            onDragEnd={()=>{dragFrom.current=null}}
+            onDragOver={e=>{if (dragFrom.current!==null && !approvedDirection)e.preventDefault()}}
+            onDrop={e=>{
+              if (dragFrom.current===null || approvedDirection)return
+              e.preventDefault()
+              const from=dragFrom.current
+              dragFrom.current=null
+              if (from!==i && from>=0 && from<draft.scenes.length) {
+                move(from,i)
+                onSelectScene(i)
+              }
+            }}
             onClick={()=>{onSelectScene(i);setPlayhead(span.start+span.duration/2)}}
             aria-label={'Scene '+(i+1)+': '+(draft.scenes[i].headline)}>
             <span className="f4-ts-clip-index">{i+1}</span>
