@@ -139,6 +139,31 @@ class SharedModelMountTests(unittest.TestCase):
                     manifest.unlink()
                     original.unlink()
 
+    def test_private_manifest_path_replacement_after_open_is_denied(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            manifest = root / "private.json"
+            moved = root / "moved.json"
+            manifest.write_text(json.dumps(sample()), encoding="utf-8")
+            real_read = os.read
+            swapped = False
+
+            def swap_after_read(fd, count):
+                nonlocal swapped
+                block = real_read(fd, count)
+                if block and not swapped:
+                    swapped = True
+                    manifest.rename(moved)
+                    # Recreate a valid but different inode at the original path.
+                    manifest.write_text(json.dumps(sample()), encoding="utf-8")
+                return block
+
+            with patch.object(m.os, "read", side_effect=swap_after_read):
+                with self.assertRaises(m.PreflightError):
+                    m.read_private_manifest(manifest)
+            self.assertTrue(swapped)
+
     def test_stat_only_mount_rejects_intermediate_links_and_hardlinks(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as td:
