@@ -7,3 +7,14 @@ export function boundedFrameSeek(requestedSeconds, durationSeconds, fps) {
   const bounded = Math.min(durationSeconds, Math.max(0, requestedSeconds))
   return Math.min(durationSeconds, Math.max(0, Math.round(bounded * fps) / fps))
 }
+
+// Scene click navigation must share the same frame boundary as timecode/keyboard.
+// Invalid or out-of-bounds spans are not usable preview positions.
+export function boundedSceneMidpointSeek(startSeconds, sceneDurationSeconds, durationSeconds, fps) {
+  if (!Number.isFinite(startSeconds) || !Number.isFinite(sceneDurationSeconds) ||
+      !Number.isFinite(durationSeconds) || startSeconds < 0 ||
+      sceneDurationSeconds <= 0 || durationSeconds <= 0 ||
+      startSeconds >= durationSeconds ||
+      sceneDurationSeconds > durationSeconds - startSeconds + 1e-6) return null
+  return boundedFrameSeek(startSeconds + sceneDurationSeconds / 2, durationSeconds, fps)
+}
