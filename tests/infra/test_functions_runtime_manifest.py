@@ -77,6 +77,22 @@ class FunctionsRuntimeManifestTests(unittest.TestCase):
                         ):
                             mod.verify_runtime_agent_imports(candidate)
 
+    def test_aliased_importlib_module_calls_fail_closed(self):
+        # A source-only worker can import through either legal alias form.
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp)
+            (home / "offline_voice.py").write_text("SAFE_TEST_FIXTURE = True\\n", encoding="utf-8")
+            forms = (
+                b"from importlib import import_module as load; load('ai_agents.offline_voice')\\n",
+                b"import importlib as il; il.import_module('ai_agents.offline_voice')\\n",
+            )
+            with patch.object(mod, "AGENTS", home):
+                for statement in forms:
+                    with self.subTest(statement=statement):
+                        candidate = {"ai_agents/schemas.py": statement}
+                        with self.assertRaisesRegex(ValueError, "Undeclared ai_agents runtime import"):
+                            mod.verify_runtime_agent_imports(candidate)
+
     def test_exported_symbol_is_not_mistaken_for_excluded_module(self):
         with tempfile.TemporaryDirectory() as temp:
             home = Path(temp)
