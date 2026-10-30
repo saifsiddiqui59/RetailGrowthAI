@@ -1,5 +1,6 @@
 """CPU-only, zero-cloud tests for shared Feature3/Feature5 Azure Files mount plan."""
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
