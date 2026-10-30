@@ -5,7 +5,7 @@ Status: **IN PROGRESS / source-only**. This is not an integrated DONE task.
 ## Scoped change
 - Reject `bool` and `float` in original Feature2 `shot_start_seconds` and `duration_seconds` fields, even when Python numeric equality would accept them as integer 0 or 5.
 - Preserve the original Feature2-to-Feature4/5 storyboard receipt as synthetic/offline only, never provider permission.
-- Add deterministic negative tests for `False`, `0.0`, `5.0` and second-shot `5.0`. These tests do not invoke any model, GPU, Azure, Supabase or paid service.
+- Reject a matched but malformed original camera/lighting payload even when Feature4 and Feature5 agree on the same invalid values. Require the four expected camera fields and nonempty string instructions.\n- Add deterministic negative tests for `False`, `0.0`, `5.0`, second-shot `5.0`, malformed camera fields and missing/blank lighting. These tests do not invoke any model, GPU, Azure, Supabase or paid service.
 
 ## Task-manager handoff for coordinator
 - **Task ID:** F5-02
