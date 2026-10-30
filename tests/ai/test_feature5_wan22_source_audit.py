@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import hashlib
+import os
+from unittest.mock import patch
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
+from feature5_motion.infra import wan22_source_audit as audit
 from feature5_motion.infra.wan22_source_audit import (
     COMFY_SOURCE_COMMIT, REQUIRED, SourceAuditError,
     validate_source_manifest, audit_complete_vendor_checkout, main,
@@ -68,6 +71,46 @@ class SourceAuditTests(unittest.TestCase):
             p.symlink_to(Path(td)/"comfy_extras",target_is_directory=True)
             with self.assertRaisesRegex(SourceAuditError,"Symlinked"):
                 audit_complete_vendor_checkout(td,reviewed_manifest=m)
+
+    def test_external_hardlink_of_reviewed_source_is_denied(self):
+        """A valid digest does not make mutable multiply-linked source safe."""
+        with TemporaryDirectory() as td:
+            vendor = Path(td) / "vendor"
+            vendor.mkdir()
+            manifest = fixture(vendor)
+            os.link(vendor / "nodes.py", Path(td) / "outside-alias.py")
+            with self.assertRaisesRegex(SourceAuditError, "linked"):
+                audit_complete_vendor_checkout(vendor, reviewed_manifest=manifest)
+
+    def test_source_path_replaced_after_descriptor_open_is_denied(self):
+        """The hash of a displaced inode must not attest its old pathname."""
+        with TemporaryDirectory() as td:
+            vendor = Path(td) / "vendor"
+            vendor.mkdir()
+            manifest = fixture(vendor)
+            target = vendor / "nodes.py"
+            displaced = Path(td) / "displaced.py"
+            replacement = Path(td) / "replacement.py"
+            replacement.write_bytes(target.read_bytes())
+            original_inode = target.stat().st_ino
+            original_fstat = os.fstat
+            target_calls = 0
+
+            def replace_on_final_fstat(fd):
+                nonlocal target_calls
+                opened = original_fstat(fd)
+                if opened.st_ino == original_inode:
+                    target_calls += 1
+                    if target_calls == 2:
+                        os.replace(target, displaced)
+                        os.replace(replacement, target)
+                return original_fstat(fd)
+
+            with patch.object(audit.os, "fstat", side_effect=replace_on_final_fstat):
+                with self.assertRaisesRegex(SourceAuditError, "changed"):
+                    audit_complete_vendor_checkout(vendor, reviewed_manifest=manifest)
+            self.assertEqual(target_calls, 2)
+            self.assertNotEqual(target.stat().st_ino, displaced.stat().st_ino)
 
     def test_pinned_commit_marker_is_not_sufficient_and_unsafe_paths_denied(self):
         with TemporaryDirectory() as td:
