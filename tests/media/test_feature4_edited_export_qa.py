@@ -20,8 +20,11 @@ class EncodedEditorParityTests(unittest.TestCase):
         self.file = self.root / "mock-only.mp4"
         self.file.write_bytes(b"encoded-mock-packets" * 200)
         self.profile = {"width": 540, "height": 960, "seconds": 30.0}
+        # 2s, 7s, 16s, 24s scene samples, then 3s and 17s
+        # same-scene motion samples. These are synthetic pixel fixtures.
         self.valid = (bytes([20])*9216, bytes([70])*9216,
-                      bytes([24])*9216, bytes([120])*9216)
+                      bytes([24])*9216, bytes([120])*9216,
+                      bytes([21])*9216, bytes([25])*9216)
 
     def prove(self, frames=None):
         with patch.object(qa, "inspect_mp4", return_value=self.profile), \
@@ -33,16 +36,30 @@ class EncodedEditorParityTests(unittest.TestCase):
         self.assertEqual(proof["timeline_starts_seconds"], [0, 4, 14, 20])
         self.assertEqual(proof["source_sha256"],
                          hashlib.sha256(self.file.read_bytes()).hexdigest())
+        self.assertEqual(proof["first_video_encoded_motion_delta"], 1.0)
+        self.assertEqual(proof["trimmed_video_encoded_motion_delta"], 1.0)
+        self.assertEqual(proof["encoded_motion_threshold"], 0.25)
         self.assertFalse(proof["exact_inpoint_frame_verified"])
         self.assertFalse(proof["human_visual_approval"])
         self.assertFalse(proof["commercial_release_eligible"])
 
     def test_replayed_video_or_wrong_scene_order_denied(self):
-        v1, p1, v2, p2 = self.valid
+        v1, p1, v2, p2, m1, m2 = self.valid
         for frames in ((v1,p1,v1,p2), (p1,v1,v2,p2),
                        (v1,p1,p2,p2), (v1,v1,v2,p2), (v1,p1,v2,p1)):
             with self.subTest(variant=frames[:1]), \
                  self.assertRaises(EditorExportProofError):
+                self.prove((*frames, m1, m2))
+
+    def test_frozen_source_video_segments_are_denied(self):
+        v1, p1, v2, p2, m1, m2 = self.valid
+        # Different stills in the two video scenes used to pass the
+        # scene-order gate despite no decoded motion inside either clip.
+        for frames in ((v1,p1,v2,p2,v1,m2),
+                       (v1,p1,v2,p2,m1,v2),
+                       (v1,p1,v2,p2,v1,v2)):
+            with self.subTest(frozen=frames[-2:]), \
+                 self.assertRaisesRegex(EditorExportProofError, "order/inpoint"):
                 self.prove(frames)
 
     def test_mutated_input_and_wrong_duration_denied(self):
