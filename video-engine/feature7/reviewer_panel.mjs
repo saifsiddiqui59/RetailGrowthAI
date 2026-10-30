@@ -143,7 +143,9 @@ export function mountFeature7ReviewPanel({
       if(result===false)throw Error('Trusted host rejected review request');
       feedback.textContent='Request forwarded to trusted host. Approval is not confirmed.';
       if(result&&typeof result.then==='function')
-        Promise.resolve(result).catch(()=>{
+        Promise.resolve(result).then(accepted=>{
+          if(accepted===false)throw Error('Trusted host rejected review request');
+        }).catch(()=>{
           if(disposed||epoch!==reviewRequestEpoch)return;
           reviewSubmissionPending=false;update();
           feedback.textContent='Request failed. No approval was recorded.';
@@ -230,7 +232,9 @@ export function mountFeature7ReviewPanel({
         feedbackCaptions.textContent=
           'Correction request forwarded to trusted host. Approval not confirmed.';
         if(result&&typeof result.then==='function')
-          Promise.resolve(result).catch(()=>{
+          Promise.resolve(result).then(accepted=>{
+            if(accepted===false)throw Error('Trusted host rejected caption review');
+          }).catch(()=>{
             if(disposed||epoch!==captionRequestEpoch)return;
             captionSubmissionPending=false;updateCaptionEditor();
             feedbackCaptions.textContent='Caption request failed. No approval was recorded.';
