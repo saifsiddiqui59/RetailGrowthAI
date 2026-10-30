@@ -80,11 +80,11 @@ class Feature7VisualProtocolTests(unittest.TestCase):
         linked.symlink_to(self.source)
         playlist = self.home / 'playlist.mp4'
         playlist.write_text(
-            '#EXTM3U\\n#EXT-X-STREAM-INF:BANDWIDTH=128000\\n'
-            'https://example.invalid/remote.ts\\n')
+            '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=128000\n'
+            'https://example.invalid/remote.ts\n')
         fake_mp4 = self.home / 'fake.mp4'
         fake_mp4.write_bytes(
-            b'\\x00\\x00\\x00\\x18ftypisom' +
+            b'\x00\x00\x00\x18ftypisom' +
             b'https://example.invalid/remote.ts')
         for mode in ('visual', 'scene'):
             for source in (linked, self.home, playlist, fake_mp4):
