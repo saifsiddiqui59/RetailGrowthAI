@@ -100,6 +100,8 @@ def test_structural_node_attestation_denies_elf_header_and_segment_spoofing():
     struct.pack_into("<H", fake, 52, 64)  # ELF64 header size
     struct.pack_into("<HH", fake, 54, 56, 1)  # one 56-byte program header
     struct.pack_into("<II", fake, 64, 1, 5)  # PT_LOAD, readable + executable
+    struct.pack_into("<Q", fake, 72, 128)  # file offset
+    struct.pack_into("<QQ", fake, 96, 1, 1)  # p_filesz, p_memsz
     assert _node_binary_attested(bytes(fake), sha256(fake).hexdigest())
     for offset, fmt, bad in (
         (16, "<H", 0),  # no executable/shared-object ELF type
@@ -107,6 +109,18 @@ def test_structural_node_attestation_denies_elf_header_and_segment_spoofing():
         (52, "<H", 0),  # invalid ELF header size
         (64, "<I", 0),  # no PT_LOAD program segment
         (68, "<I", 4),  # loadable but not executable
+    ):
+        tampered = bytearray(fake)
+        struct.pack_into(fmt, tampered, offset, bad)
+        assert not _node_binary_attested(
+            bytes(tampered), sha256(tampered).hexdigest()
+        )
+    for offset, fmt, bad in (
+        (72, "<Q", len(fake) + 1),  # executable bytes start beyond file
+        (72, "<Q", len(fake)),  # nonempty segment cannot start at EOF
+        (96, "<Q", 0),  # empty executable load segment
+        (96, "<Q", len(fake)),  # segment extends beyond signed file
+        (104, "<Q", 0),  # mapped memory smaller than file bytes
     ):
         tampered = bytearray(fake)
         struct.pack_into(fmt, tampered, offset, bad)
