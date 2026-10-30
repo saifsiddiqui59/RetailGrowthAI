@@ -371,9 +371,10 @@ test('timeline frame seek actually targets current signed preview without changi
   const video = page.getByLabel('Signed private rendered video')
   await expect(video).toBeVisible()
   const timecode = page.getByRole('textbox',{name:'Playhead timecode'})
-  await timecode.fill('00:00:06:12')
+  // The actual default draft is 30 FPS: frame 15, not frame 12, is .5s.
+  await timecode.fill('00:00:06:15')
   await timecode.press('Enter')
-  await expect(timecode).toHaveValue('00:00:06:12')
+  await expect(timecode).toHaveValue('00:00:06:15')
   await expect.poll(() => video.evaluate(node => node.currentTime)).toBe(6.5)
   await page.getByRole('button',{name:/Scene 2:/}).click()
   await expect(timecode).toHaveValue('00:00:07:15')
