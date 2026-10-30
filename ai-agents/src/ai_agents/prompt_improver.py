@@ -148,9 +148,20 @@ def improve_prompt(
                 0 < approved_cost_limit_usd <= 0.25 and callable(provider)):
             raise PermissionError("Paid provider requires explicit feature, quota and cost approval")
         candidate = provider(base)
+        # A provider may preserve the retailer's verbatim request yet smuggle
+        # a different unsupported offer, stock or price into extra prose.
+        # Compare bounded claim occurrences with the already-reviewed
+        # canonical request. This is review-only, not retail fact approval.
+        from collections import Counter
+        source_claims = Counter(m.group().casefold() for m in
+                                UNVERIFIED_CLAIM.finditer(base))
+        extra_claims = (Counter(m.group().casefold() for m in
+                                UNVERIFIED_CLAIM.finditer(candidate))
+                        if isinstance(candidate, str) else Counter())
         if (not isinstance(candidate, str) or len(candidate) > 1500 or
                 original not in candidate or UNSAFE_INPUT.search(candidate) or
-                RESTRICTED.search(candidate) or UNSUPPORTED.search(candidate)):
+                RESTRICTED.search(candidate) or UNSUPPORTED.search(candidate) or
+                any(n > source_claims[claim] for claim,n in extra_claims.items())):
             raise ValueError("Provider returned an unreviewable or unsafe prompt")
         result_prompt = candidate
         usage = {"paid_inference_calls": 1, "estimated_paid_cost_usd": None,
@@ -289,14 +300,31 @@ def commit_reviewed_prompt_draft(*, shop_id, campaign_id, proposal_id,
         saved.get("shop_id")!=shop_id or
         saved.get("campaign_id")!=campaign_id or
         saved.get("proposal_id")!=proposal_id or
+        saved.get("source_revision")!=expected_revision or
         saved.get("revision")!=expected_revision+1 or
+        saved.get("original_prompt_sha256")!=original_sha or
         saved.get("improved_prompt_sha256")!=proposed_sha or
         saved.get("review_event_id")!=review_event_id or
+        saved.get("review_status")!="DRAFT" or
         saved.get("private") is not True or
-        saved.get("committed") is not True):
+        saved.get("committed") is not True or
+        saved.get("can_publish") is not False or
+        saved.get("can_dispatch_paid_motion") is not False or
+        saved.get("provider_call_made") is not False):
         raise PromptRevisionRejected("Durable source-locked private draft save unavailable")
+    # The CAS revision has moved from expected_revision to revision + 1.
+    # Rechecking the old draft would reject legitimate writes. The server
+    # must atomically fence its own transaction, while this final actor
+    # check denies returning success after a concurrent membership revoke.
+    if current_editor(shop_id,campaign_id) is not True:
+        raise PromptRevisionRejected("Editor revoked during private draft CAS")
     return {"schema":record["schema"],"shop_id":shop_id,
-            "campaign_id":campaign_id,"revision":expected_revision+1,
+            "campaign_id":campaign_id,
+            "proposal_id":proposal_id,
+            "review_event_id":review_event_id,
+            "source_revision":expected_revision,
+            "revision":expected_revision+1,
+            "original_prompt_sha256":original_sha,
             "improved_prompt_sha256":proposed_sha,
             "review_status":"DRAFT","private":True,
             "can_publish":False,"can_dispatch_paid_motion":False,
