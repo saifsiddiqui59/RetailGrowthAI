@@ -33,6 +33,7 @@ class SyntheticOriginalBranchProbeTests(unittest.TestCase):
         self.git_calls = []
         self.node_calls = []
         self.node_tamper = False
+        self.node_dirty_after_duration = None
 
     def fake_subprocess(self, argv, **kwargs):
         if argv[0] == "git":
@@ -42,7 +43,7 @@ class SyntheticOriginalBranchProbeTests(unittest.TestCase):
                 out = str(self.root) + "\n"
             elif query == ("rev-parse", "HEAD"):
                 out = self.git_head + "\n"
-            elif query == ("status", "--porcelain", "--untracked-files=no"):
+            elif query == ("status", "--porcelain", "--untracked-files=all"):
                 out = self.git_dirty
             elif query == ("ls-files", "--error-unmatch", "--", REL_EXPORTER.as_posix()):
                 out = REL_EXPORTER.as_posix() + "\n"
@@ -57,6 +58,8 @@ class SyntheticOriginalBranchProbeTests(unittest.TestCase):
         self.assertEqual(kwargs["env"]["RETAILGROWTH_GPU_ENABLED"], "false")
         duration = int(argv[2])
         self.node_calls.append(duration)
+        if duration == self.node_dirty_after_duration:
+            self.git_dirty = "?? ai-agents/creative-director/upstream/untracked-shadow.js\n"
         output = make_packet(duration)
         if self.node_tamper:
             output["review"]["signed_customer_approval"] = True
@@ -84,6 +87,7 @@ class SyntheticOriginalBranchProbeTests(unittest.TestCase):
         cases = (
             ("other SHA", "0"*40, ""),
             ("dirty original file", PINNED_F2_HEAD, " M ai-agents/creative-director/director.js\n"),
+            ("untracked module overlay", PINNED_F2_HEAD, "?? ai-agents/creative-director/upstream/evil.js\n"),
         )
         for name, sha, dirty in cases:
             with self.subTest(name=name):
@@ -99,6 +103,28 @@ class SyntheticOriginalBranchProbeTests(unittest.TestCase):
         (self.root / REL_EXPORTER).unlink()
         with self.assertRaises(WanCompatibilityError):
             verify_separate_feature2_checkout(self.root)
+
+    def test_original_checkout_drift_during_node_is_denied_before_success(self):
+        self.node_dirty_after_duration = 30
+        with patch("feature5_motion.f2_branch_export_probe.subprocess.run",
+                   side_effect=self.fake_subprocess), self.assertRaisesRegex(
+                       WanCompatibilityError, "untracked"):
+            probe_original_feature2_branch(self.root)
+        self.assertEqual(self.node_calls, [15, 30])
+        self.assertIn(
+            ("status", "--porcelain", "--untracked-files=all"), self.git_calls
+        )
+
+    def test_clean_original_is_rechecked_after_each_duration_and_at_report(self):
+        with patch("feature5_motion.f2_branch_export_probe.subprocess.run",
+                   side_effect=self.fake_subprocess):
+            probe_original_feature2_branch(self.root)
+        status_checks = [
+            args for args in self.git_calls if args ==
+            ("status", "--porcelain", "--untracked-files=all")
+        ]
+        # One initial check, three after Node and one final before receipt.
+        self.assertEqual(len(status_checks), 5)
 
     def test_invalid_original_stdout_never_yields_partial_success(self):
         self.node_tamper = True

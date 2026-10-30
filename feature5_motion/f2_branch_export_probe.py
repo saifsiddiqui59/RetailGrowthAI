@@ -51,8 +51,10 @@ def verify_separate_feature2_checkout(path: str | Path) -> Path:
         raise WanCompatibilityError("Unverified Feature2 original exporter revision")
     # A clean pinned commit is essential: test code must not attest an edited
     # producer or an uncommitted poisoned dependency as the original exporter.
-    if _git(root, "status", "--porcelain", "--untracked-files=no"):
-        raise WanCompatibilityError("Modified Feature2 source cannot establish original provenance")
+    # Untracked files can shadow a Node module or test fixture even while all
+    # tracked files match HEAD. Require a fully clean, untracked-free worktree.
+    if _git(root, "status", "--porcelain", "--untracked-files=all"):
+        raise WanCompatibilityError("Modified or untracked Feature2 source cannot establish original provenance")
     if _git(root, "ls-files", "--error-unmatch", "--", REL_EXPORTER.as_posix()) != REL_EXPORTER.as_posix():
         raise WanCompatibilityError("Feature2 exporter is not a pinned tracked original")
     return root
@@ -88,6 +90,9 @@ def probe_original_feature2_branch(path: str | Path) -> dict:
     mutations_checked = 0
     for duration in DURATIONS:
         original = _original_output(root, duration)
+        # The exporter can change tracked/untracked files while Node executes.
+        # Never attest stdout against a source tree that ceased to match HEAD.
+        verify_separate_feature2_checkout(root)
         proof = qualify_export_bytes(original, duration=duration)
         if (proof["duration_seconds"] != duration
                 or proof["segment_count"] != duration // 5
@@ -135,6 +140,8 @@ def probe_original_feature2_branch(path: str | Path) -> dict:
                     raise WanCompatibilityError("Tampered original Feature2 source was accepted")
     if len(durations) != 3 or mutations_checked != 7:
         raise WanCompatibilityError("Original Feature2 branch coverage incomplete")
+    # Check a last time after all mutations and before returning a report.
+    verify_separate_feature2_checkout(root)
     return {
         "schema": REPORT_SCHEMA,
         "feature2_original_git_commit": PINNED_F2_HEAD,
