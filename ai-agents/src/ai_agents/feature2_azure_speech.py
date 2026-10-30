@@ -178,6 +178,12 @@ class AzureSpeechNarration:
             raise SpeechRejected("Trusted voice request required")
         creative, review, script = _plan(plan, shop_id=request.shop_id,
                                           campaign_id=request.campaign_id)
+        # JSON-derived dataclass fields are not runtime type-checked.
+        # Deny malformed selectors before dictionary lookups or billing.
+        if (type(request.voice_id) is not str or
+            type(request.language) is not str or
+            type(request.speed) is not str):
+            raise SpeechRejected("Voice selection or explicit approval invalid")
         selected = _VOICES.get(request.voice_id)
         if (not selected or request.language != selected[1] or
             request.speed not in _RATES or type(request.preview) is not bool or
