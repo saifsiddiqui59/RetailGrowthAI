@@ -178,7 +178,7 @@ TINPUT="a"*64
 TKEY=b"offline-test-only-trace-hmac-key-32b"
 TNOW=1761720000000
 
-def trace_case(*,active=None,worker=None):
+def trace_case(*,active=None,worker=None,receipt_override=None):
     stored=[]
     def current(s,c,w,h):
         if active:
@@ -193,7 +193,8 @@ def trace_case(*,active=None,worker=None):
         assert data["customer_data_in_event"] is False
         stored.append(data)
         return {"shop_id":s,"campaign_id":c,"workflow_id":w,"event_id":e,
-                "sequence":n,"event_sha256":digest,"private":True,"committed":True}
+                "sequence":n,"event_sha256":digest,"private":True,"committed":True,
+                **(receipt_override or {})}
     def run(*,stage="AI_WRITER",status="SUCCEEDED",num=1,prior="0"*64,
             external=None,source=TINPUT,output="b"*64,eid=TEVENT,
             failure_code=None,evidence_class="SOURCE_ONLY"):
@@ -256,7 +257,8 @@ def test_trace_revocation_after_initial_read_denies_durable_append():
 
 from ai_agents.feature2_creative_quality import stage_blind_human_review_revision
 
-def human_case(*,verify=lambda *v:True,editor=lambda *v:True,rev=0):
+def human_case(*,verify=lambda *v:True,editor=lambda *v:True,rev=0,
+               receipt_override=None):
     candidates={"A":fixture(15),"B":fixture(30)}
     reviews=[{"candidate_id":candidate,"reviewer_id":reviewer,
               "scores":{k:3 for k in RUBRIC_WEIGHTS}}
@@ -267,7 +269,8 @@ def human_case(*,verify=lambda *v:True,editor=lambda *v:True,rev=0):
         stored.append(record)
         return {"shop_id":s,"campaign_id":c,
                 "experiment_id":e,"revision":revision+1,
-                "receipt_digest":digest,"private":True}
+                "receipt_digest":digest,"private":True,
+                **(receipt_override or {})}
     def run(**override):
         return stage_blind_human_review_revision(
             shop_id=TSHOP,campaign_id=TCAMP,
@@ -445,3 +448,52 @@ def test_private_trace_read_denies_revoked_role_and_changed_database():
     run,_=private_trace_history_case(reader=changing)
     with pytest.raises(Feature2TraceDenied,match="changed"):
         run()
+
+
+# User-supplied reviewer callbacks in these tests are synthetic mocks only.
+# Passing an HMAC or a mock signed score never certifies external reviewers.
+def test_private_trace_rejects_revocation_during_writer_return():
+    calls=[]
+    def authorize(*args):
+        calls.append(1)
+        return len(calls)<3
+    run,rows=trace_case(active=authorize)
+    with pytest.raises(Feature2TraceDenied,match="revoked during private append"):
+        run()
+    assert len(rows)==1  # Backend must separately roll back/compensate.
+    assert len(calls)==3
+
+
+@pytest.mark.parametrize("elevated",[
+    {"can_publish":True},
+    {"paid_motion_permitted":True},
+])
+def test_trace_never_accepts_publishing_privileges_from_private_cas(elevated):
+    run,rows=trace_case(receipt_override=elevated)
+    with pytest.raises(Feature2TraceDenied,match="append not verified"):
+        run()
+    assert len(rows)==1  # Synthetic writer effect is not an authorized release.
+
+
+def test_signed_blind_review_rejects_revocation_during_cas():
+    calls=[]
+    def authorize(*args):
+        calls.append(1)
+        return len(calls)<3
+    run,writes=human_case(editor=authorize)
+    with pytest.raises(Feature2TraceDenied,match="revoked during private revision"):
+        run()
+    assert len(calls)==3
+    assert len(writes)==1  # Real CAS must fence transactional authorization.
+
+
+@pytest.mark.parametrize("elevated",[
+    {"can_publish":True},
+    {"paid_motion_permitted":True},
+    {"review_status":"PUBLISHED"},
+])
+def test_blind_review_denies_store_publishing_or_paid_authority(elevated):
+    run,writes=human_case(receipt_override=elevated)
+    with pytest.raises(Feature2TraceDenied,match="revision not confirmed"):
+        run()
+    assert len(writes)==1

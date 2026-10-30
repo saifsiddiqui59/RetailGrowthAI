@@ -27,6 +27,40 @@ def _inspect(bytes_,seconds_limit):
     if type(bytes_) is not bytes or not 100<=len(bytes_)<=_MAX_ORIGINAL or \
        not bytes_.startswith(b"RIFF") or bytes_[8:12]!=b"WAVE":
         raise VoiceUploadRejected("Bounded original PCM WAV required")
+    # wave.open() stops at the first data chunk and does not check that the
+    # declared RIFF extent covers the entire submitted file. Never register
+    # unreviewed trailing bytes, duplicate data or hidden chunks as audio.
+    if int.from_bytes(bytes_[4:8],"little")!=len(bytes_)-8:
+        raise VoiceUploadRejected("Original WAV RIFF extent mismatch")
+    offset=12
+    seen_fmt=False
+    seen_data=False
+    data_bytes=None
+    chunks=0
+    while offset<len(bytes_):
+        if len(bytes_)-offset<8 or chunks>=32:
+            raise VoiceUploadRejected("Malformed or excessive original WAV chunks")
+        tag=bytes_[offset:offset+4]
+        size=int.from_bytes(bytes_[offset+4:offset+8],"little")
+        end=offset+8+size
+        padded_end=end+(size&1)
+        if padded_end>len(bytes_):
+            raise VoiceUploadRejected("Original WAV chunk exceeds RIFF extent")
+        if tag==b"fmt ":
+            if seen_fmt or seen_data:
+                raise VoiceUploadRejected("Duplicate or reordered WAV format")
+            seen_fmt=True
+        elif tag==b"data":
+            if seen_data or not seen_fmt:
+                raise VoiceUploadRejected("Multiple or unbound original WAV streams")
+            seen_data=True
+            data_bytes=size
+        elif size>65536:
+            raise VoiceUploadRejected("Excessive embedded WAV metadata")
+        offset=padded_end
+        chunks+=1
+    if not seen_fmt or not seen_data or offset!=len(bytes_):
+        raise VoiceUploadRejected("Complete original PCM chunks required")
     try:
         with wave.open(io.BytesIO(bytes_),"rb") as wav:
             if (wav.getnchannels() not in (1,2) or
@@ -35,8 +69,9 @@ def _inspect(bytes_,seconds_limit):
                 raise VoiceUploadRejected("Review requires PCM16 WAV")
             seconds=wav.getnframes()/wav.getframerate()
             actual=wav.readframes(wav.getnframes())
+            expected_bytes=wav.getnframes()*wav.getsampwidth()*wav.getnchannels()
             if (not 0.2<=seconds<=seconds_limit or
-                len(actual)!=wav.getnframes()*wav.getsampwidth()*wav.getnchannels()):
+                data_bytes!=expected_bytes or len(actual)!=expected_bytes):
                 raise VoiceUploadRejected("Narration duration/bytes invalid")
     except (EOFError,OSError,ValueError,wave.Error) as exc:
         raise VoiceUploadRejected("Original WAV cannot be independently inspected") from exc
@@ -106,7 +141,7 @@ def decode_unreviewed_mp3_to_private_wav(*, original_mp3, max_seconds,
         not (original_mp3.startswith(b"ID3") or
              (original_mp3[0]==0xff and original_mp3[1] & 0xe0==0xe0)) or
         type(max_seconds) is not int or max_seconds not in (15,30,60) or
-        type(operator_ffmpeg_path) not in (str,Path)):
+        type(operator_ffmpeg_path) not in (str,type(Path()))):
         raise VoiceUploadRejected("Bounded MPEG layer-3 original required")
     binary=Path(operator_ffmpeg_path)
     if (not binary.is_absolute() or not binary.is_file() or
