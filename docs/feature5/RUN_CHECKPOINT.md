@@ -55,3 +55,10 @@ Central `coordination/feature_tasks.json` snapshot: F5 total 22, source-complete
 - **Source parents:** batch #781 `18cbc016b0a2914c886e75328366d46f85901901`; prior #819 `36fc11a878dd0325df097a6482c1239d58e73e44`.
 - **Evidence:** source/tree reconciliation only; targeted Python tests and exact-head CI are **NOT VERIFIED**. New head/CI must be checked after commit. No model weights read, GPU remains OFF.
 - **NEXT:** review resulting PR #819 diff/mergeability, run targeted tests and exact-head 4/4; coordinator may then integrate stack into #781 and verify parent chain before main. F5-13 OCI/SBOM remains independently blocked by external evidence.
+
+## 2026-10-30 exact-head CI repair after stack reconciliation
+
+- Reconciled #819 into latest #781 via two-parent merge commit `8e07cdd5830c2539867cca741be5a573285610d3`, with compare **behind 0**; GitHub REST reports mergeable true, unstable until checks.
+- Push CI [41090613967](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41090613967) found a **real failure** in Python job: 4 F5-14 regression tests raised `NameError: os not defined`; other Python tests 1214 passed, 12 skipped. This is a failed exact-head run, NOT verified TESTED/PR-ready.
+- Fixed top-level `import os` in `tests/ai/test_feature5_shared_model_mount.py`, code commit `55d0d888047471cbbad932ba1e04ed6fddcef5e1`. The prior merge had only a nested import, which the source merge check incorrectly treated as a module import.
+- **NEXT:** inspect the new exact-head push run and all four jobs, including the four previously failing F5-14 tests; if green, coordinator reviews five-file #819 and merges into #781. No main merge, GPU or paid inference. Original F5-14 weight hash/mount/license gates remain pending.
