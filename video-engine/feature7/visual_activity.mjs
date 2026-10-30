@@ -6,6 +6,7 @@
  */
 import {spawnSync} from 'node:child_process';
 import {EditValidationError} from './autobroll_semantics.mjs';
+import {verifiedLocalMp4Path} from './local_mp4_guard.mjs';
 
 const check=(ok,msg)=>{if(!ok)throw new EditValidationError(msg);};
 const validNumber=(value,max)=>Number.isFinite(value)&&value>=0&&value<=max;
@@ -50,8 +51,10 @@ export function analyzeLocalVisualActivity({path,duration_seconds,timeout_ms=450
     validNumber(duration_seconds,600)&&duration_seconds>=.5 &&
     Number.isInteger(timeout_ms)&&timeout_ms>=1000&&timeout_ms<=60000,
   'Invalid private visual QA source');
+  const source=verifiedLocalMp4Path(path,EditValidationError);
   const args=['-hide_banner','-nostdin','-v','info','-threads','1',
-    '-i',path,'-map','0:v:0','-an','-vf',
+    '-protocol_whitelist','file,pipe','-f','mp4',
+    '-i',source,'-map','0:v:0','-an','-vf',
     'fps=2,blackdetect=d=0.5:pix_th=0.10,freezedetect=n=-60dB:d=2',
     '-f','null','-'];
   const outcome=spawnSync('ffmpeg',args,{
@@ -109,8 +112,10 @@ export function analyzeLocalSceneChangesCPU({
     Number.isFinite(threshold)&&threshold>=.08&&threshold<=.6&&
     Number.isInteger(timeout_ms)&&timeout_ms>=1000&&timeout_ms<=60000,
     'Invalid local scene-change request');
+  const source=verifiedLocalMp4Path(path,EditValidationError);
   const args=['-hide_banner','-nostdin','-v','info','-threads','1',
-    '-i',path,'-map','0:v:0','-an','-vf',
+    '-protocol_whitelist','file,pipe','-f','mp4',
+    '-i',source,'-map','0:v:0','-an','-vf',
     "scale=320:-2,select='gt(scene,"+threshold.toFixed(3)+")',showinfo",
     '-vsync','0','-f','null','-'];
   const result=spawnSync('ffmpeg',args,{
