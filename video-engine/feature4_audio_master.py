@@ -151,7 +151,17 @@ def main():
             with proof.open("x",encoding="utf-8") as stream:
                 stream.write(json.dumps(report,indent=2)+"\n")
         except OSError as exc:
-            raise AudioMasterError("Proof report could not be committed privately") from exc
+            # An exclusively created MP4 is not usable without its matching
+            # private proof. Remove only our exact output bytes; never delete
+            # a symlink or a different file that appeared after mastering.
+            target=Path(args.output)
+            try:
+                if (target.is_file() and not target.is_symlink() and
+                        hashlib.sha256(target.read_bytes()).hexdigest()==report["master_sha256"]):
+                    target.unlink()
+            except OSError:
+                pass  # Leave uncertain bytes for operator reconciliation.
+            raise AudioMasterError("Proof report could not be committed privately; output invalid") from exc
         print(json.dumps({"status":report["status"],
                           "source_mean_db":report["source_audio_mean_db"],
                           "mastered_mean_db":report["mastered_audio_mean_db"]}))
