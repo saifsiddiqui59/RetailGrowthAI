@@ -21,3 +21,9 @@
 
 ## Reporting
 Central `coordination/feature_tasks.json` snapshot: F5 total 22, source-complete 0, blocked 19, in-progress 3. `coordination/task_progress.json` currently has no verified events. This does not imply zero code exists. TESTED, PR-READY and integrated DONE are not verified.
+
+## Post-checkpoint verification receipt
+- Latest checked PR #819 head: `9a646abb376a19ab4864b12a1466fbb4bd4bce38` (checkpoint commit before this receipt).
+- GitHub PR-triggered workflow runs for that head: **none returned**; combined commit statuses: **none returned**. This is **not** passing CI.
+- GitHub PR metadata currently reports `mergeable=false` against moving parent branch `feat/feature5-batched-gpuoff-hardening-20261030`. Coordinator must reconcile/rebase safely before merging; do not assume a clean stack.
+- Local targeted tests were not executed because this environment cannot resolve github.com for a local checkout. Existing tests are proposed, not independently verified.
