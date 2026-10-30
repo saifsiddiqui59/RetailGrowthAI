@@ -10,6 +10,8 @@ import argparse
 import hashlib
 import json
 import math
+import os
+import stat
 from pathlib import Path
 import subprocess
 
@@ -36,6 +38,38 @@ def _frame(path: Path, sec: float):
     return data
 
 
+def _stable_source(path):
+    """Bind encoded bytes AND local pathname/inode before and after decoding.
+
+    A SHA of the final path alone would miss a same-content atomic swap during
+    inspection. No-follow FD + pre/post fstat/lstat guards fail closed on such
+    local races. Does not independently prove remote storage custody.
+    """
+    path = Path(path)
+    try:
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "rb") as src:
+            before = os.fstat(src.fileno())
+            if not stat.S_ISREG(before.st_mode) or not 1024 < before.st_size <= 80*1024*1024:
+                raise MotionProofError("Unsafe or oversized original video source")
+            digest = hashlib.sha256()
+            for chunk in iter(lambda: src.read(1024*1024), b""):
+                digest.update(chunk)
+            after = os.fstat(src.fileno())
+            current = os.lstat(path)
+            identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+            if (identity != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+                    or not stat.S_ISREG(current.st_mode)
+                    or identity != (current.st_dev, current.st_ino, current.st_size,
+                                    current.st_mtime_ns)):
+                raise MotionProofError("Encoded video source changed while hashing")
+            return identity, digest.hexdigest()
+    except MotionProofError:
+        raise
+    except OSError as exc:
+        raise MotionProofError("Unsafe or missing original video source") from exc
+
+
 def verify_moving_scenes(mp4: Path, *, seconds: int, scene_starts,
                          sample_offset=.8, separation=.7, threshold=5.0):
     """Measure mean absolute luma differences of reviewed moving scene windows.
@@ -50,20 +84,26 @@ def verify_moving_scenes(mp4: Path, *, seconds: int, scene_starts,
             any(type(s) not in (int,float) or not math.isfinite(s)
                 for s in scene_starts)):
         raise MotionProofError("Expected explicit trusted moving scene timecodes")
-    if (scene_starts != sorted(set(scene_starts)) or
-            any(s < 0 or s + sample_offset + separation >= seconds - .2
-                for s in scene_starts)):
-        raise MotionProofError("Invalid or repeated moving-scene ranges")
-    if (type(sample_offset) not in (int,float) or not .5 <= sample_offset <= 1.2
-            or type(separation) not in (int,float) or not .3 <= separation <= .9
-            or type(threshold) not in (int,float) or not 3 <= threshold <= 18):
+    if (type(sample_offset) not in (int,float) or not math.isfinite(sample_offset)
+            or not .5 <= sample_offset <= 1.2
+            or type(separation) not in (int,float) or not math.isfinite(separation)
+            or not .3 <= separation <= .9
+            or type(threshold) not in (int,float) or not math.isfinite(threshold)
+            or not 3 <= threshold <= 18):
         raise MotionProofError("Unsafe motion verification configuration")
+    if (list(scene_starts) != sorted(set(scene_starts)) or
+            any(s < 0 or s + sample_offset + separation >= seconds - .2
+                for s in scene_starts) or
+            any(a + sample_offset + separation >= b - .05
+                for a,b in zip(scene_starts,scene_starts[1:]))):
+        raise MotionProofError("Invalid or repeated moving-scene ranges")
     try:
         source = inspect_mp4(Path(mp4), max_size=80*1024*1024)
     except PreviewExportError as exc:
         raise MotionProofError("Rendered MP4 failed trusted codec/input preflight") from exc
     if abs(source["seconds"]-seconds) > .45:
         raise MotionProofError("Encoded video duration not as expected")
+    original_identity, original_sha = _stable_source(mp4)
     measured = []
     for start in scene_starts:
         a=_frame(Path(mp4),round(start+sample_offset,3))
@@ -73,10 +113,13 @@ def verify_moving_scenes(mp4: Path, *, seconds: int, scene_starts,
         if average < threshold:
             raise MotionProofError(
                 f"Expected moving scene near {start}s is frozen or insufficiently distinct")
+    final_identity, final_sha = _stable_source(mp4)
+    if (final_identity, final_sha) != (original_identity, original_sha):
+        raise MotionProofError("Encoded video source changed during motion sampling")
     return {
         "status":"MOVING_PIXELS_VERIFIED_NOT_CONTENT_APPROVAL",
         "duration_seconds":seconds,
-        "source_sha256":hashlib.sha256(Path(mp4).read_bytes()).hexdigest(),
+        "source_sha256":original_sha,
         "threshold_luma_difference":threshold,
         "checked_moving_scenes":measured,
         "garment_fidelity_verified":False,

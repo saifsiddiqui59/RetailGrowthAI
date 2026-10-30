@@ -17,3 +17,12 @@ Existing injected renderer tests now cover three negative mutation classes (same
 - Other blockers: F4-22/ISSUE-650 coordinator packaging, F4-29/ISSUE-249 Azure HTTP, F4-30 real two-tenant signed DEV E2E. These do not invalidate this independent source work.
 
 **Safety:** No GPU, paid inference, hosted SQL, PROD, customer media, new services or WineShopPOS.
+
+## 2026-10-30 — F4-15 no-cost lease preflight and staged inode proof
+
+This **independent feature-owned source batch** branches from existing draft #816, avoiding any source or doc edits from concurrent F4-05 branch #822. F4-15 remains **IN PROGRESS**, not integrated DONE.
+
+- Private staging source is now capped **before hashing** at the existing 300MiB combined cap, denies empty files and confirms the local path still identifies the same no-follow descriptor inode after SHA. An atomic replace with identical bytes now fails closed rather than passing hash-only checks.
+- The worker checks the authoritative coordinator-provided lease/CAS claim state before it downloads any private media and again after the assets are staged / before CPU encoding. A claim revoked before staging performs zero private downloads; a lease lost during staging stops before rendering. Existing post-render fence remains unchanged. No new billing, queues, Azure resources, HTTP endpoints or signed output.
+- Synthetic deterministic race tests verify both stale stages with no uploads and no completion. Actual local same-content inode replacement during SHA, empty source and sparse oversized source are rejected. Tests use fake admin and local media and **do not** prove production lease RPC or Supabase RLS semantics.
+- Exact-head 4-job branch CI, coordinator integration/main reconciliation and fresh main 4/4 remain mandatory. Hosted retry/poison cleanup, worker lease race and billing are coordinator dependent. No paid models/GPU, PROD or WineShopPOS.

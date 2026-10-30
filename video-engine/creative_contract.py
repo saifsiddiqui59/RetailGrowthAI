@@ -11,7 +11,10 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from feature4_caption_track import checked_caption_cues
-from professional import VideoPlanError, compile_composition, validate
+from professional import (
+    VideoPlanError, compile_composition, validate,
+    SUPPORTED_ANIMATIONS, SUPPORTED_TRANSITIONS,
+)
 
 CONTRACT_VERSION = "creative_reel_v1"
 UUID_PATTERN = re.compile(r"^[0-9a-fA-F-]{36}$")
@@ -22,8 +25,9 @@ ORIGINS = {"feature3": {"image", "poster"}, "feature5": {"video"},
            "retailer": {"image", "poster", "video", "logo", "audio"},
            "stock": {"image", "video", "audio"}}
 PRESETS = {"streetwear", "cinematic", "festival"}
-ANIMATIONS = {"subtle_zoom", "fade", "slide", "pop", "glow"}
-TRANSITIONS = {"fade", "slide", "cut"}
+# Reuse the actual trusted HyperFrames compiler allowlists: no UI/backend drift.
+ANIMATIONS = SUPPORTED_ANIMATIONS
+TRANSITIONS = SUPPORTED_TRANSITIONS
 
 
 class CreativeContractError(VideoPlanError):
