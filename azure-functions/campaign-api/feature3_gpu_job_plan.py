@@ -186,7 +186,13 @@ class Feature3GPUJobPlanPreflight:
                     model.get("status")!="APPROVED" or
                     model.get("rights_verified") is not True or
                     model.get("synthetic_adult") is not True or
-                    "poster" not in (model.get("approved_uses") or []) or
+                    type(model.get("approved_uses")) is not list or
+                    not 1 <= len(model["approved_uses"]) <= 3 or
+                    any(type(use) is not str or
+                        use not in ("poster","try_on","video_reference")
+                        for use in model["approved_uses"]) or
+                    len(set(model["approved_uses"])) != len(model["approved_uses"]) or
+                    "poster" not in model["approved_uses"] or
                     type(model.get("rights_revision")) is not int or
                     model["rights_revision"] < 2 or
                     not isinstance(model.get("image_sha256"),str) or

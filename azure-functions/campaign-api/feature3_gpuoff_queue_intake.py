@@ -95,6 +95,9 @@ class Feature3GPUOffQueueIntake:
                 any(type(v) is not int or not 1 <= v <= 2_147_483_647
                     for v in plan["rights_revisions"])):
             raise Feature3QueueIntakeBlocked("Untrusted private queue preflight receipt")
+        # A provider may be enabled while the authoritative plan was read.
+        # Never issue a stale GPU-OFF receipt after that transition.
+        self.require_gpu_off()
         return {
             "shop_id":routing["shop_id"],"job_id":routing["job_id"],
             "source_count":len(plan["source_asset_ids"]),

@@ -6,7 +6,7 @@ import {
 } from './feature3-generated-history.mjs'
 import {createFeature3GeneratedBlobScope} from './feature3-generated-blob-scope.mjs'
 
-const initial = shopId => ({shopId,jobs:[],message:'',busy:false})
+const initial = (shopId, api = null) => ({shopId,api,jobs:[],message:'',busy:false})
 const STATUSES = {
   QUEUED:'Queued — output not generated',
   RUNNING:'Rendering — output not yet available',
@@ -15,7 +15,7 @@ const STATUSES = {
 }
 
 export default function Feature3GeneratedHistory({shopId,api,binaryClient=null}) {
-  const [state,setState]=useState(()=>initial(shopId))
+  const [state,setState]=useState(()=>initial(shopId,api))
   const [image,setImage]=useState(null)
   const [imageBusy,setImageBusy]=useState(false)
   const [imageMessage,setImageMessage]=useState('')
@@ -25,16 +25,17 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
   if(!registry.current)registry.current=createFeature3GeneratedBlobScope()
   const current=useRef({shopId,api,binaryClient})
   current.current={shopId,api,binaryClient}
-  const checked=scopedFeature3GeneratedHistory(state,shopId)
+  const checked=scopedFeature3GeneratedHistory(state,shopId,api)
   const visibleJobs=checked.jobs.length
     ? filteredFeature3GeneratedHistory(shopId,checked.jobs,filter)
     : []
-  const displayed=image?.shopId===shopId && image?.binaryClient===binaryClient &&
+  const displayed=image?.shopId===shopId && image?.api===api &&
+    image?.binaryClient===binaryClient &&
     visibleJobs.some(row=>row.id===image.jobId && row.status==='SUCCEEDED')
     ? image : null
   useEffect(()=>{
     registry.current.selectScope(shopId)
-    setState(initial(shopId))
+    setState(initial(shopId,api))
     setImage(null)
     setImageBusy(false)
     setImageMessage('')
@@ -51,17 +52,17 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
     setImageMessage('')
     const still=()=>nonce===epoch.current &&
       current.current.shopId===shop && current.current.api===source
-    setState({...initial(shop),busy:true})
+    setState({...initial(shop,source),busy:true})
     try{
       // Existing JWT+RLS API only; no GPU POST and no download-token mint.
       const list=await source.listGeneratedJobs(shop)
       const jobs=validateFeature3GeneratedHistory(shop,list)
-      if(still())setState({shopId:shop,jobs,
+      if(still())setState({shopId:shop,api:source,jobs,
         busy:false,message:jobs.length
           ? 'These statuses are private; every image still requires independent review and authorization.'
           : 'No generated images recorded for this shop.'})
     }catch{
-      if(still())setState({...initial(shop),
+      if(still())setState({...initial(shop,source),
         message:'Private generated-image history unavailable or access revoked.'})
     }
   }
@@ -69,9 +70,10 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
     if(!binaryClient || !api || !shopId || imageBusy || checked.busy ||
        job?.status!=='SUCCEEDED' ||
        !checked.jobs.some(row=>row.id===job.id && row.status==='SUCCEEDED'))return
-    const shop=shopId,source=binaryClient,nonce=++epoch.current
+    const shop=shopId,source=binaryClient,historyApi=api,nonce=++epoch.current
     const still=()=>nonce===epoch.current &&
-      current.current.shopId===shop && current.current.binaryClient===source
+      current.current.shopId===shop && current.current.binaryClient===source &&
+      current.current.api===historyApi
     registry.current.clear()
     setImage(null)
     setImageBusy(true)
@@ -82,7 +84,7 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
       registry.current.selectScope(shop)
       const url=registry.current.install(shop,job.id,verified)
       if(!still()){registry.current.clear();return}
-      setImage({shopId:shop,jobId:job.id,binaryClient:source,url})
+      setImage({shopId:shop,jobId:job.id,api:historyApi,binaryClient:source,url})
       setImageMessage('Unreviewed private preview — not approved for publication.')
     }catch{
       if(still())setImageMessage(

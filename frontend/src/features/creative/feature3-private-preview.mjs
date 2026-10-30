@@ -1,8 +1,9 @@
 /** Prevent decoded tenant-owned images reaching another shop on the
  * intervening paint before React effect teardown. Does not grant RLS rights.
  */
-export function scopedFeature3Preview(preview, shopId) {
+export function scopedFeature3Preview(preview, shopId, currentApi = null) {
   if (!preview || preview.scope !== shopId ||
+      (currentApi !== null && preview.api !== currentApi) ||
       !Array.isArray(preview.models) || !preview.imageMap ||
       typeof preview.imageMap !== 'object') {
     return {models:[], imageMap:{}, busy:false, message:''}

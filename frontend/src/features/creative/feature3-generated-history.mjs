@@ -28,12 +28,20 @@ export function validateFeature3GeneratedHistory(shopId, jobs) {
   return Object.freeze(checked)
 }
 
-export function scopedFeature3GeneratedHistory(value, shopId) {
+export function scopedFeature3GeneratedHistory(value, shopId, currentApi = undefined) {
   if (!UUID.test(shopId || '') || !value || value.shopId !== shopId ||
+      (currentApi !== undefined && value.api !== currentApi) ||
       !Array.isArray(value.jobs)) return empty(shopId)
   try {
-    return Object.freeze({...value,
-      jobs:validateFeature3GeneratedHistory(shopId,value.jobs)})
+    // Never propagate arbitrary caller state (URLs, tokens, approval hints,
+    // private object keys) into a tenant-visible history snapshot.
+    return Object.freeze({
+      shopId,
+      jobs:validateFeature3GeneratedHistory(shopId,value.jobs),
+      message:typeof value.message === 'string' && value.message.length <= 300
+        ? value.message : '',
+      busy:value.busy === true,
+    })
   } catch {
     return empty(shopId)
   }

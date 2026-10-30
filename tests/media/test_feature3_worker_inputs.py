@@ -48,7 +48,7 @@ class Feature3PrivateHandoffTests(unittest.TestCase):
                          self.f.blobs[self.f.tryon])
         self.assertEqual(result["sources"]["model"]["sha256"],
                          sha256(self.f.blobs[self.f.model_asset]).hexdigest())
-        self.assertEqual(len(self.leases),1)
+        self.assertEqual(len(self.leases),2)
         self.assertFalse(result["publish_approved"])
         self.assertFalse(result["gpu_authorized"])
         self.assertNotIn("signed_url",str(result))
@@ -73,9 +73,28 @@ class Feature3PrivateHandoffTests(unittest.TestCase):
         self.assertEqual(result["dimensions"],[720,1080])
         self.assertFalse(result["provider_call_permitted"])
         self.assertFalse(result["gpu_authorized"])
-        self.assertTrue(len(self.leases)>=2)
+        self.assertTrue(len(self.leases)>=3)
         self.assertNotIn("signed_url",str(result))
         self.assertNotIn("object_path",str(result))
+
+    def test_lease_revoked_during_private_materialization_denies_final_delivery(self):
+        # The initial claim alone must not authorize returning staged private
+        # bytes. Feature5 also has an intermediate first-frame lease check.
+        for purpose,fn,field,max_valid,expected_reads in (
+            ("editing",materialize_feature4_inputs,"verify_render_job",1,2),
+            ("image_to_video",materialize_feature5_input,"verify_motion_job",2,3),
+        ):
+            with self.subTest(purpose=purpose):
+                self.leases.clear()
+                manifest=self.build(purpose)
+                def current_lease(shop,ids,fingerprint):
+                    self.leases.append((shop,ids,fingerprint))
+                    return len(self.leases) <= max_valid
+                with self.assertRaises(FashionReferenceDenied):
+                    fn(expected_manifest=manifest,
+                       current_readers=self.f.readers(),
+                       **{field:current_lease})
+                self.assertEqual(len(self.leases),expected_reads)
 
     def test_missing_durable_lease_denies_both_consumers(self):
         for purpose,fn,field in (("editing",materialize_feature4_inputs,"verify_render_job"),

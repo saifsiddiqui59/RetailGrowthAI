@@ -89,6 +89,46 @@ test('generated preview remains OFF by default until independent binary gate',()
   assert.doesNotMatch(history,/getGeneratedImageDownload\(/)
 })
 
+test('duplicate URL factory result never revokes or displays a stale replacement',()=>{
+  const existing='blob:https://fixture.test/same'
+  const revoked=[]
+  const scope=createFeature3GeneratedBlobScope({
+    createURL:()=>existing,
+    revokeURL:url=>revoked.push(url),
+  })
+  scope.selectScope(SHOP)
+  assert.equal(scope.install(SHOP,JOB,RECEIPT),existing)
+  assert.throws(()=>scope.install(SHOP,JOB,RECEIPT),/must be fresh/)
+  assert.equal(scope.view(SHOP,JOB),existing)
+  assert.deepEqual(revoked,[])
+  scope.clear()
+  assert.deepEqual(revoked,[existing])
+})
+
+test('failed old Blob revocation cannot publish or retain the new private preview',()=>{
+  const allocated=[],revoked=[]
+  const scope=createFeature3GeneratedBlobScope({
+    createURL:()=>{
+      const url='blob:https://fixture.test/'+randomUUID()
+      allocated.push(url)
+      return url
+    },
+    revokeURL:url=>{
+      if(url===allocated[0]) throw Error('simulated browser revocation failure')
+      revoked.push(url)
+    },
+  })
+  scope.selectScope(SHOP)
+  const first=scope.install(SHOP,JOB,RECEIPT)
+  assert.equal(scope.view(SHOP,JOB),first)
+  assert.throws(()=>scope.install(SHOP,JOB,RECEIPT),/replacement cleanup failed/)
+  assert.equal(allocated.length,2)
+  assert.deepEqual(revoked,[allocated[1]])
+  assert.equal(scope.view(SHOP,JOB),null)
+  scope.clear()
+  assert.deepEqual(revoked,[allocated[1]])
+})
+
 test('failed browser image decode discards only the precise current Blob and never an in-flight successor',()=>{
   const {scope,opened,revoked}=fixture()
   scope.selectScope(SHOP)
