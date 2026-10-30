@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
-import {createFeature3ModelWorkflowApi} from '../../frontend/src/features/creative/feature3-model-workflow-api.mjs'
+import {createFeature3ModelWorkflowApi,verifyPrivateModelOriginalUploadReceipt} from '../../frontend/src/features/creative/feature3-model-workflow-api.mjs'
 const shop=randomUUID(),model=randomUUID(),media=randomUUID(),event=randomUUID()
 const checks={adult_synthetic:true,likeness_and_consent:true,image_license:true,
  private_media_integrity:true,visual_quality:true,approved_uses:true}
@@ -124,4 +124,30 @@ test('original registration cannot self-certify rights, change shop or send raw 
   {...sourceRegistration,image_sha256:'bad'},
  ])await assert.rejects(client.registerModelOriginal(shop,invalid))
  assert.equal(calls.length,1)
+})
+
+test('private original Storage receipt is scoped before a separate registration POST',()=>{
+ const digest='a'.repeat(64)
+ const upload={shop_id:shop,model_id:model,
+  object_path:shop+'/model-library/'+model+'/'+digest+'.png',
+  image_sha256:digest,bytes:1024,upload_only:true,
+  rights_verified:false,registered:false}
+ const verified=verifyPrivateModelOriginalUploadReceipt(upload,shop,model)
+ assert.equal(verified.image_sha256,digest)
+ assert.equal(verified.shop_id,shop)
+ assert.equal(Object.isFrozen(verified),true)
+ assert.equal('object_path' in verified,false)
+ for(const invalid of [
+  {...upload,shop_id:randomUUID()},
+  {...upload,model_id:randomUUID()},
+  {...upload,object_path:shop+'/model-library/'+randomUUID()+'/'+digest+'.png'},
+  {...upload,image_sha256:'b'.repeat(64)},
+  {...upload,bytes:0},
+  {...upload,bytes:25*1024*1024+1},
+  {...upload,upload_only:false},
+  {...upload,rights_verified:true},
+  {...upload,registered:true},
+  {...upload,approved:true},
+  null,
+ ])assert.throws(()=>verifyPrivateModelOriginalUploadReceipt(invalid,shop,model))
 })
