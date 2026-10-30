@@ -107,6 +107,33 @@ class PrivateHandoffTests(unittest.TestCase):
         with self.assertRaises(FashionReferenceDenied):
             self.call(self.editor, current_readers=readers)
 
+    def test_expired_worker_lease_after_private_reads_denies_bytes(self):
+        calls = []
+        def expires(*args):
+            calls.append(args)
+            return len(calls) == 1
+        with self.assertRaises(FashionReferenceDenied):
+            self.call(self.editor, verify_worker_job=expires)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0], calls[1])
+
+    def test_worker_lease_revoked_during_ephemeral_file_write_never_yields(self):
+        calls = []
+        def expires_after_resolution(*args):
+            calls.append(args)
+            return len(calls) < 3
+        with tempfile.TemporaryDirectory() as root:
+            with self.assertRaises(FashionReferenceDenied):
+                with temporary_private_worker_inputs(
+                        expected_manifest=self.editor,
+                        current_readers=self.readers,
+                        verify_worker_job=expires_after_resolution,
+                        trusted_temp_root=root):
+                    self.fail("Revoked private worker lease exposed staged paths")
+            self.assertEqual(len(calls), 3)
+            self.assertEqual(list(Path(root).iterdir()), [])
+
+
     def test_reject_arbitrary_browser_claim_reader_or_unapproved_tryon(self):
         with self.assertRaises(FashionReferenceDenied):
             self.call({"purpose": "editing"})
