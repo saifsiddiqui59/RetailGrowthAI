@@ -9,7 +9,7 @@ import unittest
 
 from feature5_motion.infra.wan22_source_audit import (
     COMFY_SOURCE_COMMIT, REQUIRED, SourceAuditError,
-    validate_source_manifest, audit_complete_vendor_checkout, main,
+    validate_source_manifest, audit_complete_vendor_checkout, parse_reviewed_json, main,
 )
 
 
@@ -92,6 +92,27 @@ class SourceAuditTests(unittest.TestCase):
             m["files"]["comfy_extras//nodes_video.py"]="a"*64
             with self.assertRaisesRegex(SourceAuditError,"Unsafe"):
                 audit_complete_vendor_checkout(td,reviewed_manifest=m)
+
+    def test_reviewed_json_rejects_ambiguous_duplicate_and_nonfinite_values(self):
+        for raw, reason in (
+            ('{"schema":"first","schema":"second"}', "Duplicate"),
+            ('{"files":{"nodes.py":"first","nodes.py":"second"}}', "Duplicate"),
+            ('{"files":NaN}', "Non-finite"),
+            ('{"files":Infinity}', "Non-finite"),
+        ):
+            with self.subTest(raw=raw), self.assertRaisesRegex(SourceAuditError, reason):
+                parse_reviewed_json(raw)
+        with TemporaryDirectory() as td:
+            source = Path(td) / "vendor"
+            source.mkdir()
+            manifest = fixture(source)
+            spec = Path(td) / "review.json"
+            original = json.dumps(manifest)
+            spec.write_text(original.replace(
+                '"source_commit":', '"source_commit":"forged", "source_commit":', 1))
+            with self.assertRaises(SystemExit) as denied:
+                main(["--source", str(source), "--manifest", str(spec)])
+            self.assertEqual(denied.exception.code, 2)
 
     def test_real_offline_cli_exit_and_zero_network(self):
         with TemporaryDirectory() as td:
