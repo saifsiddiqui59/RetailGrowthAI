@@ -29,7 +29,7 @@ OUTPUT_COLUMNS = frozenset(("bucket", "status", "events", "p95_ms", "category",
 # never echo an arbitrary Azure string merely because it shares a prefix.
 UTC_STAMP = re.compile(
     r"2026-10-28T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]"
-    r"(?:\\.[0-9]{1,7})?(?:Z|\\+00:00)\\Z"
+    r"(?:\.[0-9]{1,7})?(?:Z|\+00:00)\Z"
 )
 ALLOWED_CLASSES = frozenset((
     "worker_start", "worker_exit", "host_start", "rpc_exception",
