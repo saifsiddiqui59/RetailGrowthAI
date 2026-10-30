@@ -14,3 +14,7 @@ Status: **IN PROGRESS, SOURCE-ONLY**. Task ID `F5-14`; parent draft PR #465. Thi
 - Other independent gates: F5-OCI immutable reviewed legal runtime/SBOM; F5-GPU-AUTHORIZATION separate human approval; PART3-WAN22-CONTRACT coordinator ratification; F3-LICENSED-MEDIA genuine signed retailer rights. Never mark F5-14 integrated DONE from these tests.
 
 Proposed coordinator status receipt: `F5-14` stays `IN_PROGRESS`, PR head + CI evidence to be filled after verification. `coordination/task_progress.json` and canonical shared docs remain coordinator-owned.
+
+## CI attempt 1 and bounded fix
+
+Exact-head Actions [#40998206546](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40998206546) on `b524c8579c0cea9d2aeaca549b44e208a3e63e7f` found one real Python negative-test failure: runner accepted 1,500 nested JSON levels without raising `RecursionError` (1 failed, 1,180 passed, 9 skipped). The source decoder now enforces an explicit iterative 32-level maximum independent of Python's recursion limit. This is fix/retry 1 of at most 2 safe initial fixes; no tests bypassed. Reverify four exact-head jobs on this new commit.

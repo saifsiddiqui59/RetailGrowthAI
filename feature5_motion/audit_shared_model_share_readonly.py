@@ -41,6 +41,17 @@ def _decode_private_marker(data):
         raise PreflightError("Malformed or ambiguous completion marker JSON") from exc
     if type(parsed) is not dict:
         raise PreflightError("Completion marker must be a JSON object")
+    # Python's JSON parser can accept >1000 nested levels on some runners.
+    # Reject depth independently instead of relying on RecursionError.
+    pending = [(parsed, 0)]
+    while pending:
+        value, depth = pending.pop()
+        if depth > 32:
+            raise PreflightError("Completion marker JSON nesting exceeds limit")
+        if type(value) is dict:
+            pending.extend((child, depth + 1) for child in value.values())
+        elif type(value) is list:
+            pending.extend((child, depth + 1) for child in value)
     return parsed
 
 
