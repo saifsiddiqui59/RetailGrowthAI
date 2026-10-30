@@ -297,7 +297,7 @@ def test_cpu_benchmark_denies_forged_wav_or_authority_receipts(corrupt):
             recording.setnchannels(1)
             recording.setsampwidth(2)
             recording.setframerate(24000)
-            recording.writeframes(b"\\x00\\x10"*24000)
+            recording.writeframes(b"\x00\x10"*24000)
         pcm=stream.getvalue()
         record={
             "schema":"retailgrowth.feature2-kokoro-original-audio.v1",
