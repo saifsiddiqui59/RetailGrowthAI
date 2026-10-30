@@ -371,7 +371,9 @@ def test_mp3_private_decode_rejects_fake_success_with_trailing_riff(monkeypatch,
         output.write_bytes(wav()+b"hidden trailing bytes")
         return SimpleNamespace(returncode=0)
     monkeypatch.setattr(upload.subprocess,"run",fake_run)
-    with pytest.raises(VoiceUploadRejected,match="RIFF extent"):
+    # The MP3 boundary deliberately normalizes internal WAV rejection to a
+    # safe generic error rather than exposing codec/container internals.
+    with pytest.raises(VoiceUploadRejected,match="private MP3 decode failed"):
         upload.decode_unreviewed_mp3_to_private_wav(
             original_mp3=original,max_seconds=15,
             operator_ffmpeg_path=binary)
