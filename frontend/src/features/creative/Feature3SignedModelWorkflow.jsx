@@ -18,13 +18,20 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 const SHA=/^[0-9a-f]{64}$/
 const field={display:'grid',gap:4,minWidth:0}
 export default function Feature3SignedModelWorkflow({shopId,api,enabled=false,disabled=false}) {
- const current=useRef({shopId,api,enabled,disabled})
- current.current={shopId,api,enabled,disabled}
+ const current=useRef({shopId,api,enabled,disabled,revision:0})
+ // A->B->A must NOT revive pending callbacks from the first A session.
+ const prior=current.current
+ if(prior.shopId!==shopId || prior.api!==api ||
+    prior.enabled!==enabled || prior.disabled!==disabled){
+  current.current={shopId,api,enabled,disabled,revision:prior.revision+1}
+ }
+ const revision=current.current.revision
  const scopeKey=feature3ModelWorkflowSessionKey(shopId,api)
  if(!enabled||!scopeKey)return <p role="note">
   Signed model import and review are disabled pending protected release authorization.
  </p>
- const isCurrent=()=>current.current.shopId===shopId &&
+ const isCurrent=()=>current.current.revision===revision &&
+  current.current.shopId===shopId &&
   current.current.api===api && current.current.enabled===true &&
   current.current.disabled!==true
  return <Feature3SignedModelWorkflowEditor
@@ -133,7 +140,7 @@ function Feature3SignedModelWorkflowEditor({shopId,api,disabled,isCurrent}) {
   }catch{
    // No automatic retry of a stale/ambiguous POST, never infer success.
    if(isCurrent())setStatus('No confirmed result. Check signed shop, real evidence and current DB revision before a new attempt.')
-  }finally{setBusy(false)}
+  }finally{if(isCurrent())setBusy(false)}
  }
  return <section aria-label="Signed retailer model import and human review" style={{display:'grid',gap:10,padding:12,border:'1px solid #aaa',borderRadius:10}}>
   <h4>Private model registration and independent review</h4>
