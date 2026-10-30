@@ -44,3 +44,28 @@ test('forged cross-shop brand kit and missing verified context cannot initialize
   assert.equal(approvedFeature3Inputs(approved,
     { ...context, dayId: undefined }, brandKit).approved, null)
 })
+
+test('missing or malformed workspace context fails closed without crashing the editor', () => {
+  for (const invalid of [null, undefined, [], 123, 'not a workspace']) {
+    assert.equal(feature3ContextKey(invalid), '')
+    assert.equal(approvedFeature3Inputs(approved, invalid, brandKit).approved, null)
+  }
+})
+
+test('control characters and bidi overrides never appear as approved poster copy', () => {
+  for (const field of ['headline', 'cta', 'offer_text']) {
+    for (const unsafe of ['Sale\\nterms', 'SALE\\u202e90% OFF', 'Offer\\u2066hidden\\u2069']) {
+      assert.equal(approvedFeature3Inputs({ ...approved, [field]: unsafe },
+        context, brandKit).approved, null)
+    }
+  }
+  assert.equal(approvedFeature3Inputs(approved, context, {
+    ...brandKit, businessName: 'Store\\u202eSpoof',
+  }).brand, null)
+  assert.equal(approvedFeature3Inputs({
+    ...approved, approved_version: Number.MAX_SAFE_INTEGER,
+  }, context, brandKit).approved, null)
+  assert.equal(approvedFeature3Inputs({
+    ...approved, headline: 'नई दिवाली कलेक्शन', cta: 'आज आएं',
+  }, context, brandKit).approved.headline, 'नई दिवाली कलेक्शन')
+})
