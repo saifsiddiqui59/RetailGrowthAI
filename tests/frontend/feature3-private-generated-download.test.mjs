@@ -104,3 +104,34 @@ test('Creative Studio refuses to display stale signed URL during render or delay
   const {transformWithEsbuild}=await import(req.resolve('vite'))
   await transformWithEsbuild(contents,'Feature3SecureDraftWorkspace.jsx',{loader:'jsx'})
 })
+
+test('render-time signed-link fence rejects forged URL origins, paths and tokens',async()=>{
+  const {scopedFeature3GeneratedLink}=await import(
+    '../../frontend/src/features/creative/feature3-signed-link-scope.mjs')
+  const now=1000000, requestKey=sid+'|campaign|day'
+  const original={scope:sid,requestKey,jobId:jid,mediaAssetId:aid,
+    url:signed,createdAt:now,expiresInSeconds:60,approvedModel:false}
+  for(const url of [
+    'javascript:alert(1)',
+    'data:text/html,hello',
+    'http://dev.supabase.co/storage/v1/object/sign/retailgrowth-media/'+sid+
+      '/feature3/gpu/'+jid+'/'+'a'.repeat(64)+'.png?token=secret',
+    signed.replace(store,'https://attacker.invalid'),
+    signed.replace(store,'https://dev.supabase.co.evil.invalid'),
+    signed.replace('/object/sign/','/object/public/'),
+    signed.replace(sid,'b1000000-0000-4000-8000-000000000001'),
+    signed.replace(jid,'b1000000-0000-4000-8000-000000000004'),
+    signed.replace('.png?','.jpg?'),
+    signed.replace('?token=','/extra?token='),
+    signed.replace('?token=short-lived-secret',''),
+    signed+'&token=second',
+    signed+'&public=true',
+    signed+'#fragment',
+    signed.replace('https://','https://someone@'),
+    signed.replace('token=short-lived-secret','token=%0A'),
+  ]) {
+    assert.equal(scopedFeature3GeneratedLink({...original,url},sid,now,requestKey),
+      null,'unsafe signed link must not become a rendered href: '+url.slice(0,60))
+  }
+  assert.equal(scopedFeature3GeneratedLink(original,sid,now,requestKey),original)
+})

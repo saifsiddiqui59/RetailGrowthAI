@@ -28,13 +28,15 @@ def image_bytes(kind="PNG"):
 
 
 class FakeResponse:
-    def __init__(self,url,payload,*,mime,status,redirect=False,read_hook=None,content_length=None):
+    def __init__(self,url,payload,*,mime,status,redirect=False,read_hook=None,content_length=None,content_encoding=None):
         self.url=url+("/evil" if redirect else "")
         self.payload=payload
         self.status=status
         self.read_hook=read_hook
         self.headers={"Content-Type":mime,
                       "Content-Length":str(len(payload)) if content_length is None else content_length}
+        if content_encoding is not None:
+            self.headers["Content-Encoding"]=content_encoding
     def __enter__(self):return self
     def __exit__(self,*_):return False
     def geturl(self):return self.url
@@ -68,6 +70,7 @@ class PrivateSourceProofTests(unittest.TestCase):
         self.redirect=False
         self.length=None
         self.read_hook=None
+        self.content_encoding=None
         self.proof=self.build()
 
     def review(self,shop,asset,digest,row):
@@ -101,7 +104,8 @@ class PrivateSourceProofTests(unittest.TestCase):
         return FakeResponse(
             req.full_url,self.http_payload,mime=self.http_mime,
             status=self.http_status,redirect=self.redirect,
-            read_hook=self.read_hook,content_length=self.length)
+            read_hook=self.read_hook,content_length=self.length,
+            content_encoding=self.content_encoding)
 
     def build(self):
         return Feature3TrustedPrivateSourceProof(
@@ -228,6 +232,23 @@ class PrivateSourceProofTests(unittest.TestCase):
                     SourceProofDenied,"length changed"):
                 self.proof(self.shop,self.row)
             self.assertEqual([c[0] for c in self.calls],["get"])
+
+    def test_encoded_original_transport_denied_before_rights_review(self):
+        # Even if a mocked proxy supplies valid PNG bytes, a non-identity
+        # content encoding is not immutable original-byte transport evidence.
+        for encoding in ("gzip", "br", "deflate", "gzip, identity", "",
+                         "unknown", 123):
+            self.setUp()
+            self.content_encoding=encoding
+            # The private transport intentionally sanitizes the specific
+            # denial to avoid exposing Storage details to its caller.
+            with self.subTest(encoding=encoding),self.assertRaises(
+                    SourceProofDenied):
+                self.proof(self.shop,self.row)
+            self.assertEqual([x[0] for x in self.calls],["get"])
+        self.setUp()
+        self.content_encoding=" identity "
+        self.assertEqual(self.proof(self.shop,self.row)["image_sha256"],self.sha)
 
     def test_immutable_model_object_sha_rejects_replaced_decodable_image(self):
         out=BytesIO()

@@ -172,6 +172,65 @@ class ReconciliationTests(unittest.TestCase):
             self.assertEqual(self.db.private_reads,[(self.db.shop,self.db.job,self.db.asset)])
             self.assertEqual([q[2] for q in self.db.calls],["GET"]*3 if target=="jobrow" else ["GET"]*4)
 
+    def test_private_evidence_error_never_leaks_storage_paths_or_money(self):
+        self.db.jobrow.update({"status":"SUCCEEDED","output_asset_id":self.db.asset,
+                               "claim_token":None,"lease_until":None})
+        self.db.spending.update({"state":"SETTLED","actual_usd":"0.011000"})
+        secret="shop-private/secret-storage-path?token=example"
+        def inaccessible(*_):
+            raise OSError(secret)
+        self.inspector=Feature3GPUOperatorReconciliation(
+            admin_store=self.db,read_private_evidence=inaccessible)
+        with self.assertRaises(Feature3ReconciliationUnknown) as caught:
+            self.inspect()
+        self.assertEqual(str(caught.exception),"Private output evidence unavailable")
+        self.assertNotIn(secret,str(caught.exception))
+        self.assertEqual(len(self.db.calls),2)
+        self.assertEqual([x[2] for x in self.db.calls],["GET"]*2)
+
+    def test_unknown_post_evidence_sql_read_is_not_a_success_receipt(self):
+        self.db.jobrow.update({"status":"SUCCEEDED","output_asset_id":self.db.asset,
+                               "claim_token":None,"lease_until":None})
+        self.db.spending.update({"state":"SETTLED","actual_usd":"0.011000"})
+        initial=self.db.request
+        secret="service-internal-key-private-do-not-expose"
+        def fail_reread(table,*,query,method="GET",data=None):
+            if len(self.db.calls)>=2:
+                raise RuntimeError(secret)
+            return initial(table,query=query,method=method,data=data)
+        self.db.request=fail_reread
+        with self.assertRaises(Feature3ReconciliationUnknown) as caught:
+            self.inspect()
+        self.assertEqual(str(caught.exception),
+                         "Current job or reservation read unavailable")
+        self.assertNotIn(secret,str(caught.exception))
+        self.assertEqual(self.db.private_reads,[
+            (self.db.shop,self.db.job,self.db.asset)])
+        self.assertEqual([x[2] for x in self.db.calls],["GET"]*2)
+
+
+    def test_initial_job_and_reservation_sql_errors_do_not_expose_secrets(self):
+        secret="internal-database-credential-in-backend-error"
+        for table,expected in (
+            ("feature3_gpu_jobs","Current job read unavailable"),
+            ("shop_ai_spend_reservations","Current reservation read unavailable"),
+        ):
+            self.setUp()
+            original=self.db.request
+            def unavailable(path,*,query,method="GET",data=None):
+                if path==table:
+                    raise RuntimeError(secret)
+                return original(path,query=query,method=method,data=data)
+            self.db.request=unavailable
+            with self.subTest(table=table),self.assertRaises(
+                    Feature3ReconciliationUnknown) as caught:
+                self.inspect()
+            self.assertEqual(str(caught.exception),expected)
+            self.assertNotIn(secret,str(caught.exception))
+            self.assertTrue(caught.exception.__suppress_context__)
+            self.assertEqual(self.db.private_reads,[])
+            self.assertTrue(all(method=="GET" for _,__,method in self.db.calls))
+
     def test_actual_private_png_reader_composed_with_service_sql_reconciliation(self):
         image=BytesIO()
         Image.new("RGB",(320,400),"#446688").save(image,format="PNG")

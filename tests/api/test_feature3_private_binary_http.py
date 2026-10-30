@@ -113,6 +113,21 @@ class BinaryHTTPTests(unittest.TestCase):
                 self.assertEqual(body,b"")
                 self.assert_private_headers(headers)
         self.reader.extra={}
+    def test_valid_sha_does_not_make_non_png_or_trailing_bytes_downloadable(self):
+        # A forged or broken reader can supply a self-consistent SHA; the HTTP
+        # boundary must still reject non-PNG bytes and trailing payloads.
+        original=self.reader.png
+        for forged in (b"x"*128,original+b"trailing-private-data",
+                       original[:-12]):
+            self.reader.png=forged
+            with self.subTest(length=len(forged)):
+                status,body,headers=self.call()
+                self.assertEqual(status,503)
+                self.assertEqual(body,b"")
+                self.assert_private_headers(headers)
+        self.reader.png=original
+        self.assertEqual(self.call()[0],200)
+
     def test_invalid_job_shop_or_missing_verifier_never_emits_private_body(self):
         status,body,_=self.api.handle(
             method="GET",authorization="Bearer signed-retailer-test",

@@ -59,7 +59,14 @@ class Feature3GPUOperatorReconciliation:
         job_query={
             "select":"id,shop_id,status,reservation_id,attempts,claim_token,lease_until,output_asset_id",
             "id":"eq."+job,"shop_id":"eq."+shop,"limit":"2"}
-        j=_row(self.db.request("feature3_gpu_jobs",query=job_query))
+        try:
+            j=_row(self.db.request("feature3_gpu_jobs",query=job_query))
+        except Feature3ReconciliationUnknown:
+            raise
+        except Exception:
+            # A failed initial service SQL read may carry private connection
+            # details. Never propagate its raw exception to an operator API.
+            raise Feature3ReconciliationUnknown("Current job read unavailable") from None
         if (j.get("id")!=job or j.get("shop_id")!=shop or
                 j.get("status") not in ("QUEUED","RUNNING","SUCCEEDED","FAILED") or
                 type(j.get("attempts")) is not int or
@@ -92,7 +99,13 @@ class Feature3GPUOperatorReconciliation:
         reservation_query={
             "select":"id,shop_id,operation,state,reserved_usd,actual_usd",
             "id":"eq."+rid,"shop_id":"eq."+shop,"limit":"2"}
-        r=_row(self.db.request("shop_ai_spend_reservations",query=reservation_query))
+        try:
+            r=_row(self.db.request("shop_ai_spend_reservations",query=reservation_query))
+        except Feature3ReconciliationUnknown:
+            raise
+        except Exception:
+            raise Feature3ReconciliationUnknown(
+                "Current reservation read unavailable") from None
         if (r.get("id")!=rid or r.get("shop_id")!=shop or
                 r.get("operation")!="image_generation" or
                 r.get("state") not in ("RESERVED","SETTLED")):
@@ -125,7 +138,14 @@ class Feature3GPUOperatorReconciliation:
             asset=_id(output)
             if r["state"]!="SETTLED" or j["attempts"]!=1:
                 raise Feature3ReconciliationUnknown("Success requires measured settlement")
-            evidence=self.private_evidence(shop,job,asset)
+            try:
+                evidence=self.private_evidence(shop,job,asset)
+            except Exception:
+                # HTTP/SQL/Storage backends may raise messages containing a
+                # private object path or service credential. This service-only
+                # operator receipt must never echo those error details.
+                raise Feature3ReconciliationUnknown(
+                    "Private output evidence unavailable") from None
             if (not isinstance(evidence,dict) or set(evidence)!={
                 "shop_id","job_id","media_asset_id","image_sha256",
                 "private","attempt","review_status"
@@ -142,11 +162,17 @@ class Feature3GPUOperatorReconciliation:
             # Check BOTH job AND ledger again after the independent PNG byte
             # and output-evidence verifier completes. Changed/uncertain ACKs
             # are operator-only unknown, not authorization to charge/replay.
-            if (_row(self.db.request("feature3_gpu_jobs",query=job_query))!=j or
-                    _row(self.db.request(
-                        "shop_ai_spend_reservations",query=reservation_query))!=r):
+            try:
+                if (_row(self.db.request("feature3_gpu_jobs",query=job_query))!=j or
+                        _row(self.db.request(
+                            "shop_ai_spend_reservations",query=reservation_query))!=r):
+                    raise Feature3ReconciliationUnknown(
+                        "Job or reservation changed during private verification")
+            except Feature3ReconciliationUnknown:
+                raise
+            except Exception:
                 raise Feature3ReconciliationUnknown(
-                    "Job or reservation changed during private verification")
+                    "Current job or reservation read unavailable") from None
             # Observed means immutable SQL receipt and private proof; still
             # not a decision on licensing, human quality or publication.
             classification="TERMINAL_SUCCESS_EVIDENCE_OBSERVED"

@@ -145,6 +145,12 @@ def resolve_private_worker_inputs(*, expected_manifest, current_readers,
     # changed product metadata after any byte stream has been fetched.
     if prepare_fashion_references(**options) != fresh:
         _reject()
+    # A claim can expire while private images are read. Recheck the current
+    # durable worker lease after the last byte/rights verification, not only
+    # before staging; never return bytes for a revoked or replaced worker.
+    if verify_worker_job(fresh["shop_id"], _ids(fresh),
+                         fresh["reference_fingerprint"]) is not True:
+        _reject()
     return {
         "schema": "retailgrowth.feature3-worker-private-inputs.v1",
         "shop_id": fresh["shop_id"], "purpose": purpose,
@@ -196,6 +202,15 @@ def temporary_private_worker_inputs(*, expected_manifest, current_readers,
         path = Path(folder) / "manifest.json"
         path.write_text(json.dumps(metadata, indent=2, sort_keys=True), encoding="utf-8")
         os.chmod(path, 0o600)
+        # Writing private files can outlast a lease; check again immediately
+        # before exposing the temporary paths to the worker. No retries on
+        # uncertain or revoked lease outcomes.
+        staged_ids = tuple(sorted({image["source_asset_id"]
+                                   for image in payload["images"].values()
+                                   if image is not None}))
+        if verify_worker_job(payload["shop_id"], staged_ids,
+                             payload["source_fingerprint"]) is not True:
+            _reject()
         try:
             yield {"temporary_directory": folder, "manifest": metadata}
         finally:
