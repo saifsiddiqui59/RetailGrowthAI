@@ -247,3 +247,65 @@ def test_operator_cpu_benchmark_cli_no_customer_prompt_or_synthetic_positive(mon
     assert offline.returncode==2
     assert offline.stdout==""
     assert "no positive proof" in offline.stderr
+
+
+def test_missing_operator_cache_is_a_scoped_failure_not_traceback(tmp_path):
+    with pytest.raises(LocalSpeechUnavailable,match="Trusted speech cache"):
+        verify_cache(tmp_path/"never-provisioned")
+
+
+def test_pinned_model_file_symlink_swap_during_open_fails_closed(tmp_path,monkeypatch):
+    # The attacker-controlled target is a tiny fake TEST file, not a model.
+    from ai_agents import feature2_kokoro_local as local
+    import os
+    if not hasattr(os,"O_NOFOLLOW"):
+        pytest.skip("Linux no-follow descriptor test")
+    source=b"synthetic-offline-test-weight"
+    voices=b"synthetic-offline-test-voice"
+    target=tmp_path/"swapped"
+    target.write_bytes(source)
+    model=tmp_path/MODEL_NAME
+    model.write_bytes(source)
+    (tmp_path/VOICES_NAME).write_bytes(voices)
+    real_open=os.open
+    switched=[]
+    def exchange(path,flags,*args,**kwargs):
+        if str(path)==str(model) and not switched:
+            model.unlink()
+            model.symlink_to(target)
+            switched.append(True)
+        return real_open(path,flags,*args,**kwargs)
+    monkeypatch.setattr(local.os,"open",exchange)
+    with pytest.raises(LocalSpeechUnavailable,match="Pinned local model"):
+        local.verify_cache(tmp_path,model_sha=sha256(source).hexdigest(),
+            voice_sha=sha256(voices).hexdigest(),
+            model_size=len(source),voice_size=len(voices))
+    assert switched==[True]
+
+
+@pytest.mark.parametrize("corrupt",[
+    "riff_only","duration","publish","transcript","timings",
+])
+def test_cpu_benchmark_denies_forged_wav_or_authority_receipts(corrupt):
+    # No real model/weights, network or billed provider calls in this test.
+    def fake(**kwargs):
+        record=synthesize_local(
+            text=kwargs["text"],voice_id=kwargs["voice_id"],
+            lang=kwargs["lang"],speed=kwargs["speed"],
+            engine=SimulatedEngine(),trusted_for_tests=True)
+        if corrupt=="riff_only":
+            record["audio_wav"]=b"RIFF"+b"\x00"*4+b"WAVE"+b"\x00"*36
+            record["audio_sha256"]=sha256(record["audio_wav"]).hexdigest()
+        elif corrupt=="duration":
+            record["duration_seconds"]=2.0
+        elif corrupt=="publish":
+            record["approved_to_publish"]=True
+        elif corrupt=="transcript":
+            record["speech_transcript_verified"]=True
+        else:
+            record["word_timestamps"]=[{"word":"synthetic"}]
+        return record
+    with pytest.raises(LocalSpeechUnavailable,match="provenance|WAV"):
+        run_cpu_kokoro_benchmark(
+            cache_dir="/synthetic-test-cache",repeats=1,
+            synthesize=fake,trusted_for_tests=True)
