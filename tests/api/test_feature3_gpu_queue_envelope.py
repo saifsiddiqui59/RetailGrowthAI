@@ -72,6 +72,17 @@ class GPUEnvelopeTests(unittest.TestCase):
             with self.subTest(data=str(data)[:80]), self.assertRaises(GPUEnvelopeDenied):
                 decode_dispatch_envelope(data)
 
+    def test_unpaired_unicode_surrogates_fail_closed_as_poison_envelopes(self):
+        # Python can receive malformed in-memory text before the Azure Queue
+        # adapter decodes it. A typed denial is required, not an uncaught
+        # UnicodeEncodeError that could escape poison-message handling.
+        for payload in (self.encoded + chr(0xD800),
+                        self.encoded + chr(0xDFFF),
+                        self.encoded.replace(self.shop, chr(0xD800) + self.shop[1:]),
+                        b"\xed\xa0\x80"):
+            with self.subTest(payload_type=type(payload).__name__), self.assertRaises(GPUEnvelopeDenied):
+                decode_dispatch_envelope(payload)
+
     def test_existing_publisher_generates_exact_decoder_compatible_message(self):
         outbox=Mock()
         outbox.claim_dispatch.return_value=[{

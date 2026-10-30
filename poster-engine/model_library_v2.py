@@ -121,6 +121,19 @@ def _private_png(raw):
         raise ModelLibraryDenied("Private model image cannot be decoded") from exc
 
 
+def _all_reusable_uses(value):
+    """An independent rights reader must explicitly grant each known use.
+
+    Reject malformed/unhashable entries, duplicates and unknown permissions
+    rather than raising TypeError or silently accepting forged extra uses.
+    """
+    if not isinstance(value, (list, tuple, set, frozenset)) or len(value) != len(USES):
+        return False
+    if any(type(use) is not str or use not in USES for use in value):
+        return False
+    return len(set(value)) == len(USES)
+
+
 def import_model_image(*, candidate, image_bytes, authorize_import,
                        verify_image_license, write_private_png, register_model):
     """Import existing or generated local image into one reusable library.
@@ -153,8 +166,7 @@ def import_model_image(*, candidate, image_bytes, authorize_import,
         rights.get("license_id") != candidate.license_id or
         rights.get("evidence_sha256") != candidate.license_evidence_sha256 or
         rights.get("allow_reuse") is not True or
-        not isinstance(rights.get("uses"), (list, tuple, set, frozenset)) or
-        not USES.issubset(set(rights["uses"]))):
+        not _all_reusable_uses(rights.get("uses"))):
         raise ModelLibraryDenied("Independent reusable-image commercial rights not verified")
     # Hash-pinned lineage allows dedupe/reopening without paying a GPU again.
     source = (candidate.owner_shop_id + "|" + candidate.scope + "|" +

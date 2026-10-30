@@ -31,6 +31,25 @@ function revision(n) {
 }
 function must(cond) {if (!cond) throw Error('Untrusted model operation receipt')}
 
+/** A Storage 2xx is not an approved model or proof of the expected upload.
+ * Validate the current shop/model/digest before a separate non-idempotent
+ * registration POST. Never trust a caller-supplied object path or rights flag.
+ */
+export function verifyPrivateModelOriginalUploadReceipt(receipt, shopId, modelId) {
+  const shop = id(shopId), model = id(modelId)
+  exact(receipt,['shop_id','model_id','object_path','image_sha256','bytes',
+    'upload_only','rights_verified','registered'])
+  const digest = sha(receipt.image_sha256)
+  if (receipt.shop_id !== shop || receipt.model_id !== model ||
+      receipt.object_path !== shop+'/model-library/'+model+'/'+digest+'.png' ||
+      !Number.isSafeInteger(receipt.bytes) || receipt.bytes < 100 ||
+      receipt.bytes > 25*1024*1024 || receipt.upload_only !== true ||
+      receipt.rights_verified !== false || receipt.registered !== false)
+    throw Error('Untrusted private model upload receipt')
+  return Object.freeze({shop_id:shop,model_id:model,image_sha256:digest,
+    bytes:receipt.bytes})
+}
+
 export function createFeature3ModelWorkflowApi({baseUrl,tokenProvider,fetchImpl = fetch}) {
   if (typeof baseUrl !== 'string') throw Error('HTTPS model API origin required')
   const url = new URL(baseUrl)

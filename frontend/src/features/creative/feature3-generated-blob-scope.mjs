@@ -53,5 +53,13 @@ export function createFeature3GeneratedBlobScope({
     return next
   }
   const view=(nextShop,nextJob)=>nextShop===shop&&nextJob===job?url:null
-  return Object.freeze({selectScope,install,view,clear})
+  // A delayed image decode failure must never revoke a newer private preview.
+  // Only the exact locally issued URL owned by this shop/job may be discarded.
+  const discardFailed=(nextShop,nextJob,expectedURL)=>{
+    if(nextShop!==shop||nextJob!==job||url===null||expectedURL!==url)
+      return false
+    clear()
+    return true
+  }
+  return Object.freeze({selectScope,install,view,clear,discardFailed})
 }

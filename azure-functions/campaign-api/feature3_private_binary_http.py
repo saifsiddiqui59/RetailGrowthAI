@@ -16,6 +16,10 @@ from tenant_store import canonical_uuid
 
 _SHA=re.compile(r"^[a-f0-9]{64}$")
 _MAX=25*1024*1024
+# The trusted reader validates full pixels; this HTTP boundary independently
+# rejects non-PNG or trailing-payload receipts before publishing private bytes.
+_PNG_MAGIC=b"\x89PNG\r\n\x1a\n"
+_PNG_IEND=b"\x00\x00\x00\x00IEND\xaeB\x60\x82"
 _KEYS=frozenset((
     "shop_id","job_id","media_asset_id","image_sha256","mime_type",
     "image_bytes","private","signed_url_issued","approved_model","publish_approved"
@@ -77,6 +81,7 @@ class Feature3PrivateBinaryHTTP:
             raw=receipt.get("image_bytes")
             digest=receipt.get("image_sha256")
             if (type(raw) is not bytes or not 100<=len(raw)<=_MAX or
+                    not raw.startswith(_PNG_MAGIC) or not raw.endswith(_PNG_IEND) or
                     type(digest) is not str or not _SHA.fullmatch(digest) or
                     sha256(raw).hexdigest()!=digest):
                 return self._deny(503)

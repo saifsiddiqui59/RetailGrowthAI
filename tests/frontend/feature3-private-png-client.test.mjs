@@ -22,7 +22,10 @@ function fakeResponse({headers={},binary=BYTES,status=200,url=URL,redirected=fal
   return {ok:status===200,status,url,redirected,
     headers:{get(name){return Object.hasOwn(all,name.toLowerCase())?
       all[name.toLowerCase()]:null}},
-    async arrayBuffer(){return Uint8Array.from(binary).buffer},
+    body:new ReadableStream({start(controller){
+      controller.enqueue(Uint8Array.from(binary))
+      controller.close()
+    }}),
   }
 }
 function setup(response=fakeResponse(),jwt='mock-signed-retailer-token') {
@@ -109,4 +112,48 @@ test('no plain HTTP, credentialed, path, query or fragment API origin',()=>{
       baseUrl,tokenProvider:async()=>'',fetchImpl:async()=>null,
     }))
   }
+})
+
+test('malicious excess stream bytes cancel immediately without unbounded arrayBuffer',async()=>{
+  const response=fakeResponse()
+  let cancellations=0
+  response.body=new ReadableStream({
+    start(controller){
+      controller.enqueue(BYTES)
+      controller.enqueue(new Uint8Array(256))
+      // Do not close: the client must actively cancel upon exceeding its cap.
+    },
+    cancel(){cancellations++},
+  })
+  const {api,calls}=setup(response)
+  await assert.rejects(api.get(SHOP,JOB),/byte stream denied/)
+  assert.equal(calls.length,1)
+  assert.equal(cancellations,1)
+})
+test('truncated, missing or malformed private body stream fails closed',async()=>{
+  const short=fakeResponse()
+  short.body=new ReadableStream({start(c){c.enqueue(BYTES.slice(0,100));c.close()}})
+  await assert.rejects(setup(short).api.get(SHOP,JOB),/bytes changed/)
+  const missing=fakeResponse()
+  missing.body=null
+  await assert.rejects(setup(missing).api.get(SHOP,JOB),/streaming unavailable/)
+  const corrupt=fakeResponse()
+  corrupt.body={getReader:()=>({
+    read:async()=>({done:false,value:'untrusted bytes'}),
+    cancel:async()=>{},
+    releaseLock:()=>{},
+  })}
+  await assert.rejects(setup(corrupt).api.get(SHOP,JOB),/byte stream denied/)
+})
+test('bounded stream supports fragmented valid PNG while preserving SHA proof',async()=>{
+  const response=fakeResponse()
+  response.body=new ReadableStream({start(c){
+    c.enqueue(BYTES.slice(0,3))
+    c.enqueue(BYTES.slice(3,17))
+    c.enqueue(BYTES.slice(17))
+    c.close()
+  }})
+  const result=await setup(response).api.get(SHOP,JOB)
+  assert.equal(result.imageSha256,HASH)
+  assert.equal(result.blob.size,BYTES.length)
 })

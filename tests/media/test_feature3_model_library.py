@@ -238,6 +238,38 @@ class LibraryTests(unittest.TestCase):
                 requesting_shop_id=self.shop, usage="poster",
                 authorize_use=lambda *_: True)
 
+    def test_independent_rights_uses_must_be_exact_safe_distinct_scopes(self):
+        """No malformed or expanded grant can reach private storage/registry."""
+        invalid = (
+            [["poster"], "try_on", "video_reference"],
+            ["poster", "try_on", "try_on"],
+            ["poster", "try_on", "video_reference", "admin"],
+            ["poster", "try_on"],
+            ["poster", False, "video_reference"],
+            {"poster": True, "try_on": True, "video_reference": True},
+            "poster,try_on,video_reference",
+            None,
+        )
+        for uses in invalid:
+            with self.subTest(uses=repr(uses)):
+                self.valid_uses = uses
+                with self.assertRaisesRegex(ModelLibraryDenied, "commercial rights"):
+                    self.store()
+                self.assertFalse(self.assets)
+                self.assertFalse(self.saved)
+
+    def test_independent_rights_accept_exact_list_tuple_and_set(self):
+        for uses in (
+            ["poster", "try_on", "video_reference"],
+            ("poster", "try_on", "video_reference"),
+            {"poster", "try_on", "video_reference"},
+            frozenset({"poster", "try_on", "video_reference"}),
+        ):
+            with self.subTest(type=type(uses).__name__):
+                self.valid_uses = uses
+                self.assertEqual(self.store()["status"], "PENDING_REVIEW")
+
+
     def test_newly_created_ai_model_uses_same_library_contract_no_second_schema(self):
         generated = replace(
             self.candidate, source_kind="created_ai",
