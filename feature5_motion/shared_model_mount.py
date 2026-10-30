@@ -48,7 +48,6 @@ def _reject_duplicate_manifest_keys(pairs):
     return result
 
 
-
 def _reject_linked_manifest_parents(item):
     """Deny static symlinked parent paths before/after private manifest read.
 

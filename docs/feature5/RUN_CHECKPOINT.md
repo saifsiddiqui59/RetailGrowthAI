@@ -48,3 +48,10 @@ Central `coordination/feature_tasks.json` snapshot: F5 total 22, source-complete
 - **PR:** stacked draft [#819](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/819), `mergeable=false` against parent Feature5 batch PR #781; coordinator owns stack reconciliation, CI and merge. New checkpoint commit itself requires a fresh exact-head check.
 - **Limits:** ctime identity is defense in depth, not cryptographic provenance or an atomic mount attestation. Actual 3 original Wan checkpoint SHA-256 reads, OCI/CUDA review, hosted mount and real inference remain unverified. GPU OFF; no paid services or PROD changes.
 - **NEXT:** F5-14 targeted test + exact-head 4/4 CI after stack reconciliation; meanwhile F5-13 independent OCI digest/license/SBOM review (no image build or GPU), or F5-02 original exporter review after verifying PR #804 to avoid duplicate work.
+
+## 2026-10-30 integration-first branch reconciliation
+
+- **Action:** reconciled the six commits added to Feature5 consolidated PR #781 after F5-14 branch diverged, using the latest batch tree and the original F5-14 source/test/doc additions. Preserved batch test `test_manifest_reader_does_not_follow_hardlinks_or_changed_descriptor` and updated its mocked stat object for the new ctime identity check; added four additional F5-14 negatives. This is a two-parent Git merge on the existing PR #819 branch, not a merge into main.
+- **Source parents:** batch #781 `18cbc016b0a2914c886e75328366d46f85901901`; prior #819 `36fc11a878dd0325df097a6482c1239d58e73e44`.
+- **Evidence:** source/tree reconciliation only; targeted Python tests and exact-head CI are **NOT VERIFIED**. New head/CI must be checked after commit. No model weights read, GPU remains OFF.
+- **NEXT:** review resulting PR #819 diff/mergeability, run targeted tests and exact-head 4/4; coordinator may then integrate stack into #781 and verify parent chain before main. F5-13 OCI/SBOM remains independently blocked by external evidence.

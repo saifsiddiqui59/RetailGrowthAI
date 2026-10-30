@@ -1,6 +1,5 @@
 """CPU-only, zero-cloud tests for shared Feature3/Feature5 Azure Files mount plan."""
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -95,6 +94,37 @@ class SharedModelMountTests(unittest.TestCase):
             linked.symlink_to(manifest)
             with self.assertRaises(m.PreflightError):
                 m.read_private_manifest(linked)
+
+    def test_manifest_reader_does_not_follow_hardlinks_or_changed_descriptor(self):
+        import os
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "private-models.json"
+            path.write_text(json.dumps(sample()), encoding="utf-8")
+            self.assertEqual(m.validate_manifest(m.read_private_manifest(path)),
+                             m.validate_manifest(sample()))
+            linked = Path(td) / "other-name.json"
+            os.link(path,linked)
+            with self.assertRaises(m.PreflightError):
+                m.read_private_manifest(path)
+            linked.unlink()
+            real_fstat = os.fstat
+            calls = []
+            def changing_fstat(fd):
+                info = real_fstat(fd)
+                calls.append(1)
+                if len(calls) == 2:
+                    return SimpleNamespace(
+                        st_mode=info.st_mode, st_nlink=info.st_nlink,
+                        st_dev=info.st_dev, st_ino=info.st_ino,
+                        st_size=info.st_size, st_mtime_ns=info.st_mtime_ns+1,
+                        st_ctime_ns=info.st_ctime_ns)
+                return info
+            with patch.object(m.os, "fstat", side_effect=changing_fstat):
+                with self.assertRaises(m.PreflightError):
+                    m.read_private_manifest(path)
+            self.assertEqual(len(calls),2)
 
     def test_private_manifest_denies_hardlinks_and_nonregular_files(self):
         with tempfile.TemporaryDirectory() as temp:
