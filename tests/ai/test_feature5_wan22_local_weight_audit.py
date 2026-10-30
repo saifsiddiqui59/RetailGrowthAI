@@ -55,6 +55,24 @@ class FullWeightByteAuditTests(unittest.TestCase):
                     audit.audit_full_wan_model_bytes(
                         mounted_share_root=root,trusted_private_manifest=sample())
 
+    def test_cli_rejects_ambiguous_private_manifest_before_model_read(self):
+        with tempfile.TemporaryDirectory() as td:
+            manifest = Path(td) / "private.json"
+            for raw in (
+                '{"gpu_started":false,"gpu_started":false}',
+                '{"files":[{"sha256":"a","sha256":"b"}]}',
+                '{"total_bytes":NaN}',
+                '{"total_bytes":Infinity}',
+            ):
+                manifest.write_text(raw)
+                with self.subTest(raw=raw):
+                    with patch.object(audit, "audit_full_wan_model_bytes") as reader:
+                        with self.assertRaises(SystemExit) as denied:
+                            audit.main(["--mounted-share", td,
+                                        "--private-manifest", str(manifest)])
+                        self.assertEqual(denied.exception.code, 2)
+                        reader.assert_not_called()
+
     def test_changed_length_hardlink_symlink_and_directory_traversal_denied(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td)
