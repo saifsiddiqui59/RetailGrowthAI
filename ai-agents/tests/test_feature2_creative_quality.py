@@ -136,7 +136,7 @@ def test_blind_review_rejects_unhashable_or_invalid_reviewer_identity(bad_review
         for reviewer in ("reviewer-one", "reviewer-two")
     ]
     reviews[0]["reviewer_id"] = bad_reviewer
-    with pytest.raises(ValueError, match="Two independent reviewers"):
+    with pytest.raises(ValueError, match="Invalid documented human rubric"):
         blind_human_comparison(
             experiment_id="diwali-independent-review-403",
             candidates=candidates, reviews=reviews,
