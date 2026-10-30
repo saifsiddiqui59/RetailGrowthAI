@@ -115,8 +115,8 @@ class ReleaseGateTests(unittest.TestCase):
         }
         self.assertEqual(self.run_gate(job, lineage, review, media).video_job_id, JOB)
         for field, value in (
-            ("shop_id", OTHER), ("kind", "unknown"),
-            ("source_feature", ""), ("approved", False),
+            ("shop_id", OTHER), ("kind", "unknown"), ("kind", []),
+            ("source_feature", ""), ("source_feature", []), ("approved", False),
             ("commercial_use", False), ("synthetic_fixture", True),
             ("rights_evidence", ""), ("rights_evidence", True),
         ):
