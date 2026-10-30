@@ -194,8 +194,17 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
             output.mkdir()
             staged_bytes = 0
             for asset_id, key in objects.items():
+                # Permissions/lease can expire during a multi-asset download.
+                # Stop before accessing the next private object, and again
+                # immediately after staging, before costly CPU rendering.
+                if (admin.render_authorized(claim) is not True
+                        or admin.feature4_claim_current(claim) is not True):
+                    return "STALE"
                 path = staging / manifest["assets"][asset_id]["path"]
                 media.download(claim["shop_id"], key, path)
+                if (admin.render_authorized(claim) is not True
+                        or admin.feature4_claim_current(claim) is not True):
+                    return "STALE"
                 if not path.is_file() or path.is_symlink():
                     raise Feature4HandoffError("Private media source was not staged safely")
                 staged_bytes += path.stat().st_size
