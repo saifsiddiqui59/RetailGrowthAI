@@ -156,3 +156,34 @@ def test_openpronounce_needs_offline_only_cpu_reference_before_import(monkeypatc
     with pytest.raises(VoiceQualityDenied,match="Offline calibrated"):
         run_openpronounce_lazy(original_wav=wav(),expected_script="Hello",
                                enabled=True)
+
+
+@pytest.mark.parametrize("bad",[
+    "Diwali\u202e", "Diwali\u2066", "Diwali\u200b",
+    "Diwali<svg>", "Diwali\u2028",
+])
+def test_untrusted_transcript_word_displays_cannot_hide_controls(bad):
+    with pytest.raises(VoiceQualityDenied,match="timestamps"):
+        analyze("Diwali", [bad])
+
+
+@pytest.mark.parametrize("field,text",[
+    ("word", "kurti\u202e"),
+    ("expected", "k\u2066ɜːti"),
+    ("actual", "k\u200bɜːti"),
+])
+def test_openpronounce_review_denies_unicode_display_spoofs(field,text):
+    from ai_agents.feature2_voice_quality import project_offline_openpronounce_review
+    problem={"word":"kurti","position":1,"expected":"kɜːti",
+             "actual":"kɜti","confidence":0.4}
+    problem[field]=text
+    with pytest.raises(VoiceQualityDenied,match="Invalid unapproved"):
+        project_offline_openpronounce_review(
+            audio_sha256="a"*64,
+            result={"score":70.0,"differences":{"errors":[problem]}})
+
+
+def test_indic_joiner_conjunct_remains_intact_in_review_only_tokens():
+    from ai_agents.feature2_voice_quality import _words
+    assert _words("क्\u200dष कुर्ती")==["क्\u200dष","कुर्ती"]
+    assert _words("नमस्ते") == ["नमस्ते"]
