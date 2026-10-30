@@ -102,7 +102,7 @@ def _path_identity(path, *, directory=False):
         raise SourceAuditError("Reviewed source path disappeared") from exc
     if directory:
         if not stat.S_ISDIR(info.st_mode):
-            raise SourceAuditError("Reviewed source directory was replaced")
+            raise SourceAuditError("Symlinked or replaced reviewed source directory")
     elif not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
         raise SourceAuditError("Reviewed source file is linked or not regular")
     return _stat_identity(info)
