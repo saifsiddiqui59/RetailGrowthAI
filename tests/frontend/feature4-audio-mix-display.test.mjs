@@ -40,10 +40,17 @@ test('unmuted video makes browser music gain unknown until trusted ffprobe', () 
   assert.equal(result.musicGainVerifiedByBrowser,false)
 })
 
-test('muted video and unauthorized video cannot invent source-audio ducking', () => {
+test('muted approved video is known, but foreign/revoked visuals deny gain claims', () => {
   assert.equal(fixedAudioMixDisplay(draft({asset_id:'clip',mute_source:true}),media,music).musicGain,0.55)
-  assert.equal(fixedAudioMixDisplay(draft({asset_id:'foreign'}),media,music).musicGain,0.55)
-  assert.equal(fixedAudioMixDisplay(draft({asset_id:'clip'}),media.map(a=>a.id==='clip'?{...a,authorized:false}:a),music).musicGain,0.55)
+  for(const result of [
+    fixedAudioMixDisplay(draft({asset_id:'foreign'}),media,music),
+    fixedAudioMixDisplay(draft({asset_id:'clip'}),media.map(a=>a.id==='clip'?{...a,authorized:false}:a),music),
+    fixedAudioMixDisplay(draft({asset_id:'missing'}),media,music),
+  ]){
+    assert.equal(result.musicGain,null)
+    assert.equal(result.musicGainBlockedByMedia,true)
+    assert.equal(result.musicGainUnknownUntilServerProbe,false)
+  }
 })
 
 test('foreign or revoked audio never yields an apparent licensed gain', () => {
