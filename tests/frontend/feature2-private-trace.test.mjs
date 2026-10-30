@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {verifyPrivateFeature2Trace} from '../../frontend/src/features/voiceover/voiceover-trace-model.mjs'
+import {verifyPrivateFeature2Trace,verifyCurrentPrivateTraceRead} from '../../frontend/src/features/voiceover/voiceover-trace-model.mjs'
 const shopId='11111111-1111-4111-8111-111111111111'
 const campaignId='22222222-2222-4222-8222-222222222222'
 const workflowId='33333333-3333-4333-8333-333333333333'
@@ -70,4 +70,42 @@ test('client refuses a trace request with stale selected workflow',()=>{
  const source=fixture()
  source.events=[]
  assert.throws(()=>check(source))
+})
+
+
+// This is a deterministic React scope-identity contract: the JSX panel
+// compares the request's scope against the latest ref before state updates.
+// It is NOT proof of a real authenticated UI session or hosted JWT/RLS.
+test('private trace request cannot return success after shop or workflow switch',()=>{
+ const fetcher=()=>Promise.resolve(fixture())
+ const original=Object.freeze({shopId,campaignId,workflowId,sourceSha256,
+   enabled:true,onFetchPrivateTrace:fetcher})
+ const out=verifyCurrentPrivateTraceRead({
+   currentScope:original,requestScope:original,receipt:fixture()})
+ assert.equal(out.status,'PRIVATE_BACKEND_STATUS_ONLY')
+ const changes=[
+   {shopId:campaignId},{campaignId:shopId},{workflowId:campaignId},
+   {sourceSha256:'d'.repeat(64)},{enabled:false},
+   {onFetchPrivateTrace:()=>Promise.resolve(fixture())},
+ ]
+ for(const changed of changes){
+   const next=Object.freeze({...original,...changed})
+   assert.throws(()=>verifyCurrentPrivateTraceRead({
+     currentScope:next,requestScope:original,receipt:fixture()}),
+     undefined,JSON.stringify(Object.keys(changed)))
+ }
+})
+
+test('disabled trace reader is never a valid authorization source',()=>{
+ const scope={shopId,campaignId,workflowId,sourceSha256,
+   enabled:false,onFetchPrivateTrace:()=>fixture()}
+ assert.throws(()=>verifyCurrentPrivateTraceRead({
+   currentScope:scope,requestScope:scope,receipt:fixture()}))
+ const noReader={...scope,enabled:true,onFetchPrivateTrace:null}
+ assert.throws(()=>verifyCurrentPrivateTraceRead({
+   currentScope:noReader,requestScope:noReader,receipt:fixture()}))
+ const active={...scope,enabled:true}
+ assert.throws(()=>verifyCurrentPrivateTraceRead({
+   currentScope:active,requestScope:active,
+   receipt:{...fixture(),source_sha256:'b'.repeat(64)}}))
 })
