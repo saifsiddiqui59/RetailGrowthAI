@@ -86,6 +86,34 @@ class TestAzureGPUReadOnlyPreflight(unittest.TestCase):
                  "limit": 1, "currentValue": value}]}
             self.assertEqual(check(usage_by_environment=usage).status, "BLOCKED")
 
+    def test_nonfinite_fractional_boolean_or_missing_quota_never_passes(self):
+        # These are untrusted Azure CLI JSON snapshots, not actual GPU quotas.
+        for field, value in (
+            ("limit", float("inf")), ("limit", "1e309"),
+            ("limit", "NaN"), ("limit", True),
+            ("limit", 1.5), ("limit", -1),
+            ("currentValue", float("inf")), ("currentValue", "-Infinity"),
+            ("currentValue", False), ("currentValue", 0.5),
+            ("currentValue", 1e309), ("currentValue", None),
+        ):
+            row = {"name": {"value": "Managed Environment Consumption NCA100 GPUs"},
+                   "limit": 2, "currentValue": 0}
+            row[field] = value
+            with self.subTest(field=field, value=value):
+                self.assertEqual(check(usage_by_environment={
+                    "rgai-f5-gpu-canary-eastus": [row]}).status, "BLOCKED")
+        missing_usage = {"name": {"value": "Managed Environment Consumption NCA100 GPUs"},
+                         "limit": 2}
+        self.assertEqual(check(usage_by_environment={
+            "rgai-f5-gpu-canary-eastus": [missing_usage]}).status, "BLOCKED")
+        self.assertEqual(check(usage_by_environment=[]).status, "BLOCKED")
+
+    def test_finite_integral_quota_fallback_value_is_inventory_only(self):
+        row = {"name": {"value": "Managed Environment Consumption NCA100 GPUs"},
+               "limit": "2", "value": "1"}
+        self.assertEqual(check(usage_by_environment={
+            "rgai-f5-gpu-canary-eastus": [row]}).status, "INSPECTION_PASS_ONLY")
+
     def test_readonly_cli_disallows_create_or_delete_invocations(self):
         with patch("feature5_motion.azure_gpu_readonly_cli.subprocess.run") as run:
             for operation in (("containerapp", "job", "create"),
