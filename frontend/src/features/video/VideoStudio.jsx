@@ -52,14 +52,16 @@ export default function VideoStudio({
     setError('')
   }, [shopId])
   useEffect(() => {
+    // A direction being revoked is as important as one being newly approved.
+    // Invalidate even when approvedRead no longer contains a draft.
+    invalidateRender()
     if (approvedRead?.draft) {
-      invalidateRender()
       setDraft(approvedRead.draft)
       setSelectedSceneIndex(0)
       setPreviewPlayhead(null)
       setSubmitted(false)
     }
-  }, [approvedRead])
+  }, [approvedRead, creativeDirection])
   const assets = useMemo(() => compatibleMedia(draft.mode, mediaAssets, shopId), [draft.mode, mediaAssets, shopId])
   const approvedPosters = useMemo(() => (Array.isArray(mediaAssets) ? mediaAssets : [])
     .filter(asset => asset?.authorized === true && asset?.kind === 'poster' &&
