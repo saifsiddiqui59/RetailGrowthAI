@@ -203,6 +203,25 @@ class Feature2F5SourceContractTests(unittest.TestCase):
                 with self.assertRaises(WanCompatibilityError):
                     qualify_feature2_offline_storyboard(packet)
 
+    def test_matched_but_malformed_camera_or_lighting_is_denied(self):
+        # Comparing F4 and F5 by equality alone is insufficient: a forged
+        # source could give both consumers the same invalid camera values.
+        for field, value in (
+            ("camera", {"movement": "pan"}),
+            ("camera", {"framing": 42, "lens": "50mm",
+                        "composition": "center", "movement": "pan"}),
+            ("lighting", None),
+            ("lighting", "  "),
+        ):
+            packet = make_packet(15)
+            direction = packet["feature5"]["clip_requests"][0]["original_direction"]
+            timeline = packet["feature4"]["timeline"][0]
+            direction[field] = copy.deepcopy(value)
+            timeline[field] = copy.deepcopy(value)
+            with self.subTest(field=field, value=value):
+                with self.assertRaises(WanCompatibilityError):
+                    qualify_feature2_offline_storyboard(packet)
+
     def test_reject_noncontiguous_and_unsupported_durations(self):
         for duration in (5, 10, 25, 20, 90, True):
             packet = make_packet(15)
