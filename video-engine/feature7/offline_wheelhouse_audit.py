@@ -97,14 +97,40 @@ def wheel_file_identity(filename, distribution, version):
     if any(not x or re.fullmatch(r"[A-Za-z0-9_.]+",x) is None for x in segments[3 if len(segments)==6 else 2:]):
         raise WheelhouseRejected("Unsafe or invalid wheel compatibility tags")
 
-def safe_metadata(z, distribution, version):
-    """Verify the ZIP structure without decompressing unbounded metadata."""
+def validate_wheel_tags(filename, wheel_message):
+    """Check the archive's declared tags agree with its pinned filename.
+
+    This is a ZIP identity check; an actual OS/Python/ABI install and import
+    must still be proven separately before marking the runtime ready.
+    """
+    parts=filename[:-4].split("-")
+    python,abi,platform=parts[-3:]
+    allowed={f"{p}-{a}-{os_tag}"
+             for p in python.split(".")
+             for a in abi.split(".")
+             for os_tag in platform.split(".")}
+    tags=wheel_message.get_all("Tag",[])
+    if (not 1<=len(tags)<=256 or len(allowed)>4096 or
+            wheel_message.get("Wheel-Version") not in ("1.0","1.1") or
+            wheel_message.get("Root-Is-Purelib") not in ("true","false")):
+        raise WheelhouseRejected("Missing or unsupported WHEEL compatibility metadata")
+    for tag in tags:
+        if (not isinstance(tag,str) or len(tag)>180 or
+                re.fullmatch(r"[A-Za-z0-9_.]+-[A-Za-z0-9_.]+-[A-Za-z0-9_.]+",tag) is None or
+                tag not in allowed):
+            raise WheelhouseRejected("WHEEL tag disagrees with pinned filename")
+    return True
+
+
+def safe_metadata(z, distribution, version, filename):
+    """Verify ZIP structure, package metadata and matching WHEEL tags."""
     entries=z.infolist()
     if not entries or len(entries)>MAX_MEMBERS:
         raise WheelhouseRejected("Unbounded or empty wheel ZIP")
     seen=set()
     expanded=0
     metadata=[]
+    wheel_info=[]
     for info in entries:
         name=info.filename
         if (name in seen or name.startswith("/") or "\\" in name or
@@ -116,11 +142,17 @@ def safe_metadata(z, distribution, version):
             raise WheelhouseRejected("Wheel ZIP symlink forbidden")
         expanded+=info.file_size
         if expanded>MAX_UNPACKED_BYTES or (
-            info.file_size>MAX_METADATA_BYTES and name.endswith(".dist-info/METADATA")
+            info.file_size>MAX_METADATA_BYTES and
+            (name.endswith(".dist-info/METADATA") or
+             name.endswith(".dist-info/WHEEL"))
         ):
             raise WheelhouseRejected("Wheel ZIP expansion or metadata exceeds budget")
         if name.endswith(".dist-info/METADATA"):
             metadata.append(info)
+        if name.endswith(".dist-info/WHEEL"):
+            wheel_info.append(info)
+    if len(wheel_info)!=1 or len(metadata)!=1:
+        raise WheelhouseRejected("Missing or ambiguous wheel WHEEL/METADATA")
     if len(metadata)!=1:
         raise WheelhouseRejected("Missing or ambiguous wheel package metadata")
     meta=metadata[0]
@@ -132,6 +164,11 @@ def safe_metadata(z, distribution, version):
         raise WheelhouseRejected("Dist-info directory does not match wheel identity")
     if meta.file_size>MAX_METADATA_BYTES:
         raise WheelhouseRejected("Metadata too large to inspect")
+    wheel=wheel_info[0]
+    if (wheel.filename!=prefix+"/WHEEL" or
+            wheel.file_size>MAX_METADATA_BYTES):
+        raise WheelhouseRejected("WHEEL metadata does not match package identity")
+    validate_wheel_tags(filename,Parser().parsestr(z.read(wheel).decode("utf-8")))
     return Parser().parsestr(z.read(meta).decode("utf-8"))
 
 
@@ -176,7 +213,7 @@ def audit_wheelhouse(folder: str,manifest_file: str)->dict:
             raise WheelhouseRejected("Wheel bytes differ from operator SHA")
         try:
             with ZipFile(p) as z:
-                msg=safe_metadata(z,name,version)
+                msg=safe_metadata(z,name,version,filename)
         except (BadZipFile,UnicodeDecodeError,RuntimeError) as exc:
             raise WheelhouseRejected("Unreadable wheel metadata") from exc
         if normal(msg.get("Name",""))!=key or msg.get("Version")!=version:

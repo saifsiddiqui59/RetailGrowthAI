@@ -21,6 +21,11 @@ class OfflineWheelhouseTests(unittest.TestCase):
         self.manifest=self.root/"operator.json"
         self.save()
 
+    @staticmethod
+    def wheel_record(tag="py3-none-any"):
+        return ("Wheel-Version: 1.0\nGenerator: feature7-test-only\n"
+                "Root-Is-Purelib: true\nTag: "+tag+"\n")
+
     def write_wheel(self,name,version,requires):
         filename=f"{name.replace('-','_')}-{version}-py3-none-any.whl"
         file=self.root/filename
@@ -28,6 +33,8 @@ class OfflineWheelhouseTests(unittest.TestCase):
             data=f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n"+\
                 "".join(f"Requires-Dist: {x}\n" for x in requires)
             z.writestr(f"{name.replace('-','_')}-{version}.dist-info/METADATA",data)
+            z.writestr(f"{name.replace('-','_')}-{version}.dist-info/WHEEL",
+                       self.wheel_record())
         self.wheels.append({"filename":filename,"distribution":name,
           "version":version,"sha256":hashlib.sha256(file.read_bytes()).hexdigest()})
 
@@ -67,6 +74,8 @@ class OfflineWheelhouseTests(unittest.TestCase):
         with ZipFile(p,"w",compression=ZIP_DEFLATED) as z:
             z.writestr(f"{name.replace('-','_')}-{version}.dist-info/METADATA",
                        metadata)
+            z.writestr(f"{name.replace('-','_')}-{version}.dist-info/WHEEL",
+                       self.wheel_record())
             if extra is not None:
                 z.writestr(extra[0],extra[1])
         row=next(r for r in self.wheels if r["distribution"]==name)
@@ -108,6 +117,8 @@ class OfflineWheelhouseTests(unittest.TestCase):
         p=self.root/"faster_whisper-1.2.1-py3-none-any.whl"
         with ZipFile(p,"w") as z:
             z.writestr("ctranslate2-1.2.1.dist-info/METADATA",base)
+            z.writestr("ctranslate2-1.2.1.dist-info/WHEEL",
+                       self.wheel_record())
         self.wheels[0]["sha256"]=hashlib.sha256(p.read_bytes()).hexdigest()
         self.save()
         with self.assertRaisesRegex(WheelhouseRejected,"Dist-info"):
@@ -116,6 +127,36 @@ class OfflineWheelhouseTests(unittest.TestCase):
                            "Requires-Dist: ???\n")
         with self.assertRaisesRegex(WheelhouseRejected,"Malformed"):
             audit_wheelhouse(str(self.root),str(self.manifest))
+
+    def test_repin_wrong_wheel_compatibility_tag_and_missing_wheel_denied(self):
+        name,version="faster-whisper","1.2.1"
+        meta="Metadata-Version: 2.1\nName: faster-whisper\nVersion: 1.2.1\n"
+        archive=self.root/"faster_whisper-1.2.1-py3-none-any.whl"
+        for tag in ("cp311-cp311-win_amd64","py3-none-manylinux2014_x86_64"):
+            with self.subTest(forbidden_tag=tag):
+                with ZipFile(archive,"w") as z:
+                    z.writestr("faster_whisper-1.2.1.dist-info/METADATA",meta)
+                    z.writestr("faster_whisper-1.2.1.dist-info/WHEEL",
+                               self.wheel_record(tag=tag))
+                self.wheels[0]["sha256"]=hashlib.sha256(archive.read_bytes()).hexdigest()
+                self.save()
+                with self.assertRaisesRegex(WheelhouseRejected,"tag disagrees"):
+                    audit_wheelhouse(str(self.root),str(self.manifest))
+        for mode in ("absent","duplicate","no_root_is_purelib"):
+            with self.subTest(invalid_wheel=mode):
+                with ZipFile(archive,"w") as z:
+                    z.writestr("faster_whisper-1.2.1.dist-info/METADATA",meta)
+                    if mode!="absent":
+                        row=self.wheel_record() if mode!="no_root_is_purelib" else (
+                          "Wheel-Version: 1.0\nTag: py3-none-any\n")
+                        z.writestr("faster_whisper-1.2.1.dist-info/WHEEL",row)
+                        if mode=="duplicate":
+                            # Two WHEEL metadata entries in distinct dist-info roots.
+                            z.writestr("other-1.0.dist-info/WHEEL",self.wheel_record())
+                self.wheels[0]["sha256"]=hashlib.sha256(archive.read_bytes()).hexdigest()
+                self.save()
+                with self.assertRaises(WheelhouseRejected):
+                    audit_wheelhouse(str(self.root),str(self.manifest))
 
     def test_manifest_must_be_json_object(self):
         self.manifest.write_text('[]')
