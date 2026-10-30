@@ -24,3 +24,7 @@
 - GitHub branch commits: `49f4209e46aabeb1bd57e218fc1884b7ef1220d9`, `f3dbe9089fa6ab76b1b8af7fcefd35f8a4749da3`, `e99a131529631afd964310697ae6b09758f75518`, `615d22e33a7d2a903d12cb14ae6ddd576d0c242e`.
 - **CI:** inspect exact final branch SHA after push; do not infer success from parent branch runs. Full F4-06 task remains IN PROGRESS pending actual renderer gain control/approved contract and integration.
 - Proposed coordinator status receipt: `F4-06` source-progress only, no `integrated_done` event; coordinator owns `coordination/task_progress.json` and canonical docs.
+
+## Fail-closed tenant refinement
+
+The UI also suppresses numerical mix preview when any selected visual media is foreign, revoked, missing or unverified; it must not show a valid-looking soundtrack mix on a draft that the server would reject. Negative regression covers these cases. Commits `c258218bffbef2270fdd304925f81640f51dab54`, `1b485acd559a68ffe3e8abdddb437cd909e09cf7`, `d7587440d964625dd7e27def793962b1d4d686b2`. Exact final branch CI pending; F4-06 remains source-progress only.
