@@ -1,0 +1,5 @@
+# Feature #4 F4-08 — Timeline playhead → original source video seek (2026-10-30)
+
+**Proposed source-only improvement on stacked PR #322.** Timeline keyboard/frame jog, clip click and caption selection now emit the playhead to the parent Studio. If the selected scene has a same-shop authorized private video preview URL and verified source trim, the native muted source player seeks to `trim_start + (playhead - scene.start)` within the allowed clip window; otherwise no video seek is attempted. Metadata-load fallback applies the same mapping. New draft, tenant switch and reviewed direction replacement clear stale seek state. Pure Node regression covers authorized trim mapping, out-of-scene positions, revoked media, wrong kind and source overrun.
+
+This is **not frame-exact decoded final composition**: browser keyframe seek precision and rendered transitions/captions/effects remain separate. No customer asset, signed URL, source permissions, renderer output or approval is fabricated. **F4-08 remains IN PROGRESS** pending exact-head CI, hosted browser evidence and coordinator merge. No GPU, billable AI, PROD, SQL, WineShopPOS or shared docs changed.
