@@ -471,7 +471,8 @@ def read_private_local_voice_job_status(*,shop_id,campaign_id,source_plan,
             row.get("creative_plan_sha256")!=plan_sha or
             row.get("original_script_sha256")!=script_sha or
             row.get("provider")!="kokoro-onnx" or
-            row.get("status") not in states or
+            type(row.get("status")) is not str or
+            row["status"] not in states or
             row.get("private") is not True or
             row.get("can_publish") is not False or
             row.get("can_dispatch_motion") is not False or
@@ -489,8 +490,12 @@ def read_private_local_voice_job_status(*,shop_id,campaign_id,source_plan,
             not re.fullmatch(r"[a-f0-9]{64}",row["request_sha256"]) or
             type(row.get("lease_fence")) is not int or
             not 1<=row["lease_fence"]<2**63 or
-            row.get("voice_id") not in SUPPORTED_VOICES or
-            row.get("language")!=SUPPORTED_VOICES[row["voice_id"]]):
+            type(row.get("voice_id")) is not str or
+            row["voice_id"] not in SUPPORTED_VOICES or
+            row.get("language")!=SUPPORTED_VOICES[row["voice_id"]] or
+            any(row.get(flag) is True for flag in (
+                "commercial_use_approved","may_auto_invoke_azure",
+                "paid_inference_authorized","customer_publishable"))):
             raise LocalVoiceJobDenied("Tenant-private original voice job not verified")
         completed=row["status"]=="AWAITING_HUMAN_REVIEW"
         if completed:
