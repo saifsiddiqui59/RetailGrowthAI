@@ -125,6 +125,16 @@ class ReconciliationTests(unittest.TestCase):
                 self.inspect()
         self.db.private_reads.clear()
 
+    def test_boolean_attempt_cannot_be_mistaken_for_single_paid_attempt(self):
+        self.db.jobrow.update({"status":"SUCCEEDED",
+                               "output_asset_id":self.db.asset,
+                               "claim_token":None,"lease_until":None})
+        self.db.spending.update({"state":"SETTLED","actual_usd":"0.011000"})
+        self.db.evidence["attempt"]=True
+        with self.assertRaises(Feature3ReconciliationUnknown):
+            self.inspect()
+        self.assertEqual(len(self.db.calls),2)
+
     def test_absent_private_proof_or_settlement_denied(self):
         self.db.jobrow.update({"status":"SUCCEEDED","output_asset_id":self.db.asset,
                                "claim_token":None,"lease_until":None})

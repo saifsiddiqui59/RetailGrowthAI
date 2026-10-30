@@ -153,7 +153,8 @@ class Feature3GPUOperatorReconciliation:
                     evidence.get("job_id")!=job or
                     evidence.get("media_asset_id")!=asset or
                     evidence.get("private") is not True or
-                    evidence.get("attempt")!=1 or
+                    type(evidence.get("attempt")) is not int or
+                    evidence["attempt"]!=1 or
                     evidence.get("review_status")!="UNREVIEWED" or
                     not isinstance(evidence.get("image_sha256"),str) or
                     not _SHA.fullmatch(evidence["image_sha256"])):
