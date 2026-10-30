@@ -605,7 +605,13 @@ _CLAIM_WORD_PERCENT = re.compile(
     r"twelve|thirteen|fourteen|fifteen|sixteen|seventeen|"
     r"eighteen|nineteen)[\s-]+(?:percent|per[\s-]?cent)\b", re.I
 )
-# Hindi/Marathi written percent units must not bypass the exact approved-offer span.\n# The Devanagari range includes vowel marks (which Python \\b does not reliably\n# treat as word characters), so use an explicit Indic suffix boundary.\n_CLAIM_LOCAL_PERCENT = re.compile(\n    r"(?<!\\d)\\d{1,3}\\s*(?:प्रतिशत|फ़ीसदी|फीसदी|टक्के|टक्का)(?![\\w\\u0900-\\u097f])", re.I\n)\n_CLAIM_PRICE = re.compile(r"(?:₹|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
+# Hindi/Marathi written percent units must not bypass the exact approved-offer span.
+# The Devanagari range includes vowel marks (which Python \b does not reliably
+# treat as word characters), so use an explicit Indic suffix boundary.
+_CLAIM_LOCAL_PERCENT = re.compile(
+    r"(?<!\d)\d{1,3}\s*(?:प्रतिशत|फ़ीसदी|फीसदी|टक्के|टक्का)(?![\w\u0900-\u097f])", re.I
+)
+_CLAIM_PRICE = re.compile(r"(?:₹|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
 _CLAIM_URGENCY = re.compile(r"\b(?:only \d+ left|selling out|last chance|guaranteed|best in india|number one|no\.?1|viral|trending now|everyone is buying|free shipping|free delivery|same-day delivery|cash on delivery|bogo|buy\s+(?:one|1)\s+get\s+(?:one|1)\s+free)\b",re.I)
 _CLAIM_WIDE = re.compile(r"\b(?:everything|all products|storewide|entire store|every item)\b",re.I)
 _CLAIM_MATERIAL = re.compile(r"\b(?:100% pure cotton|genuine silk|authentic gold|organic cotton)\b",re.I)
@@ -655,7 +661,9 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
             pattern=r"(?<!\w)"+re.escape(claim)+r"(?!\w)"
             approved_spans.extend((m.start(),m.end()) for m in
                                    re.finditer(pattern,text,flags=re.I))
-        hits=(list(_CLAIM_PERCENT.finditer(text)) +\n              list(_CLAIM_WORD_PERCENT.finditer(text)) +\n              list(_CLAIM_LOCAL_PERCENT.finditer(text)))
+        hits=(list(_CLAIM_PERCENT.finditer(text)) +
+              list(_CLAIM_WORD_PERCENT.finditer(text)) +
+              list(_CLAIM_LOCAL_PERCENT.finditer(text)))
         if hits and (not approved_spans or _CLAIM_WIDE.search(text) or
                      any(not any(a<=hit.start() and hit.end()<=b
                                  for a,b in approved_spans) for hit in hits)):
