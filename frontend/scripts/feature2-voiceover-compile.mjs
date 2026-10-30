@@ -17,4 +17,15 @@ if(typeof output.code!=='string'||!output.code.includes('jsx')||
    !output.code.includes('Upload for private review')) {
   throw Error('Feature2 VoiceoverSelector not compiled with expected actions')
 }
+// The signed trace panel is imported by VoiceoverSelector; compile the
+// actual child JSX too, rather than merely asserting the parent compiles.
+const traceFile=resolve(self,'../src/features/voiceover/Feature2TracePanel.jsx')
+const trace=await transformWithEsbuild(readFileSync(traceFile,'utf8'),traceFile,{
+  loader:'jsx',jsx:'automatic',target:'es2022'
+})
+if(typeof trace.code!=='string'||
+   !trace.code.includes('Verified private workflow stages')||
+   !trace.code.includes('verifyCurrentPrivateTraceRead')){
+  throw Error('Feature2 private trace JSX compilation missing session fence')
+}
 process.stdout.write('Feature2 isolated voiceover JSX compiled successfully\n')
