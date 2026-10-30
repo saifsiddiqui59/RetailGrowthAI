@@ -73,7 +73,7 @@ def decode_dispatch_envelope(payload):
         # messages must be valid UTF-8. Deny before any SQL/queue ACK.
         raise GPUEnvelopeDenied("Invalid GPU queue Unicode") from exc
     if (not 2 <= encoded_size <= _MAX or
-            any(ord(c) < 32 and c not in " \\t\\r\\n" for c in payload)):
+            any(ord(c) < 32 and c not in " \t\r\n" for c in payload)):
         raise GPUEnvelopeDenied("GPU queue envelope missing or oversized")
     try:
         parsed = json.loads(payload, object_pairs_hook=_unique_pairs,
