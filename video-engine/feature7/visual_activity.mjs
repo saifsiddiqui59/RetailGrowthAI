@@ -73,7 +73,7 @@ export function parseSceneChangeLog(log,duration_seconds){
     validNumber(duration_seconds,600)&&duration_seconds>=.5,
     'Invalid scene-change evidence');
   const timestamps=[];
-  const re=/\bpts_time:\s*([\d.]+)\b/g;
+  // Capture the complete FFmpeg token. A numeric-only regex silently turned\n  // malformed/negative/exponent timestamps into a different valid number,\n  // producing misleading scene-cut review evidence.\n  const re=/\bpts_time:\s*([^\s]+)/g;
   let match;
   while((match=re.exec(log))!==null){
     const time=Number(match[1]);
