@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "video-engine"))
 from professional import (
-    VideoPlanError, compile_composition, validate,
+    VideoPlanError, compile_composition, validate, checked_audio_mix,
     SUPPORTED_ANIMATIONS, SUPPORTED_TRANSITIONS,
 )  # noqa: E402
 from creative_contract import ANIMATIONS, TRANSITIONS  # noqa: E402
@@ -139,6 +139,47 @@ class ProfessionalVideoTests(unittest.TestCase):
                 trial["scenes"][0][name] = value
                 with self.assertRaisesRegex(VideoPlanError, "Unknown"):
                     validate(trial, self.manifest, self.media)
+
+    def test_approved_music_gain_changes_actual_renderer_audio_track(self):
+        self.audio()
+        self.plan["audio_mix"] = {"music": .37}
+        output = compile_composition(self.plan, self.manifest, self.media, self.output)
+        page = (output / "index.html").read_text()
+        self.assertIn('data-track-index="5" data-volume="0.37"', page)
+
+    def test_bounded_narration_and_sfx_gains_retaining_music_ducking(self):
+        self.audio()
+        self.manifest["assets"]["voice"] = {
+            "kind": "audio", "path": "music.wav", "rights": copy.deepcopy(RIGHTS),
+        }
+        self.manifest["assets"]["effect"] = {
+            "kind": "audio", "path": "music.wav", "rights": copy.deepcopy(RIGHTS),
+        }
+        self.plan["voiceover_asset_id"] = "voice"
+        self.plan["scenes"][1]["sfx_asset_id"] = "effect"
+        self.plan["audio_mix"] = {
+            "music": .8, "voiceover": .72, "sfx": .15,
+        }
+        page = (compile_composition(
+            self.plan, self.manifest, self.media, self.output) / "index.html").read_text()
+        self.assertIn('data-track-index="7" data-volume="0.72"', page)
+        self.assertIn('data-track-index="6" data-volume="0.15"', page)
+        self.assertIn('data-track-index="5" data-volume="0.12"', page)
+        self.assertNotIn('data-track-index="5" data-volume="0.8"', page)
+
+    def test_audio_gain_rejects_inert_unknown_and_nonfinite_controls(self):
+        for mix in (
+            {"music": 1}, {"sfx": 0}, {"voiceover": .5}, {"source": .5},
+            {"music": float("nan")}, {"source": True}, {"music": -.1},
+            {"music": .009}, {"unknown_track": 1}, {"music": "0.5"},
+        ):
+            with self.subTest(mix=mix), self.assertRaises(VideoPlanError):
+                validate({**self.plan, "audio_mix": mix}, self.manifest, self.media)
+        for mix in ([], "music=1", {"music": float("inf")}):
+            with self.subTest(mix=mix), self.assertRaises(VideoPlanError):
+                checked_audio_mix(
+                    mix, has_music=True, has_voice=False,
+                    has_source=False, has_sfx=False)
 
     def test_sixty_second_script_acceptance_without_expensive_render(self):
         self.plan["duration_seconds"] = 60

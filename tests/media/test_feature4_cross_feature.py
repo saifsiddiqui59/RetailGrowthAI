@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "video-engine"))
 from creative_contract import (CreativeContractError, PremiumMotionUnavailable,
                                compile_creative_reel, render_inputs)  # noqa: E402
+from professional import VideoPlanError
 
 SHOP = "11111111-1111-4111-8111-111111111111"
 CAMPAIGN = "22222222-2222-4222-8222-222222222222"
@@ -272,6 +273,22 @@ class CreativeReelTests(unittest.TestCase):
         self.request["scenes"][1]["javascript"] = "alert(1)"
         with self.assertRaisesRegex(CreativeContractError, "forbidden"):
             render_inputs(self.request, self.manifest)
+
+    def test_reviewed_cross_feature_source_gain_reaches_renderer(self):
+        self.make_assets(with_video=True)
+        self.request["audio_mix"] = {"source": .65}
+        lowered = render_inputs(self.request, self.manifest)
+        self.assertEqual(lowered.plan["audio_mix"], {"source": .65})
+        output = compile_creative_reel(
+            self.request, self.manifest, self.assets, self.root / "mixed-gain")
+        page = (output / "index.html").read_text()
+        self.assertIn('data-track-index="0" data-volume="0.65"', page)
+        for bad in ({"music": .5}, {"source": float("nan")},
+                    {"source": True}, {"source": 1.01}, {"voiceover": .5}):
+            with self.subTest(bad=bad):
+                self.request["audio_mix"] = bad
+                with self.assertRaises(VideoPlanError):
+                    render_inputs(self.request, self.manifest)
 
     def test_retry_is_same_logical_job_no_usage_mutation(self):
         self.make_assets(with_video=True)
