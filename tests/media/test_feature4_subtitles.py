@@ -47,6 +47,26 @@ class Feature4SubtitleTests(unittest.TestCase):
         self.assertIn("00:00:58,750 --> 00:01:00,000", srt)
         self.assertIn("00:00:58.750 --> 00:01:00.000", vtt)
 
+    def test_unicode_scripts_preserved_and_spoofing_controls_rejected(self):
+        # Legitimate Arabic/Devanagari scripts need Unicode automatic
+        # shaping; ZWJ/ZWNJ used for Indic conjuncts are not stripped.
+        good=[
+            {"start": 1, "duration": 2, "text": "दीवाली की नई पेशकश"},
+            {"start": 4, "duration": 2, "text": "عرض جديد"},
+            {"start": 7, "duration": 1, "text": "रक्ष\u200dा"},
+        ]
+        srt,vtt=compose_approved_subtitles(good,duration_seconds=15)
+        for cue in good:
+            self.assertIn(cue["text"],srt)
+            self.assertIn(cue["text"],vtt)
+        for bad in ("SALE\u202eLMTH", "SAVE\u200bNOW", "DEAL\ufeffX",
+                    "OFFER\u2066hidden", "SAVE\u00adMORE",
+                    "\u0301\u0301", "\u2028hidden"):
+            with self.subTest(bad=repr(bad)), self.assertRaises(SubtitleExportError):
+                compose_approved_subtitles(
+                    [{"start": 0, "duration": 2, "text": bad}],
+                    duration_seconds=15)
+
     def test_invalid_input_or_unreviewed_control_sequences_fail(self):
         for cues in (
             [{"start": 0.505, "duration": 1.245, "text": "Hello --> World"}],
