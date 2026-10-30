@@ -64,3 +64,21 @@ export function verifyPrivateFeature2Trace({
     can_publish:false,
   })
 }
+
+
+// Bind a read-only private trace response to the EXACT UI reader/selection
+// captured at request time. The callback identity must be replaced by the
+// host whenever the current authenticated session/provider is replaced.
+export function verifyCurrentPrivateTraceRead({
+  currentScope,requestScope,receipt
+}={}){
+  if(!currentScope||typeof currentScope!=='object'||
+     currentScope!==requestScope||
+     currentScope.enabled!==true||
+     typeof currentScope.onFetchPrivateTrace!=='function')fail()
+  return verifyPrivateFeature2Trace({
+    shopId:currentScope.shopId,campaignId:currentScope.campaignId,
+    workflowId:currentScope.workflowId,
+    sourceSha256:currentScope.sourceSha256,receipt,
+  })
+}
