@@ -319,3 +319,52 @@ def test_private_cas_explicit_restricted_receipt_remains_review_only():
     assert result["review_status"] == "DRAFT"
     assert result["can_publish"] is False
     assert result["can_dispatch_paid_motion"] is False
+
+
+# F2-03: original, provider and signed-CAS prompts must not hide control
+# characters that change reviewer-visible meaning. Fixtures only, no AI call.
+@pytest.mark.parametrize("hidden", [
+    "\u202e",  # right-to-left override
+    "\u2066",  # left-to-right isolate
+    "\u200b",  # zero-width space
+    "\u200d",  # ZWJ outside an Indic conjunct
+    "\u2028",  # Unicode line separator
+    "\x00",    # NUL
+])
+def test_prompt_improver_rejects_invisible_or_bidi_instruction_controls(hidden):
+    with pytest.raises(ValueError, match="unsafe control"):
+        improve_prompt(
+            "Create a kurti post " + hidden + " with a human review.",
+            profile(), output_formats=["instagram_caption"],
+        )
+
+
+def test_valid_devanagari_conjunct_joiner_is_not_mistaken_for_injection():
+    original = "कृपया क्\u200dष अक्षर के साथ साड़ी का विवरण लिखें।"
+    result = improve_prompt(
+        original, profile(), output_formats=["poster_brief"], language="hi-IN",
+    )
+    assert original in result["improved_prompt"]
+    assert result["can_publish"] is False
+
+
+def test_mock_approved_provider_cannot_insert_invisible_controls():
+    flags = dict(
+        output_formats=["poster_brief"], provider_mode="approved_llm",
+        explicit_cost_approval=True, subscription_quota_ok=True,
+        approved_cost_limit_usd=0.03,
+        environ={"RETAIL_PROMPT_LLM_ENABLED": "true"},
+    )
+    with pytest.raises(ValueError, match="unreviewable or unsafe"):
+        improve_prompt(
+            ORIGINAL, profile(),
+            provider=lambda prompt: prompt + "\u202e",
+            **flags,
+        )
+
+
+def test_signed_prompt_revision_rejects_hidden_control_before_private_cas():
+    run, writes, decisions = approved_draft_bridge()
+    with pytest.raises(PromptRevisionRejected, match="Unsafe prompt revision"):
+        run(improved_prompt=IMPROVED + "\u200b")
+    assert writes == [] and decisions == []
