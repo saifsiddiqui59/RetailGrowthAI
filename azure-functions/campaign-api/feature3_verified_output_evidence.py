@@ -90,7 +90,14 @@ class Feature3VerifiedOutputEvidenceReader:
                 headers=getattr(response,"headers",{})
                 content_type=headers.get("Content-Type") if headers is not None else None
                 content_length=headers.get("Content-Length") if headers is not None else None
-                if content_type is not None and content_type.split(";",1)[0].strip().lower()!="image/png":
+                content_encoding=headers.get("Content-Encoding") if headers is not None else None
+                if content_encoding is not None and (
+                        not isinstance(content_encoding,str) or
+                        content_encoding.strip().lower()!="identity"):
+                    raise Feature3EvidenceReadDenied("Untrusted encoded private PNG response")
+                if content_type is not None and (
+                        not isinstance(content_type,str) or
+                        content_type.split(";",1)[0].strip().lower()!="image/png"):
                     raise Feature3EvidenceReadDenied("Private bytes not PNG")
                 if content_length is not None and (
                         not isinstance(content_length,str) or
@@ -109,7 +116,9 @@ class Feature3VerifiedOutputEvidenceReader:
                 if (image.format!="PNG" or getattr(image,"n_frames",1)!=1 or
                         not 256<=image.width<=8192 or
                         not 256<=image.height<=8192 or
-                        image.width*image.height>24_000_000):
+                        image.width*image.height>24_000_000 or
+                        any(k.lower() in ("exif","xmp","xml:com.adobe.xmp")
+                            for k in image.info)):
                     raise Feature3EvidenceReadDenied("Private output PNG unsuitable")
                 image.verify()
         except (OSError,ValueError,UnidentifiedImageError,
