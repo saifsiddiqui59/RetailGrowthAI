@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
+import {readFileSync} from 'node:fs'
+import {feature3ModelWorkflowSessionKey} from '../../frontend/src/features/creative/feature3-model-workflow-scope.mjs'
 import {createFeature3ModelWorkflowApi,verifyPrivateModelOriginalUploadReceipt} from '../../frontend/src/features/creative/feature3-model-workflow-api.mjs'
 const shop=randomUUID(),model=randomUUID(),media=randomUUID(),event=randomUUID()
 const checks={adult_synthetic:true,likeness_and_consent:true,image_license:true,
@@ -150,4 +152,35 @@ test('private original Storage receipt is scoped before a separate registration 
   {...upload,approved:true},
   null,
  ])assert.throws(()=>verifyPrivateModelOriginalUploadReceipt(invalid,shop,model))
+})
+
+test('F3-11 reviewer remounts all private state after shop or signed API rotation',()=>{
+ const old={name:'old signed provider'},replacement={name:'new signed provider'}
+ const key=feature3ModelWorkflowSessionKey(shop,old)
+ assert.equal(key,feature3ModelWorkflowSessionKey(shop,old))
+ assert.notEqual(key,feature3ModelWorkflowSessionKey(randomUUID(),old))
+ assert.notEqual(key,feature3ModelWorkflowSessionKey(shop,replacement))
+ for(const invalid of [null,undefined,'string',42])assert.equal(feature3ModelWorkflowSessionKey(shop,invalid),null)
+ assert.equal(feature3ModelWorkflowSessionKey('invalid-shop',old),null)
+ const ui=readFileSync(new URL('../../frontend/src/features/creative/Feature3SignedModelWorkflow.jsx',import.meta.url),'utf8')
+ assert.match(ui,/const scopeKey=feature3ModelWorkflowSessionKey\(shopId,api\)/)
+ assert.match(ui,/key=\{scopeKey\+':'\+\(disabled\?'disabled':'enabled'\)\}/)
+ assert.match(ui,/current\.current\.api===api/)
+ assert.match(ui,/if\(!isCurrent\(\)\)return \/\/ Never start a second POST/)
+ assert.match(ui,/if\(!isCurrent\(\)\)return\s+if\(registration\.model_id/)
+ assert.ok((ui.match(/if\(!isCurrent\(\)\)return/g)||[]).length>=4)
+})
+test('F3-13 signed model POST never sends malformed JWT or ambient credentials',async()=>{
+ for(const token of ['bad\nInjected','bad\rInjected','my token',
+    ' token','abc\tdef','untrusted\u0080jwt','é.jwt','bad\u2028token']){
+   const {client,calls}=api(imported,{tokenProvider:()=>token})
+   await assert.rejects(client.importPendingModel(shop,newModel),/sign in/)
+   assert.equal(calls.length,0)
+ }
+ const {client,calls}=api(imported)
+ await client.importPendingModel(shop,newModel)
+ assert.equal(calls.length,1)
+ assert.equal(calls[0].options.credentials,'omit')
+ assert.equal(calls[0].options.referrerPolicy,'no-referrer')
+ assert.equal(calls[0].options.redirect,'error')
 })

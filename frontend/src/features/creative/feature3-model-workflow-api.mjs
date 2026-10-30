@@ -58,12 +58,14 @@ export function createFeature3ModelWorkflowApi({baseUrl,tokenProvider,fetchImpl 
     throw Error('Strict HTTPS model API and authenticated JWT provider required')
   async function request(shopId, path, body) {
     const token = await tokenProvider()
-    if (typeof token !== 'string' || token.length > 8192 || !token.trim() ||
+    if (typeof token !== 'string' || token.length < 1 || token.length > 8192 ||
+        /[^\x21-\x7e]/.test(token) ||
         token.startsWith('sb_secret_') || token.startsWith('sb_publishable_'))
       throw Error('Please sign in again')
     // POST once, never retry after ambiguous 409, timeout or 503.
     const response = await fetchImpl(url.origin + '/api/shops/' + id(shopId) + path, {
       method:'POST',redirect:'error',cache:'no-store',
+      credentials:'omit',referrerPolicy:'no-referrer',
       headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
       body:JSON.stringify(body),
     })
