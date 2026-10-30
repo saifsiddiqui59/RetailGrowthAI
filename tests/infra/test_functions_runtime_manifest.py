@@ -81,10 +81,10 @@ class FunctionsRuntimeManifestTests(unittest.TestCase):
         # A source-only worker can import through either legal alias form.
         with tempfile.TemporaryDirectory() as temp:
             home = Path(temp)
-            (home / "offline_voice.py").write_text("SAFE_TEST_FIXTURE = True\\n", encoding="utf-8")
+            (home / "offline_voice.py").write_text("SAFE_TEST_FIXTURE = True\n", encoding="utf-8")
             forms = (
-                b"from importlib import import_module as load; load('ai_agents.offline_voice')\\n",
-                b"import importlib as il; il.import_module('ai_agents.offline_voice')\\n",
+                b"from importlib import import_module as load; load('ai_agents.offline_voice')\n",
+                b"import importlib as il; il.import_module('ai_agents.offline_voice')\n",
             )
             with patch.object(mod, "AGENTS", home):
                 for statement in forms:
