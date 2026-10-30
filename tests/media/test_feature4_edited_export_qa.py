@@ -49,7 +49,7 @@ class EncodedEditorParityTests(unittest.TestCase):
         v1, p1, v2, p2 = self.valid
         for name, frames in (
             ("truncated-first-video", (v1[:-1], p1, v2, p2)),
-            ("oversized-product-frame", (v1, p1 + b"\\x00", v2, p2)),
+            ("oversized-product-frame", (v1, p1 + b"\x00", v2, p2)),
             ("wrong-decoder-type", (v1, p1, bytearray(v2), p2)),
             ("empty-frame", (v1, p1, b"", p2)),
         ):
