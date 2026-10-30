@@ -166,7 +166,7 @@ class BinaryHTTPTests(unittest.TestCase):
         split=max(1,len(payload)//2)
         first=chunk(b"IDAT",payload[:split])
         second=chunk(b"IDAT",payload[split:])
-        ancillary=chunk(b"tEXt",b"note\\x00synthetic")
+        ancillary=chunk(b"tEXt",b"note\x00synthetic")
         unknown_critical=chunk(b"ABCD",b"forged")
         valid_split=ihdr+first+second+original[-12:]
         self.reader.png=valid_split
@@ -174,7 +174,7 @@ class BinaryHTTPTests(unittest.TestCase):
         for forged in (
             ihdr+unknown_critical+idat+original[-12:],
             ihdr+first+ancillary+second+original[-12:],
-            ihdr+idat+chunk(b"PLTE",b"\\x00\\x00\\x00")+original[-12:],
+            ihdr+idat+chunk(b"PLTE",b"\x00\x00\x00")+original[-12:],
         ):
             self.reader.png=forged
             with self.subTest(forged_sha=sha256(forged).hexdigest()):
