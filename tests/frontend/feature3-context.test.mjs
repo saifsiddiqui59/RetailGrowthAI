@@ -54,13 +54,13 @@ test('missing or malformed workspace context fails closed without crashing the e
 
 test('control characters and bidi overrides never appear as approved poster copy', () => {
   for (const field of ['headline', 'cta', 'offer_text']) {
-    for (const unsafe of ['Sale\\nterms', 'SALE\\u202e90% OFF', 'Offer\\u2066hidden\\u2069']) {
+    for (const unsafe of ['Sale\nterms', 'SALE\u202e90% OFF', 'Offer\u2066hidden\u2069']) {
       assert.equal(approvedFeature3Inputs({ ...approved, [field]: unsafe },
         context, brandKit).approved, null)
     }
   }
   assert.equal(approvedFeature3Inputs(approved, context, {
-    ...brandKit, businessName: 'Store\\u202eSpoof',
+    ...brandKit, businessName: 'Store\u202eSpoof',
   }).brand, null)
   assert.equal(approvedFeature3Inputs({
     ...approved, approved_version: Number.MAX_SAFE_INTEGER,
