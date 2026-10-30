@@ -111,7 +111,13 @@ def consume_feature7_stt(*,shop_id,campaign_id,source_sha256,
         transcript.get("creative_plan_sha256")!=source_sha256 or
         transcript.get("original_audio_sha256")!=original_audio_sha256 or
         transcript.get("provider")!="faster-whisper" or
-        transcript.get("model_version") in (None,"") or
+        type(source_sha256) is not str or
+        re.fullmatch(r"[0-9a-f]{64}", source_sha256) is None or
+        type(original_audio_sha256) is not str or
+        re.fullmatch(r"[0-9a-f]{64}", original_audio_sha256) is None or
+        type(transcript.get("model_version")) is not str or
+        not 1 <= len(transcript["model_version"]) <= 120 or
+        any(ord(c) < 33 or ord(c) > 126 for c in transcript["model_version"]) or
         transcript.get("worker_verified") is not True or
         type(expected_script) is not str or not 1<=len(expected_script)<=1800):
         raise VoiceQualityDenied("No trusted Feature7 transcription evidence")
