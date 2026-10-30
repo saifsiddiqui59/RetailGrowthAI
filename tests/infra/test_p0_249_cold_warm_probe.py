@@ -41,13 +41,13 @@ def test_campaign_and_unknown_routes_cannot_swap_authentication_status():
 
 
 def test_final_header_marker_not_a_proxy_or_empty_value():
-    a = ("HTTP/1.1 200 Connection established\\r\\n"
-         "X-Request-ID: proxy-only\\r\\n\\r\\n"
-         "HTTP/2 401\\r\\ncontent-type: application/json\\r\\n\\r\\n")
+    a = ("HTTP/1.1 200 Connection established\r\n"
+         "X-Request-ID: proxy-only\r\n\r\n"
+         "HTTP/2 401\r\ncontent-type: application/json\r\n\r\n")
     assert not probe.final_app_request_marker(a)
-    b = "HTTP/2 401\\r\\nX-Request-ID: \\r\\n\\r\\n"
+    b = "HTTP/2 401\r\nX-Request-ID: \r\n\r\n"
     assert not probe.final_app_request_marker(b)
-    c = a + "HTTP/2 401\\r\\nx-request-id: app-present\\r\\n\\r\\n"
+    c = a + "HTTP/2 401\r\nx-request-id: app-present\r\n\r\n"
     assert probe.final_app_request_marker(c)
 
 
@@ -67,11 +67,11 @@ def test_mocked_curl_six_gets_fail_closed_on_wrong_route_even_with_marker():
     campaign = dict(probe.ROUTES)["campaign"]
     unknown = dict(probe.ROUTES)["unknown"]
     with patch.object(probe.subprocess, "run", make(
-            "HTTP/2 404\\r\\nx-request-id: any\\r\\n\\r\\n", "404")):
+            "HTTP/2 404\r\nx-request-id: any\r\n\r\n", "404")):
         assert probe.probe("initial-campaign", campaign)["category"] == "OTHER_UNEXPECTED"
         assert probe.probe("initial-unknown", unknown)["category"] == "EXPECTED_401_OR_404"
     with patch.object(probe.subprocess, "run", make(
-            "HTTP/2 401\\r\\nX-Request-ID: app-valid\\r\\n\\r\\n", "401")):
+            "HTTP/2 401\r\nX-Request-ID: app-valid\r\n\r\n", "401")):
         assert probe.probe("initial-campaign", campaign)["category"] == "EXPECTED_401_OR_404"
         assert probe.probe("initial-unknown", unknown)["category"] == "OTHER_UNEXPECTED"
 
