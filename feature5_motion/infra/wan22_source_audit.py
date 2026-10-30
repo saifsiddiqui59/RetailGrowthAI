@@ -89,6 +89,59 @@ def validate_source_manifest(manifest):
     return files
 
 
+
+def _stat_identity(info):
+    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
+def _path_identity(path, *, directory=False):
+    """Never follow a replaced source path or silently accept a hardlink."""
+    try:
+        info = path.stat(follow_symlinks=False)
+    except OSError as exc:
+        raise SourceAuditError("Reviewed source path disappeared") from exc
+    if directory:
+        if not stat.S_ISDIR(info.st_mode):
+            raise SourceAuditError("Reviewed source directory was replaced")
+    elif not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+        raise SourceAuditError("Reviewed source file is linked or not regular")
+    return _stat_identity(info)
+
+
+def _hash_verified_source(path, expected_sha):
+    """Bind SHA-256 to an open regular-file descriptor and a stable named path."""
+    before = _path_identity(path)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    fd = -1
+    try:
+        fd = os.open(path, flags)
+        with os.fdopen(fd, "rb") as stream:
+            fd = -1
+            opened = os.fstat(stream.fileno())
+            if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1
+                    or _stat_identity(opened) != before):
+                raise SourceAuditError("Reviewed source identity changed before read")
+            digest = hashlib.sha256()
+            count = 0
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                count += len(block)
+                if count > before[2]:
+                    raise SourceAuditError("Reviewed source grew during hashing")
+                digest.update(block)
+            if count != before[2] or _stat_identity(os.fstat(stream.fileno())) != before:
+                raise SourceAuditError("Reviewed source changed during hashing")
+    except OSError as exc:
+        raise SourceAuditError("Unable to securely read reviewed source") from exc
+    finally:
+        if fd != -1:
+            os.close(fd)
+    if _path_identity(path) != before:
+        raise SourceAuditError("Reviewed source path identity changed")
+    if digest.hexdigest() != expected_sha:
+        raise SourceAuditError("Vendored ComfyUI source bytes changed")
+    return before
+
+
 def audit_complete_vendor_checkout(root, *, reviewed_manifest):
     """Stream every local source byte, refuse any additional/unreviewed file.
 
@@ -101,33 +154,39 @@ def audit_complete_vendor_checkout(root, *, reviewed_manifest):
         raise SourceAuditError("Non-symlink vendored ComfyUI directory required")
     actual = set()
     total = 0
+    directories = {base: _path_identity(base, directory=True)}
+    verified_files = {}
     for directory, folders, files in os.walk(base, followlinks=False):
+        current = Path(directory)
+        directories[current] = _path_identity(current, directory=True)
         if len(actual) > MAX_FILES:
             raise SourceAuditError("Too many ComfyUI source files")
         for folder in folders:
-            item = Path(directory) / folder
-            if item.is_symlink() or not item.is_dir() or folder == ".git":
-                raise SourceAuditError("Symlinked, hidden Git, or invalid source directory")
+            item = current / folder
+            if folder == ".git":
+                raise SourceAuditError("Hidden Git directory is not reviewed source")
+            directories[item] = _path_identity(item, directory=True)
         for filename in files:
-            item = Path(directory) / filename
+            item = current / filename
             relative = item.relative_to(base).as_posix()
-            if (not _valid_path(relative) or relative not in expected or
-                item.is_symlink() or
-                not stat.S_ISREG(item.stat(follow_symlinks=False).st_mode)):
+            if not _valid_path(relative) or relative not in expected:
                 raise SourceAuditError("Unexpected, linked or unreviewed source file")
             if relative in actual:
                 raise SourceAuditError("Duplicate source inventory entry")
             actual.add(relative)
-            size = item.stat().st_size
+            size = _path_identity(item)[2]
             total += size
             if total > MAX_TOTAL_BYTES or len(actual) > MAX_FILES:
                 raise SourceAuditError("Vendored source exceeds reviewed file/byte envelope")
-            digest = hashlib.sha256()
-            with item.open("rb") as stream:
-                for part in iter(lambda:stream.read(1024 * 1024), b""):
-                    digest.update(part)
-            if digest.hexdigest() != expected[relative] or item.stat().st_size != size:
-                raise SourceAuditError("Vendored ComfyUI source bytes changed")
+            verified_files[item] = _hash_verified_source(item, expected[relative])
+    # Earlier paths can be swapped while later files are hashed. Recheck all
+    # names and ancestor directories after the complete inventory walk.
+    for item, identity in directories.items():
+        if _path_identity(item, directory=True) != identity:
+            raise SourceAuditError("Reviewed source directory identity changed")
+    for item, identity in verified_files.items():
+        if _path_identity(item) != identity:
+            raise SourceAuditError("Reviewed source path identity changed")
     if actual != set(expected):
         raise SourceAuditError("Incomplete vendored source tree")
     if (base / "REVIEWED_SOURCE_COMMIT").read_text(encoding="ascii").strip() != COMFY_SOURCE_COMMIT:
