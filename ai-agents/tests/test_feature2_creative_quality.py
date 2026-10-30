@@ -397,6 +397,39 @@ def test_private_blind_history_denies_ambiguous_or_replayed_score_receipts(tampe
         )
 
 
+
+@pytest.mark.parametrize("tamper", ["score", "receipt"])
+def test_private_blind_history_denies_mutable_reader_alias_changed_by_signer(tamper):
+    # A backend reader may hand out the SAME mutable rows object twice.
+    # Previously comparing source() with rows could compare an object to itself
+    # after a signer mutated it, silently accepting stale or mixed evidence.
+    shared = history_fixture()
+    calls = []
+
+    def read(*_):
+        calls.append("read")
+        return shared
+
+    def signer(*_):
+        calls.append("verify")
+        if calls.count("verify") == 1:
+            if tamper == "score":
+                shared[0]["human_scores"]["A"] = 99.0
+            else:
+                shared[0]["receipt_digest"] = "f" * 64
+        return True
+
+    with pytest.raises(Feature2TraceDenied, match="changed mid-read"):
+        read_private_blind_review_history(
+            shop_id=TSHOP, campaign_id=TCAMP, experiment_id=HISTORY_EXP,
+            current_editor=lambda *_: True,
+            read_private_history=read,
+            verify_signed_history_receipt=signer,
+        )
+    assert calls.count("read") == 2
+
+
+
 def test_blind_history_rejects_unsigned_receipts_and_revoked_editor():
     rows=history_fixture()
     with pytest.raises(Feature2TraceDenied,match="signed"):
