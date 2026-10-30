@@ -47,7 +47,17 @@ export function createFeature3GeneratedBlobScope({
       if(typeof next==='string'&&next.startsWith('blob:'))revokeURL(next)
       throw Error('Only local revocable Blob preview URL permitted')
     }
-    clear()
+    // A Blob URL factory must never alias the still-owned previous preview.
+    // Otherwise clear() would revoke the URL we are about to display.
+    if(next===url) throw Error('Private generated Blob URL must be fresh')
+    try {
+      clear()
+    } catch {
+      // A failed old-URL revocation must not publish or leak the new preview.
+      // clear() has already removed the old URL from the readable scope.
+      try { revokeURL(next) } catch { /* fail closed: never expose either URL */ }
+      throw Error('Private generated Blob replacement cleanup failed')
+    }
     job=nextJob
     url=next
     return next
