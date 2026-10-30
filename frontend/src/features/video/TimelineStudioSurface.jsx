@@ -7,6 +7,7 @@ import { studioReorder, studioSplit, studioDuplicate, studioTrimPair, studioSour
 import { FrameTimecodeInput } from './vendor/openreel/FrameTimecodeInput.jsx'
 import { OpenReelClipSnapper } from './vendor/openreel/clip-snap.mjs'
 import { proposedBeatMarkers } from './beat-preview.mjs'
+import { boundedFrameSeek, boundedSceneMidpointSeek } from './frame-seek.mjs'
 import { getTimelineItemRanges, getTimelineTrackSelection, getSplittableTimelineItemIds } from './vendor/openreel/timeline-item-actions.mjs'
 import './TimelineStudioSurface.css'
 
@@ -69,6 +70,8 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
     spans[selected] && playhead - spans[selected].start >= .5 &&
     spans[selected].end - playhead >= .5
   const seekToFrame = (seconds, withSnap = false) => {
+    // Reject nonfinite inputs before beat/grid snap calculations.
+    if (!Number.isFinite(seconds)) return
     let requested = seconds
     if (withSnap && snapEnabled) {
       const nearest = beatMarkers.length ? beatMarkers.reduce((a,b) =>
@@ -82,8 +85,8 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
         if (snap.didSnap) requested = snap.snappedTime
       }
     }
-    const position = Math.min(draft.duration_seconds,
-      Math.max(0, Math.round(requested * previewFps) / previewFps))
+    const position = boundedFrameSeek(requested, draft.duration_seconds, previewFps)
+    if (position === null) return
     setPlayhead(position)
     const index = spans.findIndex(span => position >= span.start && position < span.end)
     if (index >= 0) onSelectScene(index)
@@ -119,7 +122,10 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
   handlers.current = {
     startTimelineClipDrag: (_event,track,_id,index) => { if(track==='caption')onSelectScene(index) },
     showTrackContextMenu: event => event.preventDefault(),
-    selectCaptionClip: (_event,_id,index,start) => { onSelectScene(index); setPlayhead(start) },
+    selectCaptionClip: (_event,_id,index,start) => {
+      const position = boundedFrameSeek(start, draft.duration_seconds, previewFps)
+      if (position !== null) { onSelectScene(index); setPlayhead(position) }
+    },
     startCaptionResize: (event,_id,index,edge) => {
       const boundary = edge === 'start' ? index - 1 : index
       if (approvedDirection || boundary < 0 || boundary >= draft.scenes.length - 1 ||
@@ -251,7 +257,11 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
             onDragStart={()=>{dragFrom.current=i}}
             onDragOver={e=>e.preventDefault()}
             onDrop={e=>{e.preventDefault();if(dragFrom.current!==null){move(dragFrom.current,i);onSelectScene(i)}dragFrom.current=null}}
-            onClick={()=>{onSelectScene(i);setPlayhead(span.start+span.duration/2)}}
+            onClick={()=>{
+              const position = boundedSceneMidpointSeek(span.start, span.duration,
+                draft.duration_seconds, previewFps)
+              if (position !== null) { onSelectScene(i); setPlayhead(position) }
+            }}
             aria-label={'Scene '+(i+1)+': '+(draft.scenes[i].headline)}>
             <span className="f4-ts-clip-index">{i+1}</span>
             <span className="f4-ts-clip-title">{draft.scenes[i].headline}</span>
