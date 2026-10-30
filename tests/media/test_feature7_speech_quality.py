@@ -109,10 +109,10 @@ class SpeechReferenceBenchmarkTests(unittest.TestCase):
     def test_indic_combining_marks_and_decomposed_accents_are_words(self):
         p=fixture()
         p['reference_srt']=(
-          '1\\n00:00:00,500 --> 00:00:01,500\\nCafé नमस्ते.\\n'
+          '1\n00:00:00,500 --> 00:00:01,500\nCafé नमस्ते.\n'
         )
         p['normalized_asr']['words']=[
-          {'word':'Cafe\\u0301','startMs':520,'endMs':720},
+          {'word':'Cafe\u0301','startMs':520,'endMs':720},
           {'word':'नमस्ते','startMs':760,'endMs':1200},
         ]
         r=self.evaluate(p)
