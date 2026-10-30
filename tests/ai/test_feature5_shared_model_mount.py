@@ -68,6 +68,33 @@ class SharedModelMountTests(unittest.TestCase):
         self.assertFalse(config["executes_azure_commands"])
         self.assertNotIn("key", json.dumps(config).lower())
 
+    def test_private_manifest_reader_is_bounded_and_unambiguous(self):
+        with tempfile.TemporaryDirectory() as temp:
+            manifest = Path(temp) / "manifest.json"
+            manifest.write_text(json.dumps(sample()), encoding="utf-8")
+            self.assertEqual(m.validate_manifest(m.read_private_manifest(manifest)),
+                             m.validate_manifest(sample()))
+            cases = (
+                '{"files":[],"files":[]}',
+                '{"nested":{"key":"original","key":"rewritten"}}',
+                '{"total_bytes":NaN}',
+                '{"total_bytes":Infinity}',
+                "null",
+                "[]",
+                "[" * 20000 + "0" + "]" * 20000,
+                " " * (m.MAX_PRIVATE_MANIFEST_BYTES + 1),
+            )
+            for raw in cases:
+                with self.subTest(size=len(raw), prefix=raw[:20]):
+                    manifest.write_text(raw, encoding="utf-8")
+                    with self.assertRaises(m.PreflightError):
+                        m.read_private_manifest(manifest)
+            manifest.write_text("{}", encoding="utf-8")
+            linked = Path(temp) / "linked.json"
+            linked.symlink_to(manifest)
+            with self.assertRaises(m.PreflightError):
+                m.read_private_manifest(linked)
+
     def test_mounted_files_must_exist_and_not_be_symlinks(self):
         with tempfile.TemporaryDirectory() as temp:
             with self.assertRaises(m.PreflightError):

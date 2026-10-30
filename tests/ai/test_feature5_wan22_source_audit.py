@@ -9,7 +9,8 @@ import unittest
 
 from feature5_motion.infra.wan22_source_audit import (
     COMFY_SOURCE_COMMIT, REQUIRED, SourceAuditError,
-    validate_source_manifest, audit_complete_vendor_checkout, main,
+    validate_source_manifest, audit_complete_vendor_checkout,
+    read_reviewed_source_manifest, main,
 )
 
 
@@ -92,6 +93,36 @@ class SourceAuditTests(unittest.TestCase):
             m["files"]["comfy_extras//nodes_video.py"]="a"*64
             with self.assertRaisesRegex(SourceAuditError,"Unsafe"):
                 audit_complete_vendor_checkout(td,reviewed_manifest=m)
+
+    def test_standalone_containerfile_source_reader_rejects_ambiguous_json(self):
+        with TemporaryDirectory() as td:
+            source = Path(td) / "vendor"
+            source.mkdir()
+            reviewed = fixture(source)
+            manifest = Path(td) / "manifest.json"
+            manifest.write_text(json.dumps(reviewed), encoding="utf8")
+            self.assertEqual(read_reviewed_source_manifest(manifest), reviewed)
+            cases = (
+                '{"files":{"main.py":"first","main.py":"second"}}',
+                '{"outer":{"reviewed":true,"reviewed":false}}',
+                '{"size":NaN}',
+                '{"size":-Infinity}',
+                "null",
+                "[]",
+                "[" * 20000 + "0" + "]" * 20000,
+            )
+            for bad in cases:
+                with self.subTest(input_head=bad[:24]):
+                    manifest.write_text(bad, encoding="utf8")
+                    with self.assertRaisesRegex(SourceAuditError, "ambiguous"):
+                        read_reviewed_source_manifest(manifest)
+                    with self.assertRaises(SystemExit):
+                        main(["--source", str(source), "--manifest", str(manifest)])
+            manifest.write_text("{}", encoding="utf8")
+            linked = Path(td) / "manifest.link"
+            linked.symlink_to(manifest)
+            with self.assertRaises(SourceAuditError):
+                read_reviewed_source_manifest(linked)
 
     def test_real_offline_cli_exit_and_zero_network(self):
         with TemporaryDirectory() as td:

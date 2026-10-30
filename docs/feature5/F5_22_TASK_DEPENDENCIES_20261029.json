@@ -21,7 +21,9 @@
       "dependency_id": "F2#551",
       "owner": "Feature5",
       "required_output": "actual 15/30/60 Node exporter stdout",
-      "acceptance_criteria": "F5 runs all original durations and negative tamper tests"
+      "acceptance_criteria": "F5 runs all original durations and negative tamper tests",
+      "source_evidence": "2026-10-29 GPU-OFF JSON source boundary denies oversized, duplicate-key, nonfinite, non-UTF8, duration-tampered and over-deep input; new CLI negative test prevents parser exception/traceback. This is security source progress, NOT true Feature2 producer runtime.",
+      "remaining_acceptance": "Execute actual original 15/30/60 Node exporter from Feature2 PR #551 after coordinator-owned integration; verify exact-source stdout and independent tamper tests at exact-head 4/4 CI. Remain IN PROGRESS."
     },
     {
       "task": 3,
@@ -109,7 +111,9 @@
       "dependency_id": "F5-OCI",
       "owner": "Feature5/Runtime",
       "required_output": "reviewed CUDA base/wheels licence + immutable OCI",
-      "acceptance_criteria": "Build digest, ABI, legal and SBOM verified"
+      "acceptance_criteria": "Build digest, ABI, legal and SBOM verified",
+      "source_evidence_20261030": "OCI/source and wheel security hardening #688/#694/#698; each separate exact-head 4/4 CI pass. Genuine immutable CUDA image, legal distribution, ABI/SBOM remain unverified.",
+      "no_production_authority": true
     },
     {
       "task": 14,
@@ -117,7 +121,9 @@
       "dependency_id": "F5-WEIGHTS",
       "owner": "Feature5/Runtime",
       "required_output": "read-only mounted actual Wan checkpoint files",
-      "acceptance_criteria": "Stream full original 3 files, exact SHA/size"
+      "acceptance_criteria": "Stream full original 3 files, exact SHA/size",
+      "source_evidence_20261030": "Private mounted weight-manifest byte-input hardening #691, exact-head 4/4 CI pass. Actual protected original 3 checkpoint full streamed SHA not executed.",
+      "no_production_authority": true
     },
     {
       "task": 15,
@@ -141,7 +147,9 @@
       "dependency_id": "F5-REAL-WAN",
       "owner": "Feature5",
       "required_output": "genuine 5s model-rendered native MP4",
-      "acceptance_criteria": "704x1280,24fps,121f and original model provenance"
+      "acceptance_criteria": "704x1280,24fps,121f and original model provenance",
+      "source_evidence_20261030": "Native MP4 local ffprobe + SHA change-detection boundary hardened #702, exact-head 4/4 CI pass. No real licensed Wan2.2 motion or human garment acceptance.",
+      "no_production_authority": true
     },
     {
       "task": 18,

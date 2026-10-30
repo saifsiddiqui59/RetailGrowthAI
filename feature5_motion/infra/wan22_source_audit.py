@@ -41,6 +41,39 @@ def _valid_path(name):
     return str(posix) == name
 
 
+def _unique_review_keys(pairs):
+    manifest = {}
+    for key, value in pairs:
+        if key in manifest:
+            raise ValueError("Duplicate source-review JSON key")
+        manifest[key] = value
+    return manifest
+
+
+def read_reviewed_source_manifest(path):
+    """Parse bounded privately supplied source inventory without ambiguity.
+
+    This reader is used by the build Containerfile's standalone source-audit
+    entrypoint too, not only by the separate pre-build composite audit.
+    A valid JSON document is NOT proof of independent operator approval.
+    """
+    item = Path(path)
+    if item.is_symlink() or not item.is_file() or not 0 < item.stat().st_size <= MAX_MANIFEST_BYTES:
+        raise SourceAuditError("Missing, linked or oversized private reviewed source manifest")
+    try:
+        manifest = json.loads(
+            item.read_text(encoding="utf8"),
+            object_pairs_hook=_unique_review_keys,
+            parse_constant=lambda _: (_ for _ in ()).throw(
+                ValueError("Non-finite source review value")),
+        )
+        if type(manifest) is not dict:
+            raise ValueError("Review source inventory must be an object")
+        return manifest
+    except (OSError, UnicodeError, ValueError, RecursionError) as exc:
+        raise SourceAuditError("Malformed or ambiguous source manifest") from exc
+
+
 def validate_source_manifest(manifest):
     if type(manifest) is not dict or set(manifest) != {"schema", "source_commit", "files"}:
         raise SourceAuditError("Incomplete reviewed source inventory")
@@ -109,11 +142,8 @@ def main(argv=None):
     parser.add_argument("--source",required=True,help="Existing locally vendored ComfyUI checkout")
     parser.add_argument("--manifest",required=True,help="Independent operator-reviewed complete SHA256 JSON")
     opts = parser.parse_args(argv)
-    path = Path(opts.manifest)
-    if path.is_symlink() or not path.is_file() or not 0 < path.stat().st_size <= MAX_MANIFEST_BYTES:
-        parser.error("Missing, linked or oversized private reviewed source manifest")
     try:
-        manifest = json.loads(path.read_text(encoding="utf8"))
+        manifest = read_reviewed_source_manifest(opts.manifest)
         proof = audit_complete_vendor_checkout(opts.source,reviewed_manifest=manifest)
     except (SourceAuditError,ValueError,UnicodeError,OSError) as exc:
         parser.error("ComfyUI source audit FAILED: "+str(exc))
