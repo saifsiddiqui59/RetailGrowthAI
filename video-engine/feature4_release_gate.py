@@ -98,6 +98,8 @@ def validate_feature4_release(*, job, lineage, reviewed, media, now=None):
         raise ReleaseNotApproved("Duplicate media asset IDs in render lineage")
     for asset_id in expected:
         row = media.get(asset_id)
+        if type(row) is dict and row.get("synthetic_fixture") is not False:
+            raise ReleaseNotApproved("Synthetic or unknown fixture provenance cannot be published")
         if (type(row) is not dict or row.get("shop_id") != shop or
                 row.get("approved") is not True or
                 row.get("commercial_use") is not True or
