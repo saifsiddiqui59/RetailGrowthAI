@@ -1,0 +1,53 @@
+{
+  "schema": "feature7_cross_feature_source_contract_audit_v1",
+  "status": "source_review_only_not_integrated",
+  "feature7": {
+    "tracking_pr": 513,
+    "reviewed_head_sha": "49918d7edbc1e09d08fcad7cd741cbe4af9828c4",
+    "original_wav_receipt_version": "feature7_signed_faster_whisper_asr_v1",
+    "speech_review_bundle_version": "feature7_feature4_speech_review_bundle_v1",
+    "approval_allowed": false,
+    "renderable": false
+  },
+  "feature2": {
+    "tracking_pr": 551,
+    "reviewed_head_sha": "4294e9bc2f8f905fa0bbda237b8da9305db0042a",
+    "consumer_function": "review_signed_audio_transcript",
+    "wer_consumer_function": "compare_signed_feature7_word_error_rate",
+    "expected_receipt_version": "feature7_signed_faster_whisper_asr_v1",
+    "requires_original_audio_kind": "audio/wav"
+  },
+  "feature4": {
+    "tracking_pr": 322,
+    "reviewed_head_sha": "e32a8da61a6272666d757b6c51b0ec2576d7602f",
+    "approved_edit_function": "execute_approved_edit",
+    "approved_timeline_version": "creative_reel_v1",
+    "approved_edit_fields": [
+      "approval_id",
+      "approved",
+      "campaign_id",
+      "draft_sha256",
+      "scenes",
+      "shop_id",
+      "source_feature",
+      "timeline_version"
+    ],
+    "approved_scene_fields": [
+      "animation_preset",
+      "duration",
+      "mute_source",
+      "source_scene_index",
+      "transition",
+      "trim_start"
+    ],
+    "supports_sparse_multicut": false
+  },
+  "acceptance": {
+    "same_checkout_source_verification_required": true,
+    "real_cpu_asr_executed": false,
+    "hosted_jwt_rls_verified": false,
+    "real_approved_media_verified": false,
+    "final_render_verified": false,
+    "coordinator_must_review": true
+  }
+}
