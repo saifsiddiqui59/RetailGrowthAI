@@ -38,7 +38,7 @@ if(operation==='seal'){
    canonical_draft_sha256:originalHash,now_ms:request.now_ms??1000000});
  process.stdout.write(JSON.stringify({receipt,proposal}));
 }else {
- const receipt=sealHumanEditApproval({proposal,draft,context,key,
+ let receipt=sealHumanEditApproval({proposal,draft,context,key,
    approval_id:'approved-feature7-001',
    canonical_draft_sha256:originalHash,now_ms:1000000});
  if(bad.signed_bad_time){
