@@ -44,6 +44,8 @@ export function stagePrivateFootageCPU({
     'Only a server-staged absolute local MP4 source is supported');
   // Auth callback MUST use current server JWT membership and upload policy.
   const auth=getCurrentIntakeAuthorization({shop_id,asset_id});
+  // Snapshot the initial registry revision; the callback may return mutable data.
+  const initialRightsRevision=auth?.registry_revision;
   check(auth&&auth.shop_id===shop_id&&auth.asset_id===asset_id&&
     auth.active_membership===true&&
     ['OWNER','EDITOR'].includes(auth.role)&&
@@ -106,6 +108,17 @@ export function stagePrivateFootageCPU({
       root:private_root,relative_path,expected_sha256:sha
     });
     check(probe.bytes<=auth.max_bytes,'Media over server intake quota');
+    // CPU probing is not instantaneous. A revoked/downgraded grant or changed
+    // rights revision must not leave an apparently staged private upload.
+    // The caller must re-query authoritative server state on EACH invocation.
+    const fresh=getCurrentIntakeAuthorization({shop_id,asset_id});
+    check(fresh&&fresh.shop_id===shop_id&&fresh.asset_id===asset_id&&
+      fresh.active_membership===true&&
+      ['OWNER','EDITOR'].includes(fresh.role)&&
+      fresh.intake_authorized===true&&fresh.video_rights_declared===true&&
+      Number.isInteger(fresh.max_bytes)&&fresh.max_bytes>=probe.bytes&&
+      fresh.max_bytes<=MAX&&fresh.registry_revision===initialRightsRevision,
+    'Video intake authorization changed during staging');
     return Object.freeze({
       shop_id,asset_id,relative_path,source_sha256:sha,
       bytes:probe.bytes,width:probe.width,height:probe.height,
