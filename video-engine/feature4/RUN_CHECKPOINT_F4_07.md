@@ -18,3 +18,10 @@
 - **Remaining F4-07:** actual licensed narration/music, multiple realistic duck/fade profiles, source-authorized commercial signoff, and exact-head CI. The new failure-path tests are mocked, not real MP4 QA.
 - **NEXT:** F4-09 independent UI history/disabled-control negative-path regression, or F4-06 renderer-backed multi-track levels only after actual semantics verified. Do not duplicate open PR #838 F4-08 or other owned PRs. Coordinator owns canonical task status, review/merge, and fresh main 4/4.
 - **Cost/security:** GPU OFF, no cloud/PROD/SQL writes, no WineShopPOS or customer media.
+
+## Next-task ownership reconciliation
+
+- Rechecked candidate **F4-09**: existing open PR **#769** already implements bounded history; do not create a competing branch.
+- Rechecked candidate **F4-06**: existing open PRs **#830** (independent gain contract) and **#739** (truthful fixed-gain preview); do not duplicate those implementations.
+- F4-05 already has PRs #711/#822; F4-15 has multiple in-flight branches. The next run should first inspect the freshest exact heads and focus on **F4-07 exact-checkout tests/CI and receipt failure semantics** or another truly unclaimed scoped task. No atomic worktree lease was claimed.
+- **Checkpoint commit context:** code/test head `b816782c3b8578f63203e31f40add544e5517390`; previous checkpoint commit `5bee81aab0e4e26e76d3a72b0ef3ceb4bdb6d558`. Recheck the final head after this update.
