@@ -87,7 +87,8 @@ export function sealHumanEditApproval({proposal,draft,context,
   validateContext(context,proposal);
   check(typeof approval_id==='string' && REF.test(approval_id) &&
     SHA.test(canonical_draft_sha256??'') &&
-    Number.isSafeInteger(now_ms) && now_ms>=0,
+    Number.isSafeInteger(now_ms) && now_ms>=0 &&
+    now_ms<=Number.MAX_SAFE_INTEGER-MAX_TTL,
   'Missing server canonical draft hash or approval id');
   const payload={
     version:'feature7_review_receipt_v1',approval_id,
@@ -112,7 +113,12 @@ export function buildFeature4EditHandoff({proposal,draft,context,receipt,
     receipt.version==='feature7_review_receipt_v1' &&
     typeof receipt.mac==='string' && SHA.test(receipt.mac) &&
     typeof receipt.approval_id==='string' && REF.test(receipt.approval_id) &&
-    Number.isSafeInteger(now_ms) && now_ms>=receipt.issued_at_ms &&
+    Number.isSafeInteger(now_ms) &&
+    Number.isSafeInteger(receipt.issued_at_ms) &&
+    Number.isSafeInteger(receipt.expires_at_ms) &&
+    receipt.issued_at_ms>=0 &&
+    receipt.expires_at_ms>receipt.issued_at_ms &&
+    now_ms>=receipt.issued_at_ms &&
     now_ms<=receipt.expires_at_ms &&
     receipt.expires_at_ms-receipt.issued_at_ms<=MAX_TTL &&
     receipt.shop_id===context.shop_id &&
