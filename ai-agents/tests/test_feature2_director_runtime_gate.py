@@ -94,7 +94,7 @@ def test_structural_node_attestation_denies_elf_header_and_segment_spoofing():
 
     # Synthetic bytes only: not a real Node runtime or approved production hash.
     fake = bytearray(100_000)
-    fake[:7] = b"\\x7fELF\\x02\\x01\\x01"
+    fake[:7] = b"\x7fELF\x02\x01\x01"
     struct.pack_into("<HHI", fake, 16, 3, 62, 1)  # ET_DYN, x86_64, v1
     struct.pack_into("<Q", fake, 32, 64)  # program-header table offset
     struct.pack_into("<H", fake, 52, 64)  # ELF64 header size
