@@ -117,6 +117,45 @@ class OfflineWheelhouseTests(unittest.TestCase):
         with self.assertRaisesRegex(WheelhouseRejected,"Malformed"):
             audit_wheelhouse(str(self.root),str(self.manifest))
 
+    def test_repin_foreign_dist_info_root_is_denied(self):
+        base=("Metadata-Version: 2.1\\nName: faster-whisper\\n"
+              "Version: 1.2.1\\nRequires-Dist: ctranslate2\\n")
+        self.rewrite_wheel("faster-whisper","1.2.1",base,
+                           extra=("foreign-9.0.dist-info/RECORD","unexpected"))
+        with self.assertRaisesRegex(WheelhouseRejected,"Foreign wheel dist-info"):
+            audit_wheelhouse(str(self.root),str(self.manifest))
+        self.rewrite_wheel("faster-whisper","1.2.1",base,
+                           extra=("nested/foreign-9.0.dist-info/RECORD","unexpected"))
+        with self.assertRaisesRegex(WheelhouseRejected,"Foreign wheel dist-info"):
+            audit_wheelhouse(str(self.root),str(self.manifest))
+
+    def test_repin_fifo_archive_member_is_denied(self):
+        base=("Metadata-Version: 2.1\\nName: faster-whisper\\n"
+              "Version: 1.2.1\\nRequires-Dist: ctranslate2\\n")
+        archive=self.root/"faster_whisper-1.2.1-py3-none-any.whl"
+        with ZipFile(archive,"w") as z:
+            z.writestr("faster_whisper-1.2.1.dist-info/METADATA",base)
+            fifo=ZipInfo("unsafe-pipe")
+            fifo.create_system=3
+            fifo.external_attr=(0o010644 << 16)
+            z.writestr(fifo,b"unsafe")
+        self.wheels[0]["sha256"]=hashlib.sha256(archive.read_bytes()).hexdigest()
+        self.save()
+        with self.assertRaisesRegex(WheelhouseRejected,"Unsafe wheel ZIP member type"):
+            audit_wheelhouse(str(self.root),str(self.manifest))
+
+    def test_repin_duplicate_identity_header_is_denied(self):
+        base=("Metadata-Version: 2.1\\nName: faster-whisper\\n"
+              "Version: 1.2.1\\nRequires-Dist: ctranslate2\\n")
+        self.rewrite_wheel("faster-whisper","1.2.1",base+
+                           "Name: foreign-wheel\\n")
+        with self.assertRaisesRegex(WheelhouseRejected,"identity metadata mismatch"):
+            audit_wheelhouse(str(self.root),str(self.manifest))
+        self.rewrite_wheel("faster-whisper","1.2.1",base+
+                           "Version: 9.9\\n")
+        with self.assertRaisesRegex(WheelhouseRejected,"identity metadata mismatch"):
+            audit_wheelhouse(str(self.root),str(self.manifest))
+
     def test_manifest_must_be_json_object(self):
         self.manifest.write_text('[]')
         with self.assertRaises(WheelhouseRejected):
