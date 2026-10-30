@@ -403,3 +403,35 @@ def test_exact_approved_written_out_offer_remains_review_only():
     assert report["customer_editor_approval_required"]
     assert not report["commercial_fact_certified"]
     assert not report["can_publish"]
+
+
+@pytest.mark.parametrize("unapproved", [
+    "५० प्रतिशत छूट सभी कपड़ों पर",
+    "९० टक्के सूट सर्व कपड्यांवर",
+    "30 फीसदी छूट सभी कुर्तियों पर",
+    "20% off selected kurti styles; ५० प्रतिशत अतिरिक्त छूट",
+])
+def test_indic_language_discount_cannot_bypass_approved_offer(unapproved):
+    report = inspect_retailer_copy_claims(
+        verified_context=copy_context(),
+        copy=candidate_copy(caption=unapproved),
+    )
+    assert "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED" in report["issues"]
+    assert report["review_required"] and report["can_publish"] is False
+
+
+@pytest.mark.parametrize("approved", [
+    "२० प्रतिशत छूट चुनिंदा कुर्तियों पर",
+    "२० टक्के सूट निवडक कुर्त्यांवर",
+])
+def test_exact_approved_indic_offer_is_still_review_only(approved):
+    context = copy_context()
+    context["approved_offers"][0]["approved_claim_text"] = approved
+    report = inspect_retailer_copy_claims(
+        verified_context=context,
+        copy=candidate_copy(caption=approved),
+    )
+    assert report["issues"] == []
+    assert report["customer_editor_approval_required"] is True
+    assert report["commercial_fact_certified"] is False
+    assert report["can_publish"] is False
