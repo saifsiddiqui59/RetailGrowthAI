@@ -26,11 +26,14 @@ export default function VideoStudio({
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [selectedSceneIndex, setSelectedSceneIndex] = useState(0)
+  const [previewPlayhead, setPreviewPlayhead] = useState(null)
   const previewVideo = useRef(null)
+  const renderedVideo = useRef(null)
   // A login/shop switch cannot retain the previous tenant's composition draft.
   useEffect(() => {
     setDraft(makeVideoDraft({ shopId, mediaAssets }))
     setSelectedSceneIndex(0)
+    setPreviewPlayhead(null)
     setSubmitted(false)
     setError('')
   }, [shopId])
@@ -38,6 +41,7 @@ export default function VideoStudio({
     if (approvedRead?.draft) {
       setDraft(approvedRead.draft)
       setSelectedSceneIndex(0)
+      setPreviewPlayhead(null)
       setSubmitted(false)
     }
   }, [approvedRead])
@@ -49,7 +53,12 @@ export default function VideoStudio({
     () => [...validateVideoDraft(draft, mediaAssets, musicAssets), ...(approvedRead?.error ? [approvedRead.error] : [])],
     [draft, mediaAssets, musicAssets, approvedRead],
   )
-  const patch = (changes) => { if (creativeDirection) return; setDraft(prev => ({ ...prev, ...changes })); setSubmitted(false) }
+  const patch = (changes) => {
+    if (creativeDirection) return
+    setDraft(prev => ({ ...prev, ...changes }))
+    setPreviewPlayhead(null)
+    setSubmitted(false)
+  }
   const selectedScene = draft.scenes[Math.min(selectedSceneIndex, draft.scenes.length - 1)]
   const sceneSource = (Array.isArray(mediaAssets) ? mediaAssets : [])
     .find(item => item?.authorized === true && item?.shop_id === shopId &&
@@ -84,6 +93,7 @@ export default function VideoStudio({
     setError('')
     setSubmitted(false)
     setSelectedSceneIndex(0)
+    setPreviewPlayhead(null)
   }
   async function submit(event) {
     event.preventDefault()
@@ -112,6 +122,32 @@ export default function VideoStudio({
   const ready = submitted && !ownerRejected && renderStatus?.status === 'SUCCEEDED' &&
     renderStatus?.shop_id === shopId &&
     typeof signedVideoUrl === 'string' && signedVideoUrl.length > 0
+  const seekSourceExcerpt = video => {
+    if (!video || !sourceWindow || !previewSource || sceneSource?.kind !== 'video') return
+    const offset = Number.isFinite(previewPlayhead)
+      ? previewPlayhead - (selectedScene?.start ?? 0) : 0
+    // Never seek outside the already rights-checked clip trim.
+    const position = Math.min(sourceWindow.end - .04,
+      Math.max(sourceWindow.start, sourceWindow.start + offset))
+    if (Number.isFinite(position)) {
+      try { video.currentTime = position } catch { /* metadata may still be pending */ }
+    }
+  }
+  useEffect(() => {
+    if (!Number.isFinite(previewPlayhead) || previewPlayhead === null) return
+    if (ready) {
+      const video = renderedVideo.current
+      if (video) {
+        try { video.currentTime = Math.max(0, Math.min(draft.duration_seconds - .04, previewPlayhead)) }
+        catch { /* signed video seek may await metadata */ }
+      }
+    } else if (previewSource && sceneSource?.kind === 'video') {
+      seekSourceExcerpt(previewVideo.current)
+    }
+    // Use only primitive media/timing dependencies: avoid looping on a fresh
+    // computed sourceWindow object each render.
+  }, [previewPlayhead, ready, previewSource, sceneSource?.kind, sourceWindow?.start,
+      sourceWindow?.end, selectedScene?.start, draft.duration_seconds])
   return (
     <section className="f4-studio" aria-labelledby="f4-title">
       <header className="f4-head">
@@ -257,7 +293,10 @@ export default function VideoStudio({
           <nav className="f4-timeline" aria-label="Choose a storyboard scene to preview">
             {draft.scenes.map((scene, index) => (
               <button key={index} type="button" className={index === selectedSceneIndex ? 'f4-selected' : ''}
-                aria-pressed={index === selectedSceneIndex} onClick={() => setSelectedSceneIndex(index)}
+                aria-pressed={index === selectedSceneIndex} onClick={() => {
+                  setSelectedSceneIndex(index)
+                  setPreviewPlayhead(null)
+                }}
                 style={{ flexGrow: scene.duration }} title={scene.headline}>
                 {String(index + 1).padStart(2, '0')}
               </button>
@@ -268,7 +307,15 @@ export default function VideoStudio({
           </p>}
           {ready ? (
             <>
-              <video controls playsInline preload="metadata" src={signedVideoUrl} aria-label="Signed private rendered video" />
+              <video ref={renderedVideo} controls playsInline preload="metadata" src={signedVideoUrl}
+                aria-label="Signed private rendered video"
+                onLoadedMetadata={event => {
+                  if (Number.isFinite(previewPlayhead) && previewPlayhead !== null) {
+                    try { event.currentTarget.currentTime = Math.max(0,
+                      Math.min(draft.duration_seconds - .04, previewPlayhead)) }
+                    catch { /* signed link may be expiring; never bypass server rights */ }
+                  }
+                }} />
               {onPrivateDownload && <button onClick={onPrivateDownload} className="f4-submit">Download authorized MP4</button>}
             </>
           ) : (
@@ -280,7 +327,7 @@ export default function VideoStudio({
                   preload="metadata" aria-label="Authorized source footage excerpt; muted preview, not rendered advertisement"
                   onLoadedMetadata={event => {
                     if (sourceWindow) {
-                      try { event.currentTarget.currentTime = sourceWindow.start } catch { /* unavailable seek is not a render approval */ }
+                      seekSourceExcerpt(event.currentTarget)
                     }
                   }}
                   onPlay={event => {
@@ -321,7 +368,8 @@ export default function VideoStudio({
         selectedSceneIndex={selectedSceneIndex} onSelectScene={setSelectedSceneIndex}
         approvedDirection={Boolean(creativeDirection)}
         spokenCaptions={approvedRead?.captionCues || []}
-        onChange={next => { setDraft(next); setSubmitted(false) }} />
+        onPreviewSeek={setPreviewPlayhead}
+        onChange={next => { setDraft(next); setSubmitted(false); setPreviewPlayhead(null) }} />
     </section>
   )
 }

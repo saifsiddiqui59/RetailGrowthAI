@@ -345,3 +345,41 @@ test('stale caption resize aborts across synthetic shop switch or approval lock'
  await fireUp(23)
  expect(await page.evaluate(()=>window.__feature4ResizeWrites.length)).toBe(0)
 })
+
+
+test('timeline frame seek actually targets current signed preview without changing authorized draft', async ({page}) => {
+  // Source-only DOM seek regression. A synthetic currentTime accessor lets
+  // Playwright inspect the intended seek without downloading private media.
+  await page.addInitScript(() => {
+    Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', {
+      configurable: true,
+      get() { return this.__feature4TestTime ?? 0 },
+      set(value) { this.__feature4TestTime = value },
+    })
+  })
+  await page.goto('/')
+  await page.evaluate(async () => {
+    const { mountFeature4 } = await import('/e2e/fixtures/timeline-studio-harness.jsx')
+    mountFeature4({
+      shop:'11111111-1111-4111-8111-111111111111',
+      approved:false, seedCompletedRender:true,
+    })
+  })
+  await expect(page.getByRole('heading',{name:'Professional Video Studio'})).toBeVisible()
+  await page.getByRole('button',{name:'Submit authorized render'}).click()
+  await expect.poll(() => page.evaluate(() => window.__feature4Renders.length)).toBe(1)
+  const video = page.getByLabel('Signed private rendered video')
+  await expect(video).toBeVisible()
+  const timecode = page.getByRole('textbox',{name:'Playhead timecode'})
+  await timecode.fill('00:00:06:12')
+  await timecode.press('Enter')
+  await expect(timecode).toHaveValue('00:00:06:12')
+  await expect.poll(() => video.evaluate(node => node.currentTime)).toBe(6.5)
+  await page.getByRole('button',{name:/Scene 2:/}).click()
+  await expect(timecode).toHaveValue('00:00:07:15')
+  await expect.poll(() => video.evaluate(node => node.currentTime)).toBe(7.5)
+  // Frame navigation is preview-only and cannot silently rewrite the output.
+  expect(await page.evaluate(() => window.__feature4Renders.length)).toBe(1)
+  await page.getByLabel('Animated headline').first().fill('New review-required edit')
+  await expect(video).toHaveCount(0)
+})
