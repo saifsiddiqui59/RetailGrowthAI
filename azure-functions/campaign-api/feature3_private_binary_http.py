@@ -34,6 +34,8 @@ def _valid_png_chunks(raw):
         return False
     offset=8
     saw_idat=False
+    idat_closed=False
+    saw_plte=False
     chunks=0
     while offset+12<=len(raw):
         chunks+=1
@@ -50,8 +52,20 @@ def _valid_png_chunks(raw):
             return False
         if offset!=8 and kind==b"IHDR":
             return False
+        # PNG critical chunks are fixed; an unknown critical chunk or
+        # interleaved IDAT sequence must never reach the private response.
+        if kind[0] in range(65,91) and kind not in (b"IHDR",b"PLTE",b"IDAT",b"IEND"):
+            return False
+        if kind==b"PLTE":
+            if saw_plte or saw_idat:
+                return False
+            saw_plte=True
         if kind==b"IDAT":
+            if idat_closed:
+                return False
             saw_idat=True
+        elif saw_idat:
+            idat_closed=True
         if kind==b"IEND":
             return length==0 and saw_idat and end==len(raw)
         offset=end
