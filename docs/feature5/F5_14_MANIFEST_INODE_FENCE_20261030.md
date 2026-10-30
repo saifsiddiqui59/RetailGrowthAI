@@ -6,7 +6,7 @@
 
 The previous bounded manifest reader checked `is_symlink()` and `is_file()` before calling `Path.open()`. A local attacker with write access to the manifest directory could replace the path between those calls and the actual open, causing an unintended symlink target to be read. The new reader opens with `O_NOFOLLOW`, verifies regular file and single-link inode identity before/after reading, enforces 64 KiB bound and uses `O_NONBLOCK` to avoid blocking on a substituted FIFO. Unsupported no-follow platforms fail closed.
 
-The regression test rejects hardlinks and named pipes, and confirms a normal synthetic private manifest still validates. Existing duplicate-key, nonfinite, oversized, symlink, SHA/revision and mount negative tests remain intact.
+The regression tests reject hardlinks and named pipes, simulate path swaps between stat and open (both a symlink and a different regular inode), and confirm a normal synthetic private manifest still validates. Existing duplicate-key, nonfinite, oversized, symlink, SHA/revision and mount negative tests remain intact.
 
 ## Evidence / next gate
 
@@ -16,3 +16,7 @@ The regression test rejects hardlinks and named pipes, and confirms a normal syn
 - Coordinator should review this stacked PR, integrate it once into the F5-14 consolidated batch, run full exact-head CI and fresh main 4/4 before any integrated DONE receipt.
 - Original Wan model weights were **not read**. Actual private Azure Files mount, all three checkpoint hashes, license/SBOM/OCI review and GPU runtime remain unverified.
 - No GPU, paid model, Azure/SQL/PROD mutation, external media, customer output, or WineShopPOS change.
+
+## Review receipt
+
+Draft stacked PR [#819](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/819), based on consolidated Feature5 draft PR #781. GitHub exact-head PR CI has not yet been observed, so **tested** and **PR-ready** are not claimed. The source implementation is proposed, not merged or integrated. Coordinator should run targeted tests and full exact-head CI after reconciling the stack.
