@@ -1,4 +1,5 @@
 """Actual H264 stream-copy + loudness mastering tests (synthetic audio only)."""
+import hashlib
 import subprocess
 import sys
 import tempfile
@@ -96,6 +97,37 @@ class Feature4MasterTests(unittest.TestCase):
         self.assertEqual(caught.exception.code,2)
         self.assertEqual(proof.read_text(encoding="utf-8"),"existing approved receipt")
         self.assertFalse(self.output.exists())
+
+    def test_report_write_failure_invalidates_only_matching_private_master(self):
+        proof=self.root/"proof.json"
+        original_open=Path.open
+        original=b"offline-synthetic-master"
+        for replace_output in (False, True):
+            with self.subTest(replace_output=replace_output):
+                self.output.unlink(missing_ok=True)
+                def fake_master(*_args, **_kwargs):
+                    self.output.write_bytes(original)
+                    if replace_output:
+                        self.output.write_bytes(b"other-process-output")
+                    return {"master_sha256":hashlib.sha256(original).hexdigest(),
+                            "status":"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED"}
+                def fail_proof_open(path,*args,**kwargs):
+                    if path==proof and args and args[0]=="x":
+                        raise OSError("simulated proof disk failure")
+                    return original_open(path,*args,**kwargs)
+                argv=["feature4_audio_master.py","--source",str(self.source),
+                      "--output",str(self.output),"--duration","15",
+                      "--report",str(proof)]
+                with patch.object(sys,"argv",argv), patch.object(
+                        audio_master,"master_private_audio",side_effect=fake_master), patch.object(
+                        audio_master.Path,"open",new=fail_proof_open):
+                    with self.assertRaises(SystemExit) as caught:
+                        audio_master.main()
+                self.assertEqual(caught.exception.code,2)
+                self.assertEqual(self.output.exists(),replace_output)
+                if replace_output:
+                    self.assertEqual(self.output.read_bytes(),b"other-process-output")
+                self.assertFalse(proof.exists())
 
     def test_proof_preflight_rejects_symlink_parent_and_non_json(self):
         private=self.root/"private"
