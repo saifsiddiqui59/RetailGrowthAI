@@ -406,3 +406,37 @@ def test_legitimate_indic_conjunct_joiner_remains_review_only_not_denied():
     assert result["source_items_count"]==1
     assert result["status"]=="REVIEW_REQUIRED"
     assert result["can_publish"] is False
+
+
+# Internal deterministic fixture regressions, not an approved retail campaign.
+@pytest.mark.parametrize("link",[
+    "Visit http://fake.invalid/deal",
+    "Find us at www.fake.invalid",
+    "Preview HTTP://FAKE.INVALID/offer",
+])
+def test_editorial_copy_blocks_unreviewed_external_links(link):
+    with pytest.raises(EditorialBasisRejected,match="Unsafe or unbounded"):
+        inspect_retailer_copy_claims(
+            verified_context=copy_context(),
+            copy=candidate_copy(cta=link))
+
+def test_trend_ranking_denies_source_revoked_after_initial_provenance():
+    reads={}
+    def source_grant(shop,item,digest,published):
+        reads[item]=reads.get(item,0)+1
+        return item!="rss_kurti_2026" or reads[item]==1
+    with pytest.raises(EditorialBasisRejected,match="revoked during ranking"):
+        ranked(verified=source_grant)
+    assert reads.get("rss_kurti_2026")==2
+
+@pytest.mark.parametrize("bad_item",[
+    "<item><guid></guid><title>Festive cotton kurti collection</title>"
+    "<pubDate>Wed, 28 Oct 2026 11:00:00 GMT</pubDate></item>",
+    "<item><guid><b>duplicate</b></guid><title>Festive cotton kurti collection</title>"
+    "<pubDate>Wed, 28 Oct 2026 11:00:00 GMT</pubDate></item>",
+])
+def test_signed_rss_present_invalid_guid_denied_not_silently_rekeyed(bad_item):
+    xml=('<?xml version="1.0"?><rss version="2.0"><channel>'+
+         bad_item+'</channel></rss>').encode()
+    with pytest.raises(EditorialBasisRejected,match="Malformed signed RSS GUID"):
+        rank_xml(xml)

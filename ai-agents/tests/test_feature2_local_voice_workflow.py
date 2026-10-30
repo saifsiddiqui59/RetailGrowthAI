@@ -278,6 +278,8 @@ def test_cpu_budget_denies_untrusted_or_exhausted_policy_before_any_once_job(pol
     {"lease_expires_ms":CPU_NOW+600000},
     {"status":"COMPLETED"},{"private":False},
     {"paid_api_calls":1},{"can_publish":True},
+    {"can_dispatch_motion":True},{"commercial_use_approved":True},
+    {"may_auto_invoke_azure":True},{"paid_inference_authorized":True},
     {"atomic_unique_commit":False},{"reserved_cpu_ms":30001},
 ])
 def test_cpu_budget_denies_forged_or_unfenced_database_reservation_receipt(alter):

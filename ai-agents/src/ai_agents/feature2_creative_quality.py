@@ -648,7 +648,8 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     for field,text in copy.items():
         if (type(text) is not str or not 1<=len(text.strip())<=1800 or
             _unsafe_editorial_display(text) or
-            "https://" in text.lower() or "javascript:" in text.lower()):
+            re.search(r"(?:https?://|www\.)", text, flags=re.I) or
+            "javascript:" in text.lower()):
             raise EditorialBasisRejected("Unsafe or unbounded retailer copy")
         if _CLAIM_PRICE.search(text):
             issues.add("UNVERIFIED_CURRENCY_PRICE")
@@ -765,6 +766,13 @@ def rank_source_backed_trends(*, verified_context, trends, now_utc,
                          "freshness_points":freshness,
                          "review_score":min(overlap,10)*10+freshness})
     selected.sort(key=lambda x:(-x["review_score"],x["trend_id"]))
+    # Check selected candidates against the current signed grant once more.
+    for candidate in selected[:10]:
+        original=next(row for row in trends if row["id"]==candidate["trend_id"])
+        if verify_source_provenance(shop,original["id"],
+                                    original["source_sha256"],
+                                    original["published_at"]) is not True:
+            raise EditorialBasisRejected("Signed RSS provenance revoked during ranking")
     return {"schema":"retailgrowth.feature2-trend-review.v1",
             "shop_id":shop,"status":"REVIEW_REQUIRED" if selected else "EVERGREEN_FALLBACK",
             "candidates":selected[:10],
@@ -848,9 +856,12 @@ def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
                      published.astimezone(timezone.utc)).total_seconds()
         except (TypeError,ValueError,OverflowError) as exc:
             raise EditorialBasisRejected("RSS source timestamp invalid") from exc
-        identity=(guid.text.strip() if guid is not None and
-                  len(guid)==0 and type(guid.text) is str and
-                  1<=len(guid.text.strip())<=500 else
+        # A present malformed GUID must not quietly become a new title ID.
+        if guid is not None and (
+            len(guid)!=0 or type(guid.text) is not str or
+            not 1<=len(guid.text.strip())<=500):
+            raise EditorialBasisRejected("Malformed signed RSS GUID")
+        identity=(guid.text.strip() if guid is not None else
                   headline+"|"+published.isoformat())
         source_id="rss_"+hashlib.sha256(identity.encode("utf-8")).hexdigest()[:32]
         if source_id in seen:

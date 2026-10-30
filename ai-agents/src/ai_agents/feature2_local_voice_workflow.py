@@ -341,6 +341,9 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
         receipt.get("private") is not True or
         receipt.get("paid_api_calls")!=0 or
         receipt.get("can_publish") is not False or
+        any(receipt.get(flag) is True for flag in (
+            "can_dispatch_motion","commercial_use_approved",
+            "may_auto_invoke_azure","paid_inference_authorized")) or
         receipt.get("atomic_unique_commit") is not True):
         raise LocalVoiceJobDenied("Durable private CPU reservation evidence invalid")
     if (authorize_current_editor(shop_id,campaign_id) is not True or
