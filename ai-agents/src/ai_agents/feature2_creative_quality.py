@@ -501,6 +501,10 @@ def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
             raise Feature2TraceDenied("Bounded private A/B review history unavailable")
         return rows
     rows=source()
+    # A private history reader may return the same mutable list on both reads.
+    # Freeze the first observation before independent receipt verification: a
+    # signer/reader callback must not mutate that shared object unnoticed.
+    initial_snapshot=deepcopy(rows)
     result=[]
     seen_receipts=set()
     for i,item in enumerate(rows,1):
@@ -540,7 +544,7 @@ def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
                        "can_publish":False})
     # A revoked role or changed receipt chain between validation and read must
     # not leak even a summary of historical human preferences.
-    if source()!=rows:
+    if source()!=initial_snapshot or rows!=initial_snapshot:
         raise Feature2TraceDenied("Private A/B review history changed mid-read")
     return {"schema":"retailgrowth.feature2-private-blind-review-history.v1",
             "experiment_id":experiment_id,"records":result,
