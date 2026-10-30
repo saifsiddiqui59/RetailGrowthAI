@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { getVisualSegmentTimeline, formatTime } from './vendor/timeline.js'
 import { getTimelineRulerTicks, getTimelineAutoFitZoom, getTimelineVisibleDuration } from './vendor/timelineScale.js'
 import { TimelineCaptionClip, TimelineAudioClip } from './vendor/TimelineClips.jsx'
+import { fixedAudioMixDisplay } from './audio-mix-display.mjs'
 import { createEditorHistory, pushEditorHistory, undoEditorHistory, redoEditorHistory } from './vendor/editorHistoryCore.mjs'
 import { studioReorder, studioSplit, studioDuplicate, studioTrimPair, studioSourceTrim, studioValidatedDraft } from './timeline-studio-bridge.mjs'
 import { FrameTimecodeInput } from './vendor/openreel/FrameTimecodeInput.jsx'
@@ -135,9 +136,10 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
   }
   const captions = draft.scenes.map((s,i)=>({id:'caption-'+i,text:s.headline,start:s.start,
     end:s.start+s.duration,hidden:false}))
-  const trackMusic = draft.music_asset_id && musicAssets.some(m=>m.id===draft.music_asset_id &&
-    m.shop_id===draft.shop_id && m.authorized===true)
-    ? [{id:'licensed-audio',start:0,duration:draft.duration_seconds,volume:1}] : []
+  const audioMix = fixedAudioMixDisplay(draft, mediaAssets, musicAssets)
+  const trackMusic = audioMix.music
+    ? [{id:'licensed-audio',start:0,duration:draft.duration_seconds,
+        ...(audioMix.musicGain !== null ? {volume:audioMix.musicGain} : {})}] : []
   const shortcuts = event => {
     // Read-only one-frame navigation on the focused video track also works
     // for immutable Feature2-approved directions; it never changes the draft.
@@ -264,10 +266,20 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
       <div className="f4-ts-row">
         <span className="f4-ts-track-name">MUSIC</span>
         <div className="f4-studio-track-body f4-ts-audio">
-          {trackMusic.length ? trackMusic.map(m=><TimelineAudioClip key={m.id} segment={m}
-            laneIndex={0} timelineDuration={draft.duration_seconds} selected={false}
-            rangeSelected={false} waveformVisible={false} gainDisabled t={x=>x}
-            handlersRef={handlers} />) : <span className="f4-ts-empty">No licensed soundtrack selected</span>}
+          {trackMusic.length ? <>
+            {trackMusic.map(m=><TimelineAudioClip key={m.id} segment={m}
+              laneIndex={0} timelineDuration={draft.duration_seconds} selected={false}
+              rangeSelected={false} waveformVisible={false} gainDisabled
+              hideGain={audioMix.musicGain === null} t={x=>x}
+              handlersRef={handlers} />)}
+            <span className="f4-ts-empty" role="note">
+              {audioMix.musicGainBlockedByMedia
+                ? 'Music level unavailable: visual media is not authorized for this shop.'
+                : audioMix.musicGainUnknownUntilServerProbe
+                  ? 'Music level is not previewed: final gain depends on decoded source audio.'
+                  : 'Renderer-fixed music gain: '+Math.round(audioMix.musicGain*100)+'%; not editable.'}
+            </span>
+          </> : <span className="f4-ts-empty">No licensed soundtrack selected</span>}
         </div>
       </div>
       <div className="f4-ts-row">
@@ -312,7 +324,9 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
         step=".1" disabled={approvedDirection} value={draft.scenes[selected].trim_start||0}
         onChange={e=>change(d=>studioSourceTrim(d,selected,Number(e.target.value),mediaAssets))}/></label>}
       <span className="f4-ts-parity">Only fade/slide/cut, approved animation presets and native
-        video trims can be exported. Unsupported effects, caption rewriting and gain automation are disabled.</span>
+        video trims can be exported. Audio mix levels are fixed by the renderer after media probing;
+        this timeline does not audition the final soundtrack. Unsupported effects, caption rewriting
+        and gain automation are disabled.</span>
     </div>
     {approvedDirection && <p role="status" className="f4-ts-note">Approved Feature #2 direction locked. Timeline is preview-only until a coordinator-authorized revised approval exists.</p>}
     {feedback && <p role="alert" className="f4-ts-error">{feedback}</p>}
