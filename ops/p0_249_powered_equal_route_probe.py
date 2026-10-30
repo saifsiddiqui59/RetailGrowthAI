@@ -10,13 +10,15 @@ This is a bounded *single run*, NOT a statistically representative 24h SLA.
 from __future__ import annotations
 
 import json
+import math
+import re
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 from p0_249_cold_warm_http_probe import verify_dev
-from p0_249_http_comparison_probe import ORIGINS, ROUTES, sample, percentile
+from p0_249_http_comparison_probe import ORIGINS, ROUTES, DEADLINE_SECONDS, sample, percentile
 
 ROUTE = "campaign"
 PER_BACKEND = 20
@@ -26,8 +28,81 @@ PLAN = (("initial", 2), ("warm", 8), ("concurrent", 4), ("post_idle", 6))
 assert sum(count for _, count in PLAN) == PER_BACKEND
 
 
+# Telemetry printed by this diagnostic is an explicit public allowlist,
+# never the entire sender result (which might acquire private fields later).
+# The diagnostic must reject malformed/unbounded timing, not report its
+# misleading p95 as successful gateway evidence.
+PUBLIC_TIMINGS = (
+    "dns_seconds", "tcp_seconds", "tls_seconds", "first_byte_seconds",
+    "total_seconds",
+)
+PUBLIC_CATEGORIES = frozenset((
+    "EXPECTED_401", "EXPECTED_404_APP_MARKED", "EXPECTED_404_HANDLER_UNVERIFIED",
+    "HTTP_503_APP_MARKED", "HTTP_503_UNMARKED_OR_GATEWAY",
+    "UNMARKED_401_NOT_PROVEN_HANDLER", "UNEXPECTED_HTTP_STATUS",
+    "CLIENT_TIMEOUT", "NETWORK_OR_CURL_ERROR",
+))
+PUBLIC_TIMESTAMP = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\+00:00\Z")
+
+
+def public_receipt(observation):
+    """Only fixed, bounded, non-sensitive fields; fail closed on corrupt data."""
+    if not isinstance(observation, dict):
+        raise ValueError("unexpected observation shape")
+    public = {key: observation[key] for key in ("backend", "phase", "route")
+              if key in observation}
+    valid = True
+    stamp = observation.get("timestamp_utc")
+    if isinstance(stamp, str) and PUBLIC_TIMESTAMP.fullmatch(stamp):
+        try:
+            datetime.fromisoformat(stamp)
+            public["timestamp_utc"] = stamp
+        except ValueError:
+            valid = False
+    else:
+        valid = False
+    status = observation.get("http_status")
+    if isinstance(status, str) and len(status) == 3 and status.isascii() and status.isdecimal():
+        public["http_status"] = status
+    else:
+        valid = False
+    exit_code = observation.get("curl_exit")
+    if type(exit_code) is int and 0 <= exit_code <= 255:
+        public["curl_exit"] = exit_code
+    else:
+        valid = False
+    category = observation.get("category")
+    if isinstance(category, str) and category in PUBLIC_CATEGORIES:
+        public["category"] = category
+    else:
+        valid = False
+    for name in ("application_request_marker", "node_adapter_marker"):
+        flag = observation.get(name)
+        if type(flag) is not bool:
+            valid = False
+        public[name] = flag is True
+    for name in PUBLIC_TIMINGS:
+        value = observation.get(name)
+        if (type(value) in (int, float) and math.isfinite(value)
+                and 0 <= value <= DEADLINE_SECONDS + 5):
+            public[name] = round(value, 3)
+        else:
+            valid = False
+    if not valid:
+        # Never let a malformed status or NaN/Infinity timing satisfy a
+        # successful anonymous handler proof or enter percentile statistics.
+        public.update(
+            http_status="000", curl_exit=125, category="INVALID_OBSERVATION",
+            application_request_marker=False, node_adapter_marker=False,
+        )
+        for name in PUBLIC_TIMINGS:
+            public.pop(name, None)
+    return public
+
+
 def accepted(observation):
     """Count only exact final-response application-marked anonymous HTTP 401."""
+    observation = public_receipt(observation)
     if (observation.get("curl_exit") != 0
             or observation.get("http_status") != "401"
             or observation.get("category") != "EXPECTED_401"
@@ -53,15 +128,17 @@ def safe_round(sender, phase, indices):
                     or result.get("route") != ROUTE
                     or result.get("phase") != phase):
                 raise ValueError("unexpected probe backend, route or phase")
-            result = dict(result)
-            result["sequence"] = idx
-            # Fixed paths, marker presence only. Never log header values/bodies.
-            print("P0249_POWERED_HTTP=" + json.dumps(result, sort_keys=True), flush=True)
-            output.append(result)
+            receipt = public_receipt(result)
+            receipt["sequence"] = idx
+            # Even a future sender that returns headers, JWTs or signed URLs
+            # cannot put those values into Actions logs or summary output.
+            print("P0249_POWERED_HTTP=" + json.dumps(receipt, sort_keys=True), flush=True)
+            output.append(receipt)
         return output
 
 
 def summarize_powered(observations):
+    observations = [public_receipt(row) for row in observations]
     answer = {}
     for backend in ORIGINS:
         rows = [r for r in observations if r.get("backend") == backend]

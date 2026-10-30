@@ -130,3 +130,82 @@ def test_source_probe_uses_only_get_and_fixed_synthetic_ids():
     assert ROUTES["campaign"].startswith("/api/campaigns/11111111-")
     assert all(value.startswith("https://") for value in ORIGINS.values())
     assert "production" not in ORIGINS
+
+
+def test_powered_receipts_never_log_private_fields_or_untrusted_timing(capsys):
+    import json
+    def sender(backend, phase, route):
+        item = response(backend, phase, route)
+        item.update(
+            authorization="Bearer private-token-must-not-appear",
+            response_body="customer-personal-body-must-not-appear",
+            signed_url="https://private.invalid/signed-asset?token=private",
+            headers={"set-cookie": "session-private"},
+            request_id="private-server-id",
+        )
+        return item
+    assert probe["run_powered"](sender=sender, sleeper=lambda _: None, idle=0) == 0
+    raw = capsys.readouterr().out
+    for forbidden in ("private-token", "customer-personal-body", "private.invalid",
+                      "session-private", "private-server-id", "signed_url", "authorization"):
+        assert forbidden not in raw
+    entries = [json.loads(s.split("=", 1)[1]) for s in raw.splitlines()
+               if s.startswith("P0249_POWERED_HTTP=")]
+    assert len(entries) == 40
+    assert all(set(x) == {
+        "backend", "phase", "route", "timestamp_utc", "http_status",
+        "curl_exit", "category", "application_request_marker",
+        "node_adapter_marker", "dns_seconds", "tcp_seconds", "tls_seconds",
+        "first_byte_seconds", "total_seconds", "sequence"
+    } for x in entries)
+
+
+def test_nonfinite_negative_and_missing_times_cannot_certify_20_successes(capsys):
+    for malformed in (
+        float("nan"), float("inf"), -1.0, 9000.0, "0.2", True, None
+    ):
+        def sender(backend, phase, route):
+            row = response(backend, phase, route)
+            row["total_seconds"] = malformed
+            row["signed_url"] = "https://private.invalid/secret"
+            return row
+        assert probe["run_powered"](sender=sender, sleeper=lambda _: None, idle=0) == 4
+        logged = capsys.readouterr().out
+        assert "private.invalid" not in logged
+        assert "Infinity" not in logged and "NaN" not in logged
+        assert '"category": "INVALID_OBSERVATION"' in logged
+        assert '"verified_expected_401": 0' in logged
+
+
+def test_false_marker_boolean_malformed_timestamp_and_corrupt_status_fail_closed():
+    base = response("azure_flex_python", "warm", "campaign")
+    for patch in (
+        {"application_request_marker": "true"},
+        {"timestamp_utc": "2026-10-28T12:00:00+00:00/private"},
+        {"timestamp_utc": "2026-99-99T12:00:00+00:00"},
+        {"http_status": "401\nAuthorization: Bearer secret"},
+        {"curl_exit": True},
+        {"category": "EXPECTED_401_private_customer"},
+    ):
+        item = {**base, **patch}
+        clean = probe["public_receipt"](item)
+        assert clean["category"] == "INVALID_OBSERVATION"
+        assert clean["curl_exit"] != 0
+        assert probe["accepted"](item) is False
+        assert "private_customer" not in str(clean)
+        assert "Authorization:" not in str(clean)
+        assert "private" not in str(clean)
+
+
+def test_valid_curl_timeout_is_counted_as_failure_not_fake_http_503():
+    row = response("azure_flex_python", "initial", "campaign",
+                   status="000", marked=False, seconds=75.0)
+    row["curl_exit"] = 28
+    row["category"] = "CLIENT_TIMEOUT"
+    receipt = probe["public_receipt"](row)
+    assert receipt["curl_exit"] == 28
+    assert receipt["category"] == "CLIENT_TIMEOUT"
+    summary = probe["summarize_powered"]([row])
+    assert summary["azure_flex_python"]["client_timeouts"] == 1
+    assert summary["azure_flex_python"]["http_503"] == 0
+    assert summary["azure_flex_python"]["verified_expected_401"] == 0
