@@ -8,13 +8,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = """
 import fs from 'node:fs';
-import {projectCaptionsToTrim} from './video-engine/feature7/transcript_adapter.mjs';
+import {projectCaptionsToTrim,TranscriptAdaptationError} from './video-engine/feature7/transcript_adapter.mjs';
 try {
   const p=JSON.parse(fs.readFileSync(0,'utf8'));
   process.stdout.write(JSON.stringify(projectCaptionsToTrim(
     p.captions,p.trim,p.duration,p.offset)));
 } catch(e) {
-  if(e?.name!=='TranscriptAdaptationError') throw e;
+  if(!(e instanceof TranscriptAdaptationError)) throw e;
   process.stderr.write('REJECTED: '+e.message+'\\n');
   process.exitCode=2;
 }
