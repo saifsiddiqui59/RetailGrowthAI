@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+import unicodedata
 from collections.abc import Mapping
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -590,7 +591,7 @@ import hashlib
 import json
 import re
 
-_CLAIM_PERCENT = re.compile(r"(?<!\d)\d{1,3}\s*(?:%|percent|per[ -]?cent)\s*(?:off|discount|sale)?",re.I)
+_CLAIM_PERCENT = re.compile(r"(?<!\d)\d+\s*(?:[%\u066a\uff05\ufe6a]|percent|per[ -]?cent)\s*(?:off|discount|sale)?",re.I)
 _CLAIM_PRICE = re.compile(r"(?:₹|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
 _CLAIM_URGENCY = re.compile(r"\b(?:only \d+ left|selling out|last chance|guaranteed|best in india|number one|no\.?1|viral|trending now|everyone is buying|free shipping|free delivery|same-day delivery|cash on delivery|bogo|buy\s+(?:one|1)\s+get\s+(?:one|1)\s+free)\b",re.I)
 _CLAIM_WIDE = re.compile(r"\b(?:everything|all products|storewide|entire store|every item)\b",re.I)
@@ -622,7 +623,8 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     issues=set()
     for field,text in copy.items():
         if (type(text) is not str or not 1<=len(text.strip())<=1800 or
-            any(ord(ch)<32 for ch in text) or "<" in text or ">" in text or
+            any(unicodedata.category(ch) in ("Cc","Cf") for ch in text) or
+            "<" in text or ">" in text or
             "https://" in text.lower() or "javascript:" in text.lower()):
             raise EditorialBasisRejected("Unsafe or unbounded retailer copy")
         if _CLAIM_PRICE.search(text):
@@ -642,6 +644,12 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
             approved_spans.extend((m.start(),m.end()) for m in
                                    re.finditer(pattern,text,flags=re.I))
         hits=list(_CLAIM_PERCENT.finditer(text))
+        # Compatibility-width digits/letters can hide a second offer while
+        # preserving an approved ASCII claim. Detect that extra normalized
+        # occurrence, but NEVER normalize legal source text for approval.
+        normalized_hits=list(_CLAIM_PERCENT.finditer(unicodedata.normalize("NFKC",text)))
+        if len(normalized_hits)>len(hits):
+            issues.add("DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED")
         if hits and (not approved_spans or _CLAIM_WIDE.search(text) or
                      any(not any(a<=hit.start() and hit.end()<=b
                                  for a,b in approved_spans) for hit in hits)):
