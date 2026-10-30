@@ -33,6 +33,72 @@ def test_503_and_post_tls_timeout_distinguished():
     assert probe.classify(0, "401", False, "azure_flex_python") == "UNMARKED_401_NOT_PROVEN_HANDLER"
 
 
+def test_final_response_marker_is_trusted_only_when_exact():
+    parse = probe.response_handler_markers
+    python, node = parse("HTTP/2 401\r\nX-Request-ID: server-only-id\r\n\r\n")
+    assert python and not node
+    python, node = parse("HTTP/2 401\r\nX-RGAI-Secure-Adapter: candidate-v1\r\n\r\n")
+    assert node and not python
+    # CONNECT intermediary markers must not be misread as final app responses.
+    python, node = parse(
+        "HTTP/1.1 200 Connection established\r\n"
+        "X-Request-ID: proxy-id\r\n"
+        "X-RGAI-Secure-Adapter: candidate-v1\r\n\r\n"
+        "HTTP/2 401\r\ncontent-length: 0\r\n\r\n"
+    )
+    assert not python and not node
+    assert parse("HTTP/2 401\r\nX-RGAI-Secure-Adapter: other-v1\r\n\r\n") == (False, False)
+    assert parse("HTTP/2 401\r\nX-RGAI-Secure-Adapter: candidate-v1-extra\r\n\r\n") == (False, False)
+    assert parse("HTTP/2 401\r\nX-Request-ID:   \r\n\r\n") == (False, False)
+    assert parse("X-RGAI-Secure-Adapter: candidate-v1") == (False, False)
+
+
+def test_node_plain_401_fails_classification_not_backend_proof():
+    assert probe.classify(0, "401", False, "free_swa_node") == "UNMARKED_401_NOT_PROVEN_HANDLER"
+    assert probe.classify(0, "401", True, "free_swa_node") == "EXPECTED_401"
+    assert probe.classify(0, "503", False, "free_swa_node") == "HTTP_503_UNMARKED_OR_GATEWAY"
+    assert probe.classify(0, "503", True, "free_swa_node") == "HTTP_503_APP_MARKED"
+
+
+def test_actual_curl_sample_uses_final_response_handler_markers_only():
+    """Mock the real curl-to-temporary-header pipeline, not just its parser."""
+    from types import SimpleNamespace
+
+    def sample(backend, header_blob):
+        def fake_run(command, **kwargs):
+            assert kwargs["capture_output"] is True
+            assert command[command.index("--request") + 1] == "GET"
+            assert "--location" not in command and "-L" not in command
+            assert all("Authorization" not in x and "Cookie" not in x
+                       for x in command)
+            path = command[command.index("--dump-header") + 1]
+            Path(path).write_text(header_blob)
+            return SimpleNamespace(returncode=0,
+                                   stdout="401 0.001 0.002 0.003 0.004 0.005")
+        with patch.object(probe.subprocess, "run", fake_run):
+            return probe.sample(backend, "initial", "campaign")
+
+    ok = sample("free_swa_node",
+                "HTTP/2 401\r\nX-RGAI-Secure-Adapter: candidate-v1\r\n\r\n")
+    assert ok["node_adapter_marker"] is True
+    assert ok["application_request_marker"] is False
+    assert ok["category"] == "EXPECTED_401"
+    assert not any("candidate-v1" in str(v) for v in ok.values())
+
+    fake = sample("free_swa_node",
+                  "HTTP/1.1 200 Connection established\r\n"
+                  "X-RGAI-Secure-Adapter: candidate-v1\r\n\r\n"
+                  "HTTP/2 401\r\nContent-Length: 0\r\n\r\n")
+    assert fake["node_adapter_marker"] is False
+    assert fake["category"] == "UNMARKED_401_NOT_PROVEN_HANDLER"
+
+    python = sample("azure_flex_python", "HTTP/2 401\r\nX-Request-ID: private-opaque\r\n\r\n")
+    assert python["application_request_marker"] is True
+    assert python["node_adapter_marker"] is False
+    assert python["category"] == "EXPECTED_401"
+    assert "private-opaque" not in str(python)
+
+
 def test_percentile_gates_prevent_unsupported_p99_claim():
     rows = [{"backend": b, "curl_exit": 0, "http_status": "401",
              "category": "EXPECTED_401", "total_seconds": 0.8}
@@ -47,8 +113,14 @@ def test_series_sends_16_fixed_get_observations_and_one_five_minute_idle():
     calls, slept = [], []
     def fake_sender(backend, phase, route):
         calls.append((backend, phase, route))
-        return {"backend": backend, "curl_exit": 0, "http_status": "401",
-                "category": "EXPECTED_401", "total_seconds": 0.3}
+        expected = "401" if route == "campaign" else "404"
+        return {"backend": backend, "phase": phase, "route": route,
+                "curl_exit": 0, "http_status": expected,
+                "category": "EXPECTED_401" if route == "campaign"
+                            else "EXPECTED_404_HANDLER_UNVERIFIED",
+                "application_request_marker": backend == "azure_flex_python",
+                "node_adapter_marker": backend == "free_swa_node",
+                "total_seconds": 0.3}
     assert probe.run_series(sender=fake_sender, sleeper=slept.append) == 0
     assert len(calls) == 16
     assert slept == [300]
@@ -58,11 +130,100 @@ def test_series_sends_16_fixed_get_observations_and_one_five_minute_idle():
 
 def test_failed_503_fails_test_without_automatic_retry():
     def fake_sender(backend, phase, route):
-        code = "503" if backend == "azure_flex_python" and phase == "initial" else "401"
-        return {"backend": backend, "curl_exit": 0, "http_status": code,
-                "category": "HTTP_503_UNMARKED_OR_GATEWAY" if code == "503" else "EXPECTED_401",
+        code = ("503" if backend == "azure_flex_python" and phase == "initial"
+                else "401" if route == "campaign" else "404")
+        category = ("HTTP_503_UNMARKED_OR_GATEWAY" if code == "503"
+                    else "EXPECTED_401" if code == "401"
+                    else "EXPECTED_404_HANDLER_UNVERIFIED")
+        return {"backend": backend, "phase": phase, "route": route,
+                "curl_exit": 0, "http_status": code,
+                "category": category,
+                "application_request_marker": backend == "azure_flex_python" and code == "401",
+                "node_adapter_marker": backend == "free_swa_node" and code == "401",
                 "total_seconds": 60.9 if code == "503" else 0.5}
     assert probe.run_series(sender=fake_sender, sleeper=lambda _: None, idle=0) == 4
+
+
+def test_campaign_missing_handler_marker_or_wrong_route_never_passes():
+    def make(backend, phase, route, *, missing=False, status=None, misroute=False):
+        code = status or ("401" if route == "campaign" else "404")
+        return {
+            "backend": backend, "phase": phase,
+            "route": "unknown" if misroute else route,
+            "curl_exit": 0, "http_status": code,
+            "category": ("EXPECTED_401" if code == "401"
+                         else "EXPECTED_404_HANDLER_UNVERIFIED"),
+            "application_request_marker": backend == "azure_flex_python" and not missing,
+            "node_adapter_marker": backend == "free_swa_node" and not missing,
+            "total_seconds": 0.2,
+        }
+
+    assert probe.verified_route_result(
+        "azure_flex_python", "warm", "campaign",
+        make("azure_flex_python", "warm", "campaign"))
+    assert probe.verified_route_result(
+        "free_swa_node", "warm", "campaign",
+        make("free_swa_node", "warm", "campaign"))
+    for backend in probe.ORIGINS:
+        for case in (
+            make(backend, "warm", "campaign", missing=True),
+            make(backend, "warm", "campaign", status="404"),
+            make(backend, "warm", "campaign", misroute=True),
+            make(backend, "warm", "unknown"),
+            make(backend, "initial", "campaign"),
+            {"backend": backend, "curl_exit": 0, "http_status": "401"},
+        ):
+            assert not probe.verified_route_result(backend, "warm", "campaign", case)
+
+
+def test_transport_http_401_rate_is_not_verifiable_campaign_rate():
+    rows = []
+    for backend in probe.ORIGINS:
+        rows.append({
+            "backend": backend, "phase": "initial", "route": "campaign",
+            "curl_exit": 0, "http_status": "401",
+            "category": "UNMARKED_401_NOT_PROVEN_HANDLER",
+            "application_request_marker": False,
+            "node_adapter_marker": False, "total_seconds": 0.3,
+        })
+    totals = probe.summarize(rows)
+    for backend in probe.ORIGINS:
+        assert totals[backend]["success_rate_http_percent"] == 100.0
+        assert totals[backend]["verified_campaign_handler_401"] == 0
+        assert totals[backend]["verified_campaign_handler_rate_percent"] == 0.0
+        assert totals[backend]["transport_success_does_not_prove_handler"] is True
+
+
+def test_16_request_campaign_gate_denies_unmarked_401_without_retry():
+    observed = []
+    def sender(backend, phase, route):
+        observed.append((backend, phase, route))
+        return {
+            "backend": backend, "phase": phase, "route": route,
+            "curl_exit": 0,
+            "http_status": "401" if route == "campaign" else "404",
+            "category": ("UNMARKED_401_NOT_PROVEN_HANDLER" if route == "campaign"
+                         else "EXPECTED_404_HANDLER_UNVERIFIED"),
+            "application_request_marker": False, "node_adapter_marker": False,
+            "total_seconds": 0.2,
+        }
+    assert probe.run_series(sender=sender, sleeper=lambda _: None, idle=0) == 4
+    assert len(observed) == 16
+    assert all(route in {"campaign", "unknown"} for _, _, route in observed)
+
+
+def test_16_request_campaign_gate_denies_transparent_wrong_target():
+    def sender(backend, phase, route):
+        return {
+            "backend": backend, "phase": phase,
+            "route": "unknown" if route == "campaign" else route,
+            "curl_exit": 0, "http_status": "401" if route == "campaign" else "404",
+            "category": ("EXPECTED_401" if route == "campaign"
+                         else "EXPECTED_404_HANDLER_UNVERIFIED"),
+            "application_request_marker": True, "node_adapter_marker": True,
+            "total_seconds": 0.2,
+        }
+    assert probe.run_series(sender=sender, sleeper=lambda _: None, idle=0) == 4
 
 
 def test_azure_metric_definitions_both_cli_shapes():
