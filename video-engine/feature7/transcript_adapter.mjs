@@ -55,16 +55,39 @@ export function normalizeWhisperx({asset_id,shop_id,source_sha256,transcript,
   });
 }
 
+// The worker must validate the entire supplied caption bundle before selecting
+// visible cues. Otherwise a malformed/out-of-scope word in a nonvisible cue
+// could evade validation and later be replayed as a trusted timeline instruction.
 export function projectCaptionsToTrim(captions, trim_start_seconds, duration_seconds, timeline_offset_seconds=0) {
-  check(Array.isArray(captions) && Number.isFinite(trim_start_seconds) &&
-    trim_start_seconds>=0 && Number.isFinite(duration_seconds) &&
-    duration_seconds>0 && Number.isFinite(timeline_offset_seconds) &&
-    timeline_offset_seconds>=0, 'Invalid caption clip projection');
+  check(Array.isArray(captions) && captions.length<=3000 &&
+    Number.isFinite(trim_start_seconds) && trim_start_seconds>=0 &&
+    Number.isFinite(duration_seconds) && duration_seconds>0 && duration_seconds<=600 &&
+    Number.isFinite(timeline_offset_seconds) && timeline_offset_seconds>=0 &&
+    timeline_offset_seconds<=3600, 'Invalid caption clip projection');
   const start=trim_start_seconds*1000,end=start+duration_seconds*1000;
-  return captions.filter(c=>c.endMs>start && c.startMs<end).map(c=>{
-    check(c && typeof c.clipId==='string' && Array.isArray(c.words) &&
-      Number.isFinite(c.startMs) && Number.isFinite(c.endMs) &&
-      c.startMs<c.endMs, 'Invalid caption source timing');
+  check(Number.isSafeInteger(Math.round(end)) && end<=3600000,
+    'Caption source clip exceeds bounded media duration');
+  const validated=captions.map(c=>{
+    check(c && typeof c==='object' && !Array.isArray(c) &&
+      typeof c.clipId==='string' && /^[A-Za-z0-9_-]{1,120}$/.test(c.clipId) &&
+      Number.isSafeInteger(c.startMs) && Number.isSafeInteger(c.endMs) &&
+      c.startMs>=0 && c.endMs>c.startMs && c.endMs<=3600000 &&
+      Array.isArray(c.words) && c.words.length>0 && c.words.length<=32,
+      'Invalid caption source timing or clip identity');
+    let lastStart=-1;
+    for(const w of c.words) {
+      check(w && typeof w==='object' && !Array.isArray(w) &&
+        typeof w.text==='string' && w.text.trim().length>0 &&
+        [...w.text].length<=80 &&
+        Number.isSafeInteger(w.startMs) && Number.isSafeInteger(w.endMs) &&
+        w.startMs>=c.startMs && w.startMs>=lastStart &&
+        w.endMs>w.startMs && w.endMs<=c.endMs,
+        'Invalid or out-of-order source caption word');
+      lastStart=w.startMs;
+    }
+    return c;
+  });
+  return validated.filter(c=>c.endMs>start && c.startMs<end).map(c=>{
     const clippedWords=c.words.filter(w=>w.endMs>start && w.startMs<end).map(w=>({
       ...w,startMs:Math.round(timeline_offset_seconds*1000+Math.max(w.startMs,start)-start),
       endMs:Math.round(timeline_offset_seconds*1000+Math.min(w.endMs,end)-start)
