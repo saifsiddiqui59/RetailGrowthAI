@@ -208,6 +208,29 @@ class ReconciliationTests(unittest.TestCase):
             (self.db.shop,self.db.job,self.db.asset)])
         self.assertEqual([x[2] for x in self.db.calls],["GET"]*2)
 
+
+    def test_initial_job_and_reservation_sql_errors_do_not_expose_secrets(self):
+        secret="internal-database-credential-in-backend-error"
+        for table,expected in (
+            ("feature3_gpu_jobs","Current job read unavailable"),
+            ("shop_ai_spend_reservations","Current reservation read unavailable"),
+        ):
+            self.setUp()
+            original=self.db.request
+            def unavailable(path,*,query,method="GET",data=None):
+                if path==table:
+                    raise RuntimeError(secret)
+                return original(path,query=query,method=method,data=data)
+            self.db.request=unavailable
+            with self.subTest(table=table),self.assertRaises(
+                    Feature3ReconciliationUnknown) as caught:
+                self.inspect()
+            self.assertEqual(str(caught.exception),expected)
+            self.assertNotIn(secret,str(caught.exception))
+            self.assertTrue(caught.exception.__suppress_context__)
+            self.assertEqual(self.db.private_reads,[])
+            self.assertTrue(all(method=="GET" for _,__,method in self.db.calls))
+
     def test_actual_private_png_reader_composed_with_service_sql_reconciliation(self):
         image=BytesIO()
         Image.new("RGB",(320,400),"#446688").save(image,format="PNG")
