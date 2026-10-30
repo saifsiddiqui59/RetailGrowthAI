@@ -217,6 +217,29 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
         def rss_kib():
             return None
 
+    def validate_pcm_proof(audio):
+        # A RIFF magic prefix and caller-provided duration do not prove that
+        # the benchmark measured a decodable, complete original PCM WAV.
+        # Check the actual container and bytes without invoking any provider.
+        data=audio["audio_wav"]
+        if len(data)<44 or len(data)>24000*2*60+4096:
+            raise LocalSpeechUnavailable("Benchmark WAV container invalid")
+        try:
+            with wave.open(BytesIO(data),"rb") as wav:
+                if (wav.getnchannels()!=1 or wav.getsampwidth()!=2 or
+                    wav.getframerate()!=24000 or wav.getcomptype()!="NONE"):
+                    raise LocalSpeechUnavailable("Benchmark WAV PCM format invalid")
+                frames=wav.getnframes()
+                if not 2400<=frames<=24000*60:
+                    raise LocalSpeechUnavailable("Benchmark WAV duration invalid")
+                decoded=wav.readframes(frames)
+                if len(decoded)!=frames*2:
+                    raise LocalSpeechUnavailable("Benchmark WAV frames truncated")
+                if abs(audio["duration_seconds"]-frames/24000)>0.0002:
+                    raise LocalSpeechUnavailable("Benchmark WAV duration proof mismatch")
+        except (wave.Error,EOFError,OSError,ValueError) as exc:
+            raise LocalSpeechUnavailable("Benchmark WAV container invalid") from exc
+
     before=rss_kib()
     observations=[]
     engine=synthesize if trusted_for_tests else synthesize_local
@@ -245,6 +268,7 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
             not audio["audio_wav"].startswith(b"RIFF") or
             audio["audio_wav"][8:12]!=b"WAVE"):
             raise LocalSpeechUnavailable("Benchmark source/audio provenance invalid")
+        validate_pcm_proof(audio)
         observations.append({
             "wall_seconds":round(wall,4),
             "process_cpu_seconds":round(cpu,4),
