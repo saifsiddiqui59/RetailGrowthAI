@@ -6,9 +6,12 @@ weights. Manifest digest validation is metadata comparison; it is NOT a new
 """
 from __future__ import annotations
 import argparse
+from contextlib import ExitStack
+from hashlib import sha256
 import json
 import os
 import re
+import stat
 from pathlib import Path, PurePosixPath
 
 ACCOUNT = "rgaimodelseastus26"
@@ -70,16 +73,80 @@ def validate_manifest(obj):
     return revisions
 
 
+def _open_model_fd(root, relative):
+    """Open every path component without following links, including parent dirs.
+
+    This is a local, read-only Linux preflight; it never fetches model bytes from
+    Azure APIs. A platform without dir_fd/O_NOFOLLOW support must fail closed.
+    """
+    if not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_DIRECTORY"):
+        raise PreflightError("Secure mounted-file inspection requires POSIX no-follow opens")
+    if relative not in EXPECTED:
+        raise PreflightError("Model path not in the pinned inventory")
+    parts = PurePosixPath(relative).parts
+    dir_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    file_flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0)
+    try:
+        with ExitStack() as stack:
+            directory_fd = os.open(os.fspath(root), dir_flags)
+            stack.callback(os.close, directory_fd)
+            for part in parts[:-1]:
+                directory_fd = os.open(part, dir_flags, dir_fd=directory_fd)
+                stack.callback(os.close, directory_fd)
+            return os.open(parts[-1], file_flags, dir_fd=directory_fd)
+    except (OSError, ValueError, TypeError) as exc:
+        raise PreflightError("Cannot securely open mounted model: " + relative) from exc
+
+
+def _checked_stat(fd, relative, expected_size):
+    info = os.fstat(fd)
+    if not stat.S_ISREG(info.st_mode) or info.st_size != expected_size:
+        raise PreflightError("Missing, nonregular or wrong-sized model: " + relative)
+    return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
 def check_mounted_files(root):
     """Cheap, optional filesystem STAT check only; no large file re-read."""
-    base = Path(root)
-    if not base.is_dir() or base.is_symlink():
-        raise PreflightError("Private model root not mounted as a directory")
     for relative, (size, _, _) in EXPECTED.items():
-        file = base.joinpath(*PurePosixPath(relative).parts)
-        if file.is_symlink() or not file.is_file() or file.stat().st_size != size:
-            raise PreflightError("Missing, symlinked or wrong-sized model: " + relative)
+        fd = _open_model_fd(root, relative)
+        try:
+            _checked_stat(fd, relative, size)
+        finally:
+            os.close(fd)
     return True
+
+
+def verify_mounted_sha256(root):
+    """Explicit opt-in: stream ALL mounted model bytes and compare pinned hashes.
+
+    This can read over 34 GB from an existing mount. Never call automatically
+    from CI, GPU start, metadata preflight or a paid cloud operation.
+    """
+    verified = {}
+    for relative, (expected_size, expected_digest, _) in EXPECTED.items():
+        fd = _open_model_fd(root, relative)
+        try:
+            original = _checked_stat(fd, relative, expected_size)
+            digest = sha256()
+            total = 0
+            while True:
+                chunk = os.read(fd, 4 * 1024 * 1024)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > expected_size:
+                    raise PreflightError("Mounted model grew during SHA-256 scan: " + relative)
+                digest.update(chunk)
+            if total != expected_size or _checked_stat(fd, relative, expected_size) != original:
+                raise PreflightError("Mounted model changed during SHA-256 scan: " + relative)
+            if digest.hexdigest() != expected_digest:
+                raise PreflightError("Mounted model SHA-256 mismatch: " + relative)
+            verified[relative] = digest.hexdigest()
+        except OSError as exc:
+            raise PreflightError("Mounted model read failed: " + relative) from exc
+        finally:
+            os.close(fd)
+    return verified
 
 
 def comfy_extra_paths():
@@ -124,14 +191,24 @@ def main(argv=None):
     p = argparse.ArgumentParser(description="No-network, no-GPU shared FLUX/Wan mount preflight")
     p.add_argument("--manifest", help="Locally provided copy of private Azure completion manifest")
     p.add_argument("--mounted-root", help="Optional existing mounted path for stat-only check")
+    p.add_argument("--verify-sha256", action="store_true", help="Opt-in full original-byte scan of all six models (>34GB I/O)")
+    p.add_argument("--confirm-full-scan", action="store_true", help="Explicitly acknowledge full read-only model-share I/O")
     p.add_argument("--format", choices=["plan", "yaml"], default="plan")
     args = p.parse_args(argv)
+    if args.verify_sha256 and (not args.mounted_root or not args.confirm_full_scan):
+        p.error("--verify-sha256 requires --mounted-root and --confirm-full-scan")
+    if args.confirm_full_scan and not args.verify_sha256:
+        p.error("--confirm-full-scan requires --verify-sha256")
     if args.manifest:
         with open(args.manifest, encoding="utf8") as f:
             print("Manifest revisions validated:", json.dumps(validate_manifest(json.load(f)), sort_keys=True))
     if args.mounted_root:
         check_mounted_files(args.mounted_root)
-        print("Six mounted model paths and byte counts pass STAT-only check (not SHA rehash)")
+        if args.verify_sha256:
+            verified = verify_mounted_sha256(args.mounted_root)
+            print(f"{len(verified)} mounted model files passed full SHA-256 readback (not a GPU or licensing approval)")
+        else:
+            print("Six mounted model paths and byte counts pass STAT-only check (not SHA rehash)")
     print(comfy_extra_paths() if args.format == "yaml" else json.dumps(job_volume_fragment(), indent=2))
     return 0
 
