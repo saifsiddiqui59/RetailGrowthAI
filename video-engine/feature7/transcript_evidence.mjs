@@ -49,8 +49,12 @@ export function verifyTranscriptEvidence({evidence,key,expect,now_ms=Date.now()}
     now_ms <= payload.expires_at_ms,'Expired or malformed transcript evidence');
   fail(expect && ['shop_id','asset_id','job_id','source_sha256',
     'transcript_sha256'].every(field => typeof expect[field]==='string' &&
-      expect[field] === payload[field]),
-    'Transcript evidence scope or digest mismatch');
+      expect[field] === payload[field]) &&
+    // Optional trusted-worker model pin: existing offline fixtures may omit it,
+    // but a coordinator with a licensed/approved model must supply it.
+    (expect.model_id === undefined ||
+      (typeof expect.model_id === 'string' && expect.model_id === payload.model_id)),
+    'Transcript evidence scope, model or digest mismatch');
   const mac=Buffer.from(evidence.mac,'hex');
   const calculated=Buffer.from(sign(payload,key),'hex');
   fail(crypto.timingSafeEqual(mac,calculated),'Transcript evidence signature mismatch');
