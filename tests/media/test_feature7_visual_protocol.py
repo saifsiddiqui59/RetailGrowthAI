@@ -16,11 +16,14 @@ JS = r"""
 import fs from 'node:fs';
 import {analyzeLocalVisualActivity, analyzeLocalSceneChangesCPU}
   from './video-engine/feature7/visual_activity.mjs';
+import {analyzeLocalAudioActivity} from './video-engine/feature7/audio_activity.mjs';
 const request=JSON.parse(fs.readFileSync(0,'utf8'));
 const mode=request.mode;
 delete request.mode;
 const result=mode==='scene'?
-  analyzeLocalSceneChangesCPU(request):analyzeLocalVisualActivity(request);
+  analyzeLocalSceneChangesCPU(request):mode==='audio'?
+  analyzeLocalAudioActivity({...request,has_audio:true}):
+  analyzeLocalVisualActivity(request);
 process.stdout.write(JSON.stringify(result));
 """
 
@@ -36,7 +39,9 @@ class Feature7VisualProtocolTests(unittest.TestCase):
         run = subprocess.run([
             'ffmpeg', '-hide_banner', '-v', 'error', '-y',
             '-f', 'lavfi', '-i', 'color=c=black:s=160x288:r=10:d=2',
+            '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=16000:duration=2',
             '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
+            '-c:a', 'aac',
             str(cls.source)
         ], capture_output=True, text=True, timeout=30)
         if run.returncode:
@@ -54,7 +59,7 @@ class Feature7VisualProtocolTests(unittest.TestCase):
             capture_output=True, text=True, cwd=ROOT, timeout=15)
 
     def test_both_real_local_cpu_analyzers_remain_read_only(self):
-        for mode in ('visual', 'scene'):
+        for mode in ('visual', 'scene', 'audio'):
             with self.subTest(mode=mode):
                 run = self.invoke(self.source, mode)
                 self.assertEqual(run.returncode, 0, run.stderr)
@@ -66,7 +71,7 @@ class Feature7VisualProtocolTests(unittest.TestCase):
                     self.digest)
 
     def test_protocol_urls_relative_paths_and_pipe_are_rejected(self):
-        for mode in ('visual', 'scene'):
+        for mode in ('visual', 'scene', 'audio'):
             for source in ('https://example.invalid/private.mp4',
                            'ftp://example.invalid/private.mp4',
                            'concat:/tmp/a|/tmp/b', 'pipe:0', '-', 'relative.mp4',
@@ -86,7 +91,7 @@ class Feature7VisualProtocolTests(unittest.TestCase):
         fake_mp4.write_bytes(
             b'\x00\x00\x00\x18ftypisom' +
             b'https://example.invalid/remote.ts')
-        for mode in ('visual', 'scene'):
+        for mode in ('visual', 'scene', 'audio'):
             for source in (linked, self.home, playlist, fake_mp4):
                 with self.subTest(mode=mode, source=str(source)):
                     run = self.invoke(source, mode)
