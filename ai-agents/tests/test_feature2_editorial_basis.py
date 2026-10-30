@@ -435,3 +435,25 @@ def test_exact_approved_indic_offer_is_still_review_only(approved):
     assert report["customer_editor_approval_required"] is True
     assert report["commercial_fact_certified"] is False
     assert report["can_publish"] is False
+
+
+@pytest.mark.parametrize("unapproved,expected_issue", [
+    ("1000% off selected kurti styles", "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ("20% off selected kurti styles; additional 75 pct off", "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ("20% off selected kurti styles; 50﹪ off scarves", "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ("20% off selected kurti styles; valid on all items", "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ("20% off selected kurti styles; applies to the entire collection", "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ("20% off selected kurti styles; available for any product", "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ("Kurti starting at ₹ 1,999", "UNVERIFIED_CURRENCY_PRICE"),
+])
+def test_broadened_discount_scope_and_price_variants_require_editor_review(
+    unapproved, expected_issue
+):
+    report = inspect_retailer_copy_claims(
+        verified_context=copy_context(),
+        copy=candidate_copy(caption=unapproved),
+    )
+    assert expected_issue in report["issues"]
+    assert report["review_required"] is True
+    assert report["commercial_fact_certified"] is False
+    assert report["can_publish"] is False
