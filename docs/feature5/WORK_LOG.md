@@ -315,3 +315,13 @@ First documentation-head Actions run #40864647921 exposed **one new Feature5 med
 
 ## 2026-10-29 — Cross-feature task tracking without repeated manual status guesses
 Verified F5 draft #465 `82dad625`, F2 #551 open, F4 #322 open, Part3 #125 open and Feature3 #630 merged; old exact F5 head Actions #40933327353 has four successes. Added `docs/feature5/F5_22_TASK_DEPENDENCIES_20261029.json` (GitHub commit d9d6f57a), enumerating 22 remaining release work packages with explicit owner/dependency/output/acceptance, including three active source/preflight preparations and 19 external blocks. Pure docs/coordination; no GPU, Azure, Supabase or WineShopPOS mutation. Verify latest documentation head CI separately.
+
+## 2026-10-30 — F5-13 offline OCI review-manifest fail-closed hardening (source only)
+
+- Task ID: **F5-13** / dependency **F5-OCI**, owner Feature5/Runtime. Current task status remains **IN PROGRESS**, not integrated DONE.
+- Verified coordinator task registry and source ledger; PR #465 remains open/unmerged, stacked on PR #323. Feature2 PR #551 remains unmerged; no real original exporter integration claimed.
+- Implemented review JSON hardening in feature5_motion/infra/wan22_build_context_gate.py: bounded opened file, no symlink/hardlink, stable file identity/size/mtime across read, reject duplicate nested keys, non-finite JSON constants and non-object roots. Added deterministic synthetic negative tests in tests/ai/test_feature5_wan22_build_context_gate.py. Source commits 3dd7a2858d6e98e1beef9c19450da92133817912 and 5ecc363a62efb7e694085541154f868969f50f21.
+- Exact-head CI for 5ecc363a62efb7e694085541154f868969f50f21 was queued at checkpoint (Actions #41040798957); **not** claimed passed. Prior af4cc21b four-job success is not evidence for these changes. No local full checkout/test runner was available.
+- Remaining F5-13 acceptance: independently reviewed real CUDA base image digest/bytes, complete pinned wheelhouse, license/SBOM/ABI review and actual OCI build digest. Owner Feature5/Runtime; source-only tests cannot satisfy these gates.
+- F5-14 requires private read-only mount and streaming original three Wan checkpoints with exact SHA/size; no real weights read. F5-02 requires authentic F2 PR #551 exporter bytes (owner Feature2/Coordinator). Fixtures are not customer media.
+- GPU OFF; no paid inference, model download, Azure/Supabase writes, PROD edits, user samples or WineShopPOS changes. Only coordinator may merge and update canonical shared docs/task_progress after verified acceptance.
