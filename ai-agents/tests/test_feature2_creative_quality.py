@@ -123,6 +123,26 @@ def test_human_benchmark_requires_real_two_blind_reviewers():
         blind_human_comparison(experiment_id="diwali-2026-10-28", candidates=candidates, reviews=duplicate)
 
 
+@pytest.mark.parametrize("bad_reviewer", [
+    {"spoof": "reviewer-one"}, ["reviewer-one"], None,
+    "", "   ", True, "x" * 101,
+])
+def test_blind_review_rejects_unhashable_or_invalid_reviewer_identity(bad_reviewer):
+    candidates = {"A": fixture(15), "B": fixture(30)}
+    scores = {k: 3 for k in RUBRIC_WEIGHTS}
+    reviews = [
+        {"candidate_id": candidate, "reviewer_id": reviewer, "scores": scores}
+        for candidate in ("A", "B")
+        for reviewer in ("reviewer-one", "reviewer-two")
+    ]
+    reviews[0]["reviewer_id"] = bad_reviewer
+    with pytest.raises(ValueError, match="Two independent reviewers"):
+        blind_human_comparison(
+            experiment_id="diwali-independent-review-403",
+            candidates=candidates, reviews=reviews,
+        )
+
+
 def test_blind_review_rejects_duplicate_weighted_receipts_and_forged_reviewer():
     candidates = {"A": fixture(15), "B": fixture(30)}
     scores = {k: 5 for k in RUBRIC_WEIGHTS}
