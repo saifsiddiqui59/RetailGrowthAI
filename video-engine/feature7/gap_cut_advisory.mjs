@@ -53,7 +53,11 @@ export function suggestGapCuts({asset_id,source_scene_index,words,
     const gapStart=runs[i-1].source_end_ms;
     const gapEnd=runs[i].source_start_ms;
     const diff=gapEnd-gapStart;
-    if(diff>=250 && proposals.length<max_removals){
+    // speechRuns intentionally filters tiny isolated utterances. Never treat
+    // the resulting uncovered interval as silence if any original verified
+    // word lies inside it: that could erase a short but critical "no".
+    const containsSpeech=words.some(w=>w.startMs<gapEnd && w.endMs>gapStart);
+    if(diff>=250 && !containsSpeech && proposals.length<max_removals){
       proposals.push({source_start_ms:gapStart,source_end_ms:gapEnd,
         proposed_remove_ms:diff,
         reason:'word_timing_pause_only',
