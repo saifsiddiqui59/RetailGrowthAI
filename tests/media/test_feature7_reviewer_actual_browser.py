@@ -157,6 +157,39 @@ class Feature7ActualBrowserReviewQA(unittest.TestCase):
             finally:browser.close()
 
 
+    def test_async_host_refusal_unlocks_manual_review_retry_on_mobile(self):
+        """Real browser: an async false is rejection, never approval."""
+        with sync_playwright() as p:
+            browser=p.chromium.launch(headless=True,executable_path=CHROME,
+                                      args=["--no-sandbox"])
+            try:
+                page=browser.new_page(viewport={"width":390,"height":844})
+                page.goto(self.url+"?async=1",wait_until="networkidle")
+                page.wait_for_function("window.__ready===true")
+                approval=page.get_by_role("button",name="Request human approval")
+                page.get_by_role("checkbox",
+                    name="I have reviewed the selected clip and original speech audio.").check()
+                approval.click()
+                self.assertTrue(approval.is_disabled())
+                page.evaluate("window.__reviewDeferred[0].resolve(false)")
+                page.get_by_text("Request failed. No approval was recorded.").wait_for()
+                self.assertTrue(approval.is_enabled())
+                self.assertEqual(page.evaluate("window.__reviewRequests.length"),1)
+                self.assertFalse(page.evaluate("window.__snapshot().approved"))
+                textarea=page.get_by_role("textbox",name="Corrected caption text")
+                textarea.fill("Hello retailer")
+                page.get_by_role("button",name="Save caption suggestion").click()
+                page.get_by_role("checkbox",
+                    name="I checked the corrected words against the actual speaker.").check()
+                send=page.get_by_role("button",name="Request caption correction review")
+                send.click()
+                self.assertTrue(send.is_disabled())
+                page.evaluate("window.__captionDeferred[0].resolve(false)")
+                page.get_by_text("Caption request failed. No approval was recorded.").wait_for()
+                self.assertTrue(send.is_enabled())
+                self.assertFalse(page.evaluate("window.__snapshot().approved"))
+            finally:browser.close()
+
     def test_stale_async_failure_cannot_reopen_new_review_on_mobile(self):
         with sync_playwright() as p:
             browser=p.chromium.launch(headless=True,executable_path=CHROME,
