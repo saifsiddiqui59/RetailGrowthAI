@@ -14,7 +14,7 @@ from .wan22_native_preflight import (
     OCI, WanCompatibilityError, audit_offline_wheelhouse,
     validate_offline_requirements_file,
 )
-from .wan22_source_audit import audit_complete_vendor_checkout
+from .wan22_source_audit import audit_complete_vendor_checkout, parse_reviewed_json
 
 MAX_REVIEW_BYTES = 4 * 1024 * 1024
 
@@ -24,7 +24,7 @@ def _private_review_json(path):
     if item.is_symlink() or not item.is_file() or not 0 < item.stat().st_size <= MAX_REVIEW_BYTES:
         raise WanCompatibilityError("Missing, linked or oversized reviewed manifest")
     try:
-        return json.loads(item.read_text(encoding="utf8"))
+        return parse_reviewed_json(item.read_text(encoding="utf8"))
     except (OSError,UnicodeError,ValueError) as exc:
         raise WanCompatibilityError("Unreadable reviewed manifest") from exc
 
