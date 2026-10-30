@@ -1,0 +1,12 @@
+# Feature #3 durable coding checkpoint — 2026-10-30
+
+## Current work
+- **Task IDs:** F3-06 (read-only GPU operator financial/Storage/SQL reconciliation), F3-13 (negative evidence regression).
+- **Branch:** `feat/feature3-f3-06-strict-private-attempt-20261030`; **PR:** [#834](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/834), stacked on PR #706 (`feat/feature3-operator-private-evidence-exception-fence-20261030`) to avoid conflicting edits.
+- **Code commit:** `8ffec90a575e69eb0f024feca773cde91c5d5c94`; **test commit:** `608fd063d0eb09f978fd7389be15ea70c615e1ec`. The checkpoint commit changes the final head SHA; always re-fetch PR #834 before CI claims.
+- **Source files:** `azure-functions/campaign-api/feature3_gpu_operator_reconciliation.py` and `tests/api/test_feature3_gpu_operator_reconciliation.py`.
+- **Change:** private GPU output success evidence now requires a genuine `int` attempt equal to 1; rejects Python `True == 1` and `1.0 == 1` coercion, as well as string `"1"`. Deterministic negative cases added. This is a source-only fail-closed fix, not evidence of a real GPU job or commercial rights.
+- **Verification:** Code and tests committed through GitHub; **targeted Python unittest NOT RUN** (working container cannot resolve github.com to obtain the complete repository; no checked-out repo). Exact-head PR GitHub Actions query at test commit `608fd063...` returned **no runs yet**. Do not mark tested or PR-ready. Coordinator must run `python -m unittest discover -s tests/api -p 'test_feature3_gpu_operator_reconciliation.py'`, review #706 dependency, inspect 4/4 exact-head CI and postmerge main CI before integrated DONE.
+- **Financial and environment safety:** No GPU, model inference, DB writes, Azure deployments, paid calls, private media, PROD or WineShopPOS changes.
+- **Remaining gates:** PR #706 operator exception-fence review/merge (owner Feature3/coordinator); #834 exact-head tests/CI (owner Feature3/CI); main integration and four-job CI (owner coordinator). No source-only work counted as integrated.
+- **NEXT actionable task:** F3-08, audit authenticated no-URL binary download route for a small independent negative-path hardening test. Check latest main and open PRs (#728, #738, #813) before editing; avoid duplicating existing tests. If F3-08 already covered, select next unclaimed independent F3-07 or F3-11. Hosted acceptance remains blocked by signed DEV route #471/#325 and Azure #249; do not invent rights approvals.
