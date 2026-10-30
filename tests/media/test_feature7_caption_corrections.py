@@ -43,7 +43,7 @@ if(p.bad==='overlap')projection.feature4_caption_track[1].start=.8;
 if(p.bad==='late')projection.feature4_caption_track[2].start=15;
 if(p.bad==='approved')projection.approved=true;
 if(p.bad==='samesha')correctionInput.preview_sha256=correctionInput.source_sha256;
-if(['pure','preview','verify','immutable'].includes(p.operation)){
+if(['pure','preview','preview_immutable','verify','immutable'].includes(p.operation)){
  let s=createCaptionCorrectionSession({...correctionInput,reviewer_view:reviewer});
  const original=s;
  if(p.bad==='wrong_index')s=editCaptionCorrection(s,8,'Different words');
@@ -86,9 +86,33 @@ if(['pure','preview','verify','immutable'].includes(p.operation)){
      reviewer_view:reviewer
    });
    process.stdout.write(JSON.stringify(validated));
- }else if(p.operation==='preview'){
+ }else if(p.operation==='preview'||p.operation==='preview_immutable'){
    const updated=buildCorrectedCaptionReviewProjection(s,projection);
-   process.stdout.write(JSON.stringify(updated));
+   if(p.operation==='preview_immutable'){
+     const before=JSON.stringify(updated);
+     let denied=0;
+     for(const change of [
+       ()=>{updated.feature4_caption_track[0].text='tampered';},
+       ()=>{updated.feature4_caption_track.push({start:0,duration:1,text:'extra'});},
+       ()=>{updated.original_caption_track_unchanged[0].start=99;},
+       ()=>{updated.original_caption_track_unchanged.splice(0,1);}
+     ]){
+       try{change()}catch(e){if(e instanceof TypeError)denied++;}
+     }
+     const untouched=JSON.stringify(updated)===before;
+     const callerIsStillEditable=!Object.isFrozen(projection.feature4_caption_track[0]);
+     projection.feature4_caption_track[0].text='mutated outside review';
+     process.stdout.write(JSON.stringify({
+       changedRowsFrozen:updated.feature4_caption_track.every(Object.isFrozen),
+       originalRowsFrozen:updated.original_caption_track_unchanged.every(Object.isFrozen),
+       arraysFrozen:Object.isFrozen(updated.feature4_caption_track)&&
+         Object.isFrozen(updated.original_caption_track_unchanged),
+       denied,untouched,callerIsStillEditable,
+       detachedFromCaller:JSON.stringify(updated)===before,
+       reviewOnly:updated.human_caption_correction_preview_only===true&&
+         updated.approved===false&&updated.renderable===false
+     }));
+   }else process.stdout.write(JSON.stringify(updated));
  }else{
    const result=p.bad==='unconfirmed'
     ? requestCaptionCorrectionReview(s,{confirmed:false})
@@ -186,6 +210,19 @@ class Feature7CaptionCorrectionTests(unittest.TestCase):
         # The original session row is separately immutable already.
         self.assertFalse(out["originalSessionEditable"])
         self.assertFalse(out["publishApproved"])
+
+    def test_corrected_preview_cues_are_copy_frozen_and_clock_immutable(self):
+        r=self.run_case(operation="preview_immutable")
+        self.assertEqual(r.returncode,0,r.stderr)
+        out=json.loads(r.stdout)
+        self.assertTrue(out["changedRowsFrozen"])
+        self.assertTrue(out["originalRowsFrozen"])
+        self.assertTrue(out["arraysFrozen"])
+        self.assertEqual(out["denied"],4)
+        self.assertTrue(out["untouched"])
+        self.assertTrue(out["callerIsStillEditable"])
+        self.assertTrue(out["detachedFromCaller"])
+        self.assertTrue(out["reviewOnly"])
 
     def test_reset_to_source_removes_change_and_blocks_empty_request(self):
         r=self.run_case(operation="pure",reset=True,emit=False)

@@ -188,12 +188,19 @@ export function buildCorrectedCaptionReviewProjection(session,originalProjection
       'Foreign or duplicate text correction');
     byId.set(c.cue_index,validateReviewerCaptionText(c.corrected_text));
   }
-  const changed=unchanged.map((cue,i)=>({
+  // Both arrays are read by an asynchronous offline caption-preview worker.
+  // Freeze ROWS as well as the arrays, and project only caption clock/text
+  // fields: an extra source cue property must never become renderer metadata.
+  // This copies caller cues rather than freezing trusted host input in place.
+  const changed=Object.freeze(unchanged.map((cue,i)=>Object.freeze({
     start:cue.start,duration:cue.duration,text:byId.get(i)??cue.text
-  }));
+  })));
+  const originalClock=Object.freeze(unchanged.map(cue=>Object.freeze({
+    start:cue.start,duration:cue.duration,text:cue.text
+  })));
   return Object.freeze({...originalProjection,
-    feature4_caption_track:Object.freeze(changed),
-    original_caption_track_unchanged:Object.freeze(unchanged.map(c=>({...c}))),
+    feature4_caption_track:changed,
+    original_caption_track_unchanged:originalClock,
     caption_correction_source_sha256:session.source_captions_sha256,
     caption_correction_count:byId.size,
     human_caption_correction_preview_only:true,
