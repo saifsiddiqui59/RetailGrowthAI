@@ -75,6 +75,8 @@ def validate_feature4_release(*, job, lineage, reviewed, media, now=None):
     jid = _identifier(job.get("id"), "job_id")
     if job.get("status") != "SUCCEEDED" or job.get("output_asset_id") is None:
         raise ReleaseNotApproved("Only verified, completed private renders are eligible")
+    # A present-but-foreign/empty output reference is not an immutable asset ID.
+    _identifier(job["output_asset_id"], "output_asset_id")
     if (lineage.get("video_job_id") != jid or
             lineage.get("rendered_as") != "AUTHORIZED_ASSEMBLY" or
             lineage.get("fallback_events") != []):
@@ -84,9 +86,28 @@ def validate_feature4_release(*, job, lineage, reviewed, media, now=None):
     product = _identifier(reviewed.get("approved_product_id"), "product media")
     motion = _identifier(reviewed.get("approved_motion_id"), "motion media")
     expected = lineage.get("media_asset_ids")
-    if (type(expected) is not list or product not in expected or
-            motion not in expected or product == motion):
+    if (type(expected) is not list or not 2 <= len(expected) <= 36 or
+            product not in expected or motion not in expected or product == motion):
         raise ReleaseNotApproved("Review must cover actually assembled product and motion media")
+    # Product/motion approval alone is insufficient: an otherwise approved Reel
+    # could still embed revoked, foreign-shop or synthetic audio/stock/logo.
+    # All rows must be fresh trusted DB reads, not browser-provided grants.
+    for asset_id in expected:
+        _identifier(asset_id, "lineage media asset")
+    if len(set(expected)) != len(expected):
+        raise ReleaseNotApproved("Duplicate media asset IDs in render lineage")
+    for asset_id in expected:
+        row = media.get(asset_id)
+        if (type(row) is not dict or row.get("shop_id") != shop or
+                row.get("approved") is not True or
+                row.get("commercial_use") is not True or
+                row.get("synthetic_fixture") is not False or
+                row.get("kind") not in {"image", "poster", "logo", "video", "audio"} or
+                type(row.get("source_feature")) is not str or
+                not row["source_feature"].strip() or
+                type(row.get("rights_evidence")) is not str or
+                not row["rights_evidence"].strip()):
+            raise ReleaseNotApproved("Every rendered media asset requires current same-shop rights")
     p, m = media.get(product), media.get(motion)
     for row, kind, origin in ((p, "image", "feature3"), (m, "video", "feature5")):
         if (type(row) is not dict or row.get("shop_id") != shop
