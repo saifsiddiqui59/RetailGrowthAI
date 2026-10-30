@@ -101,16 +101,64 @@ def verify_mock_editor_output(source: Path):
     }
 
 
+
+def verify_mock_editor_duplicate_output(source: Path):
+    """Decode two genuine *encoded* repeated-source scenes in a mock-only export.
+
+    The adopted JS editor duplicates the original video scene: both 10..15s
+    and 15..20s must restart the same source at inpoint zero. Two separate
+    interior timestamps prevent accepting a frozen frame as a valid duplicate.
+    This is a synthetic technical regression, not commercial or human QA.
+    """
+    source = Path(source)
+    try:
+        metadata = inspect_mp4(source, max_size=80*1024*1024)
+    except PreviewExportError as exc:
+        raise EditorExportProofError("Expected encoded private H264/AAC input") from exc
+    if ((metadata["width"], metadata["height"]) != (540, 960)
+            or abs(metadata["seconds"] - 30) > .45):
+        raise EditorExportProofError("Expected verified 30s 540p duplicate editor export")
+    source_digest = _sha(source)
+    times = (12.0, 14.0, 17.0, 19.0)
+    a, b, repeated_a, repeated_b = [_frame(source, t) for t in times]
+    if _sha(source) != source_digest:
+        raise EditorExportProofError("Encoded MP4 changed during duplicate QA sampling")
+    repeat_deltas = (_luma_delta(a, repeated_a), _luma_delta(b, repeated_b))
+    motion_deltas = (_luma_delta(a, b), _luma_delta(repeated_a, repeated_b))
+    # Tight for this same-source/same-inpoint synthetic fixture only.
+    # A genuine editor duplicate is not evidence of new or AI-generated motion.
+    if (max(repeat_deltas) > 5.0 or min(motion_deltas) < .5):
+        raise EditorExportProofError(
+            "Encoded duplicate does not restart original moving source consistently")
+    return {
+        "schema": "feature4_duplicated_30s_pixel_parity_v1",
+        "status": "ENCODED_MOCK_DUPLICATE_TECHNICALLY_VERIFIED",
+        "source_sha256": source_digest,
+        "profile": "30s/540x960/H264/AAC",
+        "timeline_starts_seconds": [0, 10, 15, 20],
+        "source_video_inpoints_seconds": [0, 0],
+        "pixel_times_seconds": list(times),
+        "repeat_frame_deltas": [round(x, 3) for x in repeat_deltas],
+        "source_motion_deltas": [round(x, 3) for x in motion_deltas],
+        "exact_inpoint_frame_verified": False,
+        "human_visual_approval": False,
+        "stock_model_product_match_verified": False,
+        "commercial_release_eligible": False,
+    }
+
+
 def main():
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument("--source", required=True)
+    cli.add_argument("--edit-mode", choices=("split", "duplicate"), default="split")
     cli.add_argument("--report", required=True)
     args = cli.parse_args()
     report = Path(args.report)
     if (report.is_symlink() or report.exists() or report.suffix.lower() != ".json"
             or not report.parent.is_dir() or report.parent.is_symlink()):
         raise EditorExportProofError("Private QA output must be new JSON")
-    evidence = verify_mock_editor_output(Path(args.source))
+    evidence = (verify_mock_editor_output(Path(args.source)) if args.edit_mode == "split"
+                else verify_mock_editor_duplicate_output(Path(args.source)))
     with report.open("x", encoding="utf-8") as f:
         json.dump(evidence, f, indent=2)
         f.write("\n")
