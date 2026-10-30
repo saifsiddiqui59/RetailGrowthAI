@@ -48,44 +48,70 @@ def _reject_duplicate_manifest_keys(pairs):
     return result
 
 
-def read_private_manifest(path):
-    """Read only a small, unambiguous private inventory, never model bytes.
+def _reject_linked_manifest_parents(item):
+    """Deny static symlinked parent paths before/after private manifest read.
 
-    A completion manifest is NOT an independent provenance signature. The
-    existing hard-coded six-file hash and revision validation still applies.
+    This is a conservative path-policy check, not an atomic mount attestation.
+    An authorized runtime must separately verify its trusted mount namespace.
+    """
+    parent = item.parent
+    while True:
+        mode = parent.stat(follow_symlinks=False).st_mode
+        if not stat.S_ISDIR(mode):
+            raise PreflightError("Private manifest has a linked or non-directory parent")
+        if parent == parent.parent:
+            return
+        parent = parent.parent
+
+
+def read_private_manifest(path):
+    """Read a bounded PRIVATE manifest without following a swapped symlink.
+
+    The inode, link count, size and modification time must remain stable from
+    lstat through descriptor read. Fail closed if the OS cannot enforce
+    O_NOFOLLOW; do not interpret a manifest as independent rights approval.
     """
     item = Path(path)
     try:
+        if not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_NONBLOCK"):
+            raise PreflightError("Secure nonblocking no-follow manifest open unavailable")
+        _reject_linked_manifest_parents(item)
         before = item.stat(follow_symlinks=False)
         if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or
-            not 0 < before.st_size <= MAX_PRIVATE_MANIFEST_BYTES):
-            raise ValueError("Missing, linked, or oversized private model manifest")
-        fd = os.open(item, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) |
-                     getattr(os, "O_NONBLOCK", 0))
+                not 0 < before.st_size <= MAX_PRIVATE_MANIFEST_BYTES):
+            raise PreflightError("Private manifest must be one bounded regular file")
+        flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+        fd = os.open(item, flags)
         try:
-            with os.fdopen(fd, "rb") as handle:
-                fd = -1
-                opened = os.fstat(handle.fileno())
-                identity = (before.st_dev, before.st_ino,
-                            before.st_size, before.st_mtime_ns)
-                if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1 or
-                    (opened.st_dev, opened.st_ino, opened.st_size,
-                     opened.st_mtime_ns) != identity):
-                    raise ValueError("Private model manifest replaced before read")
-                data = handle.read(MAX_PRIVATE_MANIFEST_BYTES + 1)
-                after = os.fstat(handle.fileno())
-                if (len(data) != before.st_size or
-                    (after.st_dev, after.st_ino, after.st_size,
-                     after.st_mtime_ns) != identity):
-                    raise ValueError("Private model manifest changed during read")
+            opened = os.fstat(fd)
+            # ctime detects in-place rewrites followed by mtime restoration.
+            # This is only a race-reduction guard, not a trusted signature.
+            identity = lambda st: (st.st_dev, st.st_ino, st.st_size,
+                                   st.st_mtime_ns, st.st_ctime_ns, st.st_nlink)
+            if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1 or
+                    identity(opened) != identity(before)):
+                raise PreflightError("Private manifest changed before read")
+            data = bytearray()
+            while len(data) <= MAX_PRIVATE_MANIFEST_BYTES:
+                block = os.read(fd, min(16384, MAX_PRIVATE_MANIFEST_BYTES + 1 - len(data)))
+                if not block:
+                    break
+                data.extend(block)
+            after = os.fstat(fd)
+            if identity(after) != identity(opened):
+                raise PreflightError("Private manifest changed during read")
+            # A stable descriptor is not sufficient: the path may have been
+            # unlinked/replaced after open while the old inode remains readable.
+            # Deny a swapped path rather than validating stale provenance.
+            _reject_linked_manifest_parents(item)
+            path_after = item.stat(follow_symlinks=False)
+            if (not stat.S_ISREG(path_after.st_mode) or
+                    identity(path_after) != identity(after)):
+                raise PreflightError("Private manifest path changed during read")
+            if not 0 < len(data) <= MAX_PRIVATE_MANIFEST_BYTES:
+                raise PreflightError("Missing or oversized private model manifest")
         finally:
-            if fd != -1:
-                os.close(fd)
-        final = item.stat(follow_symlinks=False)
-        if (not stat.S_ISREG(final.st_mode) or final.st_nlink != 1 or
-            (final.st_dev, final.st_ino, final.st_size, final.st_mtime_ns)
-            != identity):
-            raise ValueError("Private model manifest path replaced during read")
+            os.close(fd)
         manifest = json.loads(
             data.decode("utf-8"),
             object_pairs_hook=_reject_duplicate_manifest_keys,

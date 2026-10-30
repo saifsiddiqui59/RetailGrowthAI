@@ -1,5 +1,6 @@
 """CPU-only, zero-cloud tests for shared Feature3/Feature5 Azure Files mount plan."""
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -118,12 +119,111 @@ class SharedModelMountTests(unittest.TestCase):
                     return SimpleNamespace(
                         st_mode=info.st_mode, st_nlink=info.st_nlink,
                         st_dev=info.st_dev, st_ino=info.st_ino,
-                        st_size=info.st_size, st_mtime_ns=info.st_mtime_ns+1)
+                        st_size=info.st_size, st_mtime_ns=info.st_mtime_ns+1,
+                        st_ctime_ns=info.st_ctime_ns)
                 return info
             with patch.object(m.os, "fstat", side_effect=changing_fstat):
                 with self.assertRaises(m.PreflightError):
                     m.read_private_manifest(path)
             self.assertEqual(len(calls),2)
+
+    def test_private_manifest_denies_hardlinks_and_nonregular_files(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            manifest = root / "private.json"
+            manifest.write_text(json.dumps(sample()), encoding="utf-8")
+            linked = root / "another-name.json"
+            os.link(manifest, linked)
+            with self.assertRaises(m.PreflightError):
+                m.read_private_manifest(manifest)
+            linked.unlink()
+            self.assertEqual(m.validate_manifest(m.read_private_manifest(manifest)),
+                             m.validate_manifest(sample()))
+            if hasattr(os, "mkfifo"):
+                fifo = root / "pipe.json"
+                os.mkfifo(fifo)
+                with self.assertRaises(m.PreflightError):
+                    m.read_private_manifest(fifo)
+
+    def test_private_manifest_path_swap_between_stat_and_open_denied(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            manifest = root / "manifest.json"
+            alternate = root / "alternate.json"
+            alternate.write_text(json.dumps(sample()), encoding="utf-8")
+            real_open = os.open
+            for as_symlink in (False, True):
+                with self.subTest(as_symlink=as_symlink):
+                    manifest.write_text(json.dumps(sample()), encoding="utf-8")
+                    original = root / "original.json"
+                    def swap_open(path, flags, *args, **kwargs):
+                        manifest.rename(original)
+                        if as_symlink:
+                            manifest.symlink_to(alternate)
+                        else:
+                            manifest.write_text(json.dumps(sample()), encoding="utf-8")
+                        return real_open(path, flags, *args, **kwargs)
+                    with patch.object(m.os, "open", side_effect=swap_open):
+                        with self.assertRaises(m.PreflightError):
+                            m.read_private_manifest(manifest)
+                    manifest.unlink()
+                    original.unlink()
+
+    def test_private_manifest_path_replacement_after_open_is_denied(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            manifest = root / "private.json"
+            moved = root / "moved.json"
+            manifest.write_text(json.dumps(sample()), encoding="utf-8")
+            real_read = os.read
+            swapped = False
+
+            def swap_after_read(fd, count):
+                nonlocal swapped
+                block = real_read(fd, count)
+                if block and not swapped:
+                    swapped = True
+                    manifest.rename(moved)
+                    # Recreate a valid but different inode at the original path.
+                    manifest.write_text(json.dumps(sample()), encoding="utf-8")
+                return block
+
+            with patch.object(m.os, "read", side_effect=swap_after_read):
+                with self.assertRaises(m.PreflightError):
+                    m.read_private_manifest(manifest)
+            self.assertTrue(swapped)
+
+    def test_private_manifest_rejects_inplace_rewrite_with_restored_mtime(self):
+        from unittest.mock import patch
+        import time
+        with tempfile.TemporaryDirectory() as temp:
+            manifest = Path(temp) / "private.json"
+            manifest.write_text(json.dumps(sample()), encoding="utf-8")
+            original = manifest.stat()
+            real_read = os.read
+            modified = False
+
+            def rewrite_after_read(fd, count):
+                nonlocal modified
+                data = real_read(fd, count)
+                if data and not modified:
+                    modified = True
+                    # Rewrite identical-size bytes, then restore the mtime;
+                    # inode/size/mtime alone would falsely look unchanged.
+                    time.sleep(0.02)
+                    with manifest.open("r+b") as handle:
+                        handle.seek(0)
+                        handle.write(b" " * len(data))
+                    os.utime(manifest, ns=(original.st_atime_ns, original.st_mtime_ns))
+                return data
+
+            with patch.object(m.os, "read", side_effect=rewrite_after_read):
+                with self.assertRaises(m.PreflightError):
+                    m.read_private_manifest(manifest)
+            self.assertTrue(modified)
+            self.assertEqual(manifest.stat().st_mtime_ns, original.st_mtime_ns)
 
     def test_stat_only_mount_rejects_intermediate_links_and_hardlinks(self):
         from unittest.mock import patch
