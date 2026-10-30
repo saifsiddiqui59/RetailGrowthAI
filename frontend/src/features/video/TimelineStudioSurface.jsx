@@ -273,9 +273,11 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
               hideGain={audioMix.musicGain === null} t={x=>x}
               handlersRef={handlers} />)}
             <span className="f4-ts-empty" role="note">
-              {audioMix.musicGainUnknownUntilServerProbe
-                ? 'Music level is not previewed: final gain depends on decoded source audio.'
-                : 'Renderer-fixed music gain: '+Math.round(audioMix.musicGain*100)+'%; not editable.'}
+              {audioMix.musicGainBlockedByMedia
+                ? 'Music level unavailable: visual media is not authorized for this shop.'
+                : audioMix.musicGainUnknownUntilServerProbe
+                  ? 'Music level is not previewed: final gain depends on decoded source audio.'
+                  : 'Renderer-fixed music gain: '+Math.round(audioMix.musicGain*100)+'%; not editable.'}
             </span>
           </> : <span className="f4-ts-empty">No licensed soundtrack selected</span>}
         </div>
