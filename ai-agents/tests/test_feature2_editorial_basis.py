@@ -435,3 +435,29 @@ def test_exact_approved_indic_offer_is_still_review_only(approved):
     assert report["customer_editor_approval_required"] is True
     assert report["commercial_fact_certified"] is False
     assert report["can_publish"] is False
+
+
+@pytest.mark.parametrize("obfuscated", [
+    "5\u200b0% off every kurti",  # zero-width space inside a discount
+    "5\u200d0% off every kurti",  # zero-width joiner inside a discount
+    "50\u2060% off every kurti",  # invisible word joiner
+    "\u202e50% off every kurti", # bidi override masks the displayed claim
+])
+def test_invisible_format_controls_cannot_hide_unapproved_retailer_discount(obfuscated):
+    with pytest.raises(EditorialBasisRejected, match="Unsafe or unbounded retailer copy"):
+        inspect_retailer_copy_claims(
+            verified_context=copy_context(),
+            copy=candidate_copy(caption=obfuscated),
+        )
+
+
+def test_invisible_format_controls_in_approved_offer_are_not_authoritative():
+    context = copy_context()
+    context["approved_offers"][0]["approved_claim_text"] = (
+        "20%\u200b off selected kurti styles"
+    )
+    with pytest.raises(EditorialBasisRejected, match="Offer evidence not approved"):
+        inspect_retailer_copy_claims(
+            verified_context=context,
+            copy=candidate_copy(caption="20% off selected kurti styles"),
+        )
