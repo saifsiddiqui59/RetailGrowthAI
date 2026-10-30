@@ -156,9 +156,11 @@ def qualify_feature3_packet(*, expected_packet, read_current_packet):
             set(timeline)!=set(shot)|{"first_frame_asset_id"} or
             timeline["first_frame_asset_id"]!=src["first_frame_asset_id"] or
             any(timeline[k]!=shot[k] for k in shot) or
+            type(shot["start_second"]) is not int or
             shot["start_second"]!=offset or
             type(shot["duration_seconds"]) is not int or
             not 1<=shot["duration_seconds"]<=15 or
+            type(shot["camera"]) is not str or
             shot["camera"] not in SHOT_CAMERAS or
             shot["preserve_garment_identity"] is not True):
             raise WanCompatibilityError("Feature4 timeline drift from approved Feature2 shots")
