@@ -27,12 +27,24 @@ const result=withVerifiedPrivateVideoSnapshots({
  analyze:(frozen)=>{
    const local=fs.readFileSync(frozen+'/'+p.relative_path);
    const unchanged=original.equals(local);
+   const mode=fs.statSync(frozen+'/'+p.relative_path).mode&0o777;
+   if(p.attack==='mutate_snapshot'||p.attack==='append_snapshot'){
+     // Simulate a buggy trusted worker with owner-level chmod permission.
+     // Normal analysis cannot write the 0400 snapshot. Even chmod+mutation
+     // must be caught at the post-analysis digest verification boundary.
+     fs.chmodSync(frozen+'/'+p.relative_path,0o600);
+     if(p.attack==='mutate_snapshot'){
+       const altered=Buffer.from(local);
+       altered[altered.length-1]^=1;
+       fs.writeFileSync(frozen+'/'+p.relative_path,altered);
+     }else fs.appendFileSync(frozen+'/'+p.relative_path,Buffer.from('extra'));
+   }
    if(p.attack==='mutate_original'){
      fs.writeFileSync(p.root+'/'+p.relative_path,Buffer.from('changed bytes'));
    }
    if(p.attack==='async_callback')return Promise.resolve(true);
    if(p.attack==='throw')throw Error('Test callback failure');
-   return {unchanged,snapshot_valid:local.length>512};
+   return {unchanged,snapshot_valid:local.length>512,snapshot_mode:mode};
  }
 });
 process.stdout.write(JSON.stringify(result));
@@ -81,6 +93,8 @@ class PrivateSnapshotTests(unittest.TestCase):
         self.assertEqual(r.returncode,0,r.stderr)
         self.assertTrue(json.loads(r.stdout)['unchanged'])
         self.assertTrue(json.loads(r.stdout)['snapshot_valid'])
+        self.assertEqual(json.loads(r.stdout)['snapshot_mode'],0o400,
+                         'Private analysis copy must be read-only by default')
         self.assertEqual(hashlib.sha256(self.video.read_bytes()).hexdigest(),self.sha)
 
     def test_changed_source_fails_after_analysis(self):
@@ -88,6 +102,19 @@ class PrivateSnapshotTests(unittest.TestCase):
         r=self.invoke(p)
         self.assertNotEqual(r.returncode,0,r.stdout)
         self.assertTrue('source' in r.stderr.lower() or 'media' in r.stderr.lower())
+
+    def test_mutating_frozen_review_input_after_successful_analysis_is_denied(self):
+        # The original SHA still matches; a pre-analysis hash check alone
+        # cannot catch an accidental edit to the scratch input after callback.
+        for attack in ('mutate_snapshot','append_snapshot'):
+            with self.subTest(attack=attack):
+                p=self.request();p['attack']=attack
+                r=self.invoke(p)
+                self.assertNotEqual(r.returncode,0,r.stdout)
+                self.assertEqual(r.stdout,'')
+                self.assertIn('snapshot',r.stderr.lower())
+                self.assertEqual(hashlib.sha256(self.video.read_bytes()).hexdigest(),
+                                 self.sha)
 
     def test_duplicate_foreign_and_budget_denied(self):
         for key,value in [('duplicate',True),('max_total_bytes',100),

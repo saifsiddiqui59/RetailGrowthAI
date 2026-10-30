@@ -95,6 +95,11 @@ export function withVerifiedPrivateVideoSnapshots({
       fs.mkdirSync(path.dirname(dest),{recursive:true,mode:0o700});
       const original=resolveApprovedLocalVideo({root,relative_path:relative});
       frozenCopy(original,dest,info.sha256,info.bytes);
+      // The analysis owns no write access to its verified input. Mode 0400
+      // prevents accidental in-place transforms in normal worker execution;
+      // rehashing after analysis below is essential because the same OS
+      // process could still chmod its own file.
+      fs.chmodSync(dest,0o400);
       const independent=verifyPrivateVideo({shop_id,asset_id:item.asset_id,
         grant:item.grant,root:scratch,relative_path:relative,
         expected_sha256:info.sha256});
@@ -109,6 +114,15 @@ export function withVerifiedPrivateVideoSnapshots({
     check(!result||typeof result.then!=='function',
       'Asynchronous snapshot callback is prohibited');
     for(const {item,info} of approved){
+      // A trusted synchronous callback could accidentally alter the scratch
+      // MP4 even when the original remains byte-identical. Reject its result
+      // rather than returning advisory evidence from no-longer-pinned bytes.
+      const scratchAgain=verifyPrivateVideo({shop_id,asset_id:item.asset_id,
+        grant:item.grant,root:scratch,relative_path:item.relative_path,
+        expected_sha256:info.sha256});
+      check(scratchAgain.bytes===info.bytes &&
+        scratchAgain.duration_seconds===info.duration_seconds,
+      'Private frozen snapshot changed during review analysis');
       const again=verifyPrivateVideo({shop_id,asset_id:item.asset_id,
         grant:item.grant,root,relative_path:item.relative_path,
         expected_sha256:info.sha256});
