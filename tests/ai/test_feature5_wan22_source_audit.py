@@ -5,8 +5,10 @@ import hashlib
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 import unittest
 
+from feature5_motion.infra import wan22_source_audit as source_audit
 from feature5_motion.infra.wan22_source_audit import (
     COMFY_SOURCE_COMMIT, REQUIRED, SourceAuditError,
     validate_source_manifest, audit_complete_vendor_checkout,
@@ -123,6 +125,70 @@ class SourceAuditTests(unittest.TestCase):
             linked.symlink_to(manifest)
             with self.assertRaises(SourceAuditError):
                 read_reviewed_source_manifest(linked)
+
+    def test_replaced_same_byte_inode_after_first_hash_is_denied(self):
+        """All source paths must remain the exact verified files through audit end."""
+        with TemporaryDirectory() as td:
+            manifest = fixture(td)
+            target = Path(td) / "nodes.py"
+            real_hash = source_audit._hash_verified_source
+            changed = []
+
+            def replace_after_hash(item, expected_sha):
+                identity = real_hash(item, expected_sha)
+                if Path(item) == target and not changed:
+                    replacement = target.with_suffix(".replacement")
+                    replacement.write_bytes(target.read_bytes())
+                    replacement.replace(target)
+                    changed.append(True)
+                return identity
+
+            with patch.object(source_audit, "_hash_verified_source",
+                              side_effect=replace_after_hash):
+                with self.assertRaisesRegex(SourceAuditError, "identity changed"):
+                    audit_complete_vendor_checkout(td, reviewed_manifest=manifest)
+            self.assertEqual(changed, [True])
+
+    def test_same_size_in_place_mutation_after_hash_is_denied(self):
+        with TemporaryDirectory() as td:
+            manifest = fixture(td)
+            target = Path(td) / "nodes.py"
+            real_hash = source_audit._hash_verified_source
+            changed = []
+
+            def mutate_after_hash(item, expected_sha):
+                identity = real_hash(item, expected_sha)
+                if Path(item) == target and not changed:
+                    original = target.read_bytes()
+                    target.write_bytes(b"X" + original[1:])
+                    changed.append(True)
+                return identity
+
+            with patch.object(source_audit, "_hash_verified_source",
+                              side_effect=mutate_after_hash):
+                with self.assertRaisesRegex(SourceAuditError, "identity changed"):
+                    audit_complete_vendor_checkout(td, reviewed_manifest=manifest)
+            self.assertEqual(changed, [True])
+
+    def test_symlink_swap_between_path_stat_and_open_is_denied(self):
+        with TemporaryDirectory() as td:
+            manifest = fixture(td)
+            target = Path(td) / "nodes.py"
+            replacement = Path(td) / "main.py"
+            real_open = source_audit.os.open
+            swapped = []
+
+            def swap_then_open(path, flags, *args, **kwargs):
+                if Path(path) == target and not swapped:
+                    target.unlink()
+                    target.symlink_to(replacement)
+                    swapped.append(True)
+                return real_open(path, flags, *args, **kwargs)
+
+            with patch.object(source_audit.os, "open", side_effect=swap_then_open):
+                with self.assertRaises(SourceAuditError):
+                    audit_complete_vendor_checkout(td, reviewed_manifest=manifest)
+            self.assertEqual(swapped, [True])
 
     def test_real_offline_cli_exit_and_zero_network(self):
         with TemporaryDirectory() as td:
