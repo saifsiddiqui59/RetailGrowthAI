@@ -399,6 +399,32 @@ def test_private_blind_history_denies_ambiguous_or_replayed_score_receipts(tampe
 
 
 @pytest.mark.parametrize("tamper", ["score", "receipt"])
+@pytest.mark.parametrize("tamper", ["swapped_labels", "replacement_candidate"])
+def test_private_blind_history_rejects_candidate_identity_changes_between_revisions(tamper):
+    # Even individually signed revision receipts cannot redefine an existing
+    # experiment's A/B assignments without a new experiment identifier.
+    rows = history_fixture()
+    if tamper == "swapped_labels":
+        rows[1]["candidate_digests"] = {"A": "b" * 64, "B": "a" * 64}
+    else:
+        rows[1]["candidate_digests"]["B"] = "c" * 64
+    calls = []
+
+    def signer(*args):
+        calls.append(args)
+        return True
+
+    with pytest.raises(Feature2TraceDenied, match="candidates changed"):
+        read_private_blind_review_history(
+            shop_id=TSHOP, campaign_id=TCAMP, experiment_id=HISTORY_EXP,
+            current_editor=lambda *_: True,
+            read_private_history=lambda *_: copy.deepcopy(rows),
+            verify_signed_history_receipt=signer,
+        )
+    # First revision was checked; changed second revision never reached signer.
+    assert len(calls) == 1
+
+
 def test_private_blind_history_denies_mutable_reader_alias_changed_by_signer(tamper):
     # A backend reader may hand out the SAME mutable rows object twice.
     # Previously comparing source() with rows could compare an object to itself
