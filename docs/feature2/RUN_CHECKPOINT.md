@@ -1,0 +1,25 @@
+# Feature #2 integration-first checkpoint — 2026-10-31
+
+## Ownership and PR graph
+- Feature-owned integration PR: [#848](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848), branch `feat/feature2-source-batch-8pr-consolidation-20261030`, based on parent draft [#551](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/551) (`feat/feature2-unified-offline-source-20261028`, head `f38bf815cad7d77b7cadd9aa8bff55759e86947c` when checked).
+- This checkpoint is committed **in #848**, not on main. Source PRs [#849](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/849) and [#704](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/704) remain open for provenance; do not independently double-merge their already reconciled files.
+- Original task IDs: **F2-20/F2-29** private WAV/MP3 registration; **F2-08/F2-12** blind reviewer CAS and private trace. All are **IN PROGRESS**, not accepted production DONE.
+
+## Actual source integration performed
+- Existing #849 private MP3/WAV source copied into #848 at exact source Git blob `298a507a599b55d871a4030c6cf8b26241696da5`; existing test blob `2770b5ad4e06fe675e914a6039c7f4636fb42756`. Code/test commits `a20e9a80`, `c4c04aed`. Source requires a distinct private original and derived WAV receipt, bounded RIFF inspection and post-storage revocation recheck. Original #849 rights/RIFF handoffs preserved.
+- Existing #704 audit/CAS patch selectively reconciled into the newer #848 `feature2_creative_quality.py` and its existing tests, without replacing other newer creative/editorial logic. Source commit `79a31e77`, tests `9208a7e9`, provenance `5663bc2a`. Rejects elevated private receipts and stale post-CAS membership/candidate responses. These source checks do not provide database transactional rollback.
+- Feature-owned task ledger updated for both groups; no shared canonical coordination file or main branch changed.
+
+## Verification, exact-head CI and blockers
+- Verified source and test Git blob equality for #849's two files through GitHub write receipts; inspected #704's original patch and reconciled its limited code/test hunks into the current batch. **No local pytest, hosted login or paid inference executed** in this run.
+- Prior exact-head #848 [run #41119449175](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41119449175) on `9941e1b4bb2590f5ef2fd7513cdca5715c2a84f7`: **3/4 jobs passed**, Python failed **4 release ZIP member-count tests** (1621 other Python tests passed, 6 skipped). This was before the source changes above.
+- Latest observed combined source/ledger head before this checkpoint: `445fe66154b574687311f0fbe032ef9842ca9ecb`. [CI #41127517908](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41127517908) was **in progress** at check time. This checkpoint commit will create a **new head**: check that exact head separately; no CI success is claimed.
+- Shared protected ZIP issue [#650](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/650): parent #551 also fails the same four Python tests. Coordinator-owned [fix PR #665](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/665) passed four jobs on **its own** SHA `9ac121811e32896f3606c9314728d7be71fdc047`, but remains unmerged and requires approved import-closure review. Feature worker must not bypass the 120-member ZIP safety limit or modify coordinator-owned packaging to fake green.
+- Live tenant JWT/RLS, atomic dual-private object commit/rollback, signed human approval, #249 hosted 503, operator-approved Node runtime and postmerge main 4/4 are not verified.
+
+## NEXT actionable integration gate
+1. **First** inspect current #848 head and its **exact-head** four-job CI; if a new failure appears beyond #650, fix only feature-owned code/tests on this batch. Check #849/#704 source paths for newer changes before claiming their reconciliation complete.
+2. Coordinator reviews and integrates #665's security-preserving package fix into main; then rebase/retest parent #551 and #848, preserving exact reviewed source and feature ownership. No feature worker merge to main.
+3. Once #650 is resolved, review #848 plus #849/#704 provenance for duplicate/conflicting paths and hand off a reviewable, CI-green batch for coordinator acceptance. Only fresh main 4/4 plus reviewed task evidence can mark integrated DONE.
+
+**Five-stage snapshot:** source-complete **6/38** (historical registry); tested **not verified on current combined head**; PR-ready **not verified**; integrated DONE **0/38** (empty reviewed task_progress events); blocked **12/38** (historical registry). Fixtures are not live AI output or commercial approval. GPU/paid inference/PROD/WineShopPOS remain OFF.
