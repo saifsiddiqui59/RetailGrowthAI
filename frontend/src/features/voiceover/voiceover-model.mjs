@@ -121,7 +121,11 @@ export function verifyReviewedDraftReceipt({shopId,campaignId,proposal,receipt})
   if(!receipt||!proposal||
     receipt.schema!=='retailgrowth.feature2-reviewed-prompt-draft.v1'||
     receipt.shop_id!==shopId||receipt.campaign_id!==campaignId||
+    !UUID.test(receipt.proposal_id||'')||
+    receipt.proposal_id!==proposal.proposal_id||
+    receipt.source_revision!==proposal.source_revision||
     receipt.revision!==proposal.source_revision+1||
+    receipt.original_prompt_sha256!==proposal.original_prompt_sha256||
     receipt.improved_prompt_sha256!==proposal.improved_prompt_sha256||
     receipt.review_status!=='DRAFT'||receipt.private!==true||
     receipt.can_publish!==false||receipt.can_dispatch_paid_motion!==false||
