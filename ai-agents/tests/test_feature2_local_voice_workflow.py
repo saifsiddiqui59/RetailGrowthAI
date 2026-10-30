@@ -286,6 +286,47 @@ def test_cpu_budget_denies_forged_or_unfenced_database_reservation_receipt(alter
         run()
     assert len(calls)==1
 
+@pytest.mark.parametrize("tamper", [
+    {"paid_api_calls":False},
+    {"can_dispatch_motion":True},
+    {"can_dispatch_paid_motion":True},
+    {"real_model_inference_observed":True},
+])
+def test_cpu_reservation_receipt_cannot_claim_paid_or_worker_privileges(tamper):
+    run,calls=budget_case(save_tamper=tamper)
+    with pytest.raises(LocalVoiceJobDenied,match="reservation evidence"):
+        run()
+    assert len(calls)==1
+
+
+def test_cpu_budget_policy_revoked_during_atomic_reservation_denies_success():
+    reads=[]
+    def policy(*args):
+        reads.append(args)
+        result=cpu_policy()
+        if len(reads)>1:
+            result["policy_state"]="SUSPENDED"
+        return result
+    run,calls=budget_case()
+    with pytest.raises(LocalVoiceJobDenied,match="policy revoked after"):
+        run(read_authoritative_quota=policy)
+    assert len(calls)==1 and len(reads)==2
+
+
+def test_cpu_budget_policy_version_rollback_after_lease_denies_success():
+    reads=[]
+    def policy(*args):
+        reads.append(args)
+        result=cpu_policy()
+        if len(reads)>1:
+            result["budget_revision"]=6
+        return result
+    run,calls=budget_case()
+    with pytest.raises(LocalVoiceJobDenied,match="policy revoked after"):
+        run(read_authoritative_quota=policy)
+    assert len(calls)==1 and len(reads)==2
+
+
 def test_cpu_budget_authorization_is_checked_after_atomic_lease():
     # Database may reserve CPU while the editor gets revoked. The outcome
     # is denied: worker must fence this lease; never call audio synthesis.
