@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import unittest
 from uuid import uuid4
+from zlib import crc32
 from PIL import Image
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"azure-functions"/"campaign-api"))
@@ -125,6 +126,124 @@ class BinaryHTTPTests(unittest.TestCase):
                 self.assertEqual(status,503)
                 self.assertEqual(body,b"")
                 self.assert_private_headers(headers)
+        self.reader.png=original
+        self.assertEqual(self.call()[0],200)
+
+    def test_self_consistent_sha_cannot_hide_png_chunk_crc_or_structure_damage(self):
+        # The fake reader recalculates SHA from its own bytes, simulating a
+        # compromised receipt. The HTTP boundary must still reject corruption.
+        original=self.reader.png
+        # Corrupt a real IHDR CRC without touching the canonical IEND framing.
+        corrupt_crc=bytearray(original)
+        corrupt_crc[29]^=1
+        # Duplicate the original IHDR before the first IDAT. Both copies have
+        # individually correct CRCs but PNG requires exactly one IHDR.
+        ihdr_chunk=original[8:33]
+        duplicate_ihdr=original[:33]+ihdr_chunk+original[33:]
+        # Change the first chunk's type while retaining valid-looking IEND.
+        invalid_first=bytearray(original)
+        invalid_first[12:16]=b"tEXt"
+        for forged in (bytes(corrupt_crc),duplicate_ihdr,bytes(invalid_first)):
+            self.reader.png=forged
+            with self.subTest(case=forged[:36].hex()):
+                status,body,headers=self.call()
+                self.assertEqual(status,503)
+                self.assertEqual(body,b"")
+                self.assert_private_headers(headers)
+        self.reader.png=original
+        self.assertEqual(self.call()[0],200)
+
+    def test_unknown_critical_and_interleaved_idat_fail_closed(self):
+        # These receipts have self-consistent SHA values and correct chunk CRCs.
+        original=self.reader.png
+        def chunk(kind,payload):
+            return (len(payload).to_bytes(4,"big")+kind+payload+
+                    (crc32(kind+payload)&0xffffffff).to_bytes(4,"big"))
+        ihdr=original[:33]
+        idat=original[33:-12]
+        self.assertEqual(idat[4:8],b"IDAT")
+        payload=idat[8:-4]
+        split=max(1,len(payload)//2)
+        first=chunk(b"IDAT",payload[:split])
+        second=chunk(b"IDAT",payload[split:])
+        ancillary=chunk(b"tEXt",b"note\x00synthetic")
+        unknown_critical=chunk(b"ABCD",b"forged")
+        valid_split=ihdr+first+second+original[-12:]
+        self.reader.png=valid_split
+        self.assertEqual(self.call()[0],200)
+        for forged in (
+            ihdr+unknown_critical+idat+original[-12:],
+            ihdr+first+ancillary+second+original[-12:],
+            ihdr+idat+chunk(b"PLTE",b"\x00\x00\x00")+original[-12:],
+        ):
+            self.reader.png=forged
+            with self.subTest(forged_sha=sha256(forged).hexdigest()):
+                status,body,headers=self.call()
+                self.assertEqual(status,503)
+                self.assertEqual(body,b"")
+                self.assert_private_headers(headers)
+        self.reader.png=original
+        self.assertEqual(self.call()[0],200)
+
+    def test_palette_rules_fail_closed_even_with_matching_receipt_sha(self):
+        # Synthetic PNGs: the fake reader recomputes SHA for every variant.
+        original=self.reader.png
+        def chunk(kind,payload):
+            return (len(payload).to_bytes(4,"big")+kind+payload+
+                    (crc32(kind+payload)&0xffffffff).to_bytes(4,"big"))
+        rgb_ihdr=original[:33]
+        rgb_rest=original[33:]
+        # Truecolor may carry a valid optional palette.
+        valid_rgb=rgb_ihdr+chunk(b"PLTE",b"\x00\x11\x22")+rgb_rest
+        self.reader.png=valid_rgb
+        self.assertEqual(self.call()[0],200)
+
+        indexed=BytesIO()
+        palette_image=Image.new("P",(320,400),0)
+        palette_image.putpalette([0,17,34]*256)
+        palette_image.save(indexed,format="PNG")
+        indexed_png=indexed.getvalue()
+        self.assertIn(b"PLTE",indexed_png)
+        self.reader.png=indexed_png
+        self.assertEqual(self.call()[0],200)
+        palette_offset=indexed_png.index(b"PLTE")-4
+        palette_length=int.from_bytes(indexed_png[palette_offset:palette_offset+4],"big")
+        palette_end=palette_offset+12+palette_length
+        # Indexed PNG must have a palette, even if IDAT and SHA are valid.
+        missing_palette=indexed_png[:palette_offset]+indexed_png[palette_end:]
+
+        gray=BytesIO()
+        Image.new("L",(320,400),128).save(gray,format="PNG")
+        gray_png=gray.getvalue()
+        for forged in (
+            rgb_ihdr+chunk(b"PLTE",b"")+rgb_rest,
+            rgb_ihdr+chunk(b"PLTE",b"\x00\x11")+rgb_rest,
+            rgb_ihdr+chunk(b"PLTE",b"\x00\x11\x22"*257)+rgb_rest,
+            gray_png[:33]+chunk(b"PLTE",b"\x00\x11\x22")+gray_png[33:],
+            missing_palette,
+        ):
+            self.reader.png=forged
+            with self.subTest(sha=sha256(forged).hexdigest()):
+                status,body,headers=self.call()
+                self.assertEqual(status,503)
+                self.assertEqual(body,b"")
+                self.assert_private_headers(headers)
+        self.reader.png=original
+        self.assertEqual(self.call()[0],200)
+
+    def test_pathological_png_chunk_count_is_denied(self):
+        # Repeated valid ancillary chunks must not turn private download into
+        # unbounded CPU work, even with a matching forged receipt SHA.
+        original=self.reader.png
+        kind=b"tEXt"
+        payload=b"k\x00v"
+        crc=(crc32(kind+payload)&0xffffffff).to_bytes(4,"big")
+        chunk=len(payload).to_bytes(4,"big")+kind+payload+crc
+        self.reader.png=original[:33]+chunk*4097+original[33:]
+        status,body,headers=self.call()
+        self.assertEqual(status,503)
+        self.assertEqual(body,b"")
+        self.assert_private_headers(headers)
         self.reader.png=original
         self.assertEqual(self.call()[0],200)
 
