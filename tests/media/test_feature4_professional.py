@@ -13,7 +13,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "video-engine"))
-from professional import VideoPlanError, compile_composition, validate  # noqa: E402
+from professional import (
+    VideoPlanError, compile_composition, validate,
+    SUPPORTED_ANIMATIONS, SUPPORTED_TRANSITIONS,
+)  # noqa: E402
+from creative_contract import ANIMATIONS, TRANSITIONS  # noqa: E402
 
 SHOP = "11111111-1111-4111-8111-111111111111"
 OTHER = "22222222-2222-4222-8222-222222222222"
@@ -89,6 +93,52 @@ class ProfessionalVideoTests(unittest.TestCase):
         self.assertIn("role-outro", page)
         # On portrait export the product artwork must stop before the lower-third copy.
         self.assertIn(".role-product .photo-wrap{top:6%;height:66%", page)
+
+    def test_all_supported_editor_effects_compile_to_actual_css_keyframes(self):
+        """F4-05 source parity; no fake encoded-video/Chromium frame claim."""
+        self.assertEqual(ANIMATIONS, SUPPORTED_ANIMATIONS)
+        self.assertEqual(TRANSITIONS, SUPPORTED_TRANSITIONS)
+        animations = ("subtle_zoom", "fade", "slide", "pop", "glow")
+        transitions = ("fade", "slide", "cut")
+        self.plan["scenes"] = [{
+            "start": i * 3, "duration": 3, "headline": f"REVIEWED SCENE {i}",
+            "animation_preset": preset,
+            "transition": transitions[i % len(transitions)],
+        } for i, preset in enumerate(animations)]
+        output = compile_composition(self.plan, self.manifest, self.media, self.output)
+        page = (output / "index.html").read_text(encoding="utf-8")
+        for preset in animations:
+            with self.subTest(preset=preset):
+                self.assertIn(f"anim-{preset}", page)
+        for transition in transitions:
+            with self.subTest(transition=transition):
+                self.assertIn(f"trans-{transition}", page)
+        for keyframe in ("presetSubtleZoom", "presetFade", "presetSlide",
+                         "presetGlow", "promoPop", "editorialFade", "editorialSlide"):
+            with self.subTest(keyframe=keyframe):
+                self.assertIn(f"@keyframes {keyframe}", page)
+        for selector in (".anim-subtle_zoom .glass{animation:presetSubtleZoom",
+                         ".anim-fade .glass{animation:presetFade",
+                         ".anim-slide .glass{animation:presetSlide",
+                         ".anim-pop .glass{animation:promoPop",
+                         ".anim-glow .glass{animation:presetGlow",
+                         ".scene.trans-fade{animation:editorialFade",
+                         ".scene.trans-slide{animation:editorialSlide",
+                         ".scene.trans-cut{animation:none"):
+            with self.subTest(selector=selector):
+                self.assertIn(selector, page)
+        self.assertNotIn("<script", page)
+
+    def test_unsupported_effects_are_rejected_before_compilation(self):
+        for name, value in (("animation_preset", "3d_rotate"),
+                            ("animation_preset", "fade;position:absolute"),
+                            ("transition", "glitch"),
+                            ("transition", "slide;opacity:0")):
+            with self.subTest(name=name, value=value):
+                trial = copy.deepcopy(self.plan)
+                trial["scenes"][0][name] = value
+                with self.assertRaisesRegex(VideoPlanError, "Unknown"):
+                    validate(trial, self.manifest, self.media)
 
     def test_sixty_second_script_acceptance_without_expensive_render(self):
         self.plan["duration_seconds"] = 60
