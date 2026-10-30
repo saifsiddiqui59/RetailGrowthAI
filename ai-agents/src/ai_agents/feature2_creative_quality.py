@@ -170,10 +170,12 @@ def blind_human_comparison(*, experiment_id: str, candidates: dict, reviews: lis
     for candidate_id in ("A", "B"):
         found = [r for r in reviews if isinstance(r, dict) and r.get("candidate_id") == candidate_id]
         reviewer_ids = [r.get("reviewer_id") for r in found]
-        if (len(found) != 2 or
-            any(type(v) is not str or not v.strip() or len(v) > 100
-                for v in reviewer_ids) or
-            len(set(reviewer_ids)) != 2):
+        if len(found) != 2:
+            raise ValueError("Two independent reviewers required for " + candidate_id)
+        if any(type(v) is not str or not v.strip() or len(v) > 100
+               for v in reviewer_ids):
+            raise ValueError("Invalid documented human rubric")
+        if len(set(reviewer_ids)) != 2:
             raise ValueError("Two independent reviewers required for " + candidate_id)
         ratings = []
         for r in found:
