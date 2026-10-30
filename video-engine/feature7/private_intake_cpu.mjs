@@ -60,6 +60,7 @@ export function stagePrivateFootageCPU({
     (typeof auth.authorization_revision==='string'&&
       /^[A-Za-z0-9_-]{1,128}$/.test(auth.authorization_revision)),
     'Invalid intake authorization revision');
+  const initialRevision=auth.authorization_revision;
   check(expected_sha256===undefined||
     (typeof expected_sha256==='string'&&SHA.test(expected_sha256)),
   'Invalid expected video digest');
@@ -122,8 +123,8 @@ export function stagePrivateFootageCPU({
     const fresh=getCurrentIntakeAuthorization({shop_id,asset_id});
     check(currentAuthorization(fresh,shop_id,asset_id)&&
       probe.bytes<=fresh.max_bytes&&
-      (auth.authorization_revision===undefined||
-        fresh.authorization_revision===auth.authorization_revision),
+      (initialRevision===undefined||
+        fresh.authorization_revision===initialRevision),
       'Intake authorization revoked or changed during staging');
     return Object.freeze({
       shop_id,asset_id,relative_path,source_sha256:sha,
