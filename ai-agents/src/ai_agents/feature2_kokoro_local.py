@@ -63,9 +63,12 @@ def verify_cache(cache_dir, *, model_sha=MODEL_SHA, voice_sha=VOICES_SHA,
     """
     if not isinstance(cache_dir,(str,Path)) or not str(cache_dir):
         raise LocalSpeechUnavailable("Trusted speech cache required")
-    root=Path(cache_dir).resolve(strict=True)
-    if not root.is_dir():
-        raise LocalSpeechUnavailable("Trusted speech cache required")
+    try:
+        root=Path(cache_dir).resolve(strict=True)
+        if not root.is_dir():
+            raise LocalSpeechUnavailable("Trusted speech cache required")
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise LocalSpeechUnavailable("Trusted speech cache required") from exc
     _file_proof(root/MODEL_NAME,MODEL_NAME,model_size,model_sha)
     _file_proof(root/VOICES_NAME,VOICES_NAME,voice_size,voice_sha)
     return root
