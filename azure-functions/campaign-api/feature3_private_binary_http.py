@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 import re
+from zlib import crc32
 
 from feature3_private_png_reader import PrivateGeneratedDownloadDenied
 from tenant_store import canonical_uuid
@@ -20,6 +21,62 @@ _MAX=25*1024*1024
 # rejects non-PNG or trailing-payload receipts before publishing private bytes.
 _PNG_MAGIC=b"\x89PNG\r\n\x1a\n"
 _PNG_IEND=b"\x00\x00\x00\x00IEND\xaeB\x60\x82"
+
+
+def _valid_png_chunks(raw):
+    """Independently verify chunk boundaries and CRC before returning private bytes.
+
+    The trusted reader still owns full pixel decode and current access rights.
+    This check prevents a forged self-consistent SHA receipt with corrupted PNG
+    chunk framing from being returned by the HTTP boundary.
+    """
+    if not raw.startswith(_PNG_MAGIC) or not raw.endswith(_PNG_IEND):
+        return False
+    offset=8
+    saw_idat=False
+    idat_closed=False
+    saw_plte=False
+    # IHDR color type is fixed at byte 25 of a PNG stream. Only indexed
+    # color requires a palette; grayscale must never carry one.
+    color_type=raw[25] if len(raw)>=29 else -1
+    bit_depth=raw[24] if len(raw)>=29 else -1
+    chunks=0
+    while offset+12<=len(raw):
+        chunks+=1
+        if chunks>4096:
+            return False
+        length=int.from_bytes(raw[offset:offset+4],"big")
+        kind=raw[offset+4:offset+8]
+        end=offset+12+length
+        if end>len(raw) or not all(65<=c<=90 or 97<=c<=122 for c in kind):
+            return False
+        if crc32(raw[offset+4:end-4]) & 0xffffffff != int.from_bytes(raw[end-4:end],"big"):
+            return False
+        if offset==8 and (kind!=b"IHDR" or length!=13):
+            return False
+        if offset!=8 and kind==b"IHDR":
+            return False
+        # PNG critical chunks are fixed; an unknown critical chunk or
+        # interleaved IDAT sequence must never reach the private response.
+        if kind[0] in range(65,91) and kind not in (b"IHDR",b"PLTE",b"IDAT",b"IEND"):
+            return False
+        if kind==b"PLTE":
+            if (saw_plte or saw_idat or color_type in (0,4) or
+                    length==0 or length>768 or length%3!=0 or
+                    (color_type==3 and length//3>(1<<bit_depth))):
+                return False
+            saw_plte=True
+        if kind==b"IDAT":
+            if idat_closed:
+                return False
+            saw_idat=True
+        elif saw_idat:
+            idat_closed=True
+        if kind==b"IEND":
+            return (length==0 and saw_idat and end==len(raw) and
+                    (color_type!=3 or saw_plte))
+        offset=end
+    return False
 _KEYS=frozenset((
     "shop_id","job_id","media_asset_id","image_sha256","mime_type",
     "image_bytes","private","signed_url_issued","approved_model","publish_approved"
@@ -81,7 +138,7 @@ class Feature3PrivateBinaryHTTP:
             raw=receipt.get("image_bytes")
             digest=receipt.get("image_sha256")
             if (type(raw) is not bytes or not 100<=len(raw)<=_MAX or
-                    not raw.startswith(_PNG_MAGIC) or not raw.endswith(_PNG_IEND) or
+                    not _valid_png_chunks(raw) or
                     type(digest) is not str or not _SHA.fullmatch(digest) or
                     sha256(raw).hexdigest()!=digest):
                 return self._deny(503)
