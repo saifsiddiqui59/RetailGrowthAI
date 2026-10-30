@@ -11,6 +11,10 @@ import {EditValidationError} from './autobroll_semantics.mjs';
 const check=(v,m)=>{if(!v)throw new EditValidationError(m);};
 const REF=/^[A-Za-z0-9_-]{1,120}$/;
 const SHA=/^[a-f0-9]{64}$/;
+// Speech text is later shown to reviewers; reject display-control spoofing
+// and malformed UTF-16 even when no renderer is invoked here.
+const UNSAFE_WORD=/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069\ufeff]/u;
+const UNPAIRED_SURROGATE=/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/u;
 
 export function suggestSpeechMusicDucking({
   shop_id,asset_id,source_sha256,words,keep_projection,
@@ -23,7 +27,7 @@ export function suggestSpeechMusicDucking({
     Array.isArray(words)&&words.length>0&&words.length<=3000&&
     Array.isArray(keep_projection)&&keep_projection.length>0&&
     keep_projection.length<=32&&
-    Number.isInteger(actual_timeline_duration_ms)&&
+    Number.isSafeInteger(actual_timeline_duration_ms)&&
     actual_timeline_duration_ms>=500&&actual_timeline_duration_ms<=600000&&
     Number.isInteger(lead_ms)&&lead_ms>=0&&lead_ms<=500&&
     Number.isInteger(release_ms)&&release_ms>=0&&release_ms<=750&&
@@ -33,8 +37,9 @@ export function suggestSpeechMusicDucking({
   let wordEnd=-1;
   for(const w of words){
     check(w&&typeof w.word==='string'&&w.word.trim().length>0&&
-      w.word.length<=80&&
-      Number.isInteger(w.startMs)&&Number.isInteger(w.endMs)&&
+      [...w.word.trim()].length<=80&&
+      !UNSAFE_WORD.test(w.word)&&!UNPAIRED_SURROGATE.test(w.word)&&
+      Number.isSafeInteger(w.startMs)&&Number.isSafeInteger(w.endMs)&&
       w.startMs>=wordEnd-50&&w.endMs>w.startMs&&
       w.startMs>=0&&w.endMs<=600000,
     'Untrusted or unsorted speech times');
@@ -47,8 +52,8 @@ export function suggestSpeechMusicDucking({
     const b=segment?.visible_source_end_ms;
     const t=segment?.timeline_start_ms;
     const end=segment?.timeline_end_ms;
-    check([a,b,t,end].every(Number.isInteger)&&
-      a>=0&&b>a&&a>=priorSource&&
+    check([a,b,t,end].every(Number.isSafeInteger)&&
+      a>=0&&b>a&&b<=600000&&a>=priorSource&&
       t===priorTimeline&&end>t&&
       end-t===b-a&&end<=actual_timeline_duration_ms,
     'Invalid AutoClip video/audio crossfade projection');
