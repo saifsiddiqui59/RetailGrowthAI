@@ -27,8 +27,8 @@ export default function Feature3SecureDraftWorkspace({
   const message=scopedFeature3WorkspaceValue(messageState,scopeKey,'',feature3Api)
   const busy=scopedFeature3WorkspaceValue(busyState,scopeKey,false,feature3Api)
   const generatedJobs=scopedFeature3WorkspaceValue(generatedState,scopeKey,[],feature3Api)
-  const setMessage=value=>setMessageState({scope:scopeKey,value})
-  const setBusy=value=>setBusyState({scope:scopeKey,value})
+  const setMessage=value=>setMessageState({scope:scopeKey,provider:feature3Api,value})
+  const setBusy=value=>setBusyState({scope:scopeKey,provider:feature3Api,value})
   const activeScope=useRef({shopId,scopeKey,feature3Api})
   activeScope.current={shopId,scopeKey,feature3Api}
   const pendingDownload=useRef(0)
