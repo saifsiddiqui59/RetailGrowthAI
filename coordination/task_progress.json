@@ -14,7 +14,10 @@
       "evidence_scope": "source only (not hosted or production)",
       "additional_pr_numbers": [
         811
-      ]
+      ],
+      "stage": "integrated",
+      "verified": true,
+      "evidence": "https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41131088666"
     }
   ]
 }
