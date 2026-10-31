@@ -1,6 +1,7 @@
 """Supabase asymmetric JWT verification. No shared secret or unsigned fallback."""
 from __future__ import annotations
 
+from functools import lru_cache
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -20,7 +21,7 @@ class SupabaseJWTVerifier:
             raise ValueError("SUPABASE_URL must be an HTTPS project origin")
         self.issuer = f"{supabase_url.rstrip('/')}/auth/v1"
         self.client = jwks_client or PyJWKClient(
-            self.issuer + "/.well-known/jwks.json", cache_keys=True, lifespan=300,
+            self.issuer + "/.well-known/jwks.json", cache_keys=False, cache_jwk_set=True, lifespan=300,
             timeout=5,
         )
 
@@ -41,3 +42,17 @@ class SupabaseJWTVerifier:
             return str(UUID(claims["sub"]))
         except (jwt.PyJWTError, KeyError, ValueError, TypeError) as exc:
             raise AuthenticationError("invalid authentication token") from exc
+
+
+@lru_cache(maxsize=1)
+def cached_supabase_verifier(supabase_url: str) -> SupabaseJWTVerifier:
+    """Reuse the last HTTPS project's JWKS set across warm HTTP invocations.
+
+    Cache the verifier, NEVER caller JWTs, decoded claims or permissions.
+    Every request is still signature/issuer/audience/expiry checked and
+    every downstream PostgREST operation still uses its original user JWT.
+    The project JWKS set lives only up to 300s; per-kid key caching is OFF,
+    so rotation/revocation is not silently pinned forever in a warm worker.
+    The one-entry cache cannot retain multiple old project origins.
+    """
+    return SupabaseJWTVerifier(supabase_url)
