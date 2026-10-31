@@ -125,6 +125,8 @@ export function prepareAuthoritativePrivateReview({
     const current=getCurrentApprovedVideo({shop_id,asset_id:item.asset_id});
     check(current && current.shop_id===shop_id &&
       current.asset_id===item.asset_id &&
+      current.source==='retailer_upload' &&
+      current.media_type==='video' && current.mime_type==='video/mp4' &&
       current.active===true && current.rights_status==='APPROVED' &&
       current.rights_revision===item.grant.rights_revision &&
       current.sha256===item.expected_sha256 &&
