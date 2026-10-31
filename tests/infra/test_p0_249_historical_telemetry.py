@@ -50,6 +50,51 @@ def test_reject_dynamic_status_category_and_unknown_sensitive_fields():
     assert mod.safe_aggregate_rows(data) == [{"events":3, "p95_ms":61000.0}]
 
 
+def test_dependency_success_and_numeric_telemetry_fail_closed():
+    import math
+    # Dependency query returns tostring(Success); retain only bool outcome.
+    values = [
+        {"bucket": "2026-10-28T10:27:00Z", "events": 1,
+         "success": "true", "p95_ms": 61000.12345},
+        {"bucket": "2026-10-28T10:28:00+00:00", "events": 2,
+         "success": "FALSE", "value": 0.125},
+    ]
+    assert mod.safe_aggregate_rows(values) == [
+        {"bucket": "2026-10-28T10:27:00Z", "events": 1,
+         "success": True, "p95_ms": 61000.123},
+        {"bucket": "2026-10-28T10:28:00+00:00", "events": 2,
+         "success": False, "value": 0.125},
+    ]
+    untrusted = [
+        {"bucket": "2026-10-28Tfake-private-id", "events": -2,
+         "p95_ms": float("nan"), "success": "token-secret"},
+        {"bucket": "2026-10-28T10:27:00Z;customer@example.com",
+         "events": True, "p95_ms": float("inf"), "value": -4},
+        {"bucket": "2026-10-28T10:27:00Z", "events": 1.3,
+         "p95_ms": -0.1, "value": float("-inf")},
+    ]
+    assert mod.safe_aggregate_rows(untrusted) == [
+        {"bucket": "2026-10-28T10:27:00Z"}
+    ]
+    assert mod.public_utc_stamp("2026-10-28T24:28:00Z") is False
+    assert mod.public_utc_stamp("2026-10-28T10:27:00Z") is True
+
+
+def test_metric_series_denies_nonfinite_outside_date_and_private_suffix():
+    payload = {"value": [{"timeseries": [{"data": [
+        {"timeStamp": "2026-10-28T10:27:00Z", "average": 1.25},
+        {"timeStamp": "2026-10-28T10:27:00Z/private-id", "average": 2.0},
+        {"timeStamp": "2026-10-28T10:28:00Z", "average": float("inf")},
+        {"timeStamp": "2026-10-28T10:29:00Z", "average": float("nan")},
+        {"timeStamp": "2026-10-28T10:30:00Z", "average": True},
+        {"timeStamp": "2026-10-28T10:31:00Z", "average": -1.0},
+    ]}]}]}
+    assert mod.safe_metric_points(payload, "Average", "InstanceCount") == [
+        {"bucket": "2026-10-28T10:27:00Z",
+         "metric": "InstanceCount", "value": 1.25}]
+    assert mod.safe_metric_points(payload, "Average", "untrusted-private-label") == []
+
+
 def test_metric_data_is_numeric_and_finite_window_only():
     payload = {"value":[{"timeseries":[{"data":[
         {"timeStamp":"2026-10-28T10:27:00Z", "average":1.5,

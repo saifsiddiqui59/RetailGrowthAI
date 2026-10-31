@@ -14,7 +14,6 @@ import json
 import re
 import subprocess
 from flex_ingress_correlation import RG, LAW, audit_scope, azure
-from p0_249_historical_telemetry import aggregate_records
 
 WINDOWS = (
     ("failed_canary", "2026-10-28T19:35:00Z", "2026-10-28T19:51:00Z"),
@@ -36,7 +35,10 @@ CATEGORIES = frozenset(TYPES)
 INSTANCE = 'tostring(column_ifexists("AppRoleInstance",""))'
 STATES = frozenset(("requests", "traces", "exceptions", "function_logs", "activity", "host_timeline", "request_status_timeline", "startup_401_link"))
 STATUS = re.compile(r"^[1-5][0-9]{2}$")
-BUCKET = re.compile(r"^2026-10-28T(19|20):[0-5][0-9]:00(?:Z|\+00:00)$")
+# Kusto bin(TimeGenerated, 1m) may encode minute buckets with
+# 1-7 zero fractional seconds. Preserve genuine aggregate rows, but never
+# allow nonzero subminute times or arbitrary/private timestamp suffixes.
+BUCKET = re.compile(r"^2026-10-28T(19|20):[0-5][0-9]:00(?:\.0{1,7})?(?:Z|\+00:00)$")
 
 
 def classify_expr(*, field: str) -> str:
@@ -116,26 +118,31 @@ def queries(start: str, end: str) -> dict[str, str]:
               ' by bucket=bin(TimeGenerated,1m)'
             + ' | order by bucket asc | take 25'
         ),
-        # A startup trace on an instance that also handled an app-auth 401
-        # shows HTTP handler activity on the SAME logging role instance.
-        # No matching 401 does NOT imply a failed HTTP request; it may be
-        # another Flex trigger scale group or sampled/missing requests.
+        # A worker-start trace plus ANY 401 on the same instance at ANY time
+        # in the incident window was previously called linked. That could
+        # count a 401 from BEFORE startup or many minutes later. Limit this
+        # aggregate hint to 401 logged within 120s AFTER the start event.
+        # The 401 remains unverified at request/handler level: log sampling,
+        # scale groups and absent request-ID joins forbid causal attribution.
         "startup_401_link": (
             'let starts = ' + prefix("AppTraces")
             + ' | where Message contains "Worker process started"'
             + f' | extend instance={INSTANCE}'
             + ' | where isnotempty(instance)'
-            + ' | project TimeGenerated, instance; '
+            + ' | project start_time=TimeGenerated, instance; '
             + 'let authenticated = ' + prefix("AppRequests")
             + ' | where tostring(column_ifexists("ResultCode", "")) == "401"'
             + f' | extend instance={INSTANCE}'
             + ' | where isnotempty(instance)'
-            + ' | summarize app_401=count() by instance; '
+            + ' | project request_time=TimeGenerated, instance; '
             + 'starts | join kind=leftouter authenticated on instance'
+            + ' | summarize nearby_401=max(iff(isnotnull(request_time)'
+              ' and request_time >= start_time and request_time <= start_time + 2m, 1, 0))'
+              ' by start_time, instance'
             + ' | summarize events=count(),'
-              ' linked_401=countif(coalesce(app_401,0)>0),'
-              ' unlinked=countif(coalesce(app_401,0)==0)'
-              ' by bucket=bin(TimeGenerated,1m)'
+              ' linked_401=countif(nearby_401>0),'
+              ' unlinked=countif(nearby_401==0)'
+              ' by bucket=bin(start_time,1m)'
             + ' | order by bucket asc | take 25'
         ),
         "exceptions": (
@@ -181,10 +188,49 @@ COUNT_FIELDS = frozenset((
 ))
 
 
+# Historical platform inspector Kusto queries explicitly return at most 80
+# aggregate rows. The generic historical telemetry decoder caps at 30; using
+# it here silently discarded later worker/host evidence. Keep this bounded
+# parser private to this inspector; raw Azure rows never reach stdout.
+MAX_AGGREGATE_ROWS = 80
+
+
+def platform_aggregate_rows(payload) -> list[dict]:
+    if isinstance(payload, list):
+        return [r for r in payload[:MAX_AGGREGATE_ROWS] if isinstance(r, dict)]
+    if not isinstance(payload, dict):
+        return []
+    if isinstance(payload.get("value"), list):
+        return [r for r in payload["value"][:MAX_AGGREGATE_ROWS]
+                if isinstance(r, dict)]
+    tables = payload.get("tables")
+    if not isinstance(tables, list):
+        return []
+    collected = []
+    for table in tables[:2]:
+        if not isinstance(table, dict):
+            continue
+        cols, rows = table.get("columns"), table.get("rows")
+        if not isinstance(cols, list) or not isinstance(rows, list):
+            continue
+        names = [c.get("name") if isinstance(c, dict) else None
+                 for c in cols[:64]]
+        if (not names or len(cols) > 64
+                or any(not isinstance(n, str) or not n for n in names)
+                or len(set(names)) != len(names)):
+            continue
+        for row in rows:
+            if len(collected) >= MAX_AGGREGATE_ROWS:
+                return collected
+            if isinstance(row, list) and len(row) == len(names):
+                collected.append(dict(zip(names, row)))
+    return collected
+
+
 def safe_rows(payload) -> list[dict]:
     """Sanitize before reporting; never serialize complete Azure query output."""
     out = []
-    for raw in aggregate_records(payload)[:80]:
+    for raw in platform_aggregate_rows(payload):
         row = {}
         count = _safe_count(raw.get("events"))
         if count is not None:
@@ -197,14 +243,23 @@ def safe_rows(payload) -> list[dict]:
         if isinstance(when, str) and BUCKET.fullmatch(when):
             row["bucket"] = when
         category = raw.get("category")
-        if category in CATEGORIES:
+        # Azure cells may be malformed objects/lists. Never allow an
+        # unhashable category to discard an otherwise valid aggregate row.
+        if isinstance(category, str) and category in CATEGORIES:
             row["category"] = category
         status = raw.get("status")
         if isinstance(status, str) and STATUS.fullmatch(status):
             row["status"] = status
         instance = raw.get("instance")
         if isinstance(instance, str) and 0 < len(instance) <= 256:
-            row["host_hash"] = hashlib.sha256(instance.encode()).hexdigest()[:12]
+            # A malformed Unicode cell must not poison the whole query or
+            # expose the original host identity; simply omit its digest.
+            try:
+                raw_host = instance.encode("utf-8")
+            except UnicodeEncodeError:
+                pass
+            else:
+                row["host_hash"] = hashlib.sha256(raw_host).hexdigest()[:12]
         if row.get("bucket") and "events" in row:
             out.append(row)
     return out[:80]
@@ -224,7 +279,7 @@ def collect() -> int:
             try:
                 result = azure("monitor", "log-analytics", "query",
                                "-w", wid, "--analytics-query", q)
-                raw_rows = aggregate_records(result)
+                raw_rows = platform_aggregate_rows(result)
                 rows = safe_rows(result)
                 outcome = "AGGREGATED" if rows else "EMPTY_OR_FILTERED"
                 # Only report schema presence/type of fixed allowlisted fields,
