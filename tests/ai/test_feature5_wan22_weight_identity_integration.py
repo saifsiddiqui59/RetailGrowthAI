@@ -58,7 +58,12 @@ class MountedWanIdentityIntegrationTests(unittest.TestCase):
                 return actual_fstat(fd)
 
             with patch.object(audit.os, "fstat", side_effect=swap_before_final_fstat):
-                with self.assertRaisesRegex(PreflightError, "pathname changed"):
+                # An atomic replacement can change the old open inode's ctime.
+                # Both the descriptor-ctime denial and pathname-identity
+                # denial are correct; require fail-closed behavior, not an
+                # implementation-specific detection order.
+                with self.assertRaisesRegex(
+                        PreflightError, "modified during hashing|pathname changed"):
                     audit._actual_full_sha(
                         path, path.stat().st_size, hashlib.sha256(path.read_bytes()).hexdigest())
             self.assertEqual(calls, 2)
