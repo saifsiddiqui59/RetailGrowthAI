@@ -69,15 +69,15 @@ async function setup(page, { role='OWNER', failImprovement=false, withTrend=fals
   return calls
 }
 
-test('OFF by default; ON previews side-by-side and edited prompts never auto-generate',async({page})=>{
+test('OFF by default; ON auto-previews side-by-side and edited prompts never auto-generate',async({page})=>{
   const calls=await setup(page)
   await page.goto('/trends')
   const toggle=page.getByRole('checkbox',{name:'Improve Prompt with AI'})
   await expect(toggle).not.toBeChecked()
   await expect(page.getByRole('button',{name:'Improve Prompt'})).toHaveCount(0)
   await toggle.check()
-  await page.getByRole('button',{name:'Improve Prompt',exact:true}).click()
   await expect(page.getByLabel('Original prompt')).toBeVisible()
+  await expect(page.getByText('Enhanced prompt ready for your review.')).toBeVisible()
   await expect(page.getByLabel('Improved prompt (editable)')).toBeVisible()
   await expect(page.getByText('Only verified retailer context was used')).toBeVisible()
   await page.getByLabel('Improved prompt (editable)').fill('My reviewed editorial draft')
@@ -96,7 +96,6 @@ test('explicit Generate Content uses edited improved prompt once, never silently
   const calls=await setup(page,{withTrend:true})
   await page.goto('/trends')
   await page.getByRole('checkbox',{name:'Improve Prompt with AI'}).check()
-  await page.getByRole('button',{name:'Improve Prompt',exact:true}).click()
   await page.getByLabel('Improved prompt (editable)').fill('Approved seven-day styling direction')
   await page.getByRole('button',{name:'Use Improved Prompt'}).click()
   await page.getByLabel('Verified trend for this draft').selectOption(TREND)
@@ -112,7 +111,6 @@ test('failed improvement retains original; viewer cannot call endpoint',async({p
   await page.goto('/trends')
   const before=await page.getByLabel('Content brief').inputValue()
   await page.getByRole('checkbox',{name:'Improve Prompt with AI'}).check()
-  await page.getByRole('button',{name:'Improve Prompt',exact:true}).click()
   await expect(page.getByText(/Your original request is preserved/)).toBeVisible()
   expect(await page.getByLabel('Content brief').inputValue()).toBe(before)
   expect(calls.filter(c=>c.path.endsWith('/content-drafts') && c.method==='POST')).toHaveLength(0)
@@ -128,4 +126,15 @@ test('320px mobile layout and viewer access remain fail-closed',async({page})=>{
   await expect.poll(()=>page.evaluate(()=>
     document.documentElement.scrollWidth<=document.documentElement.clientWidth+1)).toBe(true)
   expect(calls.filter(c=>c.path.endsWith('/improve-prompt'))).toHaveLength(0)
+})
+
+test('paid Azure AI enhancement never runs merely because a checkbox was ticked',async({page})=>{
+  const calls=await setup(page)
+  await page.goto('/trends')
+  await page.getByRole('checkbox',{name:'Use real Azure AI model (requires approved shop budget)'}).check()
+  await page.getByRole('checkbox',{name:'Improve Prompt with AI'}).check()
+  await expect(page.getByRole('button',{name:'Improve Prompt',exact:true})).toBeEnabled()
+  await expect(page.getByLabel('Original prompt')).toHaveCount(0)
+  expect(calls.filter(c=>c.path.endsWith('/improve-prompt') || c.path.endsWith('/improve-prompt-ai'))).toHaveLength(0)
+  expect(calls.filter(c=>c.method==='POST')).toHaveLength(0)
 })
