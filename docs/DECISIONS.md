@@ -1015,3 +1015,8 @@
 - No user-facing media demos/samples or review requests while owner is unavailable for at least 10 hours; deterministic test fixtures/CPU regressions are still allowed. No paid GPU, nonessential provider APIs, new compute or PROD. GPT-4.1 Mini may be used only for explicit small, metered, one-off existing DEV tests; automatic model calls remain OFF.
 - Auth test accounts must be created through supported DEV Auth Admin, with credentials from a trusted local secret store, never direct inserts to auth.users or committed passwords. Existing approval account is reserved for human-controlled authorization, not automated rights or payment approval.
 - Original numbered task status is recorded in reviewed append-only `coordination/task_progress.json` events, then GitHub Actions verifies PR merge and independent postmerge main 4/4 for DONE. The status artifact is not self-reported fixture success.
+
+
+## 2026-10-31 — Five feature-owned integration leads (governance proposal) — effective 2026-10-31
+Owner decision: eliminate dedicated ChatGPT integration scheduler; five hourly feature leads (#2,#3,#4,#5,#7) each own coding, reviewed feature PR integration, CI and evidence-backed status. Lightweight cross-feature coordination only for interface/ownership collisions; GitHub Actions read-only dependency report remains. Never bypass branch protection or independent security/rights review; preserve immutable task registry.
+Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert a new feature DONE or live production readiness.

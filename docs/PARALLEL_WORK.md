@@ -96,3 +96,7 @@ Coordinator exclusively edits `coordination/feature_tasks.json`, `coordination/e
 
 ## 2026-10-29 — Future 10-worker scheduler safety boundary
 The coordinator owns `scripts/coordination/task_scheduler.py`, `coordination/scheduler_events.json` and its runbook; worker leads do not fabricate receipts or update shared task state. Proposed worktrees are advisory and require atomic exclusive claims and nonoverlapping paths before any future real 10-task concurrency. Recoverable failures permit 1+2 attempts then deferred 2 repairs (max 5); uncertain provider/financial writes, rights/security failures and protected approvals never auto-retry. Hourly reports are not actual coding sessions.
+
+
+## Current five-feature integration ownership (overrides historical coordinator-only workstream rules) — effective 2026-10-31
+Feature #2/#3/#4/#5/#7 leads can independently integrate *feature-owned* reviewed exact-head 4/4-green main-targeted PRs after verifying current main and changed paths. They may not merge stacked children directly onto main before parent integration or unilaterally change shared interfaces, auth, payments, workflows, root app/router, tenant policies or cloud deployment. These require independent affected lead or human approval; no dedicated hourly coordinator chat. See `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. The historical A–R workstream instructions above are archived and their previous coordinator-only merge restriction is superseded.

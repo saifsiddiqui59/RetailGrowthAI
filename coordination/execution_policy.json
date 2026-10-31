@@ -132,5 +132,34 @@
     "source_snapshot_not_authority_for_integrated_completion": true,
     "no_auto_coding_without_executor": true,
     "github_actions_polls_and_writes_report_only": true
+  },
+  "feature_owned_integration": {
+    "effective_date": "2026-10-31",
+    "scheduler_slots": [
+      "2",
+      "3",
+      "4",
+      "5",
+      "7"
+    ],
+    "dedicated_chat_coordinator": false,
+    "feature_leads_may_self_merge_eligible_main_targeted_prs": true,
+    "gate_checklist": [
+      "reverify_latest_main_and_exact_pr_head",
+      "pr_targets_main_and_is_non_draft",
+      "no_conflicts_or_unknown_write_path",
+      "all_four_required_exact_head_pr_ci_pass",
+      "required_independent_review_for_sensitive_or_shared_paths",
+      "satisfy_existing_github_branch_protection",
+      "merge_with_expected_head_sha",
+      "verify_fresh_main_four_job_ci_on_merge_sha",
+      "reviewed_append_only_progress_receipt"
+    ],
+    "shared_contract_change_requires_independent_review": true,
+    "immutable_159_task_snapshot": true,
+    "only_append_reviewed_progress_events": true,
+    "paid_gpu_off": true,
+    "do_not_bypass_existing_reviews": true,
+    "github_ruleset_protection_not_confirmed": true
   }
 }

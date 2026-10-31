@@ -2,7 +2,7 @@
 
 Use `python scripts/coordination/feature_progress_report.py` to read the current repository task inventory and reviewed progress receipts. This report is intentionally conservative: a blank receipt log does not erase feature-branch work, but it is not evidence of an accepted integration.
 
-Report these dimensions **separately** for each feature: **source-complete**, **tested**, **PR-ready**, **integrated DONE**, and **blocked**. Source-complete and blocked are *snapshot classifications* from `coordination/feature_tasks.json`. Tested, PR-ready and integrated require per-task explicit reviewed receipts in `coordination/task_progress.json` (fields `task_id`, `stage`, `verified: true`, and nonempty `evidence`). Do not infer PR-ready from existence of a draft PR or infer tested from passing CI on a different head. The integrated counter also requires the task's `integrated_done: true` and acceptance on main with fresh 4/4 CI; coordinator must update that field and receipt together.
+Report these dimensions **separately** for each feature: **source-complete**, **tested**, **PR-ready**, **integrated DONE**, and **blocked**. Source-complete and blocked are *snapshot classifications* from `coordination/feature_tasks.json`. Tested, PR-ready and integrated require per-task explicit reviewed receipts in `coordination/task_progress.json` (fields `task_id`, `stage`, `verified: true`, and nonempty `evidence`). Do not infer PR-ready from existence of a draft PR or infer tested from passing CI on a different head. The integrated counter is resolved by `scripts/coordination/task_status.py` against an evidence-backed `DONE` event, merged PR and fresh main 4/4 CI. The imported task inventory is immutable: do NOT flip its `integrated_done` flag.
 
 **This is a reporting implementation, not a claim of test coverage or a modification to the authoritative tracker.** Existing unmerged branches/PRs can demonstrate real work without contributing to integrated DONE. Coordinator should review PRs and exact-head CI, then write task evidence through a separate authorized PR. This report intentionally shows unverified stages as zero; label them "not verified" in discussions rather than "nothing done."
 
@@ -25,3 +25,7 @@ Each run must prioritize a **small executable code change** rather than an exhau
 6. **Acceptance**: source implementation and tests are reported separately from PR-ready and coordinator-integrated DONE. Do not modify shared completion records as a feature worker; file factual evidence for coordinator review.
 
 Every run must either (a) commit a meaningful owned code/test improvement and a factual checkpoint or (b) record a precise actionable blocker in an owned PR/handoff. Do not claim completed work unless the relevant code and evidence are visible in GitHub. No background continuity is implied; a new scheduled invocation resumes after the prior one stops.
+
+
+## Status ownership under feature self-merge — effective 2026-10-31
+After a completed feature-owned main merge and independently verified fresh main 4/4, the feature lead can submit a reviewed append-only `coordination/task_progress.json` event (original task ID, source/hosted scope, PR, postmerge main CI, independent acceptance proof). Never change the imported 159-task registry or fabricate approved outputs. See `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`.

@@ -1346,3 +1346,8 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 2. Verify new task-progress acceptance contract rejects fake DONE, requires merged PR, coordinator-reviewed evidence and four successful main CI jobs; the live coordinator report must produce `task-status.json/.md`, not mark 159 tasks done.
 3. For DEV test logins, operator must supply trusted Supabase **Auth Admin** access and two unique strong secrets to run safe script, then verify signed login and separate role/RLS assignment. No direct auth.users SQL, approval-account password change, or automated approval. If unsupported, leave two accounts BLOCKED and do not assert hosted UI success.
 4. Continue independent source and Playwright mock tests without generating review samples during owner absence. No paid GPU/FLUX/Wan or AI coding calls. GPT-4.1 Mini optional one-off test only after metered hard cap. Merge after full exact-head and postmerge CI.
+
+
+## 2026-10-31 — Five feature-owned integration leads (governance proposal) — effective 2026-10-31
+Verify governance PR and exact-head four-job CI, merge reviewed changes, check fresh main 4/4. Restore Feature5 hourly automation and update #2/#3/#4/#7 prompts to self-merge eligible feature-owned PRs. Keep each original task ID and checkpoint, resolve stacked parent integration before child PR, record actual status only after acceptance, and block sensitive shared changes pending independent approval.
+Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert a new feature DONE or live production readiness.
