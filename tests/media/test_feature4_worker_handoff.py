@@ -240,6 +240,41 @@ class WorkerHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(Feature4HandoffError, "nonempty bounded"):
                 _staged_fingerprint(path)
 
+    def test_uploaded_key_must_bind_exact_original_shop_job_and_lease(self):
+        """An upload adapter response is not an authorization grant."""
+        allowed = SHOP + "/renders/" + JOB + "/" + LEASE + ".mp4"
+        invalid = (
+            OTHER + "/renders/" + JOB + "/" + LEASE + ".mp4",
+            SHOP + "/renders/" + OTHER + "/" + LEASE + ".mp4",
+            SHOP + "/renders/" + JOB + "/" + OTHER + ".mp4",
+            SHOP + "/renders/" + JOB + "/" + LEASE + ".mp4?token=foreign",
+            SHOP + "/renders/" + JOB + "/../" + LEASE + ".mp4",
+            "https://example.invalid/" + allowed,
+            allowed.upper(), allowed + "/extra", None, "", {"object_path": allowed},
+        )
+        for returned in invalid:
+            with self.subTest(returned=returned):
+                claim, bundle = sample()
+                self.admin = Admin(claim, bundle)
+                class WrongUploadKey(Media):
+                    def upload(media_self, sid, job_id, file_path, *, lease_token):
+                        super().upload(sid, job_id, file_path, lease_token=lease_token)
+                        return returned
+                self.media = WrongUploadKey()
+                with self.assertRaisesRegex(
+                        Feature4HandoffError, "Private uploaded object does not match current claim"):
+                    self.run_worker()
+                # Local success may leave an orphan remote upload, but must
+                # never complete the wrong object or create a signed URL.
+                self.assertEqual(len(self.media.uploads), 1)
+                self.assertEqual(self.admin.completions, [])
+                self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
+        claim, bundle = sample()
+        self.admin = Admin(claim, bundle)
+        self.media = Media()
+        self.assertEqual(self.run_worker(), "SUCCEEDED")
+        self.assertEqual(self.admin.completions[0][1], allowed)
+
     def test_fencing_race_on_finalization_has_no_signed_url(self):
         self.admin.can_finalize = False
         self.assertEqual(self.run_worker(), "STALE")

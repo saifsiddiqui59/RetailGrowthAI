@@ -285,6 +285,13 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
             # coordinator's cleanup policy; never finalize/charge/issue URL.
             if _staged_fingerprint(result_path) != output_fingerprint:
                 raise Feature4HandoffError("Encoded output changed during private upload")
+            # An uploader may return a stale, foreign-tenant or wrong-lease
+            # key even after successful local verification. Never allow its
+            # unverified return value to select what the finalizer accepts.
+            expected_key = (claim["shop_id"] + "/renders/" + jid + "/" +
+                            claim["render_claim_token"] + ".mp4")
+            if type(key) is not str or key != expected_key:
+                raise Feature4HandoffError("Private uploaded object does not match current claim")
             if admin.render_authorized(claim) is not True or admin.feature4_claim_current(claim) is not True:
                 return "STALE"
             finalized = admin.complete_feature4_render(
