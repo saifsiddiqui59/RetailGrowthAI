@@ -723,11 +723,8 @@
       "source_file": "docs/feature3/FEATURE3_33_PACKAGE_STATUS_20261029.md",
       "source_revision": "56be96af66c83564fe830a3dcbf55c3264874686",
       "tracking_pr": null,
-      "integrated_done": true,
-      "dispatch": "existing_work_review",
-      "integrated_evidence_pr": 813,
-      "integrated_evidence_main_ci": 41131088666,
-      "integrated_acceptance_scope": "source_integrated"
+      "integrated_done": false,
+      "dispatch": "existing_work_review"
     },
     {
       "id": "F3-02",
