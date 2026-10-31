@@ -320,6 +320,26 @@ fs.writeFileSync(output,JSON.stringify({
         self.assertEqual(run.stdout,"")
         self.assertEqual(hashlib.sha256(self.path.read_bytes()).hexdigest(),self.sha)
 
+    def test_sigterm_ignoring_cpu_worker_is_killed_at_timeout(self):
+        # A model child can trap SIGTERM. spawnSync's default signal would
+        # then wait indefinitely; the bounded private worker must use SIGKILL.
+        import time
+        stubborn=self.base/"ignore_sigterm_worker"
+        stubborn.write_text(
+          "#!/usr/bin/env node\n"
+          "process.on('SIGTERM',()=>{});\n"
+          "setInterval(()=>{},1000);\n"
+        )
+        stubborn.chmod(0o700)
+        started=time.monotonic()
+        result=self.call(python_bin=str(stubborn),timeout_ms=5000)
+        elapsed=time.monotonic()-started
+        self.assertNotEqual(result.returncode,0,result.stdout)
+        self.assertEqual(result.stdout,"")
+        self.assertLess(elapsed,12,"CPU child ignored the bounded timeout")
+        self.assertEqual(hashlib.sha256(self.path.read_bytes()).hexdigest(),
+                         self.sha)
+
     def test_malformed_wav_truncation_and_duration_denied(self):
         copy=self.private/"bad.wav"
         data=bytearray(self.path.read_bytes())

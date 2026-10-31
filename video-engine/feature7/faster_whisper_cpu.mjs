@@ -38,7 +38,7 @@ function trustedDir(dir,label){
 }
 function spawnChecked(executable,args,{env,timeoutMs,step}){
   const p=spawnSync(executable,args,{env,timeout:timeoutMs,encoding:'utf8',
-    maxBuffer:512*1024,stdio:['ignore','pipe','pipe']});
+    killSignal:'SIGKILL',maxBuffer:512*1024,stdio:['ignore','pipe','pipe']});
   // A transcript or a message from failed inference cannot be trusted.
   ensure(!p.error&&p.status===0,step+' failed; no verified ASR was emitted');
 }

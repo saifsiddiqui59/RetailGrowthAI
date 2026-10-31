@@ -208,7 +208,7 @@ export function transcribeFeature2OriginalWavCPU({
       '--duration',String(original.duration_seconds),
       '--language',language,'--threads',String(threads)];
     const run=spawnSync(python,args,{env,encoding:'utf8',timeout:timeout_ms,
-      maxBuffer:128*1024,stdio:['ignore','pipe','pipe']});
+      killSignal:'SIGKILL',maxBuffer:128*1024,stdio:['ignore','pipe','pipe']});
     need(!run.error&&run.status===0,
       'Real offline Faster-Whisper inference failed; no transcript accepted');
     const st=fs.lstatSync(output);
