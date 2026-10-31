@@ -139,7 +139,10 @@ def audit_zip(path: str, *, runtime_linux_node22_verified=False,
     with ZipFile(path) as z:
         infos = z.infolist()
         names = [info.filename for info in infos]
-        if len(names) != len(set(names)) or len(names) > 200:
+        # Match the protected Functions deploy ZIP ceiling (package.py).
+        # A separate F2 audit must not certify a 121–200-member archive that
+        # the real deployment verifier rejects.
+        if len(names) != len(set(names)) or len(names) > 120:
             raise ValueError("Unsafe duplicate or oversized runtime manifest")
         if sum(info.file_size for info in infos) > 400 * 1024 * 1024:
             raise ValueError("Oversized unpacked runtime ZIP")
