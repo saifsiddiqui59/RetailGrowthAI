@@ -35,7 +35,10 @@ CATEGORIES = frozenset(TYPES)
 INSTANCE = 'tostring(column_ifexists("AppRoleInstance",""))'
 STATES = frozenset(("requests", "traces", "exceptions", "function_logs", "activity", "host_timeline", "request_status_timeline", "startup_401_link"))
 STATUS = re.compile(r"^[1-5][0-9]{2}$")
-BUCKET = re.compile(r"^2026-10-28T(19|20):[0-5][0-9]:00(?:Z|\+00:00)$")
+# Kusto bin(TimeGenerated, 1m) may encode minute buckets with
+# 1-7 zero fractional seconds. Preserve genuine aggregate rows, but never
+# allow nonzero subminute times or arbitrary/private timestamp suffixes.
+BUCKET = re.compile(r"^2026-10-28T(19|20):[0-5][0-9]:00(?:\.0{1,7})?(?:Z|\+00:00)$")
 
 
 def classify_expr(*, field: str) -> str:
