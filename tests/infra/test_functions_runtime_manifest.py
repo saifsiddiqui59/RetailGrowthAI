@@ -121,5 +121,103 @@ class FunctionsRuntimeManifestTests(unittest.TestCase):
             mod.verify_runtime_agent_imports(candidate)
 
 
+    def test_extracted_zip_wrapper_registers_all_source_routes_offline(self):
+        """Exercise the actual ZIP wrapper and route decorators after extraction.
+
+        External services are deliberately stubbed: this is NOT a real Azure
+        Functions host indexing, authenticated E2E or deployment test.
+        """
+        import subprocess
+        import sys
+        from zipfile import ZipFile
+
+        stub_smoke = r'''
+import ast
+import pathlib
+import sys
+import types
+
+root = pathlib.Path(sys.argv[1])
+service = root / "azure-functions" / "campaign-api" / "function_app.py"
+tree = ast.parse(service.read_text(encoding="utf-8"))
+registrations = []
+
+class FunctionApp:
+    def __init__(self, **kwargs):
+        self.registrations = registrations
+    def __getattr__(self, name):
+        if name not in ("route", "queue_trigger", "timer_trigger"):
+            raise AttributeError(name)
+        def decorator(**kwargs):
+            def register(fn):
+                registrations.append((name, kwargs, fn.__name__))
+                return fn
+            return register
+        return decorator
+
+azure = types.ModuleType("azure")
+azure.__path__ = []
+functions = types.ModuleType("azure.functions")
+functions.FunctionApp = FunctionApp
+functions.AuthLevel = types.SimpleNamespace(ANONYMOUS="anonymous")
+for name in ("HttpRequest", "HttpResponse", "QueueMessage", "TimerRequest"):
+    setattr(functions, name, type(name, (), {}))
+azure.functions = functions
+sys.modules["azure"] = azure
+sys.modules["azure.functions"] = functions
+
+# Only import-time service symbols are stubbed. Actual source module bytes,
+# root wrapper, Python annotations and decorator registration are executed.
+for node in tree.body:
+    if isinstance(node, ast.ImportFrom) and node.level == 0:
+        module = types.ModuleType(node.module)
+        for alias in node.names:
+            setattr(module, alias.name, type(alias.name, (), {}))
+        sys.modules[node.module] = module
+
+wrapper = root / "function_app.py"
+namespace = {"__name__": "offline_zip_wrapper", "__file__": str(wrapper)}
+exec(compile(wrapper.read_bytes(), str(wrapper), "exec"), namespace)
+assert namespace["app"].registrations is registrations
+expected = sum(
+    isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    and sum(isinstance(d, ast.Call) and isinstance(d.func, ast.Attribute)
+            and isinstance(d.func.value, ast.Name) and d.func.value.id == "app"
+            for d in node.decorator_list)
+    for node in tree.body
+)
+assert len(registrations) == expected and expected >= 30, (len(registrations), expected)
+queues = {kwargs["queue_name"] for kind, kwargs, _ in registrations
+          if kind == "queue_trigger"}
+assert {"retail-campaign-planning", "retail-reel-render",
+        "retail-campaign-planning-poison", "retail-reel-render-poison",
+        "retail-poster-render"} <= queues, queues
+for kind, kwargs, _ in registrations:
+    if kind == "queue_trigger":
+        assert kwargs["connection"] == "RETAIL_STORAGE"
+    if kind == "timer_trigger":
+        assert kwargs["run_on_startup"] is False and kwargs["use_monitor"] is True
+routes = [(kwargs["route"], tuple(kwargs.get("methods", [])))
+          for kind, kwargs, _ in registrations if kind == "route"]
+assert len(routes) == len(set(routes)), "Duplicate registered route/method pairs"
+assert ("campaigns", ("POST",)) in routes
+print("OFFLINE_EXTRACTED_ZIP_DECORATOR_SMOKE_OK", len(registrations))
+'''
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp)
+            zip_path = folder / "source-only-fixture.zip"
+            mod.write_zip(zip_path, mod.source_files())
+            extracted = folder / "extracted"
+            with ZipFile(zip_path) as archive:
+                archive.extractall(extracted)
+            result = subprocess.run(
+                [sys.executable, "-I", "-c", stub_smoke, str(extracted)],
+                capture_output=True, text=True, timeout=20, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("OFFLINE_EXTRACTED_ZIP_DECORATOR_SMOKE_OK", result.stdout)
+
+
+
 if __name__=="__main__":
     unittest.main()
