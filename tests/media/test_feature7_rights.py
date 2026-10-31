@@ -80,6 +80,12 @@ const r=prepareAuthoritativePrivateReview({
     p.rights_checks=(p.rights_checks??0)+1;
     if(p.attack==='revoked_during_review' && p.rights_checks>1)
       return {...p.current,active:false};
+    if(p.rights_checks>1 && p.attack==='source_changed_during_review')
+      return {...p.current,source:'stock_import'};
+    if(p.rights_checks>1 && p.attack==='type_changed_during_review')
+      return {...p.current,media_type:'image'};
+    if(p.rights_checks>1 && p.attack==='mime_changed_during_review')
+      return {...p.current,mime_type:'image/png'};
     return p.current;
   }
 });
@@ -169,7 +175,9 @@ class Feature7AuthoritativeRightsTests(unittest.TestCase):
 
     def test_revoked_foreign_stale_rights_spoofing_and_expiry_fail(self):
         for attack in ('revoked','foreign_shop','rights_revision','bad_source',
-          'different_job','expired','forged_mac','revoked_during_review'):
+          'different_job','expired','forged_mac','revoked_during_review',
+          'source_changed_during_review','type_changed_during_review',
+          'mime_changed_during_review'):
             with self.subTest(attack=attack):
                 p=self.payload();p['attack']=attack
                 r=self.js(p)
