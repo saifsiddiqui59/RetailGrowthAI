@@ -772,3 +772,8 @@ Use scripts/checkpoint.sh after completing a task.
 ## 2026-10-29 — Consolidated handoffs, signed test-login preparation and task-status reports
 - Read latest canonical docs, Supabase DEV Auth read-only evidence and 16 handoff/159 task registries. Verified existing owner approval email exists without changing credentials. Connected Supabase tool lacks supported Auth Admin mutation; created test account provisioning script but did not run it and did not create two new Auth users.
 - Added five exact feature chat names, cross-feature map, 10-hour no-user-visible-samples directive, Playwright/DEV test-auth protocol, zero paid GPU/model by default and strictly bounded optional existing GPT-4.1 Mini test rules. Added reviewed task-status event ledger, fail-closed PR/main CI DONE verifier, tests and coordinator task-status artifact. No costly cloud/model, PROD/WineShopPOS or rights/permission changes. Exact-head CI and main integration pending independent verification.
+
+
+## 2026-10-31 — Five feature-owned integration leads (governance proposal) — effective 2026-10-31
+Prepared reviewed policy for feature-owned self-integration and restore of Feature #5 scheduled worker. Read AGENTS.md and the four core state documents plus current CI; verified main CI #41175618253 4/4 on prior main, registry 159 tasks and F3-01 source-only event. Repository branch protection read forbidden (403), rulesets list empty; no protection assumptions. No feature code/GPU/PROD/WineShopPOS changes.
+Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert a new feature DONE or live production readiness.

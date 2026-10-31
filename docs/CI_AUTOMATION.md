@@ -129,3 +129,7 @@ The dependency coordinator PR validates `scripts/coordination/task_scheduler.py`
 
 ## 2026-10-29 — Task-manager evidence + login safety
 The coordinator PR adds read-only cross-feature/test policy regressions, DEV provisioning guard negative tests, and `task_status.py` validation. Trusted-main scheduler writes `task-status.json/.md` beside existing issue/dependency/scheduler reports. It validates merge and fresh main four-job CI for any reviewed DONE event; an empty event ledger means **no newly verified DONE**. No hosted login, Auth Admin account creation, paid GPT-4.1 Mini or GPU is executed by CI. Real Playwright signed UI tests need provisioned DEV account credentials and remain separate from mocks.
+
+
+## Feature-self-merge CI rules (active override) — effective 2026-10-31
+A feature lead may merge its own *eligible, reviewed and main-targeted* PR after the four required exact-final-head CI jobs pass, GitHub mergeable/non-draft, affected ownership and required review verified, and newest main state rechecked. Use expected-head SHA, never bypass protections or force merge. Afterward, require four fresh main CI jobs successful at the precise merge SHA before accepted task DONE. A stacked child PR is not direct-main-ready. Protected/critical shared changes require independent reviewer or owner approval. See `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. Historic coordinator-only CI routing above no longer applies to ordinary feature-owned changes.

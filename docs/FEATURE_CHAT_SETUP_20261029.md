@@ -37,3 +37,7 @@ The machine-readable map `coordination/shared_feature_references.json` is author
 ## After task completion
 
 Feature lead documents verified source result and submits to coordinator. Coordinator evaluates actual PR integration and full CI, records an evidence-backed event in `coordination/task_progress.json`, and the scheduled workflow refreshes `task-status.json/.md` in Actions artifacts. **Neither chat text nor an advisory scheduler candidate automatically means the task ran.**
+
+
+## Updated feature lead startup and task ownership — effective 2026-10-31
+Previous coordinator-only instructions in the original setup above are superseded for current feature #2/#3/#4/#5/#7 task runs. Each feature may safely self-merge its own eligible reviewed PR and verify postmerge CI. Five hourly schedules; Feature #5 receives its original slot back; no dedicated ChatGPT Coordinator schedule. Follow `docs/FEATURE_SELF_MERGE_POLICY_20261031.md` and preserve the original 159 task IDs.
