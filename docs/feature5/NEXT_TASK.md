@@ -369,3 +369,8 @@ New native-claim tests initially found ONE real test fixture mismatch in Python 
 
 ## 2026-10-29 — Numbered remaining release task snapshot
 Canonical owner snapshot: `docs/feature5/F5_22_TASK_DEPENDENCIES_20261029.json`. **DONE 0/22, IN_PROGRESS 3/22, BLOCKED 19/22, FAILED 0.** Continue independent GPU-off source, runtime and direct real Feature2 exporter integration when its original code is coordinated into shared main. Coordinator owns external dependency resolutions and merge; actual garment-worn model/licence, Part3 leased native job and credits, private hosted bytes, protected OCI/checkpoints, GPU authorization, true Wan 5s MP4, human review and F4 final remain unproven. Do not promote fixtures or start paid GPU.
+
+## 2026-10-31 — F5-14 GPU-OFF source identity batch next gate
+1. Verify **final exact PR #781 head** all four Part 1 CI jobs, including `tests/ai/test_feature5_wan22_weight_identity_integration.py` (path swap during open SHA, hardlink introduced during read and earlier shard replaced after its hash); repair actual code/test failures without disabling the source check.
+2. Independently review reconciled, overlapping old F5-14 draft changes #771 and #746 now in current #781. Merge only reviewed, compatible Feature5-owned scope through stacked parent #465, recheck that parent's exact-head four-job CI, and preserve later independent main acceptance/CI. Do not claim the 22-task inventory DONE from source PR/test green.
+3. Still **BLOCKED** for the real F5-14 release criterion: the operator-owned original three trusted Wan weights in a verified private read-only mount, full actual SHA/size readback, independent provenance/license and approved runtime. No GPU/paid inference, cloud changes, PROD, customer media or WineShopPOS.
