@@ -251,7 +251,7 @@ def test_malformed_telemetry_cells_retain_valid_aggregate_evidence():
     stamp = "2026-10-28T19:40:00.0000000Z"
     raw = [
         {"bucket": stamp, "events": 2, "category": ["secret", "worker_exit"],
-         "instance": "\\ud800", "Message": "private JWT never print"},
+         "instance": chr(0xD800), "Message": "private JWT never print"},
         {"bucket": stamp, "events": 3, "category": {"token": "secret"},
          "instance": "legitimate-host", "ResponseBody": "private URL"},
         {"bucket": stamp, "events": 1, "category": "worker_exit",
