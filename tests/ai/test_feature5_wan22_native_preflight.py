@@ -180,6 +180,43 @@ class WanPinnedNativePreflightTests(unittest.TestCase):
             validate_runtime_lock(broken,approved_image_digest=IMAGE,
                                   reviewed_wheel_sha256=lock["wheels_sha256"])
 
+    def test_safetensors_header_rejects_ambiguity_bad_offsets_and_linked_files(self):
+        import os
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            file = root / "fake.safetensors"
+
+            def write_header(text):
+                raw = text.encode("utf8")
+                payload = len(raw).to_bytes(8, "little") + raw + b"abcd"
+                file.write_bytes(payload)
+                return len(payload)
+
+            malformed = (
+                '{"w":{"dtype":"F16","shape":[2],"data_offsets":[0,4]},'
+                    '"w":{"dtype":"F16","shape":[2],"data_offsets":[0,4]}}',
+                '{"w":{"dtype":"F16","shape":[2],"data_offsets":[0,99]}}',
+                '{"w":{"dtype":"F16","shape":[true],"data_offsets":[0,4]}}',
+                '{"w":{"dtype":"F16","shape":[2],"data_offsets":[-1,4]}}',
+                '{"w":{"dtype":"F16","shape":[2],"data_offsets":[4,2]}}',
+                '{"w":{"dtype":NaN,"shape":[2],"data_offsets":[0,4]}}',
+                '{"__metadata__":{"safe":42}}',
+            )
+            for raw in malformed:
+                with self.subTest(raw=raw[:40]):
+                    size = write_header(raw)
+                    with self.assertRaises(WanCompatibilityError):
+                        check_small_safetensors_header(file,expected_size=size)
+
+            valid = '{"w":{"dtype":"F16","shape":[2],"data_offsets":[0,4]}}'
+            size = write_header(valid)
+            self.assertFalse(check_small_safetensors_header(
+                file, expected_size=size)["model_sha256_verified"])
+            second = root / "hardlink.safetensors"
+            os.link(file,second)
+            with self.assertRaises(WanCompatibilityError):
+                check_small_safetensors_header(file,expected_size=size)
+
     def test_small_safetensors_header_is_not_weight_sha_verification(self):
         header=json.dumps({"weight":{"dtype":"F16","shape":[2],"data_offsets":[0,4]}}).encode()
         content=len(header).to_bytes(8,"little")+header+b"abcd"

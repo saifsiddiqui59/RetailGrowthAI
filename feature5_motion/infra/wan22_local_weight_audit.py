@@ -16,10 +16,28 @@ import os
 import stat
 from pathlib import Path, PurePosixPath
 
-from feature5_motion.shared_model_mount import EXPECTED, PreflightError, validate_manifest
+from feature5_motion.shared_model_mount import EXPECTED, PreflightError, validate_manifest, read_private_manifest
 
 WAN_FILES = tuple(sorted(k for k in EXPECTED if k.startswith("feature5/")))
 CHUNK = 1024 * 1024
+
+
+def _path_identity(path, *, directory):
+    """Fail closed on named-path replacement (no link following).
+
+    This is not an atomic mount snapshot or evidence of read-only enforcement.
+    """
+    try:
+        info = Path(path).stat(follow_symlinks=False)
+    except (OSError, OverflowError) as exc:
+        raise PreflightError("Approved mounted model path unavailable") from exc
+    if directory:
+        if not stat.S_ISDIR(info.st_mode):
+            raise PreflightError("Approved mounted model directory replaced")
+    elif not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+        raise PreflightError("Approved model file replaced or linked")
+    return (info.st_dev, info.st_ino, info.st_mode, info.st_nlink,
+            info.st_size, info.st_mtime_ns, info.st_ctime_ns)
 
 
 def _actual_full_sha(path, expected_size, expected_sha):
@@ -35,14 +53,16 @@ def _actual_full_sha(path, expected_size, expected_sha):
         before = path.stat(follow_symlinks=False)
         if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or before.st_size != expected_size:
             raise PreflightError("Checkpoint is not the approved regular file size")
-        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
         fd = os.open(path, flags)
         try:
             with os.fdopen(fd, "rb") as stream:
                 fd = -1
                 opened = os.fstat(stream.fileno())
-                if (opened.st_ino, opened.st_dev, opened.st_size) != (
-                    before.st_ino, before.st_dev, expected_size):
+                identity = lambda info: (
+                    info.st_dev, info.st_ino, info.st_mode, info.st_nlink,
+                    info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+                if not stat.S_ISREG(opened.st_mode) or identity(opened) != identity(before):
                     raise PreflightError("Checkpoint identity changed before read")
                 digest = hashlib.sha256()
                 total = 0
@@ -52,9 +72,14 @@ def _actual_full_sha(path, expected_size, expected_sha):
                         raise PreflightError("Checkpoint grew during hashing")
                     digest.update(block)
                 after = os.fstat(stream.fileno())
-                if (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns) != (
-                    before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns):
+                if identity(after) != identity(before):
                     raise PreflightError("Checkpoint modified during hashing")
+                # A descriptor may still hash the old bytes when its named path
+                # has been replaced. Rebind the proof to the original pathname.
+                pathname_after = path.stat(follow_symlinks=False)
+                if (not stat.S_ISREG(pathname_after.st_mode) or
+                    identity(pathname_after) != identity(before)):
+                    raise PreflightError("Checkpoint pathname changed during hashing")
         finally:
             if fd != -1:
                 os.close(fd)
@@ -77,15 +102,23 @@ def audit_full_wan_model_bytes(*, mounted_share_root, trusted_private_manifest):
         raise PreflightError("Actual existing private model mount required")
     verified = 0
     total = 0
+    # Three sequential hashes can race with an earlier file/path replacement.
+    # Retain and recheck every root/ancestor/file identity after all reads.
+    protected_paths = {root: (_path_identity(root, directory=True), True)}
     for name in WAN_FILES:
         current = root
         for segment in PurePosixPath(name).parts[:-1]:
             current = current / segment
-            if current.is_symlink() or not current.is_dir():
-                raise PreflightError("Untrusted intermediate checkpoint directory")
+            if current not in protected_paths:
+                protected_paths[current] = (_path_identity(current, directory=True), True)
+        path = root.joinpath(*PurePosixPath(name).parts)
+        protected_paths[path] = (_path_identity(path, directory=False), False)
         size, digest, _source = EXPECTED[name]
-        total += _actual_full_sha(root.joinpath(*PurePosixPath(name).parts),size,digest)
+        total += _actual_full_sha(path, size, digest)
         verified += 1
+    for path, (original_identity, is_dir) in protected_paths.items():
+        if _path_identity(path, directory=is_dir) != original_identity:
+            raise PreflightError("Approved model path identity changed during full audit")
     return {
         "schema": "retailgrowth.feature5.wan22-full-weight-byte-audit.v1",
         "checkpoint_count": verified,
@@ -110,14 +143,10 @@ def main(argv=None):
     parser.add_argument("--mounted-share",required=True)
     parser.add_argument("--private-manifest",required=True)
     args=parser.parse_args(argv)
-    manifest_file=Path(args.private_manifest)
-    if (manifest_file.is_symlink() or not manifest_file.is_file() or
-        not 0 < manifest_file.stat().st_size <= 64*1024):
-        parser.error("Protected small approved source manifest required")
     try:
         proof=audit_full_wan_model_bytes(
             mounted_share_root=args.mounted_share,
-            trusted_private_manifest=json.loads(manifest_file.read_text(encoding="utf-8")))
+            trusted_private_manifest=read_private_manifest(args.private_manifest))
     except (PreflightError,ValueError,OSError,UnicodeError) as exc:
         parser.error("Wan real local checkpoint audit DENIED: "+str(exc))
     print(json.dumps(proof,sort_keys=True))

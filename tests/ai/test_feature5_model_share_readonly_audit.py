@@ -55,6 +55,46 @@ class ReadOnlyAuditTests(unittest.TestCase):
             a.audit_share(self.share)
         marker.download_file.assert_not_called()
 
+    def test_ambiguous_nonfinite_or_recursive_marker_denied_without_model_heads(self):
+        marker = self.share.get_file_client(a.MARKER)
+        original = json.loads(self.blob)
+        cases = (
+            self.blob.replace(b'"gpu_started": false',
+                              b'"gpu_started": true, "gpu_started": false', 1),
+            self.blob.replace(b'"size":', b'"size": 1, "size":', 1),
+            self.blob.replace(b'"total_bytes":', b'"extra": NaN, "total_bytes":', 1),
+            self.blob.replace(b'"total_bytes":', b'"extra": Infinity, "total_bytes":', 1),
+            b'[' * 2000 + b'0' + b']' * 2000,
+            b'null', b'[]',
+            b'{"gpu_started": false, "files": []} trailing',
+        )
+        for data in cases:
+            with self.subTest(prefix=data[:50]):
+                marker.get_file_properties.return_value.size = len(data)
+                marker.download_file.return_value.readall.return_value = data
+                for client in self.model_clients.values():
+                    client.get_file_properties.reset_mock()
+                with self.assertRaises(PreflightError):
+                    a.audit_share(self.share)
+                for client in self.model_clients.values():
+                    client.get_file_properties.assert_not_called()
+        self.assertEqual(original["total_bytes"], EXPECTED_BYTES)
+
+    def test_marker_replacement_and_oversized_sdk_payload_denied(self):
+        marker = self.share.get_file_client(a.MARKER)
+        baseline = SimpleNamespace(size=len(self.blob), etag='"generation-a"')
+        changed = SimpleNamespace(size=len(self.blob), etag='"generation-b"')
+        marker.get_file_properties.side_effect = [baseline, changed]
+        with self.assertRaisesRegex(PreflightError, "changed during"):
+            a.audit_share(self.share)
+        marker.get_file_properties.side_effect = None
+        marker.get_file_properties.return_value = baseline
+        marker.download_file.return_value.readall.return_value = self.blob + b"Z"
+        with self.assertRaisesRegex(PreflightError, "readback size"):
+            a.audit_share(self.share)
+        marker.download_file.assert_called_with(
+            offset=0, length=len(self.blob), max_concurrency=1)
+
     def test_wrong_tier_blocks(self):
         self.share.get_share_properties.return_value.access_tier = "Hot"
         with self.assertRaises(PreflightError):

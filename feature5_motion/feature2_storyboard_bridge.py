@@ -147,7 +147,13 @@ def qualify_feature2_offline_storyboard(packet):
         prompt = direction.get("generation_prompt")
         if type(prompt) is not str or len(prompt) < 180 or len(prompt) > 1600:
             _deny("original director prompt missing or rewritten")
-        digest = sha256(prompt.encode("utf-8")).hexdigest()
+        try:
+            # JSON accepts escaped lone UTF-16 surrogates, but a Wan prompt
+            # must be valid UTF-8. Deny malformed editorial text without
+            # leaking UnicodeEncodeError from the trust boundary.
+            digest = sha256(prompt.encode("utf-8")).hexdigest()
+        except UnicodeEncodeError as exc:
+            raise WanCompatibilityError("Invalid Unicode in original director prompt") from exc
         if (request.get("original_prompt_sha256") != digest
                 or item.get("immutable_motion_prompt_sha256") != digest):
             _deny("Feature2/F4/F5 original prompt SHA changed")
@@ -159,8 +165,10 @@ def qualify_feature2_offline_storyboard(packet):
                 row["start_seconds"] != i * 5 or
                 type(row.get("duration_seconds")) is not int or
                 row["duration_seconds"] != 5 for row in (request, item, cue))
-                or direction.get("shot_start_seconds") != i * 5
-                or direction.get("duration_seconds") != 5
+                or type(direction.get("shot_start_seconds")) is not int
+                or direction["shot_start_seconds"] != i * 5
+                or type(direction.get("duration_seconds")) is not int
+                or direction["duration_seconds"] != 5
                 or any(row.get("shot_id") != shot_id for row in (request, item, cue))
                 or any(row.get("scene_id") != scene_id for row in (request, item))):
             _deny("five-second scene boundaries drifted")
@@ -174,6 +182,13 @@ def qualify_feature2_offline_storyboard(packet):
                 or item.get("ready_to_render") is not False
                 or cue.get("real_speech_audio_verified") is not False):
             _deny("untrusted first frame, cost, speech or runtime authorization")
+        camera = direction.get("camera")
+        lighting = direction.get("lighting")
+        if (type(camera) is not dict
+                or set(camera) != {"framing", "lens", "composition", "movement"}
+                or any(type(v) is not str or not v.strip() for v in camera.values())
+                or type(lighting) is not str or not lighting.strip()):
+            _deny("malformed original director camera or lighting")
         if (item.get("camera") != direction.get("camera")
                 or item.get("lighting") != direction.get("lighting")
                 or item.get("garment_lock") != direction.get("garment_lock")):

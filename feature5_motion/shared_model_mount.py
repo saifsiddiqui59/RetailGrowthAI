@@ -9,6 +9,7 @@ import argparse
 import json
 import os
 import re
+import stat
 from pathlib import Path, PurePosixPath
 
 ACCOUNT = "rgaimodelseastus26"
@@ -33,6 +34,95 @@ HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
 class PreflightError(ValueError):
     pass
+
+
+MAX_PRIVATE_MANIFEST_BYTES = 64 * 1024
+
+
+def _reject_duplicate_manifest_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate private model manifest field")
+        result[key] = value
+    return result
+
+
+def _reject_linked_manifest_parents(item):
+    """Deny static symlinked parent paths before/after private manifest read.
+
+    This is a conservative path-policy check, not an atomic mount attestation.
+    An authorized runtime must separately verify its trusted mount namespace.
+    """
+    parent = item.parent
+    while True:
+        mode = parent.stat(follow_symlinks=False).st_mode
+        if not stat.S_ISDIR(mode):
+            raise PreflightError("Private manifest has a linked or non-directory parent")
+        if parent == parent.parent:
+            return
+        parent = parent.parent
+
+
+def read_private_manifest(path):
+    """Read a bounded PRIVATE manifest without following a swapped symlink.
+
+    The inode, link count, size and modification time must remain stable from
+    lstat through descriptor read. Fail closed if the OS cannot enforce
+    O_NOFOLLOW; do not interpret a manifest as independent rights approval.
+    """
+    item = Path(path)
+    try:
+        if not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_NONBLOCK"):
+            raise PreflightError("Secure nonblocking no-follow manifest open unavailable")
+        _reject_linked_manifest_parents(item)
+        before = item.stat(follow_symlinks=False)
+        if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or
+                not 0 < before.st_size <= MAX_PRIVATE_MANIFEST_BYTES):
+            raise PreflightError("Private manifest must be one bounded regular file")
+        flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+        fd = os.open(item, flags)
+        try:
+            opened = os.fstat(fd)
+            # ctime detects in-place rewrites followed by mtime restoration.
+            # This is only a race-reduction guard, not a trusted signature.
+            identity = lambda st: (st.st_dev, st.st_ino, st.st_size,
+                                   st.st_mtime_ns, st.st_ctime_ns, st.st_nlink)
+            if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1 or
+                    identity(opened) != identity(before)):
+                raise PreflightError("Private manifest changed before read")
+            data = bytearray()
+            while len(data) <= MAX_PRIVATE_MANIFEST_BYTES:
+                block = os.read(fd, min(16384, MAX_PRIVATE_MANIFEST_BYTES + 1 - len(data)))
+                if not block:
+                    break
+                data.extend(block)
+            after = os.fstat(fd)
+            if identity(after) != identity(opened):
+                raise PreflightError("Private manifest changed during read")
+            # A stable descriptor is not sufficient: the path may have been
+            # unlinked/replaced after open while the old inode remains readable.
+            # Deny a swapped path rather than validating stale provenance.
+            _reject_linked_manifest_parents(item)
+            path_after = item.stat(follow_symlinks=False)
+            if (not stat.S_ISREG(path_after.st_mode) or
+                    identity(path_after) != identity(after)):
+                raise PreflightError("Private manifest path changed during read")
+            if not 0 < len(data) <= MAX_PRIVATE_MANIFEST_BYTES:
+                raise PreflightError("Missing or oversized private model manifest")
+        finally:
+            os.close(fd)
+        manifest = json.loads(
+            data.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_manifest_keys,
+            parse_constant=lambda _: (_ for _ in ()).throw(
+                ValueError("Non-finite model manifest field")),
+        )
+        if type(manifest) is not dict:
+            raise ValueError("Private model manifest must be an object")
+    except (OSError, UnicodeError, ValueError, RecursionError) as exc:
+        raise PreflightError("Malformed or ambiguous private model manifest") from exc
+    return manifest
 
 
 def validate_manifest(obj):
@@ -76,9 +166,20 @@ def check_mounted_files(root):
     if not base.is_dir() or base.is_symlink():
         raise PreflightError("Private model root not mounted as a directory")
     for relative, (size, _, _) in EXPECTED.items():
-        file = base.joinpath(*PurePosixPath(relative).parts)
-        if file.is_symlink() or not file.is_file() or file.stat().st_size != size:
-            raise PreflightError("Missing, symlinked or wrong-sized model: " + relative)
+        segments = PurePosixPath(relative).parts
+        parent = base
+        for segment in segments[:-1]:
+            parent = parent / segment
+            # A symlinked intermediate directory can silently redirect a
+            # stat-only model gate outside the approved private mount.
+            if parent.is_symlink() or not parent.is_dir():
+                raise PreflightError("Linked or missing checkpoint directory: " + relative)
+        file = parent / segments[-1]
+        if file.is_symlink() or not file.is_file():
+            raise PreflightError("Missing or linked checkpoint file: " + relative)
+        stat = file.stat(follow_symlinks=False)
+        if stat.st_size != size or stat.st_nlink != 1:
+            raise PreflightError("Wrong-sized or hardlinked model: " + relative)
     return True
 
 
@@ -127,8 +228,8 @@ def main(argv=None):
     p.add_argument("--format", choices=["plan", "yaml"], default="plan")
     args = p.parse_args(argv)
     if args.manifest:
-        with open(args.manifest, encoding="utf8") as f:
-            print("Manifest revisions validated:", json.dumps(validate_manifest(json.load(f)), sort_keys=True))
+        print("Manifest revisions validated:", json.dumps(
+            validate_manifest(read_private_manifest(args.manifest)), sort_keys=True))
     if args.mounted_root:
         check_mounted_files(args.mounted_root)
         print("Six mounted model paths and byte counts pass STAT-only check (not SHA rehash)")

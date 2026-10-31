@@ -39,7 +39,8 @@ def qualify_export_bytes(raw: bytes, *, duration: int) -> dict:
         packet = json.loads(raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_keys,
                             parse_constant=lambda _: (_ for _ in ()).throw(
                                 ValueError("Non-finite JSON number")))
-    except (UnicodeDecodeError, ValueError, TypeError) as exc:
+    # JSON parser recursion errors are untrusted-input rejection, not a CLI crash.
+    except (UnicodeDecodeError, ValueError, TypeError, RecursionError) as exc:
         raise WanCompatibilityError("Invalid or ambiguous Feature2 source JSON") from exc
     if type(packet) is not dict or packet.get("duration_seconds") != duration:
         raise WanCompatibilityError("Feature2 duration differs from invocation")
