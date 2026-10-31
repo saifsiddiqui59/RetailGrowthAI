@@ -21,7 +21,14 @@
       "dependency_id": "F2#551",
       "owner": "Feature5",
       "required_output": "actual 15/30/60 Node exporter stdout",
-      "acceptance_criteria": "F5 runs all original durations and negative tamper tests"
+      "acceptance_criteria": "F5 runs all original durations and negative tamper tests",
+      "source_evidence": "2026-10-29 GPU-OFF JSON source boundary denies oversized, duplicate-key, nonfinite, non-UTF8, duration-tampered and over-deep input; new CLI negative test prevents parser exception/traceback. This is security source progress, NOT true Feature2 producer runtime.",
+      "remaining_acceptance": "Execute actual original 15/30/60 Node exporter from Feature2 PR #551 after coordinator-owned integration; verify exact-source stdout and independent tamper tests at exact-head 4/4 CI. Remain IN PROGRESS.",
+      "source_evidence_original_branch_runner_20261030": "Added a no-network, GPU-OFF standalone F5 runner requiring the exact original F2 #551 Git commit and clean tracked checkout; it can execute real 15/30/60 Node exporter stdout, consume via existing byte-level F5 verifier, and deny seven identity/approval tamper mutations. The F5 CI tests use synthetic subprocess doubles ONLY and do not assert real PR #551 Node executed; no actual original F2 branch checkout was available to the worker, no coordinator merge/hosted rights.",
+      "source_evidence_worktree_drift_gate_20261030": "Tightened original F2 #551 export probe to reject untracked files that might shadow CommonJS dependencies, and re-verify exact pinned Git commit, clean tracked/untracked worktree after each Node export and after all 15/30/60 checks. Mocked deterministic negative tests verify during-run file injection denied and five provenance checks per full probe. This remains source-only; actual original Node producer not executed here.",
+      "source_evidence_original_pr_ci_real_node_20261030": "New F5-owned CI test can fetch exact original F2 PR #551 commit in a temporary detached Git checkout and run original Node 15/30/60 second exporter through the existing byte validator and seven negative tamper checks. CI gate is Feature5 branch GitHub Actions only; a CI run is required before recording actual producer execution. Does not merge F2 or authorize paid inference/media.",
+      "source_evidence_nested_pr785_804_internal_integration_20261031": "Merged Feature5-only nested #804 at sha d92dbf74e2b6b47b02a9d45465643ceac40ae1b4 into #785, after #804 exact-head Actions #41048319693 4/4. Merged tested #785 into consolidated #781 at sha 418a3d3dda04524f863d5149074394aa65c3b67c, after #785 exact-head Actions #41133424267 4/4. Source now denies ambiguous bool/float five-second director timing, matched malformed camera/lighting and lone UTF-16 surrogate editorial prompt, preserving original valid 15/30/60 contracts without paid provider. New combined exact-head Actions #41134008739 still requires separate all-four verification. F2 original #551 source is not integrated main, so F5-02 remains IN PROGRESS.",
+      "source_evidence_repin_review_20261031": "On PR #781 head 45e2b5861990c16a3f6510d123dabe9ff951bd53 source hardening, exact-head Python failed 1/1230 in original F2 branch CI: upstream PR #551 head drifted f38bf815... to d80d6b50... while original exact SHA guard correctly denied the change. Reviewed GitHub comparison old..new (13 ahead, 0 behind): only docs/issue650/COORDINATOR_RUNTIME_MANIFEST.md, scripts/deploy/package.py, tests/infra/test_functions_runtime_manifest.py changed. Original ai-agents/creative-director/export-feature4-feature5-fixture.js fetched at both refs was byte-for-byte identical (7200 chars). Advanced PINNED_F2_HEAD to d80d6b50705323290c4b214bf2f006eacef1ef33 without modifying Node producer or weakening clean-checkout/tamper checks. Fresh exact-head CI must actually run 15/30/60 original Node at this exact SHA; Feature2 still draft/unmerged, F5-02 remains IN PROGRESS."
     },
     {
       "task": 3,
@@ -53,7 +60,8 @@
       "dependency_id": "Part3#125-NATIVE",
       "owner": "Part3",
       "required_output": "separate Wan2.2 provider 704x1280/24fps/121f",
-      "acceptance_criteria": "Legacy Wan2.7 profile denied"
+      "acceptance_criteria": "Legacy Wan2.7 profile denied",
+      "part3_real_source_gap_verified_20261030": "Read original Part3 PR #125 source at 3d985127e495d839e3e1f657080cbd8885561e6e: `ai-agents/src/ai_agents/premium_video.py` and `premium_video_jobs.py` expose only Wan2.7 720P/1080P provider identities, and proposed Part3 reservation SQL whitelist accepts only Wan2.7 IDs and 720P/1080P. F5 strict native-claim gate requires separate Wan2.2 704x1280/24fps/121 frames/5s claim, credit/lease/rights. Part3 draft PR #125 is merge-conflicted against main (`mergeable_state=dirty`). No F5 source-alone path can upgrade hosted claims. Coordinator Part3 owner must reconcile."
     },
     {
       "task": 7,
@@ -61,7 +69,8 @@
       "dependency_id": "Part3-JWT",
       "owner": "Part3",
       "required_output": "hosted signed same-shop role checks",
-      "acceptance_criteria": "OWNER/EDITOR allowed; viewer, foreign and revoked denied"
+      "acceptance_criteria": "OWNER/EDITOR allowed; viewer, foreign and revoked denied",
+      "part3_real_source_gap_verified_20261030": "Read original Part3 PR #125 source at 3d985127e495d839e3e1f657080cbd8885561e6e: `ai-agents/src/ai_agents/premium_video.py` and `premium_video_jobs.py` expose only Wan2.7 720P/1080P provider identities, and proposed Part3 reservation SQL whitelist accepts only Wan2.7 IDs and 720P/1080P. F5 strict native-claim gate requires separate Wan2.2 704x1280/24fps/121 frames/5s claim, credit/lease/rights. Part3 draft PR #125 is merge-conflicted against main (`mergeable_state=dirty`). No F5 source-alone path can upgrade hosted claims. Coordinator Part3 owner must reconcile."
     },
     {
       "task": 8,
@@ -69,7 +78,8 @@
       "dependency_id": "Part3-CREDIT",
       "owner": "Part3",
       "required_output": "active bounded credit reservation",
-      "acceptance_criteria": "Server verifies cost reservation against current leased job"
+      "acceptance_criteria": "Server verifies cost reservation against current leased job",
+      "part3_real_source_gap_verified_20261030": "Read original Part3 PR #125 source at 3d985127e495d839e3e1f657080cbd8885561e6e: `ai-agents/src/ai_agents/premium_video.py` and `premium_video_jobs.py` expose only Wan2.7 720P/1080P provider identities, and proposed Part3 reservation SQL whitelist accepts only Wan2.7 IDs and 720P/1080P. F5 strict native-claim gate requires separate Wan2.2 704x1280/24fps/121 frames/5s claim, credit/lease/rights. Part3 draft PR #125 is merge-conflicted against main (`mergeable_state=dirty`). No F5 source-alone path can upgrade hosted claims. Coordinator Part3 owner must reconcile."
     },
     {
       "task": 9,
@@ -77,7 +87,8 @@
       "dependency_id": "Part3-LEASE",
       "owner": "Part3",
       "required_output": "durable single-use claimed attempt",
-      "acceptance_criteria": "Two workers cannot both post paid prompt"
+      "acceptance_criteria": "Two workers cannot both post paid prompt",
+      "part3_real_source_gap_verified_20261030": "Read original Part3 PR #125 source at 3d985127e495d839e3e1f657080cbd8885561e6e: `ai-agents/src/ai_agents/premium_video.py` and `premium_video_jobs.py` expose only Wan2.7 720P/1080P provider identities, and proposed Part3 reservation SQL whitelist accepts only Wan2.7 IDs and 720P/1080P. F5 strict native-claim gate requires separate Wan2.2 704x1280/24fps/121 frames/5s claim, credit/lease/rights. Part3 draft PR #125 is merge-conflicted against main (`mergeable_state=dirty`). No F5 source-alone path can upgrade hosted claims. Coordinator Part3 owner must reconcile."
     },
     {
       "task": 10,
@@ -85,7 +96,8 @@
       "dependency_id": "Part3-UNKNOWN",
       "owner": "Part3",
       "required_output": "persisted ambiguous submission recovery",
-      "acceptance_criteria": "No auto-retry or automatic refund"
+      "acceptance_criteria": "No auto-retry or automatic refund",
+      "part3_real_source_gap_verified_20261030": "Read original Part3 PR #125 source at 3d985127e495d839e3e1f657080cbd8885561e6e: `ai-agents/src/ai_agents/premium_video.py` and `premium_video_jobs.py` expose only Wan2.7 720P/1080P provider identities, and proposed Part3 reservation SQL whitelist accepts only Wan2.7 IDs and 720P/1080P. F5 strict native-claim gate requires separate Wan2.2 704x1280/24fps/121 frames/5s claim, credit/lease/rights. Part3 draft PR #125 is merge-conflicted against main (`mergeable_state=dirty`). No F5 source-alone path can upgrade hosted claims. Coordinator Part3 owner must reconcile."
     },
     {
       "task": 11,
@@ -93,7 +105,8 @@
       "dependency_id": "Part3-STORAGE",
       "owner": "Part3",
       "required_output": "private clip upload and actual object readback",
-      "acceptance_criteria": "Real bytes SHA and atomic job/credit settlement"
+      "acceptance_criteria": "Real bytes SHA and atomic job/credit settlement",
+      "part3_real_source_gap_verified_20261030": "Read original Part3 PR #125 source at 3d985127e495d839e3e1f657080cbd8885561e6e: `ai-agents/src/ai_agents/premium_video.py` and `premium_video_jobs.py` expose only Wan2.7 720P/1080P provider identities, and proposed Part3 reservation SQL whitelist accepts only Wan2.7 IDs and 720P/1080P. F5 strict native-claim gate requires separate Wan2.2 704x1280/24fps/121 frames/5s claim, credit/lease/rights. Part3 draft PR #125 is merge-conflicted against main (`mergeable_state=dirty`). No F5 source-alone path can upgrade hosted claims. Coordinator Part3 owner must reconcile."
     },
     {
       "task": 12,
@@ -101,7 +114,8 @@
       "dependency_id": "Part3-SECURITY",
       "owner": "Part3",
       "required_output": "signed private download and RLS tests",
-      "acceptance_criteria": "Two tenant role isolation and rights revocation live"
+      "acceptance_criteria": "Two tenant role isolation and rights revocation live",
+      "part3_real_source_gap_verified_20261030": "Read original Part3 PR #125 source at 3d985127e495d839e3e1f657080cbd8885561e6e: `ai-agents/src/ai_agents/premium_video.py` and `premium_video_jobs.py` expose only Wan2.7 720P/1080P provider identities, and proposed Part3 reservation SQL whitelist accepts only Wan2.7 IDs and 720P/1080P. F5 strict native-claim gate requires separate Wan2.2 704x1280/24fps/121 frames/5s claim, credit/lease/rights. Part3 draft PR #125 is merge-conflicted against main (`mergeable_state=dirty`). No F5 source-alone path can upgrade hosted claims. Coordinator Part3 owner must reconcile."
     },
     {
       "task": 13,
@@ -109,7 +123,14 @@
       "dependency_id": "F5-OCI",
       "owner": "Feature5/Runtime",
       "required_output": "reviewed CUDA base/wheels licence + immutable OCI",
-      "acceptance_criteria": "Build digest, ABI, legal and SBOM verified"
+      "acceptance_criteria": "Build digest, ABI, legal and SBOM verified",
+      "source_evidence_20261030": "OCI/source and wheel security hardening #688/#694/#698; each separate exact-head 4/4 CI pass. Genuine immutable CUDA image, legal distribution, ABI/SBOM remain unverified.",
+      "no_production_authority": true,
+      "source_evidence_batch2_20261030": "Hardens actual local safetensors header parser: duplicate-key/nonfinite/deep JSON rejection, tensor offset and shape validation, symlink/hardlink refusal; synthetic CPU negative tests. Not original weight full SHA, actual OCI or legal approval.",
+      "source_evidence_parent_20261030": "Latest F5 parent #465 OCI reader #41040856412 4/4 exact-head: descriptor identity, symlink/hardlink refusal, read stability; #781 reconciliation preserves duplicate-key/nonfinite/deep JSON denial. Still no real independently approved OCI, CUDA ABI/SBOM/licenses.",
+      "source_evidence_manifest_stable_path_reconciled_20261031": "Reconciled original F5-13 draft #786 against current combined Feature5 batch #781 after REST merge refused conflicting stale source. _private_review_json now requires OS O_NOFOLLOW/O_NONBLOCK, stable descriptor and original pathname dev/inode/mode/nlink/size/mtime_ns/ctime_ns before/after bounded JSON read; denies same-byte path substitution and restored-mtime rewrite; two CPU negative unittest methods added (symlink/hardlink/path-swap/ctime drift). This integrates audited source changes into the existing batch, not the original PR merge. Does not verify independently approved real CUDA image digest, SBOM/legal/ABI/rights, or GPU. Source tests and fresh combined exact-head CI still required.",
+      "source_evidence_nested_pr786_conflict_resolution_20261031": "Reconciled stale #786 PR after GitHub 405 conflict by applying reviewed source checks directly in batch #781, commit 9a1e41c34d04571beebbb6bd543c420a2833092e. Manifest requires no-follow/nonblock, stable fd and original pathname inode/dev/mode/size/mtime/ctime, with hardlink/symlink, path-swap and ctime negative tests. Combined source retained after merging #785 at sha 418a3d3dda04524f863d5149074394aa65c3b67c. Independent #786 4/4 Actions #41026927515 passed, but new batch exact head #41134008739 acceptance outstanding. Real independently approved OCI CUDA digest/SBOM/legal not available; F5-13 remains IN PROGRESS.",
+      "source_evidence_vendor_source_path_identity_20261031": "Reconciled F5-13 hardlink and TOCTOU source-audit protection from independently green old drafts #755/#772 into current consolidated PR #781. Each reviewed vendored ComfyUI file now requires OS no-follow/nonblock opened regular single-link descriptor, stable inode/device/mode/size/mtime_ns/ctime_ns before/after complete SHA256 stream, unchanged original pathname after read; rechecks all files and all intermediate directories after complete sequential tree walk. Four synthetic no-GPU tests cover external hardlinks, same-byte replaced path after a first successful hash, same-size edit after hash, and symlink swap before open. Full current exact-head four-job CI and coordinator review needed; actual independently approved Comfy source inventory/CUDA OCI digest/license/SBOM/ABI still unavailable. F5-13 is IN PROGRESS, not DONE."
     },
     {
       "task": 14,
@@ -117,7 +138,11 @@
       "dependency_id": "F5-WEIGHTS",
       "owner": "Feature5/Runtime",
       "required_output": "read-only mounted actual Wan checkpoint files",
-      "acceptance_criteria": "Stream full original 3 files, exact SHA/size"
+      "acceptance_criteria": "Stream full original 3 files, exact SHA/size",
+      "source_evidence_20261030": "Private mounted weight-manifest byte-input hardening #691, exact-head 4/4 CI pass. Actual protected original 3 checkpoint full streamed SHA not executed.",
+      "no_production_authority": true,
+      "source_evidence_batch2_20261030": "Hardens existing private shared Azure Files stat-only check: each intermediate path must be real non-symlink directory, model must be single-link correct-size file; fake tiny local test cases. No real mounted 18GiB original checkpoint readback.",
+      "source_evidence_remote_and_private_manifest_20261030": "GPU-off F5-14 original read-only Azure Files completion marker: exact bounded download, duplicate/nested/nonfinite/deep JSON rejection, marker size and optional ETag/last-modified drift check before six model HEAD metadata inspections. Local private manifest: no-follow fd regular single-link read with pre/post identity, size and mtime verification plus path replacement denial. Synthetic CPU negative tests; no existing private Azure share contacted or real 18GB checkpoint SHA streamed; not licensing/hosted provenance approval."
     },
     {
       "task": 15,
@@ -141,7 +166,16 @@
       "dependency_id": "F5-REAL-WAN",
       "owner": "Feature5",
       "required_output": "genuine 5s model-rendered native MP4",
-      "acceptance_criteria": "704x1280,24fps,121f and original model provenance"
+      "acceptance_criteria": "704x1280,24fps,121f and original model provenance",
+      "source_evidence_20261030": "Native MP4 local ffprobe + SHA change-detection boundary hardened #702, exact-head 4/4 CI pass. No real licensed Wan2.2 motion or human garment acceptance.",
+      "no_production_authority": true,
+      "source_evidence_batch2_20261030": "Hardens native ffprobe acceptance with strict decimal ASCII frame/duration types, deep JSON parser denial and type-coercion negative tests; hardens five-stage RGB screening with byte identity recheck after FFmpeg and fake-clip tamper tests. Not real inference or human fashion approval.",
+      "source_evidence_private_intake_20261030": "Added CPU-only output intake source guard to deny foreign-owned private 0700 root/subdirectory/MP4 on POSIX workers, and dedicated synthetic filesystem tests for exactly-one Comfy SaveVideo result, extra results, symlink, hardlink, wrong permissions, revocation after media screening, byte-swaps, receipt SHA and immutable pending-not-publish state. New exact-head CI and coordinator integration required; no real Wan inference performed.",
+      "source_evidence_real_cpu_mp4_roundtrip_20261030": "A new separate CPU-only real-media integration test runs original synthetic moving testsrc2 and static color 704x1280/24fps/121f H.264 and a true audio-stowaway MP4 through the actual F5 private Comfy-style intake, system ffprobe, five real FFmpeg frame extractions, frame hash, two independent fenced test scope reads and tamper-evident pending receipt. Dynamic video is objectively nonstatic but never AI-proven or approved for F4; frozen video and a second AAC stream are rejected. Test source prepared; exact-head CI pending. F5-17 still blocked actual licensed Wan2.2 output and human QA.",
+      "source_evidence_fail_on_skip_runner_20261030": "Implemented self-contained feature-owned `python3 -m feature5_motion.ci_native_media` that fails unless real ffmpeg, ffprobe, Pillow are installed and all three original CPU MP4 full private-intake tests execute with 0 skips, 0 unexpected/expected failures and exactly three expected tests. Four offline unit tests ensure fail-on-skip/absent-tool semantics. The coordinator must invoke runner from existing ffmpeg CI job, which owns workflow files; this source alone does not prove full private intake executed. Local stand-alone ffmpeg verified 121f native moving, frozen, and audio-stowaway signals.",
+      "source_evidence_flash_only_motion_denial_20261030": "Addressed verified F5-17 false-positive: former max adjacent-frame luma threshold classified a synthetic 121-frame mostly-frozen clip with one brief white flash as nonstatic. Source now requires >=3 of 4 active sampled intervals before human-review-pending status, never approvals. Added 2 mocked decoder regression tests incl 3 flash/freeze patterns and one 3-active positive, and 4th true FFmpeg native CPU private-intake test for a single-flash source. Independent local system FFmpeg ffprobe verified H264 704x1280/24fps/121 frames/5.041667s, flash sample luma [0,239,239,0], 2 active. Full imported Feature5 media test still awaiting coordinator to execute 4/4 in existing FFmpeg CI runner; source only and real licensed Wan blocker remains.",
+      "source_evidence_existing_ffmpeg_ci_discovery_bridge_20261030": "Added one isolated cross-workstream media test bridge `tests/media/test_feature5_native_media_ci_bridge.py` discovered by existing video-engine/ci.sh. The bridge delegates to strict F5 `ci_native_media.run_cpu_media_suite`, which requires real system FFmpeg/ffprobe and Pillow and exactly four full native private-intake tests with zero skips. No video-engine or global workflow files changed, but `tests/media` is owned by another workstream so coordinator must review the new bridge before merge. Source is not full execution evidence until exact-head video job logs explicitly show 4/4 real tests. F5-17 remains blocked on real Wan output and signed human QA.",
+      "source_evidence_existing_ffmpeg_real_execution_20261030": "At Feature5 PR #781 exact head 8783fc172d3b58be9070b5593071dcf60dfb9650, Github Actions run #41115123091 FFmpeg job #124267216516 executed new cross-workstream tests/media bridge. Logs explicitly show 4 individual real native 704x1280 H264 CPU acceptance tests ... ok (moving private intake, static denial, flash-only denial, extra AAC stream denial), Ran 4 tests in 4.267s, and 'Feature5 native media CI gate PASS: 4/4 real ffmpeg/ffprobe private-intake tests, 0 skipped'. This is verified CPU test source, NOT real Wan model inference, licensed media, Part3 actual rights/lease or signed human QA. Standard 4-job exact-head conclusion still pending at this checkpoint, and media-path cross-owner code review/parent integration remains outstanding."
     },
     {
       "task": 18,

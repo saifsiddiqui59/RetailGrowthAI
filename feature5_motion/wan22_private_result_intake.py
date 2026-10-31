@@ -33,6 +33,10 @@ def _owned_regular(path):
         raise WanCompatibilityError("Only private regular Comfy files are accepted")
     if info.st_nlink != 1 or info.st_mode & 0o077:
         raise WanCompatibilityError("Hardlinked or broadly readable Comfy output forbidden")
+    # Production workers use Linux private 0700 per-attempt directories. A
+    # privileged worker must not silently accept another OS user's files.
+    if hasattr(os, "geteuid") and info.st_uid != os.geteuid():
+        raise WanCompatibilityError("Foreign-owned Comfy output forbidden")
     return info
 
 
@@ -50,6 +54,8 @@ def find_single_private_wan_mp4(*, shot, private_output_root):
     root=Path(private_output_root)
     if root.is_symlink() or not root.is_dir() or root.stat().st_mode & 0o077:
         raise WanCompatibilityError("Private Comfy attempt output must be an isolated 0700 directory")
+    if hasattr(os, "geteuid") and root.stat().st_uid != os.geteuid():
+        raise WanCompatibilityError("Foreign-owned private attempt directory")
     try:
         prefix=shot.graph["prompt"]["12"]["inputs"]["filename_prefix"]
     except (TypeError,KeyError) as exc:
@@ -65,6 +71,8 @@ def find_single_private_wan_mp4(*, shot, private_output_root):
         raise WanCompatibilityError("Expected Comfy output subdirectory missing or linked")
     if expected_dir.stat().st_mode & 0o077:
         raise WanCompatibilityError("Comfy private output subdirectory must be 0700")
+    if hasattr(os, "geteuid") and expected_dir.stat().st_uid != os.geteuid():
+        raise WanCompatibilityError("Foreign-owned private Comfy output directory")
     # Parent tree is dedicated per attempt. Unexpected directories/files mean
     # the output might have been mixed with other clients' data.
     entries=0
