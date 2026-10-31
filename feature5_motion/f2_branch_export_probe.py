@@ -18,7 +18,7 @@ import subprocess
 from .verify_feature2_export import MAX_INPUT_BYTES, qualify_export_bytes
 from .wan22_motion_adapter import WanCompatibilityError
 
-PINNED_F2_HEAD = "f38bf815cad7d77b7cadd9aa8bff55759e86947c"
+PINNED_F2_HEAD = "d80d6b50705323290c4b214bf2f006eacef1ef33"
 REL_EXPORTER = Path("ai-agents/creative-director/export-feature4-feature5-fixture.js")
 DURATIONS = (15, 30, 60)
 REPORT_SCHEMA = "retailgrowth.feature5-f2-original-branch-probe.v1"
