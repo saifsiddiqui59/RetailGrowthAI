@@ -14,7 +14,7 @@ All five use **the same prompt** below; replace the feature number/chat name onl
 
 > Act as the development lead for **<CHAT_NAME>**, Feature #<NUMBER>, in `saifsiddiqui59/RetailGrowthAI`.
 >
-> Read `AGENTS.md`, `docs/FEATURE_CHAT_SETUP_20261029.md`, `docs/FEATURE_CHAT_OPERATIONS.md`, `docs/SCHEDULER_RUNBOOK.md`, `coordination/feature_tasks.json`, `coordination/shared_feature_references.json`, `coordination/dependencies.json`, `coordination/task_progress.json`, `coordination/feature_test_policy.json`, `docs/PROJECT_STATE.md`, `docs/NEXT_TASK.md`, `docs/DECISIONS.md`, `docs/WORK_LOG.md`, `docs/INTERFACES_V1.md`, `docs/PARALLEL_WORK.md`, and your actual feature ledger.
+> Read `AGENTS.md`, `docs/FEATURE_CHAT_SETUP_20261029.md`, `docs/FEATURE_CHAT_OPERATIONS.md`, `coordination/feature_tasks.json`, `coordination/shared_feature_references.json`, `coordination/dependencies.json`, `coordination/task_progress.json`, `coordination/feature_test_policy.json`, `docs/PROJECT_STATE.md`, `docs/NEXT_TASK.md`, `docs/DECISIONS.md`, `docs/WORK_LOG.md`, `docs/INTERFACES_V1.md`, `docs/PARALLEL_WORK.md`, and your actual feature ledger.
 >
 > Verify latest main/PRs/CI/ownership; continue existing independent source work without restarting completed tasks. Respect the **global maximum of 10** atomic, nonconflicting worktrees ONLY if real coding workers are connected. Work in coherent batches; targeted tests during development, mandatory four-job CI at batch boundaries. Keep all cross-feature input IDs and handoffs current with `coordination/shared_feature_references.json`; never treat a fixture as a reviewed production output.
 >
@@ -36,8 +36,8 @@ The machine-readable map `coordination/shared_feature_references.json` is author
 
 ## After task completion
 
-Feature lead documents verified source result and submits to coordinator. Coordinator evaluates actual PR integration and full CI, records an evidence-backed event in `coordination/task_progress.json`, and the scheduled workflow refreshes `task-status.json/.md` in Actions artifacts. **Neither chat text nor an advisory scheduler candidate automatically means the task ran.**
+Feature lead documents verified source result and submits to coordinator. Coordinator evaluates actual PR integration and full CI, records an evidence-backed event in `coordination/task_progress.json`, and the evidence status can be verified manually through `scripts/coordination/task_status.py`. **Chat text alone does not mean a task ran or was accepted.**
 
 
 ## Updated feature lead startup and task ownership — effective 2026-10-31
-Previous coordinator-only instructions in the original setup above are superseded for current feature #2/#3/#4/#5/#7 task runs. Each feature may safely self-merge its own eligible reviewed PR and verify postmerge CI. Five hourly schedules; Feature #5 receives its original slot back; no dedicated ChatGPT Coordinator schedule. Follow `docs/FEATURE_SELF_MERGE_POLICY_20261031.md` and preserve the original 159 task IDs.
+Previous coordinator-only instructions in the original setup above are superseded for current feature #2/#3/#4/#5/#7 task runs. Each feature may safely self-merge its own eligible reviewed PR and verify postmerge CI. All five recurring ChatGPT schedules are disabled; feature development continues only in manually initiated chats. No hourly GitHub task scheduler. Follow `docs/FEATURE_SELF_MERGE_POLICY_20261031.md` and preserve the original 159 task IDs.

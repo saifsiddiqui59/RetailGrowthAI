@@ -11,17 +11,17 @@ Handoff levels are deliberately distinct:
 
 GitHub merged PRs are checked against actual GitHub PR metadata, not by reading README claims. A `manual` completion gate remains pending until a reviewer adds `approved_by` and `evidence_url` with `approved=true` in a reviewed coordinator PR. Failure to query GitHub fails closed. PR #465 targets a stacked feature branch: merging that PR alone **does not** prove the source reached `main`; the acceptance criterion requires coordinator follow-up.
 
-## Automated workflow
+## On-demand / CI-triggered reporting
 
 `.github/workflows/retailgrowthai-dependency-coordinator.yml`:
 1. On PR change, runs **read-only** DAG and mock-GitHub negative tests.
-2. On hourly schedule, manual dispatch or relevant `main` push, resolves live GitHub PR evidence and builds JSON/Markdown reports.
-3. **Only on trusted main**, creates up to three GitHub Issues per run for currently READY, task-kind nodes not previously queued. Existing issues are detected by an immutable body marker, including closed ones. The workflow does **not** reopen or overwrite them.
+2. On manual dispatch or relevant completed `main` CI / push, resolves live GitHub PR evidence and builds JSON/Markdown reports; there is no hourly schedule.
+3. Reports READY handoffs without automatically selecting, claiming or creating task Issues. All feature task selection is manual.
 4. Leaves other work pending and records exact prerequisites without stopping ready tasks.
 
-The job uses `contents:read`, `issues:write` for the trusted coordinator job only. No cloud credentials, service secrets, bypassed approvals or agent executor. The scheduler *queues assignments*; it **does not autonomously write code**, call a paid coding model, merge PRs, modify WineShopPOS, run GPU, change DEV/PROD or consume Azure queues. A human or separately configured approved coding-agent executor must pick up ready issues.
+The reporting job uses read-only repository permission, no cloud credentials, no paid agent executor and no automatic task claims, issue dispatch or PR merges. Work is selected in user-initiated feature chats. It never modifies WineShopPOS or starts GPU/cloud deployments.
 
-The workflow can be invoked manually from Actions after the PR is reviewed and merged. The hourly schedule is subject to GitHub schedule delays and repository policy; it is not a realtime daemon.
+The workflow can also be invoked manually from Actions after relevant reviewed changes merge.
 
 ## Local / CI usage
 
@@ -31,7 +31,7 @@ python -m pytest -q tests/contracts/test_dependency_coordinator.py
 GITHUB_TOKEN=... python scripts/coordination/resolve_dependencies.py --report-dir coordination-reports
 ```
 
-Only the protected GitHub Actions job should use `--sync-issues`; it writes issues, not application state. Results in `coordination-reports/status.json` distinguish `done`, `ready`, `in_progress`, `blocked`, `approval_required`, and `stalled`.
+`--sync-issues` is not invoked by the reporting workflow and must not be used as an automatic coding dispatcher. Results in `coordination-reports/status.json` distinguish `done`, `ready`, `in_progress`, `blocked`, `approval_required`, and `stalled`.
 
 ## Adding the full work backlog
 
@@ -47,12 +47,9 @@ The coordinator must map each of Feature #2's 38 assigned task IDs (and other fe
 
 ## 2026-10-29 — Import of ALL active numbered feature work
 - `coordination/feature_tasks.json` is the full **159-row feature-task inventory**, distinct from the original 16 typed **handoff dependency nodes** in `coordination/dependencies.json`: #2 38, #3 33, #4 31, #5 22, #7 35; #1 source is closed. All rows pin exact owner source/ref SHA and original task ID/acceptance. F5's external dependency strings are kept, not converted into fabricated integration proof. F7 narrative addenda included.
-- The existing ready-Issue dispatcher remains scoped to typed handoff tasks; feature-owned PR #551/#322/#465/#513 are not duplicated. `status.json` now includes `feature_inventory` summary, and Markdown report includes per-feature counts. Source-ready state is not integrated DONE; no automatic new agent execution.
-- Operating guidelines and new-chat starter: `docs/FEATURE_CHAT_OPERATIONS.md` and `coordination/execution_policy.json`. The workflow rechecks dependency status after **successful main CI**, plus the hourly scheduled backup. Maximum 10 worktrees and two silent transient retries only take effect once a permitted executor actually implements them.
-
-## Two-pass scheduled candidate planner (2026-10-29)
-The coordinator runs `scripts/coordination/task_scheduler.py` after live GitHub dependency evaluation and includes `scheduler-plan.json` and `scheduler-plan.md` in its existing workflow report. Maximum **10 candidates**, distinct proposed task/attempt branch names, **first pass 1+2 fix attempts**, defer recoverable failures until the eligible list is exhausted, **second pass 2 further fix attempts**, then park terminal. Worker receipts must be real and reviewed; currently `coordination/scheduler_events.json` is empty. No executor, claims, worktrees, actual repairs or charged AI calls are started by Actions. Full operating details: `docs/SCHEDULER_RUNBOOK.md`.
+- The historical ready-Issue dispatcher is no longer invoked automatically; feature-owned PR #551/#322/#465/#513 are not duplicated. `status.json` now includes `feature_inventory` summary, and Markdown report includes per-feature counts. Source-ready state is not integrated DONE; no automatic new agent execution.
+- Operating guidelines and new-chat starter: `docs/FEATURE_CHAT_OPERATIONS.md` and `coordination/execution_policy.json`. The workflow rechecks dependency status after **successful main CI** or manual dispatch, with no hourly backup. Maximum 10 worktrees and two silent transient retries only take effect once a permitted executor actually implements them.
 
 ## Cross-feature map, DEV test credentials and task progress (2026-10-29)
 The consolidated `coordination/shared_feature_references.json` maps all five exact feature-chat names, 8 producer/consumer reference edges, established handoff dependency IDs and coordinator-owned #650/#249 gates. `coordination/feature_test_policy.json` forbids sample creation during owner absence, paid GPU/models/PROD and stored approval credentials. For DEV testing read `docs/DEV_TEST_LOGIN_PLAYWRIGHT.md`; two test accounts are **NOT provisioned yet**, and must be created with supported Auth Admin access, not auth.users SQL.
-After reviewed PR integration, task status uses `coordination/task_progress.json` and `scripts/coordination/task_status.py` with GitHub 4-job CI verification. Reports automatically update on trusted workflow/schedule; the 159 source snapshots are still not a claim of 159 completed tasks. Scheduler candidates still do NOT constitute an AI executor.
+After reviewed PR integration, task status uses `coordination/task_progress.json` and `scripts/coordination/task_status.py` with GitHub 4-job CI verification. Reports may update on trusted main-CI events or manual dispatch; no schedule or candidate planner remains. The 159 source snapshots are still not a claim of 159 completed tasks.
