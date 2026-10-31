@@ -28,7 +28,8 @@ def report(registry, progress, verified_done_ids=()):
         source = sum(t.get("source_status") in ("source_complete", "source_integrated") for t in owned)
         tested = sum("tested" in verified.get(t["id"], ()) for t in owned)
         pr_ready = sum("PR-ready" in verified.get(t["id"], ()) for t in owned)
-        # Imported inventory is immutable; only the GitHub-verified task_status resolver can mark DONE.\n        integrated = sum(t["id"] in verified_done_ids for t in owned)
+        # Imported inventory is immutable; only the GitHub-verified task_status resolver can mark DONE.
+        integrated = sum(t["id"] in verified_done_ids for t in owned)
         blocked = sum(t.get("source_status") == "blocked" for t in owned)
         result.append((feature, len(owned), source, tested, pr_ready, integrated, blocked))
     return result
