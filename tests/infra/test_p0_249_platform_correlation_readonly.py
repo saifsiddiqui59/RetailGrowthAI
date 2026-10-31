@@ -244,6 +244,35 @@ def test_historical_platform_diagnostic_preserves_rows_31_to_80():
     assert "Message" not in sanitized[79]
 
 
+
+def test_malformed_telemetry_cells_retain_valid_aggregate_evidence():
+    # Lists/dicts are unhashable; previously one bad category poisoned all
+    # rows in the Azure Kusto query and made the outcome UNAVAILABLE.
+    stamp = "2026-10-28T19:40:00.0000000Z"
+    raw = [
+        {"bucket": stamp, "events": 2, "category": ["secret", "worker_exit"],
+         "instance": "\\ud800", "Message": "private JWT never print"},
+        {"bucket": stamp, "events": 3, "category": {"token": "secret"},
+         "instance": "legitimate-host", "ResponseBody": "private URL"},
+        {"bucket": stamp, "events": 1, "category": "worker_exit",
+         "instance": "legitimate-host"},
+    ]
+    # An isolated invalid optional cell cannot suppress valid count/bucket
+    # evidence, and a malformed Unicode host must not leak or be hashed.
+    result = module.safe_rows(raw)
+    assert [row["events"] for row in result] == [2, 3, 1]
+    assert all(row["bucket"] == stamp for row in result)
+    assert "category" not in result[0] and "host_hash" not in result[0]
+    assert "category" not in result[1]
+    assert result[2]["category"] == "worker_exit"
+    assert result[1]["host_hash"] == result[2]["host_hash"]
+    assert "legitimate-host" not in repr(result)
+    assert "private JWT" not in repr(result)
+    assert "private URL" not in repr(result)
+    assert "secret" not in repr(result)
+
+
+
 def test_historical_decoder_rejects_bad_shapes_and_untrusted_columns():
     assert module.platform_aggregate_rows(None) == []
     assert module.platform_aggregate_rows({"tables": "not a list"}) == []
