@@ -1351,3 +1351,6 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 ## 2026-10-31 — Five feature-owned integration leads (governance proposal) — effective 2026-10-31
 Verify governance PR and exact-head four-job CI, merge reviewed changes, check fresh main 4/4. Restore Feature5 hourly automation and update #2/#3/#4/#7 prompts to self-merge eligible feature-owned PRs. Keep each original task ID and checkpoint, resolve stacked parent integration before child PR, record actual status only after acceptance, and block sensitive shared changes pending independent approval.
 Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert a new feature DONE or live production readiness.
+
+## 2026-10-31 — After scheduler policy-key cleanup
+- Review PR diff for removal of only the two requested legacy JSON keys and their hard-coded validator expectation; verify `tests/contracts/test_task_scheduler.py` and four mandatory exact-head CI jobs before any approved integration. Recheck fresh postmerge main 4/4. Keep the working local OpenClaw browser controller separate from GitHub Actions reports and do not claim unattended code execution until it is observed with audited commits/tests and approved task ownership. No Codex; no GPU/paid provider/PROD/WineShopPOS.

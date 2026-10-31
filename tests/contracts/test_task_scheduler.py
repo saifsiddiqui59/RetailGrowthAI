@@ -35,6 +35,17 @@ def pass_result(task_id,attempt=1):
             "evidence_url":f"https://github.com/example/actions/runs/{attempt}"}
 
 
+def test_removed_legacy_flags_keep_atomic_claim_enforced():
+    scheduler = POLICY["scheduler"]
+    assert "no_auto_coding_without_executor" not in scheduler
+    assert "github_actions_polls_and_writes_report_only" not in scheduler
+    s.validate_config(POLICY)
+    without_claim = copy.deepcopy(POLICY)
+    without_claim["scheduler"]["require_atomic_claim_before_execution"] = False
+    with pytest.raises(s.SchedulerError, match="Unsafe or inconsistent"):
+        s.validate_config(without_claim)
+
+
 def test_no_executor_and_maximum_ten_unique_slots():
     out=s.plan(fake(13),POLICY,{"schema_version":1,"events":[]})
     assert len(out["candidates"])==10
