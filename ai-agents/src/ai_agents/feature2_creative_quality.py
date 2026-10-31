@@ -596,7 +596,7 @@ import hashlib
 import json
 import re
 
-_CLAIM_PERCENT = re.compile(r"(?<!\d)\d{1,3}\s*(?:%|％|٪|percent|per[ -]?cent)\s*(?:off|discount|sale)?",re.I)
+_CLAIM_PERCENT = re.compile(r"(?<!\d)\d+\s*(?:%|％|٪|﹪|percent|per[ -]?cent|pct\.?)\s*(?:off|discount|sale)?",re.I)
 # Reviewer-only warning for written-out percentages, including hyphenated
 # discounts. A valid approved offer must still match its exact legal text.
 _CLAIM_WORD_PERCENT = re.compile(
@@ -613,9 +613,9 @@ _CLAIM_WORD_PERCENT = re.compile(
 _CLAIM_LOCAL_PERCENT = re.compile(
     r"(?<!\d)\d{1,3}\s*(?:प्रतिशत|फ़ीसदी|फीसदी|टक्के|टक्का)(?![\w\u0900-\u097f])", re.I
 )
-_CLAIM_PRICE = re.compile(r"(?:₹|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
+_CLAIM_PRICE = re.compile(r"(?:₹\s*|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
 _CLAIM_URGENCY = re.compile(r"\b(?:only \d+ left|selling out|last chance|guaranteed|best in india|number one|no\.?1|viral|trending now|everyone is buying|free shipping|free delivery|same-day delivery|cash on delivery|bogo|buy\s+(?:one|1)\s+get\s+(?:one|1)\s+free)\b",re.I)
-_CLAIM_WIDE = re.compile(r"\b(?:everything|all products|storewide|entire store|every item)\b",re.I)
+_CLAIM_WIDE = re.compile(r"\b(?:everything|all products|all items|all styles|all orders|all clothing|any item|any product|storewide|entire store|entire collection|every item)\b",re.I)
 _CLAIM_MATERIAL = re.compile(r"\b(?:100% pure cotton|genuine silk|authentic gold|organic cotton)\b",re.I)
 
 def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
@@ -827,7 +827,7 @@ def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
     items=root.find("channel").findall("item")
     if len(items)>25:
         raise EditorialBasisRejected("Too many private RSS items")
-    seen=set();rows=[];rejected_old=0
+    seen=set();seen_headlines=set();rows=[];rejected_old=0
     for item in items:
         title=item.find("title")
         pub=item.find("pubDate")
@@ -847,6 +847,13 @@ def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
                      published.astimezone(timezone.utc)).total_seconds()
         except (TypeError,ValueError,OverflowError) as exc:
             raise EditorialBasisRejected("RSS source timestamp invalid") from exc
+        # Distinct RSS GUIDs must not inflate a repeated headline's rank.
+        # NFKC + whitespace folding also catches simple case/spacing aliases.
+        import unicodedata
+        headline_key=" ".join(unicodedata.normalize("NFKC",headline).casefold().split())
+        if headline_key in seen_headlines:
+            raise EditorialBasisRejected("Duplicated RSS headline in signed snapshot")
+        seen_headlines.add(headline_key)
         identity=(guid.text.strip() if guid is not None and
                   len(guid)==0 and type(guid.text) is str and
                   1<=len(guid.text.strip())<=500 else

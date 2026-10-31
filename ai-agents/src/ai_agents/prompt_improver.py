@@ -53,7 +53,7 @@ def _format_list(value) -> list[str]:
     if not isinstance(value, (tuple, list)) or not value or len(value) > 6:
         raise ValueError("Select one to six output formats")
     formats = list(value)
-    if len(set(formats)) != len(formats) or any(fmt not in FORMATS for fmt in formats):
+    if any(type(fmt) is not str for fmt in formats) or len(set(formats)) != len(formats) or any(fmt not in FORMATS for fmt in formats):
         raise ValueError("Unsupported or duplicate output format")
     return formats
 
@@ -80,7 +80,7 @@ def improve_prompt(
         raise PermissionError("A server-verified retailer profile is required")
     original = _safe_original(original_prompt)
     formats = _format_list(output_formats)
-    if language not in LANGUAGES:
+    if type(language) is not str or language not in LANGUAGES:
         raise ValueError("Unsupported language")
     if provider_mode not in ("deterministic", "approved_llm"):
         raise ValueError("Unknown provider mode")
