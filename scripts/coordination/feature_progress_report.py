@@ -36,7 +36,14 @@ def report(registry, progress, verified_done_ids=()):
 def main():
     registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
     progress = json.loads(EVENTS.read_text(encoding="utf-8"))
-    from task_status import GitHub, resolve\n    # Fail closed when GitHub cannot verify PR merge SHA and fresh main four-job CI.\n    verified_report = resolve(\n        registry, progress,\n        gh=GitHub(os.getenv("GITHUB_REPOSITORY", "saifsiddiqui59/RetailGrowthAI"), os.getenv("GITHUB_TOKEN")),\n    )\n    verified_done_ids = {item["id"] for item in verified_report["items"] if item["status"] == "DONE"}\n    print("| Feature | Total | Source-complete* | Tested† | PR-ready† | Integrated DONE† | Blocked* |")
+    from task_status import GitHub, resolve
+    # Fail closed when GitHub cannot verify PR merge SHA and fresh main four-job CI.
+    verified_report = resolve(
+        registry, progress,
+        gh=GitHub(os.getenv("GITHUB_REPOSITORY", "saifsiddiqui59/RetailGrowthAI"), os.getenv("GITHUB_TOKEN")),
+    )
+    verified_done_ids = {item["id"] for item in verified_report["items"] if item["status"] == "DONE"}
+    print("| Feature | Total | Source-complete* | Tested† | PR-ready† | Integrated DONE† | Blocked* |")
     print("|---|---:|---:|---:|---:|---:|---:|")
     for feature, total, source, tested, pr_ready, integrated, blocked in report(registry, progress, verified_done_ids):
         print(f"| #{feature} | {total} | {source} | {tested} | {pr_ready} | {integrated} | {blocked} |")
