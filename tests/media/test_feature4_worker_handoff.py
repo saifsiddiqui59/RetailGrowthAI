@@ -240,6 +240,41 @@ class WorkerHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(Feature4HandoffError, "nonempty bounded"):
                 _staged_fingerprint(path)
 
+    def test_uploaded_key_must_bind_exact_original_shop_job_and_lease(self):
+        """An upload adapter response is not an authorization grant."""
+        allowed = SHOP + "/renders/" + JOB + "/" + LEASE + ".mp4"
+        invalid = (
+            OTHER + "/renders/" + JOB + "/" + LEASE + ".mp4",
+            SHOP + "/renders/" + OTHER + "/" + LEASE + ".mp4",
+            SHOP + "/renders/" + JOB + "/" + OTHER + ".mp4",
+            SHOP + "/renders/" + JOB + "/" + LEASE + ".mp4?token=foreign",
+            SHOP + "/renders/" + JOB + "/../" + LEASE + ".mp4",
+            "https://example.invalid/" + allowed,
+            allowed.upper(), allowed + "/extra", None, "", {"object_path": allowed},
+        )
+        for returned in invalid:
+            with self.subTest(returned=returned):
+                claim, bundle = sample()
+                self.admin = Admin(claim, bundle)
+                class WrongUploadKey(Media):
+                    def upload(media_self, sid, job_id, file_path, *, lease_token):
+                        super().upload(sid, job_id, file_path, lease_token=lease_token)
+                        return returned
+                self.media = WrongUploadKey()
+                with self.assertRaisesRegex(
+                        Feature4HandoffError, "Private uploaded object does not match current claim"):
+                    self.run_worker()
+                # Local success may leave an orphan remote upload, but must
+                # never complete the wrong object or create a signed URL.
+                self.assertEqual(len(self.media.uploads), 1)
+                self.assertEqual(self.admin.completions, [])
+                self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
+        claim, bundle = sample()
+        self.admin = Admin(claim, bundle)
+        self.media = Media()
+        self.assertEqual(self.run_worker(), "SUCCEEDED")
+        self.assertEqual(self.admin.completions[0][1], allowed)
+
     def test_fencing_race_on_finalization_has_no_signed_url(self):
         self.admin.can_finalize = False
         self.assertEqual(self.run_worker(), "STALE")
@@ -273,6 +308,33 @@ class WorkerHandoffTests(unittest.TestCase):
         self.assertEqual(len(self.media.downloads), 0)
         self.assertEqual(len(self.media.uploads), 0)
 
+    def test_ambiguous_encoded_or_dot_private_object_paths_denied_before_download(self):
+        # All these names formerly passed the worker path prefix / '..'
+        # segment checks, yet are not canonical signed source paths.
+        for suffix in (
+            "/approved/./asset.png", "/approved/%2e%2e/asset.png",
+            "/approved/photo%2fother.png", "/approved/img.png?token=foreign",
+            "/approved/img.png#signed", "/approved/control\n.png",
+            "/approved/fi\u200ble.png", "/approved/space name.png",
+            "/approved/../other.png", "/approved//image.png",
+        ):
+            with self.subTest(suffix=repr(suffix)):
+                self.admin.bundle = copy.deepcopy(sample()[1])
+                self.admin.bundle["assets"]["product01"]["object_path"] = SHOP + suffix
+                with self.assertRaisesRegex(Feature4HandoffError,
+                                            "Media storage path escapes tenant"):
+                    self.run_worker()
+                self.assertEqual(self.media.downloads, [])
+                self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.completions, [])
+
+    def test_canonical_nested_private_object_path_remains_supported(self):
+        self.admin.bundle["assets"]["product01"]["object_path"] = (
+            SHOP + "/approved/F4_Products/2026-10/Look_01.png")
+        self.assertEqual(self.run_worker(), "SUCCEEDED")
+        self.assertEqual(self.media.downloads[0][1], (
+            SHOP + "/approved/F4_Products/2026-10/Look_01.png"))
+
     def test_bundle_extraneous_private_asset_fails_closed(self):
         self.admin.bundle["assets"]["unrelated"] = copy.deepcopy(
             self.admin.bundle["assets"]["product01"])
@@ -305,6 +367,60 @@ class WorkerHandoffTests(unittest.TestCase):
                 self.assertEqual(self.media.uploads, [])
                 self.assertEqual(self.admin.completions, [])
                 self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
+
+    def test_revoked_claim_or_rights_between_private_downloads_stops_transfer(self):
+        # This protects actual per-asset network transfers, not only CPU/ACK.
+        for revoked in ("lease", "rights"):
+            with self.subTest(revoked=revoked):
+                claim, bundle = sample()
+                extra = copy.deepcopy(bundle["assets"]["product01"])
+                extra.update({"kind": "video", "source_feature": "feature5",
+                              "mime_type": "video/mp4",
+                              "object_path": SHOP + "/approved/motion01.mp4"})
+                bundle["assets"]["motion01"] = extra
+                bundle["request"]["scenes"][1].update({
+                    "asset_id": "motion01", "asset_type": "video",
+                    "source_feature": "feature5", "motion_status": "ready"})
+                self.admin = Admin(claim, bundle)
+                owner = self.admin
+
+                class RevokingDownloader(Media):
+                    def download(media_self, sid, key, destination):
+                        result = super().download(sid, key, destination)
+                        if len(media_self.downloads) == 1:
+                            if revoked == "lease":
+                                owner.current = False
+                            else:
+                                owner.authorized = False
+                        return result
+
+                self.media = RevokingDownloader()
+
+                def no_cpu(*_args):
+                    self.fail("revoked claim must not execute FFmpeg")
+
+                self.assertEqual(process_feature4_render(
+                    JOB, self.admin, self.media, render_fn=no_cpu), "STALE")
+                self.assertEqual(len(self.media.downloads), 1)
+                self.assertEqual(self.media.uploads, [])
+                self.assertEqual(self.admin.completions, [])
+                self.assertEqual(self.admin.failures, [])
+
+    def test_lost_lease_while_loading_bundle_prevents_first_private_download(self):
+        owner = self.admin
+        original_load = owner.load_feature4_bundle
+
+        def stale_after_load(claim):
+            bundle = original_load(claim)
+            owner.current = False
+            return bundle
+
+        owner.load_feature4_bundle = stale_after_load
+        self.assertEqual(self.run_worker(), "STALE")
+        self.assertEqual(self.media.downloads, [])
+        self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.completions, [])
+        self.assertEqual(self.admin.failures, [])
 
     def test_original_input_same_byte_inode_swap_during_cpu_is_denied(self):
         # Regression: the original _staged_fingerprint returned size+SHA

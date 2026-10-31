@@ -13,3 +13,7 @@ The previously trusted FFprobe `output_probe` carried only codec, width/height, 
 
 ## Pending acceptance
 Exact-head four-job GitHub Actions CI (especially 267+ media tests) then coordinator review/merge in existing Feature4 parent chain, fresh main four-job CI, #650 deterministic Azure package and #249 Azure 503 recovery, and signed DEV operator-owned inputs with rights, full reel audio/visual/cost review. Original F4-15 remains IN PROGRESS until hosted atomic claims/cleanup are tested. No GPU, paid inference, PROD, WineShopPOS, cross-feature merge or user-facing sample.
+
+## 2026-10-31 — F4-15 per-asset claim/rights pre-transfer follow-up
+
+The existing Feature4 private render worker now checks render_authorized and feature4_claim_current immediately **before every approved private media download**, including after potentially slow authoritative bundle loading. This closes the window in which a revoked claim could continue to fetch other tenant-private media until the previous post-staging guard. Offline negative tests inject lease and rights revocation during the first of two transfers, and lease loss while loading the authoritative bundle; no subsequent download, CPU call, private upload, completion or signed URL may follow. This is deterministic fake-service test evidence only; coordinator-owned hosted worker/RLS/lease and rights integration still require independent review. Task #15 is IN PROGRESS.
