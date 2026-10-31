@@ -15,7 +15,10 @@ const stamp=(t)=>{
   check(mm<60&&ss<60,'Invalid reference subtitle clock');
   return ((hh*60+mm)*60+ss)*1000+ms;
 };
-const tokens=t=>(t.toLocaleLowerCase('en').match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu)??[]);
+// Keep Indic vowel signs/viramas attached to their base letters. Dropping
+// Unicode marks can turn different Hindi/Marathi words into identical WER tokens.
+const tokens=t=>(t.normalize('NFC').toLocaleLowerCase('en')
+  .match(/[\p{L}\p{N}][\p{L}\p{N}\p{M}]*(?:['’][\p{L}\p{N}][\p{L}\p{N}\p{M}]*)*/gu)??[]);
 function cuesFromSrt(text,sourceMs){
   check(typeof text==='string'&&text.length>0&&text.length<=120000,
     'Human reference subtitle required');
@@ -75,7 +78,10 @@ export function evaluateSpeechAgainstReference({
       Number.isInteger(w.startMs)&&Number.isInteger(w.endMs)&&
       w.startMs>=0&&w.startMs>=prior-50&&w.endMs>w.startMs&&
       w.endMs<=sourceMs+1,'Bad ASR word timing');
-    observed.push(...tokens(w.word));
+    const lexical=tokens(w.word);
+    check(lexical.length>0&&observed.length+lexical.length<=3000,
+      'Empty or excessive ASR lexical tokens');
+    observed.push(...lexical);
     prior=w.endMs;
   }
   const expected=cues.flatMap(c=>c.words);

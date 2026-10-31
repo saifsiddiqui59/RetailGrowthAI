@@ -82,6 +82,60 @@ class SpeechReferenceBenchmarkTests(unittest.TestCase):
         self.assertEqual(data['cue_coverage_ratio'],0)
         self.assertFalse(data['thresholds_passed'])
 
+    def test_hindi_matras_and_viramas_are_counted_as_word_differences(self):
+        # Previously both words collapsed into exactly ['क','त','ब'].
+        p=fixture()
+        p['reference_srt']='1\n00:00:00,500 --> 00:00:01,300\nकिताबें\n'
+        p['normalized_asr']['words']=[
+          {'word':'किताब','startMs':520,'endMs':1100}]
+        bad=self.evaluate(p)
+        self.assertEqual(bad.returncode,0,bad.stderr)
+        mismatch=json.loads(bad.stdout)
+        self.assertEqual(mismatch['reference_word_count'],1)
+        self.assertEqual(mismatch['recognized_word_count'],1)
+        self.assertEqual(mismatch['word_error_rate'],1)
+        self.assertEqual(mismatch['cue_coverage_ratio'],1)
+        self.assertFalse(mismatch['thresholds_passed'])
+        self.assertFalse(mismatch['customer_release_ready'])
+
+        p['normalized_asr']['words'][0]['word']='किताबें'
+        good=self.evaluate(p)
+        self.assertEqual(good.returncode,0,good.stderr)
+        self.assertEqual(json.loads(good.stdout)['word_error_rate'],0)
+
+        p['reference_srt']='1\n00:00:00,500 --> 00:00:01,300\nनमस्ते\n'
+        p['normalized_asr']['words'][0]['word']='नमस्त'
+        lost_matras=self.evaluate(p)
+        self.assertEqual(lost_matras.returncode,0,lost_matras.stderr)
+        self.assertEqual(json.loads(lost_matras.stdout)['word_error_rate'],1)
+
+    def test_canonical_unicode_combining_equivalence_is_not_a_false_error(self):
+        p=fixture()
+        p['reference_srt']='1\n00:00:00,500 --> 00:00:01,300\nCafé\n'
+        p['normalized_asr']['words']=[
+          {'word':'Cafe\u0301','startMs':520,'endMs':1100}]
+        r=self.evaluate(p)
+        self.assertEqual(r.returncode,0,r.stderr)
+        data=json.loads(r.stdout)
+        self.assertEqual(data['word_error_rate'],0)
+        self.assertEqual(data['reference_word_count'],1)
+        self.assertEqual(data['recognized_word_count'],1)
+
+    def test_empty_lexical_words_and_token_expansion_fail_closed(self):
+        p=fixture()
+        p['normalized_asr']['words'][0]['word']='👍'
+        self.assertNotEqual(self.evaluate(p).returncode,0)
+
+        # 100 bounded ASR word fields can expand to 4000 lexical tokens.
+        # Fail before running the quadratic edit-distance matrix.
+        p=fixture()
+        p['normalized_asr']['words']=[
+          {'word':'a '*39+'a','startMs':i*30,'endMs':i*30+20}
+          for i in range(100)]
+        too_many=self.evaluate(p)
+        self.assertNotEqual(too_many.returncode,0,too_many.stdout)
+        self.assertEqual(too_many.stdout,'')
+
     def test_foreign_source_bad_srt_and_out_of_range_words_fail(self):
         bad_cases=[]
         p=fixture();p['normalized_asr']['source_sha256']='b'*64;bad_cases.append(p)
