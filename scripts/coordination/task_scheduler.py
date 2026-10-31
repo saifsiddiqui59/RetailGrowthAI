@@ -41,7 +41,6 @@ def validate_config(policy):
         or cfg.get("deferred_attempts_per_task") != 2
         or cfg.get("max_total_attempts_per_task") != 5
         or cfg.get("mode") != "advisory_until_authorized_executor_connected"
-        or cfg.get("no_auto_coding_without_executor") is not True
         or cfg.get("require_atomic_claim_before_execution") is not True):
         raise SchedulerError("Unsafe or inconsistent coding scheduler policy")
     if set(cfg.get("allowed_retry_classes", [])) != SAFE:

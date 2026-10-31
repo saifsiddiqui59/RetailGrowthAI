@@ -129,9 +129,7 @@
     ],
     "event_receipts": "coordination/scheduler_events.json",
     "source_task_ids": "coordination/feature_tasks.json",
-    "source_snapshot_not_authority_for_integrated_completion": true,
-    "no_auto_coding_without_executor": true,
-    "github_actions_polls_and_writes_report_only": true
+    "source_snapshot_not_authority_for_integrated_completion": true
   },
   "feature_owned_integration": {
     "effective_date": "2026-10-31",

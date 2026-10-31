@@ -1020,3 +1020,6 @@
 ## 2026-10-31 — Five feature-owned integration leads (governance proposal) — effective 2026-10-31
 Owner decision: eliminate dedicated ChatGPT integration scheduler; five hourly feature leads (#2,#3,#4,#5,#7) each own coding, reviewed feature PR integration, CI and evidence-backed status. Lightweight cross-feature coordination only for interface/ownership collisions; GitHub Actions read-only dependency report remains. Never bypass branch protection or independent security/rights review; preserve immutable task registry.
 Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert a new feature DONE or live production readiness.
+
+## 2026-10-31 — No Codex; remove redundant advisory scheduler flags
+- User selected **no Codex** and requested removal of `scheduler.no_auto_coding_without_executor` and `scheduler.github_actions_polls_and_writes_report_only`. These were redundant declarative status booleans, not a coding implementation. Remove the keys and the validator's direct dependency without changing the actual advisory scheduler, the globally capped distinct-worktree/atomic-claim requirement, approved review/CI gates, or any paid/deployment permissions. No invented claim that GitHub Actions now runs a coder.
