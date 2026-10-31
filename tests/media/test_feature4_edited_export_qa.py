@@ -23,10 +23,10 @@ class EncodedEditorParityTests(unittest.TestCase):
         self.valid = (bytes([20])*9216, bytes([70])*9216,
                       bytes([24])*9216, bytes([120])*9216)
 
-    def prove(self, frames=None):
+    def prove(self, frames=None, *, operation="split_reorder"):
         with patch.object(qa, "inspect_mp4", return_value=self.profile), \
              patch.object(qa, "_frame", side_effect=list(frames or self.valid)):
-            return verify_mock_editor_output(self.file)
+            return verify_mock_editor_output(self.file, operation=operation)
 
     def test_valid_decoded_pattern_is_source_sha_bound_not_product_approval(self):
         proof = self.prove()
@@ -44,6 +44,32 @@ class EncodedEditorParityTests(unittest.TestCase):
             with self.subTest(variant=frames[:1]), \
                  self.assertRaises(EditorExportProofError):
                 self.prove(frames)
+
+    def test_duplicate_encoded_replay_is_distinct_from_split_reorder(self):
+        # Verified upstream JS duplicate produces photo/video/video/offer.
+        # Two real decoded video frames at matching source offsets must repeat.
+        f = lambda luma: bytes([luma]) * 9216
+        duplicate = (f(20), f(70), f(72), f(120))
+        proof = self.prove(duplicate, operation="duplicate")
+        self.assertEqual(proof["schema"], "feature4_duplicated_30s_pixel_parity_v1")
+        self.assertEqual(proof["editor_operation"], "duplicate")
+        self.assertEqual(proof["timeline_starts_seconds"], [0, 10, 15, 20])
+        self.assertEqual(proof["pixel_times_seconds"], [2, 11.5, 16.5, 25])
+        self.assertLess(proof["repeated_source_video_delta"], 8)
+        self.assertFalse(proof["exact_inpoint_frame_verified"])
+        self.assertFalse(proof["commercial_release_eligible"])
+        for rejected in ((f(20), f(70), f(91), f(120)),
+                         (f(20), f(70), f(72), f(21)),
+                         (f(70), f(20), f(72), f(120))):
+            with self.subTest(rejected=rejected[0][0]):
+                with self.assertRaises(EditorExportProofError):
+                    self.prove(rejected, operation="duplicate")
+
+    def test_unknown_edit_operation_denied_before_media_probe(self):
+        with patch.object(qa, "inspect_mp4") as probe:
+            with self.assertRaisesRegex(EditorExportProofError, "Unknown"):
+                verify_mock_editor_output(self.file, operation="unreviewed")
+            probe.assert_not_called()
 
     def test_mutated_input_and_wrong_duration_denied(self):
         frames = list(self.valid)

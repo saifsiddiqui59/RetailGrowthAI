@@ -125,6 +125,33 @@ def master_private_audio(source: Path, target: Path, *, expected_seconds: int):
             partial.unlink(missing_ok=True)
 
 
+def _open_private_report(proof: Path):
+    """Atomically create a private, no-clobber receipt with owner-only permissions.
+
+    Path.open('x') defaults to 0666 before umask and can expose private media
+    metadata to other local users. Never chmod after creation: that leaks briefly.
+    """
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(proof, flags, 0o600)
+    try:
+        return os.fdopen(fd, "w", encoding="utf-8")
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _private_report_path(path: Path):
+    """Reject unusable proof destinations before touching authorized media."""
+    path = Path(path)
+    if (path.suffix.lower() != ".json" or path.is_symlink() or path.exists() or
+            not path.parent.is_dir() or
+            any(parent.is_symlink() for parent in (path.parent, *path.parent.parents))):
+        raise AudioMasterError("Proof report must be a new private JSON file")
+    return path
+
+
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--source",required=True)
@@ -133,12 +160,41 @@ def main():
     ap.add_argument("--report",required=True)
     args=ap.parse_args()
     try:
+        # Check proof destination before expensive mastering, then use exclusive
+        # creation so a concurrent receipt cannot be overwritten.
+        proof=_private_report_path(Path(args.report))
         report=master_private_audio(Path(args.source),Path(args.output),
                                     expected_seconds=args.duration)
-        proof=Path(args.report)
-        if proof.is_symlink() or proof.exists() or not proof.parent.is_dir():
-            raise AudioMasterError("Proof report must be new and private")
-        proof.write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
+        proof_identity=None
+        try:
+            with _open_private_report(proof) as stream:
+                st=os.fstat(stream.fileno())
+                proof_identity=(st.st_dev,st.st_ino)
+                stream.write(json.dumps(report,indent=2)+"\n")
+                stream.flush()
+                os.fsync(stream.fileno())  # Do not announce success before proof bytes are durable.
+        except OSError as exc:
+            # Remove an incomplete receipt only when it is still our own
+            # exclusive file, not a symlink or a replacement by another writer.
+            if proof_identity is not None:
+                try:
+                    st=proof.lstat()
+                    if (not proof.is_symlink() and
+                            (st.st_dev,st.st_ino)==proof_identity):
+                        proof.unlink()
+                except OSError:
+                    pass
+            # An exclusively created MP4 is not usable without its matching
+            # private proof. Remove only our exact output bytes; never delete
+            # a symlink or a different file that appeared after mastering.
+            target=Path(args.output)
+            try:
+                if (target.is_file() and not target.is_symlink() and
+                        hashlib.sha256(target.read_bytes()).hexdigest()==report["master_sha256"]):
+                    target.unlink()
+            except OSError:
+                pass  # Leave uncertain bytes for operator reconciliation.
+            raise AudioMasterError("Proof report could not be committed privately; output invalid") from exc
         print(json.dumps({"status":report["status"],
                           "source_mean_db":report["source_audio_mean_db"],
                           "mastered_mean_db":report["mastered_audio_mean_db"]}))

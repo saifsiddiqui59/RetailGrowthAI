@@ -8,11 +8,13 @@ claims. Never accepts arbitrary commands or tenant HTML.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
 import platform
 import signal
+import stat
 import subprocess
 import tempfile
 import time
@@ -64,6 +66,37 @@ def sample_process_group(pgid, *, proc_root=Path("/proc")):
     return rss, ticks, len(active & records.keys())
 
 
+def verified_output_sha256(path):
+    """Hash exactly one stable regular render file, rejecting symlink swaps.
+
+    The hash binds a *local synthetic benchmark receipt* to the encoded bytes
+    actually left on disk; not cloud artifact custody or a rights approval.
+    """
+    try:
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "rb") as source:
+            before = os.fstat(source.fileno())
+            if not stat.S_ISREG(before.st_mode) or before.st_size < 1024:
+                raise ValueError("Expected nonempty regular encoded benchmark output")
+            digest = hashlib.sha256()
+            for block in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(block)
+            after = os.fstat(source.fileno())
+            if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
+                    after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
+                raise ValueError("Benchmark output changed while hashing")
+            # The path itself must still refer to that file, not a late swap.
+            current = os.lstat(path)
+            if (not stat.S_ISREG(current.st_mode) or
+                    current.st_dev != after.st_dev or
+                    current.st_ino != after.st_ino or
+                    current.st_size != after.st_size):
+                raise ValueError("Benchmark output path changed")
+            return after.st_size, digest.hexdigest()
+    except OSError as exc:
+        raise ValueError("Benchmark output could not be safely hashed") from exc
+
+
 def benchmark(project, output, report, *, timeout_seconds=420, use_npm_node22=False,
               sampling_interval=0.2):
     if type(timeout_seconds) is not int or not 20 <= timeout_seconds <= 780:
@@ -78,6 +111,8 @@ def benchmark(project, output, report, *, timeout_seconds=420, use_npm_node22=Fa
         raise ValueError("Expected an existing approved local HyperFrames composition")
     if report.suffix != ".json" or report == output:
         raise ValueError("Expected separate JSON performance evidence file")
+    if output.exists() or output.is_symlink() or report.exists() or report.is_symlink():
+        raise ValueError("Benchmark output and report destinations must be new")
     command = (["npm", "exec", "--yes", "--package=node@22", "--", "node"] if use_npm_node22
                else ["node"]) + [str(NODE_SCRIPT), str(project), str(output)]
     started = time.monotonic()
@@ -116,6 +151,7 @@ def benchmark(project, output, report, *, timeout_seconds=420, use_npm_node22=Fa
         raise RuntimeError("Bounded local HyperFrames render exceeded timeout")
     if process.returncode != 0 or not output.is_file():
         raise RuntimeError("Local HyperFrames render failed; inspect restricted CI job output")
+    output_bytes, output_sha256 = verified_output_sha256(output)
     ticks_per_second = os.sysconf("SC_CLK_TCK")
     report_data = {
         "kind": "OFFLINE_SYNTHETIC_HYPERFRAMES_CPU_BENCHMARK_NOT_AZURE",
@@ -126,7 +162,13 @@ def benchmark(project, output, report, *, timeout_seconds=420, use_npm_node22=Fa
         "width": config["width"],
         "height": config["height"],
         "fps": config["fps"],
-        "output_bytes": output.stat().st_size,
+        "output_bytes": output_bytes,
+        "output_sha256": output_sha256,
+        # Declared current Git checkout, not a signed CI provenance attestation.
+        "source_commit_claim": subprocess.check_output(
+            ["git", "-C", str(ROOT.parents[1]), "rev-parse", "--verify", "HEAD"],
+            text=True, timeout=5).strip(),
+        "output_hash_type": "SHA256_STABLE_LOCAL_REGULAR_FILE_ONLY",
         "runtime_platform": platform.platform(),
         "cpu_count_visible": os.cpu_count(),
         "wall_seconds": round(time.monotonic() - started, 3),
@@ -152,7 +194,9 @@ def benchmark(project, output, report, *, timeout_seconds=420, use_npm_node22=Fa
         ).returncode == 0,
     }
     report.parent.mkdir(parents=True, exist_ok=True)
-    report.write_text(json.dumps(report_data, indent=2, sort_keys=True) + "\n")
+    # Keep the benchmark receipt from overwriting another job's proof.
+    with report.open("x", encoding="utf-8") as handle:
+        handle.write(json.dumps(report_data, indent=2, sort_keys=True) + "\n")
     print("PASS: source-only HyperFrames sampled benchmark", json.dumps({
         k: report_data[k] for k in (
             "duration_seconds", "width", "height", "wall_seconds",

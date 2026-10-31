@@ -7,7 +7,10 @@ The injected 'admin' is a trusted service client; NEVER pass browser objects.
 """
 from __future__ import annotations
 
+import hashlib
 import math
+import os
+import stat
 import tempfile
 from pathlib import Path
 from uuid import UUID
@@ -37,6 +40,40 @@ class Feature4HandoffError(ValueError):
 
 class Feature4ClaimBusy(RuntimeError):
     """The job is claimed elsewhere; existing queue retry policy owns this."""
+
+
+def _staged_fingerprint(path):
+    """Hash only a stable regular file without following staged symlinks.
+
+    This prevents a renderer or another local actor from silently replacing
+    downloaded approved bytes during CPU work. It does not independently
+    prove a provider's remote object SHA or grant commercial rights.
+    """
+    try:
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "rb") as stream:
+            first = os.fstat(stream.fileno())
+            if not stat.S_ISREG(first.st_mode) or not 0 < first.st_size <= MAX_TOTAL_STAGED_BYTES:
+                raise Feature4HandoffError("Private staged asset must be nonempty bounded regular file")
+            digest = hashlib.sha256()
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(block)
+            last = os.fstat(stream.fileno())
+            if (first.st_dev, first.st_ino, first.st_size, first.st_mtime_ns) != (
+                    last.st_dev, last.st_ino, last.st_size, last.st_mtime_ns):
+                raise Feature4HandoffError("Private staged asset changed while hashing")
+            # An opened descriptor can still contain approved OLD bytes when
+            # the path was atomically replaced with a same-content new inode.
+            current = os.lstat(path)
+            if (not stat.S_ISREG(current.st_mode)
+                    or (last.st_dev, last.st_ino, last.st_size, last.st_mtime_ns) !=
+                       (current.st_dev, current.st_ino, current.st_size, current.st_mtime_ns)):
+                raise Feature4HandoffError("Private staged asset path changed while hashing")
+            return first.st_size, digest.hexdigest()
+    except Feature4HandoffError:
+        raise
+    except OSError as exc:
+        raise Feature4HandoffError("Private staged asset cannot be verified") from exc
 
 
 def _uuid(value, label):
@@ -184,6 +221,9 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
     if admin.render_authorized(claim) is not True:
         admin.render_failure(claim, "ACCESS_REVOKED", permanent=True)
         return "DENIED"
+    # Stale claims must never initiate private source download or CPU work.
+    if admin.feature4_claim_current(claim) is not True:
+        return "STALE"
     try:
         request, manifest, objects, audit = _bundle(claim, admin.load_feature4_bundle(claim))
         with tempfile.TemporaryDirectory(prefix="retailgrowth-f4-") as tmp:
@@ -193,16 +233,30 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
             staging.mkdir()
             output.mkdir()
             staged_bytes = 0
+            staged_fingerprints = {}
             for asset_id, key in objects.items():
                 path = staging / manifest["assets"][asset_id]["path"]
                 media.download(claim["shop_id"], key, path)
                 if not path.is_file() or path.is_symlink():
                     raise Feature4HandoffError("Private media source was not staged safely")
-                staged_bytes += path.stat().st_size
+                fingerprint = _staged_fingerprint(path)
+                staged_bytes += fingerprint[0]
                 if staged_bytes > MAX_TOTAL_STAGED_BYTES:
                     raise Feature4HandoffError("Total staged media exceeds the private worker budget")
+                staged_fingerprints[asset_id] = fingerprint
+            # Lost lease or revoked rights during stage: prevent expensive CPU.
+            if (admin.render_authorized(claim) is not True
+                    or admin.feature4_claim_current(claim) is not True):
+                return "STALE"
             result = render_fn(request, manifest, staging, output)
             result_path, probe = _verified_render_result(result, output, claim, request, audit)
+            # The renderer must consume the exact approved staged originals.
+            # Reject late replacement, append/truncation and symlink swap before
+            # the worker uploads any private output or finalizes billing.
+            for asset_id, original in staged_fingerprints.items():
+                path = staging / manifest["assets"][asset_id]["path"]
+                if _staged_fingerprint(path) != original:
+                    raise Feature4HandoffError("Private staged media changed during render")
             if admin.render_authorized(claim) is not True or admin.feature4_claim_current(claim) is not True:
                 # Lease lost while expensive CPU work ran: never publish or bill.
                 return "STALE"

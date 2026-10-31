@@ -4,14 +4,20 @@ These are not hosted E2E tests. Confirm the worker cannot trust a browser
 manifest, lose a tenant fence, double-claim/bill or expose unapproved output.
 """
 import copy
+import hashlib
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "video-engine"))
+import feature4_worker_handoff
 from feature4_worker_handoff import (  # noqa: E402
     Feature4ClaimBusy, Feature4HandoffError, process_feature4_render,
+    _staged_fingerprint, MAX_TOTAL_STAGED_BYTES,
 )
 
 SHOP = "11111111-1111-4111-8111-111111111111"
@@ -169,6 +175,70 @@ class WorkerHandoffTests(unittest.TestCase):
         self.assertEqual(self.media.uploads, [])
         self.assertEqual(self.admin.completions, [])
 
+    def test_stale_claim_preflight_denies_private_download_and_render(self):
+        self.admin.current = False
+        def forbidden_render(*args):
+            self.fail("stale claim must never invoke CPU renderer")
+        self.assertEqual(process_feature4_render(
+            JOB, self.admin, self.media, render_fn=forbidden_render), "STALE")
+        self.assertEqual(self.media.downloads, [])
+        self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.failures, [])
+
+    def test_claim_revoked_after_staging_never_reaches_cpu_renderer(self):
+        # First lease check before downloading passes; second after stage fails.
+        self.admin.claim_checks = 0
+        def current(_claim):
+            self.admin.claim_checks += 1
+            return self.admin.claim_checks == 1
+        self.admin.feature4_claim_current = current
+        def forbidden_render(*args):
+            self.fail("stale post-staging claim must never start CPU renderer")
+        self.assertEqual(process_feature4_render(
+            JOB, self.admin, self.media, render_fn=forbidden_render), "STALE")
+        self.assertEqual(len(self.media.downloads), 1)
+        self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.completions, [])
+        self.assertEqual(self.admin.failures, [])
+
+    def test_same_content_inode_replacement_during_hash_is_rejected(self):
+        # A stable open FD still reads old bytes after same-content os.replace.
+        with tempfile.TemporaryDirectory(prefix="f4-inode-") as folder:
+            root = Path(folder)
+            original = root / "asset.png"
+            original.write_bytes(b"original synthetic bytes" * 100)
+            original_bytes = original.read_bytes()
+            make_digest = hashlib.sha256
+            class ReplacingDigest:
+                def __init__(self):
+                    self.digest = make_digest()
+                    self.changed = False
+                def update(self, data):
+                    self.digest.update(data)
+                    if not self.changed:
+                        self.changed = True
+                        replacement = root / "new-asset.png"
+                        replacement.write_bytes(original_bytes)
+                        os.replace(replacement, original)
+                def hexdigest(self):
+                    return self.digest.hexdigest()
+            with patch.object(feature4_worker_handoff.hashlib, "sha256",
+                              side_effect=lambda: ReplacingDigest()):
+                with self.assertRaisesRegex(
+                        Feature4HandoffError, "path changed while hashing"):
+                    _staged_fingerprint(original)
+
+    def test_zero_or_oversized_staged_media_denied_before_hashing(self):
+        with tempfile.TemporaryDirectory(prefix="f4-limit-") as folder:
+            path = Path(folder) / "asset.mp4"
+            path.write_bytes(b"")
+            with self.assertRaisesRegex(Feature4HandoffError, "nonempty bounded"):
+                _staged_fingerprint(path)
+            with path.open("wb") as f:
+                f.truncate(MAX_TOTAL_STAGED_BYTES + 1)
+            with self.assertRaisesRegex(Feature4HandoffError, "nonempty bounded"):
+                _staged_fingerprint(path)
+
     def test_fencing_race_on_finalization_has_no_signed_url(self):
         self.admin.can_finalize = False
         self.assertEqual(self.run_worker(), "STALE")
@@ -208,6 +278,32 @@ class WorkerHandoffTests(unittest.TestCase):
         with self.assertRaisesRegex(Feature4HandoffError, "unrelated"):
             self.run_worker()
         self.assertEqual(self.media.downloads, [])
+
+    def test_local_staged_source_mutation_or_symlink_swap_fails_before_upload(self):
+        # Genuine CPU render must consume unchanged original downloaded bytes;
+        # a forged probe/result from a renderer is not a waiver.
+        for variant in ("overwrite", "append", "symlink"):
+            with self.subTest(variant=variant):
+                self.media = Media()
+                self.admin.failures.clear()
+                self.admin.completions.clear()
+                def swapped(request, manifest, staged, output):
+                    result = fake_render(request, manifest, staged, output)
+                    source = next(staged.iterdir())
+                    if variant == "overwrite":
+                        source.write_bytes(b"different synthetic source media")
+                    elif variant == "append":
+                        with source.open("ab") as stream:
+                            stream.write(b"tampered")
+                    else:
+                        source.unlink()
+                        source.symlink_to(output / (JOB + ".mp4"))
+                    return result
+                with self.assertRaises(Feature4HandoffError):
+                    process_feature4_render(JOB, self.admin, self.media, render_fn=swapped)
+                self.assertEqual(self.media.uploads, [])
+                self.assertEqual(self.admin.completions, [])
+                self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
 
     def test_renderer_wrong_output_or_cross_job_denied(self):
         def malicious(*args):
