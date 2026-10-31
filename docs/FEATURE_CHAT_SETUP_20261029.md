@@ -5,7 +5,7 @@ The following are the user's exact new-chat names inside the **existing RetailGr
 | Name | Feature | Pinned tasks | Existing lead PR |
 |---|---:|---:|---|
 | `reail feature2` | #2 Creative Director | 38 | #551 |
-| `retail feature 3` | #3 Poster Studio | 33 | coordinator-managed main |
+| `retail feature 3` | #3 Poster Studio | 33 | feature-owned source PRs merged into main |
 | `retail feature 4` | #4 Video Studio | 31 | #322 |
 | `retail feature 5` | #5 Wan Motion | 22 | #465 |
 | `retail feature 7` | #7 Editing | 35 | #513 |
@@ -26,7 +26,7 @@ All five use **the same prompt** below; replace the feature number/chat name onl
 >
 > Cost policy: GPU OFF; no paid inference, provisioning, Azure resource upgrades, production deployments, or other billable operations. Use CPU/mock tests first. GPT-4.1 Mini may be used for a **single explicitly bounded, metered test** only if the deployed model is already available and a strict usage limit has been enforced; do not automatically run the model or another paid fallback.
 >
-> After **each task batch**, update the task's original ID, source evidence, CI run, PR and next state in your feature-owned ledger/handoff and proposed coordinator task-status event. The coordinator reviews and integrates `coordination/task_progress.json`, which the GitHub reporting workflow verifies. DONE requires acceptance, main merge and fresh 4/4 CI, not mock success.
+> After **each task batch**, update the task's original ID, source evidence, CI run, PR and next state in your feature-owned ledger/handoff. Propose any `coordination/task_progress.json` event via separate independent review after accepted feature-owned main integration; the GitHub reporting workflow verifies the evidence. DONE requires acceptance, main merge and fresh 4/4 CI, not mock success.
 >
 > To me, respond only in short lines: **DONE — X/Y verified; IN PROGRESS — task IDs; FAILED — terminal root cause; BLOCKED — exact dependency ID/owner/output.** Omit empty lines, hide intermediate retry narration, and continue eligible work without waiting for my next message.
 
@@ -36,7 +36,7 @@ The machine-readable map `coordination/shared_feature_references.json` is author
 
 ## After task completion
 
-Feature lead documents verified source result and submits to coordinator. Coordinator evaluates actual PR integration and full CI, records an evidence-backed event in `coordination/task_progress.json`, and the evidence status can be verified manually through `scripts/coordination/task_status.py`. **Chat text alone does not mean a task ran or was accepted.**
+Feature lead documents verified source result and proposes any evidence-backed `coordination/task_progress.json` event through independent review after eligible PR merge and fresh main 4/4 CI. Evidence status can be verified manually through `scripts/coordination/task_status.py`. **Chat text alone does not mean a task ran or was accepted.**
 
 
 ## Updated feature lead startup and task ownership — effective 2026-10-31
