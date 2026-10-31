@@ -250,6 +250,12 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
             staged_bytes = 0
             staged_fingerprints = {}
             for asset_id, key in objects.items():
+                # Rights or claim may change during bundle loading or a prior
+                # private download. Recheck BEFORE each next network transfer,
+                # not only after every source has already been staged.
+                if (admin.render_authorized(claim) is not True
+                        or admin.feature4_claim_current(claim) is not True):
+                    return "STALE"
                 path = staging / manifest["assets"][asset_id]["path"]
                 media.download(claim["shop_id"], key, path)
                 if not path.is_file() or path.is_symlink():

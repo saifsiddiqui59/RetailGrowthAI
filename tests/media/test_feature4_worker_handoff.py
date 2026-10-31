@@ -368,6 +368,60 @@ class WorkerHandoffTests(unittest.TestCase):
                 self.assertEqual(self.admin.completions, [])
                 self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
 
+    def test_revoked_claim_or_rights_between_private_downloads_stops_transfer(self):
+        # This protects actual per-asset network transfers, not only CPU/ACK.
+        for revoked in ("lease", "rights"):
+            with self.subTest(revoked=revoked):
+                claim, bundle = sample()
+                extra = copy.deepcopy(bundle["assets"]["product01"])
+                extra.update({"kind": "video", "source_feature": "feature5",
+                              "mime_type": "video/mp4",
+                              "object_path": SHOP + "/approved/motion01.mp4"})
+                bundle["assets"]["motion01"] = extra
+                bundle["request"]["scenes"][1].update({
+                    "asset_id": "motion01", "asset_type": "video",
+                    "source_feature": "feature5", "motion_status": "ready"})
+                self.admin = Admin(claim, bundle)
+                owner = self.admin
+
+                class RevokingDownloader(Media):
+                    def download(media_self, sid, key, destination):
+                        result = super().download(sid, key, destination)
+                        if len(media_self.downloads) == 1:
+                            if revoked == "lease":
+                                owner.current = False
+                            else:
+                                owner.authorized = False
+                        return result
+
+                self.media = RevokingDownloader()
+
+                def no_cpu(*_args):
+                    self.fail("revoked claim must not execute FFmpeg")
+
+                self.assertEqual(process_feature4_render(
+                    JOB, self.admin, self.media, render_fn=no_cpu), "STALE")
+                self.assertEqual(len(self.media.downloads), 1)
+                self.assertEqual(self.media.uploads, [])
+                self.assertEqual(self.admin.completions, [])
+                self.assertEqual(self.admin.failures, [])
+
+    def test_lost_lease_while_loading_bundle_prevents_first_private_download(self):
+        owner = self.admin
+        original_load = owner.load_feature4_bundle
+
+        def stale_after_load(claim):
+            bundle = original_load(claim)
+            owner.current = False
+            return bundle
+
+        owner.load_feature4_bundle = stale_after_load
+        self.assertEqual(self.run_worker(), "STALE")
+        self.assertEqual(self.media.downloads, [])
+        self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.completions, [])
+        self.assertEqual(self.admin.failures, [])
+
     def test_original_input_same_byte_inode_swap_during_cpu_is_denied(self):
         # Regression: the original _staged_fingerprint returned size+SHA
         # only, so an identical-byte new inode between checks went unseen.
