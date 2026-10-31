@@ -62,6 +62,13 @@ def test_duplicate_or_unsafe_runtime_zip_rejected_before_reading_members():
             z.writestr("../bin/node", b"evil")
         with pytest.raises(ValueError, match="Unsafe runtime ZIP member"):
             audit_zip(str(path))
+        # A 121-entry archive is rejected by the real Functions package
+        # verifier; the F2 preflight must never report it as acceptable.
+        with ZipFile(path, "w") as z:
+            for index in range(121):
+                z.writestr(f"padding/{index}.txt", b"x")
+        with pytest.raises(ValueError, match="oversized runtime manifest"):
+            audit_zip(str(path))
 
 
 def test_runtime_zip_rejects_nonexecutable_node_even_with_claimed_operator_flags():
