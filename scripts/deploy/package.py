@@ -19,6 +19,95 @@ SERVICE = ROOT / "azure-functions" / "campaign-api"
 RENDER = ROOT / "video-engine"
 POSTER = ROOT / "poster-engine"
 AGENTS = ROOT / "ai-agents" / "src" / "ai_agents"
+# Only modules imported by registered Azure Functions, their safe workers and
+# optional source-controlled Feature2 AI routes belong in the small Functions
+# HTTP/queue package. Offline voice/ASR/reel research modules stay in source
+# control but need a separately approved worker and signed endpoint before use.
+# Adding a runtime import without extending this reviewed manifest fails closed.
+RUNTIME_AGENT_MODULES = frozenset({
+    "__init__", "schemas", "providers", "planner", "reviewer",
+    "observability", "content_intelligence", "trend_intelligence",
+    "trend_runtime", "marketing_guidance", "seasonal_calendar",
+    "subscriptions", "feature2_ai_writer", "feature2_llm",
+    "prompt_improver",
+})
+
+
+def verify_runtime_agent_imports(entries: dict[str, bytes]):
+    """Fail closed for undeclared static ai_agents imports in packaged code.
+
+    Future variable-built imports still need human import-closure review and a
+    deployed-from-ZIP indexing smoke; do not mistake AST for dynamic proof.
+    """
+    available = {p[:-3].split("/")[-1] for p in entries
+                 if p.startswith("ai_agents/") and p.endswith(".py")}
+    # Detect package-form imports of source modules excluded from the ZIP.
+    # Names that are not source modules may be symbols exported by __init__.
+    known_modules = {path.stem for path in AGENTS.glob("*.py")}
+    for name, payload in entries.items():
+        if not name.endswith(".py"):
+            continue
+        # Include all Azure HTTP/queue, poster/video workers and packaged
+        # agents, not just currently enabled Feature2 routes.
+        tree = ast.parse(payload, filename=name)
+        # Imported aliases are the only trusted names for importlib calls.
+        # A similarly named method on an arbitrary object is not importlib.
+        importlib_modules = {
+            alias.asname or alias.name
+            for node in ast.walk(tree) if isinstance(node, ast.Import)
+            for alias in node.names if alias.name == "importlib"
+        }
+        import_module_names = {
+            alias.asname or alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom) and node.level == 0
+            and node.module == "importlib"
+            for alias in node.names if alias.name == "import_module"
+        }
+        for node in ast.walk(tree):
+            required = set()
+            if isinstance(node, ast.Import):
+                required.update(a.name.split(".")[1]
+                                for a in node.names
+                                if a.name.startswith("ai_agents."))
+            elif isinstance(node, ast.ImportFrom):
+                if node.module and node.module.startswith("ai_agents."):
+                    required.add(node.module.split(".")[1])
+                elif node.module == "ai_agents":
+                    required.update(a.name for a in node.names
+                                    if a.name in known_modules)
+                elif name.startswith("ai_agents/") and node.level == 1:
+                    if node.module:
+                        required.add(node.module.split(".")[0])
+                    else:
+                        required.update(a.name for a in node.names
+                                        if a.name in known_modules)
+            elif (isinstance(node, ast.Call) and
+                  ((isinstance(node.func, ast.Attribute) and
+                    node.func.attr == "import_module" and
+                    isinstance(node.func.value, ast.Name) and
+                    node.func.value.id in importlib_modules) or
+                   (isinstance(node.func, ast.Name) and
+                    node.func.id in import_module_names)) and
+                  node.args and isinstance(node.args[0], ast.Constant) and
+                  isinstance(node.args[0].value, str) and
+                  node.args[0].value.startswith("ai_agents.")):
+                required.add(node.args[0].value.split(".")[1])
+            elif (isinstance(node, ast.Call) and
+                  isinstance(node.func, ast.Name) and
+                  node.func.id == "__import__" and node.args and
+                  isinstance(node.args[0], ast.Constant) and
+                  isinstance(node.args[0].value, str) and
+                  node.args[0].value.startswith("ai_agents.")):
+                required.add(node.args[0].value.split(".")[1])
+            missing = required - available
+            if missing:
+                raise ValueError(
+                    "Undeclared ai_agents runtime import in " + name +
+                    ": " + ", ".join(sorted(missing)))
+    return True
+
+
 TIMESTAMP = (2026, 1, 1, 0, 0, 0)
 MAX_BINARY_BYTES = 180 * 1024 * 1024
 MAX_ARCHIVE_BYTES = 300 * 1024 * 1024
@@ -88,8 +177,15 @@ def source_files():
     for folder in (SERVICE, RENDER, POSTER):
         for path in sorted(folder.glob("*.py")):
             entries[path.relative_to(ROOT).as_posix()] = path.read_bytes()
-    for path in sorted(AGENTS.glob("*.py")):
+    # Versioned production import closure, not a broad source-tree sweep.
+    # F2's offline model/ASR research modules must not silently exhaust the
+    # protected 120-member Functions ZIP when feature branches are merged.
+    for module in sorted(RUNTIME_AGENT_MODULES):
+        path = AGENTS / (module + ".py")
+        if not path.is_file():
+            raise ValueError("Approved Functions agent dependency missing: " + module)
         entries["ai_agents/" + path.name] = path.read_bytes()
+    verify_runtime_agent_imports(entries)
     entries["function_app.py"] = ENTRY.encode()
     entries["requirements.txt"] = (SERVICE / "requirements.txt").read_bytes()
     host = json.loads((SERVICE / "host.json").read_text("utf-8"))
