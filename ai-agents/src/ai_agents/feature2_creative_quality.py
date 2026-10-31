@@ -687,7 +687,8 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     issues=set()
     for field,text in copy.items():
         if (type(text) is not str or not 1<=len(text.strip())<=1800 or
-            any(ord(ch)<32 or unicodedata.category(ch) in ("Cf","Cs","Zl","Zp")
+            any(ord(ch)<32 or 0x7f<=ord(ch)<=0x9f or
+                unicodedata.category(ch) in ("Cf","Cs","Zl","Zp")
                 for ch in text) or "<" in text or ">" in text or
             re.search(r"(?:https?://|www\.)", text, flags=re.I) or
             "javascript:" in text.lower()):
