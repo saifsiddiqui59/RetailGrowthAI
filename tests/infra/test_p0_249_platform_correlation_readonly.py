@@ -177,6 +177,35 @@ def test_safe_http_and_startup_link_counts_no_sensitive_fields():
     assert "private" not in repr(out)
 
 
+
+def test_azure_minute_bucket_zero_fraction_is_retained_without_private_suffixes():
+    # Azure Log Analytics can serialize bin(TimeGenerated, 1m) with seven
+    # zero fractional digits. Previously all such rows were silently dropped.
+    accepted = (
+        "2026-10-28T19:40:00Z",
+        "2026-10-28T19:40:00.0Z",
+        "2026-10-28T19:40:00.0000000Z",
+        "2026-10-28T19:40:00.0000000+00:00",
+        "2026-10-28T20:01:00.000Z",
+    )
+    for stamp in accepted:
+        assert module.safe_rows([{"bucket": stamp, "events": 2}]) == [
+            {"bucket": stamp, "events": 2}
+        ]
+    rejected = (
+        "2026-10-28T19:40:00.0000001Z",  # not a whole minute
+        "2026-10-28T19:40:00.00000000Z", # overprecise/unreviewed
+        "2026-10-28T19:40:00.000Z/private-jwt",
+        "2026-10-28T19:40:00.000Z;set-cookie",
+        "2026-10-28T19:40:00.000+01:00",
+        "2026-10-29T19:40:00.0000000Z",
+        "2026-10-28T19:40:01.0000000Z",
+    )
+    for stamp in rejected:
+        assert module.safe_rows([{"bucket": stamp, "events": 2}]) == []
+
+
+
 def test_historical_platform_diagnostic_preserves_rows_31_to_80():
     # 80 is the reviewed Kusto query limit, NOT an authority to log raw data.
     rows = [
