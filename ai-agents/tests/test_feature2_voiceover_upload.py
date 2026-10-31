@@ -398,3 +398,65 @@ def test_mp3_private_decode_fixtured_positive_still_pending_rights(monkeypatch,t
     assert not result["original_rights_verified"]
     assert not result["actual_speech_verified"]
     assert not result["can_publish"] and result["paid_calls"]==0
+
+
+# F2-20: storage status is not a commercial licence or paid voice grant.
+@pytest.mark.parametrize("spoof",[
+    {"can_publish": True},
+    {"can_publish": "false"},  # wrong-type grant is still untrusted
+    {"commercial_use_approved": True},
+    {"actual_spoken_words_verified": True},
+    {"audio_pronunciation_verified": True},
+    {"rights_reviewed": True},
+    {"original_media_rights_verified": True},
+    {"can_dispatch_motion": True},
+    {"paid_inference_authorized": True},
+    {"may_auto_invoke_azure": True},
+    {"paid_calls": 1},
+    {"paid_calls": False},
+    {"billing": "PAID"},
+    {"private_download_url": "https://example.invalid/unsigned.wav"},
+    {"mime_type": "audio/mpeg"},
+    {"creative_plan_sha256": "f"*64},
+    {"duration_seconds": 3.0},
+])
+def test_private_wav_writer_cannot_grant_rights_or_swap_original(spoof):
+    original=wav()
+    def fake_store(shop,cam,audio,row):
+        return {
+            "asset_id":str(uuid4()),"shop_id":shop,"campaign_id":cam,
+            "original_audio_sha256":sha256(audio).hexdigest(),
+            "private":True,"review_state":"PENDING_RIGHTS_AND_SPEECH_REVIEW",
+            **spoof,
+        }
+    with pytest.raises(VoiceUploadRejected,match="Private original"):
+        accept_unreviewed_wav(
+            shop_id=SHOP,campaign_id=CID,plan=creative(),
+            original_audio=original,authenticated_editor=lambda *a:True,
+            read_authoritative_plan=lambda *a:creative(),
+            store_private_pending=fake_store)
+
+
+def test_private_wav_writer_consistent_metadata_is_still_review_only():
+    original=wav()
+    def pending_store(shop,cam,audio,row):
+        return {
+            "asset_id":str(uuid4()),"shop_id":shop,"campaign_id":cam,
+            "original_audio_sha256":sha256(audio).hexdigest(),
+            "creative_plan_sha256":SHA,"mime_type":"audio/wav",
+            "duration_seconds":2.0,"paid_calls":0,"billing":"NONE",
+            "can_publish":False,"commercial_use_approved":False,
+            "private_download_url":None,"private":True,
+            "review_state":"PENDING_RIGHTS_AND_SPEECH_REVIEW",
+        }
+    receipt=accept_unreviewed_wav(
+        shop_id=SHOP,campaign_id=CID,plan=creative(),
+        original_audio=original,authenticated_editor=lambda *a:True,
+        read_authoritative_plan=lambda *a:creative(),
+        store_private_pending=pending_store,
+        client_declared_rights={"can_publish":True})
+    assert receipt["private"] is True
+    assert receipt["can_publish"] is False
+    assert receipt["commercial_use_approved"] is False
+    assert receipt["actual_spoken_words_verified"] is False
+    assert receipt["billing"]=="NONE" and receipt["private_download_url"] is None

@@ -106,11 +106,34 @@ def accept_unreviewed_wav(*,shop_id,campaign_id,plan,original_audio,
        read_authoritative_plan(shop_id,campaign_id)!=plan:
         raise VoiceUploadRejected("Source or membership revoked before private upload")
     result=store_private_pending(shop_id,campaign_id,original_audio,dict(receipt))
-    if (not isinstance(result,dict) or
+    # A writer receipt proves only a private PENDING object exists. Refuse an
+    # elevated writer response even if the immutable original SHA/ID matches.
+    # Absent optional metadata is compatible with the old private storage
+    # writer, but any present metadata must agree with this exact source.
+    forbidden_grants=(
+        "can_publish","commercial_use_approved","actual_spoken_words_verified",
+        "audio_pronunciation_verified","rights_reviewed",
+        "original_media_rights_verified","can_dispatch_motion",
+        "paid_inference_authorized","may_auto_invoke_azure",
+    )
+    if (type(result) is not dict or
         result.get("shop_id")!=shop_id or result.get("campaign_id")!=campaign_id or
         result.get("original_audio_sha256")!=sha or result.get("private") is not True or
         not _uuid(result.get("asset_id")) or
-        result.get("review_state")!="PENDING_RIGHTS_AND_SPEECH_REVIEW"):
+        result.get("review_state")!="PENDING_RIGHTS_AND_SPEECH_REVIEW" or
+        any(flag in result and result[flag] is not False
+            for flag in forbidden_grants) or
+        ("paid_calls" in result and
+         (type(result["paid_calls"]) is not int or result["paid_calls"]!=0)) or
+        ("billing" in result and result["billing"]!="NONE") or
+        ("private_download_url" in result and
+         result["private_download_url"] is not None) or
+        ("mime_type" in result and result["mime_type"]!="audio/wav") or
+        ("creative_plan_sha256" in result and
+         result["creative_plan_sha256"]!=approval["plan_sha256"]) or
+        ("duration_seconds" in result and
+         (type(result["duration_seconds"]) not in (int,float) or
+          result["duration_seconds"]!=duration))):
         raise VoiceUploadRejected("Private original was not registered pending review")
     # A valid storage receipt is not a current authorization. The trusted writer
     # must also fence the commit transaction against revocation; this readback
