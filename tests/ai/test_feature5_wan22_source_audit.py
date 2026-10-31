@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+from unittest.mock import patch
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
+from feature5_motion.infra import wan22_source_audit as audit
 from feature5_motion.infra.wan22_source_audit import (
     COMFY_SOURCE_COMMIT, REQUIRED, SourceAuditError,
     validate_source_manifest, audit_complete_vendor_checkout,
@@ -123,6 +126,77 @@ class SourceAuditTests(unittest.TestCase):
             linked.symlink_to(manifest)
             with self.assertRaises(SourceAuditError):
                 read_reviewed_source_manifest(linked)
+
+    def test_external_hardlink_of_reviewed_source_denied(self):
+        with TemporaryDirectory() as td:
+            vendor = Path(td) / "vendor"
+            vendor.mkdir()
+            manifest = fixture(vendor)
+            outside = Path(td) / "hardlinked.py"
+            os.link(vendor / "nodes.py", outside)
+            with self.assertRaisesRegex(SourceAuditError, "linked"):
+                audit_complete_vendor_checkout(vendor, reviewed_manifest=manifest)
+
+    def test_source_path_swapped_after_hash_is_denied(self):
+        # A full hash of an orphaned inode must not attest its old filename.
+        with TemporaryDirectory() as td:
+            manifest = fixture(td)
+            root = Path(td)
+            target = root / "nodes.py"
+            original = audit._hash_verified_source
+            swapped = []
+
+            def substitute_after_hash(item, digest):
+                result = original(item, digest)
+                if Path(item) == target and not swapped:
+                    replacement = root / "replacement.py"
+                    replacement.write_bytes(target.read_bytes())
+                    replacement.replace(target)
+                    swapped.append(True)
+                return result
+
+            with patch.object(audit, "_hash_verified_source",
+                              side_effect=substitute_after_hash):
+                with self.assertRaisesRegex(SourceAuditError, "identity changed"):
+                    audit_complete_vendor_checkout(root, reviewed_manifest=manifest)
+            self.assertTrue(swapped)
+
+    def test_mutation_after_hash_is_denied_by_final_readback(self):
+        with TemporaryDirectory() as td:
+            manifest = fixture(td)
+            target = Path(td) / "nodes.py"
+            original = audit._hash_verified_source
+            changed = []
+            def modify_after_hash(item, digest):
+                receipt = original(item, digest)
+                if Path(item) == target and not changed:
+                    data = target.read_bytes()
+                    target.write_bytes(b"X" + data[1:])  # same byte count
+                    changed.append(True)
+                return receipt
+            with patch.object(audit, "_hash_verified_source",
+                              side_effect=modify_after_hash):
+                with self.assertRaisesRegex(SourceAuditError, "identity changed"):
+                    audit_complete_vendor_checkout(td, reviewed_manifest=manifest)
+            self.assertTrue(changed)
+
+    def test_symlink_swap_between_stat_and_open_is_denied(self):
+        with TemporaryDirectory() as td:
+            manifest = fixture(td)
+            target = Path(td) / "nodes.py"
+            substitute = Path(td) / "main.py"
+            real_open = audit.os.open
+            swapped = []
+            def swap_then_open(path, flags, *args, **kwargs):
+                if Path(path) == target and not swapped:
+                    target.unlink()
+                    target.symlink_to(substitute)
+                    swapped.append(True)
+                return real_open(path, flags, *args, **kwargs)
+            with patch.object(audit.os, "open", side_effect=swap_then_open):
+                with self.assertRaises(SourceAuditError):
+                    audit_complete_vendor_checkout(td, reviewed_manifest=manifest)
+            self.assertTrue(swapped)
 
     def test_real_offline_cli_exit_and_zero_network(self):
         with TemporaryDirectory() as td:
