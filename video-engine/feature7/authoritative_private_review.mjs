@@ -54,7 +54,7 @@ function currentBrollGrant({shop_id,request,current}) {
 
 export function prepareAuthoritativePrivateReview({
   shop_id,campaign_id,draft,root,media,
-  broll_grants=[],job_id,asr_key,rights_key,
+  broll_grants=[],job_id,asr_key,rights_key,expected_asr_model_id,
   getCurrentApprovedVideo,getCurrentApprovedBroll,now_ms=Date.now()
 }={}){
   check(typeof getCurrentApprovedVideo==='function' &&
@@ -114,7 +114,7 @@ export function prepareAuthoritativePrivateReview({
     shop_id,root,media:verified,analyze:(frozenRoot)=>
       prepareEvidenceBoundReview({
         shop_id,campaign_id,draft,root:frozenRoot,media:verified,
-        broll_grants:verifiedBroll,job_id,asr_key,now_ms
+        broll_grants:verifiedBroll,job_id,asr_key,expected_asr_model_id,now_ms
       })
   });
   // No transaction is held across this synchronous source-level function.

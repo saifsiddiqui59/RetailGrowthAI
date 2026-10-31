@@ -173,6 +173,21 @@ class Feature7AuthoritativeRightsTests(unittest.TestCase):
         self.assertFalse(data['renderable'])
         self.assertTrue(data['media_evidence'][0]['source_duration_seconds']>=15)
 
+    def test_authoritative_asr_model_policy_must_match_signed_evidence(self):
+        # Policy is supplied by the trusted caller, not browser or ASR receipt.
+        p=self.payload()
+        p['expected_asr_model_id']='supplied_reference_test'
+        good=self.js(p)
+        self.assertEqual(good.returncode,0,good.stderr[-1000:])
+        self.assertTrue(json.loads(good.stdout)['transcript_evidence_verified'])
+        for wrong in ('unapproved_model', '', None, 7):
+            with self.subTest(expected_asr_model_id=wrong):
+                p=self.payload()
+                p['expected_asr_model_id']=wrong
+                bad=self.js(p)
+                self.assertNotEqual(bad.returncode,0,bad.stdout)
+                self.assertEqual(bad.stdout,'')
+
     def test_revoked_foreign_stale_rights_spoofing_and_expiry_fail(self):
         for attack in ('revoked','foreign_shop','rights_revision','bad_source',
           'different_job','expired','forged_mac','revoked_during_review',
