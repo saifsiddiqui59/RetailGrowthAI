@@ -372,6 +372,41 @@ def test_delivery_and_bogo_claims_are_reviewer_flags_without_source_approval(una
     assert report["can_publish"] is False
 
 
+@pytest.mark.parametrize("control",[
+    "\u202e",  # right-to-left override
+    "\u202a",  # left-to-right embedding
+    "\u2066",  # isolated bidi run
+    "\u200b",  # invisible word separator
+    "\u0085",  # C1 next-line control
+    "\u2028",  # Unicode line separator
+])
+def test_invisible_display_spoof_cannot_enter_signed_rss_or_retail_copy(control):
+    title="Festive kurti collection "+control+" for Diwali 2026"
+    rows=sample_feed()
+    rows[0]["headline"]=title
+    with pytest.raises(EditorialBasisRejected):
+        ranked(rows)
+    xml=rss_xml(items=[("display_override_rss",title,
+                       "Wed, 28 Oct 2026 11:00:00 GMT")])
+    with pytest.raises(EditorialBasisRejected):
+        rank_xml(xml)
+    with pytest.raises(EditorialBasisRejected):
+        inspect_retailer_copy_claims(
+            verified_context=copy_context(),copy=candidate_copy(caption=title))
+
+
+def test_legitimate_indic_conjunct_joiner_remains_review_only_not_denied():
+    # ZWJ used for Devanagari conjunct shaping is not a bidi override.
+    context=trusted_rss()
+    context["creative_brief"]="नवरात्र साडी संग्रह"
+    text="नवरात्र साडी संग्रह आणि क\u200dषेत्रातील वस्त्र परंपरा"
+    xml=rss_xml(items=[("indic_joiner_source",text,
+                       "Wed, 28 Oct 2026 11:00:00 GMT")])
+    result=rank_xml(xml,context=context)
+    assert result["source_items_count"]==1
+    assert result["status"]=="REVIEW_REQUIRED"
+    assert result["can_publish"] is False
+
 @pytest.mark.parametrize("unapproved", [
     "Fifty percent off every kurti",
     "Ninety per cent off all items",
@@ -435,3 +470,104 @@ def test_exact_approved_indic_offer_is_still_review_only(approved):
     assert report["customer_editor_approval_required"] is True
     assert report["commercial_fact_certified"] is False
     assert report["can_publish"] is False
+
+
+@pytest.mark.parametrize("spoofed", [
+    "20% off selected kurti styles; extra 50\u200b% off",
+    "20% off selected kurti styles; extra 50\u2060percent off",
+    "20% off selected kurti styles; ₹\u200b999 only",
+    "20% off selected kurti styles; all\u200b items included",
+    "20% off selected kurti styles \u202e offer",
+    "20% off selected kurti styles \u2028 second line",
+])
+def test_invisible_unicode_cannot_hide_unapproved_commercial_claims(spoofed):
+    # These are hostile text fixtures, not approved customer offers.
+    with pytest.raises(EditorialBasisRejected, match="Unsafe or unbounded retailer copy"):
+        inspect_retailer_copy_claims(
+            verified_context=copy_context(), copy=candidate_copy(caption=spoofed)
+        )
+
+
+def test_normal_indic_combining_marks_remain_allowed_for_manual_review():
+    report = inspect_retailer_copy_claims(
+        verified_context=copy_context(),
+        copy=candidate_copy(caption="सुंदर कुर्ती — 20% off selected kurti styles"),
+    )
+    assert report["can_publish"] is False
+    assert report["review_required"] is True
+    assert "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED" not in report["issues"]
+
+
+# Existing F2-04 offline regression cases reconciled from source PRs #780/#801.
+# Signed test fixtures are not live trend or publishing approval.
+def test_trend_ranking_denies_source_revoked_after_initial_provenance():
+    reads={}
+    def source_grant(shop,item,digest,published):
+        reads[item]=reads.get(item,0)+1
+        return item!="rss_kurti_2026" or reads[item]==1
+    with pytest.raises(EditorialBasisRejected,match="revoked during ranking"):
+        ranked(verified=source_grant)
+    assert reads.get("rss_kurti_2026")==2
+
+
+@pytest.mark.parametrize("bad_item",[
+    "<item><guid></guid><title>Festive cotton kurti collection</title>"
+    "<pubDate>Wed, 28 Oct 2026 11:00:00 GMT</pubDate></item>",
+    "<item><guid><b>duplicate</b></guid><title>Festive cotton kurti collection</title>"
+    "<pubDate>Wed, 28 Oct 2026 11:00:00 GMT</pubDate></item>",
+])
+def test_signed_rss_present_invalid_guid_denied_not_silently_rekeyed(bad_item):
+    xml=('<?xml version="1.0"?><rss version="2.0"><channel>'+
+         bad_item+'</channel></rss>').encode()
+    with pytest.raises(EditorialBasisRejected,match="Malformed signed RSS GUID"):
+        rank_xml(xml)
+
+
+@pytest.mark.parametrize("second_title",[
+    "Festive cotton kurti collection trends for Diwali",
+    "FESTIVE COTTON KURTI COLLECTION TRENDS FOR DIWALI",
+    "Festive  cotton   kurti collection trends for Diwali",
+])
+def test_signed_rss_distinct_guids_cannot_duplicate_same_headline(second_title):
+    xml = rss_xml(items=[
+        ("guid_first", "Festive cotton kurti collection trends for Diwali",
+         "Wed, 28 Oct 2026 11:00:00 GMT"),
+        ("guid_second", second_title, "Wed, 28 Oct 2026 10:00:00 GMT"),
+    ])
+    with pytest.raises(EditorialBasisRejected, match="Duplicated RSS headline"):
+        rank_xml(xml)
+
+
+# Existing F2-02 copy/URL source regressions from #801 and #780.
+@pytest.mark.parametrize("unapproved,expected_issue", [
+    ("1000% off selected kurti styles", "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ("20% off selected kurti styles; additional 75 pct off", "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ("20% off selected kurti styles; 50﹪ off scarves", "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ("20% off selected kurti styles; valid on all items", "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ("20% off selected kurti styles; applies to the entire collection", "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ("20% off selected kurti styles; available for any product", "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED"),
+    ("Kurti starting at ₹ 1,999", "UNVERIFIED_CURRENCY_PRICE"),
+])
+def test_broadened_discount_scope_and_price_variants_require_editor_review(
+    unapproved, expected_issue
+):
+    report = inspect_retailer_copy_claims(
+        verified_context=copy_context(),
+        copy=candidate_copy(caption=unapproved),
+    )
+    assert expected_issue in report["issues"]
+    assert report["review_required"] is True
+    assert report["commercial_fact_certified"] is False
+    assert report["can_publish"] is False
+
+
+@pytest.mark.parametrize("link",[
+    "Visit http://fake.invalid/deal",
+    "Find us at www.fake.invalid",
+    "Preview HTTP://FAKE.INVALID/offer",
+])
+def test_editorial_copy_blocks_unreviewed_external_links(link):
+    with pytest.raises(EditorialBasisRejected,match="Unsafe or unbounded"):
+        inspect_retailer_copy_claims(
+            verified_context=copy_context(),
+            copy=candidate_copy(cta=link))

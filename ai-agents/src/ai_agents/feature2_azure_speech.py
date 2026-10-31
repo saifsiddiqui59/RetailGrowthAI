@@ -178,6 +178,12 @@ class AzureSpeechNarration:
             raise SpeechRejected("Trusted voice request required")
         creative, review, script = _plan(plan, shop_id=request.shop_id,
                                           campaign_id=request.campaign_id)
+        # JSON-derived dataclass fields are not runtime type-checked.
+        # Deny malformed selectors before dictionary lookups or billing.
+        if (type(request.voice_id) is not str or
+            type(request.language) is not str or
+            type(request.speed) is not str):
+            raise SpeechRejected("Voice selection or explicit approval invalid")
         selected = _VOICES.get(request.voice_id)
         if (not selected or request.language != selected[1] or
             request.speed not in _RATES or type(request.preview) is not bool or
@@ -310,7 +316,7 @@ def published_voices_in_region(*, region, api_key, shop_id, actor_may_read_shop,
             if curated is not None:
                 if (ident in found or row.get("Locale") != curated["locale"] or
                     row.get("Gender") != curated["gender"] or
-                    row.get("VoiceType") not in ("Neural", "Standard", "NeuralHD")):
+                    row.get("VoiceType") != "Neural"):
                     raise VoiceCatalogUnavailable("Provider voice identity differs")
                 found[ident] = row
         if actor_may_read_shop(shop_id) is not True:
@@ -375,14 +381,29 @@ def route_voice_selection(*, shop_id, campaign_id, locale, voice_id,
             raise VoiceCatalogUnavailable(
                 "Indian language needs opted-in verified paid-region voice")
         checked=read_verified_region_voices(shop_id,campaign_id)
+        # The source must be the exact sanitized server-generated regional
+        # snapshot, never an unchecked UI list with a forged availability flag.
+        # The trusted reader must additionally bind its shop, credential and
+        # current resource region to the signed backend session.
         if (type(checked) is not dict or
             checked.get("schema")!="retailgrowth.feature2-speech-voices.v1" or
+            type(checked.get("region")) is not str or
+            not _REGION.fullmatch(checked["region"]) or
             checked.get("resource_catalog_queried") is not True or
+            checked.get("tts_call_made") is not False or
+            checked.get("published") is not False or
+            type(checked.get("configured_voice_candidates")) is not int or
+            checked["configured_voice_candidates"]!=len(VOICES) or
             type(checked.get("available_voices")) is not list or
-            not any(type(row) is dict and row.get("id")==voice_id and
-                    row.get("locale")==locale and
-                    row.get("region_verified") is True
-                    for row in checked["available_voices"])):
+            not 1<=len(checked["available_voices"])<=len(VOICES)):
+            raise VoiceCatalogUnavailable("Trusted regional voice catalog required")
+        expected_by_id={v["id"]:{**v,"region_verified":True} for v in catalog()}
+        returned=checked["available_voices"]
+        if (any(type(row) is not dict or
+                type(row.get("id")) is not str or
+                expected_by_id.get(row["id"])!=row for row in returned) or
+            len({row["id"] for row in returned})!=len(returned) or
+            not any(row["id"]==voice_id for row in returned)):
             raise VoiceCatalogUnavailable("Voice not validated in configured region")
         output={"provider":"azure-speech-opt-in","voice_id":voice_id,
                 "locale":locale,"region_verified":True,

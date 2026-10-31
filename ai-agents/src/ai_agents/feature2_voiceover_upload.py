@@ -27,6 +27,40 @@ def _inspect(bytes_,seconds_limit):
     if type(bytes_) is not bytes or not 100<=len(bytes_)<=_MAX_ORIGINAL or \
        not bytes_.startswith(b"RIFF") or bytes_[8:12]!=b"WAVE":
         raise VoiceUploadRejected("Bounded original PCM WAV required")
+    # wave.open() stops at the first data chunk and does not check that the
+    # declared RIFF extent covers the entire submitted file. Never register
+    # unreviewed trailing bytes, duplicate data or hidden chunks as audio.
+    if int.from_bytes(bytes_[4:8],"little")!=len(bytes_)-8:
+        raise VoiceUploadRejected("Original WAV RIFF extent mismatch")
+    offset=12
+    seen_fmt=False
+    seen_data=False
+    data_bytes=None
+    chunks=0
+    while offset<len(bytes_):
+        if len(bytes_)-offset<8 or chunks>=32:
+            raise VoiceUploadRejected("Malformed or excessive original WAV chunks")
+        tag=bytes_[offset:offset+4]
+        size=int.from_bytes(bytes_[offset+4:offset+8],"little")
+        end=offset+8+size
+        padded_end=end+(size&1)
+        if padded_end>len(bytes_):
+            raise VoiceUploadRejected("Original WAV chunk exceeds RIFF extent")
+        if tag==b"fmt ":
+            if seen_fmt or seen_data:
+                raise VoiceUploadRejected("Duplicate or reordered WAV format")
+            seen_fmt=True
+        elif tag==b"data":
+            if seen_data or not seen_fmt:
+                raise VoiceUploadRejected("Multiple or unbound original WAV streams")
+            seen_data=True
+            data_bytes=size
+        elif size>65536:
+            raise VoiceUploadRejected("Excessive embedded WAV metadata")
+        offset=padded_end
+        chunks+=1
+    if not seen_fmt or not seen_data or offset!=len(bytes_):
+        raise VoiceUploadRejected("Complete original PCM chunks required")
     try:
         with wave.open(io.BytesIO(bytes_),"rb") as wav:
             if (wav.getnchannels() not in (1,2) or
@@ -35,8 +69,9 @@ def _inspect(bytes_,seconds_limit):
                 raise VoiceUploadRejected("Review requires PCM16 WAV")
             seconds=wav.getnframes()/wav.getframerate()
             actual=wav.readframes(wav.getnframes())
+            expected_bytes=wav.getnframes()*wav.getsampwidth()*wav.getnchannels()
             if (not 0.2<=seconds<=seconds_limit or
-                len(actual)!=wav.getnframes()*wav.getsampwidth()*wav.getnchannels()):
+                data_bytes!=expected_bytes or len(actual)!=expected_bytes):
                 raise VoiceUploadRejected("Narration duration/bytes invalid")
     except (EOFError,OSError,ValueError,wave.Error) as exc:
         raise VoiceUploadRejected("Original WAV cannot be independently inspected") from exc
@@ -71,12 +106,41 @@ def accept_unreviewed_wav(*,shop_id,campaign_id,plan,original_audio,
        read_authoritative_plan(shop_id,campaign_id)!=plan:
         raise VoiceUploadRejected("Source or membership revoked before private upload")
     result=store_private_pending(shop_id,campaign_id,original_audio,dict(receipt))
-    if (not isinstance(result,dict) or
+    # A writer receipt proves only a private PENDING object exists. Refuse an
+    # elevated writer response even if the immutable original SHA/ID matches.
+    # Absent optional metadata is compatible with the old private storage
+    # writer, but any present metadata must agree with this exact source.
+    forbidden_grants=(
+        "can_publish","commercial_use_approved","actual_spoken_words_verified",
+        "audio_pronunciation_verified","rights_reviewed",
+        "original_media_rights_verified","can_dispatch_motion",
+        "paid_inference_authorized","may_auto_invoke_azure",
+    )
+    if (type(result) is not dict or
         result.get("shop_id")!=shop_id or result.get("campaign_id")!=campaign_id or
         result.get("original_audio_sha256")!=sha or result.get("private") is not True or
         not _uuid(result.get("asset_id")) or
-        result.get("review_state")!="PENDING_RIGHTS_AND_SPEECH_REVIEW"):
+        result.get("review_state")!="PENDING_RIGHTS_AND_SPEECH_REVIEW" or
+        any(flag in result and result[flag] is not False
+            for flag in forbidden_grants) or
+        ("paid_calls" in result and
+         (type(result["paid_calls"]) is not int or result["paid_calls"]!=0)) or
+        ("billing" in result and result["billing"]!="NONE") or
+        ("private_download_url" in result and
+         result["private_download_url"] is not None) or
+        ("mime_type" in result and result["mime_type"]!="audio/wav") or
+        ("creative_plan_sha256" in result and
+         result["creative_plan_sha256"]!=approval["plan_sha256"]) or
+        ("duration_seconds" in result and
+         (type(result["duration_seconds"]) not in (int,float) or
+          result["duration_seconds"]!=duration))):
         raise VoiceUploadRejected("Private original was not registered pending review")
+    # A valid storage receipt is not a current authorization. The trusted writer
+    # must also fence the commit transaction against revocation; this readback
+    # prevents a stale successful response after an in-flight permission change.
+    if (authenticated_editor(shop_id,campaign_id) is not True or
+        read_authoritative_plan(shop_id,campaign_id)!=plan):
+        raise VoiceUploadRejected("Source or membership revoked after private upload")
     return {**receipt,"asset_id":result["asset_id"],
             "private_download_url":None,"billing":"NONE"}
 
@@ -100,7 +164,7 @@ def decode_unreviewed_mp3_to_private_wav(*, original_mp3, max_seconds,
         not (original_mp3.startswith(b"ID3") or
              (original_mp3[0]==0xff and original_mp3[1] & 0xe0==0xe0)) or
         type(max_seconds) is not int or max_seconds not in (15,30,60) or
-        type(operator_ffmpeg_path) not in (str,Path)):
+        type(operator_ffmpeg_path) not in (str,type(Path()))):
         raise VoiceUploadRejected("Bounded MPEG layer-3 original required")
     binary=Path(operator_ffmpeg_path)
     if (not binary.is_absolute() or not binary.is_file() or
@@ -184,16 +248,32 @@ def accept_unreviewed_mp3(*,shop_id,campaign_id,plan,original_mp3,
         "private":True,"paid_calls":0}
     saved=store_both_private_pending(
         shop_id,campaign_id,original_mp3,decoded["derived_wav"],dict(receipt))
-    if (type(saved) is not dict or not _uuid(saved.get("asset_id")) or
-        not _uuid(saved.get("derived_wav_asset_id")) or
-        saved.get("derived_wav_asset_id")==saved.get("asset_id") or
+    # A receipt for only the MP3 object is NOT proof that the independently
+    # hashed derivative was atomically registered as a second private object.
+    # These assertions constrain a trusted backend writer; a browser callback
+    # or a fixture response cannot authorize durable storage or media rights.
+    original_id=saved.get("asset_id") if type(saved) is dict else None
+    derived_id=saved.get("derived_wav_asset_id") if type(saved) is dict else None
+    if (type(saved) is not dict or not _uuid(original_id) or
+        not _uuid(derived_id) or derived_id==original_id or
         saved.get("shop_id")!=shop_id or saved.get("campaign_id")!=campaign_id or
         saved.get("original_mp3_sha256")!=receipt["original_mp3_sha256"] or
         saved.get("derived_wav_sha256")!=receipt["derived_wav_sha256"] or
         saved.get("review_state")!="PENDING_RIGHTS_AND_SPEECH_REVIEW" or
-        saved.get("private") is not True):
-        raise VoiceUploadRejected("Private original/derived MP3 pair not registered")
-    return {**receipt,"asset_id":saved["asset_id"],
-            "derived_wav_asset_id":saved.get("derived_wav_asset_id"),
+        saved.get("private") is not True or
+        saved.get("derived_wav_private") is not True or
+        saved.get("atomic_pair_registered") is not True or
+        any(saved.get(flag) is True for flag in
+            ("can_publish","can_dispatch_motion","commercial_use_approved",
+             "original_media_rights_verified","human_speech_alignment_verified"))):
+        raise VoiceUploadRejected("Both private MP3/WAV objects must be atomically registered pending review")
+    # The atomic writer owns commit-time tenant fencing and rollback/orphan
+    # cleanup. A valid pair receipt alone cannot authorize a response if the
+    # editor or exact source plan changed while the writer was in flight.
+    if (authenticated_editor(shop_id,campaign_id) is not True or
+        read_authoritative_plan(shop_id,campaign_id)!=plan):
+        raise VoiceUploadRejected("Source or membership revoked after private MP3/WAV upload")
+    return {**receipt,"asset_id":original_id,
+            "derived_wav_asset_id":derived_id,
             "original_wav_is_registered_feature7_source":False,
             "private_download_url":None,"billing":"NONE"}

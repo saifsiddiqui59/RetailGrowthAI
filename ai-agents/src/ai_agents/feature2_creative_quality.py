@@ -7,6 +7,7 @@ and real F3/F5 rendered-fidelity inspection remain separate release gates.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import unicodedata
 import hashlib
 import json
 from collections.abc import Mapping
@@ -305,8 +306,14 @@ def append_feature2_trace(*, shop_id, campaign_id, workflow_id, event_id,
         or receipt.get("sequence") != event_number
         or receipt.get("event_sha256") != event_sha
         or receipt.get("private") is not True
-        or receipt.get("committed") is not True):
+        or receipt.get("committed") is not True
+        or receipt.get("can_publish") is True
+        or receipt.get("paid_motion_permitted") is True):
         raise Feature2TraceDenied("Durable private trace append not verified")
+    # Coordinator-owned transactional writer must fence its own commit.
+    # This readback denies success after in-flight scope revocation.
+    if not active():
+        raise Feature2TraceDenied("Trace source revoked during private append")
     # Only bounded digests + enum; NEVER return the secret or full event body.
     return {"schema":event["schema"],"event_sha256":event_sha,
             "event_id":event_id,"sequence":event_number,
@@ -466,8 +473,14 @@ def stage_blind_human_review_revision(*,shop_id,campaign_id,experiment_id,
         stored.get("experiment_id")!=experiment_id or
         stored.get("revision")!=expected_revision+1 or
         stored.get("receipt_digest")!=receipt_digest or
-        stored.get("private") is not True):
+        stored.get("private") is not True or
+        stored.get("can_publish") is True or
+        stored.get("paid_motion_permitted") is True or
+        stored.get("review_status") not in (None,"HUMAN_SCORE_ONLY")):
         raise Feature2TraceDenied("Durable human review revision not confirmed")
+    # CAS legitimately increments revision: recheck role/candidates, not old revision.
+    if not live():
+        raise Feature2TraceDenied("Blind review source revoked during private revision")
     return {"schema":"retailgrowth.feature2-blind-review.v1",
             "experiment_id":experiment_id,"revision":expected_revision+1,
             "receipt_digest":receipt_digest,
@@ -501,12 +514,19 @@ def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
             raise Feature2TraceDenied("Bounded private A/B review history unavailable")
         return rows
     rows=source()
+    # A private history reader may return the same mutable list on both reads.
+    # Freeze the first observation before independent receipt verification: a
+    # signer/reader callback must not mutate that shared object unnoticed.
+    initial_snapshot=deepcopy(rows)
     result=[]
+    seen_receipts=set()
+    baseline_candidates=None
     for i,item in enumerate(rows,1):
         if (type(item) is not dict or item.get("shop_id")!=shop_id or
             item.get("campaign_id")!=campaign_id or
             item.get("experiment_id")!=experiment_id or
-            item.get("revision")!=i or
+            type(item.get("revision")) is not int or
+            item["revision"]!=i or
             item.get("review_status")!="HUMAN_SCORE_ONLY" or
             item.get("private") is not True or
             item.get("can_publish") is not False or
@@ -517,15 +537,27 @@ def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
             set(item["candidate_digests"])!={"A","B"} or
             any(type(v) is not str or not _TRACE_SHA.fullmatch(v)
                 for v in item["candidate_digests"].values()) or
+            item["candidate_digests"]["A"]==item["candidate_digests"]["B"] or
+            item["receipt_digest"] in seen_receipts or
             type(item.get("human_scores")) is not dict or
             set(item["human_scores"])!={"A","B"} or
             any(type(v) not in (float,int) or not 0<=v<=100
                 for v in item["human_scores"].values())):
             raise Feature2TraceDenied("Private A/B score revision invalid")
+        # An experiment's blinded A/B assignments are immutable across score
+        # revisions. A signed receipt for a different candidate pair (or a
+        # swapped A/B label) must not silently rewrite historical comparisons.
+        if baseline_candidates is None:
+            baseline_candidates=dict(item["candidate_digests"])
+        elif item["candidate_digests"]!=baseline_candidates:
+            raise Feature2TraceDenied("Private A/B experiment candidates changed")
         if verify_signed_history_receipt(
             shop_id,campaign_id,experiment_id,i,
             item["receipt_digest"],item["candidate_digests"]) is not True:
             raise Feature2TraceDenied("Missing independent signed A/B history proof")
+        # A and B must identify different candidate bytes; a revision cannot
+        # replay an earlier signed score receipt as fresh editorial evidence.
+        seen_receipts.add(item["receipt_digest"])
         result.append({"revision":i,"candidate_digests":dict(item["candidate_digests"]),
                        "receipt_digest":item["receipt_digest"],
                        "human_scores":dict(item["human_scores"]),
@@ -533,7 +565,7 @@ def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
                        "can_publish":False})
     # A revoked role or changed receipt chain between validation and read must
     # not leak even a summary of historical human preferences.
-    if source()!=rows:
+    if source()!=initial_snapshot or rows!=initial_snapshot:
         raise Feature2TraceDenied("Private A/B review history changed mid-read")
     return {"schema":"retailgrowth.feature2-private-blind-review-history.v1",
             "experiment_id":experiment_id,"records":result,
@@ -596,7 +628,7 @@ import hashlib
 import json
 import re
 
-_CLAIM_PERCENT = re.compile(r"(?<!\d)\d{1,3}\s*(?:%|％|٪|percent|per[ -]?cent)\s*(?:off|discount|sale)?",re.I)
+_CLAIM_PERCENT = re.compile(r"(?<!\d)\d+\s*(?:%|％|٪|﹪|percent|per[ -]?cent|pct\.?)\s*(?:off|discount|sale)?",re.I)
 # Reviewer-only warning for written-out percentages, including hyphenated
 # discounts. A valid approved offer must still match its exact legal text.
 _CLAIM_WORD_PERCENT = re.compile(
@@ -613,10 +645,21 @@ _CLAIM_WORD_PERCENT = re.compile(
 _CLAIM_LOCAL_PERCENT = re.compile(
     r"(?<!\d)\d{1,3}\s*(?:प्रतिशत|फ़ीसदी|फीसदी|टक्के|टक्का)(?![\w\u0900-\u097f])", re.I
 )
-_CLAIM_PRICE = re.compile(r"(?:₹|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
+_CLAIM_PRICE = re.compile(r"(?:₹\s*|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
 _CLAIM_URGENCY = re.compile(r"\b(?:only \d+ left|selling out|last chance|guaranteed|best in india|number one|no\.?1|viral|trending now|everyone is buying|free shipping|free delivery|same-day delivery|cash on delivery|bogo|buy\s+(?:one|1)\s+get\s+(?:one|1)\s+free)\b",re.I)
-_CLAIM_WIDE = re.compile(r"\b(?:everything|all products|storewide|entire store|every item)\b",re.I)
+_CLAIM_WIDE = re.compile(r"\b(?:everything|all products|all items|all styles|all orders|all clothing|any item|any product|storewide|entire store|entire collection|every item)\b",re.I)
 _CLAIM_MATERIAL = re.compile(r"\b(?:100% pure cotton|genuine silk|authentic gold|organic cotton)\b",re.I)
+
+# Reject invisible direction overrides and C1/Unicode line controls in display
+# text before any human review. Preserve legitimate Indic combining marks and
+# joiners (unlike a blanket ban on every Unicode format character).
+def _unsafe_editorial_display(value):
+    import unicodedata
+    overrides={"RLO","LRO","RLE","LRE","PDF","RLI","LRI","FSI","PDI"}
+    return any(ch in "<>\u200b\u200e\u200f\u061c" or
+               ord(ch)<32 or 0x7f<=ord(ch)<=0x9f or
+               unicodedata.category(ch) in ("Zl","Zp") or
+               unicodedata.bidirectional(ch) in overrides for ch in value)
 
 def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     """Review-only policy based on authoritative original retailer facts.
@@ -644,8 +687,11 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     issues=set()
     for field,text in copy.items():
         if (type(text) is not str or not 1<=len(text.strip())<=1800 or
-            any(ord(ch)<32 for ch in text) or "<" in text or ">" in text or
-            "https://" in text.lower() or "javascript:" in text.lower()):
+            any(ord(ch)<32 or 0x7f<=ord(ch)<=0x9f or
+                unicodedata.category(ch) in ("Cf","Cs","Zl","Zp")
+                for ch in text) or "<" in text or ">" in text or
+            re.search(r"(?:https?://|www\.)", text, flags=re.I) or
+            "javascript:" in text.lower()):
             raise EditorialBasisRejected("Unsafe or unbounded retailer copy")
         if _CLAIM_PRICE.search(text):
             issues.add("UNVERIFIED_CURRENCY_PRICE")
@@ -736,7 +782,7 @@ def rank_source_backed_trends(*, verified_context, trends, now_utc,
             not _TREND_SHA.fullmatch(str(row.get("source_sha256") or "")) or
             type(row.get("headline")) is not str or
             not 12<=len(row["headline"])<=180 or
-            any(ord(c)<32 or c in "<>" for c in row["headline"]) or
+            _unsafe_editorial_display(row["headline"]) or
             type(row.get("published_at")) is not str):
             raise EditorialBasisRejected("Current authenticated RSS evidence missing")
         if row["id"] in seen_ids:
@@ -764,6 +810,13 @@ def rank_source_backed_trends(*, verified_context, trends, now_utc,
                          "freshness_points":freshness,
                          "review_score":min(overlap,10)*10+freshness})
     selected.sort(key=lambda x:(-x["review_score"],x["trend_id"]))
+    # Existing #780 F2-04 gate: source grants may be revoked while ranking.
+    for candidate in selected[:10]:
+        original=next(row for row in trends if row["id"]==candidate["trend_id"])
+        if verify_source_provenance(shop,original["id"],
+                                    original["source_sha256"],
+                                    original["published_at"]) is not True:
+            raise EditorialBasisRejected("Signed RSS provenance revoked during ranking")
     return {"schema":"retailgrowth.feature2-trend-review.v1",
             "shop_id":shop,"status":"REVIEW_REQUIRED" if selected else "EVERGREEN_FALLBACK",
             "candidates":selected[:10],
@@ -827,7 +880,7 @@ def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
     items=root.find("channel").findall("item")
     if len(items)>25:
         raise EditorialBasisRejected("Too many private RSS items")
-    seen=set();rows=[];rejected_old=0
+    seen=set();seen_headlines=set();rows=[];rejected_old=0
     for item in items:
         title=item.find("title")
         pub=item.find("pubDate")
@@ -837,7 +890,7 @@ def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
             raise EditorialBasisRejected("RSS headline/date source invalid")
         headline=title.text.strip()
         if not 12<=len(headline)<=180 or \
-           any(ord(ch)<32 or ch in "<>" for ch in headline):
+           _unsafe_editorial_display(headline):
             raise EditorialBasisRejected("Unsafe unreviewed RSS headline")
         try:
             published=parsedate_to_datetime(pub.text.strip())
@@ -847,9 +900,18 @@ def rank_verified_rss_snapshot(*,verified_context,snapshot_id,raw_xml,
                      published.astimezone(timezone.utc)).total_seconds()
         except (TypeError,ValueError,OverflowError) as exc:
             raise EditorialBasisRejected("RSS source timestamp invalid") from exc
-        identity=(guid.text.strip() if guid is not None and
-                  len(guid)==0 and type(guid.text) is str and
-                  1<=len(guid.text.strip())<=500 else
+        # Existing #801 F2-04 gate: different GUIDs cannot inflate a headline.
+        import unicodedata
+        headline_key=" ".join(unicodedata.normalize("NFKC",headline).casefold().split())
+        if headline_key in seen_headlines:
+            raise EditorialBasisRejected("Duplicated RSS headline in signed snapshot")
+        seen_headlines.add(headline_key)
+        # Existing #780 F2-04 gate: present malformed GUIDs fail closed.
+        if guid is not None and (
+            len(guid)!=0 or type(guid.text) is not str or
+            not 1<=len(guid.text.strip())<=500):
+            raise EditorialBasisRejected("Malformed signed RSS GUID")
+        identity=(guid.text.strip() if guid is not None else
                   headline+"|"+published.isoformat())
         source_id="rss_"+hashlib.sha256(identity.encode("utf-8")).hexdigest()[:32]
         if source_id in seen:

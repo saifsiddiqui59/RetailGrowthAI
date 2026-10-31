@@ -169,8 +169,13 @@ def approved_draft_bridge(*,revision=SOURCE_REVISION,
     def save(shop,campaign,proposal,version,event,row):
         records.append(row)
         reply={"shop_id":shop,"campaign_id":campaign,"proposal_id":proposal,
-               "revision":version+1,"improved_prompt_sha256":row["improved_prompt_sha256"],
-               "review_event_id":event,"private":True,"committed":True}
+               "source_revision":version,"revision":version+1,
+               "original_prompt_sha256":row["original_prompt_sha256"],
+               "improved_prompt_sha256":row["improved_prompt_sha256"],
+               "review_event_id":event,"review_status":"DRAFT",
+               "private":True,"committed":True,
+               "can_publish":False,"can_dispatch_paid_motion":False,
+               "provider_call_made":False}
         if storage_tamper:
             reply.update(storage_tamper)
         return reply
@@ -272,3 +277,119 @@ def test_reviewed_revision_cannot_inject_or_remove_source(bad):
     with pytest.raises(PromptRevisionRejected):
         run(improved_prompt=bad)
     assert writes==[]
+
+
+# These tests use injected mock providers and storage, not actual paid AI or
+# independently signed customer approvals.
+@pytest.mark.parametrize("injected",[
+    " 40% off all products",
+    " ₹999 only today",
+    " Free delivery guaranteed",
+    " Only 2 left in stock",
+])
+def test_provider_cannot_add_new_unsupported_claims_to_preserved_retailer_brief(injected):
+    flags=dict(output_formats=["poster_brief"],provider_mode="approved_llm",
+               explicit_cost_approval=True,subscription_quota_ok=True,
+               approved_cost_limit_usd=0.03,
+               environ={"RETAIL_PROMPT_LLM_ENABLED":"true"})
+    with pytest.raises(ValueError,match="unsafe prompt"):
+        improve_prompt(ORIGINAL,profile(),
+                       provider=lambda base:base+injected,**flags)
+
+
+@pytest.mark.parametrize("alter",[
+    {"source_revision":3},
+    {"original_prompt_sha256":"f"*64},
+    {"review_status":"PUBLISHED"},
+    {"can_publish":True},
+    {"can_dispatch_paid_motion":True},
+    {"provider_call_made":True},
+])
+def test_reviewed_draft_writer_cannot_replay_source_or_promote_authority(alter):
+    run,writes,_=approved_draft_bridge(storage_tamper=alter)
+    with pytest.raises(PromptRevisionRejected,match="Durable"):
+        run()
+    assert len(writes)==1  # Actual backend CAS must compensate any bad write.
+
+
+def test_post_write_editor_revocation_never_returns_success_receipt():
+    calls=[]
+    def editor(*scope):
+        calls.append(1)
+        return len(calls)<3
+    run,writes,_=approved_draft_bridge(editor=editor)
+    with pytest.raises(PromptRevisionRejected,match="revoked during private"):
+        run()
+    assert len(calls)==3 and len(writes)==1
+
+
+# F2-03: original, provider and signed-CAS prompts must not hide control
+# characters that change reviewer-visible meaning. Fixtures only, no AI call.
+@pytest.mark.parametrize("hidden", [
+    "\u202e",  # right-to-left override
+    "\u2066",  # left-to-right isolate
+    "\u200b",  # zero-width space
+    "\u200d",  # ZWJ outside an Indic conjunct
+    "\u2028",  # Unicode line separator
+    "\x00",    # NUL
+])
+def test_prompt_improver_rejects_invisible_or_bidi_instruction_controls(hidden):
+    with pytest.raises(ValueError, match="unsafe control"):
+        improve_prompt(
+            "Create a kurti post " + hidden + " with a human review.",
+            profile(), output_formats=["instagram_caption"],
+        )
+
+
+def test_valid_devanagari_conjunct_joiner_is_not_mistaken_for_injection():
+    original = "कृपया क्\u200dष अक्षर के साथ साड़ी का विवरण लिखें।"
+    result = improve_prompt(
+        original, profile(), output_formats=["poster_brief"], language="hi-IN",
+    )
+    assert original in result["improved_prompt"]
+    assert result["can_publish"] is False
+
+
+def test_mock_approved_provider_cannot_insert_invisible_controls():
+    flags = dict(
+        output_formats=["poster_brief"], provider_mode="approved_llm",
+        explicit_cost_approval=True, subscription_quota_ok=True,
+        approved_cost_limit_usd=0.03,
+        environ={"RETAIL_PROMPT_LLM_ENABLED": "true"},
+    )
+    with pytest.raises(ValueError, match="unreviewable or unsafe"):
+        improve_prompt(
+            ORIGINAL, profile(),
+            provider=lambda prompt: prompt + "\u202e",
+            **flags,
+        )
+
+
+def test_signed_prompt_revision_rejects_hidden_control_before_private_cas():
+    run, writes, decisions = approved_draft_bridge()
+    with pytest.raises(PromptRevisionRejected, match="Unsafe prompt revision"):
+        run(improved_prompt=IMPROVED + "\u200b")
+    assert writes == [] and decisions == []
+
+
+@pytest.mark.parametrize("bad_formats", [
+    [["instagram_caption"]],
+    [{"format": "instagram_caption"}],
+    [None],
+    [False],
+    ["instagram_caption", ["facebook_post"]],
+])
+def test_prompt_improver_rejects_unhashable_or_non_string_format_inputs(bad_formats):
+    with pytest.raises(ValueError, match="Unsupported or duplicate output format"):
+        improve_prompt(ORIGINAL, profile(), output_formats=bad_formats)
+
+
+@pytest.mark.parametrize("bad_locale", [
+    {"locale": "en-IN"},
+    ["en-IN"],
+    None,
+    False,
+])
+def test_prompt_improver_rejects_non_string_locale_without_type_error(bad_locale):
+    with pytest.raises(ValueError, match="Unsupported language"):
+        improve_prompt(ORIGINAL, profile(), output_formats=["instagram_caption"], language=bad_locale)

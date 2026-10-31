@@ -62,6 +62,13 @@ def test_duplicate_or_unsafe_runtime_zip_rejected_before_reading_members():
             z.writestr("../bin/node", b"evil")
         with pytest.raises(ValueError, match="Unsafe runtime ZIP member"):
             audit_zip(str(path))
+        # A 121-entry archive is rejected by the real Functions package
+        # verifier; the F2 preflight must never report it as acceptable.
+        with ZipFile(path, "w") as z:
+            for index in range(121):
+                z.writestr(f"padding/{index}.txt", b"x")
+        with pytest.raises(ValueError, match="oversized runtime manifest"):
+            audit_zip(str(path))
 
 
 def test_runtime_zip_rejects_nonexecutable_node_even_with_claimed_operator_flags():
@@ -86,3 +93,44 @@ def test_packaged_upstream_mit_originals_are_checked_again_not_just_at_staging()
     audit = audit_entries(forged)
     assert not audit.ready_to_enable
     assert "PINNED_DIRECTOR_UPSTREAM_HASH_MISMATCH" in audit.blocking_reasons
+
+
+def test_structural_node_attestation_denies_elf_header_and_segment_spoofing():
+    import struct
+    from ai_agents.feature2_director_runtime_gate import _node_binary_attested
+
+    # Synthetic bytes only: not a real Node runtime or approved production hash.
+    fake = bytearray(100_000)
+    fake[:7] = b"\x7fELF\x02\x01\x01"
+    struct.pack_into("<HHI", fake, 16, 3, 62, 1)  # ET_DYN, x86_64, v1
+    struct.pack_into("<Q", fake, 32, 64)  # program-header table offset
+    struct.pack_into("<H", fake, 52, 64)  # ELF64 header size
+    struct.pack_into("<HH", fake, 54, 56, 1)  # one 56-byte program header
+    struct.pack_into("<II", fake, 64, 1, 5)  # PT_LOAD, readable + executable
+    struct.pack_into("<Q", fake, 72, 128)  # file offset
+    struct.pack_into("<QQ", fake, 96, 1, 1)  # p_filesz, p_memsz
+    assert _node_binary_attested(bytes(fake), sha256(fake).hexdigest())
+    for offset, fmt, bad in (
+        (16, "<H", 0),  # no executable/shared-object ELF type
+        (20, "<I", 0),  # invalid ELF version
+        (52, "<H", 0),  # invalid ELF header size
+        (64, "<I", 0),  # no PT_LOAD program segment
+        (68, "<I", 4),  # loadable but not executable
+    ):
+        tampered = bytearray(fake)
+        struct.pack_into(fmt, tampered, offset, bad)
+        assert not _node_binary_attested(
+            bytes(tampered), sha256(tampered).hexdigest()
+        )
+    for offset, fmt, bad in (
+        (72, "<Q", len(fake) + 1),  # executable bytes start beyond file
+        (72, "<Q", len(fake)),  # nonempty segment cannot start at EOF
+        (96, "<Q", 0),  # empty executable load segment
+        (96, "<Q", len(fake)),  # segment extends beyond signed file
+        (104, "<Q", 0),  # mapped memory smaller than file bytes
+    ):
+        tampered = bytearray(fake)
+        struct.pack_into(fmt, tampered, offset, bad)
+        assert not _node_binary_attested(
+            bytes(tampered), sha256(tampered).hexdigest()
+        )
