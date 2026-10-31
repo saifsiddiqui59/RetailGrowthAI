@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Evidence-aware feature progress view; never infer tested/PR-ready from source state."""
 import json
-from collections import Counter
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -10,7 +10,7 @@ EVENTS = ROOT / "coordination/task_progress.json"
 FEATURES = ("2", "3", "4", "5", "7")
 STAGES = ("source-complete", "tested", "PR-ready", "integrated")
 
-def report(registry, progress):
+def report(registry, progress, verified_done_ids=()):
     tasks = registry["tasks"]
     events = progress.get("events", [])
     # Only explicit coordinator-reviewed events can advance verified stages.
@@ -28,7 +28,8 @@ def report(registry, progress):
         source = sum(t.get("source_status") in ("source_complete", "source_integrated") for t in owned)
         tested = sum("tested" in verified.get(t["id"], ()) for t in owned)
         pr_ready = sum("PR-ready" in verified.get(t["id"], ()) for t in owned)
-        integrated = sum("integrated" in verified.get(t["id"], ()) and t.get("integrated_done") is True for t in owned)
+        # Imported inventory is immutable; only the GitHub-verified task_status resolver can mark DONE.
+        integrated = sum(t["id"] in verified_done_ids for t in owned)
         blocked = sum(t.get("source_status") == "blocked" for t in owned)
         result.append((feature, len(owned), source, tested, pr_ready, integrated, blocked))
     return result
@@ -36,14 +37,22 @@ def report(registry, progress):
 def main():
     registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
     progress = json.loads(EVENTS.read_text(encoding="utf-8"))
+    from task_status import GitHub, resolve
+    # Fail closed when GitHub cannot verify PR merge SHA and fresh main four-job CI.
+    verified_report = resolve(
+        registry, progress,
+        gh=GitHub(os.getenv("GITHUB_REPOSITORY", "saifsiddiqui59/RetailGrowthAI"), os.getenv("GITHUB_TOKEN")),
+    )
+    verified_done_ids = {item["id"] for item in verified_report["items"] if item["status"] == "DONE"}
     print("| Feature | Total | Source-complete* | Tested† | PR-ready† | Integrated DONE† | Blocked* |")
     print("|---|---:|---:|---:|---:|---:|---:|")
-    for feature, total, source, tested, pr_ready, integrated, blocked in report(registry, progress):
+    for feature, total, source, tested, pr_ready, integrated, blocked in report(registry, progress, verified_done_ids):
         print(f"| #{feature} | {total} | {source} | {tested} | {pr_ready} | {integrated} | {blocked} |")
     print("\n* Existing task-registry snapshots; not independently revalidated.")
     print("† Requires per-task explicit reviewed evidence in coordination/task_progress.json;")
     print("  zero means NOT VERIFIED in this register, not proof that no tests or PRs exist.")
     print("Stages are independent evidence labels, not automatically cumulative percentages.")
+    print("Integrated DONE requires task_status.py verification of merged PR and fresh main 4/4 CI.")
     print("Unmerged PRs and synthetic fixtures never count as integrated DONE.")
 
 if __name__ == "__main__":

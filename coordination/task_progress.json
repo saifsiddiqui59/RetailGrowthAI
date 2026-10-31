@@ -1,5 +1,23 @@
 {
   "schema_version": 1,
   "description": "Only coordinator-reviewed task status evidence. Source snapshot is separate; no events = no verified new integrated DONE.",
-  "events": []
+  "events": [
+    {
+      "task_id": "F3-01",
+      "status": "DONE",
+      "pr_number": 813,
+      "main_ci_run_id": 41131088666,
+      "accepted_by": "RetailGrowthAI integration coordinator (source-only acceptance review, 2026-10-31)",
+      "acceptance_scope": "source_integrated",
+      "acceptance_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/813",
+      "review_notes": "Established F3-01 integration milestone from feature3 33-package source ledger. PR #811 merged to main c14d099db61b8df14fa1907b8046fc3b3bd51090, followed by PR #813 merged to main 7404b46e2aeda2707dd7793a4bae36295390d039. Fresh main Part 1 CI #41131088666 passed all four mandatory jobs on 7404b46e after PR #813 merge. Source-integrated acceptance ONLY. Does not certify any hosted model, signed real-user DEV flow, FLUX/Wan inference, GPU, license approval, or commercial output.",
+      "evidence_scope": "source only (not hosted or production)",
+      "additional_pr_numbers": [
+        811
+      ],
+      "stage": "integrated",
+      "verified": true,
+      "evidence": "https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41131088666"
+    }
+  ]
 }
