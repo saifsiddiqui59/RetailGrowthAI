@@ -91,3 +91,21 @@
 - **Verification:** GitHub donor/recipient source equality and line-level preservation verified. No local tests executed. Prior [Actions #41130847025](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41130847025) had 4/4 successful jobs on an **earlier** head, not this combined head. Exact-head four-job CI and merge-ref CI **NOT VERIFIED**. Do not claim tested, PR-ready, or integrated DONE from donor CI or old head.
 - **Registry:** source-complete 0/31 snapshot, blocked 16/31 snapshot, tested not verified, PR-ready not verified, integrated DONE 0/31 (empty coordinator-reviewed receipt log).
 - **NEXT integration gate:** inspect latest #779 exact-head push CI for all four jobs; diagnose/fix concrete regressions in F4-05/F4-15 if present. Coordinator must review #779/#322 stack and reconcile main / #650 packaging; #249 hosted 503 and production rights remain separate owners. Do **not** double-merge #828 or the original donor PRs. GPU OFF; no paid model, cloud spend, PROD, SQL, WineShopPOS or samples.
+
+
+## Integration continuation — F4-11 continuous encoded black-hold QA (2026-10-31)
+
+- **Integration target:** existing OPEN/DRAFT PR #779, branch `feat/feature4-batched-source-handoff-20261030`, stacked on draft parent #322; pre-integration head `28da476ce5b5b8b7a8926aca3da5858378e93414` and base `e32a8da61a6272666d757b6c51b0ec2576d7602f`. No main merge.
+- **Donor:** existing PR #808, exact head `81023702673f48730d85e4b33fae26936e8b30cd`, based on earlier #779 `ab1a123821219c196c4357b25429f51eff5e689c`. Donor [Actions #41052945105](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41052945105) reported 4/4 SUCCESS at donor head, **not** proof for this newly combined batch.
+- **Pre-copy conflict check:** four recipient code/test blobs were byte-identical to the donor's base `ab1a1238`; none was modified by later #779 integration. Copied only existing F4-11 source/tests and donor handoff, **not** donor's stale 31-task shared ledger snapshot. Paths:
+  `video-engine/feature4_scene_visibility.py` (donor blob `c4e1ba05858f26feba1b4572a8852084eea9e7c0`);
+  `video-engine/feature4_minute_quality_receipt.py` (`d25685efd028a7c3c4017eee149cf79f558a6050`);
+  `tests/media/test_feature4_scene_visibility.py` (`0d8cc50dc15eb7732f02cb65384de8ef2880e50b`);
+  `tests/media/test_feature4_scene_visibility_receipt.py` (`cb5f2b78ecfaecc2f7971c8cbe10eed1f2bb4e4b`);
+  `video-engine/FEATURE4_CONTINUOUS_BLACK_SCAN_HANDOFF_20261030.md` (`78e07970d137a2f09e40c633ab21002168feb191`).
+- **Scope:** F4-11 continuous FFmpeg blackdetect full-timeline scan and v3 visibility proof; existing encoded 0.8s hidden black-gap negative regression, no commercial/rights/visual approval.
+- **Verification:** GitHub source/base blob comparison VERIFIED; donor 4/4 from its own exact head VERIFIED via PR #808 evidence. New batch combined-head tests/CI **NOT RUN / NOT VERIFIED** at checkpoint creation. Previous #779 head `28da476ce5b5b8b7a8926aca3da5858378e93414` passed [Actions #41137311270](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41137311270) 4/4, but that is **pre-integration** and cannot be reused as new-head proof. Re-read current #779 SHA and GitHub Actions run before claiming tested/PR-ready.
+- **Review blocker:** parent #322 diverged from main at `140a9f86170132d7c482a183b843788aa09b3b5a` (229 ahead / 308 behind at inspection); coordinator owns main reconciliation, #650 protected Functions ZIP, PR merge-reference checks, merge and fresh main 4/4. #249 signed Azure 503 and customer media/rights/human acceptance remain separately blocked. No worker merge or shared canonical docs edits.
+- **Five-stage snapshot:** F4 source-complete 0/31 (registry, not absence of coding); tested per-task **not verified** on new combined head; PR-ready **not verified**; integrated DONE 0/31; blocked 16/31 (registry).
+- **NEXT integration gate:** inspect exact-head #779 four-job CI after this commit, fix any concrete owned failures; then review existing stacked PR #816 F4-14 CPU 15/30/60 matrix against current batch (overlapping `hyperframes/benchmark_render.py` requires semantic reconciliation). Avoid double-merging donor #808. Coordinator must review parent #322 and release packaging before main integration.
+- GPU OFF; no paid inference, cloud deployment, PROD, hosted SQL, WineShopPOS or samples.
