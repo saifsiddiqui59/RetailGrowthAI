@@ -51,7 +51,8 @@ def main():
     print("† Requires per-task explicit reviewed evidence in coordination/task_progress.json;")
     print("  zero means NOT VERIFIED in this register, not proof that no tests or PRs exist.")
     print("Stages are independent evidence labels, not automatically cumulative percentages.")
-    print("Integrated DONE requires task_status.py verification of merged PR and fresh main 4/4 CI.")\n    print("Unmerged PRs and synthetic fixtures never count as integrated DONE.")
+    print("Integrated DONE requires task_status.py verification of merged PR and fresh main 4/4 CI.")
+    print("Unmerged PRs and synthetic fixtures never count as integrated DONE.")
 
 if __name__ == "__main__":
     main()
