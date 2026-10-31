@@ -63,7 +63,10 @@ def verify_cache(cache_dir, *, model_sha=MODEL_SHA, voice_sha=VOICES_SHA,
     """
     if not isinstance(cache_dir,(str,Path)) or not str(cache_dir):
         raise LocalSpeechUnavailable("Trusted speech cache required")
-    root=Path(cache_dir).resolve(strict=True)
+    try:
+        root=Path(cache_dir).resolve(strict=True)
+    except (OSError,ValueError,RuntimeError) as exc:
+        raise LocalSpeechUnavailable("Trusted speech cache required") from exc
     if not root.is_dir():
         raise LocalSpeechUnavailable("Trusted speech cache required")
     _file_proof(root/MODEL_NAME,MODEL_NAME,model_size,model_sha)
@@ -137,6 +140,7 @@ def synthesize_local(*,text,voice_id="af_heart",lang="en-us",
     """
     if (type(text) is not str or not _TEXT.fullmatch(text.strip()) or
         len(text.strip())>1400 or type(voice_id) is not str or
+        type(lang) is not str or type(speed) is not str or
         SUPPORTED_VOICES.get(voice_id)!=lang or speed not in SPEEDS):
         raise LocalSpeechUnavailable("Unsupported text/voice/language/speed")
     if engine is not None and trusted_for_tests is not True:
@@ -217,6 +221,29 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
         def rss_kib():
             return None
 
+    def validate_pcm_proof(audio):
+        # A RIFF magic prefix and caller-provided duration do not prove that
+        # the benchmark measured a decodable, complete original PCM WAV.
+        # Check the actual container and bytes without invoking any provider.
+        data=audio["audio_wav"]
+        if len(data)<44 or len(data)>24000*2*60+4096:
+            raise LocalSpeechUnavailable("Benchmark WAV container invalid")
+        try:
+            with wave.open(BytesIO(data),"rb") as wav:
+                if (wav.getnchannels()!=1 or wav.getsampwidth()!=2 or
+                    wav.getframerate()!=24000 or wav.getcomptype()!="NONE"):
+                    raise LocalSpeechUnavailable("Benchmark WAV PCM format invalid")
+                frames=wav.getnframes()
+                if not 2400<=frames<=24000*60:
+                    raise LocalSpeechUnavailable("Benchmark WAV duration invalid")
+                decoded=wav.readframes(frames)
+                if len(decoded)!=frames*2:
+                    raise LocalSpeechUnavailable("Benchmark WAV frames truncated")
+                if abs(audio["duration_seconds"]-frames/24000)>0.0002:
+                    raise LocalSpeechUnavailable("Benchmark WAV duration proof mismatch")
+        except (wave.Error,EOFError,OSError,ValueError) as exc:
+            raise LocalSpeechUnavailable("Benchmark WAV container invalid") from exc
+
     before=rss_kib()
     observations=[]
     engine=synthesize if trusted_for_tests else synthesize_local
@@ -245,6 +272,7 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
             not audio["audio_wav"].startswith(b"RIFF") or
             audio["audio_wav"][8:12]!=b"WAVE"):
             raise LocalSpeechUnavailable("Benchmark source/audio provenance invalid")
+        validate_pcm_proof(audio)
         observations.append({
             "wall_seconds":round(wall,4),
             "process_cpu_seconds":round(cpu,4),
