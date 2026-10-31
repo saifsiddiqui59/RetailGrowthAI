@@ -52,8 +52,30 @@ if(p.attack==='fake_grant')item.grant={
   shop_id:p.shop_id,asset_id:item.asset_id,issued_by:'trusted_server',
   active:true,sha256:item.expected_sha256,relative_path:item.relative_path
 };
+if(p.attack==='broll_revoked')p.current_broll.active=false;
+if(p.attack==='broll_foreign_shop')p.current_broll.shop_id='foreign-shop';
+if(p.attack==='broll_changed_sha')p.current_broll.sha256='f'.repeat(64);
+if(p.attack==='broll_changed_revision')p.current_broll.rights_revision='revision-2';
+if(p.attack==='broll_bad_mime')p.current_broll.mime_type='application/octet-stream';
+if(p.attack==='broll_forged_issued_by')p.broll_grants[0].issued_by='trusted_server';
 const r=prepareAuthoritativePrivateReview({
   ...p,asr_key:asrKey,rights_key:rightsKey,
+  getCurrentApprovedBroll:p.no_broll_loader ? undefined : ({shop_id,asset_id})=>{
+    p.broll_rights_checks=(p.broll_rights_checks??0)+1;
+    if(p.attack==='broll_missing_registry' ||
+      shop_id!==p.shop_id || asset_id!==p.current_broll?.asset_id)
+      return null;
+    if(p.attack==='broll_revoked_during_review' &&
+      p.broll_rights_checks>1)
+      return {...p.current_broll,active:false};
+    if(p.attack==='broll_revision_during_review' &&
+      p.broll_rights_checks>1)
+      return {...p.current_broll,rights_revision:'revision-2'};
+    if(p.attack==='broll_keywords_during_review' &&
+      p.broll_rights_checks>1)
+      return {...p.current_broll,keywords:['changed']};
+    return p.current_broll;
+  },
   getCurrentApprovedVideo:()=>{
     p.rights_checks=(p.rights_checks??0)+1;
     if(p.attack==='revoked_during_review' && p.rights_checks>1)
@@ -107,6 +129,28 @@ class Feature7AuthoritativeRightsTests(unittest.TestCase):
             ]}]}}],
           'broll_grants':[]}
 
+    @classmethod
+    def broll_payload(cls):
+        p=cls.payload()
+        sha='a'*64
+        p['current_broll']={
+            'shop_id':'shop-demo','asset_id':'cutaway-demo',
+            'source':'retailer_upload','rights_status':'APPROVED',
+            'active':True,'media_type':'image','mime_type':'image/png',
+            'sha256':sha,'rights_revision':'broll-rev-1',
+            'keywords':['hello']
+        }
+        # Untrusted request supplies an ID and expected registry generation,
+        # not a permission or trusted_server marker.
+        p['broll_grants']=[{
+            'asset_id':'cutaway-demo','expected_sha256':sha,
+            'rights_revision':'broll-rev-1'
+        }]
+        p['media'][0]['broll_candidates']=[{
+            'startIdx':0,'endIdx':0,'mode':'inset','assetId':'cutaway-demo'
+        }]
+        return p
+
     def js(self,p):
         return subprocess.run(['node','--input-type=module','-e',JS],
           input=json.dumps(p),cwd=ROOT,capture_output=True,text=True,timeout=60)
@@ -139,5 +183,50 @@ class Feature7AuthoritativeRightsTests(unittest.TestCase):
           'asset_id':'asset-demo'}
         r=self.js(p)
         self.assertNotEqual(r.returncode,0,r.stdout)
+
+    def test_broll_resolved_from_current_registry_not_submitted_grant(self):
+        p=self.broll_payload()
+        # Caller-controlled display/permission properties are ignored.
+        p['broll_grants'][0].update({
+            'issued_by':'trusted_server','active':False,
+            'rights_status':'REVOKED','shop_id':'foreign-shop',
+            'keywords':['forged']
+        })
+        r=self.js(p)
+        self.assertEqual(r.returncode,0,r.stderr[-1000:])
+        data=json.loads(r.stdout)
+        self.assertEqual(data['broll_advisory'][0]['asset_id'],'cutaway-demo')
+        self.assertEqual(data['owned_cutaways_advisory'][0]['asset_id'],
+                         'cutaway-demo')
+        self.assertFalse(data['approved'])
+        self.assertFalse(data['renderable'])
+
+    def test_broll_forged_revoked_foreign_stale_and_drift_fail_closed(self):
+        for attack in (
+            'broll_missing_registry','broll_revoked','broll_foreign_shop',
+            'broll_changed_sha','broll_changed_revision','broll_bad_mime',
+            'broll_revoked_during_review','broll_revision_during_review',
+            'broll_keywords_during_review','broll_forged_issued_by'
+        ):
+            with self.subTest(attack=attack):
+                p=self.broll_payload()
+                p['attack']=attack
+                if attack=='broll_forged_issued_by':
+                    p['no_broll_loader']=True
+                r=self.js(p)
+                self.assertNotEqual(r.returncode,0,r.stdout)
+
+    def test_broll_missing_or_malformed_reference_fails_closed(self):
+        for change in ('missing_sha','wrong_revision','duplicate'):
+            with self.subTest(change=change):
+                p=self.broll_payload()
+                if change=='missing_sha':
+                    del p['broll_grants'][0]['expected_sha256']
+                elif change=='wrong_revision':
+                    p['broll_grants'][0]['rights_revision']='stale-rev'
+                else:
+                    p['broll_grants'].append(dict(p['broll_grants'][0]))
+                r=self.js(p)
+                self.assertNotEqual(r.returncode,0,r.stdout)
 
 if __name__=='__main__':unittest.main()
