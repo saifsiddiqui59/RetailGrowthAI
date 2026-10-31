@@ -126,9 +126,14 @@ def _bundle(job, source):
                 or type(origin) is not str or not 0 < len(origin.strip()) <= 300):
             raise Feature4HandoffError("Missing verified commercial rights or MIME")
         key = row["object_path"]
+        # Exactly the same conservative canonical segment alphabet already
+        # used for tenant-private browser source preview URLs. Do not hand
+        # encoded traversals, query fragments, Unicode control names or
+        # duplicate/dot segments to any backend storage download adapter.
         if (type(key) is not str or not key.startswith(sid + "/")
-                or ".." in key.split("/") or "\\" in key or "//" in key
-                or "://" in key or len(key) > 1000):
+                or len(key) > 1000
+                or not re.fullmatch(r"[A-Za-z0-9._/-]+", key)
+                or any(segment in ("", ".", "..") for segment in key.split("/"))):
             raise Feature4HandoffError("Media storage path escapes tenant")
         # Use enumeration-generated filenames: no untrusted object keys in local path.
         rel = "in" + str(len(assets)).zfill(2) + suffix
@@ -280,6 +285,13 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
             # coordinator's cleanup policy; never finalize/charge/issue URL.
             if _staged_fingerprint(result_path) != output_fingerprint:
                 raise Feature4HandoffError("Encoded output changed during private upload")
+            # An uploader may return a stale, foreign-tenant or wrong-lease
+            # key even after successful local verification. Never allow its
+            # unverified return value to select what the finalizer accepts.
+            expected_key = (claim["shop_id"] + "/renders/" + jid + "/" +
+                            claim["render_claim_token"] + ".mp4")
+            if type(key) is not str or key != expected_key:
+                raise Feature4HandoffError("Private uploaded object does not match current claim")
             if admin.render_authorized(claim) is not True or admin.feature4_claim_current(claim) is not True:
                 return "STALE"
             finalized = admin.complete_feature4_render(
