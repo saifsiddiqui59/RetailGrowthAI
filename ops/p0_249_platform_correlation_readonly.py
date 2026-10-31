@@ -243,14 +243,23 @@ def safe_rows(payload) -> list[dict]:
         if isinstance(when, str) and BUCKET.fullmatch(when):
             row["bucket"] = when
         category = raw.get("category")
-        if category in CATEGORIES:
+        # Azure cells may be malformed objects/lists. Never allow an
+        # unhashable category to discard an otherwise valid aggregate row.
+        if isinstance(category, str) and category in CATEGORIES:
             row["category"] = category
         status = raw.get("status")
         if isinstance(status, str) and STATUS.fullmatch(status):
             row["status"] = status
         instance = raw.get("instance")
         if isinstance(instance, str) and 0 < len(instance) <= 256:
-            row["host_hash"] = hashlib.sha256(instance.encode()).hexdigest()[:12]
+            # A malformed Unicode cell must not poison the whole query or
+            # expose the original host identity; simply omit its digest.
+            try:
+                raw_host = instance.encode("utf-8")
+            except UnicodeEncodeError:
+                pass
+            else:
+                row["host_hash"] = hashlib.sha256(raw_host).hexdigest()[:12]
         if row.get("bucket") and "events" in row:
             out.append(row)
     return out[:80]
