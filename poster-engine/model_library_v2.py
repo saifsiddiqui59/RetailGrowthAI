@@ -236,10 +236,13 @@ def checked_model_for_use(*, model, requesting_shop_id, usage, authorize_use):
     shop_id = _uuid(requesting_shop_id)
     if (not isinstance(model, dict) or model.get("schema") !=
         "retailgrowth.model-library.v1" or model.get("status") != "APPROVED"
-        or usage not in USES or model.get("synthetic_adult") is not True or
+        or type(usage) is not str or usage not in USES or
+        model.get("synthetic_adult") is not True or
         not _approved_model_uses(model.get("approved_uses"), usage) or
-        model.get("license_id") not in KNOWN_LICENSES or
-        model.get("scope") not in SCOPES or
+        type(model.get("license_id")) is not str or
+        model["license_id"] not in KNOWN_LICENSES or
+        type(model.get("scope")) is not str or
+        model["scope"] not in SCOPES or
         not isinstance(model.get("image_sha256"), str) or
         not SHA256.fullmatch(model["image_sha256"]) or
         not callable(authorize_use)):
