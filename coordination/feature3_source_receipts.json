@@ -231,6 +231,18 @@
       "exact_head": "a80e2741ca69973188c6975e191401ba03572557",
       "hosted_task_complete": false,
       "exact_head_ci_run_id": 41301483566
+    },
+    {
+      "source_pr": 863,
+      "task_ids": [
+        "F3-08",
+        "F3-13"
+      ],
+      "component": "Private generated PNG exact asset identity/tenant/bucket/GENERATED source checked before and after private GET",
+      "stage": "TESTED_PR_REVIEW_REQUIRED",
+      "exact_head": "1ee6d23a334ca82a18d9f7348ee45cce6eb27916",
+      "exact_head_ci_run_id": 41303756765,
+      "hosted_task_complete": false
     }
   ],
   "verified_package_done": [
@@ -250,5 +262,5 @@
     "F5-GPU-AUTHORIZATION",
     "real signed DEV JWT/RLS negative tests"
   ],
-  "next_action": "Open independent security/coordinator review for tested PRs #859 (F3-10/13), #861 (F3-07/13), #862 (F3-02/13); no hosted/paid DONE. After reviewed main merge and fresh 4/4, convert only that PR's source receipt from pending to source-integrated."
+  "next_action": "Feature3 has 14 merged reviewed source components plus 4 tested active source PRs #859/#861/#862/#863, all original task IDs; await independent relevant security/shared-owner approvals, current-main merges and fresh 4/4 main receipts, then move source components to integrated one-by-one. Hosted F3 DONE stays 0/33."
 }
