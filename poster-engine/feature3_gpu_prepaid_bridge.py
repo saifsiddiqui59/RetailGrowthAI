@@ -77,10 +77,14 @@ class PrepaidGPUJobCallbacks:
 
         def claim(shop, job_id, attempt):
             record = self._claim_rpc(job_id, claim_token)
-            if not isinstance(record, dict) or record != {
-                "shop_id": shop, "job_id": job_id,
-                "attempt": attempt, "claim_token": claim_token,
-            }:
+            # Python dict equality treats True == 1 and 1.0 == 1.
+            # SQL claim attempt is a durable one-shot integer, not a truthy flag.
+            if (not isinstance(record, dict)
+                    or type(record.get("attempt")) is not int
+                    or record != {
+                        "shop_id": shop, "job_id": job_id,
+                        "attempt": attempt, "claim_token": claim_token,
+                    }):
                 raise ProviderBlocked("Durable GPU claim token/shop mismatch")
             return record
 
@@ -94,7 +98,9 @@ class PrepaidGPUJobCallbacks:
                 "reservation_id", "shop_id", "job_id", "attempt",
                 "claim_token", "reserved_usd",
             } or record.get("shop_id") != shop or record.get("job_id") != job_id or (
-                record.get("attempt") != attempt or record.get("claim_token") != token
+                type(record.get("attempt")) is not int
+                or record.get("attempt") != attempt
+                or record.get("claim_token") != token
             ):
                 raise ProviderBlocked("Existing paid GPU reservation not authoritative")
             reservation_id = _uuid4(record["reservation_id"])
