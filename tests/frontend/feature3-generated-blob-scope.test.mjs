@@ -231,3 +231,39 @@ test('two failed revocations from a replacement stay hidden until a later retry'
   deny.delete(first)
   scope.clear()
 })
+
+test('repeated preview attempts cannot allocate unbounded private Blobs while revoke is denied',()=>{
+  const issued=[],revoked=[],deny=new Set()
+  const scope=createFeature3GeneratedBlobScope({
+    createURL:()=>{
+      const next='blob:https://fixture.test/'+randomUUID()
+      issued.push(next)
+      return next
+    },
+    revokeURL:url=>{
+      if(deny.has(url))throw Error('browser revoke remains unavailable')
+      revoked.push(url)
+    },
+  })
+  scope.selectScope(SHOP)
+  const old=scope.install(SHOP,JOB,RECEIPT)
+  deny.add(old)
+  assert.throws(()=>scope.install(SHOP,JOB,RECEIPT),/replacement cleanup failed/)
+  // The replacement was released, but the original is still hidden/pending.
+  assert.equal(issued.length,2)
+  assert.deepEqual(revoked,[issued[1]])
+  assert.equal(scope.view(SHOP,JOB),null)
+  for(let i=0;i<20;i++){
+    assert.throws(()=>scope.install(SHOP,JOB,RECEIPT),/cleanup failed/)
+    assert.equal(issued.length,2,'no additional object URLs while revoke fails')
+    assert.equal(scope.view(SHOP,JOB),null)
+  }
+  deny.delete(old)
+  const recovered=scope.install(SHOP,JOB,RECEIPT)
+  assert.equal(issued.length,3)
+  assert.equal(recovered,issued[2])
+  assert.deepEqual(revoked,[issued[1],old])
+  assert.equal(scope.view(SHOP,JOB),recovered)
+  scope.clear()
+  assert.deepEqual(revoked,[issued[1],old,recovered])
+})
