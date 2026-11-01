@@ -80,3 +80,7 @@ This is a reconstruction of the established 33 work-package baseline, not 33 new
 - New source-only PR #859 repairs lost locally-issued Blob revocation receipts under simulated browser failures, with negative tests; status **IN PROGRESS**, pending exact-head full CI, independent review and eventual fresh main CI. This does not revoke signed Storage URLs, mount Azure route, or satisfy real tenant/model-rights E2E.
 - Stale PRs #738, #752, #802 source+tests matched integrated main at all changed path blob SHA and were closed as unmerged superseded. #744 requires semantic follow-up. **Hosted count unchanged: 0/33; source categories unchanged until independent acceptance.**
 
+## Further source-equivalence audit, 2026-11-01
+- Source already integrated through Wave A/B: #798 (exact four blobs), #843 (exact PNG implementation/test, replaced checkpoint), #834 (typed-attempt guard + all original negative scenarios preserved), #768 (old replacement source/test preserved with additional decode cleanup), #744 (original two GPU-OFF gates retained with later stricter refactor). Standalone PRs closed unmerged superseded with evidence comments.
+- Existing #812 not yet semantically reconciled; no unverified closure. Proposed #859 F3-10/F3-13 has exact-head standard CI #41292509625 4/4 success, but private-media review/integration and hosted acceptance remain pending. **0/33 fully hosted accepted**; 1 source-integrated, 11 source-partial, 21 blocked/dependent unchanged.
+
