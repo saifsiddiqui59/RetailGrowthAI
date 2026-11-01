@@ -76,7 +76,7 @@ def test_feature3_source_components_visible_without_inflating_accepted_done():
     assert report["source_components_task_count"]==11
     assert report["summary"]["DONE"]==0
     assert report["verified_done"]==0
-    assert report["source_prs_awaiting_review"]==3
+    assert report["source_prs_awaiting_review"]==4
     f3=next(x for x in report["items"] if x["id"]=="F3-10")
     assert f3["status"]=="IN PROGRESS"
     assert 768 in f3["completed_source_prs"]
@@ -87,6 +87,9 @@ def test_feature3_source_components_visible_without_inflating_accepted_done():
     assert {"pr":861,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f307["active_source_prs"]
     f302=next(x for x in report["items"] if x["id"]=="F3-02")
     assert {"pr":862,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f302["active_source_prs"]
+    f308=next(x for x in report["items"] if x["id"]=="F3-08")
+    assert {"pr":863,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f308["active_source_prs"]
+    assert f308["status"]=="IN PROGRESS"
     assert all(not x["completed_source_prs"] for x in report["items"]
                if x["feature"]!="3")
     md=s.markdown(report)
@@ -116,5 +119,7 @@ def test_feature3_source_completion_overlay_denies_false_full_hosted_done():
         exact_head="not-a-sha"))
     invalid(lambda x: x["pending_source_components"][1].update(
         task_ids=["F7-A"]))
+    invalid(lambda x: x["pending_source_components"][3].update(
+        source_pr=861))
     invalid(lambda x: x["pending_source_components"].append(
         copy.deepcopy(x["pending_source_components"][1])))
