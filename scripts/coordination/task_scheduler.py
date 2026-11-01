@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 TASKS = ROOT / "coordination" / "feature_tasks.json"
 POLICY = ROOT / "coordination" / "execution_policy.json"
 EVENTS = ROOT / "coordination" / "scheduler_events.json"
+SOURCE_RECEIPTS = ROOT / "coordination" / "feature3_source_receipts.json"
 SAFE = {"transient_network", "runner_infrastructure", "fixable_build_or_test"}
 UNSAFE = {"unknown_billing_ack", "paid_provider_submission", "non_idempotent_write",
           "approval_missing", "tenant_security_denial", "license_denied",
@@ -99,12 +100,59 @@ def validate_events(events, known_tasks):
     return state
 
 
-def plan(inventory, policy, events, dependency_report=None, max_candidates=None):
+def validate_source_receipts(receipts, by_id):
+    """Source-component completion only; never upgrades a full task to DONE."""
+    if (not isinstance(receipts,dict) or receipts.get("schema_version")!=1 or
+        receipts.get("feature")!="3" or
+        receipts.get("scope")!="source_component_only" or
+        receipts.get("full_hosted_packages_done")!=0 or
+        not isinstance(receipts.get("recorded_against_main_sha"),str) or
+        not re.fullmatch(r"[a-f0-9]{40}",receipts["recorded_against_main_sha"]) or
+        type(receipts.get("recorded_main_ci_run_id")) is not int or
+        receipts["recorded_main_ci_run_id"]<1 or
+        receipts.get("merged_source_prs")!=[811,813] or
+        not isinstance(receipts.get("complete_source_components"),list)):
+        raise SchedulerError("Invalid Feature3 source-only receipt ledger")
+    known_source=set()
+    mapped={}
+    for row in receipts["complete_source_components"]:
+        if (not isinstance(row,dict) or
+            type(row.get("source_pr")) is not int or row["source_pr"]<1 or
+            row["source_pr"] in known_source or
+            row.get("integrated_pr") not in (811,813) or
+            row.get("source_stage")!="SOURCE_INTEGRATED" or
+            row.get("verification") not in ("exact_blob","semantic_review") or
+            row.get("hosted_task_complete") is not False or
+            not isinstance(row.get("component"),str) or not row["component"].strip() or
+            row.get("source_evidence_url")!=
+                "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/"+str(row["source_pr"]) or
+            not isinstance(row.get("task_ids"),list) or not row["task_ids"] or
+            len(set(row["task_ids"]))!=len(row["task_ids"])):
+            raise SchedulerError("Invalid or duplicate Feature3 source receipt")
+        known_source.add(row["source_pr"])
+        for task_id in row["task_ids"]:
+            if task_id not in by_id or by_id[task_id].get("feature")!="3":
+                raise SchedulerError("Feature3 source receipt has unknown/foreign task ID")
+            mapped.setdefault(task_id,[]).append(row["source_pr"])
+    for row in receipts.get("pending_source_components",[]):
+        if (not isinstance(row,dict) or row.get("source_pr") in known_source or
+            row.get("stage")!="TESTED_PR_REVIEW_REQUIRED" or
+            row.get("hosted_task_complete") is not False or
+            not isinstance(row.get("task_ids"),list) or not row["task_ids"] or
+            any(tid not in by_id or by_id[tid].get("feature")!="3"
+                for tid in row["task_ids"])):
+            raise SchedulerError("Invalid pending Feature3 source receipt")
+    return mapped
+
+
+def plan(inventory, policy, events, dependency_report=None, max_candidates=None,
+         source_receipts=None):
     cfg = validate_config(policy)
     tasks = inventory.get("tasks")
     if inventory.get("schema_version") != 1 or not isinstance(tasks, list) or len({t["id"] for t in tasks}) != len(tasks):
         raise SchedulerError("Task inventory invalid")
     by_id = {task["id"]: task for task in tasks}
+    source_by_task = validate_source_receipts(source_receipts, by_id) if source_receipts is not None else {}
     if any(not ID.fullmatch(tid) for tid in by_id):
         raise SchedulerError("Unexpected task ID")
     state = validate_events(events, by_id)
@@ -121,6 +169,10 @@ def plan(inventory, policy, events, dependency_report=None, max_candidates=None)
     def blocked_reason(t):
         if t.get("source_status") == "blocked":
             return "Owner ledger lists source/deployment dependency as blocked"
+        if t["id"] in source_by_task:
+            refs=", ".join("#"+str(n) for n in sorted(source_by_task[t["id"]]))
+            return ("Feature3 source components already merged/reconciled ("+refs+
+                    "); review existing source and remaining hosted gates; do not reimplement")
         if t.get("source_status") in ("source_complete", "source_integrated"):
             return "Existing source is complete/integrated; integration acceptance review, not new coding"
         if t.get("integrated_done") is not False or t.get("dispatch") != "existing_work_review":
@@ -142,7 +194,10 @@ def plan(inventory, policy, events, dependency_report=None, max_candidates=None)
         tid = task["id"]
         reason = blocked_reason(task)
         if reason:
-            group = "existing_source_or_review" if task.get("source_status") in ("source_complete","source_integrated") else "blocked"
+            group = ("existing_source_or_review"
+                     if task.get("source_status") in ("source_complete","source_integrated")
+                     or tid in source_by_task and task.get("source_status")!="blocked"
+                     else "blocked")
             result[group].append({"id":tid, "reason":reason})
             continue
         item = state.get(tid, {"attempts":0,"outcome":None,"safe":False})
@@ -211,6 +266,7 @@ def main():
     p.add_argument("--inventory",default=str(TASKS))
     p.add_argument("--policy",default=str(POLICY))
     p.add_argument("--events",default=str(EVENTS))
+    p.add_argument("--source-receipts",default=str(SOURCE_RECEIPTS))
     p.add_argument("--dependency-report")
     p.add_argument("--output-dir",default="coordination-reports")
     p.add_argument("--validate-only",action="store_true")
@@ -219,7 +275,8 @@ def main():
     policy=read_json(args.policy)
     events=read_json(args.events)
     dependency=read_json(args.dependency_report) if args.dependency_report else None
-    out=plan(inventory, policy, events, dependency)
+    source_receipts=read_json(args.source_receipts) if Path(args.source_receipts).exists() else None
+    out=plan(inventory, policy, events, dependency, source_receipts=source_receipts)
     if args.validate_only:
         print("Scheduler valid: 10 maximum candidate slots, 3+2 bounded attempts, no executor.")
         return
