@@ -53,3 +53,16 @@ This is a **docs-only reviewed handoff**; do not append unverified coordinator t
 ## Final source-duplicate receipt — #729
 - [#729](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/729), Feature3 F3-03/F3-11/F3-12/F3-13 model-library rights/use fence: independently checked **all three changed blobs** (model library module, test, scoped handoff) and matched each SHA exactly against current main. Closed unmerged superseded by Wave A #811 with evidence comment. Not a new hosted acceptance.
 
+
+## 2026-11-01 — Additional duplicate-safe PR closures (#693, #722, #727, #728)
+
+Rechecked exact changed files from current `main` (`456b1757d7df2f0cc28a5ef6c8ba203b18380948`) and the original PR heads. Each was closed **unmerged** after an evidence comment; no source, migrations, cloud resources or payment paths were changed by these closures.
+
+| Closed original PR | Original task IDs | Verified disposition | Main still required |
+| --- | --- | --- | --- |
+| [#693](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/693) | F3-03/F3-12/F3-13 | Semantic supersession: model `approved_uses` is a strict bounded unique known-use list requiring `poster` on main; the main source additionally tightens current rights revision, hash and claimed lease. Scoped handoff blob exact; source/test newer, not identical | Actual independently reviewed per-image rights; signed private consumer QA |
+| [#722](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/722) | F3-11/F3-13 | Semantic supersession: `verifyPrivateModelOriginalUploadReceipt` on main checks exact shop/model/SHA-named path, safe byte bounds and never-approved flags **before** registration; handoff blob exact. Main adds session-rotation fences not in the old PR | Signed DEV model upload, licensed customer originals, reviewer approval |
+| [#727](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/727) | F3-06/F3-07/F3-13 | **Exact three-blob source duplicate** (module, test, handoff all SHA-identical to current main); no need to reapply | Deployed approved evidence RPC, immutable real source/output and independent finance review |
+| [#728](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/728) | F3-08/F3-13 | Semantic supersession: handoff blob exact; original test lines preserved in newer main; original PNG header/trailer check replaced by stronger `_valid_png_chunks` CRC/chunk-boundary validation | Approved mounted authenticated no-URL binary route and signed two-tenant DEV denials |
+
+These are **four closed duplicate PRs, not four completed hosted tasks**. Preserve existing accepted task record: `coordination/task_progress.json` has F3-01 `source_integrated`; full Feature3 hosted acceptance remains **0/33**. Independent private-media/security, DB, licence and hosted approval gates still apply. Separate active tested PRs [#859](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/859), [#861](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/861), [#862](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/862), [#863](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/863), [#864](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/864) must **not** be closed or marked SOURCE_INTEGRATED merely for passing source CI. The separate shared coordinator receipt PR #860 still needs independent review.
