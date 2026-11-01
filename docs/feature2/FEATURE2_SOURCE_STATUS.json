@@ -153,7 +153,18 @@
       "id": "F2-10",
       "title": "Voice selector, human corrections and retake UI wiring",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Spelling correction CAS/read callbacks refuse ambiguous grants, automatic paid retry, billable receipts, and public URLs",
+        "source_commits": [
+          "12ea61a9f711d8dff21d6ae541f8357ce0259af9"
+        ],
+        "test_commit": "8dcb652429d540adcd7a819f9c26047596b4aafb",
+        "test_cases": 29,
+        "complete_scope": false,
+        "blocker": "Real authorized pronunciation dictionary store/retake UI and audio listening QA are unavailable; signed callback fixtures only"
+      }
     },
     {
       "id": "F2-11",
@@ -214,7 +225,18 @@
       "id": "F2-17",
       "title": "Actual ASR/WER/manual spoken-script comparisons",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Signed Feature7 ASR word-display rejects zero-width joiner spoofing outside legitimate Indic conjuncts",
+        "source_commits": [
+          "8aa0fe1c7b00e7ef3fb1a89d08945ce303342d4e"
+        ],
+        "test_commit": "31ed52196fdc8a27bf2e414638b08d8884215f8c",
+        "test_cases": 8,
+        "complete_scope": false,
+        "blocker": "Actual F7 model, original customer WAV, signed human listening, and hosted readback remain unavailable"
+      }
     },
     {
       "id": "F2-18",
@@ -294,13 +316,35 @@
       "id": "F2-26",
       "title": "Voice quality review panel and correction guidance",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Narration quality review frontend rejects disguised invisible joiners while preserving Marathi/Hindi conjuncts",
+        "source_commits": [
+          "532e4996e8304c7f2c7afc3c8dd8702d324ee779"
+        ],
+        "test_commit": "10041dc46f96ce6be894f718b1089dc522c7af2a",
+        "test_cases": 13,
+        "complete_scope": false,
+        "blocker": "Mounted signed Creative Studio reviewer role and real speech/ASR QA endpoints still unverified"
+      }
     },
     {
       "id": "F2-27",
       "title": "Single-sentence human-approved retake and replacement",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "One-sentence Kokoro retake validates voice before one-shot reservation and bounds private writer's rights, billing and F4/F7 re-review metadata",
+        "source_commits": [
+          "f5ab142ae48b9535c7150914383c3e7b0398f89d"
+        ],
+        "test_commit": "552a6d4e66dd69657a31b400e657f840f59e40a5",
+        "test_cases": 29,
+        "complete_scope": false,
+        "blocker": "Actual offline Kokoro model runtime, atomic durable lease, tenant private signed storage, and human approval remain unverified"
+      }
     },
     {
       "id": "F2-28",
