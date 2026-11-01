@@ -263,9 +263,31 @@ def accept_unreviewed_mp3(*,shop_id,campaign_id,plan,original_mp3,
         saved.get("private") is not True or
         saved.get("derived_wav_private") is not True or
         saved.get("atomic_pair_registered") is not True or
-        any(saved.get(flag) is True for flag in
+        # A false-looking string, 0, None or an unexpected truth value is
+        # NOT an explicit denial of a right. The original WAV writer already
+        # requires literal False; apply the same boundary to the MP3 pair.
+        any(flag in saved and saved[flag] is not False for flag in
             ("can_publish","can_dispatch_motion","commercial_use_approved",
-             "original_media_rights_verified","human_speech_alignment_verified"))):
+             "original_media_rights_verified","human_speech_alignment_verified",
+             "actual_spoken_words_verified","audio_pronunciation_verified",
+             "rights_reviewed","paid_inference_authorized",
+             "may_auto_invoke_azure",
+             "derived_wav_is_registered_feature7_source")) or
+        ("paid_calls" in saved and
+         (type(saved["paid_calls"]) is not int or saved["paid_calls"]!=0)) or
+        ("billing" in saved and saved["billing"]!="NONE") or
+        ("private_download_url" in saved and
+         saved["private_download_url"] is not None) or
+        ("creative_plan_sha256" in saved and
+         saved["creative_plan_sha256"]!=receipt["creative_plan_sha256"]) or
+        ("source_mime_type" in saved and
+         saved["source_mime_type"]!="audio/mpeg") or
+        ("derived_mime_type" in saved and
+         saved["derived_mime_type"]!="audio/wav") or
+        ("schema" in saved and saved["schema"]!=receipt["schema"]) or
+        ("duration_seconds" in saved and
+         (type(saved["duration_seconds"]) not in (int,float) or
+          saved["duration_seconds"]!=receipt["duration_seconds"]))):
         raise VoiceUploadRejected("Both private MP3/WAV objects must be atomically registered pending review")
     # The atomic writer owns commit-time tenant fencing and rollback/orphan
     # cleanup. A valid pair receipt alone cannot authorize a response if the
