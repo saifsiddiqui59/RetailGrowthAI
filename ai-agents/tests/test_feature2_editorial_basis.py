@@ -571,3 +571,63 @@ def test_editorial_copy_blocks_unreviewed_external_links(link):
         inspect_retailer_copy_claims(
             verified_context=copy_context(),
             copy=candidate_copy(cta=link))
+
+
+# F2-02: the backend-verified retailer context is still input data. An
+# "APPROVED" label is never sufficient to bless malicious approved_claim_text.
+@pytest.mark.parametrize("offer_text", [
+    "                 ",  # too-long but blank, not a meaningful legal claim
+    "20% off selected\u200b kurtis",
+    "20% off selected\u202e kurtis",
+    "20% off selected\u2066 kurtis",
+    "20% off selected\u2028 kurtis",
+    "20% off selected\x85 kurtis",
+    "20% off <script> kurtis",
+    "20% off www.example.invalid kurtis",
+    "20% off https://example.invalid kurtis",
+    "20% off javascript:prompt(1) kurtis",
+])
+def test_f2_02_rejects_unsafe_authoritative_approved_offer(offer_text):
+    context = copy_context()
+    context["approved_offers"][0]["approved_claim_text"] = offer_text
+    with pytest.raises(EditorialBasisRejected, match="approved retailer offer|Offer evidence"):
+        inspect_retailer_copy_claims(
+            verified_context=context,
+            copy=candidate_copy(caption="Shop our selected kurtis today."),
+        )
+
+
+@pytest.mark.parametrize("invalid_percent", [True, False, 0, 101, "20", 20.0, None])
+def test_f2_02_approved_discount_rate_must_be_bounded_integer(invalid_percent):
+    context = copy_context()
+    context["approved_offers"][0]["percent_off"] = invalid_percent
+    with pytest.raises(EditorialBasisRejected, match="approved retailer offer"):
+        inspect_retailer_copy_claims(
+            verified_context=context,
+            copy=candidate_copy(caption="Shop our selected kurtis today."),
+        )
+
+
+def test_f2_02_duplicate_approved_legal_copy_rejected():
+    context = copy_context()
+    context["approved_offers"].append(dict(context["approved_offers"][0]))
+    with pytest.raises(EditorialBasisRejected, match="duplicate approved retailer offer"):
+        inspect_retailer_copy_claims(
+            verified_context=context,
+            copy=candidate_copy(caption="20% off selected kurti styles"),
+        )
+
+
+def test_f2_02_legitimate_single_indic_offer_remains_review_only():
+    context = copy_context()
+    context["approved_offers"][0]["approved_claim_text"] = (
+        "२० टक्के सूट निवडक कुर्त्यांवर"
+    )
+    result = inspect_retailer_copy_claims(
+        verified_context=context,
+        copy=candidate_copy(caption="२० टक्के सूट निवडक कुर्त्यांवर"),
+    )
+    assert result["issues"] == []
+    assert result["review_required"] is True
+    assert result["commercial_fact_certified"] is False
+    assert result["can_publish"] is False
