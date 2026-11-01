@@ -67,3 +67,39 @@ def test_non_done_status_updates_preserve_reason_and_no_false_claim():
     task=next(x for x in report["items"] if x["id"]=="F2-01")
     assert task["status"]=="FAILED"
     assert report["verified_done"]==0
+
+def test_feature3_source_components_visible_without_inflating_accepted_done():
+    overlay=json.loads((ROOT/"coordination/feature3_source_receipts.json").read_text())
+    report=s.resolve(INV,{"schema_version":1,"events":[]},
+                     gh=FakeGitHub(),source_receipts=overlay)
+    assert report["source_components_integrated"]==14
+    assert report["source_components_task_count"]==11
+    assert report["summary"]["DONE"]==0
+    assert report["verified_done"]==0
+    f3=next(x for x in report["items"] if x["id"]=="F3-10")
+    assert f3["status"]=="IN PROGRESS"
+    assert 768 in f3["completed_source_prs"]
+    assert 812 in f3["completed_source_prs"]
+    assert all(not x["completed_source_prs"] for x in report["items"]
+               if x["feature"]!="3")
+    md=s.markdown(report)
+    assert "Feature3 source components already integrated:** 14 across 11" in md
+
+
+def test_feature3_source_completion_overlay_denies_false_full_hosted_done():
+    overlay=json.loads((ROOT/"coordination/feature3_source_receipts.json").read_text())
+    def invalid(modifier):
+        bad=copy.deepcopy(overlay)
+        modifier(bad)
+        with pytest.raises(s.ProgressError):
+            s.resolve(INV,{"schema_version":1,"events":[]},
+                      gh=FakeGitHub(),source_receipts=bad)
+    invalid(lambda x: x.update(full_hosted_packages_done=11))
+    invalid(lambda x: x["complete_source_components"][0].update(
+        source_stage="DONE"))
+    invalid(lambda x: x["complete_source_components"][0].update(
+        hosted_task_complete=True))
+    invalid(lambda x: x["complete_source_components"][0].update(
+        task_ids=["F4-01"]))
+    invalid(lambda x: x["complete_source_components"].append(
+        copy.deepcopy(x["complete_source_components"][0])))
