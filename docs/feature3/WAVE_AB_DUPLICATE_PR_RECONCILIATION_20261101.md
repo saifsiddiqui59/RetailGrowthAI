@@ -20,10 +20,10 @@ Each of the following open standalone PRs targeted `main`. We independently fetc
 | [#791](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/791) | `ed1686b2a8f817e06777cd189c8fe71e2741f41f` | Wave B #813 | `Feature3SecureDraftWorkspace.jsx`, `feature3-workspace-scope.test.mjs`, provider-state handoff |
 | [#761](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/761) | `be5580330e6cfbb0e4411b0bdb7bde5c8db90f32` | Wave A #811 | `feature3_gpu_outbox_service.py`, `test_feature3_gpu_outbox_recovery.py`, outbox handoff |
 
-## Deliberately left open
+## Test-lineage reconciliation and remaining open PRs
 
-- [#760](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/760) (invalid Unicode queue envelope) remains **open**: the envelope source module and handoff blob SHAs matched current main, but `tests/api/test_feature3_gpu_queue_envelope.py` on current main differed from the PR branch. Wave A #811 lists #760 among imported PRs, but a pathwise exact-blob reconciliation has **not** been proven for that test file. Do not close on an incorrect identical-tree claim. A follow-up should compare test hunks and verify their assertions are present in current main before marking superseded.
-- Other outstanding Wave A/B constituent PRs were not included in this limited exact-path audit. Do not mass-close them without evidence.
+- [#760](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/760) was **also closed as superseded by Wave A #811**, but its three changed files are **not all blob-identical**. GPU envelope module and handoff are exact matches. Its 120-line original queue-envelope test is preserved as a complete **ordered line subsequence** of current main's 122-line test. Main adds only two lines to the mocked dispatch ACK (`outbox.confirm_dispatch.return_value=True` and its explanatory comment); no original assertion was removed. This stronger, explicitly qualified source/test inclusion proof—not a false identical-blob claim—was recorded in the PR comment before closure.
+- Other outstanding Wave A/B constituent PRs were not included in this limited audit. Do not mass-close them without evidence.
 
 ## Next owner actions / release limits
 
