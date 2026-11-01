@@ -676,3 +676,37 @@ def test_f2_20_kokoro_private_writer_explicit_pending_metadata_stays_private():
     assert result["can_dispatch_motion"] is False
     assert result["paid_calls"] == 0
     assert result["audio_bytes"] is None and result["signed_url"] is None
+
+
+# F2-21: budgeted CPU reservation is not a paid API invoice or grant.
+# The callback is a local fake of a durable one-shot DB reservation only.
+@pytest.mark.parametrize("alter",[
+    {"paid_api_calls":False}, {"paid_api_calls":"0"},
+    {"can_dispatch_motion":1}, {"can_dispatch_motion":"false"},
+    {"commercial_use_approved":None},
+    {"commercial_use_approved":"false"},
+    {"may_auto_invoke_azure":0}, {"may_auto_invoke_azure":"no"},
+    {"paid_inference_authorized":1},
+    {"paid_inference_authorized":"false"},
+    {"paid_calls":False}, {"paid_calls":1},
+    {"billing":"CHARGED"},
+])
+def test_f2_21_cpu_reservation_denies_wrong_type_unpaid_grants(alter):
+    run, calls=budget_case(save_tamper=alter)
+    with pytest.raises(LocalVoiceJobDenied,match="reservation evidence"):
+        run()
+    assert len(calls)==1
+
+
+def test_f2_21_cpu_reservation_explicit_unpaid_flags_are_still_pending_only():
+    run, calls=budget_case(save_tamper={
+        "paid_api_calls":0,"can_dispatch_motion":False,
+        "commercial_use_approved":False,"may_auto_invoke_azure":False,
+        "paid_inference_authorized":False,"paid_calls":0,"billing":"NONE",
+    })
+    out=run()
+    assert len(calls)==1
+    assert out["paid_api_calls"]==0
+    assert out["can_publish"] is False
+    assert out["real_model_inference_observed"] is False
+    assert out["reservation_is_not_worker_completion"] is True
