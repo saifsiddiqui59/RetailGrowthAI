@@ -227,9 +227,10 @@
         "F3-13"
       ],
       "component": "Private worker final source-rights revision cannot be boolean or floating point",
-      "stage": "PR_IN_PROGRESS",
+      "stage": "TESTED_PR_REVIEW_REQUIRED",
       "exact_head": "a80e2741ca69973188c6975e191401ba03572557",
-      "hosted_task_complete": false
+      "hosted_task_complete": false,
+      "exact_head_ci_run_id": 41301483566
     }
   ],
   "verified_package_done": [
@@ -249,5 +250,5 @@
     "F5-GPU-AUTHORIZATION",
     "real signed DEV JWT/RLS negative tests"
   ],
-  "next_action": "PRs #859/#861 tested; #862 CI in progress. All three require independent review, current-main merge and fresh postmerge 4/4 before SOURCE_INTEGRATED. No hosted task DONE or repeated implementation while active PR is open."
+  "next_action": "Open independent security/coordinator review for tested PRs #859 (F3-10/13), #861 (F3-07/13), #862 (F3-02/13); no hosted/paid DONE. After reviewed main merge and fresh 4/4, convert only that PR's source receipt from pending to source-integrated."
 }
