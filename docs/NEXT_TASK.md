@@ -1370,3 +1370,9 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 
 - #729 is also reconciled/closed via exact three-blob main comparison. Current actionable source PR #859 requires independent review, while #858 is shared docs review; next hosted tasks remain blocked on valid server-owned rights/route and genuine signed DEV evidence.
 
+## 2026-11-01 — Prevent repeated Feature3 work in the original task manager
+1. Review [PR #860](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/860) as a shared-coordination change: fourteen source components from Wave A/B marked `SOURCE_INTEGRATED` under their existing F3 IDs, and the advisory scheduler uses them to avoid duplicate coding suggestions. This **does not** change 159-task inventory or add unverified `DONE` events.
+2. Independently review and accept final-head 4/4 PR CI for #860, then merge only if shared-owner approvals and branch checks permit. After fresh-main 4/4 check, confirm the advisor places covered F3 source in `existing_source_or_review` rather than proposing a new implementation. Do not treat advisory slots as real coding workers.
+3. Keep [#859](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/859) marked **PR-tested / awaiting security review**, not integrated. Record a new accepted component receipt only after its own reviewed main merge and fresh main CI.
+4. Original Feature3 task-level status remains F3-01 source-integrated DONE, 11 source-partial and 21 blocked packages, **0/33 fully hosted accepted**; reviewed source-component completions are not eleven new task-level DONE claims.
+
