@@ -539,3 +539,37 @@ def test_private_mp3_writer_optional_metadata_is_strictly_pending(
         assert result["original_media_rights_verified"] is False
         assert result["private_download_url"] is None
         assert result["billing"]=="NONE" and result["paid_calls"]==0
+
+
+# F2-29: synthetically malformed RIFF only; no external FFmpeg/customer audio.
+def _f2_29_replace_wav_fmt(original, new_body):
+    assert original[12:16] == b"fmt "
+    original_size = int.from_bytes(original[16:20], "little")
+    assert original_size == 16
+    remaining = original[20 + original_size + (original_size & 1):]
+    fmt_chunk = b"fmt " + len(new_body).to_bytes(4, "little")
+    fmt_chunk += new_body + (b"\x00" if len(new_body) % 2 else b"")
+    remaining_chunks = b"WAVE" + fmt_chunk + remaining
+    return b"RIFF" + (len(remaining_chunks)).to_bytes(4, "little") + remaining_chunks
+
+
+@pytest.mark.parametrize("fmt_size", [0, 8, 15, 65, 65536, 70000])
+def test_f2_29_original_and_derived_wav_fmt_chunk_is_bounded(fmt_size):
+    from ai_agents.feature2_voiceover_upload import _inspect
+    original = wav()
+    fmt = original[20:36]
+    forged = _f2_29_replace_wav_fmt(original, (fmt + b"X" * fmt_size)[:fmt_size])
+    with pytest.raises(VoiceUploadRejected, match="format metadata unbounded"):
+        _inspect(forged, 30)
+
+
+def test_f2_29_bounded_extended_fmt_preserves_genuine_pcm_review():
+    from ai_agents.feature2_voiceover_upload import _inspect
+    original = wav()
+    fmt = original[20:36]
+    # A small extension may be retained in a private original, pending rights.
+    for length in (16, 18, 40, 64):
+        extended = _f2_29_replace_wav_fmt(
+            original, fmt + b"\x00" * (length - len(fmt))
+        )
+        assert _inspect(extended, 30) == 2.0
