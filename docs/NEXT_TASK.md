@@ -1395,3 +1395,7 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 - Reverify the **new final head** of Feature3 PR #864 `c2c283b79e50bb1c4c34ca4c871ec8bfb2806f18` through Part 1 CI #41306835412: source-only signed catalog adult flag/license/use checks and negative private-media rights contract. Earlier CI #41304611915 was for an older head and cannot approve newer code.
 - Require independent affected API/model licensing reviewer, current-main compatibility, merge under policy, and a fresh main 4-job run before F3-12/F3-13 source-component integration can be recorded. Keep hosted task DONE 0/33 and GPU OFF. The proposed task overlay #860 must update its active PR #864 head/CI evidence only after new final-head CI passes.
 
+## 2026-11-01 F3-12/F3-13 verified final-head handoff
+- PR #864 F3-12/F3-13 final source head `75356855b33d0ab25a07094c8ec85c0fc1fd9761`, Part 1 CI #41307545461 **4/4 passed**, including current signed catalog rights, model license/use guard, malformed provenance and no-write regression tests. The proposed dedup receipt PR #860 must reference this final head/CI, not earlier c2c283b7/41306835412.
+- Seek **independent** private-media/license/API reviewer. Approved current-main merge plus fresh postmerge main 4-job CI is mandatory before source-integrated task event; hosted F3 packages remain 0/33, GPU and cloud writes OFF.
+
