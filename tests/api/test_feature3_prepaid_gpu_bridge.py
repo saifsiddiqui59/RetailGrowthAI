@@ -168,6 +168,35 @@ class PrepaidBridgeTests(unittest.TestCase):
                     self._callbacks().execute(self.job)
                 self.assertEqual(self.events,["claim","authorize","read reservation"])
 
+    def test_forged_one_shot_job_attempt_denied_before_provider_or_sql(self):
+        # True and 1.0 are equal to 1 but not a signed SQL attempt integer.
+        for bad in (True, 1.0, "1", None, False, 0, 2):
+            with self.subTest(job_attempt=repr(bad)):
+                self.setUp()
+                other=InferenceJob(self.shop,self.job_id,"image_edit",
+                                   (self.asset,),attempt=bad)
+                provider_status_calls=[]
+                self.provider.status=lambda: provider_status_calls.append("status")
+                with self.assertRaisesRegex(ProviderBlocked,"one GPU attempt"):
+                    self._callbacks().execute(other)
+                self.assertEqual(provider_status_calls,[])
+                self.assertEqual(self.events,[])
+
+    def test_malformed_paid_provider_status_never_claims_or_runs(self):
+        # Even an injected adapter's "enabled" field cannot be interpreted
+        # using truthiness before the paid SQL claim and model execution.
+        for status in (None, [], True, {}, {"enabled":None},
+                       {"enabled":1}, {"enabled":"true"},
+                       {"enabled":"false"}, {"enabled":False}):
+            with self.subTest(status=repr(status)):
+                self.setUp()
+                self.provider.status=lambda value=status:value
+                self.provider.execute=lambda *a,**kw:self.fail(
+                    "paid provider execute called on untrusted status")
+                with self.assertRaisesRegex(ProviderBlocked,"remains disabled"):
+                    self._callbacks().execute(self.job)
+                self.assertEqual(self.events,[])
+
     def test_no_second_attempt_or_disabled_provider(self):
         other=InferenceJob(self.shop,self.job_id,"image_edit",(self.asset,),attempt=2)
         with self.assertRaises(ProviderBlocked):
