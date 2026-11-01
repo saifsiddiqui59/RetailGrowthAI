@@ -307,8 +307,17 @@ def append_feature2_trace(*, shop_id, campaign_id, workflow_id, event_id,
         or receipt.get("event_sha256") != event_sha
         or receipt.get("private") is not True
         or receipt.get("committed") is not True
-        or receipt.get("can_publish") is True
-        or receipt.get("paid_motion_permitted") is True):
+        # A trace is never a release/paid entitlement, including when a
+        # writer returns an ambiguously false-looking string/number/null.
+        or any(flag in receipt and receipt[flag] is not False for flag in
+            ("can_publish","paid_motion_permitted","approved_to_publish",
+             "commercial_use_approved","paid_inference_authorized"))
+        or ("paid_calls" in receipt and
+            (type(receipt["paid_calls"]) is not int or
+             receipt["paid_calls"]!=0))
+        or ("billing" in receipt and receipt["billing"]!="NONE")
+        or ("private_download_url" in receipt and
+            receipt["private_download_url"] is not None)):
         raise Feature2TraceDenied("Durable private trace append not verified")
     # Coordinator-owned transactional writer must fence its own commit.
     # This readback denies success after in-flight scope revocation.
@@ -347,6 +356,11 @@ def read_verified_private_trace(*,shop_id,campaign_id,workflow_id,
         return rows
 
     source=fetch()
+    # A backend reader may return the SAME mutable list on both reads. Hold
+    # an independent snapshot before verifying HMACs, otherwise a callback
+    # that mutates the shared list during the final fetch can compare it to
+    # itself and bypass post-read scope/immutability checks.
+    original_snapshot=deepcopy(source)
     prior="0"*64;verified=[]
     expected_keys={
         "schema","shop_id","campaign_id","workflow_id","event_id",
@@ -361,7 +375,8 @@ def read_verified_private_trace(*,shop_id,campaign_id,workflow_id,
             stored.get("campaign_id")!=campaign_id or
             stored.get("workflow_id")!=workflow_id or
             not _trace_uuid(stored.get("event_id")) or
-            stored.get("sequence")!=number or
+            type(stored.get("sequence")) is not int or
+            stored["sequence"]!=number or
             stored.get("previous_sha256")!=prior or
             stored.get("input_sha256")!=source_sha256 or
             stored.get("stage") not in TRACE_STAGES or
@@ -399,7 +414,7 @@ def read_verified_private_trace(*,shop_id,campaign_id,workflow_id,
                          "failure_code":stored["failure_code"],
                          "event_sha256":digest,"can_publish":False})
         prior=digest
-    if fetch()!=source:
+    if fetch()!=original_snapshot or source!=original_snapshot:
         raise Feature2TraceDenied("Private trace changed during readback")
     return {"schema":"retailgrowth.feature2-private-trace-history.v1",
             "shop_id":shop_id,"campaign_id":campaign_id,
