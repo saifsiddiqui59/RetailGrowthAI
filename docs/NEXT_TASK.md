@@ -1387,3 +1387,7 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 - The PR must receive independent private-media/security review and latest-main merge, then fresh main four-job CI. Do not reimplement the private generated-media binding while #863 is under review.
 - Already-tested original task PRs #859 (F3-10/13), #861 (F3-07/13) and #862 (F3-02/13) also remain open and review-gated. Source-only tracker #860 should map #863 as an **active** PR without creating new numbered task or hosted DONE.
 
+## Feature3 F3-12/F3-13 next source-review item — 2026-11-01
+- [#864](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/864) is open for strict backend model-reuse license/use validation and malformed-catalog isolation. Exact head `7eea1aacb2e09b306dbc29dd5cfb9eb4f830286a`; media-targeted test job passed. Check final four-job CI before marking TESTED_PR_REVIEW_REQUIRED; independent legal/privacy reviewer and latest-main integration still required.
+- Register #864 alongside existing #859/#861/#862/#863 in original task ledger, with F3-12/F3-13 IDs. Never assign duplicate implementation while it remains open; do not mark hosted DONE or bypass rights approval.
+
