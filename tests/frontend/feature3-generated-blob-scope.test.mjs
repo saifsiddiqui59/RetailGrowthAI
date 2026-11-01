@@ -125,7 +125,8 @@ test('failed old Blob revocation cannot publish or retain the new private previe
   assert.equal(allocated.length,2)
   assert.deepEqual(revoked,[allocated[1]])
   assert.equal(scope.view(SHOP,JOB),null)
-  scope.clear()
+  // The failed old URL is hidden but remains owned for a bounded retry.
+  assert.throws(()=>scope.clear(),/cleanup failed/)
   assert.deepEqual(revoked,[allocated[1]])
 })
 
@@ -155,4 +156,78 @@ test('decode failure callback is bound to the exact private generated URL',()=>{
   assert.match(history,/setImage\(null\)/)
   assert.match(history,/Local image was discarded/)
   assert.doesNotMatch(history,/onError=\{clearImage\}/)
+})
+
+test('failed URL revocation retains hidden private URLs for cleanup after browser recovery',()=>{
+  const issued=[],revoked=[],deny=new Set()
+  const scope=createFeature3GeneratedBlobScope({
+    createURL:()=>{
+      const url='blob:https://fixture.test/'+randomUUID()
+      issued.push(url)
+      return url
+    },
+    revokeURL:url=>{
+      if(deny.has(url))throw Error('browser revoke temporarily failed')
+      revoked.push(url)
+    },
+  })
+  scope.selectScope(SHOP)
+  const first=scope.install(SHOP,JOB,RECEIPT)
+  deny.add(first)
+  assert.throws(()=>scope.selectScope(OTHER),/cleanup failed/)
+  // Scope switches are denied until the hidden URL can be revoked.
+  assert.equal(scope.view(SHOP,JOB),null)
+  assert.equal(scope.view(OTHER,JOB),null)
+  assert.throws(()=>scope.install(SHOP,JOB,RECEIPT))
+  deny.delete(first)
+  scope.selectScope(OTHER)
+  assert.deepEqual(revoked,[first])
+  assert.equal(scope.view(SHOP,JOB),null)
+  scope.selectScope(SHOP)
+  const second=scope.install(SHOP,JOB,RECEIPT)
+  assert.notEqual(second,first)
+  scope.clear()
+  assert.deepEqual(revoked,[first,second])
+})
+
+test('two failed revocations from a replacement stay hidden until a later retry',()=>{
+  const issued=[],revoked=[],deny=new Set()
+  const scope=createFeature3GeneratedBlobScope({
+    createURL:()=>{
+      const url='blob:https://fixture.test/'+randomUUID()
+      issued.push(url)
+      return url
+    },
+    revokeURL:url=>{
+      if(deny.has(url))throw Error('revoke temporary failure')
+      revoked.push(url)
+    },
+  })
+  scope.selectScope(SHOP)
+  const first=scope.install(SHOP,JOB,RECEIPT)
+  deny.add(first)
+  // Fail revocation of the next allocated URL too, even on the error path.
+  const issue=()=>{const url='blob:https://fixture.test/'+randomUUID();issued.push(url);deny.add(url);return url}
+  // Fresh scope supports injectable factories; exercise both failures
+  // in a separately scoped instance with the same failure mechanism.
+  const other=createFeature3GeneratedBlobScope({createURL:issue,revokeURL:url=>{
+    if(deny.has(url))throw Error('revoke temporary failure')
+    revoked.push(url)
+  }})
+  other.selectScope(OTHER)
+  const old=other.install(OTHER,JOB,{...RECEIPT,shopId:OTHER})
+  assert.throws(()=>other.install(OTHER,JOB,{...RECEIPT,shopId:OTHER}),
+    /replacement cleanup failed/)
+  const failedNext=issued[issued.length-1]
+  assert.equal(other.view(OTHER,JOB),null)
+  assert.equal(revoked.includes(old),false)
+  assert.equal(revoked.includes(failedNext),false)
+  // A previously owned pending URL must not be reused as a fresh preview.
+  deny.delete(old);deny.delete(failedNext)
+  other.clear()
+  assert.equal(revoked.filter(url=>url===old).length,1)
+  assert.equal(revoked.filter(url=>url===failedNext).length,1)
+  assert.equal(other.view(OTHER,JOB),null)
+  deny.delete(first)
+  scope.clear()
 })
