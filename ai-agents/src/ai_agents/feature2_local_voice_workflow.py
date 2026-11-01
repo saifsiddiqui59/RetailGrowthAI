@@ -100,8 +100,31 @@ def synthesize_and_stage(*,shop_id,campaign_id,source_plan,voice_id,lang,speed,
     if (type(result) is not dict or not _uuid(result.get("audio_asset_id")) or
         result.get("shop_id")!=shop_id or result.get("campaign_id")!=campaign_id or
         result.get("original_audio_sha256")!=metrics["sha256"] or
-        result.get("private") is not True):
+        result.get("private") is not True or
+        # Successful storage is neither a rights review nor a paid motion/
+        # publication grant. Reject ambiguous optional metadata rather than
+        # trusting the backend writer's booleans or URL.
+        any(k in result and result[k] is not False for k in
+            ("can_publish","can_dispatch_motion","commercial_use_approved",
+             "original_media_rights_verified","pronunciation_verified",
+             "paid_inference_authorized","may_auto_invoke_azure",
+             "approved_for_editing")) or
+        ("review_state" in result and
+         result["review_state"]!="PENDING_HUMAN_LISTEN_AND_RIGHTS") or
+        ("paid_calls" in result and
+         (type(result["paid_calls"]) is not int or result["paid_calls"]!=0)) or
+        ("billing" in result and result["billing"]!="NONE") or
+        ("signed_url" in result and result["signed_url"] is not None) or
+        ("private_download_url" in result and
+         result["private_download_url"] is not None) or
+        ("creative_plan_sha256" in result and
+         result["creative_plan_sha256"]!=review["plan_sha256"])):
         raise LocalVoiceJobDenied("Original audio was not registered in private storage")
+    # Storage can finish after the editor loses access or the plan changes.
+    # A private writer must ALSO fence the commit in its durable transaction.
+    if (authorize_editor(shop_id,campaign_id) is not True or
+        read_current_plan(shop_id,campaign_id)!=source_plan):
+        raise LocalVoiceJobDenied("Editor or source revoked after private audio stage")
     return {**envelope,"private_audio_asset_id":result["audio_asset_id"],
             "audio_bytes":None,"signed_url":None,
             "f4_must_recheck_private_rights":True}
