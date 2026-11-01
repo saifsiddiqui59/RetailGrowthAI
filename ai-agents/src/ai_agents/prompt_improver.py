@@ -166,7 +166,9 @@ def improve_prompt(
         settings = os.environ if environ is None else environ
         if not (settings.get("RETAIL_PROMPT_LLM_ENABLED") == "true" and
                 explicit_cost_approval and subscription_quota_ok and
-                isinstance(approved_cost_limit_usd, (int, float)) and
+                type(explicit_cost_approval) is bool and
+                type(subscription_quota_ok) is bool and
+                type(approved_cost_limit_usd) in (int, float) and
                 0 < approved_cost_limit_usd <= 0.25 and callable(provider)):
             raise PermissionError("Paid provider requires explicit feature, quota and cost approval")
         candidate = provider(base)
@@ -228,6 +230,26 @@ def _prompt_uuid(value):
         return False
 
 
+def _elevated_optional_draft_receipt(value):
+    """Conservative review-only metadata check for trusted CAS readers/writers.
+
+    A missing optional field is compatible with older private DB records; any
+    present grant must be literal False, never a browser string, 0 or None.
+    This doesn't itself prove signature, transaction safety or retail rights.
+    """
+    grants=("can_dispatch_paid_motion","provider_call_made",
+            "approved_to_publish","commercial_use_approved",
+            "offer_facts_verified","media_rights_verified",
+            "paid_inference_authorized","may_auto_invoke_azure")
+    return (any(flag in value and value[flag] is not False for flag in grants) or
+            ("paid_calls" in value and
+             (type(value["paid_calls"]) is not int or value["paid_calls"]!=0)) or
+            ("billing" in value and value["billing"]!="NONE") or
+            ("signed_url" in value and value["signed_url"] is not None) or
+            ("private_download_url" in value and
+             value["private_download_url"] is not None))
+
+
 def commit_reviewed_prompt_draft(*, shop_id, campaign_id, proposal_id,
                                  review_event_id, expected_revision,
                                  original_prompt, improved_prompt,
@@ -276,23 +298,27 @@ def commit_reviewed_prompt_draft(*, shop_id, campaign_id, proposal_id,
         draft=read_current_draft(shop_id,campaign_id)
         return (type(draft) is dict and draft.get("shop_id")==shop_id and
                 draft.get("campaign_id")==campaign_id and
-                draft.get("revision")==expected_revision and
+                type(draft.get("revision")) is int and
+                draft["revision"]==expected_revision and
                 draft.get("brief")==original and
                 draft.get("review_status")=="DRAFT" and
-                draft.get("can_publish") is False)
+                draft.get("can_publish") is False and
+                not _elevated_optional_draft_receipt(draft))
 
     def staged():
         saved=read_staged_proposal(shop_id,campaign_id,proposal_id)
         return (type(saved) is dict and saved.get("shop_id")==shop_id and
                 saved.get("campaign_id")==campaign_id and
                 saved.get("proposal_id")==proposal_id and
-                saved.get("source_revision")==expected_revision and
+                type(saved.get("source_revision")) is int and
+                saved["source_revision"]==expected_revision and
                 saved.get("original_prompt_sha256")==original_sha and
                 saved.get("improved_prompt_sha256")==proposed_sha and
                 saved.get("review_status")=="NEEDS_REVIEW" and
                 saved.get("can_publish") is False and
                 saved.get("private") is True and
-                saved.get("revoked_at") is None)
+                saved.get("revoked_at") is None and
+                not _elevated_optional_draft_receipt(saved))
 
     if not active() or not staged():
         raise PromptRevisionRejected("Current tenant draft or proposed version revoked")
@@ -323,8 +349,10 @@ def commit_reviewed_prompt_draft(*, shop_id, campaign_id, proposal_id,
         saved.get("shop_id")!=shop_id or
         saved.get("campaign_id")!=campaign_id or
         saved.get("proposal_id")!=proposal_id or
-        saved.get("source_revision")!=expected_revision or
-        saved.get("revision")!=expected_revision+1 or
+        type(saved.get("source_revision")) is not int or
+        saved["source_revision"]!=expected_revision or
+        type(saved.get("revision")) is not int or
+        saved["revision"]!=expected_revision+1 or
         saved.get("original_prompt_sha256")!=original_sha or
         saved.get("improved_prompt_sha256")!=proposed_sha or
         saved.get("review_event_id")!=review_event_id or
@@ -333,7 +361,8 @@ def commit_reviewed_prompt_draft(*, shop_id, campaign_id, proposal_id,
         saved.get("committed") is not True or
         saved.get("can_publish") is not False or
         saved.get("can_dispatch_paid_motion") is not False or
-        saved.get("provider_call_made") is not False):
+        saved.get("provider_call_made") is not False or
+        _elevated_optional_draft_receipt(saved)):
         raise PromptRevisionRejected("Durable source-locked private draft save unavailable")
     # The CAS revision has moved from expected_revision to revision + 1.
     # Rechecking the old draft would reject legitimate writes. The server
