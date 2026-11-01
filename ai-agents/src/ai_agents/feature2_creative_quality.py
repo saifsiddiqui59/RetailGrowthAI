@@ -540,6 +540,17 @@ def read_private_blind_review_history(*,shop_id,campaign_id,experiment_id,
             item.get("review_status")!="HUMAN_SCORE_ONLY" or
             item.get("private") is not True or
             item.get("can_publish") is not False or
+            # Verify even optional grant/billing metadata from the private
+            # history reader; projecting only scores must not hide an elevated
+            # or commercially charged stored record.
+            any(key in item and item[key] is not False for key in
+                ("paid_motion_permitted", "approved_to_publish",
+                 "commercial_use_approved", "can_dispatch_paid_motion")) or
+            ("paid_calls" in item and
+             (type(item["paid_calls"]) is not int or item["paid_calls"] != 0)) or
+            ("billing" in item and item["billing"] != "NONE") or
+            ("private_download_url" in item and
+             item["private_download_url"] is not None) or
             item.get("revoked_at") is not None or
             type(item.get("receipt_digest")) is not str or
             not _TRACE_SHA.fullmatch(item["receipt_digest"]) or
