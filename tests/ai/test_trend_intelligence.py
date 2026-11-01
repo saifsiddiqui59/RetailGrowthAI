@@ -144,3 +144,42 @@ def test_network_fetch_denies_unlisted_endpoint_before_outbound_request():
         _default_get("https://attacker.example/collect?key=secret")
     with pytest.raises(ValueError, match="endpoint"):
         _default_get("https://www.googleapis.com/youtube/v3/videos?key=secret")
+
+
+# F2-04: provider-supplied Unicode controls must not silently survive
+# into retailer-facing trend suggestions. No external requests are made.
+@pytest.mark.parametrize("hidden", [
+    "\\u200b", "\\u202e", "\\u2066", "\\ufeff",
+    "\\x85", "\\u2028", "\\ud800",
+])
+def test_f2_04_provider_titles_reject_invisible_unicode(hidden):
+    from ai_agents.trend_intelligence import _clean
+    # `hidden` literals below are escaped so source stays a safe UTF-8 file.
+    hidden = hidden.encode("ascii").decode("unicode_escape")
+    title = "Festival saree " + hidden + "fashion news"
+    assert _clean(title) == ""
+    if hidden == "\\ud800".encode("ascii").decode("unicode_escape"):
+        return  # invalid surrogate is not a well-formed UTF-8 provider document
+    rss = (
+        "<rss><channel><item><title>" + title + "</title>"
+        "<link>https://trends.google.com/trending?geo=IN</link>"
+        "</item></channel></rss>"
+    ).encode("utf-8")
+    assert parse_google_rss(rss, NOW) == []
+    import json
+    youtube = json.dumps({"items": [{"id": "dQw4w9WgXcQ",
+        "snippet": {"title": title}, "statistics": {"viewCount":"123"}}]}).encode()
+    assert parse_youtube(youtube, NOW) == []
+
+
+def test_f2_04_indic_vowel_marks_remain_accepted():
+    from ai_agents.trend_intelligence import _clean
+    title = "Saree मराठी कापड fashion styles"
+    assert _clean(title) == title
+    rss = (
+        "<rss><channel><item><title>" + title + "</title>"
+        "<link>https://trends.google.com/trending?geo=IN</link>"
+        "</item></channel></rss>"
+    ).encode("utf-8")
+    rows = parse_google_rss(rss, NOW)
+    assert len(rows) == 1 and rows[0].title == title
