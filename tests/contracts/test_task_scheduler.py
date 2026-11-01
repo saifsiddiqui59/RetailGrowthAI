@@ -121,3 +121,50 @@ def test_missing_dependency_status_never_unblocks_external_rights():
              {"schema_version":1,"tasks":[{"id":v["id"],"status":"in_progress"} for v in DEPS["tasks"]]})
     assert any(x["id"]=="F4-16" for x in a["blocked"])
     assert any(x["id"]=="F5-16" for x in a["blocked"])
+
+def test_feature3_source_component_receipts_suppress_duplicate_advisory_coding():
+    """A merged *component* is review-only, never a completed hosted package."""
+    receipts=json.loads((ROOT/"coordination/feature3_source_receipts.json").read_text())
+    out=s.plan(REAL,POLICY,{"schema_version":1,"events":[]},
+               source_receipts=receipts)
+    source_tasks={tid for row in receipts["complete_source_components"]
+                  for tid in row["task_ids"]}
+    assert len(receipts["complete_source_components"])==14
+    assert receipts["full_hosted_packages_done"]==0
+    assert {"F3-02","F3-03","F3-05","F3-06","F3-08","F3-09",
+            "F3-10","F3-11","F3-12","F3-13"} <= source_tasks
+    assert all(c["id"] not in source_tasks for c in out["candidates"])
+    review={x["id"]:x["reason"] for x in out["existing_source_or_review"]}
+    for tid in source_tasks-{"F3-04"}:
+        assert tid in review
+        assert "do not reimplement" in review[tid]
+    assert any(x["id"]=="F3-04" for x in out["blocked"])
+    assert out["executor_connected"] is False
+    assert out["mode"]=="advisory_only"
+    # Source receipts do not mutate the immutable 159-task inventory.
+    assert len(REAL["tasks"])==159
+    assert all(not t["integrated_done"] for t in REAL["tasks"])
+
+
+def test_feature3_source_receipts_never_forge_task_done_or_other_feature():
+    receipts=json.loads((ROOT/"coordination/feature3_source_receipts.json").read_text())
+    def invalid(mutator):
+        bad=copy.deepcopy(receipts)
+        mutator(bad)
+        with pytest.raises(s.SchedulerError):
+            s.plan(REAL,POLICY,{"schema_version":1,"events":[]},
+                   source_receipts=bad)
+    invalid(lambda x: x.update(full_hosted_packages_done=11))
+    invalid(lambda x: x.update(scope="hosted_verified"))
+    invalid(lambda x: x["complete_source_components"][0].update(
+        hosted_task_complete=True))
+    invalid(lambda x: x["complete_source_components"][0].update(
+        source_stage="DONE"))
+    invalid(lambda x: x["complete_source_components"][0].update(
+        source_evidence_url="https://example.com/forged"))
+    invalid(lambda x: x["complete_source_components"][0].update(
+        task_ids=["F2-01"]))
+    invalid(lambda x: x["complete_source_components"].append(
+        copy.deepcopy(x["complete_source_components"][0])))
+    invalid(lambda x: x["pending_source_components"][0].update(
+        stage="SOURCE_INTEGRATED"))
