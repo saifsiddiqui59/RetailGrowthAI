@@ -815,3 +815,5 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 ## 2026-11-01 — Follow-up F3-12 code batch in existing #864
 - Verified current main unchanged from source checkpoint, found that authenticated `Feature3V2Store.list_models` had depended on an unchecked `approved_uses` string and hardcoded synthetic-adult UI flag. Extended existing PR #864 with strict server catalog authorization and synthetic fixtures in `tests/api/test_feature3_model_catalog_current_rights.py`. Tested current source head through GitHub Part 1 CI #41306835412; final four-job conclusion must be confirmed separately. No duplicated original F3 task, new paid provider, cloud mutation, real licensed/hosted approval or WineShopPOS change.
 
+## 2026-11-01 — F3-12 final source batch verification
+- Existing PR #864 final head 75356855b33d0ab25a07094c8ec85c0fc1fd9761 passed Part 1 CI #41307545461 (4/4). Eight unhashable model-provenance inputs now deny safely before private storage/registry access. Task receipt proposal #860 updated to match. Independent review, main merge and postmerge CI required; no hosted DONE, paid inference, SQL deployment, PROD or WineShopPOS.
