@@ -316,7 +316,7 @@ test('private preview fetch is single-flight before React imageBusy state commit
   // imageBusy alone is asynchronous; a second click must not invalidate the
   // first nonce or launch another rights-gated private binary GET.
   assert.match(history,/const imageReadToken=useRef\(null\)/)
-  assert.match(history,/imageReadToken\.current!==null \|\| job\?\.status!=='SUCCEEDED'/)
+  assert.match(history,/historyReadToken\.current!==null \|\| imageReadToken\.current!==null \|\|\s*job\?\.status!=='SUCCEEDED'/)
   assert.match(history,/const readToken=Symbol\('private-generated-preview'\)\s*imageReadToken\.current=readToken/)
   assert.match(history,/if\(imageReadToken\.current===readToken\)imageReadToken\.current=null/)
   // A history refresh, tenant switch, unmount or explicit Clear invalidates
