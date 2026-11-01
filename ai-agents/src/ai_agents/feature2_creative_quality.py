@@ -715,7 +715,7 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
         if (any(ord(ch)<32 or 0x7f<=ord(ch)<=0x9f or
                 unicodedata.category(ch) in ("Cf","Cs","Zl","Zp")
                 for ch in claim) or "<" in claim or ">" in claim or
-            re.search(r"(?:https?://|www\\.)",claim,flags=re.I) or
+            re.search(r"(?:https?://|www\.)",claim,flags=re.I) or
             "javascript:" in claim.lower() or
             claim.casefold() in approved_texts or
             ("percent_off" in offer and
