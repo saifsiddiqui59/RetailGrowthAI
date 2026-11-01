@@ -21,6 +21,9 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
   const [imageMessage,setImageMessage]=useState('')
   const [filter,setFilter]=useState('ALL')
   const epoch=useRef(0)
+  // React state updates are asynchronous; guard a second Preview click before
+  // imageBusy rerenders, without invalidating the first authorized request.
+  const imageReadToken=useRef(null)
   const registry=useRef(null)
   if(!registry.current)registry.current=createFeature3GeneratedBlobScope()
   const current=useRef({shopId,api,binaryClient})
@@ -38,6 +41,7 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
     // A browser revoke failure must not interrupt the React privacy reset.
     // The scope registry keeps the hidden owned URL for a later retry.
     let cleanupPending=false
+    imageReadToken.current=null
     try { registry.current.selectScope(shopId) }
     catch { cleanupPending=true }
     setState(initial(shopId,api))
@@ -49,6 +53,7 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
     setFilter('ALL')
     return ()=>{
       epoch.current+=1
+      imageReadToken.current=null
       try { registry.current.clear() }
       catch { /* hidden pending URL stays in the private registry */ }
     }
@@ -57,6 +62,7 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
   const load=async()=>{
     if(!api || !shopId || checked.busy)return
     const shop=shopId,source=api,nonce=++epoch.current
+    imageReadToken.current=null
     setImage(null)
     setImageBusy(false)
     setImageMessage('')
@@ -83,9 +89,11 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
   }
   const loadImage=async(job)=>{
     if(!binaryClient || !api || !shopId || imageBusy || checked.busy ||
-       job?.status!=='SUCCEEDED' ||
+       imageReadToken.current!==null || job?.status!=='SUCCEEDED' ||
        !checked.jobs.some(row=>row.id===job.id && row.status==='SUCCEEDED'))return
     const shop=shopId,source=binaryClient,historyApi=api,nonce=++epoch.current
+    const readToken=Symbol('private-generated-preview')
+    imageReadToken.current=readToken
     const still=()=>nonce===epoch.current &&
       current.current.shopId===shop && current.current.binaryClient===source &&
       current.current.api===historyApi
@@ -105,11 +113,14 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
       if(still())setImageMessage(
         'Private image unavailable or rights revoked. No preview was retained.')
     }finally{
+      // A stale request must never unlock a newer in-flight private read.
+      if(imageReadToken.current===readToken)imageReadToken.current=null
       if(still())setImageBusy(false)
     }
   }
   const clearImage=()=>{
     ++epoch.current
+    imageReadToken.current=null
     setImage(null)
     setImageBusy(false)
     setImageMessage('')
