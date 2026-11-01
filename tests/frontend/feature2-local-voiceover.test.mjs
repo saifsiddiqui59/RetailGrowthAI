@@ -220,3 +220,65 @@ test('reject foreign, replayed, paid-fallback or fabricated voice job success',(
     undefined,JSON.stringify(changed))
  }
 })
+
+
+// feature2 F2-31 review-only UI receipt: a signed backend still owns durable
+// review verification; the browser must deny forged optional grants on sight.
+const f2ReviewDraftReply={
+ schema:'retailgrowth.feature2-reviewed-prompt-draft.v1',
+ shop_id:SHOP,campaign_id:CID,proposal_id:PROPOSAL,
+ source_revision:7,revision:8,
+ original_prompt_sha256:'b'.repeat(64),
+ improved_prompt_sha256:'c'.repeat(64),
+ review_status:'DRAFT',private:true,can_publish:false,
+ can_dispatch_paid_motion:false,
+ requires_fresh_media_rights:true,
+ requires_new_copy_fact_review:true,
+}
+const suspiciousReviewFields=[
+ {approved_to_publish:true},{approved_to_publish:'false'},
+ {commercial_use_approved:null},{commercial_use_approved:1},
+ {offer_facts_verified:true},{media_rights_verified:'no'},
+ {paid_inference_authorized:0},{may_auto_invoke_azure:true},
+ {provider_call_made:true},{paid_calls:false},
+ {paid_calls:1},{paid_calls:'0'},
+ {billing:'PAID'},
+ {signed_url:'https://example.invalid/audio'},
+ {private_download_url:'https://example.invalid/draft'},
+]
+test('F2-31 rejects forged optional grants in signed draft source preview',()=>{
+ for(const wrong of suspiciousReviewFields){
+   assert.throws(()=>request({proposal:{...draftProposal,...wrong}}),
+     undefined,JSON.stringify(wrong))
+ }
+})
+test('F2-31 rejects forged optional grants in reviewed draft receipt',()=>{
+ for(const wrong of suspiciousReviewFields){
+   assert.throws(()=>verifyReviewedDraftReceipt({
+     shopId:SHOP,campaignId:CID,proposal:draftProposal,
+     receipt:{...f2ReviewDraftReply,...wrong},
+   }),undefined,JSON.stringify(wrong))
+ }
+})
+test('F2-31 pending optional denial metadata remains only a private draft',()=>{
+ const safe={
+  approved_to_publish:false,
+  commercial_use_approved:false,
+  offer_facts_verified:false,
+  media_rights_verified:false,
+  paid_inference_authorized:false,
+  may_auto_invoke_azure:false,
+  provider_call_made:false,
+  paid_calls:0,billing:'NONE',signed_url:null,private_download_url:null,
+ }
+ const proposed=request({proposal:{...draftProposal,...safe}})
+ assert.equal(proposed.allow_publish,false)
+ assert.equal(proposed.requires_independently_signed_human_review,true)
+ const returned=verifyReviewedDraftReceipt({
+   shopId:SHOP,campaignId:CID,proposal:draftProposal,
+   receipt:{...f2ReviewDraftReply,...safe},
+ })
+ assert.equal(returned.can_publish,false)
+ assert.equal(returned.review_status,'DRAFT')
+ assert.ok(Object.isFrozen(returned))
+})
