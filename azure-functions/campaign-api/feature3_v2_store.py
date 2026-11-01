@@ -103,37 +103,67 @@ class Feature3V2Store:
         rows = self._request(token, "feature3_models", query={
             "select": "model_id,owner_shop_id,media_asset_id,scope,status,"
                       "source_kind,label,image_sha256,license_id,rights_verified,"
-                      "attribution,approved_uses",
+                      "synthetic_adult,attribution,approved_uses",
             "status": "eq.APPROVED", "rights_verified": "eq.true",
             "order": "updated_at.desc", "limit": "51",
         })
         if not isinstance(rows, list) or len(rows) > 50:
             raise StorageUnavailable("invalid or excessive model catalog")
-        checked = []
+        checked, seen = [], set()
+        known_uses = {"poster", "try_on", "video_reference"}
+        known_licenses = {"CC0-1.0", "CC-BY-4.0", "REVIEWED-COMMERCIAL"}
         for row in rows:
             if not isinstance(row, dict):
-                raise StorageUnavailable("malformed model catalog row")
-            # Platform metadata alone NEVER confers other tenants' private
-            # image bytes; hold those back pending per-shop media delegation.
-            if row.get("scope") != "shop" or row.get("owner_shop_id") != sid:
                 continue
-            if row.get("status") != "APPROVED" or row.get("rights_verified") is not True:
+            # Platform metadata alone NEVER delegates private source bytes.
+            # The SQL approved filter is NOT enough to trust a malformed or
+            # substituted JSON row from the injected PostgREST transport.
+            if (row.get("scope") != "shop" or row.get("owner_shop_id") != sid
+                    or row.get("status") != "APPROVED"
+                    or row.get("rights_verified") is not True
+                    or row.get("synthetic_adult") is not True
+                    or type(row.get("source_kind")) is not str
+                    or row["source_kind"] not in (
+                        "retailer_licensed", "created_ai", "opensource_render")):
                 continue
-            if "poster" not in (row.get("approved_uses") or []):
+            uses = row.get("approved_uses")
+            if (type(uses) is not list or not 1 <= len(uses) <= 3
+                    or any(type(v) is not str or v not in known_uses for v in uses)
+                    or len(set(uses)) != len(uses) or "poster" not in uses):
+                continue
+            image_sha = row.get("image_sha256")
+            license_id = row.get("license_id")
+            label = row.get("label")
+            attribution = row.get("attribution")
+            if (type(image_sha) is not str or not _SHA256.fullmatch(image_sha)
+                    or type(license_id) is not str or license_id not in known_licenses
+                    or type(label) is not str
+                    or not 1 <= len(label.strip()) <= 64
+                    or len(label) > 64
+                    or type(attribution) is not str or len(attribution) > 200
+                    or (license_id == "CC-BY-4.0" and not attribution.strip())
+                    or any(ord(ch) < 32 or ord(ch) == 127
+                           for ch in label + attribution)):
                 continue
             try:
-                model_id, asset_id = canonical_uuid(row["model_id"]), canonical_uuid(row["media_asset_id"])
-            except (ValueError, KeyError):
-                raise StorageUnavailable("malformed model identity")
-            if not tenant_store.assets(token, sid, [asset_id]):
+                model_id = canonical_uuid(row["model_id"])
+                asset_id = canonical_uuid(row["media_asset_id"])
+            except (ValueError, TypeError, KeyError, AttributeError):
                 continue
+            if model_id in seen:
+                continue
+            # Media membership is a separate current JWT/RLS read. A truthy
+            # object or foreign row is never equivalent to an exact True.
+            if tenant_store.assets(token, sid, [asset_id]) is not True:
+                continue
+            seen.add(model_id)
             checked.append({
                 "schema": "retailgrowth.model-library.v1",
                 "model_id": model_id, "owner_shop_id": sid, "scope": "shop",
                 "status": "APPROVED", "synthetic_adult": True,
-                "image_sha256": row["image_sha256"],
-                "media_asset_id": asset_id, "label": row["label"],
-                "license_id": row["license_id"], "attribution": row["attribution"],
+                "image_sha256": image_sha,
+                "media_asset_id": asset_id, "label": label.strip(),
+                "license_id": license_id, "attribution": attribution,
                 "approved_uses": ["poster"],
             })
         return checked
