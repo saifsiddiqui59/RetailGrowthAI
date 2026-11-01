@@ -1,0 +1,18 @@
+# Feature3 F3-12 / F3-13 — server-side approved model reuse and catalog safety
+
+## Original task coverage and gap
+
+F3-12 is the **approved reusable model library**; F3-13 is its negative rights/security regression package. Existing `checked_model_for_use` accepted any approval-use collection containing a requested use (including duplicates and unknown `admin`/paid permissions) and did not reject missing/unknown model image-license IDs. It also accepted CC-BY attribution of a non-string truthy value. The React browser selector independently rejected these fields, but source authorization must fail closed before backend private-media lookup; browser filtering is not server rights enforcement.
+
+The server helper now accepts only **bounded, nonempty, unique subsets** of the known `poster`, `try_on`, `video_reference` uses; requires an explicitly recognized per-image license ID; rejects unhashable/nonstring license/scope/usage; and requires bounded text attribution including non-whitespace CC-BY credit. Existing independent `authorize_use` callback is still mandatory for actual up-to-date shop/model approval; this source contract does not itself approve any license or likeness.
+
+The server model catalog skips malformed rows that would otherwise crash an entire authorized model picker; no raw URLs, private object keys or media bytes are exposed. Untrusted/forged models never reach the `resolve_private_media` callback. These checks align with the pre-existing strict browser `feature3-approved-models.mjs` contract without changing frontend schema.
+
+## Files, tests, acceptance
+
+- `poster-engine/model_library_v2.py` and `poster-engine/model_catalog_projection_v2.py`: fail-closed server reuse and resilient picker.
+- `tests/media/test_feature3_model_library.py` and `tests/media/test_feature3_model_catalog_projection.py`: negative license/rights/use/attribution, malformed-row isolation and positive bounded subset cases, using only synthetic in-memory model metadata.
+- Required exact FINAL-head 4/4 Part 1 CI; independent model licensing/private-media affected-lead review; main integration and fresh postmerge main 4/4 before source receipt can be marked integrated.
+- This is **source tested only**, not approved likeness, commercially reusable imagery, true service-only license review, signed DEV RLS/Storage or actual generated model output. F3-12/F3-13 original full hosted acceptance remains blocked. Never pretend model code licensing equals per-image licensed use.
+
+No GPU, paid provider, live model-generation, customer photos, hosted SQL, PROD, sample media or WineShopPOS.
