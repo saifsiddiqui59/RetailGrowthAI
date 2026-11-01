@@ -1370,3 +1370,6 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 - Exact SHA audit of three more stale child PRs: #738, #752 and #802, **all changed files identical** to latest main; closed each as unmerged superseded with evidence comments. #744 retained open because its source module has later changes; no bulk close.
 - Proposed new F3-10/F3-13 fail-closed browser Blob revocation retry repair in [#859](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/859). This addresses previously lost private object URL references after a simulated failed browser revoke, without changing cloud/provider rights. Source PR requires CI + independent security review. No hosted package DONE or GPU actions.
 
+## Feature #3 additional Wave A/B integration verification (2026-11-01)
+- Reconciled and closed five more superseded standalone/stacked PRs with evidence: #798 (four SHA matches), #843 (exact PNG code+tests; later checkpoint docs), #834 (equivalent typed-attempt checks and negatives in main), #768 (source+test subset with later decoder cleanup), #744 (same twice-current GPU-OFF behavior with subsequent refactor). See scoped detailed audit and individual comments; no duplicate code merge or new hosted package acceptance.
+
