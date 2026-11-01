@@ -1354,6 +1354,6 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 
 ## Feature #3 after Wave A/B duplicate-PR cleanup (2026-11-01)
 1. Follow `docs/feature3/WAVE_AB_DUPLICATE_PR_RECONCILIATION_20261101.md` for verified duplicate closures #790, #791, #761 (all three changed paths identical to main for each, no new DONE); do not reopen these features as new coding work.
-2. **#760 remains open:** source and handoff matched main, but `tests/api/test_feature3_gpu_queue_envelope.py` differs. Compare the original assertion hunk with current main and later changes before closing as superseded; no unverified bulk PR closures.
+2. **#760 now closed as source-equivalent:** the original test is an ordered subsequence of current main with two later mocked SQL ACK lines added, while its other two blobs match exactly. This is reviewed source inclusion, not a new F3 product task DONE. Continue checking other Wave A/B standalone PRs individually; no unverified bulk closures.
 3. For active hosted blockers pursue independent reviewed authorization and real DEV tests: #325/#471 signed current-rights private PNG route, F3-LICENSED-MEDIA rights, #249 Azure 503, #627 signed worker traces, F5 paid GPU authorization. Preserve **0/33 hosted complete** and GPU OFF.
 
