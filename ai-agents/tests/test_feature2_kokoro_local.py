@@ -356,3 +356,35 @@ def test_benchmark_pcm_integrity_positive_without_numpy_or_model_weights():
     assert outcome["observations"][0]["audio_seconds"]==1.0
     assert outcome["test_only"] and not outcome["real_model_inference_verified"]
     assert not outcome["can_publish"]
+
+
+# F2-09: reject malformed browser text/selection before CPU slot or model load.
+# Only fake local engine objects, no actual model weights or customer speech.
+@pytest.mark.parametrize("hidden", [
+    "\u200b", "\u202e", "\u2066", "\ufeff", "\x85", "\u2028", "\ud800"
+])
+def test_f2_09_cpu_speech_rejects_hidden_unicode_before_engine(hidden):
+    hits = []
+    class NeverCallEngine:
+        def create(self, *args, **kwargs):
+            hits.append(1)
+            raise AssertionError("No CPU inference on unreviewed input")
+    with pytest.raises(LocalSpeechUnavailable, match="Unsupported text"):
+        synthesize_local(
+            text="Simple shop message " + hidden + " today",
+            engine=NeverCallEngine(), trusted_for_tests=True)
+    assert hits == []
+
+
+@pytest.mark.parametrize("bad", [[], {"normal": True}, None, 1])
+def test_f2_09_malformed_speed_fails_closed_without_cpu_session(bad):
+    calls = []
+    class NeverCallEngine:
+        def create(self, *args, **kwargs):
+            calls.append(1)
+            raise AssertionError("No inference for malformed speed")
+    with pytest.raises(LocalSpeechUnavailable, match="Unsupported text"):
+        synthesize_local(
+            text="A safe shop message for preview", speed=bad,
+            engine=NeverCallEngine(), trusted_for_tests=True)
+    assert calls == []
