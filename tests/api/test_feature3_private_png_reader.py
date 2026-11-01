@@ -24,6 +24,7 @@ class FakeTenant:
         self.active=True
         self.status="SUCCEEDED"
         self.foreign=False
+        self.asset_overrides={}
         self.calls=[]
     def member(self,token,actor,shop,write=False):
         self.calls.append("member")
@@ -35,9 +36,14 @@ class FakeTenant:
                 "output_asset_id":self.asset}
     def feature3_generated_asset(self,token,shop,job,asset):
         self.calls.append("asset")
-        return {"object_path":self.path if not self.foreign else
+        return {
+            "id": self.asset, "shop_id": self.shop,
+            "storage_bucket": "retailgrowth-media", "source": "GENERATED",
+            "object_path":self.path if not self.foreign else
                 f"{str(uuid4())}/feature3/gpu/{job}/{self.sha}.png",
-                "mime_type":"image/png"}
+            "mime_type":"image/png",
+            **self.asset_overrides,
+        }
 
 
 class Response:
@@ -231,6 +237,47 @@ class RevocableReaderTests(unittest.TestCase):
                 PrivateGeneratedDownloadDenied):
                 self.read()
             self.assertEqual(self.calls,["verify"])
+
+    def test_forged_generated_media_identity_and_private_bucket_denied_before_get(self):
+        # Even a future misconfigured tenant store must not be able to return
+        # a different asset or bucket by supplying a same-shaped SHA path.
+        for field, bad in (
+            ("id",str(uuid4())),
+            ("shop_id",str(uuid4())),
+            ("storage_bucket","public-media"),
+            ("source","UPLOAD"),
+            ("source","MODEL"),
+            ("id",None),
+            ("shop_id",None),
+            ("storage_bucket",None),
+            ("source",None),
+        ):
+            self.setUp()
+            self.tenant.asset_overrides[field]=bad
+            with self.subTest(field=field, value=bad), self.assertRaises(
+                    PrivateGeneratedDownloadDenied):
+                self.read()
+            self.assertEqual(self.calls,["verify"])
+            self.assertEqual(self.rights_called,0)
+            self.assertEqual(self.tenant.calls,["member","job","asset"])
+
+    def test_asset_identity_or_bucket_changed_after_private_get_denies_cached_png(self):
+        # The post-stream authorization must check the full media row, not
+        # merely repeat a URL or verify a SHA of already-read private bytes.
+        for field,bad in (
+            ("id",str(uuid4())),
+            ("shop_id",str(uuid4())),
+            ("storage_bucket","retailgrowth-public"),
+            ("source","UPLOAD"),
+        ):
+            self.setUp()
+            self.on_read=lambda field=field,bad=bad: self.tenant.asset_overrides.__setitem__(field,bad)
+            with self.subTest(field=field), self.assertRaises(
+                    PrivateGeneratedDownloadDenied):
+                self.read()
+            self.assertEqual(self.calls,["verify","get"])
+            self.assertEqual(self.tenant.calls.count("asset"),2)
+            self.assertEqual(self.rights_called,1)
 
     def test_changed_png_wrong_hash_or_invalid_bytes_deny(self):
         changed=BytesIO()
