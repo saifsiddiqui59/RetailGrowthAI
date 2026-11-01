@@ -17,3 +17,9 @@
 - F3-07 remains **source partial**, not DONE until genuine immutable hosted output, signed user rights/lease, approved model/garment/license and real provider/financial evidence. F3-13 also remains hosted incomplete until real signed negative tests. A success in offline fixtures is not commercial approval.
 - Do not duplicate prior merged Wave A/B source work; original source-component receipt tracker is proposed in #860. This PR addresses a genuinely new typed **post-commit ACK** check (separate from already-integrated F3-06 operator evidence typed-attempt guard in #834).
 - No sample, GPU, paid image generation, PROD, hosted SQL, user accounts, WineShopPOS or cloud deployment.
+
+## Same coherent F3-07/F3-13 batch: runtime lease + CAS type fences
+- The composed `Feature3PrivateGPUWorker._validate_claim` prepaid reservation check also used Python `== 1` equality: mocked/corrupt `attempt=True` and `1.0` passed. It now requires a genuine Python integer, matching the one-shot expected attempt, **before staging any Storage bytes**.
+- The runtime `_commit` composition similarly requires a strict integer post-SQL CAS receipt before returning it to the registrar. Failure after SQL commit is **ambiguous**, with no automatic delete or replay.
+- Added `tests/media/test_feature3_private_gpu_runtime.py` negative matrices for boolean/float/string/None/wrong attempt: pre-stage denial performs no HTTP POST, and a postcommit denial retains staged private bytes for manual reconciliation and never calls `finish` or DELETE.
+- This code is not a live worker activation, not a direct payment/SQL authorizer or a generated output. F3-07 and F3-13 hosted task completion remains blocked. Both runtime tests and private-output tests must pass exact-head 4/4 before review.
