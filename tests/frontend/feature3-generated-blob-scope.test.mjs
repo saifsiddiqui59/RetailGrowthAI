@@ -309,3 +309,19 @@ test('React history hides preview before cleanup and checks live registry owners
   assert.match(history,/const load=async\(\)=>[\s\S]*?setImage\(null\)\s*setImageBusy\(false\)\s*setImageMessage\(''\)\s*try \{ registry\.current\.clear\(\) \}/)
   assert.match(history,/Private preview hidden; browser cleanup pending/)
 })
+
+test('private preview fetch is single-flight before React imageBusy state commits',()=>{
+  const history=readFileSync(
+    new URL('../../frontend/src/features/creative/Feature3GeneratedHistory.jsx',import.meta.url),'utf8')
+  // imageBusy alone is asynchronous; a second click must not invalidate the
+  // first nonce or launch another rights-gated private binary GET.
+  assert.match(history,/const imageReadToken=useRef\(null\)/)
+  assert.match(history,/imageReadToken\.current!==null \|\| job\?\.status!=='SUCCEEDED'/)
+  assert.match(history,/const readToken=Symbol\('private-generated-preview'\)\s*imageReadToken\.current=readToken/)
+  assert.match(history,/if\(imageReadToken\.current===readToken\)imageReadToken\.current=null/)
+  // A history refresh, tenant switch, unmount or explicit Clear invalidates
+  // the old token; its finally cannot unlock a newer in-flight read.
+  assert.match(history,/const load=async\(\)=>\{[\s\S]*?imageReadToken\.current=null/)
+  assert.match(history,/const clearImage=\(\)=>\{\s*\+\+epoch\.current\s*imageReadToken\.current=null/)
+  assert.match(history,/return \(\)=>\{\s*epoch\.current\+=1\s*imageReadToken\.current=null/)
+})
