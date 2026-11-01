@@ -18,7 +18,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from PIL import Image, UnidentifiedImageError
 
-from tenant_store import canonical_uuid
+from tenant_store import StorageUnavailable, canonical_uuid
 
 _SHA = re.compile(r"^[a-f0-9]{64}$")
 _MAX = 25 * 1024 * 1024
@@ -69,6 +69,10 @@ class Feature3RevocablePNGReader:
         # image authorization or a raw backend exception in an HTTP response.
         try:
             member = self.tenant.member(token, actor, shop)
+        except StorageUnavailable:
+            # Authoritative backend outage is opaque 503 at the HTTP adapter,
+            # not a false 404 for a known-missing private asset.
+            raise
         except Exception:
             raise PrivateGeneratedDownloadDenied(
                 "Private generated output unavailable") from None
@@ -76,6 +80,10 @@ class Feature3RevocablePNGReader:
             raise PrivateGeneratedDownloadDenied("Private generated output unavailable")
         try:
             row = self.tenant.feature3_gpu_job(token, shop, job)
+        except StorageUnavailable:
+            # Authoritative backend outage is opaque 503 at the HTTP adapter,
+            # not a false 404 for a known-missing private asset.
+            raise
         except Exception:
             raise PrivateGeneratedDownloadDenied(
                 "Private generated output unavailable") from None
@@ -86,6 +94,10 @@ class Feature3RevocablePNGReader:
         try:
             asset = self.tenant.feature3_generated_asset(
                 token, shop, job, asset_id)
+        except StorageUnavailable:
+            # Authoritative backend outage is opaque 503 at the HTTP adapter,
+            # not a false 404 for a known-missing private asset.
+            raise
         except Exception:
             raise PrivateGeneratedDownloadDenied(
                 "Private generated output unavailable") from None
@@ -109,6 +121,9 @@ class Feature3RevocablePNGReader:
         # and immutable output evidence, NOT a caller-created True from UI.
         try:
             current_rights = self.rights(shop, job, asset_id)
+        except StorageUnavailable:
+            # Preserve opaque 503 for a current rights backend outage.
+            raise
         except Exception:
             # A reviewer outage cannot fall back to the Storage key, JWT
             # membership or a historical rights approval.
