@@ -14,11 +14,12 @@ def corr():
     return [{"shop_id":SHOP,"language":"en-us","word":"kurti",
              "spoken_as":"kur-tee",
              "approval":"RETAILER_EDITOR_REVIEWED_SPELLING_ONLY"}]
-def call(*,reader=corr,auth=lambda *args:True,claim=lambda *args:"approved-local-try"):
+def call(*,reader=corr,auth=lambda *args:True,claim=lambda *args:"approved-local-try",
+         voice_id="af_heart",language="en-us",speed="normal"):
     p=plan()
     return local_sentence_retake(shop_id=SHOP,campaign_id=CID,
         source_plan=p,sentence_index=0,flagged_audio_sha256="b"*64,
-        voice_id="af_heart",language="en-us",speed="normal",job_key=str(uuid4()),
+        voice_id=voice_id,language=language,speed=speed,job_key=str(uuid4()),
         current_editor=auth,read_plan=lambda *a:p,
         read_approved_words=lambda *a:reader(),claim_one_retake=claim,
         write_pending_private=lambda *a:None,
@@ -47,7 +48,7 @@ def test_duplicate_unauthorized_shop_dictionary_denied():
         call(reader=wrong)
 
 
-def _synthetic_private_retake(*,mode="ok"):
+def _synthetic_private_retake(*,mode="ok", receipt_overrides=None):
     """Offline callback fixture: does NOT run Kokoro or register real media."""
     import io
     import wave
@@ -85,6 +86,8 @@ def _synthetic_private_retake(*,mode="ok"):
             receipt["review_status"]="APPROVED"
         if mode=="writer_skips_stt":
             receipt["requires_new_feature7_transcription"]=False
+        if receipt_overrides:
+            receipt.update(receipt_overrides)
         return receipt
 
     def synthetic_verified_worker(**_):
@@ -130,3 +133,78 @@ def test_private_retake_postwrite_races_fail_closed(mode,reason):
     with pytest.raises(RetakeDenied,match=reason):
         run()
     assert state["writes"]==1  # no automatic retry of ambiguous write
+
+
+# F2-27: validate source voice/locale/speed *before* reserving the sole
+# correction attempt. Bad browser selectors cannot burn a trusted lease.
+@pytest.mark.parametrize("voice,lang,speed",[
+    ("af_heart","hi-IN","normal"),
+    ("en-IN-NeerjaNeural","en-us","normal"),
+    ("bf_emma","en-us","normal"),
+    ("af_heart","en-us","2.0"),
+    ("af_heart","en-us",[]),
+    ([], "en-us","normal"),
+    ("af_heart", [],"normal"),
+])
+def test_f2_27_untrusted_voice_selection_does_not_claim_retake(voice,lang,speed):
+    claimed=[]
+    def claim(*scope):
+        claimed.append(scope)
+        return "should-never-be-claimed"
+    with pytest.raises(RetakeDenied,match="Trusted single-sentence"):
+        call(voice_id=voice,language=lang,speed=speed,claim=claim)
+    assert claimed==[]
+
+
+@pytest.mark.parametrize("alter,reason", [
+    ({"campaign_id":"33333333-3333-4333-8333-333333333333"},"not registered"),
+    ({"creative_plan_sha256":"f"*64},"not registered"),
+    ({"prior_audio_sha256":"f"*64},"not registered"),
+    ({"sentence_index":True},"not registered"),
+    ({"sentence_index":3},"not registered"),
+    ({"can_publish":"false"},"bypass retake review"),
+    ({"can_dispatch_paid_motion":1},"bypass retake review"),
+    ({"commercial_use_approved":None},"bypass retake review"),
+    ({"audio_rights_approved":True},"bypass retake review"),
+    ({"actual_pronunciation_success_verified":True},"bypass retake review"),
+    ({"azure_fallback_used":"false"},"bypass retake review"),
+    ({"paid_inference_authorized":True},"bypass retake review"),
+    ({"may_auto_invoke_azure":False, "paid_calls":True},"bypass retake review"),
+    ({"review_status":"APPROVED"},"bypass retake review"),
+    ({"requires_new_feature7_transcription":0},"bypass retake review"),
+    ({"requires_feature4_scene_assembly":"true"},"bypass retake review"),
+    ({"paid_calls":False},"bypass retake review"),
+    ({"paid_calls":1},"bypass retake review"),
+    ({"billing":"CHARGED"},"bypass retake review"),
+    ({"signed_url":"https://example.invalid/audio"},"bypass retake review"),
+    ({"private_download_url":"https://example.invalid/private"},"bypass retake review"),
+])
+def test_f2_27_private_one_retake_denies_signed_writer_forgery(alter,reason):
+    run,state=_synthetic_private_retake(receipt_overrides=alter)
+    with pytest.raises(RetakeDenied,match=reason):
+        run()
+    # A potentially applied private write is never automatically retried.
+    assert state["writes"]==1
+
+
+def test_f2_27_explicitly_pending_writer_metadata_keeps_f4_f7_review_gates():
+    run,state=_synthetic_private_retake(receipt_overrides={
+        "campaign_id":CID,"creative_plan_sha256":"a"*64,
+        "prior_audio_sha256":"b"*64,"sentence_index":0,
+        "can_publish":False,"can_dispatch_paid_motion":False,
+        "commercial_use_approved":False,"audio_rights_approved":False,
+        "actual_pronunciation_success_verified":False,
+        "azure_fallback_used":False,"paid_inference_authorized":False,
+        "may_auto_invoke_azure":False,
+        "review_status":"PENDING_NEW_STT_AND_HUMAN_LISTEN",
+        "requires_new_feature7_transcription":True,
+        "requires_feature4_scene_assembly":True,
+        "paid_calls":0,"billing":"NONE",
+        "signed_url":None,"private_download_url":None,
+    })
+    output=run()
+    assert state["writes"]==1
+    assert output["private"] is True and output["can_publish"] is False
+    assert output["requires_new_feature7_transcription"] is True
+    assert output["requires_feature4_scene_assembly"] is True
+    assert output["actual_pronunciation_success_verified"] is False
