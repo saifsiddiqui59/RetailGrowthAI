@@ -1393,3 +1393,6 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 ## 2026-11-01 — Feature3 reusable-model server guard
 - [PR #864](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/864) adds F3-12/F3-13 backend license/use allowlist validation and non-string CC-BY attribution denial, plus catalog malformed-row isolation. Pure offline source code and synthetic tests; neither new commercial rights nor a deployed approved model. Independent review and postmerge main CI still required.
 
+## 2026-11-01 — F3-12 expanded source catalog authorization
+- Extended existing source PR #864 (no duplicate PR) from server approved-model reuse validation into the authenticated `Feature3V2Store.list_models` boundary. It now checks actual synthetic-adult DB field, current approved scope/rights and strict verified-looking license/hash/uses before private asset lookup; rejects forged nonboolean media authorizer receipts. Added offline contract tests. This is neither live license approval nor deployed/hosted acceptance; independent review and exact-new-head CI required. No GPU, paid inference, SQL deployment, PROD or WineShopPOS modifications.
+
