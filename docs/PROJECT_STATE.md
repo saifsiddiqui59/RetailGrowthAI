@@ -1382,3 +1382,7 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 - [PR #860](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/860) proposes 14 granular merged source-component completions and a **review-only advisory** scheduler override. Its receipt maps original F3 IDs to already-merged #811/#813 code; it suppresses duplicated implementation suggestions without marking entire hosted packages DONE or adding an AI executor. Changes to shared scheduler/coordination still require independent review and exact-head 4/4, then fresh main 4/4.
 - No source-only completion is a human garment-rights review, live signed private PNG route, real GPU worker or hosted tenant test. No GPU, paid provider, DB write, PROD, or WineShopPOS modification.
 
+## Feature3 parallel source batch additions — 2026-11-01
+- Two new independent Feature3-owned PRs **tested 4/4** against their exact final heads: #861 F3-07/F3-13 typed one-shot private PNG registration/prepaid-lease/commit receipts (CI #41301202397), and #862 F3-02/F3-13 typed private final-byte source-rights revision (CI #41301483566). They have scoped negative tests and handoffs; still require independent rights/security/finance review and fresh postmerge main 4/4.
+- Shared source-component ledger and advisory task/status proposal #860 now records active PRs #859/#861/#862 distinctly from fourteen merged Wave A/B source slices; avoids duplicate planned source coding without claiming task-level integrated or commercial DONE. **Hosted completed 0/33**, GPU disabled.
+
