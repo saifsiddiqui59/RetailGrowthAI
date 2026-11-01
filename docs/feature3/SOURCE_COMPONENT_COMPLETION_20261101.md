@@ -24,3 +24,10 @@ The overlay must be independently reviewed before merging because `coordination/
 - `tests/contracts/test_task_status.py` exercises a 14-source/11-original-F3-ID report with **zero unreviewed DONE events**, plus negative forged-hosted, foreign ID and duplicate-PR receipts. Current existing F3-01 trusted DONE event stays untouched.
 - Revisions require independent shared-coordination review, final-head CI and fresh postmerge main CI; do not self-approve or treat this unmerged PR as live scheduler behavior.
 
+## Additional original F3 work claimed as active source, NOT merged (2026-11-01)
+- [PR #861](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/861): F3-07/F3-13 strict one-shot integer prepaid lease and immutable private media SQL commit ACK; final-head [Part 1 CI #41301202397](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41301202397) 4/4 passed, **TESTED_PR_REVIEW_REQUIRED**.
+- [PR #862](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/862): F3-02/F3-13 reject transient boolean/float rights revisions at a private worker final-byte read, full mocked rights-regression tests; final-head [Part 1 CI #41301483566](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41301483566) 4/4 passed, **TESTED_PR_REVIEW_REQUIRED**.
+- [PR #859](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/859): F3-10/F3-13 local private Blob cleanup, final-head CI #41292509625 passed, also awaiting independent review.
+- Machine overlay now marks these THREE **active source PRs**, not source-integrated or hosted DONE. Advisory scheduler prevents assigning an identical original F3 implementation while a checked source PR is open, and status report exposes the active PR IDs alongside the 14 already-integrated code slices. If review rejects a PR, revise the same PR/receipt rather than spawning a duplicate branch.
+- Verify latest exact-head CI and independent reviewer before any main merge; postmerge fresh main 4/4 mandatory. Original completed hosted packages remain **0/33**, F3-01 remains the only accepted source-integrated task-level DONE.
+
