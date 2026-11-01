@@ -580,3 +580,99 @@ def test_status_backend_denies_foreign_client_key_before_database_read():
     with pytest.raises(LocalVoiceJobDenied,match="scope"):
         run(request_key="not-uuid")
     assert calls=={"auth":0,"job":0,"asset":0}
+
+
+# F2-20: synthetic Kokoro-positive envelope to test private-writer fences ONLY.
+# This is NOT actual model inference or a customer media/rights approval.
+def _f2_20_mock_private_stage(*, mutation=None, revoke_after_write=None):
+    expected=plan()
+    attempts=[];authorizations=[];plan_reads=[]
+    def fake_kokoro(**kwargs):
+        return {
+            **mock(**kwargs),
+            "actual_inference_verified":True, "test_only":False,
+            "model":"Kokoro-82M-v1.0-int8",
+            "upstream_revision":"synthetic-test-only",
+        }
+    def authorized(*scope):
+        authorizations.append(scope)
+        return not (revoke_after_write=="editor" and len(authorizations)>=3)
+    def current_plan(*scope):
+        plan_reads.append(scope)
+        if revoke_after_write=="plan" and len(plan_reads)>=3:
+            return {**expected,"approval_record":{
+                **expected["approval_record"],"plan_sha256":"f"*64}}
+        return expected
+    def writer(shop,campaign,grant,original,receipt):
+        attempts.append(receipt)
+        return {
+            "audio_asset_id":str(uuid4()),"shop_id":shop,
+            "campaign_id":campaign,
+            "original_audio_sha256":sha256(original).hexdigest(),
+            "private":True,
+            **(mutation or {}),
+        }
+    def run():
+        return synthesize_and_stage(
+            shop_id=SHOP,campaign_id=CAMP,source_plan=expected,
+            voice_id="af_heart",lang="en-us",speed="normal",
+            job_key=str(uuid4()),authorize_editor=authorized,
+            read_current_plan=current_plan,
+            reserve_job_once=lambda *scope:"test-local-durable-lease",
+            store_original_private=writer,synthesizer=fake_kokoro,
+        )
+    return run,attempts,authorizations,plan_reads
+
+
+@pytest.mark.parametrize("mutation",[
+    {"can_publish":True}, {"can_publish":"false"},
+    {"can_dispatch_motion":1}, {"commercial_use_approved":None},
+    {"original_media_rights_verified":True},
+    {"pronunciation_verified":1}, {"paid_inference_authorized":True},
+    {"may_auto_invoke_azure":True}, {"approved_for_editing":True},
+    {"review_state":"APPROVED"}, {"paid_calls":False},
+    {"paid_calls":1}, {"billing":"CHARGED"},
+    {"signed_url":"https://example.invalid/public"},
+    {"private_download_url":"https://example.invalid/audio"},
+    {"creative_plan_sha256":"f"*64},
+])
+def test_f2_20_kokoro_private_writer_denies_optional_grants(mutation):
+    run, writes, _, _ = _f2_20_mock_private_stage(mutation=mutation)
+    with pytest.raises(LocalVoiceJobDenied,match="Original audio was not registered"):
+        run()
+    assert len(writes)==1  # Simulated writer effect is not a rights grant.
+
+
+@pytest.mark.parametrize("revocation", ["editor","plan"])
+def test_f2_20_private_writer_rechecks_current_tenant_and_plan_after_commit(revocation):
+    run, writes, authorization_reads, plan_reads = (
+        _f2_20_mock_private_stage(revoke_after_write=revocation)
+    )
+    with pytest.raises(LocalVoiceJobDenied,match="revoked after private audio stage"):
+        run()
+    assert len(writes)==1
+    assert len(authorization_reads)>=3
+    if revocation=="plan":
+        assert len(plan_reads)>=3
+
+
+def test_f2_20_kokoro_private_writer_explicit_pending_metadata_stays_private():
+    run, writes, reads, _ = _f2_20_mock_private_stage(mutation={
+        "can_publish":False,"can_dispatch_motion":False,
+        "commercial_use_approved":False,
+        "original_media_rights_verified":False,
+        "pronunciation_verified":False,
+        "paid_inference_authorized":False,
+        "may_auto_invoke_azure":False,"approved_for_editing":False,
+        "review_state":"PENDING_HUMAN_LISTEN_AND_RIGHTS",
+        "paid_calls":0,"billing":"NONE","signed_url":None,
+        "private_download_url":None,
+        "creative_plan_sha256":"a"*64,
+    })
+    result=run()
+    assert len(writes)==1 and len(reads)==3
+    assert result["private"] is True
+    assert result["can_publish"] is False
+    assert result["can_dispatch_motion"] is False
+    assert result["paid_calls"] == 0
+    assert result["audio_bytes"] is None and result["signed_url"] is None
