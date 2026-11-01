@@ -421,7 +421,7 @@ class RevocableReaderTests(unittest.TestCase):
             self.assertEqual(self.rights_called,1)
             self.assertEqual(self.calls,["verify","get"])
         self.setUp()
-        def unavailable(_req,_timeout):
+        def unavailable(_req, timeout):
             raise RuntimeError("SENSITIVE_HTTP_TRANSPORT_INTERNAL")
         self.reader.transport = unavailable
         with self.assertRaises(PrivateGeneratedDownloadDenied) as caught:
