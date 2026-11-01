@@ -93,7 +93,11 @@ export function createFeature3GeneratedBlobScope({
   const discardFailed=(nextShop,nextJob,expectedURL)=>{
     if(nextShop!==shop||nextJob!==job||url===null||expectedURL!==url)
       return false
-    clear()
+    // The browser can reject revokeObjectURL. The preview is already
+    // non-renderable in clear(), while its owned URL remains in the hidden
+    // retry ledger. A decode-error handler must still be told to remove the
+    // corresponding React image, rather than throwing before setImage(null).
+    try { clear() } catch { /* hidden cleanup will retry on next clear/install */ }
     return true
   }
   return Object.freeze({selectScope,install,view,clear,discardFailed})
