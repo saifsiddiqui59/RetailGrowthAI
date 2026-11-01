@@ -1360,3 +1360,39 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by 
 ## 2026-10-31 — Five feature-owned integration leads (governance proposal) — effective 2026-10-31
 Current execution governance: five feature worker automations; Feature #5 slot restored from coordinator role. Original 159 tasks and 16 handoffs are unchanged. Each worker may safely integrate its feature-owned PR with exact-head 4/4 CI, current-main compatibility and any required independent review, then verify fresh postmerge main 4/4 and submit task-status evidence. No dedicated ChatGPT coordinator, no paid GPU/provider/PROD/WineShopPOS; shared contracts still require independent approval.
 Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert a new feature DONE or live production readiness.
+
+## Feature #3 Wave A/B stale-PR reconciliation (2026-11-01, docs-only PR)
+- Current main `456b1757d7df2f0cc28a5ef6c8ba203b18380948` has fresh Part 1 source CI [#41178167285](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41178167285) with all four jobs successful. Feature3 Wave A #811 and Wave B #813 are merged.
+- Verified each changed path's exact Git blob SHA against current main for standalone #790, #791 and #761. All match; each PR was closed as superseded with a specific evidence comment. **No new source integration or hosted completion is claimed.** #760 was subsequently closed only after verifying its original 120 test lines remain in order in main's 122-line test (two added mocked SQL ACK lines), and its remaining two changed blobs match main.
+- Detailed scope, checks and remaining gates: `docs/feature3/WAVE_AB_DUPLICATE_PR_RECONCILIATION_20261101.md`. Feature3 remains **0/33 fully hosted accepted**, GPU OFF, no paid inference, DEV/PROD mutation, or WineShopPOS activity.
+
+## Feature #3 parallel batch continuation (2026-11-01; reviewable docs PR)
+- Exact SHA audit of three more stale child PRs: #738, #752 and #802, **all changed files identical** to latest main; closed each as unmerged superseded with evidence comments. #744 retained open because its source module has later changes; no bulk close.
+- Proposed new F3-10/F3-13 fail-closed browser Blob revocation retry repair in [#859](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/859). This addresses previously lost private object URL references after a simulated failed browser revoke, without changing cloud/provider rights. Source PR requires CI + independent security review. No hosted package DONE or GPU actions.
+
+## Feature #3 additional Wave A/B integration verification (2026-11-01)
+- Reconciled and closed five more superseded standalone/stacked PRs with evidence: #798 (four SHA matches), #843 (exact PNG code+tests; later checkpoint docs), #834 (equivalent typed-attempt checks and negatives in main), #768 (source+test subset with later decoder cleanup), #744 (same twice-current GPU-OFF behavior with subsequent refactor). See scoped detailed audit and individual comments; no duplicate code merge or new hosted package acceptance.
+
+- F3-10/F3-13 history branch #812 also closed after semantic+test review: current main preserves the negative protections with additional signed-provider fencing; original source/test blobs differ. No product source was remerged.
+
+- #729 model-library-rights grant source/tests/handoff also exactly matched integrated main and was closed as superseded, not new Feature3 implementation.
+
+## 2026-11-01 — Feature3 durable source-task deduplication proposal
+- Independently verified F3-01 already has an accepted `source_integrated` DONE event in `coordination/task_progress.json` for Wave B #813 and postmerge Part 1 CI #41131088666; immutable inventory remains 159 original IDs.
+- [PR #860](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/860) proposes 14 granular merged source-component completions and a **review-only advisory** scheduler override. Its receipt maps original F3 IDs to already-merged #811/#813 code; it suppresses duplicated implementation suggestions without marking entire hosted packages DONE or adding an AI executor. Changes to shared scheduler/coordination still require independent review and exact-head 4/4, then fresh main 4/4.
+- No source-only completion is a human garment-rights review, live signed private PNG route, real GPU worker or hosted tenant test. No GPU, paid provider, DB write, PROD, or WineShopPOS modification.
+
+## Feature3 parallel source batch additions — 2026-11-01
+- Two new independent Feature3-owned PRs **tested 4/4** against their exact final heads: #861 F3-07/F3-13 typed one-shot private PNG registration/prepaid-lease/commit receipts (CI #41301202397), and #862 F3-02/F3-13 typed private final-byte source-rights revision (CI #41301483566). They have scoped negative tests and handoffs; still require independent rights/security/finance review and fresh postmerge main 4/4.
+- Shared source-component ledger and advisory task/status proposal #860 now records active PRs #859/#861/#862 distinctly from fourteen merged Wave A/B source slices; avoids duplicate planned source coding without claiming task-level integrated or commercial DONE. **Hosted completed 0/33**, GPU disabled.
+
+## 2026-11-01 Feature3 additional F3-08/F3-13 source protection
+- [PR #863](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/863) adds independent generated media row identity/private-bucket/GENERATED-source checks around both authenticated private PNG reads, plus forged-current/poststream AssetStore injection tests through the composed no-URL HTTP adapter. It is source-only, not a mounted/downloadable Azure API, and does not authorize hosted media, GPU, legal rights, billing or PROD.
+- PR #863 original F3-08/F3-13 work is separate from existing #859/#861/#862. Keep all open PRs in proposed dedup ledger #860 so other workers do not repeat work. Exact-head four CI jobs and independent security review required before integration.
+
+## 2026-11-01 — Feature3 reusable-model server guard
+- [PR #864](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/864) adds F3-12/F3-13 backend license/use allowlist validation and non-string CC-BY attribution denial, plus catalog malformed-row isolation. Pure offline source code and synthetic tests; neither new commercial rights nor a deployed approved model. Independent review and postmerge main CI still required.
+
+## 2026-11-01 — F3-12 expanded source catalog authorization
+- Extended existing source PR #864 (no duplicate PR) from server approved-model reuse validation into the authenticated `Feature3V2Store.list_models` boundary. It now checks actual synthetic-adult DB field, current approved scope/rights and strict verified-looking license/hash/uses before private asset lookup; rejects forged nonboolean media authorizer receipts. Added offline contract tests. This is neither live license approval nor deployed/hosted acceptance; independent review and exact-new-head CI required. No GPU, paid inference, SQL deployment, PROD or WineShopPOS modifications.
+

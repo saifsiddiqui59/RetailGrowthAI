@@ -777,3 +777,43 @@ Use scripts/checkpoint.sh after completing a task.
 ## 2026-10-31 — Five feature-owned integration leads (governance proposal) — effective 2026-10-31
 Prepared reviewed policy for feature-owned self-integration and restore of Feature #5 scheduled worker. Read AGENTS.md and the four core state documents plus current CI; verified main CI #41175618253 4/4 on prior main, registry 159 tasks and F3-01 source-only event. Repository branch protection read forbidden (403), rulesets list empty; no protection assumptions. No feature code/GPU/PROD/WineShopPOS changes.
 Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert a new feature DONE or live production readiness.
+
+## 2026-11-01 — Feature3 Wave A/B source-equivalent PR deduplication
+- Read AGENTS and canonical state/task/decision/log documents, verified current main `456b1757d7df2f0cc28a5ef6c8ba203b18380948`, Wave A #811 at `c14d099d`, Wave B #813 at `7404b46e`, and main Part 1 CI #41178167285 with all four jobs successful.
+- Independently compared *every changed file* SHA on PR #790 (approved-copy scope), #791 (signed provider busy/message) and #761 (outbox dispatch-token reuse) against current main; all three sets of three files match. Added evidence comments and closed each as **unmerged superseded** PR, avoiding duplicate source merges.
+- Checked PR #760: two files match main; the original 120-line queue-envelope test survives in order within current main's 122-line file (two newer mocked SQL ACK lines). Added evidence comment and closed #760 as superseded without claiming an identical test blob. Proposed reviewed documentation receipt at `docs/feature3/WAVE_AB_DUPLICATE_PR_RECONCILIATION_20261101.md`. No source edits, new task DONE, live hosted claims, GPU, paid models, DB writes, PROD or WineShopPOS.
+
+## 2026-11-01 — Feature3 parallel source+audit batch
+- Concurrent with reviewed shared-doc PR #858 CI, fetched all three changed blobs for #738, #752, #802 and verified SHA identity to main 456b1757; added evidence comments and closed these source-equivalent standalone PRs. #744's main source changed beyond exact blob equivalence; left open for semantic audit.
+- Created feature-scoped PR #859 against main for original F3-10/F3-13: preserve nonrenderable generated-Blob URL revocation receipts across browser cleanup failures, fail closed on tenant switches, add focused deterministic Node tests and scoped handoff. Await exact head CI / independent media lifecycle review; no hosted deployment, GPU, paid model, SQL, PROD or WineShopPOS changes.
+
+## 2026-11-01 — Additional parallel Feature3 original-PR reconciliation
+- Verified #798 four changed blobs exact in main; #843 PNG validator module/test blobs exact while historical checkpoint differs; #834 typed attempt strictness preserved in main with split guard and independently preserved boolean/float/string negatives; #768 generated Blob fail-closed replacement preserved with later decoder-failure method/test; #744 twice-current GPU-OFF checks preserved with stricter status and private snapshot hash. Added per-PR evidence comments and closed #798/#843/#834/#768/#744 as unmerged superseded. None represent new hosted completion.
+- PR #812 was closed only after detailed semantic/source/test review found newer main provider-identity handling plus retained negative cases; original source/tests were not byte-identical. PR #859 is new source-only private-URL cleanup retry candidate with 4/4 exact-head standard CI #41292509625, pending independent private-media review and main integration.
+
+- Subsequently reconciled stacked #812, seven paths (three exact docs blobs, four later-diverged code/tests). Main's strict four-field public history envelope plus private internal API identity checks and model-preview revoke ownership preserve/improve original security tests. Closed #812 as semantic-superseded with evidence comment rather than copying its stale implementation.
+
+- Independently verified and closed source-equivalent #729 (all three changed blob SHAs equal current main) after inspecting Wave A integration; no duplicate new code merge or new hosted DONE.
+
+## 2026-11-01 — Original Feature3 task-manager source completion without false product DONE
+- Verified exact canonical `coordination/task_progress.json`: F3-01 is already `DONE/source_integrated` through merged #813 and postmerge CI #41131088666. No duplicate event or invented further task-level DONE.
+- Opened [PR #860](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/860): machine-readable 14 original source-PR components as SOURCE_INTEGRATED (existing F3 IDs), pending new #859 as PR-tested, source-only scheduler suppression of duplicated advisory coding tasks, tests rejecting forged hosted completion/foreign IDs/duplicate receipts, feature3 scoped handoff. All shared changes review-gated.
+- Added an original F3-ID source-component completion register to the Feature3 33-package tracker; verified F3-01 stays the only accepted task-level source DONE, with 0/33 hosted complete. No GPU, paid inference, SQL, PROD, customer media samples or WineShopPOS.
+
+## 2026-11-01 — Parallel feature3 F3-07 and F3-02 source hardening batch
+- Opened Feature3 PR #861 (F3-07/F3-13): strict Python integer attempt receipts across immutable private media SQL registration, prepaid claim reader and composed output CAS; negative offline tests forbid bool/float/string attempts and enforce postcommit no-retry/no-delete. Exact-head GitHub Part 1 CI #41301202397 completed 4/4 SUCCESS. Source-only; no merge or hosted DONE claimed.
+- Opened Feature3 PR #862 (F3-02/F3-13): reject bool/float final rights revisions on private worker garment/model byte reads; negative temporary forged-grant test on public resolver. Exact-head CI #41301483566 completed 4/4 SUCCESS. Source-only; no merge or hosted DONE claimed.
+- Updated shared coordination proposal #860 with these open original IDs as **tested PRs pending independent review**, alongside #859. Scheduler and status reporter distinguish active source PRs from 14 already-integrated components and F3-01's sole accepted task-level DONE. Tests/CI on final #860 head still required. No GPU, paid inference, DEV/PROD DB or WineShopPOS changes.
+
+## 2026-11-01 — Feature3 F3-08/F3-13 private binary reader double authorization
+- Authored [PR #863](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/863) on its own latest-main feature branch: strict generated media record `id`/`shop_id`/`storage_bucket`/`source` verification at both pre- and poststream rights checks, tested with direct and composed no-URL API negative fixtures. No actual hosted route, licensed customer imagery, paid GPU or Azure SQL mutation.
+- Python 1007 + 592 subtests passing in PR CI first observed; do not mark 4/4 until final-head jobs all pass. PR awaits independent private-media review and fresh postmerge main CI. Feature3 hosted accepted count remains 0/33, F3-01 only accepted source-integrated original milestone.
+
+## 2026-11-01 — F3-12/F3-13 private model reuse source hardening
+- Opened Feature3 [#864](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/864), built on verified main: source server model reuse now denies unknown image-license codes, duplicate/unknown/unhashable uses and malformed attribution before private media, and skips malformed catalog entries. Added targeted model-library/catalog regression suites; media GitHub Actions job observed success on exact PR head. Full PR 4/4, independent rights/security review, merge, fresh postmerge main CI and legal/hosted approval remain separate; no task-level DONE.
+
+## 2026-11-01 — Follow-up F3-12 code batch in existing #864
+- Verified current main unchanged from source checkpoint, found that authenticated `Feature3V2Store.list_models` had depended on an unchecked `approved_uses` string and hardcoded synthetic-adult UI flag. Extended existing PR #864 with strict server catalog authorization and synthetic fixtures in `tests/api/test_feature3_model_catalog_current_rights.py`. Tested current source head through GitHub Part 1 CI #41306835412; final four-job conclusion must be confirmed separately. No duplicated original F3 task, new paid provider, cloud mutation, real licensed/hosted approval or WineShopPOS change.
+
+## 2026-11-01 — F3-12 final source batch verification
+- Existing PR #864 final head 75356855b33d0ab25a07094c8ec85c0fc1fd9761 passed Part 1 CI #41307545461 (4/4). Eight unhashable model-provenance inputs now deny safely before private storage/registry access. Task receipt proposal #860 updated to match. Independent review, main merge and postmerge CI required; no hosted DONE, paid inference, SQL deployment, PROD or WineShopPOS.

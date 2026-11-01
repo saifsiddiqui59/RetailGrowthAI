@@ -1351,3 +1351,51 @@ Detailed handoff: `docs/feature3/PRE_GPU_READINESS_20261028.md`. No WineShopPOS 
 ## 2026-10-31 — Five feature-owned integration leads (governance proposal) — effective 2026-10-31
 Verify governance PR and exact-head four-job CI, merge reviewed changes, check fresh main 4/4. Restore Feature5 hourly automation and update #2/#3/#4/#7 prompts to self-merge eligible feature-owned PRs. Keep each original task ID and checkpoint, resolve stacked parent integration before child PR, record actual status only after acceptance, and block sensitive shared changes pending independent approval.
 Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert a new feature DONE or live production readiness.
+
+## Feature #3 after Wave A/B duplicate-PR cleanup (2026-11-01)
+1. Follow `docs/feature3/WAVE_AB_DUPLICATE_PR_RECONCILIATION_20261101.md` for verified duplicate closures #790, #791, #761 (all three changed paths identical to main for each, no new DONE); do not reopen these features as new coding work.
+2. **#760 now closed as source-equivalent:** the original test is an ordered subsequence of current main with two later mocked SQL ACK lines added, while its other two blobs match exactly. This is reviewed source inclusion, not a new F3 product task DONE. Continue checking other Wave A/B standalone PRs individually; no unverified bulk closures.
+3. For active hosted blockers pursue independent reviewed authorization and real DEV tests: #325/#471 signed current-rights private PNG route, F3-LICENSED-MEDIA rights, #249 Azure 503, #627 signed worker traces, F5 paid GPU authorization. Preserve **0/33 hosted complete** and GPU OFF.
+
+## Feature3 parallel continuation checkpoint (2026-11-01)
+1. Verify exact-head 4/4 and regression results for source [PR #859](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/859), F3-10/F3-13; independent reviewer must inspect private Blob URL retry semantics and latest-main compatibility before any feature self-merge. Fresh main CI after merge; no 33-package hosted DONE from browser cleanup.
+2. #738, #752 and #802 have been closed only after exact blob equivalence to integrated main for all three changed paths; don't reintegrate. Keep #744 OPEN pending semantic review of later GPU-off queue method renaming/changes; avoid duplicate patches.
+3. Continue another disjoint Feature3 source package while #859 and docs PR #858 wait for gates; true hosted rights/route/GPU remain externally blocked.
+
+## Feature #3 after stacked-PR semantic reconciliation (2026-11-01)
+- #798/#843/#834/#768/#744 were verified source-integrated through Wave A/B and closed with SHA or explicit semantic+test coverage receipts. Do not reapply these standalone patches. PR #812 history-state source has different newer main behavior; original negative coverage was independently reconciled, and the stale branch was closed as semantically superseded.
+- PR #859 F3-10/F3-13 private generated Blob retry source remains review-gated despite exact-head standard CI result; check targeted tests/CI and independently review private browser cleanup before merging. Main hosted gates remain #325/#471, #249, #627, licensed retailer inputs and GPU OFF.
+
+- #812 is now source-reconciled and closed as semantic-superseded; internal signed-API history state is allowed only when checked, and public presentation excludes it. Do not copy its older source over the Wave B version. Continue #859 independent review and other genuinely unintegrated tasks.
+
+- #729 is also reconciled/closed via exact three-blob main comparison. Current actionable source PR #859 requires independent review, while #858 is shared docs review; next hosted tasks remain blocked on valid server-owned rights/route and genuine signed DEV evidence.
+
+## 2026-11-01 — Prevent repeated Feature3 work in the original task manager
+1. Review [PR #860](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/860) as a shared-coordination change: fourteen source components from Wave A/B marked `SOURCE_INTEGRATED` under their existing F3 IDs, and the advisory scheduler uses them to avoid duplicate coding suggestions. This **does not** change 159-task inventory or add unverified `DONE` events.
+2. Independently review and accept final-head 4/4 PR CI for #860, then merge only if shared-owner approvals and branch checks permit. After fresh-main 4/4 check, confirm the advisor places covered F3 source in `existing_source_or_review` rather than proposing a new implementation. Do not treat advisory slots as real coding workers.
+3. Keep [#859](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/859) marked **PR-tested / awaiting security review**, not integrated. Record a new accepted component receipt only after its own reviewed main merge and fresh main CI.
+4. Original Feature3 task-level status remains F3-01 source-integrated DONE, 11 source-partial and 21 blocked packages, **0/33 fully hosted accepted**; reviewed source-component completions are not eleven new task-level DONE claims.
+
+## Feature3 immediate review/integration queue — 2026-11-01
+- F3-07/F3-13 [#861](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/861): strict typed output CAS and prepaid lease receipts, exact-head #41301202397 4/4 PASS; **independent private-output/finance reviewer required**, source not yet merged.
+- F3-02/F3-13 [#862](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/862): strict private final-read source-rights revision, exact-head #41301483566 4/4 PASS; **independent private-media/rights reviewer required**, source not yet merged.
+- F3-10/F3-13 #859 remains exact-head #41292509625 4/4 PASS and security review-gated. Shared [#860](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/860) now tracks all three tested PRs to prevent duplicate candidate assignments, but no task-level DONE until independent integration/main 4/4. Shared docs #858 also review-gated.
+- Continue separate legitimate source work when safe; do not resubmit any of these three or Wave A/B's fourteen completed components. No live hosted/paid approvals inferred.
+
+## Feature3 next independent F3-08/F3-13 review (2026-11-01)
+- [PR #863](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/863) submitted a source-only double-read private generated-media row fence. Python source tests passed in first PR CI observation (1007 + 592 subtests); check all four **exact final-head** jobs before calling it tested.
+- The PR must receive independent private-media/security review and latest-main merge, then fresh main four-job CI. Do not reimplement the private generated-media binding while #863 is under review.
+- Already-tested original task PRs #859 (F3-10/13), #861 (F3-07/13) and #862 (F3-02/13) also remain open and review-gated. Source-only tracker #860 should map #863 as an **active** PR without creating new numbered task or hosted DONE.
+
+## Feature3 F3-12/F3-13 next source-review item — 2026-11-01
+- [#864](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/864) is open for strict backend model-reuse license/use validation and malformed-catalog isolation. Exact head `7eea1aacb2e09b306dbc29dd5cfb9eb4f830286a`; media-targeted test job passed. Check final four-job CI before marking TESTED_PR_REVIEW_REQUIRED; independent legal/privacy reviewer and latest-main integration still required.
+- Register #864 alongside existing #859/#861/#862/#863 in original task ledger, with F3-12/F3-13 IDs. Never assign duplicate implementation while it remains open; do not mark hosted DONE or bypass rights approval.
+
+## 2026-11-01 — F3-12 authenticated catalog extension next action
+- Reverify the **new final head** of Feature3 PR #864 `c2c283b79e50bb1c4c34ca4c871ec8bfb2806f18` through Part 1 CI #41306835412: source-only signed catalog adult flag/license/use checks and negative private-media rights contract. Earlier CI #41304611915 was for an older head and cannot approve newer code.
+- Require independent affected API/model licensing reviewer, current-main compatibility, merge under policy, and a fresh main 4-job run before F3-12/F3-13 source-component integration can be recorded. Keep hosted task DONE 0/33 and GPU OFF. The proposed task overlay #860 must update its active PR #864 head/CI evidence only after new final-head CI passes.
+
+## 2026-11-01 F3-12/F3-13 verified final-head handoff
+- PR #864 F3-12/F3-13 final source head `75356855b33d0ab25a07094c8ec85c0fc1fd9761`, Part 1 CI #41307545461 **4/4 passed**, including current signed catalog rights, model license/use guard, malformed provenance and no-write regression tests. The proposed dedup receipt PR #860 must reference this final head/CI, not earlier c2c283b7/41306835412.
+- Seek **independent** private-media/license/API reviewer. Approved current-main merge plus fresh postmerge main 4-job CI is mandatory before source-integrated task event; hosted F3 packages remain 0/33, GPU and cloud writes OFF.
+
