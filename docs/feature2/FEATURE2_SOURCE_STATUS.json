@@ -95,7 +95,16 @@
       "id": "F2-09",
       "title": "Kokoro CPU worker cache/startup/concurrency/failures",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Kokoro CPU input/speed preflight rejects invisible Unicode & unhashable selectors",
+        "code_commit": "ac0bbb3c82d41d8866388baa0caf2dd8d789ba02",
+        "test_commit": "53514c093be5b0b5c3e1a5241d4748a0f4e222e1",
+        "test_cases": 11,
+        "complete_scope": false,
+        "blocker": "Real pinned Kokoro checkpoint/CPU host and model benchmark not available; full F2-09 remains in progress"
+      }
     },
     {
       "id": "F2-10",
