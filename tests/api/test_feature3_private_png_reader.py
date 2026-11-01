@@ -376,5 +376,100 @@ class RevocableReaderTests(unittest.TestCase):
         self.assertFalse(any("sign" in c for c in self.calls))
 
 
+    def test_malformed_private_http_metadata_never_reaches_second_rights_read(self):
+        # A future injected gateway may return typed, missing or throwing
+        # headers. No raw TypeError or private binary may escape this reader.
+        class BrokenHeaders:
+            def get(self, _name):
+                raise RuntimeError("SENSITIVE_STORAGE_HEADER_DIAGNOSTIC")
+        cases = (
+            None, [], "bad headers", BrokenHeaders(),
+            {"Content-Type":False},
+            {"Content-Type":["image/png"]},
+            {"Content-Length":7},
+            {"Content-Length":True},
+            {"Content-Type":"image/png","Content-Encoding":[]},
+        )
+        for headers in cases:
+            self.setUp()
+            original = self.reader.transport
+            def malformed(req, timeout):
+                response = original(req, timeout)
+                response.headers = headers
+                return response
+            self.reader.transport = malformed
+            with self.subTest(headers=repr(headers)), self.assertRaises(
+                    PrivateGeneratedDownloadDenied) as caught:
+                self.read()
+            self.assertNotIn("SENSITIVE_STORAGE",str(caught.exception))
+            self.assertEqual(self.calls,["verify","get"])
+            self.assertEqual(self.rights_called,1)
+            self.assertEqual(self.tenant.calls.count("member"),1)
+
+    def test_private_transport_missing_methods_or_runtime_exception_denied(self):
+        for method in ("geturl","getcode","read"):
+            self.setUp()
+            original = self.reader.transport
+            def malformed(req, timeout):
+                response = original(req, timeout)
+                setattr(response,method,None)
+                return response
+            self.reader.transport = malformed
+            with self.subTest(method=method), self.assertRaises(
+                    PrivateGeneratedDownloadDenied):
+                self.read()
+            self.assertEqual(self.rights_called,1)
+            self.assertEqual(self.calls,["verify","get"])
+        self.setUp()
+        def unavailable(_req,_timeout):
+            raise RuntimeError("SENSITIVE_HTTP_TRANSPORT_INTERNAL")
+        self.reader.transport = unavailable
+        with self.assertRaises(PrivateGeneratedDownloadDenied) as caught:
+            self.read()
+        self.assertNotIn("SENSITIVE_HTTP",str(caught.exception))
+        self.assertEqual(self.rights_called,1)
+
+    def test_current_rights_outage_before_or_after_private_read_denied(self):
+        for fail_on in (1,2):
+            self.setUp()
+            original = self.rights
+            calls = [0]
+            def unavailable(shop,job,asset):
+                calls[0] += 1
+                if calls[0] == fail_on:
+                    raise TimeoutError("SENSITIVE_RIGHTS_SERVICE_FAILURE")
+                return original(shop,job,asset)
+            self.rights = unavailable
+            self.reader = self.build()
+            with self.subTest(fail_on=fail_on), self.assertRaises(
+                    PrivateGeneratedDownloadDenied) as caught:
+                self.read()
+            self.assertNotIn("SENSITIVE_RIGHTS",str(caught.exception))
+            self.assertEqual(calls[0],fail_on)
+            self.assertEqual(self.calls,["verify"] if fail_on==1
+                             else ["verify","get"])
+            self.assertEqual(self.tenant.calls.count("member"),fail_on)
+
+    def test_tenant_rls_outage_at_first_or_second_read_denied(self):
+        for method in ("member","feature3_gpu_job","feature3_generated_asset"):
+            for fail_on in (1,2):
+                self.setUp()
+                original = getattr(self.tenant,method)
+                calls = [0]
+                def unavailable(*args,**kwargs):
+                    calls[0] += 1
+                    if calls[0] == fail_on:
+                        raise RuntimeError("SENSITIVE_RLS_DATABASE_FAILURE")
+                    return original(*args,**kwargs)
+                setattr(self.tenant,method,unavailable)
+                with self.subTest(method=method,fail_on=fail_on), self.assertRaises(
+                        PrivateGeneratedDownloadDenied) as caught:
+                    self.read()
+                self.assertNotIn("SENSITIVE_RLS",str(caught.exception))
+                self.assertEqual(calls[0],fail_on)
+                self.assertEqual(self.calls,["verify"] if fail_on==1
+                                 else ["verify","get"])
+
+
 if __name__=="__main__":
     unittest.main()
