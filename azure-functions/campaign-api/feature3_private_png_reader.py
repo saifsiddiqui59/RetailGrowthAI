@@ -76,7 +76,16 @@ class Feature3RevocablePNGReader:
             token, shop, job, asset_id)
         key = asset.get("object_path") if isinstance(asset, dict) else None
         prefix = f"{shop}/feature3/gpu/{job}/"
-        if (not isinstance(key, str) or not key.startswith(prefix) or
+        # The TenantStore currently validates these fields, but this is
+        # also a trust boundary for any future injected store adapter.
+        # A path alone cannot prove that the registered row belongs to this
+        # generated output rather than an uploaded/foreign media asset.
+        if (not isinstance(key, str) or
+                asset.get("id") != asset_id or
+                asset.get("shop_id") != shop or
+                asset.get("storage_bucket") != "retailgrowth-media" or
+                asset.get("source") != "GENERATED" or
+                not key.startswith(prefix) or
                 not key.endswith(".png") or
                 not _SHA.fullmatch(key[len(prefix):-4]) or
                 asset.get("mime_type") != "image/png"):
