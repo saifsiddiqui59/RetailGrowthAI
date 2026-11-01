@@ -596,3 +596,82 @@ def test_blind_review_denies_store_publishing_or_paid_authority(elevated):
     with pytest.raises(Feature2TraceDenied,match="revision not confirmed"):
         run()
     assert len(writes)==1
+
+
+# F2-08: a scoring receipt/history is NOT a rights grant or billing
+# authorization. These are deterministic independent-signer fixtures only.
+@pytest.mark.parametrize("elevated", [
+    {"can_publish": "false"},
+    {"can_publish": 0},
+    {"paid_motion_permitted": "no"},
+    {"paid_motion_permitted": None},
+    {"approved_to_publish": True},
+    {"commercial_use_approved": True},
+    {"can_dispatch_paid_motion": 1},
+    {"paid_calls": False},
+    {"paid_calls": 1},
+    {"billing": "PAID"},
+    {"private_download_url": "https://example.invalid/preview"},
+])
+def test_f2_08_private_cas_denies_ambiguous_rights_and_paid_receipts(elevated):
+    run, writes = human_case(receipt_override=elevated)
+    with pytest.raises(Feature2TraceDenied, match="revision not confirmed"):
+        run()
+    assert len(writes) == 1  # Real backend must fence/rollback CAS separately.
+
+
+@pytest.mark.parametrize("elevated", [
+    {"paid_motion_permitted": True},
+    {"paid_motion_permitted": "false"},
+    {"approved_to_publish": True},
+    {"commercial_use_approved": None},
+    {"can_dispatch_paid_motion": 0},
+    {"paid_calls": False},
+    {"paid_calls": 1},
+    {"billing": "CHARGED"},
+    {"private_download_url": "https://example.invalid/private"},
+])
+def test_f2_08_private_score_history_rejects_hidden_grants(elevated):
+    rows = history_fixture()
+    rows[0].update(elevated)
+    with pytest.raises(Feature2TraceDenied, match="revision invalid"):
+        read_private_blind_review_history(
+            shop_id=TSHOP, campaign_id=TCAMP, experiment_id=HISTORY_EXP,
+            current_editor=lambda *scope: True,
+            read_private_history=lambda *scope: copy.deepcopy(rows),
+            verify_signed_history_receipt=lambda *scope: True,
+        )
+
+
+def test_f2_08_private_history_with_explicit_pending_fields_remains_score_only():
+    rows = history_fixture()
+    for item in rows:
+        item.update({
+            "paid_motion_permitted": False,
+            "approved_to_publish": False,
+            "commercial_use_approved": False,
+            "can_dispatch_paid_motion": False,
+            "paid_calls": 0, "billing": "NONE", "private_download_url": None,
+        })
+    output = read_private_blind_review_history(
+        shop_id=TSHOP, campaign_id=TCAMP, experiment_id=HISTORY_EXP,
+        current_editor=lambda *scope: True,
+        read_private_history=lambda *scope: copy.deepcopy(rows),
+        verify_signed_history_receipt=lambda *scope: True,
+    )
+    assert len(output["records"]) == 2
+    assert output["can_publish"] is False
+    assert output["paid_motion_permitted"] is False
+
+
+def test_f2_08_private_cas_explicit_pending_fields_still_accepted():
+    run, writes = human_case(receipt_override={
+        "can_publish": False, "paid_motion_permitted": False,
+        "approved_to_publish": False, "commercial_use_approved": False,
+        "can_dispatch_paid_motion": False, "paid_calls": 0,
+        "billing": "NONE", "private_download_url": None,
+    })
+    output = run()
+    assert len(writes) == 1
+    assert output["approved_to_publish"] is False
+    assert output["paid_motion_permitted"] is False
