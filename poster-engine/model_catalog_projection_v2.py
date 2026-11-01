@@ -34,6 +34,11 @@ def approved_model_picker_items(*, models, requesting_shop_id,
         raise ModelLibraryDenied('Server-authorized bounded catalog required')
     ready, seen = [], set()
     for model in models[:500]:
+        # The catalog may contain one malformed legacy or untrusted row.
+        # Skip that entry without denying the entire otherwise authorized
+        # model picker or attempting a private-media resolution.
+        if not isinstance(model, dict):
+            continue
         try:
             reference = checked_model_for_use(
                 model=model, requesting_shop_id=shop_id, usage='poster',
