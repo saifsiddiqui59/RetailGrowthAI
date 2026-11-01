@@ -393,3 +393,96 @@ def test_prompt_improver_rejects_unhashable_or_non_string_format_inputs(bad_form
 def test_prompt_improver_rejects_non_string_locale_without_type_error(bad_locale):
     with pytest.raises(ValueError, match="Unsupported language"):
         improve_prompt(ORIGINAL, profile(), output_formats=["instagram_caption"], language=bad_locale)
+
+
+# F2-03: storage records are not independent approval for paid inference,
+# commercial fact certification, public media or publishing. No live AI call.
+@pytest.mark.parametrize("tamper",[
+    {"approved_to_publish":True},
+    {"approved_to_publish":"false"},
+    {"commercial_use_approved":None},
+    {"commercial_use_approved":1},
+    {"offer_facts_verified":True},
+    {"media_rights_verified":"no"},
+    {"paid_inference_authorized":True},
+    {"may_auto_invoke_azure":0},
+    {"paid_calls":False},
+    {"paid_calls":1},
+    {"billing":"CHARGED"},
+    {"signed_url":"https://example.invalid/unsigned"},
+    {"private_download_url":"https://example.invalid/audio"},
+])
+def test_f2_03_private_draft_callback_denies_hidden_grants(tamper):
+    run, writes, checked = approved_draft_bridge(storage_tamper=tamper)
+    with pytest.raises(PromptRevisionRejected,match="Durable"):
+        run()
+    assert len(writes)==1 and len(checked)==1
+
+
+@pytest.mark.parametrize("tamper", [
+    {"approved_to_publish":True},
+    {"commercial_use_approved":"false"},
+    {"offer_facts_verified":1},
+    {"media_rights_verified":True},
+    {"paid_inference_authorized":True},
+    {"may_auto_invoke_azure":True},
+    {"paid_calls":False},
+    {"billing":"PAID"},
+    {"signed_url":"https://example.invalid/public"},
+    {"private_download_url":"https://example.invalid/voice"},
+])
+def test_f2_03_private_staged_proposal_denies_hidden_grants_before_review(tamper):
+    run, writes, checked=approved_draft_bridge(proposal_tamper=tamper)
+    with pytest.raises(PromptRevisionRejected,match="proposed version revoked"):
+        run()
+    assert writes==[] and checked==[]
+
+
+@pytest.mark.parametrize("tamper",[
+    {"approved_to_publish":True},
+    {"commercial_use_approved":True},
+    {"offer_facts_verified":"true"},
+    {"media_rights_verified":True},
+    {"paid_inference_authorized":True},
+    {"paid_calls":False},
+    {"billing":"CHARGED"},
+])
+def test_f2_03_private_authoritative_draft_denies_hidden_grants(tamper):
+    run,writes,checked=approved_draft_bridge(source_tamper=tamper)
+    with pytest.raises(PromptRevisionRejected,match="draft or proposed version revoked"):
+        run()
+    assert writes==[] and checked==[]
+
+
+def test_f2_03_private_draft_explicit_no_rights_and_no_billing_is_accepted_as_draft():
+    safe = {
+        "approved_to_publish":False,
+        "commercial_use_approved":False,
+        "offer_facts_verified":False,
+        "media_rights_verified":False,
+        "paid_inference_authorized":False,
+        "may_auto_invoke_azure":False,
+        "paid_calls":0,
+        "billing":"NONE",
+        "signed_url":None,
+        "private_download_url":None,
+    }
+    run,writes,checked=approved_draft_bridge(
+        storage_tamper=safe, proposal_tamper=safe, source_tamper=safe)
+    result=run()
+    assert len(writes)==1 and len(checked)==1
+    assert result["review_status"]=="DRAFT"
+    assert result["can_publish"] is False
+    assert result["can_dispatch_paid_motion"] is False
+    assert result["requires_fresh_media_rights"] is True
+    assert result["requires_new_copy_fact_review"] is True
+
+
+def test_f2_03_mock_paid_provider_cannot_use_boolean_as_cost_limit():
+    flags=dict(
+        output_formats=["instagram_caption"],
+        provider_mode="approved_llm", provider=lambda source:source,
+        explicit_cost_approval=True,subscription_quota_ok=True,
+        environ={"RETAIL_PROMPT_LLM_ENABLED":"true"})
+    with pytest.raises(PermissionError,match="Paid provider"):
+        improve_prompt(ORIGINAL,profile(),approved_cost_limit_usd=True,**flags)
