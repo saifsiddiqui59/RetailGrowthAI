@@ -270,3 +270,82 @@ def test_current_dictionary_read_keeps_multiword_spoken_hint_review_only():
     assert x["original_script_unchanged"]=="Our kurti"
     assert x["audio_pronunciation_verified"] is False
     assert x["max_local_retries"]==1
+
+
+# F2-10: an independently reviewed spelling hint never authorizes real
+# pronunciation accuracy, a paid TTS retry, publication or media downloads.
+@pytest.mark.parametrize("forgery",[
+    {"language":"hi-IN"},
+    {"can_publish":"false"},
+    {"approved_to_publish":0},
+    {"paid_motion_permitted":"false"},
+    {"commercial_use_approved":True},
+    {"audio_pronunciation_verified":None},
+    {"may_auto_retry":1},
+    {"may_auto_invoke_azure":"no"},
+    {"paid_inference_authorized":False,"billing":"CHARGED"},
+    {"can_dispatch_paid_motion":1},
+    {"paid_calls":"0"},
+    {"paid_calls":True},
+    {"billing":"PAID"},
+    {"private_download_url":"https://example.invalid/private"},
+    {"signed_url":"https://example.invalid/voice"},
+])
+def test_f2_10_dictionary_cas_denies_wrong_type_rights_and_billing(forgery):
+    def save(row):
+        return {**row,"revision":1,**forgery}
+    with pytest.raises(PronunciationDenied,match="Atomic shop dictionary"):
+        approve_dictionary_entry(
+            shop_id=SHOP,word="kurti",spoken_as="kur tee",lang="en-us",
+            editor_current=lambda *_:True,save_approved=save,
+            expected_revision=0)
+
+
+@pytest.mark.parametrize("forgery",[
+    {"can_publish":"false"},
+    {"approved_to_publish":1},
+    {"paid_motion_permitted":None},
+    {"commercial_use_approved":"no"},
+    {"audio_pronunciation_verified":1},
+    {"may_auto_retry":True},
+    {"may_auto_invoke_azure":True},
+    {"paid_inference_authorized":"false"},
+    {"paid_calls":False},
+    {"paid_calls":1},
+    {"billing":"CHARGED"},
+    {"private_download_url":"https://example.invalid/private"},
+    {"signed_url":"https://example.invalid/voice"},
+])
+def test_f2_10_dictionary_current_reader_denies_wrong_type_grants(forgery):
+    approved={"shop_id":SHOP,"word":"kurti","spoken_as":"kur tee",
+        "language":"en-us",
+        "approval":"RETAILER_EDITOR_REVIEWED_SPELLING_ONLY",
+        **forgery}
+    with pytest.raises(PronunciationDenied,match="signed pronunciation review"):
+        apply_approved_local_corrections(
+            shop_id=SHOP,lang="en-us",script="Our kurti",
+            read_current_entries=lambda *_:[approved])
+
+
+def test_f2_10_dictionary_explicit_pending_metadata_remains_spelling_only():
+    unprivileged={
+        "can_publish":False,"approved_to_publish":False,
+        "paid_motion_permitted":False,"commercial_use_approved":False,
+        "audio_pronunciation_verified":False,"may_auto_retry":False,
+        "may_auto_invoke_azure":False,"paid_inference_authorized":False,
+        "can_dispatch_paid_motion":False,
+        "paid_calls":0,"billing":"NONE",
+        "private_download_url":None,"signed_url":None,
+    }
+    def saved(row):return {**row,"revision":1,**unprivileged}
+    accepted=approve_dictionary_entry(
+        shop_id=SHOP,word="kurti",spoken_as="kur tee",lang="en-us",
+        editor_current=lambda *_:True,save_approved=saved,
+        expected_revision=0)
+    original=apply_approved_local_corrections(
+        shop_id=SHOP,lang="en-us",script="Our kurti",
+        read_current_entries=lambda *_:[{**accepted,**unprivileged}])
+    assert original["corrected_text_for_tts"]=="Our kur tee"
+    assert original["audio_pronunciation_verified"] is False
+    assert original["manual_relisten_required"] is True
+    assert original["max_local_retries"]==1
