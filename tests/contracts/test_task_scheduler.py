@@ -177,7 +177,7 @@ def test_feature3_source_receipts_never_forge_task_done_or_other_feature():
     invalid(lambda x: x["pending_source_components"][0].update(
         exact_head_ci_run_id=True))
     invalid(lambda x: x["pending_source_components"][2].update(
-        exact_head_ci_run_id=41301483566))
+        exact_head_ci_run_id=None))
     invalid(lambda x: x["pending_source_components"][2].update(
         task_ids=["F4-01"]))
     invalid(lambda x: x["pending_source_components"].append(
