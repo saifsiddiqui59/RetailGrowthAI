@@ -675,3 +675,58 @@ def test_f2_08_private_cas_explicit_pending_fields_still_accepted():
     assert len(writes) == 1
     assert output["approved_to_publish"] is False
     assert output["paid_motion_permitted"] is False
+
+
+# F2-12: the private trace reader must freeze the first signed snapshot.
+# This is a local forged backend reader fixture, never a real signed worker.
+def test_f2_12_trace_history_denies_same_list_mutated_on_final_read():
+    callbacks = []
+    shared = []
+    def current(*scope):
+        callbacks.append(scope)
+        if len(callbacks) == 2:
+            shared[0]["status"] = "FAILED"
+        return True
+    def alias_reader(rows):
+        if not shared:
+            shared.extend(rows)
+        return shared
+    run, _ = private_trace_history_case(reader=alias_reader,current=current)
+    with pytest.raises(Feature2TraceDenied,match="changed during readback"):
+        run()
+    assert len(callbacks)==2
+
+
+@pytest.mark.parametrize("forgery", [
+    {"can_publish": "false"},
+    {"can_publish": 0},
+    {"paid_motion_permitted": "no"},
+    {"paid_motion_permitted": None},
+    {"approved_to_publish": True},
+    {"commercial_use_approved": 1},
+    {"paid_inference_authorized": True},
+    {"paid_calls": False},
+    {"paid_calls": 1},
+    {"billing": "CHARGED"},
+    {"private_download_url": "https://example.invalid/staged"},
+])
+def test_f2_12_signed_private_trace_cas_denies_wrong_type_grants(forgery):
+    run, rows=trace_case(receipt_override=forgery)
+    with pytest.raises(Feature2TraceDenied,match="append not verified"):
+        run()
+    assert len(rows)==1
+
+
+def test_f2_12_trace_receipt_explicit_unpaid_review_only_metadata_passes():
+    run, rows=trace_case(receipt_override={
+        "can_publish": False, "paid_motion_permitted":False,
+        "approved_to_publish":False,
+        "commercial_use_approved":False,
+        "paid_inference_authorized":False,
+        "paid_calls":0, "billing":"NONE", "private_download_url":None,
+    })
+    result=run()
+    assert len(rows)==1
+    assert result["can_publish"] is False
+    assert result["private"] is True
+    assert result["evidence_class"]=="SOURCE_ONLY"
