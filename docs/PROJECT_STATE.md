@@ -1390,3 +1390,6 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 - [PR #863](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/863) adds independent generated media row identity/private-bucket/GENERATED-source checks around both authenticated private PNG reads, plus forged-current/poststream AssetStore injection tests through the composed no-URL HTTP adapter. It is source-only, not a mounted/downloadable Azure API, and does not authorize hosted media, GPU, legal rights, billing or PROD.
 - PR #863 original F3-08/F3-13 work is separate from existing #859/#861/#862. Keep all open PRs in proposed dedup ledger #860 so other workers do not repeat work. Exact-head four CI jobs and independent security review required before integration.
 
+## 2026-11-01 — Feature3 reusable-model server guard
+- [PR #864](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/864) adds F3-12/F3-13 backend license/use allowlist validation and non-string CC-BY attribution denial, plus catalog malformed-row isolation. Pure offline source code and synthetic tests; neither new commercial rights nor a deployed approved model. Independent review and postmerge main CI still required.
+
