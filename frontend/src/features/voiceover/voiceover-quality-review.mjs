@@ -13,9 +13,22 @@ const pcm=new Set(['audio_clipped','too_quiet','too_loud','excessive_silence'])
 // the browser to avoid bidi spoof, invisible edits or false reviewer matches.
 // ZWJ/ZWNJ stay allowed for legitimate Hindi/Marathi conjuncts.
 const UNSAFE_AUDIO_TEXT=/[<>\x00-\x1f\x7f-\x9f\u00ad\u061c\u180e\u200b\u200e\u200f\u2028-\u202e\u2060-\u206f\ufeff]/u
-const safeWord=value=>typeof value==='string'&&value.length>0&&
-  value.length<=80&&value.trim()===value&&!/\s/u.test(value)&&
-  !UNSAFE_AUDIO_TEXT.test(value)
+const safeWord=value=>{
+  if(typeof value!=='string'||value.length===0||value.length>80||
+     value.trim()!==value||/\s/u.test(value)||UNSAFE_AUDIO_TEXT.test(value))
+    return false
+  for(let i=0;i<value.length;i++){
+    if(value[i]==='\u200c'||value[i]==='\u200d'){
+      const next=value[i+1]||''
+      // Match Python's verified-word display rule: only a Devanagari
+      // virama + conjunct letter may contain a zero-width joiner.
+      if(i===0||value[i-1]!=='\u094d'||
+         !/[\u0900-\u097f]/u.test(next)||!/\p{L}/u.test(next))
+        return false
+    }
+  }
+  return true
+}
 export function verifyPrivateVoiceQualityReview({
   shopId,campaignId,planSha256,receipt,review
 }={}) {
