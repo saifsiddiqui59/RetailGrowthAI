@@ -87,6 +87,42 @@ class PrivateHandoffTests(unittest.TestCase):
         with self.assertRaises(FashionReferenceDenied):
             self.call(self.editor)
 
+    def test_worker_final_private_read_rejects_bool_or_float_rights_revision(self):
+        # A transient untyped authorizer must not pass because Python treats
+        # True and 1.0 as numerically equal to the immutable revision 1.
+        # A final later clean grant never excuses an unsafe intermediate read.
+        for forged in (True, 1.0):
+            with self.subTest(revision=repr(forged)):
+                self.setUp()
+                for grant in self.fixture.grants.values():
+                    grant["rights_revision"] = 1
+                self.fixture.model_data["rights_revision"] = 1
+                expected = prepare_fashion_references(
+                    shop_id=self.fixture.shop,
+                    garment_asset_id=self.fixture.garment,
+                    model_asset_id=self.fixture.model_asset,
+                    model_id=self.fixture.model_id,
+                    purpose="editing", **self.readers)
+                readers = self.fixture.readers()
+                original_grant = readers["authorize_asset"]
+                observed = [0]
+                def transient_grant(shop, asset, purpose):
+                    value = original_grant(shop, asset, purpose)
+                    if asset == self.fixture.garment:
+                        observed[0] += 1
+                        if observed[0] == 2:
+                            return {**value, "rights_revision": forged}
+                    return value
+                readers["authorize_asset"] = transient_grant
+                with self.assertRaises(FashionReferenceDenied):
+                    resolve_private_worker_inputs(
+                        expected_manifest=expected,
+                        current_readers=readers,
+                        verify_worker_job=lambda *_: True)
+                self.assertEqual(observed[0], 2)
+                # No worker image packet is returned and ephemeral files
+                # must not be allocated by a rejected current source grant.
+
     def test_final_byte_integrity_fails_after_lease(self):
         def changed(shop, ids, digest):
             self.fixture.blobs[self.fixture.garment] = self.fixture.blobs[self.fixture.model_asset]
