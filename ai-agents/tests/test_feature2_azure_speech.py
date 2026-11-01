@@ -214,3 +214,37 @@ def test_unhashable_voice_selection_fails_closed_before_paid_reservation(
         service.synthesize(plan=creative(), request=VoiceRequest(**fields))
     assert events == []
     assert checks == []
+
+
+# F2-30: only deterministic synthetic provider receipts; no paid API requests.
+@pytest.mark.parametrize("hidden", [
+    "\\u200b", "\\u202e", "\\u2066", "\\ufeff",
+    "\\x85", "\\u2028", "\\ud800",
+])
+def test_f2_30_invisible_voice_script_denied_before_any_paid_operation(monkeypatch, hidden):
+    hidden = hidden.encode("ascii").decode("unicode_escape")
+    service, events, checks = fake_service(monkeypatch)
+    plan = creative()
+    plan["creative_direction_v1"]["voiceover_script"] = (
+        SCRIPT[:20] + hidden + SCRIPT[20:]
+    )
+    with pytest.raises(SpeechRejected, match="Unsafe"):
+        service.synthesize(plan=plan, request=req())
+    assert events == [] and checks == []
+
+
+def test_f2_30_hindi_marathi_combining_marks_allowed_in_review_only_flow(monkeypatch):
+    service, events, _ = fake_service(monkeypatch)
+    plan = creative()
+    plan["creative_direction_v1"]["voiceover_script"] = (
+        "आज दिवाळी आहे. आमच्या नवीन साड्या पाहा."
+    )
+    service._read_plan = lambda *args: deepcopy(plan)
+    result = service.synthesize(
+        plan=plan, request=req(voice="hi-IN-SwaraNeural", lang="hi-IN")
+    )
+    # Mock transport is only structural/rights testing, not voice-quality proof.
+    assert result["human_speech_verified"] is False
+    assert result["can_publish"] is False
+    assert result["cost_reservation"] == "HELD_ESTIMATE_PROVIDER_BILL_UNVERIFIED"
+    assert [event[0] for event in events] == ["reserve", "transport", "write", "reconcile"]
