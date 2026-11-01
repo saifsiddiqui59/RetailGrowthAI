@@ -243,6 +243,18 @@
       "exact_head": "1ee6d23a334ca82a18d9f7348ee45cce6eb27916",
       "exact_head_ci_run_id": 41303756765,
       "hosted_task_complete": false
+    },
+    {
+      "source_pr": 864,
+      "task_ids": [
+        "F3-12",
+        "F3-13"
+      ],
+      "component": "Backend approved synthetic model reuse enforces reviewed per-image license, safe bounded unique uses and valid CC-BY attribution before private-media lookup",
+      "stage": "TESTED_PR_REVIEW_REQUIRED",
+      "exact_head": "7eea1aacb2e09b306dbc29dd5cfb9eb4f830286a",
+      "exact_head_ci_run_id": 41304611915,
+      "hosted_task_complete": false
     }
   ],
   "verified_package_done": [
@@ -262,5 +274,5 @@
     "F5-GPU-AUTHORIZATION",
     "real signed DEV JWT/RLS negative tests"
   ],
-  "next_action": "Feature3 has 14 merged reviewed source components plus 4 tested active source PRs #859/#861/#862/#863, all original task IDs; await independent relevant security/shared-owner approvals, current-main merges and fresh 4/4 main receipts, then move source components to integrated one-by-one. Hosted F3 DONE stays 0/33."
+  "next_action": "14 already-integrated Wave A/B source components plus 5 distinct tested active F3 PRs (#859/#861/#862/#863/#864); keep the original task IDs, await independent sensitive code/shared-coordination review, exact current-main integration and fresh main 4/4 before changing each source receipt. No additional task-level DONE or 33-package hosted acceptance."
 }
