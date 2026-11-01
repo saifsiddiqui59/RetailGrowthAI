@@ -36,6 +36,8 @@ class PrepaidBridgeTests(unittest.TestCase):
         self.expected_claim_token=None
         self.output_id=str(uuid4())
         self.denied_reservation=False
+        self.claim_attempt=1
+        self.reservation_attempt=1
         self.output_mode="ok"
         self.revoke_after_inference=False
     def _callbacks(self):
@@ -43,7 +45,7 @@ class PrepaidBridgeTests(unittest.TestCase):
             self.expected_claim_token=claim_token
             self.events.append("claim")
             return {"shop_id":self.shop if not self.foreign else str(uuid4()),
-                "job_id":job_id,"attempt":1,"claim_token":claim_token}
+                "job_id":job_id,"attempt":self.claim_attempt,"claim_token":claim_token}
         def authorize(shop,job_id,claim_token,ids):
             self.events.append("authorize")
             return (self.enabled and shop==self.shop and ids==(self.asset,)
@@ -51,7 +53,7 @@ class PrepaidBridgeTests(unittest.TestCase):
         def reserve(shop,job_id,attempt,token):
             self.events.append("read reservation")
             if self.denied_reservation: return None
-            return {"shop_id":shop,"job_id":job_id,"attempt":attempt,
+            return {"shop_id":shop,"job_id":job_id,"attempt":self.reservation_attempt,
                 "claim_token":token,"reservation_id":self.reservation,
                 "reserved_usd":0.05}
         def write(shop,job_id,image,metadata):
@@ -144,6 +146,27 @@ class PrepaidBridgeTests(unittest.TestCase):
         self.assertIn("trusted cost",self.events)
         self.assertTrue(any(isinstance(x,tuple) and x[0]=="settled" and x[2] is None
                             for x in self.events))
+
+    def test_forged_one_shot_claim_attempt_denied_before_reservation_or_gpu(self):
+        # Python equality would otherwise accept True and 1.0 as 1.
+        for bad in (True, 1.0, "1", 0, 2, None, False):
+            with self.subTest(claim_attempt=repr(bad)):
+                self.setUp()
+                self.claim_attempt=bad
+                self.provider.runner=lambda *_:self.fail("GPU runner called")
+                with self.assertRaisesRegex(ProviderBlocked,"claim token/shop mismatch"):
+                    self._callbacks().execute(self.job)
+                self.assertEqual(self.events,["claim"])
+
+    def test_forged_prepaid_attempt_denied_before_gpu_or_private_write(self):
+        for bad in (True, 1.0, "1", 0, 2, None, False):
+            with self.subTest(reservation_attempt=repr(bad)):
+                self.setUp()
+                self.reservation_attempt=bad
+                self.provider.runner=lambda *_:self.fail("GPU runner called")
+                with self.assertRaisesRegex(ProviderBlocked,"reservation not authoritative"):
+                    self._callbacks().execute(self.job)
+                self.assertEqual(self.events,["claim","authorize","read reservation"])
 
     def test_no_second_attempt_or_disabled_provider(self):
         other=InferenceJob(self.shop,self.job_id,"image_edit",(self.asset,),attempt=2)
