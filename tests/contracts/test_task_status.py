@@ -86,7 +86,7 @@ def test_feature3_source_components_visible_without_inflating_accepted_done():
     assert f307["status"]=="IN PROGRESS"
     assert {"pr":861,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f307["active_source_prs"]
     f302=next(x for x in report["items"] if x["id"]=="F3-02")
-    assert {"pr":862,"stage":"PR_IN_PROGRESS"} in f302["active_source_prs"]
+    assert {"pr":862,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f302["active_source_prs"]
     assert all(not x["completed_source_prs"] for x in report["items"]
                if x["feature"]!="3")
     md=s.markdown(report)
@@ -111,7 +111,7 @@ def test_feature3_source_completion_overlay_denies_false_full_hosted_done():
     invalid(lambda x: x["complete_source_components"].append(
         copy.deepcopy(x["complete_source_components"][0])))
     invalid(lambda x: x["pending_source_components"][2].update(
-        exact_head_ci_run_id=41301483566))
+        exact_head_ci_run_id=None))
     invalid(lambda x: x["pending_source_components"][0].update(
         exact_head="not-a-sha"))
     invalid(lambda x: x["pending_source_components"][1].update(
