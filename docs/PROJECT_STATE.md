@@ -1386,3 +1386,7 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 - Two new independent Feature3-owned PRs **tested 4/4** against their exact final heads: #861 F3-07/F3-13 typed one-shot private PNG registration/prepaid-lease/commit receipts (CI #41301202397), and #862 F3-02/F3-13 typed private final-byte source-rights revision (CI #41301483566). They have scoped negative tests and handoffs; still require independent rights/security/finance review and fresh postmerge main 4/4.
 - Shared source-component ledger and advisory task/status proposal #860 now records active PRs #859/#861/#862 distinctly from fourteen merged Wave A/B source slices; avoids duplicate planned source coding without claiming task-level integrated or commercial DONE. **Hosted completed 0/33**, GPU disabled.
 
+## 2026-11-01 Feature3 additional F3-08/F3-13 source protection
+- [PR #863](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/863) adds independent generated media row identity/private-bucket/GENERATED-source checks around both authenticated private PNG reads, plus forged-current/poststream AssetStore injection tests through the composed no-URL HTTP adapter. It is source-only, not a mounted/downloadable Azure API, and does not authorize hosted media, GPU, legal rights, billing or PROD.
+- PR #863 original F3-08/F3-13 work is separate from existing #859/#861/#862. Keep all open PRs in proposed dedup ledger #860 so other workers do not repeat work. Exact-head four CI jobs and independent security review required before integration.
+
