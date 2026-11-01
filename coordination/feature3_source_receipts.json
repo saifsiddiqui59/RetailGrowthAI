@@ -250,10 +250,10 @@
         "F3-12",
         "F3-13"
       ],
-      "component": "Backend approved model reuse and signed JWT/RLS catalog require actual synthetic-adult flag, reviewed per-image license, exact SHA, unique bounded poster-use and current private media authorization",
+      "component": "Original F3-12/F3-13 server model use and signed catalog current-rights: exact adult flag, licensed/known unique uses, strict SHA, private media, denied unhashable provenance input",
       "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "c2c283b79e50bb1c4c34ca4c871ec8bfb2806f18",
-      "exact_head_ci_run_id": 41306835412,
+      "exact_head": "75356855b33d0ab25a07094c8ec85c0fc1fd9761",
+      "exact_head_ci_run_id": 41307545461,
       "hosted_task_complete": false
     }
   ],
@@ -274,5 +274,5 @@
     "F5-GPU-AUTHORIZATION",
     "real signed DEV JWT/RLS negative tests"
   ],
-  "next_action": "5 CI-green open Feature3 PRs #859/#861/#862/#863/#864 are mapped under original task IDs; #864 latest exact-head c2c283b7 CI 41306835412 4/4 confirmed. Independently review rights/security, merge serially and fresh-main 4/4 before source integration receipts. No hosted DONE."
+  "next_action": "14 already-integrated source components plus five TESTED_PR_REVIEW_REQUIRED open F3 PRs #859/#861/#862/#863/#864. F3-12 #864 new exact head 75356855 CI 41307545461 verified 4/4. Require independent code rights/shared reviewer, safe main merge and postmerge main 4/4. No hosted F3 DONE."
 }
