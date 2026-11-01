@@ -233,15 +233,26 @@ class Feature3TrustedPrivateSourceProof:
     def __call__(self,shop_id,registered_media):
         shop=_uuid(shop_id)
         asset,key=self._registered(shop,registered_media)
-        # Real bytes come ONLY from the signed-off service-owned private Storage
-        # path; declared metadata cannot substitute for actual bytes.
+        # For model originals the immutable SHA-named private key supplies
+        # a candidate digest for a *pre-read* independent rights check.
+        # This does NOT attest bytes: the later real Storage SHA comparison
+        # remains mandatory. Crucially, revoked/unapproved model originals
+        # must never be fetched with the backend service key first.
+        is_model=key.split("/")[1]=="model-library"
+        if is_model:
+            expected_digest=key.rsplit("/",1)[-1].rsplit(".",1)[0]
+            revision=self._authorize(shop,asset,expected_digest,registered_media)
+        # Real bytes come ONLY from service-owned private Storage; browser
+        # declarations, key names and earlier approval cannot replace bytes.
         digest=self._private_bytes(key,registered_media["mime_type"])
-        if (key.split("/")[1]=="model-library" and
-                key.rsplit("/",1)[-1].rsplit(".",1)[0]!=digest):
+        if is_model and expected_digest!=digest:
             raise SourceProofDenied("Original model bytes differ from immutable path SHA")
-        revision=self._authorize(shop,asset,digest,registered_media)
-        # This second verification is independent of any DB snapshot refresh
-        # performed in the parent preflight and catches mid-read revocation.
+        if not is_model:
+            # Generic private media keys are not SHA-named, so their first
+            # independently verifiable digest only exists after the read.
+            revision=self._authorize(shop,asset,digest,registered_media)
+        # Recheck independent current rights after actual bytes. A changed
+        # revision, revoked approval or swapped image always denies use.
         if self._authorize(shop,asset,digest,registered_media)!=revision:
             raise SourceProofDenied("Original media review changed during read")
         return {"shop_id":shop,"asset_id":asset,"image_sha256":digest,
