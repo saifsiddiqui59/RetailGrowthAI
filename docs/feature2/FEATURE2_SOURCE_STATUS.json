@@ -63,7 +63,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Signed editor reviewed-draft CAS strict source revision types, staged/durable rights-and-billing denial, optional paid-cost bool denial",
         "source_commits": [
           "b285817798ce9ba0d0a3b85d3920c1fbe9fdc99d"
@@ -71,7 +71,9 @@
         "test_commit": "2d2f9a278e3e5236fea5e1f7b481b8db9390a931",
         "test_cases": 32,
         "complete_scope": false,
-        "blocker": "Independent signed human review, versioned tenant-private draft CAS and hosted RLS endpoint still unverified"
+        "blocker": "Independent signed human review, versioned tenant-private draft CAS and hosted RLS endpoint still unverified",
+        "ci_run_id": 41304131599,
+        "verified_source_head_sha": "501b58dce66bc9240676c29eb1d1b7497e9ac0df"
       }
     },
     {
@@ -168,7 +170,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Signed feature trace history freezes original reader snapshot before HMAC/revocation checks and private append CAS refuses ambiguous publish/paid grants",
         "source_commits": [
           "fe901a6dac009db8fabe9011ea928e5ae9712545"
@@ -176,7 +178,9 @@
         "test_commit": "e5e678e9edfb1d7e71fe817fbf7aed141a4d386b",
         "test_cases": 13,
         "complete_scope": false,
-        "blocker": "Real signed worker proofs, tenant-authenticated durable private trace append/history and hosted API/route not verified"
+        "blocker": "Real signed worker proofs, tenant-authenticated durable private trace append/history and hosted API/route not verified",
+        "ci_run_id": 41304131599,
+        "verified_source_head_sha": "501b58dce66bc9240676c29eb1d1b7497e9ac0df"
       }
     },
     {
@@ -341,7 +345,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Voiceover A/B reviewed script proposal and response must not smuggle rights, paid calls, external media URLs, or approved commercial copy",
         "source_commits": [
           "211db2f01866f2ffc83aec9bb9934bf003aa5b30"
@@ -349,7 +353,9 @@
         "test_commit": "ea42fa97047d9e6caea1cd594b3e7da3bb2ff62c",
         "test_cases": 31,
         "complete_scope": false,
-        "blocker": "Signed production reviewer, real mounted Creative Studio and backend reviewed CAS are unverified"
+        "blocker": "Signed production reviewer, real mounted Creative Studio and backend reviewed CAS are unverified",
+        "ci_run_id": 41304131599,
+        "verified_source_head_sha": "501b58dce66bc9240676c29eb1d1b7497e9ac0df"
       }
     },
     {
@@ -398,15 +404,12 @@
   "latest_verified_source_substeps": {
     "state": "TESTED_SOURCE_SUBSTEPS_NOT_MAIN_DONE",
     "tasks": [
-      "F2-09",
-      "F2-02",
-      "F2-08",
-      "F2-20",
-      "F2-21",
-      "F2-29"
+      "F2-03",
+      "F2-12",
+      "F2-31"
     ],
-    "ci_run_id": 41302121066,
-    "ci_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50",
+    "ci_run_id": 41304131599,
+    "ci_sha": "501b58dce66bc9240676c29eb1d1b7497e9ac0df",
     "main_integration_verified": false
   }
 }
