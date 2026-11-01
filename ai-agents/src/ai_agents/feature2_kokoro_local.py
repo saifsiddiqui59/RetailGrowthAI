@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 import re
 import stat
+import unicodedata
 import threading
 import time
 import wave
@@ -158,8 +159,16 @@ def synthesize_local(*,text,voice_id="af_heart",lang="en-us",
     engine injection is ONLY for tests. Genuine caller must use verified model
     cache and real upstream package. Synthetic test result is marked TEST_ONLY.
     """
+    # Reject hidden/BiDi/C1 text before hashing model weights or acquiring
+    # the one CPU lease. JSON selector fields may be lists/dicts; avoid
+    # unhashable speed keys becoming a worker exception.
     if (type(text) is not str or not _TEXT.fullmatch(text.strip()) or
-        len(text.strip())>1400 or type(voice_id) is not str or
+        len(text.strip())>1400 or
+        any(0x7f<=ord(ch)<=0x9f or
+            unicodedata.category(ch) in ("Cf","Cs","Zl","Zp")
+            for ch in text) or
+        type(voice_id) is not str or type(lang) is not str or
+        type(speed) is not str or
         SUPPORTED_VOICES.get(voice_id)!=lang or speed not in SPEEDS):
         raise LocalSpeechUnavailable("Unsupported text/voice/language/speed")
     if engine is not None and trusted_for_tests is not True:
