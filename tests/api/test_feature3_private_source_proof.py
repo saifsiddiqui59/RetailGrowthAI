@@ -294,5 +294,63 @@ class PrivateSourceProofTests(unittest.TestCase):
                 backend_secret="sb_publishable_NO",
                 review_authority=self.review,transport=self.transport)
 
+    def test_malformed_registered_license_metadata_denied_before_storage(self):
+        # A malformed row must never trigger even a private service-role GET.
+        changes=[
+            {"mime_type":["image/png"]},
+            {"mime_type":None},
+            {"license_name":["owned"]},
+            {"license_name":None},
+            {"license_url":"http://license.example/rights"},
+            {"license_url":"https://user:pass@license.example/rights"},
+            {"license_url":"https://license.example:444/rights"},
+            {"license_url":"https://license.example/rights\\nInjected: yes".replace("\\n","\n")},
+            {"license_url":"https://license.example/"+"a"*501},
+            {"license_url":["https://license.example/rights"]},
+            {"attribution":"independent\nfalse approval"},
+            {"attribution":"x"*201},
+            {"attribution":None},
+            {"license_name":"cc0","license_url":None},
+        ]
+        for change in changes:
+            self.setUp()
+            self.row.update(change)
+            with self.subTest(change=repr(change)),self.assertRaises(SourceProofDenied):
+                self.proof(self.shop,self.row)
+            self.assertEqual(self.calls,[])
+
+    def test_valid_declared_license_url_never_substitutes_for_review(self):
+        self.row["license_name"]="cc0"
+        self.row["license_url"]="https://license.example/licenses/cc0"
+        self.authorized=False
+        with self.assertRaises(SourceProofDenied):
+            self.proof(self.shop,self.row)
+        self.assertEqual([c[0] for c in self.calls],["get","review"])
+        self.calls.clear()
+        self.authorized=True
+        self.assertEqual(self.proof(self.shop,self.row)["image_sha256"],self.sha)
+        self.assertEqual([c[0] for c in self.calls],["get","review","review"])
+
+    def test_malformed_private_http_headers_never_reach_review(self):
+        # Fake transports may return malformed header objects or typed values;
+        # all such acknowledgements must fail closed, not cause an uncaught
+        # AttributeError or bypass immutable-byte verification.
+        for headers in (None, [], "not-headers",
+                        {"Content-Type":7},
+                        {"Content-Type":object()},
+                        {"Content-Type":"image/png","Content-Length":7},
+                        {"Content-Type":"image/png","Content-Encoding":[]},
+                        {"Content-Type":"text/html"}):
+            self.setUp()
+            original=self.proof.transport
+            def malformed(req,*,timeout):
+                response=original(req,timeout=timeout)
+                response.headers=headers
+                return response
+            self.proof.transport=malformed
+            with self.subTest(headers=repr(headers)),self.assertRaises(SourceProofDenied):
+                self.proof(self.shop,self.row)
+            self.assertEqual([c[0] for c in self.calls],["get"])
+
 if __name__=="__main__":
     unittest.main()
