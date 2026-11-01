@@ -43,7 +43,13 @@ def _clean(value: object, *, limit: int = 160) -> str:
     if "<" in value or ">" in value:
         return ""
     value = SPACE.sub(" ", TAG.sub(" ", unicodedata.normalize("NFKC", value))).strip()
-    if len(value) > limit or INJECTION.search(value) or any(ord(c) < 32 for c in value):
+    # Untrusted RSS/YouTube titles must not carry hidden format/bidi, C1,
+    # surrogate or paragraph-separator characters into retailer-facing drafts.
+    # Keep ordinary Indic combining marks (Mn/Mc), which are not controls.
+    if (len(value) > limit or INJECTION.search(value) or
+        any(ord(c) < 32 or 0x7f <= ord(c) <= 0x9f or
+            unicodedata.category(c) in {"Cf", "Cs", "Zl", "Zp"}
+            for c in value)):
         return ""
     return value
 
