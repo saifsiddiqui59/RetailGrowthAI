@@ -29,11 +29,21 @@ def _unsafe_audio_display(value):
     Preserve Indic vowel marks and U+200C/U+200D native joining. This
     source-only filter does not certify an ASR token as real spoken audio.
     """
-    return (type(value) is not str or
-            any(ch in "<>" or
-                (unicodedata.category(ch) in ("Cc","Cf","Zl","Zp")
-                 and ch not in ("\u200c","\u200d"))
-                for ch in value))
+    if type(value) is not str:
+        return True
+    for index,ch in enumerate(value):
+        if ch in ("\u200c","\u200d"):
+            # Preserve a legitimate Devanagari virama conjunct, but prevent
+            # hidden text differences in an otherwise ordinary brand/word.
+            following=value[index+1] if index+1<len(value) else ""
+            if (index>0 and value[index-1]=="\u094d" and
+                "\u0900"<=following<="\u097f" and
+                unicodedata.category(following).startswith("L")):
+                continue
+            return True
+        if ch in "<>" or unicodedata.category(ch) in ("Cc","Cf","Zl","Zp"):
+            return True
+    return False
 
 
 def _words(text):
