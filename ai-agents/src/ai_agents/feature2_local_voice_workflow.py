@@ -362,11 +362,18 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
         not now_ms<receipt["lease_expires_ms"]<=now_ms+300_000 or
         receipt.get("status")!="RESERVED" or
         receipt.get("private") is not True or
-        receipt.get("paid_api_calls")!=0 or
+        # JSON bool compares equal to integer zero: require literal integer 0
+        # so a forged callback cannot ambiguously claim a paid budget state.
+        type(receipt.get("paid_api_calls")) is not int or
+        receipt["paid_api_calls"]!=0 or
         receipt.get("can_publish") is not False or
-        any(receipt.get(flag) is True for flag in (
+        any(flag in receipt and receipt[flag] is not False for flag in (
             "can_dispatch_motion","commercial_use_approved",
             "may_auto_invoke_azure","paid_inference_authorized")) or
+        ("paid_calls" in receipt and
+         (type(receipt["paid_calls"]) is not int or
+          receipt["paid_calls"]!=0)) or
+        ("billing" in receipt and receipt["billing"]!="NONE") or
         receipt.get("atomic_unique_commit") is not True):
         raise LocalVoiceJobDenied("Durable private CPU reservation evidence invalid")
     if (authorize_current_editor(shop_id,campaign_id) is not True or
