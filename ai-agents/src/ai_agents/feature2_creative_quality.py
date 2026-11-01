@@ -474,8 +474,18 @@ def stage_blind_human_review_revision(*,shop_id,campaign_id,experiment_id,
         stored.get("revision")!=expected_revision+1 or
         stored.get("receipt_digest")!=receipt_digest or
         stored.get("private") is not True or
-        stored.get("can_publish") is True or
-        stored.get("paid_motion_permitted") is True or
+        # A private score receipt cannot smuggle a publishing/paid grant as
+        # 1, "false", null or another truthy/false-looking JSON type. Older
+        # private CAS writers may omit these optional denial fields, but if
+        # present the *only* acceptable value is literal False.
+        any(key in stored and stored[key] is not False for key in
+            ("can_publish", "paid_motion_permitted", "approved_to_publish",
+             "commercial_use_approved", "can_dispatch_paid_motion")) or
+        ("paid_calls" in stored and
+         (type(stored["paid_calls"]) is not int or stored["paid_calls"] != 0)) or
+        ("billing" in stored and stored["billing"] != "NONE") or
+        ("private_download_url" in stored and
+         stored["private_download_url"] is not None) or
         stored.get("review_status") not in (None,"HUMAN_SCORE_ONLY")):
         raise Feature2TraceDenied("Durable human review revision not confirmed")
     # CAS legitimately increments revision: recheck role/candidates, not old revision.
