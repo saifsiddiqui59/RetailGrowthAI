@@ -460,3 +460,82 @@ def test_private_wav_writer_consistent_metadata_is_still_review_only():
     assert receipt["commercial_use_approved"] is False
     assert receipt["actual_spoken_words_verified"] is False
     assert receipt["billing"]=="NONE" and receipt["private_download_url"] is None
+
+
+# F2-20: a trusted pair-writer must not launder rights/billing claims through
+# false-looking, wrong-type optional values. These are synthetic receipt tests;
+# no customer media, FFmpeg invocation, or hosted storage is involved.
+@pytest.mark.parametrize("receipt_fields,valid",[
+    ({"can_publish": "false"},False),
+    ({"can_dispatch_motion": 0},False),
+    ({"commercial_use_approved": None},False),
+    ({"original_media_rights_verified": "no"},False),
+    ({"human_speech_alignment_verified": 0},False),
+    ({"actual_spoken_words_verified": True},False),
+    ({"audio_pronunciation_verified": True},False),
+    ({"rights_reviewed": True},False),
+    ({"paid_inference_authorized": True},False),
+    ({"may_auto_invoke_azure": True},False),
+    ({"derived_wav_is_registered_feature7_source": True},False),
+    ({"paid_calls": False},False),
+    ({"paid_calls": 1},False),
+    ({"billing": "CHARGED"},False),
+    ({"private_download_url": "https://example.invalid/voice"},False),
+    ({"creative_plan_sha256": "f"*64},False),
+    ({"source_mime_type": "audio/wav"},False),
+    ({"derived_mime_type": "audio/mpeg"},False),
+    ({"schema": "retailgrowth.fake-approved.v1"},False),
+    ({"duration_seconds": 3.0},False),
+    ({"duration_seconds": False},False),
+    ({"can_publish":False, "commercial_use_approved":False,
+      "original_media_rights_verified":False,
+      "human_speech_alignment_verified":False,
+      "derived_wav_is_registered_feature7_source":False,
+      "paid_calls":0, "billing":"NONE", "private_download_url":None,
+      "creative_plan_sha256":SHA, "source_mime_type":"audio/mpeg",
+      "derived_mime_type":"audio/wav",
+      "schema":"retailgrowth.feature2-uploaded-mp3-pending.v1",
+      "duration_seconds":2.0},True),
+])
+def test_private_mp3_writer_optional_metadata_is_strictly_pending(
+    monkeypatch, receipt_fields, valid
+):
+    from ai_agents import feature2_voiceover_upload as upload
+    original=b"ID3-offline-test-not-real-media"
+    derived=wav()
+    monkeypatch.setattr(upload,"decode_unreviewed_mp3_to_private_wav",
+        lambda **kwargs:{
+            "original_mp3_sha256":sha256(original).hexdigest(),
+            "derived_wav_sha256":sha256(derived).hexdigest(),
+            "duration_seconds":2.0,"derived_wav":derived,
+        })
+    def pending_store(shop,campaign,source,pcm,receipt):
+        assert source==original and pcm==derived
+        return {
+            "asset_id":str(uuid4()),"derived_wav_asset_id":str(uuid4()),
+            "shop_id":shop,"campaign_id":campaign,
+            "original_mp3_sha256":receipt["original_mp3_sha256"],
+            "derived_wav_sha256":receipt["derived_wav_sha256"],
+            "private":True,"derived_wav_private":True,
+            "atomic_pair_registered":True,
+            "review_state":"PENDING_RIGHTS_AND_SPEECH_REVIEW",
+            **receipt_fields,
+        }
+    def submit():
+        return upload.accept_unreviewed_mp3(
+            shop_id=SHOP,campaign_id=CID,plan=creative(),
+            original_mp3=original,operator_ffmpeg_path="/offline/unused",
+            authenticated_editor=lambda *a:True,
+            read_authoritative_plan=lambda *a:creative(),
+            store_both_private_pending=pending_store)
+    if not valid:
+        with pytest.raises(VoiceUploadRejected,match="atomically registered"):
+            submit()
+    else:
+        result=submit()
+        assert result["review_state"]=="PENDING_RIGHTS_AND_SPEECH_REVIEW"
+        assert result["private"] is True
+        assert result["can_publish"] is False
+        assert result["original_media_rights_verified"] is False
+        assert result["private_download_url"] is None
+        assert result["billing"]=="NONE" and result["paid_calls"]==0
