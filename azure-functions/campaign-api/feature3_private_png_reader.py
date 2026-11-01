@@ -69,8 +69,8 @@ class Feature3RevocablePNGReader:
         # image authorization or a raw backend exception in an HTTP response.
         try:
             member = self.tenant.member(token, actor, shop)
-        except StorageUnavailable:
-            # Authoritative backend outage is opaque 503 at the HTTP adapter,
+        except (StorageUnavailable, OSError):
+            # A transport/RLS outage is opaque 503 at the HTTP adapter,
             # not a false 404 for a known-missing private asset.
             raise
         except Exception:
@@ -80,8 +80,8 @@ class Feature3RevocablePNGReader:
             raise PrivateGeneratedDownloadDenied("Private generated output unavailable")
         try:
             row = self.tenant.feature3_gpu_job(token, shop, job)
-        except StorageUnavailable:
-            # Authoritative backend outage is opaque 503 at the HTTP adapter,
+        except (StorageUnavailable, OSError):
+            # A transport/RLS outage is opaque 503 at the HTTP adapter,
             # not a false 404 for a known-missing private asset.
             raise
         except Exception:
@@ -94,8 +94,8 @@ class Feature3RevocablePNGReader:
         try:
             asset = self.tenant.feature3_generated_asset(
                 token, shop, job, asset_id)
-        except StorageUnavailable:
-            # Authoritative backend outage is opaque 503 at the HTTP adapter,
+        except (StorageUnavailable, OSError):
+            # A transport/RLS outage is opaque 503 at the HTTP adapter,
             # not a false 404 for a known-missing private asset.
             raise
         except Exception:
