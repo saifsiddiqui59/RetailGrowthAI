@@ -180,6 +180,27 @@ class LibraryTests(unittest.TestCase):
                     self.store(candidate=c)
         self.assertEqual(len(self.assets), 0)
 
+    def test_unhashable_model_provenance_never_reaches_storage_or_registry(self):
+        # ModelCandidate metadata is untrusted even when constructed through
+        # a Python adapter; a list/dict must deny without TypeError/500.
+        invalid=(
+            {"scope":["shop"]},
+            {"scope":{"shop":True}},
+            {"source_kind":["retailer_licensed"]},
+            {"source_kind":{"retailer_licensed":True}},
+            {"license_id":["CC0-1.0"]},
+            {"license_id":{"CC0-1.0":True}},
+            {"pose":["front"]},
+            {"pose":{"front":True}},
+        )
+        for mutation in invalid:
+            with self.subTest(mutation=repr(mutation)):
+                candidate=replace(self.candidate,**mutation)
+                with self.assertRaises(ModelLibraryDenied):
+                    self.store(candidate=candidate)
+                self.assertFalse(self.assets)
+                self.assertEqual(self.saved,[])
+
     def test_attribution_required_for_cc_by_and_retained_in_consumer_receipt(self):
         ccby = replace(self.candidate, license_id="CC-BY-4.0")
         with self.assertRaisesRegex(ModelLibraryDenied, "attribution"):
