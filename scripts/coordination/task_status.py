@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 ROOT = Path(__file__).resolve().parents[2]
 INV = ROOT / "coordination/feature_tasks.json"
 EVENTS = ROOT / "coordination/task_progress.json"
+SOURCE_RECEIPTS = ROOT / "coordination/feature3_source_receipts.json"
 STATES = {"IN PROGRESS", "FAILED", "BLOCKED", "DONE"}
 REQUIRED_JOBS = {
     "Frontend build + contract tests",
@@ -104,9 +105,49 @@ def verify_done(event, gh):
         return False, "Mandatory 4-job main CI matrix incomplete"
     return True, None
 
-def resolve(inventory, events, gh=None):
+def validated_source_components(source_receipts, inventory):
+    """Show reviewed source slices without ever treating them as task DONE."""
+    if source_receipts is None:
+        return {}, 0
+    if (not isinstance(source_receipts,dict) or
+        source_receipts.get("schema_version")!=1 or
+        source_receipts.get("feature")!="3" or
+        source_receipts.get("scope")!="source_component_only" or
+        source_receipts.get("full_hosted_packages_done")!=0 or
+        not isinstance(source_receipts.get("complete_source_components"),list)):
+        raise ProgressError("Invalid source-only Feature3 completion overlay")
+    known={t["id"]:t for t in inventory["tasks"]}
+    mapped={}
+    seen=set()
+    for row in source_receipts["complete_source_components"]:
+        if (not isinstance(row,dict) or
+            type(row.get("source_pr")) is not int or row["source_pr"]<1 or
+            row["source_pr"] in seen or
+            row.get("integrated_pr") not in (811,813) or
+            row.get("source_stage")!="SOURCE_INTEGRATED" or
+            row.get("verification") not in ("exact_blob","semantic_review") or
+            row.get("hosted_task_complete") is not False or
+            not isinstance(row.get("task_ids"),list) or not row["task_ids"] or
+            len(set(row["task_ids"]))!=len(row["task_ids"]) or
+            row.get("source_evidence_url") !=
+                "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/"+str(row["source_pr"])):
+            raise ProgressError("Invalid or duplicate Feature3 source component")
+        seen.add(row["source_pr"])
+        for tid in row["task_ids"]:
+            if tid not in known or known[tid].get("feature")!="3":
+                raise ProgressError("Foreign or unknown source component task")
+            mapped.setdefault(tid,[]).append(row["source_pr"])
+    return mapped, len(seen)
+
+
+def resolve(inventory, events, gh=None, source_receipts=None):
     by_id,last=validate(inventory,events)
-    result={"schema_version":1,"task_count":len(by_id),"verified_done":0,"items":[]}
+    source_map,source_count=validated_source_components(source_receipts,inventory)
+    result={"schema_version":1,"task_count":len(by_id),"verified_done":0,
+            "source_components_integrated":source_count,
+            "source_components_task_count":len(source_map),
+            "source_component_acceptance":"source only; never hosted or production DONE",
+            "items":[]}
     for task in inventory["tasks"]:
         tid=task["id"]
         event=last.get(tid)
@@ -132,6 +173,7 @@ def resolve(inventory, events, gh=None):
         result["items"].append({"id":tid,"feature":task["feature"],
                                 "status":state,"reason":reason,
                                 "source_status":task["source_status"],
+                                "completed_source_prs":sorted(source_map.get(tid,[])),
                                 "report_evidence": event.get("acceptance_evidence_url") if event else None})
     result["summary"]={state:sum(t["status"]==state for t in result["items"]) for state in STATES}
     return result
@@ -145,13 +187,17 @@ def markdown(report):
         vals=[x for x in report["items"] if x["feature"]==f]
         n=lambda s:sum(x["status"]==s for x in vals)
         rows.append(f"| {f} | {n('DONE')} | {n('IN PROGRESS')} | {n('BLOCKED')} | {n('FAILED')} | {len(vals)} |")
-    rows += ["",f"**Total:** {report['task_count']} task IDs; **verified integrated DONE:** {report['verified_done']}.", ""]
+    rows += ["",f"**Total:** {report['task_count']} task IDs; **verified integrated DONE:** {report['verified_done']}.",
+             f"**Feature3 source components already integrated:** {report.get('source_components_integrated',0)}"
+             f" across {report.get('source_components_task_count',0)} original task IDs."
+             " These are reviewed code slices, not additional hosted DONE.", ""]
     return "\n".join(rows)
 
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--validate-only",action="store_true")
     p.add_argument("--output-dir",default="coordination-reports")
+    p.add_argument("--source-receipts",default=str(SOURCE_RECEIPTS))
     p.add_argument("--repository",default=os.getenv("GITHUB_REPOSITORY","saifsiddiqui59/RetailGrowthAI"))
     args=p.parse_args()
     inv=json.loads(INV.read_text(encoding="utf-8"))
@@ -161,7 +207,8 @@ def main():
         print("Task progress valid; real integrated DONE still requires GitHub verification")
         return
     gh=GitHub(args.repository,os.getenv("GITHUB_TOKEN"))
-    report=resolve(inv,events,gh)
+    source_receipts=json.loads(Path(args.source_receipts).read_text(encoding="utf-8")) if Path(args.source_receipts).exists() else None
+    report=resolve(inv,events,gh,source_receipts=source_receipts)
     d=Path(args.output_dir)
     d.mkdir(parents=True,exist_ok=True)
     (d/"task-status.json").write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
