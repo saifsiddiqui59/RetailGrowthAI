@@ -70,3 +70,9 @@ This is a reconstruction of the established 33 work-package baseline, not 33 new
 ## 2026-10-29 — Private generated PNG decode error lifecycle (source PR pending)
 - Scoped F3-10/F3-13 hardening branch `feat/feature3-generated-png-decode-failure-cleanup-20261029` adds a current-shop/job/**exact Blob URL** fence and releases locally issued generated preview URLs when browser decoding fails. Stale errors never revoke newer previews. Node regressions added; mandatory exact-head CI / coordinator merge / fresh main 4/4 remain gates, so do not mark DONE.
 - **33-package count remains unchanged:** 0/33 fully hosted accepted; 1 source-integrated, 11 source-partial, 21 blocked/dependent. Unmounted private HTTP route, live rights and licensed output are still required.
+
+## Source-PR backlog cleanup — 2026-11-01 (not hosted acceptance)
+- Wave A #811 and Wave B #813 source consolidation exists on current main `456b1757d7df2f0cc28a5ef6c8ba203b18380948`, with Part 1 CI #41178167285 independently verified 4/4. See `WAVE_AB_DUPLICATE_PR_RECONCILIATION_20261101.md` for exact blob checks.
+- Standalone #790, #791 and #761 closed as superseded once **all changed path blob SHAs** matched current main. #760 left open because its test blob differs; needs assertion-level reconciliation. No hosted/provider/rights check was executed and no component is counted DONE from these closures.
+- **Counts unchanged:** 0/33 fully hosted accepted; 1 source-integrated, 11 source-partial, 21 blocked/dependent. F3-01 separately has a source-only accepted milestone, not a commercial output.
+
