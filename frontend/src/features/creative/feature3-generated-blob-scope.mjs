@@ -60,6 +60,11 @@ export function createFeature3GeneratedBlobScope({
        'url' in receipt||'signedURL' in receipt||'objectPath' in receipt){
       throw Error('Untrusted private generated preview receipt')
     }
+    // A browser that keeps rejecting revocation must not accumulate new
+    // private object URLs through repeated Preview clicks. Recover the
+    // hidden, previously owned URLs *before* allocating another Blob URL.
+    // Failure is non-renderable and cannot be bypassed by another install.
+    if(pendingRevoke.size) revokePending()
     const next=createURL(receipt.blob)
     if(typeof next!=='string'||!next.startsWith('blob:')){
       if(typeof next==='string'&&next.startsWith('blob:'))revokeURL(next)
