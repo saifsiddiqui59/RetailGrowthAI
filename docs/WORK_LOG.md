@@ -805,3 +805,7 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 - Opened Feature3 PR #862 (F3-02/F3-13): reject bool/float final rights revisions on private worker garment/model byte reads; negative temporary forged-grant test on public resolver. Exact-head CI #41301483566 completed 4/4 SUCCESS. Source-only; no merge or hosted DONE claimed.
 - Updated shared coordination proposal #860 with these open original IDs as **tested PRs pending independent review**, alongside #859. Scheduler and status reporter distinguish active source PRs from 14 already-integrated components and F3-01's sole accepted task-level DONE. Tests/CI on final #860 head still required. No GPU, paid inference, DEV/PROD DB or WineShopPOS changes.
 
+## 2026-11-01 — Feature3 F3-08/F3-13 private binary reader double authorization
+- Authored [PR #863](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/863) on its own latest-main feature branch: strict generated media record `id`/`shop_id`/`storage_bucket`/`source` verification at both pre- and poststream rights checks, tested with direct and composed no-URL API negative fixtures. No actual hosted route, licensed customer imagery, paid GPU or Azure SQL mutation.
+- Python 1007 + 592 subtests passing in PR CI first observed; do not mark 4/4 until final-head jobs all pass. PR awaits independent private-media review and fresh postmerge main CI. Feature3 hosted accepted count remains 0/33, F3-01 only accepted source-integrated original milestone.
+
