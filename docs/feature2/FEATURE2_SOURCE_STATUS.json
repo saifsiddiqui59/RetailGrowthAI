@@ -61,7 +61,18 @@
       "id": "F2-03",
       "title": "Prompt Improver and reviewed script-revision workflow",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Signed editor reviewed-draft CAS strict source revision types, staged/durable rights-and-billing denial, optional paid-cost bool denial",
+        "source_commits": [
+          "b285817798ce9ba0d0a3b85d3920c1fbe9fdc99d"
+        ],
+        "test_commit": "2d2f9a278e3e5236fea5e1f7b481b8db9390a931",
+        "test_cases": 32,
+        "complete_scope": false,
+        "blocker": "Independent signed human review, versioned tenant-private draft CAS and hosted RLS endpoint still unverified"
+      }
     },
     {
       "id": "F2-04",
@@ -317,7 +328,18 @@
       "id": "F2-31",
       "title": "Editor script A/B preview and explicit approval UX",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Voiceover A/B reviewed script proposal and response must not smuggle rights, paid calls, external media URLs, or approved commercial copy",
+        "source_commits": [
+          "211db2f01866f2ffc83aec9bb9934bf003aa5b30"
+        ],
+        "test_commit": "ea42fa97047d9e6caea1cd594b3e7da3bb2ff62c",
+        "test_cases": 31,
+        "complete_scope": false,
+        "blocker": "Signed production reviewer, real mounted Creative Studio and backend reviewed CAS are unverified"
+      }
     },
     {
       "id": "F2-32",
