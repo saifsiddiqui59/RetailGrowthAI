@@ -156,3 +156,221 @@ def test_openpronounce_needs_offline_only_cpu_reference_before_import(monkeypatc
     with pytest.raises(VoiceQualityDenied,match="Offline calibrated"):
         run_openpronounce_lazy(original_wav=wav(),expected_script="Hello",
                                enabled=True)
+
+
+@pytest.mark.parametrize("bad",[
+    "Diwali\u202e", "Diwali\u2066", "Diwali\u200b",
+    "Diwali<svg>", "Diwali\u2028",
+])
+def test_untrusted_transcript_word_displays_cannot_hide_controls(bad):
+    with pytest.raises(VoiceQualityDenied,match="timestamps"):
+        analyze("Diwali", [bad])
+
+
+@pytest.mark.parametrize("field,text",[
+    ("word", "kurti\u202e"),
+    ("expected", "k\u2066ɜːti"),
+    ("actual", "k\u200bɜːti"),
+])
+def test_openpronounce_review_denies_unicode_display_spoofs(field,text):
+    from ai_agents.feature2_voice_quality import project_offline_openpronounce_review
+    problem={"word":"kurti","position":1,"expected":"kɜːti",
+             "actual":"kɜti","confidence":0.4}
+    problem[field]=text
+    with pytest.raises(VoiceQualityDenied,match="Invalid unapproved"):
+        project_offline_openpronounce_review(
+            audio_sha256="a"*64,
+            result={"score":70.0,"differences":{"errors":[problem]}})
+
+
+def test_indic_joiner_conjunct_remains_intact_in_review_only_tokens():
+    from ai_agents.feature2_voice_quality import _words
+    assert _words("क्\u200dष कुर्ती")==["क्\u200dष","कुर्ती"]
+    assert _words("नमस्ते") == ["नमस्ते"]
+
+
+# Synthetic signed-callback tests for F2-10: spellings never prove real audio.
+def test_dictionary_approval_rechecks_editor_after_write_receipt():
+    calls=[]
+    writes=[]
+    def editor(_shop):
+        calls.append("auth")
+        return len(calls)<3
+    def save(row):
+        writes.append(row)
+        return {**row,"revision":1}
+    with pytest.raises(PronunciationDenied,match="revoked after"):
+        approve_dictionary_entry(
+            shop_id=SHOP,word="kurti",spoken_as="kur-tee",lang="en-us",
+            editor_current=editor,save_approved=save,expected_revision=0)
+    assert len(writes)==1 and len(calls)==3
+
+
+@pytest.mark.parametrize("word,spoken_as",[
+    ("two words","too-words"),("bad ","bad-two"),(" kurti","kur-tee"),
+    ("kurti","  kur-tee"),("kurti","bad\nname"),
+    ("<tag>","approved"),("kurti","-"),
+])
+def test_dictionary_denies_unmatchable_or_unsafe_spellings_before_auth(word,spoken_as):
+    calls=[]
+    with pytest.raises(PronunciationDenied):
+        approve_dictionary_entry(
+            shop_id=SHOP,word=word,spoken_as=spoken_as,lang="en-us",
+            editor_current=lambda _:calls.append("auth") or True,
+            save_approved=lambda *_:calls.append("write"),
+            expected_revision=0)
+    assert calls==[]
+
+
+def test_dictionary_denies_foreign_shop_before_save():
+    calls=[]
+    with pytest.raises(PronunciationDenied):
+        approve_dictionary_entry(
+            shop_id="not-a-shop",word="kurti",spoken_as="kur-tee",
+            lang="en-us",editor_current=lambda *_:calls.append("auth") or True,
+            save_approved=lambda *_:calls.append("write"),
+            expected_revision=0)
+    assert calls==[]
+
+
+@pytest.mark.parametrize("forgery",[
+    {"can_publish":True},{"approved_to_publish":True},
+    {"paid_motion_permitted":True},{"audio_pronunciation_verified":True},
+    {"may_auto_retry":True},{"may_auto_invoke_azure":True},
+    {"paid_calls":1},{"paid_calls":False},
+])
+def test_dictionary_atomic_receipt_denies_forged_rights_or_paid_retry(forgery):
+    def save(row):
+        return {**row,"revision":1,**forgery}
+    with pytest.raises(PronunciationDenied,match="Atomic shop dictionary"):
+        approve_dictionary_entry(
+            shop_id=SHOP,word="kurti",spoken_as="kur tee",lang="en-us",
+            editor_current=lambda *_:True,save_approved=save,
+            expected_revision=0)
+
+
+def test_current_dictionary_read_refuses_unmatchable_multitoken_entries():
+    bad={"shop_id":SHOP,"word":"red kurti","spoken_as":"red kur-tee",
+         "language":"en-us",
+         "approval":"RETAILER_EDITOR_REVIEWED_SPELLING_ONLY"}
+    with pytest.raises(PronunciationDenied,match="signed pronunciation review"):
+        apply_approved_local_corrections(
+            shop_id=SHOP,lang="en-us",script="Our red kurti",
+            read_current_entries=lambda *_:[bad])
+
+
+def test_current_dictionary_read_keeps_multiword_spoken_hint_review_only():
+    source={"shop_id":SHOP,"word":"kurti","spoken_as":"kur tee",
+            "language":"en-us",
+            "approval":"RETAILER_EDITOR_REVIEWED_SPELLING_ONLY"}
+    x=apply_approved_local_corrections(
+        shop_id=SHOP,lang="en-us",script="Our kurti",
+        read_current_entries=lambda *_:[source])
+    assert x["corrected_text_for_tts"]=="Our kur tee"
+    assert x["original_script_unchanged"]=="Our kurti"
+    assert x["audio_pronunciation_verified"] is False
+    assert x["max_local_retries"]==1
+
+
+# F2-10: an independently reviewed spelling hint never authorizes real
+# pronunciation accuracy, a paid TTS retry, publication or media downloads.
+@pytest.mark.parametrize("forgery",[
+    {"language":"hi-IN"},
+    {"can_publish":"false"},
+    {"approved_to_publish":0},
+    {"paid_motion_permitted":"false"},
+    {"commercial_use_approved":True},
+    {"audio_pronunciation_verified":None},
+    {"may_auto_retry":1},
+    {"may_auto_invoke_azure":"no"},
+    {"paid_inference_authorized":False,"billing":"CHARGED"},
+    {"can_dispatch_paid_motion":1},
+    {"paid_calls":"0"},
+    {"paid_calls":True},
+    {"billing":"PAID"},
+    {"private_download_url":"https://example.invalid/private"},
+    {"signed_url":"https://example.invalid/voice"},
+])
+def test_f2_10_dictionary_cas_denies_wrong_type_rights_and_billing(forgery):
+    def save(row):
+        return {**row,"revision":1,**forgery}
+    with pytest.raises(PronunciationDenied,match="Atomic shop dictionary"):
+        approve_dictionary_entry(
+            shop_id=SHOP,word="kurti",spoken_as="kur tee",lang="en-us",
+            editor_current=lambda *_:True,save_approved=save,
+            expected_revision=0)
+
+
+@pytest.mark.parametrize("forgery",[
+    {"can_publish":"false"},
+    {"approved_to_publish":1},
+    {"paid_motion_permitted":None},
+    {"commercial_use_approved":"no"},
+    {"audio_pronunciation_verified":1},
+    {"may_auto_retry":True},
+    {"may_auto_invoke_azure":True},
+    {"paid_inference_authorized":"false"},
+    {"paid_calls":False},
+    {"paid_calls":1},
+    {"billing":"CHARGED"},
+    {"private_download_url":"https://example.invalid/private"},
+    {"signed_url":"https://example.invalid/voice"},
+])
+def test_f2_10_dictionary_current_reader_denies_wrong_type_grants(forgery):
+    approved={"shop_id":SHOP,"word":"kurti","spoken_as":"kur tee",
+        "language":"en-us",
+        "approval":"RETAILER_EDITOR_REVIEWED_SPELLING_ONLY",
+        **forgery}
+    with pytest.raises(PronunciationDenied,match="signed pronunciation review"):
+        apply_approved_local_corrections(
+            shop_id=SHOP,lang="en-us",script="Our kurti",
+            read_current_entries=lambda *_:[approved])
+
+
+def test_f2_10_dictionary_explicit_pending_metadata_remains_spelling_only():
+    unprivileged={
+        "can_publish":False,"approved_to_publish":False,
+        "paid_motion_permitted":False,"commercial_use_approved":False,
+        "audio_pronunciation_verified":False,"may_auto_retry":False,
+        "may_auto_invoke_azure":False,"paid_inference_authorized":False,
+        "can_dispatch_paid_motion":False,
+        "paid_calls":0,"billing":"NONE",
+        "private_download_url":None,"signed_url":None,
+    }
+    def saved(row):return {**row,"revision":1,**unprivileged}
+    accepted=approve_dictionary_entry(
+        shop_id=SHOP,word="kurti",spoken_as="kur tee",lang="en-us",
+        editor_current=lambda *_:True,save_approved=saved,
+        expected_revision=0)
+    original=apply_approved_local_corrections(
+        shop_id=SHOP,lang="en-us",script="Our kurti",
+        read_current_entries=lambda *_:[{**accepted,**unprivileged}])
+    assert original["corrected_text_for_tts"]=="Our kur tee"
+    assert original["audio_pronunciation_verified"] is False
+    assert original["manual_relisten_required"] is True
+    assert original["max_local_retries"]==1
+
+
+# F2-17: reject word-level invisible joiners unless they express an actual
+# Indic virama conjunct; preserve that native-script case as review-only.
+@pytest.mark.parametrize("spoof",[
+    "kur\u200bti",
+    "kur\u200cti",
+    "kur\u200dti",
+    "\u200dkurti",
+    "दि\u200dवाली",
+    "क्\u200d9",
+    "क्\u200d",
+])
+def test_f2_17_signed_f7_word_cannot_hide_joiner(spoof):
+    with pytest.raises(VoiceQualityDenied,match="word|timestamps"):
+        analyze("Our kurti today",[spoof])
+
+
+def test_f2_17_devanagari_conjunct_joiner_is_still_review_only():
+    source="क्\u200dष आज"
+    report=analyze(source,["क्\u200dष","आज"])
+    assert report["transcript_matches_script"] is True
+    assert report["human_listen_required"] is True
+    assert report["pronunciation_verified"] is False
+    assert report["publish_approved"] is False

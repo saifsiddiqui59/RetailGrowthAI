@@ -46,6 +46,27 @@ for(const duration of [15,30,60]){
   assert.equal(ready.feature2_production_ready,false);
   assert.equal(ready.ready_to_activate_gpu,false);
   assert.ok(ready.blocking_gates.length>=6);
+  // A source fixture must never be promoted into a genuine model/media,
+  // editorial approval or renderer success merely by changing its summary.
+  const forgedReadiness=[
+    ['human approval',p=>{p.approved=true;}],
+    ['publication',p=>{p.can_publish=true;}],
+    ['real editor',p=>{p.feature4='LIVE_RENDER_SUCCEEDED';}],
+    ['real motion',p=>{p.feature5='WAN_VIDEO_SUCCEEDED';}],
+    ['paid model',p=>{p.hardware.premium_model='STARTED';}],
+    ['real speech',p=>{p.voice_sync='REAL_AUDIO_VERIFIED';}],
+    ['missing shot',p=>{p.editor_timeline.pop();}],
+    ['forged shot status',p=>{p.editor_timeline[0].inference_status='SUCCEEDED';}],
+    ['forged rendered clip',p=>{p.editor_timeline[0].edit_status='RENDERED';}],
+    ['timeline gap',p=>{p.editor_timeline[1].start_seconds+=1;}],
+    ['missing original plan hash',p=>{p.original_editorial_sha256='0';}],
+    ['source scene mismatch',p=>{p.source_storyboard_scenes+=1;}]
+  ];
+  for(const [label,mutate] of forgedReadiness){
+    const forged=structuredClone(summary);
+    mutate(forged);
+    deny(()=>readinessFromOffline(forged),'offline readiness rejects '+label);
+  }
   deny(()=>previewOffline(plan,{gpuEnabled:true}),'GPU opt-in never succeeds');
   const altered=structuredClone(plan);
   altered.motion_direction_v1[0].generation_prompt+=' secretly swap approved image';

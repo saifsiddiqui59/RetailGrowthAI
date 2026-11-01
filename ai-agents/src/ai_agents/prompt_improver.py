@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import re
+import unicodedata
 from typing import Callable
 
 from .content_intelligence import RetailerProfile, RESTRICTED, UNSUPPORTED
@@ -36,11 +37,31 @@ UNSAFE_INPUT = re.compile(
 )
 
 
+def _has_unsafe_unicode(text: str) -> bool:
+    """Reject invisible/bidi controls while preserving Devanagari conjuncts.
+
+    ZWJ/ZWNJ are allowed only immediately after Devanagari virama and before
+    a Devanagari letter; they cannot hide English offer or reviewer claims.
+    """
+    for index, char in enumerate(text):
+        if char in "\n\t":
+            continue
+        if char in ("\u200c", "\u200d"):
+            following = text[index + 1] if index + 1 < len(text) else ""
+            if (index > 0 and text[index - 1] == "\u094d" and
+                "\u0900" <= following <= "\u097f" and
+                unicodedata.category(following).startswith("L")):
+                continue
+        if unicodedata.category(char).startswith("C") or char in ("\u2028", "\u2029"):
+            return True
+    return False
+
+
 def _safe_original(raw: str) -> str:
     if not isinstance(raw, str) or not raw.strip() or len(raw) > 1500:
         raise ValueError("Original prompt must be 1–1500 characters")
     original = raw.strip()
-    if any(ord(char) < 32 and char not in "\n\t" for char in original) or (
+    if _has_unsafe_unicode(original) or (
         "<" in original or ">" in original or UNSAFE_INPUT.search(original)
     ):
         raise ValueError("Prompt contains unsafe control instructions")
@@ -53,7 +74,7 @@ def _format_list(value) -> list[str]:
     if not isinstance(value, (tuple, list)) or not value or len(value) > 6:
         raise ValueError("Select one to six output formats")
     formats = list(value)
-    if len(set(formats)) != len(formats) or any(fmt not in FORMATS for fmt in formats):
+    if any(type(fmt) is not str for fmt in formats) or len(set(formats)) != len(formats) or any(fmt not in FORMATS for fmt in formats):
         raise ValueError("Unsupported or duplicate output format")
     return formats
 
@@ -80,7 +101,7 @@ def improve_prompt(
         raise PermissionError("A server-verified retailer profile is required")
     original = _safe_original(original_prompt)
     formats = _format_list(output_formats)
-    if language not in LANGUAGES:
+    if type(language) is not str or language not in LANGUAGES:
         raise ValueError("Unsupported language")
     if provider_mode not in ("deterministic", "approved_llm"):
         raise ValueError("Unknown provider mode")
@@ -96,7 +117,8 @@ def improve_prompt(
     flagged_fields = [
         key for key, value in context.items()
         if (UNVERIFIED_CLAIM.search(" ".join(value) if isinstance(value, list) else value)
-            or UNSUPPORTED.search(" ".join(value) if isinstance(value, list) else value))
+            or UNSUPPORTED.search(" ".join(value) if isinstance(value, list) else value)
+            or _has_unsafe_unicode(" ".join(value) if isinstance(value, list) else value))
     ]
     for key in flagged_fields:
         context[key] = [] if key == "products" else ""
@@ -144,13 +166,27 @@ def improve_prompt(
         settings = os.environ if environ is None else environ
         if not (settings.get("RETAIL_PROMPT_LLM_ENABLED") == "true" and
                 explicit_cost_approval and subscription_quota_ok and
-                isinstance(approved_cost_limit_usd, (int, float)) and
+                type(explicit_cost_approval) is bool and
+                type(subscription_quota_ok) is bool and
+                type(approved_cost_limit_usd) in (int, float) and
                 0 < approved_cost_limit_usd <= 0.25 and callable(provider)):
             raise PermissionError("Paid provider requires explicit feature, quota and cost approval")
         candidate = provider(base)
+        # A provider may preserve the retailer's verbatim request yet smuggle
+        # a different unsupported offer, stock or price into extra prose.
+        # Compare bounded claim occurrences with the already-reviewed
+        # canonical request. This is review-only, not retail fact approval.
+        from collections import Counter
+        source_claims = Counter(m.group().casefold() for m in
+                                UNVERIFIED_CLAIM.finditer(base))
+        extra_claims = (Counter(m.group().casefold() for m in
+                                UNVERIFIED_CLAIM.finditer(candidate))
+                        if isinstance(candidate, str) else Counter())
         if (not isinstance(candidate, str) or len(candidate) > 1500 or
                 original not in candidate or UNSAFE_INPUT.search(candidate) or
-                RESTRICTED.search(candidate) or UNSUPPORTED.search(candidate)):
+                _has_unsafe_unicode(candidate) or
+                RESTRICTED.search(candidate) or UNSUPPORTED.search(candidate) or
+                any(n > source_claims[claim] for claim,n in extra_claims.items())):
             raise ValueError("Provider returned an unreviewable or unsafe prompt")
         result_prompt = candidate
         usage = {"paid_inference_calls": 1, "estimated_paid_cost_usd": None,
@@ -192,6 +228,26 @@ def _prompt_uuid(value):
                 and _UUID(value).version==4)
     except (ValueError,TypeError,AttributeError):
         return False
+
+
+def _elevated_optional_draft_receipt(value):
+    """Conservative review-only metadata check for trusted CAS readers/writers.
+
+    A missing optional field is compatible with older private DB records; any
+    present grant must be literal False, never a browser string, 0 or None.
+    This doesn't itself prove signature, transaction safety or retail rights.
+    """
+    grants=("can_dispatch_paid_motion","provider_call_made",
+            "approved_to_publish","commercial_use_approved",
+            "offer_facts_verified","media_rights_verified",
+            "paid_inference_authorized","may_auto_invoke_azure")
+    return (any(flag in value and value[flag] is not False for flag in grants) or
+            ("paid_calls" in value and
+             (type(value["paid_calls"]) is not int or value["paid_calls"]!=0)) or
+            ("billing" in value and value["billing"]!="NONE") or
+            ("signed_url" in value and value["signed_url"] is not None) or
+            ("private_download_url" in value and
+             value["private_download_url"] is not None))
 
 
 def commit_reviewed_prompt_draft(*, shop_id, campaign_id, proposal_id,
@@ -242,23 +298,27 @@ def commit_reviewed_prompt_draft(*, shop_id, campaign_id, proposal_id,
         draft=read_current_draft(shop_id,campaign_id)
         return (type(draft) is dict and draft.get("shop_id")==shop_id and
                 draft.get("campaign_id")==campaign_id and
-                draft.get("revision")==expected_revision and
+                type(draft.get("revision")) is int and
+                draft["revision"]==expected_revision and
                 draft.get("brief")==original and
                 draft.get("review_status")=="DRAFT" and
-                draft.get("can_publish") is False)
+                draft.get("can_publish") is False and
+                not _elevated_optional_draft_receipt(draft))
 
     def staged():
         saved=read_staged_proposal(shop_id,campaign_id,proposal_id)
         return (type(saved) is dict and saved.get("shop_id")==shop_id and
                 saved.get("campaign_id")==campaign_id and
                 saved.get("proposal_id")==proposal_id and
-                saved.get("source_revision")==expected_revision and
+                type(saved.get("source_revision")) is int and
+                saved["source_revision"]==expected_revision and
                 saved.get("original_prompt_sha256")==original_sha and
                 saved.get("improved_prompt_sha256")==proposed_sha and
                 saved.get("review_status")=="NEEDS_REVIEW" and
                 saved.get("can_publish") is False and
                 saved.get("private") is True and
-                saved.get("revoked_at") is None)
+                saved.get("revoked_at") is None and
+                not _elevated_optional_draft_receipt(saved))
 
     if not active() or not staged():
         raise PromptRevisionRejected("Current tenant draft or proposed version revoked")
@@ -289,14 +349,34 @@ def commit_reviewed_prompt_draft(*, shop_id, campaign_id, proposal_id,
         saved.get("shop_id")!=shop_id or
         saved.get("campaign_id")!=campaign_id or
         saved.get("proposal_id")!=proposal_id or
-        saved.get("revision")!=expected_revision+1 or
+        type(saved.get("source_revision")) is not int or
+        saved["source_revision"]!=expected_revision or
+        type(saved.get("revision")) is not int or
+        saved["revision"]!=expected_revision+1 or
+        saved.get("original_prompt_sha256")!=original_sha or
         saved.get("improved_prompt_sha256")!=proposed_sha or
         saved.get("review_event_id")!=review_event_id or
+        saved.get("review_status")!="DRAFT" or
         saved.get("private") is not True or
-        saved.get("committed") is not True):
+        saved.get("committed") is not True or
+        saved.get("can_publish") is not False or
+        saved.get("can_dispatch_paid_motion") is not False or
+        saved.get("provider_call_made") is not False or
+        _elevated_optional_draft_receipt(saved)):
         raise PromptRevisionRejected("Durable source-locked private draft save unavailable")
+    # The CAS revision has moved from expected_revision to revision + 1.
+    # Rechecking the old draft would reject legitimate writes. The server
+    # must atomically fence its own transaction, while this final actor
+    # check denies returning success after a concurrent membership revoke.
+    if current_editor(shop_id,campaign_id) is not True:
+        raise PromptRevisionRejected("Editor revoked during private draft CAS")
     return {"schema":record["schema"],"shop_id":shop_id,
-            "campaign_id":campaign_id,"revision":expected_revision+1,
+            "campaign_id":campaign_id,
+            "proposal_id":proposal_id,
+            "review_event_id":review_event_id,
+            "source_revision":expected_revision,
+            "revision":expected_revision+1,
+            "original_prompt_sha256":original_sha,
             "improved_prompt_sha256":proposed_sha,
             "review_status":"DRAFT","private":True,
             "can_publish":False,"can_dispatch_paid_motion":False,

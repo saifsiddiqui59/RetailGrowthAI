@@ -81,9 +81,31 @@ function previewOffline(bundle,{gpuEnabled=false}={}){
   };
 }
 function readinessFromOffline(preview){
+  // This is a source-only readiness summary, never a signed approval or a
+  // dispatch credential. Reject a mutated preview that upgrades mock/blocked
+  // consumers, speech, rendering or reviewer state to a false success.
+  const shots=preview?.editor_timeline;
+  const count=preview?.duration_seconds/5;
   if(!preview||preview.contract!=='feature2_offline_acceptance_v1'||
-     preview.hardware?.gpu!=='OFF'||preview.billable_calls!==0||
-     preview.can_start_gpu!==false||preview.generated_video_files!==0)
+     preview.hardware?.gpu!=='OFF'||preview.hardware?.premium_model!=='NOT_STARTED'||
+     preview.billable_calls!==0||preview.generated_video_files!==0||
+     preview.approved!==false||preview.can_publish!==false||
+     preview.can_start_gpu!==false||
+     preview.feature4!=='MOCK_ONLY_CONSUMER_NOT_RATIFIED'||
+     preview.feature5!=='MOCK_ONLY_NO_PROVIDER_CALL'||
+     !['ESTIMATED_PENDING_REAL_SPEECH_ALIGNMENT',
+       'WORD_TIMES_MATCH_PENDING_AUDIO_PROVENANCE'].includes(preview.voice_sync)||
+     ![15,30,60].includes(preview.duration_seconds)||
+     !/^[a-f0-9]{64}$/.test(preview.original_editorial_sha256||'')||
+     !Array.isArray(shots)||shots.length!==count||
+     preview.source_storyboard_scenes!==count||
+     shots.some((shot,i)=>!shot||shot.start_seconds!==i*5||
+       shot.duration_seconds!==5||
+       shot.edit_status!=='PREVIEW_ONLY_NO_REAL_CLIP'||
+       shot.inference_status!=='SKIPPED_GPU_OFF'||
+       !/^[a-f0-9]{64}$/.test(shot.original_generation_prompt_sha256||'')||
+       typeof shot.shot_id!=='string'||!shot.shot_id||
+       typeof shot.source_media_id!=='string'||!shot.source_media_id))
     error('Missing zero-cost offline acceptance proof');
   return {
     feature:'Feature2',

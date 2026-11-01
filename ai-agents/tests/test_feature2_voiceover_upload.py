@@ -152,7 +152,8 @@ def test_private_mp3_intake_preserves_both_original_digests_and_ignores_rights_c
                 "original_mp3_sha256":receipt["original_mp3_sha256"],
                 "derived_wav_sha256":receipt["derived_wav_sha256"],
                 "review_state":"PENDING_RIGHTS_AND_SPEECH_REVIEW",
-                "private":True}
+                "private":True,"derived_wav_private":True,
+                "atomic_pair_registered":True}
     result=accept_unreviewed_mp3(
         shop_id=SHOP,campaign_id=CID,plan=creative(),
         original_mp3=original,operator_ffmpeg_path=ffmpeg,
@@ -191,42 +192,384 @@ def test_mp3_private_decode_fails_closed_before_writer_on_forgery_and_revocation
     assert len(calls)==2 and writes==[]
 
 
-@pytest.mark.parametrize("derived_asset_id", [None, "foreign", "same"])
-def test_private_mp3_registration_requires_distinct_derived_wav_identity(
-    monkeypatch, derived_asset_id
-):
-    # Offline fixture: test registration semantics without needing FFmpeg or
-    # implying genuine speech/rights/model verification.
+@pytest.mark.parametrize("tamper",[
+    "missing_derived", "same_asset_id", "invalid_derived",
+    "derived_public", "not_atomic", "foreign_shop",
+    "wrong_derived_sha", "can_publish", "can_dispatch_motion",
+    "commercial_use_approved", "original_media_rights_verified",
+    "human_speech_alignment_verified",
+])
+def test_unreviewed_mp3_requires_two_distinct_private_atomic_objects(monkeypatch,tamper):
+    # No real decoder or claimed customer speech: isolates the writer contract.
     from ai_agents import feature2_voiceover_upload as upload
-    original = b"ID3" + b"x" * 128
-    derived = wav()
-    monkeypatch.setattr(upload, "decode_unreviewed_mp3_to_private_wav",
-        lambda **kwargs: {
-            "original_mp3_sha256": sha256(original).hexdigest(),
-            "derived_wav_sha256": sha256(derived).hexdigest(),
-            "derived_wav": derived, "duration_seconds": 2.0,
+    original=b"ID3-offline-mock-not-real-mp3"
+    derived=wav()
+    monkeypatch.setattr(upload,"decode_unreviewed_mp3_to_private_wav",
+        lambda **kw: {
+            "original_mp3_sha256":sha256(original).hexdigest(),
+            "derived_wav_sha256":sha256(derived).hexdigest(),
+            "duration_seconds":2.0,"derived_wav":derived,
         })
-    original_id = str(uuid4())
-    calls = []
-    def writer(shop, campaign, original_bytes, derived_bytes, receipt):
-        calls.append(1)
-        return {
-            "asset_id": original_id,
-            "derived_wav_asset_id": (
-                original_id if derived_asset_id == "same" else derived_asset_id
-            ),
-            "shop_id": shop, "campaign_id": campaign,
-            "original_mp3_sha256": receipt["original_mp3_sha256"],
-            "derived_wav_sha256": receipt["derived_wav_sha256"],
-            "review_state": "PENDING_RIGHTS_AND_SPEECH_REVIEW",
-            "private": True,
-        }
-    with pytest.raises(VoiceUploadRejected, match="not registered"):
+    def store(shop,campaign,source,pcm,receipt):
+        assert source==original and pcm==derived
+        saved={"asset_id":str(uuid4()),"derived_wav_asset_id":str(uuid4()),
+            "shop_id":shop,"campaign_id":campaign,
+            "original_mp3_sha256":receipt["original_mp3_sha256"],
+            "derived_wav_sha256":receipt["derived_wav_sha256"],
+            "review_state":"PENDING_RIGHTS_AND_SPEECH_REVIEW",
+            "private":True,"derived_wav_private":True,
+            "atomic_pair_registered":True}
+        if tamper=="missing_derived": del saved["derived_wav_asset_id"]
+        elif tamper=="same_asset_id": saved["derived_wav_asset_id"]=saved["asset_id"]
+        elif tamper=="invalid_derived": saved["derived_wav_asset_id"]="invalid"
+        elif tamper=="derived_public": saved["derived_wav_private"]=False
+        elif tamper=="not_atomic": saved["atomic_pair_registered"]=False
+        elif tamper=="foreign_shop": saved["shop_id"]=str(uuid4())
+        elif tamper=="wrong_derived_sha": saved["derived_wav_sha256"]="0"*64
+        else: saved[tamper]=True
+        return saved
+    with pytest.raises(VoiceUploadRejected,match="atomically registered"):
         upload.accept_unreviewed_mp3(
+            shop_id=SHOP,campaign_id=CID,plan=creative(),
+            original_mp3=original,operator_ffmpeg_path="/offline/unused-ffmpeg",
+            authenticated_editor=lambda *a:True,
+            read_authoritative_plan=lambda *a:creative(),
+            store_both_private_pending=store,
+            client_declared_rights={"approved":True})
+
+
+@pytest.mark.parametrize("media_kind", ["wav", "mp3"])
+@pytest.mark.parametrize("revocation", ["editor", "source_plan"])
+def test_post_storage_revocation_does_not_return_private_audio_receipt(
+    monkeypatch, media_kind, revocation
+):
+    """A durable-looking private receipt must not outlive current editor/plan.
+
+    All bytes and writer receipts are SYNTHETIC; a real backend must additionally
+    fence its transaction and clean up an aborted or revoked private object.
+    """
+    from ai_agents import feature2_voiceover_upload as upload
+
+    auth_calls = []
+    plan_calls = []
+    writes = []
+    source = b"ID3-offline-mock-not-real-mp3"
+    derived = wav()
+
+    def current_editor(*args):
+        auth_calls.append(args)
+        return not (revocation == "editor" and len(auth_calls) == 3)
+
+    def current_plan(*args):
+        plan_calls.append(args)
+        if revocation == "source_plan" and len(plan_calls) == 3:
+            return {"revoked_source": True}
+        return creative()
+
+    if media_kind == "wav":
+        def writer(shop, campaign, original, receipt):
+            writes.append(1)
+            return {
+                "asset_id": str(uuid4()),
+                "shop_id": shop,
+                "campaign_id": campaign,
+                "original_audio_sha256": sha256(original).hexdigest(),
+                "private": True,
+                "review_state": "PENDING_RIGHTS_AND_SPEECH_REVIEW",
+            }
+
+        call = lambda: upload.accept_unreviewed_wav(
             shop_id=SHOP, campaign_id=CID, plan=creative(),
-            original_mp3=original, operator_ffmpeg_path="/unused/offline/fixture",
-            authenticated_editor=lambda *a: True,
-            read_authoritative_plan=lambda *a: creative(),
+            original_audio=derived,
+            authenticated_editor=current_editor,
+            read_authoritative_plan=current_plan,
+            store_private_pending=writer,
+        )
+    else:
+        monkeypatch.setattr(
+            upload, "decode_unreviewed_mp3_to_private_wav",
+            lambda **kwargs: {
+                "original_mp3_sha256": sha256(source).hexdigest(),
+                "derived_wav_sha256": sha256(derived).hexdigest(),
+                "duration_seconds": 2.0,
+                "derived_wav": derived,
+            },
+        )
+
+        def writer(shop, campaign, original, pcm, receipt):
+            writes.append(1)
+            return {
+                "asset_id": str(uuid4()),
+                "derived_wav_asset_id": str(uuid4()),
+                "shop_id": shop,
+                "campaign_id": campaign,
+                "original_mp3_sha256": receipt["original_mp3_sha256"],
+                "derived_wav_sha256": receipt["derived_wav_sha256"],
+                "private": True,
+                "derived_wav_private": True,
+                "atomic_pair_registered": True,
+                "review_state": "PENDING_RIGHTS_AND_SPEECH_REVIEW",
+            }
+
+        call = lambda: upload.accept_unreviewed_mp3(
+            shop_id=SHOP, campaign_id=CID, plan=creative(),
+            original_mp3=source, operator_ffmpeg_path="/offline/unused",
+            authenticated_editor=current_editor,
+            read_authoritative_plan=current_plan,
             store_both_private_pending=writer,
         )
-    assert calls == [1]
+
+    with pytest.raises(VoiceUploadRejected, match="revoked after private"):
+        call()
+    assert writes == [1]
+    assert len(auth_calls) == 3
+    assert len(plan_calls) == (2 if revocation == "editor" else 3)
+
+
+# Source-only offline regressions for F2-29. No Speech API, model or paid GPU.
+from ai_agents.feature2_voiceover_upload import _inspect
+
+def test_original_pcm_inspection_denies_riff_trailing_bytes_and_hidden_streams():
+    original=wav()
+    assert _inspect(original,30)==2.0
+    appended=original+b"TRAILER"
+    with pytest.raises(VoiceUploadRejected,match="RIFF extent"):
+        _inspect(appended,30)
+    # Even after re-signing the RIFF top-level size, extra data chunks must be
+    # denied: wave.open alone would accept only the first PCM data chunk.
+    second=b"data"+(2).to_bytes(4,"little")+b"\x00\x00"
+    forged=bytearray(original+second)
+    forged[4:8]=(len(forged)-8).to_bytes(4,"little")
+    with pytest.raises(VoiceUploadRejected,match="Multiple or unbound"):
+        _inspect(bytes(forged),30)
+
+def test_original_pcm_inspection_denies_bad_chunk_sizes_and_reordered_format():
+    original=wav()
+    # Header size matches the byte count, but an internal chunk claims more.
+    corrupt=bytearray(original)
+    corrupt[16:20]=(len(original)).to_bytes(4,"little")
+    with pytest.raises(VoiceUploadRejected,match="chunk exceeds"):
+        _inspect(bytes(corrupt),30)
+    # Insert duplicate format chunk before data and adjust the outer size.
+    fmt=original[12:36]
+    duplicate=bytearray(original[:36]+fmt+original[36:])
+    duplicate[4:8]=(len(duplicate)-8).to_bytes(4,"little")
+    with pytest.raises(VoiceUploadRejected,match="Duplicate"):
+        _inspect(bytes(duplicate),30)
+
+def test_mp3_private_decode_rejects_fake_success_with_trailing_riff(monkeypatch,tmp_path):
+    from ai_agents import feature2_voiceover_upload as upload
+    from types import SimpleNamespace
+    # Executable path and byte source are deterministic offline fixtures, not
+    # an actual MP3 decoder. Test the subprocess return/RIFF boundary only.
+    binary=tmp_path/"ffmpeg-fixture"
+    binary.write_bytes(b"fixture")
+    binary.chmod(0o700)
+    original=b"ID3"+b"x"*250
+    def fake_run(command,**kwargs):
+        output=Path(command[-1])
+        output.write_bytes(wav()+b"hidden trailing bytes")
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(upload.subprocess,"run",fake_run)
+    # The MP3 boundary deliberately normalizes internal WAV rejection to a
+    # safe generic error rather than exposing codec/container internals.
+    with pytest.raises(VoiceUploadRejected,match="private MP3 decode failed"):
+        upload.decode_unreviewed_mp3_to_private_wav(
+            original_mp3=original,max_seconds=15,
+            operator_ffmpeg_path=binary)
+
+def test_mp3_private_decode_fixtured_positive_still_pending_rights(monkeypatch,tmp_path):
+    from ai_agents import feature2_voiceover_upload as upload
+    from types import SimpleNamespace
+    binary=tmp_path/"ffmpeg-fixture"
+    binary.write_bytes(b"fixture")
+    binary.chmod(0o700)
+    fake_mp3=b"ID3"+b"y"*250
+    def fake_run(command,**kwargs):
+        Path(command[-1]).write_bytes(wav())
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(upload.subprocess,"run",fake_run)
+    result=upload.decode_unreviewed_mp3_to_private_wav(
+        original_mp3=fake_mp3,max_seconds=30,
+        operator_ffmpeg_path=binary)
+    assert result["original_mp3_sha256"]==sha256(fake_mp3).hexdigest()
+    assert result["derived_wav_sha256"]==sha256(wav()).hexdigest()
+    assert result["duration_seconds"]==2
+    assert not result["original_rights_verified"]
+    assert not result["actual_speech_verified"]
+    assert not result["can_publish"] and result["paid_calls"]==0
+
+
+# F2-20: storage status is not a commercial licence or paid voice grant.
+@pytest.mark.parametrize("spoof",[
+    {"can_publish": True},
+    {"can_publish": "false"},  # wrong-type grant is still untrusted
+    {"commercial_use_approved": True},
+    {"actual_spoken_words_verified": True},
+    {"audio_pronunciation_verified": True},
+    {"rights_reviewed": True},
+    {"original_media_rights_verified": True},
+    {"can_dispatch_motion": True},
+    {"paid_inference_authorized": True},
+    {"may_auto_invoke_azure": True},
+    {"paid_calls": 1},
+    {"paid_calls": False},
+    {"billing": "PAID"},
+    {"private_download_url": "https://example.invalid/unsigned.wav"},
+    {"mime_type": "audio/mpeg"},
+    {"creative_plan_sha256": "f"*64},
+    {"duration_seconds": 3.0},
+])
+def test_private_wav_writer_cannot_grant_rights_or_swap_original(spoof):
+    original=wav()
+    def fake_store(shop,cam,audio,row):
+        return {
+            "asset_id":str(uuid4()),"shop_id":shop,"campaign_id":cam,
+            "original_audio_sha256":sha256(audio).hexdigest(),
+            "private":True,"review_state":"PENDING_RIGHTS_AND_SPEECH_REVIEW",
+            **spoof,
+        }
+    with pytest.raises(VoiceUploadRejected,match="Private original"):
+        accept_unreviewed_wav(
+            shop_id=SHOP,campaign_id=CID,plan=creative(),
+            original_audio=original,authenticated_editor=lambda *a:True,
+            read_authoritative_plan=lambda *a:creative(),
+            store_private_pending=fake_store)
+
+
+def test_private_wav_writer_consistent_metadata_is_still_review_only():
+    original=wav()
+    def pending_store(shop,cam,audio,row):
+        return {
+            "asset_id":str(uuid4()),"shop_id":shop,"campaign_id":cam,
+            "original_audio_sha256":sha256(audio).hexdigest(),
+            "creative_plan_sha256":SHA,"mime_type":"audio/wav",
+            "duration_seconds":2.0,"paid_calls":0,"billing":"NONE",
+            "can_publish":False,"commercial_use_approved":False,
+            "private_download_url":None,"private":True,
+            "review_state":"PENDING_RIGHTS_AND_SPEECH_REVIEW",
+        }
+    receipt=accept_unreviewed_wav(
+        shop_id=SHOP,campaign_id=CID,plan=creative(),
+        original_audio=original,authenticated_editor=lambda *a:True,
+        read_authoritative_plan=lambda *a:creative(),
+        store_private_pending=pending_store,
+        client_declared_rights={"can_publish":True})
+    assert receipt["private"] is True
+    assert receipt["can_publish"] is False
+    assert receipt["commercial_use_approved"] is False
+    assert receipt["actual_spoken_words_verified"] is False
+    assert receipt["billing"]=="NONE" and receipt["private_download_url"] is None
+
+
+# F2-20: a trusted pair-writer must not launder rights/billing claims through
+# false-looking, wrong-type optional values. These are synthetic receipt tests;
+# no customer media, FFmpeg invocation, or hosted storage is involved.
+@pytest.mark.parametrize("receipt_fields,valid",[
+    ({"can_publish": "false"},False),
+    ({"can_dispatch_motion": 0},False),
+    ({"commercial_use_approved": None},False),
+    ({"original_media_rights_verified": "no"},False),
+    ({"human_speech_alignment_verified": 0},False),
+    ({"actual_spoken_words_verified": True},False),
+    ({"audio_pronunciation_verified": True},False),
+    ({"rights_reviewed": True},False),
+    ({"paid_inference_authorized": True},False),
+    ({"may_auto_invoke_azure": True},False),
+    ({"derived_wav_is_registered_feature7_source": True},False),
+    ({"paid_calls": False},False),
+    ({"paid_calls": 1},False),
+    ({"billing": "CHARGED"},False),
+    ({"private_download_url": "https://example.invalid/voice"},False),
+    ({"creative_plan_sha256": "f"*64},False),
+    ({"source_mime_type": "audio/wav"},False),
+    ({"derived_mime_type": "audio/mpeg"},False),
+    ({"schema": "retailgrowth.fake-approved.v1"},False),
+    ({"duration_seconds": 3.0},False),
+    ({"duration_seconds": False},False),
+    ({"can_publish":False, "commercial_use_approved":False,
+      "original_media_rights_verified":False,
+      "human_speech_alignment_verified":False,
+      "derived_wav_is_registered_feature7_source":False,
+      "paid_calls":0, "billing":"NONE", "private_download_url":None,
+      "creative_plan_sha256":SHA, "source_mime_type":"audio/mpeg",
+      "derived_mime_type":"audio/wav",
+      "schema":"retailgrowth.feature2-uploaded-mp3-pending.v1",
+      "duration_seconds":2.0},True),
+])
+def test_private_mp3_writer_optional_metadata_is_strictly_pending(
+    monkeypatch, receipt_fields, valid
+):
+    from ai_agents import feature2_voiceover_upload as upload
+    original=b"ID3-offline-test-not-real-media"
+    derived=wav()
+    monkeypatch.setattr(upload,"decode_unreviewed_mp3_to_private_wav",
+        lambda **kwargs:{
+            "original_mp3_sha256":sha256(original).hexdigest(),
+            "derived_wav_sha256":sha256(derived).hexdigest(),
+            "duration_seconds":2.0,"derived_wav":derived,
+        })
+    def pending_store(shop,campaign,source,pcm,receipt):
+        assert source==original and pcm==derived
+        return {
+            "asset_id":str(uuid4()),"derived_wav_asset_id":str(uuid4()),
+            "shop_id":shop,"campaign_id":campaign,
+            "original_mp3_sha256":receipt["original_mp3_sha256"],
+            "derived_wav_sha256":receipt["derived_wav_sha256"],
+            "private":True,"derived_wav_private":True,
+            "atomic_pair_registered":True,
+            "review_state":"PENDING_RIGHTS_AND_SPEECH_REVIEW",
+            **receipt_fields,
+        }
+    def submit():
+        return upload.accept_unreviewed_mp3(
+            shop_id=SHOP,campaign_id=CID,plan=creative(),
+            original_mp3=original,operator_ffmpeg_path="/offline/unused",
+            authenticated_editor=lambda *a:True,
+            read_authoritative_plan=lambda *a:creative(),
+            store_both_private_pending=pending_store)
+    if not valid:
+        with pytest.raises(VoiceUploadRejected,match="atomically registered"):
+            submit()
+    else:
+        result=submit()
+        assert result["review_state"]=="PENDING_RIGHTS_AND_SPEECH_REVIEW"
+        assert result["private"] is True
+        assert result["can_publish"] is False
+        assert result["original_media_rights_verified"] is False
+        assert result["private_download_url"] is None
+        assert result["billing"]=="NONE" and result["paid_calls"]==0
+
+
+# F2-29: synthetically malformed RIFF only; no external FFmpeg/customer audio.
+def _f2_29_replace_wav_fmt(original, new_body):
+    assert original[12:16] == b"fmt "
+    original_size = int.from_bytes(original[16:20], "little")
+    assert original_size == 16
+    remaining = original[20 + original_size + (original_size & 1):]
+    fmt_chunk = b"fmt " + len(new_body).to_bytes(4, "little")
+    fmt_chunk += new_body + (b"\x00" if len(new_body) % 2 else b"")
+    remaining_chunks = b"WAVE" + fmt_chunk + remaining
+    return b"RIFF" + (len(remaining_chunks)).to_bytes(4, "little") + remaining_chunks
+
+
+@pytest.mark.parametrize("fmt_size", [0, 8, 15, 65, 65536, 70000])
+def test_f2_29_original_and_derived_wav_fmt_chunk_is_bounded(fmt_size):
+    from ai_agents.feature2_voiceover_upload import _inspect
+    original = wav()
+    fmt = original[20:36]
+    forged = _f2_29_replace_wav_fmt(original, (fmt + b"X" * fmt_size)[:fmt_size])
+    with pytest.raises(VoiceUploadRejected, match="format metadata unbounded"):
+        _inspect(forged, 30)
+
+
+def test_f2_29_bounded_extended_fmt_preserves_genuine_pcm_review():
+    from ai_agents.feature2_voiceover_upload import _inspect
+    original = wav()
+    fmt = original[20:36]
+    # A small extension may be retained in a private original, pending rights.
+    for length in (16, 18, 40, 64):
+        extended = _f2_29_replace_wav_fmt(
+            original, fmt + b"\x00" * (length - len(fmt))
+        )
+        assert _inspect(extended, 30) == 2.0

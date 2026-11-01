@@ -9,7 +9,7 @@ from __future__ import annotations
 from hashlib import sha256
 from uuid import UUID
 import re
-from .feature2_kokoro_local import synthesize_local
+from .feature2_kokoro_local import synthesize_local, SUPPORTED_VOICES, SPEEDS
 from .feature2_voice_quality import pcm_stats
 from .feature2_pronunciation_dictionary import apply_approved_local_corrections
 from .feature2_azure_speech import _plan, SpeechRejected
@@ -29,6 +29,9 @@ def local_sentence_retake(*,shop_id,campaign_id,source_plan,sentence_index,
         type(sentence_index) is not int or not 0<=sentence_index<=12 or
         type(flagged_audio_sha256) is not str or
         not re.fullmatch("[a-f0-9]{64}",flagged_audio_sha256) or
+        type(voice_id) is not str or type(language) is not str or
+        SUPPORTED_VOICES.get(voice_id)!=language or
+        type(speed) is not str or speed not in SPEEDS or
         not all(callable(x) for x in (current_editor,read_plan,read_approved_words,
                                      claim_one_retake,write_pending_private))):
         raise RetakeDenied("Trusted single-sentence retake required")
@@ -89,8 +92,45 @@ def local_sentence_retake(*,shop_id,campaign_id,source_plan,sentence_index,
     if (type(saved) is not dict or not _uuid(saved.get("asset_id")) or
         saved.get("shop_id")!=shop_id or
         saved.get("new_audio_sha256")!=summary["sha256"] or
-        saved.get("private") is not True):
+        saved.get("private") is not True or
+        ("campaign_id" in saved and saved["campaign_id"]!=campaign_id) or
+        ("creative_plan_sha256" in saved and
+         saved["creative_plan_sha256"]!=review["plan_sha256"]) or
+        ("prior_audio_sha256" in saved and
+         saved["prior_audio_sha256"]!=flagged_audio_sha256) or
+        ("sentence_index" in saved and
+         (type(saved["sentence_index"]) is not int or
+          saved["sentence_index"]!=sentence_index))):
         raise RetakeDenied("Private sentence retake not registered")
+    # Tenant-private registered bytes are still pending fresh STT and
+    # human listening. The writer cannot grant publication, media rights,
+    # billed provider work, or return a signed/public URL in its receipt.
+    if (any(key in saved and saved[key] is not False for key in
+            ("can_publish","can_dispatch_paid_motion","commercial_use_approved",
+             "audio_rights_approved","actual_pronunciation_success_verified",
+             "azure_fallback_used","paid_inference_authorized",
+             "may_auto_invoke_azure")) or
+        ("review_status" in saved and
+         saved["review_status"]!="PENDING_NEW_STT_AND_HUMAN_LISTEN") or
+        ("requires_new_feature7_transcription" in saved and
+         saved["requires_new_feature7_transcription"] is not True) or
+        ("requires_feature4_scene_assembly" in saved and
+         saved["requires_feature4_scene_assembly"] is not True) or
+        ("paid_calls" in saved and
+         (type(saved["paid_calls"]) is not int or saved["paid_calls"]!=0)) or
+        ("billing" in saved and saved["billing"]!="NONE") or
+        ("signed_url" in saved and saved["signed_url"] is not None) or
+        ("private_download_url" in saved and
+         saved["private_download_url"] is not None)):
+        raise RetakeDenied("Private writer attempted to bypass retake review")
+    # A private writer may run after editor access or the original plan was
+    # revoked. Do not return a successful retake receipt in that race.
+    # The real storage adapter MUST make its commit conditional on current
+    # tenant authorization and clean up orphaned pending bytes atomically;
+    # this source-only recheck does not prove such a transaction exists.
+    if (current_editor(shop_id,campaign_id) is not True or
+        read_plan(shop_id,campaign_id)!=source_plan):
+        raise RetakeDenied("Retake source revoked during private registration")
     return {**data,"private_sentence_audio_asset_id":saved["asset_id"],
             "requires_feature4_scene_assembly":True,
             "requires_new_feature7_transcription":True}

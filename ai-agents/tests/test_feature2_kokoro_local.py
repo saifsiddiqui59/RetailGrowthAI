@@ -247,3 +247,144 @@ def test_operator_cpu_benchmark_cli_no_customer_prompt_or_synthetic_positive(mon
     assert offline.returncode==2
     assert offline.stdout==""
     assert "no positive proof" in offline.stderr
+
+
+def test_missing_operator_cache_is_a_scoped_failure_not_traceback(tmp_path):
+    with pytest.raises(LocalSpeechUnavailable,match="Trusted speech cache"):
+        verify_cache(tmp_path/"never-provisioned")
+
+
+def test_pinned_model_file_symlink_swap_during_open_fails_closed(tmp_path,monkeypatch):
+    # The attacker-controlled target is a tiny fake TEST file, not a model.
+    from ai_agents import feature2_kokoro_local as local
+    import os
+    if not hasattr(os,"O_NOFOLLOW"):
+        pytest.skip("Linux no-follow descriptor test")
+    source=b"synthetic-offline-test-weight"
+    voices=b"synthetic-offline-test-voice"
+    target=tmp_path/"swapped"
+    target.write_bytes(source)
+    model=tmp_path/MODEL_NAME
+    model.write_bytes(source)
+    (tmp_path/VOICES_NAME).write_bytes(voices)
+    real_open=os.open
+    switched=[]
+    def exchange(path,flags,*args,**kwargs):
+        if str(path)==str(model) and not switched:
+            model.unlink()
+            model.symlink_to(target)
+            switched.append(True)
+        return real_open(path,flags,*args,**kwargs)
+    monkeypatch.setattr(local.os,"open",exchange)
+    with pytest.raises(LocalSpeechUnavailable,match="Pinned local model"):
+        local.verify_cache(tmp_path,model_sha=sha256(source).hexdigest(),
+            voice_sha=sha256(voices).hexdigest(),
+            model_size=len(source),voice_size=len(voices))
+    assert switched==[True]
+
+
+@pytest.mark.parametrize("corrupt",[
+    "riff_only","duration","publish","transcript","timings",
+])
+def test_cpu_benchmark_denies_forged_wav_or_authority_receipts(corrupt):
+    # No real model/weights, network or billed provider calls in this test.
+    def fake(**kwargs):
+        # Pure standard-library PCM fixture: never skip critical negative
+        # guards because optional NumPy/neural runtime is absent in CI.
+        from ai_agents.feature2_kokoro_local import SOURCE_REVISION
+        stream=io.BytesIO()
+        with wave.open(stream,"wb") as recording:
+            recording.setnchannels(1)
+            recording.setsampwidth(2)
+            recording.setframerate(24000)
+            recording.writeframes(b"\x00\x10"*24000)
+        pcm=stream.getvalue()
+        record={
+            "schema":"retailgrowth.feature2-kokoro-original-audio.v1",
+            "provider":"kokoro-onnx","model":"Kokoro-82M-v1.0-int8",
+            "upstream_revision":SOURCE_REVISION,
+            "voice_id":kwargs["voice_id"],"language":kwargs["lang"],
+            "sample_rate_hz":24000,"paid_calls":0,
+            "approved_to_publish":False,"speech_transcript_verified":False,
+            "word_timestamps":None,
+            "test_only":True,"actual_inference_verified":False,
+            "audio_wav":pcm,"audio_sha256":sha256(pcm).hexdigest(),
+            "duration_seconds":1.0,
+        }
+        if corrupt=="riff_only":
+            record["audio_wav"]=b"RIFF"+b"\x00"*4+b"WAVE"+b"\x00"*36
+            record["audio_sha256"]=sha256(record["audio_wav"]).hexdigest()
+        elif corrupt=="duration":
+            record["duration_seconds"]=2.0
+        elif corrupt=="publish":
+            record["approved_to_publish"]=True
+        elif corrupt=="transcript":
+            record["speech_transcript_verified"]=True
+        else:
+            record["word_timestamps"]=[{"word":"synthetic"}]
+        return record
+    with pytest.raises(LocalSpeechUnavailable,match="provenance|WAV"):
+        run_cpu_kokoro_benchmark(
+            cache_dir="/synthetic-test-cache",repeats=1,
+            synthesize=fake,trusted_for_tests=True)
+
+
+def test_benchmark_pcm_integrity_positive_without_numpy_or_model_weights():
+    from ai_agents.feature2_kokoro_local import SOURCE_REVISION
+    def pure_stdlib_pcm(**kwargs):
+        stream=io.BytesIO()
+        with wave.open(stream,"wb") as recording:
+            recording.setnchannels(1)
+            recording.setsampwidth(2)
+            recording.setframerate(24000)
+            recording.writeframes(b"\x00\x10"*24000)
+        pcm=stream.getvalue()
+        return {"schema":"retailgrowth.feature2-kokoro-original-audio.v1",
+                "provider":"kokoro-onnx","model":"Kokoro-82M-v1.0-int8",
+                "upstream_revision":SOURCE_REVISION,
+                "voice_id":kwargs["voice_id"],"language":kwargs["lang"],
+                "sample_rate_hz":24000,"paid_calls":0,
+                "approved_to_publish":False,"speech_transcript_verified":False,
+                "word_timestamps":None,
+                "test_only":True,"actual_inference_verified":False,
+                "audio_wav":pcm,"audio_sha256":sha256(pcm).hexdigest(),
+                "duration_seconds":1.0}
+    outcome=run_cpu_kokoro_benchmark(
+        cache_dir="/nonexistent-operator-cache-not-read",
+        repeats=1,synthesize=pure_stdlib_pcm,trusted_for_tests=True)
+    assert outcome["sample_count"]==1
+    assert outcome["observations"][0]["audio_seconds"]==1.0
+    assert outcome["test_only"] and not outcome["real_model_inference_verified"]
+    assert not outcome["can_publish"]
+
+
+# F2-09: reject malformed browser text/selection before CPU slot or model load.
+# Only fake local engine objects, no actual model weights or customer speech.
+@pytest.mark.parametrize("hidden", [
+    "\u200b", "\u202e", "\u2066", "\ufeff", "\x85", "\u2028", "\ud800"
+])
+def test_f2_09_cpu_speech_rejects_hidden_unicode_before_engine(hidden):
+    hits = []
+    class NeverCallEngine:
+        def create(self, *args, **kwargs):
+            hits.append(1)
+            raise AssertionError("No CPU inference on unreviewed input")
+    with pytest.raises(LocalSpeechUnavailable, match="Unsupported text"):
+        synthesize_local(
+            text="Simple shop message " + hidden + " today",
+            engine=NeverCallEngine(), trusted_for_tests=True)
+    assert hits == []
+
+
+@pytest.mark.parametrize("bad", [[], {"normal": True}, None, 1])
+def test_f2_09_malformed_speed_fails_closed_without_cpu_session(bad):
+    calls = []
+    class NeverCallEngine:
+        def create(self, *args, **kwargs):
+            calls.append(1)
+            raise AssertionError("No inference for malformed speed")
+    with pytest.raises(LocalSpeechUnavailable, match="Unsupported text"):
+        synthesize_local(
+            text="A safe shop message for preview", speed=bad,
+            engine=NeverCallEngine(), trusted_for_tests=True)
+    assert calls == []

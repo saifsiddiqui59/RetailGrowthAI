@@ -278,6 +278,8 @@ def test_cpu_budget_denies_untrusted_or_exhausted_policy_before_any_once_job(pol
     {"lease_expires_ms":CPU_NOW+600000},
     {"status":"COMPLETED"},{"private":False},
     {"paid_api_calls":1},{"can_publish":True},
+    {"can_dispatch_motion":True},{"commercial_use_approved":True},
+    {"may_auto_invoke_azure":True},{"paid_inference_authorized":True},
     {"atomic_unique_commit":False},{"reserved_cpu_ms":30001},
 ])
 def test_cpu_budget_denies_forged_or_unfenced_database_reservation_receipt(alter):
@@ -418,3 +420,293 @@ def test_cpu_budget_rejects_unbounded_future_clock_before_quota_lookup():
     with pytest.raises(LocalVoiceJobDenied,match="scope"):
         run(now_ms=9_999_999_999_999)
     assert calls==[]
+
+
+# Private status reads are injected offline JWT/RLS stubs. They are NOT a
+# deployed authenticated route, a live Kokoro job or an approved audio sample.
+from ai_agents.feature2_local_voice_workflow import read_private_local_voice_job_status
+
+STATUS_KEY="55555555-5555-4555-8555-555555555555"
+STATUS_REQUEST_SHA="d"*64
+
+def status_read_case(*,status="RESERVED",job_override=None,asset_override=None,
+                     revoked_after=None,job_changed_after=None,
+                     asset_changed_after=None):
+    finished=status=="AWAITING_HUMAN_REVIEW"
+    base={
+        "schema":"retailgrowth.feature2-private-voice-job-status.v1",
+        "shop_id":SHOP,"campaign_id":CAMP,"request_key":STATUS_KEY,
+        "creative_plan_sha256":"a"*64,
+        "original_script_sha256":sha256(
+            b"Diwali kurti and festive fashion").hexdigest(),
+        "provider":"kokoro-onnx","voice_id":"af_heart","language":"en-us",
+        "status":status,"private":True,"can_publish":False,
+        "can_dispatch_motion":False,"automatically_retried":False,
+        "azure_fallback_used":False,"paid_api_calls":0,
+        "revoked_at":None,"request_sha256":STATUS_REQUEST_SHA,
+        "lease_fence":2,
+        "terminal":status in ("AWAITING_HUMAN_REVIEW","FAILED","DENIED","BLOCKED"),
+        "review_status":"PENDING_HUMAN_LISTEN_AND_RIGHTS" if finished else "NOT_READY",
+        "original_audio_sha256":WAV_SHA if finished else None,
+        "audio_asset_id":AID if finished else None,
+    }
+    base.update(job_override or {})
+    media={
+        "schema":"retailgrowth.feature2-to-feature4-original-voice.v1",
+        "shop_id":SHOP,"campaign_id":CAMP,
+        "source_request_key":STATUS_KEY,"audio_asset_id":AID,
+        "creative_plan_sha256":"a"*64,
+        "original_script_sha256":sha256(
+            b"Diwali kurti and festive fashion").hexdigest(),
+        "original_audio_sha256":WAV_SHA,
+        "provider":"kokoro-onnx","mime_type":"audio/wav",
+        "private":True,"can_publish":False,
+        "review_state":"PENDING_HUMAN_LISTEN_AND_RIGHTS",
+        "revoked_at":None,"local_inference_evidence":True,
+    }
+    media.update(asset_override or {})
+    counters={"auth":0,"job":0,"asset":0}
+    def editor(*scope):
+        counters["auth"]+=1
+        return revoked_after is None or counters["auth"]<revoked_after
+    def job(*scope):
+        counters["job"]+=1
+        out=deepcopy(base)
+        if job_changed_after and counters["job"]>=job_changed_after:
+            out["status"]="RUNNING"
+        return out
+    def asset(*scope):
+        counters["asset"]+=1
+        out=deepcopy(media)
+        if asset_changed_after and counters["asset"]>=asset_changed_after:
+            out["revoked_at"]="2026-10-30T00:00:00Z"
+        return out
+    def execute(**overrides):
+        args=dict(shop_id=SHOP,campaign_id=CAMP,source_plan=plan(),
+            request_key=STATUS_KEY,authorize_current_editor=editor,
+            read_current_plan=lambda *a:plan(),
+            read_registered_job=job,read_registered_private_asset=asset)
+        args.update(overrides)
+        return read_private_local_voice_job_status(**args)
+    return execute,counters
+
+
+@pytest.mark.parametrize("state",[
+    "RESERVED","RUNNING","AWAITING_HUMAN_REVIEW","FAILED","DENIED","BLOCKED"
+])
+def test_status_backend_reads_original_once_only_without_auto_retry(state):
+    run,calls=status_read_case(status=state)
+    out=run()
+    assert out["schema"]=="retailgrowth.feature2-private-voice-job-status.v1"
+    assert out["status"]==state and out["can_publish"] is False
+    assert out["paid_api_calls"]==0 and out["automatically_retried"] is False
+    assert out["terminal"]==(state not in ("RESERVED","RUNNING"))
+    if state=="AWAITING_HUMAN_REVIEW":
+        assert out["audio_asset_id"]==AID
+        assert out["original_audio_sha256"]==WAV_SHA
+        assert calls["asset"]==2
+    else:
+        assert out["audio_asset_id"] is None
+        assert out["original_audio_sha256"] is None
+        assert calls["asset"]==0
+    assert calls["job"]==2 and calls["auth"]==2
+    assert all(x not in out for x in ("lease_fence","request_sha256",
+        "token","signed_url","blob_key","reviewer_hmac","audio_bytes"))
+
+
+@pytest.mark.parametrize("change",[
+    {"shop_id":"44444444-4444-4444-8444-444444444444"},
+    {"campaign_id":"44444444-4444-4444-8444-444444444444"},
+    {"request_key":"44444444-4444-4444-8444-444444444444"},
+    {"creative_plan_sha256":"f"*64},{"original_script_sha256":"f"*64},
+    {"provider":"azure-speech"},{"status":"PUBLISHED"},
+    {"private":False},{"can_publish":True},{"can_dispatch_motion":True},
+    {"automatically_retried":True},{"azure_fallback_used":True},
+    {"paid_api_calls":1},{"paid_api_calls":False},
+    {"request_sha256":"not-sha"},{"lease_fence":True},
+    {"review_status":"APPROVED"},{"revoked_at":"now"},
+    {"voice_id":"not-model-voice"},{"language":"mr-in"},
+    {"voice_id":[]},{"status":[]},{"status":{}},
+    {"commercial_use_approved":True},{"may_auto_invoke_azure":True},
+    {"paid_inference_authorized":True},{"customer_publishable":True},
+    {"audio_asset_id":AID},
+    {"original_audio_sha256":WAV_SHA},
+])
+def test_status_backend_denies_foreign_untrusted_or_billable_job(change):
+    run,calls=status_read_case(job_override=change)
+    with pytest.raises(LocalVoiceJobDenied):
+        run()
+    assert calls["job"]==1
+
+
+@pytest.mark.parametrize("change",[
+    {"source_request_key":"44444444-4444-4444-8444-444444444444"},
+    {"original_script_sha256":"f"*64},
+    {"original_audio_sha256":"f"*64},
+    {"review_state":"APPROVED"},
+    {"local_inference_evidence":False},
+    {"can_publish":True},{"revoked_at":"2026-10-30"},
+    {"mime_type":"audio/mpeg"},{"private":False}
+])
+def test_status_backend_denies_forged_original_audio_registration(change):
+    run,calls=status_read_case(status="AWAITING_HUMAN_REVIEW",
+        asset_override=change)
+    with pytest.raises(LocalVoiceJobDenied,match="rights or source revoked"):
+        run()
+    assert calls["asset"]==1
+
+
+def test_status_backend_denies_editor_revoked_during_read():
+    run,calls=status_read_case(revoked_after=2)
+    with pytest.raises(LocalVoiceJobDenied,match="revoked during read"):
+        run()
+    assert calls["job"]==1 and calls["auth"]==2
+
+
+def test_status_backend_denies_inflight_job_or_asset_mutation():
+    run,calls=status_read_case(job_changed_after=2)
+    with pytest.raises(LocalVoiceJobDenied,match="revoked during read"):
+        run()
+    assert calls["job"]==2
+    run,calls=status_read_case(status="AWAITING_HUMAN_REVIEW",
+        asset_changed_after=2)
+    with pytest.raises(LocalVoiceJobDenied):
+        run()
+    assert calls["asset"]==2
+
+
+def test_status_backend_denies_foreign_client_key_before_database_read():
+    run,calls=status_read_case()
+    with pytest.raises(LocalVoiceJobDenied,match="scope"):
+        run(request_key="not-uuid")
+    assert calls=={"auth":0,"job":0,"asset":0}
+
+
+# F2-20: synthetic Kokoro-positive envelope to test private-writer fences ONLY.
+# This is NOT actual model inference or a customer media/rights approval.
+def _f2_20_mock_private_stage(*, mutation=None, revoke_after_write=None):
+    expected=plan()
+    attempts=[];authorizations=[];plan_reads=[]
+    def fake_kokoro(**kwargs):
+        return {
+            **mock(**kwargs),
+            "actual_inference_verified":True, "test_only":False,
+            "model":"Kokoro-82M-v1.0-int8",
+            "upstream_revision":"synthetic-test-only",
+        }
+    def authorized(*scope):
+        authorizations.append(scope)
+        return not (revoke_after_write=="editor" and len(authorizations)>=3)
+    def current_plan(*scope):
+        plan_reads.append(scope)
+        if revoke_after_write=="plan" and len(plan_reads)>=3:
+            return {**expected,"approval_record":{
+                **expected["approval_record"],"plan_sha256":"f"*64}}
+        return expected
+    def writer(shop,campaign,grant,original,receipt):
+        attempts.append(receipt)
+        return {
+            "audio_asset_id":str(uuid4()),"shop_id":shop,
+            "campaign_id":campaign,
+            "original_audio_sha256":sha256(original).hexdigest(),
+            "private":True,
+            **(mutation or {}),
+        }
+    def run():
+        return synthesize_and_stage(
+            shop_id=SHOP,campaign_id=CAMP,source_plan=expected,
+            voice_id="af_heart",lang="en-us",speed="normal",
+            job_key=str(uuid4()),authorize_editor=authorized,
+            read_current_plan=current_plan,
+            reserve_job_once=lambda *scope:"test-local-durable-lease",
+            store_original_private=writer,synthesizer=fake_kokoro,
+        )
+    return run,attempts,authorizations,plan_reads
+
+
+@pytest.mark.parametrize("mutation",[
+    {"can_publish":True}, {"can_publish":"false"},
+    {"can_dispatch_motion":1}, {"commercial_use_approved":None},
+    {"original_media_rights_verified":True},
+    {"pronunciation_verified":1}, {"paid_inference_authorized":True},
+    {"may_auto_invoke_azure":True}, {"approved_for_editing":True},
+    {"review_state":"APPROVED"}, {"paid_calls":False},
+    {"paid_calls":1}, {"billing":"CHARGED"},
+    {"signed_url":"https://example.invalid/public"},
+    {"private_download_url":"https://example.invalid/audio"},
+    {"creative_plan_sha256":"f"*64},
+])
+def test_f2_20_kokoro_private_writer_denies_optional_grants(mutation):
+    run, writes, _, _ = _f2_20_mock_private_stage(mutation=mutation)
+    with pytest.raises(LocalVoiceJobDenied,match="Original audio was not registered"):
+        run()
+    assert len(writes)==1  # Simulated writer effect is not a rights grant.
+
+
+@pytest.mark.parametrize("revocation", ["editor","plan"])
+def test_f2_20_private_writer_rechecks_current_tenant_and_plan_after_commit(revocation):
+    run, writes, authorization_reads, plan_reads = (
+        _f2_20_mock_private_stage(revoke_after_write=revocation)
+    )
+    with pytest.raises(LocalVoiceJobDenied,match="revoked after private audio stage"):
+        run()
+    assert len(writes)==1
+    assert len(authorization_reads)>=3
+    if revocation=="plan":
+        assert len(plan_reads)>=3
+
+
+def test_f2_20_kokoro_private_writer_explicit_pending_metadata_stays_private():
+    run, writes, reads, _ = _f2_20_mock_private_stage(mutation={
+        "can_publish":False,"can_dispatch_motion":False,
+        "commercial_use_approved":False,
+        "original_media_rights_verified":False,
+        "pronunciation_verified":False,
+        "paid_inference_authorized":False,
+        "may_auto_invoke_azure":False,"approved_for_editing":False,
+        "review_state":"PENDING_HUMAN_LISTEN_AND_RIGHTS",
+        "paid_calls":0,"billing":"NONE","signed_url":None,
+        "private_download_url":None,
+        "creative_plan_sha256":"a"*64,
+    })
+    result=run()
+    assert len(writes)==1 and len(reads)==3
+    assert result["private"] is True
+    assert result["can_publish"] is False
+    assert result["can_dispatch_motion"] is False
+    assert result["paid_calls"] == 0
+    assert result["audio_bytes"] is None and result["signed_url"] is None
+
+
+# F2-21: budgeted CPU reservation is not a paid API invoice or grant.
+# The callback is a local fake of a durable one-shot DB reservation only.
+@pytest.mark.parametrize("alter",[
+    {"paid_api_calls":False}, {"paid_api_calls":"0"},
+    {"can_dispatch_motion":1}, {"can_dispatch_motion":"false"},
+    {"commercial_use_approved":None},
+    {"commercial_use_approved":"false"},
+    {"may_auto_invoke_azure":0}, {"may_auto_invoke_azure":"no"},
+    {"paid_inference_authorized":1},
+    {"paid_inference_authorized":"false"},
+    {"paid_calls":False}, {"paid_calls":1},
+    {"billing":"CHARGED"},
+])
+def test_f2_21_cpu_reservation_denies_wrong_type_unpaid_grants(alter):
+    run, calls=budget_case(save_tamper=alter)
+    with pytest.raises(LocalVoiceJobDenied,match="reservation evidence"):
+        run()
+    assert len(calls)==1
+
+
+def test_f2_21_cpu_reservation_explicit_unpaid_flags_are_still_pending_only():
+    run, calls=budget_case(save_tamper={
+        "paid_api_calls":0,"can_dispatch_motion":False,
+        "commercial_use_approved":False,"may_auto_invoke_azure":False,
+        "paid_inference_authorized":False,"paid_calls":0,"billing":"NONE",
+    })
+    out=run()
+    assert len(calls)==1
+    assert out["paid_api_calls"]==0
+    assert out["can_publish"] is False
+    assert out["real_model_inference_observed"] is False
+    assert out["reservation_is_not_worker_completion"] is True
