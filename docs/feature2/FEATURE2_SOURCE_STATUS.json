@@ -200,7 +200,18 @@
       "id": "F2-20",
       "title": "Tenant-private audio storage, registered rights and signed playback",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "Coordinator + F2"
+      "owner": "Coordinator + F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Post-private Kokoro local voice storage response rights/billing fence and source revocation",
+        "source_commits": [
+          "cf4d438499d99c2aac440d0a52f4d92b0236cd1a"
+        ],
+        "test_commit": "f9369408e9ef09bf65fc44ae5042dacdd52b3cbb",
+        "test_cases": 19,
+        "complete_scope": false,
+        "blocker": "Real trusted private write transaction, storage RLS, signed downloads and human rights approval not live; synthetic Kokoro-positive receipts are mock fixtures"
+      }
     },
     {
       "id": "F2-21",
