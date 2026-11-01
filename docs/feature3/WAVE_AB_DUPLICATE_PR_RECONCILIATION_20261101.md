@@ -33,3 +33,9 @@ Each of the following open standalone PRs targeted `main`. We independently fetc
 4. Do not increment product `DONE`: Feature #3 tracker still shows **0/33 fully hosted accepted** (1 source-integrated, 11 source-partial, 21 blocked/dependent). The separately recorded F3-01 source milestone is not a hosted output.
 
 This is a **docs-only reviewed handoff**; do not append unverified coordinator task-status events.
+
+## Parallel continuation audit — additional exact-source duplicate cleanup
+- Independently verified all three changed-file Git blob SHAs on current main for [#738](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/738) (signed-link render fence), [#752](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/752) (private-source encoding), and [#802](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/802) (approved video-use grant). Each source+test+handoff blob matched exact PR head. Explanatory comments added, and each standalone PR closed as **unmerged superseded** by merged Wave A #811 or Wave B #813. No source/test was lost, no new hosted DONE.
+- [#744](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/744) remains open: two changed paths match exactly but `feature3_gpuoff_queue_intake.py` has further changes on main (public `require_gpu_off`, source snapshot). Do **not** close without function-level semantic reconciliation.
+- Independent **F3-10/F3-13** generated-Blob cleanup retry patch proposed in [PR #859](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/859), with scoped regression tests. This patch is separate from and not absorbed by Wave A/B; code review, exact-head CI and fresh postmerge main CI required, hosted acceptance unchanged.
+
