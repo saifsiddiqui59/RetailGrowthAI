@@ -18,7 +18,7 @@ def test_feature2_source_status_matches_all_original_38_ledger_rows():
     source = json.loads(SOURCE_FILE.read_text(encoding="utf-8"))
     ledger = LEDGER_FILE.read_text(encoding="utf-8")
     rows = re.findall(
-        r"^\\|\\s*(\\d{1,2})\\s*\\|[^\\n]*?\\|\\s*(COMPLETE|IN_PROGRESS|BLOCKED)\\s*\\|",
+        r"^\|\s*(\d{1,2})\s*\|[^\n]*?\|\s*(COMPLETE|IN_PROGRESS|BLOCKED)\s*\|",
         ledger, flags=re.MULTILINE,
     )
     expected = {
