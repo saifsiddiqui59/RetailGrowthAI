@@ -84,7 +84,8 @@ class Feature3PrivateGPUWorker:
         row = self.service.read_prepaid_reservation(shop, job, attempt, token)
         if (not isinstance(row, dict) or set(row) != _EXPECTED_RESERVATION or
             row.get("shop_id") != shop or row.get("job_id") != job or
-            row.get("claim_token") != token or row.get("attempt") != attempt):
+            row.get("claim_token") != token or
+            type(row.get("attempt")) is not int or row["attempt"] != attempt):
             raise ProviderBlocked("Missing current one-shot GPU reservation or lease")
         if self._rights(shop, job, token, sources) is not True:
             raise ProviderBlocked("Source rights revoked before Storage stage")
@@ -100,7 +101,8 @@ class Feature3PrivateGPUWorker:
         )
         if (not isinstance(receipt, dict) or set(receipt) != _EXPECTED_COMMIT or
             receipt.get("shop_id") != shop or receipt.get("job_id") != job or
-            receipt.get("claim_token") != token or receipt.get("attempt") != 1 or
+            receipt.get("claim_token") != token or
+            type(receipt.get("attempt")) is not int or receipt["attempt"] != 1 or
             receipt.get("image_sha256") != digest or
             receipt.get("private") is not True or
             receipt.get("review_status") != "UNREVIEWED"):
