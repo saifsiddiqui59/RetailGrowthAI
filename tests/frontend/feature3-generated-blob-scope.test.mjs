@@ -325,3 +325,22 @@ test('private preview fetch is single-flight before React imageBusy state commit
   assert.match(history,/const clearImage=\(\)=>\{\s*\+\+epoch\.current\s*imageReadToken\.current=null/)
   assert.match(history,/return \(\)=>\{\s*epoch\.current\+=1\s*imageReadToken\.current=null/)
 })
+
+test('generated job history refresh is synchronous single-flight and cannot strand busy state',()=>{
+  const history=readFileSync(
+    new URL('../../frontend/src/features/creative/Feature3GeneratedHistory.jsx',import.meta.url),'utf8')
+  // checked.busy is a React state snapshot and is not sufficient to prevent
+  // two rapid Check clicks from making concurrent private history requests.
+  assert.match(history,/const historyReadToken=useRef\(null\)/)
+  assert.match(history,/if\(!api \|\| !shopId \|\| checked\.busy \|\| historyReadToken\.current!==null\)return/)
+  assert.match(history,/const refreshToken=Symbol\('private-generated-history'\)\s*historyReadToken\.current=refreshToken/)
+  assert.match(history,/if\(historyReadToken\.current===refreshToken\)\{\s*historyReadToken\.current=null/)
+  assert.match(history,/previous\.shopId===shop && previous\.api===source && previous\.busy/)
+  assert.match(history,/Private history refresh cancelled\./)
+  // A history refresh and a private preview may not race before React renders.
+  assert.match(history,/historyReadToken\.current!==null \|\| imageReadToken\.current!==null/)
+  // A scope/client change invalidates both tokens; stale finally cannot
+  // unlock the new scope's private request or overwrite its busy state.
+  assert.match(history,/historyReadToken\.current=null\s*try \{ registry\.current\.selectScope\(shopId\) \}/)
+  assert.match(history,/return \(\)=>\{\s*epoch\.current\+=1\s*imageReadToken\.current=null\s*historyReadToken\.current=null/)
+})
