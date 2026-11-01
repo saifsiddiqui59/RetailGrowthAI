@@ -21,6 +21,11 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
   const [imageMessage,setImageMessage]=useState('')
   const [filter,setFilter]=useState('ALL')
   const epoch=useRef(0)
+  // React state updates are asynchronous; guard a second Preview click before
+  // imageBusy rerenders, without invalidating the first authorized request.
+  const imageReadToken=useRef(null)
+  // Prevent double history GETs before React commits checked.busy.
+  const historyReadToken=useRef(null)
   const registry=useRef(null)
   if(!registry.current)registry.current=createFeature3GeneratedBlobScope()
   const current=useRef({shopId,api,binaryClient})
@@ -31,25 +36,47 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
     : []
   const displayed=image?.shopId===shopId && image?.api===api &&
     image?.binaryClient===binaryClient &&
-    visibleJobs.some(row=>row.id===image.jobId && row.status==='SUCCEEDED')
+    visibleJobs.some(row=>row.id===image.jobId && row.status==='SUCCEEDED') &&
+    registry.current.view(shopId,image.jobId)===image.url
     ? image : null
   useEffect(()=>{
-    registry.current.selectScope(shopId)
+    // A browser revoke failure must not interrupt the React privacy reset.
+    // The scope registry keeps the hidden owned URL for a later retry.
+    let cleanupPending=false
+    imageReadToken.current=null
+    historyReadToken.current=null
+    try { registry.current.selectScope(shopId) }
+    catch { cleanupPending=true }
     setState(initial(shopId,api))
     setImage(null)
     setImageBusy(false)
-    setImageMessage('')
+    setImageMessage(cleanupPending
+      ? 'Private preview hidden; browser cleanup pending. Retry after recovery.'
+      : '')
     setFilter('ALL')
-    return ()=>{epoch.current+=1;registry.current.clear()}
+    return ()=>{
+      epoch.current+=1
+      imageReadToken.current=null
+      historyReadToken.current=null
+      try { registry.current.clear() }
+      catch { /* hidden pending URL stays in the private registry */ }
+    }
   },[shopId,api,binaryClient])
 
   const load=async()=>{
-    if(!api || !shopId || checked.busy)return
+    if(!api || !shopId || checked.busy || historyReadToken.current!==null)return
     const shop=shopId,source=api,nonce=++epoch.current
-    registry.current.clear()
+    imageReadToken.current=null
     setImage(null)
     setImageBusy(false)
     setImageMessage('')
+    try { registry.current.clear() }
+    catch {
+      setImageMessage('Private preview hidden; browser cleanup pending. Retry after recovery.')
+      return
+    }
+    const refreshToken=Symbol('private-generated-history')
+    historyReadToken.current=refreshToken
     const still=()=>nonce===epoch.current &&
       current.current.shopId===shop && current.current.api===source
     setState({...initial(shop,source),busy:true})
@@ -64,21 +91,34 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
     }catch{
       if(still())setState({...initial(shop,source),
         message:'Private generated-image history unavailable or access revoked.'})
+    }finally{
+      if(historyReadToken.current===refreshToken){
+        historyReadToken.current=null
+        // Clear/filter or a competing private preview can invalidate the
+        // nonce before the GET settles. Never leave history permanently busy.
+        if(!still())setState(previous=>
+          previous.shopId===shop && previous.api===source && previous.busy
+            ? {...previous,busy:false,message:'Private history refresh cancelled.'}
+            : previous)
+      }
     }
   }
   const loadImage=async(job)=>{
     if(!binaryClient || !api || !shopId || imageBusy || checked.busy ||
+       historyReadToken.current!==null || imageReadToken.current!==null ||
        job?.status!=='SUCCEEDED' ||
        !checked.jobs.some(row=>row.id===job.id && row.status==='SUCCEEDED'))return
     const shop=shopId,source=binaryClient,historyApi=api,nonce=++epoch.current
+    const readToken=Symbol('private-generated-preview')
+    imageReadToken.current=readToken
     const still=()=>nonce===epoch.current &&
       current.current.shopId===shop && current.current.binaryClient===source &&
       current.current.api===historyApi
-    registry.current.clear()
     setImage(null)
     setImageBusy(true)
     setImageMessage('')
     try{
+      registry.current.clear()
       const verified=await source.get(shop,job.id)
       if(!still())return
       registry.current.selectScope(shop)
@@ -90,15 +130,21 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
       if(still())setImageMessage(
         'Private image unavailable or rights revoked. No preview was retained.')
     }finally{
+      // A stale request must never unlock a newer in-flight private read.
+      if(imageReadToken.current===readToken)imageReadToken.current=null
       if(still())setImageBusy(false)
     }
   }
   const clearImage=()=>{
     ++epoch.current
-    registry.current.clear()
+    imageReadToken.current=null
     setImage(null)
     setImageBusy(false)
     setImageMessage('')
+    try { registry.current.clear() }
+    catch {
+      setImageMessage('Private preview hidden; browser cleanup pending. Retry Clear.')
+    }
   }
   return <section aria-label="Private generated-image job history">
     <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
