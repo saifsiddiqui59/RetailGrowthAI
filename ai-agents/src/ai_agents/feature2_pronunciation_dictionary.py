@@ -49,12 +49,21 @@ def approve_dictionary_entry(*,shop_id,word,spoken_as,lang,editor_current,
         saved.get("word")!=word or saved.get("spoken_as")!=spoken_as or
         type(saved.get("revision")) is not int or
         saved["revision"]!=expected_revision+1 or
-        any(saved.get(flag) is True for flag in (
+        ("language" in saved and saved["language"]!=lang) or
+        # A spelling preference does NOT confer publication, audio-quality,
+        # media-rights or paid-retry authority. Optional fields may be absent
+        # for older signed records but, if present, must be literal False.
+        any(flag in saved and saved[flag] is not False for flag in (
             "can_publish","approved_to_publish","paid_motion_permitted",
-            "audio_pronunciation_verified","may_auto_retry",
-            "may_auto_invoke_azure")) or
+            "commercial_use_approved","audio_pronunciation_verified",
+            "may_auto_retry","may_auto_invoke_azure",
+            "paid_inference_authorized","can_dispatch_paid_motion")) or
         ("paid_calls" in saved and
-         (type(saved["paid_calls"]) is not int or saved["paid_calls"]!=0))):
+         (type(saved["paid_calls"]) is not int or saved["paid_calls"]!=0)) or
+        ("billing" in saved and saved["billing"]!="NONE") or
+        ("private_download_url" in saved and
+         saved["private_download_url"] is not None) or
+        ("signed_url" in saved and saved["signed_url"] is not None)):
         raise PronunciationDenied("Atomic shop dictionary save not confirmed")
     # The trusted DB CAS must fence the transaction against revocation and
     # clean orphaned writes on failure. A successful receipt is not a current
@@ -80,9 +89,17 @@ def apply_approved_local_corrections(*,script,shop_id,lang,read_current_entries)
             row.get("approval")!="RETAILER_EDITOR_REVIEWED_SPELLING_ONLY" or
             not _word(row.get("word")) or
             not _word(row.get("spoken_as"),correction=True) or
-            any(row.get(flag) is True for flag in
+            any(flag in row and row[flag] is not False for flag in
                 ("can_publish","audio_pronunciation_verified",
-                 "paid_motion_permitted","may_auto_retry"))):
+                 "paid_motion_permitted","may_auto_retry",
+                 "approved_to_publish","commercial_use_approved",
+                 "may_auto_invoke_azure","paid_inference_authorized")) or
+            ("paid_calls" in row and
+             (type(row["paid_calls"]) is not int or row["paid_calls"]!=0)) or
+            ("billing" in row and row["billing"]!="NONE") or
+            ("private_download_url" in row and
+             row["private_download_url"] is not None) or
+            ("signed_url" in row and row["signed_url"] is not None)):
             raise PronunciationDenied("Current signed pronunciation review missing")
         key=row["word"].casefold()
         if key in substitutions:raise PronunciationDenied("Duplicated preferred spelling")
