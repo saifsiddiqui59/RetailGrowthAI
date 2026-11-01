@@ -31,25 +31,40 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
     : []
   const displayed=image?.shopId===shopId && image?.api===api &&
     image?.binaryClient===binaryClient &&
-    visibleJobs.some(row=>row.id===image.jobId && row.status==='SUCCEEDED')
+    visibleJobs.some(row=>row.id===image.jobId && row.status==='SUCCEEDED') &&
+    registry.current.view(shopId,image.jobId)===image.url
     ? image : null
   useEffect(()=>{
-    registry.current.selectScope(shopId)
+    // A browser revoke failure must not interrupt the React privacy reset.
+    // The scope registry keeps the hidden owned URL for a later retry.
+    let cleanupPending=false
+    try { registry.current.selectScope(shopId) }
+    catch { cleanupPending=true }
     setState(initial(shopId,api))
     setImage(null)
     setImageBusy(false)
-    setImageMessage('')
+    setImageMessage(cleanupPending
+      ? 'Private preview hidden; browser cleanup pending. Retry after recovery.'
+      : '')
     setFilter('ALL')
-    return ()=>{epoch.current+=1;registry.current.clear()}
+    return ()=>{
+      epoch.current+=1
+      try { registry.current.clear() }
+      catch { /* hidden pending URL stays in the private registry */ }
+    }
   },[shopId,api,binaryClient])
 
   const load=async()=>{
     if(!api || !shopId || checked.busy)return
     const shop=shopId,source=api,nonce=++epoch.current
-    registry.current.clear()
     setImage(null)
     setImageBusy(false)
     setImageMessage('')
+    try { registry.current.clear() }
+    catch {
+      setImageMessage('Private preview hidden; browser cleanup pending. Retry after recovery.')
+      return
+    }
     const still=()=>nonce===epoch.current &&
       current.current.shopId===shop && current.current.api===source
     setState({...initial(shop,source),busy:true})
@@ -74,11 +89,11 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
     const still=()=>nonce===epoch.current &&
       current.current.shopId===shop && current.current.binaryClient===source &&
       current.current.api===historyApi
-    registry.current.clear()
     setImage(null)
     setImageBusy(true)
     setImageMessage('')
     try{
+      registry.current.clear()
       const verified=await source.get(shop,job.id)
       if(!still())return
       registry.current.selectScope(shop)
@@ -95,10 +110,13 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
   }
   const clearImage=()=>{
     ++epoch.current
-    registry.current.clear()
     setImage(null)
     setImageBusy(false)
     setImageMessage('')
+    try { registry.current.clear() }
+    catch {
+      setImageMessage('Private preview hidden; browser cleanup pending. Retry Clear.')
+    }
   }
   return <section aria-label="Private generated-image job history">
     <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
