@@ -273,6 +273,86 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         self.info["base_color"]="teal"
         with self.assertRaises(FashionReferenceDenied):self.prepare()
 
+    def test_final_first_frame_rejects_transient_private_path_before_byte_read(self):
+        # Feature5's standalone first-frame reader is an independent consumer
+        # of the same private source authority as Feature3's worker packet.
+        # A second row read after the lease must never fetch a substituted
+        # foreign, public, traversal, or wrong-role Storage object.
+        for tryon in (False, True):
+            for mutation in (
+                {"object_path":f"{self.other}/uploads/{self.upload_object}.png"},
+                {"object_path":"https://external.invalid/private.png"},
+                {"object_path":f"{self.shop}/uploads/../secret.png"},
+                {"storage_bucket":"public-media"},
+                {"source":"UPLOAD" if tryon else "GENERATED"},
+                {"shop_id":self.other},
+                {"id":str(uuid4())},
+            ):
+                with self.subTest(tryon=tryon, mutation=mutation):
+                    self.setUp()
+                    target=self.tryon if tryon else self.garment
+                    manifest=(self.prepare(
+                        model_asset_id=self.model_asset,model_id=self.model_id,
+                        try_on_asset_id=self.tryon) if tryon else self.prepare())
+                    readers=self.readers()
+                    original_row=readers["read_asset"]
+                    original_bytes=readers["read_private_bytes"]
+                    calls=[0]
+                    byte_paths=[]
+                    def changed_row(shop,asset):
+                        row=original_row(shop,asset)
+                        if asset==target:
+                            calls[0]+=1
+                            if calls[0]==2:
+                                return {**row,**mutation}
+                        return row
+                    def tracked_bytes(shop,asset,path):
+                        byte_paths.append(path)
+                        return original_bytes(shop,asset,path)
+                    readers["read_asset"]=changed_row
+                    readers["read_private_bytes"]=tracked_bytes
+                    with self.assertRaises(FashionReferenceDenied):
+                        resolve_first_frame(
+                            expected_manifest=manifest,current_readers=readers,
+                            verify_worker_job=self.worker_claim)
+                    self.assertEqual(calls[0],2)
+                    # First manifest pass may read original sources, but the
+                    # substituted second-row path must never be fetched.
+                    self.assertEqual(len(byte_paths),3 if tryon else 1)
+                    self.assertNotIn(mutation.get("object_path","not-a-path"),
+                                     byte_paths)
+
+    def test_final_first_frame_rechecks_typed_rights_before_private_byte_read(self):
+        # A transient revocation or bool/float revision cannot be repaired by
+        # a later clean callback: deny the current final-byte read itself.
+        for invalid in (True,1.0,"3",None):
+            with self.subTest(revision=repr(invalid)):
+                self.setUp()
+                manifest=self.prepare()
+                readers=self.readers()
+                original=readers["authorize_asset"]
+                original_bytes=readers["read_private_bytes"]
+                seen=[0]
+                byte_reads=[]
+                def changed_grant(shop,asset,purpose):
+                    value=original(shop,asset,purpose)
+                    if asset==self.garment:
+                        seen[0]+=1
+                        if seen[0]==2:
+                            return {**value,"rights_revision":invalid}
+                    return value
+                def tracked_bytes(shop,asset,path):
+                    byte_reads.append(path)
+                    return original_bytes(shop,asset,path)
+                readers["authorize_asset"]=changed_grant
+                readers["read_private_bytes"]=tracked_bytes
+                with self.assertRaises(FashionReferenceDenied):
+                    resolve_first_frame(expected_manifest=manifest,
+                                        current_readers=readers,
+                                        verify_worker_job=self.worker_claim)
+                self.assertEqual(seen[0],2)
+                self.assertEqual(len(byte_reads),1)
+
     def test_worker_without_durable_claim_is_denied_before_private_delivery(self):
         original=self.prepare()
         with self.assertRaises(FashionReferenceDenied):
