@@ -63,6 +63,20 @@ def _origin(value):
     return value.rstrip("/")
 
 
+def _license_url(value):
+    """Validate a declaration's shape; NEVER infer commercial rights from it."""
+    if (type(value) is not str or not 1 <= len(value) <= 500 or
+            any(not 33 <= ord(ch) <= 126 for ch in value)):
+        return False
+    try:
+        parsed = urlsplit(value)
+        return (parsed.scheme == "https" and bool(parsed.hostname) and
+                parsed.username is None and parsed.password is None and
+                parsed.port in (None, 443))
+    except ValueError:
+        return False
+
+
 def _credentials(secret):
     if (isinstance(secret,str) and secret.startswith("sb_secret_") and
             len(secret)>=20 and not any(ord(c)<33 for c in secret)):
@@ -98,16 +112,24 @@ class Feature3TrustedPrivateSourceProof:
                 "source","license_name","license_url","attribution"}:
             raise SourceProofDenied("Trusted registered media row required")
         asset=_uuid(media["id"])
+        mime=media["mime_type"]
+        license_name=media["license_name"]
+        license_url=media["license_url"]
+        attribution=media["attribution"]
+        # PostgREST rows and injected adapters can be malformed. Deny before
+        # building a private Storage URL or consulting any approval callback.
+        # The license URL is only provenance metadata, never rights evidence.
         if (media["shop_id"]!=shop or
                 media["storage_bucket"]!="retailgrowth-media" or
                 media["source"] not in ("UPLOAD","GENERATED") or
-                media["license_name"] not in ("owned","cc0","royalty_free","commercial") or
-                not isinstance(media["attribution"],str) or
-                len(media["attribution"].strip())<10 or
-                media["mime_type"] not in _EXT or
-                (media["license_name"]!="owned" and
-                 (not isinstance(media["license_url"],str) or
-                  not media["license_url"].startswith("https://")))):
+                type(mime) is not str or mime not in _EXT or
+                type(license_name) is not str or
+                license_name not in ("owned","cc0","royalty_free","commercial") or
+                type(attribution) is not str or
+                not 10<=len(attribution.strip())<=200 or
+                any(ord(ch)<32 or ord(ch)==127 for ch in attribution) or
+                (license_url is not None and not _license_url(license_url)) or
+                (license_name!="owned" and license_url is None)):
             raise SourceProofDenied("Private media ownership and licence metadata invalid")
         key=media["object_path"]
         if not isinstance(key,str) or len(key)>256 or not key.startswith(shop+"/"):
@@ -145,11 +167,12 @@ class Feature3TrustedPrivateSourceProof:
             with self.transport(req,timeout=15) as response:
                 if response.geturl()!=url or response.getcode()!=200:
                     raise SourceProofDenied("Private Storage acknowledgement unconfirmed")
-                headers=getattr(response,"headers",{})
-                size=headers.get("Content-Length") if headers is not None else None
-                kind=headers.get("Content-Type") if headers is not None else None
-                encoding=(headers.get("Content-Encoding")
-                          if headers is not None else None)
+                headers=getattr(response,"headers",None)
+                if not callable(getattr(headers,"get",None)):
+                    raise SourceProofDenied("Private Storage response headers unavailable")
+                size=headers.get("Content-Length")
+                kind=headers.get("Content-Type")
+                encoding=headers.get("Content-Encoding")
                 # Encoded transport bytes cannot be attested as the exact
                 # registered original. No transparent decompression or
                 # intermediary transformation is accepted.
@@ -157,7 +180,9 @@ class Feature3TrustedPrivateSourceProof:
                         (not isinstance(encoding,str) or
                          encoding.strip().lower()!="identity")):
                     raise SourceProofDenied("Encoded private source response denied")
-                if (kind is not None and kind.split(";",1)[0].strip().lower()!=mime):
+                if (kind is not None and
+                        (type(kind) is not str or
+                         kind.split(";",1)[0].strip().lower()!=mime)):
                     raise SourceProofDenied("Private Storage returned another media format")
                 if size is not None and (not isinstance(size,str) or
                         not size.isascii() or not size.isdigit() or
