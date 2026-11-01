@@ -777,3 +777,9 @@ Use scripts/checkpoint.sh after completing a task.
 ## 2026-10-31 — Five feature-owned integration leads (governance proposal) — effective 2026-10-31
 Prepared reviewed policy for feature-owned self-integration and restore of Feature #5 scheduled worker. Read AGENTS.md and the four core state documents plus current CI; verified main CI #41175618253 4/4 on prior main, registry 159 tasks and F3-01 source-only event. Repository branch protection read forbidden (403), rulesets list empty; no protection assumptions. No feature code/GPU/PROD/WineShopPOS changes.
 Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert a new feature DONE or live production readiness.
+
+## 2026-11-01 — Feature3 Wave A/B source-equivalent PR deduplication
+- Read AGENTS and canonical state/task/decision/log documents, verified current main `456b1757d7df2f0cc28a5ef6c8ba203b18380948`, Wave A #811 at `c14d099d`, Wave B #813 at `7404b46e`, and main Part 1 CI #41178167285 with all four jobs successful.
+- Independently compared *every changed file* SHA on PR #790 (approved-copy scope), #791 (signed provider busy/message) and #761 (outbox dispatch-token reuse) against current main; all three sets of three files match. Added evidence comments and closed each as **unmerged superseded** PR, avoiding duplicate source merges.
+- Checked PR #760: two files match main but current queue-envelope test file differs; deliberately kept #760 open pending assertion-level reconciliation. Proposed reviewed documentation receipt at `docs/feature3/WAVE_AB_DUPLICATE_PR_RECONCILIATION_20261101.md`. No source edits, new task DONE, live hosted claims, GPU, paid models, DB writes, PROD or WineShopPOS.
+
