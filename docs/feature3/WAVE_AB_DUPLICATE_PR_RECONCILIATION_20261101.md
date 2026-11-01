@@ -27,7 +27,7 @@ Each of the following open standalone PRs targeted `main`. We independently fetc
 
 ## Next owner actions / release limits
 
-1. Reconcile #760's test hunk against current-main descendants; only after exact assertion coverage and source inclusion are verified should the stale PR be closed with a receipt.
+1. #760's historical test source was reconciled and closed with explicit proof of all original test lines retained in order; continue reviewing any **other** stale Wave A/B child PRs individually rather than re-merging their source.
 2. Continue an independent source-only F3 package acceptance task where still eligible; do not redo merged Wave A/B work.
 3. Existing host blockers remain: [#325](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/325) / [#471](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/471) signed private PNG route and rights callback; F3-LICENSED-MEDIA independent approval; [#249](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/249) Azure reliability; [#627](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/627) genuine worker traces; F5 GPU authorization.
 4. Do not increment product `DONE`: Feature #3 tracker still shows **0/33 fully hosted accepted** (1 source-integrated, 11 source-partial, 21 blocked/dependent). The separately recorded F3-01 source milestone is not a hosted output.
