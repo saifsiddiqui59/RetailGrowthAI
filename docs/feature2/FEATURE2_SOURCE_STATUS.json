@@ -1,0 +1,287 @@
+{
+  "schema_version": 1,
+  "feature": "2",
+  "total_task_ids": 38,
+  "recorded_at": "2026-11-01",
+  "source_ledger": "docs/feature2/FEATURE2_38_TASK_LEDGER_20261029.md",
+  "source_ledger_note": "Source-only scope evidence. An imported snapshot is not integrated DONE.",
+  "current_source_pr": 848,
+  "parent_pr": 551,
+  "source_scope_only": true,
+  "counts": {
+    "SOURCE_IN_PROGRESS": 18,
+    "SOURCE_COMPLETE": 8,
+    "EXTERNALLY_BLOCKED": 12
+  },
+  "review_scope": [
+    "F2-04",
+    "F2-30"
+  ],
+  "review_ci": {
+    "run_id": 41292492409,
+    "exact_head_sha": "37dfcc24fe850f977500d7755d53d3d012c9cbcf",
+    "required_jobs_passed": 4,
+    "required_jobs_total": 4
+  },
+  "integration": {
+    "accepted_done": 0,
+    "main_merged": false,
+    "production_verified": false,
+    "needs_independent_parent_review": true
+  },
+  "deduplication_rule": "Do not reimplement SOURCE_COMPLETE source scopes. Reopen only with an identified failing regression/new requirement and an evidence-backed ledger change; hosted/rights gates are separate.",
+  "tasks": [
+    {
+      "id": "F2-01",
+      "title": "Azure Functions Creative Director runtime/package validation",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-02",
+      "title": "Retailer-specific AI copy, offers, CTAs, factual claims",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-03",
+      "title": "Prompt Improver and reviewed script-revision workflow",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-04",
+      "title": "Trend/RSS relevance, scoring, evergreen fallback",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 41292492409,
+      "verified_on_commit": "37dfcc24fe850f977500d7755d53d3d012c9cbcf",
+      "scope": "source_only"
+    },
+    {
+      "id": "F2-05",
+      "title": "15/30/60-second script/storyboard structural quality checks",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 40861279169,
+      "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
+      "scope": "source_only"
+    },
+    {
+      "id": "F2-06",
+      "title": "Actual MIT Creative Director exporter + Feature3 original demo garment/model byte tests for F4/F5",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 40861279169,
+      "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
+      "scope": "source_only"
+    },
+    {
+      "id": "F2-07",
+      "title": "Indian retailer-brand pronunciation regression coverage",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 40861279169,
+      "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
+      "scope": "source_only"
+    },
+    {
+      "id": "F2-08",
+      "title": "Blind A/B review, scoring and durable revision history",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-09",
+      "title": "Kokoro CPU worker cache/startup/concurrency/failures",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-10",
+      "title": "Voice selector, human corrections and retake UI wiring",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-11",
+      "title": "PCM clipping, silence, volume and review diagnostics",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 40861279169,
+      "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
+      "scope": "source_only"
+    },
+    {
+      "id": "F2-12",
+      "title": "Feature2 step-by-step auditable workflow trace",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-13",
+      "title": "Security negative paths, CI regression and source consistency",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 40861279169,
+      "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
+      "scope": "source_only"
+    },
+    {
+      "id": "F2-14",
+      "title": "Real Kokoro WAV/MP3 inference, playback and QA",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-15",
+      "title": "Real CPU time/RSS/cost benchmark",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-16",
+      "title": "Feature7 signed registered original-WAV ASR",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "F7 + F2"
+    },
+    {
+      "id": "F2-17",
+      "title": "Actual ASR/WER/manual spoken-script comparisons",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-18",
+      "title": "Offline OpenPronounce checkpoint and correction benchmark",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-19",
+      "title": "Authenticated speech preview/generate/job-status/review APIs",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-20",
+      "title": "Tenant-private audio storage, registered rights and signed playback",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-21",
+      "title": "Durable job idempotency, budgets, usage and worker limits",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-22",
+      "title": "Mount voice selector inside signed Creative Studio",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-23",
+      "title": "F4 approved narration/captions/retakes/music ducking",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "F4 + coordinator + F2"
+    },
+    {
+      "id": "F2-24",
+      "title": "F5 versioned motion prompt and frame handoff",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "F5 + coordinator + F2"
+    },
+    {
+      "id": "F2-25",
+      "title": "Azure #249 503 reliability root-cause/fix",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Azure #249 lead"
+    },
+    {
+      "id": "F2-26",
+      "title": "Voice quality review panel and correction guidance",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-27",
+      "title": "Single-sentence human-approved retake and replacement",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-28",
+      "title": "Free/paid provider voice and cost disclosures",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 40861279169,
+      "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
+      "scope": "source_only"
+    },
+    {
+      "id": "F2-29",
+      "title": "Private MP3 decode and safety validation",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-30",
+      "title": "English/Indian-English/Hindi/Marathi voice route tests",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 41292492409,
+      "verified_on_commit": "37dfcc24fe850f977500d7755d53d3d012c9cbcf",
+      "scope": "source_only"
+    },
+    {
+      "id": "F2-31",
+      "title": "Editor script A/B preview and explicit approval UX",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-32",
+      "title": "Synthetic trend→actual Director exporter→voice/ASR gates→F4 editor trace",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-33",
+      "title": "Live two-tenant JWT/RLS/role revocation E2E",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-34",
+      "title": "Real rights/offer/consent and human review",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-35",
+      "title": "Hosted DEV Playwright and signed protected APIs",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-36",
+      "title": "Human-QA 30-second commercial full Reel",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-37",
+      "title": "Reconcile PR #551, coordinator-only merge and postmerge CI",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-38",
+      "title": "Canonical state/decisions/next/worklog docs after integration",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Coordinator + F2"
+    }
+  ]
+}
