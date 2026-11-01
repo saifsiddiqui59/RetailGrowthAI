@@ -40,6 +40,12 @@ SPACE = re.compile(r"\s+")
 def _clean(value: object, *, limit: int = 160) -> str:
     if not isinstance(value, str):
         return ""
+    # Check the original provider bytes-as-text BEFORE collapsing Unicode
+    # whitespace: U+0085 and U+2028 otherwise disappear into plain spaces.
+    if any(ord(c) < 32 or 0x7f <= ord(c) <= 0x9f or
+           unicodedata.category(c) in {"Cf", "Cs", "Zl", "Zp"}
+           for c in value):
+        return ""
     if "<" in value or ">" in value:
         return ""
     value = SPACE.sub(" ", TAG.sub(" ", unicodedata.normalize("NFKC", value))).strip()
