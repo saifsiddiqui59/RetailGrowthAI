@@ -89,6 +89,24 @@ export function makeLocalVoiceAction({
 }
 
 
+// UI-only fail-closed projection: optional keys from backend revisions must
+// never claim commercial approval, billable calls, or disclose private URLs.
+// Only server-side signed review, shop authorization and durable CAS count.
+function reviewMetadataEscalated(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return true
+  const flags = ['approved_to_publish','commercial_use_approved',
+    'offer_facts_verified','media_rights_verified',
+    'paid_inference_authorized','may_auto_invoke_azure',
+    'can_dispatch_paid_motion','provider_call_made']
+  return flags.some(k=>Object.hasOwn(value,k) && value[k]!==false) ||
+    (Object.hasOwn(value,'paid_calls') &&
+      (typeof value.paid_calls!=='number' ||
+        !Number.isInteger(value.paid_calls) || value.paid_calls!==0)) ||
+    (Object.hasOwn(value,'billing') && value.billing!=='NONE') ||
+    (Object.hasOwn(value,'private_download_url') && value.private_download_url!==null) ||
+    (Object.hasOwn(value,'signed_url') && value.signed_url!==null)
+}
+
 // A/B draft reviewer request is non-authoritative. The server must look up
 // exact pending proposal, signed human decision and current RLS revision
 // before executing Feature2 commit_reviewed_prompt_draft CAS.
@@ -105,7 +123,8 @@ export function makeReviewedDraftRequest({shopId,campaignId,planSha256,
     !SHA.test(proposal.original_prompt_sha256)||
     !SHA.test(proposal.improved_prompt_sha256)||
     proposal.review_status!=='NEEDS_REVIEW'||
-    proposal.can_publish!==false||proposal.private!==true)invalid()
+    proposal.can_publish!==false||proposal.private!==true||
+    reviewMetadataEscalated(proposal))invalid()
   return Object.freeze({
     schema:'retailgrowth.feature2-reviewed-draft-request.v1',
     shop_id:shopId,campaign_id:campaignId,
@@ -130,7 +149,8 @@ export function verifyReviewedDraftReceipt({shopId,campaignId,proposal,receipt})
     receipt.review_status!=='DRAFT'||receipt.private!==true||
     receipt.can_publish!==false||receipt.can_dispatch_paid_motion!==false||
     receipt.requires_fresh_media_rights!==true||
-    receipt.requires_new_copy_fact_review!==true) invalid()
+    receipt.requires_new_copy_fact_review!==true||
+    reviewMetadataEscalated(receipt)) invalid()
   return Object.freeze({revision:receipt.revision,review_status:'DRAFT',
     requires_fresh_media_rights:true,can_publish:false})
 }
