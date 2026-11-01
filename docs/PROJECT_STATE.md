@@ -1377,3 +1377,8 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 
 - #729 model-library-rights grant source/tests/handoff also exactly matched integrated main and was closed as superseded, not new Feature3 implementation.
 
+## 2026-11-01 — Feature3 durable source-task deduplication proposal
+- Independently verified F3-01 already has an accepted `source_integrated` DONE event in `coordination/task_progress.json` for Wave B #813 and postmerge Part 1 CI #41131088666; immutable inventory remains 159 original IDs.
+- [PR #860](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/860) proposes 14 granular merged source-component completions and a **review-only advisory** scheduler override. Its receipt maps original F3 IDs to already-merged #811/#813 code; it suppresses duplicated implementation suggestions without marking entire hosted packages DONE or adding an AI executor. Changes to shared scheduler/coordination still require independent review and exact-head 4/4, then fresh main 4/4.
+- No source-only completion is a human garment-rights review, live signed private PNG route, real GPU worker or hosted tenant test. No GPU, paid provider, DB write, PROD, or WineShopPOS modification.
+
