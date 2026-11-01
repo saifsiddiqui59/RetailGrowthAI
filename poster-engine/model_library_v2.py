@@ -213,6 +213,20 @@ def import_model_image(*, candidate, image_bytes, authorize_import,
     return record
 
 
+def _approved_model_uses(value, usage):
+    """A reviewed model can grant a strict nonempty subset of known uses.
+
+    Do not let a forged extra use ride along with one valid requested use,
+    nor let unhashable/duplicate entries crash or widen the server boundary.
+    """
+    if (not isinstance(value, (list, tuple, set, frozenset)) or
+            not 1 <= len(value) <= len(USES)):
+        return False
+    if any(type(use) is not str or use not in USES for use in value):
+        return False
+    return len(set(value)) == len(value) and usage in value
+
+
 def checked_model_for_use(*, model, requesting_shop_id, usage, authorize_use):
     """Safely prepare a shared/private model reference for poster/try-on/video.
 
@@ -223,8 +237,8 @@ def checked_model_for_use(*, model, requesting_shop_id, usage, authorize_use):
     if (not isinstance(model, dict) or model.get("schema") !=
         "retailgrowth.model-library.v1" or model.get("status") != "APPROVED"
         or usage not in USES or model.get("synthetic_adult") is not True or
-        not isinstance(model.get("approved_uses"), (tuple, list, set, frozenset))
-        or usage not in model["approved_uses"] or
+        not _approved_model_uses(model.get("approved_uses"), usage) or
+        model.get("license_id") not in KNOWN_LICENSES or
         model.get("scope") not in SCOPES or
         not isinstance(model.get("image_sha256"), str) or
         not SHA256.fullmatch(model["image_sha256"]) or
@@ -234,9 +248,11 @@ def checked_model_for_use(*, model, requesting_shop_id, usage, authorize_use):
     owner = _uuid(model.get("owner_shop_id"))
     if model["scope"] == "shop" and owner != shop_id:
         raise ModelLibraryDenied("Another shop's private models are not accessible")
-    if (model.get("license_id") == "CC-BY-4.0"
-        and not model.get("attribution")):
-        raise ModelLibraryDenied("Attribution required for derivative use")
+    attribution = model.get("attribution", "")
+    if (not isinstance(attribution, str) or len(attribution) > 200 or
+            (model.get("license_id") == "CC-BY-4.0" and
+             not attribution.strip())):
+        raise ModelLibraryDenied("Reviewed model attribution invalid")
     expected_prefix = (f"{owner}/model-library/platform/" if model["scope"] == "platform"
                        else f"{owner}/model-library/")
     key = model.get("storage_key")
@@ -249,6 +265,6 @@ def checked_model_for_use(*, model, requesting_shop_id, usage, authorize_use):
         raise ModelLibraryDenied("Current shop rights, model approval or license revoked")
     return {
         "model_id": model["model_id"], "image_sha256": model["image_sha256"],
-        "storage_key": key, "attribution": model.get("attribution", ""),
+        "storage_key": key, "attribution": attribution,
         "requires_private_signed_media": True, "requires_current_rights": True,
     }
