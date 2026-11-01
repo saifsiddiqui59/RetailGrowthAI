@@ -6,8 +6,8 @@
   "source_branch": "feat/feature2-unified-offline-source-20261028",
   "fixed_total_tasks": 38,
   "task_status_counts": {
-    "COMPLETE_SOURCE_SCOPED": 6,
-    "IN_PROGRESS": 20,
+    "COMPLETE_SOURCE_SCOPED": 8,
+    "IN_PROGRESS": 18,
     "BLOCKED": 12
   },
   "scope": "Read-only coordinator dependency routing; no production authority, budget authorization or acceptance implied.",
