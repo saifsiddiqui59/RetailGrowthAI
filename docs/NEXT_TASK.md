@@ -1363,6 +1363,8 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 3. Continue another disjoint Feature3 source package while #859 and docs PR #858 wait for gates; true hosted rights/route/GPU remain externally blocked.
 
 ## Feature #3 after stacked-PR semantic reconciliation (2026-11-01)
-- #798/#843/#834/#768/#744 were verified source-integrated through Wave A/B and closed with SHA or explicit semantic+test coverage receipts. Do not reapply these standalone patches. PR #812 history-state source has differences from main; leave open until independently reconciled (not a copy-paste or automatic close).
+- #798/#843/#834/#768/#744 were verified source-integrated through Wave A/B and closed with SHA or explicit semantic+test coverage receipts. Do not reapply these standalone patches. PR #812 history-state source has different newer main behavior; original negative coverage was independently reconciled, and the stale branch was closed as semantically superseded.
 - PR #859 F3-10/F3-13 private generated Blob retry source remains review-gated despite exact-head standard CI result; check targeted tests/CI and independently review private browser cleanup before merging. Main hosted gates remain #325/#471, #249, #627, licensed retailer inputs and GPU OFF.
+
+- #812 is now source-reconciled and closed as semantic-superseded; internal signed-API history state is allowed only when checked, and public presentation excludes it. Do not copy its older source over the Wave B version. Continue #859 independent review and other genuinely unintegrated tasks.
 
