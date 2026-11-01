@@ -217,7 +217,18 @@
       "id": "F2-21",
       "title": "Durable job idempotency, budgets, usage and worker limits",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "Coordinator + F2"
+      "owner": "Coordinator + F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Durable local CPU quota receipt denies boolean-zero billing and ambiguously typed paid/motion grants",
+        "source_commits": [
+          "c630814bda2e88077d1a3ea9a1bc2eab93636c6b"
+        ],
+        "test_commit": "ec033834fdfa6c6e2adbde6693e748510e5cc17f",
+        "test_cases": 14,
+        "complete_scope": false,
+        "blocker": "Actual tenant budget SQL and atomic one-shot lease/worker settlement on hosted RLS remain coordinator-owned; mocked callback not live guarantee"
+      }
     },
     {
       "id": "F2-22",
