@@ -18,3 +18,9 @@ Effective 2026-11-01. This is a **reviewed-proposal-only** machine-readable prog
 Feature #3 still needs independently approved genuine garment/model rights (F3-LICENSED-MEDIA), authenticated mounted private PNG delivery and current-output rights validation (historical #325/#471 handoffs), hosted issue #249 reliability tests, genuine #627 worker spans and signed two-tenant DEV role-denial E2E. Paid FLUX/GPU remains OFF.
 
 The overlay must be independently reviewed before merging because `coordination/**`, `scripts/coordination/**` and `tests/contracts/**` are shared/coordinator-owned. A green branch workflow alone does not authorize self-merge of shared status/scheduler logic.
+
+## Original task-status report visibility
+- `scripts/coordination/task_status.py` also reads the reviewed Feature3 source overlay and adds `source_components_integrated` (14), `source_components_task_count` (11) and per-original-task `completed_source_prs` to the report. **This is a separate source metric**, never extra `verified_done`, never an accepted hosted package, and never an invented project task ID.
+- `tests/contracts/test_task_status.py` exercises a 14-source/11-original-F3-ID report with **zero unreviewed DONE events**, plus negative forged-hosted, foreign ID and duplicate-PR receipts. Current existing F3-01 trusted DONE event stays untouched.
+- Revisions require independent shared-coordination review, final-head CI and fresh postmerge main CI; do not self-approve or treat this unmerged PR as live scheduler behavior.
+
