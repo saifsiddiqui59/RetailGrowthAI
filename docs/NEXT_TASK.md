@@ -1376,3 +1376,9 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 3. Keep [#859](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/859) marked **PR-tested / awaiting security review**, not integrated. Record a new accepted component receipt only after its own reviewed main merge and fresh main CI.
 4. Original Feature3 task-level status remains F3-01 source-integrated DONE, 11 source-partial and 21 blocked packages, **0/33 fully hosted accepted**; reviewed source-component completions are not eleven new task-level DONE claims.
 
+## Feature3 immediate review/integration queue — 2026-11-01
+- F3-07/F3-13 [#861](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/861): strict typed output CAS and prepaid lease receipts, exact-head #41301202397 4/4 PASS; **independent private-output/finance reviewer required**, source not yet merged.
+- F3-02/F3-13 [#862](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/862): strict private final-read source-rights revision, exact-head #41301483566 4/4 PASS; **independent private-media/rights reviewer required**, source not yet merged.
+- F3-10/F3-13 #859 remains exact-head #41292509625 4/4 PASS and security review-gated. Shared [#860](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/860) now tracks all three tested PRs to prevent duplicate candidate assignments, but no task-level DONE until independent integration/main 4/4. Shared docs #858 also review-gated.
+- Continue separate legitimate source work when safe; do not resubmit any of these three or Wave A/B's fourteen completed components. No live hosted/paid approvals inferred.
+
