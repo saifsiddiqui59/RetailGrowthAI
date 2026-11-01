@@ -1373,3 +1373,5 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 ## Feature #3 additional Wave A/B integration verification (2026-11-01)
 - Reconciled and closed five more superseded standalone/stacked PRs with evidence: #798 (four SHA matches), #843 (exact PNG code+tests; later checkpoint docs), #834 (equivalent typed-attempt checks and negatives in main), #768 (source+test subset with later decoder cleanup), #744 (same twice-current GPU-OFF behavior with subsequent refactor). See scoped detailed audit and individual comments; no duplicate code merge or new hosted package acceptance.
 
+- F3-10/F3-13 history branch #812 also closed after semantic+test review: current main preserves the negative protections with additional signed-provider fencing; original source/test blobs differ. No product source was remerged.
+
