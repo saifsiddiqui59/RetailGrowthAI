@@ -329,19 +329,23 @@ def resolve_first_frame(*, expected_manifest, current_readers,
     if verify_worker_job(fresh["shop_id"], source_ids, fresh["reference_fingerprint"]) is not True:
         raise FashionReferenceDenied("No current authorized motion worker claim")
     frame = fresh["sources"]["first_frame"]
-    # The first pass revalidated all sources, while this final read pins the
-    # exact frame bytes immediately before delivery to the private worker.
-    row = current_readers["read_asset"](fresh["shop_id"], frame["source_asset_id"])
-    if not isinstance(row, dict) or row.get("shop_id") != fresh["shop_id"]:
-        raise FashionReferenceDenied("Private first frame no longer exists")
-    raw = current_readers["read_private_bytes"](
-        fresh["shop_id"], frame["source_asset_id"], row.get("object_path"))
-    size, digest = _read_image(raw, frame["mime_type"])
-    if digest != frame["sha256"] or size != frame["dimensions"]:
-        raise FashionReferenceDenied("First frame changed after authorization")
+    # The lease may be current while the media row or its rights change.
+    # Reuse the same private-source authority as the first manifest pass:
+    # verify registered shop/bucket/source/path and the CURRENT typed rights
+    # grant BEFORE handing the path to the byte reader. Merely checking the
+    # shop on the row and comparing the SHA after reading could fetch an
+    # attacker-substituted private object before rejecting its bytes.
+    role = "try_on" if fresh["try_on_review"] is not None else "garment"
+    current, raw = _approved_asset(
+        fresh["shop_id"], frame["source_asset_id"], role,
+        "image_to_video", read_asset=current_readers["read_asset"],
+        authorize_asset=current_readers["authorize_asset"],
+        read_private_bytes=current_readers["read_private_bytes"])
+    if current != frame:
+        raise FashionReferenceDenied("First-frame rights or source changed after authorization")
     return {"shop_id": fresh["shop_id"], "source_asset_id": frame["source_asset_id"],
-            "sha256": digest, "mime_type": frame["mime_type"],
-            "dimensions": size, "image_bytes": raw,
+            "sha256": current["sha256"], "mime_type": current["mime_type"],
+            "dimensions": current["dimensions"], "image_bytes": raw,
             "generation_executed": False, "gpu_authorized": False}
 
 
