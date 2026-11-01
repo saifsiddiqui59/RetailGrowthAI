@@ -207,6 +207,29 @@
       "exact_head": "0b33b71f6cdb618356014610dd5b2823049c35be",
       "exact_head_ci_run_id": 41292509625,
       "hosted_task_complete": false
+    },
+    {
+      "source_pr": 861,
+      "task_ids": [
+        "F3-07",
+        "F3-13"
+      ],
+      "component": "One-shot private GPU prepaid lease and SQL media commit receipts require actual integer attempt",
+      "stage": "TESTED_PR_REVIEW_REQUIRED",
+      "exact_head": "22a54ee5b68b05945d95e7c0819684beeca1b48a",
+      "exact_head_ci_run_id": 41301202397,
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 862,
+      "task_ids": [
+        "F3-02",
+        "F3-13"
+      ],
+      "component": "Private worker final source-rights revision cannot be boolean or floating point",
+      "stage": "PR_IN_PROGRESS",
+      "exact_head": "a80e2741ca69973188c6975e191401ba03572557",
+      "hosted_task_complete": false
     }
   ],
   "verified_package_done": [
@@ -226,5 +249,5 @@
     "F5-GPU-AUTHORIZATION",
     "real signed DEV JWT/RLS negative tests"
   ],
-  "next_action": "Review already-integrated source before starting any new code for a covered package; never mark remaining hosted acceptance DONE from this source-only ledger."
+  "next_action": "PRs #859/#861 tested; #862 CI in progress. All three require independent review, current-main merge and fresh postmerge 4/4 before SOURCE_INTEGRATED. No hosted task DONE or repeated implementation while active PR is open."
 }
