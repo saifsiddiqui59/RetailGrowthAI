@@ -304,7 +304,7 @@ test('React history hides preview before cleanup and checks live registry owners
   const history=readFileSync(
     new URL('../../frontend/src/features/creative/Feature3GeneratedHistory.jsx',import.meta.url),'utf8')
   assert.match(history,/registry\.current\.view\(shopId,image\.jobId\)===image\.url/)
-  assert.match(history,/const clearImage=\(\)=>\{\s*\+\+epoch\.current\s*setImage\(null\)\s*setImageBusy\(false\)\s*setImageMessage\(''\)\s*try \{ registry\.current\.clear\(\) \}/)
+  assert.match(history,/const clearImage=\(\)=>\{\s*\+\+epoch\.current\s*imageReadToken\.current=null\s*setImage\(null\)\s*setImageBusy\(false\)\s*setImageMessage\(''\)\s*try \{ registry\.current\.clear\(\) \}/)
   assert.match(history,/const loadImage=async\(job\)=>[\s\S]*?setImage\(null\)\s*setImageBusy\(true\)\s*setImageMessage\(''\)\s*try\{\s*registry\.current\.clear\(\)/)
   assert.match(history,/const load=async\(\)=>[\s\S]*?setImage\(null\)\s*setImageBusy\(false\)\s*setImageMessage\(''\)\s*try \{ registry\.current\.clear\(\) \}/)
   assert.match(history,/Private preview hidden; browser cleanup pending/)
