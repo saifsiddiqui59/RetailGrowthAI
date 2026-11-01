@@ -1357,3 +1357,8 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 2. **#760 now closed as source-equivalent:** the original test is an ordered subsequence of current main with two later mocked SQL ACK lines added, while its other two blobs match exactly. This is reviewed source inclusion, not a new F3 product task DONE. Continue checking other Wave A/B standalone PRs individually; no unverified bulk closures.
 3. For active hosted blockers pursue independent reviewed authorization and real DEV tests: #325/#471 signed current-rights private PNG route, F3-LICENSED-MEDIA rights, #249 Azure 503, #627 signed worker traces, F5 paid GPU authorization. Preserve **0/33 hosted complete** and GPU OFF.
 
+## Feature3 parallel continuation checkpoint (2026-11-01)
+1. Verify exact-head 4/4 and regression results for source [PR #859](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/859), F3-10/F3-13; independent reviewer must inspect private Blob URL retry semantics and latest-main compatibility before any feature self-merge. Fresh main CI after merge; no 33-package hosted DONE from browser cleanup.
+2. #738, #752 and #802 have been closed only after exact blob equivalence to integrated main for all three changed paths; don't reintegrate. Keep #744 OPEN pending semantic review of later GPU-off queue method renaming/changes; avoid duplicate patches.
+3. Continue another disjoint Feature3 source package while #859 and docs PR #858 wait for gates; true hosted rights/route/GPU remain externally blocked.
+
