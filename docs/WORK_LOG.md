@@ -793,3 +793,5 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 
 - Subsequently reconciled stacked #812, seven paths (three exact docs blobs, four later-diverged code/tests). Main's strict four-field public history envelope plus private internal API identity checks and model-preview revoke ownership preserve/improve original security tests. Closed #812 as semantic-superseded with evidence comment rather than copying its stale implementation.
 
+- Independently verified and closed source-equivalent #729 (all three changed blob SHAs equal current main) after inspecting Wave A integration; no duplicate new code merge or new hosted DONE.
+
