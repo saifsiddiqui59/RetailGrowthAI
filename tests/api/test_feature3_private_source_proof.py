@@ -379,5 +379,61 @@ class PrivateSourceProofTests(unittest.TestCase):
                 self.proof(self.shop,self.row)
             self.assertEqual([c[0] for c in self.calls],["review","get"])
 
+
+    def test_missing_transport_methods_and_header_get_fail_closed(self):
+        # Real private Storage reads must fail closed when a gateway or
+        # injected transport does not implement the expected HTTP interface.
+        # No malformed response can reach the post-read rights receipt.
+        for missing in ("geturl", "getcode", "read"):
+            self.setUp()
+            original=self.proof.transport
+            def malformed(req,*,timeout):
+                response=original(req,timeout=timeout)
+                setattr(response,missing,None)
+                return response
+            self.proof.transport=malformed
+            with self.subTest(missing=missing), self.assertRaises(SourceProofDenied):
+                self.proof(self.shop,self.row)
+            self.assertEqual([c[0] for c in self.calls],["review","get"])
+
+        self.setUp()
+        original=self.proof.transport
+        class FailingHeaders:
+            def get(self,key):
+                raise TypeError("malformed proxy header accessor")
+        def malformed_headers(req,*,timeout):
+            response=original(req,timeout=timeout)
+            response.headers=FailingHeaders()
+            return response
+        self.proof.transport=malformed_headers
+        with self.assertRaises(SourceProofDenied):
+            self.proof(self.shop,self.row)
+        self.assertEqual([c[0] for c in self.calls],["review","get"])
+
+    def test_rights_authority_outage_denies_before_model_original_get(self):
+        # A real review service outage must never fall back to trusting a
+        # registered model's SHA key or retailer-declared license metadata.
+        for failure in (TimeoutError, ConnectionError, RuntimeError):
+            self.setUp()
+            def unavailable(*_args):
+                raise failure("sensitive rights backend details")
+            self.proof.review=unavailable
+            with self.subTest(failure=failure.__name__), self.assertRaisesRegex(
+                    SourceProofDenied,"review unavailable"):
+                self.proof(self.shop,self.row)
+            self.assertEqual(self.calls,[])
+
+    def test_generic_source_authority_outage_never_produces_attestation(self):
+        # Generic keys lack an immutable pre-read digest; preserve this
+        # explicit limitation and still reject an unavailable post-read
+        # independent reviewer. No success receipt or GPU authorization.
+        self.row["object_path"]=f"{self.shop}/retailer-original/original.png"
+        def unavailable(*_args):
+            raise TimeoutError("offline rights review")
+        self.proof.review=unavailable
+        with self.assertRaisesRegex(SourceProofDenied,"review unavailable"):
+            self.proof(self.shop,self.row)
+        self.assertEqual([c[0] for c in self.calls],["get"])
+
 if __name__=="__main__":
     unittest.main()
