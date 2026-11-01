@@ -43,7 +43,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Approved retailer legal claim source rejects hidden controls, HTML/URLs, empty or duplicate offers and invalid percent metadata",
         "source_commits": [
           "4939d0105099f95cfc3361614849b9d5ea127cc4",
@@ -52,7 +52,9 @@
         "test_commit": "c1684da5641e5962884488219b1f35fa5245bcbb",
         "test_cases": 19,
         "complete_scope": false,
-        "blocker": "Real authenticated retailer approved offers/rights and trusted hosted review integration remain pending"
+        "blocker": "Real authenticated retailer approved offers/rights and trusted hosted review integration remain pending",
+        "ci_run_id": 41302121066,
+        "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
       }
     },
     {
@@ -103,7 +105,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Private blind A/B review CAS/history denies malformed publish, paid, billing and URL grants",
         "source_commits": [
           "68b2e35c6843c4691b276029a7be384eb0e4a529",
@@ -112,7 +114,9 @@
         "test_commit": "62998c1a16c827f0e86edcc22a88f4e68b1cf28c",
         "test_cases": 22,
         "complete_scope": false,
-        "blocker": "Genuine signed independent reviewers, durable hosted RLS CAS, authenticated reader and accepted main merge not verified"
+        "blocker": "Genuine signed independent reviewers, durable hosted RLS CAS, authenticated reader and accepted main merge not verified",
+        "ci_run_id": 41302121066,
+        "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
       }
     },
     {
@@ -121,13 +125,15 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Kokoro CPU input/speed preflight rejects invisible Unicode & unhashable selectors",
         "code_commit": "ac0bbb3c82d41d8866388baa0caf2dd8d789ba02",
         "test_commit": "53514c093be5b0b5c3e1a5241d4748a0f4e222e1",
         "test_cases": 11,
         "complete_scope": false,
-        "blocker": "Real pinned Kokoro checkpoint/CPU host and model benchmark not available; full F2-09 remains in progress"
+        "blocker": "Real pinned Kokoro checkpoint/CPU host and model benchmark not available; full F2-09 remains in progress",
+        "ci_run_id": 41294266905,
+        "verified_source_head_sha": "2bbd5a53383ee0456e0df959c82f96d8ee039076"
       }
     },
     {
@@ -202,7 +208,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "Coordinator + F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Post-private Kokoro local voice storage response rights/billing fence and source revocation",
         "source_commits": [
           "cf4d438499d99c2aac440d0a52f4d92b0236cd1a"
@@ -210,7 +216,9 @@
         "test_commit": "f9369408e9ef09bf65fc44ae5042dacdd52b3cbb",
         "test_cases": 19,
         "complete_scope": false,
-        "blocker": "Real trusted private write transaction, storage RLS, signed downloads and human rights approval not live; synthetic Kokoro-positive receipts are mock fixtures"
+        "blocker": "Real trusted private write transaction, storage RLS, signed downloads and human rights approval not live; synthetic Kokoro-positive receipts are mock fixtures",
+        "ci_run_id": 41302121066,
+        "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
       }
     },
     {
@@ -219,7 +227,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "Coordinator + F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Durable local CPU quota receipt denies boolean-zero billing and ambiguously typed paid/motion grants",
         "source_commits": [
           "c630814bda2e88077d1a3ea9a1bc2eab93636c6b"
@@ -227,7 +235,9 @@
         "test_commit": "ec033834fdfa6c6e2adbde6693e748510e5cc17f",
         "test_cases": 14,
         "complete_scope": false,
-        "blocker": "Actual tenant budget SQL and atomic one-shot lease/worker settlement on hosted RLS remain coordinator-owned; mocked callback not live guarantee"
+        "blocker": "Actual tenant budget SQL and atomic one-shot lease/worker settlement on hosted RLS remain coordinator-owned; mocked callback not live guarantee",
+        "ci_run_id": 41302121066,
+        "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
       }
     },
     {
@@ -281,7 +291,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Bound RIFF/WAV format metadata inside private MP3 normalization and original PCM inspection",
         "source_commits": [
           "5d0564b16308bdb3be5c486e359337149bf4e4a3"
@@ -289,7 +299,9 @@
         "test_commit": "19e0b8df68e91e5c27b0f14c5805114412d339e8",
         "test_cases": 7,
         "complete_scope": false,
-        "blocker": "Real FFmpeg-enabled worker, tenant-private media writer/rights and RLS still need verification; synthetic WAV does not prove real MP3/licensing"
+        "blocker": "Real FFmpeg-enabled worker, tenant-private media writer/rights and RLS still need verification; synthetic WAV does not prove real MP3/licensing",
+        "ci_run_id": 41302121066,
+        "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
       }
     },
     {
@@ -349,5 +361,19 @@
       "source_status": "EXTERNALLY_BLOCKED",
       "owner": "Coordinator + F2"
     }
-  ]
+  ],
+  "latest_verified_source_substeps": {
+    "state": "TESTED_SOURCE_SUBSTEPS_NOT_MAIN_DONE",
+    "tasks": [
+      "F2-09",
+      "F2-02",
+      "F2-08",
+      "F2-20",
+      "F2-21",
+      "F2-29"
+    ],
+    "ci_run_id": 41302121066,
+    "ci_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50",
+    "main_integration_verified": false
+  }
 }
