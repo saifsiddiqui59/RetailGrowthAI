@@ -18,7 +18,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from PIL import Image, UnidentifiedImageError
 
-from tenant_store import canonical_uuid
+from tenant_store import StorageUnavailable, canonical_uuid
 
 _SHA = re.compile(r"^[a-f0-9]{64}$")
 _MAX = 25 * 1024 * 1024
@@ -65,25 +65,71 @@ class Feature3RevocablePNGReader:
     def _current(self, token, actor, shop, job):
         # All reads go through the *actual* user's JWT and existing RLS, not
         # a service role key. This is deliberately performed twice.
-        if self.tenant.member(token, actor, shop) is not True:
+        # Treat a broken current JWT/RLS adapter as denial, not a private
+        # image authorization or a raw backend exception in an HTTP response.
+        try:
+            member = self.tenant.member(token, actor, shop)
+        except (StorageUnavailable, OSError):
+            # A transport/RLS outage is opaque 503 at the HTTP adapter,
+            # not a false 404 for a known-missing private asset.
+            raise
+        except Exception:
+            raise PrivateGeneratedDownloadDenied(
+                "Private generated output unavailable") from None
+        if member is not True:
             raise PrivateGeneratedDownloadDenied("Private generated output unavailable")
-        row = self.tenant.feature3_gpu_job(token, shop, job)
+        try:
+            row = self.tenant.feature3_gpu_job(token, shop, job)
+        except (StorageUnavailable, OSError):
+            # A transport/RLS outage is opaque 503 at the HTTP adapter,
+            # not a false 404 for a known-missing private asset.
+            raise
+        except Exception:
+            raise PrivateGeneratedDownloadDenied(
+                "Private generated output unavailable") from None
         if (not isinstance(row, dict) or row.get("id") != job or
                 row.get("shop_id") != shop or row.get("status") != "SUCCEEDED"):
             raise PrivateGeneratedDownloadDenied("Private generated output unavailable")
         asset_id = canonical_uuid(row.get("output_asset_id"))
-        asset = self.tenant.feature3_generated_asset(
-            token, shop, job, asset_id)
+        try:
+            asset = self.tenant.feature3_generated_asset(
+                token, shop, job, asset_id)
+        except (StorageUnavailable, OSError):
+            # A transport/RLS outage is opaque 503 at the HTTP adapter,
+            # not a false 404 for a known-missing private asset.
+            raise
+        except Exception:
+            raise PrivateGeneratedDownloadDenied(
+                "Private generated output unavailable") from None
         key = asset.get("object_path") if isinstance(asset, dict) else None
         prefix = f"{shop}/feature3/gpu/{job}/"
-        if (not isinstance(key, str) or not key.startswith(prefix) or
+        # The TenantStore currently validates these fields, but this is
+        # also a trust boundary for any future injected store adapter.
+        # A path alone cannot prove that the registered row belongs to this
+        # generated output rather than an uploaded/foreign media asset.
+        if (not isinstance(key, str) or
+                asset.get("id") != asset_id or
+                asset.get("shop_id") != shop or
+                asset.get("storage_bucket") != "retailgrowth-media" or
+                asset.get("source") != "GENERATED" or
+                not key.startswith(prefix) or
                 not key.endswith(".png") or
                 not _SHA.fullmatch(key[len(prefix):-4]) or
                 asset.get("mime_type") != "image/png"):
             raise PrivateGeneratedDownloadDenied("Private generated output unavailable")
         # Must be a real backend check of original source rights/approval
         # and immutable output evidence, NOT a caller-created True from UI.
-        if self.rights(shop, job, asset_id) is not True:
+        try:
+            current_rights = self.rights(shop, job, asset_id)
+        except StorageUnavailable:
+            # Preserve opaque 503 for a current rights backend outage.
+            raise
+        except Exception:
+            # A reviewer outage cannot fall back to the Storage key, JWT
+            # membership or a historical rights approval.
+            raise PrivateGeneratedDownloadDenied(
+                "Private generated output unavailable") from None
+        if current_rights is not True:
             raise PrivateGeneratedDownloadDenied("Private generated output unavailable")
         return asset_id, key, key[len(prefix):-4]
 
@@ -98,30 +144,41 @@ class Feature3RevocablePNGReader:
                                    "Cache-Control":"no-store"})
         try:
             with self.transport(request, timeout=10) as response:
-                if response.geturl() != url or response.getcode() != 200:
+                # Malformed HTTP/gateway response is never a private grant.
+                if (not callable(getattr(response, "geturl", None)) or
+                        not callable(getattr(response, "getcode", None)) or
+                        not callable(getattr(response, "read", None)) or
+                        response.geturl() != url or response.getcode() != 200):
                     raise PrivateGeneratedDownloadDenied(
                         "Unconfirmed authenticated private image")
-                headers = getattr(response,"headers",None)
-                length = headers.get("Content-Length") if headers is not None else None
-                mime = headers.get("Content-Type") if headers is not None else None
-                content_encoding = (headers.get("Content-Encoding")
-                                    if headers is not None else None)
+                headers = getattr(response, "headers", None)
+                if not callable(getattr(headers, "get", None)):
+                    raise PrivateGeneratedDownloadDenied(
+                        "Unconfirmed authenticated private image")
+                length = headers.get("Content-Length")
+                mime = headers.get("Content-Type")
+                content_encoding = headers.get("Content-Encoding")
                 if content_encoding is not None and (
-                        not isinstance(content_encoding,str) or
-                        content_encoding.strip().lower()!="identity"):
+                        type(content_encoding) is not str or
+                        content_encoding.strip().lower() != "identity"):
                     raise PrivateGeneratedDownloadDenied(
                         "Untrusted encoded private PNG response")
                 if (length is not None and
-                        (not isinstance(length,str) or not length.isascii() or
+                        (type(length) is not str or not length.isascii() or
                          not length.isdigit() or int(length) > _MAX)):
                     raise PrivateGeneratedDownloadDenied(
                         "Invalid private image Content-Length")
-                if mime is not None and mime.split(";",1)[0].strip().lower() != "image/png":
+                if (mime is not None and
+                        (type(mime) is not str or
+                         mime.split(";", 1)[0].strip().lower() != "image/png")):
                     raise PrivateGeneratedDownloadDenied("Invalid private image MIME")
-                raw = response.read(_MAX+1)
-        except (HTTPError, URLError, OSError, TimeoutError, ValueError) as exc:
+                raw = response.read(_MAX + 1)
+        except PrivateGeneratedDownloadDenied:
+            raise
+        except Exception:
+            # Never leak raw HTTP/Storage credentials or adapter diagnostics.
             raise PrivateGeneratedDownloadDenied(
-                "Authenticated private media request unavailable") from exc
+                "Authenticated private media request unavailable") from None
         if type(raw) is not bytes or not 100 <= len(raw) <= _MAX:
             raise PrivateGeneratedDownloadDenied("Untrusted private image bytes")
         # A syntactically plausible but incorrect response length is not an
