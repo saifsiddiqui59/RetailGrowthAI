@@ -1375,3 +1375,5 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 
 - F3-10/F3-13 history branch #812 also closed after semantic+test review: current main preserves the negative protections with additional signed-provider fencing; original source/test blobs differ. No product source was remerged.
 
+- #729 model-library-rights grant source/tests/handoff also exactly matched integrated main and was closed as superseded, not new Feature3 implementation.
+
