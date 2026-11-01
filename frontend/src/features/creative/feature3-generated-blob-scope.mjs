@@ -12,19 +12,37 @@ export function createFeature3GeneratedBlobScope({
   if(typeof createURL!=='function'||typeof revokeURL!=='function')
     throw Error('Private preview memory lifecycle required')
   let shop=null,job=null,url=null
+  // A failed browser revoke must never leave a private URL visible, but
+  // dropping its only reference would prevent cleanup after recovery.
+  // Track only URLs issued by this instance; do not accept remote URLs.
+  const pendingRevoke=new Set()
+  const revokePending=()=>{
+    let failed=false
+    for(const owned of pendingRevoke){
+      try {
+        revokeURL(owned)
+        pendingRevoke.delete(owned)
+      } catch {
+        failed=true
+      }
+    }
+    if(failed) throw Error('Private generated Blob cleanup failed')
+  }
   const clear=()=>{
-    const previous=url
+    if(url!==null) pendingRevoke.add(url)
     url=null
     job=null
-    if(previous!==null)revokeURL(previous)
+    revokePending()
   }
   const selectScope=nextShop=>{
     if(!ID.test(nextShop||'')) {
-      clear()
+      // A failed cleanup cannot leave the previous shop authorized.
       shop=null
+      clear()
       return
     }
     if(shop!==nextShop){
+      shop=null
       clear()
       shop=nextShop
     }
@@ -49,13 +67,15 @@ export function createFeature3GeneratedBlobScope({
     }
     // A Blob URL factory must never alias the still-owned previous preview.
     // Otherwise clear() would revoke the URL we are about to display.
-    if(next===url) throw Error('Private generated Blob URL must be fresh')
+    if(next===url||pendingRevoke.has(next))
+      throw Error('Private generated Blob URL must be fresh')
     try {
       clear()
     } catch {
-      // A failed old-URL revocation must not publish or leak the new preview.
-      // clear() has already removed the old URL from the readable scope.
-      try { revokeURL(next) } catch { /* fail closed: never expose either URL */ }
+      // Never expose this newly issued URL on a failed replacement.
+      // Even if its own revocation fails, retain its private cleanup receipt.
+      pendingRevoke.add(next)
+      try { revokePending() } catch { /* retry on the next explicit cleanup */ }
       throw Error('Private generated Blob replacement cleanup failed')
     }
     job=nextJob
