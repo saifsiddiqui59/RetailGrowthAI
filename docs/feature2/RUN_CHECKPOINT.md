@@ -139,3 +139,6 @@
 - F2-02 IN_PROGRESS: validate original approved legal offer record, prevent malformed or hidden source text from laundering copy approvals, source 4939d010, 1ce1a58a, tests c1684da5 (18 hostile + one ordinary Indic positive). Customer claims still require signed human review.
 - Logged exact substeps in docs/feature2/FEATURE2_SOURCE_STATUS.json commit 0615809a. Counts unchanged 8 source-complete, 18 in progress, 12 externally blocked; F2 integrated DONE 0/38. This new batch must earn its own exact-head four-job CI, not inherit older green.
 - No GPU, paid inference, hosted database writes, PROD, media samples or WineShopPOS.
+
+## 2026-11-01 — F2-29 private decode metadata ceiling
+- In parallelizable third independent scope, hardened private WAV intake and MP3-to-WAV normalization `ai-agents/src/ai_agents/feature2_voiceover_upload.py`: reject `fmt ` chunk below 16 or above 64 bytes rather than allowing a huge metadata tail that the `wave` parser could ignore. Source commit `5d0564b1`, seven offline synthetic header tests `19e0b8df`. Recorded machine source IN_PROGRESS substep `b7febca7`. No actual MP3 audio generation, hosted media rights, JWT, signed download or FFmpeg cloud host assertion. New exact-head 4/4 CI must pass before source test status can be promoted.
