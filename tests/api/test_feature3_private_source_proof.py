@@ -120,7 +120,7 @@ class PrivateSourceProofTests(unittest.TestCase):
             "rights_revision":3,"private_bytes_verified":True,
             "independent_license_verified":True,
             "current_customer_approval":True,"rights_revoked":False})
-        self.assertEqual([x[0] for x in self.calls],["get","review","review"])
+        self.assertEqual([x[0] for x in self.calls],["review","get","review"])
         self.assertNotIn("object_path",receipt)
         self.assertNotIn("url",receipt)
         self.assertNotIn("image_bytes",receipt)
@@ -157,7 +157,7 @@ class PrivateSourceProofTests(unittest.TestCase):
         self.revoke_second=True
         with self.assertRaises(SourceProofDenied):
             self.proof(self.shop,self.row)
-        self.assertEqual([x[0] for x in self.calls],["get","review","review"])
+        self.assertEqual([x[0] for x in self.calls],["review","get","review"])
 
     def test_revision_change_after_first_review_denied(self):
         self.change_revision_second=True
@@ -168,7 +168,34 @@ class PrivateSourceProofTests(unittest.TestCase):
         self.read_hook=lambda:setattr(self,"authorized",False)
         with self.assertRaises(SourceProofDenied):
             self.proof(self.shop,self.row)
-        self.assertEqual([x[0] for x in self.calls],["get","review"])
+        self.assertEqual([x[0] for x in self.calls],["review","get","review"])
+
+    def test_revoked_model_original_never_reaches_service_role_storage(self):
+        # The SHA in an immutable model key is a *candidate* preflight digest.
+        # An independent revoked/absent license denies before any private GET.
+        for revoked in (False, True):
+            self.setUp()
+            self.authorized=revoked
+            if revoked:
+                self.revoke_second=True
+                # The second review simulates revocation while bytes are read.
+                with self.assertRaises(SourceProofDenied):
+                    self.proof(self.shop,self.row)
+                self.assertEqual([x[0] for x in self.calls],
+                                 ["review","get","review"])
+            else:
+                with self.assertRaises(SourceProofDenied):
+                    self.proof(self.shop,self.row)
+                self.assertEqual([x[0] for x in self.calls],["review"])
+
+    def test_generic_upload_without_immutable_digest_still_checks_twice(self):
+        # Generic uploads have no registered SHA path; unlike immutable model
+        # originals they cannot be independently authorized with a digest
+        # until the service has read the bytes. Do not claim an early check.
+        self.row["object_path"]=f"{self.shop}/retailer-original/original.png"
+        self.assertEqual(self.proof(self.shop,self.row)["image_sha256"],self.sha)
+        self.assertEqual([x[0] for x in self.calls],
+                         ["get","review","review"])
 
     def test_missing_authority_refuses_even_real_original_png(self):
         self.authorized=False
@@ -222,7 +249,7 @@ class PrivateSourceProofTests(unittest.TestCase):
             setattr(self,flag,value)
             with self.subTest(flag=flag),self.assertRaises(SourceProofDenied):
                 self.proof(self.shop,self.row)
-            self.assertEqual([x[0] for x in self.calls],["get"])
+            self.assertEqual([x[0] for x in self.calls],["review","get"])
 
     def test_true_private_content_length_must_match_real_read_bytes(self):
         for declared in ("0",str(len(self.png)-1),str(len(self.png)+1)):
@@ -231,7 +258,7 @@ class PrivateSourceProofTests(unittest.TestCase):
             with self.subTest(length=declared),self.assertRaisesRegex(
                     SourceProofDenied,"length changed"):
                 self.proof(self.shop,self.row)
-            self.assertEqual([c[0] for c in self.calls],["get"])
+            self.assertEqual([c[0] for c in self.calls],["review","get"])
 
     def test_encoded_original_transport_denied_before_rights_review(self):
         # Even if a mocked proxy supplies valid PNG bytes, a non-identity
@@ -245,7 +272,7 @@ class PrivateSourceProofTests(unittest.TestCase):
             with self.subTest(encoding=encoding),self.assertRaises(
                     SourceProofDenied):
                 self.proof(self.shop,self.row)
-            self.assertEqual([x[0] for x in self.calls],["get"])
+            self.assertEqual([x[0] for x in self.calls],["review","get"])
         self.setUp()
         self.content_encoding=" identity "
         self.assertEqual(self.proof(self.shop,self.row)["image_sha256"],self.sha)
@@ -259,7 +286,7 @@ class PrivateSourceProofTests(unittest.TestCase):
         # a replaced original into an approved model source.
         with self.assertRaisesRegex(SourceProofDenied,"immutable path SHA"):
             self.proof(self.shop,self.row)
-        self.assertEqual([c[0] for c in self.calls],["get"])
+        self.assertEqual([c[0] for c in self.calls],["review","get"])
 
     def test_invalid_model_original_namespace_and_digest_name_denied(self):
         for key in (
@@ -325,11 +352,11 @@ class PrivateSourceProofTests(unittest.TestCase):
         self.authorized=False
         with self.assertRaises(SourceProofDenied):
             self.proof(self.shop,self.row)
-        self.assertEqual([c[0] for c in self.calls],["get","review"])
+        self.assertEqual([c[0] for c in self.calls],["review"])
         self.calls.clear()
         self.authorized=True
         self.assertEqual(self.proof(self.shop,self.row)["image_sha256"],self.sha)
-        self.assertEqual([c[0] for c in self.calls],["get","review","review"])
+        self.assertEqual([c[0] for c in self.calls],["review","get","review"])
 
     def test_malformed_private_http_headers_never_reach_review(self):
         # Fake transports may return malformed header objects or typed values;
@@ -350,7 +377,7 @@ class PrivateSourceProofTests(unittest.TestCase):
             self.proof.transport=malformed
             with self.subTest(headers=repr(headers)),self.assertRaises(SourceProofDenied):
                 self.proof(self.shop,self.row)
-            self.assertEqual([c[0] for c in self.calls],["get"])
+            self.assertEqual([c[0] for c in self.calls],["review","get"])
 
 if __name__=="__main__":
     unittest.main()
