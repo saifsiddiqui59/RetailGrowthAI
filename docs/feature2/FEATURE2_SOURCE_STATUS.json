@@ -41,7 +41,19 @@
       "id": "F2-02",
       "title": "Retailer-specific AI copy, offers, CTAs, factual claims",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Approved retailer legal claim source rejects hidden controls, HTML/URLs, empty or duplicate offers and invalid percent metadata",
+        "source_commits": [
+          "4939d0105099f95cfc3361614849b9d5ea127cc4",
+          "1ce1a58aaa754c54673283507034a0cb54868f28"
+        ],
+        "test_commit": "c1684da5641e5962884488219b1f35fa5245bcbb",
+        "test_cases": 19,
+        "complete_scope": false,
+        "blocker": "Real authenticated retailer approved offers/rights and trusted hosted review integration remain pending"
+      }
     },
     {
       "id": "F2-03",
@@ -89,7 +101,19 @@
       "id": "F2-08",
       "title": "Blind A/B review, scoring and durable revision history",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Private blind A/B review CAS/history denies malformed publish, paid, billing and URL grants",
+        "source_commits": [
+          "68b2e35c6843c4691b276029a7be384eb0e4a529",
+          "ef277c034d67bb52c9b5b6a7cea10b59981799f6"
+        ],
+        "test_commit": "62998c1a16c827f0e86edcc22a88f4e68b1cf28c",
+        "test_cases": 22,
+        "complete_scope": false,
+        "blocker": "Genuine signed independent reviewers, durable hosted RLS CAS, authenticated reader and accepted main merge not verified"
+      }
     },
     {
       "id": "F2-09",
