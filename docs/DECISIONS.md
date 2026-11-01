@@ -1020,3 +1020,9 @@
 ## 2026-10-31 — Five feature-owned integration leads (governance proposal) — effective 2026-10-31
 Owner decision: eliminate dedicated ChatGPT integration scheduler; five hourly feature leads (#2,#3,#4,#5,#7) each own coding, reviewed feature PR integration, CI and evidence-backed status. Lightweight cross-feature coordination only for interface/ownership collisions; GitHub Actions read-only dependency report remains. Never bypass branch protection or independent security/rights review; preserve immutable task registry.
 Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert a new feature DONE or live production readiness.
+
+## 2026-11-01 — Feature3 source-component DONE is not hosted task DONE
+- Keep the original `coordination/feature_tasks.json` 159-task snapshot immutable. The already accepted `F3-01` event remains the only source-integrated Feature3 task-level `DONE` receipt in `coordination/task_progress.json`; do not duplicate it.
+- Record a separate **source-component completion** layer (`coordination/feature3_source_receipts.json`, proposed in reviewed PR #860) for fourteen verified Wave A/B original PR components, keyed by original F3 IDs with exact-blob/semantic proof. The source ledger may prevent the advisory scheduler from reassigning already-merged code; this is not authority for model rights, hosted task completion, signed DEV approvals, paid inference or new task IDs.
+- Review independent unimplemented scopes and external hosted dependencies even when a task has one or more completed source components. Keep `0/33` fully hosted accepted; new source PR #859 is tested-only until independent security review, main integration and fresh postmerge CI. Shared scheduler/status changes require affected-lead or human repository owner approval, never self-approval.
+
