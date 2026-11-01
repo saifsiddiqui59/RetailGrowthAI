@@ -79,9 +79,12 @@ def _validate_candidate(candidate):
         raise ModelLibraryDenied("Structured model provenance required")
     _uuid(candidate.owner_shop_id)
     _source_uri(candidate.source_uri)
-    if candidate.scope not in SCOPES or candidate.source_kind not in SOURCE_KINDS:
+    if (type(candidate.scope) is not str or candidate.scope not in SCOPES or
+            type(candidate.source_kind) is not str or
+            candidate.source_kind not in SOURCE_KINDS):
         raise ModelLibraryDenied("Unsupported model library scope or origin")
-    if (candidate.license_id not in KNOWN_LICENSES or
+    if (type(candidate.license_id) is not str or
+        candidate.license_id not in KNOWN_LICENSES or
         not isinstance(candidate.license_evidence_sha256, str) or
         not SHA256.fullmatch(candidate.license_evidence_sha256)):
         raise ModelLibraryDenied("Reviewed asset license evidence is required")
@@ -90,7 +93,7 @@ def _validate_candidate(candidate):
         raise ModelLibraryDenied("Adult synthetic identity and component rights must be verified")
     if (not isinstance(candidate.label, str) or
         not 1 <= len(candidate.label.strip()) <= 64 or
-        candidate.pose not in POSES or
+        type(candidate.pose) is not str or candidate.pose not in POSES or
         not isinstance(candidate.attribution, str) or
         len(candidate.attribution) > 200):
         raise ModelLibraryDenied("Invalid fashion model description or pose")
