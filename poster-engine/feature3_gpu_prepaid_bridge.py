@@ -66,9 +66,15 @@ class PrepaidGPUJobCallbacks:
 
     def execute(self, job):
         """Run *one* guarded attempt. No replay on lost claim or settlement ACK."""
-        if job.attempt != 1:
+        # Validate the one-shot boundary before even consulting a provider.
+        # bool and float compare equal to integer 1 in Python, but are not
+        # authoritative SQL attempt numbers.
+        if type(getattr(job, "attempt", None)) is not int or job.attempt != 1:
             raise ProviderBlocked("Feature3 SQL only permits one GPU attempt")
-        if not self.provider.status()["enabled"]:
+        status = self.provider.status()
+        # This is a paid-execution gate, not a truthiness test. A malformed
+        # adapter must never turn "false", 1 or an absent field into consent.
+        if type(status) is not dict or status.get("enabled") is not True:
             raise ProviderBlocked("Feature3 paid GPU provider remains disabled")
         claim_token = str(uuid4())
         reservation_id = None
@@ -77,10 +83,14 @@ class PrepaidGPUJobCallbacks:
 
         def claim(shop, job_id, attempt):
             record = self._claim_rpc(job_id, claim_token)
-            if not isinstance(record, dict) or record != {
-                "shop_id": shop, "job_id": job_id,
-                "attempt": attempt, "claim_token": claim_token,
-            }:
+            # Python dict equality treats True == 1 and 1.0 == 1.
+            # SQL claim attempt is a durable one-shot integer, not a truthy flag.
+            if (not isinstance(record, dict)
+                    or type(record.get("attempt")) is not int
+                    or record != {
+                        "shop_id": shop, "job_id": job_id,
+                        "attempt": attempt, "claim_token": claim_token,
+                    }):
                 raise ProviderBlocked("Durable GPU claim token/shop mismatch")
             return record
 
@@ -94,7 +104,9 @@ class PrepaidGPUJobCallbacks:
                 "reservation_id", "shop_id", "job_id", "attempt",
                 "claim_token", "reserved_usd",
             } or record.get("shop_id") != shop or record.get("job_id") != job_id or (
-                record.get("attempt") != attempt or record.get("claim_token") != token
+                type(record.get("attempt")) is not int
+                or record.get("attempt") != attempt
+                or record.get("claim_token") != token
             ):
                 raise ProviderBlocked("Existing paid GPU reservation not authoritative")
             reservation_id = _uuid4(record["reservation_id"])

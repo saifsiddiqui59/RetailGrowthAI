@@ -12,7 +12,7 @@ this module. A failed or ambiguous output CAS is never automatically replayed.
 from __future__ import annotations
 
 from ai_providers_v2 import ProviderBlocked
-from feature3_gpu_prepaid_bridge import PrepaidGPUJobCallbacks
+from feature3_gpu_prepaid_bridge import PrepaidGPUJobCallbacks, _amount, _uuid4
 from feature3_private_output_storage import Feature3PrivateOutputStorage
 from feature3_private_output_v1 import PrivateOutputRegistrar
 
@@ -84,8 +84,20 @@ class Feature3PrivateGPUWorker:
         row = self.service.read_prepaid_reservation(shop, job, attempt, token)
         if (not isinstance(row, dict) or set(row) != _EXPECTED_RESERVATION or
             row.get("shop_id") != shop or row.get("job_id") != job or
-            row.get("claim_token") != token or row.get("attempt") != attempt):
+            row.get("claim_token") != token or
+            type(row.get("attempt")) is not int or row["attempt"] != attempt):
             raise ProviderBlocked("Missing current one-shot GPU reservation or lease")
+        # This is a NEW current lease read after inference, not permission to
+        # rely on the earlier pre-inference reservation amount or ID. Reject
+        # malformed/revoked zero-price and over-budget snapshots before any
+        # private Storage POST. SQL remains responsible for atomic CAS.
+        _uuid4(row["reservation_id"])
+        amount = _amount(
+            row["reserved_usd"],
+            maximum=self.jobs.provider.config.max_cost_usd_per_job,
+        )
+        if amount <= 0:
+            raise ProviderBlocked("No current positive prepaid GPU reservation")
         if self._rights(shop, job, token, sources) is not True:
             raise ProviderBlocked("Source rights revoked before Storage stage")
         return True
@@ -100,7 +112,8 @@ class Feature3PrivateGPUWorker:
         )
         if (not isinstance(receipt, dict) or set(receipt) != _EXPECTED_COMMIT or
             receipt.get("shop_id") != shop or receipt.get("job_id") != job or
-            receipt.get("claim_token") != token or receipt.get("attempt") != 1 or
+            receipt.get("claim_token") != token or
+            type(receipt.get("attempt")) is not int or receipt["attempt"] != 1 or
             receipt.get("image_sha256") != digest or
             receipt.get("private") is not True or
             receipt.get("review_status") != "UNREVIEWED"):

@@ -27,6 +27,7 @@ class OutputContractTests(TestCase):
                      "requires_human_review": True, "garment_fidelity_not_guaranteed": False}
         self.calls = []
         self.rights = True; self.claim = True; self.stage_good = True; self.commit_good = True
+        self.commit_attempt = 1
         self.rights_sequence = None; self.quarantined = False
         def check_claim(*a):
             self.calls.append("claim");return self.claim
@@ -40,7 +41,7 @@ class OutputContractTests(TestCase):
         def commit(shop,job,attempt,token,key,digest,size,source_ids):
             self.calls.append("commit");return {
                 "media_asset_id":self.asset,"shop_id":shop if self.commit_good else str(uuid4()),"job_id":job,
-                "claim_token":token,"attempt":attempt,"image_sha256":digest,"object_path":key,
+                "claim_token":token,"attempt":self.commit_attempt,"image_sha256":digest,"object_path":key,
                 "review_status":"UNREVIEWED","source":"GENERATED","private":True}
         def quarantine(shop,key,token):
             self.calls.append("quarantine");self.quarantined=True;return True
@@ -98,6 +99,29 @@ class OutputContractTests(TestCase):
         with self.assertRaises(ProviderBlocked):self.register(self.shop,self.job,self.image,self.meta)
         self.assertIn("commit",self.calls)
         self.assertFalse(self.quarantined)
+    def test_private_db_commit_attempt_requires_true_integer_one_only(self):
+        # A lost/forged DB acknowledgement must never be treated as verified
+        # merely because Python equates True and 1 or 1.0 and 1.
+        for invalid in (True, 1.0, "1", 0, 2, None, False):
+            with self.subTest(receipt_attempt=repr(invalid)):
+                self.setUp()
+                self.commit_attempt=invalid
+                with self.assertRaisesRegex(ProviderBlocked,"Media commit unconfirmed"):
+                    self.register(self.shop,self.job,self.image,self.meta)
+                self.assertEqual(self.calls,["claim","rights","stage","rights","commit"])
+                self.assertFalse(self.quarantined)
+        self.setUp()
+        self.assertEqual(self.register(self.shop,self.job,self.image,self.meta)["attempt"],1)
+
+    def test_private_metadata_attempt_bool_float_and_string_deny_before_any_stage(self):
+        for invalid in (True, 1.0, "1", False, None):
+            with self.subTest(metadata_attempt=repr(invalid)):
+                self.setUp()
+                self.meta["attempt"]=invalid
+                with self.assertRaises(ProviderBlocked):
+                    self.register(self.shop,self.job,self.image,self.meta)
+                self.assertEqual(self.calls,[])
+
     def test_reject_untrusted_extra_keys(self):
         self.meta["object_path"]="foreign/key"
         with self.assertRaises(ProviderBlocked):self.register(self.shop,self.job,self.image,self.meta)

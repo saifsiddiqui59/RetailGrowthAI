@@ -126,7 +126,8 @@ class PrivateOutputRegistrar:
             "media_asset_id", "shop_id", "job_id", "claim_token", "attempt",
             "image_sha256", "object_path", "review_status", "source", "private",
         } or receipt.get("shop_id") != shop or receipt.get("job_id") != job or
-            receipt.get("claim_token") != token or receipt.get("attempt") != 1 or
+            receipt.get("claim_token") != token or
+            type(receipt.get("attempt")) is not int or receipt["attempt"] != 1 or
             receipt.get("image_sha256") != digest or receipt.get("object_path") != key or
             receipt.get("review_status") != "UNREVIEWED" or
             receipt.get("source") != "GENERATED" or receipt.get("private") is not True):
