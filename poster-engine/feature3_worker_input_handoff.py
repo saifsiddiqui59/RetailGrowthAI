@@ -87,7 +87,8 @@ def _final_read(fresh, role, readers):
         grant.get("license_verified") is not True or
         grant.get("approval_state") != "APPROVED" or
         grant.get("rights_revoked") is not False or
-        grant.get("rights_revision") != ref["approval"]["rights_revision"]):
+        type(grant.get("rights_revision")) is not int or
+        grant["rights_revision"] != ref["approval"]["rights_revision"]):
         _reject()
     row = readers["read_asset"](shop, asset)
     if (not isinstance(row, dict) or row.get("shop_id") != shop or
