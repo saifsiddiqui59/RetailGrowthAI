@@ -76,7 +76,7 @@ class FakeSQL:
         self.foreign_receipt=False
         self.unknown_commit=False
         self.reservation_attempt=1
-        self.reservation_id_override=None
+        self.reservation_id_override=self.reservation
         self.reserved_usd="0.05"
         self.commit_attempt=1
     def claim(self,job_id,token):
@@ -90,8 +90,7 @@ class FakeSQL:
         if not self.lease_active or (shop,job,attempt,token)!=(
                 self.shop,self.job,1,self.token):
             raise ProviderBlocked("expired/foreign one-shot SQL lease")
-        return {"reservation_id":self.reservation if self.reservation_id_override is None
-                else self.reservation_id_override,
+        return {"reservation_id":self.reservation_id_override,
                 "shop_id":self.shop if not self.foreign_receipt else str(uuid4()),
                 "job_id":job,"attempt":self.reservation_attempt,"claim_token":token,
                 "reserved_usd":self.reserved_usd}
