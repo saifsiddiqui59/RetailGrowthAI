@@ -349,3 +349,28 @@ def test_f2_10_dictionary_explicit_pending_metadata_remains_spelling_only():
     assert original["audio_pronunciation_verified"] is False
     assert original["manual_relisten_required"] is True
     assert original["max_local_retries"]==1
+
+
+# F2-17: reject word-level invisible joiners unless they express an actual
+# Indic virama conjunct; preserve that native-script case as review-only.
+@pytest.mark.parametrize("spoof",[
+    "kur\u200bti",
+    "kur\u200cti",
+    "kur\u200dti",
+    "\u200dkurti",
+    "दि\u200dवाली",
+    "क्\u200d9",
+    "क्\u200d",
+])
+def test_f2_17_signed_f7_word_cannot_hide_joiner(spoof):
+    with pytest.raises(VoiceQualityDenied,match="word|timestamps"):
+        analyze("Our kurti today",[spoof])
+
+
+def test_f2_17_devanagari_conjunct_joiner_is_still_review_only():
+    source="क्\u200dष आज"
+    report=analyze(source,["क्\u200dष","आज"])
+    assert report["transcript_matches_script"] is True
+    assert report["human_listen_required"] is True
+    assert report["pronunciation_verified"] is False
+    assert report["publish_approved"] is False
