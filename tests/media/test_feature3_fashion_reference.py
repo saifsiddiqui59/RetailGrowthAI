@@ -279,17 +279,24 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         # A second row read after the lease must never fetch a substituted
         # foreign, public, traversal, or wrong-role Storage object.
         for tryon in (False, True):
-            for mutation in (
-                {"object_path":f"{self.other}/uploads/{self.upload_object}.png"},
-                {"object_path":"https://external.invalid/private.png"},
-                {"object_path":f"{self.shop}/uploads/../secret.png"},
-                {"storage_bucket":"public-media"},
-                {"source":"UPLOAD" if tryon else "GENERATED"},
-                {"shop_id":self.other},
-                {"id":str(uuid4())},
-            ):
-                with self.subTest(tryon=tryon, mutation=mutation):
+            for kind in ("foreign_path", "external_url", "traversal",
+                         "public_bucket", "wrong_source", "foreign_shop",
+                         "forged_asset"):
+                with self.subTest(tryon=tryon, mutation=kind):
                     self.setUp()
+                    mutation = {
+                        "foreign_path": {"object_path":
+                            f"{self.other}/uploads/{self.upload_object}.png"},
+                        "external_url": {"object_path":
+                            "https://external.invalid/private.png"},
+                        "traversal": {"object_path":
+                            f"{self.shop}/uploads/../secret.png"},
+                        "public_bucket": {"storage_bucket": "public-media"},
+                        "wrong_source": {"source":
+                            "UPLOAD" if tryon else "GENERATED"},
+                        "foreign_shop": {"shop_id": self.other},
+                        "forged_asset": {"id": str(uuid4())},
+                    }[kind]
                     target=self.tryon if tryon else self.garment
                     manifest=(self.prepare(
                         model_asset_id=self.model_asset,model_id=self.model_id,
