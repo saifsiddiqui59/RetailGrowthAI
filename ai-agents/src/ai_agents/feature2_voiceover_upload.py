@@ -49,6 +49,12 @@ def _inspect(bytes_,seconds_limit):
         if tag==b"fmt ":
             if seen_fmt or seen_data:
                 raise VoiceUploadRejected("Duplicate or reordered WAV format")
+            # PCM/WAVEFORMATEXTENSIBLE describes its audio layout in a small
+            # bounded fmt chunk. wave.open() reads the leading fields but can
+            # ignore arbitrarily large tails: those bytes must never be
+            # accepted as an original speech asset or a private MP3 derivative.
+            if not 16<=size<=64:
+                raise VoiceUploadRejected("Original WAV format metadata unbounded")
             seen_fmt=True
         elif tag==b"data":
             if seen_data or not seen_fmt:
