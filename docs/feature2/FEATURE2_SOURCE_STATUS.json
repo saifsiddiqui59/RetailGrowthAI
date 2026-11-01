@@ -166,7 +166,18 @@
       "id": "F2-12",
       "title": "Feature2 step-by-step auditable workflow trace",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Signed feature trace history freezes original reader snapshot before HMAC/revocation checks and private append CAS refuses ambiguous publish/paid grants",
+        "source_commits": [
+          "fe901a6dac009db8fabe9011ea928e5ae9712545"
+        ],
+        "test_commit": "e5e678e9edfb1d7e71fe817fbf7aed141a4d386b",
+        "test_cases": 13,
+        "complete_scope": false,
+        "blocker": "Real signed worker proofs, tenant-authenticated durable private trace append/history and hosted API/route not verified"
+      }
     },
     {
       "id": "F2-13",
