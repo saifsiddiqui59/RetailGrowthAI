@@ -699,12 +699,30 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     names=verified_context.get("approved_offers")
     if type(names) is not list or len(names)>3:
         raise EditorialBasisRejected("Approved bounded offer records required")
+    approved_texts=set()
     for offer in names:
         if (type(offer) is not dict or offer.get("approval_status")!="APPROVED" or
             type(offer.get("approved_claim_text")) is not str or
             not 10<=len(offer["approved_claim_text"])<=180 or
+            not offer["approved_claim_text"].strip() or
             offer.get("shop_id")!=verified_context.get("shop_id")):
             raise EditorialBasisRejected("Offer evidence not approved for shop")
+        claim=offer["approved_claim_text"]
+        # A signed server row may still contain unsafe/malformed wording.
+        # Validate the original approved span before using it as the source
+        # authority for exact in-draft discount matching. It must not contain
+        # hidden controls, markup, external links or duplicate approvals.
+        if (any(ord(ch)<32 or 0x7f<=ord(ch)<=0x9f or
+                unicodedata.category(ch) in ("Cf","Cs","Zl","Zp")
+                for ch in claim) or "<" in claim or ">" in claim or
+            re.search(r"(?:https?://|www\\.)",claim,flags=re.I) or
+            "javascript:" in claim.lower() or
+            claim.casefold() in approved_texts or
+            ("percent_off" in offer and
+             (type(offer["percent_off"]) is not int or
+              not 1<=offer["percent_off"]<=100))):
+            raise EditorialBasisRejected("Unsafe or duplicate approved retailer offer")
+        approved_texts.add(claim.casefold())
     issues=set()
     for field,text in copy.items():
         if (type(text) is not str or not 1<=len(text.strip())<=1800 or
