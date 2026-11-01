@@ -86,3 +86,5 @@ This is a reconstruction of the established 33 work-package baseline, not 33 new
 
 - #812 original history/preview patch is also reconciled into newer Wave B private-API-scoped code and equivalent stronger negatives. Closed standalone as **semantic superseded**, not an additional merged/hosted task. Counts unchanged.
 
+- #729 model-library use-rights source/test/handoff: all three blobs already integrated in main; standalone PR closed with exact SHA receipt. F3-03/F3-11/F3-12/F3-13 remain hosted incomplete.
+
