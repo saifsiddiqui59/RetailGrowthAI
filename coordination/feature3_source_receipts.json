@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "feature": "3",
+  "scope": "source_component_only",
+  "description": "Reviewed Wave A/B source-level completion receipts for original Feature3 packages. This is NOT task DONE, hosted acceptance, or evidence of a running coding executor. Do not redo these merged components. External rights/DEV/GPU approvals remain gated.",
+  "recorded_against_main_sha": "456b1757d7df2f0cc28a5ef6c8ba203b18380948",
+  "recorded_main_ci_run_id": 41178167285,
+  "merged_source_prs": [
+    811,
+    813
+  ],
+  "complete_source_components": [
+    {
+      "source_pr": 790,
+      "integrated_pr": 813,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "exact_blob",
+      "task_ids": [
+        "F3-09",
+        "F3-13"
+      ],
+      "component": "Approved copy presentation and workspace context",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/790",
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 791,
+      "integrated_pr": 813,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "exact_blob",
+      "task_ids": [
+        "F3-09",
+        "F3-13"
+      ],
+      "component": "Signed API provider state for workspace busy/message",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/791",
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 761,
+      "integrated_pr": 811,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "exact_blob",
+      "task_ids": [
+        "F3-05",
+        "F3-13"
+      ],
+      "component": "Outbox dispatch token uniqueness",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/761",
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 760,
+      "integrated_pr": 811,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "semantic_review",
+      "task_ids": [
+        "F3-05",
+        "F3-13"
+      ],
+      "component": "GPU queue envelope Unicode denial; original tests preserved with later ACK fixture",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/760",
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 738,
+      "integrated_pr": 811,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "exact_blob",
+      "task_ids": [
+        "F3-08",
+        "F3-13"
+      ],
+      "component": "Signed-link render URL guard",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/738",
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 752,
+      "integrated_pr": 811,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "exact_blob",
+      "task_ids": [
+        "F3-02",
+        "F3-03"
+      ],
+      "component": "Private original transport encoding denial",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/752",
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 802,
+      "integrated_pr": 813,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "exact_blob",
+      "task_ids": [
+        "F3-03",
+        "F3-13"
+      ],
+      "component": "Approved video-use model grants",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/802",
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 798,
+      "integrated_pr": 813,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "exact_blob",
+      "task_ids": [
+        "F3-13"
+      ],
+      "component": "Strict FLUX approval/index JSON duplicate-key review",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/798",
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 729,
+      "integrated_pr": 811,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "exact_blob",
+      "task_ids": [
+        "F3-03",
+        "F3-11",
+        "F3-12",
+        "F3-13"
+      ],
+      "component": "Model-library reusable-rights use grants",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/729",
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 843,
+      "integrated_pr": 813,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "semantic_review",
+      "task_ids": [
+        "F3-08",
+        "F3-13"
+      ],
+      "component": "Private PNG chunk/CRC verifier and tests identical; historical checkpoint differs",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/843",
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 834,
+      "integrated_pr": 813,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "semantic_review",
+      "task_ids": [
+        "F3-06",
+        "F3-13"
+      ],
+      "component": "Typed financial attempt guard and equivalent bool/float/string denial tests",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/834",
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 768,
+      "integrated_pr": 813,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "semantic_review",
+      "task_ids": [
+        "F3-10",
+        "F3-13"
+      ],
+      "component": "Failed generated Blob replacement; current main adds decoder-error cleanup",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/768",
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 744,
+      "integrated_pr": 813,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "semantic_review",
+      "task_ids": [
+        "F3-04",
+        "F3-13"
+      ],
+      "component": "Twice-current GPU-off queue inspection with later refactor",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/744",
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 812,
+      "integrated_pr": 813,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "semantic_review",
+      "task_ids": [
+        "F3-09",
+        "F3-10",
+        "F3-13"
+      ],
+      "component": "History envelope, signed API identity and private model-preview revocation",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/812",
+      "hosted_task_complete": false
+    }
+  ],
+  "pending_source_components": [
+    {
+      "source_pr": 859,
+      "task_ids": [
+        "F3-10",
+        "F3-13"
+      ],
+      "component": "Private generated Blob cleanup retry for failed revocations",
+      "stage": "TESTED_PR_REVIEW_REQUIRED",
+      "exact_head": "0b33b71f6cdb618356014610dd5b2823049c35be",
+      "exact_head_ci_run_id": 41292509625,
+      "hosted_task_complete": false
+    }
+  ],
+  "verified_package_done": [
+    {
+      "task_id": "F3-01",
+      "acceptance_scope": "source_integrated",
+      "accepted_merge_pr": 813,
+      "postmerge_ci_run_id": 41131088666
+    }
+  ],
+  "full_hosted_packages_done": 0,
+  "remaining_gates": [
+    "F3-LICENSED-MEDIA",
+    "#249",
+    "signed private PNG route and current-rights callback (#325/#471 source handoff)",
+    "#627",
+    "F5-GPU-AUTHORIZATION",
+    "real signed DEV JWT/RLS negative tests"
+  ],
+  "next_action": "Review already-integrated source before starting any new code for a covered package; never mark remaining hosted acceptance DONE from this source-only ledger."
+}
