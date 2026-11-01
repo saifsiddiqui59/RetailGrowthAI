@@ -88,3 +88,27 @@ This is a reconstruction of the established 33 work-package baseline, not 33 new
 
 - #729 model-library use-rights source/test/handoff: all three blobs already integrated in main; standalone PR closed with exact SHA receipt. F3-03/F3-11/F3-12/F3-13 remain hosted incomplete.
 
+## Feature #3 original-task source completion register — 2026-11-01
+
+This table **marks already-integrated implementation components complete** under their **original F3 task IDs** to prevent duplication. It does **not** mark the parent package hosted DONE. Authoritative accepted task DONE remains **F3-01 only** in `coordination/task_progress.json`. The immutable 159-task snapshot remains unchanged. The proposed machine-readable source ledger and deduplicating advisory scheduler are in [PR #860](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/860) and require independent review before activation.
+
+| Original task ID | Source-stage completion | Closed, already-integrated constituent PRs | Remaining original task acceptance |
+| --- | --- | --- | --- |
+| F3-02 | SOURCE COMPONENTS INTEGRATED (1) | #752 | Original hosted package still IN PROGRESS; do not rerun merged source |
+| F3-03 | SOURCE COMPONENTS INTEGRATED (3) | #752, #802, #729 | Original hosted package still IN PROGRESS; do not rerun merged source |
+| F3-04 | SOURCE COMPONENTS INTEGRATED (1) | #744 | Original hosted package still BLOCKED; do not rerun merged source |
+| F3-05 | SOURCE COMPONENTS INTEGRATED (2) | #761, #760 | Original hosted package still IN PROGRESS; do not rerun merged source |
+| F3-06 | SOURCE COMPONENTS INTEGRATED (1) | #834 | Original hosted package still IN PROGRESS; do not rerun merged source |
+| F3-08 | SOURCE COMPONENTS INTEGRATED (2) | #738, #843 | Original hosted package still IN PROGRESS; do not rerun merged source |
+| F3-09 | SOURCE COMPONENTS INTEGRATED (3) | #790, #791, #812 | Original hosted package still IN PROGRESS; do not rerun merged source |
+| F3-10 | SOURCE COMPONENTS INTEGRATED (2) | #768, #812 | Original hosted package still IN PROGRESS; do not rerun merged source |
+| F3-11 | SOURCE COMPONENTS INTEGRATED (1) | #729 | Original hosted package still IN PROGRESS; do not rerun merged source |
+| F3-12 | SOURCE COMPONENTS INTEGRATED (1) | #729 | Original hosted package still IN PROGRESS; do not rerun merged source |
+| F3-13 | SOURCE COMPONENTS INTEGRATED (13) | #790, #791, #761, #760, #738, #802, #798, #729, #843, #834, #768, #744, #812 | Original hosted package still IN PROGRESS; do not rerun merged source |
+
+- Total: **14 source-component receipts across 11 existing F3 IDs**. These are **not 11 fully completed packages**. Individual source components are covered by merged Wave A #811 / Wave B #813 and main CI #41178167285 (4/4). Original PR #729/#812/others were closed as superseded, not merged a second time.
+- **F3-01**: previously and independently source-integrated DONE, PR #813 + fresh postmerge CI #41131088666. No duplicate central DONE event.
+- **F3-07** and all other uncovered scoped requirements: no new source-completion claim from this batch.
+- **F3-10/F3-13**: separate genuinely new private generated-Blob retry PR #859 passed exact-head CI #41292509625, but is **PR-tested / review required**, not SOURCE_INTEGRATED or hosted complete.
+- No new rights approval, private PNG route activation, worker GPU, signed DEV acceptance, paid models, DB mutation, customer sample, PROD or WineShopPOS. **0/33 fully hosted accepted** remains unchanged.
+
