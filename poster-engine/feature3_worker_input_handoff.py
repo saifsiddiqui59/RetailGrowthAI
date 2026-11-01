@@ -16,7 +16,7 @@ import tempfile
 
 from fashion_reference_v1 import (
     FashionReferenceDenied, prepare_fashion_references,
-    resolve_first_frame, _read_image,
+    resolve_first_frame, _approved_asset,
 )
 
 _PURPOSES = frozenset(("editing", "image_to_video"))
@@ -79,31 +79,31 @@ def _final_read(fresh, role, readers):
     if ref is None:
         return None
     shop, asset = fresh["shop_id"], ref["source_asset_id"]
-    # Explicit fresh grant, including the exact use, immediately before
-    # reading bytes; don't rely on the earlier source-packet approval.
-    grant = readers["authorize_asset"](shop, asset, fresh["purpose"])
-    if (not isinstance(grant, dict) or grant.get("shop_id") != shop or
-        grant.get("asset_id") != asset or grant.get("authorized") is not True or
-        grant.get("license_verified") is not True or
-        grant.get("approval_state") != "APPROVED" or
-        grant.get("rights_revoked") is not False or
-        type(grant.get("rights_revision")) is not int or
-        grant["rights_revision"] != ref["approval"]["rights_revision"]):
+    # Reuse the *same* strict registered-source boundary as the initial
+    # manifest: current grant, immutable image bytes and tenant-owned
+    # role-specific private object path must all be checked BEFORE the
+    # final worker read. Checking only bucket, SHA and asset ID allowed a
+    # transient swapped object_path to reach read_private_bytes first.
+    source_role = role
+    if role == "first_frame":
+        source_role = "garment" if ref.get("source") == "UPLOAD" else "try_on"
+    current, raw = _approved_asset(
+        shop, asset, source_role, fresh["purpose"],
+        read_asset=readers["read_asset"],
+        authorize_asset=readers["authorize_asset"],
+        read_private_bytes=readers["read_private_bytes"])
+    if (current["source_asset_id"] != asset or
+        current["shop_id"] != shop or
+        current["approval"]["rights_revision"] !=
+            ref["approval"]["rights_revision"] or
+        current["mime_type"] != ref["mime_type"] or
+        current["sha256"] != ref["sha256"] or
+        current["dimensions"] != ref["dimensions"] or
+        current["source"] != ref["source"]):
         _reject()
-    row = readers["read_asset"](shop, asset)
-    if (not isinstance(row, dict) or row.get("shop_id") != shop or
-        row.get("id") != asset or
-        row.get("storage_bucket") != "retailgrowth-media" or
-        row.get("mime_type") != ref["mime_type"] or
-        row.get("image_sha256") != ref["sha256"]):
-        _reject()
-    raw = readers["read_private_bytes"](shop, asset, row.get("object_path"))
-    size, digest = _read_image(raw, ref["mime_type"])
-    if size != ref["dimensions"] or digest != ref["sha256"]:
-        _reject()
-    return {"source_asset_id": asset, "sha256": digest,
-            "mime_type": ref["mime_type"], "dimensions": size,
-            "image_bytes": raw}
+    return {"source_asset_id": asset, "sha256": current["sha256"],
+            "mime_type": current["mime_type"],
+            "dimensions": current["dimensions"], "image_bytes": raw}
 
 
 def resolve_private_worker_inputs(*, expected_manifest, current_readers,
