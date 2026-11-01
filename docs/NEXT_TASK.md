@@ -1391,3 +1391,7 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 - [#864](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/864) is open for strict backend model-reuse license/use validation and malformed-catalog isolation. Exact head `7eea1aacb2e09b306dbc29dd5cfb9eb4f830286a`; media-targeted test job passed. Check final four-job CI before marking TESTED_PR_REVIEW_REQUIRED; independent legal/privacy reviewer and latest-main integration still required.
 - Register #864 alongside existing #859/#861/#862/#863 in original task ledger, with F3-12/F3-13 IDs. Never assign duplicate implementation while it remains open; do not mark hosted DONE or bypass rights approval.
 
+## 2026-11-01 — F3-12 authenticated catalog extension next action
+- Reverify the **new final head** of Feature3 PR #864 `c2c283b79e50bb1c4c34ca4c871ec8bfb2806f18` through Part 1 CI #41306835412: source-only signed catalog adult flag/license/use checks and negative private-media rights contract. Earlier CI #41304611915 was for an older head and cannot approve newer code.
+- Require independent affected API/model licensing reviewer, current-main compatibility, merge under policy, and a fresh main 4-job run before F3-12/F3-13 source-component integration can be recorded. Keep hosted task DONE 0/33 and GPU OFF. The proposed task overlay #860 must update its active PR #864 head/CI evidence only after new final-head CI passes.
+
