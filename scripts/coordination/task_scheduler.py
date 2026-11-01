@@ -134,15 +134,29 @@ def validate_source_receipts(receipts, by_id):
             if task_id not in by_id or by_id[task_id].get("feature")!="3":
                 raise SchedulerError("Feature3 source receipt has unknown/foreign task ID")
             mapped.setdefault(task_id,[]).append(row["source_pr"])
+    pending={}
     for row in receipts.get("pending_source_components",[]):
-        if (not isinstance(row,dict) or row.get("source_pr") in known_source or
-            row.get("stage")!="TESTED_PR_REVIEW_REQUIRED" or
+        if (not isinstance(row,dict) or
+            type(row.get("source_pr")) is not int or row["source_pr"]<1 or
+            row["source_pr"] in known_source or
+            row.get("stage") not in ("TESTED_PR_REVIEW_REQUIRED","PR_IN_PROGRESS") or
             row.get("hosted_task_complete") is not False or
+            not isinstance(row.get("exact_head"),str) or
+            not re.fullmatch(r"[a-f0-9]{40}",row["exact_head"]) or
+            (row["stage"]=="TESTED_PR_REVIEW_REQUIRED" and
+             (type(row.get("exact_head_ci_run_id")) is not int or
+              row["exact_head_ci_run_id"]<1)) or
+            (row["stage"]=="PR_IN_PROGRESS" and
+             row.get("exact_head_ci_run_id") is not None) or
             not isinstance(row.get("task_ids"),list) or not row["task_ids"] or
+            len(set(row["task_ids"]))!=len(row["task_ids"]) or
             any(tid not in by_id or by_id[tid].get("feature")!="3"
                 for tid in row["task_ids"])):
             raise SchedulerError("Invalid pending Feature3 source receipt")
-    return mapped
+        known_source.add(row["source_pr"])
+        for task_id in row["task_ids"]:
+            pending.setdefault(task_id,[]).append(row["source_pr"])
+    return mapped,pending
 
 
 def plan(inventory, policy, events, dependency_report=None, max_candidates=None,
@@ -152,7 +166,10 @@ def plan(inventory, policy, events, dependency_report=None, max_candidates=None,
     if inventory.get("schema_version") != 1 or not isinstance(tasks, list) or len({t["id"] for t in tasks}) != len(tasks):
         raise SchedulerError("Task inventory invalid")
     by_id = {task["id"]: task for task in tasks}
-    source_by_task = validate_source_receipts(source_receipts, by_id) if source_receipts is not None else {}
+    source_by_task,pending_by_task = (
+        validate_source_receipts(source_receipts, by_id)
+        if source_receipts is not None else ({},{})
+    )
     if any(not ID.fullmatch(tid) for tid in by_id):
         raise SchedulerError("Unexpected task ID")
     state = validate_events(events, by_id)
@@ -169,10 +186,12 @@ def plan(inventory, policy, events, dependency_report=None, max_candidates=None,
     def blocked_reason(t):
         if t.get("source_status") == "blocked":
             return "Owner ledger lists source/deployment dependency as blocked"
-        if t["id"] in source_by_task:
-            refs=", ".join("#"+str(n) for n in sorted(source_by_task[t["id"]]))
-            return ("Feature3 source components already merged/reconciled ("+refs+
-                    "); review existing source and remaining hosted gates; do not reimplement")
+        if t["id"] in source_by_task or t["id"] in pending_by_task:
+            merged=", ".join("#"+str(n) for n in sorted(source_by_task.get(t["id"],[])))
+            pending=", ".join("#"+str(n) for n in sorted(pending_by_task.get(t["id"],[])))
+            return ("Feature3 component work already recorded: merged ["+merged+
+                    "], active PR review ["+pending+
+                    "]; inspect existing work and remaining hosted gates; do not reimplement")
         if t.get("source_status") in ("source_complete", "source_integrated"):
             return "Existing source is complete/integrated; integration acceptance review, not new coding"
         if t.get("integrated_done") is not False or t.get("dispatch") != "existing_work_review":
@@ -196,7 +215,8 @@ def plan(inventory, policy, events, dependency_report=None, max_candidates=None,
         if reason:
             group = ("existing_source_or_review"
                      if task.get("source_status") in ("source_complete","source_integrated")
-                     or tid in source_by_task and task.get("source_status")!="blocked"
+                     or (tid in source_by_task or tid in pending_by_task)
+                         and task.get("source_status")!="blocked"
                      else "blocked")
             result[group].append({"id":tid, "reason":reason})
             continue
