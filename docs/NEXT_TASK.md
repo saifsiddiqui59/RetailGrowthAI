@@ -1368,3 +1368,5 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 
 - #812 is now source-reconciled and closed as semantic-superseded; internal signed-API history state is allowed only when checked, and public presentation excludes it. Do not copy its older source over the Wave B version. Continue #859 independent review and other genuinely unintegrated tasks.
 
+- #729 is also reconciled/closed via exact three-blob main comparison. Current actionable source PR #859 requires independent review, while #858 is shared docs review; next hosted tasks remain blocked on valid server-owned rights/route and genuine signed DEV evidence.
+
