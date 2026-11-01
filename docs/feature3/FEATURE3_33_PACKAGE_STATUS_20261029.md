@@ -82,5 +82,7 @@ This is a reconstruction of the established 33 work-package baseline, not 33 new
 
 ## Further source-equivalence audit, 2026-11-01
 - Source already integrated through Wave A/B: #798 (exact four blobs), #843 (exact PNG implementation/test, replaced checkpoint), #834 (typed-attempt guard + all original negative scenarios preserved), #768 (old replacement source/test preserved with additional decode cleanup), #744 (original two GPU-OFF gates retained with later stricter refactor). Standalone PRs closed unmerged superseded with evidence comments.
-- Existing #812 not yet semantically reconciled; no unverified closure. Proposed #859 F3-10/F3-13 has exact-head standard CI #41292509625 4/4 success, but private-media review/integration and hosted acceptance remain pending. **0/33 fully hosted accepted**; 1 source-integrated, 11 source-partial, 21 blocked/dependent unchanged.
+- #812 semantically reconciled and closed; see scoped audit for API-scoped history improvements. Proposed #859 F3-10/F3-13 has exact-head standard CI #41292509625 4/4 success, but private-media review/integration and hosted acceptance remain pending. **0/33 fully hosted accepted**; 1 source-integrated, 11 source-partial, 21 blocked/dependent unchanged.
+
+- #812 original history/preview patch is also reconciled into newer Wave B private-API-scoped code and equivalent stronger negatives. Closed standalone as **semantic superseded**, not an additional merged/hosted task. Counts unchanged.
 
