@@ -165,6 +165,13 @@ class Feature3TrustedPrivateSourceProof:
             **self.headers,"Accept":mime,"Cache-Control":"no-store"})
         try:
             with self.transport(req,timeout=15) as response:
+                # An injected transport or gateway may return a malformed
+                # response. Never expose a raw AttributeError/TypeError at the
+                # private service-key boundary or treat it as a valid receipt.
+                if (not callable(getattr(response,"geturl",None)) or
+                        not callable(getattr(response,"getcode",None)) or
+                        not callable(getattr(response,"read",None))):
+                    raise SourceProofDenied("Private Storage response incomplete")
                 if response.geturl()!=url or response.getcode()!=200:
                     raise SourceProofDenied("Private Storage acknowledgement unconfirmed")
                 headers=getattr(response,"headers",None)
@@ -189,7 +196,8 @@ class Feature3TrustedPrivateSourceProof:
                         int(size)>_IMAGE_MAX):
                     raise SourceProofDenied("Untrusted private media size")
                 data=response.read(_IMAGE_MAX+1)
-        except (HTTPError,URLError,OSError,TimeoutError,ValueError) as exc:
+        except (HTTPError,URLError,OSError,TimeoutError,ValueError,
+                TypeError,AttributeError) as exc:
             raise SourceProofDenied("Private source byte read unavailable") from exc
         if type(data) is not bytes or not 100<=len(data)<=_IMAGE_MAX:
             raise SourceProofDenied("Private image incomplete or oversized")
@@ -215,7 +223,13 @@ class Feature3TrustedPrivateSourceProof:
         return sha256(data).hexdigest()
 
     def _authorize(self,shop,asset,digest,media):
-        attestation=self.review(shop,asset,digest,dict(media))
+        # A rights-authority timeout, outage or malformed adapter response is
+        # a denial, never permission to read private model originals. Keep
+        # callback exception details out of public API error messages.
+        try:
+            attestation=self.review(shop,asset,digest,dict(media))
+        except Exception as exc:
+            raise SourceProofDenied("Independent current source review unavailable") from exc
         if (not isinstance(attestation,dict) or
                 set(attestation)!=_REVIEW_KEYS or
                 attestation.get("shop_id")!=shop or
