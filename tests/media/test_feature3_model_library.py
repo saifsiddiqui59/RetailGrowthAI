@@ -270,6 +270,64 @@ class LibraryTests(unittest.TestCase):
                 self.assertEqual(self.store()["status"], "PENDING_REVIEW")
 
 
+    def test_reusable_model_rejects_invalid_use_grants_before_rights_callback(self):
+        saved=self.store()
+        reviewed={**saved,"status":"APPROVED"}
+        invalid=(
+            ["poster","unreviewed_paid_inference"],
+            ["poster","poster"],
+            ["poster",None],
+            ["poster",["try_on"]],
+            ["poster","try_on","video_reference","admin"],
+            {"poster":True},
+            [],
+            None,
+            "poster",
+            ["video_reference"],
+        )
+        for uses in invalid:
+            checked=[]
+            with self.subTest(uses=repr(uses)),self.assertRaises(ModelLibraryDenied):
+                checked_model_for_use(
+                    model={**reviewed,"approved_uses":uses},
+                    requesting_shop_id=self.shop,usage="poster",
+                    authorize_use=lambda *args: checked.append(args) or True)
+            self.assertEqual(checked,[])
+        for uses in (["poster"],["poster","try_on"],{"poster","video_reference"}):
+            with self.subTest(valid=repr(uses)):
+                grant=checked_model_for_use(
+                    model={**reviewed,"approved_uses":uses},
+                    requesting_shop_id=self.shop,usage="poster",
+                    authorize_use=lambda *_:True)
+                self.assertEqual(grant["model_id"],saved["model_id"])
+
+    def test_reusable_model_rejects_unlicensed_or_malformed_metadata_before_rights(self):
+        saved=self.store()
+        reviewed={**saved,"status":"APPROVED"}
+        malformed=(
+            {"license_id":None},
+            {"license_id":[]},
+            {"license_id":"MODEL_CODE_APACHE_2.0"},
+            {"scope":[]},
+            {"scope":"unreviewed"},
+            {"license_id":"CC-BY-4.0","attribution":42},
+            {"license_id":"CC-BY-4.0","attribution":"   "},
+            {"license_id":"CC-BY-4.0","attribution":None},
+            {"attribution":"x"*201},
+        )
+        for mutation in malformed:
+            calls=[]
+            with self.subTest(mutation=repr(mutation)),self.assertRaises(ModelLibraryDenied):
+                checked_model_for_use(
+                    model={**reviewed,**mutation},
+                    requesting_shop_id=self.shop,usage="poster",
+                    authorize_use=lambda *args:calls.append(args) or True)
+            self.assertEqual(calls,[])
+        with self.assertRaises(ModelLibraryDenied):
+            checked_model_for_use(
+                model=reviewed,requesting_shop_id=self.shop,
+                usage=["poster"],authorize_use=lambda *_:True)
+
     def test_newly_created_ai_model_uses_same_library_contract_no_second_schema(self):
         generated = replace(
             self.candidate, source_kind="created_ai",
