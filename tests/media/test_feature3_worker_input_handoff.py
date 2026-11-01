@@ -123,6 +123,47 @@ class PrivateHandoffTests(unittest.TestCase):
                 # No worker image packet is returned and ephemeral files
                 # must not be allocated by a rejected current source grant.
 
+    def test_transient_private_object_path_substitution_denied_before_worker_read(self):
+        # The first manifest pass sees the legitimate shop-owned source.
+        # A transient, still-SHA-identical row on the final byte read must
+        # not trigger even one read of a foreign or unexpected Storage path.
+        for mutation in (
+            {"object_path":f"{self.fixture.other}/uploads/{self.fixture.upload_object}.png"},
+            {"object_path":f"{self.fixture.shop}/uploads/../secret.png"},
+            {"object_path":"https://foreign.example/private.png"},
+            {"object_path":f"{self.fixture.shop}/model-library/foreign/portrait.png"},
+            {"source":"GENERATED"},
+            {"storage_bucket":"public-media"},
+        ):
+            with self.subTest(mutation=mutation):
+                self.setUp()
+                row_reader=self.readers["read_asset"]
+                byte_reader=self.readers["read_private_bytes"]
+                seen=[0]
+                paths=[]
+                def substituted_row(shop,asset):
+                    row=row_reader(shop,asset)
+                    if asset==self.fixture.garment:
+                        seen[0]+=1
+                        if seen[0]==2:
+                            return {**row,**mutation}
+                    return row
+                def observed_bytes(shop,asset,path):
+                    paths.append(path)
+                    return byte_reader(shop,asset,path)
+                readers={**self.readers,"read_asset":substituted_row,
+                         "read_private_bytes":observed_bytes}
+                with self.assertRaises(FashionReferenceDenied):
+                    resolve_private_worker_inputs(
+                        expected_manifest=self.editor,
+                        current_readers=readers,
+                        verify_worker_job=lambda *_: True)
+                self.assertEqual(seen[0],2)
+                # Initial manifest read: garment and model. No final read
+                # against the substituted path is permitted.
+                self.assertEqual(len(paths),2)
+                self.assertNotIn(mutation.get("object_path","never"),paths)
+
     def test_final_byte_integrity_fails_after_lease(self):
         def changed(shop, ids, digest):
             self.fixture.blobs[self.fixture.garment] = self.fixture.blobs[self.fixture.model_asset]
