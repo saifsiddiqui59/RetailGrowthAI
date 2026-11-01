@@ -14,6 +14,7 @@ from hashlib import sha256
 import io
 import os
 import re
+import unicodedata
 import uuid
 import wave
 from urllib.request import Request, build_opener, HTTPRedirectHandler
@@ -57,7 +58,13 @@ def catalog():
 def _text(value, label, limit):
     if not isinstance(value, str) or not value.strip() or len(value) > limit:
         raise SpeechRejected("Invalid " + label)
-    if any(ord(c) < 32 and c not in "\n\t" for c in value):
+    # Fail before a cost reservation on hidden script controls, malformed
+    # surrogate code points or bidi/paragraph formatting. Ordinary Indic
+    # vowel marks remain accepted (Mn/Mc) for Hindi/Marathi narration.
+    if any((ord(c) < 32 and c not in "\n\t") or
+           0x7f <= ord(c) <= 0x9f or
+           unicodedata.category(c) in {"Cf", "Cs", "Zl", "Zp"}
+           for c in value):
         raise SpeechRejected("Unsafe " + label)
     return value.strip()
 
