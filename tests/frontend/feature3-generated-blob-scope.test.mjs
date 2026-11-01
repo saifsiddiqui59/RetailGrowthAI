@@ -267,3 +267,45 @@ test('repeated preview attempts cannot allocate unbounded private Blobs while re
   scope.clear()
   assert.deepEqual(revoked,[issued[1],old,recovered])
 })
+
+test('decode failure remains non-renderable when browser revoke throws and later recovers',()=>{
+  const issued=[],revoked=[]
+  let fail=true
+  const scope=createFeature3GeneratedBlobScope({
+    createURL:()=>{
+      const next='blob:https://fixture.test/'+randomUUID()
+      issued.push(next)
+      return next
+    },
+    revokeURL:url=>{
+      if(fail)throw Error('browser revoke temporarily denied')
+      revoked.push(url)
+    },
+  })
+  scope.selectScope(SHOP)
+  const first=scope.install(SHOP,JOB,RECEIPT)
+  // onError must return true so the React handler removes its image even
+  // though the browser's revokeObjectURL callback has thrown.
+  assert.equal(scope.discardFailed(SHOP,JOB,first),true)
+  assert.equal(scope.view(SHOP,JOB),null)
+  assert.equal(scope.discardFailed(SHOP,JOB,first),false)
+  assert.throws(()=>scope.install(SHOP,JOB,RECEIPT),/cleanup failed/)
+  assert.equal(issued.length,1,'pending private Blob cannot trigger more allocations')
+  fail=false
+  const second=scope.install(SHOP,JOB,RECEIPT)
+  assert.notEqual(second,first)
+  assert.deepEqual(revoked,[first])
+  assert.equal(scope.view(SHOP,JOB),second)
+  scope.clear()
+  assert.deepEqual(revoked,[first,second])
+})
+
+test('React history hides preview before cleanup and checks live registry ownership',()=>{
+  const history=readFileSync(
+    new URL('../../frontend/src/features/creative/Feature3GeneratedHistory.jsx',import.meta.url),'utf8')
+  assert.match(history,/registry\.current\.view\(shopId,image\.jobId\)===image\.url/)
+  assert.match(history,/const clearImage=\(\)=>\{\s*\+\+epoch\.current\s*setImage\(null\)\s*setImageBusy\(false\)\s*setImageMessage\(''\)\s*try \{ registry\.current\.clear\(\) \}/)
+  assert.match(history,/const loadImage=async\(job\)=>[\s\S]*?setImage\(null\)\s*setImageBusy\(true\)\s*setImageMessage\(''\)\s*try\{\s*registry\.current\.clear\(\)/)
+  assert.match(history,/const load=async\(\)=>[\s\S]*?setImage\(null\)\s*setImageBusy\(false\)\s*setImageMessage\(''\)\s*try \{ registry\.current\.clear\(\) \}/)
+  assert.match(history,/Private preview hidden; browser cleanup pending/)
+})
