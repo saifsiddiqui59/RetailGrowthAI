@@ -1382,3 +1382,8 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 - F3-10/F3-13 #859 remains exact-head #41292509625 4/4 PASS and security review-gated. Shared [#860](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/860) now tracks all three tested PRs to prevent duplicate candidate assignments, but no task-level DONE until independent integration/main 4/4. Shared docs #858 also review-gated.
 - Continue separate legitimate source work when safe; do not resubmit any of these three or Wave A/B's fourteen completed components. No live hosted/paid approvals inferred.
 
+## Feature3 next independent F3-08/F3-13 review (2026-11-01)
+- [PR #863](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/863) submitted a source-only double-read private generated-media row fence. Python source tests passed in first PR CI observation (1007 + 592 subtests); check all four **exact final-head** jobs before calling it tested.
+- The PR must receive independent private-media/security review and latest-main merge, then fresh main four-job CI. Do not reimplement the private generated-media binding while #863 is under review.
+- Already-tested original task PRs #859 (F3-10/13), #861 (F3-07/13) and #862 (F3-02/13) also remain open and review-gated. Source-only tracker #860 should map #863 as an **active** PR without creating new numbered task or hosted DONE.
+
