@@ -222,3 +222,37 @@ test('quality review and aggregate WER reject forged audio identity or job ID',(
    receipt:{...receipt,creative_plan_sha256:'invalid-plan'},
    metrics:{...werReceipt(),creative_plan_sha256:'invalid-plan'}}))
 })
+
+
+test('F2-26 rejects misplaced zero-width joiners in private F7 word display',()=>{
+  const disguised=[
+    'kur\u200cti','kur\u200dti','\u200dkurti',
+    'दि\u200dवाली','क्\u200d9','क्\u200d',
+  ]
+  for(const word of disguised){
+    const altered=review()
+    altered.asr_word_timing[0].word=word
+    assert.throws(()=>verifyPrivateVoiceQualityReview({
+      shopId,campaignId,planSha256,receipt,review:altered
+    }),undefined,JSON.stringify(word))
+    const issue=review()
+    issue.asr_issues[0].word=word
+    assert.throws(()=>verifyPrivateVoiceQualityReview({
+      shopId,campaignId,planSha256,receipt,review:issue
+    }),undefined,JSON.stringify(word))
+  }
+})
+
+test('F2-26 valid Devanagari virama conjunct stays manually reviewable',()=>{
+  const content=review()
+  content.asr_word_timing[0].word='क्\u200dष'
+  content.asr_issues[0].word='क्\u200cष'
+  const verified=verifyPrivateVoiceQualityReview({
+    shopId,campaignId,planSha256,receipt,review:content
+  })
+  assert.equal(verified.words[0].word,'क्\u200dष')
+  assert.equal(verified.issues[0].word,'क्\u200cष')
+  assert.equal(verified.human_listening_required,true)
+  assert.equal(verified.pronunciation_verified,false)
+  assert.equal(verified.can_publish,false)
+})
