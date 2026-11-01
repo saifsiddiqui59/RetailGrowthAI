@@ -76,3 +76,7 @@ This is a reconstruction of the established 33 work-package baseline, not 33 new
 - Standalone #790, #791 and #761 closed as superseded once **all changed path blob SHAs** matched current main. #760 also closed after independently verifying the original test's complete ordered-line inclusion and only two later mocked SQL ACK lines in main; its other two blobs match exactly. (The test blob itself differs.) No hosted/provider/rights check was executed and no component is counted DONE from these closures.
 - **Counts unchanged:** 0/33 fully hosted accepted; 1 source-integrated, 11 source-partial, 21 blocked/dependent. F3-01 separately has a source-only accepted milestone, not a commercial output.
 
+## F3-10/F3-13 source batch and reconciled backlog (2026-11-01)
+- New source-only PR #859 repairs lost locally-issued Blob revocation receipts under simulated browser failures, with negative tests; status **IN PROGRESS**, pending exact-head full CI, independent review and eventual fresh main CI. This does not revoke signed Storage URLs, mount Azure route, or satisfy real tenant/model-rights E2E.
+- Stale PRs #738, #752, #802 source+tests matched integrated main at all changed path blob SHA and were closed as unmerged superseded. #744 requires semantic follow-up. **Hosted count unchanged: 0/33; source categories unchanged until independent acceptance.**
+
