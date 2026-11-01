@@ -812,3 +812,6 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 ## 2026-11-01 — F3-12/F3-13 private model reuse source hardening
 - Opened Feature3 [#864](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/864), built on verified main: source server model reuse now denies unknown image-license codes, duplicate/unknown/unhashable uses and malformed attribution before private media, and skips malformed catalog entries. Added targeted model-library/catalog regression suites; media GitHub Actions job observed success on exact PR head. Full PR 4/4, independent rights/security review, merge, fresh postmerge main CI and legal/hosted approval remain separate; no task-level DONE.
 
+## 2026-11-01 — Follow-up F3-12 code batch in existing #864
+- Verified current main unchanged from source checkpoint, found that authenticated `Feature3V2Store.list_models` had depended on an unchecked `approved_uses` string and hardcoded synthetic-adult UI flag. Extended existing PR #864 with strict server catalog authorization and synthetic fixtures in `tests/api/test_feature3_model_catalog_current_rights.py`. Tested current source head through GitHub Part 1 CI #41306835412; final four-job conclusion must be confirmed separately. No duplicated original F3 task, new paid provider, cloud mutation, real licensed/hosted approval or WineShopPOS change.
+
