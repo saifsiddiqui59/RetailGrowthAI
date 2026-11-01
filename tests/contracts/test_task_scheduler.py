@@ -139,6 +139,10 @@ def test_feature3_source_component_receipts_suppress_duplicate_advisory_coding()
         assert tid in review
         assert "do not reimplement" in review[tid]
     assert any(x["id"]=="F3-04" for x in out["blocked"])
+    assert "F3-07" in review
+    assert "#861" in review["F3-07"]
+    assert "#862" in review["F3-02"]
+    assert "#859" in review["F3-10"]
     assert out["executor_connected"] is False
     assert out["mode"]=="advisory_only"
     # Source receipts do not mutate the immutable 159-task inventory.
@@ -168,3 +172,13 @@ def test_feature3_source_receipts_never_forge_task_done_or_other_feature():
         copy.deepcopy(x["complete_source_components"][0])))
     invalid(lambda x: x["pending_source_components"][0].update(
         stage="SOURCE_INTEGRATED"))
+    invalid(lambda x: x["pending_source_components"][0].update(
+        exact_head="invalid"))
+    invalid(lambda x: x["pending_source_components"][0].update(
+        exact_head_ci_run_id=True))
+    invalid(lambda x: x["pending_source_components"][2].update(
+        exact_head_ci_run_id=41301483566))
+    invalid(lambda x: x["pending_source_components"][2].update(
+        task_ids=["F4-01"]))
+    invalid(lambda x: x["pending_source_components"].append(
+        copy.deepcopy(x["pending_source_components"][1])))
