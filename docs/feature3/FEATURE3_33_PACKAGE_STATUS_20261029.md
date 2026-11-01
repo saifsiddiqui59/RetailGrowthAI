@@ -73,6 +73,6 @@ This is a reconstruction of the established 33 work-package baseline, not 33 new
 
 ## Source-PR backlog cleanup — 2026-11-01 (not hosted acceptance)
 - Wave A #811 and Wave B #813 source consolidation exists on current main `456b1757d7df2f0cc28a5ef6c8ba203b18380948`, with Part 1 CI #41178167285 independently verified 4/4. See `WAVE_AB_DUPLICATE_PR_RECONCILIATION_20261101.md` for exact blob checks.
-- Standalone #790, #791 and #761 closed as superseded once **all changed path blob SHAs** matched current main. #760 left open because its test blob differs; needs assertion-level reconciliation. No hosted/provider/rights check was executed and no component is counted DONE from these closures.
+- Standalone #790, #791 and #761 closed as superseded once **all changed path blob SHAs** matched current main. #760 also closed after independently verifying the original test's complete ordered-line inclusion and only two later mocked SQL ACK lines in main; its other two blobs match exactly. (The test blob itself differs.) No hosted/provider/rights check was executed and no component is counted DONE from these closures.
 - **Counts unchanged:** 0/33 fully hosted accepted; 1 source-integrated, 11 source-partial, 21 blocked/dependent. F3-01 separately has a source-only accepted milestone, not a commercial output.
 
