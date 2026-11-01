@@ -257,7 +257,18 @@
       "id": "F2-29",
       "title": "Private MP3 decode and safety validation",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Bound RIFF/WAV format metadata inside private MP3 normalization and original PCM inspection",
+        "source_commits": [
+          "5d0564b16308bdb3be5c486e359337149bf4e4a3"
+        ],
+        "test_commit": "19e0b8df68e91e5c27b0f14c5805114412d339e8",
+        "test_cases": 7,
+        "complete_scope": false,
+        "blocker": "Real FFmpeg-enabled worker, tenant-private media writer/rights and RLS still need verification; synthetic WAV does not prove real MP3/licensing"
+      }
     },
     {
       "id": "F2-30",
