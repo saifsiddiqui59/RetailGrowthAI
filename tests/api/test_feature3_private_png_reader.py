@@ -432,7 +432,9 @@ class RevocableReaderTests(unittest.TestCase):
     def test_current_rights_outage_before_or_after_private_read_denied(self):
         for fail_on in (1,2):
             self.setUp()
-            original = self.rights
+            # setUp resets fixtures but does not shadow instance methods.
+            # Bind the real implementation, not the previous loop's wrapper.
+            original = RevocableReaderTests.rights.__get__(self, RevocableReaderTests)
             calls = [0]
             def unavailable(shop,job,asset):
                 calls[0] += 1
