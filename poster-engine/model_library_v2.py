@@ -50,10 +50,21 @@ def _uuid(value):
 def _source_uri(value):
     if not isinstance(value, str) or not 12 <= len(value) <= 1500:
         raise ModelLibraryDenied("Auditable HTTPS model provenance required")
-    parsed = urlsplit(value)
-    if (parsed.scheme != "https" or not parsed.hostname or
-        parsed.username or parsed.password or parsed.fragment or
-        parsed.port not in (None, 443)):
+    # urlsplit silently strips leading C0 controls and embedded CR/LF/TAB.
+    # Reject those before parsing: the stored human-review evidence must be
+    # byte-for-byte the URL actually inspected, not a normalized lookalike.
+    if any(ord(ch) <= 32 or ord(ch) == 127 or ch == "\\" for ch in value):
+        raise ModelLibraryDenied("Only clean HTTPS provenance links are allowed")
+    try:
+        parsed = urlsplit(value)
+        valid = (parsed.scheme == "https" and bool(parsed.hostname) and
+                 not parsed.username and not parsed.password and
+                 not parsed.fragment and parsed.port in (None, 443))
+    except ValueError as exc:
+        # Malformed IPv6 brackets and nonnumeric/out-of-range ports must be
+        # a controlled rights denial, never an uncaught transport 500.
+        raise ModelLibraryDenied("Only clean HTTPS provenance links are allowed") from exc
+    if not valid:
         raise ModelLibraryDenied("Only clean HTTPS provenance links are allowed")
     return value
 
