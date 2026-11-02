@@ -79,7 +79,11 @@ test('malicious external URL returned by URL factory never displays',()=>{
 test('malformed blob scheme without an origin and identifier never displays',()=>{
   for(const malformed of ['blob:', 'blob:javascript:alert(1)',
     'blob:https://fixture.test/', 'blob:https://fixture.test/id?token=secret',
-    'blob:https://fixture.test/id#fragment', 'blob:https://fixture.test/id\n']){
+    'blob:https://fixture.test/id#fragment', 'blob:https://fixture.test/id\n',
+    'blob:https://fixture.test/id'+String.fromCharCode(92)+'segment',
+    'blob:https://fixture.test/id'+String.fromCharCode(127),
+    'blob:https://fixture.test/id'+String.fromCharCode(0),
+    'blob:https://fixture.test/id'+String.fromCharCode(0x202e)]){
     const revoked=[]
     const scope=createFeature3GeneratedBlobScope({
       createURL:()=>malformed,
