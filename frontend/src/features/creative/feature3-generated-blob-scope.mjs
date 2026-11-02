@@ -75,6 +75,10 @@ export function createFeature3GeneratedBlobScope({
     // A malformed blob: string is not a usable local preview receipt.
     // Keep ordinary HTTPS and localhost HTTP development origins supported.
     if(typeof next!=='string'||
+       // Native object URLs are printable ASCII. Reject invisible controls,
+       // bidi spoofing and backslashes even when a URL-like regex matches.
+       [...next].some(ch=>ch.charCodeAt(0)<33||ch.charCodeAt(0)>126||
+         ch===String.fromCharCode(92))||
        !/^blob:(?:https?:\/\/[^/?#\s]+|null)\/[^/?#\s]+$/.test(next)){
       throw Error('Only local revocable Blob preview URL permitted')
     }
