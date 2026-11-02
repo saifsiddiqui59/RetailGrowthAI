@@ -180,6 +180,78 @@ class LibraryTests(unittest.TestCase):
                     self.store(candidate=c)
         self.assertEqual(len(self.assets), 0)
 
+    def test_malformed_https_provenance_denies_before_private_storage(self):
+        # Python urlsplit normalizes CR/LF/TAB and raises ValueError for
+        # malformed ports/brackets; neither is acceptable license evidence.
+        malformed = (
+            "https://example.com:bad/license",
+            "https://example.com:65536/license",
+            "https://[::1/license",
+            " https://example.com/license",
+            "https://example.com/license\nforged",
+            "https://example.com/license\tforged",
+            "https://example.com\\@attacker.invalid/license",
+            "https://example.com/license\x7f",
+        )
+        for uri in malformed:
+            with self.subTest(uri=repr(uri)):
+                candidate = replace(self.candidate, source_uri=uri)
+                with self.assertRaises(ModelLibraryDenied):
+                    self.store(candidate=candidate)
+                self.assertFalse(self.assets)
+                self.assertEqual(self.saved, [])
+        # Explicit standard HTTPS port remains a valid provenance link,
+        # subject to the separate independent license verification callback.
+        candidate = replace(
+            self.candidate, source_uri="https://example.com:443/license")
+        self.assertEqual(self.store(candidate=candidate)["status"],
+                         "PENDING_REVIEW")
+
+    def test_untrusted_model_text_controls_fail_before_storage_or_reuse(self):
+        for mutation in (
+            {"label": "Model\nforged"},
+            {"label": " "*80 + "Model"},
+            {"attribution": "credit\rforged"},
+            {"attribution": "credit\x7fhidden"},
+        ):
+            with self.subTest(mutation=repr(mutation)):
+                with self.assertRaises(ModelLibraryDenied):
+                    self.store(candidate=replace(self.candidate, **mutation))
+                self.assertFalse(self.assets)
+                self.assertEqual(self.saved, [])
+        saved = self.store()
+        reviewed = {**saved, "status": "APPROVED"}
+        for attribution in ("credit\nforged", "credit\x7fhidden"):
+            calls = []
+            with self.subTest(attribution=repr(attribution)):
+                with self.assertRaises(ModelLibraryDenied):
+                    checked_model_for_use(
+                        model={**reviewed, "attribution": attribution},
+                        requesting_shop_id=self.shop, usage="poster",
+                        authorize_use=lambda *args: calls.append(args) or True)
+                self.assertEqual(calls, [])
+
+    def test_unhashable_model_provenance_never_reaches_storage_or_registry(self):
+        # ModelCandidate metadata is untrusted even when constructed through
+        # a Python adapter; a list/dict must deny without TypeError/500.
+        invalid=(
+            {"scope":["shop"]},
+            {"scope":{"shop":True}},
+            {"source_kind":["retailer_licensed"]},
+            {"source_kind":{"retailer_licensed":True}},
+            {"license_id":["CC0-1.0"]},
+            {"license_id":{"CC0-1.0":True}},
+            {"pose":["front"]},
+            {"pose":{"front":True}},
+        )
+        for mutation in invalid:
+            with self.subTest(mutation=repr(mutation)):
+                candidate=replace(self.candidate,**mutation)
+                with self.assertRaises(ModelLibraryDenied):
+                    self.store(candidate=candidate)
+                self.assertFalse(self.assets)
+                self.assertEqual(self.saved,[])
+
     def test_attribution_required_for_cc_by_and_retained_in_consumer_receipt(self):
         ccby = replace(self.candidate, license_id="CC-BY-4.0")
         with self.assertRaisesRegex(ModelLibraryDenied, "attribution"):
@@ -269,6 +341,64 @@ class LibraryTests(unittest.TestCase):
                 self.valid_uses = uses
                 self.assertEqual(self.store()["status"], "PENDING_REVIEW")
 
+
+    def test_reusable_model_rejects_invalid_use_grants_before_rights_callback(self):
+        saved=self.store()
+        reviewed={**saved,"status":"APPROVED"}
+        invalid=(
+            ["poster","unreviewed_paid_inference"],
+            ["poster","poster"],
+            ["poster",None],
+            ["poster",["try_on"]],
+            ["poster","try_on","video_reference","admin"],
+            {"poster":True},
+            [],
+            None,
+            "poster",
+            ["video_reference"],
+        )
+        for uses in invalid:
+            checked=[]
+            with self.subTest(uses=repr(uses)),self.assertRaises(ModelLibraryDenied):
+                checked_model_for_use(
+                    model={**reviewed,"approved_uses":uses},
+                    requesting_shop_id=self.shop,usage="poster",
+                    authorize_use=lambda *args: checked.append(args) or True)
+            self.assertEqual(checked,[])
+        for uses in (["poster"],["poster","try_on"],{"poster","video_reference"}):
+            with self.subTest(valid=repr(uses)):
+                grant=checked_model_for_use(
+                    model={**reviewed,"approved_uses":uses},
+                    requesting_shop_id=self.shop,usage="poster",
+                    authorize_use=lambda *_:True)
+                self.assertEqual(grant["model_id"],saved["model_id"])
+
+    def test_reusable_model_rejects_unlicensed_or_malformed_metadata_before_rights(self):
+        saved=self.store()
+        reviewed={**saved,"status":"APPROVED"}
+        malformed=(
+            {"license_id":None},
+            {"license_id":[]},
+            {"license_id":"MODEL_CODE_APACHE_2.0"},
+            {"scope":[]},
+            {"scope":"unreviewed"},
+            {"license_id":"CC-BY-4.0","attribution":42},
+            {"license_id":"CC-BY-4.0","attribution":"   "},
+            {"license_id":"CC-BY-4.0","attribution":None},
+            {"attribution":"x"*201},
+        )
+        for mutation in malformed:
+            calls=[]
+            with self.subTest(mutation=repr(mutation)),self.assertRaises(ModelLibraryDenied):
+                checked_model_for_use(
+                    model={**reviewed,**mutation},
+                    requesting_shop_id=self.shop,usage="poster",
+                    authorize_use=lambda *args:calls.append(args) or True)
+            self.assertEqual(calls,[])
+        with self.assertRaises(ModelLibraryDenied):
+            checked_model_for_use(
+                model=reviewed,requesting_shop_id=self.shop,
+                usage=["poster"],authorize_use=lambda *_:True)
 
     def test_newly_created_ai_model_uses_same_library_contract_no_second_schema(self):
         generated = replace(

@@ -90,6 +90,54 @@ class ModelPickerTests(unittest.TestCase):
             with self.subTest(receipt=receipt):
                 self.assertEqual(self.run_picker(resolve_private_media=lambda *_:receipt), [])
 
+    def test_server_rejects_forged_use_or_license_before_private_media_lookup(self):
+        bad_rows=(
+            {"license_id":"UNKNOWN"},
+            {"license_id":None},
+            {"license_id":[]},
+            {"approved_uses":["poster","admin"]},
+            {"approved_uses":["poster","poster"]},
+            {"approved_uses":["poster",None]},
+            {"approved_uses":{"poster":True}},
+            {"license_id":"CC-BY-4.0","attribution":42},
+            {"license_id":"CC-BY-4.0","attribution":"  "},
+        )
+        for mutation in bad_rows:
+            self.setUp()
+            private_reads=[]
+            def private(shop,model):
+                private_reads.append((shop,model))
+                return self.private_media(shop,model)
+            with self.subTest(mutation=repr(mutation)):
+                self.assertEqual(self.run_picker(
+                    models=[{**self.model,**mutation}],
+                    resolve_private_media=private),[])
+            self.assertEqual(private_reads,[])
+            self.assertEqual(self.reads,[])
+
+    def test_unsafe_catalog_label_never_reaches_rights_or_private_media(self):
+        for label in ("Poster\nforged", " "*70 + "Poster", "Poster\x7fhidden"):
+            self.reads.clear()
+            private_reads = []
+            def private(shop, reference):
+                private_reads.append((shop, reference))
+                return self.private_media(shop, reference)
+            with self.subTest(label=repr(label)):
+                result = self.run_picker(
+                    models=[{**self.model, "label": label}],
+                    resolve_private_media=private)
+                self.assertEqual(result, [])
+                self.assertEqual(self.reads, [])
+                self.assertEqual(private_reads, [])
+
+    def test_malformed_catalog_rows_do_not_break_valid_shop_model(self):
+        self.setUp()
+        malformed=[None,False,123,[],{"schema":"invalid"},self.model]
+        rows=self.run_picker(models=malformed)
+        self.assertEqual(len(rows),1)
+        self.assertEqual(rows[0]["model_id"],self.id)
+        self.assertEqual(self.reads,[(self.shop,self.id,"poster",SHA)])
+
     def test_duplicate_rows_and_item_cap(self):
         self.assertEqual(len(self.run_picker(models=[self.model, self.model])), 1)
         with self.assertRaises(ModelLibraryDenied):
