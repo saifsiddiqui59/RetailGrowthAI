@@ -346,6 +346,35 @@ class PrivateSourceProofTests(unittest.TestCase):
                 self.proof(self.shop,self.row)
             self.assertEqual(self.calls,[])
 
+    def test_invisible_unicode_and_padded_provenance_denied_before_private_read(self):
+        # Invisible/bidi controls can spoof the displayed commercial-rights
+        # attribution. Reject before independent review or service-key GET.
+        for attribution in (
+            "Licensed source \u202e moc.elpmaxe",  # bidi override
+            "Licensed \u200b source original",      # zero-width space
+            "Licensed \u2060 source original",      # word joiner
+            "Licensed \u2066 source original",      # bidi isolate
+            "Licensed \ufeff source original",      # BOM
+            "Licensed \u0085 source original",      # C1 control
+            "Licensed \u2028 source original",      # Unicode line separator
+            "Licensed \u2029 source original",      # paragraph separator
+            "Licensed \ud800 source original",      # lone surrogate
+            "Independently licensed" + " " * 201,  # raw length bypass
+        ):
+            self.setUp()
+            self.row["attribution"] = attribution
+            with self.subTest(attribution=ascii(attribution)), self.assertRaises(
+                    SourceProofDenied):
+                self.proof(self.shop, self.row)
+            self.assertEqual(self.calls, [])
+
+        # Ordinary Indic text and combining marks remain valid provenance.
+        self.setUp()
+        self.row["attribution"] = "Commercially licensed image by महाराष्ट्र studio © 2026"
+        self.assertEqual(self.proof(self.shop, self.row)["image_sha256"], self.sha)
+        self.assertEqual([call[0] for call in self.calls],
+                         ["review", "get", "review"])
+
     def test_valid_declared_license_url_never_substitutes_for_review(self):
         self.row["license_name"]="cc0"
         self.row["license_url"]="https://license.example/licenses/cc0"
