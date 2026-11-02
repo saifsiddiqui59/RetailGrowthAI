@@ -89,6 +89,14 @@ def _license_url(value):
         return False
 
 
+def _printable_response_header(value):
+    # Injected HTTP transports can return header strings with folding,
+    # invisible Unicode or unbounded parameters. Never normalize them into
+    # apparently trustworthy private Storage metadata.
+    return (type(value) is str and 1 <= len(value) <= 256 and
+            all(32 <= ord(ch) <= 126 for ch in value))
+
+
 def _credentials(secret):
     # Reject non-ASCII/DEL/control or unbounded credentials before they reach
     # the HTTP header encoder. Keep both current Supabase secret-key and
@@ -201,11 +209,11 @@ class Feature3TrustedPrivateSourceProof:
                 # registered original. No transparent decompression or
                 # intermediary transformation is accepted.
                 if (encoding is not None and
-                        (not isinstance(encoding,str) or
+                        (not _printable_response_header(encoding) or
                          encoding.strip().lower()!="identity")):
                     raise SourceProofDenied("Encoded private source response denied")
                 if (kind is not None and
-                        (type(kind) is not str or
+                        (not _printable_response_header(kind) or
                          kind.split(";",1)[0].strip().lower()!=mime)):
                     raise SourceProofDenied("Private Storage returned another media format")
                 # Content-Length is at most eight decimal digits for 25 MB.

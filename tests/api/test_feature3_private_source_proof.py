@@ -570,6 +570,38 @@ class PrivateSourceProofTests(unittest.TestCase):
                         self.proof(self.shop, self.row)
                 self.assertEqual([x[0] for x in self.calls], ["review", "get"])
 
+    def test_private_response_header_folding_and_unicode_denied_before_read(self):
+        # Content-Type/Encoding are security-relevant service-key response
+        # metadata. Never silently strip CR/LF/TAB, bidi Unicode or a
+        # 257-byte parameter before validating immutable private pixels.
+        cases = (
+            ("http_mime", "image/png\r\n"),
+            ("http_mime", "image/png\t"),
+            ("http_mime", "image/png\u202e"),
+            ("http_mime", "image/png;" + "x" * 257),
+            ("content_encoding", "identity\n"),
+            ("content_encoding", "\tidentity"),
+            ("content_encoding", "identity\u202e"),
+            ("content_encoding", "identity" + " " * 257),
+        )
+        for field, value in cases:
+            self.setUp()
+            setattr(self, field, value)
+            body_reads = []
+            self.read_hook = lambda: body_reads.append(True)
+            with self.subTest(field=field, value=ascii(value)):
+                with self.assertRaises(SourceProofDenied):
+                    self.proof(self.shop, self.row)
+            self.assertEqual(body_reads, [])
+            self.assertEqual([c[0] for c in self.calls], ["review", "get"])
+
+        self.setUp()
+        self.http_mime = "image/png; charset=utf-8"
+        self.content_encoding = " identity "
+        self.assertEqual(self.proof(self.shop, self.row)["image_sha256"], self.sha)
+        self.assertEqual([c[0] for c in self.calls], ["review", "get", "review"])
+
+
     def test_private_content_length_syntax_bounded_before_body_read(self):
         # A proxy's oversized decimal header must not be parsed or allow
         # any private-body read, even if its integer value is plausible.
