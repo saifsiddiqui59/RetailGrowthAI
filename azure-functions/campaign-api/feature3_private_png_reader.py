@@ -199,8 +199,16 @@ class Feature3RevocablePNGReader:
                             for k in img.info)):
                     raise PrivateGeneratedDownloadDenied("Untrusted private PNG format")
                 img.verify()
-        except (OSError, ValueError, UnidentifiedImageError,
-                Image.DecompressionBombError) as exc:
+            # PNG.verify() checks container/chunk CRCs, but does not decode
+            # compressed IDAT pixels. A CRC-repaired corrupt zlib stream can
+            # pass verify() and the immutable SHA while failing at display.
+            # Require a full decode before returning any private image bytes.
+            with Image.open(BytesIO(raw)) as decoded:
+                if decoded.format != "PNG":
+                    raise PrivateGeneratedDownloadDenied("Untrusted private PNG format")
+                decoded.load()
+        except (OSError, ValueError, UnidentifiedImageError, SyntaxError,
+                EOFError, RuntimeError, Image.DecompressionBombError) as exc:
             raise PrivateGeneratedDownloadDenied("Untrusted private PNG pixels") from exc
         return raw
 
