@@ -209,10 +209,10 @@ class LibraryTests(unittest.TestCase):
 
     def test_untrusted_model_text_controls_fail_before_storage_or_reuse(self):
         for mutation in (
-            {"label": "Model\\nforged"},
+            {"label": "Model\nforged"},
             {"label": " "*80 + "Model"},
-            {"attribution": "credit\\rforged"},
-            {"attribution": "credit\\x7fhidden"},
+            {"attribution": "credit\rforged"},
+            {"attribution": "credit\x7fhidden"},
         ):
             with self.subTest(mutation=repr(mutation)):
                 with self.assertRaises(ModelLibraryDenied):
@@ -221,7 +221,7 @@ class LibraryTests(unittest.TestCase):
                 self.assertEqual(self.saved, [])
         saved = self.store()
         reviewed = {**saved, "status": "APPROVED"}
-        for attribution in ("credit\\nforged", "credit\\x7fhidden"):
+        for attribution in ("credit\nforged", "credit\x7fhidden"):
             calls = []
             with self.subTest(attribution=repr(attribution)):
                 with self.assertRaises(ModelLibraryDenied):
