@@ -397,4 +397,7 @@ test('history refresh cannot cancel an active private preview GET',()=>{
   const invalidate=load.indexOf('imageReadToken.current=null')
   assert.ok(guard>=0 && invalidate>guard)
   assert.match(history,/onClick=\{load\} disabled=\{!api\|\|!shopId\|\|checked\.busy\|\|imageBusy\}/)
+  // Explicit cancellation remains available if a private binary GET stalls.
+  assert.match(history,/\{imageBusy && <button type="button" onClick=\{clearImage\}>\s*Cancel private preview request/)
+  assert.match(history,/const clearImage=\(\)=>\{\s*\+\+epoch\.current\s*imageReadToken\.current=null/)
 })
