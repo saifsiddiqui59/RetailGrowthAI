@@ -39,6 +39,14 @@ def approved_model_picker_items(*, models, requesting_shop_id,
         # model picker or attempting a private-media resolution.
         if not isinstance(model, dict):
             continue
+        # Reject unsafe UI text before rights and private-media callbacks.
+        # A malformed row must never cause a private lookup only to be
+        # discarded after the sensitive lookup has already happened.
+        label = model.get('label')
+        if (not isinstance(label, str) or
+                not 1 <= len(label.strip()) <= 64 or len(label) > 64 or
+                any(ord(ch) < 32 or ord(ch) == 127 for ch in label)):
+            continue
         try:
             reference = checked_model_for_use(
                 model=model, requesting_shop_id=shop_id, usage='poster',
@@ -58,9 +66,6 @@ def approved_model_picker_items(*, models, requesting_shop_id,
             not _ASSET.fullmatch(receipt['media_asset_id'])):
             # Deny this entry. We cannot assume a model grant also
             # registers private preview media for the requesting tenant.
-            continue
-        label = model.get('label')
-        if not isinstance(label, str) or not 1 <= len(label.strip()) <= 64:
             continue
         seen.add(reference['model_id'])
         ready.append({
