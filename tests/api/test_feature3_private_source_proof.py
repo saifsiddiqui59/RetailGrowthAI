@@ -153,6 +153,26 @@ class PrivateSourceProofTests(unittest.TestCase):
                 f"{self.shop}/model-library/{self.model}/{digest}{ext}")
             self.assertEqual(self.proof(self.shop,self.row)["image_sha256"],digest)
 
+    def test_truncated_jpeg_header_verify_cannot_attest_private_pixels(self):
+        # Pillow JPEG verify() accepts some truncated entropy-coded streams.
+        # Full decode must reject them before the post-read rights approval.
+        original=image_bytes("JPEG")
+        for lost in (2,20,80):
+            self.setUp()
+            truncated=original[:-lost]
+            with Image.open(BytesIO(truncated)) as header:
+                header.verify()
+            digest=sha256(truncated).hexdigest()
+            self.http_payload=truncated
+            self.http_mime="image/jpeg"
+            self.row["mime_type"]="image/jpeg"
+            self.row["object_path"]=(
+                f"{self.shop}/model-library/{self.model}/{digest}.jpg")
+            with self.subTest(truncated_bytes=lost), self.assertRaisesRegex(
+                    SourceProofDenied,"Invalid real private image"):
+                self.proof(self.shop,self.row)
+            self.assertEqual([call[0] for call in self.calls],["review","get"])
+
     def test_revoked_rights_after_private_bytes_read_denied(self):
         self.revoke_second=True
         with self.assertRaises(SourceProofDenied):

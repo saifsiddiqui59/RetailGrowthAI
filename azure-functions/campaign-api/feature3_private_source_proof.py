@@ -220,8 +220,15 @@ class Feature3TrustedPrivateSourceProof:
                         for k in image.info)):
                     raise SourceProofDenied("Private image format or dimensions denied")
                 image.verify()
-        except (UnidentifiedImageError,ValueError,OSError,
-                Image.DecompressionBombError) as exc:
+            # Pillow verify() checks container structure, but does not
+            # decompress JPEG pixels. Truncated originals can pass it.
+            # Force full pixel decode before issuing any private SHA receipt.
+            with Image.open(BytesIO(data)) as decoded:
+                if decoded.format != _EXT[mime][1]:
+                    raise SourceProofDenied("Private image format changed during decode")
+                decoded.load()
+        except (UnidentifiedImageError,ValueError,OSError,SyntaxError,EOFError,
+                RuntimeError,Image.DecompressionBombError) as exc:
             raise SourceProofDenied("Invalid real private image") from exc
         return sha256(data).hexdigest()
 
