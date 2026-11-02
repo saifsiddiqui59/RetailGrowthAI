@@ -418,6 +418,32 @@ class PrivateSourceProofTests(unittest.TestCase):
         self.assertEqual([call[0] for call in self.calls],
                          ["review", "get", "review"])
 
+    def test_ambiguous_declared_license_urls_denied_before_private_read(self):
+        # Python and browser URL parsers disagree on backslashes; malformed
+        # percent escapes can also misrepresent the shown rights declaration.
+        # Deny without consulting the review authority or service-key Storage.
+        for url in (
+            "https://license.example\\rights",
+            "https://license.example/rights\\other",
+            "https://license.example/%zz",
+            "https://license.example/rights?source=%0",
+            "https://license.example/rights%",
+        ):
+            self.setUp()
+            self.row["license_name"] = "cc0"
+            self.row["license_url"] = url
+            with self.subTest(url=url), self.assertRaises(SourceProofDenied):
+                self.proof(self.shop, self.row)
+            self.assertEqual(self.calls, [])
+
+        # Correctly encoded HTTPS provenance remains usable as metadata, but
+        # independent current rights are still mandatory for source approval.
+        self.setUp()
+        self.row["license_name"] = "cc0"
+        self.row["license_url"] = "https://license.example/rights%20proof?edition=1"
+        self.assertEqual(self.proof(self.shop, self.row)["image_sha256"], self.sha)
+        self.assertEqual([c[0] for c in self.calls], ["review", "get", "review"])
+
     def test_valid_declared_license_url_never_substitutes_for_review(self):
         self.row["license_name"]="cc0"
         self.row["license_url"]="https://license.example/licenses/cc0"
