@@ -330,16 +330,39 @@ class PrivateSourceProofTests(unittest.TestCase):
         for origin in ("http://fictional.supabase.co",
                        "https://fictional.supabase.co.evil.org",
                        "https://bob:pass@fictional.supabase.co",
-                       "https://fictional.supabase.co/path"):
-            with self.subTest(origin=origin),self.assertRaises(ValueError):
+                       "https://fictional.supabase.co/path",
+                       " https://fictional.supabase.co",
+                       "https://fictional.supabase.co\\n".replace("\\n","\n"),
+                       "https://fictional.supabase.co\\t".replace("\\t","\t"),
+                       "https://fictional.supabase.co?",
+                       "https://fictional.supabase.co#",
+                       "https://fictional.supabase.co/"+"a"*260):
+            with self.subTest(origin=repr(origin)),self.assertRaises(ValueError):
                 Feature3TrustedPrivateSourceProof(
                     origin=origin,backend_secret="sb_secret_"+"z"*36,
                     review_authority=self.review,transport=self.transport)
-        with self.assertRaises(ValueError):
-            Feature3TrustedPrivateSourceProof(
-                origin="https://fictional.supabase.co",
-                backend_secret="sb_publishable_NO",
-                review_authority=self.review,transport=self.transport)
+        for secret in ("sb_publishable_NO",
+                       "sb_secret_"+"z"*36+"\\x7f".replace("\\x7f","\x7f"),
+                       "sb_secret_"+"z"*36+"\u2028",
+                       "sb_secret_"+"z"*36+"\\r\\nX: yes".replace("\\r","\r").replace("\\n","\n"),
+                       "sb_secret_"+"z"*4090,
+                       "eyJ"+"a"*60+".b.c"+"\u00a0"):
+            with self.subTest(secret_type=repr(secret[:14])), self.assertRaises(ValueError):
+                Feature3TrustedPrivateSourceProof(
+                    origin="https://fictional.supabase.co",
+                    backend_secret=secret,
+                    review_authority=self.review,transport=self.transport)
+        valid=Feature3TrustedPrivateSourceProof(
+            origin="https://fictional.supabase.co/",
+            backend_secret="sb_secret_"+"z"*36,
+            review_authority=self.review,transport=self.transport)
+        self.assertEqual(valid.origin,"https://fictional.supabase.co")
+        legacy="eyJ"+"a"*20+"."+"b"*20+"."+"c"*20
+        jwt=Feature3TrustedPrivateSourceProof(
+            origin="https://fictional.supabase.co",
+            backend_secret=legacy,
+            review_authority=self.review,transport=self.transport)
+        self.assertEqual(jwt.headers["Authorization"],"Bearer "+legacy)
 
     def test_malformed_registered_license_metadata_denied_before_storage(self):
         # A malformed row must never trigger even a private service-role GET.

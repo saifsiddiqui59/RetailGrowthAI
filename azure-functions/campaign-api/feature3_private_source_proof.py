@@ -55,12 +55,23 @@ def _uuid(value):
 
 
 def _origin(value):
-    u=urlsplit(value) if isinstance(value,str) else None
-    if (not u or u.scheme!="https" or not u.hostname or
-            not u.hostname.endswith(".supabase.co") or u.hostname==".supabase.co" or
-            u.username or u.password or u.port not in (None,443) or
-            u.path not in ("","/") or u.query or u.fragment):
+    # urlsplit silently strips leading C0 whitespace and embedded CR/LF/TAB.
+    # A service-key Storage origin must be an exact, printable HTTPS origin,
+    # not a URL that the parser silently normalizes into something else.
+    if (type(value) is not str or not 1 <= len(value) <= 255 or
+            any(not 33 <= ord(ch) <= 126 for ch in value)):
         raise ValueError("Exact Supabase project HTTPS origin required")
+    try:
+        u=urlsplit(value)
+        if (u.scheme!="https" or not u.hostname or
+                not u.hostname.endswith(".supabase.co") or
+                u.hostname==".supabase.co" or u.username or u.password or
+                u.port not in (None,443) or u.path not in ("","/") or
+                u.query or u.fragment or
+                value not in (f"https://{u.netloc}", f"https://{u.netloc}/")):
+            raise ValueError("Noncanonical private Storage origin")
+    except ValueError as exc:
+        raise ValueError("Exact Supabase project HTTPS origin required") from exc
     return value.rstrip("/")
 
 
@@ -79,12 +90,15 @@ def _license_url(value):
 
 
 def _credentials(secret):
-    if (isinstance(secret,str) and secret.startswith("sb_secret_") and
-            len(secret)>=20 and not any(ord(c)<33 for c in secret)):
+    # Reject non-ASCII/DEL/control or unbounded credentials before they reach
+    # the HTTP header encoder. Keep both current Supabase secret-key and
+    # legacy service JWT formats; neither may contain ambiguous header bytes.
+    if (type(secret) is not str or not 20 <= len(secret) <= 4096 or
+            any(not 33 <= ord(ch) <= 126 for ch in secret)):
+        raise ValueError("Explicit backend service key required")
+    if secret.startswith("sb_secret_"):
         return {"apikey":secret}
-    if (isinstance(secret,str) and secret.startswith("eyJ") and
-            secret.count(".")==2 and len(secret)>=50 and
-            not any(ord(c)<33 for c in secret)):
+    if secret.startswith("eyJ") and secret.count(".")==2 and len(secret)>=50:
         return {"apikey":secret,"Authorization":"Bearer "+secret}
     raise ValueError("Explicit backend service key required")
 
