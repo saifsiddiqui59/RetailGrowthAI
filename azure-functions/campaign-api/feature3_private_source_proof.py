@@ -94,7 +94,19 @@ def _license_url(value):
         if ("%" in parsed.netloc or parsed.netloc.endswith(":") or
                 (parsed.port is not None and not parsed.netloc.endswith(":443"))):
             return False
-        return (parsed.scheme == "https" and bool(parsed.hostname) and
+        host = parsed.hostname
+        # Reviewer-facing provenance must have a canonical public DNS shape.
+        # Localhost, IP literals, empty labels and trailing dots can display
+        # misleading commercial-rights links; these are never fetched here.
+        if (not host or host.endswith(".") or "." not in host or
+                len(host) > 253 or any(
+                    not label or len(label) > 63 or
+                    label[0] == "-" or label[-1] == "-" or
+                    not re.fullmatch(r"[a-z0-9-]+", label)
+                    for label in host.split(".")) or
+                not re.fullmatch(r"[a-z]{2,63}", host.split(".")[-1])):
+            return False
+        return (parsed.scheme == "https" and
                 parsed.username is None and parsed.password is None and
                 parsed.port in (None, 443))
     except ValueError:
