@@ -150,6 +150,30 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         self.assertEqual(worker["image_bytes"],self.blobs[self.garment])
         self.assertEqual(worker["dimensions"],[720,1080])
         self.assertFalse(worker["gpu_authorized"])
+    def test_truncated_jpeg_with_matching_registered_sha_is_not_worker_input(self):
+        # Pillow verify() alone can accept a truncated JPEG even when the
+        # registered SHA matches the truncated object. A real decode must
+        # succeed before a private source can enter a worker manifest.
+        from hashlib import sha256
+        buffer = BytesIO()
+        Image.new("RGB", (320, 320), "#2B6978").save(buffer, "JPEG")
+        complete = buffer.getvalue()
+        for raw, allowed in ((complete, True), (complete[:-2], False),
+                             (complete[:-40], False)):
+            with self.subTest(bytes_missing=len(complete) - len(raw)):
+                self.setUp()
+                self.blobs[self.garment] = raw
+                row = self.rows[self.garment]
+                row["mime_type"] = "image/jpeg"
+                row["object_path"] = f"{self.shop}/uploads/{self.upload_object}.jpg"
+                row["image_sha256"] = sha256(raw).hexdigest()
+                if allowed:
+                    self.assertEqual(self.prepare()["sources"]["garment"]["sha256"],
+                                     row["image_sha256"])
+                else:
+                    with self.assertRaises(FashionReferenceDenied):
+                        self.prepare()
+
     def test_feature2_4_consume_metadata_not_private_image_bytes(self):
         for consumer in ("creative_direction","editing"):
             package=self.prepare(purpose=consumer)

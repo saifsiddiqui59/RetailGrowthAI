@@ -72,6 +72,11 @@ def _read_image(raw, mime_type):
                 raise FashionReferenceDenied("Unsupported first-frame image dimensions")
             size = [im.width, im.height]
             im.verify()
+        # JPEG verify() can accept a missing EOI marker or truncated scan.
+        # Decode the complete image before treating SHA-matching private
+        # bytes as a usable worker input; verify() alone is insufficient.
+        with Image.open(BytesIO(raw)) as decoded:
+            decoded.load()
     except (OSError, UnidentifiedImageError, Image.DecompressionBombError,
             KeyError, ValueError) as exc:
         raise FashionReferenceDenied("Private source image could not be verified") from exc
