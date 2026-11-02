@@ -490,6 +490,26 @@ class PrivateSourceProofTests(unittest.TestCase):
         self.assertEqual(self.proof(self.shop, self.row)["image_sha256"], self.sha)
         self.assertEqual([c[0] for c in self.calls], ["review", "get", "review"])
 
+    def test_local_or_noncanonical_provenance_authorities_denied_without_get(self):
+        # These are reviewer-facing declarations, not independent proof.
+        # Reject ambiguous local/IP/empty-label hosts before private GET.
+        for url in (
+            "https://localhost/license",
+            "https://127.0.0.1/license",
+            "https://10.0.0.1/license",
+            "https://[::1]/license",
+            "https://license.example./rights",
+            "https://license..example/rights",
+            "https://-license.example/rights",
+            "https://license-.example/rights",
+        ):
+            self.setUp()
+            self.row["license_name"] = "cc0"
+            self.row["license_url"] = url
+            with self.subTest(url=url), self.assertRaises(SourceProofDenied):
+                self.proof(self.shop, self.row)
+            self.assertEqual(self.calls, [])
+
     def test_valid_declared_license_url_never_substitutes_for_review(self):
         self.row["license_name"]="cc0"
         self.row["license_url"]="https://license.example/licenses/cc0"
