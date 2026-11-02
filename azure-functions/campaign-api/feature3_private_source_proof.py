@@ -197,7 +197,7 @@ class Feature3TrustedPrivateSourceProof:
                     raise SourceProofDenied("Untrusted private media size")
                 data=response.read(_IMAGE_MAX+1)
         except (HTTPError,URLError,OSError,TimeoutError,ValueError,
-                TypeError,AttributeError) as exc:
+                TypeError,AttributeError,RuntimeError) as exc:
             raise SourceProofDenied("Private source byte read unavailable") from exc
         if type(data) is not bytes or not 100<=len(data)<=_IMAGE_MAX:
             raise SourceProofDenied("Private image incomplete or oversized")
