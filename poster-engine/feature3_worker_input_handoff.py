@@ -92,14 +92,12 @@ def _final_read(fresh, role, readers):
         read_asset=readers["read_asset"],
         authorize_asset=readers["authorize_asset"],
         read_private_bytes=readers["read_private_bytes"])
-    if (current["source_asset_id"] != asset or
-        current["shop_id"] != shop or
-        current["approval"]["rights_revision"] !=
-            ref["approval"]["rights_revision"] or
-        current["mime_type"] != ref["mime_type"] or
-        current["sha256"] != ref["sha256"] or
-        current["dimensions"] != ref["dimensions"] or
-        current["source"] != ref["source"]):
+    # Match the *entire* normalized rights/identity snapshot. A transient
+    # license or attribution substitution can preserve shop, SHA, revision
+    # and dimensions; checking only those fields would accept private bytes
+    # under a different source grant if a later read reverted to the original.
+    # Future approval/rights fields are automatically covered as well.
+    if current != ref:
         _reject()
     return {"source_asset_id": asset, "sha256": current["sha256"],
             "mime_type": current["mime_type"],
