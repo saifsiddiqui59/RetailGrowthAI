@@ -64,7 +64,8 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
   },[shopId,api,binaryClient])
 
   const load=async()=>{
-    if(!api || !shopId || checked.busy || historyReadToken.current!==null)return
+    if(!api || !shopId || checked.busy || historyReadToken.current!==null ||
+       imageReadToken.current!==null)return
     const shop=shopId,source=api,nonce=++epoch.current
     imageReadToken.current=null
     setImage(null)
@@ -152,7 +153,7 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
   }
   return <section aria-label="Private generated-image job history">
     <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-      <button type="button" onClick={load} disabled={!api||!shopId||checked.busy}>
+      <button type="button" onClick={load} disabled={!api||!shopId||checked.busy||imageBusy}>
         {checked.busy?'Checking private jobs…':'Check my generated-image history'}
       </button>
       <small>Read-only. No GPU call, no public URL or automatic download.</small>
