@@ -180,6 +180,33 @@ class LibraryTests(unittest.TestCase):
                     self.store(candidate=c)
         self.assertEqual(len(self.assets), 0)
 
+    def test_malformed_https_provenance_denies_before_private_storage(self):
+        # Python urlsplit normalizes CR/LF/TAB and raises ValueError for
+        # malformed ports/brackets; neither is acceptable license evidence.
+        malformed = (
+            "https://example.com:bad/license",
+            "https://example.com:65536/license",
+            "https://[::1/license",
+            " https://example.com/license",
+            "https://example.com/license\\nforged",
+            "https://example.com/license\\tforged",
+            "https://example.com\\@attacker.invalid/license",
+            "https://example.com/license\\x7f",
+        )
+        for uri in malformed:
+            with self.subTest(uri=repr(uri)):
+                candidate = replace(self.candidate, source_uri=uri)
+                with self.assertRaises(ModelLibraryDenied):
+                    self.store(candidate=candidate)
+                self.assertFalse(self.assets)
+                self.assertEqual(self.saved, [])
+        # Explicit standard HTTPS port remains a valid provenance link,
+        # subject to the separate independent license verification callback.
+        candidate = replace(
+            self.candidate, source_uri="https://example.com:443/license")
+        self.assertEqual(self.store(candidate=candidate)["status"],
+                         "PENDING_REVIEW")
+
     def test_unhashable_model_provenance_never_reaches_storage_or_registry(self):
         # ModelCandidate metadata is untrusted even when constructed through
         # a Python adapter; a list/dict must deny without TypeError/500.
