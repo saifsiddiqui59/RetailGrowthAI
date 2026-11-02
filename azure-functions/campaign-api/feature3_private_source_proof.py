@@ -25,6 +25,7 @@ from PIL import Image, UnidentifiedImageError
 _IMAGE_MAX = 25 * 1024 * 1024
 _PIXEL_MAX = 24_000_000
 _HASH = re.compile(r"^[a-f0-9]{64}$")
+_BAD_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 _SEGMENT = re.compile(r"^[a-zA-Z0-9_-]{1,90}$")
 _EXT = {"image/png":(".png", "PNG"),
         "image/jpeg":(".jpg", "JPEG"),
@@ -79,6 +80,11 @@ def _license_url(value):
     """Validate a declaration's shape; NEVER infer commercial rights from it."""
     if (type(value) is not str or not 1 <= len(value) <= 500 or
             any(not 33 <= ord(ch) <= 126 for ch in value)):
+        return False
+    # urllib.parse treats backslash differently from browser URL parsers;
+    # malformed percent escapes also make displayed provenance ambiguous.
+    # This URL remains only a declaration, never proof of commercial rights.
+    if "\\" in value or _BAD_PERCENT_ESCAPE.search(value):
         return False
     try:
         parsed = urlsplit(value)
