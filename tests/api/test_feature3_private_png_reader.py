@@ -279,6 +279,43 @@ class RevocableReaderTests(unittest.TestCase):
             self.assertEqual(self.tenant.calls.count("asset"),2)
             self.assertEqual(self.rights_called,1)
 
+    def test_crc_valid_but_undecodable_png_pixels_denied(self):
+        # A damaged zlib IDAT stream with a recalculated chunk CRC passes
+        # Pillow verify(), but cannot be decoded into real image pixels.
+        # The private reader must reject it before its second rights check.
+        import zlib
+        corrupted=bytearray(self.png)
+        offset=8
+        while offset+12<=len(corrupted):
+            size=int.from_bytes(corrupted[offset:offset+4],"big")
+            kind=bytes(corrupted[offset+4:offset+8])
+            if offset+12+size>len(corrupted):
+                self.fail("Malformed original PNG fixture")
+            if kind==b"IDAT" and size>8:
+                corrupted[offset+13]^=0xff
+                crc=zlib.crc32(bytes(corrupted[offset+4:offset+8+size]))
+                corrupted[offset+8+size:offset+12+size]=crc.to_bytes(4,"big")
+                break
+            offset+=12+size
+        else:
+            self.fail("No suitable PNG IDAT fixture chunk")
+        damaged=bytes(corrupted)
+        with Image.open(BytesIO(damaged)) as header:
+            header.verify()
+        with self.assertRaises(OSError):
+            with Image.open(BytesIO(damaged)) as decoded:
+                decoded.load()
+        # Simulate even a SHA-named immutable object matching the corrupt
+        # bytes, so a mere SHA comparison cannot conceal the decode failure.
+        digest=sha256(damaged).hexdigest()
+        self.tenant.path=f"{self.shop}/feature3/gpu/{self.job}/{digest}.png"
+        self.binary=damaged
+        with self.assertRaisesRegex(PrivateGeneratedDownloadDenied,
+                                    "Untrusted private PNG pixels"):
+            self.read()
+        self.assertEqual(self.calls,["verify","get"])
+        self.assertEqual(self.rights_called,1)
+
     def test_changed_png_wrong_hash_or_invalid_bytes_deny(self):
         changed=BytesIO()
         Image.new("RGB",(320,400),"#123456").save(changed,"PNG")
