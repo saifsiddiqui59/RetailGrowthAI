@@ -208,13 +208,20 @@ class Feature3TrustedPrivateSourceProof:
                         (type(kind) is not str or
                          kind.split(";",1)[0].strip().lower()!=mime)):
                     raise SourceProofDenied("Private Storage returned another media format")
-                if size is not None and (not isinstance(size,str) or
+                # Content-Length is at most eight decimal digits for 25 MB.
+                # Bound its syntax before integer conversion or any body read.
+                if size is not None and (type(size) is not str or
+                        not 1 <= len(size) <= 8 or
                         not size.isascii() or not size.isdigit() or
                         int(size)>_IMAGE_MAX):
                     raise SourceProofDenied("Untrusted private media size")
                 data=response.read(_IMAGE_MAX+1)
-        except (HTTPError,URLError,OSError,TimeoutError,ValueError,
-                TypeError,AttributeError,RuntimeError) as exc:
+        except SourceProofDenied:
+            raise
+        except Exception as exc:
+            # Service-owned HTTP adapters and proxy wrappers can raise
+            # arbitrary ordinary exceptions. Deny opaquely; never leak
+            # internal details or issue a post-read rights receipt.
             raise SourceProofDenied("Private source byte read unavailable") from exc
         if type(data) is not bytes or not 100<=len(data)<=_IMAGE_MAX:
             raise SourceProofDenied("Private image incomplete or oversized")

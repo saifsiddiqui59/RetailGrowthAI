@@ -539,5 +539,53 @@ class PrivateSourceProofTests(unittest.TestCase):
             self.assertEqual([x[0] for x in self.calls],["review","get"])
 
 
+    def test_unexpected_private_transport_errors_are_opaque(self):
+        # Arbitrary ordinary proxy errors (not only urllib/OSError) cannot
+        # leak from a service-key read or produce a second rights receipt.
+        for failure in (KeyError, LookupError, AssertionError, ConnectionError):
+            for stage in ("open", "status", "headers", "read"):
+                self.setUp()
+                original = self.proof.transport
+                def broken(req, *, timeout):
+                    if stage == "open":
+                        self.calls.append(("get", req.full_url))
+                        raise failure("sensitive proxy implementation detail")
+                    response = original(req, timeout=timeout)
+                    def fail(*_args, **_kwargs):
+                        raise failure("sensitive proxy implementation detail")
+                    if stage == "status":
+                        response.getcode = fail
+                    elif stage == "headers":
+                        class FailingHeaders:
+                            def get(self, _key):
+                                return fail()
+                        response.headers = FailingHeaders()
+                    else:
+                        response.read = fail
+                    return response
+                self.proof.transport = broken
+                with self.subTest(failure=failure.__name__, stage=stage):
+                    with self.assertRaisesRegex(
+                            SourceProofDenied, "Private source byte read unavailable"):
+                        self.proof(self.shop, self.row)
+                self.assertEqual([x[0] for x in self.calls], ["review", "get"])
+
+    def test_private_content_length_syntax_bounded_before_body_read(self):
+        # A proxy's oversized decimal header must not be parsed or allow
+        # any private-body read, even if its integer value is plausible.
+        for length in ("0" * 9, "9" * 5000, "0000000100"):
+            self.setUp()
+            self.length = length
+            def unexpected_read():
+                self.fail("Untrusted Content-Length must deny before read")
+            self.read_hook = unexpected_read
+            with self.subTest(length_chars=len(length)):
+                with self.assertRaisesRegex(
+                        SourceProofDenied, "Untrusted private media size"):
+                    self.proof(self.shop, self.row)
+            self.assertEqual([x[0] for x in self.calls], ["review", "get"])
+
+
+
 if __name__=="__main__":
     unittest.main()
