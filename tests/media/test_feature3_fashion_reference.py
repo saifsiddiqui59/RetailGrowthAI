@@ -395,6 +395,43 @@ class FashionKurtiReferenceTests(unittest.TestCase):
                 self.assertEqual(seen[0],2)
                 self.assertEqual(len(byte_reads),1)
 
+    def test_final_first_frame_denies_lease_revoked_during_private_read(self):
+        # A valid claim before the byte read is insufficient: Feature5 may
+        # consume this standalone helper without the outer F3 worker packet.
+        for tryon in (False, True):
+            with self.subTest(reviewed_try_on=tryon):
+                self.setUp()
+                manifest = (self.prepare(model_asset_id=self.model_asset,
+                                         model_id=self.model_id,
+                                         try_on_asset_id=self.tryon)
+                            if tryon else self.prepare())
+                checks = []
+                def lease(*args):
+                    checks.append(args)
+                    return len(checks) == 1
+                with self.assertRaises(FashionReferenceDenied):
+                    resolve_first_frame(expected_manifest=manifest,
+                                        current_readers=self.readers(),
+                                        verify_worker_job=lease)
+                self.assertEqual(len(checks), 2)
+
+    def test_final_first_frame_denies_rights_revoked_by_last_lease_read(self):
+        # Even a positive second lease callback cannot hide a simultaneous
+        # authoritative rights revocation. Re-read after the lease callback.
+        self.setUp()
+        manifest = self.prepare()
+        checks = []
+        def lease(*args):
+            checks.append(args)
+            if len(checks) == 2:
+                self.grants[self.garment]["rights_revoked"] = True
+            return True
+        with self.assertRaises(FashionReferenceDenied):
+            resolve_first_frame(expected_manifest=manifest,
+                                current_readers=self.readers(),
+                                verify_worker_job=lease)
+        self.assertEqual(len(checks), 2)
+
     def test_worker_without_durable_claim_is_denied_before_private_delivery(self):
         original=self.prepare()
         with self.assertRaises(FashionReferenceDenied):
