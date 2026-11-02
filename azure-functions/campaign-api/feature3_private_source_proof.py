@@ -295,7 +295,7 @@ class Feature3TrustedPrivateSourceProof:
             raise SourceProofDenied("Independent current image rights not verified")
         return attestation["rights_revision"]
 
-    def __call__(self,shop_id,media):
+    def __call__(self,shop_id,registered_media):
         shop=_uuid(shop_id)
         # Freeze the authoritative PostgREST row for the entire private read.
         # Transport callbacks or another caller must not swap licence/MIME
