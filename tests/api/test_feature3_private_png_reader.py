@@ -368,6 +368,55 @@ class RevocableReaderTests(unittest.TestCase):
                 tenant_store=self.tenant,verify_user_jwt=self.verify,
                 current_output_rights=None,transport=self.transport)
 
+    def test_private_reader_rejects_normalized_origins_and_unsafe_header_keys(self):
+        # urllib.parse.urlsplit silently normalizes some control characters.
+        # Neither a project origin nor an apikey may reach HTTP that way.
+        good_origin, good_key = self.tenant.origin, self.tenant.key
+        for bad in (
+            "\\nhttps://fictional.supabase.co",
+            "https://fictional.supabase.co\\r\\n",
+            "https://fictional.supabase.co\\t",
+            "https://.supabase.co",
+            "https://fictional..supabase.co",
+            "https://fictional.supabase.co@evil.supabase.co",
+            "https://FICTIONAL.supabase.co",
+            "https://fictional.supabase.co:444",
+            "https://fictional.supabase.co/%0d",
+        ):
+            self.tenant.origin = bad.replace("\\n", "\n").replace(
+                "\\r", "\r").replace("\\t", "\t")
+            with self.subTest(origin=repr(bad)), self.assertRaises(ValueError):
+                self.build()
+        self.tenant.origin = good_origin
+        for bad in (
+            "sb_publishable_valid\\r\\nInjected: yes",
+            "sb_publishable_valid\\tbad",
+            "sb_publishable_nonascii_é",
+            "sb_publishable_short",
+            "sb_publishable_" + "a" * 4100,
+        ):
+            self.tenant.key = bad.replace("\\r", "\r").replace(
+                "\\n", "\n").replace("\\t", "\t")
+            with self.subTest(key=repr(bad)[:80]), self.assertRaises(ValueError):
+                self.build()
+        self.tenant.key = good_key
+        # Explicit canonical HTTPS :443 is still supported.
+        self.tenant.origin = "https://fictional.supabase.co:443"
+        self.reader = self.build()
+        self.assertEqual(self.read()["image_sha256"], self.sha)
+        self.tenant.origin = good_origin
+
+    def test_non_ascii_retailer_token_denied_before_jwt_or_private_get(self):
+        for token in ("fake-signed-retailer-tokené",
+                      "fake-signed-retailer-token\u2028",
+                      "fake-signed-retailer-token\x80"):
+            with self.subTest(token=repr(token)), self.assertRaises(
+                    PrivateGeneratedDownloadDenied):
+                self.reader.read(user_token=token,
+                                 shop_id=self.shop, job_id=self.job)
+            self.assertEqual(self.calls, [])
+            self.assertEqual(self.tenant.calls, [])
+
     def test_does_not_issue_url_or_authorize_publish_or_gpu(self):
         result=self.read()
         forbidden={"url","signed_url","provider_call_permitted",
