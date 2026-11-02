@@ -76,3 +76,11 @@ The existing `Feature3TrustedPrivateSourceProof` trusts the *shape* of a PostgRE
 - The service-key private Storage response previously accepted `Content-Type: image/png\r\n` and `Content-Encoding: identity\n` after stripping whitespace; it also accepted invisible bidi Unicode and unbounded media parameters. This new source-only guard requires bounded printable ASCII for present Content-Type and Content-Encoding before any private body read, while retaining legitimate printable MIME parameters and padded `identity` values.
 - Offline regressions deny eight folded, Unicode and oversized header values before pixel read and without a post-read rights receipt, plus one positive compatibility case. The immutable model pre-read rights check, actual SHA/Pillow decode and final independent review remain mandatory.
 - **NEXT ACTION:** verify mandatory exact-new-head 4/4 CI; repair failures in this PR if needed; obtain independent private-media/service-key security review of the complete diff; only then consider main merge and fresh main 4/4. F3-03/F3-13 source partial, **0/33 hosted accepted**. No GPU, paid inference, hosted SQL, PROD, unauthorized media or WineShopPOS changes.
+
+
+## 2026-11-03 — F3-03/F3-13 ambiguous provenance URL parser denial
+
+- Continuing existing PR #865 on its unchanged branch, not opening a duplicate. Python urlsplit accepted declared HTTPS licence URLs containing backslashes or invalid percent escapes, which can be interpreted differently by browser URL parsers and misrepresent displayed commercial-rights provenance.
+- The _license_url validator now denies those ambiguous declarations before any private Storage GET or independent reviewer callback; valid percent-encoded HTTPS metadata remains supported. These declarations still never prove commercial rights. Added offline negative and positive regression cases to tests/api/test_feature3_private_source_proof.py.
+- Mandatory final-head four-job CI and independent private-media/rights security review remain merge gates. F3-03/F3-13 remain source-partial; no hosted acceptance, paid GPU/inference, hosted SQL, PROD or WineShopPOS action.
+- NEXT ACTION: verify exact-head Python/frontend/FFmpeg/Supabase 4/4, fix any failures, obtain independent review, then reassess current main before any authorized merge. Keep original task ledger unchanged until postmerge evidence.
