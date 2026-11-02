@@ -123,6 +123,37 @@ class PrivateHandoffTests(unittest.TestCase):
                 # No worker image packet is returned and ephemeral files
                 # must not be allocated by a rejected current source grant.
 
+    def test_transient_private_license_snapshot_change_denied_at_final_read(self):
+        # A substituted license/attribution row can keep the same SHA, shop,
+        # typed rights revision and image dimensions. If it appears ONLY on
+        # the final byte read and then reverts, the later manifest refresh
+        # alone cannot detect it. Do not return private bytes in that case.
+        for mutation in (
+            {"attribution": "Different independently licensed source metadata"},
+            {"license_name": "cc0", "license_url": "https://license.example/cc0"},
+        ):
+            with self.subTest(mutation=mutation):
+                self.setUp()
+                row_reader = self.readers["read_asset"]
+                seen = [0]
+
+                def transient_row(shop, asset):
+                    row = row_reader(shop, asset)
+                    if asset == self.fixture.garment:
+                        seen[0] += 1
+                        if seen[0] == 2:
+                            return {**row, **mutation}
+                    return row
+
+                readers = {**self.readers, "read_asset": transient_row}
+                with self.assertRaises(FashionReferenceDenied):
+                    resolve_private_worker_inputs(
+                        expected_manifest=self.editor,
+                        current_readers=readers,
+                        verify_worker_job=lambda *_: True)
+                self.assertEqual(seen[0], 2,
+                                 "deny at the final read, before a later clean snapshot")
+
     def test_transient_private_object_path_substitution_denied_before_worker_read(self):
         # The first manifest pass sees the legitimate shop-owned source.
         # A transient, still-SHA-identical row on the final byte read must
