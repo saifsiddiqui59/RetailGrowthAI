@@ -115,6 +115,21 @@ class ModelPickerTests(unittest.TestCase):
             self.assertEqual(private_reads,[])
             self.assertEqual(self.reads,[])
 
+    def test_unsafe_catalog_label_never_reaches_rights_or_private_media(self):
+        for label in ("Poster\\nforged", " "*70 + "Poster", "Poster\\x7fhidden"):
+            self.reads.clear()
+            private_reads = []
+            def private(shop, reference):
+                private_reads.append((shop, reference))
+                return self.private_media(shop, reference)
+            with self.subTest(label=repr(label)):
+                result = self.run_picker(
+                    models=[{**self.model, "label": label}],
+                    resolve_private_media=private)
+                self.assertEqual(result, [])
+                self.assertEqual(self.reads, [])
+                self.assertEqual(private_reads, [])
+
     def test_malformed_catalog_rows_do_not_break_valid_shop_model(self):
         self.setUp()
         malformed=[None,False,123,[],{"schema":"invalid"},self.model]
