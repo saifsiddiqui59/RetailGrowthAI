@@ -462,6 +462,40 @@ class RevocableReaderTests(unittest.TestCase):
         self.assertFalse(any("sign" in c for c in self.calls))
 
 
+    def test_unprintable_or_oversized_png_headers_deny_before_body_read(self):
+        # Header folding and long Content-Length values must never reach
+        # private pixel decoding, even through an injected HTTP adapter.
+        cases = (
+            ("mime", "image/png\r\nX-Injected: yes"),
+            ("mime", "image/png\t"),
+            ("mime", "image/png\u202e"),
+            ("mime", "image/png;" + "x" * 257),
+            ("content_encoding", "identity\n"),
+            ("content_encoding", "identity\u202e"),
+            ("content_encoding", "identity" + " " * 257),
+            ("content_length", "0" * 9),
+            ("content_length", "9" * 5000),
+        )
+        for field, value in cases:
+            self.setUp()
+            setattr(self, field, value)
+            body_reads = []
+            self.on_read = lambda: body_reads.append(True)
+            with self.subTest(field=field, length=len(value)):
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    self.read()
+            self.assertEqual(body_reads, [])
+            self.assertEqual(self.calls, ["verify", "get"])
+            self.assertEqual(self.rights_called, 1)
+
+        # Ordinary printable MIME parameters and identity encoding remain
+        # supported, with the same two live rights checks.
+        self.setUp()
+        self.mime = "image/png; charset=utf-8"
+        self.content_encoding = " identity "
+        self.assertEqual(self.read()["image_sha256"], self.sha)
+        self.assertEqual(self.rights_called, 2)
+
     def test_malformed_private_http_metadata_never_reaches_second_rights_read(self):
         # A future injected gateway may return typed, missing or throwing
         # headers. No raw TypeError or private binary may escape this reader.
