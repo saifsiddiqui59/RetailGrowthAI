@@ -104,9 +104,12 @@ def _validate_candidate(candidate):
         raise ModelLibraryDenied("Adult synthetic identity and component rights must be verified")
     if (not isinstance(candidate.label, str) or
         not 1 <= len(candidate.label.strip()) <= 64 or
+        len(candidate.label) > 64 or
         type(candidate.pose) is not str or candidate.pose not in POSES or
         not isinstance(candidate.attribution, str) or
-        len(candidate.attribution) > 200):
+        len(candidate.attribution) > 200 or
+        any(ord(ch) < 32 or ord(ch) == 127
+            for ch in candidate.label + candidate.attribution)):
         raise ModelLibraryDenied("Invalid fashion model description or pose")
     if candidate.license_id == "CC-BY-4.0" and not candidate.attribution.strip():
         raise ModelLibraryDenied("CC-BY attribution must accompany all derivative exports")
@@ -267,6 +270,7 @@ def checked_model_for_use(*, model, requesting_shop_id, usage, authorize_use):
         raise ModelLibraryDenied("Another shop's private models are not accessible")
     attribution = model.get("attribution", "")
     if (not isinstance(attribution, str) or len(attribution) > 200 or
+            any(ord(ch) < 32 or ord(ch) == 127 for ch in attribution) or
             (model.get("license_id") == "CC-BY-4.0" and
              not attribution.strip())):
         raise ModelLibraryDenied("Reviewed model attribution invalid")
