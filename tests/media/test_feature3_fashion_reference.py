@@ -260,6 +260,41 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         self.blobs[self.garment]=self.blobs[self.model_asset]
         with self.assertRaises(FashionReferenceDenied):self.prepare()
 
+    def test_malformed_private_flags_and_mime_deny_before_any_storage_read(self):
+        # Optional persisted flags must be exactly False when present. A
+        # malformed authority row may not silently turn a fixture or revoked
+        # source into approved worker media; malformed MIME must fail closed.
+        cases = (
+            ("row", "fixture_only", 1),
+            ("row", "fixture_only", 0),
+            ("row", "fixture_only", "false"),
+            ("row", "fixture_only", []),
+            ("grant", "fixture_only", 1),
+            ("grant", "fixture_only", 0),
+            ("grant", "fixture_only", "false"),
+            ("grant", "fixture_only", {}),
+            ("row", "revoked", 1),
+            ("row", "revoked", 0),
+            ("row", "revoked", "false"),
+            ("row", "revoked", {}),
+            ("row", "mime_type", []),
+            ("row", "mime_type", {}),
+        )
+        for target, field, invalid in cases:
+            with self.subTest(target=target, field=field, invalid=repr(invalid)):
+                self.setUp()
+                record = (self.rows[self.garment] if target == "row"
+                          else self.grants[self.garment])
+                record[field] = invalid
+                with self.assertRaises(FashionReferenceDenied):
+                    self.prepare()
+                self.assertFalse(any(call[0] == "bytes" for call in self.calls))
+        self.setUp()
+        self.rows[self.garment]["fixture_only"] = False
+        self.rows[self.garment]["revoked"] = False
+        self.grants[self.garment]["fixture_only"] = False
+        self.assertEqual(self.prepare()["shop_id"], self.shop)
+
     def test_forged_commercial_metadata_and_unreviewed_fixture_denied(self):
         self.rows[self.garment]["fixture_only"]=True
         with self.assertRaises(FashionReferenceDenied):self.prepare()

@@ -88,7 +88,7 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
         raise FashionReferenceDenied("Current private media approval unavailable")
     if (row.get("id") != asset_id or row.get("shop_id") != shop or
         row.get("storage_bucket") != "retailgrowth-media" or
-        row.get("mime_type") not in _EXT or
+        type(row.get("mime_type")) is not str or row["mime_type"] not in _EXT or
         row.get("license_name") not in ("owned", "cc0", "commercial", "royalty_free") or
         not isinstance(row.get("attribution"), str) or len(row["attribution"].strip()) < 10 or
         (row["license_name"] != "owned" and
@@ -102,8 +102,11 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
         type(grant.get("rights_revision")) is not int or
         not 1 <= grant["rights_revision"] <= 2_147_483_647):
         raise FashionReferenceDenied("Source not tenant-owned and approved for this use")
-    if (row.get("fixture_only") is True or grant.get("fixture_only") is True or
-        row.get("revoked") is True):
+    # Absent flags are permitted for older registered rows, but any present
+    # value must be the actual boolean False. A truthy string, integer 0/1,
+    # mapping or list must never be interpreted as an unrevoked real asset.
+    if any(value is not None and value is not False for value in (
+            row.get("fixture_only"), grant.get("fixture_only"), row.get("revoked"))):
         raise FashionReferenceDenied("Synthetic/revoked test media cannot be production inputs")
     path = row.get("object_path")
     if not isinstance(path, str) or len(path) > 260 or "\\" in path or "//" in path:
