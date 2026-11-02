@@ -435,5 +435,37 @@ class PrivateSourceProofTests(unittest.TestCase):
             self.proof(self.shop,self.row)
         self.assertEqual([c[0] for c in self.calls],["get"])
 
+
+    def test_private_transport_runtime_failures_are_opaque_and_never_approved(self):
+        # An injected proxy can fail at open, response status, header lookup
+        # or byte read. No raw RuntimeError may escape the service-key boundary
+        # or trigger a post-read current-rights approval.
+        for stage in ("open", "status", "headers", "read"):
+            self.setUp()
+            original=self.proof.transport
+            def broken(req, *, timeout):
+                if stage=="open":
+                    self.calls.append(("get",req.full_url))
+                    raise RuntimeError("sensitive private gateway detail")
+                response=original(req,timeout=timeout)
+                def fail(*_args,**_kwargs):
+                    raise RuntimeError("sensitive private gateway detail")
+                if stage=="status":
+                    response.getcode=fail
+                elif stage=="headers":
+                    class FailingHeaders:
+                        def get(self,_key):
+                            return fail()
+                    response.headers=FailingHeaders()
+                else:
+                    response.read=fail
+                return response
+            self.proof.transport=broken
+            with self.subTest(stage=stage),self.assertRaisesRegex(
+                    SourceProofDenied,"byte read unavailable"):
+                self.proof(self.shop,self.row)
+            self.assertEqual([x[0] for x in self.calls],["review","get"])
+
+
 if __name__=="__main__":
     unittest.main()
