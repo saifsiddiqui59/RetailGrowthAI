@@ -38,6 +38,10 @@ class PrepaidBridgeTests(unittest.TestCase):
         self.denied_reservation=False
         self.claim_attempt=1
         self.reservation_attempt=1
+        self.late_reservation_id=None
+        self.late_reserved_usd=None
+        self.late_reservation_attempt=None
+        self.late_claim_token=None
         self.output_mode="ok"
         self.revoke_after_inference=False
     def _callbacks(self):
@@ -53,9 +57,12 @@ class PrepaidBridgeTests(unittest.TestCase):
         def reserve(shop,job_id,attempt,token):
             self.events.append("read reservation")
             if self.denied_reservation: return None
-            return {"shop_id":shop,"job_id":job_id,"attempt":self.reservation_attempt,
-                "claim_token":token,"reservation_id":self.reservation,
-                "reserved_usd":0.05}
+            late=self.events.count("read reservation")>1
+            return {"shop_id":shop,"job_id":job_id,
+                "attempt":self.late_reservation_attempt if late and self.late_reservation_attempt is not None else self.reservation_attempt,
+                "claim_token":self.late_claim_token if late and self.late_claim_token is not None else token,
+                "reservation_id":self.late_reservation_id if late and self.late_reservation_id is not None else self.reservation,
+                "reserved_usd":self.late_reserved_usd if late and self.late_reserved_usd is not None else 0.05}
         def write(shop,job_id,image,metadata):
             self.events.append("private write")
             if self.output_mode=="timeout":
@@ -83,7 +90,7 @@ class PrepaidBridgeTests(unittest.TestCase):
         receipt=self._callbacks().execute(self.job)
         self.assertEqual(receipt["media_asset_id"],self.output_id)
         self.assertEqual([x for x in self.events if x=="read reservation"],
-                         ["read reservation"])
+                         ["read reservation","read reservation"])
         self.assertEqual([x for x in self.events if x=="private write"],
                          ["private write"])
         self.assertEqual(self.events[-1],("settled","0.011500",self.output_id))
@@ -124,7 +131,7 @@ class PrepaidBridgeTests(unittest.TestCase):
         with self.assertRaisesRegex(TimeoutError,"unknown"):
             self._callbacks().execute(self.job)
         self.assertEqual(self.events.count("private write"),1)
-        self.assertEqual(self.events.count("read reservation"),1)
+        self.assertEqual(self.events.count("read reservation"),2)
         self.assertNotIn("trusted cost",self.events)
         self.assertFalse(any(isinstance(x,tuple) and x[0]=="settled" for x in self.events))
         # Caller must hold RUNNING/reservation for independently measured
@@ -146,6 +153,27 @@ class PrepaidBridgeTests(unittest.TestCase):
         self.assertIn("trusted cost",self.events)
         self.assertTrue(any(isinstance(x,tuple) and x[0]=="settled" and x[2] is None
                             for x in self.events))
+
+    def test_changed_late_reservation_fails_before_private_output_or_settlement(self):
+        # A different valid UUID or a changed funded amount must not be
+        # substituted for the pre-inference SQL reservation after GPU work.
+        for field, bad in (
+            ("late_reservation_id", str(uuid4())),
+            ("late_reserved_usd", 0.04),
+            ("late_reserved_usd", 0.06),
+            ("late_reservation_attempt", True),
+            ("late_claim_token", str(uuid4())),
+        ):
+            with self.subTest(field=field, bad=repr(bad)):
+                self.setUp()
+                setattr(self, field, bad)
+                with self.assertRaises(ProviderBlocked):
+                    self._callbacks().execute(self.job)
+                self.assertEqual(self.events.count("read reservation"),2)
+                self.assertNotIn("private write",self.events)
+                self.assertNotIn("trusted cost",self.events)
+                self.assertFalse(any(isinstance(x,tuple) and x[0]=="settled"
+                                     for x in self.events))
 
     def test_forged_one_shot_claim_attempt_denied_before_reservation_or_gpu(self):
         # Python equality would otherwise accept True and 1.0 as 1.
