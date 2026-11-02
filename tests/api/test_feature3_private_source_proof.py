@@ -173,6 +173,40 @@ class PrivateSourceProofTests(unittest.TestCase):
                 self.proof(self.shop,self.row)
             self.assertEqual([call[0] for call in self.calls],["review","get"])
 
+    def test_mutable_caller_row_cannot_rewrite_rights_evidence_during_private_read(self):
+        # A service-owned HTTP transport may invoke callbacks while reading.
+        # Both independent rights checks must receive the same validated
+        # registered metadata, not a caller's mid-flight replacement.
+        original=copy.deepcopy(self.row)
+        observed=[]
+        def independent_review(shop,asset,digest,row):
+            observed.append(copy.deepcopy(row))
+            return {
+                "shop_id":shop,"asset_id":asset,"image_sha256":digest,
+                "rights_revision":3,"independent_license_verified":True,
+                "current_customer_approval":True,"rights_revoked":False,
+            }
+        self.proof.review=independent_review
+        def mutate_caller_row():
+            self.row.update({
+                "license_name":"commercial",
+                "license_url":"https://license.example/replaced",
+                "attribution":"Changed provenance while private bytes were read",
+                "mime_type":"image/jpeg",
+            })
+        self.read_hook=mutate_caller_row
+        receipt=self.proof(self.shop,self.row)
+        self.assertEqual(receipt["image_sha256"],self.sha)
+        self.assertEqual(observed,[original,original])
+        self.assertEqual([event[0] for event in self.calls],["get"])
+
+    def test_untrusted_mapping_subclass_denied_before_private_read(self):
+        class MutableRow(dict):
+            pass
+        with self.assertRaises(SourceProofDenied):
+            self.proof(self.shop,MutableRow(self.row))
+        self.assertEqual(self.calls,[])
+
     def test_revoked_rights_after_private_bytes_read_denied(self):
         self.revoke_second=True
         with self.assertRaises(SourceProofDenied):

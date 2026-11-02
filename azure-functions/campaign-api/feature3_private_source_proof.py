@@ -295,9 +295,15 @@ class Feature3TrustedPrivateSourceProof:
             raise SourceProofDenied("Independent current image rights not verified")
         return attestation["rights_revision"]
 
-    def __call__(self,shop_id,registered_media):
+    def __call__(self,shop_id,media):
         shop=_uuid(shop_id)
-        asset,key=self._registered(shop,registered_media)
+        # Freeze the authoritative PostgREST row for the entire private read.
+        # Transport callbacks or another caller must not swap licence/MIME
+        # metadata between the pre-read and post-read rights attestations.
+        if type(registered_media) is not dict:
+            raise SourceProofDenied("Trusted registered media row required")
+        media=dict(registered_media)
+        asset,key=self._registered(shop,media)
         # For model originals the immutable SHA-named private key supplies
         # a candidate digest for a *pre-read* independent rights check.
         # This does NOT attest bytes: the later real Storage SHA comparison
@@ -306,19 +312,19 @@ class Feature3TrustedPrivateSourceProof:
         is_model=key.split("/")[1]=="model-library"
         if is_model:
             expected_digest=key.rsplit("/",1)[-1].rsplit(".",1)[0]
-            revision=self._authorize(shop,asset,expected_digest,registered_media)
+            revision=self._authorize(shop,asset,expected_digest,media)
         # Real bytes come ONLY from service-owned private Storage; browser
         # declarations, key names and earlier approval cannot replace bytes.
-        digest=self._private_bytes(key,registered_media["mime_type"])
+        digest=self._private_bytes(key,media["mime_type"])
         if is_model and expected_digest!=digest:
             raise SourceProofDenied("Original model bytes differ from immutable path SHA")
         if not is_model:
             # Generic private media keys are not SHA-named, so their first
             # independently verifiable digest only exists after the read.
-            revision=self._authorize(shop,asset,digest,registered_media)
+            revision=self._authorize(shop,asset,digest,media)
         # Recheck independent current rights after actual bytes. A changed
         # revision, revoked approval or swapped image always denies use.
-        if self._authorize(shop,asset,digest,registered_media)!=revision:
+        if self._authorize(shop,asset,digest,media)!=revision:
             raise SourceProofDenied("Original media review changed during read")
         return {"shop_id":shop,"asset_id":asset,"image_sha256":digest,
                 "rights_revision":revision,"private_bytes_verified":True,
