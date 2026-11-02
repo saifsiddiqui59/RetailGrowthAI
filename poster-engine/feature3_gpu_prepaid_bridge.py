@@ -121,6 +121,22 @@ class PrepaidGPUJobCallbacks:
 
         def write_output(shop, job_id, image, metadata):
             nonlocal output_asset_id
+            # Inference may take minutes. A second SQL read must still identify
+            # the SAME pre-paid reservation, not merely another valid UUID and
+            # amount for the same job. Check before any private Storage stage.
+            late = self._read_reservation(shop, job_id, job.attempt, claim_token)
+            if (type(late) is not dict or set(late) != {
+                    "reservation_id", "shop_id", "job_id", "attempt",
+                    "claim_token", "reserved_usd",
+                } or late.get("shop_id") != shop or late.get("job_id") != job_id
+                or type(late.get("attempt")) is not int
+                or late["attempt"] != job.attempt
+                or late.get("claim_token") != claim_token
+                or _uuid4(late["reservation_id"]) != reservation_id
+                or _amount(late["reserved_usd"],
+                           maximum=self.provider.config.max_cost_usd_per_job)
+                   != reserved_amount):
+                raise ProviderBlocked("Pre-output GPU reservation changed; reconcile")
             receipt = self._output(shop, job_id, image, metadata)
             if isinstance(receipt, dict):
                 try:
