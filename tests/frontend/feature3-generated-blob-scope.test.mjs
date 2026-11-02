@@ -76,6 +76,22 @@ test('malicious external URL returned by URL factory never displays',()=>{
   assert.throws(()=>scope.install(SHOP,JOB,RECEIPT))
   assert.equal(scope.view(SHOP,JOB),null)
 })
+test('malformed blob scheme without an origin and identifier never displays',()=>{
+  for(const malformed of ('blob:', 'blob:javascript:alert(1)',
+    'blob:https://fixture.test/', 'blob:https://fixture.test/id?token=secret',
+    'blob:https://fixture.test/id#fragment', 'blob:https://fixture.test/id\\n')){
+    const revoked=[]
+    const scope=createFeature3GeneratedBlobScope({
+      createURL:()=>malformed,
+      revokeURL:url=>revoked.push(url),
+    })
+    scope.selectScope(SHOP)
+    assert.throws(()=>scope.install(SHOP,JOB,RECEIPT),/local revocable Blob/)
+    assert.equal(scope.view(SHOP,JOB),null)
+    assert.deepEqual(revoked,[])
+  }
+})
+
 test('generated preview remains OFF by default until independent binary gate',()=>{
   const host=readFileSync(
     new URL('../../frontend/src/features/creative/Feature3PosterHost.jsx',import.meta.url),'utf8')
