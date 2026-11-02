@@ -207,6 +207,30 @@ class LibraryTests(unittest.TestCase):
         self.assertEqual(self.store(candidate=candidate)["status"],
                          "PENDING_REVIEW")
 
+    def test_untrusted_model_text_controls_fail_before_storage_or_reuse(self):
+        for mutation in (
+            {"label": "Model\\nforged"},
+            {"label": " "*80 + "Model"},
+            {"attribution": "credit\\rforged"},
+            {"attribution": "credit\\x7fhidden"},
+        ):
+            with self.subTest(mutation=repr(mutation)):
+                with self.assertRaises(ModelLibraryDenied):
+                    self.store(candidate=replace(self.candidate, **mutation))
+                self.assertFalse(self.assets)
+                self.assertEqual(self.saved, [])
+        saved = self.store()
+        reviewed = {**saved, "status": "APPROVED"}
+        for attribution in ("credit\\nforged", "credit\\x7fhidden"):
+            calls = []
+            with self.subTest(attribution=repr(attribution)):
+                with self.assertRaises(ModelLibraryDenied):
+                    checked_model_for_use(
+                        model={**reviewed, "attribution": attribution},
+                        requesting_shop_id=self.shop, usage="poster",
+                        authorize_use=lambda *args: calls.append(args) or True)
+                self.assertEqual(calls, [])
+
     def test_unhashable_model_provenance_never_reaches_storage_or_registry(self):
         # ModelCandidate metadata is untrusted even when constructed through
         # a Python adapter; a list/dict must deny without TypeError/500.
