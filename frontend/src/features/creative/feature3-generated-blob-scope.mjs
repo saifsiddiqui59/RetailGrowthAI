@@ -71,8 +71,11 @@ export function createFeature3GeneratedBlobScope({
     // Failure is non-renderable and cannot be bypassed by another install.
     if(pendingRevoke.size) revokePending()
     const next=createURL(receipt.blob)
-    if(typeof next!=='string'||!next.startsWith('blob:')){
-      if(typeof next==='string'&&next.startsWith('blob:'))revokeURL(next)
+    // Native browser object URLs contain an origin and an opaque identifier.
+    // A malformed blob: string is not a usable local preview receipt.
+    // Keep ordinary HTTPS and localhost HTTP development origins supported.
+    if(typeof next!=='string'||
+       !/^blob:(?:https?:\/\/[^/?#\s]+|null)\/[^/?#\s]+$/.test(next)){
       throw Error('Only local revocable Blob preview URL permitted')
     }
     // A Blob URL factory must never alias the still-owned previous preview.
