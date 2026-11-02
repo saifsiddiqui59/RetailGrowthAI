@@ -70,6 +70,10 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
     setImage(null)
     setImageBusy(false)
     setImageMessage('')
+    // A failed browser Blob cleanup must not leave cached private job
+    // statuses visible after the user explicitly requests fresh rights data.
+    // Clear the old history before the revocation attempt can throw.
+    setState(initial(shop,source))
     try { registry.current.clear() }
     catch {
       setImageMessage('Private preview hidden; browser cleanup pending. Retry after recovery.')

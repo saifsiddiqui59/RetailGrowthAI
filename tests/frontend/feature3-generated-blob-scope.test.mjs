@@ -306,7 +306,7 @@ test('React history hides preview before cleanup and checks live registry owners
   assert.match(history,/registry\.current\.view\(shopId,image\.jobId\)===image\.url/)
   assert.match(history,/const clearImage=\(\)=>\{\s*\+\+epoch\.current\s*imageReadToken\.current=null\s*setImage\(null\)\s*setImageBusy\(false\)\s*setImageMessage\(''\)\s*try \{ registry\.current\.clear\(\) \}/)
   assert.match(history,/const loadImage=async\(job\)=>[\s\S]*?setImage\(null\)\s*setImageBusy\(true\)\s*setImageMessage\(''\)\s*try\{\s*registry\.current\.clear\(\)/)
-  assert.match(history,/const load=async\(\)=>[\s\S]*?setImage\(null\)\s*setImageBusy\(false\)\s*setImageMessage\(''\)\s*try \{ registry\.current\.clear\(\) \}/)
+  assert.match(history,/const load=async\(\)=>[\s\S]*?setImage\(null\)\s*setImageBusy\(false\)\s*setImageMessage\(''\)[\s\S]*?setState\(initial\(shop,source\)\)\s*try \{ registry\.current\.clear\(\) \}/)
   assert.match(history,/Private preview hidden; browser cleanup pending/)
 })
 
@@ -343,4 +343,42 @@ test('generated job history refresh is synchronous single-flight and cannot stra
   // unlock the new scope's private request or overwrite its busy state.
   assert.match(history,/historyReadToken\.current=null\s*try \{ registry\.current\.selectScope\(shopId\) \}/)
   assert.match(history,/return \(\)=>\{\s*epoch\.current\+=1\s*imageReadToken\.current=null\s*historyReadToken\.current=null/)
+})
+
+
+test('same-shop scope reselection retries hidden private Blob cleanup without new allocation',()=>{
+  const issued=[],revoked=[]
+  let deny=true
+  const scope=createFeature3GeneratedBlobScope({
+    createURL:()=>{const url='blob:https://fixture.test/'+randomUUID();issued.push(url);return url},
+    revokeURL:url=>{if(deny)throw Error('revoke unavailable');revoked.push(url)},
+  })
+  scope.selectScope(SHOP)
+  const old=scope.install(SHOP,JOB,RECEIPT)
+  assert.throws(()=>scope.clear(),/cleanup failed/)
+  assert.equal(scope.view(SHOP,JOB),null)
+  assert.throws(()=>scope.selectScope(SHOP),/cleanup failed/)
+  assert.equal(issued.length,1,'reselection cannot allocate another private URL')
+  assert.equal(scope.view(SHOP,JOB),null)
+  deny=false
+  scope.selectScope(SHOP)
+  assert.deepEqual(revoked,[old])
+  const next=scope.install(SHOP,JOB,RECEIPT)
+  assert.notEqual(next,old)
+  assert.equal(scope.view(SHOP,JOB),next)
+  scope.selectScope(SHOP)
+  assert.equal(scope.view(SHOP,JOB),next,'same-scope retry must not revoke live preview')
+  scope.clear()
+  assert.deepEqual(revoked,[old,next])
+})
+
+test('failed private history refresh clears cached statuses before Blob cleanup',()=>{
+  const history=readFileSync(
+    new URL('../../frontend/src/features/creative/Feature3GeneratedHistory.jsx',import.meta.url),'utf8')
+  const start=history.indexOf('const load=async()=>{')
+  const end=history.indexOf('const loadImage=async(job)=>{')
+  assert.ok(start>=0 && end>start)
+  const load=history.slice(start,end)
+  assert.match(load,/setImage\(null\)[\s\S]*?setState\(initial\(shop,source\)\)\s*try \{ registry\.current\.clear\(\) \}/)
+  assert.match(load,/catch \{\s*setImageMessage\('Private preview hidden; browser cleanup pending/)
 })

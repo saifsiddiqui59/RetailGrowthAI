@@ -45,6 +45,11 @@ export function createFeature3GeneratedBlobScope({
       shop=null
       clear()
       shop=nextShop
+    } else if(pendingRevoke.size){
+      // An explicit re-selection of the current shop is also a recovery
+      // opportunity. Never silently retain a failed hidden revoke until a
+      // later Preview allocates more private browser memory.
+      revokePending()
     }
   }
   const install=(nextShop,nextJob,receipt)=>{
