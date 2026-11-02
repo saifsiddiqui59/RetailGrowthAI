@@ -187,6 +187,9 @@ export default function Feature3GeneratedHistory({shopId,api,binaryClient=null})
         </button>}
       </li>)}
     </ul>}
+    {imageBusy && <button type="button" onClick={clearImage}>
+      Cancel private preview request
+    </button>}
     {imageMessage && <p role="status">{imageMessage}</p>}
     {displayed && <figure>
       <img src={displayed.url} alt="Unreviewed private generated poster preview"
