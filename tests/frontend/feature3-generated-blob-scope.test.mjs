@@ -332,7 +332,7 @@ test('generated job history refresh is synchronous single-flight and cannot stra
   // checked.busy is a React state snapshot and is not sufficient to prevent
   // two rapid Check clicks from making concurrent private history requests.
   assert.match(history,/const historyReadToken=useRef\(null\)/)
-  assert.match(history,/if\(!api \|\| !shopId \|\| checked\.busy \|\| historyReadToken\.current!==null\)return/)
+  assert.match(history,/if\(!api \|\| !shopId \|\| checked\.busy \|\| historyReadToken\.current!==null \|\|\s*imageReadToken\.current!==null\)return/)
   assert.match(history,/const refreshToken=Symbol\('private-generated-history'\)\s*historyReadToken\.current=refreshToken/)
   assert.match(history,/if\(historyReadToken\.current===refreshToken\)\{\s*historyReadToken\.current=null/)
   assert.match(history,/previous\.shopId===shop && previous\.api===source && previous\.busy/)
@@ -381,4 +381,20 @@ test('failed private history refresh clears cached statuses before Blob cleanup'
   const load=history.slice(start,end)
   assert.match(load,/setImage\(null\)[\s\S]*?setState\(initial\(shop,source\)\)\s*try \{ registry\.current\.clear\(\) \}/)
   assert.match(load,/catch \{\s*setImageMessage\('Private preview hidden; browser cleanup pending/)
+})
+
+
+test('history refresh cannot cancel an active private preview GET',()=>{
+  const history=readFileSync(
+    new URL('../../frontend/src/features/creative/Feature3GeneratedHistory.jsx',import.meta.url),'utf8')
+  const start=history.indexOf('const load=async()=>{')
+  const end=history.indexOf('const loadImage=async(job)=>{')
+  assert.ok(start>=0 && end>start)
+  const load=history.slice(start,end)
+  // A pending preview must not be invalidated by a second history click:
+  // the guard must execute before incrementing epoch or clearing its token.
+  const guard=load.indexOf('imageReadToken.current!==null)return')
+  const invalidate=load.indexOf('imageReadToken.current=null')
+  assert.ok(guard>=0 && invalidate>guard)
+  assert.match(history,/onClick=\{load\} disabled=\{!api\|\|!shopId\|\|checked\.busy\|\|imageBusy\}/)
 })
