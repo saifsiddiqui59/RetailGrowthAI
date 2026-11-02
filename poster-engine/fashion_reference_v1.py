@@ -346,6 +346,15 @@ def resolve_first_frame(*, expected_manifest, current_readers,
         read_private_bytes=current_readers["read_private_bytes"])
     if current != frame:
         raise FashionReferenceDenied("First-frame rights or source changed after authorization")
+    # The durable worker lease can be revoked while private bytes are being
+    # fetched. Never return the frame based only on a pre-read lease check.
+    if verify_worker_job(fresh["shop_id"], source_ids, fresh["reference_fingerprint"]) is not True:
+        raise FashionReferenceDenied("Motion worker claim expired during private read")
+    # A lease callback can race with rights, model or product revocation.
+    # Recheck the full authoritative bundle after the last lease read,
+    # including immutable byte proofs, before releasing the earlier frame.
+    if prepare_fashion_references(**inputs) != fresh:
+        raise FashionReferenceDenied("Media rights or product changed after worker lease")
     return {"shop_id": fresh["shop_id"], "source_asset_id": frame["source_asset_id"],
             "sha256": current["sha256"], "mime_type": current["mime_type"],
             "dimensions": current["dimensions"], "image_bytes": raw,
