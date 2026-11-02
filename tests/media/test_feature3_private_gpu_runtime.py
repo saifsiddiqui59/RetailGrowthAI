@@ -77,7 +77,9 @@ class FakeSQL:
         self.unknown_commit=False
         self.reservation_attempt=1
         self.reservation_id_override=self.reservation
+        self.late_reservation_id_override=None
         self.reserved_usd="0.05"
+        self.late_reserved_usd_override=None
         self.commit_attempt=1
     def claim(self,job_id,token):
         self.calls.append("claim")
@@ -90,10 +92,15 @@ class FakeSQL:
         if not self.lease_active or (shop,job,attempt,token)!=(
                 self.shop,self.job,1,self.token):
             raise ProviderBlocked("expired/foreign one-shot SQL lease")
-        return {"reservation_id":self.reservation_id_override,
+        late=self.calls.count("lease")>=2
+        return {"reservation_id":self.late_reservation_id_override
+                if late and self.late_reservation_id_override is not None
+                else self.reservation_id_override,
                 "shop_id":self.shop if not self.foreign_receipt else str(uuid4()),
                 "job_id":job,"attempt":self.reservation_attempt,"claim_token":token,
-                "reserved_usd":self.reserved_usd}
+                "reserved_usd":self.late_reserved_usd_override
+                if late and self.late_reserved_usd_override is not None
+                else self.reserved_usd}
     def commit_private_output(self,shop,job,attempt,token,key,digest,size,ids):
         self.calls.append("commit")
         if (shop,job,attempt,token)!=(self.shop,self.job,1,self.token):
@@ -161,7 +168,7 @@ class WorkerCompositionTests(unittest.TestCase):
         self.assertEqual(self.storage.methods,["POST","GET"])
         self.assertEqual(self.service.calls.count("claim"),1)
         self.assertEqual(self.service.calls.count("commit"),1)
-        self.assertEqual(self.service.calls.count("lease"),2)
+        self.assertEqual(self.service.calls.count("lease"),3)
         self.assertEqual([x for x in self.service.calls if isinstance(x,tuple)],
                          [("finish","0.011500",self.service.media)])
         self.assertGreaterEqual(self.rights_calls,4)
@@ -220,6 +227,26 @@ class WorkerCompositionTests(unittest.TestCase):
         self.assertEqual(self.storage.methods,["POST","GET"])
         self.assertEqual(len(self.storage.bytes),1)
         # Not a safe candidate for cleanup or automatic replay.
+
+    def test_preoutput_reservation_swap_denied_without_storage_or_commit(self):
+        # A fresh SQL row with a different valid reservation ID or funded
+        # amount is not the pre-inference one-shot reservation.
+        for field, bad in (
+            ("late_reservation_id_override", str(uuid4())),
+            ("late_reserved_usd_override", "0.04"),
+        ):
+            with self.subTest(field=field):
+                self.setUp()
+                setattr(self.service, field, bad)
+                with self.assertRaises(ProviderBlocked):
+                    self.runtime.execute(InferenceJob(
+                        self.shop,self.job,"image_edit",(self.source,),
+                        prompt="synthetic only"))
+                self.assertEqual(self.service.calls.count("lease"),2)
+                self.assertEqual(self.storage.methods,[])
+                self.assertNotIn("commit",self.service.calls)
+                self.assertFalse(any(isinstance(x,tuple) and x[0]=="finish"
+                                     for x in self.service.calls))
 
     def test_noninteger_prepaid_lease_attempt_denied_before_storage_stage(self):
         for invalid in (True, 1.0, "1", False, None, 2):
