@@ -16,6 +16,7 @@ class ModelPickerTests(unittest.TestCase):
         self.shop = str(uuid4())
         self.other = str(uuid4())
         self.id = str(uuid4())
+        self.registered_media_id = str(uuid4())
         self.authorized = True
         self.image_allowed = True
         self.model = dict(
@@ -36,7 +37,7 @@ class ModelPickerTests(unittest.TestCase):
         return {
             "authorized": self.image_allowed, "private": True,
             "requesting_shop_id": shop, "image_sha256": receipt['image_sha256'],
-            "media_asset_id": "registered_shop_media_123",
+            "media_asset_id": self.registered_media_id,
         }
 
     def run_picker(self, models=None, **kwargs):
@@ -51,7 +52,7 @@ class ModelPickerTests(unittest.TestCase):
     def test_project_only_approved_registered_private_previews_no_blob_keys(self):
         rows = self.run_picker()
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]['media_asset_id'], 'registered_shop_media_123')
+        self.assertEqual(rows[0]['media_asset_id'], self.registered_media_id)
         self.assertEqual(rows[0]['image_sha256'], SHA)
         self.assertEqual(rows[0]['approved_uses'], ['poster'])
         self.assertNotIn('storage_key', rows[0])
@@ -89,6 +90,27 @@ class ModelPickerTests(unittest.TestCase):
         for receipt in invalid:
             with self.subTest(receipt=receipt):
                 self.assertEqual(self.run_picker(resolve_private_media=lambda *_:receipt), [])
+
+    def test_registered_private_media_receipt_requires_canonical_uuid(self):
+        # A syntactically plausible alias must never become a selectable
+        # private image ID, even if an injected resolver claims authorization.
+        invalid = (
+            "registered_shop_media_123", "asset-1", "not-a-uuid",
+            self.registered_media_id.upper(),
+            "", "00000000-0000-0000-0000-000000000000",
+            None, ["registered"], {"id": self.registered_media_id},
+        )
+        for media_id in invalid:
+            with self.subTest(media_id=repr(media_id)):
+                def private(shop, reference):
+                    return {"authorized": True, "private": True,
+                            "requesting_shop_id": shop,
+                            "image_sha256": reference["image_sha256"],
+                            "media_asset_id": media_id}
+                self.assertEqual(
+                    self.run_picker(resolve_private_media=private), [])
+        self.assertEqual(
+            self.run_picker()[0]["media_asset_id"], self.registered_media_id)
 
     def test_server_rejects_forged_use_or_license_before_private_media_lookup(self):
         bad_rows=(
