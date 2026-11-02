@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 from io import BytesIO
+from unicodedata import category
 import re
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
@@ -127,7 +128,9 @@ class Feature3TrustedPrivateSourceProof:
                 license_name not in ("owned","cc0","royalty_free","commercial") or
                 type(attribution) is not str or
                 not 10<=len(attribution.strip())<=200 or
-                any(ord(ch)<32 or ord(ch)==127 for ch in attribution) or
+                len(attribution)>200 or
+                any(category(ch) in ("Cc","Cf","Cs","Zl","Zp")
+                    for ch in attribution) or
                 (license_url is not None and not _license_url(license_url)) or
                 (license_name!="owned" and license_url is None)):
             raise SourceProofDenied("Private media ownership and licence metadata invalid")
