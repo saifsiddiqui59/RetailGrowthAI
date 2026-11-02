@@ -13,7 +13,7 @@ from hashlib import sha256
 from io import BytesIO
 import re
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from PIL import Image, UnidentifiedImageError
@@ -21,6 +21,11 @@ from PIL import Image, UnidentifiedImageError
 from tenant_store import StorageUnavailable, canonical_uuid
 
 _SHA = re.compile(r"^[a-f0-9]{64}$")
+# Match the *whole* canonical origin. urlsplit() can silently strip C0
+# whitespace and embedded CR/LF/TAB before validation.
+_SUPABASE_ORIGIN = re.compile(
+    r"https://[a-z0-9][a-z0-9-]{0,62}\.supabase\.co(?::443)?/?")
+_PUBLISHABLE_KEY = re.compile(r"sb_publishable_[A-Za-z0-9_-]{6,4090}")
 _MAX = 25 * 1024 * 1024
 
 
@@ -42,18 +47,14 @@ class Feature3RevocablePNGReader:
                     "member", "feature3_gpu_job", "feature3_generated_asset"))):
             raise ValueError("Signed JWT, tenant store and live output rights required")
         origin = getattr(tenant_store, "origin", None)
-        u = urlsplit(origin) if isinstance(origin, str) else None
-        if (not u or u.scheme != "https" or not u.hostname or
-                not u.hostname.endswith(".supabase.co") or
-                u.username or u.password or u.port not in (None, 443) or
-                u.path not in ("", "/") or u.query or u.fragment):
+        if (type(origin) is not str or
+                _SUPABASE_ORIGIN.fullmatch(origin) is None):
             raise ValueError("Exact private Supabase HTTPS project origin required")
         public_key = getattr(tenant_store, "key", None)
         # A service_role JWT API key or arbitrary key must not be supplied
         # as an authenticated user's private Storage apikey.
-        if (not isinstance(public_key, str) or
-                not public_key.startswith("sb_publishable_") or
-                len(public_key) < 20):
+        if (type(public_key) is not str or
+                _PUBLISHABLE_KEY.fullmatch(public_key) is None):
             raise ValueError("User JWT private reader requires public client key")
         self.tenant = tenant_store
         self.verify = verify_user_jwt
@@ -220,7 +221,7 @@ class Feature3RevocablePNGReader:
         Neither a successful read nor an output receipt grants publication.
         """
         if (not isinstance(user_token,str) or not 12 <= len(user_token) <= 8192 or
-                any(ord(ch) < 33 or ord(ch) == 127 for ch in user_token) or
+                any(not 33 <= ord(ch) <= 126 for ch in user_token) or
                 user_token.startswith(("sb_secret_","sb_publishable_"))):
             raise PrivateGeneratedDownloadDenied("Signed retailer token required")
         try:
