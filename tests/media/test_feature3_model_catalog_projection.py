@@ -116,7 +116,7 @@ class ModelPickerTests(unittest.TestCase):
             self.assertEqual(self.reads,[])
 
     def test_unsafe_catalog_label_never_reaches_rights_or_private_media(self):
-        for label in ("Poster\\nforged", " "*70 + "Poster", "Poster\\x7fhidden"):
+        for label in ("Poster\nforged", " "*70 + "Poster", "Poster\x7fhidden"):
             self.reads.clear()
             private_reads = []
             def private(shop, reference):
