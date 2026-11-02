@@ -88,7 +88,7 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
         raise FashionReferenceDenied("Current private media approval unavailable")
     if (row.get("id") != asset_id or row.get("shop_id") != shop or
         row.get("storage_bucket") != "retailgrowth-media" or
-        row.get("mime_type") not in _EXT or
+        type(row.get("mime_type")) is not str or row["mime_type"] not in _EXT or
         row.get("license_name") not in ("owned", "cc0", "commercial", "royalty_free") or
         not isinstance(row.get("attribution"), str) or len(row["attribution"].strip()) < 10 or
         (row["license_name"] != "owned" and
@@ -102,8 +102,11 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
         type(grant.get("rights_revision")) is not int or
         not 1 <= grant["rights_revision"] <= 2_147_483_647):
         raise FashionReferenceDenied("Source not tenant-owned and approved for this use")
-    if (row.get("fixture_only") is True or grant.get("fixture_only") is True or
-        row.get("revoked") is True):
+    # Absent flags are permitted for older registered rows, but any present
+    # value must be the actual boolean False. A truthy string, integer 0/1,
+    # mapping or list must never be interpreted as an unrevoked real asset.
+    if any(value is not None and value is not False for value in (
+            row.get("fixture_only"), grant.get("fixture_only"), row.get("revoked"))):
         raise FashionReferenceDenied("Synthetic/revoked test media cannot be production inputs")
     path = row.get("object_path")
     if not isinstance(path, str) or len(path) > 260 or "\\" in path or "//" in path:
@@ -329,19 +332,23 @@ def resolve_first_frame(*, expected_manifest, current_readers,
     if verify_worker_job(fresh["shop_id"], source_ids, fresh["reference_fingerprint"]) is not True:
         raise FashionReferenceDenied("No current authorized motion worker claim")
     frame = fresh["sources"]["first_frame"]
-    # The first pass revalidated all sources, while this final read pins the
-    # exact frame bytes immediately before delivery to the private worker.
-    row = current_readers["read_asset"](fresh["shop_id"], frame["source_asset_id"])
-    if not isinstance(row, dict) or row.get("shop_id") != fresh["shop_id"]:
-        raise FashionReferenceDenied("Private first frame no longer exists")
-    raw = current_readers["read_private_bytes"](
-        fresh["shop_id"], frame["source_asset_id"], row.get("object_path"))
-    size, digest = _read_image(raw, frame["mime_type"])
-    if digest != frame["sha256"] or size != frame["dimensions"]:
-        raise FashionReferenceDenied("First frame changed after authorization")
+    # The lease may be current while the media row or its rights change.
+    # Reuse the same private-source authority as the first manifest pass:
+    # verify registered shop/bucket/source/path and the CURRENT typed rights
+    # grant BEFORE handing the path to the byte reader. Merely checking the
+    # shop on the row and comparing the SHA after reading could fetch an
+    # attacker-substituted private object before rejecting its bytes.
+    role = "try_on" if fresh["try_on_review"] is not None else "garment"
+    current, raw = _approved_asset(
+        fresh["shop_id"], frame["source_asset_id"], role,
+        "image_to_video", read_asset=current_readers["read_asset"],
+        authorize_asset=current_readers["authorize_asset"],
+        read_private_bytes=current_readers["read_private_bytes"])
+    if current != frame:
+        raise FashionReferenceDenied("First-frame rights or source changed after authorization")
     return {"shop_id": fresh["shop_id"], "source_asset_id": frame["source_asset_id"],
-            "sha256": digest, "mime_type": frame["mime_type"],
-            "dimensions": size, "image_bytes": raw,
+            "sha256": current["sha256"], "mime_type": current["mime_type"],
+            "dimensions": current["dimensions"], "image_bytes": raw,
             "generation_executed": False, "gpu_authorized": False}
 
 
