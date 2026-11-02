@@ -8,7 +8,8 @@ shop IDs or image URLs as proof of access.
 from __future__ import annotations
 
 from uuid import UUID
-from model_library_v2 import ModelLibraryDenied, checked_model_for_use, _uuid
+from model_library_v2 import (ModelLibraryDenied, checked_model_for_use,
+                              _uuid, _unsafe_review_text)
 
 
 def approved_model_picker_items(*, models, requesting_shop_id,
@@ -43,7 +44,7 @@ def approved_model_picker_items(*, models, requesting_shop_id,
         label = model.get('label')
         if (not isinstance(label, str) or
                 not 1 <= len(label.strip()) <= 64 or len(label) > 64 or
-                any(ord(ch) < 32 or ord(ch) == 127 for ch in label)):
+                _unsafe_review_text(label)):
             continue
         try:
             reference = checked_model_for_use(

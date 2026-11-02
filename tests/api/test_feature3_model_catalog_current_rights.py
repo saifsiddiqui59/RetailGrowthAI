@@ -91,6 +91,10 @@ class CurrentModelCatalogTests(unittest.TestCase):
             {"label":None},
             {"attribution":"x"*201},
             {"attribution":"danger\nlogged"},
+            {"label":"Approved\u202eforged"},
+            {"label":"Approved\u200bhidden"},
+            {"attribution":"Owner\u2066hidden"},
+            {"attribution":"Owner\u2028forged"},
             {"license_id":"CC-BY-4.0","attribution":"   "},
             {"license_id":"CC-BY-4.0","attribution":True},
             {"media_asset_id":"not-a-uuid"},
@@ -102,6 +106,30 @@ class CurrentModelCatalogTests(unittest.TestCase):
             with self.subTest(mutation=repr(mutation)):
                 self.assertEqual(self.list(),[])
             self.assertEqual(self.auth_calls,[])
+
+    def test_unicode_format_spoofing_denied_at_model_registration(self):
+        body = {
+            "model_id": self.model, "media_asset_id": self.asset,
+            "source_kind": "retailer_licensed", "label": "Approved adult model",
+            "image_sha256": "a"*64, "license_id": "CC0-1.0",
+            "license_evidence_sha256": "b"*64,
+            "attribution": "Owner reviewed model", "approved_uses": ["poster"],
+        }
+        for field in ("label", "attribution"):
+            for hidden in ("\u202e", "\u200b", "\u2028"):
+                with self.subTest(field=field, hidden=repr(hidden)):
+                    bad = {**body, field: body[field] + hidden + "reviewed"}
+                    with self.assertRaises(ValueError):
+                        self.store.import_pending_model("fictional-signed-jwt",
+                                                        self.shop, bad)
+                    self.assertEqual(self.query, [])
+        original = {"model_id": self.model, "image_sha256": "a"*64,
+                    "license_name": "owned", "license_url": None,
+                    "attribution": "Owned original artwork"}
+        with self.assertRaises(ValueError):
+            self.store.register_model_original("fictional-signed-jwt", self.shop,
+                {**original, "attribution": "Owned\u202eoriginal artwork"})
+        self.assertEqual(self.query, [])
 
     def test_forged_truthy_media_receipt_cannot_grant_catalog_read(self):
         for value in (1, {"authorized":True}, ["some-media"]):

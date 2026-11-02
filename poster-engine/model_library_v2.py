@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
 import re
+import unicodedata
 from urllib.parse import urlsplit
 from uuid import UUID, uuid5
 
@@ -37,6 +38,13 @@ MAX_BYTES = 25 * 1024 * 1024
 MAX_PIXELS = 24_000_000
 
 
+def _unsafe_review_text(text):
+    # Invisible formatting, bidi controls and Unicode line separators can
+    # misrepresent an image license, label or provenance to human reviewers.
+    return any(unicodedata.category(ch) in ("Cc", "Cf", "Cs", "Zl", "Zp")
+               for ch in text)
+
+
 def _uuid(value):
     try:
         canonical = str(UUID(value))
@@ -53,7 +61,8 @@ def _source_uri(value):
     # urlsplit silently strips leading C0 controls and embedded CR/LF/TAB.
     # Reject those before parsing: the stored human-review evidence must be
     # byte-for-byte the URL actually inspected, not a normalized lookalike.
-    if any(ord(ch) <= 32 or ord(ch) == 127 or ch == "\\" for ch in value):
+    if (any(ord(ch) <= 32 or ch == "\\" for ch in value) or
+            _unsafe_review_text(value)):
         raise ModelLibraryDenied("Only clean HTTPS provenance links are allowed")
     try:
         parsed = urlsplit(value)
@@ -108,8 +117,7 @@ def _validate_candidate(candidate):
         type(candidate.pose) is not str or candidate.pose not in POSES or
         not isinstance(candidate.attribution, str) or
         len(candidate.attribution) > 200 or
-        any(ord(ch) < 32 or ord(ch) == 127
-            for ch in candidate.label + candidate.attribution)):
+        _unsafe_review_text(candidate.label + candidate.attribution)):
         raise ModelLibraryDenied("Invalid fashion model description or pose")
     if candidate.license_id == "CC-BY-4.0" and not candidate.attribution.strip():
         raise ModelLibraryDenied("CC-BY attribution must accompany all derivative exports")
@@ -270,7 +278,7 @@ def checked_model_for_use(*, model, requesting_shop_id, usage, authorize_use):
         raise ModelLibraryDenied("Another shop's private models are not accessible")
     attribution = model.get("attribution", "")
     if (not isinstance(attribution, str) or len(attribution) > 200 or
-            any(ord(ch) < 32 or ord(ch) == 127 for ch in attribution) or
+            _unsafe_review_text(attribution) or
             (model.get("license_id") == "CC-BY-4.0" and
              not attribution.strip())):
         raise ModelLibraryDenied("Reviewed model attribution invalid")

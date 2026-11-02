@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -17,6 +18,13 @@ from security import AuthenticationError
 from tenant_store import StorageUnavailable, canonical_uuid
 
 _SHA256 = re.compile(r"[a-f0-9]{64}")
+
+
+def _unsafe_review_text(text):
+    # Do not let zero-width/bidi controls or Unicode line breaks spoof
+    # model labels, image rights attribution or reviewer audit text.
+    return any(unicodedata.category(ch) in ("Cc", "Cf", "Cs", "Zl", "Zp")
+               for ch in text)
 
 
 class Feature3V2Store:
@@ -142,8 +150,7 @@ class Feature3V2Store:
                     or len(label) > 64
                     or type(attribution) is not str or len(attribution) > 200
                     or (license_id == "CC-BY-4.0" and not attribution.strip())
-                    or any(ord(ch) < 32 or ord(ch) == 127
-                           for ch in label + attribution)):
+                    or _unsafe_review_text(label + attribution)):
                 continue
             try:
                 model_id = canonical_uuid(row["model_id"])
@@ -215,7 +222,7 @@ class Feature3V2Store:
                 (decision == "APPROVE" and not all(checks.values())) or
                 not isinstance(notes, str) or
                 not 12 <= len(notes.strip()) <= 500 or
-                any(ord(c) < 32 or ord(c) == 127 for c in notes)):
+                _unsafe_review_text(notes)):
             raise ValueError("Six independent human review checks required")
         result = self._request(token, "rpc/feature3_review_model", body={
             "p_shop_id": sid, "p_model_id": mid, "p_decision": decision,
@@ -235,7 +242,7 @@ class Feature3V2Store:
             token, shop_id, model_id, expected_revision, image_sha256)
         if (not isinstance(reason, str) or
                 not 12 <= len(reason.strip()) <= 500 or
-                any(ord(c) < 32 or ord(c) == 127 for c in reason)):
+                _unsafe_review_text(reason)):
             raise ValueError("Auditable revocation reason required")
         result = self._request(token, "rpc/feature3_revoke_model", body={
             "p_shop_id": sid, "p_model_id": mid,
@@ -284,8 +291,7 @@ class Feature3V2Store:
              or any(type(v) is not str for v in body["approved_uses"])
              or set(body["approved_uses"]) - {"poster", "try_on", "video_reference"}
              or len(set(body["approved_uses"])) != len(body["approved_uses"])
-             or any(ord(c) < 32 or ord(c) == 127 for c in (
-                    body["label"] + body["attribution"]))):
+             or _unsafe_review_text(body["label"] + body["attribution"])):
             raise ValueError("Invalid bounded pending model metadata")
         data = self._request(token, "rpc/feature3_import_pending_model", body={
             "p_shop_id": sid, "p_model_id": mid,
@@ -333,7 +339,7 @@ class Feature3V2Store:
         if (license_name not in ("owned","cc0","commercial","royalty_free")
             or not isinstance(attribution, str) or
             not 10 <= len(attribution.strip()) <= 200 or
-            any(ord(ch) < 32 or ord(ch) == 127 for ch in attribution)
+            _unsafe_review_text(attribution)
             or (license_url is not None and (
                 not isinstance(license_url, str) or
                 len(license_url) > 500 or not license_url.startswith("https://")))

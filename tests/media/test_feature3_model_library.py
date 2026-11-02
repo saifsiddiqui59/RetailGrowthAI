@@ -192,6 +192,8 @@ class LibraryTests(unittest.TestCase):
             "https://example.com/license\tforged",
             "https://example.com\\@attacker.invalid/license",
             "https://example.com/license\x7f",
+            "https://example.com/license\u202eforged",
+            "https://example.com/license\u200bhidden",
         )
         for uri in malformed:
             with self.subTest(uri=repr(uri)):
@@ -210,9 +212,13 @@ class LibraryTests(unittest.TestCase):
     def test_untrusted_model_text_controls_fail_before_storage_or_reuse(self):
         for mutation in (
             {"label": "Model\nforged"},
+            {"label": "Model\u202eforged"},
+            {"label": "Model\u200bforged"},
             {"label": " "*80 + "Model"},
             {"attribution": "credit\rforged"},
             {"attribution": "credit\x7fhidden"},
+            {"attribution": "credit\u2066hidden"},
+            {"attribution": "credit\u2028forged"},
         ):
             with self.subTest(mutation=repr(mutation)):
                 with self.assertRaises(ModelLibraryDenied):
@@ -221,7 +227,8 @@ class LibraryTests(unittest.TestCase):
                 self.assertEqual(self.saved, [])
         saved = self.store()
         reviewed = {**saved, "status": "APPROVED"}
-        for attribution in ("credit\nforged", "credit\x7fhidden"):
+        for attribution in ("credit\nforged", "credit\x7fhidden",
+                            "credit\u202eforged", "credit\u200bhidden"):
             calls = []
             with self.subTest(attribution=repr(attribution)):
                 with self.assertRaises(ModelLibraryDenied):
