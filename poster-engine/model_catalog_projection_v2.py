@@ -7,6 +7,7 @@ shop IDs or image URLs as proof of access.
 """
 from __future__ import annotations
 
+from uuid import UUID
 from model_library_v2 import ModelLibraryDenied, checked_model_for_use, _uuid
 
 
@@ -68,7 +69,9 @@ def approved_model_picker_items(*, models, requesting_shop_id,
         # identifier-shaped string from an injected private-media resolver.
         try:
             media_asset_id = _uuid(receipt['media_asset_id'])
-        except ModelLibraryDenied:
+            if UUID(media_asset_id).version != 4:
+                continue
+        except (ModelLibraryDenied, ValueError):
             continue
         seen.add(reference['model_id'])
         ready.append({
