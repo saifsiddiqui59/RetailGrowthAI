@@ -159,18 +159,24 @@ class Feature3RevocablePNGReader:
                 length = headers.get("Content-Length")
                 mime = headers.get("Content-Type")
                 content_encoding = headers.get("Content-Encoding")
+                # Refuse folded, invisible or unbounded HTTP metadata before
+                # any authenticated private PNG body is consumed.
+                def printable_header(value):
+                    return (type(value) is str and 1 <= len(value) <= 256 and
+                            all(32 <= ord(ch) <= 126 for ch in value))
                 if content_encoding is not None and (
-                        type(content_encoding) is not str or
+                        not printable_header(content_encoding) or
                         content_encoding.strip().lower() != "identity"):
                     raise PrivateGeneratedDownloadDenied(
                         "Untrusted encoded private PNG response")
                 if (length is not None and
-                        (type(length) is not str or not length.isascii() or
+                        (type(length) is not str or not 1 <= len(length) <= 8 or
+                         not length.isascii() or
                          not length.isdigit() or int(length) > _MAX)):
                     raise PrivateGeneratedDownloadDenied(
                         "Invalid private image Content-Length")
                 if (mime is not None and
-                        (type(mime) is not str or
+                        (not printable_header(mime) or
                          mime.split(";", 1)[0].strip().lower() != "image/png")):
                     raise PrivateGeneratedDownloadDenied("Invalid private image MIME")
                 raw = response.read(_MAX + 1)
