@@ -88,6 +88,12 @@ def _license_url(value):
         return False
     try:
         parsed = urlsplit(value)
+        # urllib retains percent-encoded authority bytes and accepts an empty
+        # or zero-padded port. Browser URL parsers may normalize those into a
+        # different displayed host/port; never trust ambiguous provenance.
+        if ("%" in parsed.netloc or parsed.netloc.endswith(":") or
+                (parsed.port is not None and not parsed.netloc.endswith(":443"))):
+            return False
         return (parsed.scheme == "https" and bool(parsed.hostname) and
                 parsed.username is None and parsed.password is None and
                 parsed.port in (None, 443))

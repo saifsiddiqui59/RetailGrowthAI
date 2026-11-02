@@ -84,3 +84,10 @@ The existing `Feature3TrustedPrivateSourceProof` trusts the *shape* of a PostgRE
 - The _license_url validator now denies those ambiguous declarations before any private Storage GET or independent reviewer callback; valid percent-encoded HTTPS metadata remains supported. These declarations still never prove commercial rights. Added offline negative and positive regression cases to tests/api/test_feature3_private_source_proof.py.
 - Mandatory final-head four-job CI and independent private-media/rights security review remain merge gates. F3-03/F3-13 remain source-partial; no hosted acceptance, paid GPU/inference, hosted SQL, PROD or WineShopPOS action.
 - NEXT ACTION: verify exact-head Python/frontend/FFmpeg/Supabase 4/4, fix any failures, obtain independent review, then reassess current main before any authorized merge. Keep original task ledger unchanged until postmerge evidence.
+
+## 2026-11-03 — F3-03/F3-13 ambiguous URL authority canonicalization (source only)
+
+- Continued existing PR #865 after confirming preceding exact-head CI #41501647302 **4/4 PASS** at `9e765597`; no independent security/rights reviews were present, so no merge was authorized.
+- `_license_url` now rejects percent-encoded host authority, an empty explicit port and zero-padded :443 forms that Python accepts but browser URL handling may normalize differently. Canonical explicit :443 and percent-encoded path remain accepted as *declarations only*, never evidence of commercial permission.
+- Five new fail-closed negative cases require zero rights-review/Storage calls, plus a valid :443 positive control. Synthetic offline tests only; no model inference, hosted SQL, DEV/PROD deployment, customer media or WineShopPOS changes.
+- **NEXT ACTION:** verify mandatory exact-new-head Python/frontend/FFmpeg/Supabase 4/4; repair failures without weakening tests. Obtain independent private-media/rights/security review of complete #865, then recheck current main/merge policy and merge only if eligible. After any authorized merge verify fresh main 4/4 before proposing reviewed original F3-03/F3-13 ledger receipts. Source partial; **0/33 hosted accepted**.

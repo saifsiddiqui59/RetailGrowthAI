@@ -428,6 +428,11 @@ class PrivateSourceProofTests(unittest.TestCase):
             "https://license.example/%zz",
             "https://license.example/rights?source=%0",
             "https://license.example/rights%",
+            "https://%65xample.com/rights",  # percent-encoded hostname
+            "https://license%2eexample/rights",
+            "https://license.example:/rights",  # empty explicit port
+            "https://license.example:0443/rights",
+            "https://license.example:000443/rights",
         ):
             self.setUp()
             self.row["license_name"] = "cc0"
@@ -441,6 +446,13 @@ class PrivateSourceProofTests(unittest.TestCase):
         self.setUp()
         self.row["license_name"] = "cc0"
         self.row["license_url"] = "https://license.example/rights%20proof?edition=1"
+        self.assertEqual(self.proof(self.shop, self.row)["image_sha256"], self.sha)
+        self.assertEqual([c[0] for c in self.calls], ["review", "get", "review"])
+
+        # An explicitly canonical HTTPS :443 authority remains supported.
+        self.setUp()
+        self.row["license_name"] = "cc0"
+        self.row["license_url"] = "https://license.example:443/rights%20proof"
         self.assertEqual(self.proof(self.shop, self.row)["image_sha256"], self.sha)
         self.assertEqual([c[0] for c in self.calls], ["review", "get", "review"])
 
