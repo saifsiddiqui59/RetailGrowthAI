@@ -235,7 +235,7 @@ class ProofTests(unittest.TestCase):
             kind=bytes(mutated[offset+4:offset+8])
             start=offset+8
             if kind==b"IDAT" and size > 2:
-                mutated[start:start+size]=b"\\x00"*size
+                mutated[start:start+size]=bytes(size)
                 crc=zlib.crc32(kind+bytes(mutated[start:start+size]))&0xffffffff
                 mutated[start+size:start+size+4]=struct.pack(">I",crc)
                 modified=True
