@@ -332,6 +332,45 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         self.info["base_color"]="teal"
         with self.assertRaises(FashionReferenceDenied):self.prepare()
 
+    def test_model_library_rejects_mutable_or_wrong_sha_keys_before_private_read(self):
+        # A forged approved model path must never reach the worker's
+        # privileged private bytes callback, even when tenant and model
+        # metadata/rights are otherwise current. UUIDv5 is permitted for
+        # platform/sample model identifiers, but the filename is SHA-bound.
+        digest = self.model_data["image_sha256"]
+        bad_paths = [
+            f"{self.shop}/model-library/not-a-uuid/{digest}.png",
+            f"{self.shop}/model-library/{self.model_id}/{'b'*64}.png",
+            f"{self.shop}/model-library/{self.model_id}/portrait.png",
+            f"{self.shop}/model-library/{self.model_id}/extra/{digest}.png",
+            f"{self.shop}/model-library/alternate/{self.model_id}/{digest}.png",
+            f"{self.shop}/model-library/platform/not-a-uuid/{digest}.png",
+            f"{self.shop}/model-library/platform/{self.model_id}/{digest}.jpg",
+            f"{self.shop}/model-library/{self.model_id}/{digest}%2F.png",
+        ]
+        for bad_path in bad_paths:
+            with self.subTest(path=bad_path):
+                self.setUp()
+                self.rows[self.model_asset]["object_path"] = bad_path
+                with self.assertRaises(FashionReferenceDenied):
+                    self.prepare(model_asset_id=self.model_asset,
+                                 model_id=self.model_id)
+                self.assertFalse(any(
+                    call[0] == "bytes" and call[2] == self.model_asset
+                    for call in self.calls
+                ), "invalid model-library namespace must not trigger a private read")
+
+    def test_platform_library_sha_named_original_is_still_accepted(self):
+        # The existing platform-library namespace is explicitly supported.
+        digest = self.model_data["image_sha256"]
+        self.rows[self.model_asset]["object_path"] = (
+            f"{self.shop}/model-library/platform/{self.model_id}/{digest}.png"
+        )
+        bundle = self.prepare(model_asset_id=self.model_asset,
+                              model_id=self.model_id)
+        self.assertEqual(bundle["model"]["model_id"], self.model_id)
+        self.assertEqual(bundle["sources"]["model"]["sha256"], digest)
+
     def test_final_first_frame_rejects_transient_private_path_before_byte_read(self):
         # Feature5's standalone first-frame reader is an independent consumer
         # of the same private source authority as Feature3's worker packet.
