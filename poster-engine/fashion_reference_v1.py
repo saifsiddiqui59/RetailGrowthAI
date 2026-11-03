@@ -132,10 +132,20 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
         storage_id = parts[2][:-len(_EXT[row["mime_type"]])]
         _id(storage_id)
     elif role == "model":
+        # Approved model originals are immutable SHA-named private PNGs.
+        # Enforce the exact registered library namespace before ANY Storage
+        # read, not just a tenant prefix or a later matching byte digest.
+        # Platform originals use one additional fixed namespace segment.
+        model_key = (parts[2] if len(parts) == 4 else
+                     parts[3] if len(parts) == 5 and parts[2] == "platform"
+                     else None)
         if (row.get("source") not in ("UPLOAD", "GENERATED") or
-            len(parts) < 4 or parts[1] != "model-library" or
-            row.get("mime_type") != "image/png"):
+            model_key is None or parts[1] != "model-library" or
+            row.get("mime_type") != "image/png" or
+            not parts[-1].endswith(".png") or
+            not _SHA.fullmatch(parts[-1][:-4])):
             raise FashionReferenceDenied("Model portrait must be private registered library media")
+        _id(model_key, require_random=False)
     else:
         if (row.get("source") != "GENERATED" or row.get("mime_type") != "image/png" or
             len(parts) != 5 or parts[1:3] != ["feature3", "gpu"] or
@@ -144,6 +154,10 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
     promised_sha = row.get("image_sha256")
     if not isinstance(promised_sha, str) or not _SHA.fullmatch(promised_sha):
         raise FashionReferenceDenied("Storage hash evidence absent from authoritative media reader")
+    if role == "model" and parts[-1] != promised_sha + ".png":
+        # A forged or stale model-original key must not be fetched even when
+        # its registered digest would happen to match bytes at that path.
+        raise FashionReferenceDenied("Immutable private model path differs from registered SHA")
     image = read_private_bytes(shop, asset_id, path)
     dimensions, actual_sha = _read_image(image, row["mime_type"])
     if promised_sha != actual_sha:
