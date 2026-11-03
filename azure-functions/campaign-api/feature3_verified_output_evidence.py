@@ -85,29 +85,46 @@ class Feature3VerifiedOutputEvidenceReader:
             **self.headers, "Accept":"image/png","Cache-Control":"no-store"})
         try:
             with self.transport(req,timeout=15) as response:
+                if (not callable(getattr(response,"geturl",None)) or
+                        not callable(getattr(response,"getcode",None)) or
+                        not callable(getattr(response,"read",None))):
+                    raise Feature3EvidenceReadDenied("Private byte response incomplete")
                 if response.geturl()!=url or response.getcode()!=200:
                     raise Feature3EvidenceReadDenied("Private byte response unconfirmed")
-                headers=getattr(response,"headers",{})
-                content_type=headers.get("Content-Type") if headers is not None else None
-                content_length=headers.get("Content-Length") if headers is not None else None
-                content_encoding=headers.get("Content-Encoding") if headers is not None else None
+                headers=getattr(response,"headers",None)
+                if not callable(getattr(headers,"get",None)):
+                    raise Feature3EvidenceReadDenied("Private response headers unavailable")
+                content_type=headers.get("Content-Type")
+                content_length=headers.get("Content-Length")
+                content_encoding=headers.get("Content-Encoding")
+                # Never normalize header folding/Unicode or an unbounded
+                # numeric length into purported immutable binary evidence.
+                def printable(value):
+                    return (type(value) is str and 1 <= len(value) <= 256 and
+                            all(32 <= ord(c) <= 126 for c in value))
                 if content_encoding is not None and (
-                        not isinstance(content_encoding,str) or
+                        not printable(content_encoding) or
                         content_encoding.strip().lower()!="identity"):
                     raise Feature3EvidenceReadDenied("Untrusted encoded private PNG response")
                 if content_type is not None and (
-                        not isinstance(content_type,str) or
+                        not printable(content_type) or
                         content_type.split(";",1)[0].strip().lower()!="image/png"):
                     raise Feature3EvidenceReadDenied("Private bytes not PNG")
                 if content_length is not None and (
-                        not isinstance(content_length,str) or
+                        type(content_length) is not str or
+                        not 1 <= len(content_length) <= 8 or
                         not content_length.isascii() or
                         not content_length.isdigit() or
                         int(content_length)!=row["object_bytes"]):
                     raise Feature3EvidenceReadDenied("Private bytes length disagrees with SQL")
                 payload=response.read(_MAX+1)
-        except (HTTPError,URLError,OSError,TimeoutError,ValueError) as exc:
-            raise Feature3EvidenceReadDenied("Authenticated private output read denied") from exc
+        except Feature3EvidenceReadDenied:
+            raise
+        except Exception:
+            # Untrusted transport and backend wrappers may throw arbitrary
+            # ordinary exceptions containing private service diagnostics.
+            raise Feature3EvidenceReadDenied(
+                "Authenticated private output read denied") from None
         if (type(payload) is not bytes or len(payload)!=row["object_bytes"] or
                 sha256(payload).hexdigest()!=row["image_sha256"]):
             raise Feature3EvidenceReadDenied("Private PNG does not match immutable SQL proof")
@@ -121,8 +138,14 @@ class Feature3VerifiedOutputEvidenceReader:
                             for k in image.info)):
                     raise Feature3EvidenceReadDenied("Private output PNG unsuitable")
                 image.verify()
-        except (OSError,ValueError,UnidentifiedImageError,
-                Image.DecompressionBombError) as exc:
+            # Container CRC verification alone is not sufficient evidence
+            # that all compressed pixels are usable by the poster renderer.
+            with Image.open(BytesIO(payload)) as pixels:
+                if pixels.format!="PNG":
+                    raise Feature3EvidenceReadDenied("Private output PNG format changed")
+                pixels.load()
+        except (OSError,ValueError,SyntaxError,EOFError,RuntimeError,
+                UnidentifiedImageError,Image.DecompressionBombError) as exc:
             raise Feature3EvidenceReadDenied("Corrupted private output PNG") from exc
         return payload
 
