@@ -11,7 +11,7 @@ import json
 import re
 import unicodedata
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 from security import AuthenticationError
@@ -25,6 +25,35 @@ def _unsafe_review_text(text):
     # model labels, image rights attribution or reviewer audit text.
     return any(unicodedata.category(ch) in ("Cc", "Cf", "Cs", "Zl", "Zp")
                for ch in text)
+
+
+_LICENSE_BAD_ESCAPE = re.compile(r"%(?![0-9a-fA-F]{2})")
+
+
+def _declared_license_url(value):
+    """Validate displayable provenance syntax, never grant commercial rights."""
+    if (type(value) is not str or not 1 <= len(value) <= 500 or
+            any(not 33 <= ord(ch) <= 126 for ch in value) or
+            "\\" in value or _LICENSE_BAD_ESCAPE.search(value)):
+        return False
+    try:
+        parsed = urlsplit(value)
+        if (parsed.scheme != "https" or not parsed.hostname or
+                parsed.username is not None or parsed.password is not None or
+                "%" in parsed.netloc or parsed.netloc.endswith(":") or
+                parsed.port not in (None, 443) or
+                (parsed.port is not None and not parsed.netloc.endswith(":443"))):
+            return False
+        host = parsed.hostname
+        if (host.endswith(".") or "." not in host or len(host) > 253 or
+                any(not part or len(part) > 63 or
+                    not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", part)
+                    for part in host.split(".")) or
+                not re.fullmatch(r"[a-z]{2,63}", host.split(".")[-1])):
+            return False
+        return True
+    except ValueError:
+        return False
 
 
 class Feature3V2Store:
@@ -340,9 +369,7 @@ class Feature3V2Store:
             or not isinstance(attribution, str) or
             not 10 <= len(attribution.strip()) <= 200 or
             _unsafe_review_text(attribution)
-            or (license_url is not None and (
-                not isinstance(license_url, str) or
-                len(license_url) > 500 or not license_url.startswith("https://")))
+            or (license_url is not None and not _declared_license_url(license_url))
             or (license_name != "owned" and license_url is None)):
             raise ValueError("Unverified source-license declaration invalid")
         result = self._request(token, "rpc/feature3_register_model_original", body={
