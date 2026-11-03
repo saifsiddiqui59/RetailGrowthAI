@@ -194,6 +194,17 @@ class LibraryTests(unittest.TestCase):
             "https://example.com/license\x7f",
             "https://example.com/license\u202eforged",
             "https://example.com/license\u200bhidden",
+            "https://localhost/license",
+            "https://127.0.0.1/license",
+            "https://10.0.0.1/license",
+            "https://[::1]/license",
+            "https://example.com./license",
+            "https://example..com/license",
+            "https://-example.com/license",
+            "https://example-.com/license",
+            "https://%65xample.com/license",
+            "https://example.com:/license",
+            "https://example.com:0443/license",
         )
         for uri in malformed:
             with self.subTest(uri=repr(uri)):
