@@ -4,6 +4,7 @@ from pathlib import Path
 from io import BytesIO
 from uuid import uuid4
 from hashlib import sha256
+from zlib import crc32
 from unittest import TestCase, main
 from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "poster-engine"))
@@ -81,6 +82,33 @@ class OutputContractTests(TestCase):
         with self.assertRaises(ProviderBlocked):self.register(self.shop,self.job,b"not png",self.meta)
         with self.assertRaises(ProviderBlocked):self.register(self.shop,self.job,b"0"*(25*1024*1024+1),self.meta)
         self.assertFalse(self.calls)
+    def test_crc_correct_but_undecodable_png_never_staged_or_committed(self):
+        # A CRC-correct IDAT can still contain invalid zlib data. Pillow
+        # verify() accepts this PNG, but load() must reject it before CAS.
+        forged = bytearray(self.image)
+        offset = 8
+        while offset < len(forged):
+            size = int.from_bytes(forged[offset:offset + 4], "big")
+            kind = bytes(forged[offset + 4:offset + 8])
+            if kind == b"IDAT":
+                self.assertGreater(size, 0)
+                forged[offset + 8] = 0  # invalid zlib compression header
+                chunk = forged[offset + 4:offset + 8 + size]
+                forged[offset + 8 + size:offset + 12 + size] = (
+                    crc32(chunk).to_bytes(4, "big"))
+                break
+            offset += size + 12
+        else:
+            self.fail("Synthetic PNG lacks an IDAT chunk")
+        forged = bytes(forged)
+        with Image.open(BytesIO(forged)) as structural:
+            structural.verify()  # reproduces the former blind spot
+        self.meta["image_sha256"] = sha256(forged).hexdigest()
+        with self.assertRaisesRegex(ProviderBlocked, "Unsafe generated PNG"):
+            self.register(self.shop, self.job, forged, self.meta)
+        self.assertEqual(self.calls, [])
+        self.assertFalse(self.quarantined)
+
     def test_malformed_provenance_and_shas_denied(self):
         for k,v in [("provider","../../unknown"),("source_asset_ids",["not-uuid"]),("synthetic",False),
                     ("requires_human_review",False),("attempt",2),("inference_wall_seconds",901),
