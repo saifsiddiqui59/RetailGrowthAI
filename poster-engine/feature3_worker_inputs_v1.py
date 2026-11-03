@@ -76,7 +76,9 @@ def materialize_feature4_inputs(*, expected_manifest, current_readers,
             shop,expected["source_asset_id"],source_role,"editing",
             read_asset=current_readers["read_asset"],
             authorize_asset=current_readers["authorize_asset"],
-            read_private_bytes=current_readers["read_private_bytes"]
+            read_private_bytes=current_readers["read_private_bytes"],
+            expected_model_id=(fresh["model"]["model_id"]
+                               if role == "model" else None)
         )
         if actual!=expected or not isinstance(binary,bytes):
             raise FashionReferenceDenied("Source was revoked or altered at delivery")
