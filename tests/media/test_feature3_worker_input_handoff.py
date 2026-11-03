@@ -154,6 +154,41 @@ class PrivateHandoffTests(unittest.TestCase):
                 self.assertEqual(seen[0], 2,
                                  "deny at the final read, before a later clean snapshot")
 
+    def test_transient_other_model_uuid_path_denied_before_worker_private_read(self):
+        # This path is a fully canonical same-shop SHA-named PNG, but belongs
+        # to a DIFFERENT model UUID. It is not authorized by the reviewed
+        # model identity in the frozen worker manifest.
+        original_row = self.readers["read_asset"]
+        original_bytes = self.readers["read_private_bytes"]
+        seen = [0]
+        byte_ids = []
+        swapped = (f"{self.fixture.shop}/model-library/{self.fixture.other}/"
+                   f"{self.fixture.model_data['image_sha256']}.png")
+
+        def row(shop, asset):
+            current = original_row(shop, asset)
+            if asset == self.fixture.model_asset:
+                seen[0] += 1
+                if seen[0] == 2:
+                    return {**current, "object_path": swapped}
+            return current
+
+        def read(shop, asset, path):
+            byte_ids.append(asset)
+            return original_bytes(shop, asset, path)
+
+        readers = {**self.readers, "read_asset": row,
+                   "read_private_bytes": read}
+        with self.assertRaises(FashionReferenceDenied):
+            resolve_private_worker_inputs(
+                expected_manifest=self.editor,
+                current_readers=readers,
+                verify_worker_job=lambda *_: True)
+        self.assertEqual(seen[0], 2)
+        # Only the initial model read is allowed; the swapped second read
+        # must be rejected before any privileged bytes can be requested.
+        self.assertEqual(byte_ids.count(self.fixture.model_asset), 1)
+
     def test_transient_private_object_path_substitution_denied_before_worker_read(self):
         # The first manifest pass sees the legitimate shop-owned source.
         # A transient, still-SHA-identical row on the final byte read must
