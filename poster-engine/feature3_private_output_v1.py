@@ -48,6 +48,12 @@ def _verified_png(raw):
                 any(key.lower() in ("exif", "xmp", "xml:com.adobe.xmp") for key in image.info)):
                 raise ProviderBlocked("Invalid private output PNG")
             image.verify()
+        # PNG chunk/CRC verification does not necessarily decompress IDAT.
+        # A forged CRC-correct but invalid compressed scan can pass verify()
+        # and its declared SHA while remaining unusable. Decode every pixel
+        # before staging a private generated output or committing its CAS.
+        with Image.open(BytesIO(raw)) as decoded:
+            decoded.load()
     except (OSError, UnidentifiedImageError, Image.DecompressionBombError, ValueError) as exc:
         raise ProviderBlocked("Unsafe generated PNG output") from exc
     return sha256(raw).hexdigest()
