@@ -250,10 +250,10 @@
         "F3-12",
         "F3-13"
       ],
-      "component": "Original F3-12/F3-13 server model use and signed catalog current-rights: exact adult flag, licensed/known unique uses, strict SHA, private media, denied unhashable provenance input",
+      "component": "Signed current model catalog, reviewed provenance, exact approved reuse and licensed upload metadata, deny unknown rights/unsafe URLs",
       "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "b9d752435d35a4ec197c860fd3b67c45cb4355dc",
-      "exact_head_ci_run_id": 41553964255,
+      "exact_head": "6ca8d7c0f24fec2a82a7bb2bc72c5914d617fd0c",
+      "exact_head_ci_run_id": 41616705270,
       "hosted_task_complete": false
     },
     {
@@ -266,6 +266,30 @@
       "stage": "TESTED_PR_REVIEW_REQUIRED",
       "exact_head": "ad5ebf49ea6dc9737c41f1adb4221c1eea512a3a",
       "exact_head_ci_run_id": 41529946037,
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 866,
+      "task_ids": [
+        "F3-05",
+        "F3-13"
+      ],
+      "component": "Read-only/zero-GPU outbox claim must fail closed on uncertain SQL response before any queue send",
+      "stage": "TESTED_PR_REVIEW_REQUIRED",
+      "exact_head": "22636a1b25692c742b0dad65e857816b06f2eb1e",
+      "exact_head_ci_run_id": 41617176788,
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 867,
+      "task_ids": [
+        "F3-06",
+        "F3-13"
+      ],
+      "component": "Opaque service-only private output operator evidence transport, CRC/pixel proof and strict HTTP header validation",
+      "stage": "TESTED_PR_REVIEW_REQUIRED",
+      "exact_head": "aab6df4177280d4e01a1eee5480d00b09bca7a1c",
+      "exact_head_ci_run_id": 41617730765,
       "hosted_task_complete": false
     }
   ],
@@ -286,5 +310,5 @@
     "F5-GPU-AUTHORIZATION",
     "real signed DEV JWT/RLS negative tests"
   ],
-  "next_action": "14 merged source components; six source PRs tested at exact final heads as of 2026-11-03, including F3-02/F3-13 PR #862 final ee847551 CI 41618433016 all 4 green. Independent Feature3 private-media + Feature4/5 consumer review required, then main integration and postmerge main 4/4. Hosted package DONE remains 0/33; do not self-approve or duplicate work."
+  "next_action": "14 source-integrated components (Wave A/B), eight independently tested but unmerged source PRs #859/#861/#862/#863/#864/#865/#866/#867 all latest exact-head 4/4 per Nov 3 verification. Never mark hosted DONE (0/33) or duplicate these original task slices; obtain independent private-media, affected-feature, financial and shared-coordination review before any main integration, then fresh main 4/4."
 }

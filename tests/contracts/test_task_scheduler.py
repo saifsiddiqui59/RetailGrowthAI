@@ -146,6 +146,8 @@ def test_feature3_source_component_receipts_suppress_duplicate_advisory_coding()
     assert "#863" in review["F3-08"]
     assert "#864" in review["F3-12"]
     assert "#865" in review["F3-03"]
+    assert "#866" in review["F3-05"]
+    assert "#867" in review["F3-06"]
     assert out["executor_connected"] is False
     assert out["mode"]=="advisory_only"
     # Source receipts do not mutate the immutable 159-task inventory.
