@@ -136,3 +136,23 @@ This table **marks already-integrated implementation components complete** under
 - The same PR #864 now also rejects **unhashable** model import `scope`, `source_kind`, `license_id`, and `pose` before Storage/model registration, without a TypeError escaping. Added negative no-write tests, preserving the earlier signed catalog adult-flag/rights validation. **Exact latest HEAD `75356855b33d0ab25a07094c8ec85c0fc1fd9761` / CI #41307545461 completed success 4/4**; prior #864 SHA/CI values were superseded.
 - Source remains **tested PR, not integrated**. Independent model-licensing/media/API review, serial current-main merge and fresh main 4/4 are outstanding. F3-12/F3-13 task-level hosted DONE remains false.
 
+
+## 2026-11-03 — All 11 original source-partial packages: parallel continuation checkpoint
+
+This checkpoint **does not convert source partial into accepted DONE**. Source work is bounded to independent, explicitly original task IDs; the advisory scheduler is not an executor. Feature3 remains **1 source-integrated / 11 source-partial / 21 dependent and 0/33 fully hosted accepted** until reviewed merges, fresh main 4/4 and live external acceptance.
+
+| Original package | Source work actually present or actively proposed | Remaining required acceptance |
+|---|---|---|
+| **F3-02** worker private inputs | Existing PR **#862** at `77177d2a`, new immutable model-library UUID/SHA path fence + offline negative tests; final-head CI **4/4 passed** | Independent private-media/Feature5 review, main merge/postmerge 4/4, real leased/rights-authorized private worker |
+| **F3-03** trusted rights/bytes | Existing PR **#865** at `ad5ebf49`, exact source and private HTTP/rights provenance boundary; final-head CI was 4/4 at last validation | Independent service-key/rights review, genuine customer licences and signed runtime grants |
+| **F3-05** GPU outbox | New scoped PR **#866** at `22636a1b`, unknown SQL claim errors fail closed with zero queue sends; final-head CI **4/4 passed** | Independent queue/financial review, real durable delivery/ACK and approved one-shot dispatch |
+| **F3-06** operator reconciliation | New scoped PR **#867**, strict private PNG HTTP headers, full pixel decode and private backend exception suppression; fresh final-head CI/review required | Real approved service-only RPC, private byte proof and human invoice/settlement determination |
+| **F3-07** private PNG settlement | Existing PR **#861** at `f59f19c5`, typed one-shot GPU lease and durable CAS receipts; final-head CI 4/4 | Independent billing/tenant review, authorized real output settlement and verified Storage/SQL |
+| **F3-08** signed private binary | Existing PR **#863** at `edc5dd4a`, pre/post read immutable asset identity; final-head CI 4/4 | Coordinator-reviewed mounted signed no-URL route (#471/#325), live JWT/RLS negative tests, Azure #249 |
+| **F3-09** Studio history/review | Existing integrated history status/filter/session cleanup and offline tests; historical #709 was a stale overlapping proposal, not new accepted hosted media | Real signed save/reopen/generated preview and human-reviewed export; Feature3 route live |
+| **F3-10** Blob revocation | Existing PR **#859** at `48cbaf9b`, hidden private Blob retries and lifecycle cleanup; final-head CI 4/4 | Independent privacy review, mounted route, genuine revocation/expiry integration |
+| **F3-11** private model original | Existing PR **#864** at `6ca8d7c0` now also contains strict declared licence URL checks and negative tests; final-head CI **4/4 passed** | Independent licensed originals, approved reviewer, signed actual uploads, reviewed migration |
+| **F3-12** reusable models | Existing PR **#864**, independent approved-use/current metadata and catalog rights source tests; CI 4/4 | Actual current shop model rights, human review, generated output QA |
+| **F3-13** tenant/rights/unknown ACK | Regression improvements across **#859, #861–#867**; fixture CI is not hosted role/rights testing | All required independent reviews; real signed two-shop, revoked, ACK and provider failure injection |
+
+**Dependency/merge safety:** all listed sensitive code PRs require an independent affected-lead or human rights/security/financial review; the GitHub author alone cannot approve their own code. PR #858 canonical records and PR #860 shared coordinator receipts also need independent review. No automatic merge, fabricated reviewer, paid GPU/provider call, hosted SQL deployment, PROD, unlicensed media or WineShopPOS change. Any source milestone becomes DONE only after accepted `main` merge and fresh four-job CI evidence; the original 33-package hosted status stays zero.
