@@ -340,6 +340,8 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         digest = self.model_data["image_sha256"]
         bad_paths = [
             f"{self.shop}/model-library/not-a-uuid/{digest}.png",
+            f"{self.shop}/model-library/{uuid4()}/{digest}.png",
+            f"{self.shop}/model-library/platform/{uuid4()}/{digest}.png",
             f"{self.shop}/model-library/{self.model_id}/{'b'*64}.png",
             f"{self.shop}/model-library/{self.model_id}/portrait.png",
             f"{self.shop}/model-library/{self.model_id}/extra/{digest}.png",
