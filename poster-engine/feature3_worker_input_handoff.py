@@ -91,7 +91,8 @@ def _final_read(fresh, role, readers):
         shop, asset, source_role, fresh["purpose"],
         read_asset=readers["read_asset"],
         authorize_asset=readers["authorize_asset"],
-        read_private_bytes=readers["read_private_bytes"])
+        read_private_bytes=readers["read_private_bytes"],
+        expected_model_id=(fresh["model"]["model_id"] if role == "model" else None))
     # Match the *entire* normalized rights/identity snapshot. A transient
     # license or attribution substitution can preserve shop, SHA, revision
     # and dimensions; checking only those fields would accept private bytes
