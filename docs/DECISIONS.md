@@ -1046,3 +1046,7 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 
 ## 2026-11-01 — Model provenance type errors are authorization denials
 - Treat unhashable license, scope, source-kind and pose metadata as invalid untrusted model input, not an unhandled TypeError or a license approval. This complements F3-12 signed model catalog and current private entitlement checks in source PR #864, head 75356855b33d0ab25a07094c8ec85c0fc1fd9761, Part 1 CI #41307545461 passed four jobs. Actual legal/media rights, independent reviewer, hosted DB and GPU authorization are not inferred.
+
+
+## 2026-11-03 — Feature #3 source reconciliation (no new architecture permission)
+Continue existing numbered F3-02/F3-13 private-image worker boundary and reject noncanonical model UUID/SHA object keys **before** private Storage GET. A source PR passing offline CI is not an approval, paid run, commercial rights receipt or hosted DONE. Duplicate older PRs are closed unmerged only after file-by-file Git blob or behavior/test comparison to newer main; preserve stronger rights, SQL ACK and tenant guards. Existing independent review, GPU-OFF, DEV/PROD, payment and WineShopPOS restrictions remain unchanged.

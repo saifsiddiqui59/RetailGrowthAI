@@ -1399,3 +1399,10 @@ Policy: `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. This entry does not assert
 - PR #864 F3-12/F3-13 final source head `75356855b33d0ab25a07094c8ec85c0fc1fd9761`, Part 1 CI #41307545461 **4/4 passed**, including current signed catalog rights, model license/use guard, malformed provenance and no-write regression tests. The proposed dedup receipt PR #860 must reference this final head/CI, not earlier c2c283b7/41306835412.
 - Seek **independent** private-media/license/API reviewer. Approved current-main merge plus fresh postmerge main 4-job CI is mandatory before source-integrated task event; hosted F3 packages remain 0/33, GPU and cloud writes OFF.
 
+
+
+## 2026-11-03 — Feature #3 next eligible work
+1. Independently review PR #862 F3-02/13 (exact head 77177d2, four-job CI https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41615687755); then check main compatibility, merge only if approved, verify new main 4/4, and propose reviewed original-ID source evidence. Keep fully hosted F3 task status incomplete.
+2. Independently review active #859 (Blob lifecycle), #861 (one-shot CAS), #863 (no-URL PNG), #864 (signed model catalog), #865 (current source rights); each final head CI must be rechecked and main merges serialized. No security self-approval.
+3. Review shared docs/coordination PRs #858/#860 separately; preserve original 33-task ledger. Previously superseded #683/#687/#689/#699/#703/#706/#708/#709/#721 are closed unmerged, no duplicate coding.
+4. Hosted/legal gates: separately authorized two-tenant DEV signed roles and Playwright negatives; rights-reviewed original garment/model media and service review RPC; signed mounted PNG route #471/#325; #249 Azure reliability; #627 real traces; explicit financial/GPU permission. No paid inference, hosted changes, PROD or WineShopPOS.
