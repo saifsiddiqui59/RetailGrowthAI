@@ -80,7 +80,17 @@ class Feature3GPUOutboxPublisher:
     def dispatch_once(self, limit=5):
         if type(limit) is not int or not 1 <= limit <= 10:
             raise ValueError("Bounded GPU outbox dispatch limit required")
-        rows = _validated_dispatch_rows(self.outbox.claim_dispatch(limit), limit)
+        # A failed service-only SQL outbox claim is not proof of an
+        # unclaimed row: an RPC timeout can occur after the DB committed
+        # its lease. Keep backend credentials out of operator/public error
+        # messages and never retry or send a queue envelope automatically.
+        try:
+            claimed = self.outbox.claim_dispatch(limit)
+        except Exception:
+            raise StorageUnavailable(
+                "Feature3 GPU outbox claim uncertain; reconcile before retry"
+            ) from None
+        rows = _validated_dispatch_rows(claimed, limit)
         accepted = 0
         for row in rows:
             # Do not send any media, token, URL, raw licence or image bytes
