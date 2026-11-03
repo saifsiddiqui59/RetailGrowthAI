@@ -144,6 +144,10 @@ class Feature3VerifiedOutputEvidenceReader:
                 if pixels.format!="PNG":
                     raise Feature3EvidenceReadDenied("Private output PNG format changed")
                 pixels.load()
+        except Feature3EvidenceReadDenied:
+            # Preserve precise fail-closed classification for an intentionally
+            # rejected unsafe image, never relabel it as decoder corruption.
+            raise
         except (OSError,ValueError,SyntaxError,EOFError,RuntimeError,
                 UnidentifiedImageError,Image.DecompressionBombError) as exc:
             raise Feature3EvidenceReadDenied("Corrupted private output PNG") from exc
