@@ -84,7 +84,7 @@ def _read_image(raw, mime_type):
 
 
 def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asset,
-                    read_private_bytes):
+                    read_private_bytes, expected_model_id=None):
     """Always obtain a FRESH persisted rights grant, registered row and blob."""
     asset_id = _id(asset_id)
     row = read_asset(shop, asset_id)
@@ -146,6 +146,13 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
             not _SHA.fullmatch(parts[-1][:-4])):
             raise FashionReferenceDenied("Model portrait must be private registered library media")
         _id(model_key, require_random=False)
+        # The model-library path must refer to THIS separately reviewed
+        # model, not merely some other canonical model UUID and a valid SHA.
+        # Deny before private GET so a swapped same-shop model reference
+        # cannot be materialized under another model's approval.
+        if (expected_model_id is None or
+                _id(expected_model_id, require_random=False) != model_key):
+            raise FashionReferenceDenied("Private model path does not match reviewed model identity")
     else:
         if (row.get("source") != "GENERATED" or row.get("mime_type") != "image/png" or
             len(parts) != 5 or parts[1:3] != ["feature3", "gpu"] or
@@ -271,7 +278,8 @@ def prepare_fashion_references(*, shop_id, garment_asset_id, purpose,
         model, _ = _approved_asset(
             shop, model_asset_id, "model", purpose,
             read_asset=read_asset, authorize_asset=authorize_asset,
-            read_private_bytes=read_private_bytes)
+            read_private_bytes=read_private_bytes,
+            expected_model_id=model_id)
         model_ref = _model_approval(shop, model_id, model, read_model)
     frame = garment
     reviewed = None
