@@ -75,6 +75,19 @@ def _source_uri(value):
         raise ModelLibraryDenied("Only clean HTTPS provenance links are allowed") from exc
     if not valid:
         raise ModelLibraryDenied("Only clean HTTPS provenance links are allowed")
+    # A declared URL is shown to a human license reviewer. Deny ambiguous
+    # authority spellings (encoded host, IP/localhost, empty/zero-padded port)
+    # rather than silently normalizing a different provenance identity.
+    host = parsed.hostname
+    labels = host.split(".") if host else []
+    if (not host or "%" in parsed.netloc or parsed.netloc.endswith(":") or
+            (parsed.port is not None and not parsed.netloc.endswith(":443")) or
+            host.endswith(".") or len(host) > 253 or len(labels) < 2 or
+            labels[-1].isdigit() or
+            any(not 1 <= len(label) <= 63 or
+                not re.fullmatch(r"[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?", label)
+                for label in labels)):
+        raise ModelLibraryDenied("Unambiguous public HTTPS provenance host required")
     return value
 
 
