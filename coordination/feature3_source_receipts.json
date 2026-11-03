@@ -204,8 +204,8 @@
       ],
       "component": "Private generated Blob cleanup retry for failed revocations",
       "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "0b33b71f6cdb618356014610dd5b2823049c35be",
-      "exact_head_ci_run_id": 41292509625,
+      "exact_head": "48cbaf9b86cbd74cbdf8a48df1fa6aab41aad002",
+      "exact_head_ci_run_id": 41546785224,
       "hosted_task_complete": false
     },
     {
@@ -216,8 +216,8 @@
       ],
       "component": "One-shot private GPU prepaid lease and SQL media commit receipts require actual integer attempt",
       "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "22a54ee5b68b05945d95e7c0819684beeca1b48a",
-      "exact_head_ci_run_id": 41301202397,
+      "exact_head": "f59f19c592e434634ddeac36a27514e123ef04c3",
+      "exact_head_ci_run_id": 41554099937,
       "hosted_task_complete": false
     },
     {
@@ -226,11 +226,11 @@
         "F3-02",
         "F3-13"
       ],
-      "component": "Private worker final source-rights revision cannot be boolean or floating point",
+      "component": "Typed grant revision and immutable SHA-named model-library private input authorization (GPU OFF)",
       "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "a80e2741ca69973188c6975e191401ba03572557",
+      "exact_head": "77177d2acbad94c816dc828bff90f2ecce1fd285",
       "hosted_task_complete": false,
-      "exact_head_ci_run_id": 41301483566
+      "exact_head_ci_run_id": 41615687755
     },
     {
       "source_pr": 863,
@@ -240,8 +240,8 @@
       ],
       "component": "Private generated PNG exact asset identity/tenant/bucket/GENERATED source checked before and after private GET",
       "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "1ee6d23a334ca82a18d9f7348ee45cce6eb27916",
-      "exact_head_ci_run_id": 41303756765,
+      "exact_head": "edc5dd4a9b0384c8e8c00c2469bdc35e260b10c8",
+      "exact_head_ci_run_id": 41529767679,
       "hosted_task_complete": false
     },
     {
@@ -252,8 +252,20 @@
       ],
       "component": "Original F3-12/F3-13 server model use and signed catalog current-rights: exact adult flag, licensed/known unique uses, strict SHA, private media, denied unhashable provenance input",
       "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "75356855b33d0ab25a07094c8ec85c0fc1fd9761",
-      "exact_head_ci_run_id": 41307545461,
+      "exact_head": "b9d752435d35a4ec197c860fd3b67c45cb4355dc",
+      "exact_head_ci_run_id": 41553964255,
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 865,
+      "task_ids": [
+        "F3-03",
+        "F3-13"
+      ],
+      "component": "Real private source provenance, immutable licensed originals, canonical service-key HTTPS, bounded response headers and full image decode with two current rights barriers",
+      "stage": "TESTED_PR_REVIEW_REQUIRED",
+      "exact_head": "ad5ebf49ea6dc9737c41f1adb4221c1eea512a3a",
+      "exact_head_ci_run_id": 41529946037,
       "hosted_task_complete": false
     }
   ],
@@ -274,5 +286,5 @@
     "F5-GPU-AUTHORIZATION",
     "real signed DEV JWT/RLS negative tests"
   ],
-  "next_action": "14 already-integrated source components plus five TESTED_PR_REVIEW_REQUIRED open F3 PRs #859/#861/#862/#863/#864. F3-12 #864 new exact head 75356855 CI 41307545461 verified 4/4. Require independent code rights/shared reviewer, safe main merge and postmerge main 4/4. No hosted F3 DONE."
+  "next_action": "14 already-integrated source components and six TESTED_PR_REVIEW_REQUIRED open source PRs (#859/#861/#862/#863/#864/#865), all separately verified exact-head 4/4 as of 2026-11-03; 159 original task IDs stay unchanged. Requires independent private-media/shared-security review, safe main merge and fresh postmerge main 4/4; hosted F3 0/33. Do not schedule duplicate F3-03 while #865 is active."
 }

@@ -76,7 +76,7 @@ def test_feature3_source_components_visible_without_inflating_accepted_done():
     assert report["source_components_task_count"]==11
     assert report["summary"]["DONE"]==0
     assert report["verified_done"]==0
-    assert report["source_prs_awaiting_review"]==5
+    assert report["source_prs_awaiting_review"]==6
     f3=next(x for x in report["items"] if x["id"]=="F3-10")
     assert f3["status"]=="IN PROGRESS"
     assert 768 in f3["completed_source_prs"]
@@ -93,6 +93,8 @@ def test_feature3_source_components_visible_without_inflating_accepted_done():
     f312=next(x for x in report["items"] if x["id"]=="F3-12")
     assert {"pr":864,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f312["active_source_prs"]
     assert f312["status"]=="IN PROGRESS"
+    f303=next(x for x in report["items"] if x["id"]=="F3-03")
+    assert {"pr":865,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f303["active_source_prs"]
     assert all(not x["completed_source_prs"] for x in report["items"]
                if x["feature"]!="3")
     md=s.markdown(report)
