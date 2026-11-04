@@ -5,7 +5,7 @@
  * signed-in host supplies already-loaded, current shop-authorized images.
  * CSS is a DRAFT preview only, never evidence of exact Pillow text wrapping.
  */
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   FEATURE3_FORMATS, newFeature3History, editFeature3,
   addFeature3Layer, removeFeature3Layer, moveFeature3Layer,
@@ -14,6 +14,7 @@ import {
 } from './feature3-design.mjs'
 
 import { renderFeature3LocalDraft } from './feature3-local-png.mjs'
+import { feature3ContextKey } from './feature3-context.mjs'
 import { encodeFeature3LocalBackup, decodeFeature3LocalBackup } from './feature3-local-backup.mjs'
 
 const SIZE = { boxSizing: 'border-box', maxWidth: '100%', width: '100%' }
@@ -28,6 +29,27 @@ export default function Feature3CpuEditor({
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const draft = history.present
+  // Browser PNG encoding may finish after a tenant/day switch or unmount.
+  // Increment the epoch on every scope change, including a switch back.
+  const contextKey = feature3ContextKey(context)
+  const exportScope = useRef({ contextKey, draft, imageMap, disabled, epoch: 0 })
+  if (exportScope.current.contextKey !== contextKey ||
+      exportScope.current.draft !== draft ||
+      exportScope.current.imageMap !== imageMap ||
+      exportScope.current.disabled !== disabled) {
+    exportScope.current = { contextKey, draft, imageMap, disabled,
+      epoch: exportScope.current.epoch + 1 }
+  }
+  const mounted = useRef(false)
+  const pngEncoding = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+  const exportStillCurrent = snapshot =>
+    mounted.current && !exportScope.current.disabled &&
+    exportScope.current.epoch === snapshot.epoch &&
+    exportScope.current.contextKey === snapshot.contextKey
   const layer = draft.layers.find(x => x.id === selectedId)
   const [w, h] = FEATURE3_FORMATS[draft.format]
   const imageIds = Object.keys(imageMap).filter(id =>
@@ -67,32 +89,46 @@ export default function Feature3CpuEditor({
     }
   }
   const downloadDraftPng = () => {
-    if (disabled) return
+    // A rapid second click must not start another private PNG encode.
+    if (disabled || pngEncoding.current) return
+    const snapshot = exportScope.current
+    pngEncoding.current = true
     try {
-      // The browser performs exactly one bounded 1080px local render;
-      // nothing is posted, uploaded, published or charged to a GPU.
+      // Exactly one local CPU canvas render; no uploads, inference or GPU.
       const local = document.createElement('canvas')
       renderFeature3LocalDraft(local, draft, imageMap)
       if (typeof local.toBlob !== 'function') {
         throw Error('PNG export is unavailable in this browser')
       }
       local.toBlob(blob => {
-        if (!blob || blob.type !== 'image/png') {
-          setMessage('Browser could not encode the local draft PNG.')
-          return
+        try {
+          // Do not issue a Blob URL after edit, rights change or unmount.
+          if (!exportStillCurrent(snapshot)) return
+          if (!blob || blob.type !== 'image/png') {
+            setMessage('Browser could not encode the local draft PNG.')
+            return
+          }
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = 'retailgrowth-unreviewed-local-draft.png'
+          document.body.appendChild(link)
+          try { link.click() } finally { link.remove() }
+          window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+          setMessage('Downloaded local draft PNG. This is not an approved cloud poster.')
+        } catch {
+          if (exportStillCurrent(snapshot)) {
+            setMessage('Local draft PNG could not be generated.')
+          }
+        } finally {
+          pngEncoding.current = false
         }
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = 'retailgrowth-unreviewed-local-draft.png'
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-        window.setTimeout(() => URL.revokeObjectURL(url), 1000)
-        setMessage('Downloaded local draft PNG. This is not an approved cloud poster.')
       }, 'image/png')
     } catch (error) {
-      setMessage(error.message || 'Local draft PNG could not be generated.')
+      pngEncoding.current = false
+      if (exportStillCurrent(snapshot)) {
+        setMessage(error.message || 'Local draft PNG could not be generated.')
+      }
     }
   }
 
