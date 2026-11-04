@@ -15,3 +15,38 @@ export function currentFeature3WorkspaceRequest(active, scope, api, nonce, curre
     active.scopeKey === scope && active.feature3Api === api &&
     Number.isSafeInteger(nonce) && nonce > 0 && nonce === currentNonce)
 }
+
+/**
+ * Synchronous, component-local single-flight gate for private Feature3 GETs.
+ * React busy state may not commit before the next click. This gate is only
+ * a concurrency guard; server JWT, RLS and current asset rights remain the
+ * authority. No request is retried or cancelled at the network layer.
+ */
+export function createFeature3WorkspaceReadGate() {
+  const allowed = new Set(['drafts', 'generated-jobs', 'download'])
+  let active = null
+  return Object.freeze({
+    begin(scope, provider, kind) {
+      if (active || typeof scope !== 'string' || !scope || !provider ||
+          !allowed.has(kind)) return null
+      const ticket = Object.freeze({scope, provider, kind})
+      active = ticket
+      return ticket
+    },
+    isCurrent(ticket, scope, provider) {
+      return Boolean(ticket && active === ticket &&
+        ticket.scope === scope && ticket.provider === provider)
+    },
+    release(ticket) {
+      if (ticket === null || active !== ticket) return false
+      active = null
+      return true
+    },
+    cancel() {
+      active = null
+    },
+    busy() {
+      return active !== null
+    },
+  })
+}

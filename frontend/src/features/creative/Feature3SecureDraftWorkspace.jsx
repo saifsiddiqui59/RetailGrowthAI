@@ -7,7 +7,7 @@ import Feature3StudioPanel from './Feature3StudioPanel.jsx'
 import { validateFeature3Design } from './feature3-design.mjs'
 import {scopedFeature3GeneratedLink,SAFE_CLIENT_LIFETIME_MS} from './feature3-signed-link-scope.mjs'
 import { feature3ContextKey } from './feature3-context.mjs'
-import {scopedFeature3WorkspaceValue,currentFeature3WorkspaceRequest} from './feature3-workspace-scope.mjs'
+import {scopedFeature3WorkspaceValue,currentFeature3WorkspaceRequest,createFeature3WorkspaceReadGate} from './feature3-workspace-scope.mjs'
 
 export default function Feature3SecureDraftWorkspace({
   shopId, campaignId, dayId, brandKit, imageMap = {}, approvedModels = [],
@@ -34,6 +34,8 @@ export default function Feature3SecureDraftWorkspace({
   const pendingDownload=useRef(0)
   const pendingHistory=useRef(0)
   const pendingJobs=useRef(0)
+  const readGate=useRef(null)
+  if (!readGate.current) readGate.current=createFeature3WorkspaceReadGate()
   const ticket=useRef({scope:scopeKey,provider:feature3Api,designId:null,revision:0})
   const pending=useRef({scope:scopeKey,provider:feature3Api,active:false})
   const currentScope=(scope,provider)=>
@@ -44,6 +46,8 @@ export default function Feature3SecureDraftWorkspace({
     pendingDownload.current+=1
     pendingHistory.current+=1
     pendingJobs.current+=1
+    // Invalidate prior session/day reads before any later async continuation.
+    readGate.current.cancel()
     ticket.current={scope:scopeKey,provider:feature3Api,designId:null,revision:0}
     pending.current={scope:scopeKey,provider:feature3Api,active:false}
     setGeneratedLink(null)
@@ -61,9 +65,12 @@ export default function Feature3SecureDraftWorkspace({
 
   const loadHistory = async () => {
     if (disabled || busy || (pending.current.scope===scopeKey && pending.current.provider===feature3Api && pending.current.active)) return
+    const guard=readGate.current.begin(scopeKey,feature3Api,'drafts')
+    if (!guard) return
     const scope=scopeKey,provider=feature3Api,attempt=++pendingHistory.current
-    const current=()=>currentFeature3WorkspaceRequest(
-      activeScope.current,scope,provider,attempt,pendingHistory.current)
+    const current=()=>readGate.current.isCurrent(guard,scope,provider) &&
+      currentFeature3WorkspaceRequest(
+        activeScope.current,scope,provider,attempt,pendingHistory.current)
     setBusy(true);setMessage('')
     try {
       const rows=await feature3Api.listDesigns(shopId, campaignId, dayId)
@@ -74,15 +81,20 @@ export default function Feature3SecureDraftWorkspace({
     } catch {
       if(current())setMessage('Could not read this day’s authorized v2 draft history.')
     } finally {
-      if(current())setBusy(false)
+      const still=current()
+      readGate.current.release(guard)
+      if(still)setBusy(false)
     }
   }
 
   const loadGenerated = async () => {
     if (disabled || busy || (pending.current.scope===scopeKey && pending.current.provider===feature3Api && pending.current.active)) return
+    const guard=readGate.current.begin(scopeKey,feature3Api,'generated-jobs')
+    if (!guard) return
     const scope=scopeKey,provider=feature3Api,attempt=++pendingJobs.current
-    const current=()=>currentFeature3WorkspaceRequest(
-      activeScope.current,scope,provider,attempt,pendingJobs.current)
+    const current=()=>readGate.current.isCurrent(guard,scope,provider) &&
+      currentFeature3WorkspaceRequest(
+        activeScope.current,scope,provider,attempt,pendingJobs.current)
     setBusy(true);setGeneratedLink(null);setMessage('')
     try {
       const jobs=await feature3Api.listGeneratedJobs(shopId)
@@ -95,14 +107,21 @@ export default function Feature3SecureDraftWorkspace({
         setGeneratedState({scope,provider,value:[]})
         setMessage('Generated image history is unavailable or access was revoked.')
       }
-    } finally { if(current())setBusy(false) }
+    } finally {
+      const still=current()
+      readGate.current.release(guard)
+      if(still)setBusy(false)
+    }
   }
 
   const openGenerated = async jobId => {
     if (disabled || busy || (pending.current.scope===scopeKey && pending.current.provider===feature3Api && pending.current.active)) return
     const scope=shopId, provider=feature3Api, requestKey=scopeKey
+    const guard=readGate.current.begin(requestKey,provider,'download')
+    if (!guard) return
     const attempt=++pendingDownload.current
-    const current=()=>attempt===pendingDownload.current &&
+    const current=()=>readGate.current.isCurrent(guard,requestKey,provider) &&
+      attempt===pendingDownload.current &&
       activeScope.current.shopId===scope &&
       activeScope.current.scopeKey===requestKey &&
       activeScope.current.feature3Api===provider
@@ -115,11 +134,16 @@ export default function Feature3SecureDraftWorkspace({
     } catch {
       if(current())setMessage('Private image unavailable, expired or no longer authorized.')
     } finally {
-      if(current())setBusy(false)
+      const still=current()
+      readGate.current.release(guard)
+      if(still)setBusy(false)
     }
   }
 
   const restore = event => {
+    if (disabled || busy || readGate.current.busy() ||
+        (pending.current.scope===scopeKey &&
+          pending.current.provider===feature3Api && pending.current.active)) return
     const chosen = saved.find(d => d.id === event.target.value)
     if (!chosen) return
     try {
@@ -145,8 +169,9 @@ export default function Feature3SecureDraftWorkspace({
 
   const saveDesign = async design => {
     const scope=scopeKey,provider=feature3Api
-    if (disabled || (pending.current.scope===scope && pending.current.provider===provider && pending.current.active))
-      throw Error('Draft save already in progress')
+    if (disabled || readGate.current.busy() ||
+        (pending.current.scope===scope && pending.current.provider===provider && pending.current.active))
+      throw Error('Private workspace operation already in progress')
     // The previous campaign/day may have committed an uncertain POST. Never
     // carry that old design ID or optimistic CAS revision into a new scope.
     if(ticket.current.scope!==scope || ticket.current.provider!==provider) {

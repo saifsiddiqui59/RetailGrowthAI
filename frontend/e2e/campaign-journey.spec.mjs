@@ -494,3 +494,49 @@ test('local clothing poster controls fit a narrow mobile viewport', async ({ pag
   await expect(page.getByLabel('Poster product photo')).toBeVisible()
   await expect(page.getByLabel('Poster template')).toBeVisible()
 })
+
+
+test('F3-09 mocked signed campaign opens CPU Studio, edits and reopens a day-bound JSON without GPU', async ({page}) => {
+  const state=await mockServices(page)
+  await login(page)
+  await business(page)
+  await submit(page)
+  await loaded(page)
+  await page.getByRole('button',{name:'Open CPU Poster Studio (local editable draft)'}).click()
+  await expect(page.getByRole('heading',{name:'Professional Poster Studio'})).toBeVisible()
+  await page.getByLabel('Describe the advertisement').fill(
+    'Synthetic boutique layout with an editable title, no prices or discounts')
+  await page.getByRole('button',{name:'Generate editable poster'}).click()
+  const editor=page.getByRole('region',{name:'CPU poster editor'})
+  await expect(editor).toBeVisible()
+  await expect(editor.getByRole('button',{name:'Save private draft'})).toBeDisabled()
+  await editor.getByRole('button',{name:'Add text'}).click()
+  await expect(editor.getByRole('button',{name:'Undo'})).toBeEnabled()
+  await editor.getByRole('button',{name:'Undo'}).click()
+  await expect(editor.getByRole('button',{name:'Redo'})).toBeEnabled()
+  await editor.getByRole('button',{name:'Redo'}).click()
+  const downloading=page.waitForEvent('download')
+  await editor.getByRole('button',{name:'Download day-bound editable JSON'}).click()
+  const download=await downloading
+  expect(download.suggestedFilename()).toBe('retailgrowth-poster-day-bound-local-v2.json')
+  const saved=readFileSync(await download.path(),'utf8')
+  const receipt=JSON.parse(saved)
+  expect(receipt).toMatchObject({
+    version:'retailgrowth.local.poster-draft.v2',approved:false,cloud_saved:false,
+    design:{shop_id:SHOP},
+  })
+  await editor.locator('input[type="file"]').setInputFiles({
+    name:'synthetic-owner-day-bound.json',mimeType:'application/json',
+    buffer:Buffer.from(saved),
+  })
+  await expect(editor.getByText('Local editable design restored; cloud save is separate.')).toBeVisible()
+  await editor.locator('input[type="file"]').setInputFiles({
+    name:'foreign-day-rejected.json',mimeType:'application/json',
+    buffer:Buffer.from(JSON.stringify({...receipt,context_key:'foreign-shop|campaign|day'})),
+  })
+  await expect(editor.getByText('Local draft rejected; check format, shop and current image rights.')).toBeVisible()
+  expect(state.requests).toHaveLength(1)
+  expect(state.renders).toHaveLength(0)
+  expect(state.registrations).toHaveLength(0)
+  expect(state.signedOpens).toBe(0)
+})
