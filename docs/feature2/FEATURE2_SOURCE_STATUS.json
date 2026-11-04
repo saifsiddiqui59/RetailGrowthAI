@@ -151,7 +151,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_PENDING_EXACT_HEAD_CI",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Signed A/B reviewer snapshots candidate plans and human score rows across callbacks, verifies CAS revision integer and no signed URLs",
         "source_commits": [
           "df0977345a5fe6a9a0d0df1bed99d4054cca33fb"
@@ -162,9 +162,9 @@
         "test_cases": 5,
         "complete_scope": false,
         "blocker": "Real independent signed human reviewer identities, durable CAS and mounted tenant RLS live verification remain absent",
-        "ci_run_id": 41849662846,
-        "ci_head_sha": "0742a1fcf2b450ef2772d5045d2acb9c6188f4a4",
-        "ci_status": "PENDING"
+        "ci_run_id": 41850403506,
+        "ci_status": "SUCCESS_4_OF_4",
+        "verified_source_head_sha": "94ff9ec41b71fcca91809567e86d2cc429b8ac1c"
       },
       "source_substep_history": [
         {
@@ -252,7 +252,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_PENDING_EXACT_HEAD_CI",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Private signed trace CAS rejects ambiguous boolean sequence and optional paid-motion/public URL privileges",
         "source_commits": [
           "ad97a42b40f605fa0badee80212dd79ab09e7091"
@@ -263,7 +263,9 @@
         "test_cases": 6,
         "complete_scope": false,
         "blocker": "Hosted JWT/RLS private trace storage, immutable event CAS, and independent real worker signatures are still absent",
-        "ci_status": "PENDING"
+        "ci_status": "SUCCESS_4_OF_4",
+        "ci_run_id": 41850403506,
+        "verified_source_head_sha": "94ff9ec41b71fcca91809567e86d2cc429b8ac1c"
       },
       "source_substep_history": [
         {
@@ -692,12 +694,14 @@
   "latest_verified_source_substeps": {
     "state": "TESTED_SOURCE_SUBSTEPS_NOT_MAIN_DONE",
     "tasks": [
+      "F2-08",
       "F2-10",
+      "F2-12",
       "F2-21",
       "F2-27"
     ],
-    "ci_run_id": 41848875135,
-    "ci_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9",
+    "ci_run_id": 41850403506,
+    "ci_sha": "94ff9ec41b71fcca91809567e86d2cc429b8ac1c",
     "main_integration_verified": false
   }
 }
