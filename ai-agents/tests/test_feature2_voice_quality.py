@@ -425,3 +425,49 @@ def test_f2_18_preflight_rejects_untrusted_reference_before_import(
 def test_f2_17_signed_stt_rejects_unpaired_surrogates(spoof):
     with pytest.raises(VoiceQualityDenied,match="timestamps"):
         analyze("Our kurti",["Our",spoof])
+
+
+# F2-10: backend spelling receipts and signed dictionary rows are not human
+# listening evidence, nor do they authorize paid/published media.
+@pytest.mark.parametrize("forgery", [
+    {"approval":"HUMAN_AUDIO_APPROVED"},
+    {"actual_audio_quality_verified":True},
+    {"actual_audio_quality_verified":"false"},
+    {"can_dispatch_motion":True},
+    {"can_dispatch_motion":1},
+])
+def test_f2_10_dictionary_write_rejects_spelling_to_media_grant(forgery):
+    def save(row):
+        return {**row,"revision":1,**forgery}
+    with pytest.raises(PronunciationDenied,match="Atomic shop dictionary"):
+        approve_dictionary_entry(
+            shop_id=SHOP,word="kurti",spoken_as="kur tee",
+            lang="en-us",editor_current=lambda *_:True,
+            save_approved=save,expected_revision=0)
+
+
+@pytest.mark.parametrize("forgery", [
+    {"actual_audio_quality_verified":True},
+    {"actual_audio_quality_verified":"false"},
+    {"can_dispatch_motion":True},
+])
+def test_f2_10_dictionary_read_rejects_false_audio_certification(forgery):
+    row={"shop_id":SHOP,"word":"kurti","spoken_as":"kur tee",
+         "language":"en-us",
+         "approval":"RETAILER_EDITOR_REVIEWED_SPELLING_ONLY",**forgery}
+    with pytest.raises(PronunciationDenied,match="signed pronunciation review"):
+        apply_approved_local_corrections(
+            shop_id=SHOP,lang="en-us",script="Our kurti",
+            read_current_entries=lambda *_:[row])
+
+
+def test_f2_10_private_dictionary_save_argument_alias_cannot_escape():
+    def mutate(row):
+        row["approval"]="HUMAN_AUDIO_APPROVED"
+        row["actual_audio_quality_verified"]=True
+        return {**row,"revision":1}
+    with pytest.raises(PronunciationDenied,match="Atomic shop dictionary"):
+        approve_dictionary_entry(
+            shop_id=SHOP,word="kurti",spoken_as="kur tee",
+            lang="en-us",editor_current=lambda *_:True,
+            save_approved=mutate,expected_revision=0)
