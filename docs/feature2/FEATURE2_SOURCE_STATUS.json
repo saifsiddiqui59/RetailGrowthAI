@@ -151,19 +151,37 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
-        "name": "Private blind A/B review CAS/history denies malformed publish, paid, billing and URL grants",
+        "state": "SOURCE_SUBSTEP_PENDING_EXACT_HEAD_CI",
+        "name": "Signed A/B reviewer snapshots candidate plans and human score rows across callbacks, verifies CAS revision integer and no signed URLs",
         "source_commits": [
-          "68b2e35c6843c4691b276029a7be384eb0e4a529",
-          "ef277c034d67bb52c9b5b6a7cea10b59981799f6"
+          "df0977345a5fe6a9a0d0df1bed99d4054cca33fb"
         ],
-        "test_commit": "62998c1a16c827f0e86edcc22a88f4e68b1cf28c",
-        "test_cases": 22,
+        "test_commits": [
+          "0742a1fcf2b450ef2772d5045d2acb9c6188f4a4"
+        ],
+        "test_cases": 5,
         "complete_scope": false,
-        "blocker": "Genuine signed independent reviewers, durable hosted RLS CAS, authenticated reader and accepted main merge not verified",
-        "ci_run_id": 41302121066,
-        "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
-      }
+        "blocker": "Real independent signed human reviewer identities, durable CAS and mounted tenant RLS live verification remain absent",
+        "ci_run_id": 41849662846,
+        "ci_head_sha": "0742a1fcf2b450ef2772d5045d2acb9c6188f4a4",
+        "ci_status": "PENDING"
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Private blind A/B review CAS/history denies malformed publish, paid, billing and URL grants",
+          "source_commits": [
+            "68b2e35c6843c4691b276029a7be384eb0e4a529",
+            "ef277c034d67bb52c9b5b6a7cea10b59981799f6"
+          ],
+          "test_commit": "62998c1a16c827f0e86edcc22a88f4e68b1cf28c",
+          "test_cases": 22,
+          "complete_scope": false,
+          "blocker": "Genuine signed independent reviewers, durable hosted RLS CAS, authenticated reader and accepted main merge not verified",
+          "ci_run_id": 41302121066,
+          "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
+        }
+      ]
     },
     {
       "id": "F2-09",
@@ -188,7 +206,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_PENDING_EXACT_HEAD_CI",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Signed pronunciation dictionary write/read denies backend approval and audio-quality promotion",
         "source_commits": [
           "cbbb11dc192985ba9775ab634a2dafa764f160a5"
@@ -199,9 +217,9 @@
         "test_cases": 9,
         "complete_scope": false,
         "blocker": "Independent signed dictionary store, mounted reviewer, actual Kokoro voice/audio QA and hosted tenant auth remain unverified",
-        "ci_run_id": 41848560257,
-        "ci_head_sha": "01c96f6e51f4f79dafadf8af9a06095573d3a0ad",
-        "ci_status": "PENDING"
+        "ci_run_id": 41848875135,
+        "ci_status": "SUCCESS_4_OF_4",
+        "verified_source_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9"
       },
       "source_substep_history": [
         {
@@ -409,7 +427,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "Coordinator + F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_PENDING_EXACT_HEAD_CI",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "CPU job reservation independently snapshots source, budget and lease receipt across mutable callback races",
         "source_commits": [
           "0ae8384184f9ef5f8dd1eb12fc77c32b4b86494f"
@@ -420,9 +438,9 @@
         "test_cases": 2,
         "complete_scope": false,
         "blocker": "Real atomic tenant CPU budget/lease, settlement, JWT/RLS and actual worker inference are not deployed or verified",
-        "ci_run_id": 41848560257,
-        "ci_head_sha": "01c96f6e51f4f79dafadf8af9a06095573d3a0ad",
-        "ci_status": "PENDING"
+        "ci_run_id": 41848875135,
+        "ci_status": "SUCCESS_4_OF_4",
+        "verified_source_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9"
       },
       "source_substep_history": [
         {
@@ -506,7 +524,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_PENDING_EXACT_HEAD_CI",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Single-sentence retake fences aliased source plan during synthesis and after private write",
         "source_commits": [
           "8a6742e2cddce339b7e7c2db8e0f763e49feaa7b"
@@ -517,9 +535,9 @@
         "test_cases": 2,
         "complete_scope": false,
         "blocker": "Real Kokoro model, one-shot DB CAS, signed reviewer and tenant-private registered audio are unverified",
-        "ci_run_id": 41848560257,
-        "ci_head_sha": "01c96f6e51f4f79dafadf8af9a06095573d3a0ad",
-        "ci_status": "PENDING"
+        "ci_run_id": 41848875135,
+        "ci_status": "SUCCESS_4_OF_4",
+        "verified_source_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9"
       },
       "source_substep_history": [
         {
@@ -658,10 +676,12 @@
   "latest_verified_source_substeps": {
     "state": "TESTED_SOURCE_SUBSTEPS_NOT_MAIN_DONE",
     "tasks": [
-      "F2-01"
+      "F2-10",
+      "F2-21",
+      "F2-27"
     ],
-    "ci_run_id": 41814171986,
-    "ci_sha": "8fdb5c7b19cb76b1417ffc9999da1922d996dd34",
+    "ci_run_id": 41848875135,
+    "ci_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9",
     "main_integration_verified": false
   }
 }
