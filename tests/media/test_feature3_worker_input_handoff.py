@@ -87,6 +87,149 @@ class PrivateHandoffTests(unittest.TestCase):
         with self.assertRaises(FashionReferenceDenied):
             self.call(self.editor)
 
+    def test_worker_final_private_read_rejects_bool_or_float_rights_revision(self):
+        # A transient untyped authorizer must not pass because Python treats
+        # True and 1.0 as numerically equal to the immutable revision 1.
+        # A final later clean grant never excuses an unsafe intermediate read.
+        for forged in (True, 1.0):
+            with self.subTest(revision=repr(forged)):
+                self.setUp()
+                for grant in self.fixture.grants.values():
+                    grant["rights_revision"] = 1
+                self.fixture.model_data["rights_revision"] = 1
+                expected = prepare_fashion_references(
+                    shop_id=self.fixture.shop,
+                    garment_asset_id=self.fixture.garment,
+                    model_asset_id=self.fixture.model_asset,
+                    model_id=self.fixture.model_id,
+                    purpose="editing", **self.readers)
+                readers = self.fixture.readers()
+                original_grant = readers["authorize_asset"]
+                observed = [0]
+                def transient_grant(shop, asset, purpose):
+                    value = original_grant(shop, asset, purpose)
+                    if asset == self.fixture.garment:
+                        observed[0] += 1
+                        if observed[0] == 2:
+                            return {**value, "rights_revision": forged}
+                    return value
+                readers["authorize_asset"] = transient_grant
+                with self.assertRaises(FashionReferenceDenied):
+                    resolve_private_worker_inputs(
+                        expected_manifest=expected,
+                        current_readers=readers,
+                        verify_worker_job=lambda *_: True)
+                self.assertEqual(observed[0], 2)
+                # No worker image packet is returned and ephemeral files
+                # must not be allocated by a rejected current source grant.
+
+    def test_transient_private_license_snapshot_change_denied_at_final_read(self):
+        # A substituted license/attribution row can keep the same SHA, shop,
+        # typed rights revision and image dimensions. If it appears ONLY on
+        # the final byte read and then reverts, the later manifest refresh
+        # alone cannot detect it. Do not return private bytes in that case.
+        for mutation in (
+            {"attribution": "Different independently licensed source metadata"},
+            {"license_name": "cc0", "license_url": "https://license.example/cc0"},
+        ):
+            with self.subTest(mutation=mutation):
+                self.setUp()
+                row_reader = self.readers["read_asset"]
+                seen = [0]
+
+                def transient_row(shop, asset):
+                    row = row_reader(shop, asset)
+                    if asset == self.fixture.garment:
+                        seen[0] += 1
+                        if seen[0] == 2:
+                            return {**row, **mutation}
+                    return row
+
+                readers = {**self.readers, "read_asset": transient_row}
+                with self.assertRaises(FashionReferenceDenied):
+                    resolve_private_worker_inputs(
+                        expected_manifest=self.editor,
+                        current_readers=readers,
+                        verify_worker_job=lambda *_: True)
+                self.assertEqual(seen[0], 2,
+                                 "deny at the final read, before a later clean snapshot")
+
+    def test_transient_other_model_uuid_path_denied_before_worker_private_read(self):
+        # This path is a fully canonical same-shop SHA-named PNG, but belongs
+        # to a DIFFERENT model UUID. It is not authorized by the reviewed
+        # model identity in the frozen worker manifest.
+        original_row = self.readers["read_asset"]
+        original_bytes = self.readers["read_private_bytes"]
+        seen = [0]
+        byte_ids = []
+        swapped = (f"{self.fixture.shop}/model-library/{self.fixture.other}/"
+                   f"{self.fixture.model_data['image_sha256']}.png")
+
+        def row(shop, asset):
+            current = original_row(shop, asset)
+            if asset == self.fixture.model_asset:
+                seen[0] += 1
+                if seen[0] == 2:
+                    return {**current, "object_path": swapped}
+            return current
+
+        def read(shop, asset, path):
+            byte_ids.append(asset)
+            return original_bytes(shop, asset, path)
+
+        readers = {**self.readers, "read_asset": row,
+                   "read_private_bytes": read}
+        with self.assertRaises(FashionReferenceDenied):
+            resolve_private_worker_inputs(
+                expected_manifest=self.editor,
+                current_readers=readers,
+                verify_worker_job=lambda *_: True)
+        self.assertEqual(seen[0], 2)
+        # Only the initial model read is allowed; the swapped second read
+        # must be rejected before any privileged bytes can be requested.
+        self.assertEqual(byte_ids.count(self.fixture.model_asset), 1)
+
+    def test_transient_private_object_path_substitution_denied_before_worker_read(self):
+        # The first manifest pass sees the legitimate shop-owned source.
+        # A transient, still-SHA-identical row on the final byte read must
+        # not trigger even one read of a foreign or unexpected Storage path.
+        for mutation in (
+            {"object_path":f"{self.fixture.other}/uploads/{self.fixture.upload_object}.png"},
+            {"object_path":f"{self.fixture.shop}/uploads/../secret.png"},
+            {"object_path":"https://foreign.example/private.png"},
+            {"object_path":f"{self.fixture.shop}/model-library/foreign/portrait.png"},
+            {"source":"GENERATED"},
+            {"storage_bucket":"public-media"},
+        ):
+            with self.subTest(mutation=mutation):
+                self.setUp()
+                row_reader=self.readers["read_asset"]
+                byte_reader=self.readers["read_private_bytes"]
+                seen=[0]
+                paths=[]
+                def substituted_row(shop,asset):
+                    row=row_reader(shop,asset)
+                    if asset==self.fixture.garment:
+                        seen[0]+=1
+                        if seen[0]==2:
+                            return {**row,**mutation}
+                    return row
+                def observed_bytes(shop,asset,path):
+                    paths.append(path)
+                    return byte_reader(shop,asset,path)
+                readers={**self.readers,"read_asset":substituted_row,
+                         "read_private_bytes":observed_bytes}
+                with self.assertRaises(FashionReferenceDenied):
+                    resolve_private_worker_inputs(
+                        expected_manifest=self.editor,
+                        current_readers=readers,
+                        verify_worker_job=lambda *_: True)
+                self.assertEqual(seen[0],2)
+                # Initial manifest read: garment and model. No final read
+                # against the substituted path is permitted.
+                self.assertEqual(len(paths),2)
+                self.assertNotIn(mutation.get("object_path","never"),paths)
+
     def test_final_byte_integrity_fails_after_lease(self):
         def changed(shop, ids, digest):
             self.fixture.blobs[self.fixture.garment] = self.fixture.blobs[self.fixture.model_asset]
