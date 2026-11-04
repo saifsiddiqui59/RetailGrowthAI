@@ -573,3 +573,59 @@ def test_f2_29_bounded_extended_fmt_preserves_genuine_pcm_review():
             original, fmt + b"\x00" * (length - len(fmt))
         )
         assert _inspect(extended, 30) == 2.0
+
+
+# F2-29: FFmpeg invocation cannot create unbounded PCM temp output. Keep
+# the decoder's one-second overrun so long MP3 originals fail, not truncate
+# silently into a seemingly acceptable Reel. No model/cloud/customer media.
+@pytest.mark.parametrize("max_seconds", [15,30,60])
+def test_f2_29_ffmpeg_private_output_bounds_are_enforced_before_decode(
+    monkeypatch,tmp_path,max_seconds
+):
+    from ai_agents import feature2_voiceover_upload as upload
+    from types import SimpleNamespace
+    from pathlib import Path
+    binary=tmp_path/"ffmpeg-operator-test-binary"
+    binary.write_bytes(b"synthetic-operator-binary")
+    binary.chmod(0o700)
+    mp3=b"ID3"+b"offline-fixture"*20
+    captured=[]
+    def fake_run(command,**kwargs):
+        captured.append((command,kwargs))
+        Path(command[-1]).write_bytes(wav())
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(upload.subprocess,"run",fake_run)
+    result=upload.decode_unreviewed_mp3_to_private_wav(
+        original_mp3=mp3,max_seconds=max_seconds,
+        operator_ffmpeg_path=binary)
+    assert len(captured)==1
+    cmd,kwargs=captured[0]
+    assert cmd[cmd.index("-t")+1]==str(max_seconds+1)
+    assert int(cmd[cmd.index("-fs")+1])==(max_seconds+1)*24000*2+65536
+    assert kwargs["timeout"]==30
+    assert kwargs["env"]["TMPDIR"].startswith("/tmp/")
+    assert result["can_publish"] is False
+    assert result["original_rights_verified"] is False
+    assert result["actual_speech_verified"] is False
+
+
+@pytest.mark.parametrize("max_seconds", [15,30])
+def test_f2_29_ffmpeg_oversized_original_cannot_be_silently_truncated(
+    monkeypatch,tmp_path,max_seconds
+):
+    from ai_agents import feature2_voiceover_upload as upload
+    from types import SimpleNamespace
+    from pathlib import Path
+    binary=tmp_path/"ffmpeg-operator-test-binary"
+    binary.write_bytes(b"synthetic-operator-binary")
+    binary.chmod(0o700)
+    mp3=b"ID3"+b"offline-fixture"*20
+    def fake_run(command,**kwargs):
+        assert command[command.index("-t")+1]==str(max_seconds+1)
+        Path(command[-1]).write_bytes(wav(seconds=max_seconds+1))
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(upload.subprocess,"run",fake_run)
+    with pytest.raises(VoiceUploadRejected,match="private MP3 decode failed"):
+        upload.decode_unreviewed_mp3_to_private_wav(
+            original_mp3=mp3,max_seconds=max_seconds,
+            operator_ffmpeg_path=binary)
