@@ -18,6 +18,14 @@ const safeWord=value=>{
      value.trim()!==value||/\s/u.test(value)||UNSAFE_AUDIO_TEXT.test(value))
     return false
   for(let i=0;i<value.length;i++){
+    const point=value.charCodeAt(i)
+    if(point>=0xd800&&point<=0xdbff){
+      const following=i+1<value.length?value.charCodeAt(i+1):0
+      if(following<0xdc00||following>0xdfff)return false
+      i++ // A correctly paired non-BMP code point is not malformed text.
+      continue
+    }
+    if(point>=0xdc00&&point<=0xdfff)return false
     if(value[i]==='\u200c'||value[i]==='\u200d'){
       const next=value[i+1]||''
       // Match Python's verified-word display rule: only a Devanagari
