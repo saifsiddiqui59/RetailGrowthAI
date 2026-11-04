@@ -540,3 +540,73 @@ test('F3-09 mocked signed campaign opens CPU Studio, edits and reopens a day-bou
   expect(state.registrations).toHaveLength(0)
   expect(state.signedOpens).toBe(0)
 })
+
+
+test('F3-22 CPU poster exports a real 1080x1920 local PNG with pixels, no unreviewed offers or paid calls',async({page})=>{
+  const state=await mockServices(page)
+  await login(page)
+  await business(page)
+  await submit(page)
+  await loaded(page)
+  await page.getByRole('button',{name:'Open CPU Poster Studio (local editable draft)'}).click()
+  await page.getByLabel('Describe the advertisement').fill(
+    'Synthetic boutique story layout with an UNAPPROVED 90% OFF flash sale')
+  await page.getByLabel('Canvas format').selectOption('story')
+  await page.getByRole('button',{name:'Generate editable poster'}).click()
+  const editor=page.getByRole('region',{name:'CPU poster editor'})
+  await expect(editor).toBeVisible()
+
+  const jsonWaiting=page.waitForEvent('download')
+  await editor.getByRole('button',{name:'Download day-bound editable JSON'}).click()
+  const json=JSON.parse(readFileSync(await (await jsonWaiting).path(),'utf8'))
+  expect(json).toMatchObject({approved:false,cloud_saved:false,
+    design:{shop_id:SHOP,format:'story'}})
+  const textLayers=json.design.layers.filter(item=>item.type==='text')
+    .map(item=>item.text).join(' ')
+  expect(textLayers).not.toMatch(/90%|flash sale/i)
+  expect(textLayers).toContain('Boutique A')
+
+  const pngWaiting=page.waitForEvent('download')
+  await editor.getByRole('button',{name:'Download local draft PNG (unreviewed)'}).click()
+  const downloaded=await pngWaiting
+  expect(downloaded.suggestedFilename()).toBe('retailgrowth-unreviewed-local-draft.png')
+  const png=readFileSync(await downloaded.path())
+  expect(png.subarray(0,8)).toEqual(Buffer.from('89504e470d0a1a0a','hex'))
+  expect(png.toString('ascii',12,16)).toBe('IHDR')
+  expect(png.readUInt32BE(16)).toBe(1080)
+  expect(png.readUInt32BE(20)).toBe(1920)
+  expect(png.length).toBeGreaterThan(1000)
+  expect(png.length).toBeLessThan(25*1024*1024)
+
+  // Chromium independently decodes the downloaded image; a valid PNG header
+  // alone would not prove usable poster pixels or composited coloured layers.
+  const pixels=await page.evaluate(encoded=>new Promise((resolve,reject)=>{
+    const picture=new Image()
+    picture.onload=()=>{
+      try {
+        const canvas=document.createElement('canvas')
+        canvas.width=picture.width;canvas.height=picture.height
+        const ctx=canvas.getContext('2d',{willReadFrequently:true})
+        ctx.drawImage(picture,0,0)
+        resolve({
+          width:picture.width,height:picture.height,
+          background:[...ctx.getImageData(0,0,1,1).data],
+          decoration:[...ctx.getImageData(540,480,1,1).data],
+        })
+      }catch(error){reject(error)}
+    }
+    picture.onerror=()=>reject(Error('CPU poster PNG pixels undecodable'))
+    picture.src='data:image/png;base64,'+encoded
+  }),png.toString('base64'))
+  expect(pixels.width).toBe(1080)
+  expect(pixels.height).toBe(1920)
+  expect(pixels.background[3]).toBe(255)
+  expect(pixels.decoration[3]).toBe(255)
+  expect(pixels.decoration).not.toEqual(pixels.background)
+  await expect(editor.getByText('Downloaded local draft PNG. This is not an approved cloud poster.')).toBeVisible()
+  expect(state.requests).toHaveLength(1)
+  expect(state.uploads).toHaveLength(0)
+  expect(state.registrations).toHaveLength(0)
+  expect(state.renders).toHaveLength(0)
+  expect(state.signedOpens).toBe(0)
+})
