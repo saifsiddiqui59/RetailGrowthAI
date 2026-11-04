@@ -1,0 +1,7 @@
+# Feature2 F2-30: regional voice routing proof (2026-10-30)
+
+**Original task F2-30: source IN PROGRESS, not DONE.** Offline contract-only safety improvements; no real Speech API voice list was queried and no neural synthesis was invoked.
+
+The existing server-produced `published_voices_in_region` output is the *only* acceptable readback shape for `route_voice_selection`. The selector now requires the current region-string shape, source-list evidence, matching configured curated voice count, no TTS call, no publication, a complete curated row with matching locale/gender and unique entries. A misleading public `Standard` voice record cannot be relabeled one of the six documented `Neural` voices. The free Kokoro English-US/GB path still uses no region or paid call. Deterministic test stubs exercise en-IN/hi-IN/mr-IN locale/voice routing, a real source-to-selector shape composition, fabricated region readback and duplicate/foreign gender, and no automatic paid fallback.
+
+The trusted backend callback must separately bind its list to the shop's signed current resource/region, current editor and fresh authenticated JWT; shape validation is *not* cryptographic proof, billing consent, legal rights or a deployed endpoint. Coordinator still owns #650 protected Functions ZIP, #249 live Azure DEV 503, actual signed regional inventory caching policy and all four main integration checks. Do not call model, activate paid inference/GPU, deploy PROD or touch WineShopPOS.
