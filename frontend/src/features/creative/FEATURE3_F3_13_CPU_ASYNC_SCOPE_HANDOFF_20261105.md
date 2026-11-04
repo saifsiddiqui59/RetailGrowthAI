@@ -22,3 +22,8 @@
 4. Preserve F3-13 source-partial and **0/33 hosted-accepted** until real signed tenant/RLS, binary endpoint and current commercial rights are independently verified. GPU and paid models remain OFF.
 
 No WineShopPOS, PROD, DEV SQL or paid cloud actions.
+
+## Extra F3-13 schema negative coverage
+- Found that `FEATURE3_FORMATS[raw.format]` previously accepted inherited JavaScript property names such as `constructor` and `__proto__` as a non-empty format. Later canvas dimension destructuring could crash, rather than issuing an early invalid-document denial.
+- `validateFeature3Design` now requires a string format that is an **own key** of the fixed allowlist, and strictly typed hex colours; malformed prototype names, object formats, or coercible colours are denied. No valid v2 document shape changes.
+- `tests/frontend/feature3-design.test.mjs` adds rejected payload negatives and a valid `story` control. This is source-only input validation, not an approved hosted poster.
