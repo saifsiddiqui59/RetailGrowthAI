@@ -10,6 +10,7 @@ from hashlib import sha1, sha256
 from hmac import compare_digest
 import re
 import struct
+import stat
 from typing import Mapping
 from zipfile import ZipFile
 from .feature2_director_package import PINNED_UPSTREAM_BLOBS
@@ -148,6 +149,13 @@ def audit_zip(path: str, *, runtime_linux_node22_verified=False,
             raise ValueError("Oversized unpacked runtime ZIP")
         for info in infos:
             name = info.filename
+            # ZIP external attributes may encode Unix symlink entries even
+            # when their textual filenames look like safe .js or LICENSE
+            # paths. A later extractor could turn one into a filesystem path
+            # outside the Functions app or replace a pinned MIT source.
+            if (info.create_system==3 and
+                stat.S_IFMT(info.external_attr>>16)==stat.S_IFLNK):
+                raise ValueError("Unsafe runtime ZIP symlink member")
             if (name.startswith("/") or ".." in name.split("/")
                     or "\\" in name or name.startswith(".")):
                 raise ValueError("Unsafe runtime ZIP member")
