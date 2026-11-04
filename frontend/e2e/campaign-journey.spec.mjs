@@ -610,3 +610,107 @@ test('F3-22 CPU poster exports a real 1080x1920 local PNG with pixels, no unrevi
   expect(state.renders).toHaveLength(0)
   expect(state.signedOpens).toBe(0)
 })
+
+
+test('F3-13 stale CPU PNG callback cannot download after poster workspace closes', async ({ page }) => {
+  const state = await mockServices(page)
+  await login(page)
+  await business(page)
+  await submit(page)
+  await loaded(page)
+  await page.getByRole('button', { name: 'Open CPU Poster Studio (local editable draft)' }).click()
+  await page.getByLabel('Describe the advertisement').fill('Synthetic clothing shop poster; no unapproved promotional offers')
+  await page.getByLabel('Canvas format').selectOption('story')
+  await page.getByRole('button', { name: 'Generate editable poster' }).click()
+  const editor = page.getByRole('region', { name: 'CPU poster editor' })
+  await expect(editor).toBeVisible()
+
+  // Deterministically hold the browser's *real* PNG encoding until after the
+  // mounted tenant/day editor disappears. Record any issued PNG Blob URLs.
+  await page.evaluate(() => {
+    window.__f3HeldPngEncodes = 0
+    window.__f3IssuedPngUrls = 0
+    window.__f3EncodeFinished = false
+    const encode = HTMLCanvasElement.prototype.toBlob
+    HTMLCanvasElement.prototype.toBlob = function (callback, type, ...args) {
+      if (type !== 'image/png' || this.width !== 1080 || this.height !== 1920) {
+        return encode.call(this, callback, type, ...args)
+      }
+      window.__f3HeldPngEncodes += 1
+      window.__f3ReleasePng = () => encode.call(this, blob => {
+        try { callback(blob) } finally { window.__f3EncodeFinished = true }
+      }, type, ...args)
+    }
+    const createUrl = URL.createObjectURL.bind(URL)
+    URL.createObjectURL = blob => {
+      if (blob?.type === 'image/png') window.__f3IssuedPngUrls += 1
+      return createUrl(blob)
+    }
+  })
+
+  const downloads = []
+  page.on('download', download => downloads.push(download.suggestedFilename()))
+  const pngButton = editor.getByRole('button', { name: 'Download local draft PNG (unreviewed)' })
+  await pngButton.click()
+  await pngButton.click()
+  expect(await page.evaluate(() => window.__f3HeldPngEncodes)).toBe(1)
+
+  await page.getByRole('button', { name: 'Hide CPU Poster Studio (local editable draft)' }).click()
+  await expect(editor).toHaveCount(0)
+  await page.evaluate(() => window.__f3ReleasePng())
+  await page.waitForFunction(() => window.__f3EncodeFinished === true)
+
+  expect(await page.evaluate(() => window.__f3IssuedPngUrls)).toBe(0)
+  expect(downloads).toHaveLength(0)
+  expect(state.uploads).toHaveLength(0)
+  expect(state.registrations).toHaveLength(0)
+  expect(state.renders).toHaveLength(0)
+  expect(state.signedOpens).toBe(0)
+})
+
+
+test('F3-13 delayed JSON import never replaces a newer local edit', async ({ page }) => {
+  const state = await mockServices(page)
+  await login(page)
+  await business(page)
+  await submit(page)
+  await loaded(page)
+  await page.getByRole('button', { name: 'Open CPU Poster Studio (local editable draft)' }).click()
+  await page.getByLabel('Describe the advertisement').fill(
+    'Synthetic local clothing poster without promotions or pricing')
+  await page.getByRole('button', { name: 'Generate editable poster' }).click()
+  const editor = page.getByRole('region', { name: 'CPU poster editor' })
+  await expect(editor).toBeVisible()
+
+  const downloading = page.waitForEvent('download')
+  await editor.getByRole('button', { name: 'Download day-bound editable JSON' }).click()
+  const backup = readFileSync(await (await downloading).path(), 'utf8')
+
+  // Delay only File.text(), not the React onChange event. A local colour edit
+  // after upload selection must invalidate the already-started import read.
+  await page.evaluate(() => {
+    const nativeRead = Blob.prototype.text
+    File.prototype.text = function () {
+      const selectedFile = this
+      return new Promise((resolve, reject) => {
+        window.__f3ReleaseImport = () =>
+          nativeRead.call(selectedFile).then(resolve, reject)
+      })
+    }
+  })
+  await editor.locator('input[type="file"]').setInputFiles({
+    name: 'current-shop-day.json', mimeType: 'application/json',
+    buffer: Buffer.from(backup),
+  })
+  await page.waitForFunction(() => typeof window.__f3ReleaseImport === 'function')
+  await editor.getByLabel('Canvas background').fill('#1264ab')
+  await expect(editor.getByLabel('Canvas background')).toHaveValue('#1264ab')
+  await page.evaluate(() => window.__f3ReleaseImport())
+  await expect(editor.getByLabel('Canvas background')).toHaveValue('#1264ab')
+  await expect(editor.getByText('Local editable design restored; cloud save is separate.')).toHaveCount(0)
+  expect(state.requests).toHaveLength(1)
+  expect(state.uploads).toHaveLength(0)
+  expect(state.registrations).toHaveLength(0)
+  expect(state.renders).toHaveLength(0)
+  expect(state.signedOpens).toBe(0)
+})
