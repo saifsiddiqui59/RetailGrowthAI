@@ -6,6 +6,7 @@ import { createRequire } from 'node:module'
 import { feature3ContextKey } from '../../frontend/src/features/creative/feature3-context.mjs'
 import {
   scopedFeature3WorkspaceValue,currentFeature3WorkspaceRequest,
+  createFeature3WorkspaceReadGate,
 } from '../../frontend/src/features/creative/feature3-workspace-scope.mjs'
 
 const shop=randomUUID(), otherShop=randomUUID()
@@ -94,4 +95,63 @@ test('workspace busy and status setters preserve signed API identity for current
   assert.equal(scopedFeature3WorkspaceValue(status,scope,'',api),'Private save still pending')
   assert.equal(scopedFeature3WorkspaceValue(busy,scope,false,replacement),false)
   assert.equal(scopedFeature3WorkspaceValue(status,scope,'',replacement),'')
+})
+
+test('F3-09 private draft/history/download reads are single-flight synchronously',()=>{
+  const gate=createFeature3WorkspaceReadGate(),provider={name:'signed mock'}
+  const first=gate.begin(scope,provider,'drafts')
+  assert.ok(first)
+  assert.equal(Object.isFrozen(first),true)
+  assert.equal(gate.busy(),true)
+  for(const kind of ['drafts','generated-jobs','download']){
+    assert.equal(gate.begin(scope,provider,kind),null,
+      'second click cannot start another private GET before React rerenders')
+  }
+  assert.equal(gate.begin(foreign,{name:'other'},'download'),null)
+  assert.equal(gate.isCurrent(first,scope,provider),true)
+  assert.equal(gate.isCurrent(first,foreign,provider),false)
+  assert.equal(gate.isCurrent(first,scope,{name:'new JWT'}),false)
+  assert.equal(gate.release(first),true)
+  assert.equal(gate.busy(),false)
+  assert.equal(gate.release(first),false)
+  const next=gate.begin(scope,provider,'generated-jobs')
+  assert.ok(next)
+  assert.equal(gate.release(first),false)
+  assert.equal(gate.isCurrent(next,scope,provider),true)
+  assert.equal(gate.release(next),true)
+  assert.equal(gate.begin(scope,provider,'unreviewed-paid-GPU'),null)
+  assert.equal(gate.begin('',provider,'download'),null)
+  assert.equal(gate.begin(scope,null,'download'),null)
+})
+
+test('F3-13 cancelled old tenant/JWT read cannot unlock newer private work',async()=>{
+  const gate=createFeature3WorkspaceReadGate(),apiA={signed:'A'},apiB={signed:'B'}
+  const old=gate.begin(scope,apiA,'download')
+  let finish
+  const pending=new Promise(resolve=>{finish=resolve})
+  const late=pending.then(receipt=>gate.isCurrent(old,scope,apiA)?receipt:null)
+    .finally(()=>gate.release(old))
+  gate.cancel()
+  const fresh=gate.begin(foreign,apiB,'drafts')
+  finish({url:'blob:https://foreign.example/unauthorized'})
+  assert.equal(await late,null,'old async receipt must be discarded')
+  assert.equal(gate.busy(),true,'stale finally cannot release current read')
+  assert.equal(gate.isCurrent(fresh,foreign,apiB),true)
+  assert.equal(gate.release(fresh),true)
+  assert.equal(gate.busy(),false)
+})
+
+test('F3-09 mounted CPU workspace gates all private reads and save/reopen against same-tick clicks',async()=>{
+  const source=await readFile(new URL(
+    '../../frontend/src/features/creative/Feature3SecureDraftWorkspace.jsx',import.meta.url),'utf8')
+  for (const kind of ['drafts','generated-jobs','download']) {
+    assert.match(source,new RegExp("readGate\\.current\\.begin\\([^\\n]+"+kind))
+  }
+  assert.match(source,/readGate\.current\.cancel\(\)/)
+  assert.equal((source.match(/readGate\.current\.release\(guard\)/g)||[]).length,3)
+  assert.equal((source.match(/readGate\.current\.isCurrent\(guard/g)||[]).length,3)
+  assert.match(source,/if \(disabled \|\| busy \|\| readGate\.current\.busy\(\)/)
+  assert.match(source,/if \(disabled \|\| readGate\.current\.busy\(\)/)
+  assert.match(source,/No v2 private poster drafts exist for this day/)
+  assert.doesNotMatch(source,/fetch\(/)
 })
