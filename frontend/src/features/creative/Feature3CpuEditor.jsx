@@ -73,10 +73,13 @@ export default function Feature3CpuEditor({
   const importDraft = async event => {
     const file = event.target.files?.[0]
     if (!file) return
+    const snapshot = exportScope.current
     try {
       if (file.size < 1 || file.size > 25000) throw Error('Invalid local file size')
-      const parsed = decodeFeature3LocalBackup(await file.text(),
-        context, imageIds)
+      const raw = await file.text()
+      // A late file read must not restore a different user's/day's draft.
+      if (!exportStillCurrent(snapshot)) return
+      const parsed = decodeFeature3LocalBackup(raw, context, imageIds)
       const restored = newFeature3History(parsed)
       current.current = restored
       setHistory(restored)
@@ -109,12 +112,18 @@ export default function Feature3CpuEditor({
             return
           }
           const url = URL.createObjectURL(blob)
-          const link = document.createElement('a')
-          link.href = url
-          link.download = 'retailgrowth-unreviewed-local-draft.png'
-          document.body.appendChild(link)
-          try { link.click() } finally { link.remove() }
-          window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+          try {
+            const link = document.createElement('a')
+            link.href = url
+            link.download = 'retailgrowth-unreviewed-local-draft.png'
+            document.body.appendChild(link)
+            try { link.click() } finally { link.remove() }
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+          } catch {
+            // No leaked private Blob URL if the browser rejects a download.
+            try { URL.revokeObjectURL(url) } catch { /* best effort */ }
+            throw Error('Local PNG download unavailable')
+          }
           setMessage('Downloaded local draft PNG. This is not an approved cloud poster.')
         } catch {
           if (exportStillCurrent(snapshot)) {
