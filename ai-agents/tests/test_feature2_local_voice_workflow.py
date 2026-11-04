@@ -306,7 +306,8 @@ def test_cpu_budget_requires_current_exact_plan_before_quota_and_reservation():
 
 from ai_agents.feature2_local_voice_workflow import read_registered_private_original_wav
 
-def original_wav_read_case(*, tamper=None, auth=None, blob=None, metadata=None):
+def original_wav_read_case(*, tamper=None, auth=None, blob=None, metadata=None,
+                           alias_change_after=None):
     base={
       "schema":"retailgrowth.feature2-to-feature4-original-voice.v1",
       "shop_id":SHOP,"campaign_id":CAMP,"audio_asset_id":AID,
@@ -326,7 +327,9 @@ def original_wav_read_case(*, tamper=None, auth=None, blob=None, metadata=None):
         return True if auth is None else auth(len(calls))
     def registered(*args):
         read_count.append(args)
-        fresh=dict(base)
+        fresh=base if alias_change_after is not None else dict(base)
+        if alias_change_after is not None and len(read_count)>=alias_change_after:
+            fresh["private_policy_revision"]=2
         if tamper is not None and len(read_count)>=2:
             fresh.update(tamper)
         return fresh
@@ -800,3 +803,49 @@ def test_f2_19_pending_job_and_audio_explicit_denial_fields_remain_private():
     assert result["review_status"]=="PENDING_HUMAN_LISTEN_AND_RIGHTS"
     assert result["can_publish"] is False
     assert result["paid_api_calls"]==0
+
+
+def test_f2_20_registered_private_wav_denies_alias_mutation():
+    run,auth,reads=original_wav_read_case(alias_change_after=2)
+    with pytest.raises(LocalVoiceJobDenied,match="rights or shop revoked during read"):
+        run()
+    assert len(reads)==2
+    assert len(auth)==2
+
+
+@pytest.mark.parametrize("forged",[
+    {"commercial_use_approved":"false"},
+    {"approved_to_publish":1},
+    {"original_media_rights_verified":True},
+    {"paid_motion_permitted":None},
+    {"paid_inference_authorized":True},
+    {"customer_publishable":"no"},
+    {"paid_calls":False},
+    {"paid_calls":1},
+    {"billing":"PAID"},
+    {"signed_url":"https://example.invalid/voice"},
+    {"private_download_url":"https://example.invalid/private"},
+])
+def test_f2_20_registered_private_wav_denies_optional_rights_grants(forged):
+    run,auth,reads=original_wav_read_case(metadata=forged)
+    with pytest.raises(LocalVoiceJobDenied,match="registration or rights changed"):
+        run()
+    assert len(reads)==1
+
+
+def test_f2_20_registered_private_wav_explicit_pending_remains_review_only():
+    pending={
+        "commercial_use_approved":False,"approved_to_publish":False,
+        "original_media_rights_verified":False,
+        "paid_motion_permitted":False,
+        "paid_inference_authorized":False,"customer_publishable":False,
+        "paid_calls":0,"billing":"NONE",
+        "signed_url":None,"private_download_url":None,
+    }
+    run,auth,reads=original_wav_read_case(metadata=pending)
+    result=run()
+    assert result["private"] is True
+    assert result["human_listen_required"] is True
+    assert result["commercial_rights_not_certified"] is True
+    assert result["can_publish"] is False
+    assert len(reads)==2
