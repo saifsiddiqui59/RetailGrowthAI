@@ -43,19 +43,35 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
-        "name": "Approved retailer legal claim source rejects hidden controls, HTML/URLs, empty or duplicate offers and invalid percent metadata",
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Validate signed offer active/revoked status and campaign date window before treating legal claim wording as source-backed",
         "source_commits": [
-          "4939d0105099f95cfc3361614849b9d5ea127cc4",
-          "1ce1a58aaa754c54673283507034a0cb54868f28"
+          "32a13c841e2832e9fc5a6900a440f3c39a1f4ed6",
+          "9c623f4a8df8f48f29e9aaa14806c97f1b7bfa06"
         ],
-        "test_commit": "c1684da5641e5962884488219b1f35fa5245bcbb",
-        "test_cases": 19,
+        "test_commits": [
+          "99ef41aad5a1be5236238a309d0fed194b99746b"
+        ],
+        "test_cases": 13,
         "complete_scope": false,
-        "blocker": "Real authenticated retailer approved offers/rights and trusted hosted review integration remain pending",
-        "ci_run_id": 41302121066,
-        "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
-      }
+        "blocker": "Commercial copy still needs real current signed retailer facts, rights and independent human approval"
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Approved retailer legal claim source rejects hidden controls, HTML/URLs, empty or duplicate offers and invalid percent metadata",
+          "source_commits": [
+            "4939d0105099f95cfc3361614849b9d5ea127cc4",
+            "1ce1a58aaa754c54673283507034a0cb54868f28"
+          ],
+          "test_commit": "c1684da5641e5962884488219b1f35fa5245bcbb",
+          "test_cases": 19,
+          "complete_scope": false,
+          "blocker": "Real authenticated retailer approved offers/rights and trusted hosted review integration remain pending",
+          "ci_run_id": 41302121066,
+          "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
+        }
+      ]
     },
     {
       "id": "F2-03",
@@ -244,18 +260,33 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
-        "name": "Signed Feature7 ASR word-display rejects zero-width joiner spoofing outside legitimate Indic conjuncts",
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Reject Unicode surrogate spoofing in signed F7 word displays without falsifying Indic transcription",
         "source_commits": [
-          "8aa0fe1c7b00e7ef3fb1a89d08945ce303342d4e"
+          "aab1466735f64f979177cba62aea30a4798db5b9"
         ],
-        "test_commit": "31ed52196fdc8a27bf2e414638b08d8884215f8c",
-        "test_cases": 8,
+        "test_commits": [
+          "57e4a7e8a1484ab874e673b4aa88d70e771e0911"
+        ],
+        "test_cases": 4,
         "complete_scope": false,
-        "blocker": "Actual F7 model, original customer WAV, signed human listening, and hosted readback remain unavailable",
-        "ci_run_id": 41307027543,
-        "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
-      }
+        "blocker": "Real Feature7 original WAV model/weights, signed ASR and human listening acceptance unavailable"
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Signed Feature7 ASR word-display rejects zero-width joiner spoofing outside legitimate Indic conjuncts",
+          "source_commits": [
+            "8aa0fe1c7b00e7ef3fb1a89d08945ce303342d4e"
+          ],
+          "test_commit": "31ed52196fdc8a27bf2e414638b08d8884215f8c",
+          "test_cases": 8,
+          "complete_scope": false,
+          "blocker": "Actual F7 model, original customer WAV, signed human listening, and hosted readback remain unavailable",
+          "ci_run_id": 41307027543,
+          "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
+        }
+      ]
     },
     {
       "id": "F2-18",
@@ -305,18 +336,33 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "Coordinator + F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
-        "name": "Post-private Kokoro local voice storage response rights/billing fence and source revocation",
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Private original WAV reader snapshots metadata across readback and denies forged rights, billable calls and URL fields",
         "source_commits": [
-          "cf4d438499d99c2aac440d0a52f4d92b0236cd1a"
+          "0a2fe67b95fd91a146f332c7f7741c4af41219e3"
         ],
-        "test_commit": "f9369408e9ef09bf65fc44ae5042dacdd52b3cbb",
-        "test_cases": 19,
+        "test_commits": [
+          "117eeae5fda0ed00c5dde87d9697c7e109a37421"
+        ],
+        "test_cases": 13,
         "complete_scope": false,
-        "blocker": "Real trusted private write transaction, storage RLS, signed downloads and human rights approval not live; synthetic Kokoro-positive receipts are mock fixtures",
-        "ci_run_id": 41302121066,
-        "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
-      }
+        "blocker": "Hosted tenant private media reader, JWT/RLS, original binary endpoint and owner rights verification not live"
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Post-private Kokoro local voice storage response rights/billing fence and source revocation",
+          "source_commits": [
+            "cf4d438499d99c2aac440d0a52f4d92b0236cd1a"
+          ],
+          "test_commit": "f9369408e9ef09bf65fc44ae5042dacdd52b3cbb",
+          "test_cases": 19,
+          "complete_scope": false,
+          "blocker": "Real trusted private write transaction, storage RLS, signed downloads and human rights approval not live; synthetic Kokoro-positive receipts are mock fixtures",
+          "ci_run_id": 41302121066,
+          "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
+        }
+      ]
     },
     {
       "id": "F2-21",
@@ -367,18 +413,33 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
-        "name": "Narration quality review frontend rejects disguised invisible joiners while preserving Marathi/Hindi conjuncts",
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Frontend private F7 reviewer rejects unpaired UTF16 surrogates while retaining valid supplementary script words",
         "source_commits": [
-          "532e4996e8304c7f2c7afc3c8dd8702d324ee779"
+          "d9b4b279629f1c6b2b41d47209845f301f223a56"
         ],
-        "test_commit": "10041dc46f96ce6be894f718b1089dc522c7af2a",
-        "test_cases": 13,
+        "test_commits": [
+          "c092d0e4d5a03ac68a32fffc623892b9e6021ff5"
+        ],
+        "test_cases": 9,
         "complete_scope": false,
-        "blocker": "Mounted signed Creative Studio reviewer role and real speech/ASR QA endpoints still unverified",
-        "ci_run_id": 41307027543,
-        "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
-      }
+        "blocker": "Actual mounted Creative Studio, signed reviewer identities and trusted F7 audio endpoints not deployed"
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Narration quality review frontend rejects disguised invisible joiners while preserving Marathi/Hindi conjuncts",
+          "source_commits": [
+            "532e4996e8304c7f2c7afc3c8dd8702d324ee779"
+          ],
+          "test_commit": "10041dc46f96ce6be894f718b1089dc522c7af2a",
+          "test_cases": 13,
+          "complete_scope": false,
+          "blocker": "Mounted signed Creative Studio reviewer role and real speech/ASR QA endpoints still unverified",
+          "ci_run_id": 41307027543,
+          "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
+        }
+      ]
     },
     {
       "id": "F2-27",
