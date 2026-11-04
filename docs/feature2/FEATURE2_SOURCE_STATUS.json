@@ -35,7 +35,20 @@
       "id": "F2-01",
       "title": "Azure Functions Creative Director runtime/package validation",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Offline Functions ZIP audit refuses Unix symlink members, including unselected metadata that might redirect extracted Node or pinned MIT source",
+        "source_commits": [
+          "77d6d05d6419d0e51e29b459bda591bf4f5cfa81"
+        ],
+        "test_commits": [
+          "c28f1fb584639a524bcb0ab066548996ba201219"
+        ],
+        "test_cases": 3,
+        "complete_scope": false,
+        "blocker": "Protected shared scripts/deploy/package.py independent review, exact Node22 binary and Azure runtime operator proof absent; cannot deploy or accept main integration"
+      }
     },
     {
       "id": "F2-02",
