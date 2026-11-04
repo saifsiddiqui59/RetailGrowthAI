@@ -667,3 +667,50 @@ test('F3-13 stale CPU PNG callback cannot download after poster workspace closes
   expect(state.renders).toHaveLength(0)
   expect(state.signedOpens).toBe(0)
 })
+
+
+test('F3-13 delayed JSON import never replaces a newer local edit', async ({ page }) => {
+  const state = await mockServices(page)
+  await login(page)
+  await business(page)
+  await submit(page)
+  await loaded(page)
+  await page.getByRole('button', { name: 'Open CPU Poster Studio (local editable draft)' }).click()
+  await page.getByLabel('Describe the advertisement').fill(
+    'Synthetic local clothing poster without promotions or pricing')
+  await page.getByRole('button', { name: 'Generate editable poster' }).click()
+  const editor = page.getByRole('region', { name: 'CPU poster editor' })
+  await expect(editor).toBeVisible()
+
+  const downloading = page.waitForEvent('download')
+  await editor.getByRole('button', { name: 'Download day-bound editable JSON' }).click()
+  const backup = readFileSync(await (await downloading).path(), 'utf8')
+
+  // Delay only File.text(), not the React onChange event. A local colour edit
+  // after upload selection must invalidate the already-started import read.
+  await page.evaluate(() => {
+    const nativeRead = Blob.prototype.text
+    File.prototype.text = function () {
+      const selectedFile = this
+      return new Promise((resolve, reject) => {
+        window.__f3ReleaseImport = () =>
+          nativeRead.call(selectedFile).then(resolve, reject)
+      })
+    }
+  })
+  await editor.locator('input[type="file"]').setInputFiles({
+    name: 'current-shop-day.json', mimeType: 'application/json',
+    buffer: Buffer.from(backup),
+  })
+  await page.waitForFunction(() => typeof window.__f3ReleaseImport === 'function')
+  await editor.getByLabel('Canvas background').fill('#1264ab')
+  await expect(editor.getByLabel('Canvas background')).toHaveValue('#1264ab')
+  await page.evaluate(() => window.__f3ReleaseImport())
+  await expect(editor.getByLabel('Canvas background')).toHaveValue('#1264ab')
+  await expect(editor.getByText('Local editable design restored; cloud save is separate.')).toHaveCount(0)
+  expect(state.requests).toHaveLength(1)
+  expect(state.uploads).toHaveLength(0)
+  expect(state.registrations).toHaveLength(0)
+  expect(state.renders).toHaveLength(0)
+  expect(state.signedOpens).toBe(0)
+})
