@@ -377,6 +377,85 @@ def test_private_ab_history_denies_foreign_tampered_or_publishable_history(chang
             read_private_history=lambda *a:copy.deepcopy(rows),
             verify_signed_history_receipt=lambda *a:True)
 
+@pytest.mark.parametrize("tamper", [
+    "boolean_revision", "same_candidate_digests", "replayed_receipt"
+])
+def test_private_blind_history_denies_ambiguous_or_replayed_score_receipts(tamper):
+    rows = history_fixture()
+    if tamper == "boolean_revision":
+        rows[0]["revision"] = True  # bool compares equal to integer 1 in Python
+    elif tamper == "same_candidate_digests":
+        rows[0]["candidate_digests"]["B"] = rows[0]["candidate_digests"]["A"]
+    else:
+        rows[1]["receipt_digest"] = rows[0]["receipt_digest"]
+    with pytest.raises(Feature2TraceDenied, match="revision"):
+        read_private_blind_review_history(
+            shop_id=TSHOP, campaign_id=TCAMP, experiment_id=HISTORY_EXP,
+            current_editor=lambda *a: True,
+            read_private_history=lambda *a: copy.deepcopy(rows),
+            verify_signed_history_receipt=lambda *a: True,
+        )
+
+
+
+@pytest.mark.parametrize("tamper", ["swapped_labels", "replacement_candidate"])
+def test_private_blind_history_rejects_candidate_identity_changes_between_revisions(tamper):
+    # Even individually signed revision receipts cannot redefine an existing
+    # experiment's A/B assignments without a new experiment identifier.
+    rows = history_fixture()
+    if tamper == "swapped_labels":
+        rows[1]["candidate_digests"] = {"A": "b" * 64, "B": "a" * 64}
+    else:
+        rows[1]["candidate_digests"]["B"] = "c" * 64
+    calls = []
+
+    def signer(*args):
+        calls.append(args)
+        return True
+
+    with pytest.raises(Feature2TraceDenied, match="candidates changed"):
+        read_private_blind_review_history(
+            shop_id=TSHOP, campaign_id=TCAMP, experiment_id=HISTORY_EXP,
+            current_editor=lambda *_: True,
+            read_private_history=lambda *_: copy.deepcopy(rows),
+            verify_signed_history_receipt=signer,
+        )
+    # First revision was checked; changed second revision never reached signer.
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("tamper", ["score", "receipt"])
+def test_private_blind_history_denies_mutable_reader_alias_changed_by_signer(tamper):
+    # A backend reader may hand out the SAME mutable rows object twice.
+    # Previously comparing source() with rows could compare an object to itself
+    # after a signer mutated it, silently accepting stale or mixed evidence.
+    shared = history_fixture()
+    calls = []
+
+    def read(*_):
+        calls.append("read")
+        return shared
+
+    def signer(*_):
+        calls.append("verify")
+        if calls.count("verify") == 1:
+            if tamper == "score":
+                shared[0]["human_scores"]["A"] = 99.0
+            else:
+                shared[0]["receipt_digest"] = "f" * 64
+        return True
+
+    with pytest.raises(Feature2TraceDenied, match="changed mid-read"):
+        read_private_blind_review_history(
+            shop_id=TSHOP, campaign_id=TCAMP, experiment_id=HISTORY_EXP,
+            current_editor=lambda *_: True,
+            read_private_history=read,
+            verify_signed_history_receipt=signer,
+        )
+    assert calls.count("read") == 2
+
+
+
 def test_blind_history_rejects_unsigned_receipts_and_revoked_editor():
     rows=history_fixture()
     with pytest.raises(Feature2TraceDenied,match="signed"):
