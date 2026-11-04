@@ -37,7 +37,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Offline Functions ZIP audit refuses Unix symlink members, including unselected metadata that might redirect extracted Node or pinned MIT source",
         "source_commits": [
           "77d6d05d6419d0e51e29b459bda591bf4f5cfa81"
@@ -47,7 +47,9 @@
         ],
         "test_cases": 3,
         "complete_scope": false,
-        "blocker": "Protected shared scripts/deploy/package.py independent review, exact Node22 binary and Azure runtime operator proof absent; cannot deploy or accept main integration"
+        "blocker": "Protected shared scripts/deploy/package.py independent review, exact Node22 binary and Azure runtime operator proof absent; cannot deploy or accept main integration",
+        "ci_run_id": 41814171986,
+        "verified_source_head_sha": "8fdb5c7b19cb76b1417ffc9999da1922d996dd34"
       }
     },
     {
@@ -602,13 +604,10 @@
   "latest_verified_source_substeps": {
     "state": "TESTED_SOURCE_SUBSTEPS_NOT_MAIN_DONE",
     "tasks": [
-      "F2-02",
-      "F2-17",
-      "F2-20",
-      "F2-26"
+      "F2-01"
     ],
-    "ci_run_id": 41813227582,
-    "ci_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+    "ci_run_id": 41814171986,
+    "ci_sha": "8fdb5c7b19cb76b1417ffc9999da1922d996dd34",
     "main_integration_verified": false
   }
 }
