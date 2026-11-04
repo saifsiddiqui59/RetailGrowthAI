@@ -67,6 +67,8 @@ test('A/B browser checkbox alone, foreign/shop-stale plan never authorizes',()=>
 test('private reviewed draft response is still never publishing approval',()=>{
  const reply={schema:'retailgrowth.feature2-reviewed-prompt-draft.v1',
    shop_id:SHOP,campaign_id:CID,revision:8,
+   proposal_id:PROPOSAL,source_revision:7,
+   original_prompt_sha256:'b'.repeat(64),
    improved_prompt_sha256:'c'.repeat(64),review_status:'DRAFT',
    private:true,can_publish:false,can_dispatch_paid_motion:false,
    requires_fresh_media_rights:true,requires_new_copy_fact_review:true}
@@ -76,6 +78,8 @@ test('private reviewed draft response is still never publishing approval',()=>{
  assert.equal(output.can_publish,false)
  for(const change of [
   {revision:9},{private:false},{can_publish:true},
+  {proposal_id:REVIEW},{source_revision:6},
+  {original_prompt_sha256:'f'.repeat(64)},
   {can_dispatch_paid_motion:true},{improved_prompt_sha256:'d'.repeat(64)},
   {review_status:'PUBLISHED'},{requires_fresh_media_rights:false}
  ]) assert.throws(()=>verifyReviewedDraftReceipt({
