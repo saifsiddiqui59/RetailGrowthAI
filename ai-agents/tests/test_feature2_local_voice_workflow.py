@@ -431,7 +431,8 @@ STATUS_REQUEST_SHA="d"*64
 
 def status_read_case(*,status="RESERVED",job_override=None,asset_override=None,
                      revoked_after=None,job_changed_after=None,
-                     asset_changed_after=None):
+                     asset_changed_after=None,alias_job_changed_after=None,
+                     alias_asset_changed_after=None):
     finished=status=="AWAITING_HUMAN_REVIEW"
     base={
         "schema":"retailgrowth.feature2-private-voice-job-status.v1",
@@ -471,13 +472,17 @@ def status_read_case(*,status="RESERVED",job_override=None,asset_override=None,
         return revoked_after is None or counters["auth"]<revoked_after
     def job(*scope):
         counters["job"]+=1
-        out=deepcopy(base)
+        out=base if alias_job_changed_after else deepcopy(base)
+        if alias_job_changed_after and counters["job"]>=alias_job_changed_after:
+            out["lease_fence"]=9  # valid metadata; same dictionary identity
         if job_changed_after and counters["job"]>=job_changed_after:
             out["status"]="RUNNING"
         return out
     def asset(*scope):
         counters["asset"]+=1
-        out=deepcopy(media)
+        out=media if alias_asset_changed_after else deepcopy(media)
+        if alias_asset_changed_after and counters["asset"]>=alias_asset_changed_after:
+            out["private_policy_revision"]=2 # same object, old first-read alias
         if asset_changed_after and counters["asset"]>=asset_changed_after:
             out["revoked_at"]="2026-10-30T00:00:00Z"
         return out
@@ -710,3 +715,88 @@ def test_f2_21_cpu_reservation_explicit_unpaid_flags_are_still_pending_only():
     assert out["can_publish"] is False
     assert out["real_model_inference_observed"] is False
     assert out["reservation_is_not_worker_completion"] is True
+
+
+# F2-19: private status may be read twice via a backend cache returning the
+# same mutable dict. Without an independent snapshot a valid metadata edit
+# could compare with itself and be falsely accepted as a stable status.
+def test_f2_19_status_reader_denies_same_mutable_job_object():
+    run,calls=status_read_case(alias_job_changed_after=2)
+    with pytest.raises(LocalVoiceJobDenied,match="revoked during read"):
+        run()
+    assert calls["job"]==2
+
+
+def test_f2_19_status_reader_denies_same_mutable_asset_object():
+    run,calls=status_read_case(
+        status="AWAITING_HUMAN_REVIEW",alias_asset_changed_after=2)
+    with pytest.raises(LocalVoiceJobDenied,match="revoked during read"):
+        run()
+    assert calls["asset"]==2
+
+
+@pytest.mark.parametrize("forged", [
+    {"commercial_use_approved":"false"},
+    {"may_auto_invoke_azure":None},
+    {"paid_inference_authorized":1},
+    {"customer_publishable":"no"},
+    {"approved_to_publish":True},
+    {"original_media_rights_verified":True},
+    {"paid_calls":False},
+    {"paid_calls":1},
+    {"billing":"CHARGED"},
+    {"signed_url":"https://example.invalid/audio"},
+    {"private_download_url":"https://example.invalid/voice"},
+])
+def test_f2_19_status_denies_ambiguous_job_grants(forged):
+    run,calls=status_read_case(job_override=forged)
+    with pytest.raises(LocalVoiceJobDenied,match="job not verified"):
+        run()
+    assert calls["job"]==1
+
+
+@pytest.mark.parametrize("forged", [
+    {"commercial_use_approved":"false"},
+    {"paid_motion_permitted":None},
+    {"approved_to_publish":True},
+    {"original_media_rights_verified":1},
+    {"paid_inference_authorized":True},
+    {"customer_publishable":True},
+    {"paid_calls":False},
+    {"paid_calls":1},
+    {"billing":"PAID"},
+    {"signed_url":"https://example.invalid/audio"},
+    {"private_download_url":"https://example.invalid/private"},
+])
+def test_f2_19_status_denies_ambiguous_registered_audio_grants(forged):
+    run,calls=status_read_case(
+        status="AWAITING_HUMAN_REVIEW",asset_override=forged)
+    with pytest.raises(LocalVoiceJobDenied,match="rights or source revoked"):
+        run()
+    assert calls["asset"]==1
+
+
+def test_f2_19_pending_job_and_audio_explicit_denial_fields_remain_private():
+    denied={
+        "commercial_use_approved":False,"may_auto_invoke_azure":False,
+        "paid_inference_authorized":False,"customer_publishable":False,
+        "approved_to_publish":False,"original_media_rights_verified":False,
+        "paid_calls":0,"billing":"NONE",
+        "signed_url":None,"private_download_url":None,
+    }
+    run,_=status_read_case(job_override=denied)
+    assert run()["status"]=="RESERVED"
+    audio_denied={
+        "commercial_use_approved":False,"paid_motion_permitted":False,
+        "approved_to_publish":False,"original_media_rights_verified":False,
+        "paid_inference_authorized":False,"customer_publishable":False,
+        "paid_calls":0,"billing":"NONE",
+        "signed_url":None,"private_download_url":None,
+    }
+    run,_=status_read_case(
+        status="AWAITING_HUMAN_REVIEW",
+        job_override=denied,asset_override=audio_denied)
+    result=run()
+    assert result["review_status"]=="PENDING_HUMAN_LISTEN_AND_RIGHTS"
+    assert result["can_publish"] is False
+    assert result["paid_api_calls"]==0
