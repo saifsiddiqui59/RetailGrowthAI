@@ -26,13 +26,48 @@ DEADLINE_SECONDS = 75
 CURL_FORMAT = "%{http_code} %{time_namelookup} %{time_connect} %{time_appconnect} %{time_starttransfer} %{time_total}"
 
 
+def response_handler_markers(header_text):
+    """Return only trusted marker presence from the FINAL HTTP header block.
+
+    Curl may include an HTTP CONNECT proxy preamble (or interim 1xx).
+    A marker on an earlier header block must not authenticate the final 401.
+    Never emit actual header values, request IDs, cookies or signed links.
+    """
+    if not isinstance(header_text, str):
+        return False, False
+    blocks = []
+    current = []
+    for raw in header_text.splitlines():
+        line = raw.strip()
+        if line.lower().startswith("http/"):
+            if current:
+                blocks.append(current)
+            current = [line]
+        elif current:
+            if not line:
+                blocks.append(current)
+                current = []
+            else:
+                current.append(line)
+    if current:
+        blocks.append(current)
+    if not blocks:
+        return False, False
+    final = blocks[-1]
+    python = any(line.lower().startswith("x-request-id:")
+                 and line.partition(":")[2].strip() for line in final[1:])
+    node = any(line.lower().strip() == "x-rgai-secure-adapter: candidate-v1"
+               for line in final[1:])
+    return bool(python), bool(node)
+
+
 def classify(exit_code, status, marker, backend):
     if exit_code != 0:
         return "CLIENT_TIMEOUT" if exit_code in (28, 124) else "NETWORK_OR_CURL_ERROR"
     if status == "503":
         return "HTTP_503_APP_MARKED" if marker else "HTTP_503_UNMARKED_OR_GATEWAY"
     if status == "401":
-        if backend == "azure_flex_python" and not marker:
+        if not marker:
             return "UNMARKED_401_NOT_PROVEN_HANDLER"
         return "EXPECTED_401"
     if status == "404":
@@ -68,17 +103,19 @@ def sample(backend, phase, route):
             parts = proc.stdout.strip().split()
             status = parts[0] if len(parts) == 6 else "000"
             times = [float(x) for x in parts[1:]] if len(parts) == 6 else [0.0] * 5
-            lines = headers.read_text(errors="replace").lower().splitlines() if headers.is_file() else []
-            marker = any(x.startswith("x-request-id:") for x in lines)
+            captured = headers.read_text(errors="replace") if headers.is_file() else ""
+            python_marker, node_marker = response_handler_markers(captured)
             code = proc.returncode
         except subprocess.TimeoutExpired:
-            status, times, marker, code = "000", [0.0, 0.0, 0.0, 0.0, float(DEADLINE_SECONDS + 5)], False, 124
+            status, times, python_marker, node_marker, code = "000", [0.0, 0.0, 0.0, 0.0, float(DEADLINE_SECONDS + 5)], False, False, 124
+    marked = python_marker if backend == "azure_flex_python" else node_marker
     names = ("dns_seconds", "tcp_seconds", "tls_seconds", "first_byte_seconds", "total_seconds")
     observation = dict(zip(names, (round(x, 3) for x in times)))
     observation.update(
         backend=backend, phase=phase, route=route, timestamp_utc=datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        http_status=status, curl_exit=code, application_request_marker=marker,
-        category=classify(code, status, marker, backend),
+        http_status=status, curl_exit=code, application_request_marker=python_marker,
+        node_adapter_marker=node_marker,
+        category=classify(code, status, marked, backend),
     )
     return observation
 
@@ -96,14 +133,31 @@ def summarize(observations):
     for backend in ORIGINS:
         rows = [x for x in observations if x["backend"] == backend]
         times = [x["total_seconds"] for x in rows if x["curl_exit"] == 0]
+        confirmed_campaign = [
+            x for x in rows
+            if x.get("route") == "campaign" and x.get("curl_exit") == 0
+            and x.get("http_status") == "401"
+            and x.get("category") == "EXPECTED_401"
+            and (x.get("application_request_marker") is True
+                 if backend == "azure_flex_python"
+                 else x.get("node_adapter_marker") is True)
+        ]
+        campaign_count = sum(x.get("route") == "campaign" for x in rows)
         outcome[backend] = {
             "samples": len(rows),
+            "verified_campaign_handler_401": len(confirmed_campaign),
+            "campaign_samples": campaign_count,
+            "verified_campaign_handler_rate_percent": (
+                round(100 * len(confirmed_campaign) / campaign_count, 1)
+                if campaign_count else None
+            ),
             "completed_http": sum(x["curl_exit"] == 0 for x in rows),
             "http_503": sum(x["http_status"] == "503" and x["curl_exit"] == 0 for x in rows),
             "client_timeouts": sum(x["category"] == "CLIENT_TIMEOUT" for x in rows),
             "network_errors": sum(x["category"] == "NETWORK_OR_CURL_ERROR" for x in rows),
             "unexpected_http": sum(x["category"].startswith(("UNEXPECTED", "UNMARKED")) for x in rows),
             "success_rate_http_percent": round(100 * sum(x["curl_exit"] == 0 and x["http_status"] in ("401", "404") for x in rows) / len(rows), 1) if rows else None,
+            "transport_success_does_not_prove_handler": True,
             "p50_completed_http_seconds": percentile(times, .5) if len(times) >= 2 else None,
             "p95_completed_http_seconds": percentile(times, .95) if len(times) >= 20 else None,
             "p99_completed_http_seconds": percentile(times, .99) if len(times) >= 100 else None,
@@ -112,33 +166,78 @@ def summarize(observations):
     return outcome
 
 
+def verified_route_result(backend, phase, route, observation):
+    """Count only the exact requested DEV route with its expected handler status.
+
+    A generic gateway HTTP 401, a 404 on the campaign route, and a response
+    for another backend/phase must not certify a functioning campaign API.
+    Unknown-route 404 is routing evidence only, not secure handler readiness.
+    """
+    if (not isinstance(observation, dict)
+            or observation.get("backend") != backend
+            or observation.get("phase") != phase
+            or observation.get("route") != route
+            or observation.get("curl_exit") != 0):
+        return False
+    if route == "campaign":
+        if (observation.get("http_status") != "401"
+                or observation.get("category") != "EXPECTED_401"):
+            return False
+        if backend == "azure_flex_python":
+            return observation.get("application_request_marker") is True
+        if backend == "free_swa_node":
+            return observation.get("node_adapter_marker") is True
+        return False
+    if route == "unknown":
+        return (observation.get("http_status") == "404"
+                and observation.get("category") in (
+                    "EXPECTED_404_APP_MARKED",
+                    "EXPECTED_404_HANDLER_UNVERIFIED"))
+    return False
+
+
 def run_series(sender=sample, sleeper=time.sleep, idle=300):
     observations = []
+    requests_verified = []
+    def record(backend, phase, route, future):
+        row = future.result()
+        observations.append(row)
+        requests_verified.append(verified_route_result(backend, phase, route, row))
     # First and repeated anonymous GETs, same synthetic paths on each backend.
     for phase, route in (("initial", "campaign"), ("initial", "unknown"),
                          ("repeat", "campaign"), ("repeat", "unknown")):
         with ThreadPoolExecutor(max_workers=2) as pool:
-            tasks = [pool.submit(sender, backend, phase, route) for backend in ORIGINS]
-            observations.extend(f.result() for f in tasks)
+            tasks = [(backend, pool.submit(sender, backend, phase, route))
+                     for backend in ORIGINS]
+            for backend, future in tasks:
+                record(backend, phase, route, future)
     # Maximum two concurrent GETs per backend; no writes or privileged calls.
     with ThreadPoolExecutor(max_workers=4) as pool:
-        tasks = [pool.submit(sender, backend, "concurrent-" + str(index), "campaign")
+        tasks = [(backend, "concurrent-" + str(index),
+                  pool.submit(sender, backend, "concurrent-" + str(index), "campaign"))
                  for backend in ORIGINS for index in (1, 2)]
-        observations.extend(f.result() for f in tasks)
+        for backend, phase, future in tasks:
+            record(backend, phase, "campaign", future)
     print("P0_249_NEW_PROBE_IDLE_SECONDS=" + str(idle), flush=True)
     sleeper(idle)
     for route in ("campaign", "unknown"):
         with ThreadPoolExecutor(max_workers=2) as pool:
-            tasks = [pool.submit(sender, backend, "post-idle", route) for backend in ORIGINS]
-            observations.extend(f.result() for f in tasks)
+            tasks = [(backend, pool.submit(sender, backend, "post-idle", route))
+                     for backend in ORIGINS]
+            for backend, future in tasks:
+                record(backend, "post-idle", route, future)
     for x in observations:
         print("P0_249_NEW_HTTP_OBSERVATION=" + json.dumps(x, sort_keys=True), flush=True)
     final = summarize(observations)
     print("P0_249_NEW_HTTP_SUMMARY=" + json.dumps(final, sort_keys=True), flush=True)
     print("P0_249_IDLE_NOT_PROVEN_AZURE_COLD_START=true", flush=True)
-    failed = any(x["curl_exit"] != 0 or x["http_status"] == "503" or
-                 x["category"].startswith(("UNEXPECTED", "UNMARKED")) for x in observations)
-    return 4 if failed else 0
+    # 401/404 transport status alone is insufficient evidence of application
+    # dispatch. Any unmatched request, wrong response shape or missing marker
+    # fails this read-only comparison, without retrying or triggering writes.
+    passed = bool(requests_verified) and all(requests_verified)
+    print("P0_249_EXPECTED_ROUTE_HANDLER_GATE=" + ("PASS" if passed else "FAIL"),
+          flush=True)
+    return 0 if passed else 4
 
 
 if __name__ == "__main__":
