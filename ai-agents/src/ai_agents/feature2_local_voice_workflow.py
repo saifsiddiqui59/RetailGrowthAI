@@ -5,6 +5,7 @@ No public route or database schema introduced. F4 gets metadata, not raw WAV.
 """
 from __future__ import annotations
 from hashlib import sha256
+from copy import deepcopy
 from uuid import UUID
 from .feature2_azure_speech import _plan, SpeechRejected
 from .feature2_kokoro_local import synthesize_local
@@ -291,14 +292,18 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
             authorize_current_editor,read_current_plan,
             read_authoritative_quota,reserve_atomic_once))):
         raise LocalVoiceJobDenied("Trusted budgeted voice job scope required")
+    # An auth callback can return the same mutable dict as source_plan.
+    # Pin the original BEFORE calling it, so self-equality cannot hide a revoke.
+    source_snapshot=deepcopy(source_plan)
     try:
         creative,approval,script=_plan(
-            source_plan,shop_id=shop_id,campaign_id=campaign_id)
+            source_snapshot,shop_id=shop_id,campaign_id=campaign_id)
     except SpeechRejected as exc:
         raise LocalVoiceJobDenied("Current reviewed plan missing") from exc
     plan_sha=approval["plan_sha256"]
     if (authorize_current_editor(shop_id,campaign_id) is not True or
-        read_current_plan(shop_id,campaign_id)!=source_plan):
+        read_current_plan(shop_id,campaign_id)!=source_snapshot or
+        source_plan!=source_snapshot):
         raise LocalVoiceJobDenied("Voice editor or original source revoked")
     quota=read_authoritative_quota(shop_id,campaign_id)
     # The policy is trusted and signed by the backend, NEVER browser props.
@@ -328,7 +333,9 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
             now_ms/1000,timezone.utc).strftime("%Y-%m") or
         quota.get("policy_state")!="ACTIVE"):
         raise LocalVoiceJobDenied("Signed CPU budget policy invalid")
-    reserved=quota["per_job_reserved_cpu_ms"]
+    # An atomic writer must not mutate an earlier signed quota view.
+    quota_snapshot=deepcopy(quota)
+    reserved=quota_snapshot["per_job_reserved_cpu_ms"]
     if (quota["active_cpu_jobs"]>=quota["max_active_cpu_jobs"] or
         quota["used_cpu_ms"]+quota["reserved_cpu_ms"]+reserved>
             quota["monthly_cpu_limit_ms"]):
@@ -338,14 +345,14 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
          "original_script_sha256":sha256(script.encode()).hexdigest(),
          "job_key":job_key,"voice_id":voice_id,"language":lang,
          "speed":speed,"provider":"kokoro-onnx",
-         "period_id":quota["period_id"],
-         "budget_revision":quota["budget_revision"],
+         "period_id":quota_snapshot["period_id"],
+         "budget_revision":quota_snapshot["budget_revision"],
          "reserved_cpu_ms":reserved,
          "paid_api_calls_allowed":False}
     request_sha=sha256(json.dumps(req,sort_keys=True,
                      separators=(",",":")).encode()).hexdigest()
     receipt=reserve_atomic_once(shop_id,campaign_id,job_key,request_sha,
-                                quota["budget_revision"],reserved,dict(req))
+                                quota_snapshot["budget_revision"],reserved,dict(req))
     if (type(receipt) is not dict or
         receipt.get("schema")!="retailgrowth.feature2-local-cpu-reservation.v1" or
         receipt.get("shop_id")!=shop_id or
@@ -355,7 +362,7 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
         receipt.get("request_sha256")!=request_sha or
         receipt.get("provider")!="kokoro-onnx" or
         receipt.get("reserved_cpu_ms")!=reserved or
-        receipt.get("period_id")!=quota["period_id"] or
+        receipt.get("period_id")!=quota_snapshot["period_id"] or
         type(receipt.get("lease_fence")) is not int or
         not 1<=receipt["lease_fence"]<2**63 or
         type(receipt.get("lease_expires_ms")) is not int or
@@ -376,15 +383,19 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
         ("billing" in receipt and receipt["billing"]!="NONE") or
         receipt.get("atomic_unique_commit") is not True):
         raise LocalVoiceJobDenied("Durable private CPU reservation evidence invalid")
+    # Late callback edits to aliased receipts must also fail closed.
+    receipt_snapshot=deepcopy(receipt)
     if (authorize_current_editor(shop_id,campaign_id) is not True or
-        read_current_plan(shop_id,campaign_id)!=source_plan):
+        read_current_plan(shop_id,campaign_id)!=source_snapshot or
+        source_plan!=source_snapshot or quota!=quota_snapshot or
+        receipt!=receipt_snapshot):
         raise LocalVoiceJobDenied("Voice source revoked after CPU budget lease")
-    return {"schema":receipt["schema"],"shop_id":shop_id,
+    return {"schema":receipt_snapshot["schema"],"shop_id":shop_id,
             "campaign_id":campaign_id,"creative_plan_sha256":plan_sha,
             "job_key":job_key,"request_sha256":request_sha,
-            "lease_fence":receipt["lease_fence"],
-            "lease_expires_ms":receipt["lease_expires_ms"],
-            "reserved_cpu_ms":reserved,"period_id":quota["period_id"],
+            "lease_fence":receipt_snapshot["lease_fence"],
+            "lease_expires_ms":receipt_snapshot["lease_expires_ms"],
+            "reserved_cpu_ms":reserved,"period_id":quota_snapshot["period_id"],
             "provider":"kokoro-onnx","private":True,
             "can_publish":False,"paid_api_calls":0,
             "real_model_inference_observed":False,
