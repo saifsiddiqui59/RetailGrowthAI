@@ -619,6 +619,7 @@ test('F3-13 stale CPU PNG callback cannot download after poster workspace closes
   await submit(page)
   await loaded(page)
   await page.getByRole('button', { name: 'Open CPU Poster Studio (local editable draft)' }).click()
+  await page.getByLabel('Describe the advertisement').fill('Synthetic clothing shop poster; no unapproved promotional offers')
   await page.getByLabel('Canvas format').selectOption('story')
   await page.getByRole('button', { name: 'Generate editable poster' }).click()
   const editor = page.getByRole('region', { name: 'CPU poster editor' })
