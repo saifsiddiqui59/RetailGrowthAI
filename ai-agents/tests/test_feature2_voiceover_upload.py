@@ -591,7 +591,7 @@ def test_f2_29_ffmpeg_private_output_bounds_are_enforced_before_decode(
     mp3=b"ID3"+b"offline-fixture"*20
     captured=[]
     def fake_run(command,**kwargs):
-        captured.append((command,kwargs))
+        captured.append((command,kwargs,Path(kwargs["env"]["TMPDIR"]).is_dir()))
         Path(command[-1]).write_bytes(wav())
         return SimpleNamespace(returncode=0)
     monkeypatch.setattr(upload.subprocess,"run",fake_run)
@@ -599,12 +599,13 @@ def test_f2_29_ffmpeg_private_output_bounds_are_enforced_before_decode(
         original_mp3=mp3,max_seconds=max_seconds,
         operator_ffmpeg_path=binary)
     assert len(captured)==1
-    cmd,kwargs=captured[0]
+    cmd,kwargs,temp_existed_during_decode=captured[0]
+    assert temp_existed_during_decode is True
     assert cmd[cmd.index("-t")+1]==str(max_seconds+1)
     assert int(cmd[cmd.index("-fs")+1])==(max_seconds+1)*24000*2+65536
     assert kwargs["timeout"]==30
-    # TemporaryDirectory may live outside /tmp on a hosted CI runner.
-    assert Path(kwargs["env"]["TMPDIR"]).is_dir()
+    # The private directory is intentionally erased when decode returns.
+    assert not Path(kwargs["env"]["TMPDIR"]).exists()
     assert result["can_publish"] is False
     assert result["original_rights_verified"] is False
     assert result["actual_speech_verified"] is False
