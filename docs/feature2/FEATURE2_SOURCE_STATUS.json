@@ -217,7 +217,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Honest local Kokoro CPU benchmark summary and strict model usage provenance",
         "source_commits": [
           "98630f24e0a3922c431000cf882f6d6b8e385b84"
@@ -227,7 +227,9 @@
         ],
         "test_cases": 3,
         "complete_scope": false,
-        "blocker": "Real pinned Kokoro weights, operator CPU runtime, process RSS/cost benchmark and reviewer acceptance not available"
+        "blocker": "Real pinned Kokoro weights, operator CPU runtime, process RSS/cost benchmark and reviewer acceptance not available",
+        "ci_run_id": 41812081011,
+        "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2"
       }
     },
     {
@@ -261,7 +263,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "OpenPronounce reference-script guard before heavyweight offline model imports",
         "source_commits": [
           "1028678d99ad2ccd15bdfe179b47b61974884009"
@@ -271,7 +273,9 @@
         ],
         "test_cases": 10,
         "complete_scope": false,
-        "blocker": "Actual 2.5GB OpenPronounce reference models and genuine CPU pronunciation benchmark absent"
+        "blocker": "Actual 2.5GB OpenPronounce reference models and genuine CPU pronunciation benchmark absent",
+        "ci_run_id": 41812081011,
+        "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2"
       }
     },
     {
@@ -280,7 +284,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "Coordinator + F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Private Kokoro job status snapshots reject aliased DB result mutation and forged optional billing/rights metadata",
         "source_commits": [
           "9ebaa3bd3d8d77aaad47893f96dac5020a04c014"
@@ -290,7 +294,9 @@
         ],
         "test_cases": 25,
         "complete_scope": false,
-        "blocker": "Hosted signed DEV JWT/RLS status endpoint, durable worker settlement and tenant-authenticated job media not deployed"
+        "blocker": "Hosted signed DEV JWT/RLS status endpoint, durable worker settlement and tenant-authenticated job media not deployed",
+        "ci_run_id": 41812081011,
+        "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2"
       }
     },
     {
@@ -408,18 +414,21 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Private MP3 decoder bounds FFmpeg decoded WAV bytes and duration before temporary-disk exhaustion",
         "source_commits": [
           "19591546af41e76d19bb9a6df1bb226df31b08ad"
         ],
         "test_commits": [
           "6c2d9c2cfcb50239f7cad9b17d760fdaf4bd0047",
-          "3d9119f61722dc0c86498c007623c90227bbc4a0"
+          "3d9119f61722dc0c86498c007623c90227bbc4a0",
+          "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2"
         ],
         "test_cases": 5,
         "complete_scope": false,
-        "blocker": "Real FFmpeg hosted worker, tenant-private dual asset DB registration, genuine licensed MP3 and signed download not deployed"
+        "blocker": "Real FFmpeg hosted worker, tenant-private dual asset DB registration, genuine licensed MP3 and signed download not deployed",
+        "ci_run_id": 41812081011,
+        "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2"
       },
       "source_substep_history": [
         {
@@ -511,13 +520,13 @@
   "latest_verified_source_substeps": {
     "state": "TESTED_SOURCE_SUBSTEPS_NOT_MAIN_DONE",
     "tasks": [
-      "F2-10",
-      "F2-17",
-      "F2-26",
-      "F2-27"
+      "F2-15",
+      "F2-18",
+      "F2-19",
+      "F2-29"
     ],
-    "ci_run_id": 41307027543,
-    "ci_sha": "de02305407f847242621590a52d0ac62020554a0",
+    "ci_run_id": 41812081011,
+    "ci_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
     "main_integration_verified": false
   }
 }
