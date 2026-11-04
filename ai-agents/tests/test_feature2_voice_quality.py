@@ -374,3 +374,41 @@ def test_f2_17_devanagari_conjunct_joiner_is_still_review_only():
     assert report["human_listen_required"] is True
     assert report["pronunciation_verified"] is False
     assert report["publish_approved"] is False
+
+
+# F2-18: avoid loading massive local reference models for untrusted or
+# whitespace-only scripts. The test deliberately does not execute a model.
+@pytest.mark.parametrize("bad",[
+    "                  ",
+    "Diwali\u202e kurti",
+    "Diwali\u2066 kurti",
+    "Diwali\u200b kurti",
+    "Diwali<svg>kurti",
+    "Diwali\nkurti",
+    "\u200dDiwali",
+    "Kur\u200cti",
+    "Kur\u200dti",
+    "kurti " * 251,
+])
+def test_f2_18_preflight_rejects_untrusted_reference_before_import(
+    monkeypatch,bad
+):
+    import builtins
+    monkeypatch.setenv("RETAIL_F2_OPENPRONOUNCE_ENABLED","true")
+    monkeypatch.setenv("HF_HUB_OFFLINE","1")
+    monkeypatch.setenv("TRANSFORMERS_OFFLINE","1")
+    monkeypatch.setenv("OPENPRONOUNCE_DEVICE","cpu")
+    monkeypatch.setenv("OPENPRONOUNCE_TTS","piper")
+    monkeypatch.setenv("RETAIL_F2_REFERENCE_AUDIO_PRELOADED","true")
+    observed=[]
+    original_import=builtins.__import__
+    def guarded_import(name,*args,**kwargs):
+        if name in ("soundfile","librosa","openpronounce"):
+            observed.append(name)
+            raise AssertionError("Heavy scoring library loaded for untrusted script")
+        return original_import(name,*args,**kwargs)
+    monkeypatch.setattr(builtins,"__import__",guarded_import)
+    with pytest.raises(VoiceQualityDenied,match="Actual reference script required"):
+        run_openpronounce_lazy(
+            original_wav=wav(),expected_script=bad,enabled=True)
+    assert observed==[]
