@@ -1,41 +1,55 @@
-import {useEffect,useRef,useState} from 'react'
-import {verifyPrivateFeature2Trace} from './voiceover-trace-model.mjs'
+import {useMemo,useRef,useState} from 'react'
+import {verifyCurrentPrivateTraceRead} from './voiceover-trace-model.mjs'
 
-// Source-only view: coordinator must supply a trusted authenticated RLS-backed
-// private trace endpoint, NOT a browser-held HMAC secret or a fixture response.
+// Only a trusted JWT/RLS-backed backend verifies worker HMAC. The browser
+// keeps each verified projection tied to the *exact current* signed reader.
+// A new authenticated session must install a new reader callback identity.
 export default function Feature2TracePanel({
   shopId,campaignId,workflowId,sourceSha256,
   enabled=false,onFetchPrivateTrace=null,
 }){
-  const [result,setResult]=useState(null)
-  const [error,setError]=useState('')
-  const [busy,setBusy]=useState(false)
-  const current=shopId+':'+campaignId+':'+workflowId+':'+sourceSha256
-  const scope=useRef(current)
-  scope.current=current
-  useEffect(()=>{
-    setResult(null);setError('')
-  },[current])
+  // Object identity deliberately changes on tenant, workflow, role toggle
+  // or backend provider replacement; avoid delimiter-collision string keys.
+  const scope=useMemo(()=>Object.freeze({
+    shopId,campaignId,workflowId,sourceSha256,
+    enabled,onFetchPrivateTrace,
+  }),[shopId,campaignId,workflowId,sourceSha256,enabled,onFetchPrivateTrace])
+  const scopeRef=useRef(scope)
+  scopeRef.current=scope
+  const [snapshot,setSnapshot]=useState(null)
+  const [alert,setAlert]=useState(null)
+  const [busyScope,setBusyScope]=useState(null)
+  const result=snapshot?.scope===scope&&enabled===true?snapshot.value:null
+  const error=alert?.scope===scope?alert.value:''
+  const busy=busyScope===scope
   async function refresh(){
-    if(enabled!==true||typeof onFetchPrivateTrace!=='function'){
-      setError('Authenticated private trace reader unavailable');return
+    const requested=scopeRef.current
+    if(requested.enabled!==true||typeof requested.onFetchPrivateTrace!=='function'){
+      setAlert({scope:requested,value:'Authenticated private trace reader unavailable'})
+      return
     }
-    const old=scope.current
-    setError('');setBusy(true)
+    setAlert(null);setBusyScope(requested)
     try{
-      const receipt=await onFetchPrivateTrace({
-        shop_id:shopId,campaign_id:campaignId,
-        workflow_id:workflowId,source_sha256:sourceSha256,
+      const receipt=await requested.onFetchPrivateTrace({
+        shop_id:requested.shopId,campaign_id:requested.campaignId,
+        workflow_id:requested.workflowId,source_sha256:requested.sourceSha256,
       })
-      const clean=verifyPrivateFeature2Trace({
-        shopId,campaignId,workflowId,sourceSha256,receipt,
+      // If shop/provider changed mid-read, never overwrite its UI with the old
+      // receipt, or use the old callback's success to infer current access.
+      if(requested!==scopeRef.current)return
+      const clean=verifyCurrentPrivateTraceRead({
+        currentScope:scopeRef.current,requestScope:requested,receipt,
       })
-      if(old!==scope.current)throw Error('Campaign or workflow revoked during read')
-      setResult(clean)
+      setSnapshot({scope:requested,value:clean})
     }catch(e){
-      setResult(null)
-      setError(e?.message||'Current private trace could not be verified')
-    }finally{setBusy(false)}
+      if(requested===scopeRef.current){
+        setSnapshot(null)
+        setAlert({scope:requested,
+          value:e?.message||'Current private trace could not be verified'})
+      }
+    }finally{
+      if(requested===scopeRef.current)setBusyScope(null)
+    }
   }
   if(!workflowId||!sourceSha256)return null
   return <section aria-label="Private creative workflow trace">
@@ -43,7 +57,7 @@ export default function Feature2TracePanel({
     <p>Private backend stage evidence only. Source and synthetic tests are not actual
       speech, human approval, GPU video, or published Reels.</p>
     <button type="button" onClick={refresh}
-      disabled={busy||!enabled||!onFetchPrivateTrace}>
+      disabled={busy||enabled!==true||typeof onFetchPrivateTrace!=='function'}>
       Read current protected workflow trace
     </button>
     {result&&<>
