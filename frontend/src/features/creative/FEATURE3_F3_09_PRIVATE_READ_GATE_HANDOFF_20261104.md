@@ -34,3 +34,13 @@ browser fixture if available; maintain open original task IDs, then safe
 feature-owned main integration with fresh main CI and separately reviewed docs.
 Real authenticated DEV, rights, mounted binary route and Azure #249 remain
 production acceptance gates, but **do not block these offline tests**.
+
+
+## 2026-11-04 — Mock browser scenario (same PR)
+Added a real Chromium Playwright scenario to existing `frontend/e2e/campaign-journey.spec.mjs`
+using isolated mocked Supabase/Auth and campaign API responses (not actual DEV
+identities). It walks persisted campaign -> opt-in CPU Studio -> editable text
+poster -> undo/redo -> downloaded day-bound JSON -> same-day reopen -> forged
+foreign-day JSON denial. Asserts no GPU/render/upload/signed-link side effects,
+and that a signed backend save remains disabled without a v2 API. GitHub
+frontend CI runs the existing browser tests. Not a hosted rights/RLS PASS.
