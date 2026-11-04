@@ -433,12 +433,29 @@ def read_registered_private_original_wav(*,shop_id,campaign_id,source_plan,
             media.get("can_publish") is not False or
             media.get("review_state")!="PENDING_HUMAN_LISTEN_AND_RIGHTS" or
             media.get("revoked_at") is not None or
-            media.get("local_inference_evidence") is not True):
+            media.get("local_inference_evidence") is not True or
+            # Private media metadata must not silently grant public reuse,
+            # paid provider calls or expose a URL while the bytes are pending
+            # human speech/rights review. Optional fields may be absent but
+            # their present denial must be literal False/zero/null.
+            any(key in media and media[key] is not False for key in
+                ("commercial_use_approved","approved_to_publish",
+                 "original_media_rights_verified","paid_motion_permitted",
+                 "paid_inference_authorized","customer_publishable")) or
+            ("paid_calls" in media and
+             (type(media["paid_calls"]) is not int or media["paid_calls"]!=0)) or
+            ("billing" in media and media["billing"]!="NONE") or
+            ("signed_url" in media and media["signed_url"] is not None) or
+            ("private_download_url" in media and
+             media["private_download_url"] is not None)):
             raise LocalVoiceJobDenied("Private original WAV registration or rights changed")
         return media
     if not current():
         raise LocalVoiceJobDenied("Editor revoked before original WAV download")
-    prior=registered()
+    # Keep a copy independent of the backend adapter's cache: two reads
+    # returning the same mutable dict must never compare equal after a
+    # concurrent membership/rights update.
+    prior=dict(registered())
     # Reader is server-selected by the registered asset; no client bucket or
     # object path. Blob bytes must not be logged or cached in shared state.
     raw=read_private_blob(shop_id,campaign_id,audio_asset_id)
