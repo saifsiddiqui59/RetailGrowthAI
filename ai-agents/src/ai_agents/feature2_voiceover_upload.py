@@ -190,6 +190,12 @@ def decode_unreviewed_mp3_to_private_wav(*, original_mp3, max_seconds,
                  "-threads","1","-protocol_whitelist","file,pipe",
                  "-f","mp3","-i",str(original),"-map","0:a:0",
                  "-vn","-sn","-dn","-ac","1","-ar","24000",
+                 # Bound temporary output BEFORE a hostile long/low-bitrate
+                 # MP3 can fill disk. Decode one second beyond the allowed
+                 # Reel length: a longer recording will still FAIL _inspect
+                 # rather than being silently accepted as truncated audio.
+                 "-t",str(max_seconds+1),
+                 "-fs",str((max_seconds+1)*24000*2+65536),
                  "-c:a","pcm_s16le","-f","wav",str(output)]
             process=subprocess.run(
                 cmd,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,
