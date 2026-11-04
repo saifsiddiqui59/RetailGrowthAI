@@ -268,7 +268,15 @@ def run_openpronounce_lazy(*,original_wav,expected_script,lang="en",enabled=Fals
         os.getenv("OPENPRONOUNCE_PHONEME_MODEL")=="off" or
         os.getenv("RETAIL_F2_REFERENCE_AUDIO_PRELOADED")!="true"):
         raise VoiceQualityDenied("Offline calibrated English reference model not approved")
-    if type(expected_script) is not str or not 1<=len(expected_script)<=1800:
+    # Validate the operator's actual original script BEFORE reading audio or
+    # importing multi-gigabyte scoring libraries. Whitespace-only, invisible
+    # direction marks, HTML and extremely token-dense scripts are not safe
+    # references for pronunciation diagnostics (and prove no real voice).
+    if (type(expected_script) is not str or
+        not 1<=len(expected_script)<=1800 or
+        not expected_script.strip() or
+        _unsafe_audio_display(expected_script) or
+        not 1<=len(_words(expected_script))<=250):
         raise VoiceQualityDenied("Actual reference script required")
     stats=pcm_stats(original_wav)
     try:
