@@ -12,7 +12,7 @@ import hashlib
 import json
 from collections.abc import Mapping
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 
 RUBRIC_WEIGHTS = {
@@ -737,6 +737,31 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
              (type(offer["percent_off"]) is not int or
               not 1<=offer["percent_off"]<=100))):
             raise EditorialBasisRejected("Unsafe or duplicate approved retailer offer")
+        # Source-provenance labels can outlive an offer. When a signed offer
+        # record includes lifecycle fields, require ALL of them to match the
+        # authoritative campaign day before treating its exact legal wording
+        # as source-backed. Old metadata-free fixtures remain review-only and
+        # do not become publication or commercial-accuracy approvals.
+        lifecycle=("active","revoked_at","valid_from","valid_until")
+        if any(key in offer for key in lifecycle):
+            day=verified_context.get("campaign_date")
+            start=offer.get("valid_from")
+            end=offer.get("valid_until")
+            if (offer.get("active") is not True or
+                offer.get("revoked_at") is not None or
+                any(type(value) is not str or
+                    re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}",value) is None
+                    for value in (day,start,end))):
+                raise EditorialBasisRejected("Offer lifecycle not approved for campaign")
+            try:
+                campaign_day=date.fromisoformat(day)
+                start_day=date.fromisoformat(start)
+                end_day=date.fromisoformat(end)
+            except ValueError as exc:
+                raise EditorialBasisRejected(
+                    "Offer lifecycle not approved for campaign") from exc
+            if not start_day<=campaign_day<=end_day:
+                raise EditorialBasisRejected("Offer outside current campaign window")
         approved_texts.add(claim.casefold())
     issues=set()
     for field,text in copy.items():
