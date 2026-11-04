@@ -304,13 +304,17 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_PENDING_EXACT_HEAD_CI",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Benchmark rejects RIFF trailer, duplicate data and mismatched declared extent using existing strict private PCM inspector",
         "test_cases": 3,
         "complete_scope": false,
         "blocker": "Real operator Kokoro model/hardware CPU benchmark still absent; synthetic PCM only",
-        "ci_status": "PENDING",
-        "source_commit": "BATCH_COMMIT_PENDING"
+        "ci_status": "SUCCESS_4_OF_4",
+        "source_commit": "06913842b1f28dd6455c0b2eabd153bb68016770",
+        "test_fix_commit": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
+        "ci_run_id": 41901100120,
+        "ci_sha": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
+        "main_integration_verified": false
       },
       "source_substep_history": [
         {
@@ -646,13 +650,17 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_PENDING_EXACT_HEAD_CI",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Signed reviewed prompt receipt disallows JS revision coercion and untrusted proposal rights escalation",
         "test_cases": 10,
         "complete_scope": false,
         "blocker": "Actual mounted Creative Studio and independent signed editor/backend CAS remain unverified",
-        "ci_status": "PENDING",
-        "source_commit": "BATCH_COMMIT_PENDING"
+        "ci_status": "SUCCESS_4_OF_4",
+        "source_commit": "06913842b1f28dd6455c0b2eabd153bb68016770",
+        "test_fix_commit": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
+        "ci_run_id": 41901100120,
+        "ci_sha": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
+        "main_integration_verified": false
       },
       "source_substep_history": [
         {
@@ -716,14 +724,11 @@
   "latest_verified_source_substeps": {
     "state": "TESTED_SOURCE_SUBSTEPS_NOT_MAIN_DONE",
     "tasks": [
-      "F2-08",
-      "F2-10",
-      "F2-12",
-      "F2-21",
-      "F2-27"
+      "F2-15",
+      "F2-31"
     ],
-    "ci_run_id": 41850403506,
-    "ci_sha": "94ff9ec41b71fcca91809567e86d2cc429b8ac1c",
+    "ci_run_id": 41901100120,
+    "ci_sha": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
     "main_integration_verified": false
   }
 }
