@@ -43,7 +43,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Validate signed offer active/revoked status and campaign date window before treating legal claim wording as source-backed",
         "source_commits": [
           "32a13c841e2832e9fc5a6900a440f3c39a1f4ed6",
@@ -54,7 +54,9 @@
         ],
         "test_cases": 13,
         "complete_scope": false,
-        "blocker": "Commercial copy still needs real current signed retailer facts, rights and independent human approval"
+        "blocker": "Commercial copy still needs real current signed retailer facts, rights and independent human approval",
+        "ci_run_id": 41813227582,
+        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34"
       },
       "source_substep_history": [
         {
@@ -260,7 +262,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Reject Unicode surrogate spoofing in signed F7 word displays without falsifying Indic transcription",
         "source_commits": [
           "aab1466735f64f979177cba62aea30a4798db5b9"
@@ -270,7 +272,9 @@
         ],
         "test_cases": 4,
         "complete_scope": false,
-        "blocker": "Real Feature7 original WAV model/weights, signed ASR and human listening acceptance unavailable"
+        "blocker": "Real Feature7 original WAV model/weights, signed ASR and human listening acceptance unavailable",
+        "ci_run_id": 41813227582,
+        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34"
       },
       "source_substep_history": [
         {
@@ -336,7 +340,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "Coordinator + F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Private original WAV reader snapshots metadata across readback and denies forged rights, billable calls and URL fields",
         "source_commits": [
           "0a2fe67b95fd91a146f332c7f7741c4af41219e3"
@@ -346,7 +350,9 @@
         ],
         "test_cases": 13,
         "complete_scope": false,
-        "blocker": "Hosted tenant private media reader, JWT/RLS, original binary endpoint and owner rights verification not live"
+        "blocker": "Hosted tenant private media reader, JWT/RLS, original binary endpoint and owner rights verification not live",
+        "ci_run_id": 41813227582,
+        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34"
       },
       "source_substep_history": [
         {
@@ -413,7 +419,7 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
         "name": "Frontend private F7 reviewer rejects unpaired UTF16 surrogates while retaining valid supplementary script words",
         "source_commits": [
           "d9b4b279629f1c6b2b41d47209845f301f223a56"
@@ -423,7 +429,9 @@
         ],
         "test_cases": 9,
         "complete_scope": false,
-        "blocker": "Actual mounted Creative Studio, signed reviewer identities and trusted F7 audio endpoints not deployed"
+        "blocker": "Actual mounted Creative Studio, signed reviewer identities and trusted F7 audio endpoints not deployed",
+        "ci_run_id": 41813227582,
+        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34"
       },
       "source_substep_history": [
         {
@@ -581,13 +589,13 @@
   "latest_verified_source_substeps": {
     "state": "TESTED_SOURCE_SUBSTEPS_NOT_MAIN_DONE",
     "tasks": [
-      "F2-15",
-      "F2-18",
-      "F2-19",
-      "F2-29"
+      "F2-02",
+      "F2-17",
+      "F2-20",
+      "F2-26"
     ],
-    "ci_run_id": 41812081011,
-    "ci_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+    "ci_run_id": 41813227582,
+    "ci_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
     "main_integration_verified": false
   }
 }
