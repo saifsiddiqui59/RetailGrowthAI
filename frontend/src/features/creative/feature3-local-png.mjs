@@ -87,10 +87,15 @@ export function renderFeature3LocalDraft(canvas, draft, authorizedImages = {}) {
     throw new Error('A local canvas and already-authorized media map are required')
   }
   const [width, height] = FEATURE3_FORMATS[document.format]
-  const images = {}
+  // A null-prototype registry prevents inherited keys (constructor,
+  // __proto__, toString) from bypassing the private-image preflight.
+  const images = Object.create(null)
   // Check ALL image layers first; avoid partial outputs if an asset was revoked.
   for (const layer of document.layers) {
-    if (layer.type !== 'image' || images[layer.asset_id]) continue
+    if (layer.type !== 'image' || Object.hasOwn(images, layer.asset_id)) continue
+    if (!Object.hasOwn(authorizedImages, layer.asset_id)) {
+      throw new Error('Registered private product media is unavailable for draft preview')
+    }
     const image = authorizedImages[layer.asset_id]
     if (!availableImage(image)) {
       throw new Error('Registered private product media is unavailable for draft preview')
