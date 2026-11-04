@@ -134,3 +134,48 @@ def test_structural_node_attestation_denies_elf_header_and_segment_spoofing():
         assert not _node_binary_attested(
             bytes(tampered), sha256(tampered).hexdigest()
         )
+
+
+def test_f2_01_runtime_zip_rejects_unix_symlink_member():
+    from ai_agents.feature2_director_runtime_gate import audit_zip
+    import stat
+    import pytest
+    with tempfile.TemporaryDirectory() as folder:
+        path=Path(folder)/"candidate.zip"
+        # Symlink target bytes would be an archive member only; no extraction,
+        # external path access, binary download, or deployment occurs here.
+        entry=ZipInfo("ai_agents/creative-director/director.js")
+        entry.create_system=3
+        entry.external_attr=(stat.S_IFLNK|0o777)<<16
+        with ZipFile(path,"w") as z:
+            z.writestr(entry,b"../../outside-director.js")
+        with pytest.raises(ValueError,match="symlink"):
+            audit_zip(str(path))
+
+
+def test_f2_01_runtime_zip_rejects_symlink_hidden_as_unrelated_member():
+    from ai_agents.feature2_director_runtime_gate import audit_zip
+    import stat
+    import pytest
+    with tempfile.TemporaryDirectory() as folder:
+        path=Path(folder)/"candidate.zip"
+        link=ZipInfo("metadata/innocent.bin")
+        link.create_system=3
+        link.external_attr=(stat.S_IFLNK|0o777)<<16
+        with ZipFile(path,"w") as z:
+            z.writestr("ai_agents/creative-director/director.js",b"source")
+            z.writestr(link,b"../../../bin/node")
+        with pytest.raises(ValueError,match="symlink"):
+            audit_zip(str(path))
+
+
+def test_f2_01_regular_zip_entry_remains_unready_without_runtime_approval():
+    from ai_agents.feature2_director_runtime_gate import audit_zip
+    with tempfile.TemporaryDirectory() as folder:
+        path=Path(folder)/"candidate.zip"
+        with ZipFile(path,"w") as z:
+            z.writestr("ai_agents/creative-director/director.js",b"source")
+        audit=audit_zip(str(path))
+        assert audit.ready_to_enable is False
+        assert "NODE_RUNTIME_NOT_IN_FUNCTION_ZIP" in audit.blocking_reasons
+        assert "DEPLOYED_LINUX_NODE22_RUNTIME_UNVERIFIED" in audit.blocking_reasons
