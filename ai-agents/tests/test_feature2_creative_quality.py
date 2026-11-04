@@ -787,3 +787,34 @@ def test_f2_08_writer_cannot_mutate_review_scores_after_signed_cas():
     with pytest.raises(Feature2TraceDenied,match="Durable human review revision"):
         run()
     assert len(writes)==1
+
+
+# F2-12: Python bool == int is not durable monotone trace sequencing.
+def test_f2_12_trace_cas_rejects_boolean_sequence_even_for_first_event():
+    run,rows=trace_case(receipt_override={"sequence":True})
+    with pytest.raises(Feature2TraceDenied,match="append not verified"):
+        run()
+    assert len(rows)==1
+
+
+def test_f2_12_trace_read_rejects_boolean_previous_sequence():
+    run,rows=trace_case()
+    first=run(stage="TREND",status="STARTED",output=None)
+    rows[0]["sequence"]=True  # True compares equal to expected sequence 1.
+    with pytest.raises(Feature2TraceDenied,match="Current private trace chain changed"):
+        run(stage="AI_WRITER",num=2,prior=first["event_sha256"],
+            eid="55555555-5555-4555-8555-555555555555")
+    assert len(rows)==1
+
+
+@pytest.mark.parametrize("extra",[
+    {"signed_url":"https://example.invalid/trace"},
+    {"can_dispatch_motion":True},
+    {"can_dispatch_motion":0},
+    {"may_auto_invoke_azure":"false"},
+])
+def test_f2_12_trace_cas_refuses_hidden_public_or_paid_grants(extra):
+    run,rows=trace_case(receipt_override=extra)
+    with pytest.raises(Feature2TraceDenied,match="append not verified"):
+        run()
+    assert len(rows)==1
