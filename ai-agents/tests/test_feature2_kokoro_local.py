@@ -285,6 +285,7 @@ def test_pinned_model_file_symlink_swap_during_open_fails_closed(tmp_path,monkey
 
 @pytest.mark.parametrize("corrupt",[
     "riff_only","duration","publish","transcript","timings",
+    "paid_bool","rate_float",
 ])
 def test_cpu_benchmark_denies_forged_wav_or_authority_receipts(corrupt):
     # No real model/weights, network or billed provider calls in this test.
@@ -320,6 +321,10 @@ def test_cpu_benchmark_denies_forged_wav_or_authority_receipts(corrupt):
             record["approved_to_publish"]=True
         elif corrupt=="transcript":
             record["speech_transcript_verified"]=True
+        elif corrupt=="paid_bool":
+            record["paid_calls"]=False  # bool is not a verified integer zero
+        elif corrupt=="rate_float":
+            record["sample_rate_hz"]=24000.0
         else:
             record["word_timestamps"]=[{"word":"synthetic"}]
         return record
@@ -355,6 +360,11 @@ def test_benchmark_pcm_integrity_positive_without_numpy_or_model_weights():
     assert outcome["sample_count"]==1
     assert outcome["observations"][0]["audio_seconds"]==1.0
     assert outcome["test_only"] and not outcome["real_model_inference_verified"]
+    assert outcome["warm_observation_count"]==0
+    assert outcome["cold_start_and_warm_are_same_process"] is True
+    assert outcome["median_real_time_factor"]==outcome["worst_real_time_factor"]
+    assert outcome["total_measured_wall_seconds"]>=0
+    assert outcome["cloud_vm_or_electricity_cost_estimate_usd"] is None
     assert not outcome["can_publish"]
 
 
