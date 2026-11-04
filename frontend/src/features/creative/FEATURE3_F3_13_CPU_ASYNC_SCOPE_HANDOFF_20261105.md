@@ -27,3 +27,8 @@ No WineShopPOS, PROD, DEV SQL or paid cloud actions.
 - Found that `FEATURE3_FORMATS[raw.format]` previously accepted inherited JavaScript property names such as `constructor` and `__proto__` as a non-empty format. Later canvas dimension destructuring could crash, rather than issuing an early invalid-document denial.
 - `validateFeature3Design` now requires a string format that is an **own key** of the fixed allowlist, and strictly typed hex colours; malformed prototype names, object formats, or coercible colours are denied. No valid v2 document shape changes.
 - `tests/frontend/feature3-design.test.mjs` adds rejected payload negatives and a valid `story` control. This is source-only input validation, not an approved hosted poster.
+
+## F3-13 inherited private media map negative (same source batch)
+- The local CPU renderer's ordinary `{}` image cache could treat inherited `constructor`/`__proto__` keys as already-authorized image entries, skipping private-image preflight. Untrusted `authorizedImages` could also inherit a fake image object from its prototype.
+- Use a null-prototype local registry and require an **own** authorized image-map property before rendering any pixels. Node regression denies an inherited normal asset and prototype-named image without rights, and verifies an explicitly owned synthetic image still renders.
+- Source-only fixture checks. No hosted media rights or customer approval inferred.
