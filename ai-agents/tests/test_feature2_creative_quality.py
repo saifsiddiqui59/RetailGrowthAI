@@ -278,8 +278,10 @@ def test_trace_revocation_after_initial_read_denies_durable_append():
 from ai_agents.feature2_creative_quality import stage_blind_human_review_revision
 
 def human_case(*,verify=lambda *v:True,editor=lambda *v:True,rev=0,
-               receipt_override=None):
-    candidates={"A":fixture(15),"B":fixture(30)}
+               receipt_override=None,candidates_override=None,
+               mutate_payload=None):
+    candidates=({"A":fixture(15),"B":fixture(30)}
+                if candidates_override is None else candidates_override)
     reviews=[{"candidate_id":candidate,"reviewer_id":reviewer,
               "scores":{k:3 for k in RUBRIC_WEIGHTS}}
              for candidate in ("A","B")
@@ -287,6 +289,8 @@ def human_case(*,verify=lambda *v:True,editor=lambda *v:True,rev=0,
     stored=[]
     def save(s,c,e,revision,digest,record):
         stored.append(record)
+        if mutate_payload is not None:
+            mutate_payload(record)
         return {"shop_id":s,"campaign_id":c,
                 "experiment_id":e,"revision":revision+1,
                 "receipt_digest":digest,"private":True,
@@ -730,3 +734,56 @@ def test_f2_12_trace_receipt_explicit_unpaid_review_only_metadata_passes():
     assert result["can_publish"] is False
     assert result["private"] is True
     assert result["evidence_class"]=="SOURCE_ONLY"
+
+
+# F2-08: structural comparisons to the same mutable backend object are
+# insufficient when review verification or private CAS callbacks mutate it.
+def test_f2_08_mutable_candidate_alias_during_signed_review_is_denied():
+    shared={"A":fixture(15),"B":fixture(30)}
+    touched=[]
+    def verify(*_):
+        if not touched:
+            shared["A"]["creative_direction_v1"]["voiceover_script"]="changed after verification began"
+        touched.append(True)
+        return True
+    run,writes=human_case(verify=verify,candidates_override=shared)
+    with pytest.raises(Feature2TraceDenied,match="candidate changed before durable revision"):
+        run()
+    assert touched and writes==[]
+
+
+def test_f2_08_mutable_reviewer_rows_during_signed_verification_are_denied():
+    rows=[{"candidate_id":candidate,"reviewer_id":reviewer,
+           "scores":{key:3 for key in RUBRIC_WEIGHTS}}
+          for candidate in ("A","B")
+          for reviewer in ("signed-human-one","signed-human-two")]
+    touched=[]
+    def verify(*_):
+        if not touched:
+            rows[0]["scores"]["storytelling_and_hook"]=1
+        touched.append(True)
+        return True
+    run,writes=human_case(verify=verify)
+    with pytest.raises(Feature2TraceDenied,match="candidate changed before durable revision"):
+        run(reviews=rows)
+    assert touched and writes==[]
+
+
+@pytest.mark.parametrize("forgery", [
+    {"revision":True},
+    {"signed_url":"https://example.invalid/reviewer"},
+])
+def test_f2_08_cas_denies_ambiguous_revision_or_external_url(forgery):
+    run,writes=human_case(receipt_override=forgery)
+    with pytest.raises(Feature2TraceDenied,match="Durable human review revision"):
+        run()
+    assert len(writes)==1
+
+
+def test_f2_08_writer_cannot_mutate_review_scores_after_signed_cas():
+    def mutate(record):
+        record["review_result"]["blind_review_results"]["A"]=99.0
+    run,writes=human_case(mutate_payload=mutate)
+    with pytest.raises(Feature2TraceDenied,match="Durable human review revision"):
+        run()
+    assert len(writes)==1
