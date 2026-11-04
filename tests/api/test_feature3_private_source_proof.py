@@ -120,7 +120,7 @@ class PrivateSourceProofTests(unittest.TestCase):
             "rights_revision":3,"private_bytes_verified":True,
             "independent_license_verified":True,
             "current_customer_approval":True,"rights_revoked":False})
-        self.assertEqual([x[0] for x in self.calls],["get","review","review"])
+        self.assertEqual([x[0] for x in self.calls],["review","get","review"])
         self.assertNotIn("object_path",receipt)
         self.assertNotIn("url",receipt)
         self.assertNotIn("image_bytes",receipt)
@@ -153,11 +153,65 @@ class PrivateSourceProofTests(unittest.TestCase):
                 f"{self.shop}/model-library/{self.model}/{digest}{ext}")
             self.assertEqual(self.proof(self.shop,self.row)["image_sha256"],digest)
 
+    def test_truncated_jpeg_header_verify_cannot_attest_private_pixels(self):
+        # Pillow JPEG verify() accepts some truncated entropy-coded streams.
+        # Full decode must reject them before the post-read rights approval.
+        original=image_bytes("JPEG")
+        for lost in (2,20,80):
+            self.setUp()
+            truncated=original[:-lost]
+            with Image.open(BytesIO(truncated)) as header:
+                header.verify()
+            digest=sha256(truncated).hexdigest()
+            self.http_payload=truncated
+            self.http_mime="image/jpeg"
+            self.row["mime_type"]="image/jpeg"
+            self.row["object_path"]=(
+                f"{self.shop}/model-library/{self.model}/{digest}.jpg")
+            with self.subTest(truncated_bytes=lost), self.assertRaisesRegex(
+                    SourceProofDenied,"Invalid real private image"):
+                self.proof(self.shop,self.row)
+            self.assertEqual([call[0] for call in self.calls],["review","get"])
+
+    def test_mutable_caller_row_cannot_rewrite_rights_evidence_during_private_read(self):
+        # A service-owned HTTP transport may invoke callbacks while reading.
+        # Both independent rights checks must receive the same validated
+        # registered metadata, not a caller's mid-flight replacement.
+        original=copy.deepcopy(self.row)
+        observed=[]
+        def independent_review(shop,asset,digest,row):
+            observed.append(copy.deepcopy(row))
+            return {
+                "shop_id":shop,"asset_id":asset,"image_sha256":digest,
+                "rights_revision":3,"independent_license_verified":True,
+                "current_customer_approval":True,"rights_revoked":False,
+            }
+        self.proof.review=independent_review
+        def mutate_caller_row():
+            self.row.update({
+                "license_name":"commercial",
+                "license_url":"https://license.example/replaced",
+                "attribution":"Changed provenance while private bytes were read",
+                "mime_type":"image/jpeg",
+            })
+        self.read_hook=mutate_caller_row
+        receipt=self.proof(self.shop,self.row)
+        self.assertEqual(receipt["image_sha256"],self.sha)
+        self.assertEqual(observed,[original,original])
+        self.assertEqual([event[0] for event in self.calls],["get"])
+
+    def test_untrusted_mapping_subclass_denied_before_private_read(self):
+        class MutableRow(dict):
+            pass
+        with self.assertRaises(SourceProofDenied):
+            self.proof(self.shop,MutableRow(self.row))
+        self.assertEqual(self.calls,[])
+
     def test_revoked_rights_after_private_bytes_read_denied(self):
         self.revoke_second=True
         with self.assertRaises(SourceProofDenied):
             self.proof(self.shop,self.row)
-        self.assertEqual([x[0] for x in self.calls],["get","review","review"])
+        self.assertEqual([x[0] for x in self.calls],["review","get","review"])
 
     def test_revision_change_after_first_review_denied(self):
         self.change_revision_second=True
@@ -168,7 +222,34 @@ class PrivateSourceProofTests(unittest.TestCase):
         self.read_hook=lambda:setattr(self,"authorized",False)
         with self.assertRaises(SourceProofDenied):
             self.proof(self.shop,self.row)
-        self.assertEqual([x[0] for x in self.calls],["get","review"])
+        self.assertEqual([x[0] for x in self.calls],["review","get","review"])
+
+    def test_revoked_model_original_never_reaches_service_role_storage(self):
+        # The SHA in an immutable model key is a *candidate* preflight digest.
+        # An independent revoked/absent license denies before any private GET.
+        for revoked in (False, True):
+            self.setUp()
+            self.authorized=revoked
+            if revoked:
+                self.revoke_second=True
+                # The second review simulates revocation while bytes are read.
+                with self.assertRaises(SourceProofDenied):
+                    self.proof(self.shop,self.row)
+                self.assertEqual([x[0] for x in self.calls],
+                                 ["review","get","review"])
+            else:
+                with self.assertRaises(SourceProofDenied):
+                    self.proof(self.shop,self.row)
+                self.assertEqual([x[0] for x in self.calls],["review"])
+
+    def test_generic_upload_without_immutable_digest_still_checks_twice(self):
+        # Generic uploads have no registered SHA path; unlike immutable model
+        # originals they cannot be independently authorized with a digest
+        # until the service has read the bytes. Do not claim an early check.
+        self.row["object_path"]=f"{self.shop}/retailer-original/original.png"
+        self.assertEqual(self.proof(self.shop,self.row)["image_sha256"],self.sha)
+        self.assertEqual([x[0] for x in self.calls],
+                         ["get","review","review"])
 
     def test_missing_authority_refuses_even_real_original_png(self):
         self.authorized=False
@@ -222,7 +303,7 @@ class PrivateSourceProofTests(unittest.TestCase):
             setattr(self,flag,value)
             with self.subTest(flag=flag),self.assertRaises(SourceProofDenied):
                 self.proof(self.shop,self.row)
-            self.assertEqual([x[0] for x in self.calls],["get"])
+            self.assertEqual([x[0] for x in self.calls],["review","get"])
 
     def test_true_private_content_length_must_match_real_read_bytes(self):
         for declared in ("0",str(len(self.png)-1),str(len(self.png)+1)):
@@ -231,7 +312,7 @@ class PrivateSourceProofTests(unittest.TestCase):
             with self.subTest(length=declared),self.assertRaisesRegex(
                     SourceProofDenied,"length changed"):
                 self.proof(self.shop,self.row)
-            self.assertEqual([c[0] for c in self.calls],["get"])
+            self.assertEqual([c[0] for c in self.calls],["review","get"])
 
     def test_encoded_original_transport_denied_before_rights_review(self):
         # Even if a mocked proxy supplies valid PNG bytes, a non-identity
@@ -245,7 +326,7 @@ class PrivateSourceProofTests(unittest.TestCase):
             with self.subTest(encoding=encoding),self.assertRaises(
                     SourceProofDenied):
                 self.proof(self.shop,self.row)
-            self.assertEqual([x[0] for x in self.calls],["get"])
+            self.assertEqual([x[0] for x in self.calls],["review","get"])
         self.setUp()
         self.content_encoding=" identity "
         self.assertEqual(self.proof(self.shop,self.row)["image_sha256"],self.sha)
@@ -259,7 +340,7 @@ class PrivateSourceProofTests(unittest.TestCase):
         # a replaced original into an approved model source.
         with self.assertRaisesRegex(SourceProofDenied,"immutable path SHA"):
             self.proof(self.shop,self.row)
-        self.assertEqual([c[0] for c in self.calls],["get"])
+        self.assertEqual([c[0] for c in self.calls],["review","get"])
 
     def test_invalid_model_original_namespace_and_digest_name_denied(self):
         for key in (
@@ -283,16 +364,352 @@ class PrivateSourceProofTests(unittest.TestCase):
         for origin in ("http://fictional.supabase.co",
                        "https://fictional.supabase.co.evil.org",
                        "https://bob:pass@fictional.supabase.co",
-                       "https://fictional.supabase.co/path"):
-            with self.subTest(origin=origin),self.assertRaises(ValueError):
+                       "https://fictional.supabase.co/path",
+                       " https://fictional.supabase.co",
+                       "https://fictional.supabase.co\\n".replace("\\n","\n"),
+                       "https://fictional.supabase.co\\t".replace("\\t","\t"),
+                       "https://fictional.supabase.co?",
+                       "https://fictional.supabase.co#",
+                       "https://fictional.supabase.co/"+"a"*260):
+            with self.subTest(origin=repr(origin)),self.assertRaises(ValueError):
                 Feature3TrustedPrivateSourceProof(
                     origin=origin,backend_secret="sb_secret_"+"z"*36,
                     review_authority=self.review,transport=self.transport)
-        with self.assertRaises(ValueError):
-            Feature3TrustedPrivateSourceProof(
-                origin="https://fictional.supabase.co",
-                backend_secret="sb_publishable_NO",
-                review_authority=self.review,transport=self.transport)
+        for secret in ("sb_publishable_NO",
+                       "sb_secret_"+"z"*36+"\\x7f".replace("\\x7f","\x7f"),
+                       "sb_secret_"+"z"*36+"\u2028",
+                       "sb_secret_"+"z"*36+"\\r\\nX: yes".replace("\\r","\r").replace("\\n","\n"),
+                       "sb_secret_"+"z"*4090,
+                       "eyJ"+"a"*60+".b.c"+"\u00a0"):
+            with self.subTest(secret_type=repr(secret[:14])), self.assertRaises(ValueError):
+                Feature3TrustedPrivateSourceProof(
+                    origin="https://fictional.supabase.co",
+                    backend_secret=secret,
+                    review_authority=self.review,transport=self.transport)
+        valid=Feature3TrustedPrivateSourceProof(
+            origin="https://fictional.supabase.co/",
+            backend_secret="sb_secret_"+"z"*36,
+            review_authority=self.review,transport=self.transport)
+        self.assertEqual(valid.origin,"https://fictional.supabase.co")
+        legacy="eyJ"+"a"*20+"."+"b"*20+"."+"c"*20
+        jwt=Feature3TrustedPrivateSourceProof(
+            origin="https://fictional.supabase.co",
+            backend_secret=legacy,
+            review_authority=self.review,transport=self.transport)
+        self.assertEqual(jwt.headers["Authorization"],"Bearer "+legacy)
+
+    def test_malformed_registered_license_metadata_denied_before_storage(self):
+        # A malformed row must never trigger even a private service-role GET.
+        changes=[
+            {"mime_type":["image/png"]},
+            {"mime_type":None},
+            {"license_name":["owned"]},
+            {"license_name":None},
+            {"license_url":"http://license.example/rights"},
+            {"license_url":"https://user:pass@license.example/rights"},
+            {"license_url":"https://license.example:444/rights"},
+            {"license_url":"https://license.example/rights\\nInjected: yes".replace("\\n","\n")},
+            {"license_url":"https://license.example/"+"a"*501},
+            {"license_url":["https://license.example/rights"]},
+            {"attribution":"independent\nfalse approval"},
+            {"attribution":"x"*201},
+            {"attribution":None},
+            {"license_name":"cc0","license_url":None},
+        ]
+        for change in changes:
+            self.setUp()
+            self.row.update(change)
+            with self.subTest(change=repr(change)),self.assertRaises(SourceProofDenied):
+                self.proof(self.shop,self.row)
+            self.assertEqual(self.calls,[])
+
+    def test_invisible_unicode_and_padded_provenance_denied_before_private_read(self):
+        # Invisible/bidi controls can spoof the displayed commercial-rights
+        # attribution. Reject before independent review or service-key GET.
+        for attribution in (
+            "Licensed source \u202e moc.elpmaxe",  # bidi override
+            "Licensed \u200b source original",      # zero-width space
+            "Licensed \u2060 source original",      # word joiner
+            "Licensed \u2066 source original",      # bidi isolate
+            "Licensed \ufeff source original",      # BOM
+            "Licensed \u0085 source original",      # C1 control
+            "Licensed \u2028 source original",      # Unicode line separator
+            "Licensed \u2029 source original",      # paragraph separator
+            "Licensed \ud800 source original",      # lone surrogate
+            "Independently licensed" + " " * 201,  # raw length bypass
+        ):
+            self.setUp()
+            self.row["attribution"] = attribution
+            with self.subTest(attribution=ascii(attribution)), self.assertRaises(
+                    SourceProofDenied):
+                self.proof(self.shop, self.row)
+            self.assertEqual(self.calls, [])
+
+        # Ordinary Indic text and combining marks remain valid provenance.
+        self.setUp()
+        self.row["attribution"] = "Commercially licensed image by महाराष्ट्र studio © 2026"
+        self.assertEqual(self.proof(self.shop, self.row)["image_sha256"], self.sha)
+        self.assertEqual([call[0] for call in self.calls],
+                         ["review", "get", "review"])
+
+    def test_ambiguous_declared_license_urls_denied_before_private_read(self):
+        # Python and browser URL parsers disagree on backslashes; malformed
+        # percent escapes can also misrepresent the shown rights declaration.
+        # Deny without consulting the review authority or service-key Storage.
+        for url in (
+            "https://license.example\\rights",
+            "https://license.example/rights\\other",
+            "https://license.example/%zz",
+            "https://license.example/rights?source=%0",
+            "https://license.example/rights%",
+            "https://%65xample.com/rights",  # percent-encoded hostname
+            "https://license%2eexample/rights",
+            "https://license.example:/rights",  # empty explicit port
+            "https://license.example:0443/rights",
+            "https://license.example:000443/rights",
+        ):
+            self.setUp()
+            self.row["license_name"] = "cc0"
+            self.row["license_url"] = url
+            with self.subTest(url=url), self.assertRaises(SourceProofDenied):
+                self.proof(self.shop, self.row)
+            self.assertEqual(self.calls, [])
+
+        # Correctly encoded HTTPS provenance remains usable as metadata, but
+        # independent current rights are still mandatory for source approval.
+        self.setUp()
+        self.row["license_name"] = "cc0"
+        self.row["license_url"] = "https://license.example/rights%20proof?edition=1"
+        self.assertEqual(self.proof(self.shop, self.row)["image_sha256"], self.sha)
+        self.assertEqual([c[0] for c in self.calls], ["review", "get", "review"])
+
+        # An explicitly canonical HTTPS :443 authority remains supported.
+        self.setUp()
+        self.row["license_name"] = "cc0"
+        self.row["license_url"] = "https://license.example:443/rights%20proof"
+        self.assertEqual(self.proof(self.shop, self.row)["image_sha256"], self.sha)
+        self.assertEqual([c[0] for c in self.calls], ["review", "get", "review"])
+
+    def test_local_or_noncanonical_provenance_authorities_denied_without_get(self):
+        # These are reviewer-facing declarations, not independent proof.
+        # Reject ambiguous local/IP/empty-label hosts before private GET.
+        for url in (
+            "https://localhost/license",
+            "https://127.0.0.1/license",
+            "https://10.0.0.1/license",
+            "https://[::1]/license",
+            "https://license.example./rights",
+            "https://license..example/rights",
+            "https://-license.example/rights",
+            "https://license-.example/rights",
+        ):
+            self.setUp()
+            self.row["license_name"] = "cc0"
+            self.row["license_url"] = url
+            with self.subTest(url=url), self.assertRaises(SourceProofDenied):
+                self.proof(self.shop, self.row)
+            self.assertEqual(self.calls, [])
+
+    def test_valid_declared_license_url_never_substitutes_for_review(self):
+        self.row["license_name"]="cc0"
+        self.row["license_url"]="https://license.example/licenses/cc0"
+        self.authorized=False
+        with self.assertRaises(SourceProofDenied):
+            self.proof(self.shop,self.row)
+        self.assertEqual([c[0] for c in self.calls],["review"])
+        self.calls.clear()
+        self.authorized=True
+        self.assertEqual(self.proof(self.shop,self.row)["image_sha256"],self.sha)
+        self.assertEqual([c[0] for c in self.calls],["review","get","review"])
+
+    def test_malformed_private_http_headers_never_reach_review(self):
+        # Fake transports may return malformed header objects or typed values;
+        # all such acknowledgements must fail closed, not cause an uncaught
+        # AttributeError or bypass immutable-byte verification.
+        for headers in (None, [], "not-headers",
+                        {"Content-Type":7},
+                        {"Content-Type":object()},
+                        {"Content-Type":"image/png","Content-Length":7},
+                        {"Content-Type":"image/png","Content-Encoding":[]},
+                        {"Content-Type":"text/html"}):
+            self.setUp()
+            original=self.proof.transport
+            def malformed(req,*,timeout):
+                response=original(req,timeout=timeout)
+                response.headers=headers
+                return response
+            self.proof.transport=malformed
+            with self.subTest(headers=repr(headers)),self.assertRaises(SourceProofDenied):
+                self.proof(self.shop,self.row)
+            self.assertEqual([c[0] for c in self.calls],["review","get"])
+
+
+    def test_missing_transport_methods_and_header_get_fail_closed(self):
+        # Real private Storage reads must fail closed when a gateway or
+        # injected transport does not implement the expected HTTP interface.
+        # No malformed response can reach the post-read rights receipt.
+        for missing in ("geturl", "getcode", "read"):
+            self.setUp()
+            original=self.proof.transport
+            def malformed(req,*,timeout):
+                response=original(req,timeout=timeout)
+                setattr(response,missing,None)
+                return response
+            self.proof.transport=malformed
+            with self.subTest(missing=missing), self.assertRaises(SourceProofDenied):
+                self.proof(self.shop,self.row)
+            self.assertEqual([c[0] for c in self.calls],["review","get"])
+
+        self.setUp()
+        original=self.proof.transport
+        class FailingHeaders:
+            def get(self,key):
+                raise TypeError("malformed proxy header accessor")
+        def malformed_headers(req,*,timeout):
+            response=original(req,timeout=timeout)
+            response.headers=FailingHeaders()
+            return response
+        self.proof.transport=malformed_headers
+        with self.assertRaises(SourceProofDenied):
+            self.proof(self.shop,self.row)
+        self.assertEqual([c[0] for c in self.calls],["review","get"])
+
+    def test_rights_authority_outage_denies_before_model_original_get(self):
+        # A real review service outage must never fall back to trusting a
+        # registered model's SHA key or retailer-declared license metadata.
+        for failure in (TimeoutError, ConnectionError, RuntimeError):
+            self.setUp()
+            def unavailable(*_args):
+                raise failure("sensitive rights backend details")
+            self.proof.review=unavailable
+            with self.subTest(failure=failure.__name__), self.assertRaisesRegex(
+                    SourceProofDenied,"review unavailable"):
+                self.proof(self.shop,self.row)
+            self.assertEqual(self.calls,[])
+
+    def test_generic_source_authority_outage_never_produces_attestation(self):
+        # Generic keys lack an immutable pre-read digest; preserve this
+        # explicit limitation and still reject an unavailable post-read
+        # independent reviewer. No success receipt or GPU authorization.
+        self.row["object_path"]=f"{self.shop}/retailer-original/original.png"
+        def unavailable(*_args):
+            raise TimeoutError("offline rights review")
+        self.proof.review=unavailable
+        with self.assertRaisesRegex(SourceProofDenied,"review unavailable"):
+            self.proof(self.shop,self.row)
+        self.assertEqual([c[0] for c in self.calls],["get"])
+
+
+    def test_private_transport_runtime_failures_are_opaque_and_never_approved(self):
+        # An injected proxy can fail at open, response status, header lookup
+        # or byte read. No raw RuntimeError may escape the service-key boundary
+        # or trigger a post-read current-rights approval.
+        for stage in ("open", "status", "headers", "read"):
+            self.setUp()
+            original=self.proof.transport
+            def broken(req, *, timeout):
+                if stage=="open":
+                    self.calls.append(("get",req.full_url))
+                    raise RuntimeError("sensitive private gateway detail")
+                response=original(req,timeout=timeout)
+                def fail(*_args,**_kwargs):
+                    raise RuntimeError("sensitive private gateway detail")
+                if stage=="status":
+                    response.getcode=fail
+                elif stage=="headers":
+                    class FailingHeaders:
+                        def get(self,_key):
+                            return fail()
+                    response.headers=FailingHeaders()
+                else:
+                    response.read=fail
+                return response
+            self.proof.transport=broken
+            with self.subTest(stage=stage),self.assertRaisesRegex(
+                    SourceProofDenied,"byte read unavailable"):
+                self.proof(self.shop,self.row)
+            self.assertEqual([x[0] for x in self.calls],["review","get"])
+
+
+    def test_unexpected_private_transport_errors_are_opaque(self):
+        # Arbitrary ordinary proxy errors (not only urllib/OSError) cannot
+        # leak from a service-key read or produce a second rights receipt.
+        for failure in (KeyError, LookupError, AssertionError, ConnectionError):
+            for stage in ("open", "status", "headers", "read"):
+                self.setUp()
+                original = self.proof.transport
+                def broken(req, *, timeout):
+                    if stage == "open":
+                        self.calls.append(("get", req.full_url))
+                        raise failure("sensitive proxy implementation detail")
+                    response = original(req, timeout=timeout)
+                    def fail(*_args, **_kwargs):
+                        raise failure("sensitive proxy implementation detail")
+                    if stage == "status":
+                        response.getcode = fail
+                    elif stage == "headers":
+                        class FailingHeaders:
+                            def get(self, _key):
+                                return fail()
+                        response.headers = FailingHeaders()
+                    else:
+                        response.read = fail
+                    return response
+                self.proof.transport = broken
+                with self.subTest(failure=failure.__name__, stage=stage):
+                    with self.assertRaisesRegex(
+                            SourceProofDenied, "Private source byte read unavailable"):
+                        self.proof(self.shop, self.row)
+                self.assertEqual([x[0] for x in self.calls], ["review", "get"])
+
+    def test_private_response_header_folding_and_unicode_denied_before_read(self):
+        # Content-Type/Encoding are security-relevant service-key response
+        # metadata. Never silently strip CR/LF/TAB, bidi Unicode or a
+        # 257-byte parameter before validating immutable private pixels.
+        cases = (
+            ("http_mime", "image/png\r\n"),
+            ("http_mime", "image/png\t"),
+            ("http_mime", "image/png\u202e"),
+            ("http_mime", "image/png;" + "x" * 257),
+            ("content_encoding", "identity\n"),
+            ("content_encoding", "\tidentity"),
+            ("content_encoding", "identity\u202e"),
+            ("content_encoding", "identity" + " " * 257),
+        )
+        for field, value in cases:
+            self.setUp()
+            setattr(self, field, value)
+            body_reads = []
+            self.read_hook = lambda: body_reads.append(True)
+            with self.subTest(field=field, value=ascii(value)):
+                with self.assertRaises(SourceProofDenied):
+                    self.proof(self.shop, self.row)
+            self.assertEqual(body_reads, [])
+            self.assertEqual([c[0] for c in self.calls], ["review", "get"])
+
+        self.setUp()
+        self.http_mime = "image/png; charset=utf-8"
+        self.content_encoding = " identity "
+        self.assertEqual(self.proof(self.shop, self.row)["image_sha256"], self.sha)
+        self.assertEqual([c[0] for c in self.calls], ["review", "get", "review"])
+
+
+    def test_private_content_length_syntax_bounded_before_body_read(self):
+        # A proxy's oversized decimal header must not be parsed or allow
+        # any private-body read, even if its integer value is plausible.
+        for length in ("0" * 9, "9" * 5000, "0000000100"):
+            self.setUp()
+            self.length = length
+            def unexpected_read():
+                self.fail("Untrusted Content-Length must deny before read")
+            self.read_hook = unexpected_read
+            with self.subTest(length_chars=len(length)):
+                with self.assertRaisesRegex(
+                        SourceProofDenied, "Untrusted private media size"):
+                    self.proof(self.shop, self.row)
+            self.assertEqual([x[0] for x in self.calls], ["review", "get"])
+
+
 
 if __name__=="__main__":
     unittest.main()
