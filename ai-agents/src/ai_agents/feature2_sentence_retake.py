@@ -7,6 +7,7 @@ the immutable original creative script or invent new F7 word timestamps.
 """
 from __future__ import annotations
 from hashlib import sha256
+from copy import deepcopy
 from uuid import UUID
 import re
 from .feature2_kokoro_local import synthesize_local, SUPPORTED_VOICES, SPEEDS
@@ -35,14 +36,18 @@ def local_sentence_retake(*,shop_id,campaign_id,source_plan,sentence_index,
         not all(callable(x) for x in (current_editor,read_plan,read_approved_words,
                                      claim_one_retake,write_pending_private))):
         raise RetakeDenied("Trusted single-sentence retake required")
-    try:creative,review,script=_plan(source_plan,shop_id=shop_id,campaign_id=campaign_id)
+    # Preserve an independent source before any editor/model/storage callback.
+    source_snapshot=deepcopy(source_plan)
+    try:creative,review,script=_plan(source_snapshot,shop_id=shop_id,campaign_id=campaign_id)
     except SpeechRejected as exc:raise RetakeDenied("Reviewed source script unavailable") from exc
     # Keep actual approved sentence boundaries; punctuation remains in source.
     sentences=[x.strip() for x in re.findall(r"[^.!?]+[.!?]?",script) if x.strip()]
     if len(sentences)>13 or sentence_index>=len(sentences):
         raise RetakeDenied("Requested sentence is outside original script")
     original=sentences[sentence_index]
-    if current_editor(shop_id,campaign_id) is not True or read_plan(shop_id,campaign_id)!=source_plan:
+    if (current_editor(shop_id,campaign_id) is not True or
+        read_plan(shop_id,campaign_id)!=source_snapshot or
+        source_plan!=source_snapshot):
         raise RetakeDenied("Active editor or current original script not verified")
     corrected=apply_approved_local_corrections(
         script=original,shop_id=shop_id,lang=language,
@@ -69,7 +74,9 @@ def local_sentence_retake(*,shop_id,campaign_id,source_plan,sentence_index,
     if summary["sha256"]!=result.get("audio_sha256") or \
        summary["duration_seconds"]>creative["duration_seconds"]:
         raise RetakeDenied("Retake produced invalid original audio")
-    if current_editor(shop_id,campaign_id) is not True or read_plan(shop_id,campaign_id)!=source_plan:
+    if (current_editor(shop_id,campaign_id) is not True or
+        read_plan(shop_id,campaign_id)!=source_snapshot or
+        source_plan!=source_snapshot):
         raise RetakeDenied("Source revoked after retake")
     data={"schema":"retailgrowth.feature2-sentence-retake.v1",
           "shop_id":shop_id,"campaign_id":campaign_id,
@@ -129,7 +136,8 @@ def local_sentence_retake(*,shop_id,campaign_id,source_plan,sentence_index,
     # tenant authorization and clean up orphaned pending bytes atomically;
     # this source-only recheck does not prove such a transaction exists.
     if (current_editor(shop_id,campaign_id) is not True or
-        read_plan(shop_id,campaign_id)!=source_plan):
+        read_plan(shop_id,campaign_id)!=source_snapshot or
+        source_plan!=source_snapshot):
         raise RetakeDenied("Retake source revoked during private registration")
     return {**data,"private_sentence_audio_asset_id":saved["asset_id"],
             "requires_feature4_scene_assembly":True,
