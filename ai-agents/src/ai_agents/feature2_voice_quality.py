@@ -23,6 +23,19 @@ class VoiceQualityDenied(ValueError):
     pass
 
 
+def _unsafe_audio_display(value):
+    """Reject bidi/zero-width spoofing and active markup in review text.
+
+    Preserve Indic vowel marks and U+200C/U+200D native joining. This
+    source-only filter does not certify an ASR token as real spoken audio.
+    """
+    return (type(value) is not str or
+            any(ch in "<>" or
+                (unicodedata.category(ch) in ("Cc","Cf","Zl","Zp")
+                 and ch not in ("\u200c","\u200d"))
+                for ch in value))
+
+
 def _words(text):
     """Unicode-grapheme-aware candidates; NEVER a pronunciation certificate.
 
@@ -34,7 +47,9 @@ def _words(text):
     tokens, chars = [], []
     for ch in unicodedata.normalize("NFC", text):
         category = unicodedata.category(ch)
-        if category[0] in ("L", "N") or (category[0] == "M" and chars):
+        if (category[0] in ("L", "N") or
+            (category[0] == "M" and chars) or
+            (ch in ("\u200c","\u200d") and chars)):
             chars.append(ch)
         elif ch in ("'", "’") and chars:
             chars.append("'")
@@ -130,6 +145,7 @@ def consume_feature7_stt(*,shop_id,campaign_id,source_sha256,
             raise VoiceQualityDenied("Invalid Feature7 word record")
         word=row["word"];start=row["start"];end=row["end"];conf=row["confidence"]
         if (type(word) is not str or not 1<=len(word)<=80 or
+            _unsafe_audio_display(word) or
             len(_words(word))!=1 or type(start) not in (float,int) or
             type(end) not in (float,int) or
             (conf is not None and type(conf) not in (float,int)) or
@@ -201,11 +217,11 @@ def project_offline_openpronounce_review(*,audio_sha256,result):
         ipa_actual="" if item.get("actual") is None else item.get("actual")
         confidence=item.get("confidence")
         if (type(word) is not str or not 1<=len(word)<=80 or
-            any(ord(c)<32 or c in "<>" for c in word) or
+            _unsafe_audio_display(word) or
             type(index) is not int or not 0<=index<=600 or
             type(ipa_expected) is not str or len(ipa_expected)>100 or
             type(ipa_actual) is not str or len(ipa_actual)>100 or
-            any(ord(c)<32 or c in "<>" for c in ipa_expected+ipa_actual) or
+            _unsafe_audio_display(ipa_expected+ipa_actual) or
             (confidence is not None and
              (type(confidence) not in (int,float) or
               not math.isfinite(confidence) or
@@ -353,6 +369,7 @@ def review_signed_audio_transcript(*, receipt, shop_id, campaign_id,
                  set(item) != {"word", "startMs", "endMs"} or
                  type(item.get("word")) is not str or
                  not 1 <= len(item["word"].strip()) <= 80 or
+                 _unsafe_audio_display(item["word"]) or
                  type(item.get("startMs")) is not int or
                  type(item.get("endMs")) is not int or
                  not previous_end <= item["startMs"] < item["endMs"] <=
@@ -468,6 +485,7 @@ def compare_signed_feature7_word_error_rate(*,receipt,shop_id,campaign_id,
     if human_transcript is not None:
         if (type(human_transcript) is not str or
             not 1<=len(human_transcript)<=1800 or
+            _unsafe_audio_display(human_transcript) or
             not callable(verify_signed_human_transcript)):
             raise VoiceQualityDenied("Independently signed human transcript required")
         human_words=_words(human_transcript)

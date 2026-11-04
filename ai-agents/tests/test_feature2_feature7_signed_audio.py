@@ -236,3 +236,26 @@ def test_indic_source_script_wer_from_signed_fixture_and_no_pronunciation_approv
 def test_wer_never_accepts_unbounded_or_empty_word_evidence(reference,hypothesis):
     with pytest.raises(VoiceQualityDenied):
         _word_edit_totals(reference,hypothesis)
+
+
+def test_properly_resigned_asr_is_still_denied_if_word_display_is_spoofed():
+    # This is a synthetic MAC re-sign, NOT a real worker authorization:
+    # unsafe words must be rejected even when the fixture digest and
+    # HMAC are internally consistent.
+    for bad in ("Diwali\u202e", "Diwali\u200b", "Diwali<svg>",
+                "Diwali\u2028"):
+        r=sample()
+        r["words"][0]["word"]=bad
+        digest=hashlib.sha256(json.dumps(r["words"],ensure_ascii=False,
+            separators=(",",":")).encode()).hexdigest()
+        r["transcript_sha256"]=digest
+        signed=r["evidence"]
+        signed["transcript_sha256"]=digest
+        payload={key:signed[key] for key in ORDER}
+        signed["mac"]=hmac.digest(KEY,
+            b"retailgrowth.feature7.asr.v1\n"+
+            json.dumps(payload,ensure_ascii=False,
+                separators=(",",":")).encode(),"sha256").hex()
+        with pytest.raises(Feature7AudioEvidenceDenied,
+                           match="Invalid or invented F7 word alignment"):
+            verify(r)
