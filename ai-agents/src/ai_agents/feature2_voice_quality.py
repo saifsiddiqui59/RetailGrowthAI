@@ -41,7 +41,7 @@ def _unsafe_audio_display(value):
                 unicodedata.category(following).startswith("L")):
                 continue
             return True
-        if ch in "<>" or unicodedata.category(ch) in ("Cc","Cf","Zl","Zp"):
+        if ch in "<>" or unicodedata.category(ch) in ("Cc","Cf","Cs","Zl","Zp"):
             return True
     return False
 
