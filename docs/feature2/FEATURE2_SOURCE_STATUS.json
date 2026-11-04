@@ -2,7 +2,7 @@
   "schema_version": 1,
   "feature": "2",
   "total_task_ids": 38,
-  "recorded_at": "2026-11-01",
+  "recorded_at": "2026-11-04",
   "source_ledger": "docs/feature2/FEATURE2_38_TASK_LEDGER_20261029.md",
   "source_ledger_note": "Source-only scope evidence. An imported snapshot is not integrated DONE.",
   "current_source_pr": 848,
@@ -215,7 +215,20 @@
       "id": "F2-15",
       "title": "Real CPU time/RSS/cost benchmark",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Honest local Kokoro CPU benchmark summary and strict model usage provenance",
+        "source_commits": [
+          "98630f24e0a3922c431000cf882f6d6b8e385b84"
+        ],
+        "test_commits": [
+          "47128cef53eb4179ad3cfeb37b6efc9d7d93fad3"
+        ],
+        "test_cases": 3,
+        "complete_scope": false,
+        "blocker": "Real pinned Kokoro weights, operator CPU runtime, process RSS/cost benchmark and reviewer acceptance not available"
+      }
     },
     {
       "id": "F2-16",
@@ -246,13 +259,39 @@
       "id": "F2-18",
       "title": "Offline OpenPronounce checkpoint and correction benchmark",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "OpenPronounce reference-script guard before heavyweight offline model imports",
+        "source_commits": [
+          "1028678d99ad2ccd15bdfe179b47b61974884009"
+        ],
+        "test_commits": [
+          "afa55600a8e5c49e708e4f0da1adfc03703a370d"
+        ],
+        "test_cases": 10,
+        "complete_scope": false,
+        "blocker": "Actual 2.5GB OpenPronounce reference models and genuine CPU pronunciation benchmark absent"
+      }
     },
     {
       "id": "F2-19",
       "title": "Authenticated speech preview/generate/job-status/review APIs",
       "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "Coordinator + F2"
+      "owner": "Coordinator + F2",
+      "latest_source_substep": {
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Private Kokoro job status snapshots reject aliased DB result mutation and forged optional billing/rights metadata",
+        "source_commits": [
+          "9ebaa3bd3d8d77aaad47893f96dac5020a04c014"
+        ],
+        "test_commits": [
+          "2dcff7137aba53bb52c689aaaa73f7d19349fdd2"
+        ],
+        "test_cases": 25,
+        "complete_scope": false,
+        "blocker": "Hosted signed DEV JWT/RLS status endpoint, durable worker settlement and tenant-authenticated job media not deployed"
+      }
     },
     {
       "id": "F2-20",
@@ -369,18 +408,34 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
-        "name": "Bound RIFF/WAV format metadata inside private MP3 normalization and original PCM inspection",
+        "state": "SOURCE_CHANGED_TESTS_COMMITTED_CI_PENDING",
+        "name": "Private MP3 decoder bounds FFmpeg decoded WAV bytes and duration before temporary-disk exhaustion",
         "source_commits": [
-          "5d0564b16308bdb3be5c486e359337149bf4e4a3"
+          "19591546af41e76d19bb9a6df1bb226df31b08ad"
         ],
-        "test_commit": "19e0b8df68e91e5c27b0f14c5805114412d339e8",
-        "test_cases": 7,
+        "test_commits": [
+          "6c2d9c2cfcb50239f7cad9b17d760fdaf4bd0047",
+          "3d9119f61722dc0c86498c007623c90227bbc4a0"
+        ],
+        "test_cases": 5,
         "complete_scope": false,
-        "blocker": "Real FFmpeg-enabled worker, tenant-private media writer/rights and RLS still need verification; synthetic WAV does not prove real MP3/licensing",
-        "ci_run_id": 41302121066,
-        "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
-      }
+        "blocker": "Real FFmpeg hosted worker, tenant-private dual asset DB registration, genuine licensed MP3 and signed download not deployed"
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Bound RIFF/WAV format metadata inside private MP3 normalization and original PCM inspection",
+          "source_commits": [
+            "5d0564b16308bdb3be5c486e359337149bf4e4a3"
+          ],
+          "test_commit": "19e0b8df68e91e5c27b0f14c5805114412d339e8",
+          "test_cases": 7,
+          "complete_scope": false,
+          "blocker": "Real FFmpeg-enabled worker, tenant-private media writer/rights and RLS still need verification; synthetic WAV does not prove real MP3/licensing",
+          "ci_run_id": 41302121066,
+          "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
+        }
+      ]
     },
     {
       "id": "F2-30",
