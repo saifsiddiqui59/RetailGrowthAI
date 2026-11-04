@@ -526,9 +526,17 @@ def read_private_local_voice_job_status(*,shop_id,campaign_id,source_plan,
             type(row.get("voice_id")) is not str or
             row["voice_id"] not in SUPPORTED_VOICES or
             row.get("language")!=SUPPORTED_VOICES[row["voice_id"]] or
-            any(row.get(flag) is True for flag in (
+            any(flag in row and row[flag] is not False for flag in (
                 "commercial_use_approved","may_auto_invoke_azure",
-                "paid_inference_authorized","customer_publishable"))):
+                "paid_inference_authorized","customer_publishable",
+                "approved_to_publish","original_media_rights_verified")) or
+            ("paid_calls" in row and
+             (type(row["paid_calls"]) is not int or row["paid_calls"]!=0)) or
+            ("billing" in row and row["billing"]!="NONE") or
+            ("signed_url" in row and row["signed_url"] is not None) or
+            ("private_download_url" in row and
+             row["private_download_url"] is not None)):
+
             raise LocalVoiceJobDenied("Tenant-private original voice job not verified")
         completed=row["status"]=="AWAITING_HUMAN_REVIEW"
         if completed:
@@ -539,7 +547,10 @@ def read_private_local_voice_job_status(*,shop_id,campaign_id,source_plan,
         elif row.get("audio_asset_id") is not None or row.get("original_audio_sha256") is not None:
             raise LocalVoiceJobDenied("Nonreviewed job cannot expose original audio")
         return row
-    job=job_snapshot()
+    # Keep a separate point-in-time view: a trusted adapter is allowed to
+    # reuse a mutable dictionary object on repeated database reads, and a
+    # self-comparison would otherwise miss a concurrent revocation/update.
+    job=dict(job_snapshot())
     def private_media():
         if job["status"]!="AWAITING_HUMAN_REVIEW":
             return None
@@ -560,10 +571,21 @@ def read_private_local_voice_job_status(*,shop_id,campaign_id,source_plan,
             asset.get("can_publish") is not False or
             asset.get("review_state")!="PENDING_HUMAN_LISTEN_AND_RIGHTS" or
             asset.get("revoked_at") is not None or
-            asset.get("local_inference_evidence") is not True):
+            asset.get("local_inference_evidence") is not True or
+            any(key in asset and asset[key] is not False for key in
+                ("commercial_use_approved","paid_motion_permitted",
+                 "approved_to_publish","original_media_rights_verified",
+                 "paid_inference_authorized","customer_publishable")) or
+            ("paid_calls" in asset and
+             (type(asset["paid_calls"]) is not int or asset["paid_calls"]!=0)) or
+            ("billing" in asset and asset["billing"]!="NONE") or
+            ("signed_url" in asset and asset["signed_url"] is not None) or
+            ("private_download_url" in asset and
+             asset["private_download_url"] is not None)):
             raise LocalVoiceJobDenied("Original job WAV rights or source revoked")
         return asset
-    original=private_media()
+    first_private=private_media()
+    original=dict(first_private) if first_private is not None else None
     if not current() or job_snapshot()!=job or private_media()!=original:
         raise LocalVoiceJobDenied("Private voice status revoked during read")
     # Do not return the durable reservation digest, lease fence, actor claims,
