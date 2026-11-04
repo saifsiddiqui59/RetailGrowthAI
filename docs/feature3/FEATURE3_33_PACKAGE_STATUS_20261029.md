@@ -207,3 +207,5 @@ separate hosted acceptance criteria, not reasons to stop synthetic work.
 - **Status: SOURCE IN PROGRESS** pending PR, exact-head 4/4 CI, independent privacy review and main merge/postmerge CI. This is not hosted acceptance; package F3-13 remains source-partial, and **0/33 hosted complete**. Do not count another accepted source receipt until the trusted evidence is available.
 
 - Additional 2026-11-05 F3-13 source hardening in the same PR: reject inherited JavaScript format property names and non-string colour objects before CPU renderer dimension destructuring; add valid-format and forged-prototype negative tests. Exact-final-head CI and independent review still required; no additional task DONE or hosted acceptance.
+
+- Further F3-13 source fix in the same Nov 5 PR: local CPU PNG renderer now rejects inherited/prototype-colliding private image-map IDs before any pixel draw, with positive own-image and negative inherited-image tests. Source **IN PROGRESS** pending fresh exact-head 4/4 CI and independent review, not hosted DONE.
