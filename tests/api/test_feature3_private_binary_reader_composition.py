@@ -33,6 +33,7 @@ class FakeTenant:
         self.active=True
         self.status="SUCCEEDED"
         self.foreign_path=False
+        self.asset_overrides={}
         self.calls=[]
         self.outage=False
 
@@ -51,7 +52,12 @@ class FakeTenant:
         self.calls.append("asset")
         path=self.path if not self.foreign_path else (
             f"{uuid4()}/feature3/gpu/{self.job}/untrusted.png")
-        return {"object_path":path,"mime_type":"image/png"}
+        return {
+            "id":self.media, "shop_id":self.shop,
+            "storage_bucket":"retailgrowth-media", "source":"GENERATED",
+            "object_path":path, "mime_type":"image/png",
+            **self.asset_overrides,
+        }
 
 
 class PrivateResponse:
@@ -198,6 +204,46 @@ class ComposedBinaryContractTests(unittest.TestCase):
                     result,405 if case=="bad_method" else
                     401 if case=="bad_token" else 404)
             self.assertNotIn("private_get",self.calls)
+
+    def test_composed_binary_http_denies_forged_media_row_without_private_read(self):
+        # Protect private JSON/PNG even if a future tenant adapter accidentally
+        # returns a valid SHA path for the wrong media row or a public bucket.
+        for field,bad in (
+            ("id",str(uuid4())),
+            ("shop_id",str(uuid4())),
+            ("storage_bucket","public-bucket"),
+            ("source","UPLOAD"),
+            ("id",None),
+        ):
+            self.setUp()
+            self.tenant.asset_overrides[field]=bad
+            with self.subTest(field=field):
+                self.assert_denied_without_png(self.request(),404)
+            self.assertEqual(self.calls,["jwt"])
+            self.assertEqual(self.rights_calls,0)
+            self.assertEqual(self.tenant.calls,["member","job","asset"])
+
+    def test_composed_binary_http_denies_media_row_changed_during_storage_read(self):
+        # Real rights may be withdrawn or a media record replaced during
+        # the private HTTP GET; the second authoritative check is mandatory.
+        for field,bad in (
+            ("id",str(uuid4())),
+            ("shop_id",str(uuid4())),
+            ("storage_bucket","public-bucket"),
+            ("source","UPLOAD"),
+        ):
+            self.setUp()
+            original_reader=self.reader.transport
+            def read_and_change(request,timeout):
+                response=original_reader(request,timeout)
+                self.tenant.asset_overrides[field]=bad
+                return response
+            self.reader.transport=read_and_change
+            with self.subTest(field=field):
+                self.assert_denied_without_png(self.request(),404)
+            self.assertEqual(self.calls,["jwt","private_get"])
+            self.assertEqual(self.tenant.calls.count("asset"),2)
+            self.assertEqual(self.rights_calls,1)
 
     def test_transport_length_recode_and_png_mutation_fail_closed_at_http_boundary(self):
         for case in ("short","long","recoded","wrong_png"):

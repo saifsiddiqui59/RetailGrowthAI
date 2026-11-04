@@ -24,6 +24,7 @@ class FakeTenant:
         self.active=True
         self.status="SUCCEEDED"
         self.foreign=False
+        self.asset_overrides={}
         self.calls=[]
     def member(self,token,actor,shop,write=False):
         self.calls.append("member")
@@ -35,9 +36,14 @@ class FakeTenant:
                 "output_asset_id":self.asset}
     def feature3_generated_asset(self,token,shop,job,asset):
         self.calls.append("asset")
-        return {"object_path":self.path if not self.foreign else
+        return {
+            "id": self.asset, "shop_id": self.shop,
+            "storage_bucket": "retailgrowth-media", "source": "GENERATED",
+            "object_path":self.path if not self.foreign else
                 f"{str(uuid4())}/feature3/gpu/{job}/{self.sha}.png",
-                "mime_type":"image/png"}
+            "mime_type":"image/png",
+            **self.asset_overrides,
+        }
 
 
 class Response:
@@ -232,6 +238,84 @@ class RevocableReaderTests(unittest.TestCase):
                 self.read()
             self.assertEqual(self.calls,["verify"])
 
+    def test_forged_generated_media_identity_and_private_bucket_denied_before_get(self):
+        # Even a future misconfigured tenant store must not be able to return
+        # a different asset or bucket by supplying a same-shaped SHA path.
+        for field, bad in (
+            ("id",str(uuid4())),
+            ("shop_id",str(uuid4())),
+            ("storage_bucket","public-media"),
+            ("source","UPLOAD"),
+            ("source","MODEL"),
+            ("id",None),
+            ("shop_id",None),
+            ("storage_bucket",None),
+            ("source",None),
+        ):
+            self.setUp()
+            self.tenant.asset_overrides[field]=bad
+            with self.subTest(field=field, value=bad), self.assertRaises(
+                    PrivateGeneratedDownloadDenied):
+                self.read()
+            self.assertEqual(self.calls,["verify"])
+            self.assertEqual(self.rights_called,0)
+            self.assertEqual(self.tenant.calls,["member","job","asset"])
+
+    def test_asset_identity_or_bucket_changed_after_private_get_denies_cached_png(self):
+        # The post-stream authorization must check the full media row, not
+        # merely repeat a URL or verify a SHA of already-read private bytes.
+        for field,bad in (
+            ("id",str(uuid4())),
+            ("shop_id",str(uuid4())),
+            ("storage_bucket","retailgrowth-public"),
+            ("source","UPLOAD"),
+        ):
+            self.setUp()
+            self.on_read=lambda field=field,bad=bad: self.tenant.asset_overrides.__setitem__(field,bad)
+            with self.subTest(field=field), self.assertRaises(
+                    PrivateGeneratedDownloadDenied):
+                self.read()
+            self.assertEqual(self.calls,["verify","get"])
+            self.assertEqual(self.tenant.calls.count("asset"),2)
+            self.assertEqual(self.rights_called,1)
+
+    def test_crc_valid_but_undecodable_png_pixels_denied(self):
+        # A damaged zlib IDAT stream with a recalculated chunk CRC passes
+        # Pillow verify(), but cannot be decoded into real image pixels.
+        # The private reader must reject it before its second rights check.
+        import zlib
+        corrupted=bytearray(self.png)
+        offset=8
+        while offset+12<=len(corrupted):
+            size=int.from_bytes(corrupted[offset:offset+4],"big")
+            kind=bytes(corrupted[offset+4:offset+8])
+            if offset+12+size>len(corrupted):
+                self.fail("Malformed original PNG fixture")
+            if kind==b"IDAT" and size>8:
+                corrupted[offset+13]^=0xff
+                crc=zlib.crc32(bytes(corrupted[offset+4:offset+8+size]))
+                corrupted[offset+8+size:offset+12+size]=crc.to_bytes(4,"big")
+                break
+            offset+=12+size
+        else:
+            self.fail("No suitable PNG IDAT fixture chunk")
+        damaged=bytes(corrupted)
+        with Image.open(BytesIO(damaged)) as header:
+            header.verify()
+        with self.assertRaises(OSError):
+            with Image.open(BytesIO(damaged)) as decoded:
+                decoded.load()
+        # Simulate even a SHA-named immutable object matching the corrupt
+        # bytes, so a mere SHA comparison cannot conceal the decode failure.
+        digest=sha256(damaged).hexdigest()
+        self.tenant.path=f"{self.shop}/feature3/gpu/{self.job}/{digest}.png"
+        self.binary=damaged
+        with self.assertRaisesRegex(PrivateGeneratedDownloadDenied,
+                                    "Untrusted private PNG pixels"):
+            self.read()
+        self.assertEqual(self.calls,["verify","get"])
+        self.assertEqual(self.rights_called,1)
+
     def test_changed_png_wrong_hash_or_invalid_bytes_deny(self):
         changed=BytesIO()
         Image.new("RGB",(320,400),"#123456").save(changed,"PNG")
@@ -321,12 +405,192 @@ class RevocableReaderTests(unittest.TestCase):
                 tenant_store=self.tenant,verify_user_jwt=self.verify,
                 current_output_rights=None,transport=self.transport)
 
+    def test_private_reader_rejects_normalized_origins_and_unsafe_header_keys(self):
+        # urllib.parse.urlsplit silently normalizes some control characters.
+        # Neither a project origin nor an apikey may reach HTTP that way.
+        good_origin, good_key = self.tenant.origin, self.tenant.key
+        for bad in (
+            "\\nhttps://fictional.supabase.co",
+            "https://fictional.supabase.co\\r\\n",
+            "https://fictional.supabase.co\\t",
+            "https://.supabase.co",
+            "https://fictional..supabase.co",
+            "https://fictional.supabase.co@evil.supabase.co",
+            "https://FICTIONAL.supabase.co",
+            "https://fictional.supabase.co:444",
+            "https://fictional.supabase.co/%0d",
+        ):
+            self.tenant.origin = bad.replace("\\n", "\n").replace(
+                "\\r", "\r").replace("\\t", "\t")
+            with self.subTest(origin=repr(bad)), self.assertRaises(ValueError):
+                self.build()
+        self.tenant.origin = good_origin
+        for bad in (
+            "sb_publishable_valid\\r\\nInjected: yes",
+            "sb_publishable_valid\\tbad",
+            "sb_publishable_nonascii_é",
+            "sb_publishable_short",
+            "sb_publishable_" + "a" * 4100,
+        ):
+            self.tenant.key = bad.replace("\\r", "\r").replace(
+                "\\n", "\n").replace("\\t", "\t")
+            with self.subTest(key=repr(bad)[:80]), self.assertRaises(ValueError):
+                self.build()
+        self.tenant.key = good_key
+        # Explicit canonical HTTPS :443 is still supported.
+        self.tenant.origin = "https://fictional.supabase.co:443"
+        self.reader = self.build()
+        self.assertEqual(self.read()["image_sha256"], self.sha)
+        self.tenant.origin = good_origin
+
+    def test_non_ascii_retailer_token_denied_before_jwt_or_private_get(self):
+        for token in ("fake-signed-retailer-tokené",
+                      "fake-signed-retailer-token\u2028",
+                      "fake-signed-retailer-token\x80"):
+            with self.subTest(token=repr(token)), self.assertRaises(
+                    PrivateGeneratedDownloadDenied):
+                self.reader.read(user_token=token,
+                                 shop_id=self.shop, job_id=self.job)
+            self.assertEqual(self.calls, [])
+            self.assertEqual(self.tenant.calls, [])
+
     def test_does_not_issue_url_or_authorize_publish_or_gpu(self):
         result=self.read()
         forbidden={"url","signed_url","provider_call_permitted",
                    "gpu_authorized","object_path","source_asset_ids","service_key"}
         self.assertFalse(forbidden.intersection(result))
         self.assertFalse(any("sign" in c for c in self.calls))
+
+
+    def test_unprintable_or_oversized_png_headers_deny_before_body_read(self):
+        # Header folding and long Content-Length values must never reach
+        # private pixel decoding, even through an injected HTTP adapter.
+        cases = (
+            ("mime", "image/png\r\nX-Injected: yes"),
+            ("mime", "image/png\t"),
+            ("mime", "image/png\u202e"),
+            ("mime", "image/png;" + "x" * 257),
+            ("content_encoding", "identity\n"),
+            ("content_encoding", "identity\u202e"),
+            ("content_encoding", "identity" + " " * 257),
+            ("content_length", "0" * 9),
+            ("content_length", "9" * 5000),
+        )
+        for field, value in cases:
+            self.setUp()
+            setattr(self, field, value)
+            body_reads = []
+            self.on_read = lambda: body_reads.append(True)
+            with self.subTest(field=field, length=len(value)):
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    self.read()
+            self.assertEqual(body_reads, [])
+            self.assertEqual(self.calls, ["verify", "get"])
+            self.assertEqual(self.rights_called, 1)
+
+        # Ordinary printable MIME parameters and identity encoding remain
+        # supported, with the same two live rights checks.
+        self.setUp()
+        self.mime = "image/png; charset=utf-8"
+        self.content_encoding = " identity "
+        self.assertEqual(self.read()["image_sha256"], self.sha)
+        self.assertEqual(self.rights_called, 2)
+
+    def test_malformed_private_http_metadata_never_reaches_second_rights_read(self):
+        # A future injected gateway may return typed, missing or throwing
+        # headers. No raw TypeError or private binary may escape this reader.
+        class BrokenHeaders:
+            def get(self, _name):
+                raise RuntimeError("SENSITIVE_STORAGE_HEADER_DIAGNOSTIC")
+        cases = (
+            None, [], "bad headers", BrokenHeaders(),
+            {"Content-Type":False},
+            {"Content-Type":["image/png"]},
+            {"Content-Length":7},
+            {"Content-Length":True},
+            {"Content-Type":"image/png","Content-Encoding":[]},
+        )
+        for headers in cases:
+            self.setUp()
+            original = self.reader.transport
+            def malformed(req, timeout):
+                response = original(req, timeout)
+                response.headers = headers
+                return response
+            self.reader.transport = malformed
+            with self.subTest(headers=repr(headers)), self.assertRaises(
+                    PrivateGeneratedDownloadDenied) as caught:
+                self.read()
+            self.assertNotIn("SENSITIVE_STORAGE",str(caught.exception))
+            self.assertEqual(self.calls,["verify","get"])
+            self.assertEqual(self.rights_called,1)
+            self.assertEqual(self.tenant.calls.count("member"),1)
+
+    def test_private_transport_missing_methods_or_runtime_exception_denied(self):
+        for method in ("geturl","getcode","read"):
+            self.setUp()
+            original = self.reader.transport
+            def malformed(req, timeout):
+                response = original(req, timeout)
+                setattr(response,method,None)
+                return response
+            self.reader.transport = malformed
+            with self.subTest(method=method), self.assertRaises(
+                    PrivateGeneratedDownloadDenied):
+                self.read()
+            self.assertEqual(self.rights_called,1)
+            self.assertEqual(self.calls,["verify","get"])
+        self.setUp()
+        def unavailable(_req, timeout):
+            raise RuntimeError("SENSITIVE_HTTP_TRANSPORT_INTERNAL")
+        self.reader.transport = unavailable
+        with self.assertRaises(PrivateGeneratedDownloadDenied) as caught:
+            self.read()
+        self.assertNotIn("SENSITIVE_HTTP",str(caught.exception))
+        self.assertEqual(self.rights_called,1)
+
+    def test_current_rights_outage_before_or_after_private_read_denied(self):
+        for fail_on in (1,2):
+            self.setUp()
+            # setUp resets fixtures but does not shadow instance methods.
+            # Bind the real implementation, not the previous loop's wrapper.
+            original = RevocableReaderTests.rights.__get__(self, RevocableReaderTests)
+            calls = [0]
+            def unavailable(shop,job,asset):
+                calls[0] += 1
+                if calls[0] == fail_on:
+                    raise TimeoutError("SENSITIVE_RIGHTS_SERVICE_FAILURE")
+                return original(shop,job,asset)
+            self.rights = unavailable
+            self.reader = self.build()
+            with self.subTest(fail_on=fail_on), self.assertRaises(
+                    PrivateGeneratedDownloadDenied) as caught:
+                self.read()
+            self.assertNotIn("SENSITIVE_RIGHTS",str(caught.exception))
+            self.assertEqual(calls[0],fail_on)
+            self.assertEqual(self.calls,["verify"] if fail_on==1
+                             else ["verify","get"])
+            self.assertEqual(self.tenant.calls.count("member"),fail_on)
+
+    def test_tenant_rls_outage_at_first_or_second_read_denied(self):
+        for method in ("member","feature3_gpu_job","feature3_generated_asset"):
+            for fail_on in (1,2):
+                self.setUp()
+                original = getattr(self.tenant,method)
+                calls = [0]
+                def unavailable(*args,**kwargs):
+                    calls[0] += 1
+                    if calls[0] == fail_on:
+                        raise RuntimeError("SENSITIVE_RLS_DATABASE_FAILURE")
+                    return original(*args,**kwargs)
+                setattr(self.tenant,method,unavailable)
+                with self.subTest(method=method,fail_on=fail_on), self.assertRaises(
+                        PrivateGeneratedDownloadDenied) as caught:
+                    self.read()
+                self.assertNotIn("SENSITIVE_RLS",str(caught.exception))
+                self.assertEqual(calls[0],fail_on)
+                self.assertEqual(self.calls,["verify"] if fail_on==1
+                                 else ["verify","get"])
 
 
 if __name__=="__main__":
