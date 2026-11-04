@@ -74,6 +74,27 @@ class Feature3QueuePublishingTests(unittest.TestCase):
         self.queue.send_message.assert_called_once()
         self.outbox.confirm_dispatch.assert_not_called()
 
+    def test_uncertain_sql_claim_sanitized_and_no_queue_side_effects(self):
+        # Claim may commit its DB lease before the RPC times out. An unknown
+        # outcome is never a reason to retry, publish or expose backend
+        # connection diagnostics in the caller-visible exception.
+        secret="SERVICE_ROLE_CREDENTIAL_IN_SQL_ERROR"
+        for error in (RuntimeError(secret),
+                      TimeoutError(secret),
+                      StorageUnavailable(secret)):
+            with self.subTest(kind=type(error).__name__):
+                self.setUp()
+                self.outbox.claim_dispatch.side_effect=error
+                with self.assertRaises(StorageUnavailable) as caught:
+                    self.publisher.dispatch_once(1)
+                self.assertIn("claim uncertain",str(caught.exception))
+                self.assertNotIn(secret,str(caught.exception))
+                self.assertIsNone(caught.exception.__cause__)
+                self.assertTrue(caught.exception.__suppress_context__)
+                self.queue.send_message.assert_not_called()
+                self.outbox.confirm_dispatch.assert_not_called()
+                self.outbox.claim_dispatch.assert_called_once_with(1)
+
     def test_unknown_send_error_does_not_confirm_or_paid_retry(self):
         self.queue.send_message.side_effect=TimeoutError("ACK lost")
         with self.assertRaisesRegex(StorageUnavailable,"uncertain"):
