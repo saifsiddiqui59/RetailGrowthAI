@@ -849,3 +849,30 @@ def test_f2_20_registered_private_wav_explicit_pending_remains_review_only():
     assert result["commercial_rights_not_certified"] is True
     assert result["can_publish"] is False
     assert len(reads)==2
+
+
+# F2-21: in-place DB callback mutation can conceal source or budget revocation.
+# These synthetic races never attest hosted quota transaction durability.
+def test_f2_21_inplace_plan_alias_after_cpu_lease_is_rejected():
+    run,calls=budget_case()
+    shared=plan()
+    def authorized(*_):
+        if calls:
+            shared["approval_record"]["plan_sha256"]="e"*64
+        return True
+    with pytest.raises(LocalVoiceJobDenied,match="revoked after CPU budget lease"):
+        run(source_plan=shared,read_current_plan=lambda *_:shared,
+            authorize_current_editor=authorized)
+    assert len(calls)==1
+
+
+def test_f2_21_inplace_quota_alias_after_cpu_lease_is_rejected():
+    quota=cpu_policy()
+    run,calls=budget_case(policy=quota)
+    def authorized(*_):
+        if calls:
+            quota["policy_state"]="SUSPENDED"
+        return True
+    with pytest.raises(LocalVoiceJobDenied,match="revoked after CPU budget lease"):
+        run(authorize_current_editor=authorized)
+    assert len(calls)==1
