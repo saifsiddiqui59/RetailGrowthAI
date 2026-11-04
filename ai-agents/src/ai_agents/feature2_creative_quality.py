@@ -750,7 +750,7 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
             if (offer.get("active") is not True or
                 offer.get("revoked_at") is not None or
                 any(type(value) is not str or
-                    re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}",value) is None
+                    re.fullmatch(r"\d{4}-\d{2}-\d{2}",value) is None
                     for value in (day,start,end))):
                 raise EditorialBasisRejected("Offer lifecycle not approved for campaign")
             try:
