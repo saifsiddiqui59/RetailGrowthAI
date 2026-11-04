@@ -32,3 +32,6 @@ No WineShopPOS, PROD, DEV SQL or paid cloud actions.
 - The local CPU renderer's ordinary `{}` image cache could treat inherited `constructor`/`__proto__` keys as already-authorized image entries, skipping private-image preflight. Untrusted `authorizedImages` could also inherit a fake image object from its prototype.
 - Use a null-prototype local registry and require an **own** authorized image-map property before rendering any pixels. Node regression denies an inherited normal asset and prototype-named image without rights, and verifies an explicitly owned synthetic image still renders.
 - Source-only fixture checks. No hosted media rights or customer approval inferred.
+
+## Delayed import browser regression
+The same Playwright file now also holds `File.prototype.text()` for a valid day-bound local JSON backup, makes a newer local editor background change, then releases the original file read. The old JSON must **not** override the newer edit and must make no remote API call. This is deterministic mocked browser-state testing, not signed hosted authorization.
