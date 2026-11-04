@@ -188,18 +188,36 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
-        "name": "Spelling correction CAS/read callbacks refuse ambiguous grants, automatic paid retry, billable receipts, and public URLs",
+        "state": "SOURCE_SUBSTEP_PENDING_EXACT_HEAD_CI",
+        "name": "Signed pronunciation dictionary write/read denies backend approval and audio-quality promotion",
         "source_commits": [
-          "12ea61a9f711d8dff21d6ae541f8357ce0259af9"
+          "cbbb11dc192985ba9775ab634a2dafa764f160a5"
         ],
-        "test_commit": "8dcb652429d540adcd7a819f9c26047596b4aafb",
-        "test_cases": 29,
+        "test_commits": [
+          "01c96f6e51f4f79dafadf8af9a06095573d3a0ad"
+        ],
+        "test_cases": 9,
         "complete_scope": false,
-        "blocker": "Real authorized pronunciation dictionary store/retake UI and audio listening QA are unavailable; signed callback fixtures only",
-        "ci_run_id": 41307027543,
-        "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
-      }
+        "blocker": "Independent signed dictionary store, mounted reviewer, actual Kokoro voice/audio QA and hosted tenant auth remain unverified",
+        "ci_run_id": 41848560257,
+        "ci_head_sha": "01c96f6e51f4f79dafadf8af9a06095573d3a0ad",
+        "ci_status": "PENDING"
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Spelling correction CAS/read callbacks refuse ambiguous grants, automatic paid retry, billable receipts, and public URLs",
+          "source_commits": [
+            "12ea61a9f711d8dff21d6ae541f8357ce0259af9"
+          ],
+          "test_commit": "8dcb652429d540adcd7a819f9c26047596b4aafb",
+          "test_cases": 29,
+          "complete_scope": false,
+          "blocker": "Real authorized pronunciation dictionary store/retake UI and audio listening QA are unavailable; signed callback fixtures only",
+          "ci_run_id": 41307027543,
+          "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
+        }
+      ]
     },
     {
       "id": "F2-11",
@@ -391,18 +409,36 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "Coordinator + F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
-        "name": "Durable local CPU quota receipt denies boolean-zero billing and ambiguously typed paid/motion grants",
+        "state": "SOURCE_SUBSTEP_PENDING_EXACT_HEAD_CI",
+        "name": "CPU job reservation independently snapshots source, budget and lease receipt across mutable callback races",
         "source_commits": [
-          "c630814bda2e88077d1a3ea9a1bc2eab93636c6b"
+          "0ae8384184f9ef5f8dd1eb12fc77c32b4b86494f"
         ],
-        "test_commit": "ec033834fdfa6c6e2adbde6693e748510e5cc17f",
-        "test_cases": 14,
+        "test_commits": [
+          "35154c4d2355f9ec62d78c4e933676a145cabafa"
+        ],
+        "test_cases": 2,
         "complete_scope": false,
-        "blocker": "Actual tenant budget SQL and atomic one-shot lease/worker settlement on hosted RLS remain coordinator-owned; mocked callback not live guarantee",
-        "ci_run_id": 41302121066,
-        "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
-      }
+        "blocker": "Real atomic tenant CPU budget/lease, settlement, JWT/RLS and actual worker inference are not deployed or verified",
+        "ci_run_id": 41848560257,
+        "ci_head_sha": "01c96f6e51f4f79dafadf8af9a06095573d3a0ad",
+        "ci_status": "PENDING"
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Durable local CPU quota receipt denies boolean-zero billing and ambiguously typed paid/motion grants",
+          "source_commits": [
+            "c630814bda2e88077d1a3ea9a1bc2eab93636c6b"
+          ],
+          "test_commit": "ec033834fdfa6c6e2adbde6693e748510e5cc17f",
+          "test_cases": 14,
+          "complete_scope": false,
+          "blocker": "Actual tenant budget SQL and atomic one-shot lease/worker settlement on hosted RLS remain coordinator-owned; mocked callback not live guarantee",
+          "ci_run_id": 41302121066,
+          "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
+        }
+      ]
     },
     {
       "id": "F2-22",
@@ -470,18 +506,36 @@
       "source_status": "SOURCE_IN_PROGRESS",
       "owner": "F2",
       "latest_source_substep": {
-        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
-        "name": "One-sentence Kokoro retake validates voice before one-shot reservation and bounds private writer's rights, billing and F4/F7 re-review metadata",
+        "state": "SOURCE_SUBSTEP_PENDING_EXACT_HEAD_CI",
+        "name": "Single-sentence retake fences aliased source plan during synthesis and after private write",
         "source_commits": [
-          "f5ab142ae48b9535c7150914383c3e7b0398f89d"
+          "8a6742e2cddce339b7e7c2db8e0f763e49feaa7b"
         ],
-        "test_commit": "552a6d4e66dd69657a31b400e657f840f59e40a5",
-        "test_cases": 29,
+        "test_commits": [
+          "db6e4fdbe9780f7688f171eadfd02395247581d1"
+        ],
+        "test_cases": 2,
         "complete_scope": false,
-        "blocker": "Actual offline Kokoro model runtime, atomic durable lease, tenant private signed storage, and human approval remain unverified",
-        "ci_run_id": 41307027543,
-        "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
-      }
+        "blocker": "Real Kokoro model, one-shot DB CAS, signed reviewer and tenant-private registered audio are unverified",
+        "ci_run_id": 41848560257,
+        "ci_head_sha": "01c96f6e51f4f79dafadf8af9a06095573d3a0ad",
+        "ci_status": "PENDING"
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "One-sentence Kokoro retake validates voice before one-shot reservation and bounds private writer's rights, billing and F4/F7 re-review metadata",
+          "source_commits": [
+            "f5ab142ae48b9535c7150914383c3e7b0398f89d"
+          ],
+          "test_commit": "552a6d4e66dd69657a31b400e657f840f59e40a5",
+          "test_cases": 29,
+          "complete_scope": false,
+          "blocker": "Actual offline Kokoro model runtime, atomic durable lease, tenant private signed storage, and human approval remain unverified",
+          "ci_run_id": 41307027543,
+          "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
+        }
+      ]
     },
     {
       "id": "F2-28",
