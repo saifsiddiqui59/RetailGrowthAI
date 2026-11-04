@@ -18,3 +18,5 @@ Run the existing `frontend/e2e/campaign-journey.spec.mjs` through GitHub Part1
 frontend browser CI. Merge only after exact-head 4/4 and verify fresh main CI.
 Document exact PR/CI in the project state once accepted. GPU and paid
 providers remain OFF. No WineShopPOS or hosted DB/DEV/PROD changes.
+
+Workflow: this proposed `feat/**` branch is eligible for GitHub Part 1 CI push checks; the earlier test-prefixed branch was not. Preserve same functional source commit and inspect all four actual jobs before claiming acceptance.
