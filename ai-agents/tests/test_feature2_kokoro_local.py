@@ -411,12 +411,12 @@ def test_f2_15_cpu_benchmark_denies_hidden_riff_data_with_valid_sha(tamper):
         writer.setnchannels(1)
         writer.setsampwidth(2)
         writer.setframerate(24000)
-        writer.writeframes(b"\\x00\\x10"*24000)
+        writer.writeframes(bytes((0,16))*24000)
     original=pcm_buffer.getvalue()
     if tamper=="trailing_bytes":
         forged=original+b"secret-not-audio"
     elif tamper=="duplicate_data":
-        extra=b"data"+(2).to_bytes(4,"little")+b"\\x00\\x10"
+        extra=b"data"+(2).to_bytes(4,"little")+bytes((0,16))
         forged=bytearray(original+extra)
         forged[4:8]=(len(forged)-8).to_bytes(4,"little")
         forged=bytes(forged)
