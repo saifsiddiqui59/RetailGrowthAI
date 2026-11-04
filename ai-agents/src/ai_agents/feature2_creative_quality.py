@@ -275,7 +275,8 @@ def append_feature2_trace(*, shop_id, campaign_id, workflow_id, event_id,
         if latest is not None or previous_sha256 != "0"*64:
             raise Feature2TraceDenied("First trace must start an empty private chain")
     elif (type(latest) is not dict or
-          latest.get("sequence") != event_number-1 or
+          type(latest.get("sequence")) is not int or
+          latest["sequence"] != event_number-1 or
           latest.get("event_sha256") != previous_sha256):
         raise Feature2TraceDenied("Current private trace chain changed")
     event={
@@ -303,7 +304,8 @@ def append_feature2_trace(*, shop_id, campaign_id, workflow_id, event_id,
         or receipt.get("campaign_id") != campaign_id
         or receipt.get("workflow_id") != workflow_id
         or receipt.get("event_id") != event_id
-        or receipt.get("sequence") != event_number
+        or type(receipt.get("sequence")) is not int
+        or receipt["sequence"] != event_number
         or receipt.get("event_sha256") != event_sha
         or receipt.get("private") is not True
         or receipt.get("committed") is not True
@@ -311,17 +313,20 @@ def append_feature2_trace(*, shop_id, campaign_id, workflow_id, event_id,
         # writer returns an ambiguously false-looking string/number/null.
         or any(flag in receipt and receipt[flag] is not False for flag in
             ("can_publish","paid_motion_permitted","approved_to_publish",
-             "commercial_use_approved","paid_inference_authorized"))
+             "commercial_use_approved","paid_inference_authorized",
+             "can_dispatch_motion","may_auto_invoke_azure"))
         or ("paid_calls" in receipt and
             (type(receipt["paid_calls"]) is not int or
              receipt["paid_calls"]!=0))
         or ("billing" in receipt and receipt["billing"]!="NONE")
         or ("private_download_url" in receipt and
-            receipt["private_download_url"] is not None)):
+            receipt["private_download_url"] is not None)
+        or ("signed_url" in receipt and receipt["signed_url"] is not None)):
         raise Feature2TraceDenied("Durable private trace append not verified")
     # Coordinator-owned transactional writer must fence its own commit.
     # This readback denies success after in-flight scope revocation.
-    if not active():
+    receipt_snapshot=deepcopy(receipt)
+    if not active() or receipt!=receipt_snapshot:
         raise Feature2TraceDenied("Trace source revoked during private append")
     # Only bounded digests + enum; NEVER return the secret or full event body.
     return {"schema":event["schema"],"event_sha256":event_sha,
