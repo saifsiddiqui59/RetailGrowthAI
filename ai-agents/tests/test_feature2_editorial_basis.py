@@ -631,3 +631,58 @@ def test_f2_02_legitimate_single_indic_offer_remains_review_only():
     assert result["review_required"] is True
     assert result["commercial_fact_certified"] is False
     assert result["can_publish"] is False
+
+
+# F2-02: signed offer provenance is not sufficient if the offer has been
+# revoked or its legal dates do not cover the authoritative campaign day.
+def f2_02_dated_offer():
+    ctx=copy_context()
+    ctx["approved_offers"][0].update({
+        "active":True,"revoked_at":None,
+        "valid_from":"2026-10-30","valid_until":"2026-11-15",
+    })
+    return ctx
+
+
+@pytest.mark.parametrize("change",[
+    {"active":False},
+    {"active":"true"},
+    {"revoked_at":"2026-11-01T08:00:00Z"},
+    {"valid_from":"2026-11-07"},
+    {"valid_until":"2026-11-05"},
+    {"valid_until":None},
+    {"valid_from":"2026-02-30"},
+    {"valid_until":"2026-13-15"},
+    {"valid_until":"15/11/2026"},
+])
+def test_f2_02_rejects_expired_revoked_and_malformed_signed_offer(change):
+    ctx=f2_02_dated_offer()
+    ctx["approved_offers"][0].update(change)
+    with pytest.raises(EditorialBasisRejected,match="Offer lifecycle|Offer outside"):
+        inspect_retailer_copy_claims(
+            verified_context=ctx,
+            copy=candidate_copy(caption="20% off selected kurti styles"),
+        )
+
+
+@pytest.mark.parametrize("bad_day",["2026-02-30","2026-11-16","2026/11/06"])
+def test_f2_02_rejects_campaign_date_outside_signed_offer(bad_day):
+    ctx=f2_02_dated_offer()
+    ctx["campaign_date"]=bad_day
+    with pytest.raises(EditorialBasisRejected,match="Offer lifecycle|Offer outside"):
+        inspect_retailer_copy_claims(
+            verified_context=ctx,
+            copy=candidate_copy(caption="20% off selected kurti styles"),
+        )
+
+
+def test_f2_02_active_dated_offer_is_still_private_review_only():
+    ctx=f2_02_dated_offer()
+    result=inspect_retailer_copy_claims(
+        verified_context=ctx,
+        copy=candidate_copy(caption="20% off selected kurti styles"),
+    )
+    assert result["issues"]==[]
+    assert result["customer_editor_approval_required"] is True
+    assert result["commercial_fact_certified"] is False
+    assert result["can_publish"] is False
