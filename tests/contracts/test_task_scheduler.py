@@ -129,7 +129,7 @@ def test_feature3_source_component_receipts_suppress_duplicate_advisory_coding()
                source_receipts=receipts)
     source_tasks={tid for row in receipts["complete_source_components"]
                   for tid in row["task_ids"]}
-    assert len(receipts["complete_source_components"])==14
+    assert len(receipts["complete_source_components"])==23
     assert receipts["full_hosted_packages_done"]==0
     assert {"F3-02","F3-03","F3-05","F3-06","F3-08","F3-09",
             "F3-10","F3-11","F3-12","F3-13"} <= source_tasks
@@ -140,6 +140,7 @@ def test_feature3_source_component_receipts_suppress_duplicate_advisory_coding()
         assert "do not reimplement" in review[tid]
     assert any(x["id"]=="F3-04" for x in out["blocked"])
     assert "F3-07" in review
+    assert "#868" in review["F3-09"]
     assert "#861" in review["F3-07"]
     assert "#862" in review["F3-02"]
     assert "#859" in review["F3-10"]
@@ -159,6 +160,12 @@ def test_feature3_source_receipts_never_forge_task_done_or_other_feature():
     receipts=json.loads((ROOT/"coordination/feature3_source_receipts.json").read_text())
     def invalid(mutator):
         bad=copy.deepcopy(receipts)
+        bad["pending_source_components"]=[{
+            "source_pr":10000+i, "task_ids":["F3-09"],
+            "component":"synthetic negative-test pending", "stage":"TESTED_PR_REVIEW_REQUIRED",
+            "exact_head":"a"*40, "exact_head_ci_run_id":12345,
+            "hosted_task_complete":False,
+        } for i in range(5)]
         mutator(bad)
         with pytest.raises(s.SchedulerError):
             s.plan(REAL,POLICY,{"schema_version":1,"events":[]},

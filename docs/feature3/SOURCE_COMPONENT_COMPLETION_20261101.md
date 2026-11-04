@@ -61,3 +61,21 @@ The overlay must be independently reviewed before merging because `coordination/
 ## 2026-11-03 — Reconcile new independently tested source PRs without false DONE
 - The feature workstream additionally submitted #866 (original F3-05/F3-13 uncertain-SQL claim: do not send Azure Queue payload on unconfirmed backend read) at head `22636a1b` and #867 (F3-06/F3-13 actual private PNG evidence CRC/HTTP transport denial) at head `aab6df41`. Independently verified each exact-final-head **four-job CI** success: #41617176788 and #41617730765. PR #864 F3-12/F3-13 also advanced to `6ca8d7c0` with 4/4 CI #41616705270; the old overlay was stale.
 - Overlay now records **eight active source candidates** #859/#861/#862/#863/#864/#865/#866/#867 and 14 already-integrated source slices, **not** eight extra completed original tasks or deployed provider outcomes. Added scheduler and status-report negative/readiness regressions for F3-05/F3-06 with no change to the immutable original 159-task ledger or F3-01 accepted source-only milestone. Independent reviewers still required for private rights, queue/billing and shared coordinator status. Hosted accepted **0/33**; GPU/paid inference, cloud, SQL, PROD and WineShopPOS untouched.
+
+
+## 2026-11-04 — Nine owner-authorized source PRs merged
+
+PRs #859/#861/#862/#863/#864/#865/#866/#867/#868 are **all actually merged**
+to `main`, cumulative SHA `a24d5ad546fd5a0f6e24df1c16883308fd57b3fa`.
+Prior 14 reviewed Wave A/B source components plus nine direct-merge
+source components give **23 source-integrated components across 12 original
+F3 task IDs**; **zero pending source PRs in this reconciled list**.
+The proposed direct-merge receipt type
+`owner_authorized_merge_ci` explicitly does **not** claim any submitted
+independent GitHub review. Each receipt retains the actual merged SHA
+and a verified or proposed cumulative-main Part1 CI run ID. The
+cumulative CI #41813843361 still needs its final green status verified
+before merging this ledger; never treat a cancelled intermediate run as PASS.
+Original F3-01 remains the only accepted task-level source-only DONE;
+**zero of 33 hosted packages accepted**. Fixtures do not supply rights,
+signed DEV users, mounted private endpoint or actual GPU execution.

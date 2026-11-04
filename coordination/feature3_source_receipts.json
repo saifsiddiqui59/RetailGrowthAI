@@ -2,12 +2,21 @@
   "schema_version": 1,
   "feature": "3",
   "scope": "source_component_only",
-  "description": "Reviewed Wave A/B source-level completion receipts for original Feature3 packages. This is NOT task DONE, hosted acceptance, or evidence of a running coding executor. Do not redo these merged components. External rights/DEV/GPU approvals remain gated.",
-  "recorded_against_main_sha": "456b1757d7df2f0cc28a5ef6c8ba203b18380948",
-  "recorded_main_ci_run_id": 41178167285,
+  "description": "23 source-integrated code components across 12 original Feature3 package IDs: 14 previously reviewed Wave A/B plus nine owner-authorized direct merges, each tested on exact head; latest cumulative main CI is #41813843361 and must be separately verified before acceptance. No independent submitted reviews for nine direct merges; source only, not hosted DONE, GPU or commercial rights.",
+  "recorded_against_main_sha": "a24d5ad546fd5a0f6e24df1c16883308fd57b3fa",
+  "recorded_main_ci_run_id": 41813843361,
   "merged_source_prs": [
     811,
-    813
+    813,
+    859,
+    861,
+    862,
+    863,
+    864,
+    865,
+    866,
+    867,
+    868
   ],
   "complete_source_components": [
     {
@@ -193,106 +202,144 @@
       "component": "History envelope, signed API identity and private model-preview revocation",
       "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/812",
       "hosted_task_complete": false
-    }
-  ],
-  "pending_source_components": [
+    },
     {
       "source_pr": 859,
+      "integrated_pr": 859,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "owner_authorized_merge_ci",
       "task_ids": [
         "F3-10",
         "F3-13"
       ],
-      "component": "Private generated Blob cleanup retry for failed revocations",
-      "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "48cbaf9b86cbd74cbdf8a48df1fa6aab41aad002",
-      "exact_head_ci_run_id": 41546785224,
+      "component": "Private generated PNG Blob URL memory cleanup and retry after failed revocation",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/859",
+      "merge_commit_sha": "7bbf19f45df27de547aee4794b798032e68ae0c1",
+      "postmerge_main_ci_run_id": 41811777283,
       "hosted_task_complete": false
     },
     {
       "source_pr": 861,
+      "integrated_pr": 861,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "owner_authorized_merge_ci",
       "task_ids": [
         "F3-07",
         "F3-13"
       ],
-      "component": "One-shot private GPU prepaid lease and SQL media commit receipts require actual integer attempt",
-      "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "f59f19c592e434634ddeac36a27514e123ef04c3",
-      "exact_head_ci_run_id": 41554099937,
+      "component": "Strict one-shot integer prepaid GPU lease and private output SQL CAS receipt",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/861",
+      "merge_commit_sha": "a24d5ad546fd5a0f6e24df1c16883308fd57b3fa",
+      "postmerge_main_ci_run_id": 41813843361,
       "hosted_task_complete": false
     },
     {
       "source_pr": 862,
+      "integrated_pr": 862,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "owner_authorized_merge_ci",
       "task_ids": [
         "F3-02",
         "F3-13"
       ],
-      "component": "One-shot private worker rights/current grant and immutable UUID/SHA-named approved model originals, including Feature4/5 final-read model ID binding",
-      "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "ee84755114de75e91550e676099ffb9698c28722",
-      "hosted_task_complete": false,
-      "exact_head_ci_run_id": 41618433016
+      "component": "Final worker rights, exact reviewed model UUID and immutable private image SHA",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/862",
+      "merge_commit_sha": "48d4c296de2104529356fa30418850c4307cdc47",
+      "postmerge_main_ci_run_id": 41813843361,
+      "hosted_task_complete": false
     },
     {
       "source_pr": 863,
+      "integrated_pr": 863,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "owner_authorized_merge_ci",
       "task_ids": [
         "F3-08",
         "F3-13"
       ],
-      "component": "Private generated PNG exact asset identity/tenant/bucket/GENERATED source checked before and after private GET",
-      "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "edc5dd4a9b0384c8e8c00c2469bdc35e260b10c8",
-      "exact_head_ci_run_id": 41529767679,
+      "component": "Authenticated private PNG exact tenant/asset/source and current rights before/after read",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/863",
+      "merge_commit_sha": "198beb463a7b71b0d2ca5a0ba5025c4ae5872cb7",
+      "postmerge_main_ci_run_id": 41813843361,
       "hosted_task_complete": false
     },
     {
       "source_pr": 864,
+      "integrated_pr": 864,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "owner_authorized_merge_ci",
       "task_ids": [
         "F3-12",
         "F3-13"
       ],
-      "component": "Signed current model catalog, reviewed provenance, exact approved reuse and licensed upload metadata, deny unknown rights/unsafe URLs",
-      "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "6ca8d7c0f24fec2a82a7bb2bc72c5914d617fd0c",
-      "exact_head_ci_run_id": 41616705270,
+      "component": "Strict signed model catalog, commercial provenance display and approved model uses",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/864",
+      "merge_commit_sha": "67e0ae061399fbae4a66b42c21cc18be94300718",
+      "postmerge_main_ci_run_id": 41813843361,
       "hosted_task_complete": false
     },
     {
       "source_pr": 865,
+      "integrated_pr": 865,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "owner_authorized_merge_ci",
       "task_ids": [
         "F3-03",
         "F3-13"
       ],
-      "component": "Real private source provenance, immutable licensed originals, canonical service-key HTTPS, bounded response headers and full image decode with two current rights barriers",
-      "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "ad5ebf49ea6dc9737c41f1adb4221c1eea512a3a",
-      "exact_head_ci_run_id": 41529946037,
+      "component": "Strict registered private source provenance, service-key transport and pixel decoding",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/865",
+      "merge_commit_sha": "a1bfeae98fe28b18dad6f3bc390ca23ad22d9ae9",
+      "postmerge_main_ci_run_id": 41813843361,
       "hosted_task_complete": false
     },
     {
       "source_pr": 866,
+      "integrated_pr": 866,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "owner_authorized_merge_ci",
       "task_ids": [
         "F3-05",
         "F3-13"
       ],
-      "component": "Read-only/zero-GPU outbox claim must fail closed on uncertain SQL response before any queue send",
-      "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "22636a1b25692c742b0dad65e857816b06f2eb1e",
-      "exact_head_ci_run_id": 41617176788,
+      "component": "Unknown SQL outbox claim fail-closed before any Azure queue send",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/866",
+      "merge_commit_sha": "bd0e888b7d9aeda67cca440a00bf8af206b4f6e3",
+      "postmerge_main_ci_run_id": 41812332723,
       "hosted_task_complete": false
     },
     {
       "source_pr": 867,
+      "integrated_pr": 867,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "owner_authorized_merge_ci",
       "task_ids": [
         "F3-06",
         "F3-13"
       ],
-      "component": "Opaque service-only private output operator evidence transport, CRC/pixel proof and strict HTTP header validation",
-      "stage": "TESTED_PR_REVIEW_REQUIRED",
-      "exact_head": "aab6df4177280d4e01a1eee5480d00b09bca7a1c",
-      "exact_head_ci_run_id": 41617730765,
+      "component": "Private operator PNG evidence strict HTTP headers and full pixel decode",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/867",
+      "merge_commit_sha": "d91499edcde144eade3dbdfc1737c8dc81f32c28",
+      "postmerge_main_ci_run_id": 41813843361,
+      "hosted_task_complete": false
+    },
+    {
+      "source_pr": 868,
+      "integrated_pr": 868,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "owner_authorized_merge_ci",
+      "task_ids": [
+        "F3-09",
+        "F3-13"
+      ],
+      "component": "Private workspace GET single-flight and synthetic Chromium CPU poster/foreign-day backup denial",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/868",
+      "merge_commit_sha": "860dd2d9191d480e9f0c239892de5a2c6ad5425a",
+      "postmerge_main_ci_run_id": 41812828276,
       "hosted_task_complete": false
     }
   ],
+  "pending_source_components": [],
   "verified_package_done": [
     {
       "task_id": "F3-01",
@@ -310,5 +357,5 @@
     "F5-GPU-AUTHORIZATION",
     "real signed DEV JWT/RLS negative tests"
   ],
-  "next_action": "14 source-integrated components (Wave A/B), eight independently tested but unmerged source PRs #859/#861/#862/#863/#864/#865/#866/#867 all latest exact-head 4/4 per Nov 3 verification. Never mark hosted DONE (0/33) or duplicate these original task slices; obtain independent private-media, affected-feature, financial and shared-coordination review before any main integration, then fresh main 4/4."
+  "next_action": "Verify cumulative main Part1 4/4 run #41813843361 on a24d5ad5, and exact-head reviewed shared coordinator PR #860 then fresh postmerge main. No open PR among reconciled nine source components; continue genuine hosted rights/JWT/RLS/binary/deployment acceptance only when test identities and approvals exist; synthetic CPU/mocks remain useful now. 0/33 full hosted."
 }

@@ -72,43 +72,57 @@ def test_feature3_source_components_visible_without_inflating_accepted_done():
     overlay=json.loads((ROOT/"coordination/feature3_source_receipts.json").read_text())
     report=s.resolve(INV,{"schema_version":1,"events":[]},
                      gh=FakeGitHub(),source_receipts=overlay)
-    assert report["source_components_integrated"]==14
-    assert report["source_components_task_count"]==11
+    assert report["source_components_integrated"]==23
+    assert report["source_components_task_count"]==12
     assert report["summary"]["DONE"]==0
     assert report["verified_done"]==0
-    assert report["source_prs_awaiting_review"]==8
+    assert report["source_prs_awaiting_review"]==0
     f3=next(x for x in report["items"] if x["id"]=="F3-10")
     assert f3["status"]=="IN PROGRESS"
     assert 768 in f3["completed_source_prs"]
     assert 812 in f3["completed_source_prs"]
-    assert {"pr":859,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f3["active_source_prs"]
+    assert 859 in f3["completed_source_prs"]
+    assert not f3["active_source_prs"]
     f307=next(x for x in report["items"] if x["id"]=="F3-07")
     assert f307["status"]=="IN PROGRESS"
-    assert {"pr":861,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f307["active_source_prs"]
+    assert 861 in f307["completed_source_prs"]
+    assert not f307["active_source_prs"]
     f302=next(x for x in report["items"] if x["id"]=="F3-02")
-    assert {"pr":862,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f302["active_source_prs"]
+    assert 862 in f302["completed_source_prs"]
+    assert not f302["active_source_prs"]
     f308=next(x for x in report["items"] if x["id"]=="F3-08")
-    assert {"pr":863,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f308["active_source_prs"]
+    assert 863 in f308["completed_source_prs"]
+    assert not f308["active_source_prs"]
     assert f308["status"]=="IN PROGRESS"
     f312=next(x for x in report["items"] if x["id"]=="F3-12")
-    assert {"pr":864,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f312["active_source_prs"]
+    assert 864 in f312["completed_source_prs"]
+    assert not f312["active_source_prs"]
     assert f312["status"]=="IN PROGRESS"
     f303=next(x for x in report["items"] if x["id"]=="F3-03")
-    assert {"pr":865,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f303["active_source_prs"]
+    assert 865 in f303["completed_source_prs"]
+    assert not f303["active_source_prs"]
     f305=next(z for z in report["items"] if z["id"]=="F3-05")
-    assert {"pr":866,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f305["active_source_prs"]
+    assert 866 in f305["completed_source_prs"]
+    assert not f305["active_source_prs"]
     f306=next(z for z in report["items"] if z["id"]=="F3-06")
-    assert {"pr":867,"stage":"TESTED_PR_REVIEW_REQUIRED"} in f306["active_source_prs"]
+    assert 867 in f306["completed_source_prs"]
+    assert not f306["active_source_prs"]
     assert all(not x["completed_source_prs"] for x in report["items"]
                if x["feature"]!="3")
     md=s.markdown(report)
-    assert "Feature3 source components already integrated:** 14 across 11" in md
+    assert "Feature3 source components already integrated:** 23 across 12" in md
 
 
 def test_feature3_source_completion_overlay_denies_false_full_hosted_done():
     overlay=json.loads((ROOT/"coordination/feature3_source_receipts.json").read_text())
     def invalid(modifier):
         bad=copy.deepcopy(overlay)
+        bad["pending_source_components"]=[{
+            "source_pr":10000+i, "task_ids":["F3-09"],
+            "component":"synthetic negative-test pending", "stage":"TESTED_PR_REVIEW_REQUIRED",
+            "exact_head":"a"*40, "exact_head_ci_run_id":12345,
+            "hosted_task_complete":False,
+        } for i in range(5)]
         modifier(bad)
         with pytest.raises(s.ProgressError):
             s.resolve(INV,{"schema_version":1,"events":[]},

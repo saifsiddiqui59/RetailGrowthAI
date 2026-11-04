@@ -124,9 +124,17 @@ def validated_source_components(source_receipts, inventory):
         if (not isinstance(row,dict) or
             type(row.get("source_pr")) is not int or row["source_pr"]<1 or
             row["source_pr"] in seen or
-            row.get("integrated_pr") not in (811,813) or
+            (row.get("integrated_pr") not in (811,813) and
+             (row.get("integrated_pr")!=row.get("source_pr") or
+              row.get("verification")!="owner_authorized_merge_ci" or
+              type(row.get("postmerge_main_ci_run_id")) is not int or
+              row["postmerge_main_ci_run_id"]<1 or
+              not isinstance(row.get("merge_commit_sha"),str) or
+              not re.fullmatch(r"[a-f0-9]{40}",row["merge_commit_sha"]))) or
+            (row.get("verification")=="owner_authorized_merge_ci" and
+             row.get("integrated_pr") in (811,813)) or
             row.get("source_stage")!="SOURCE_INTEGRATED" or
-            row.get("verification") not in ("exact_blob","semantic_review") or
+            row.get("verification") not in ("exact_blob","semantic_review","owner_authorized_merge_ci") or
             row.get("hosted_task_complete") is not False or
             not isinstance(row.get("task_ids"),list) or not row["task_ids"] or
             len(set(row["task_ids"]))!=len(row["task_ids"]) or

@@ -110,7 +110,10 @@ def validate_source_receipts(receipts, by_id):
         not re.fullmatch(r"[a-f0-9]{40}",receipts["recorded_against_main_sha"]) or
         type(receipts.get("recorded_main_ci_run_id")) is not int or
         receipts["recorded_main_ci_run_id"]<1 or
-        receipts.get("merged_source_prs")!=[811,813] or
+        (not isinstance(receipts.get("merged_source_prs"),list) or
+         receipts["merged_source_prs"][:2]!=[811,813] or
+         receipts["merged_source_prs"][2:]!=sorted(set(receipts["merged_source_prs"][2:])) or
+         any(type(n) is not int or n<814 for n in receipts["merged_source_prs"][2:])) or
         not isinstance(receipts.get("complete_source_components"),list)):
         raise SchedulerError("Invalid Feature3 source-only receipt ledger")
     known_source=set()
@@ -119,9 +122,18 @@ def validate_source_receipts(receipts, by_id):
         if (not isinstance(row,dict) or
             type(row.get("source_pr")) is not int or row["source_pr"]<1 or
             row["source_pr"] in known_source or
-            row.get("integrated_pr") not in (811,813) or
+            row.get("integrated_pr") not in receipts["merged_source_prs"] or
+            (row.get("verification")=="owner_authorized_merge_ci" and (
+                row["source_pr"]!=row["integrated_pr"] or
+                row["integrated_pr"] in (811,813) or
+                type(row.get("postmerge_main_ci_run_id")) is not int or
+                row["postmerge_main_ci_run_id"]<1 or
+                not isinstance(row.get("merge_commit_sha"),str) or
+                not re.fullmatch(r"[a-f0-9]{40}",row["merge_commit_sha"]))) or
+            (row.get("verification")!="owner_authorized_merge_ci" and
+             row.get("integrated_pr") not in (811,813)) or
             row.get("source_stage")!="SOURCE_INTEGRATED" or
-            row.get("verification") not in ("exact_blob","semantic_review") or
+            row.get("verification") not in ("exact_blob","semantic_review","owner_authorized_merge_ci") or
             row.get("hosted_task_complete") is not False or
             not isinstance(row.get("component"),str) or not row["component"].strip() or
             row.get("source_evidence_url")!=
