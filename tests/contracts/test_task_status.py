@@ -72,8 +72,8 @@ def test_feature3_source_components_visible_without_inflating_accepted_done():
     overlay=json.loads((ROOT/"coordination/feature3_source_receipts.json").read_text())
     report=s.resolve(INV,{"schema_version":1,"events":[]},
                      gh=FakeGitHub(),source_receipts=overlay)
-    assert report["source_components_integrated"]==23
-    assert report["source_components_task_count"]==12
+    assert report["source_components_integrated"]==24
+    assert report["source_components_task_count"]==13
     assert report["summary"]["DONE"]==0
     assert report["verified_done"]==0
     assert report["source_prs_awaiting_review"]==0
@@ -106,11 +106,14 @@ def test_feature3_source_components_visible_without_inflating_accepted_done():
     assert not f305["active_source_prs"]
     f306=next(z for z in report["items"] if z["id"]=="F3-06")
     assert 867 in f306["completed_source_prs"]
+    f322=next(z for z in report["items"] if z["id"]=="F3-22")
+    assert 870 in f322["completed_source_prs"]
+    assert f322["status"]=="BLOCKED"
     assert not f306["active_source_prs"]
     assert all(not x["completed_source_prs"] for x in report["items"]
                if x["feature"]!="3")
     md=s.markdown(report)
-    assert "Feature3 source components already integrated:** 23 across 12" in md
+    assert "Feature3 source components already integrated:** 24 across 13" in md
 
 
 def test_feature3_source_completion_overlay_denies_false_full_hosted_done():

@@ -2,9 +2,9 @@
   "schema_version": 1,
   "feature": "3",
   "scope": "source_component_only",
-  "description": "23 source-integrated code components across 12 original Feature3 package IDs: 14 previously reviewed Wave A/B plus nine owner-authorized direct merges, each tested on exact head; latest cumulative main CI is #41813843361 and must be separately verified before acceptance. No independent submitted reviews for nine direct merges; source only, not hosted DONE, GPU or commercial rights.",
-  "recorded_against_main_sha": "a24d5ad546fd5a0f6e24df1c16883308fd57b3fa",
-  "recorded_main_ci_run_id": 41813843361,
+  "description": "24 source-integrated code components across 13 original Feature3 package IDs (14 Wave A/B, nine source hardening, one synthetic offline F3-22 export test). Owner-authorized, final cumulative main CI #41820799158 MUST be checked 4/4 before integrating this proposed receipt. Source-only, no commercial media rights/actual DEV/paid provider/hosted acceptance.",
+  "recorded_against_main_sha": "283b4a29674f8d9a5d6132ddf44d03cb93255b45",
+  "recorded_main_ci_run_id": 41820799158,
   "merged_source_prs": [
     811,
     813,
@@ -16,7 +16,8 @@
     865,
     866,
     867,
-    868
+    868,
+    870
   ],
   "complete_source_components": [
     {
@@ -337,6 +338,21 @@
       "merge_commit_sha": "860dd2d9191d480e9f0c239892de5a2c6ad5425a",
       "postmerge_main_ci_run_id": 41812828276,
       "hosted_task_complete": false
+    },
+    {
+      "source_pr": 870,
+      "integrated_pr": 870,
+      "source_stage": "SOURCE_INTEGRATED",
+      "verification": "owner_authorized_merge_ci",
+      "task_ids": [
+        "F3-22",
+        "F3-13"
+      ],
+      "component": "Real Chromium CPU 1080x1920 draft PNG pixel decode, no unapproved promotions or paid/storage side effects",
+      "source_evidence_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/870",
+      "merge_commit_sha": "283b4a29674f8d9a5d6132ddf44d03cb93255b45",
+      "postmerge_main_ci_run_id": 41820799158,
+      "hosted_task_complete": false
     }
   ],
   "pending_source_components": [],
@@ -357,5 +373,5 @@
     "F5-GPU-AUTHORIZATION",
     "real signed DEV JWT/RLS negative tests"
   ],
-  "next_action": "Verify cumulative main Part1 4/4 run #41813843361 on a24d5ad5, and exact-head reviewed shared coordinator PR #860 then fresh postmerge main. No open PR among reconciled nine source components; continue genuine hosted rights/JWT/RLS/binary/deployment acceptance only when test identities and approvals exist; synthetic CPU/mocks remain useful now. 0/33 full hosted."
+  "next_action": "Check cumulative main Part1 CI #41820799158 exact sha 283b4a2 4/4; check final-head shared receipt/doc PR 4/4 then merge and verify fresh main. Original F3-22 remains blocked for hosted Save/Review/Export, not source-only test. 0/33 full hosted. No GPU/paid inference, licensed media bypass, hosted SQL, PROD or WineShopPOS."
 }

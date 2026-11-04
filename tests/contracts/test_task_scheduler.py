@@ -129,18 +129,20 @@ def test_feature3_source_component_receipts_suppress_duplicate_advisory_coding()
                source_receipts=receipts)
     source_tasks={tid for row in receipts["complete_source_components"]
                   for tid in row["task_ids"]}
-    assert len(receipts["complete_source_components"])==23
+    assert len(receipts["complete_source_components"])==24
     assert receipts["full_hosted_packages_done"]==0
     assert {"F3-02","F3-03","F3-05","F3-06","F3-08","F3-09",
             "F3-10","F3-11","F3-12","F3-13"} <= source_tasks
     assert all(c["id"] not in source_tasks for c in out["candidates"])
     review={x["id"]:x["reason"] for x in out["existing_source_or_review"]}
-    for tid in source_tasks-{"F3-04"}:
+    for tid in source_tasks-{"F3-04","F3-22"}:
         assert tid in review
         assert "do not reimplement" in review[tid]
     assert any(x["id"]=="F3-04" for x in out["blocked"])
+    assert any(x["id"]=="F3-22" for x in out["blocked"])
     assert "F3-07" in review
     assert "#868" in review["F3-09"]
+    assert "#870" in review["F3-13"]
     assert "#861" in review["F3-07"]
     assert "#862" in review["F3-02"]
     assert "#859" in review["F3-10"]
