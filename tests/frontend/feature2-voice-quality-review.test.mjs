@@ -256,3 +256,32 @@ test('F2-26 valid Devanagari virama conjunct stays manually reviewable',()=>{
   assert.equal(verified.pronunciation_verified,false)
   assert.equal(verified.can_publish,false)
 })
+
+
+test('F2-26 rejects unpaired surrogates in private F7 display',()=>{
+  for(const invalid of [
+    'kurti\uD800','kurti\uDC00','\uD800kurti','कुर्ती\uDFFF'
+  ]){
+    const altered=review()
+    altered.asr_word_timing[0].word=invalid
+    assert.throws(()=>verifyPrivateVoiceQualityReview({
+      shopId,campaignId,planSha256,receipt,review:altered
+    }),undefined,JSON.stringify(invalid))
+    const issue=review()
+    issue.asr_issues[0].word=invalid
+    assert.throws(()=>verifyPrivateVoiceQualityReview({
+      shopId,campaignId,planSha256,receipt,review:issue
+    }),undefined,JSON.stringify(invalid))
+  }
+})
+
+test('F2-26 correctly paired supplementary-script letter remains review-only',()=>{
+  const original=review()
+  original.asr_word_timing[0].word='𑀓'
+  const display=verifyPrivateVoiceQualityReview({
+    shopId,campaignId,planSha256,receipt,review:original
+  })
+  assert.equal(display.words[0].word,'𑀓')
+  assert.equal(display.pronunciation_verified,false)
+  assert.equal(display.can_publish,false)
+})
