@@ -412,3 +412,16 @@ def test_f2_18_preflight_rejects_untrusted_reference_before_import(
         run_openpronounce_lazy(
             original_wav=wav(),expected_script=bad,enabled=True)
     assert observed==[]
+
+
+# F2-17: malformed Unicode must not escape a signed ASR word or be
+# normalized into an apparently matching spoken product name.
+@pytest.mark.parametrize("spoof",[
+    "kurti\ud800",
+    "kurti\udc00",
+    "\ud800kurti",
+    "कुर्ती\udfff",
+])
+def test_f2_17_signed_stt_rejects_unpaired_surrogates(spoof):
+    with pytest.raises(VoiceQualityDenied,match="timestamps"):
+        analyze("Our kurti",["Our",spoof])
