@@ -67,6 +67,8 @@ def _synthetic_private_retake(*,mode="ok", receipt_overrides=None):
 
     def current_editor(*_):
         state["reads"]+=1
+        if mode=="inplace_plan_changed_after_synthesis" and state["reads"]==2:
+            state["current_plan"]["approval_record"]["plan_sha256"]="e"*64
         return state["editor"]
 
     def read_current_plan(*_):
@@ -78,6 +80,8 @@ def _synthetic_private_retake(*,mode="ok", receipt_overrides=None):
             state["editor"]=False
         elif mode=="plan_changed":
             state["current_plan"]={"revoked_plan":True}
+        elif mode=="inplace_plan_changed":
+            state["current_plan"]["approval_record"]["plan_sha256"]="e"*64
         receipt={"asset_id":str(uuid4()),"shop_id":SHOP,
                  "new_audio_sha256":digest,"private":True,
                  "can_publish":False}
@@ -125,6 +129,7 @@ def test_synthetic_private_retake_still_requires_fresh_human_review():
 @pytest.mark.parametrize("mode,reason",[
     ("role_revoked","revoked during private registration"),
     ("plan_changed","revoked during private registration"),
+    ("inplace_plan_changed","revoked during private registration"),
     ("writer_promotes","bypass retake review"),
     ("writer_skips_stt","bypass retake review"),
 ])
@@ -208,3 +213,10 @@ def test_f2_27_explicitly_pending_writer_metadata_keeps_f4_f7_review_gates():
     assert output["requires_new_feature7_transcription"] is True
     assert output["requires_feature4_scene_assembly"] is True
     assert output["actual_pronunciation_success_verified"] is False
+
+
+def test_f2_27_inplace_source_change_during_speech_denied_before_private_write():
+    run,state=_synthetic_private_retake(mode="inplace_plan_changed_after_synthesis")
+    with pytest.raises(RetakeDenied,match="Source revoked after retake"):
+        run()
+    assert state["reads"]==2 and state["writes"]==0
