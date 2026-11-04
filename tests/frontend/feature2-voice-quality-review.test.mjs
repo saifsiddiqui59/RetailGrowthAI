@@ -176,3 +176,49 @@ test('WER higher than 100 percent is allowed when there are extra spoken words',
  const x=verifyWer(p)
  assert.equal(x.asr.word_error_rate,3)
 })
+
+
+// Browser rendering must independently reject Unicode spoofing even if a
+// mocked server claims a matching private ASR source; this is not worker proof.
+test('review UI denies invisible/bidi spoof and whitespace inside signed word hints',()=>{
+ const words=[
+   'kurti\u202e','kurti\u200b','कुर्ती\u2066','kurti\u2028',
+   'kurti\u00ad','two words',' trailing','trailing ','<svg>'
+ ]
+ for(const word of words){
+   const altered=review()
+   altered.asr_word_timing[0].word=word
+   assert.throws(()=>verifyPrivateVoiceQualityReview({
+     shopId,campaignId,planSha256,receipt,review:altered}),undefined,JSON.stringify(word))
+   const issue=review()
+   issue.asr_issues[0].word=word
+   assert.throws(()=>verifyPrivateVoiceQualityReview({
+     shopId,campaignId,planSha256,receipt,review:issue}),undefined,JSON.stringify(word))
+ }
+})
+
+test('legitimate Indian conjunct and punctuation-free single tokens survive',()=>{
+ const original=review()
+ original.asr_word_timing[0].word='क्\u200dष'
+ original.asr_issues[0].word='कुर्ती'
+ const out=verifyPrivateVoiceQualityReview({
+   shopId,campaignId,planSha256,receipt,review:original})
+ assert.equal(out.words[0].word,'क्\u200dष')
+ assert.equal(out.issues[0].word,'कुर्ती')
+ assert.ok(Object.isFrozen(out.words[0]))
+ assert.ok(Object.isFrozen(out.issues[0]))
+})
+
+test('quality review and aggregate WER reject forged audio identity or job ID',()=>{
+ const wrongReceipt={...receipt,private_audio_asset_id:'unscoped-job'}
+ const wrongReview={...review(),audio_asset_id:'unscoped-job'}
+ assert.throws(()=>verifyPrivateVoiceQualityReview({
+   shopId,campaignId,planSha256,receipt:wrongReceipt,review:wrongReview}))
+ const forged=werReceipt()
+ forged.source_job_id='../another-job'
+ assert.throws(()=>verifyWer(forged))
+ assert.throws(()=>verifySignedWordErrorReview({
+   shopId,campaignId,planSha256:'invalid-plan',
+   receipt:{...receipt,creative_plan_sha256:'invalid-plan'},
+   metrics:{...werReceipt(),creative_plan_sha256:'invalid-plan'}}))
+})

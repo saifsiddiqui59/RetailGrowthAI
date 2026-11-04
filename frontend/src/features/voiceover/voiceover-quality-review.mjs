@@ -2,14 +2,20 @@
 // result. Browser validation is NOT proof of backend JWT/rights/HMAC or model
 // accuracy. The trusted server must verify those before returning this record.
 const SHA=/^[a-f0-9]{64}$/
+const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/
 const reject=()=>{throw Error('Trusted current narration quality review unavailable')}
 const problems=new Set([
   'MISSING_OR_SUBSTITUTED_WORD','MISSING_WORD','UNEXPECTED_OR_SUBSTITUTED_WORD','UNEXPECTED_WORD',
   'REPLACED_WORD','INSERTED_WORD','DELETED_WORD'
 ])
 const pcm=new Set(['audio_clipped','too_quiet','too_loud','excessive_silence'])
-const safeWord=value=>typeof value==='string'&&value.trim().length>0&&
-  value.length<=80&&!/[<>\x00-\x1f]/.test(value)
+// The backend also filters ASR display control characters; fail closed in
+// the browser to avoid bidi spoof, invisible edits or false reviewer matches.
+// ZWJ/ZWNJ stay allowed for legitimate Hindi/Marathi conjuncts.
+const UNSAFE_AUDIO_TEXT=/[<>\x00-\x1f\x7f-\x9f\u00ad\u061c\u180e\u200b\u200e\u200f\u2028-\u202e\u2060-\u206f\ufeff]/u
+const safeWord=value=>typeof value==='string'&&value.length>0&&
+  value.length<=80&&value.trim()===value&&!/\s/u.test(value)&&
+  !UNSAFE_AUDIO_TEXT.test(value)
 export function verifyPrivateVoiceQualityReview({
   shopId,campaignId,planSha256,receipt,review
 }={}) {
@@ -19,6 +25,7 @@ export function verifyPrivateVoiceQualityReview({
     review.creative_plan_sha256!==planSha256||
     !SHA.test(planSha256||'')||
     review.audio_asset_id!==receipt.private_audio_asset_id||
+    !UUID.test(receipt.private_audio_asset_id||'')||
     review.original_audio_sha256!==receipt.original_audio_sha256||
     !SHA.test(review.original_audio_sha256||'')||
     receipt.shop_id!==shopId||receipt.campaign_id!==campaignId||
@@ -49,8 +56,8 @@ export function verifyPrivateVoiceQualityReview({
       row.startMs<end||row.endMs<=row.startMs||
       row.endMs>Math.round(review.audio_duration_seconds*1000)+1)reject()
     end=row.endMs
-    return {word:row.word,start_seconds:row.startMs/1000,
-      end_seconds:row.endMs/1000}
+    return Object.freeze({word:row.word,start_seconds:row.startMs/1000,
+      end_seconds:row.endMs/1000})
   })
   const issues=review.asr_issues.map(row=>{
     if(!row||typeof row!=='object'||Array.isArray(row)||
@@ -61,9 +68,9 @@ export function verifyPrivateVoiceQualityReview({
          !Number.isFinite(row.audio_start_seconds)||
          row.audio_start_seconds<0||
          row.audio_start_seconds>review.audio_duration_seconds)))reject()
-    return {problem:row.problem,word:row.word,
+    return Object.freeze({problem:row.problem,word:row.word,
       at_seconds:row.audio_start_seconds??null,
-      action:'CHECK_ORIGINAL_AUDIO_AND_PROPOSE_HUMAN_REVIEW'}
+      action:'CHECK_ORIGINAL_AUDIO_AND_PROPOSE_HUMAN_REVIEW'})
   })
   const warnings=review.pcm_quality_warnings.map(s=>{
     if(typeof s!=='string'||!pcm.has(s))reject()
@@ -90,11 +97,15 @@ export function verifySignedWordErrorReview({
   if(!metrics||typeof metrics!=='object'||Array.isArray(metrics)||
     !receipt||receipt.shop_id!==shopId||receipt.campaign_id!==campaignId||
     receipt.creative_plan_sha256!==planSha256||
+    !SHA.test(planSha256||'')||
+    !UUID.test(receipt.private_audio_asset_id||'')||
     !SHA.test(receipt.original_audio_sha256||'')||
     metrics.schema!=='retailgrowth.feature2-verified-word-error-review.v1'||
     metrics.shop_id!==shopId||metrics.campaign_id!==campaignId||
     metrics.creative_plan_sha256!==planSha256||
     metrics.audio_asset_id!==receipt.private_audio_asset_id||
+    typeof metrics.source_job_id!=='string'||
+    !/^[A-Za-z0-9_-]{1,120}$/.test(metrics.source_job_id)||
     metrics.original_audio_sha256!==receipt.original_audio_sha256||
     metrics.feature7_hmac_and_current_source_verified!==true||
     metrics.real_worker_execution_independently_observed!==false||
