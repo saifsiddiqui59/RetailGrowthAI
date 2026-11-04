@@ -137,7 +137,21 @@ export function makeReviewedDraftRequest({shopId,campaignId,planSha256,
   })
 }
 export function verifyReviewedDraftReceipt({shopId,campaignId,proposal,receipt}){
-  if(!receipt||!proposal||
+  if(!receipt||typeof receipt!=='object'||Array.isArray(receipt)||
+    !proposal||typeof proposal!=='object'||Array.isArray(proposal)||
+    typeof shopId!=='string'||!UUID.test(shopId)||
+    typeof campaignId!=='string'||!UUID.test(campaignId)||
+    proposal.shop_id!==shopId||proposal.campaign_id!==campaignId||
+    !UUID.test(proposal.proposal_id||'')||
+    !Number.isSafeInteger(proposal.source_revision)||
+    proposal.source_revision<0||proposal.source_revision>=100000||
+    !SHA.test(proposal.original_prompt_sha256||'')||
+    !SHA.test(proposal.improved_prompt_sha256||'')||
+    proposal.review_status!=='NEEDS_REVIEW'||
+    proposal.can_publish!==false||proposal.private!==true||
+    reviewMetadataEscalated(proposal)||
+    !Number.isSafeInteger(receipt.source_revision)||
+    !Number.isSafeInteger(receipt.revision)||
     receipt.schema!=='retailgrowth.feature2-reviewed-prompt-draft.v1'||
     receipt.shop_id!==shopId||receipt.campaign_id!==campaignId||
     !UUID.test(receipt.proposal_id||'')||

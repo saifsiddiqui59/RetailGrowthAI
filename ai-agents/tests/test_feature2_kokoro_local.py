@@ -398,3 +398,46 @@ def test_f2_09_malformed_speed_fails_closed_without_cpu_session(bad):
             text="A safe shop message for preview", speed=bad,
             engine=NeverCallEngine(), trusted_for_tests=True)
     assert calls == []
+
+
+# F2-15: wave.open accepts trailers/duplicate RIFF chunks that must not
+# count as authentic CPU benchmark evidence. Offline PCM fixture only.
+@pytest.mark.parametrize("tamper",["trailing_bytes","duplicate_data","riff_size"])
+def test_f2_15_cpu_benchmark_denies_hidden_riff_data_with_valid_sha(tamper):
+    from ai_agents.feature2_kokoro_local import (
+        run_cpu_kokoro_benchmark, SOURCE_REVISION)
+    pcm_buffer=io.BytesIO()
+    with wave.open(pcm_buffer,"wb") as writer:
+        writer.setnchannels(1)
+        writer.setsampwidth(2)
+        writer.setframerate(24000)
+        writer.writeframes(b"\\x00\\x10"*24000)
+    original=pcm_buffer.getvalue()
+    if tamper=="trailing_bytes":
+        forged=original+b"secret-not-audio"
+    elif tamper=="duplicate_data":
+        extra=b"data"+(2).to_bytes(4,"little")+b"\\x00\\x10"
+        forged=bytearray(original+extra)
+        forged[4:8]=(len(forged)-8).to_bytes(4,"little")
+        forged=bytes(forged)
+    else:
+        forged=bytearray(original)
+        forged[4:8]=(len(forged)-7).to_bytes(4,"little")
+        forged=bytes(forged)
+    def fake_speech(**kwargs):
+        return {"schema":"retailgrowth.feature2-kokoro-original-audio.v1",
+                "provider":"kokoro-onnx",
+                "model":"Kokoro-82M-v1.0-int8",
+                "upstream_revision":SOURCE_REVISION,
+                "voice_id":kwargs["voice_id"],"language":kwargs["lang"],
+                "sample_rate_hz":24000,"paid_calls":0,
+                "approved_to_publish":False,
+                "speech_transcript_verified":False,"word_timestamps":None,
+                "test_only":True,"actual_inference_verified":False,
+                "audio_wav":forged,
+                "audio_sha256":sha256(forged).hexdigest(),
+                "duration_seconds":1.0}
+    with pytest.raises(LocalSpeechUnavailable,match="RIFF boundary"):
+        run_cpu_kokoro_benchmark(
+            cache_dir="/synthetic-cache-not-used",repeats=1,
+            synthesize=fake_speech,trusted_for_tests=True)

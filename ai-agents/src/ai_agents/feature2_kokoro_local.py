@@ -282,8 +282,15 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
             not audio["audio_wav"].startswith(b"RIFF") or
             audio["audio_wav"][8:12]!=b"WAVE"):
             raise LocalSpeechUnavailable("Benchmark source/audio provenance invalid")
-        # RIFF/WAVE magic is not sufficient: an injected malformed buffer or
-        # a forged declared duration must not become a real CPU benchmark.
+        # RIFF/WAVE magic and wave.open alone can accept hidden trailing
+        # bytes or duplicate data chunks. Reuse the EXISTING strict private
+        # source-audio validator before crediting CPU benchmark evidence.
+        # This is a format check, never evidence of real speech quality.
+        from .feature2_voiceover_upload import _inspect, VoiceUploadRejected
+        try:
+            _inspect(audio["audio_wav"],60)
+        except VoiceUploadRejected as exc:
+            raise LocalSpeechUnavailable("Benchmark original WAV RIFF boundary invalid") from exc
         try:
             with wave.open(BytesIO(audio["audio_wav"]),"rb") as reader:
                 count=reader.getnframes()

@@ -282,3 +282,39 @@ test('F2-31 pending optional denial metadata remains only a private draft',()=>{
  assert.equal(returned.review_status,'DRAFT')
  assert.ok(Object.isFrozen(returned))
 })
+
+
+test('F2-31 signed A/B receipt rejects numeric coercion and forged proposal grants',()=>{
+ const receipt={schema:'retailgrowth.feature2-reviewed-prompt-draft.v1',
+   shop_id:SHOP,campaign_id:CID,proposal_id:PROPOSAL,
+   source_revision:7,revision:8,
+   original_prompt_sha256:'b'.repeat(64),
+   improved_prompt_sha256:'c'.repeat(64),
+   review_status:'DRAFT',private:true,can_publish:false,
+   can_dispatch_paid_motion:false,
+   requires_fresh_media_rights:true,requires_new_copy_fact_review:true}
+ const cases=[
+   {proposal:{...draftProposal,source_revision:'7'},
+     receipt:{...receipt,source_revision:'7',revision:'71'}},
+   {proposal:{...draftProposal,source_revision:true},
+     receipt:{...receipt,source_revision:true,revision:2}},
+   {proposal:{...draftProposal,source_revision:7.5}},
+   {proposal:{...draftProposal,source_revision:100000}},
+   {proposal:{...draftProposal,can_publish:'false'}},
+   {proposal:{...draftProposal,paid_calls:1}},
+   {proposal:{...draftProposal,improved_prompt_sha256:'not-a-hash'}},
+   {receipt:{...receipt,revision:true}},
+   {receipt:{...receipt,source_revision:'7'}},
+   {receipt:{...receipt,revision:8.0,private:'true'}},
+ ]
+ for(const variant of cases){
+   assert.throws(()=>verifyReviewedDraftReceipt({
+     shopId:SHOP,campaignId:CID,
+     proposal:variant.proposal||draftProposal,
+     receipt:variant.receipt||receipt}),/Invalid or unauthorized/)
+ }
+ const ok=verifyReviewedDraftReceipt({shopId:SHOP,campaignId:CID,
+                                    proposal:draftProposal,receipt})
+ assert.equal(ok.can_publish,false)
+ assert.equal(ok.revision,8)
+})
