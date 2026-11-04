@@ -610,3 +610,59 @@ test('F3-22 CPU poster exports a real 1080x1920 local PNG with pixels, no unrevi
   expect(state.renders).toHaveLength(0)
   expect(state.signedOpens).toBe(0)
 })
+
+
+test('F3-13 stale CPU PNG callback cannot download after poster workspace closes', async ({ page }) => {
+  const state = await mockServices(page)
+  await login(page)
+  await business(page)
+  await submit(page)
+  await loaded(page)
+  await page.getByRole('button', { name: 'Open CPU Poster Studio (local editable draft)' }).click()
+  await page.getByLabel('Canvas format').selectOption('story')
+  await page.getByRole('button', { name: 'Generate editable poster' }).click()
+  const editor = page.getByRole('region', { name: 'CPU poster editor' })
+  await expect(editor).toBeVisible()
+
+  // Deterministically hold the browser's *real* PNG encoding until after the
+  // mounted tenant/day editor disappears. Record any issued PNG Blob URLs.
+  await page.evaluate(() => {
+    window.__f3HeldPngEncodes = 0
+    window.__f3IssuedPngUrls = 0
+    window.__f3EncodeFinished = false
+    const encode = HTMLCanvasElement.prototype.toBlob
+    HTMLCanvasElement.prototype.toBlob = function (callback, type, ...args) {
+      if (type !== 'image/png' || this.width !== 1080 || this.height !== 1920) {
+        return encode.call(this, callback, type, ...args)
+      }
+      window.__f3HeldPngEncodes += 1
+      window.__f3ReleasePng = () => encode.call(this, blob => {
+        try { callback(blob) } finally { window.__f3EncodeFinished = true }
+      }, type, ...args)
+    }
+    const createUrl = URL.createObjectURL.bind(URL)
+    URL.createObjectURL = blob => {
+      if (blob?.type === 'image/png') window.__f3IssuedPngUrls += 1
+      return createUrl(blob)
+    }
+  })
+
+  const downloads = []
+  page.on('download', download => downloads.push(download.suggestedFilename()))
+  const pngButton = editor.getByRole('button', { name: 'Download local draft PNG (unreviewed)' })
+  await pngButton.click()
+  await pngButton.click()
+  expect(await page.evaluate(() => window.__f3HeldPngEncodes)).toBe(1)
+
+  await page.getByRole('button', { name: 'Hide CPU Poster Studio (local editable draft)' }).click()
+  await expect(editor).toHaveCount(0)
+  await page.evaluate(() => window.__f3ReleasePng())
+  await page.waitForFunction(() => window.__f3EncodeFinished === true)
+
+  expect(await page.evaluate(() => window.__f3IssuedPngUrls)).toBe(0)
+  expect(downloads).toHaveLength(0)
+  expect(state.uploads).toHaveLength(0)
+  expect(state.registrations).toHaveLength(0)
+  expect(state.renders).toHaveLength(0)
+  expect(state.signedOpens).toBe(0)
+})
