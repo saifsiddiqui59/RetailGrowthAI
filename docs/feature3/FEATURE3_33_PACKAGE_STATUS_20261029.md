@@ -165,3 +165,32 @@ Original 33 packages unchanged. #859 F3-10/13 source merged; #866 F3-05/13 sourc
 - F3-05/F3-13 uncertain GPU outbox SQL claim [PR #866](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/866) merged at `bd0e888b7d9aeda67cca440a00bf8af206b4f6e3`; exact head `22636a1b25692c742b0dad65e857816b06f2eb1e` CI #41617176788 **4/4 passed**. Fresh main Part1 CI #41812332723 was **in progress at this checkpoint**; do not assert postmerge success until verified. Source change prevents unsafe retry/send on uncertain claim without running GPU.
 - New F3-09/F3-13 [PR #868](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/868), head `601fe3330c20920053c8e2aa7d5378139b08a55b`, has tested component-local synchronous single-flight private GETs, tenant/session scope isolation and a mocked Chromium CPU poster edit / backup import / cross-day denial scenario. Exact-head push Part1 CI #41811569835 **4/4 passed**. Its PR remained open at this checkpoint, not integrated.
 - No actual independent GitHub reviews were present for these owner-authorized merges; retain this distinction in the provenance. Additional prior source PRs #861/#862/#863/#864/#865/#867 and shared docs/coordination PRs #858/#860 must be checked against the latest main and actual CI. Existing source-only task F3-01 remains the sole accepted original package DONE; **0/33 fully hosted accepted**. Azure gateway #249 and real hosted end-to-end rights/Auth/integration remain separately verifiable outcomes, not blockers to fixture source development.
+
+
+## 2026-11-04 — Owner-authorized cumulative source integration checkpoint
+
+**Actual GitHub merge evidence:** Feature3 source PRs #859, #861, #862, #863,
+#864, #865, #866, #867, #868 were all merged to main. Cumulative main head:
+`a24d5ad546fd5a0f6e24df1c16883308fd57b3fa`. The nine new source
+slices extend the earlier fourteen Wave A/B source slices to **23** across
+**12** original F3 task IDs, *pending final cumulative main Part1 run
+#41813843361*. Intermediate CI runs may be cancelled by newer merge pushes,
+so neither a cancelled intermediate run nor a green historical PR head
+constitutes fresh cumulative-main acceptance. Original F3-01 remains the
+sole task-level accepted source-only DONE, **0/33 hosted accepted**.
+
+The new #868 code/test source is real: synchronous shop/session-scoped
+private-GET single-flight and a mocked Playwright CPU poster edit, JSON
+backup/reopen and foreign-day-denial test. All nine source PR heads had
+their own mandatory 4/4-green Part1 CI before merger. The account owner
+approved integration and synthetic local images/videos; there were **no
+submitted independent GitHub reviews** for these sensitive PRs and this
+must not be called independently approved source provenance. The offline
+fixtures do not grant customer image licences or true signed DEV JWT/RLS.
+
+**Next:** Verify exact main #41813843361 as 4/4, reconcile shared coordinator
+#860 machine receipts and canonical project docs in #858, integrate both
+shared PRs after full CI, and recheck main. Keep GPU/paid inference OFF,
+hosted DB/PROD/WineShopPOS untouched. Azure #249, real signed DEV users,
+private mounted binary endpoint, source rights and provider licensing remain
+separate hosted acceptance criteria, not reasons to stop synthetic work.
