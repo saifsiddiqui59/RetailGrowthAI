@@ -444,19 +444,26 @@ def stage_blind_human_review_revision(*,shop_id,campaign_id,experiment_id,
             read_current_revision,save_review_cas))
         or type(reviews) is not list or len(reviews)!=4):
         raise Feature2TraceDenied("Authenticated versioned human A/B review required")
+    # A repository read callback may alias the same candidate dict passed in;
+    # an independent copy is necessary to detect in-place revisions.
+    candidates_snapshot=deepcopy(candidates)
+    reviews_snapshot=deepcopy(reviews)
     def live():
         return (current_editor(shop_id,campaign_id) is True and
-                read_current_candidates(shop_id,campaign_id,experiment_id)==candidates)
+                read_current_candidates(shop_id,campaign_id,experiment_id)==candidates_snapshot
+                and candidates==candidates_snapshot
+                and reviews==reviews_snapshot)
     if not live() or read_current_revision(shop_id,campaign_id,experiment_id)!=expected_revision:
         raise Feature2TraceDenied("Current blind candidate/role revision revoked")
     # Structural human rubric checks do not prove that any claimed reviewer
     # actually exists: each complete exact receipt MUST verify externally.
     result=blind_human_comparison(experiment_id=experiment_id,
-                                  candidates=candidates,reviews=reviews)
+                                  candidates=candidates_snapshot,
+                                  reviews=reviews_snapshot)
     try:
         candidate_digests={key:content_fingerprint(value)
-                           for key,value in candidates.items()}
-        for item in reviews:
+                           for key,value in candidates_snapshot.items()}
+        for item in reviews_snapshot:
             blob=json.dumps(item,ensure_ascii=False,sort_keys=True,
                             separators=(",",":")).encode()
             if len(blob)>4096 or verify_human_review(
@@ -469,24 +476,26 @@ def stage_blind_human_review_revision(*,shop_id,campaign_id,experiment_id,
     except (TypeError,KeyError,ValueError) as exc:
         raise Feature2TraceDenied("Invalid individual signed review") from exc
     receipt_digest=hashlib.sha256(json.dumps(
-        {"candidate_hashes":candidate_digests,"reviews":reviews,
+        {"candidate_hashes":candidate_digests,"reviews":reviews_snapshot,
          "experiment_id":experiment_id},ensure_ascii=False,sort_keys=True,
          separators=(",",":")).encode()).hexdigest()
     if not live() or read_current_revision(shop_id,campaign_id,experiment_id)!=expected_revision:
         raise Feature2TraceDenied("Blind candidate changed before durable revision")
+    proposed={"schema":"retailgrowth.feature2-blind-review.v1",
+              "candidate_digests":candidate_digests,
+              "receipt_digest":receipt_digest,
+              "review_result":deepcopy(result),
+              "review_status":"HUMAN_SCORE_ONLY",
+              "can_publish":False,"paid_motion_permitted":False}
+    proposed_snapshot=deepcopy(proposed)
     stored=save_review_cas(shop_id,campaign_id,experiment_id,
-                           expected_revision,receipt_digest,
-                           {"schema":"retailgrowth.feature2-blind-review.v1",
-                            "candidate_digests":candidate_digests,
-                            "receipt_digest":receipt_digest,
-                            "review_result":result,
-                            "review_status":"HUMAN_SCORE_ONLY",
-                            "can_publish":False,"paid_motion_permitted":False})
-    if (type(stored) is not dict or
+                           expected_revision,receipt_digest,proposed)
+    if (type(stored) is not dict or proposed!=proposed_snapshot or
         stored.get("shop_id")!=shop_id or
         stored.get("campaign_id")!=campaign_id or
         stored.get("experiment_id")!=experiment_id or
-        stored.get("revision")!=expected_revision+1 or
+        type(stored.get("revision")) is not int or
+        stored["revision"]!=expected_revision+1 or
         stored.get("receipt_digest")!=receipt_digest or
         stored.get("private") is not True or
         # A private score receipt cannot smuggle a publishing/paid grant as
@@ -501,6 +510,7 @@ def stage_blind_human_review_revision(*,shop_id,campaign_id,experiment_id,
         ("billing" in stored and stored["billing"] != "NONE") or
         ("private_download_url" in stored and
          stored["private_download_url"] is not None) or
+        ("signed_url" in stored and stored["signed_url"] is not None) or
         stored.get("review_status") not in (None,"HUMAN_SCORE_ONLY")):
         raise Feature2TraceDenied("Durable human review revision not confirmed")
     # CAS legitimately increments revision: recheck role/candidates, not old revision.
