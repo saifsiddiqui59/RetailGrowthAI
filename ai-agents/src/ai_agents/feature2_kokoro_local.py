@@ -265,8 +265,10 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
             audio.get("model")!="Kokoro-82M-v1.0-int8" or
             audio.get("upstream_revision")!=SOURCE_REVISION or
             audio.get("voice_id")!=voice_id or audio.get("language")!=lang or
-            audio.get("sample_rate_hz")!=24000 or
-            audio.get("paid_calls")!=0 or
+            type(audio.get("sample_rate_hz")) is not int or
+            audio["sample_rate_hz"]!=24000 or
+            type(audio.get("paid_calls")) is not int or
+            audio["paid_calls"]!=0 or
             audio.get("approved_to_publish") is not False or
             audio.get("speech_transcript_verified") is not False or
             audio.get("word_timestamps") is not None or
@@ -305,6 +307,10 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
             "process_high_water_rss_kib":rss_kib(),
         })
     after=rss_kib()
+    factors=sorted(row["real_time_factor"] for row in observations)
+    total_wall=sum(row["wall_seconds"] for row in observations)
+    # These are diagnostic readings from one process, not a per-job charge
+    # or a verified cold-to-warm speedup on hardware without actual weights.
     return {
         "schema":"retailgrowth.feature2-cpu-benchmark.v1",
         "engine":"kokoro-onnx",
@@ -312,6 +318,12 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
         "upstream_revision":SOURCE_REVISION,
         "voice_id":voice_id,"language":lang,"sample_count":repeats,
         "observations":observations,
+        "total_measured_wall_seconds":round(total_wall,4),
+        "median_real_time_factor":round(factors[len(factors)//2],4)
+            if repeats%2 else round((factors[0]+factors[1])/2,4),
+        "worst_real_time_factor":factors[-1],
+        "warm_observation_count":max(0,repeats-1),
+        "cold_start_and_warm_are_same_process":True,
         "process_hwm_rss_before_kib":before,
         "process_hwm_rss_after_kib":after,
         "rss_is_process_high_water_only":True,
