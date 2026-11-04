@@ -156,3 +156,86 @@ def test_openpronounce_needs_offline_only_cpu_reference_before_import(monkeypatc
     with pytest.raises(VoiceQualityDenied,match="Offline calibrated"):
         run_openpronounce_lazy(original_wav=wav(),expected_script="Hello",
                                enabled=True)
+
+
+# Synthetic signed-callback tests for F2-10: spellings never prove real audio.
+def test_dictionary_approval_rechecks_editor_after_write_receipt():
+    calls=[]
+    writes=[]
+    def editor(_shop):
+        calls.append("auth")
+        return len(calls)<3
+    def save(row):
+        writes.append(row)
+        return {**row,"revision":1}
+    with pytest.raises(PronunciationDenied,match="revoked after"):
+        approve_dictionary_entry(
+            shop_id=SHOP,word="kurti",spoken_as="kur-tee",lang="en-us",
+            editor_current=editor,save_approved=save,expected_revision=0)
+    assert len(writes)==1 and len(calls)==3
+
+
+@pytest.mark.parametrize("word,spoken_as",[
+    ("two words","too-words"),("bad ","bad-two"),(" kurti","kur-tee"),
+    ("kurti","  kur-tee"),("kurti","bad\nname"),
+    ("<tag>","approved"),("kurti","-"),
+])
+def test_dictionary_denies_unmatchable_or_unsafe_spellings_before_auth(word,spoken_as):
+    calls=[]
+    with pytest.raises(PronunciationDenied):
+        approve_dictionary_entry(
+            shop_id=SHOP,word=word,spoken_as=spoken_as,lang="en-us",
+            editor_current=lambda _:calls.append("auth") or True,
+            save_approved=lambda *_:calls.append("write"),
+            expected_revision=0)
+    assert calls==[]
+
+
+def test_dictionary_denies_foreign_shop_before_save():
+    calls=[]
+    with pytest.raises(PronunciationDenied):
+        approve_dictionary_entry(
+            shop_id="not-a-shop",word="kurti",spoken_as="kur-tee",
+            lang="en-us",editor_current=lambda *_:calls.append("auth") or True,
+            save_approved=lambda *_:calls.append("write"),
+            expected_revision=0)
+    assert calls==[]
+
+
+@pytest.mark.parametrize("forgery",[
+    {"can_publish":True},{"approved_to_publish":True},
+    {"paid_motion_permitted":True},{"audio_pronunciation_verified":True},
+    {"may_auto_retry":True},{"may_auto_invoke_azure":True},
+    {"paid_calls":1},{"paid_calls":False},
+])
+def test_dictionary_atomic_receipt_denies_forged_rights_or_paid_retry(forgery):
+    def save(row):
+        return {**row,"revision":1,**forgery}
+    with pytest.raises(PronunciationDenied,match="Atomic shop dictionary"):
+        approve_dictionary_entry(
+            shop_id=SHOP,word="kurti",spoken_as="kur tee",lang="en-us",
+            editor_current=lambda *_:True,save_approved=save,
+            expected_revision=0)
+
+
+def test_current_dictionary_read_refuses_unmatchable_multitoken_entries():
+    bad={"shop_id":SHOP,"word":"red kurti","spoken_as":"red kur-tee",
+         "language":"en-us",
+         "approval":"RETAILER_EDITOR_REVIEWED_SPELLING_ONLY"}
+    with pytest.raises(PronunciationDenied,match="signed pronunciation review"):
+        apply_approved_local_corrections(
+            shop_id=SHOP,lang="en-us",script="Our red kurti",
+            read_current_entries=lambda *_:[bad])
+
+
+def test_current_dictionary_read_keeps_multiword_spoken_hint_review_only():
+    source={"shop_id":SHOP,"word":"kurti","spoken_as":"kur tee",
+            "language":"en-us",
+            "approval":"RETAILER_EDITOR_REVIEWED_SPELLING_ONLY"}
+    x=apply_approved_local_corrections(
+        shop_id=SHOP,lang="en-us",script="Our kurti",
+        read_current_entries=lambda *_:[source])
+    assert x["corrected_text_for_tts"]=="Our kur tee"
+    assert x["original_script_unchanged"]=="Our kurti"
+    assert x["audio_pronunciation_verified"] is False
+    assert x["max_local_retries"]==1
