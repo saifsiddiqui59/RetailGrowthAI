@@ -44,12 +44,18 @@ def approve_dictionary_entry(*,shop_id,word,spoken_as,lang,editor_current,
             "actual_audio_quality_verified":False}
     if editor_current(shop_id) is not True:
         raise PronunciationDenied("Membership revoked")
-    saved=save_approved(record)
+    # Do not hand a callback the authoritative returned record by reference.
+    # A storage adapter may edit its argument in-place before returning.
+    saved=save_approved(dict(record))
     if (type(saved) is not dict or saved.get("shop_id")!=shop_id or
         saved.get("word")!=word or saved.get("spoken_as")!=spoken_as or
         type(saved.get("revision")) is not int or
         saved["revision"]!=expected_revision+1 or
         ("language" in saved and saved["language"]!=lang) or
+        ("approval" in saved and
+         saved["approval"]!="RETAILER_EDITOR_REVIEWED_SPELLING_ONLY") or
+        ("actual_audio_quality_verified" in saved and
+         saved["actual_audio_quality_verified"] is not False) or
         # A spelling preference does NOT confer publication, audio-quality,
         # media-rights or paid-retry authority. Optional fields may be absent
         # for older signed records but, if present, must be literal False.
@@ -57,7 +63,8 @@ def approve_dictionary_entry(*,shop_id,word,spoken_as,lang,editor_current,
             "can_publish","approved_to_publish","paid_motion_permitted",
             "commercial_use_approved","audio_pronunciation_verified",
             "may_auto_retry","may_auto_invoke_azure",
-            "paid_inference_authorized","can_dispatch_paid_motion")) or
+            "paid_inference_authorized","can_dispatch_paid_motion",
+            "can_dispatch_motion")) or
         ("paid_calls" in saved and
          (type(saved["paid_calls"]) is not int or saved["paid_calls"]!=0)) or
         ("billing" in saved and saved["billing"]!="NONE") or
@@ -94,6 +101,10 @@ def apply_approved_local_corrections(*,script,shop_id,lang,read_current_entries)
                  "paid_motion_permitted","may_auto_retry",
                  "approved_to_publish","commercial_use_approved",
                  "may_auto_invoke_azure","paid_inference_authorized")) or
+            ("actual_audio_quality_verified" in row and
+             row["actual_audio_quality_verified"] is not False) or
+            ("can_dispatch_motion" in row and
+             row["can_dispatch_motion"] is not False) or
             ("paid_calls" in row and
              (type(row["paid_calls"]) is not int or row["paid_calls"]!=0)) or
             ("billing" in row and row["billing"]!="NONE") or
