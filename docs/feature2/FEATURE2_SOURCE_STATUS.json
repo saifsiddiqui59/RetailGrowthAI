@@ -526,27 +526,57 @@
       "owner": "Coordinator + F2",
       "latest_source_substep": {
         "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
-        "name": "Private Kokoro job status snapshots reject aliased DB result mutation and forged optional billing/rights metadata",
+        "name": "Signed JWT/RLS private speech job status API adapter with immutable plan snapshot and independently injected approved verifier",
         "source_commits": [
-          "9ebaa3bd3d8d77aaad47893f96dac5020a04c014"
+          "c24396c3db5c423c286486b1a4607b2b1e403d10",
+          "f5c2d5370fcd75c603f1306ba53936f0edc9a761"
         ],
         "test_commits": [
-          "2dcff7137aba53bb52c689aaaa73f7d19349fdd2"
+          "c24396c3db5c423c286486b1a4607b2b1e403d10",
+          "f5c2d5370fcd75c603f1306ba53936f0edc9a761"
         ],
-        "test_cases": 25,
+        "source_files": [
+          "azure-functions/campaign-api/feature2_adapter.py",
+          "tests/api/test_feature2_private_voice_status_adapter.py"
+        ],
         "complete_scope": false,
-        "blocker": "Hosted signed DEV JWT/RLS status endpoint, durable worker settlement and tenant-authenticated job media not deployed",
-        "ci_run_id": 41812081011,
-        "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+        "blocker": "Actual Azure Functions HTTP router and JWT-scoped durable plan/job/WAV readers are not mounted; injected verifier runtime module is not in independently approved ZIP allowlist; no real DEV authenticated two-shop/worker test",
+        "ci_run_id": 41985198673,
+        "verified_source_head_sha": "f5c2d5370fcd75c603f1306ba53936f0edc9a761",
         "closure": {
           "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
           "scope": "verified_offline_source_substep",
-          "verified_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
-          "ci_run_id": 41812081011,
+          "verified_head_sha": "f5c2d5370fcd75c603f1306ba53936f0edc9a761",
+          "ci_run_id": 41985198673,
           "original_task_complete": false,
           "integrated_done": false
         }
-      }
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Private Kokoro job status snapshots reject aliased DB result mutation and forged optional billing/rights metadata",
+          "source_commits": [
+            "9ebaa3bd3d8d77aaad47893f96dac5020a04c014"
+          ],
+          "test_commits": [
+            "2dcff7137aba53bb52c689aaaa73f7d19349fdd2"
+          ],
+          "test_cases": 25,
+          "complete_scope": false,
+          "blocker": "Hosted signed DEV JWT/RLS status endpoint, durable worker settlement and tenant-authenticated job media not deployed",
+          "ci_run_id": 41812081011,
+          "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+          "closure": {
+            "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+            "scope": "verified_offline_source_substep",
+            "verified_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+            "ci_run_id": 41812081011,
+            "original_task_complete": false,
+            "integrated_done": false
+          }
+        }
+      ]
     },
     {
       "id": "F2-20",
@@ -997,7 +1027,8 @@
       41848875135,
       41850403506,
       41901100120,
-      41979407804
+      41979407804,
+      41985198673
     ],
     "original_in_progress_unmodified": 17,
     "original_externally_blocked_unmodified": 12,
@@ -1008,6 +1039,16 @@
       "ci_sha": "85e7b718d23835c624ba6da335b2d1c5c4d6e1d6",
       "ci_run_id": 41979407804,
       "scope": "source_only"
-    }
+    },
+    "additional_offline_substeps_after_snapshot": [
+      {
+        "id": "F2-19",
+        "name": "Signed private voice status API boundary",
+        "ci_run_id": 41985198673,
+        "sha": "f5c2d5370fcd75c603f1306ba53936f0edc9a761",
+        "closed": true,
+        "original_task_complete": false
+      }
+    ]
   }
 }
