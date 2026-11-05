@@ -36,6 +36,8 @@ def _valid_png_chunks(raw):
     saw_idat=False
     idat_closed=False
     saw_plte=False
+    saw_trns=False
+    palette_entries=0
     # IHDR color type is fixed at byte 25 of a PNG stream. Only indexed
     # color requires a palette; grayscale must never carry one.
     color_type=raw[25] if len(raw)>=29 else -1
@@ -81,6 +83,17 @@ def _valid_png_chunks(raw):
                     (color_type==3 and length//3>(1<<bit_depth))):
                 return False
             saw_plte=True
+            palette_entries=length//3
+        if kind==b"tRNS":
+            # Transparency must precede IDAT and be unique. Indexed
+            # transparency must follow PLTE and fit its entry count.
+            if (saw_trns or saw_idat or color_type not in (0,2,3) or
+                    (color_type==0 and length!=2) or
+                    (color_type==2 and length!=6) or
+                    (color_type==3 and
+                     (not saw_plte or length==0 or length>palette_entries))):
+                return False
+            saw_trns=True
         if kind==b"IDAT":
             if idat_closed:
                 return False
