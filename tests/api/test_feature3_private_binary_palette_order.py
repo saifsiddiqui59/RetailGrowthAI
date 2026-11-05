@@ -88,6 +88,31 @@ class TransparencyPaletteOrderingTests(unittest.TestCase):
         reader.raw = image_with_chunks((b"tRNS", bytes((0, 255, 0, 17, 0, 34))))
         self.assertEqual(get()[0], 200)
 
+    def test_private_png_metadata_chunks_are_denied_without_leakage(self):
+        reader = Reader()
+        adapter = Feature3PrivateBinaryHTTP(reader=reader)
+        original = reader.raw
+        # All receipts have matching synthetic SHA/CRC; content must still
+        # fail closed rather than expose embedded customer metadata.
+        for kind, payload in (
+            (b"tEXt", b"customer\\x00synthetic-private-note"),
+            (b"zTXt", b"prompt\\x00\\x00compressed"),
+            (b"iTXt", b"prompt\\x00\\x00\\x00\\x00\\x00synthetic"),
+            (b"eXIf", b"Exif\\x00\\x00synthetic"),
+        ):
+            with self.subTest(kind=kind):
+                reader.raw = image_with_chunks((kind, payload))
+                status, body, headers = adapter.handle(
+                    method="GET", authorization="Bearer synthetic-only",
+                    shop_id=reader.shop, job_id=reader.job)
+                self.assertEqual((status, body), (503, b""))
+                self.assertEqual(headers["Cache-Control"], "no-store, private, max-age=0")
+                self.assertNotIn("Content-Disposition", headers)
+        reader.raw = original
+        self.assertEqual(adapter.handle(
+            method="GET", authorization="Bearer synthetic-only",
+            shop_id=reader.shop, job_id=reader.job)[0], 200)
+
     def test_valid_order_and_reversed_order(self):
         reader = Reader()
         adapter = Feature3PrivateBinaryHTTP(reader=reader)
