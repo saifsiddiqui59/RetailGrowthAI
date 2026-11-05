@@ -113,6 +113,36 @@ class TransparencyPaletteOrderingTests(unittest.TestCase):
             method="GET", authorization="Bearer synthetic-only",
             shop_id=reader.shop, job_id=reader.job)[0], 200)
 
+    def test_unknown_ancillary_chunks_cannot_smuggle_private_metadata(self):
+        reader = Reader()
+        adapter = Feature3PrivateBinaryHTTP(reader=reader)
+        def get():
+            return adapter.handle(method="GET", authorization="Bearer synthetic-only",
+                                  shop_id=reader.shop, job_id=reader.job)
+        # These chunks are CRC-valid and the synthetic receipt SHA matches.
+        # PNG's safe-to-copy bit is not permission to disclose metadata.
+        for kind, payload in (
+            (b"iCCP", b"customer-profile\\x00\\x00hidden"),
+            (b"sPLT", b"private-palette\\x00\\x08"),
+            (b"tIME", bytes((7, 234, 1, 1, 0, 0, 0))),
+            (b"vpAg", b"synthetic-secret"),
+            (b"aaAa", b"synthetic-secret"),
+        ):
+            with self.subTest(kind=kind):
+                reader.raw = image_with_chunks((kind, payload))
+                status, body, headers = get()
+                self.assertEqual((status, body), (503, b""))
+                self.assertEqual(headers["Vary"], "Authorization")
+                self.assertNotIn("Content-Disposition", headers)
+        # Standard colour-space metadata remains supported.
+        reader.raw = image_with_chunks((b"sRGB", b"\\x00"))
+        status, body, headers = get()
+        self.assertEqual(status, 200)
+        self.assertEqual(body, reader.raw)
+        self.assertEqual(headers["Content-Type"], "image/png")
+        reader.raw = image_with_chunks()
+        self.assertEqual(get()[0], 200)
+
     def test_valid_order_and_reversed_order(self):
         reader = Reader()
         adapter = Feature3PrivateBinaryHTTP(reader=reader)
