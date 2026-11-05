@@ -50,3 +50,23 @@ export function createFeature3WorkspaceReadGate() {
     },
   })
 }
+
+/**
+ * Presentation-only check: an inherited JS prototype property is never an
+ * approved private image for restoring or saving a tenant-scoped draft.
+ * The backend still independently verifies JWT/RLS and current media grants.
+ */
+export function feature3DraftMediaReady(design, imageMap) {
+  if (!design || !Array.isArray(design.layers)) return false
+  return design.layers.every(layer => {
+    if (!layer || typeof layer !== 'object') return false
+    if (layer.type !== 'image') return true
+    if (typeof layer.asset_id !== 'string' || !imageMap ||
+        typeof imageMap !== 'object' || Array.isArray(imageMap) ||
+        !Object.hasOwn(imageMap, layer.asset_id)) return false
+    const image = imageMap[layer.asset_id]
+    return Boolean(image && image.complete === true &&
+      Number.isFinite(image.naturalWidth) && image.naturalWidth > 0 &&
+      Number.isFinite(image.naturalHeight) && image.naturalHeight > 0)
+  })
+}
