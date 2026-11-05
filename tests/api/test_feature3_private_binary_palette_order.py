@@ -44,6 +44,33 @@ class Reader:
 
 
 class TransparencyPaletteOrderingTests(unittest.TestCase):
+    def test_rgb_transparency_sample_depth_is_enforced(self):
+        reader = Reader()
+        adapter = Feature3PrivateBinaryHTTP(reader=reader)
+        def get():
+            return adapter.handle(method="GET", authorization="Bearer synthetic-only",
+                                  shop_id=reader.shop, job_id=reader.job)
+        # RGB fixture is 8-bit: tRNS stores 16-bit values but each
+        # transparent sample must fit the image's declared bit depth.
+        for values, expected in (
+            ((0, 0, 0), 200),
+            ((255, 17, 34), 200),
+            ((256, 17, 34), 503),
+            ((17, 256, 34), 503),
+            ((17, 34, 65535), 503),
+        ):
+            payload = b"".join(v.to_bytes(2, "big") for v in values)
+            reader.raw = image_with_chunks((b"tRNS", payload))
+            with self.subTest(values=values):
+                status, body, headers = get()
+                self.assertEqual(status, expected)
+                self.assertEqual(headers["Vary"], "Authorization")
+                if expected != 200:
+                    self.assertEqual(body, b"")
+                    self.assertEqual(headers["Cache-Control"], "no-store, private, max-age=0")
+        reader.raw = image_with_chunks((b"tRNS", bytes((0, 255, 0, 17, 0, 34))))
+        self.assertEqual(get()[0], 200)
+
     def test_valid_order_and_reversed_order(self):
         reader = Reader()
         adapter = Feature3PrivateBinaryHTTP(reader=reader)
