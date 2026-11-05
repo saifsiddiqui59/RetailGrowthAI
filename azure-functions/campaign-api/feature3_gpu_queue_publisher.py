@@ -24,7 +24,10 @@ def _message_acknowledged(receipt):
     if type(identifier) is not str or len(identifier) > 64:
         raise StorageUnavailable("Azure Queue server message ID unconfirmed")
     try:
-        UUID(identifier)
+        # A nil UUID has GUID syntax but is not a server-assigned message ID.
+        # Do not turn a fabricated empty receipt into a durable SQL ACK.
+        if UUID(identifier).int == 0:
+            raise ValueError("Nil Azure Queue message ID")
     except (ValueError, AttributeError, TypeError) as exc:
         raise StorageUnavailable("Invalid Azure Queue delivery receipt") from exc
     return True
