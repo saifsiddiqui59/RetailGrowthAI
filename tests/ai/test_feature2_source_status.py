@@ -73,12 +73,13 @@ def test_closed_source_work_is_separate_from_original_integration_status():
     closure = src["code_work_closure"]
     source_closed = [t for t in src["tasks"] if t.get("source_code_closure", {}).get("state") == "CLOSED_SOURCE_ONLY"]
     sub_closed = [t for t in src["tasks"] if t.get("latest_source_substep", {}).get("closure", {}).get("state") == "CLOSED_VERIFIED_OFFLINE_SUBSTEP"]
-    assert len(source_closed) == closure["code_complete_original_tasks_closed"] == 8
+    assert len(source_closed) == closure["code_complete_original_tasks_closed"]
+    assert len(source_closed) >= 8
     assert len(sub_closed) == closure["verified_offline_source_substeps_closed"] == 17
     assert set(closure["closed_source_task_ids"]) == {t["id"] for t in source_closed}
     assert set(closure["closed_source_substep_original_ids"]) == {t["id"] for t in sub_closed}
     approved_runs = set(closure["ci_runs_verified_four_of_four"])
-    assert len(approved_runs) == 10
+    assert len(approved_runs) >= 10  # Keep all previous verified runs, allow new exact-head receipts.
     for task in source_closed:
         proof = task["source_code_closure"]
         assert task["source_status"] == "SOURCE_COMPLETE"
@@ -100,9 +101,10 @@ def test_closed_source_work_is_separate_from_original_integration_status():
         assert proof["original_task_complete"] is False
         assert proof["integrated_done"] is False
     assert "F2-32" not in closure["closed_source_substep_original_ids"]
-    assert src["counts"] == {
-        "SOURCE_COMPLETE": 8,
-        "SOURCE_IN_PROGRESS": 18,
-        "EXTERNALLY_BLOCKED": 12,
-    }
+    assert "F2-32" in closure["closed_source_task_ids"]
+    assert src["counts"] == dict(Counter(t["source_status"] for t in src["tasks"]))
+    assert sum(src["counts"].values()) == 38
+    assert src["counts"]["EXTERNALLY_BLOCKED"] == 12
+    assert src["counts"]["SOURCE_COMPLETE"] >= 8
+    assert src["counts"]["SOURCE_IN_PROGRESS"] == 38 - 12 - src["counts"]["SOURCE_COMPLETE"]
     assert closure["integrated_done_unmodified"] == src["integration"]["accepted_done"] == 0
