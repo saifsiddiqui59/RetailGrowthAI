@@ -68,8 +68,8 @@ class RouteTests(unittest.TestCase):
             ("HEAD", "Bearer signed-retailer-test", 405),
             ("GET", "", 401),
             ("GET", "Bearer sb_publishable_fixture", 401),
-            ("GET", "Bearer bad\\r\\nInjected", 401),
-            ("GET", "Bearer unicode-\\u2603", 401),
+            ("GET", "Bearer bad" + chr(13) + chr(10) + "Injected", 401),
+            ("GET", "Bearer unicode-" + chr(0x2603), 401),
             ("GET", "Bearer " + "x" * 8200, 401),
         ):
             req = Request()
