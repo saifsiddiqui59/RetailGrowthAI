@@ -78,7 +78,7 @@ def _valid_png_chunks(raw):
         if kind[0] in range(65,91) and kind not in (b"IHDR",b"PLTE",b"IDAT",b"IEND"):
             return False
         if kind==b"PLTE":
-            if (saw_plte or saw_idat or color_type in (0,4) or
+            if (saw_plte or saw_idat or saw_trns or color_type in (0,4) or
                     length==0 or length>768 or length%3!=0 or
                     (color_type==3 and length//3>(1<<bit_depth))):
                 return False
