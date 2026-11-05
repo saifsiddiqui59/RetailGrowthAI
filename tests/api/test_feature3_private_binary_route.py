@@ -102,6 +102,30 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(self.reader.calls, [("signed-retailer-test", self.shop, self.job)])
         self.assertNotIn("Location", headers)
 
+    def test_malformed_and_noncanonical_route_ids_fail_before_reader(self):
+        calls = []
+        def factory():
+            calls.append("constructed")
+            return self.reader
+        invalid = (
+            "", "not-a-uuid", "../private", self.shop.upper(),
+            self.shop.replace("-", ""), str(uuid4()) + "/",
+            None, 123, "00000000-0000-0000-0000-000000000000",
+        )
+        for value in invalid:
+            for field in ("shop_id", "job_id"):
+                with self.subTest(value=repr(value), field=field):
+                    params = {"shop_id": self.shop, "job_id": self.job}
+                    params[field] = value
+                    status, data, headers = private_png_response(
+                        Request(), reader_factory=factory, enabled=True, **params)
+                    self.assertEqual((status, data), (404, b""))
+                    self.assertEqual(headers["Cache-Control"],
+                                     "no-store, private, max-age=0")
+        self.assertEqual(calls, [])
+        self.assertEqual(self.reader.calls, [])
+        self.assertEqual(self.invoke(factory)[0], 200)
+
     def test_bad_token_denied_before_reader(self):
         req = Request()
         req.headers = {"Authorization": "Bearer sb_secret_invalid"}
