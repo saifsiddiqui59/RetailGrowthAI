@@ -2,15 +2,15 @@
   "schema_version": 1,
   "feature": "2",
   "total_task_ids": 38,
-  "recorded_at": "2026-11-04",
+  "recorded_at": "2026-11-05",
   "source_ledger": "docs/feature2/FEATURE2_38_TASK_LEDGER_20261029.md",
   "source_ledger_note": "Source-only scope evidence. An imported snapshot is not integrated DONE.",
   "current_source_pr": 848,
   "parent_pr": 551,
   "source_scope_only": true,
   "counts": {
-    "SOURCE_IN_PROGRESS": 18,
-    "SOURCE_COMPLETE": 8,
+    "SOURCE_IN_PROGRESS": 17,
+    "SOURCE_COMPLETE": 9,
     "EXTERNALLY_BLOCKED": 12
   },
   "review_scope": [
@@ -873,8 +873,37 @@
     {
       "id": "F2-32",
       "title": "Synthetic trend→actual Director exporter→voice/ASR gates→F4 editor trace",
-      "source_status": "SOURCE_IN_PROGRESS",
-      "owner": "F2"
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "scope": "source_only",
+      "source_ci_run_id": 41979407804,
+      "verified_on_commit": "85e7b718d23835c624ba6da335b2d1c5c4d6e1d6",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "85e7b718d23835c624ba6da335b2d1c5c4d6e1d6",
+        "ci_run_id": 41979407804,
+        "integrated_done": false
+      },
+      "offline_acceptance": {
+        "source_test": "ai-agents/tests/test_feature2_32_director_to_editor_trace.py",
+        "scope": "SYNTHETIC_SOURCE_ACCEPTANCE_ONLY",
+        "durations_seconds": [
+          15,
+          30,
+          60
+        ],
+        "private_trace_events": 13,
+        "actual_mit_director_and_caption_compiled": true,
+        "python_hmac_writer_reader_verified": true,
+        "frontend_trace_projection_verified": true,
+        "forged_asr_editor_and_worker_evidence_denied": true,
+        "real_kokoro_or_f7_asr_run": false,
+        "real_f4_editor_rendered": false,
+        "hosted_jwt_rls_verified": false,
+        "ci_run_id": 41979407804,
+        "ci_sha": "85e7b718d23835c624ba6da335b2d1c5c4d6e1d6"
+      }
     },
     {
       "id": "F2-33",
@@ -925,7 +954,7 @@
   },
   "code_work_closure": {
     "closed_on": "2026-11-05",
-    "code_complete_original_tasks_closed": 8,
+    "code_complete_original_tasks_closed": 9,
     "verified_offline_source_substeps_closed": 17,
     "closed_source_task_ids": [
       "F2-04",
@@ -935,7 +964,8 @@
       "F2-11",
       "F2-13",
       "F2-28",
-      "F2-30"
+      "F2-30",
+      "F2-32"
     ],
     "closed_source_substep_original_ids": [
       "F2-01",
@@ -968,9 +998,15 @@
       41850403506,
       41901100120
     ],
-    "original_in_progress_unmodified": 18,
+    "original_in_progress_unmodified": 17,
     "original_externally_blocked_unmodified": 12,
     "integrated_done_unmodified": 0,
-    "policy": "Close proven source tasks/substeps to avoid duplicate work; source substep closure does not close the original task, PR, hosted verification, independent approval or production acceptance."
+    "policy": "Close proven source tasks/substeps to avoid duplicate work; source substep closure does not close the original task, PR, hosted verification, independent approval or production acceptance.",
+    "last_new_source_closure": {
+      "id": "F2-32",
+      "ci_sha": "85e7b718d23835c624ba6da335b2d1c5c4d6e1d6",
+      "ci_run_id": 41979407804,
+      "scope": "source_only"
+    }
   }
 }
