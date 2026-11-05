@@ -218,3 +218,74 @@ class TrendFeatureAdapter:
             return 400, {"error": "INVALID_REQUEST"}
         except StorageUnavailable:
             return 503, {"error": "CONTENT_DRAFT_READ_UNAVAILABLE"}
+
+
+class PrivateVoiceStatusAdapter:
+    """F2-19 signed, GET-only private job-status API boundary.
+
+    The actual HTTP router and authenticated PostgREST readers must be wired
+    and reviewed independently; this source class makes NO network/model call.
+    Request UUIDs are *not* authorization. Never create/retry/bill a voice job.
+    """
+
+    def __init__(self, verify_token, tenant_store, *, plan_reader=None,
+                 job_reader=None, private_audio_reader=None):
+        self.verify_token = verify_token
+        self.tenant_store = tenant_store
+        self.plan_reader = plan_reader
+        self.job_reader = job_reader
+        self.private_audio_reader = private_audio_reader
+
+    def get(self, shop_id, campaign_id, request_key, authorization):
+        from copy import deepcopy
+        from ai_agents.feature2_local_voice_workflow import (
+            read_private_local_voice_job_status, LocalVoiceJobDenied,
+        )
+        try:
+            sid, cid, key = (canonical_uuid(v) for v in
+                             (shop_id, campaign_id, request_key))
+            if any(UUID(v).version != 4 for v in (sid,cid,key)):
+                return 400, {"error":"INVALID_REQUEST"}
+        except (ValueError, TypeError, AttributeError):
+            return 400, {"error":"INVALID_REQUEST"}
+        if (type(authorization) is not str or
+            not authorization.startswith("Bearer ") or
+            len(authorization)>8192 or
+            any(c in authorization for c in "\r\n\x00")):
+            return 401, {"error":"UNAUTHORIZED"}
+        token = authorization[7:]
+        if not token or token != token.strip():
+            return 401, {"error":"UNAUTHORIZED"}
+        try:
+            actor = canonical_uuid(self.verify_token(token))
+        except (AuthenticationError, ValueError, TypeError):
+            return 401, {"error":"UNAUTHORIZED"}
+        if not all(callable(v) for v in
+                   (self.plan_reader,self.job_reader,self.private_audio_reader)):
+            return 503, {"error":"PRIVATE_VOICE_STATUS_UNAVAILABLE"}
+        try:
+            def editor(s,c):
+                return (s==sid and c==cid and
+                        self.tenant_store.member(token,actor,sid,write=True) is True)
+            if not editor(sid,cid):
+                return 404, {"error":"NOT_FOUND"}
+            original=self.plan_reader(token,actor,sid,cid)
+            if type(original) is not dict:
+                return 404, {"error":"NOT_FOUND"}
+            # Snapshot the first RLS plan so mutable shared readers cannot
+            # replace source provenance during status/asset readback.
+            receipt=read_private_local_voice_job_status(
+                shop_id=sid,campaign_id=cid,source_plan=deepcopy(original),
+                request_key=key,authorize_current_editor=editor,
+                read_current_plan=lambda s,c:self.plan_reader(token,actor,s,c),
+                read_registered_job=lambda s,c,k:self.job_reader(token,actor,s,c,k),
+                read_registered_private_asset=lambda s,c,a:
+                    self.private_audio_reader(token,actor,s,c,a),
+            )
+            if not editor(sid,cid):
+                return 404, {"error":"NOT_FOUND"}
+            return 200,receipt
+        except (LocalVoiceJobDenied, PermissionError):
+            return 404, {"error":"NOT_FOUND"}
+        except StorageUnavailable:
+            return 503, {"error":"PRIVATE_VOICE_STATUS_UNAVAILABLE"}
