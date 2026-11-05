@@ -17,6 +17,21 @@ def private_png_response(request, *, shop_id, job_id, reader_factory, enabled=Fa
     """
     if not enabled:
         return Feature3PrivateBinaryHTTP._deny(404)
+    # Preflight before constructing a trusted rights reader; this is not JWT verification.
+    try:
+        method = request.method
+        authorization = request.headers.get("Authorization", "")
+    except Exception:
+        return Feature3PrivateBinaryHTTP._deny(401)
+    if method != "GET":
+        status, body, headers = Feature3PrivateBinaryHTTP._deny(405)
+        return status, body, {**headers, "Allow": "GET"}
+    if (type(authorization) is not str or
+            not authorization.startswith("Bearer ") or
+            not 12 <= len(authorization) <= 8200 or
+            any(ord(ch) < 33 or ord(ch) > 126 for ch in authorization[7:]) or
+            authorization[7:].startswith(("sb_secret_", "sb_publishable_"))):
+        return Feature3PrivateBinaryHTTP._deny(401)
     if not callable(reader_factory):
         return Feature3PrivateBinaryHTTP._deny(503)
     try:
