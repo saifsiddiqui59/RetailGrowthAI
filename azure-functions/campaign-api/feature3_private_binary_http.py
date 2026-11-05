@@ -9,7 +9,10 @@ a private image. Existing 60-second signed URLs cannot be retroactively revoked.
 from __future__ import annotations
 
 from hashlib import sha256
+from io import BytesIO
 import re
+
+from PIL import Image, UnidentifiedImageError
 from zlib import crc32
 
 from feature3_private_png_reader import PrivateGeneratedDownloadDenied
@@ -180,6 +183,18 @@ class Feature3PrivateBinaryHTTP:
                     sha256(raw).hexdigest()!=digest):
                 return self._deny(503)
         except (ValueError,TypeError,KeyError):
+            return self._deny(503)
+        # The reader normally decodes pixels, but the HTTP adapter must also
+        # fail closed if a future injected reader returns a forged CRC-valid
+        # receipt containing corrupt or truncated compressed pixel data.
+        try:
+            with Image.open(BytesIO(raw)) as image:
+                if (image.format != "PNG" or getattr(image, "n_frames", 1) != 1 or
+                        image.width * image.height > 16_777_216):
+                    return self._deny(503)
+                image.load()
+        except (OSError, ValueError, SyntaxError, EOFError, RuntimeError,
+                UnidentifiedImageError, Image.DecompressionBombError):
             return self._deny(503)
         # Safe filename never uses an uploaded asset name or object path.
         return 200,raw,{
