@@ -23,12 +23,12 @@ class MountedPrivatePNGTests(unittest.TestCase):
             if isinstance(node, ast.FunctionDef):
                 for dec in node.decorator_list:
                     if isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute) and dec.func.attr == "route":
-                        route = next((arg.value for arg in dec.args if isinstance(arg, ast.Constant)), None)
+                        route = next((kw.value.value for kw in dec.keywords\n                                      if kw.arg == "route" and isinstance(kw.value, ast.Constant)), None)\n                        if route is None and dec.args and isinstance(dec.args[0], ast.Constant):\n                            route = dec.args[0].value
                         if route and route.endswith("/private-png"):
                             routes.append((node.name, dec))
         self.assertEqual(len(routes), 1)
         self.assertEqual(routes[0][0], "feature3_private_png")
-        self.assertEqual(routes[0][1].args[0].value,
+        self.assertEqual(next(kw.value.value for kw in routes[0][1].keywords\n                              if kw.arg == "route"),
                          "shops/{shop_id}/feature3-gpu-jobs/{job_id}/private-png")
         methods = next(kw.value for kw in routes[0][1].keywords if kw.arg == "methods")
         self.assertEqual(ast.literal_eval(methods), ["GET"])
