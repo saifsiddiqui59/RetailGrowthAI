@@ -30,7 +30,7 @@ class Reader:
         self.shop = str(uuid4())
         self.job = str(uuid4())
         self.media = str(uuid4())
-        self.raw = image_with_chunks((b"PLTE", b"\\x00\\x00\\x00"), (b"tRNS", b"\\x00\\x11\\x00\\x22\\x00\\x33"))
+        self.raw = image_with_chunks((b"PLTE", bytes((0,0,0))), (b"tRNS", bytes((0,17,0,34,0,51))))
 
     def read(self, *, user_token, shop_id, job_id):
         if (user_token, shop_id, job_id) != ("synthetic-only", self.shop, self.job):
@@ -56,8 +56,8 @@ class TransparencyPaletteOrderingTests(unittest.TestCase):
         self.assertEqual(headers["Cache-Control"], "no-store, private, max-age=0")
         # RGB allows an optional PLTE, but PNG requires PLTE to precede tRNS.
         reader.raw = image_with_chunks(
-            (b"tRNS", b"\\x00\\x11\\x00\\x22\\x00\\x33"),
-            (b"PLTE", b"\\x00\\x00\\x00"),
+            (b"tRNS", bytes((0,17,0,34,0,51))),
+            (b"PLTE", bytes((0,0,0))),
         )
         status, body, headers = get()
         self.assertEqual((status, body), (503, b""))
