@@ -62,7 +62,8 @@ def _valid_png_chunks(raw):
         length=int.from_bytes(raw[offset:offset+4],"big")
         kind=raw[offset+4:offset+8]
         end=offset+12+length
-        if (end>len(raw) or not all(65<=c<=90 or 97<=c<=122 for c in kind) or\n                not 65<=kind[2]<=90):
+        if (end>len(raw) or not all(65<=c<=90 or 97<=c<=122 for c in kind) or
+                not 65<=kind[2]<=90):
             return False
         if crc32(raw[offset+4:end-4]) & 0xffffffff != int.from_bytes(raw[end-4:end],"big"):
             return False
