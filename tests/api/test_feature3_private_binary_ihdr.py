@@ -69,8 +69,11 @@ class PrivateIHDRBoundaryTests(unittest.TestCase):
             mutate_ihdr(original, 16, (0).to_bytes(4, "big")),
             mutate_ihdr(original, 20, (0).to_bytes(4, "big")),
             mutate_ihdr(original, 16, (16385).to_bytes(4, "big")),
-            mutate_ihdr(original, 16, (8192).to_bytes(4, "big")),
-            mutate_ihdr(original, 20, (8192).to_bytes(4, "big")),
+            # Both dimensions together exceed the 16,777,216-pixel cap.
+            mutate_ihdr(mutate_ihdr(original, 16, (8192).to_bytes(4, "big")),
+                        20, (8192).to_bytes(4, "big")),
+            mutate_ihdr(mutate_ihdr(original, 16, (4096).to_bytes(4, "big")),
+                        20, (8192).to_bytes(4, "big")),
             mutate_ihdr(original, 24, b"\x01"),  # RGB cannot have 1-bit depth
             mutate_ihdr(original, 25, b"\x05"),  # invalid colour type
             mutate_ihdr(original, 26, b"\x01"),  # compression
