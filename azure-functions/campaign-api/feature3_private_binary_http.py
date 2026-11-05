@@ -40,6 +40,20 @@ def _valid_png_chunks(raw):
     # color requires a palette; grayscale must never carry one.
     color_type=raw[25] if len(raw)>=29 else -1
     bit_depth=raw[24] if len(raw)>=29 else -1
+    # Validate the complete IHDR rather than trusting a self-consistent SHA.
+    # A forged reader receipt must not emit malformed private PNG bytes.
+    if len(raw)<45:
+        return False
+    width=int.from_bytes(raw[16:20],"big")
+    height=int.from_bytes(raw[20:24],"big")
+    if (not 1<=width<=16384 or not 1<=height<=16384 or
+            width*height>16_777_216 or
+            (color_type,bit_depth) not in {
+                (0,1),(0,2),(0,4),(0,8),(0,16),
+                (2,8),(2,16),(3,1),(3,2),(3,4),(3,8),
+                (4,8),(4,16),(6,8),(6,16)
+            } or raw[26]!=0 or raw[27]!=0 or raw[28] not in (0,1)):
+        return False
     chunks=0
     while offset+12<=len(raw):
         chunks+=1
@@ -48,7 +62,7 @@ def _valid_png_chunks(raw):
         length=int.from_bytes(raw[offset:offset+4],"big")
         kind=raw[offset+4:offset+8]
         end=offset+12+length
-        if end>len(raw) or not all(65<=c<=90 or 97<=c<=122 for c in kind):
+        if (end>len(raw) or not all(65<=c<=90 or 97<=c<=122 for c in kind) or\n                not 65<=kind[2]<=90):
             return False
         if crc32(raw[offset+4:end-4]) & 0xffffffff != int.from_bytes(raw[end-4:end],"big"):
             return False
