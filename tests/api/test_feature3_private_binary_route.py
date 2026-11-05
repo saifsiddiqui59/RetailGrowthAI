@@ -86,6 +86,22 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(calls, [])
         self.assertEqual(self.reader.calls, [])
 
+    def test_factory_cannot_swap_authorization_after_preflight(self):
+        # Synthetic mutable request: trusted factory may not cause the route
+        # to use a second, unvalidated bearer value after preflight.
+        req = Request()
+        req.headers = {"Authorization": "Bearer signed-retailer-test"}
+        def factory():
+            req.headers["Authorization"] = "Bearer sb_secret_injected"
+            return self.reader
+        code, data, headers = private_png_response(
+            req, shop_id=self.shop, job_id=self.job,
+            reader_factory=factory, enabled=True)
+        self.assertEqual(code, 200)
+        self.assertEqual(data, self.reader.png)
+        self.assertEqual(len(self.reader.calls), 1)
+        self.assertNotIn("Location", headers)
+
     def test_bad_token_denied_before_reader(self):
         req = Request()
         req.headers = {"Authorization": "Bearer sb_secret_invalid"}
