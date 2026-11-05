@@ -141,7 +141,7 @@ class Feature3PrivateBinaryHTTP:
         if (type(authorization) is not str or
                 not authorization.startswith("Bearer ") or
                 not 12<=len(authorization)<=8200 or
-                any(ord(c)<33 or ord(c)==127 for c in authorization[7:])):
+                any(ord(c)<33 or ord(c)>126 for c in authorization[7:])):
             return self._deny(401)
         token=authorization[7:]
         if token.startswith(("sb_secret_","sb_publishable_")):
