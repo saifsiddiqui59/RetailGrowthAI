@@ -12,6 +12,9 @@ import pytest
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/
                       "azure-functions"/"campaign-api"))
 from feature2_adapter import PrivateVoiceStatusAdapter
+from ai_agents.feature2_local_voice_workflow import (
+    read_private_local_voice_job_status,
+)
 
 SHOP="11111111-1111-4111-8111-111111111111"
 CAMP="22222222-2222-4222-8222-222222222222"
@@ -74,7 +77,7 @@ def fixture(*,state="RESERVED",foreign=False,deny_on=None,
         assert (token,actor,sid,cid,key)==("signed",ACTOR,SHOP,CAMP,REQUEST)
         count["job"]+=1
         row=status_row(state)
-        if job_change and count["job"]>=job_change:
+        if job_change is not None:
             row.update(job_change(count["job"]))
         return row
     def media(token,actor,sid,cid,asset):
@@ -87,7 +90,8 @@ def fixture(*,state="RESERVED",foreign=False,deny_on=None,
         Members(),
         plan_reader=None if missing=="plan" else current,
         job_reader=None if missing=="job" else job,
-        private_audio_reader=None if missing=="audio" else media)
+        private_audio_reader=None if missing=="audio" else media,
+        status_verifier=None if missing=="verifier" else read_private_local_voice_job_status)
     return api,count
 
 @pytest.mark.parametrize("state",[
@@ -119,7 +123,7 @@ def test_f2_19_scope_viewer_and_unconfigured_backends_fail_closed():
     api,c=fixture(foreign=True)
     assert api.get(SHOP,CAMP,REQUEST,"Bearer signed")[0]==404
     assert c["plan"]==c["job"]==0
-    for missing in ("plan","job","audio"):
+    for missing in ("plan","job","audio","verifier"):
         api,c=fixture(missing=missing)
         assert api.get(SHOP,CAMP,REQUEST,"Bearer signed")[0]==503
         assert c["job"]==0

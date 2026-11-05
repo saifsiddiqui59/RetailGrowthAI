@@ -229,18 +229,22 @@ class PrivateVoiceStatusAdapter:
     """
 
     def __init__(self, verify_token, tenant_store, *, plan_reader=None,
-                 job_reader=None, private_audio_reader=None):
+                 job_reader=None, private_audio_reader=None,
+                 status_verifier=None):
         self.verify_token = verify_token
         self.tenant_store = tenant_store
         self.plan_reader = plan_reader
         self.job_reader = job_reader
         self.private_audio_reader = private_audio_reader
+        # Runtime dependencies must be declared in the protected ZIP
+        # allowlist before activation. The coordinator supplies this trusted
+        # F2 status verifier ONLY after an independently approved package.
+        self.status_verifier = status_verifier
 
     def get(self, shop_id, campaign_id, request_key, authorization):
         from copy import deepcopy
-        from ai_agents.feature2_local_voice_workflow import (
-            read_private_local_voice_job_status, LocalVoiceJobDenied,
-        )
+        # Deliberately NO new ai_agents import from the Functions runtime.
+        # The permitted server service is injected after review.
         try:
             sid, cid, key = (canonical_uuid(v) for v in
                              (shop_id, campaign_id, request_key))
@@ -261,7 +265,8 @@ class PrivateVoiceStatusAdapter:
         except (AuthenticationError, ValueError, TypeError):
             return 401, {"error":"UNAUTHORIZED"}
         if not all(callable(v) for v in
-                   (self.plan_reader,self.job_reader,self.private_audio_reader)):
+                   (self.plan_reader,self.job_reader,self.private_audio_reader,
+                    self.status_verifier)):
             return 503, {"error":"PRIVATE_VOICE_STATUS_UNAVAILABLE"}
         try:
             def editor(s,c):
@@ -274,7 +279,7 @@ class PrivateVoiceStatusAdapter:
                 return 404, {"error":"NOT_FOUND"}
             # Snapshot the first RLS plan so mutable shared readers cannot
             # replace source provenance during status/asset readback.
-            receipt=read_private_local_voice_job_status(
+            receipt=self.status_verifier(
                 shop_id=sid,campaign_id=cid,source_plan=deepcopy(original),
                 request_key=key,authorize_current_editor=editor,
                 read_current_plan=lambda s,c:self.plan_reader(token,actor,s,c),
@@ -285,7 +290,7 @@ class PrivateVoiceStatusAdapter:
             if not editor(sid,cid):
                 return 404, {"error":"NOT_FOUND"}
             return 200,receipt
-        except (LocalVoiceJobDenied, PermissionError):
+        except (ValueError, PermissionError):
             return 404, {"error":"NOT_FOUND"}
         except StorageUnavailable:
             return 503, {"error":"PRIVATE_VOICE_STATUS_UNAVAILABLE"}
