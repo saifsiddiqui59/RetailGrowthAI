@@ -64,3 +64,45 @@ def test_feature2_source_complete_receipts_never_claim_merged_or_hosted_done():
             assert re.fullmatch(r"[0-9a-f]{40}", item.get("verified_on_commit", ""))
         else:
             assert "verified_on_commit" not in item
+
+
+
+def test_closed_source_work_is_separate_from_original_integration_status():
+    """A CI-passing source substep can close without false full-task DONE."""
+    src = json.loads(SOURCE_FILE.read_text(encoding="utf-8"))
+    closure = src["code_work_closure"]
+    source_closed = [t for t in src["tasks"] if t.get("source_code_closure", {}).get("state") == "CLOSED_SOURCE_ONLY"]
+    sub_closed = [t for t in src["tasks"] if t.get("latest_source_substep", {}).get("closure", {}).get("state") == "CLOSED_VERIFIED_OFFLINE_SUBSTEP"]
+    assert len(source_closed) == closure["code_complete_original_tasks_closed"] == 8
+    assert len(sub_closed) == closure["verified_offline_source_substeps_closed"] == 17
+    assert set(closure["closed_source_task_ids"]) == {t["id"] for t in source_closed}
+    assert set(closure["closed_source_substep_original_ids"]) == {t["id"] for t in sub_closed}
+    approved_runs = set(closure["ci_runs_verified_four_of_four"])
+    assert len(approved_runs) == 10
+    for task in source_closed:
+        proof = task["source_code_closure"]
+        assert task["source_status"] == "SOURCE_COMPLETE"
+        assert proof["scope"] == "source_only"
+        assert proof["ci_run_id"] == task["source_ci_run_id"]
+        assert proof["ci_run_id"] in approved_runs
+        assert proof["verified_head_sha"] == task["verified_on_commit"]
+        assert proof["integrated_done"] is False
+    for task in sub_closed:
+        assert task["source_status"] == "SOURCE_IN_PROGRESS"
+        substep = task["latest_source_substep"]
+        proof = substep["closure"]
+        assert substep["state"] == "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI"
+        assert substep["complete_scope"] is False
+        assert proof["scope"] == "verified_offline_source_substep"
+        assert proof["ci_run_id"] == substep["ci_run_id"]
+        assert proof["ci_run_id"] in approved_runs
+        assert proof["verified_head_sha"] == (substep.get("verified_source_head_sha") or substep.get("ci_sha"))
+        assert proof["original_task_complete"] is False
+        assert proof["integrated_done"] is False
+    assert "F2-32" not in closure["closed_source_substep_original_ids"]
+    assert src["counts"] == {
+        "SOURCE_COMPLETE": 8,
+        "SOURCE_IN_PROGRESS": 18,
+        "EXTERNALLY_BLOCKED": 12,
+    }
+    assert closure["integrated_done_unmodified"] == src["integration"]["accepted_done"] == 0

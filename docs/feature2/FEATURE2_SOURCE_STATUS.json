@@ -49,7 +49,15 @@
         "complete_scope": false,
         "blocker": "Protected shared scripts/deploy/package.py independent review, exact Node22 binary and Azure runtime operator proof absent; cannot deploy or accept main integration",
         "ci_run_id": 41814171986,
-        "verified_source_head_sha": "8fdb5c7b19cb76b1417ffc9999da1922d996dd34"
+        "verified_source_head_sha": "8fdb5c7b19cb76b1417ffc9999da1922d996dd34",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "8fdb5c7b19cb76b1417ffc9999da1922d996dd34",
+          "ci_run_id": 41814171986,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       }
     },
     {
@@ -71,7 +79,15 @@
         "complete_scope": false,
         "blocker": "Commercial copy still needs real current signed retailer facts, rights and independent human approval",
         "ci_run_id": 41813227582,
-        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34"
+        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+          "ci_run_id": 41813227582,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       },
       "source_substep_history": [
         {
@@ -106,7 +122,15 @@
         "complete_scope": false,
         "blocker": "Independent signed human review, versioned tenant-private draft CAS and hosted RLS endpoint still unverified",
         "ci_run_id": 41304131599,
-        "verified_source_head_sha": "501b58dce66bc9240676c29eb1d1b7497e9ac0df"
+        "verified_source_head_sha": "501b58dce66bc9240676c29eb1d1b7497e9ac0df",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "501b58dce66bc9240676c29eb1d1b7497e9ac0df",
+          "ci_run_id": 41304131599,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       }
     },
     {
@@ -116,7 +140,14 @@
       "owner": "F2",
       "source_ci_run_id": 41292492409,
       "verified_on_commit": "37dfcc24fe850f977500d7755d53d3d012c9cbcf",
-      "scope": "source_only"
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "37dfcc24fe850f977500d7755d53d3d012c9cbcf",
+        "ci_run_id": 41292492409,
+        "integrated_done": false
+      }
     },
     {
       "id": "F2-05",
@@ -125,7 +156,14 @@
       "owner": "F2",
       "source_ci_run_id": 40861279169,
       "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
-      "scope": "source_only"
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "ac2a6a872d28b322922c74b88d91ab5757907387",
+        "ci_run_id": 40861279169,
+        "integrated_done": false
+      }
     },
     {
       "id": "F2-06",
@@ -134,7 +172,14 @@
       "owner": "F2",
       "source_ci_run_id": 40861279169,
       "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
-      "scope": "source_only"
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "ac2a6a872d28b322922c74b88d91ab5757907387",
+        "ci_run_id": 40861279169,
+        "integrated_done": false
+      }
     },
     {
       "id": "F2-07",
@@ -143,7 +188,14 @@
       "owner": "F2",
       "source_ci_run_id": 40861279169,
       "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
-      "scope": "source_only"
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "ac2a6a872d28b322922c74b88d91ab5757907387",
+        "ci_run_id": 40861279169,
+        "integrated_done": false
+      }
     },
     {
       "id": "F2-08",
@@ -164,7 +216,15 @@
         "blocker": "Real independent signed human reviewer identities, durable CAS and mounted tenant RLS live verification remain absent",
         "ci_run_id": 41850403506,
         "ci_status": "SUCCESS_4_OF_4",
-        "verified_source_head_sha": "94ff9ec41b71fcca91809567e86d2cc429b8ac1c"
+        "verified_source_head_sha": "94ff9ec41b71fcca91809567e86d2cc429b8ac1c",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "94ff9ec41b71fcca91809567e86d2cc429b8ac1c",
+          "ci_run_id": 41850403506,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       },
       "source_substep_history": [
         {
@@ -197,7 +257,15 @@
         "complete_scope": false,
         "blocker": "Real pinned Kokoro checkpoint/CPU host and model benchmark not available; full F2-09 remains in progress",
         "ci_run_id": 41294266905,
-        "verified_source_head_sha": "2bbd5a53383ee0456e0df959c82f96d8ee039076"
+        "verified_source_head_sha": "2bbd5a53383ee0456e0df959c82f96d8ee039076",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "2bbd5a53383ee0456e0df959c82f96d8ee039076",
+          "ci_run_id": 41294266905,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       }
     },
     {
@@ -219,7 +287,15 @@
         "blocker": "Independent signed dictionary store, mounted reviewer, actual Kokoro voice/audio QA and hosted tenant auth remain unverified",
         "ci_run_id": 41848875135,
         "ci_status": "SUCCESS_4_OF_4",
-        "verified_source_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9"
+        "verified_source_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9",
+          "ci_run_id": 41848875135,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       },
       "source_substep_history": [
         {
@@ -244,7 +320,14 @@
       "owner": "F2",
       "source_ci_run_id": 40861279169,
       "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
-      "scope": "source_only"
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "ac2a6a872d28b322922c74b88d91ab5757907387",
+        "ci_run_id": 40861279169,
+        "integrated_done": false
+      }
     },
     {
       "id": "F2-12",
@@ -265,7 +348,15 @@
         "blocker": "Hosted JWT/RLS private trace storage, immutable event CAS, and independent real worker signatures are still absent",
         "ci_status": "SUCCESS_4_OF_4",
         "ci_run_id": 41850403506,
-        "verified_source_head_sha": "94ff9ec41b71fcca91809567e86d2cc429b8ac1c"
+        "verified_source_head_sha": "94ff9ec41b71fcca91809567e86d2cc429b8ac1c",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "94ff9ec41b71fcca91809567e86d2cc429b8ac1c",
+          "ci_run_id": 41850403506,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       },
       "source_substep_history": [
         {
@@ -290,7 +381,14 @@
       "owner": "F2",
       "source_ci_run_id": 40861279169,
       "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
-      "scope": "source_only"
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "ac2a6a872d28b322922c74b88d91ab5757907387",
+        "ci_run_id": 40861279169,
+        "integrated_done": false
+      }
     },
     {
       "id": "F2-14",
@@ -314,7 +412,15 @@
         "test_fix_commit": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
         "ci_run_id": 41901100120,
         "ci_sha": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
-        "main_integration_verified": false
+        "main_integration_verified": false,
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
+          "ci_run_id": 41901100120,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       },
       "source_substep_history": [
         {
@@ -358,7 +464,15 @@
         "complete_scope": false,
         "blocker": "Real Feature7 original WAV model/weights, signed ASR and human listening acceptance unavailable",
         "ci_run_id": 41813227582,
-        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34"
+        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+          "ci_run_id": 41813227582,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       },
       "source_substep_history": [
         {
@@ -394,7 +508,15 @@
         "complete_scope": false,
         "blocker": "Actual 2.5GB OpenPronounce reference models and genuine CPU pronunciation benchmark absent",
         "ci_run_id": 41812081011,
-        "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2"
+        "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+          "ci_run_id": 41812081011,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       }
     },
     {
@@ -415,7 +537,15 @@
         "complete_scope": false,
         "blocker": "Hosted signed DEV JWT/RLS status endpoint, durable worker settlement and tenant-authenticated job media not deployed",
         "ci_run_id": 41812081011,
-        "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2"
+        "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+          "ci_run_id": 41812081011,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       }
     },
     {
@@ -436,7 +566,15 @@
         "complete_scope": false,
         "blocker": "Hosted tenant private media reader, JWT/RLS, original binary endpoint and owner rights verification not live",
         "ci_run_id": 41813227582,
-        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34"
+        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+          "ci_run_id": 41813227582,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       },
       "source_substep_history": [
         {
@@ -473,7 +611,15 @@
         "blocker": "Real atomic tenant CPU budget/lease, settlement, JWT/RLS and actual worker inference are not deployed or verified",
         "ci_run_id": 41848875135,
         "ci_status": "SUCCESS_4_OF_4",
-        "verified_source_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9"
+        "verified_source_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9",
+          "ci_run_id": 41848875135,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       },
       "source_substep_history": [
         {
@@ -533,7 +679,15 @@
         "complete_scope": false,
         "blocker": "Actual mounted Creative Studio, signed reviewer identities and trusted F7 audio endpoints not deployed",
         "ci_run_id": 41813227582,
-        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34"
+        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+          "ci_run_id": 41813227582,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       },
       "source_substep_history": [
         {
@@ -570,7 +724,15 @@
         "blocker": "Real Kokoro model, one-shot DB CAS, signed reviewer and tenant-private registered audio are unverified",
         "ci_run_id": 41848875135,
         "ci_status": "SUCCESS_4_OF_4",
-        "verified_source_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9"
+        "verified_source_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9",
+          "ci_run_id": 41848875135,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       },
       "source_substep_history": [
         {
@@ -595,7 +757,14 @@
       "owner": "F2",
       "source_ci_run_id": 40861279169,
       "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
-      "scope": "source_only"
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "ac2a6a872d28b322922c74b88d91ab5757907387",
+        "ci_run_id": 40861279169,
+        "integrated_done": false
+      }
     },
     {
       "id": "F2-29",
@@ -617,7 +786,15 @@
         "complete_scope": false,
         "blocker": "Real FFmpeg hosted worker, tenant-private dual asset DB registration, genuine licensed MP3 and signed download not deployed",
         "ci_run_id": 41812081011,
-        "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2"
+        "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+          "ci_run_id": 41812081011,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       },
       "source_substep_history": [
         {
@@ -642,7 +819,14 @@
       "owner": "F2",
       "source_ci_run_id": 41292492409,
       "verified_on_commit": "37dfcc24fe850f977500d7755d53d3d012c9cbcf",
-      "scope": "source_only"
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "37dfcc24fe850f977500d7755d53d3d012c9cbcf",
+        "ci_run_id": 41292492409,
+        "integrated_done": false
+      }
     },
     {
       "id": "F2-31",
@@ -660,7 +844,15 @@
         "test_fix_commit": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
         "ci_run_id": 41901100120,
         "ci_sha": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
-        "main_integration_verified": false
+        "main_integration_verified": false,
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
+          "ci_run_id": 41901100120,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
       },
       "source_substep_history": [
         {
@@ -730,5 +922,55 @@
     "ci_run_id": 41901100120,
     "ci_sha": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
     "main_integration_verified": false
+  },
+  "code_work_closure": {
+    "closed_on": "2026-11-05",
+    "code_complete_original_tasks_closed": 8,
+    "verified_offline_source_substeps_closed": 17,
+    "closed_source_task_ids": [
+      "F2-04",
+      "F2-05",
+      "F2-06",
+      "F2-07",
+      "F2-11",
+      "F2-13",
+      "F2-28",
+      "F2-30"
+    ],
+    "closed_source_substep_original_ids": [
+      "F2-01",
+      "F2-02",
+      "F2-03",
+      "F2-08",
+      "F2-09",
+      "F2-10",
+      "F2-12",
+      "F2-15",
+      "F2-17",
+      "F2-18",
+      "F2-19",
+      "F2-20",
+      "F2-21",
+      "F2-26",
+      "F2-27",
+      "F2-29",
+      "F2-31"
+    ],
+    "ci_runs_verified_four_of_four": [
+      40861279169,
+      41292492409,
+      41294266905,
+      41304131599,
+      41812081011,
+      41813227582,
+      41814171986,
+      41848875135,
+      41850403506,
+      41901100120
+    ],
+    "original_in_progress_unmodified": 18,
+    "original_externally_blocked_unmodified": 12,
+    "integrated_done_unmodified": 0,
+    "policy": "Close proven source tasks/substeps to avoid duplicate work; source substep closure does not close the original task, PR, hosted verification, independent approval or production acceptance."
   }
 }
