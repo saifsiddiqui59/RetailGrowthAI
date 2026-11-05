@@ -71,11 +71,11 @@ class PrivateIHDRBoundaryTests(unittest.TestCase):
             mutate_ihdr(original, 16, (16385).to_bytes(4, "big")),
             mutate_ihdr(original, 16, (8192).to_bytes(4, "big")),
             mutate_ihdr(original, 20, (8192).to_bytes(4, "big")),
-            mutate_ihdr(original, 24, b"\\x01"),  # RGB cannot have 1-bit depth
-            mutate_ihdr(original, 25, b"\\x05"),  # invalid colour type
-            mutate_ihdr(original, 26, b"\\x01"),  # compression
-            mutate_ihdr(original, 27, b"\\x01"),  # filter
-            mutate_ihdr(original, 28, b"\\x02"),  # interlace
+            mutate_ihdr(original, 24, b"\x01"),  # RGB cannot have 1-bit depth
+            mutate_ihdr(original, 25, b"\x05"),  # invalid colour type
+            mutate_ihdr(original, 26, b"\x01"),  # compression
+            mutate_ihdr(original, 27, b"\x01"),  # filter
+            mutate_ihdr(original, 28, b"\x02"),  # interlace
         ]
         for forged in variants:
             self.reader.raw = forged
@@ -88,7 +88,7 @@ class PrivateIHDRBoundaryTests(unittest.TestCase):
 
     def test_reserved_chunk_bit_denied_even_with_valid_crc_and_sha(self):
         original = self.reader.raw
-        kind = b"teXt"  # third letter lowercase: reserved PNG chunk bit
+        kind = b"texT"  # third letter lowercase: reserved PNG chunk bit
         payload = b"note\\x00synthetic"
         chunk = (len(payload).to_bytes(4, "big") + kind + payload
                  + (crc32(kind + payload) & 0xffffffff).to_bytes(4, "big"))
