@@ -6,6 +6,7 @@ return opaque errors and never expose private bytes or signed Storage URLs.
 from __future__ import annotations
 
 from feature3_private_binary_http import Feature3PrivateBinaryHTTP
+from uuid import UUID
 
 
 def private_png_response(request, *, shop_id, job_id, reader_factory, enabled=False):
@@ -32,7 +33,7 @@ def private_png_response(request, *, shop_id, job_id, reader_factory, enabled=Fa
             any(ord(ch) < 33 or ord(ch) > 126 for ch in authorization[7:]) or
             authorization[7:].startswith(("sb_secret_", "sb_publishable_"))):
         return Feature3PrivateBinaryHTTP._deny(401)
-    if not callable(reader_factory):
+    # Reject malformed or noncanonical identifiers before creating a privileged\n    # backend reader. Never normalize attacker-controlled route parameters.\n    for identifier in (shop_id, job_id):\n        if type(identifier) is not str or len(identifier) != 36:\n            return Feature3PrivateBinaryHTTP._deny(404)\n        try:\n            parsed = UUID(identifier)\n        except (ValueError, AttributeError):\n            return Feature3PrivateBinaryHTTP._deny(404)\n        if parsed.version != 4 or str(parsed) != identifier:\n            return Feature3PrivateBinaryHTTP._deny(404)\n    if not callable(reader_factory):
         return Feature3PrivateBinaryHTTP._deny(503)
     try:
         reader = reader_factory()
