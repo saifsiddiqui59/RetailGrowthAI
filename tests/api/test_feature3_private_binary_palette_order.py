@@ -63,6 +63,24 @@ class TransparencyPaletteOrderingTests(unittest.TestCase):
         self.assertEqual((status, body), (503, b""))
         self.assertEqual(headers["Vary"], "Authorization")
         self.assertEqual(headers["Cache-Control"], "no-store, private, max-age=0")
+        # A self-consistent SHA and CRC never excuse duplicate/invalid tRNS.
+        for chunks in (
+            ((b"PLTE", bytes((0, 0, 0))), (b"tRNS", bytes((0, 1, 0, 2, 0, 3))),
+             (b"tRNS", bytes((0, 1, 0, 2, 0, 3)))),
+            ((b"PLTE", bytes((0, 0, 0))), (b"tRNS", bytes((0, 1)))),
+            ((b"tRNS", b""),),
+        ):
+            with self.subTest(chunks=chunks):
+                reader.raw = image_with_chunks(*chunks)
+                status, body, headers = get()
+                self.assertEqual((status, body), (503, b""))
+                self.assertEqual(headers["Vary"], "Authorization")
+        # Denial cannot poison a later valid private response.
+        reader.raw = image_with_chunks(
+            (b"PLTE", bytes((0, 0, 0))),
+            (b"tRNS", bytes((0, 17, 0, 34, 0, 51))),
+        )
+        self.assertEqual(get()[0], 200)
 
 
 if __name__ == "__main__":
