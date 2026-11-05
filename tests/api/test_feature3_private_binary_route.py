@@ -99,7 +99,7 @@ class RouteTests(unittest.TestCase):
             reader_factory=factory, enabled=True)
         self.assertEqual(code, 200)
         self.assertEqual(data, self.reader.png)
-        self.assertEqual(len(self.reader.calls), 1)
+        self.assertEqual(self.reader.calls, [("signed-retailer-test", self.shop, self.job)])
         self.assertNotIn("Location", headers)
 
     def test_bad_token_denied_before_reader(self):
