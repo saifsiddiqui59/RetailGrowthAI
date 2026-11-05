@@ -90,6 +90,24 @@ def feature3_registered_source(req: func.HttpRequest) -> func.HttpResponse:
                     "/feature3-source-assets/" + req.route_params["asset_id"])
 
 
+# F3-08: mounted no-URL binary route. It remains disabled until a separately
+# reviewed, backend-owned current-rights authority is wired. In particular,
+# the browser, service-role presence, or a job's SUCCEEDED state is never an
+# acceptable substitute for the current output-rights callback.
+@app.route(route="shops/{shop_id}/feature3-gpu-jobs/{job_id}/private-png",
+           methods=["GET"])
+def feature3_private_png(req: func.HttpRequest) -> func.HttpResponse:
+    from feature3_private_binary_route import private_png_response
+    # Do not enable from an environment flag alone: no trusted live rights
+    # provider is installed yet. This explicit fail-closed route makes the
+    # deployment surface testable without silently exposing private bytes.
+    status, body, headers = private_png_response(
+        req, shop_id=req.route_params.get("shop_id"),
+        job_id=req.route_params.get("job_id"),
+        reader_factory=None, enabled=False)
+    return func.HttpResponse(body, status_code=status, headers=headers)
+
+
 # Feature3 private generated-image history is GET-only; paid GPU submit is
 # not publicly registered. Inner HTTPAPI verifies signed JWT + current tenant.
 @app.route(route="shops/{shop_id}/feature3-gpu-jobs", methods=["GET"])
