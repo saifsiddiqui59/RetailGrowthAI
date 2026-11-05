@@ -77,7 +77,11 @@ def _valid_png_chunks(raw):
         # interleaved IDAT sequence must never reach the private response.
         if kind[0] in range(65,91) and kind not in (b"IHDR",b"PLTE",b"IDAT",b"IEND"):
             return False
-        # Generated private outputs must not carry embedded textual/EXIF\n        # metadata. Such chunks can disclose prompts, customer identifiers or\n        # source paths even when the pixels and SHA are otherwise valid.\n        if kind in (b"tEXt", b"zTXt", b"iTXt", b"eXIf"):\n            return False\n        if kind==b"PLTE":
+        # Reject ancillary text/EXIF chunks that can leak private metadata.
+        # A valid CRC and SHA do not make embedded customer data safe.
+        if kind in (b"tEXt", b"zTXt", b"iTXt", b"eXIf"):
+            return False
+        if kind==b"PLTE":
             if (saw_plte or saw_idat or saw_trns or color_type in (0,4) or
                     length==0 or length>768 or length%3!=0 or
                     (color_type==3 and length//3>(1<<bit_depth))):
