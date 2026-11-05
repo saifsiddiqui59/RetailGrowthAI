@@ -26,11 +26,12 @@ def _message_acknowledged(receipt):
     try:
         # A nil UUID has GUID syntax but is not a server-assigned message ID.
         # Do not turn a fabricated empty receipt into a durable SQL ACK.
-        if UUID(identifier).int == 0:
+        parsed = UUID(identifier)
+        if parsed.int == 0:
             raise ValueError("Nil Azure Queue message ID")
     except (ValueError, AttributeError, TypeError) as exc:
         raise StorageUnavailable("Invalid Azure Queue delivery receipt") from exc
-    return True
+    return str(parsed)
 
 
 def _validated_dispatch_rows(rows, limit):
@@ -95,6 +96,7 @@ class Feature3GPUOutboxPublisher:
             ) from None
         rows = _validated_dispatch_rows(claimed, limit)
         accepted = 0
+        seen_message_ids = set()
         for row in rows:
             # Do not send any media, token, URL, raw licence or image bytes
             # through the Azure Storage Queue. Durable current rights will
@@ -106,7 +108,13 @@ class Feature3GPUOutboxPublisher:
                 # Queue retries may duplicate envelopes; database claim is
                 # one-shot. Never execute a paid GPU action here.
                 result = self.queue.send_message(message)
-                _message_acknowledged(result)
+                message_id = _message_acknowledged(result)
+                # A repeated server GUID across two different sends is not
+                # evidence that two distinct queue messages were accepted.
+                # Never confirm the second SQL outbox row or retry its send.
+                if message_id in seen_message_ids:
+                    raise StorageUnavailable("Duplicate Azure Queue message ID")
+                seen_message_ids.add(message_id)
             except Exception as exc:
                 raise StorageUnavailable(
                     "Feature3 GPU queue send uncertain; reconcile outbox, do not blindly replay"

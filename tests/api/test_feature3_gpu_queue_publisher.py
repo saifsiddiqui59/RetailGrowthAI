@@ -171,6 +171,8 @@ class Feature3QueuePublishingTests(unittest.TestCase):
         self.outbox.claim_dispatch.return_value=[
             self.record,{**self.record,"job_id":str(uuid4()),
                           "dispatch_token":str(uuid4())}]
+        self.queue.send_message.side_effect=[
+            SimpleNamespace(id=str(uuid4())),SimpleNamespace(id=str(uuid4()))]
         result=self.publisher.dispatch_once(2)
         self.assertEqual(result["acknowledged"],2)
         self.assertEqual(self.queue.send_message.call_count,2)
@@ -184,6 +186,8 @@ class Feature3QueuePublishingTests(unittest.TestCase):
         second={**self.record,"job_id":str(uuid4()),
                 "shop_id":str(uuid4()),"dispatch_token":str(uuid4())}
         self.outbox.claim_dispatch.return_value=[self.record,second]
+        self.queue.send_message.side_effect=[
+            SimpleNamespace(id=str(uuid4())),SimpleNamespace(id=str(uuid4()))]
         status=self.publisher.dispatch_once(2)
         self.assertEqual(status["acknowledged"],2)
         sent=[json.loads(call.args[0]) for call in self.queue.send_message.call_args_list]
@@ -200,6 +204,20 @@ class Feature3QueuePublishingTests(unittest.TestCase):
             second["job_id"],second["dispatch_token"],True)
         self.assertFalse(status["gpu_started"])
         self.assertFalse(status["inference_executed"])
+
+
+    def test_repeated_server_message_id_never_confirms_second_shop(self):
+        second={**self.record,"shop_id":str(uuid4()),
+                "job_id":str(uuid4()),"dispatch_token":str(uuid4())}
+        self.outbox.claim_dispatch.return_value=[self.record,second]
+        # Simulates a broken/malicious Queue adapter replaying the same
+        # first delivery receipt for a different second shop/job.
+        self.queue.send_message.return_value=SimpleNamespace(id=str(uuid4()))
+        with self.assertRaisesRegex(StorageUnavailable,"send uncertain"):
+            self.publisher.dispatch_once(2)
+        self.assertEqual(self.queue.send_message.call_count,2)
+        self.outbox.confirm_dispatch.assert_called_once_with(
+            self.job,self.token,True)
 
     def test_two_shop_uncertain_ack_cannot_send_second_shops_job(self):
         second={**self.record,"job_id":str(uuid4()),
