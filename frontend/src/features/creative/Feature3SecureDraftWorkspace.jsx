@@ -7,7 +7,7 @@ import Feature3StudioPanel from './Feature3StudioPanel.jsx'
 import { validateFeature3Design } from './feature3-design.mjs'
 import {scopedFeature3GeneratedLink,SAFE_CLIENT_LIFETIME_MS} from './feature3-signed-link-scope.mjs'
 import { feature3ContextKey } from './feature3-context.mjs'
-import {scopedFeature3WorkspaceValue,currentFeature3WorkspaceRequest,createFeature3WorkspaceReadGate} from './feature3-workspace-scope.mjs'
+import {scopedFeature3WorkspaceValue,currentFeature3WorkspaceRequest,createFeature3WorkspaceReadGate,feature3DraftMediaReady} from './feature3-workspace-scope.mjs'
 
 export default function Feature3SecureDraftWorkspace({
   shopId, campaignId, dayId, brandKit, imageMap = {}, approvedModels = [],
@@ -152,10 +152,7 @@ export default function Feature3SecureDraftWorkspace({
           chosen.day_id!==dayId) throw Error('Private draft context changed')
       const design = validateFeature3Design(chosen.design)
       if (design.shop_id !== shopId ||
-          design.layers.some(layer => layer.type === 'image' &&
-            (!imageMap[layer.asset_id]?.complete ||
-             !imageMap[layer.asset_id]?.naturalWidth ||
-             !imageMap[layer.asset_id]?.naturalHeight))) {
+          !feature3DraftMediaReady(design,imageMap)) {
         throw Error('Shop media grant must be refreshed first')
       }
       ticket.current = {scope:scopeKey,provider:feature3Api,designId:chosen.id,revision:chosen.revision}
@@ -182,10 +179,7 @@ export default function Feature3SecureDraftWorkspace({
     try {
       const submitted=validateFeature3Design(design)
       if (submitted.shop_id !== shopId ||
-          submitted.layers.some(layer => layer.type === 'image' &&
-            (!imageMap[layer.asset_id]?.complete ||
-             !imageMap[layer.asset_id]?.naturalWidth ||
-             !imageMap[layer.asset_id]?.naturalHeight))) {
+          !feature3DraftMediaReady(submitted,imageMap)) {
         throw Error('Registered media must still be authorized')
       }
       const response=await feature3Api.saveDesign(

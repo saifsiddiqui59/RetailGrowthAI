@@ -6,7 +6,7 @@ import { createRequire } from 'node:module'
 import { feature3ContextKey } from '../../frontend/src/features/creative/feature3-context.mjs'
 import {
   scopedFeature3WorkspaceValue,currentFeature3WorkspaceRequest,
-  createFeature3WorkspaceReadGate,
+  createFeature3WorkspaceReadGate,feature3DraftMediaReady,
 } from '../../frontend/src/features/creative/feature3-workspace-scope.mjs'
 
 const shop=randomUUID(), otherShop=randomUUID()
@@ -154,4 +154,38 @@ test('F3-09 mounted CPU workspace gates all private reads and save/reopen agains
   assert.match(source,/if \(disabled \|\| readGate\.current\.busy\(\)/)
   assert.match(source,/No v2 private poster drafts exist for this day/)
   assert.doesNotMatch(source,/fetch\(/)
+})
+
+
+test('F3-09 private draft media must be an own registered image with decoded dimensions',()=>{
+  const image={complete:true,naturalWidth:1080,naturalHeight:1350}
+  const draft=id=>({layers:[{type:'text'}, {type:'image',asset_id:id}]})
+  assert.equal(feature3DraftMediaReady(draft('owned'),{owned:image}),true)
+  const nullPrototype=Object.create(null)
+  nullPrototype.owned=image
+  assert.equal(feature3DraftMediaReady(draft('owned'),nullPrototype),true)
+  assert.equal(feature3DraftMediaReady({layers:[{type:'text'}]},{}),true)
+  for(const key of ['owned','constructor','toString','__proto__']){
+    const inherited=Object.create({[key]:image})
+    assert.equal(feature3DraftMediaReady(draft(key),inherited),false,
+      'A prototype property cannot authorize a private registered image')
+  }
+  for(const invalid of [null,{}, {complete:false,naturalWidth:1080,naturalHeight:1350},
+    {complete:'true',naturalWidth:1080,naturalHeight:1350},
+    {complete:true,naturalWidth:'1080',naturalHeight:1350},
+    {complete:true,naturalWidth:0,naturalHeight:1350},
+    {complete:true,naturalWidth:1080,naturalHeight:Infinity}]){
+    assert.equal(feature3DraftMediaReady(draft('owned'),{owned:invalid}),false)
+  }
+  assert.equal(feature3DraftMediaReady(draft('owned'),null),false)
+  assert.equal(feature3DraftMediaReady(draft('owned'),[]),false)
+  assert.equal(feature3DraftMediaReady(null,{}),false)
+  assert.equal(feature3DraftMediaReady({layers:[null]},{}),false)
+})
+
+test('F3-09 private draft save and reopen both use the same own-image grant fence',async()=>{
+  const source=await readFile(new URL('../../frontend/src/features/creative/Feature3SecureDraftWorkspace.jsx',import.meta.url),'utf8')
+  assert.match(source,/!feature3DraftMediaReady\(design,imageMap\)/)
+  assert.match(source,/!feature3DraftMediaReady\(submitted,imageMap\)/)
+  assert.doesNotMatch(source,/imageMap\[layer\.asset_id\]/)
 })
