@@ -75,7 +75,7 @@ class PrivateIHDRBoundaryTests(unittest.TestCase):
             mutate_ihdr(mutate_ihdr(original, 16, (4096).to_bytes(4, "big")),
                         20, (8192).to_bytes(4, "big")),
             mutate_ihdr(original, 24, b"\x01"),  # RGB cannot have 1-bit depth
-            mutate_ihdr(original, 25, bytes((3,))),  # invalid colour type
+            mutate_ihdr(original, 25, bytes((5,))),  # invalid colour type
             mutate_ihdr(original, 26, b"\x01"),  # compression
             mutate_ihdr(original, 27, b"\x01"),  # filter
             mutate_ihdr(original, 28, b"\x02"),  # interlace
