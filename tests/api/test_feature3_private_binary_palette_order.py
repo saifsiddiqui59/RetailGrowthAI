@@ -44,6 +44,23 @@ class Reader:
 
 
 class TransparencyPaletteOrderingTests(unittest.TestCase):
+    def test_non_ascii_bearer_never_reaches_private_reader(self):
+        class FailIfCalled:
+            def read(self, **kwargs):
+                raise AssertionError("untrusted bearer reached private rights reader")
+
+        adapter = Feature3PrivateBinaryHTTP(reader=FailIfCalled())
+        shop, job = str(uuid4()), str(uuid4())
+        for token in ("Bearer synthetic-\u00e9", "Bearer synthetic-\u200b",
+                      "Bearer synthetic-\uff21", "Bearer synthetic-\u007f",
+                      "Bearer synthetic-\n"):
+            with self.subTest(token=repr(token)):
+                status, body, headers = adapter.handle(
+                    method="GET", authorization=token, shop_id=shop, job_id=job)
+                self.assertEqual((status, body), (401, b""))
+                self.assertEqual(headers["Vary"], "Authorization")
+                self.assertEqual(headers["Cache-Control"], "no-store, private, max-age=0")
+
     def test_rgb_transparency_sample_depth_is_enforced(self):
         reader = Reader()
         adapter = Feature3PrivateBinaryHTTP(reader=reader)
