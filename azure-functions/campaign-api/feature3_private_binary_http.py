@@ -83,7 +83,8 @@ def _valid_png_chunks(raw):
             return False
         # Reject ancillary text/EXIF chunks that can leak private metadata.
         # A valid CRC and SHA do not make embedded customer data safe.
-        if kind in (b"tEXt", b"zTXt", b"iTXt", b"eXIf"):
+        if kind[0] in range(97, 123) and kind not in (
+                b"tRNS", b"sRGB", b"gAMA", b"cHRM", b"pHYs"):
             return False
         if kind==b"PLTE":
             if (saw_plte or saw_idat or saw_trns or color_type in (0,4) or
