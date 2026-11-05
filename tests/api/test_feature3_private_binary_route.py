@@ -58,6 +58,34 @@ class RouteTests(unittest.TestCase):
         self.reader.fail = None
         self.assertEqual(self.invoke(lambda: self.reader)[0], 200)
 
+    def test_preflight_denies_without_constructing_reader(self):
+        calls = []
+        def factory():
+            calls.append("constructed")
+            return self.reader
+        for method, auth, expected in (
+            ("POST", "Bearer signed-retailer-test", 405),
+            ("HEAD", "Bearer signed-retailer-test", 405),
+            ("GET", "", 401),
+            ("GET", "Bearer sb_publishable_fixture", 401),
+            ("GET", "Bearer bad\\r\\nInjected", 401),
+            ("GET", "Bearer unicode-\\u2603", 401),
+            ("GET", "Bearer " + "x" * 8200, 401),
+        ):
+            req = Request()
+            req.method = method
+            req.headers = {"Authorization": auth}
+            with self.subTest(method=method, auth=repr(auth[:24])):
+                code, data, headers = private_png_response(
+                    req, shop_id=self.shop, job_id=self.job,
+                    reader_factory=factory, enabled=True)
+                self.assertEqual((code, data), (expected, b""))
+                self.assertEqual(headers["Cache-Control"],
+                                 "no-store, private, max-age=0")
+                self.assertNotIn("Location", headers)
+        self.assertEqual(calls, [])
+        self.assertEqual(self.reader.calls, [])
+
     def test_bad_token_denied_before_reader(self):
         req = Request()
         req.headers = {"Authorization": "Bearer sb_secret_invalid"}
