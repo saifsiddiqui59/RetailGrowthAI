@@ -126,6 +126,44 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(self.reader.calls, [])
         self.assertEqual(self.invoke(factory)[0], 200)
 
+    def test_malformed_request_header_mapping_fails_closed(self):
+        # A hostile/malformed adapter must never instantiate the privileged
+        # rights provider, nor expose any exception detail in the response.
+        calls = []
+        def factory():
+            calls.append("constructed")
+            return self.reader
+
+        class RaisingHeaders:
+            def get(self, *_args):
+                raise RuntimeError("secret backend detail")
+
+        class BrokenRequest:
+            method = "GET"
+            headers = RaisingHeaders()
+
+        code, body, headers = private_png_response(
+            BrokenRequest(), shop_id=self.shop, job_id=self.job,
+            reader_factory=factory, enabled=True)
+        self.assertEqual((code, body), (401, b""))
+        self.assertEqual(calls, [])
+        self.assertEqual(self.reader.calls, [])
+        self.assertNotIn("secret", repr(headers).lower())
+
+    def test_uuid_v1_and_wrong_type_are_denied_before_factory(self):
+        from uuid import uuid1
+        calls = []
+        def factory():
+            calls.append("constructed")
+            return self.reader
+        for invalid in (str(uuid1()), b"not-a-uuid", True, [], {}):
+            with self.subTest(invalid=repr(invalid)):
+                code, body, _ = private_png_response(
+                    Request(), shop_id=invalid, job_id=self.job,
+                    reader_factory=factory, enabled=True)
+                self.assertEqual((code, body), (404, b""))
+        self.assertEqual(calls, [])
+
     def test_bad_token_denied_before_reader(self):
         req = Request()
         req.headers = {"Authorization": "Bearer sb_secret_invalid"}
