@@ -127,6 +127,36 @@ class PrivateIHDRBoundaryTests(unittest.TestCase):
         self.reader.raw = original
         self.assertEqual(self.response()[0], 200)
 
+    def test_transparency_chunk_order_and_size_are_fail_closed(self):
+        original = self.reader.raw
+
+        def chunk(kind, payload):
+            return (len(payload).to_bytes(4, "big") + kind + payload
+                    + (crc32(kind + payload) & 0xffffffff).to_bytes(4, "big"))
+
+        # The RGB synthetic fixture permits one six-byte tRNS before IDAT.
+        valid = chunk(b"tRNS", b"\\x00\\x01\\x00\\x02\\x00\\x03")
+        self.reader.raw = original[:33] + valid + original[33:]
+        self.assertEqual(self.response()[0], 200)
+
+        invalid = [
+            original[:33] + valid + valid + original[33:],
+            original[:-12] + valid + original[-12:],
+            original[:33] + chunk(b"tRNS", b"\\x00\\x01") + original[33:],
+            original[:33] + chunk(b"tRNS", b"") + original[33:],
+            # Indexed transparency without a palette cannot be authorized.
+            mutate_ihdr(original, 25, b"\\x03")[:33] + valid +
+            mutate_ihdr(original, 25, b"\\x03")[33:],
+        ]
+        for forged in invalid:
+            self.reader.raw = forged
+            with self.subTest(length=len(forged), digest=sha256(forged).hexdigest()):
+                status, body, headers = self.response()
+                self.assertEqual((status, body), (503, b""))
+                self.assertEqual(headers["Vary"], "Authorization")
+        self.reader.raw = original
+        self.assertEqual(self.response()[0], 200)
+
     def test_reserved_chunk_bit_denied_even_with_valid_crc_and_sha(self):
         original = self.reader.raw
         kind = b"texT"  # third letter lowercase: reserved PNG chunk bit
