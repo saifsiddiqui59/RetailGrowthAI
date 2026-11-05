@@ -90,6 +90,9 @@ def _valid_png_chunks(raw):
             if (saw_trns or saw_idat or color_type not in (0,2,3) or
                     (color_type==0 and length!=2) or
                     (color_type==2 and length!=6) or
+                    (color_type in (0,2) and length in (2,6) and
+                     any(int.from_bytes(raw[offset+8+i:offset+10+i], "big") >= (1 << bit_depth)
+                         for i in range(0, length, 2))) or
                     (color_type==3 and
                      (not saw_plte or length==0 or length>palette_entries))):
                 return False
