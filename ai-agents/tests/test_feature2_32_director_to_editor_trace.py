@@ -101,7 +101,7 @@ def trace(seconds):
         return ({"sequence":store[-1]["sequence"],
                  "event_sha256":store[-1]["event_sha256"]} if store else None)
     def append(s,c,w,e,n,prior,digest,row):
-        assert current(s,c,w)
+        assert current(s,c,w,source)
         assert n==len(store)+1 and prior==(store[-1]["event_sha256"] if store else "0"*64)
         assert all(other["event_id"]!=e for other in store)
         store.append(deepcopy(row))
