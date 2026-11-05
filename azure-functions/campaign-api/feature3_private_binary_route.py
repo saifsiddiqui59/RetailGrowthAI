@@ -39,9 +39,9 @@ def private_png_response(request, *, shop_id, job_id, reader_factory, enabled=Fa
         api = Feature3PrivateBinaryHTTP(reader=reader)
     except Exception:
         return Feature3PrivateBinaryHTTP._deny(503)
+    # Use the exact preflighted request snapshot. Re-reading an injected or
+    # mutable request after factory construction creates a TOCTOU auth gap.
     try:
-        method = request.method
-        authorization = request.headers.get("Authorization", "")
         return api.handle(method=method, authorization=authorization,
                           shop_id=shop_id, job_id=job_id)
     except Exception:
