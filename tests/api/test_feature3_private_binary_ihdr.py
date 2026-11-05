@@ -86,6 +86,44 @@ class PrivateIHDRBoundaryTests(unittest.TestCase):
         self.reader.raw = original
         self.assertEqual(self.response()[0], 200)
 
+    def test_two_shop_and_invalid_bearer_denials_never_return_private_bytes(self):
+        foreign_shop = str(uuid4())
+        cases = [
+            {"authorization": "Bearer synthetic-token", "shop_id": foreign_shop},
+            {"authorization": "Bearer synthetic-token", "job_id": str(uuid4())},
+            {"authorization": "Bearer sb_secret_fake"},
+            {"authorization": "Bearer sb_publishable_fake"},
+            {"authorization": "Basic synthetic-token"},
+            {"authorization": "Bearer "},
+        ]
+        for overrides in cases:
+            request = {
+                "method": "GET", "authorization": "Bearer synthetic-token",
+                "shop_id": self.shop, "job_id": self.job,
+            }
+            request.update(overrides)
+            with self.subTest(request=overrides):
+                status, body, headers = self.adapter.handle(**request)
+                self.assertIn(status, (401, 404))
+                self.assertEqual(body, b"")
+                self.assertEqual(headers["Cache-Control"], "no-store, private, max-age=0")
+        self.assertEqual(self.response()[0], 200)
+
+    def test_reader_failure_and_forged_receipt_fail_closed(self):
+        original_read = self.reader.read
+        def unavailable(**kwargs):
+            raise RuntimeError("synthetic rights store unavailable")
+        self.reader.read = unavailable
+        status, body, headers = self.response()
+        self.assertEqual((status, body), (503, b""))
+        self.assertEqual(headers["Vary"], "Authorization")
+        self.reader.read = original_read
+        original = self.reader.raw
+        self.reader.raw = original + b"trailing-forged-bytes"
+        self.assertEqual(self.response()[:2], (503, b""))
+        self.reader.raw = original
+        self.assertEqual(self.response()[0], 200)
+
     def test_reserved_chunk_bit_denied_even_with_valid_crc_and_sha(self):
         original = self.reader.raw
         kind = b"texT"  # third letter lowercase: reserved PNG chunk bit
