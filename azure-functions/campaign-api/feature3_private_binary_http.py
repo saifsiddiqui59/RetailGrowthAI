@@ -14,7 +14,7 @@ from uuid import UUID
 import re
 
 from PIL import Image, UnidentifiedImageError
-from zlib import crc32
+from zlib import crc32, decompressobj, error as ZlibError
 
 from feature3_private_png_reader import PrivateGeneratedDownloadDenied
 from tenant_store import canonical_uuid
@@ -25,6 +25,23 @@ _MAX=25*1024*1024
 # rejects non-PNG or trailing-payload receipts before publishing private bytes.
 _PNG_MAGIC=b"\x89PNG\r\n\x1a\n"
 _PNG_IEND=b"\x00\x00\x00\x00IEND\xaeB\x60\x82"
+
+
+def _expected_inflated_png_bytes(width, height, depth, color_type, interlace):
+    """Exact filtered scanline-byte count, including all seven Adam7 passes."""
+    bits_per_pixel = depth * {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}[color_type]
+    if interlace == 0:
+        return height * (1 + (width * bits_per_pixel + 7) // 8)
+    passes = ((0, 0, 8, 8), (4, 0, 8, 8), (0, 4, 4, 8),
+              (2, 0, 4, 4), (0, 2, 2, 4), (1, 0, 2, 2),
+              (0, 1, 1, 2))
+    total = 0
+    for x0, y0, dx, dy in passes:
+        columns = max(0, (width - x0 + dx - 1) // dx)
+        rows = max(0, (height - y0 + dy - 1) // dy)
+        if columns and rows:
+            total += rows * (1 + (columns * bits_per_pixel + 7) // 8)
+    return total
 
 
 def _valid_png_chunks(raw):
@@ -62,6 +79,13 @@ def _valid_png_chunks(raw):
                 (4,8),(4,16),(6,8),(6,16)
             } or raw[26]!=0 or raw[27]!=0 or raw[28] not in (0,1)):
         return False
+    # A PNG decoder may ignore bytes following the zlib trailer, or extra
+    # inflated scanlines. Neither may become a private response covert channel.
+    # Bound decompression by the exact IHDR/Adam7 scanline size, not file size.
+    expected_pixels = _expected_inflated_png_bytes(
+        width, height, bit_depth, color_type, raw[28])
+    inflater = decompressobj()
+    inflated_bytes = 0
     chunks=0
     while offset+12<=len(raw):
         chunks+=1
@@ -127,7 +151,16 @@ def _valid_png_chunks(raw):
                 return False
             saw_trns=True
         if kind==b"IDAT":
-            if idat_closed:
+            if idat_closed or inflater.eof:
+                return False
+            try:
+                decoded = inflater.decompress(
+                    payload, expected_pixels - inflated_bytes + 1)
+            except ZlibError:
+                return False
+            inflated_bytes += len(decoded)
+            if (inflated_bytes > expected_pixels or
+                    inflater.unused_data or inflater.unconsumed_tail):
                 return False
             idat_bytes += length
             saw_idat=True
@@ -135,6 +168,8 @@ def _valid_png_chunks(raw):
             idat_closed=True
         if kind==b"IEND":
             return (length==0 and saw_idat and idat_bytes>0 and end==len(raw) and
+                    inflater.eof and inflated_bytes == expected_pixels and
+                    not inflater.unused_data and not inflater.unconsumed_tail and
                     (color_type!=3 or saw_plte))
         offset=end
     return False
