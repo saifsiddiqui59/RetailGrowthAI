@@ -93,6 +93,17 @@ def _valid_png_chunks(raw):
             if saw_idat or kind in seen_color_metadata:
                 return False
             seen_color_metadata.add(kind)
+        # Allowed ancillary chunks are not arbitrary metadata containers.
+        # Enforce the PNG wire lengths and values even when CRC and SHA match.
+        payload=raw[offset+8:end-4]
+        if kind==b"sRGB" and (length!=1 or payload[0]>3):
+            return False
+        if kind==b"gAMA" and (length!=4 or int.from_bytes(payload,"big")==0):
+            return False
+        if kind==b"cHRM" and length!=32:
+            return False
+        if kind==b"pHYs" and (length!=9 or payload[8] not in (0,1)):
+            return False
         if kind==b"PLTE":
             if (saw_plte or saw_idat or saw_trns or color_type in (0,4) or
                     length==0 or length>768 or length%3!=0 or
