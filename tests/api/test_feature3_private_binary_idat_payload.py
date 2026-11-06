@@ -97,8 +97,17 @@ class PrivateIDATPayloadTests(unittest.TestCase):
         for mode in ("RGB", "RGBA", "L", "LA", "P", "1", "I;16"):
             with self.subTest(mode=mode):
                 output = BytesIO()
-                Image.new(mode, (256, 256)).save(output, format="PNG")
+                image = Image.new(mode, (256, 256))
+                if mode == "1":
+                    # An all-zero 1-bit PNG compresses below the private
+                    # output's existing 100-byte minimum; use real varied
+                    # pixels to exercise the valid 1-bit decode path.
+                    for y in range(256):
+                        for x in range(256):
+                            image.putpixel((x, y), ((x * 17 + y * 29 + x * y) % 37) & 1)
+                image.save(output, format="PNG")
                 reader.raw = output.getvalue()
+                self.assertGreaterEqual(len(reader.raw), 100)
                 status, body, headers = http.handle(
                     method="GET", authorization="Bearer synthetic-idat-token",
                     shop_id=reader.shop, job_id=reader.job)
