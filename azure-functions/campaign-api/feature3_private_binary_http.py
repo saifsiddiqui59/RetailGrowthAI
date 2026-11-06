@@ -40,6 +40,7 @@ def _valid_png_chunks(raw):
     idat_closed=False
     saw_plte=False
     saw_trns=False
+    seen_color_metadata=set()
     palette_entries=0
     idat_bytes=0
     # IHDR color type is fixed at byte 25 of a PNG stream. Only indexed
@@ -86,6 +87,12 @@ def _valid_png_chunks(raw):
         if kind[0] in range(97, 123) and kind not in (
                 b"tRNS", b"sRGB", b"gAMA", b"cHRM", b"pHYs"):
             return False
+        # Duplicated or post-IDAT colour metadata can be interpreted
+        # inconsistently by PNG decoders despite a matching CRC and SHA.
+        if kind in (b"sRGB", b"gAMA", b"cHRM", b"pHYs"):
+            if saw_idat or kind in seen_color_metadata:
+                return False
+            seen_color_metadata.add(kind)
         if kind==b"PLTE":
             if (saw_plte or saw_idat or saw_trns or color_type in (0,4) or
                     length==0 or length>768 or length%3!=0 or
