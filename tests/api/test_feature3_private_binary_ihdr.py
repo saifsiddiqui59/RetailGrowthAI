@@ -15,7 +15,7 @@ from feature3_private_binary_http import Feature3PrivateBinaryHTTP
 
 def png():
     out = BytesIO()
-    Image.new("RGB", (64, 64), "#776655").save(out, format="PNG")
+    Image.new("RGB", (256, 256), "#776655").save(out, format="PNG")
     return out.getvalue()
 
 
