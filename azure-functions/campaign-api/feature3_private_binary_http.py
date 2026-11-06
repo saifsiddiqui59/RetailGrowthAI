@@ -194,7 +194,11 @@ class Feature3PrivateBinaryHTTP:
                     receipt.get("approved_model") is not False or
                     receipt.get("publish_approved") is not False):
                 return self._deny(503)
-            canonical_uuid(receipt.get("media_asset_id"))
+            # Do not echo a noncanonical reader-supplied asset identifier.
+            asset_id = receipt.get("media_asset_id")
+            if (type(asset_id) is not str or
+                    canonical_uuid(asset_id) != asset_id):
+                return self._deny(503)
             raw=receipt.get("image_bytes")
             digest=receipt.get("image_sha256")
             if (type(raw) is not bytes or not 100<=len(raw)<=_MAX or
