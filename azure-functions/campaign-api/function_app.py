@@ -473,3 +473,99 @@ def feature2_collect_india_trends(timer: func.TimerRequest):
         os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"],
     ))
     run_daily_collection(datetime.now(timezone.utc), store)
+
+
+# F2-19/F2-20: opt-in READ-ONLY signed-user original Kokoro status and WAV.
+# Default OFF. Review protected Functions package/route, RLS SQL and signed
+# Storage settings independently before enabling RETAIL_FEATURE2_PRIVATE_VOICE_READ.
+# Neither handler does TTS, GPU work, billing, job retries or rights approval.
+def build_feature2_private_voice():
+    if os.environ.get("RETAIL_FEATURE2_PRIVATE_VOICE_READ") != "true":
+        return None
+    try:
+        from feature2_store import Feature2PrivateVoiceStore
+        from feature2_adapter import Feature2PrivateVoiceGateway
+        # These source dependencies are NOT yet on the protected Functions ZIP
+        # allowlist. Import only in operator-approved mode. When unavailable,
+        # refuse the endpoint; never silently skip SHA/PCM/tenant validation.
+        from ai_agents.feature2_local_voice_workflow import (
+            read_private_local_voice_job_status,
+            read_registered_private_original_wav,
+        )
+        origin=os.environ["RETAIL_SUPABASE_URL"]
+        key=os.environ["RETAIL_SUPABASE_PUBLISHABLE_KEY"]
+        tenant=TenantStore(origin,key)
+        return Feature2PrivateVoiceGateway(
+            SupabaseJWTVerifier(origin),tenant,
+            Feature2PrivateVoiceStore(tenant),
+            status_verifier=read_private_local_voice_job_status,
+            wav_verifier=read_registered_private_original_wav)
+    except (ImportError,KeyError,OSError,ValueError):
+        # Runtime package could not be independently verified/loaded.
+        return None
+
+
+def dispatch_feature2_private_voice(request, *, kind):
+    path=("/shops/{shop_id}/campaigns/{campaign_id}/feature2-"+kind)
+    diagnostics=RequestDiagnostics("GET",path)
+    try:
+        handler=build_feature2_private_voice()
+        if handler is None:
+            code,payload=503,{"error":"FEATURE2_PRIVATE_VOICE_DISABLED"}
+        elif kind=="status":
+            code,payload=handler.read_status(
+                request.route_params["shop_id"],
+                request.route_params["campaign_id"],
+                request.route_params["request_key"],
+                request.headers.get("Authorization",""))
+        elif kind=="original_wav":
+            code,payload=handler.read_original_wav(
+                request.route_params["shop_id"],
+                request.route_params["campaign_id"],
+                request.route_params["audio_asset_id"],
+                request.route_params["original_audio_sha256"],
+                request.headers.get("Authorization",""))
+        else:
+            code,payload=404,{"error":"NOT_FOUND"}
+    except (ValueError,KeyError):
+        code,payload=400,{"error":"INVALID_REQUEST"}
+    except Exception:
+        code,payload=503,{"error":"FEATURE2_PRIVATE_VOICE_UNAVAILABLE"}
+    # Raw original WAV must never pass through JSON or response telemetry.
+    # The gateway is the only provider of a verified binary success receipt.
+    if (kind=="original_wav" and code==200 and
+        type(payload) is dict and type(payload.get("body")) is bytes and
+        128<=len(payload["body"])<=20_000_000 and
+        type(payload.get("headers")) is dict and
+        payload["headers"].get("Cache-Control")=="private, no-store" and
+        payload["headers"].get("Content-Type")=="audio/wav"):
+        headers=diagnostics.complete(200,{"private":True,"can_publish":False})
+        headers.update(payload["headers"])
+        return func.HttpResponse(
+            body=payload["body"],status_code=200,
+            mimetype="audio/wav",headers=headers)
+    if code==200 and kind=="original_wav":
+        code,payload=503,{"error":"FEATURE2_PRIVATE_VOICE_UNAVAILABLE"}
+    # Browser never receives server MAC, signed URLs, media bytes on JSON,
+    # worker credentials, or raw database/decoder exceptions.
+    return func.HttpResponse(
+        body=json.dumps(payload),status_code=code,
+        mimetype="application/json",
+        headers=diagnostics.complete(code,payload))
+
+
+@app.route(
+    route="shops/{shop_id}/campaigns/{campaign_id}/feature2-voice-jobs/{request_key}",
+    methods=["GET"],
+)
+def feature2_private_voice_job_status(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch_feature2_private_voice(req,kind="status")
+
+
+@app.route(
+    route=("shops/{shop_id}/campaigns/{campaign_id}/feature2-original-wav/"
+           "{audio_asset_id}/{original_audio_sha256}"),
+    methods=["GET"],
+)
+def feature2_private_original_wav(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch_feature2_private_voice(req,kind="original_wav")
