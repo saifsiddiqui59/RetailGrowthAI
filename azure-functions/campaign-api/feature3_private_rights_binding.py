@@ -84,7 +84,9 @@ def build_scoped_private_png_reader(*, shop_id, job_id, tenant_store,
         raise ValueError("Backend current rights lookup required")
 
     def scoped_authoritative_read(request_shop, request_job, asset_id):
-        if request_shop != shop_id or request_job != job_id:
+        if (type(request_shop) is not str or type(request_job) is not str or
+                request_shop != shop_id or request_job != job_id or
+                type(asset_id) is not str):
             return None
         return authoritative_read(request_shop, request_job, asset_id)
 
