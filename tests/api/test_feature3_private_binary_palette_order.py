@@ -135,11 +135,46 @@ class TransparencyPaletteOrderingTests(unittest.TestCase):
                 self.assertEqual(headers["Vary"], "Authorization")
                 self.assertNotIn("Content-Disposition", headers)
         # Standard colour-space metadata remains supported.
-        reader.raw = image_with_chunks((b"sRGB", b"\\x00"))
+        reader.raw = image_with_chunks((b"sRGB", bytes((0,))))
         status, body, headers = get()
         self.assertEqual(status, 200)
         self.assertEqual(body, reader.raw)
         self.assertEqual(headers["Content-Type"], "image/png")
+        reader.raw = image_with_chunks()
+        self.assertEqual(get()[0], 200)
+
+    def test_permitted_color_metadata_requires_valid_wire_payloads(self):
+        reader = Reader()
+        adapter = Feature3PrivateBinaryHTTP(reader=reader)
+        def get():
+            return adapter.handle(method="GET", authorization="Bearer synthetic-only",
+                                  shop_id=reader.shop, job_id=reader.job)
+        invalid = (
+            (b"sRGB", b""),
+            (b"sRGB", bytes((4,))),
+            (b"sRGB", b"\\\\x00"),
+            (b"gAMA", bytes((0, 0, 0, 0))),
+            (b"gAMA", bytes((0, 1))),
+            (b"cHRM", bytes(31)),
+            (b"pHYs", bytes(8)),
+            (b"pHYs", bytes(8) + bytes((2,))),
+        )
+        for kind, payload in invalid:
+            with self.subTest(kind=kind, payload=payload):
+                reader.raw = image_with_chunks((kind, payload))
+                status, body, headers = get()
+                self.assertEqual((status, body), (503, b""))
+                self.assertEqual(headers["Vary"], "Authorization")
+                self.assertNotIn("Content-Disposition", headers)
+        for kind, payload in (
+            (b"sRGB", bytes((0,))),
+            (b"gAMA", bytes((0, 0, 177, 143))),
+            (b"cHRM", bytes(32)),
+            (b"pHYs", bytes((0, 0, 11, 19, 0, 0, 11, 19, 1))),
+        ):
+            with self.subTest(valid=kind):
+                reader.raw = image_with_chunks((kind, payload))
+                self.assertEqual(get()[0], 200)
         reader.raw = image_with_chunks()
         self.assertEqual(get()[0], 200)
 
