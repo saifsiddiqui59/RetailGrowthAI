@@ -24,6 +24,18 @@ def private_png_response(request, *, shop_id, job_id, reader_factory, enabled=Fa
         authorization = request.headers.get("Authorization", "")
     except Exception:
         return Feature3PrivateBinaryHTTP._deny(401)
+    # Reject duplicate Authorization fields before the trusted factory runs.
+    # Some proxy/header adapters preserve differently cased field names;
+    # a downstream verifier must never select a different credential.
+    try:
+        header_items = request.headers.items()
+        auth_fields = [(key, value) for key, value in header_items
+                       if type(key) is str and key.lower() == "authorization"]
+        if len(auth_fields) != 1 or auth_fields[0][1] != authorization:
+            return Feature3PrivateBinaryHTTP._deny(401)
+    except (AttributeError, TypeError, ValueError):
+        # An adapter that cannot enumerate headers cannot prove uniqueness.
+        return Feature3PrivateBinaryHTTP._deny(401)
     if type(method) is not str or method != "GET":
         status, body, headers = Feature3PrivateBinaryHTTP._deny(405)
         return status, body, {**headers, "Allow": "GET"}
