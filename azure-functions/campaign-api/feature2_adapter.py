@@ -1112,3 +1112,41 @@ class Feature2SentenceRetakeAdapter:
             return 404,{"error":"NOT_FOUND"}
         except StorageUnavailable:
             return 503,{"error":"PRIVATE_RETAKE_UNAVAILABLE"}
+
+
+class Feature2PrivateVoiceGateway:
+    """F2-19/20 wiring between signed user RLS readers and existing validators.
+
+    Source only: build with a verified JWT verifier and the same TenantStore
+    used by the existing campaign API. Trusted worker validation functions
+    must be injected ONLY after independent Functions package review.
+    If missing, reads fail closed with 503; no paid work is ever launched.
+    """
+
+    def __init__(self, verify_token, tenant_store, private_store, *,
+                 status_verifier=None, wav_verifier=None):
+        if (private_store is None or
+            not all(callable(getattr(private_store, name, None)) for name in (
+                "read_current_plan","read_registered_job",
+                "read_registered_private_asset","read_private_blob"))):
+            raise ValueError("Trusted private voice storage readers required")
+        self.status = PrivateVoiceStatusAdapter(
+            verify_token,tenant_store,
+            plan_reader=private_store.read_current_plan,
+            job_reader=private_store.read_registered_job,
+            private_audio_reader=private_store.read_registered_private_asset,
+            status_verifier=status_verifier)
+        self.wav = Feature2PrivateWavAdapter(
+            verify_token,tenant_store,
+            plan_reader=private_store.read_current_plan,
+            asset_reader=private_store.read_registered_private_asset,
+            blob_reader=private_store.read_private_blob,
+            wav_verifier=wav_verifier)
+
+    def read_status(self, shop_id, campaign_id, request_key, authorization):
+        return self.status.get(shop_id,campaign_id,request_key,authorization)
+
+    def read_original_wav(self, shop_id, campaign_id, audio_asset_id,
+                          original_audio_sha256, authorization):
+        return self.wav.get(shop_id,campaign_id,audio_asset_id,
+                            original_audio_sha256,authorization)
