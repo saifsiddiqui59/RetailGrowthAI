@@ -58,5 +58,28 @@ class MountedPrivatePNGTests(unittest.TestCase):
         self.assertNotIn("SupabaseJWTVerifier", ast.unparse(handler))
 
 
+    def test_http_response_preserves_denial_status_body_and_headers(self):
+        # Azure Functions must not replace the adapter's opaque denial with
+        # a generic success response or omit no-store security headers.
+        handler = self.handlers[0]
+        assignments = [node for node in handler.body if isinstance(node, ast.Assign)]
+        response_assignments = [node for node in assignments
+                                if isinstance(node.value, ast.Call)
+                                and isinstance(node.value.func, ast.Name)
+                                and node.value.func.id == "private_png_response"]
+        self.assertEqual(len(response_assignments), 1)
+        self.assertEqual(
+            [elt.id for elt in response_assignments[0].targets[0].elts],
+            ["status", "body", "headers"])
+        returns = [node for node in handler.body if isinstance(node, ast.Return)]
+        self.assertEqual(len(returns), 1)
+        call = returns[0].value
+        self.assertIsInstance(call, ast.Call)
+        self.assertEqual(ast.unparse(call.func), "func.HttpResponse")
+        self.assertEqual([ast.unparse(arg) for arg in call.args], ["body"])
+        kwargs = {kw.arg: ast.unparse(kw.value) for kw in call.keywords}
+        self.assertEqual(kwargs["status_code"], "status")
+        self.assertEqual(kwargs["headers"], "headers")
+
 if __name__ == "__main__":
     unittest.main()
