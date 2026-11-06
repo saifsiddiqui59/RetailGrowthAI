@@ -4,8 +4,9 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import Feature3StudioPanel from './Feature3StudioPanel.jsx'
+import Feature3ReadOnlyReview from './Feature3ReadOnlyReview.jsx'
+import {createFeature3ReviewSnapshot} from './feature3-review-snapshot.mjs'
 import { validateFeature3Design } from './feature3-design.mjs'
-import {scopedFeature3GeneratedLink,SAFE_CLIENT_LIFETIME_MS} from './feature3-signed-link-scope.mjs'
 import { feature3ContextKey } from './feature3-context.mjs'
 import { createFeature3DraftWriteGuard } from './feature3-draft-write-guard.mjs'
 import {scopedFeature3WorkspaceValue,currentFeature3WorkspaceRequest,createFeature3WorkspaceReadGate,feature3DraftMediaReady} from './feature3-workspace-scope.mjs'
@@ -17,26 +18,23 @@ export default function Feature3SecureDraftWorkspace({
   const scopeKey=feature3ContextKey({shopId,campaignId,dayId})
   const [savedState,setSavedState] = useState({scope:scopeKey,provider:feature3Api,value:[]})
   const [reopenedState,setReopenedState] = useState({scope:scopeKey,provider:feature3Api,value:null})
+  const [reviewState,setReviewState] = useState({scope:scopeKey,provider:feature3Api,value:null})
   const [messageState,setMessageState] = useState({scope:scopeKey,provider:feature3Api,value:''})
   const [busyState,setBusyState] = useState({scope:scopeKey,provider:feature3Api,value:false})
-  const [generatedState,setGeneratedState] = useState({scope:scopeKey,provider:feature3Api,value:[]})
-  const [generatedLink,setGeneratedLink] = useState(null)
   const [uncertainState,setUncertainState] = useState({scope:scopeKey,provider:feature3Api,value:false})
   const [checkedHistoryState,setCheckedHistoryState] = useState({scope:scopeKey,provider:feature3Api,value:false})
   // Scope at render time, not only in a later useEffect cleanup: no stale
   // private job/draft/revision can appear on the first paint of a new shop/day.
   const saved=scopedFeature3WorkspaceValue(savedState,scopeKey,[],feature3Api)
   const reopened=scopedFeature3WorkspaceValue(reopenedState,scopeKey,null,feature3Api)
+  const inspected=scopedFeature3WorkspaceValue(reviewState,scopeKey,null,feature3Api)
   const message=scopedFeature3WorkspaceValue(messageState,scopeKey,'',feature3Api)
   const busy=scopedFeature3WorkspaceValue(busyState,scopeKey,false,feature3Api)
-  const generatedJobs=scopedFeature3WorkspaceValue(generatedState,scopeKey,[],feature3Api)
   const setMessage=value=>setMessageState({scope:scopeKey,provider:feature3Api,value})
   const setBusy=value=>setBusyState({scope:scopeKey,provider:feature3Api,value})
   const activeScope=useRef({shopId,scopeKey,feature3Api})
   activeScope.current={shopId,scopeKey,feature3Api}
-  const pendingDownload=useRef(0)
   const pendingHistory=useRef(0)
-  const pendingJobs=useRef(0)
   const readGate=useRef(null)
   if (!readGate.current) readGate.current=createFeature3WorkspaceReadGate()
   const ticket=useRef({scope:scopeKey,provider:feature3Api,designId:null,revision:0})
@@ -47,12 +45,8 @@ export default function Feature3SecureDraftWorkspace({
   const historyChecked=scopedFeature3WorkspaceValue(checkedHistoryState,scopeKey,false,feature3Api)
   const currentScope=(scope,provider)=>
     activeScope.current.scopeKey===scope && activeScope.current.feature3Api===provider
-  const visibleGeneratedLink=!disabled && generatedLink?.provider===feature3Api
-    ? scopedFeature3GeneratedLink(generatedLink,shopId,Date.now(),scopeKey) : null
   useEffect(()=>{
-    pendingDownload.current+=1
     pendingHistory.current+=1
-    pendingJobs.current+=1
     // Invalidate prior session/day reads before any later async continuation.
     readGate.current.cancel()
     writeGuard.current.select(scopeKey,feature3Api)
@@ -60,19 +54,12 @@ export default function Feature3SecureDraftWorkspace({
     setCheckedHistoryState({scope:scopeKey,provider:feature3Api,value:false})
     ticket.current={scope:scopeKey,provider:feature3Api,designId:null,revision:0}
     pending.current={scope:scopeKey,provider:feature3Api,active:false}
-    setGeneratedLink(null)
     setSavedState({scope:scopeKey,provider:feature3Api,value:[]})
     setReopenedState({scope:scopeKey,provider:feature3Api,value:null})
-    setGeneratedState({scope:scopeKey,provider:feature3Api,value:[]})
+    setReviewState({scope:scopeKey,provider:feature3Api,value:null})
     setMessageState({scope:scopeKey,provider:feature3Api,value:''})
     setBusyState({scope:scopeKey,provider:feature3Api,value:false})
   },[scopeKey,feature3Api])
-  useEffect(()=>{
-    if(!generatedLink)return
-    const timer=setTimeout(()=>setGeneratedLink(null),SAFE_CLIENT_LIFETIME_MS)
-    return ()=>clearTimeout(timer)
-  },[generatedLink])
-
   const loadHistory = async () => {
     if (disabled || busy || (pending.current.scope===scopeKey && pending.current.provider===feature3Api && pending.current.active)) return
     const guard=readGate.current.begin(scopeKey,feature3Api,'drafts')
@@ -81,6 +68,8 @@ export default function Feature3SecureDraftWorkspace({
     const current=()=>readGate.current.isCurrent(guard,scope,provider) &&
       currentFeature3WorkspaceRequest(
         activeScope.current,scope,provider,attempt,pendingHistory.current)
+    // Existing inspection cannot survive a refreshed or failed rights/history GET.
+    setReviewState({scope,provider,value:null})
     writeGuard.current.invalidateHistory(scope,provider)
     setCheckedHistoryState({scope,provider,value:false})
     setBusy(true);setMessage('')
@@ -104,56 +93,23 @@ export default function Feature3SecureDraftWorkspace({
     }
   }
 
-  const loadGenerated = async () => {
-    if (disabled || busy || (pending.current.scope===scopeKey && pending.current.provider===feature3Api && pending.current.active)) return
-    const guard=readGate.current.begin(scopeKey,feature3Api,'generated-jobs')
-    if (!guard) return
-    const scope=scopeKey,provider=feature3Api,attempt=++pendingJobs.current
-    const current=()=>readGate.current.isCurrent(guard,scope,provider) &&
-      currentFeature3WorkspaceRequest(
-        activeScope.current,scope,provider,attempt,pendingJobs.current)
-    setBusy(true);setGeneratedLink(null);setMessage('')
-    try {
-      const jobs=await feature3Api.listGeneratedJobs(shopId)
-      if(!current())return
-      setGeneratedState({scope,provider,value:jobs})
-      setMessage(jobs.length ? 'Private generated image job history loaded.' :
-        'No generated image jobs for this retailer.')
-    } catch {
-      if(current()){
-        setGeneratedState({scope,provider,value:[]})
-        setMessage('Generated image history is unavailable or access was revoked.')
-      }
-    } finally {
-      const still=current()
-      readGate.current.release(guard)
-      if(still)setBusy(false)
-    }
-  }
 
-  const openGenerated = async jobId => {
-    if (disabled || busy || (pending.current.scope===scopeKey && pending.current.provider===feature3Api && pending.current.active)) return
-    const scope=shopId, provider=feature3Api, requestKey=scopeKey
-    const guard=readGate.current.begin(requestKey,provider,'download')
-    if (!guard) return
-    const attempt=++pendingDownload.current
-    const current=()=>readGate.current.isCurrent(guard,requestKey,provider) &&
-      attempt===pendingDownload.current &&
-      activeScope.current.shopId===scope &&
-      activeScope.current.scopeKey===requestKey &&
-      activeScope.current.feature3Api===provider
-    setBusy(true); setGeneratedLink(null); setMessage('')
+  const inspectSaved=entry=>{
+    if (disabled || busy || readGate.current.busy() ||
+        (pending.current.scope===scopeKey &&
+         pending.current.provider===feature3Api && pending.current.active) ||
+        !saved.some(row=>row===entry)) return
     try {
-      const receipt = await provider.getGeneratedImageDownload(scope,jobId)
-      if(!current())return
-      setGeneratedLink({...receipt,scope,requestKey,provider,createdAt:Date.now()})
-      setMessage('Private link expires in 60 seconds. Image remains unreviewed.')
+      const snapshot=createFeature3ReviewSnapshot(entry,{
+        shopId,campaignId,dayId,imageMap,
+      })
+      // Viewing a draft or approved/rejected metadata never unlocks an
+      // uncertain POST and never grants server-side publication approval.
+      setReviewState({scope:scopeKey,provider:feature3Api,value:snapshot})
+      setMessage('Read-only local inspection; review status and image permissions still require server verification.')
     } catch {
-      if(current())setMessage('Private image unavailable, expired or no longer authorized.')
-    } finally {
-      const still=current()
-      readGate.current.release(guard)
-      if(still)setBusy(false)
+      setReviewState({scope:scopeKey,provider:feature3Api,value:null})
+      setMessage('Cannot inspect the draft: private image rights or saved document are unavailable.')
     }
   }
 
@@ -279,6 +235,8 @@ export default function Feature3SecureDraftWorkspace({
           {d.status==='DRAFT' ? 'Editable draft' :
             d.status==='APPROVED' ? 'Server status: APPROVED (not published)' :
               'Server status: REJECTED (read-only)'}
+          {' '}<button type="button" disabled={disabled || busy}
+            onClick={()=>inspectSaved(d)}>Inspect read-only</button>
         </li>)}
       </ul>
       <small>Signed backend status only. No public approval or publication
@@ -291,26 +249,16 @@ export default function Feature3SecureDraftWorkspace({
           <option key={d.id} value={d.id}>Revision {d.revision} / {d.id.slice(0,8)}</option>)}
       </select>
     </label>}
-    {typeof feature3Api.listGeneratedJobs === 'function' &&
-      typeof feature3Api.getGeneratedImageDownload === 'function' && <>
-      <div style={{display:'grid',gap:8,marginTop:16}}>
-        <button type="button" disabled={disabled || busy} onClick={loadGenerated}>
-          Check my generated private images
-        </button>
-        {generatedJobs.map(job=><div key={job.id}
-          style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-          <span>Image job {job.id.slice(0,8)} — {job.status}</span>
-          {job.status==='SUCCEEDED' && <button type="button"
-            disabled={disabled || busy} onClick={()=>openGenerated(job.id)}>
-            Request 60-second signed download
-          </button>}
-        </div>)}
-        {visibleGeneratedLink && <a href={visibleGeneratedLink.url} target="_blank"
-          rel="noopener noreferrer" download>
-          Open private PNG (expires in 60 seconds; not approved for publishing)
-        </a>}
-      </div>
-    </>}
+    {inspected && <section aria-label="Read-only saved poster inspection">
+      <button type="button" disabled={disabled || busy}
+        onClick={()=>setReviewState({scope:scopeKey,provider:feature3Api,value:null})}>
+        Close saved poster inspection
+      </button>
+      <Feature3ReadOnlyReview snapshot={inspected}/>
+    </section>}
+    <p role="note">Private generated jobs and no-URL PNG previews belong to the
+      authenticated Feature3 history panel. This draft workspace cannot mint
+      signed Storage download links.</p>
     <Feature3StudioPanel
       key={reopened ? reopened.id+':'+reopened.revision : 'new-'+shopId+dayId}
       shopId={shopId} campaignId={campaignId} dayId={dayId}

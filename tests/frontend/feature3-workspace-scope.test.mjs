@@ -57,7 +57,7 @@ test('mounted private workspace compiles and fences every async metadata/receipt
   assert.match(source,/pendingJobs\.current/)
   assert.match(source,/activeScope\.current\.scopeKey===requestKey/)
   assert.match(source,/scopedFeature3WorkspaceValue\(savedState,scopeKey,\[\],feature3Api\)/)
-  assert.match(source,/scopedFeature3WorkspaceValue\(generatedState,scopeKey,\[\],feature3Api\)/)
+  assert.match(source,/scopedFeature3WorkspaceValue\(reviewState,scopeKey,null,feature3Api\)/)
   assert.match(source,/scopedFeature3WorkspaceValue\(reopenedState,scopeKey,null,feature3Api\)/)
   assert.match(source,/ticket\.current=\{scope,provider,designId:response\.design_id/)
   assert.match(source,/chosen\.campaign_id!==campaignId/)
@@ -79,7 +79,7 @@ test('same shop/day and replaced signed API session hides previous private state
 
 test('mounted workspace fences same-day provider, CAS and signed links before effects',async()=>{
   const source=await readFile(new URL('../../frontend/src/features/creative/Feature3SecureDraftWorkspace.jsx',import.meta.url),'utf8')
-  assert.match(source,/generatedLink\?\.provider===feature3Api/)
+  assert.match(source,/scopedFeature3WorkspaceValue\(reviewState,scopeKey,null,feature3Api\)/)
   assert.match(source,/ticket\.current\.provider!==provider/)
   assert.match(source,/pending\.current\.provider===feature3Api/)
   assert.match(source,/scopedFeature3WorkspaceValue\(savedState,scopeKey,\[\],feature3Api\)/)
@@ -145,12 +145,12 @@ test('F3-13 cancelled old tenant/JWT read cannot unlock newer private work',asyn
 test('F3-09 mounted CPU workspace gates all private reads and save/reopen against same-tick clicks',async()=>{
   const source=await readFile(new URL(
     '../../frontend/src/features/creative/Feature3SecureDraftWorkspace.jsx',import.meta.url),'utf8')
-  for (const kind of ['drafts','generated-jobs','download']) {
-    assert.match(source,new RegExp("readGate\\.current\\.begin\\([^\\n]+"+kind))
-  }
+  assert.match(source,/readGate\.current\.begin\(scopeKey,feature3Api,'drafts'\)/)
+  assert.doesNotMatch(source,/readGate\.current\.begin\([^)]*'download'/)
+  assert.doesNotMatch(source,/readGate\.current\.begin\([^)]*'generated-jobs'/)
   assert.match(source,/readGate\.current\.cancel\(\)/)
-  assert.equal((source.match(/readGate\.current\.release\(guard\)/g)||[]).length,3)
-  assert.equal((source.match(/readGate\.current\.isCurrent\(guard/g)||[]).length,3)
+  assert.equal((source.match(/readGate\.current\.release\(guard\)/g)||[]).length,1)
+  assert.equal((source.match(/readGate\.current\.isCurrent\(guard/g)||[]).length,1)
   assert.match(source,/if \(disabled \|\| busy \|\| readGate\.current\.busy\(\)/)
   assert.match(source,/if \(disabled \|\| readGate\.current\.busy\(\)/)
   assert.match(source,/No v2 private poster drafts exist for this day/)
