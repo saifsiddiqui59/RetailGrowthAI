@@ -60,10 +60,15 @@ class Feature3CurrentOutputRights:
             return False
         if type(row) is not dict or set(row) != _FIELDS:
             return False
-        if any(row.get(k) != v for k, v in (
-            ("shop_id", shop_id), ("job_id", job_id), ("asset_id", asset_id)
-        )):
-            return False
+        # Do not trust overloaded equality from a backend adapter object.
+        # Each returned identity must be a canonical, exact Python string,
+        # not an object which merely claims to compare equal to a UUID.
+        for field, expected in (("shop_id", shop_id),
+                                ("job_id", job_id),
+                                ("asset_id", asset_id)):
+            observed = row.get(field)
+            if type(observed) is not str or observed != expected:
+                return False
         digest = row.get("output_sha256")
         revision = row.get("rights_revision")
         if (type(digest) is not str or _SHA.fullmatch(digest) is None or
