@@ -60,6 +60,44 @@ class EncodedEditorParityTests(unittest.TestCase):
         with self.assertRaisesRegex(EditorExportProofError, "30s"):
             self.prove()
 
+    def test_same_byte_atomic_inode_swap_during_probe_is_denied(self):
+        original = self.file.read_bytes()
+
+        def swap_during_probe(*_args, **_kwargs):
+            replacement = self.root / "new-identity.mp4"
+            replacement.write_bytes(original)
+            replacement.replace(self.file)
+            return self.profile
+
+        with patch.object(qa, "inspect_mp4", side_effect=swap_during_probe), \
+             patch.object(qa, "_frame", side_effect=list(self.valid)):
+            with self.assertRaisesRegex(EditorExportProofError, "changed"):
+                verify_mock_editor_output(self.file)
+
+    def test_same_byte_atomic_inode_swap_during_decoding_is_denied(self):
+        frames = list(self.valid)
+        original = self.file.read_bytes()
+
+        def decode(_source, at):
+            if at == 16.0:
+                replacement = self.root / "new-identity.mp4"
+                replacement.write_bytes(original)
+                replacement.replace(self.file)
+            return frames.pop(0)
+
+        with patch.object(qa, "inspect_mp4", return_value=self.profile), \
+             patch.object(qa, "_frame", side_effect=decode):
+            with self.assertRaisesRegex(EditorExportProofError, "changed"):
+                verify_mock_editor_output(self.file)
+
+    def test_oversized_mp4_is_denied_before_media_probe(self):
+        with self.file.open("wb") as source:
+            source.truncate(80 * 1024 * 1024 + 1)
+        with patch.object(qa, "inspect_mp4") as probe:
+            with self.assertRaisesRegex(EditorExportProofError, "size/type"):
+                verify_mock_editor_output(self.file)
+        probe.assert_not_called()
+
     def test_nonvideo_and_symlink_source_denied(self):
         with self.assertRaises(EditorExportProofError):
             verify_mock_editor_output(self.file)
