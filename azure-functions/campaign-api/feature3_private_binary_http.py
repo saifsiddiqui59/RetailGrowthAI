@@ -216,6 +216,8 @@ class Feature3PrivateBinaryHTTP:
         try:
             with Image.open(BytesIO(raw)) as image:
                 if (image.format != "PNG" or getattr(image, "n_frames", 1) != 1 or
+                        not 256 <= image.width <= 8192 or
+                        not 256 <= image.height <= 8192 or
                         image.width * image.height > 16_777_216):
                     return self._deny(503)
                 image.load()
