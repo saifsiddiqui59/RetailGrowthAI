@@ -58,6 +58,29 @@ class BindingTests(unittest.TestCase):
         self.row["output_sha256"] = "b" * 64
         self.assertFalse(reader.rights(self.shop, self.job, self.asset))
 
+    def test_malformed_trusted_pins_never_construct_reader(self):
+        bad_digests = ("A" * 64, "a" * 63, "a" * 65, "", 123, True, [], {})
+        for digest in bad_digests:
+            with self.subTest(digest=repr(digest)):
+                with self.assertRaises(ValueError):
+                    self.build(expected_output_sha256=digest)
+        for revision in (0, -1, True, 1.0, "2", [], {}):
+            with self.subTest(revision=repr(revision)):
+                with self.assertRaises(ValueError):
+                    self.build(minimum_rights_revision=revision)
+        self.assertEqual(self.calls, 0)
+
+    def test_new_rights_revision_must_still_recheck_revocation_and_digest(self):
+        reader = self.build()
+        self.row["rights_revision"] = 3
+        self.assertTrue(reader.rights(self.shop, self.job, self.asset))
+        self.row["source_rights_current"] = False
+        self.assertFalse(reader.rights(self.shop, self.job, self.asset))
+        self.row["source_rights_current"] = True
+        self.row["output_sha256"] = "b" * 64
+        self.assertFalse(reader.rights(self.shop, self.job, self.asset))
+        self.assertEqual(self.calls, 3)
+
     def test_missing_trusted_pins_fail_before_reader_construction(self):
         for changes in (dict(expected_output_sha256=None),
                         dict(minimum_rights_revision=None),
