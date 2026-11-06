@@ -78,9 +78,19 @@ def build_scoped_private_png_reader(*, shop_id, job_id, tenant_store,
             type(pins["job_id"]) is not str or
             pins["shop_id"] != shop_id or pins["job_id"] != job_id):
         raise ValueError("Trusted output pins mismatch")
+    # A digest/revision pin is not a shop/job authorization grant. Bind
+    # the fresh authority to the exact output scope before reading bytes.
+    if not callable(authoritative_read):
+        raise ValueError("Backend current rights lookup required")
+
+    def scoped_authoritative_read(request_shop, request_job, asset_id):
+        if request_shop != shop_id or request_job != job_id:
+            return None
+        return authoritative_read(request_shop, request_job, asset_id)
+
     return build_private_png_reader(
         tenant_store=tenant_store, verify_user_jwt=verify_user_jwt,
-        authoritative_read=authoritative_read,
+        authoritative_read=scoped_authoritative_read,
         expected_output_sha256=pins["output_sha256"],
         minimum_rights_revision=pins["rights_revision"],
         transport=transport,
