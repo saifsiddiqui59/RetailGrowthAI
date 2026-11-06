@@ -24,7 +24,7 @@ def private_png_response(request, *, shop_id, job_id, reader_factory, enabled=Fa
         authorization = request.headers.get("Authorization", "")
     except Exception:
         return Feature3PrivateBinaryHTTP._deny(401)
-    if method != "GET":
+    if type(method) is not str or method != "GET":
         status, body, headers = Feature3PrivateBinaryHTTP._deny(405)
         return status, body, {**headers, "Allow": "GET"}
     if (type(authorization) is not str or
@@ -44,7 +44,7 @@ def private_png_response(request, *, shop_id, job_id, reader_factory, enabled=Fa
             return Feature3PrivateBinaryHTTP._deny(404)
         if parsed.version != 4 or str(parsed) != identifier:
             return Feature3PrivateBinaryHTTP._deny(404)
-    if not callable(reader_factory):
+    # Reject untrusted factory-like objects before touching backend credentials.\n    if not callable(reader_factory):
         return Feature3PrivateBinaryHTTP._deny(503)
     try:
         reader = reader_factory()
