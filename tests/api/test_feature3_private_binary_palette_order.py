@@ -19,7 +19,7 @@ def chunk(kind, data):
 
 def image_with_chunks(*ordered):
     stream = BytesIO()
-    Image.new("RGB", (32, 32), "#112233").save(stream, format="PNG")
+    Image.new("RGB", (256, 256), "#112233").save(stream, format="PNG")
     raw = stream.getvalue()
     # Preserve IHDR and IDAT CRCs; inject syntactically valid chunks before IDAT.
     return raw[:33] + b"".join(chunk(k, v) for k, v in ordered) + raw[33:]
