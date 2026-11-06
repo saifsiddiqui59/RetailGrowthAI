@@ -205,6 +205,33 @@ class TransparencyPaletteOrderingTests(unittest.TestCase):
         reader.raw = image_with_chunks()
         self.assertEqual(get()[0], 200)
 
+    def test_color_profile_chunks_must_precede_palette(self):
+        reader = Reader()
+        adapter = Feature3PrivateBinaryHTTP(reader=reader)
+        def get():
+            return adapter.handle(method="GET", authorization="Bearer synthetic-only",
+                                  shop_id=reader.shop, job_id=reader.job)
+        palette = (b"PLTE", bytes((0, 0, 0)))
+        for kind, payload in (
+            (b"sRGB", bytes((0,))),
+            (b"gAMA", bytes((0, 0, 177, 143))),
+            (b"cHRM", bytes(32)),
+        ):
+            with self.subTest(kind=kind, placement="after-palette"):
+                reader.raw = image_with_chunks(palette, (kind, payload))
+                status, body, headers = get()
+                self.assertEqual((status, body), (503, b""))
+                self.assertEqual(headers["Vary"], "Authorization")
+                self.assertNotIn("Content-Disposition", headers)
+            with self.subTest(kind=kind, placement="before-palette"):
+                reader.raw = image_with_chunks((kind, payload), palette)
+                status, body, headers = get()
+                self.assertEqual(status, 200)
+                self.assertEqual(body, reader.raw)
+                self.assertEqual(headers["Content-Type"], "image/png")
+        reader.raw = image_with_chunks()
+        self.assertEqual(get()[0], 200)
+
     def test_valid_order_and_reversed_order(self):
         reader = Reader()
         adapter = Feature3PrivateBinaryHTTP(reader=reader)
