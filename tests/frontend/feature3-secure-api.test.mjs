@@ -13,6 +13,11 @@ const poster={schema:'retailgrowth.poster.v2',shop_id:sid,format:'square',
   layers:[{id:'headline',type:'text',x:0.1,y:0.1,w:0.8,h:0.15,
   text:'Shop our new collection',color:'#222222',font_size:34,bold:true}]}
 const ok=(data,status=200)=>({ok:true,status,json:async()=>data})
+const draftHistoryRow=Object.freeze({
+  id:pid,shop_id:sid,campaign_id:cid,day_id:did,revision:2,status:'DRAFT',
+  design:poster,server_document_sha256:'a'.repeat(64),variation_of:null,
+})
+
 function setup(handler) {
   const calls=[]
   const api=createFeature3Api({
@@ -61,10 +66,10 @@ test('reject wrong shop, stale revision, invented approval and malicious respons
 })
 test('RLS history requires precise campaign/day and refuses foreign rows',async()=>{
   const good=setup(()=>ok({shop_id:sid,campaign_id:cid,day_id:did,
-    designs:[{id:pid,shop_id:sid,campaign_id:cid,day_id:did,revision:2,status:'DRAFT'}]}))
+    designs:[{...draftHistoryRow}]}))
   assert.equal((await good.api.listDesigns(sid,cid,did)).length,1)
   const bad=setup(()=>ok({shop_id:sid,campaign_id:cid,day_id:did,
-    designs:[{id:pid,shop_id:cid,campaign_id:cid,day_id:did,revision:2,status:'DRAFT'}]}))
+    designs:[{...draftHistoryRow,shop_id:cid}]}))
   await assert.rejects(bad.api.listDesigns(sid,cid,did),/Untrusted/)
 })
 test('mounted Poster Studio preserves local fallback and opt-in feature3Api branch',async()=>{
@@ -83,4 +88,59 @@ test('mounted Poster Studio preserves local fallback and opt-in feature3Api bran
   assert.match(workspace,/saveDesign\(/)
   assert.match(workspace,/status !== 'DRAFT'/)
   assert.ok(!workspace.includes('fetch('))
+})
+
+
+test('F3-09 signed history validates exact versioned records and review states',async()=>{
+  const payload=rows=>({shop_id:sid,campaign_id:cid,day_id:did,designs:rows})
+  const rows=['DRAFT','APPROVED','REJECTED'].map((status,i)=>({
+    ...draftHistoryRow,id:[pid,'a1000000-0000-4000-8000-000000000005',
+      'a1000000-0000-4000-8000-000000000006'][i],status,
+  }))
+  const good=setup(()=>ok(payload(rows)))
+  const received=await good.api.listDesigns(sid,cid,did)
+  assert.deepEqual(received.map(row=>row.status),['DRAFT','APPROVED','REJECTED'])
+  assert.equal(Object.isFrozen(received),true)
+  assert.ok(received.every(Object.isFrozen))
+  assert.equal(received[0].design.shop_id,sid)
+  assert.equal(good.calls.length,1)
+})
+test('F3-09 private history denies duplicate and forged rows before UI cache',async()=>{
+  const variants=[
+    [draftHistoryRow,draftHistoryRow],
+    [{...draftHistoryRow,revision:0}],
+    [{...draftHistoryRow,revision:true}],
+    [{...draftHistoryRow,id:'../foreign'}],
+    [{...draftHistoryRow,variation_of:'https://foreign.example'}],
+    [{...draftHistoryRow,server_document_sha256:'NOT_A_DIGEST'}],
+    [{...draftHistoryRow,shop_id:cid}],
+    [{...draftHistoryRow,design:{...poster,shop_id:cid}}],
+    [{...draftHistoryRow,design:{...poster,layers:[{type:'image',url:'https://evil.invalid'}]}}],
+    [{...draftHistoryRow,status:'PUBLISHED'}],
+    [{...draftHistoryRow,signed_url:'https://evil.invalid'}],
+    [{...draftHistoryRow,object_path:'foreign/secret.png'}],
+    [{...draftHistoryRow,approved_for_publication:true}],
+    [null],
+  ]
+  for(const rows of variants){
+    const {api}=setup(()=>ok({shop_id:sid,campaign_id:cid,day_id:did,designs:rows}))
+    await assert.rejects(api.listDesigns(sid,cid,did),/Untrusted|Invalid|Duplicate|Unknown|layer/i)
+  }
+  for(const malformed of [
+    {shop_id:sid,campaign_id:cid,day_id:did,designs:[],signed_url:'https://evil.invalid'},
+    {shop_id:sid,campaign_id:cid,day_id:did,designs:null},
+  ]){
+    const {api}=setup(()=>ok(malformed))
+    await assert.rejects(api.listDesigns(sid,cid,did),/Untrusted/)
+  }
+})
+test('F3-09 workspace displays review states but edits only DRAFT',async()=>{
+  const source=await readFile(new URL(
+    '../../frontend/src/features/creative/Feature3SecureDraftWorkspace.jsx',import.meta.url),'utf8')
+  assert.match(source,/Private poster review states/)
+  assert.match(source,/Server status: APPROVED \(not published\)/)
+  assert.match(source,/Server status: REJECTED \(read-only\)/)
+  assert.match(source,/saved\.filter\(d=>d\.status==='DRAFT'\)/)
+  assert.match(source,/if \(chosen\.status !== 'DRAFT'\)/)
+  assert.doesNotMatch(source,/publishPoster|approvePoster/)
 })
