@@ -90,7 +90,8 @@ def _valid_png_chunks(raw):
         # Duplicated or post-IDAT colour metadata can be interpreted
         # inconsistently by PNG decoders despite a matching CRC and SHA.
         if kind in (b"sRGB", b"gAMA", b"cHRM", b"pHYs"):
-            if saw_idat or kind in seen_color_metadata:
+            if (saw_idat or kind in seen_color_metadata or
+                    (saw_plte and kind in (b"sRGB", b"gAMA", b"cHRM"))):
                 return False
             seen_color_metadata.add(kind)
         # Allowed ancillary chunks are not arbitrary metadata containers.
