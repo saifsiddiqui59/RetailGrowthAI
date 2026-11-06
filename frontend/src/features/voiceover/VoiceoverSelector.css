@@ -1,0 +1,9 @@
+.rg-voice{display:grid;gap:12px;padding:16px;border-radius:12px;border:1px solid var(--line,#d1d5db);max-width:580px}
+.rg-voice h3,.rg-voice p{margin:0}
+.rg-voice fieldset{display:grid;gap:12px;border:0;padding:0;min-width:0}
+.rg-voice fieldset label{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rg-voice fieldset label:has(select){display:grid}
+.rg-voice select,.rg-voice input[type=file]{width:100%;max-width:100%;padding:8px;border:1px solid #9ca3af;border-radius:6px}
+.rg-voice button{width:fit-content;min-height:38px;padding:8px 12px;border-radius:7px;border:1px solid #6b7280;cursor:pointer;background:transparent;color:inherit}
+.rg-voice button:disabled{opacity:.5;cursor:not-allowed}
+.rg-voice [role=alert]{color:#b91c1c}

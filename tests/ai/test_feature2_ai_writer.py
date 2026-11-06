@@ -192,3 +192,17 @@ def test_network_ambiguous_billable_failed_call_not_retried():
     with pytest.raises(FoundryUnavailable):
         provider("Authorized brand, voice, audience and CTA", 7)
     assert len(n) == 1
+
+
+@pytest.mark.parametrize("unsupported_claim",[
+    "Free shipping is available for every kurti in Nagpur.",
+    "Cash on delivery for all customer orders.",
+    "Same-day delivery is guaranteed.",
+    "Buy one get one free on selected clothing.",
+    "BOGO on every selected boutique style.",
+])
+def test_ai_writer_refuses_unverified_delivery_or_bogo_marketing_claims(unsupported_claim):
+    obj=content()
+    obj["days"][0]["instagram_caption"]=unsupported_claim
+    with pytest.raises(ValueError,match="Unverified commercial claim"):
+        validated_days(obj,7)

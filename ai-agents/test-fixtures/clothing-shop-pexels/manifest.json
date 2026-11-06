@@ -1,0 +1,96 @@
+{
+  "fixture_version": "feature2-clothing-pexels-discovery-v1",
+  "fixture_kind": "PUBLIC_SOURCE_REFERENCES_ONLY_NOT_IMPORTED_ASSETS",
+  "shop": {
+    "fixture_id": "clothing-test-shop-draft-only",
+    "display_name": "Thread & Loom Test Boutique",
+    "category": "clothing",
+    "region": "IN",
+    "language": "en-IN",
+    "auth_mode": "SYNTHETIC_TEST_ONLY_NOT_A_HOSTED_SHOP",
+    "offer": "Diwali ethnic wear collection; no fabricated discount"
+  },
+  "usage": {
+    "intended_features": [
+      2,
+      3,
+      4,
+      5,
+      7
+    ],
+    "intended_workflow": "Creative Director storyboard -> approved human product/model reference from Feature3 -> editor Feature4/7 -> optional motion Feature5",
+    "approved_product_identity": false,
+    "can_use_as_retailer_product_photo": false,
+    "can_upload_to_hosted_shop_without_authorization": false,
+    "can_publish": false,
+    "requires_original_download_and_rights_review": true
+  },
+  "source_media": [
+    {
+      "candidate_id": "pexels-boutique-rack-4947543",
+      "media_type": "IMAGE",
+      "provider": "Pexels",
+      "creator": "Maria Orlova",
+      "source_page": "https://www.pexels.com/photo/collection-of-female-clothes-on-rack-in-boutique-4947543/",
+      "purpose": "BOUTIQUE_ATMOSPHERE_ONLY",
+      "license_page": "https://www.pexels.com/license/",
+      "orientation": "portrait",
+      "rights_review_status": "NOT_IMPORTED_OR_CLEARED",
+      "original_sha256": null,
+      "private_storage_ref": null
+    },
+    {
+      "candidate_id": "pexels-clothing-shop-36730433",
+      "media_type": "IMAGE",
+      "provider": "Pexels",
+      "creator": "Vitaly Gariev",
+      "source_page": "https://www.pexels.com/photo/young-women-shopping-in-clothing-store-36730433/",
+      "purpose": "STORE_ATMOSPHERE_ONLY_NOT_MODEL_REFERENCE",
+      "license_page": "https://www.pexels.com/license/",
+      "orientation": "landscape",
+      "rights_review_status": "NOT_IMPORTED_OR_CLEARED_THIRD_PARTY_PEOPLE_REQUIRE_REVIEW",
+      "original_sha256": null,
+      "private_storage_ref": null
+    },
+    {
+      "candidate_id": "pexels-hanging-clothes-8322393",
+      "media_type": "VIDEO",
+      "provider": "Pexels",
+      "creator": "Ron Lach",
+      "source_page": "https://www.pexels.com/video/hanging-clothes-8322393/",
+      "purpose": "BOUTIQUE_BROLL_ONLY",
+      "duration_seconds": 19,
+      "license_page": "https://www.pexels.com/license/",
+      "orientation": "portrait",
+      "rights_review_status": "NOT_IMPORTED_OR_CLEARED",
+      "original_sha256": null,
+      "private_storage_ref": null
+    },
+    {
+      "candidate_id": "pexels-shopping-dresses-8855232",
+      "media_type": "VIDEO",
+      "provider": "Pexels",
+      "creator": "Lara Jameson",
+      "source_page": "https://www.pexels.com/video/women-looking-at-dresses-at-a-clothing-store-8855232/",
+      "purpose": "STORE_ATMOSPHERE_ONLY_NOT_MODEL_REFERENCE",
+      "duration_seconds": 11,
+      "license_page": "https://www.pexels.com/license/",
+      "orientation": "landscape",
+      "rights_review_status": "NOT_IMPORTED_OR_CLEARED_THIRD_PARTY_PEOPLE_REQUIRE_REVIEW",
+      "original_sha256": null,
+      "private_storage_ref": null
+    }
+  ],
+  "audio_test_input": {
+    "brief": "30-second Diwali kurti campaign with instrumental background music, narration, and a clear review-only call to action",
+    "provider_status": "NO_APPROVED_MUSIC_BYTES_OR_CLEARANCE",
+    "samples_included": false
+  },
+  "production_conditions": [
+    "Download genuine original Pexels bytes from authorized source and record SHA256",
+    "Review commercial license and model/person/trademark releases",
+    "Import into real owner-authorized private shop storage with current shop JWT/RLS validation",
+    "Feature3 must substitute actual approved product/garment/model imagery before product claims",
+    "Never treat sample boutique atmosphere footage as actual retailer product, released fashion model, or licensed music"
+  ]
+}

@@ -1,0 +1,3 @@
+# Install only in authorized separate lazy CPU quality worker; NEVER default CI.
+# Large Wav2Vec2/phones checkpoint weights are separate from MIT code rights.
+openpronounce==0.3.0

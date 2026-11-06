@@ -41,6 +41,7 @@ export default function TrendWorkspace() {
   const [chosenTrendId, setChosenTrendId] = useState('')
   const latestShopRef = useRef(shopId)
   const latestAiModeRef = useRef(realAiEnabled)
+  const autoPreviewKeyRef = useRef('')
   useEffect(() => { latestShopRef.current = shopId }, [shopId])
   useEffect(() => { latestAiModeRef.current = realAiEnabled }, [realAiEnabled])
   const [error, setError] = useState('')
@@ -139,6 +140,18 @@ export default function TrendWorkspace() {
       setPromptLoading(false)
     }
   }, [api, canWrite, improveEnabled, realAiEnabled, shopId, promptLoading, brief, promptFormats, promptLanguage])
+  // Checking the free preview box now SHOWS the enhanced prompt automatically.
+  // Never auto-trigger paid Azure AI; that remains a separate explicit click.
+  useEffect(() => {
+    if (!improveEnabled || realAiEnabled || !canWrite || !shopId ||
+        promptPreview || promptLoading || promptError || brief.trim().length < 10 ||
+        !promptFormats.length) return
+    const key = JSON.stringify([shopId, brief, promptFormats, promptLanguage])
+    if (autoPreviewKeyRef.current === key) return
+    autoPreviewKeyRef.current = key
+    void improve()
+  }, [improveEnabled, realAiEnabled, canWrite, shopId, promptPreview,
+      promptLoading, promptError, brief, promptFormats, promptLanguage, improve])
   const originalChanged = value => {
     setBrief(value)
     setAppliedPrompt('')
@@ -263,6 +276,7 @@ export default function TrendWorkspace() {
           <input type="checkbox" checked={realAiEnabled} onChange={event => {
             latestAiModeRef.current = event.target.checked
             setRealAiEnabled(event.target.checked)
+            autoPreviewKeyRef.current = ''
             setPromptPreview(null)
             setAppliedPrompt('')
             setEditedPrompt('')
@@ -277,11 +291,12 @@ export default function TrendWorkspace() {
           <input type="checkbox" checked={improveEnabled}
             onChange={event => {
               setImproveEnabled(event.target.checked)
+              autoPreviewKeyRef.current = ''
               if (!event.target.checked) { setAppliedPrompt(''); setPromptPreview(null); }
             }} />
           Improve Prompt with AI
         </label>
-        <p>Optional prompt improvement. Template mode is free; selected real AI requires approved budget. Neither automatically starts content generation.</p>
+        <p>When checked, a free enhanced prompt preview appears automatically. For actual Azure AI enhancement, also enable the budget-controlled model above and click Improve Prompt. Both versions require your review before use; neither automatically generates a Reel.</p>
         {improveEnabled && <>
           <div className="feature2-filters">
             <label>Prompt language
@@ -314,6 +329,7 @@ export default function TrendWorkspace() {
         {promptError && <p role="alert">{promptError}</p>}
         {promptPreview && improveEnabled && (
           <div aria-label="Original and improved prompt preview">
+            <p role="status">Enhanced prompt ready for your review. Compare, edit, then choose Use Improved Prompt.</p>
             <div className="feature2-prompt-pair">
               <label>Original prompt
                 <textarea readOnly value={promptPreview.original_prompt} rows={8} />
