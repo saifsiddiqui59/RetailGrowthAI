@@ -106,6 +106,38 @@ class BindingTests(unittest.TestCase):
         self.assertEqual(calls, [(self.shop, self.job)])
         self.assertFalse(reader.rights(str(uuid4()), self.job, self.asset))
 
+    def test_scoped_reader_never_reuses_pins_for_another_job(self):
+        foreign_job = str(uuid4())
+        foreign_shop = str(uuid4())
+        observed = []
+        def backend(shop, job, asset):
+            observed.append((shop, job, asset))
+            # Simulate another output with the same digest and rights revision.
+            return dict(self.row, shop_id=shop, job_id=job, asset_id=asset)
+        reader = build_scoped_private_png_reader(
+            shop_id=self.shop, job_id=self.job, tenant_store=Store(),
+            verify_user_jwt=lambda token: self.shop,
+            authoritative_read=backend,
+            trusted_output_pins=lambda shop, job: dict(
+                shop_id=shop, job_id=job,
+                output_sha256="a" * 64, rights_revision=2),
+        )
+        self.assertTrue(reader.rights(self.shop, self.job, self.asset))
+        self.assertFalse(reader.rights(self.shop, foreign_job, self.asset))
+        self.assertFalse(reader.rights(foreign_shop, self.job, self.asset))
+        self.assertEqual(observed, [(self.shop, self.job, self.asset)])
+
+    def test_scoped_reader_rejects_missing_backend_callback(self):
+        with self.assertRaises(ValueError):
+            build_scoped_private_png_reader(
+                shop_id=self.shop, job_id=self.job, tenant_store=Store(),
+                verify_user_jwt=lambda token: self.shop,
+                authoritative_read=None,
+                trusted_output_pins=lambda shop, job: dict(
+                    shop_id=shop, job_id=job,
+                    output_sha256="a" * 64, rights_revision=2),
+            )
+
     def test_scoped_pins_reject_cross_shop_and_malformed_authority(self):
         good = dict(shop_id=self.shop, job_id=self.job,
                     output_sha256="a" * 64, rights_revision=2)
