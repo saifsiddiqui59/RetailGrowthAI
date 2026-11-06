@@ -31,7 +31,9 @@ def private_png_response(request, *, shop_id, job_id, reader_factory, enabled=Fa
             not authorization.startswith("Bearer ") or
             not 12 <= len(authorization) <= 8200 or
             any(ord(ch) < 33 or ord(ch) > 126 for ch in authorization[7:]) or
-            authorization[7:].startswith(("sb_secret_", "sb_publishable_"))):
+            authorization[7:].startswith(("sb_secret_", "sb_publishable_")) or
+            "," in authorization or "\\" in authorization or
+            authorization.count("Bearer ") != 1):
         return Feature3PrivateBinaryHTTP._deny(401)
     # Reject malformed or noncanonical identifiers before creating a privileged
     # backend reader. Never normalize attacker-controlled route parameters.
