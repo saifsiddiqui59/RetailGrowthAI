@@ -162,7 +162,8 @@ def mp3_case(*,allow=True,revoke=None,forge=False,writer_fails=False):
         state["decode"]+=1
         assert kwargs["client_declared_rights"] is None
         assert kwargs["operator_ffmpeg_path"]=="/server/ffmpeg"
-        assert kwargs["authenticated_editor"](SHOP,CAMP) is True
+        if kwargs["authenticated_editor"](SHOP,CAMP) is not True:
+            raise PermissionError("Editor revoked before private MP3 write")
         assert kwargs["read_authoritative_plan"](SHOP,CAMP)==plan()
         result=kwargs["store_both_private_pending"](
             SHOP,CAMP,MP3,b"synthetic-decoded-wav",{
