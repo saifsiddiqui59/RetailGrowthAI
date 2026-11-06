@@ -1,13 +1,13 @@
 {
   "schema": "retailgrowth.feature2-dependency-handoff.v1",
-  "snapshot_date": "2026-10-29",
+  "snapshot_date": "2026-11-05",
   "tracking_issue": 403,
   "unified_draft_pr": 551,
   "source_branch": "feat/feature2-unified-offline-source-20261028",
   "fixed_total_tasks": 38,
   "task_status_counts": {
-    "COMPLETE_SOURCE_SCOPED": 6,
-    "IN_PROGRESS": 20,
+    "COMPLETE_SOURCE_SCOPED": 9,
+    "IN_PROGRESS": 17,
     "BLOCKED": 12
   },
   "scope": "Read-only coordinator dependency routing; no production authority, budget authorization or acceptance implied.",

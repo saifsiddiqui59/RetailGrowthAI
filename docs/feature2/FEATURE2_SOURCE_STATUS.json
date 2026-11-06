@@ -1,0 +1,1298 @@
+{
+  "schema_version": 1,
+  "feature": "2",
+  "total_task_ids": 38,
+  "recorded_at": "2026-11-05",
+  "source_ledger": "docs/feature2/FEATURE2_38_TASK_LEDGER_20261029.md",
+  "source_ledger_note": "Source-only scope evidence. An imported snapshot is not integrated DONE.",
+  "current_source_pr": 848,
+  "parent_pr": 551,
+  "source_scope_only": true,
+  "counts": {
+    "SOURCE_IN_PROGRESS": 17,
+    "SOURCE_COMPLETE": 9,
+    "EXTERNALLY_BLOCKED": 12
+  },
+  "review_scope": [
+    "F2-04",
+    "F2-30"
+  ],
+  "review_ci": {
+    "run_id": 41292492409,
+    "exact_head_sha": "37dfcc24fe850f977500d7755d53d3d012c9cbcf",
+    "required_jobs_passed": 4,
+    "required_jobs_total": 4
+  },
+  "integration": {
+    "accepted_done": 0,
+    "main_merged": false,
+    "production_verified": false,
+    "needs_independent_parent_review": true
+  },
+  "deduplication_rule": "Do not reimplement SOURCE_COMPLETE source scopes. Reopen only with an identified failing regression/new requirement and an evidence-backed ledger change; hosted/rights gates are separate.",
+  "tasks": [
+    {
+      "id": "F2-01",
+      "title": "Azure Functions Creative Director runtime/package validation",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Offline Functions ZIP audit refuses Unix symlink members, including unselected metadata that might redirect extracted Node or pinned MIT source",
+        "source_commits": [
+          "77d6d05d6419d0e51e29b459bda591bf4f5cfa81"
+        ],
+        "test_commits": [
+          "c28f1fb584639a524bcb0ab066548996ba201219"
+        ],
+        "test_cases": 3,
+        "complete_scope": false,
+        "blocker": "Protected shared scripts/deploy/package.py independent review, exact Node22 binary and Azure runtime operator proof absent; cannot deploy or accept main integration",
+        "ci_run_id": 41814171986,
+        "verified_source_head_sha": "8fdb5c7b19cb76b1417ffc9999da1922d996dd34",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "8fdb5c7b19cb76b1417ffc9999da1922d996dd34",
+          "ci_run_id": 41814171986,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      }
+    },
+    {
+      "id": "F2-02",
+      "title": "Retailer-specific AI copy, offers, CTAs, factual claims",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Validate signed offer active/revoked status and campaign date window before treating legal claim wording as source-backed",
+        "source_commits": [
+          "32a13c841e2832e9fc5a6900a440f3c39a1f4ed6",
+          "9c623f4a8df8f48f29e9aaa14806c97f1b7bfa06"
+        ],
+        "test_commits": [
+          "99ef41aad5a1be5236238a309d0fed194b99746b"
+        ],
+        "test_cases": 13,
+        "complete_scope": false,
+        "blocker": "Commercial copy still needs real current signed retailer facts, rights and independent human approval",
+        "ci_run_id": 41813227582,
+        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+          "ci_run_id": 41813227582,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Approved retailer legal claim source rejects hidden controls, HTML/URLs, empty or duplicate offers and invalid percent metadata",
+          "source_commits": [
+            "4939d0105099f95cfc3361614849b9d5ea127cc4",
+            "1ce1a58aaa754c54673283507034a0cb54868f28"
+          ],
+          "test_commit": "c1684da5641e5962884488219b1f35fa5245bcbb",
+          "test_cases": 19,
+          "complete_scope": false,
+          "blocker": "Real authenticated retailer approved offers/rights and trusted hosted review integration remain pending",
+          "ci_run_id": 41302121066,
+          "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
+        }
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_copy_retake_adapters.py",
+        "head_sha": "5f25b750dc3e1fe2d3ddaae42587226a8e1c974b",
+        "ci_run_id": 42272190219,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "Authenticated retailer claim review GET verifies signed current offers/draft, rejects fabricated discount and source changes; customer approval/hosted RLS still absent"
+      }
+    },
+    {
+      "id": "F2-03",
+      "title": "Prompt Improver and reviewed script-revision workflow",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Signed editor reviewed-draft CAS strict source revision types, staged/durable rights-and-billing denial, optional paid-cost bool denial",
+        "source_commits": [
+          "b285817798ce9ba0d0a3b85d3920c1fbe9fdc99d"
+        ],
+        "test_commit": "2d2f9a278e3e5236fea5e1f7b481b8db9390a931",
+        "test_cases": 32,
+        "complete_scope": false,
+        "blocker": "Independent signed human review, versioned tenant-private draft CAS and hosted RLS endpoint still unverified",
+        "ci_run_id": 41304131599,
+        "verified_source_head_sha": "501b58dce66bc9240676c29eb1d1b7497e9ac0df",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "501b58dce66bc9240676c29eb1d1b7497e9ac0df",
+          "ci_run_id": 41304131599,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      },
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_private_batch_adapters.py",
+        "head_sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "ci_run_id": 42270532246,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "JWT-scoped reviewed prompt draft POST uses current server proposal, independent signed editor decision and one-shot private CAS; mounted durable endpoint not verified"
+      }
+    },
+    {
+      "id": "F2-04",
+      "title": "Trend/RSS relevance, scoring, evergreen fallback",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 41292492409,
+      "verified_on_commit": "37dfcc24fe850f977500d7755d53d3d012c9cbcf",
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "37dfcc24fe850f977500d7755d53d3d012c9cbcf",
+        "ci_run_id": 41292492409,
+        "integrated_done": false
+      }
+    },
+    {
+      "id": "F2-05",
+      "title": "15/30/60-second script/storyboard structural quality checks",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 40861279169,
+      "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "ac2a6a872d28b322922c74b88d91ab5757907387",
+        "ci_run_id": 40861279169,
+        "integrated_done": false
+      }
+    },
+    {
+      "id": "F2-06",
+      "title": "Actual MIT Creative Director exporter + Feature3 original demo garment/model byte tests for F4/F5",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 40861279169,
+      "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "ac2a6a872d28b322922c74b88d91ab5757907387",
+        "ci_run_id": 40861279169,
+        "integrated_done": false
+      }
+    },
+    {
+      "id": "F2-07",
+      "title": "Indian retailer-brand pronunciation regression coverage",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 40861279169,
+      "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "ac2a6a872d28b322922c74b88d91ab5757907387",
+        "ci_run_id": 40861279169,
+        "integrated_done": false
+      }
+    },
+    {
+      "id": "F2-08",
+      "title": "Blind A/B review, scoring and durable revision history",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Signed A/B reviewer snapshots candidate plans and human score rows across callbacks, verifies CAS revision integer and no signed URLs",
+        "source_commits": [
+          "df0977345a5fe6a9a0d0df1bed99d4054cca33fb"
+        ],
+        "test_commits": [
+          "0742a1fcf2b450ef2772d5045d2acb9c6188f4a4"
+        ],
+        "test_cases": 5,
+        "complete_scope": false,
+        "blocker": "Real independent signed human reviewer identities, durable CAS and mounted tenant RLS live verification remain absent",
+        "ci_run_id": 41850403506,
+        "ci_status": "SUCCESS_4_OF_4",
+        "verified_source_head_sha": "94ff9ec41b71fcca91809567e86d2cc429b8ac1c",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "94ff9ec41b71fcca91809567e86d2cc429b8ac1c",
+          "ci_run_id": 41850403506,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Private blind A/B review CAS/history denies malformed publish, paid, billing and URL grants",
+          "source_commits": [
+            "68b2e35c6843c4691b276029a7be384eb0e4a529",
+            "ef277c034d67bb52c9b5b6a7cea10b59981799f6"
+          ],
+          "test_commit": "62998c1a16c827f0e86edcc22a88f4e68b1cf28c",
+          "test_cases": 22,
+          "complete_scope": false,
+          "blocker": "Genuine signed independent reviewers, durable hosted RLS CAS, authenticated reader and accepted main merge not verified",
+          "ci_run_id": 41302121066,
+          "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
+        }
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_private_batch_adapters.py",
+        "head_sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "ci_run_id": 42270532246,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "Private A/B reviewer history GET invokes signed score history with tenant JWT and revocation rechecks; durable hosted reviewer receipts not connected"
+      }
+    },
+    {
+      "id": "F2-09",
+      "title": "Kokoro CPU worker cache/startup/concurrency/failures",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Kokoro CPU input/speed preflight rejects invisible Unicode & unhashable selectors",
+        "code_commit": "ac0bbb3c82d41d8866388baa0caf2dd8d789ba02",
+        "test_commit": "53514c093be5b0b5c3e1a5241d4748a0f4e222e1",
+        "test_cases": 11,
+        "complete_scope": false,
+        "blocker": "Real pinned Kokoro checkpoint/CPU host and model benchmark not available; full F2-09 remains in progress",
+        "ci_run_id": 41294266905,
+        "verified_source_head_sha": "2bbd5a53383ee0456e0df959c82f96d8ee039076",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "2bbd5a53383ee0456e0df959c82f96d8ee039076",
+          "ci_run_id": 41294266905,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      }
+    },
+    {
+      "id": "F2-10",
+      "title": "Voice selector, human corrections and retake UI wiring",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Signed pronunciation dictionary write/read denies backend approval and audio-quality promotion",
+        "source_commits": [
+          "cbbb11dc192985ba9775ab634a2dafa764f160a5"
+        ],
+        "test_commits": [
+          "01c96f6e51f4f79dafadf8af9a06095573d3a0ad"
+        ],
+        "test_cases": 9,
+        "complete_scope": false,
+        "blocker": "Independent signed dictionary store, mounted reviewer, actual Kokoro voice/audio QA and hosted tenant auth remain unverified",
+        "ci_run_id": 41848875135,
+        "ci_status": "SUCCESS_4_OF_4",
+        "verified_source_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9",
+          "ci_run_id": 41848875135,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Spelling correction CAS/read callbacks refuse ambiguous grants, automatic paid retry, billable receipts, and public URLs",
+          "source_commits": [
+            "12ea61a9f711d8dff21d6ae541f8357ce0259af9"
+          ],
+          "test_commit": "8dcb652429d540adcd7a819f9c26047596b4aafb",
+          "test_cases": 29,
+          "complete_scope": false,
+          "blocker": "Real authorized pronunciation dictionary store/retake UI and audio listening QA are unavailable; signed callback fixtures only",
+          "ci_run_id": 41307027543,
+          "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
+        }
+      ]
+    },
+    {
+      "id": "F2-11",
+      "title": "PCM clipping, silence, volume and review diagnostics",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 40861279169,
+      "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "ac2a6a872d28b322922c74b88d91ab5757907387",
+        "ci_run_id": 40861279169,
+        "integrated_done": false
+      }
+    },
+    {
+      "id": "F2-12",
+      "title": "Feature2 step-by-step auditable workflow trace",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Private signed trace CAS rejects ambiguous boolean sequence and optional paid-motion/public URL privileges",
+        "source_commits": [
+          "ad97a42b40f605fa0badee80212dd79ab09e7091"
+        ],
+        "test_commits": [
+          "592a353ae161ba6c7ee28730c4d184c242f622c5"
+        ],
+        "test_cases": 6,
+        "complete_scope": false,
+        "blocker": "Hosted JWT/RLS private trace storage, immutable event CAS, and independent real worker signatures are still absent",
+        "ci_status": "SUCCESS_4_OF_4",
+        "ci_run_id": 41850403506,
+        "verified_source_head_sha": "94ff9ec41b71fcca91809567e86d2cc429b8ac1c",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "94ff9ec41b71fcca91809567e86d2cc429b8ac1c",
+          "ci_run_id": 41850403506,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Signed feature trace history freezes original reader snapshot before HMAC/revocation checks and private append CAS refuses ambiguous publish/paid grants",
+          "source_commits": [
+            "fe901a6dac009db8fabe9011ea928e5ae9712545"
+          ],
+          "test_commit": "e5e678e9edfb1d7e71fe817fbf7aed141a4d386b",
+          "test_cases": 13,
+          "complete_scope": false,
+          "blocker": "Real signed worker proofs, tenant-authenticated durable private trace append/history and hosted API/route not verified",
+          "ci_run_id": 41304131599,
+          "verified_source_head_sha": "501b58dce66bc9240676c29eb1d1b7497e9ac0df"
+        }
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_private_batch_adapters.py",
+        "head_sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "ci_run_id": 42270532246,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "Private workflow trace GET verifies HMAC chain via trusted injected server secret and tenant-private event reader; actual hosted trace store absent"
+      }
+    },
+    {
+      "id": "F2-13",
+      "title": "Security negative paths, CI regression and source consistency",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 40861279169,
+      "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "ac2a6a872d28b322922c74b88d91ab5757907387",
+        "ci_run_id": 40861279169,
+        "integrated_done": false
+      }
+    },
+    {
+      "id": "F2-14",
+      "title": "Real Kokoro WAV/MP3 inference, playback and QA",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "F2"
+    },
+    {
+      "id": "F2-15",
+      "title": "Real CPU time/RSS/cost benchmark",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Benchmark rejects RIFF trailer, duplicate data and mismatched declared extent using existing strict private PCM inspector",
+        "test_cases": 3,
+        "complete_scope": false,
+        "blocker": "Real operator Kokoro model/hardware CPU benchmark still absent; synthetic PCM only",
+        "ci_status": "SUCCESS_4_OF_4",
+        "source_commit": "06913842b1f28dd6455c0b2eabd153bb68016770",
+        "test_fix_commit": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
+        "ci_run_id": 41901100120,
+        "ci_sha": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
+        "main_integration_verified": false,
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
+          "ci_run_id": 41901100120,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Honest local Kokoro CPU benchmark summary and strict model usage provenance",
+          "source_commits": [
+            "98630f24e0a3922c431000cf882f6d6b8e385b84"
+          ],
+          "test_commits": [
+            "47128cef53eb4179ad3cfeb37b6efc9d7d93fad3"
+          ],
+          "test_cases": 3,
+          "complete_scope": false,
+          "blocker": "Real pinned Kokoro weights, operator CPU runtime, process RSS/cost benchmark and reviewer acceptance not available",
+          "ci_run_id": 41812081011,
+          "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2"
+        }
+      ]
+    },
+    {
+      "id": "F2-16",
+      "title": "Feature7 signed registered original-WAV ASR",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "F7 + F2"
+    },
+    {
+      "id": "F2-17",
+      "title": "Actual ASR/WER/manual spoken-script comparisons",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Reject Unicode surrogate spoofing in signed F7 word displays without falsifying Indic transcription",
+        "source_commits": [
+          "aab1466735f64f979177cba62aea30a4798db5b9"
+        ],
+        "test_commits": [
+          "57e4a7e8a1484ab874e673b4aa88d70e771e0911"
+        ],
+        "test_cases": 4,
+        "complete_scope": false,
+        "blocker": "Real Feature7 original WAV model/weights, signed ASR and human listening acceptance unavailable",
+        "ci_run_id": 41813227582,
+        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+          "ci_run_id": 41813227582,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Signed Feature7 ASR word-display rejects zero-width joiner spoofing outside legitimate Indic conjuncts",
+          "source_commits": [
+            "8aa0fe1c7b00e7ef3fb1a89d08945ce303342d4e"
+          ],
+          "test_commit": "31ed52196fdc8a27bf2e414638b08d8884215f8c",
+          "test_cases": 8,
+          "complete_scope": false,
+          "blocker": "Actual F7 model, original customer WAV, signed human listening, and hosted readback remain unavailable",
+          "ci_run_id": 41307027543,
+          "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
+        }
+      ]
+    },
+    {
+      "id": "F2-18",
+      "title": "Offline OpenPronounce checkpoint and correction benchmark",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "OpenPronounce reference-script guard before heavyweight offline model imports",
+        "source_commits": [
+          "1028678d99ad2ccd15bdfe179b47b61974884009"
+        ],
+        "test_commits": [
+          "afa55600a8e5c49e708e4f0da1adfc03703a370d"
+        ],
+        "test_cases": 10,
+        "complete_scope": false,
+        "blocker": "Actual 2.5GB OpenPronounce reference models and genuine CPU pronunciation benchmark absent",
+        "ci_run_id": 41812081011,
+        "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+          "ci_run_id": 41812081011,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      }
+    },
+    {
+      "id": "F2-19",
+      "title": "Authenticated speech preview/generate/job-status/review APIs",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "Coordinator + F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Signed JWT/RLS private speech job status API adapter with immutable plan snapshot and independently injected approved verifier",
+        "source_commits": [
+          "c24396c3db5c423c286486b1a4607b2b1e403d10",
+          "f5c2d5370fcd75c603f1306ba53936f0edc9a761"
+        ],
+        "test_commits": [
+          "c24396c3db5c423c286486b1a4607b2b1e403d10",
+          "f5c2d5370fcd75c603f1306ba53936f0edc9a761"
+        ],
+        "source_files": [
+          "azure-functions/campaign-api/feature2_adapter.py",
+          "tests/api/test_feature2_private_voice_status_adapter.py"
+        ],
+        "complete_scope": false,
+        "blocker": "Actual Azure Functions HTTP router and JWT-scoped durable plan/job/WAV readers are not mounted; injected verifier runtime module is not in independently approved ZIP allowlist; no real DEV authenticated two-shop/worker test",
+        "ci_run_id": 41985198673,
+        "verified_source_head_sha": "f5c2d5370fcd75c603f1306ba53936f0edc9a761",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "f5c2d5370fcd75c603f1306ba53936f0edc9a761",
+          "ci_run_id": 41985198673,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Private Kokoro job status snapshots reject aliased DB result mutation and forged optional billing/rights metadata",
+          "source_commits": [
+            "9ebaa3bd3d8d77aaad47893f96dac5020a04c014"
+          ],
+          "test_commits": [
+            "2dcff7137aba53bb52c689aaaa73f7d19349fdd2"
+          ],
+          "test_cases": 25,
+          "complete_scope": false,
+          "blocker": "Hosted signed DEV JWT/RLS status endpoint, durable worker settlement and tenant-authenticated job media not deployed",
+          "ci_run_id": 41812081011,
+          "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+          "closure": {
+            "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+            "scope": "verified_offline_source_substep",
+            "verified_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+            "ci_run_id": 41812081011,
+            "original_task_complete": false,
+            "integrated_done": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "F2-20",
+      "title": "Tenant-private audio storage, registered rights and signed playback",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "Coordinator + F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Private original WAV reader snapshots metadata across readback and denies forged rights, billable calls and URL fields",
+        "source_commits": [
+          "0a2fe67b95fd91a146f332c7f7741c4af41219e3"
+        ],
+        "test_commits": [
+          "117eeae5fda0ed00c5dde87d9697c7e109a37421"
+        ],
+        "test_cases": 13,
+        "complete_scope": false,
+        "blocker": "Hosted tenant private media reader, JWT/RLS, original binary endpoint and owner rights verification not live",
+        "ci_run_id": 41813227582,
+        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+          "ci_run_id": 41813227582,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Post-private Kokoro local voice storage response rights/billing fence and source revocation",
+          "source_commits": [
+            "cf4d438499d99c2aac440d0a52f4d92b0236cd1a"
+          ],
+          "test_commit": "f9369408e9ef09bf65fc44ae5042dacdd52b3cbb",
+          "test_cases": 19,
+          "complete_scope": false,
+          "blocker": "Real trusted private write transaction, storage RLS, signed downloads and human rights approval not live; synthetic Kokoro-positive receipts are mock fixtures",
+          "ci_run_id": 41302121066,
+          "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
+        }
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_private_batch_adapters.py",
+        "head_sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "ci_run_id": 42270532246,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "Private original WAV binary GET verifies original bytes/hash/current actor and no-store response; tenant-private blob/JWT route not mounted"
+      }
+    },
+    {
+      "id": "F2-21",
+      "title": "Durable job idempotency, budgets, usage and worker limits",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "Coordinator + F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "CPU job reservation independently snapshots source, budget and lease receipt across mutable callback races",
+        "source_commits": [
+          "0ae8384184f9ef5f8dd1eb12fc77c32b4b86494f"
+        ],
+        "test_commits": [
+          "35154c4d2355f9ec62d78c4e933676a145cabafa"
+        ],
+        "test_cases": 2,
+        "complete_scope": false,
+        "blocker": "Real atomic tenant CPU budget/lease, settlement, JWT/RLS and actual worker inference are not deployed or verified",
+        "ci_run_id": 41848875135,
+        "ci_status": "SUCCESS_4_OF_4",
+        "verified_source_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9",
+          "ci_run_id": 41848875135,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Durable local CPU quota receipt denies boolean-zero billing and ambiguously typed paid/motion grants",
+          "source_commits": [
+            "c630814bda2e88077d1a3ea9a1bc2eab93636c6b"
+          ],
+          "test_commit": "ec033834fdfa6c6e2adbde6693e748510e5cc17f",
+          "test_cases": 14,
+          "complete_scope": false,
+          "blocker": "Actual tenant budget SQL and atomic one-shot lease/worker settlement on hosted RLS remain coordinator-owned; mocked callback not live guarantee",
+          "ci_run_id": 41302121066,
+          "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
+        }
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_private_upload_cpu_batch.py",
+        "head_sha": "593f7de858bb85b1ef82165c45e17550c9739db1",
+        "ci_run_id": 42271348767,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "JWT-scoped CPU-only once-key quota reservation POST calls verified atomic lease source; real database budget transaction and worker settlement absent"
+      }
+    },
+    {
+      "id": "F2-22",
+      "title": "Mount voice selector inside signed Creative Studio",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-23",
+      "title": "F4 approved narration/captions/retakes/music ducking",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "F4 + coordinator + F2"
+    },
+    {
+      "id": "F2-24",
+      "title": "F5 versioned motion prompt and frame handoff",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "F5 + coordinator + F2"
+    },
+    {
+      "id": "F2-25",
+      "title": "Azure #249 503 reliability root-cause/fix",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Azure #249 lead"
+    },
+    {
+      "id": "F2-26",
+      "title": "Voice quality review panel and correction guidance",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Frontend private F7 reviewer rejects unpaired UTF16 surrogates while retaining valid supplementary script words",
+        "source_commits": [
+          "d9b4b279629f1c6b2b41d47209845f301f223a56"
+        ],
+        "test_commits": [
+          "c092d0e4d5a03ac68a32fffc623892b9e6021ff5"
+        ],
+        "test_cases": 9,
+        "complete_scope": false,
+        "blocker": "Actual mounted Creative Studio, signed reviewer identities and trusted F7 audio endpoints not deployed",
+        "ci_run_id": 41813227582,
+        "verified_source_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "4ba6a378db5e7becc8819e57d6fbb05e84b8da34",
+          "ci_run_id": 41813227582,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Narration quality review frontend rejects disguised invisible joiners while preserving Marathi/Hindi conjuncts",
+          "source_commits": [
+            "532e4996e8304c7f2c7afc3c8dd8702d324ee779"
+          ],
+          "test_commit": "10041dc46f96ce6be894f718b1089dc522c7af2a",
+          "test_cases": 13,
+          "complete_scope": false,
+          "blocker": "Mounted signed Creative Studio reviewer role and real speech/ASR QA endpoints still unverified",
+          "ci_run_id": 41307027543,
+          "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
+        }
+      ]
+    },
+    {
+      "id": "F2-27",
+      "title": "Single-sentence human-approved retake and replacement",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Single-sentence retake fences aliased source plan during synthesis and after private write",
+        "source_commits": [
+          "8a6742e2cddce339b7e7c2db8e0f763e49feaa7b"
+        ],
+        "test_commits": [
+          "db6e4fdbe9780f7688f171eadfd02395247581d1"
+        ],
+        "test_cases": 2,
+        "complete_scope": false,
+        "blocker": "Real Kokoro model, one-shot DB CAS, signed reviewer and tenant-private registered audio are unverified",
+        "ci_run_id": 41848875135,
+        "ci_status": "SUCCESS_4_OF_4",
+        "verified_source_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "d71261623c68fec2a2f2f69216f8aff030c14ba9",
+          "ci_run_id": 41848875135,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "One-sentence Kokoro retake validates voice before one-shot reservation and bounds private writer's rights, billing and F4/F7 re-review metadata",
+          "source_commits": [
+            "f5ab142ae48b9535c7150914383c3e7b0398f89d"
+          ],
+          "test_commit": "552a6d4e66dd69657a31b400e657f840f59e40a5",
+          "test_cases": 29,
+          "complete_scope": false,
+          "blocker": "Actual offline Kokoro model runtime, atomic durable lease, tenant private signed storage, and human approval remain unverified",
+          "ci_run_id": 41307027543,
+          "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
+        }
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_copy_retake_adapters.py",
+        "head_sha": "5f25b750dc3e1fe2d3ddaae42587226a8e1c974b",
+        "ci_run_id": 42272190219,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "Explicit local one-shot sentence-retake POST is operator-CPU OFF by default, keeps F7/F4 review gates; genuine Kokoro weights and signed retake storage absent"
+      }
+    },
+    {
+      "id": "F2-28",
+      "title": "Free/paid provider voice and cost disclosures",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 40861279169,
+      "verified_on_commit": "ac2a6a872d28b322922c74b88d91ab5757907387",
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "ac2a6a872d28b322922c74b88d91ab5757907387",
+        "ci_run_id": 40861279169,
+        "integrated_done": false
+      }
+    },
+    {
+      "id": "F2-29",
+      "title": "Private MP3 decode and safety validation",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Private MP3 decoder bounds FFmpeg decoded WAV bytes and duration before temporary-disk exhaustion",
+        "source_commits": [
+          "19591546af41e76d19bb9a6df1bb226df31b08ad"
+        ],
+        "test_commits": [
+          "6c2d9c2cfcb50239f7cad9b17d760fdaf4bd0047",
+          "3d9119f61722dc0c86498c007623c90227bbc4a0",
+          "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2"
+        ],
+        "test_cases": 5,
+        "complete_scope": false,
+        "blocker": "Real FFmpeg hosted worker, tenant-private dual asset DB registration, genuine licensed MP3 and signed download not deployed",
+        "ci_run_id": 41812081011,
+        "verified_source_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "9938fab4c2d61808ec029990c6e4dfdfb1ffbce2",
+          "ci_run_id": 41812081011,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Bound RIFF/WAV format metadata inside private MP3 normalization and original PCM inspection",
+          "source_commits": [
+            "5d0564b16308bdb3be5c486e359337149bf4e4a3"
+          ],
+          "test_commit": "19e0b8df68e91e5c27b0f14c5805114412d339e8",
+          "test_cases": 7,
+          "complete_scope": false,
+          "blocker": "Real FFmpeg-enabled worker, tenant-private media writer/rights and RLS still need verification; synthetic WAV does not prove real MP3/licensing",
+          "ci_run_id": 41302121066,
+          "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
+        }
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_private_upload_cpu_batch.py",
+        "head_sha": "593f7de858bb85b1ef82165c45e17550c9739db1",
+        "ci_run_id": 42271348767,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "JWT-gated original MP3/derived WAV pending dual-private registration POST; FFmpeg worker and durable two-asset store not mounted"
+      }
+    },
+    {
+      "id": "F2-30",
+      "title": "English/Indian-English/Hindi/Marathi voice route tests",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "source_ci_run_id": 41292492409,
+      "verified_on_commit": "37dfcc24fe850f977500d7755d53d3d012c9cbcf",
+      "scope": "source_only",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "37dfcc24fe850f977500d7755d53d3d012c9cbcf",
+        "ci_run_id": 41292492409,
+        "integrated_done": false
+      }
+    },
+    {
+      "id": "F2-31",
+      "title": "Editor script A/B preview and explicit approval UX",
+      "source_status": "SOURCE_IN_PROGRESS",
+      "owner": "F2",
+      "latest_source_substep": {
+        "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+        "name": "Signed reviewed prompt receipt disallows JS revision coercion and untrusted proposal rights escalation",
+        "test_cases": 10,
+        "complete_scope": false,
+        "blocker": "Actual mounted Creative Studio and independent signed editor/backend CAS remain unverified",
+        "ci_status": "SUCCESS_4_OF_4",
+        "source_commit": "06913842b1f28dd6455c0b2eabd153bb68016770",
+        "test_fix_commit": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
+        "ci_run_id": 41901100120,
+        "ci_sha": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
+        "main_integration_verified": false,
+        "closure": {
+          "state": "CLOSED_VERIFIED_OFFLINE_SUBSTEP",
+          "scope": "verified_offline_source_substep",
+          "verified_head_sha": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
+          "ci_run_id": 41901100120,
+          "original_task_complete": false,
+          "integrated_done": false
+        }
+      },
+      "source_substep_history": [
+        {
+          "state": "SOURCE_SUBSTEP_VERIFIED_4_OF_4_CI",
+          "name": "Voiceover A/B reviewed script proposal and response must not smuggle rights, paid calls, external media URLs, or approved commercial copy",
+          "source_commits": [
+            "211db2f01866f2ffc83aec9bb9934bf003aa5b30"
+          ],
+          "test_commit": "ea42fa97047d9e6caea1cd594b3e7da3bb2ff62c",
+          "test_cases": 31,
+          "complete_scope": false,
+          "blocker": "Signed production reviewer, real mounted Creative Studio and backend reviewed CAS are unverified",
+          "ci_run_id": 41304131599,
+          "verified_source_head_sha": "501b58dce66bc9240676c29eb1d1b7497e9ac0df"
+        }
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_private_batch_adapters.py",
+        "head_sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "ci_run_id": 42270532246,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "Shared with F2-03, explicit compared script A/B review receipt binds exact source/proposal; live Creative Studio mount/signed editor CAS absent"
+      }
+    },
+    {
+      "id": "F2-32",
+      "title": "Synthetic trend→actual Director exporter→voice/ASR gates→F4 editor trace",
+      "source_status": "SOURCE_COMPLETE",
+      "owner": "F2",
+      "scope": "source_only",
+      "source_ci_run_id": 41979407804,
+      "verified_on_commit": "85e7b718d23835c624ba6da335b2d1c5c4d6e1d6",
+      "source_code_closure": {
+        "state": "CLOSED_SOURCE_ONLY",
+        "scope": "source_only",
+        "verified_head_sha": "85e7b718d23835c624ba6da335b2d1c5c4d6e1d6",
+        "ci_run_id": 41979407804,
+        "integrated_done": false
+      },
+      "offline_acceptance": {
+        "source_test": "ai-agents/tests/test_feature2_32_director_to_editor_trace.py",
+        "scope": "SYNTHETIC_SOURCE_ACCEPTANCE_ONLY",
+        "durations_seconds": [
+          15,
+          30,
+          60
+        ],
+        "private_trace_events": 13,
+        "actual_mit_director_and_caption_compiled": true,
+        "python_hmac_writer_reader_verified": true,
+        "frontend_trace_projection_verified": true,
+        "forged_asr_editor_and_worker_evidence_denied": true,
+        "real_kokoro_or_f7_asr_run": false,
+        "real_f4_editor_rendered": false,
+        "hosted_jwt_rls_verified": false,
+        "ci_run_id": 41979407804,
+        "ci_sha": "85e7b718d23835c624ba6da335b2d1c5c4d6e1d6"
+      }
+    },
+    {
+      "id": "F2-33",
+      "title": "Live two-tenant JWT/RLS/role revocation E2E",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-34",
+      "title": "Real rights/offer/consent and human review",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-35",
+      "title": "Hosted DEV Playwright and signed protected APIs",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-36",
+      "title": "Human-QA 30-second commercial full Reel",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-37",
+      "title": "Reconcile PR #551, coordinator-only merge and postmerge CI",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Coordinator + F2"
+    },
+    {
+      "id": "F2-38",
+      "title": "Canonical state/decisions/next/worklog docs after integration",
+      "source_status": "EXTERNALLY_BLOCKED",
+      "owner": "Coordinator + F2"
+    }
+  ],
+  "latest_verified_source_substeps": {
+    "state": "TESTED_SOURCE_SUBSTEPS_NOT_MAIN_DONE",
+    "tasks": [
+      "F2-15",
+      "F2-31"
+    ],
+    "ci_run_id": 41901100120,
+    "ci_sha": "aa2bc3da74e5ae46ce3d728e9827ef0669fe0712",
+    "main_integration_verified": false
+  },
+  "code_work_closure": {
+    "closed_on": "2026-11-05",
+    "code_complete_original_tasks_closed": 9,
+    "verified_offline_source_substeps_closed": 17,
+    "closed_source_task_ids": [
+      "F2-04",
+      "F2-05",
+      "F2-06",
+      "F2-07",
+      "F2-11",
+      "F2-13",
+      "F2-28",
+      "F2-30",
+      "F2-32"
+    ],
+    "closed_source_substep_original_ids": [
+      "F2-01",
+      "F2-02",
+      "F2-03",
+      "F2-08",
+      "F2-09",
+      "F2-10",
+      "F2-12",
+      "F2-15",
+      "F2-17",
+      "F2-18",
+      "F2-19",
+      "F2-20",
+      "F2-21",
+      "F2-26",
+      "F2-27",
+      "F2-29",
+      "F2-31"
+    ],
+    "ci_runs_verified_four_of_four": [
+      40861279169,
+      41292492409,
+      41294266905,
+      41304131599,
+      41812081011,
+      41813227582,
+      41814171986,
+      41848875135,
+      41850403506,
+      41901100120,
+      41979407804,
+      41985198673,
+      42270532246,
+      42271348767,
+      42272190219
+    ],
+    "original_in_progress_unmodified": 17,
+    "original_externally_blocked_unmodified": 12,
+    "integrated_done_unmodified": 0,
+    "policy": "Close proven source tasks/substeps to avoid duplicate work; source substep closure does not close the original task, PR, hosted verification, independent approval or production acceptance.",
+    "last_new_source_closure": {
+      "id": "F2-32",
+      "ci_sha": "85e7b718d23835c624ba6da335b2d1c5c4d6e1d6",
+      "ci_run_id": 41979407804,
+      "scope": "source_only"
+    },
+    "additional_offline_substeps_after_snapshot": [
+      {
+        "id": "F2-19",
+        "name": "Signed private voice status API boundary",
+        "ci_run_id": 41985198673,
+        "sha": "f5c2d5370fcd75c603f1306ba53936f0edc9a761",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-03",
+        "name": "Authenticated private F2 adapter F2-03",
+        "ci_run_id": 42270532246,
+        "sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-08",
+        "name": "Authenticated private F2 adapter F2-08",
+        "ci_run_id": 42270532246,
+        "sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-12",
+        "name": "Authenticated private F2 adapter F2-12",
+        "ci_run_id": 42270532246,
+        "sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-20",
+        "name": "Authenticated private F2 adapter F2-20",
+        "ci_run_id": 42270532246,
+        "sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-31",
+        "name": "Authenticated private F2 adapter F2-31",
+        "ci_run_id": 42270532246,
+        "sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-21",
+        "name": "Authenticated private F2 adapter F2-21",
+        "ci_run_id": 42271348767,
+        "sha": "593f7de858bb85b1ef82165c45e17550c9739db1",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-29",
+        "name": "Authenticated private F2 adapter F2-29",
+        "ci_run_id": 42271348767,
+        "sha": "593f7de858bb85b1ef82165c45e17550c9739db1",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-02",
+        "name": "Authenticated private F2 adapter F2-02",
+        "ci_run_id": 42272190219,
+        "sha": "5f25b750dc3e1fe2d3ddaae42587226a8e1c974b",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-27",
+        "name": "Authenticated private F2 adapter F2-27",
+        "ci_run_id": 42272190219,
+        "sha": "5f25b750dc3e1fe2d3ddaae42587226a8e1c974b",
+        "closed": true,
+        "original_task_complete": false
+      }
+    ],
+    "code_first_20261106": {
+      "unique_original_ids_advanced": [
+        "F2-03",
+        "F2-08",
+        "F2-12",
+        "F2-20",
+        "F2-31",
+        "F2-21",
+        "F2-29",
+        "F2-02",
+        "F2-27"
+      ],
+      "new_verified_offline_substeps": 9,
+      "previous_original_source_complete": 9,
+      "original_source_in_progress": 17,
+      "original_externally_blocked": 12,
+      "integrated_done": 0,
+      "note": "Nine NEW verified API-boundary substeps, not original task closure; protected Functions router/runtime, signed DB and model gates remain."
+    }
+  },
+  "last_code_first_batch": {
+    "date": "2026-11-06",
+    "ci": [
+      42270532246,
+      42271348767,
+      42272190219
+    ],
+    "ids": [
+      "F2-03",
+      "F2-08",
+      "F2-12",
+      "F2-20",
+      "F2-31",
+      "F2-21",
+      "F2-29",
+      "F2-02",
+      "F2-27"
+    ],
+    "output": "SIGNED_PRIVATE_API_ADAPTERS_SOURCE_ONLY",
+    "final_hardening": "F2-02 mutable-RLS-alias revocation regression queued in same docs+source commit; verify exact final CI.",
+    "no_gpu": true,
+    "no_paid_model": true,
+    "no_production": true
+  }
+}

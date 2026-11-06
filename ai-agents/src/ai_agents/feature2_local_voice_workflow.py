@@ -5,6 +5,7 @@ No public route or database schema introduced. F4 gets metadata, not raw WAV.
 """
 from __future__ import annotations
 from hashlib import sha256
+from copy import deepcopy
 from uuid import UUID
 from .feature2_azure_speech import _plan, SpeechRejected
 from .feature2_kokoro_local import synthesize_local
@@ -100,8 +101,31 @@ def synthesize_and_stage(*,shop_id,campaign_id,source_plan,voice_id,lang,speed,
     if (type(result) is not dict or not _uuid(result.get("audio_asset_id")) or
         result.get("shop_id")!=shop_id or result.get("campaign_id")!=campaign_id or
         result.get("original_audio_sha256")!=metrics["sha256"] or
-        result.get("private") is not True):
+        result.get("private") is not True or
+        # Successful storage is neither a rights review nor a paid motion/
+        # publication grant. Reject ambiguous optional metadata rather than
+        # trusting the backend writer's booleans or URL.
+        any(k in result and result[k] is not False for k in
+            ("can_publish","can_dispatch_motion","commercial_use_approved",
+             "original_media_rights_verified","pronunciation_verified",
+             "paid_inference_authorized","may_auto_invoke_azure",
+             "approved_for_editing")) or
+        ("review_state" in result and
+         result["review_state"]!="PENDING_HUMAN_LISTEN_AND_RIGHTS") or
+        ("paid_calls" in result and
+         (type(result["paid_calls"]) is not int or result["paid_calls"]!=0)) or
+        ("billing" in result and result["billing"]!="NONE") or
+        ("signed_url" in result and result["signed_url"] is not None) or
+        ("private_download_url" in result and
+         result["private_download_url"] is not None) or
+        ("creative_plan_sha256" in result and
+         result["creative_plan_sha256"]!=review["plan_sha256"])):
         raise LocalVoiceJobDenied("Original audio was not registered in private storage")
+    # Storage can finish after the editor loses access or the plan changes.
+    # A private writer must ALSO fence the commit in its durable transaction.
+    if (authorize_editor(shop_id,campaign_id) is not True or
+        read_current_plan(shop_id,campaign_id)!=source_plan):
+        raise LocalVoiceJobDenied("Editor or source revoked after private audio stage")
     return {**envelope,"private_audio_asset_id":result["audio_asset_id"],
             "audio_bytes":None,"signed_url":None,
             "f4_must_recheck_private_rights":True}
@@ -268,14 +292,18 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
             authorize_current_editor,read_current_plan,
             read_authoritative_quota,reserve_atomic_once))):
         raise LocalVoiceJobDenied("Trusted budgeted voice job scope required")
+    # An auth callback can return the same mutable dict as source_plan.
+    # Pin the original BEFORE calling it, so self-equality cannot hide a revoke.
+    source_snapshot=deepcopy(source_plan)
     try:
         creative,approval,script=_plan(
-            source_plan,shop_id=shop_id,campaign_id=campaign_id)
+            source_snapshot,shop_id=shop_id,campaign_id=campaign_id)
     except SpeechRejected as exc:
         raise LocalVoiceJobDenied("Current reviewed plan missing") from exc
     plan_sha=approval["plan_sha256"]
     if (authorize_current_editor(shop_id,campaign_id) is not True or
-        read_current_plan(shop_id,campaign_id)!=source_plan):
+        read_current_plan(shop_id,campaign_id)!=source_snapshot or
+        source_plan!=source_snapshot):
         raise LocalVoiceJobDenied("Voice editor or original source revoked")
     quota=read_authoritative_quota(shop_id,campaign_id)
     # The policy is trusted and signed by the backend, NEVER browser props.
@@ -305,7 +333,9 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
             now_ms/1000,timezone.utc).strftime("%Y-%m") or
         quota.get("policy_state")!="ACTIVE"):
         raise LocalVoiceJobDenied("Signed CPU budget policy invalid")
-    reserved=quota["per_job_reserved_cpu_ms"]
+    # An atomic writer must not mutate an earlier signed quota view.
+    quota_snapshot=deepcopy(quota)
+    reserved=quota_snapshot["per_job_reserved_cpu_ms"]
     if (quota["active_cpu_jobs"]>=quota["max_active_cpu_jobs"] or
         quota["used_cpu_ms"]+quota["reserved_cpu_ms"]+reserved>
             quota["monthly_cpu_limit_ms"]):
@@ -315,14 +345,14 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
          "original_script_sha256":sha256(script.encode()).hexdigest(),
          "job_key":job_key,"voice_id":voice_id,"language":lang,
          "speed":speed,"provider":"kokoro-onnx",
-         "period_id":quota["period_id"],
-         "budget_revision":quota["budget_revision"],
+         "period_id":quota_snapshot["period_id"],
+         "budget_revision":quota_snapshot["budget_revision"],
          "reserved_cpu_ms":reserved,
          "paid_api_calls_allowed":False}
     request_sha=sha256(json.dumps(req,sort_keys=True,
                      separators=(",",":")).encode()).hexdigest()
     receipt=reserve_atomic_once(shop_id,campaign_id,job_key,request_sha,
-                                quota["budget_revision"],reserved,dict(req))
+                                quota_snapshot["budget_revision"],reserved,dict(req))
     if (type(receipt) is not dict or
         receipt.get("schema")!="retailgrowth.feature2-local-cpu-reservation.v1" or
         receipt.get("shop_id")!=shop_id or
@@ -332,26 +362,40 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
         receipt.get("request_sha256")!=request_sha or
         receipt.get("provider")!="kokoro-onnx" or
         receipt.get("reserved_cpu_ms")!=reserved or
-        receipt.get("period_id")!=quota["period_id"] or
+        receipt.get("period_id")!=quota_snapshot["period_id"] or
         type(receipt.get("lease_fence")) is not int or
         not 1<=receipt["lease_fence"]<2**63 or
         type(receipt.get("lease_expires_ms")) is not int or
         not now_ms<receipt["lease_expires_ms"]<=now_ms+300_000 or
         receipt.get("status")!="RESERVED" or
         receipt.get("private") is not True or
-        receipt.get("paid_api_calls")!=0 or
+        # JSON bool compares equal to integer zero: require literal integer 0
+        # so a forged callback cannot ambiguously claim a paid budget state.
+        type(receipt.get("paid_api_calls")) is not int or
+        receipt["paid_api_calls"]!=0 or
         receipt.get("can_publish") is not False or
+        any(flag in receipt and receipt[flag] is not False for flag in (
+            "can_dispatch_motion","commercial_use_approved",
+            "may_auto_invoke_azure","paid_inference_authorized")) or
+        ("paid_calls" in receipt and
+         (type(receipt["paid_calls"]) is not int or
+          receipt["paid_calls"]!=0)) or
+        ("billing" in receipt and receipt["billing"]!="NONE") or
         receipt.get("atomic_unique_commit") is not True):
         raise LocalVoiceJobDenied("Durable private CPU reservation evidence invalid")
+    # Late callback edits to aliased receipts must also fail closed.
+    receipt_snapshot=deepcopy(receipt)
     if (authorize_current_editor(shop_id,campaign_id) is not True or
-        read_current_plan(shop_id,campaign_id)!=source_plan):
+        read_current_plan(shop_id,campaign_id)!=source_snapshot or
+        source_plan!=source_snapshot or quota!=quota_snapshot or
+        receipt!=receipt_snapshot):
         raise LocalVoiceJobDenied("Voice source revoked after CPU budget lease")
-    return {"schema":receipt["schema"],"shop_id":shop_id,
+    return {"schema":receipt_snapshot["schema"],"shop_id":shop_id,
             "campaign_id":campaign_id,"creative_plan_sha256":plan_sha,
             "job_key":job_key,"request_sha256":request_sha,
-            "lease_fence":receipt["lease_fence"],
-            "lease_expires_ms":receipt["lease_expires_ms"],
-            "reserved_cpu_ms":reserved,"period_id":quota["period_id"],
+            "lease_fence":receipt_snapshot["lease_fence"],
+            "lease_expires_ms":receipt_snapshot["lease_expires_ms"],
+            "reserved_cpu_ms":reserved,"period_id":quota_snapshot["period_id"],
             "provider":"kokoro-onnx","private":True,
             "can_publish":False,"paid_api_calls":0,
             "real_model_inference_observed":False,
@@ -400,12 +444,29 @@ def read_registered_private_original_wav(*,shop_id,campaign_id,source_plan,
             media.get("can_publish") is not False or
             media.get("review_state")!="PENDING_HUMAN_LISTEN_AND_RIGHTS" or
             media.get("revoked_at") is not None or
-            media.get("local_inference_evidence") is not True):
+            media.get("local_inference_evidence") is not True or
+            # Private media metadata must not silently grant public reuse,
+            # paid provider calls or expose a URL while the bytes are pending
+            # human speech/rights review. Optional fields may be absent but
+            # their present denial must be literal False/zero/null.
+            any(key in media and media[key] is not False for key in
+                ("commercial_use_approved","approved_to_publish",
+                 "original_media_rights_verified","paid_motion_permitted",
+                 "paid_inference_authorized","customer_publishable")) or
+            ("paid_calls" in media and
+             (type(media["paid_calls"]) is not int or media["paid_calls"]!=0)) or
+            ("billing" in media and media["billing"]!="NONE") or
+            ("signed_url" in media and media["signed_url"] is not None) or
+            ("private_download_url" in media and
+             media["private_download_url"] is not None)):
             raise LocalVoiceJobDenied("Private original WAV registration or rights changed")
         return media
     if not current():
         raise LocalVoiceJobDenied("Editor revoked before original WAV download")
-    prior=registered()
+    # Keep a copy independent of the backend adapter's cache: two reads
+    # returning the same mutable dict must never compare equal after a
+    # concurrent membership/rights update.
+    prior=dict(registered())
     # Reader is server-selected by the registered asset; no client bucket or
     # object path. Blob bytes must not be logged or cached in shared state.
     raw=read_private_blob(shop_id,campaign_id,audio_asset_id)
@@ -430,3 +491,142 @@ def read_registered_private_original_wav(*,shop_id,campaign_id,source_plan,
             "can_dispatch_motion":False,
             "human_listen_required":True,
             "commercial_rights_not_certified":True}
+
+
+def read_private_local_voice_job_status(*,shop_id,campaign_id,source_plan,
+        request_key,authorize_current_editor,read_current_plan,
+        read_registered_job,read_registered_private_asset):
+    """Read a once-submitted private Kokoro job; NEVER reserve/retry it.
+
+    Callbacks must be trusted JWT/RLS readers. This function only checks
+    their scoped evidence and returns the minimal UI status projection;
+    it does not authenticate a browser, lease a worker or create media.
+    """
+    import re
+    from .feature2_kokoro_local import SUPPORTED_VOICES
+    if (not all(_uuid(x) for x in (shop_id,campaign_id,request_key))
+        or not all(callable(f) for f in
+            (authorize_current_editor,read_current_plan,
+             read_registered_job,read_registered_private_asset))):
+        raise LocalVoiceJobDenied("Trusted original private status scope required")
+    try:
+        _,review,script=_plan(source_plan,shop_id=shop_id,campaign_id=campaign_id)
+    except SpeechRejected as exc:
+        raise LocalVoiceJobDenied("Current reviewed source plan required") from exc
+    plan_sha=review["plan_sha256"]
+    script_sha=sha256(script.encode("utf-8")).hexdigest()
+    def current():
+        return (authorize_current_editor(shop_id,campaign_id) is True
+                and read_current_plan(shop_id,campaign_id)==source_plan)
+    if not current():
+        raise LocalVoiceJobDenied("Private speech status editor or plan revoked")
+    states={"RESERVED","RUNNING","AWAITING_HUMAN_REVIEW",
+            "FAILED","DENIED","BLOCKED"}
+    terminal={"AWAITING_HUMAN_REVIEW","FAILED","DENIED","BLOCKED"}
+    def job_snapshot():
+        row=read_registered_job(shop_id,campaign_id,request_key)
+        if (type(row) is not dict or
+            row.get("schema")!="retailgrowth.feature2-private-voice-job-status.v1" or
+            row.get("shop_id")!=shop_id or row.get("campaign_id")!=campaign_id or
+            row.get("request_key")!=request_key or
+            row.get("creative_plan_sha256")!=plan_sha or
+            row.get("original_script_sha256")!=script_sha or
+            row.get("provider")!="kokoro-onnx" or
+            type(row.get("status")) is not str or
+            row["status"] not in states or
+            row.get("private") is not True or
+            row.get("can_publish") is not False or
+            row.get("can_dispatch_motion") is not False or
+            row.get("automatically_retried") is not False or
+            row.get("azure_fallback_used") is not False or
+            type(row.get("paid_api_calls")) is not int or
+            row["paid_api_calls"]!=0 or
+            row.get("revoked_at") is not None or
+            type(row.get("terminal")) is not bool or
+            row["terminal"]!=(row["status"] in terminal) or
+            row.get("review_status")!=(
+                "PENDING_HUMAN_LISTEN_AND_RIGHTS"
+                if row["status"]=="AWAITING_HUMAN_REVIEW" else "NOT_READY") or
+            type(row.get("request_sha256")) is not str or
+            not re.fullmatch(r"[a-f0-9]{64}",row["request_sha256"]) or
+            type(row.get("lease_fence")) is not int or
+            not 1<=row["lease_fence"]<2**63 or
+            type(row.get("voice_id")) is not str or
+            row["voice_id"] not in SUPPORTED_VOICES or
+            row.get("language")!=SUPPORTED_VOICES[row["voice_id"]] or
+            any(flag in row and row[flag] is not False for flag in (
+                "commercial_use_approved","may_auto_invoke_azure",
+                "paid_inference_authorized","customer_publishable",
+                "approved_to_publish","original_media_rights_verified")) or
+            ("paid_calls" in row and
+             (type(row["paid_calls"]) is not int or row["paid_calls"]!=0)) or
+            ("billing" in row and row["billing"]!="NONE") or
+            ("signed_url" in row and row["signed_url"] is not None) or
+            ("private_download_url" in row and
+             row["private_download_url"] is not None)):
+
+            raise LocalVoiceJobDenied("Tenant-private original voice job not verified")
+        completed=row["status"]=="AWAITING_HUMAN_REVIEW"
+        if completed:
+            if (not _uuid(row.get("audio_asset_id")) or
+                type(row.get("original_audio_sha256")) is not str or
+                not re.fullmatch(r"[a-f0-9]{64}",row["original_audio_sha256"])):
+                raise LocalVoiceJobDenied("Private job lacks registered original WAV")
+        elif row.get("audio_asset_id") is not None or row.get("original_audio_sha256") is not None:
+            raise LocalVoiceJobDenied("Nonreviewed job cannot expose original audio")
+        return row
+    # Keep a separate point-in-time view: a trusted adapter is allowed to
+    # reuse a mutable dictionary object on repeated database reads, and a
+    # self-comparison would otherwise miss a concurrent revocation/update.
+    job=dict(job_snapshot())
+    def private_media():
+        if job["status"]!="AWAITING_HUMAN_REVIEW":
+            return None
+        asset=read_registered_private_asset(
+            shop_id,campaign_id,job["audio_asset_id"])
+        if (type(asset) is not dict or
+            asset.get("schema")!="retailgrowth.feature2-to-feature4-original-voice.v1" or
+            asset.get("shop_id")!=shop_id or
+            asset.get("campaign_id")!=campaign_id or
+            asset.get("source_request_key")!=request_key or
+            asset.get("audio_asset_id")!=job["audio_asset_id"] or
+            asset.get("creative_plan_sha256")!=plan_sha or
+            asset.get("original_script_sha256")!=script_sha or
+            asset.get("original_audio_sha256")!=job["original_audio_sha256"] or
+            asset.get("provider")!="kokoro-onnx" or
+            asset.get("mime_type")!="audio/wav" or
+            asset.get("private") is not True or
+            asset.get("can_publish") is not False or
+            asset.get("review_state")!="PENDING_HUMAN_LISTEN_AND_RIGHTS" or
+            asset.get("revoked_at") is not None or
+            asset.get("local_inference_evidence") is not True or
+            any(key in asset and asset[key] is not False for key in
+                ("commercial_use_approved","paid_motion_permitted",
+                 "approved_to_publish","original_media_rights_verified",
+                 "paid_inference_authorized","customer_publishable")) or
+            ("paid_calls" in asset and
+             (type(asset["paid_calls"]) is not int or asset["paid_calls"]!=0)) or
+            ("billing" in asset and asset["billing"]!="NONE") or
+            ("signed_url" in asset and asset["signed_url"] is not None) or
+            ("private_download_url" in asset and
+             asset["private_download_url"] is not None)):
+            raise LocalVoiceJobDenied("Original job WAV rights or source revoked")
+        return asset
+    first_private=private_media()
+    original=dict(first_private) if first_private is not None else None
+    if not current() or job_snapshot()!=job or private_media()!=original:
+        raise LocalVoiceJobDenied("Private voice status revoked during read")
+    # Do not return the durable reservation digest, lease fence, actor claims,
+    # blob path, signed URL, tokens, raw transcript or unverified worker logs.
+    return {
+        "schema":"retailgrowth.feature2-private-voice-job-status.v1",
+        "shop_id":shop_id,"campaign_id":campaign_id,
+        "creative_plan_sha256":plan_sha,"request_key":request_key,
+        "provider":"kokoro-onnx","status":job["status"],
+        "private":True,"terminal":job["terminal"],
+        "review_status":job["review_status"],
+        "original_audio_sha256":job["original_audio_sha256"],
+        "audio_asset_id":job["audio_asset_id"],
+        "can_publish":False,"automatically_retried":False,
+        "azure_fallback_used":False,"paid_api_calls":0,
+    }

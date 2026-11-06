@@ -13,6 +13,8 @@ from io import BytesIO
 from pathlib import Path
 import os
 import re
+import stat
+import unicodedata
 import threading
 import time
 import wave
@@ -42,14 +44,33 @@ class LocalSpeechUnavailable(ValueError):
     pass
 
 def _file_proof(path:Path,expected_name,expected_bytes,expected_sha):
-    if not path.is_file() or path.is_symlink() or path.name!=expected_name:
+    """Hash pinned bytes through one regular-file descriptor, without symlinks.
+
+    The operator must keep the verified cache immutable while the upstream
+    loader opens model paths. This check itself is not a filesystem lease.
+    """
+    if path.name!=expected_name or path.is_symlink():
         raise LocalSpeechUnavailable("Pinned local model original unavailable")
-    if path.stat().st_size!=expected_bytes:
-        raise LocalSpeechUnavailable("Pinned ONNX/voice size mismatch")
     h=__import__("hashlib").sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda:stream.read(1024*1024),b""):
-            h.update(chunk)
+    try:
+        # O_NOFOLLOW also protects an attacker swapping a regular file for
+        # a symlink between the initial path check and the actual open.
+        flags=os.O_RDONLY | getattr(os,"O_NOFOLLOW",0)
+        with os.fdopen(os.open(path,flags),"rb") as stream:
+            before=os.fstat(stream.fileno())
+            if not stat.S_ISREG(before.st_mode):
+                raise LocalSpeechUnavailable("Pinned local model original unavailable")
+            if before.st_size!=expected_bytes:
+                raise LocalSpeechUnavailable("Pinned ONNX/voice size mismatch")
+            for chunk in iter(lambda:stream.read(1024*1024),b""):
+                h.update(chunk)
+            after=os.fstat(stream.fileno())
+            if (after.st_size!=expected_bytes or
+                after.st_ino!=before.st_ino or
+                after.st_dev!=before.st_dev):
+                raise LocalSpeechUnavailable("Pinned ONNX/voice changed during verification")
+    except OSError as exc:
+        raise LocalSpeechUnavailable("Pinned local model original unavailable") from exc
     if h.hexdigest()!=expected_sha:
         raise LocalSpeechUnavailable("Pinned ONNX/voice digest mismatch")
     return h.hexdigest()
@@ -63,7 +84,10 @@ def verify_cache(cache_dir, *, model_sha=MODEL_SHA, voice_sha=VOICES_SHA,
     """
     if not isinstance(cache_dir,(str,Path)) or not str(cache_dir):
         raise LocalSpeechUnavailable("Trusted speech cache required")
-    root=Path(cache_dir).resolve(strict=True)
+    try:
+        root=Path(cache_dir).resolve(strict=True)
+    except (OSError,RuntimeError) as exc:
+        raise LocalSpeechUnavailable("Trusted speech cache required") from exc
     if not root.is_dir():
         raise LocalSpeechUnavailable("Trusted speech cache required")
     _file_proof(root/MODEL_NAME,MODEL_NAME,model_size,model_sha)
@@ -135,8 +159,16 @@ def synthesize_local(*,text,voice_id="af_heart",lang="en-us",
     engine injection is ONLY for tests. Genuine caller must use verified model
     cache and real upstream package. Synthetic test result is marked TEST_ONLY.
     """
+    # Reject hidden/BiDi/C1 text before hashing model weights or acquiring
+    # the one CPU lease. JSON selector fields may be lists/dicts; avoid
+    # unhashable speed keys becoming a worker exception.
     if (type(text) is not str or not _TEXT.fullmatch(text.strip()) or
-        len(text.strip())>1400 or type(voice_id) is not str or
+        len(text.strip())>1400 or
+        any(0x7f<=ord(ch)<=0x9f or
+            unicodedata.category(ch) in ("Cf","Cs","Zl","Zp")
+            for ch in text) or
+        type(voice_id) is not str or type(lang) is not str or
+        type(speed) is not str or
         SUPPORTED_VOICES.get(voice_id)!=lang or speed not in SPEEDS):
         raise LocalSpeechUnavailable("Unsupported text/voice/language/speed")
     if engine is not None and trusted_for_tests is not True:
@@ -233,8 +265,13 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
             audio.get("model")!="Kokoro-82M-v1.0-int8" or
             audio.get("upstream_revision")!=SOURCE_REVISION or
             audio.get("voice_id")!=voice_id or audio.get("language")!=lang or
-            audio.get("sample_rate_hz")!=24000 or
-            audio.get("paid_calls")!=0 or
+            type(audio.get("sample_rate_hz")) is not int or
+            audio["sample_rate_hz"]!=24000 or
+            type(audio.get("paid_calls")) is not int or
+            audio["paid_calls"]!=0 or
+            audio.get("approved_to_publish") is not False or
+            audio.get("speech_transcript_verified") is not False or
+            audio.get("word_timestamps") is not None or
             audio.get("test_only") is not trusted_for_tests or
             audio.get("actual_inference_verified") is not (not trusted_for_tests) or
             type(audio.get("audio_wav")) is not bytes or
@@ -245,6 +282,30 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
             not audio["audio_wav"].startswith(b"RIFF") or
             audio["audio_wav"][8:12]!=b"WAVE"):
             raise LocalSpeechUnavailable("Benchmark source/audio provenance invalid")
+        # RIFF/WAVE magic and wave.open alone can accept hidden trailing
+        # bytes or duplicate data chunks. Reuse the EXISTING strict private
+        # source-audio validator before crediting CPU benchmark evidence.
+        # This is a format check, never evidence of real speech quality.
+        from .feature2_voiceover_upload import _inspect, VoiceUploadRejected
+        try:
+            _inspect(audio["audio_wav"],60)
+        except VoiceUploadRejected as exc:
+            raise LocalSpeechUnavailable("Benchmark original WAV RIFF boundary invalid") from exc
+        try:
+            with wave.open(BytesIO(audio["audio_wav"]),"rb") as reader:
+                count=reader.getnframes()
+                if (reader.getnchannels()!=1 or reader.getsampwidth()!=2 or
+                    reader.getframerate()!=24000 or
+                    reader.getcomptype()!="NONE" or count<2400 or count>24000*60):
+                    raise LocalSpeechUnavailable("Benchmark original WAV PCM invalid")
+                raw=reader.readframes(count)
+                if len(raw)!=2*count:
+                    raise LocalSpeechUnavailable("Benchmark original WAV truncated")
+                measured=round(count/24000,4)
+        except (OSError,ValueError,EOFError,wave.Error) as exc:
+            raise LocalSpeechUnavailable("Benchmark original WAV invalid") from exc
+        if abs(measured-audio["duration_seconds"])>0.0001:
+            raise LocalSpeechUnavailable("Benchmark original WAV duration mismatch")
         observations.append({
             "wall_seconds":round(wall,4),
             "process_cpu_seconds":round(cpu,4),
@@ -253,6 +314,10 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
             "process_high_water_rss_kib":rss_kib(),
         })
     after=rss_kib()
+    factors=sorted(row["real_time_factor"] for row in observations)
+    total_wall=sum(row["wall_seconds"] for row in observations)
+    # These are diagnostic readings from one process, not a per-job charge
+    # or a verified cold-to-warm speedup on hardware without actual weights.
     return {
         "schema":"retailgrowth.feature2-cpu-benchmark.v1",
         "engine":"kokoro-onnx",
@@ -260,6 +325,12 @@ def run_cpu_kokoro_benchmark(*,cache_dir,voice_id="af_heart",
         "upstream_revision":SOURCE_REVISION,
         "voice_id":voice_id,"language":lang,"sample_count":repeats,
         "observations":observations,
+        "total_measured_wall_seconds":round(total_wall,4),
+        "median_real_time_factor":round(factors[len(factors)//2],4)
+            if repeats%2 else round((factors[0]+factors[1])/2,4),
+        "worst_real_time_factor":factors[-1],
+        "warm_observation_count":max(0,repeats-1),
+        "cold_start_and_warm_are_same_process":True,
         "process_hwm_rss_before_kib":before,
         "process_hwm_rss_after_kib":after,
         "rss_is_process_high_water_only":True,
