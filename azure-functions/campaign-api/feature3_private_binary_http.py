@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 from io import BytesIO
+from uuid import UUID
 import re
 
 from PIL import Image, UnidentifiedImageError
@@ -197,7 +198,8 @@ class Feature3PrivateBinaryHTTP:
             # Do not echo a noncanonical reader-supplied asset identifier.
             asset_id = receipt.get("media_asset_id")
             if (type(asset_id) is not str or
-                    canonical_uuid(asset_id) != asset_id):
+                    canonical_uuid(asset_id) != asset_id or
+                    UUID(asset_id).version != 4):
                 return self._deny(503)
             raw=receipt.get("image_bytes")
             digest=receipt.get("image_sha256")
