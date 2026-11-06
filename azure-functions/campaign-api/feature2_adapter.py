@@ -690,3 +690,199 @@ class Feature2ReviewedDraftAdapter:
             return 404, {"error":"NOT_FOUND"}
         except StorageUnavailable:
             return 503, {"error":"REVIEW_STORE_UNAVAILABLE"}
+
+
+class Feature2LocalCpuReservationAdapter:
+    """F2-21: JWT-scoped, once-only, CPU-only local voice budget reservation.
+
+    This is NOT a synthesis or queue-dispatch endpoint. The trusted injected
+    reserve_validator enforces the server quota, exact source SHA, writer CAS,
+    lease fencing and zero paid fallback. The server must supply a real atomic
+    budget/unique-job transaction; no browser flags authorize spend.
+    """
+
+    def __init__(self, verify_token, tenant_store, *, plan_reader=None,
+                 quota_reader=None, atomic_reserver=None,
+                 reserve_validator=None, server_clock_ms=None):
+        self.verify_token, self.tenant_store = verify_token, tenant_store
+        self.plan_reader, self.quota_reader = plan_reader, quota_reader
+        self.atomic_reserver = atomic_reserver
+        self.reserve_validator, self.server_clock_ms = (
+            reserve_validator, server_clock_ms)
+
+    def post(self, shop_id, campaign_id, authorization, payload):
+        from copy import deepcopy
+        import re
+        code, identity=_feature2_private_scope(
+            self.verify_token,self.tenant_store,shop_id,campaign_id,authorization)
+        if code is not None:
+            return code, {"error":"UNAUTHORIZED" if code==401 else
+                          "CPU_RESERVATION_UNAVAILABLE" if code==503 else
+                          "NOT_FOUND" if code==404 else "INVALID_REQUEST"}
+        sid,cid,actor,token=identity
+        keys={"schema","shop_id","campaign_id","creative_plan_sha256",
+              "voice_id","language","speed","preview","provider",
+              "request_key","needs_current_server_signed_grants",
+              "may_auto_invoke_azure","estimated_paid_cost_usd"}
+        if type(payload) is not dict or set(payload)!=keys:
+            return 400, {"error":"INVALID_REQUEST"}
+        try:
+            job_key=canonical_uuid(payload["request_key"])
+            if UUID(job_key).version!=4:
+                return 400, {"error":"INVALID_REQUEST"}
+        except (ValueError,TypeError,AttributeError):
+            return 400, {"error":"INVALID_REQUEST"}
+        if (payload["schema"]!="retailgrowth.feature2-local-voice-job.v1" or
+            payload["shop_id"]!=sid or payload["campaign_id"]!=cid or
+            type(payload["creative_plan_sha256"]) is not str or
+            not re.fullmatch("[a-f0-9]{64}",payload["creative_plan_sha256"]) or
+            payload["provider"]!="kokoro-onnx" or
+            type(payload["voice_id"]) is not str or
+            type(payload["language"]) is not str or
+            type(payload["speed"]) is not str or
+            type(payload["preview"]) is not bool or
+            payload["needs_current_server_signed_grants"] is not True or
+            payload["may_auto_invoke_azure"] is not False or
+            type(payload["estimated_paid_cost_usd"]) not in (int,float) or
+            payload["estimated_paid_cost_usd"]!=0):
+            return 400, {"error":"INVALID_REQUEST"}
+        if not all(callable(f) for f in
+                (self.plan_reader,self.quota_reader,self.atomic_reserver,
+                 self.reserve_validator,self.server_clock_ms)):
+            return 503, {"error":"CPU_RESERVATION_UNAVAILABLE"}
+        try:
+            def editor(s,c):
+                return (s,c)==(sid,cid) and _feature2_private_editor(
+                    self.tenant_store,token,actor,sid,cid)
+            if not editor(sid,cid):
+                return 404, {"error":"NOT_FOUND"}
+            current=self.plan_reader(token,actor,sid,cid)
+            if (type(current) is not dict or
+                type(current.get("approval_record")) is not dict or
+                current["approval_record"].get("plan_sha256")!=
+                    payload["creative_plan_sha256"]):
+                return 404, {"error":"NOT_FOUND"}
+            receipt=self.reserve_validator(
+                shop_id=sid,campaign_id=cid,source_plan=deepcopy(current),
+                voice_id=payload["voice_id"],lang=payload["language"],
+                speed=payload["speed"],job_key=job_key,
+                now_ms=self.server_clock_ms(),
+                authorize_current_editor=editor,
+                read_current_plan=lambda s,c:self.plan_reader(token,actor,s,c),
+                read_authoritative_quota=lambda s,c:
+                    self.quota_reader(token,actor,s,c),
+                reserve_atomic_once=lambda s,c,key,req,revision,cpu,record:
+                    self.atomic_reserver(token,actor,s,c,key,req,revision,cpu,record))
+            if (type(receipt) is not dict or
+                receipt.get("schema")!="retailgrowth.feature2-local-cpu-reservation.v1" or
+                receipt.get("shop_id")!=sid or receipt.get("campaign_id")!=cid or
+                receipt.get("creative_plan_sha256")!=payload["creative_plan_sha256"] or
+                receipt.get("job_key")!=job_key or
+                receipt.get("provider")!="kokoro-onnx" or
+                receipt.get("private") is not True or
+                receipt.get("can_publish") is not False or
+                receipt.get("paid_api_calls")!=0 or
+                type(receipt.get("paid_api_calls")) is not int or
+                receipt.get("real_model_inference_observed") is not False or
+                receipt.get("reservation_is_not_worker_completion") is not True):
+                return 404, {"error":"NOT_FOUND"}
+            if not editor(sid,cid):
+                return 404, {"error":"NOT_FOUND"}
+            return 202,receipt
+        except (ValueError,PermissionError,KeyError,TypeError):
+            return 404, {"error":"NOT_FOUND"}
+        except StorageUnavailable:
+            return 503, {"error":"CPU_RESERVATION_UNAVAILABLE"}
+
+
+class Feature2PrivateMp3UploadAdapter:
+    """F2-29: save original MP3 + derived WAV as two PRIVATE pending assets.
+
+    Incoming bytes must reach this boundary over an authenticated body;
+    MIME, FFmpeg executable, plan and storage writer are server-selected.
+    No caller path/FFmpeg args or browser-declared rights can be supplied.
+    The source verifier is injected only when the independently reviewed
+    CPU FFmpeg worker + durable atomic two-asset writer are configured.
+    """
+
+    def __init__(self, verify_token, tenant_store, *, plan_reader=None,
+                 dual_asset_writer=None, mp3_verifier=None,
+                 operator_ffmpeg_path=None):
+        self.verify_token, self.tenant_store = verify_token, tenant_store
+        self.plan_reader,self.dual_asset_writer = plan_reader,dual_asset_writer
+        self.mp3_verifier,self.operator_ffmpeg_path=(
+            mp3_verifier,operator_ffmpeg_path)
+
+    def post(self, shop_id, campaign_id, authorization, *,
+             original_mp3, content_type):
+        from copy import deepcopy
+        from hashlib import sha256
+        code,identity=_feature2_private_scope(
+            self.verify_token,self.tenant_store,shop_id,campaign_id,authorization)
+        if code is not None:
+            return code, {"error":"UNAUTHORIZED" if code==401 else
+                          "PRIVATE_UPLOAD_UNAVAILABLE" if code==503 else
+                          "NOT_FOUND" if code==404 else "INVALID_REQUEST"}
+        sid,cid,actor,token=identity
+        if (content_type!="audio/mpeg" or type(original_mp3) is not bytes or
+            not 128<=len(original_mp3)<=20_000_000):
+            return 400, {"error":"INVALID_REQUEST"}
+        if (not all(callable(f) for f in
+                    (self.plan_reader,self.dual_asset_writer,self.mp3_verifier))
+            or not self.operator_ffmpeg_path):
+            return 503, {"error":"PRIVATE_UPLOAD_UNAVAILABLE"}
+        try:
+            def editor(s,c):
+                return (s,c)==(sid,cid) and _feature2_private_editor(
+                    self.tenant_store,token,actor,sid,cid)
+            if not editor(sid,cid):
+                return 404, {"error":"NOT_FOUND"}
+            current=self.plan_reader(token,actor,sid,cid)
+            if type(current) is not dict:
+                return 404, {"error":"NOT_FOUND"}
+            verified=self.mp3_verifier(
+                shop_id=sid,campaign_id=cid,plan=deepcopy(current),
+                original_mp3=original_mp3,
+                operator_ffmpeg_path=self.operator_ffmpeg_path,
+                authenticated_editor=editor,
+                read_authoritative_plan=lambda s,c:self.plan_reader(token,actor,s,c),
+                store_both_private_pending=lambda s,c,mp3,wav,envelope:
+                    self.dual_asset_writer(token,actor,s,c,mp3,wav,envelope),
+                client_declared_rights=None)
+            if (type(verified) is not dict or
+                verified.get("schema")!="retailgrowth.feature2-uploaded-mp3-pending.v1" or
+                verified.get("shop_id")!=sid or verified.get("campaign_id")!=cid or
+                verified.get("original_mp3_sha256")!=sha256(original_mp3).hexdigest() or
+                verified.get("source_mime_type")!="audio/mpeg" or
+                verified.get("derived_mime_type")!="audio/wav" or
+                verified.get("private") is not True or
+                verified.get("can_publish") is not False or
+                verified.get("can_dispatch_motion") is not False or
+                verified.get("review_state")!="PENDING_RIGHTS_AND_SPEECH_REVIEW" or
+                verified.get("original_media_rights_verified") is not False or
+                verified.get("human_speech_alignment_verified") is not False or
+                verified.get("original_wav_is_registered_feature7_source") is not False or
+                verified.get("private_download_url") is not None or
+                verified.get("billing")!="NONE" or
+                type(verified.get("paid_calls")) is not int or
+                verified["paid_calls"]!=0 or
+                type(verified.get("asset_id")) is not str or
+                type(verified.get("derived_wav_asset_id")) is not str or
+                verified["asset_id"]==verified["derived_wav_asset_id"]):
+                return 404, {"error":"NOT_FOUND"}
+            if not editor(sid,cid):
+                return 404, {"error":"NOT_FOUND"}
+            # Return bounded signed-source registration ONLY, never private
+            # decoded WAV, original MP3 bytes or any public download URL.
+            return 201, {"schema":verified["schema"],
+                "shop_id":sid,"campaign_id":cid,
+                "asset_id":verified["asset_id"],
+                "derived_wav_asset_id":verified["derived_wav_asset_id"],
+                "original_mp3_sha256":verified["original_mp3_sha256"],
+                "derived_wav_sha256":verified["derived_wav_sha256"],
+                "review_state":"PENDING_RIGHTS_AND_SPEECH_REVIEW",
+                "private":True,"can_publish":False,"paid_calls":0}
+        except (ValueError,PermissionError,KeyError,TypeError):
+            return 404, {"error":"NOT_FOUND"}
+        except StorageUnavailable:
+            return 503, {"error":"PRIVATE_UPLOAD_UNAVAILABLE"}
