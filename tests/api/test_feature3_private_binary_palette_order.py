@@ -143,6 +143,33 @@ class TransparencyPaletteOrderingTests(unittest.TestCase):
         reader.raw = image_with_chunks()
         self.assertEqual(get()[0], 200)
 
+    def test_duplicate_and_post_idat_color_metadata_denied(self):
+        reader = Reader()
+        adapter = Feature3PrivateBinaryHTTP(reader=reader)
+        def get():
+            return adapter.handle(method="GET", authorization="Bearer synthetic-only",
+                                  shop_id=reader.shop, job_id=reader.job)
+        # A valid colour-space hint is not permission to duplicate metadata.
+        for kind, payload in ((b"sRGB", bytes((0,))),
+                              (b"gAMA", bytes((0, 0, 177, 143))),
+                              (b"pHYs", bytes((0, 0, 11, 19, 0, 0, 11, 19, 1)))):
+            with self.subTest(kind=kind, placement="duplicate"):
+                reader.raw = image_with_chunks((kind, payload), (kind, payload))
+                status, body, headers = get()
+                self.assertEqual((status, body), (503, b""))
+                self.assertEqual(headers["Vary"], "Authorization")
+                self.assertNotIn("Content-Disposition", headers)
+            with self.subTest(kind=kind, placement="after-idat"):
+                # Insert a CRC-valid metadata chunk immediately before IEND.
+                base = image_with_chunks()
+                reader.raw = base[:-12] + chunk(kind, payload) + base[-12:]
+                status, body, headers = get()
+                self.assertEqual((status, body), (503, b""))
+                self.assertEqual(headers["Cache-Control"], "no-store, private, max-age=0")
+        # Rejected metadata must not affect subsequent valid private bytes.
+        reader.raw = image_with_chunks()
+        self.assertEqual(get()[0], 200)
+
     def test_valid_order_and_reversed_order(self):
         reader = Reader()
         adapter = Feature3PrivateBinaryHTTP(reader=reader)
