@@ -179,5 +179,6 @@ def test_f2_19_20_routes_are_distinct_get_only_and_have_opt_in_guard():
     assert '!= "true"' in body
     assert "RETAIL_SUPABASE_PUBLISHABLE_KEY" in body
     assert "RETAIL_SUPABASE_SERVICE_ROLE_KEY" not in body
-    assert "read_private_local_voice_job_status" in body
-    assert "read_registered_private_original_wav" in body
+    assert "from ai_agents" not in body
+    assert "status_verifier=None" in body
+    assert "wav_verifier=None" in body

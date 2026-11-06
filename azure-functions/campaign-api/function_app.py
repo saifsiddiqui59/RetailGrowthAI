@@ -485,21 +485,19 @@ def build_feature2_private_voice():
     try:
         from feature2_store import Feature2PrivateVoiceStore
         from feature2_adapter import Feature2PrivateVoiceGateway
-        # These source dependencies are NOT yet on the protected Functions ZIP
-        # allowlist. Import only in operator-approved mode. When unavailable,
-        # refuse the endpoint; never silently skip SHA/PCM/tenant validation.
-        from ai_agents.feature2_local_voice_workflow import (
-            read_private_local_voice_job_status,
-            read_registered_private_original_wav,
-        )
+        # The original F2 validators are NOT yet in the independently
+        # reviewed Functions ZIP manifest. Keep the route fail-closed even
+        # when someone toggles this env flag. An affected-lead-reviewed
+        # runtime import and protected package update must happen together;
+        # never bypass the package dependency scanner using dynamic imports.
         origin=os.environ["RETAIL_SUPABASE_URL"]
         key=os.environ["RETAIL_SUPABASE_PUBLISHABLE_KEY"]
         tenant=TenantStore(origin,key)
         return Feature2PrivateVoiceGateway(
             SupabaseJWTVerifier(origin),tenant,
             Feature2PrivateVoiceStore(tenant),
-            status_verifier=read_private_local_voice_job_status,
-            wav_verifier=read_registered_private_original_wav)
+            status_verifier=None,
+            wav_verifier=None)
     except (ImportError,KeyError,OSError,ValueError):
         # Runtime package could not be independently verified/loaded.
         return None
