@@ -29,8 +29,14 @@ def private_png_response(request, *, shop_id, job_id, reader_factory, enabled=Fa
     # a downstream verifier must never select a different credential.
     try:
         header_items = request.headers.items()
-        auth_fields = [(key, value) for key, value in header_items
-                       if type(key) is str and key.lower() == "authorization"]
+        header_pairs = list(header_items)
+        # Malformed header collections are not trustworthy: never silently
+        # ignore a non-string field that might conceal duplicate credentials.
+        if any(type(key) is not str or type(value) is not str
+               for key, value in header_pairs):
+            return Feature3PrivateBinaryHTTP._deny(401)
+        auth_fields = [(key, value) for key, value in header_pairs
+                       if key.lower() == "authorization"]
         if (len(auth_fields) != 1 or type(auth_fields[0][1]) is not str or
                 auth_fields[0][1] != authorization):
             return Feature3PrivateBinaryHTTP._deny(401)
