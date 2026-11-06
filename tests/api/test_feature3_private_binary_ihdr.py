@@ -63,6 +63,20 @@ class PrivateIHDRBoundaryTests(unittest.TestCase):
         self.assertEqual(body, self.reader.raw)
         self.assertEqual(headers["Cache-Control"], "no-store, private, max-age=0")
 
+    def test_small_decodable_png_is_denied_even_with_matching_receipt(self):
+        # A 64px PNG has valid pixels, CRC and a matching synthetic SHA,
+        # but the private generated-output contract requires >=256px.
+        original = self.reader.raw
+        small = BytesIO()
+        Image.new("RGB", (64, 64), "#776655").save(small, format="PNG")
+        self.reader.raw = small.getvalue()
+        status, body, headers = self.response()
+        self.assertEqual((status, body), (503, b""))
+        self.assertEqual(headers["Cache-Control"], "no-store, private, max-age=0")
+        self.assertNotIn("Content-Disposition", headers)
+        self.reader.raw = original
+        self.assertEqual(self.response()[0], 200)
+
     def test_self_consistent_digest_cannot_authorize_invalid_ihdr(self):
         original = self.reader.raw
         variants = [
