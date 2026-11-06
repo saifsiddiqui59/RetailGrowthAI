@@ -273,6 +273,49 @@ class RouteTests(unittest.TestCase):
         self.assertEqual((status, body), (401, b""))
         self.assertEqual(calls, [])
 
+    def test_hostile_header_iterators_and_nonstring_values_fail_closed(self):
+        # These synthetic adapters model malformed proxy/header collections.
+        # No backend reader may be created when enumeration cannot be trusted.
+        calls = []
+        def factory():
+            calls.append("constructed")
+            return self.reader
+
+        class ExplodingHeaders:
+            def get(self, key, default=None):
+                return "Bearer signed-retailer-test"
+            def items(self):
+                raise RuntimeError("private header adapter failure")
+
+        class LazyExplodingHeaders(ExplodingHeaders):
+            def items(self):
+                yield ("Authorization", "Bearer signed-retailer-test")
+                raise RuntimeError("private iterator failure")
+
+        class NonStringHeaders(ExplodingHeaders):
+            def items(self):
+                return [("Authorization", b"Bearer signed-retailer-test")]
+
+        class InvalidKeyHeaders(ExplodingHeaders):
+            def items(self):
+                return [(b"Authorization", "Bearer signed-retailer-test")]
+
+        for headers in (ExplodingHeaders(), LazyExplodingHeaders(),
+                        NonStringHeaders(), InvalidKeyHeaders()):
+            with self.subTest(adapter=type(headers).__name__):
+                req = Request()
+                req.headers = headers
+                status, body, response_headers = private_png_response(
+                    req, shop_id=self.shop, job_id=self.job,
+                    reader_factory=factory, enabled=True)
+                self.assertEqual((status, body), (401, b""))
+                self.assertEqual(response_headers["Cache-Control"],
+                                 "no-store, private, max-age=0")
+                self.assertNotIn("private header", str(response_headers).lower())
+        self.assertEqual(calls, [])
+        self.assertEqual(self.reader.calls, [])
+        self.assertEqual(self.invoke(factory)[0], 200)
+
     def test_bad_token_denied_before_reader(self):
         req = Request()
         req.headers = {"Authorization": "Bearer sb_secret_invalid"}
