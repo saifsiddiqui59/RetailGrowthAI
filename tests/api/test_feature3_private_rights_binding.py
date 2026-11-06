@@ -127,6 +127,44 @@ class BindingTests(unittest.TestCase):
         self.assertFalse(reader.rights(foreign_shop, self.job, self.asset))
         self.assertEqual(observed, [(self.shop, self.job, self.asset)])
 
+    def test_scoped_reader_denies_changed_pins_and_recovers(self):
+        snapshot = dict(shop_id=self.shop, job_id=self.job,
+                        output_sha256="a" * 64, rights_revision=2)
+        pin_calls = []
+        def pins(shop, job):
+            pin_calls.append((shop, job))
+            return dict(snapshot)
+        reader = build_scoped_private_png_reader(
+            shop_id=self.shop, job_id=self.job, tenant_store=Store(),
+            verify_user_jwt=lambda token: self.shop,
+            authoritative_read=self.authority, trusted_output_pins=pins)
+        self.assertTrue(reader.rights(self.shop, self.job, self.asset))
+        snapshot["rights_revision"] = 3
+        self.assertFalse(reader.rights(self.shop, self.job, self.asset))
+        snapshot["rights_revision"] = 2
+        snapshot["output_sha256"] = "b" * 64
+        self.assertFalse(reader.rights(self.shop, self.job, self.asset))
+        snapshot["output_sha256"] = "a" * 64
+        self.assertTrue(reader.rights(self.shop, self.job, self.asset))
+        self.assertEqual(self.calls, 2)
+        self.assertEqual(len(pin_calls), 5)
+
+    def test_scoped_reader_denies_malformed_pin_refresh(self):
+        snapshot = dict(shop_id=self.shop, job_id=self.job,
+                        output_sha256="a" * 64, rights_revision=2)
+        def pins(shop, job):
+            return dict(snapshot)
+        reader = build_scoped_private_png_reader(
+            shop_id=self.shop, job_id=self.job, tenant_store=Store(),
+            verify_user_jwt=lambda token: self.shop,
+            authoritative_read=self.authority, trusted_output_pins=pins)
+        snapshot["rights_revision"] = True
+        self.assertFalse(reader.rights(self.shop, self.job, self.asset))
+        snapshot["rights_revision"] = 2
+        snapshot["shop_id"] = str(uuid4())
+        self.assertFalse(reader.rights(self.shop, self.job, self.asset))
+        self.assertEqual(self.calls, 0)
+
     def test_scoped_reader_rejects_missing_backend_callback(self):
         with self.assertRaises(ValueError):
             build_scoped_private_png_reader(
