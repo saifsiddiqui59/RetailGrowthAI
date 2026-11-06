@@ -18,17 +18,24 @@ class MountedPrivatePNGTests(unittest.TestCase):
 
     def test_unique_get_only_route_with_no_public_anonymous_download_fallback(self):
         self.assertEqual(len(self.handlers), 1)
+        # Parse the full source before inspecting decorators: escaped newline
+        # text in Python expressions must never silently evade CI coverage.
+        compile(self.tree, str(APP), "exec")
         routes = []
         for node in self.tree.body:
             if isinstance(node, ast.FunctionDef):
                 for dec in node.decorator_list:
                     if isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute) and dec.func.attr == "route":
-                        route = next((kw.value.value for kw in dec.keywords\n                                      if kw.arg == "route" and isinstance(kw.value, ast.Constant)), None)\n                        if route is None and dec.args and isinstance(dec.args[0], ast.Constant):\n                            route = dec.args[0].value
+                        route = next((kw.value.value for kw in dec.keywords
+                                      if kw.arg == "route" and isinstance(kw.value, ast.Constant)), None)
+                        if route is None and dec.args and isinstance(dec.args[0], ast.Constant):
+                            route = dec.args[0].value
                         if route and route.endswith("/private-png"):
                             routes.append((node.name, dec))
         self.assertEqual(len(routes), 1)
         self.assertEqual(routes[0][0], "feature3_private_png")
-        self.assertEqual(next(kw.value.value for kw in routes[0][1].keywords\n                              if kw.arg == "route"),
+        self.assertEqual(next(kw.value.value for kw in routes[0][1].keywords
+                              if kw.arg == "route"),
                          "shops/{shop_id}/feature3-gpu-jobs/{job_id}/private-png")
         methods = next(kw.value for kw in routes[0][1].keywords if kw.arg == "methods")
         self.assertEqual(ast.literal_eval(methods), ["GET"])
@@ -45,6 +52,10 @@ class MountedPrivatePNGTests(unittest.TestCase):
         # existing signed-URL download endpoint or browser-provided rights.
         self.assertNotIn("signed_url", ast.unparse(handler).lower())
         self.assertNotIn("service_role", ast.unparse(handler).lower())
+        # The mounted route must not create a synthetic rights authority or
+        # treat an environment toggle as authorization.
+        self.assertNotIn("os.environ", ast.unparse(handler))
+        self.assertNotIn("SupabaseJWTVerifier", ast.unparse(handler))
 
 
 if __name__ == "__main__":
