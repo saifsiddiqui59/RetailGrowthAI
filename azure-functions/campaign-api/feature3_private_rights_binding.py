@@ -41,3 +41,47 @@ def build_private_png_reader(*, tenant_store, verify_user_jwt,
         current_output_rights=rights,
         transport=transport,
     )
+
+
+def build_scoped_private_png_reader(*, shop_id, job_id, tenant_store,
+                                    verify_user_jwt, authoritative_read,
+                                    trusted_output_pins, transport=None):
+    """Construct a per-output reader from fresh backend-owned immutable pins.
+
+    The lookup is server-owned and must not accept request-provided approval
+    metadata. Failure to obtain a complete, exact snapshot denies construction.
+    A new reader is required for each output; pins are never reused across
+    shops or jobs. The reader still rechecks current rights during byte IO.
+    """
+    from uuid import UUID
+
+    def canonical(value):
+        if type(value) is not str:
+            return False
+        try:
+            return UUID(value).version == 4 and str(UUID(value)) == value
+        except (ValueError, AttributeError):
+            return False
+
+    if not canonical(shop_id) or not canonical(job_id):
+        raise ValueError("Canonical scoped shop/job UUID required")
+    if not callable(trusted_output_pins):
+        raise ValueError("Backend output pin lookup required")
+    try:
+        pins = trusted_output_pins(shop_id, job_id)
+    except Exception:
+        raise ValueError("Trusted output pins unavailable") from None
+    if (type(pins) is not dict or
+            set(pins) != {"shop_id", "job_id", "output_sha256",
+                          "rights_revision"} or
+            type(pins["shop_id"]) is not str or
+            type(pins["job_id"]) is not str or
+            pins["shop_id"] != shop_id or pins["job_id"] != job_id):
+        raise ValueError("Trusted output pins mismatch")
+    return build_private_png_reader(
+        tenant_store=tenant_store, verify_user_jwt=verify_user_jwt,
+        authoritative_read=authoritative_read,
+        expected_output_sha256=pins["output_sha256"],
+        minimum_rights_revision=pins["rights_revision"],
+        transport=transport,
+    )
