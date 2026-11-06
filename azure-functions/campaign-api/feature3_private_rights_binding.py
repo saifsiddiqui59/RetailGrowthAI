@@ -88,6 +88,16 @@ def build_scoped_private_png_reader(*, shop_id, job_id, tenant_store,
                 request_shop != shop_id or request_job != job_id or
                 type(asset_id) is not str):
             return None
+        # Recheck backend-owned pins for every authorization, including the
+        # post-byte check. A replaced output invalidates an existing reader.
+        try:
+            fresh = trusted_output_pins(shop_id, job_id)
+        except Exception:
+            return None
+        if (type(fresh) is not dict or set(fresh) != set(pins) or
+                any(type(fresh[k]) is not type(pins[k]) or
+                    fresh[k] != pins[k] for k in pins)):
+            return None
         return authoritative_read(request_shop, request_job, asset_id)
 
     return build_private_png_reader(
