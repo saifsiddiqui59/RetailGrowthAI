@@ -114,6 +114,24 @@ class BinaryHTTPTests(unittest.TestCase):
                 self.assertEqual(body,b"")
                 self.assert_private_headers(headers)
         self.reader.extra={}
+    def test_noncanonical_asset_receipts_never_reach_response_headers(self):
+        # A compromised/incompatible rights reader cannot inject noncanonical
+        # identifiers into HTTP headers, even with a valid synthetic PNG/SHA.
+        from uuid import uuid1
+        original = self.reader.media
+        for invalid in (original.upper(), original.replace("-", ""),
+                        str(uuid1()), "00000000-0000-0000-0000-000000000000",
+                        123, None, original + "\\r\\nX-Injected: true"):
+            with self.subTest(value=repr(invalid)):
+                self.reader.extra = {"media_asset_id": invalid}
+                status, body, headers = self.call()
+                self.assertEqual((status, body), (503, b""))
+                self.assert_private_headers(headers)
+                self.assertNotIn("X-Feature3-Media-Asset-Id", headers)
+                self.assertNotIn("X-Injected", headers)
+        self.reader.extra = {}
+        self.assertEqual(self.call()[0], 200)
+
     def test_valid_sha_does_not_make_non_png_or_trailing_bytes_downloadable(self):
         # A forged or broken reader can supply a self-consistent SHA; the HTTP
         # boundary must still reject non-PNG bytes and trailing payloads.
