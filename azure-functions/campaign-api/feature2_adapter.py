@@ -886,3 +886,226 @@ class Feature2PrivateMp3UploadAdapter:
             return 404, {"error":"NOT_FOUND"}
         except StorageUnavailable:
             return 503, {"error":"PRIVATE_UPLOAD_UNAVAILABLE"}
+
+
+class Feature2RetailCopyReviewAdapter:
+    """F2-02 signed current offer/media claim review, NEVER copy certification.
+
+    The trusted reviewer is an injected version of the current source
+    inspect_retailer_copy_claims. Its own context comes exclusively from
+    the authenticated RLS store, never browser claims or a fabricated trend.
+    """
+
+    def __init__(self,verify_token,tenant_store,*,context_reader=None,
+                 copy_reader=None,copy_validator=None):
+        self.verify_token,self.tenant_store=verify_token,tenant_store
+        self.context_reader,self.copy_reader=context_reader,copy_reader
+        self.copy_validator=copy_validator
+
+    def get(self,shop_id,campaign_id,draft_id,authorization):
+        from copy import deepcopy
+        from hashlib import sha256
+        import json
+        code,identity=_feature2_private_scope(
+            self.verify_token,self.tenant_store,shop_id,campaign_id,authorization)
+        if code is not None:
+            return code,{"error":"UNAUTHORIZED" if code==401 else
+                         "COPY_REVIEW_UNAVAILABLE" if code==503 else
+                         "NOT_FOUND" if code==404 else "INVALID_REQUEST"}
+        sid,cid,actor,token=identity
+        try:
+            did=canonical_uuid(draft_id)
+            if UUID(did).version!=4:
+                return 400,{"error":"INVALID_REQUEST"}
+        except (TypeError,ValueError,AttributeError):
+            return 400,{"error":"INVALID_REQUEST"}
+        if not all(callable(x) for x in
+                   (self.context_reader,self.copy_reader,self.copy_validator)):
+            return 503,{"error":"COPY_REVIEW_UNAVAILABLE"}
+        try:
+            def editor():
+                return _feature2_private_editor(
+                    self.tenant_store,token,actor,sid,cid)
+            if not editor():
+                return 404,{"error":"NOT_FOUND"}
+            original=self.context_reader(token,actor,sid,cid,did)
+            draft=self.copy_reader(token,actor,sid,cid,did)
+            if (type(original) is not dict or
+                original.get("shop_id")!=sid or
+                original.get("campaign_id")!=cid or
+                original.get("server_verified") is not True or
+                original.get("authenticated_owner_or_editor") is not True or
+                type(draft) is not dict or
+                draft.get("shop_id")!=sid or
+                draft.get("campaign_id")!=cid or
+                draft.get("draft_id")!=did or
+                draft.get("private") is not True or
+                draft.get("can_publish") is not False or
+                type(draft.get("copy")) is not dict):
+                return 404,{"error":"NOT_FOUND"}
+            context=deepcopy(original)
+            text=deepcopy(draft["copy"])
+            answer=self.copy_validator(verified_context=context,copy=text)
+            expected_sha=sha256(json.dumps(text,ensure_ascii=False,
+                sort_keys=True,separators=(",",":")).encode()).hexdigest()
+            if (type(answer) is not dict or
+                answer.get("schema")!="retailgrowth.feature2-copy-fact-review.v1" or
+                answer.get("copy_sha256")!=expected_sha or
+                type(answer.get("issues")) is not list or
+                answer.get("review_required") is not True or
+                answer.get("customer_editor_approval_required") is not True or
+                answer.get("automatically_corrected") is not False or
+                answer.get("commercial_fact_certified") is not False or
+                answer.get("can_publish") is not False or
+                answer.get("can_dispatch_paid_motion") is not False):
+                return 404,{"error":"NOT_FOUND"}
+            # Actual owner/offer/rights may change during source review.
+            if (not editor() or
+                self.context_reader(token,actor,sid,cid,did)!=original or
+                self.copy_reader(token,actor,sid,cid,did)!=draft):
+                return 404,{"error":"NOT_FOUND"}
+            return 200,{"schema":answer["schema"],"copy_sha256":expected_sha,
+                "issues":list(answer["issues"]),"review_required":True,
+                "customer_editor_approval_required":True,
+                "commercial_fact_certified":False,"can_publish":False,
+                "can_dispatch_paid_motion":False}
+        except (ValueError,PermissionError,TypeError,KeyError):
+            return 404,{"error":"NOT_FOUND"}
+        except StorageUnavailable:
+            return 503,{"error":"COPY_REVIEW_UNAVAILABLE"}
+
+
+class Feature2SentenceRetakeAdapter:
+    """F2-27: explicit one-shot, CPU-only retake of a reviewed sentence.
+
+    Retake and CPU model are OFF unless an operator injects both the signed
+    one-use lease writer AND a real bounded local synthesizer. No network,
+    Azure fallback, extra auto-retry or rights/publication approval.
+    """
+
+    def __init__(self,verify_token,tenant_store,*,plan_reader=None,
+                 pronunciation_reader=None,retake_claim=None,
+                 private_writer=None,retake_runner=None,
+                 cpu_synthesizer=None,model_cache_dir=None,
+                 operator_cpu_enabled=False):
+        self.verify_token,self.tenant_store=verify_token,tenant_store
+        self.plan_reader,self.pronunciation_reader=plan_reader,pronunciation_reader
+        self.retake_claim,self.private_writer=retake_claim,private_writer
+        self.retake_runner,self.cpu_synthesizer=retake_runner,cpu_synthesizer
+        self.model_cache_dir,self.operator_cpu_enabled=(
+            model_cache_dir,operator_cpu_enabled)
+
+    def post(self,shop_id,campaign_id,authorization,payload):
+        from copy import deepcopy
+        import re
+        code,identity=_feature2_private_scope(
+            self.verify_token,self.tenant_store,shop_id,campaign_id,authorization)
+        if code is not None:
+            return code,{"error":"UNAUTHORIZED" if code==401 else
+                         "PRIVATE_RETAKE_UNAVAILABLE" if code==503 else
+                         "NOT_FOUND" if code==404 else "INVALID_REQUEST"}
+        sid,cid,actor,token=identity
+        fields={"schema","shop_id","campaign_id","creative_plan_sha256",
+            "flagged_audio_sha256","sentence_index","job_key",
+            "voice_id","language","speed",
+            "requires_current_editor_and_dictionary",
+            "requires_one_durable_local_retake","auto_azure_fallback",
+            "can_publish"}
+        if type(payload) is not dict or set(payload)!=fields:
+            return 400,{"error":"INVALID_REQUEST"}
+        try:
+            key=canonical_uuid(payload["job_key"])
+            if UUID(key).version!=4:
+                return 400,{"error":"INVALID_REQUEST"}
+        except (TypeError,ValueError,AttributeError):
+            return 400,{"error":"INVALID_REQUEST"}
+        if (payload["schema"]!="retailgrowth.feature2-local-sentence-retake-request.v1" or
+            payload["shop_id"]!=sid or payload["campaign_id"]!=cid or
+            type(payload["creative_plan_sha256"]) is not str or
+            not re.fullmatch("[a-f0-9]{64}",payload["creative_plan_sha256"]) or
+            type(payload["flagged_audio_sha256"]) is not str or
+            not re.fullmatch("[a-f0-9]{64}",payload["flagged_audio_sha256"]) or
+            type(payload["sentence_index"]) is not int or
+            not 0<=payload["sentence_index"]<=12 or
+            type(payload["voice_id"]) is not str or
+            type(payload["language"]) is not str or
+            type(payload["speed"]) is not str or
+            payload["requires_current_editor_and_dictionary"] is not True or
+            payload["requires_one_durable_local_retake"] is not True or
+            payload["auto_azure_fallback"] is not False or
+            payload["can_publish"] is not False):
+            return 400,{"error":"INVALID_REQUEST"}
+        if (self.operator_cpu_enabled is not True or
+            not all(callable(x) for x in (
+                self.plan_reader,self.pronunciation_reader,self.retake_claim,
+                self.private_writer,self.retake_runner,self.cpu_synthesizer))):
+            return 503,{"error":"PRIVATE_RETAKE_UNAVAILABLE"}
+        try:
+            def editor(s,c):
+                return (s,c)==(sid,cid) and _feature2_private_editor(
+                    self.tenant_store,token,actor,sid,cid)
+            if not editor(sid,cid):
+                return 404,{"error":"NOT_FOUND"}
+            original=self.plan_reader(token,actor,sid,cid)
+            if (type(original) is not dict or
+                type(original.get("approval_record")) is not dict or
+                original["approval_record"].get("plan_sha256")!=
+                    payload["creative_plan_sha256"]):
+                return 404,{"error":"NOT_FOUND"}
+            output=self.retake_runner(
+                shop_id=sid,campaign_id=cid,source_plan=deepcopy(original),
+                sentence_index=payload["sentence_index"],
+                flagged_audio_sha256=payload["flagged_audio_sha256"],
+                voice_id=payload["voice_id"],language=payload["language"],
+                speed=payload["speed"],job_key=key,current_editor=editor,
+                read_plan=lambda s,c:self.plan_reader(token,actor,s,c),
+                read_approved_words=lambda *args:
+                    self.pronunciation_reader(token,actor,*args),
+                claim_one_retake=lambda *args:
+                    self.retake_claim(token,actor,*args),
+                write_pending_private=lambda *args:
+                    self.private_writer(token,actor,*args),
+                model_cache_dir=self.model_cache_dir,
+                synthesizer=self.cpu_synthesizer)
+            if (type(output) is not dict or
+                output.get("schema")!="retailgrowth.feature2-sentence-retake.v1" or
+                output.get("shop_id")!=sid or output.get("campaign_id")!=cid or
+                output.get("creative_plan_sha256")!=payload["creative_plan_sha256"] or
+                output.get("prior_audio_sha256")!=payload["flagged_audio_sha256"] or
+                output.get("sentence_index")!=payload["sentence_index"] or
+                type(output.get("private_sentence_audio_asset_id")) is not str or
+                output.get("review_status")!="PENDING_NEW_STT_AND_HUMAN_LISTEN" or
+                type(output.get("new_audio_sha256")) is not str or
+                not re.fullmatch("[a-f0-9]{64}",output["new_audio_sha256"]) or
+                output.get("private") is not True or
+                output.get("can_publish") is not False or
+                output.get("azure_fallback_used") is not False or
+                output.get("actual_pronunciation_success_verified") is not False or
+                output.get("requires_feature4_scene_assembly") is not True or
+                output.get("requires_new_feature7_transcription") is not True):
+                return 404,{"error":"NOT_FOUND"}
+            try:
+                if UUID(output["private_sentence_audio_asset_id"]).version!=4:
+                    return 404,{"error":"NOT_FOUND"}
+            except (ValueError,TypeError,AttributeError):
+                return 404,{"error":"NOT_FOUND"}
+            if not editor(sid,cid):
+                return 404,{"error":"NOT_FOUND"}
+            return 202,{"schema":output["schema"],"shop_id":sid,
+                "campaign_id":cid,
+                "creative_plan_sha256":payload["creative_plan_sha256"],
+                "prior_audio_sha256":payload["flagged_audio_sha256"],
+                "sentence_index":payload["sentence_index"],
+                "new_audio_sha256":output["new_audio_sha256"],
+                "private_sentence_audio_asset_id":
+                    output["private_sentence_audio_asset_id"],
+                "review_status":"PENDING_NEW_STT_AND_HUMAN_LISTEN",
+                "private":True,"can_publish":False,
+                "actual_pronunciation_success_verified":False,
+                "azure_fallback_used":False,
+                "requires_feature4_scene_assembly":True,
+                "requires_new_feature7_transcription":True}
+        except (ValueError,PermissionError,TypeError,KeyError):
+            return 404,{"error":"NOT_FOUND"}
+        except StorageUnavailable:
+            return 503,{"error":"PRIVATE_RETAKE_UNAVAILABLE"}
