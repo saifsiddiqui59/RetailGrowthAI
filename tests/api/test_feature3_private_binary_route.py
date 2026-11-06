@@ -183,6 +183,30 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(calls, [])
         self.assertEqual(self.reader.calls, [])
 
+    def test_factory_preflight_is_executable_and_never_calls_noncallables(self):
+        # Regression: a literal escaped newline previously commented out the
+        # callable guard, leaving it dead code. Verify both source and behavior.
+        import ast
+        import inspect
+        import feature3_private_binary_route as module
+        tree = ast.parse(inspect.getsource(module.private_png_response))
+        guards = [node for node in ast.walk(tree)
+                  if isinstance(node, ast.If)
+                  and isinstance(node.test, ast.UnaryOp)
+                  and isinstance(node.test.operand, ast.Call)
+                  and isinstance(node.test.operand.func, ast.Name)
+                  and node.test.operand.func.id == "callable"]
+        self.assertEqual(len(guards), 1)
+        for factory in (None, False, 123, "fake-reader", {}, []):
+            with self.subTest(factory=repr(factory)):
+                code, body, headers = self.invoke(factory)
+                self.assertEqual((code, body), (503, b""))
+                self.assertEqual(headers["Cache-Control"],
+                                 "no-store, private, max-age=0")
+                self.assertNotIn("Location", headers)
+        self.assertEqual(self.reader.calls, [])
+        self.assertEqual(self.invoke(lambda: self.reader)[0], 200)
+
     def test_bad_token_denied_before_reader(self):
         req = Request()
         req.headers = {"Authorization": "Bearer sb_secret_invalid"}
