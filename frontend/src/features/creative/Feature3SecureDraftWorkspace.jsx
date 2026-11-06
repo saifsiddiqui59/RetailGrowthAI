@@ -7,6 +7,7 @@ import Feature3StudioPanel from './Feature3StudioPanel.jsx'
 import { validateFeature3Design } from './feature3-design.mjs'
 import {scopedFeature3GeneratedLink,SAFE_CLIENT_LIFETIME_MS} from './feature3-signed-link-scope.mjs'
 import { feature3ContextKey } from './feature3-context.mjs'
+import { createFeature3DraftWriteGuard } from './feature3-draft-write-guard.mjs'
 import {scopedFeature3WorkspaceValue,currentFeature3WorkspaceRequest,createFeature3WorkspaceReadGate,feature3DraftMediaReady} from './feature3-workspace-scope.mjs'
 
 export default function Feature3SecureDraftWorkspace({
@@ -20,6 +21,8 @@ export default function Feature3SecureDraftWorkspace({
   const [busyState,setBusyState] = useState({scope:scopeKey,provider:feature3Api,value:false})
   const [generatedState,setGeneratedState] = useState({scope:scopeKey,provider:feature3Api,value:[]})
   const [generatedLink,setGeneratedLink] = useState(null)
+  const [uncertainState,setUncertainState] = useState({scope:scopeKey,provider:feature3Api,value:false})
+  const [checkedHistoryState,setCheckedHistoryState] = useState({scope:scopeKey,provider:feature3Api,value:false})
   // Scope at render time, not only in a later useEffect cleanup: no stale
   // private job/draft/revision can appear on the first paint of a new shop/day.
   const saved=scopedFeature3WorkspaceValue(savedState,scopeKey,[],feature3Api)
@@ -38,6 +41,10 @@ export default function Feature3SecureDraftWorkspace({
   if (!readGate.current) readGate.current=createFeature3WorkspaceReadGate()
   const ticket=useRef({scope:scopeKey,provider:feature3Api,designId:null,revision:0})
   const pending=useRef({scope:scopeKey,provider:feature3Api,active:false})
+  const writeGuard=useRef(null)
+  if (!writeGuard.current) writeGuard.current=createFeature3DraftWriteGuard()
+  const uncertain=scopedFeature3WorkspaceValue(uncertainState,scopeKey,false,feature3Api)
+  const historyChecked=scopedFeature3WorkspaceValue(checkedHistoryState,scopeKey,false,feature3Api)
   const currentScope=(scope,provider)=>
     activeScope.current.scopeKey===scope && activeScope.current.feature3Api===provider
   const visibleGeneratedLink=!disabled && generatedLink?.provider===feature3Api
@@ -48,6 +55,9 @@ export default function Feature3SecureDraftWorkspace({
     pendingJobs.current+=1
     // Invalidate prior session/day reads before any later async continuation.
     readGate.current.cancel()
+    writeGuard.current.select(scopeKey,feature3Api)
+    setUncertainState({scope:scopeKey,provider:feature3Api,value:false})
+    setCheckedHistoryState({scope:scopeKey,provider:feature3Api,value:false})
     ticket.current={scope:scopeKey,provider:feature3Api,designId:null,revision:0}
     pending.current={scope:scopeKey,provider:feature3Api,active:false}
     setGeneratedLink(null)
@@ -71,13 +81,20 @@ export default function Feature3SecureDraftWorkspace({
     const current=()=>readGate.current.isCurrent(guard,scope,provider) &&
       currentFeature3WorkspaceRequest(
         activeScope.current,scope,provider,attempt,pendingHistory.current)
+    writeGuard.current.invalidateHistory(scope,provider)
+    setCheckedHistoryState({scope,provider,value:false})
     setBusy(true);setMessage('')
     try {
       const rows=await feature3Api.listDesigns(shopId, campaignId, dayId)
       if(!current())return
       setSavedState({scope,provider,value:rows})
-      setMessage(rows.length ? 'Private draft history loaded.' :
-        'No v2 private poster drafts exist for this day.')
+      if (writeGuard.current.verifiedHistory(scope,provider)) {
+        setCheckedHistoryState({scope,provider,value:true})
+        setMessage('Previous save result is uncertain. Inspect this fresh private history, then deliberately reopen a draft or start a separate new one.')
+      } else {
+        setMessage(rows.length ? 'Private draft history loaded.' :
+          'No v2 private poster drafts exist for this day.')
+      }
     } catch {
       if(current())setMessage('Could not read this day’s authorized v2 draft history.')
     } finally {
@@ -155,6 +172,13 @@ export default function Feature3SecureDraftWorkspace({
           !feature3DraftMediaReady(design,imageMap)) {
         throw Error('Shop media grant must be refreshed first')
       }
+      if (writeGuard.current.status(scopeKey,feature3Api).uncertain) {
+        if (!writeGuard.current.resolveDeliberately(scopeKey,feature3Api)) {
+          throw Error('Read fresh private history before resolving an uncertain save')
+        }
+        setUncertainState({scope:scopeKey,provider:feature3Api,value:false})
+        setCheckedHistoryState({scope:scopeKey,provider:feature3Api,value:false})
+      }
       ticket.current = {scope:scopeKey,provider:feature3Api,designId:chosen.id,revision:chosen.revision}
       setReopenedState({scope:scopeKey,provider:feature3Api,value:{
         id:chosen.id,revision:chosen.revision,design}})
@@ -162,6 +186,17 @@ export default function Feature3SecureDraftWorkspace({
     } catch {
       setMessage('Draft is no longer editable or private media access changed.')
     }
+  }
+
+  const startNewAfterHistory=()=>{
+    if (disabled || busy || readGate.current.busy() ||
+        (pending.current.scope===scopeKey && pending.current.provider===feature3Api && pending.current.active) ||
+        !writeGuard.current.resolveDeliberately(scopeKey,feature3Api)) return
+    ticket.current={scope:scopeKey,provider:feature3Api,designId:null,revision:0}
+    setReopenedState({scope:scopeKey,provider:feature3Api,value:null})
+    setUncertainState({scope:scopeKey,provider:feature3Api,value:false})
+    setCheckedHistoryState({scope:scopeKey,provider:feature3Api,value:false})
+    setMessage('New draft deliberately selected after checking private history. An earlier uncertain save may exist as a separate draft.')
   }
 
   const saveDesign = async design => {
@@ -174,7 +209,15 @@ export default function Feature3SecureDraftWorkspace({
     if(ticket.current.scope!==scope || ticket.current.provider!==provider) {
       ticket.current={scope,provider,designId:null,revision:0}
     }
+    const writeTicket=writeGuard.current.begin(scope,provider)
+    if (!writeTicket) {
+      const wasUncertain=writeGuard.current.status(scope,provider).uncertain
+      if (wasUncertain) setMessage('Previous save result is uncertain. Refresh private draft history before choosing how to continue; no automatic retry.')
+      throw Error(wasUncertain ? 'Uncertain private save must be reconciled' :
+        'Another private save is already in progress')
+    }
     pending.current={scope,provider,active:true}
+    let attemptedPost=false
     setBusy(true);setMessage('')
     try {
       const submitted=validateFeature3Design(design)
@@ -182,6 +225,7 @@ export default function Feature3SecureDraftWorkspace({
           !feature3DraftMediaReady(submitted,imageMap)) {
         throw Error('Registered media must still be authorized')
       }
+      attemptedPost=true
       const response=await feature3Api.saveDesign(
         shopId,campaignId,dayId,submitted,{
           designId:ticket.current.designId,
@@ -190,11 +234,18 @@ export default function Feature3SecureDraftWorkspace({
       if(!currentScope(scope,provider)){
         throw Error('Private design context changed during an uncertain save')
       }
+      writeGuard.current.complete(writeTicket)
       ticket.current={scope,provider,designId:response.design_id,revision:response.revision}
       setMessage('Private v2 design metadata saved at revision '+response.revision+
         '. Not a rendered, reviewed or publishable poster.')
       return response
     } catch (error) {
+      if (attemptedPost) {
+        if (writeGuard.current.unknownAfterPost(writeTicket) && currentScope(scope,provider)) {
+          setUncertainState({scope,provider,value:true})
+          setCheckedHistoryState({scope,provider,value:false})
+        }
+      } else writeGuard.current.abortBeforePost(writeTicket)
       if(currentScope(scope,provider))setMessage(error?.status === 409
         ? 'This revision is stale or no longer authorized. Refresh history; do not resend automatically.'
         : 'Save not confirmed. Do not retry blindly: it may already have committed. Read private history first.')
@@ -212,9 +263,14 @@ export default function Feature3SecureDraftWorkspace({
   return <section aria-label="Private v2 poster drafts">
     <p role="note">Poster v2 saving requires authenticated shop membership and the
       new reviewed database migration. This does not use the v1 poster API.</p>
+    {uncertain && <p role="alert">The previous save may already exist. Further private saves are locked until you inspect fresh signed-in draft history and deliberately choose a draft or a new version.</p>}
     <button type="button" disabled={disabled || busy} onClick={loadHistory}>
       Load privately saved v2 designs
     </button>
+    {uncertain && historyChecked && <button type="button" disabled={disabled || busy}
+      onClick={startNewAfterHistory}>
+      Start a separate new draft after checking history (may duplicate earlier save)
+    </button>}
     {saved.length>0 && <label>Reopen editable v2 design
       <select defaultValue="" disabled={disabled || busy} onChange={restore}>
         <option value="">Select saved DRAFT</option>
