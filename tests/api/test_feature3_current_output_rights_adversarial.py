@@ -97,5 +97,39 @@ class AdversarialRightsTests(unittest.TestCase):
         self.assertIs(self.check(lambda *_: extra), False)
 
 
+    def test_trusted_revision_floor_denies_stale_rights_after_regrant(self):
+        rights = Feature3CurrentOutputRights(
+            authoritative_read=self.authority,
+            expected_output_sha256="a" * 64,
+            minimum_rights_revision=3,
+        )
+        self.assertFalse(rights(self.shop, self.job, self.asset))
+        self.row["rights_revision"] = 3
+        self.assertTrue(rights(self.shop, self.job, self.asset))
+        self.row["rights_revision"] = 2
+        self.assertFalse(rights(self.shop, self.job, self.asset))
+        self.row["rights_revision"] = 4
+        self.row["rights_revoked"] = True
+        self.assertFalse(rights(self.shop, self.job, self.asset))
+        self.assertEqual(self.calls, 4)
+
+    def test_invalid_trusted_revision_floor_is_rejected(self):
+        for invalid in (0, -1, True, False, 1.0, "1", [], {}):
+            with self.subTest(invalid=repr(invalid)):
+                with self.assertRaises(ValueError):
+                    Feature3CurrentOutputRights(
+                        authoritative_read=self.authority,
+                        minimum_rights_revision=invalid,
+                    )
+        self.assertEqual(self.calls, 0)
+
+    def test_revision_floor_does_not_skip_authority_rechecks(self):
+        rights = Feature3CurrentOutputRights(
+            authoritative_read=self.authority, minimum_rights_revision=1)
+        self.assertTrue(rights(self.shop, self.job, self.asset))
+        self.row["customer_approval_current"] = False
+        self.assertFalse(rights(self.shop, self.job, self.asset))
+        self.assertEqual(self.calls, 2)
+
 if __name__ == "__main__":
     unittest.main()
