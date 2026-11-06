@@ -44,7 +44,9 @@ def private_png_response(request, *, shop_id, job_id, reader_factory, enabled=Fa
             return Feature3PrivateBinaryHTTP._deny(404)
         if parsed.version != 4 or str(parsed) != identifier:
             return Feature3PrivateBinaryHTTP._deny(404)
-    # Reject untrusted factory-like objects before touching backend credentials.\n    if not callable(reader_factory):
+    # Reject an unconfigured factory before accessing backend credentials.
+    # Never treat a request-provided callable or fixture as authorization.
+    if not callable(reader_factory):
         return Feature3PrivateBinaryHTTP._deny(503)
     try:
         reader = reader_factory()
