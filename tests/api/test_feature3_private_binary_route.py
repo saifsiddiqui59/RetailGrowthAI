@@ -234,6 +234,45 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(self.reader.calls, [])
         self.assertEqual(self.invoke(factory)[0], 200)
 
+    def test_duplicate_case_variant_authorization_denied_before_factory(self):
+        calls = []
+        def factory():
+            calls.append("constructed")
+            return self.reader
+        for fields in (
+            {"Authorization": "Bearer signed-retailer-test",
+             "authorization": "Bearer attacker-token"},
+            {"Authorization": "Bearer signed-retailer-test",
+             "AUTHORIZATION": "Bearer signed-retailer-test"},
+            {"Authorization": "Bearer signed-retailer-test",
+             "authorization": "Bearer signed-retailer-test"},
+        ):
+            with self.subTest(fields=fields):
+                req = Request()
+                req.headers = fields
+                status, body, headers = private_png_response(
+                    req, shop_id=self.shop, job_id=self.job,
+                    reader_factory=factory, enabled=True)
+                self.assertEqual((status, body), (401, b""))
+                self.assertEqual(headers["Cache-Control"],
+                                 "no-store, private, max-age=0")
+        self.assertEqual(calls, [])
+        self.assertEqual(self.reader.calls, [])
+        self.assertEqual(self.invoke(factory)[0], 200)
+
+    def test_unenumerable_headers_denied_without_factory(self):
+        calls = []
+        class AmbiguousHeaders:
+            def get(self, key, default=None):
+                return "Bearer signed-retailer-test"
+        req = Request()
+        req.headers = AmbiguousHeaders()
+        status, body, _ = private_png_response(
+            req, shop_id=self.shop, job_id=self.job,
+            reader_factory=lambda: calls.append("constructed"), enabled=True)
+        self.assertEqual((status, body), (401, b""))
+        self.assertEqual(calls, [])
+
     def test_bad_token_denied_before_reader(self):
         req = Request()
         req.headers = {"Authorization": "Bearer sb_secret_invalid"}
