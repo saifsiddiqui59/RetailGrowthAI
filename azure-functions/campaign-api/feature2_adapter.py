@@ -294,3 +294,399 @@ class PrivateVoiceStatusAdapter:
             return 404, {"error":"NOT_FOUND"}
         except StorageUnavailable:
             return 503, {"error":"PRIVATE_VOICE_STATUS_UNAVAILABLE"}
+
+
+# ---------------------------------------------------------------------------
+# Feature #2 independent signed-DEV endpoint adapters (source-only integration).
+# This module is already included in the Functions ZIP. DO NOT import the
+# optional speech/trace/reviewer workers at import-time: they are NOT on the
+# protected runtime allowlist. The approved server composes and injects them.
+# No adapter grants commercial rights, creates paid jobs or auto-approves.
+# ---------------------------------------------------------------------------
+def _feature2_private_scope(verify_token, tenant_store, shop, campaign, bearer):
+    """Common verification for F2-owned reviewed/private routes.
+
+    Returns (HTTP error, None) or (None, validated scoped identity). UUIDs,
+    membership and JWT verification are server-side; browser input is never
+    passed as a privileged PostgREST credential or rights assertion.
+    """
+    try:
+        sid, cid = canonical_uuid(shop), canonical_uuid(campaign)
+        if UUID(sid).version != 4 or UUID(cid).version != 4:
+            return 400, None
+    except (ValueError, TypeError, AttributeError):
+        return 400, None
+    if (type(bearer) is not str or not bearer.startswith("Bearer ") or
+        len(bearer) > 8192 or any(c in bearer for c in "\r\n\x00")):
+        return 401, None
+    token = bearer[7:]
+    if not token or token != token.strip():
+        return 401, None
+    try:
+        actor = canonical_uuid(verify_token(token))
+        if UUID(actor).version != 4:
+            return 401, None
+    except (ValueError, TypeError, AttributeError, AuthenticationError):
+        return 401, None
+    try:
+        if tenant_store.member(token, actor, sid, write=True) is not True:
+            return 404, None
+    except (PermissionError, AuthenticationError):
+        return 404, None
+    except StorageUnavailable:
+        return 503, None
+    return None, (sid, cid, actor, token)
+
+
+def _feature2_private_editor(members, token, actor, sid, cid):
+    """Check member again; never treat a client ID as approval for a campaign."""
+    try:
+        return members.member(token, actor, sid, write=True) is True
+    except (AuthenticationError, PermissionError):
+        return False
+
+
+class Feature2PrivateTraceAdapter:
+    """Read F2-12 HMAC-verified private stage projection, not the HMAC itself.
+
+    The trusted server injects a verifier partially bound to its HMAC key.
+    The user JWT is scoped to immutable workflow source and private RLS events.
+    No new route is registered until the coordinator's package is reviewed.
+    """
+
+    def __init__(self, verify_token, tenant_store, *, source_reader=None,
+                 event_reader=None, trace_verifier=None):
+        self.verify_token, self.tenant_store = verify_token, tenant_store
+        self.source_reader = source_reader
+        self.event_reader = event_reader
+        self.trace_verifier = trace_verifier
+
+    def get(self, shop_id, campaign_id, workflow_id, source_sha256, authorization):
+        from copy import deepcopy
+        import re
+        code, identity = _feature2_private_scope(
+            self.verify_token, self.tenant_store, shop_id, campaign_id,
+            authorization)
+        if code is not None:
+            return code, {"error":"UNAUTHORIZED" if code == 401 else
+                          "PRIVATE_TRACE_UNAVAILABLE" if code == 503 else
+                          "NOT_FOUND" if code == 404 else "INVALID_REQUEST"}
+        sid, cid, actor, token = identity
+        try:
+            wid = canonical_uuid(workflow_id)
+            if UUID(wid).version != 4 or type(source_sha256) is not str or (
+                    re.fullmatch("[0-9a-f]{64}", source_sha256) is None):
+                return 400, {"error":"INVALID_REQUEST"}
+        except (ValueError, TypeError, AttributeError):
+            return 400, {"error":"INVALID_REQUEST"}
+        if not all(callable(f) for f in (
+                self.source_reader, self.event_reader, self.trace_verifier)):
+            return 503, {"error":"PRIVATE_TRACE_UNAVAILABLE"}
+        try:
+            first = self.source_reader(token, actor, sid, cid, wid)
+            if (type(first) is not dict or
+                first.get("shop_id") != sid or first.get("campaign_id") != cid or
+                first.get("workflow_id") != wid or
+                first.get("source_sha256") != source_sha256 or
+                first.get("private") is not True or
+                first.get("can_publish") is not False or
+                first.get("revoked_at") is not None):
+                return 404, {"error":"NOT_FOUND"}
+            frozen = deepcopy(first)
+            def current(s, c, w, digest):
+                return (s, c, w, digest) == (sid, cid, wid, source_sha256) and (
+                    _feature2_private_editor(self.tenant_store, token, actor, sid, cid)
+                    and self.source_reader(token, actor, sid, cid, wid) == frozen)
+            if not current(sid, cid, wid, source_sha256):
+                return 404, {"error":"NOT_FOUND"}
+            projection = self.trace_verifier(
+                shop_id=sid, campaign_id=cid, workflow_id=wid,
+                source_sha256=source_sha256, current_scope=current,
+                read_private_events=lambda s,c,w:
+                    self.event_reader(token, actor, s, c, w),
+            )
+            keys = {"schema", "shop_id", "campaign_id", "workflow_id",
+                    "source_sha256", "events", "last_event_sha256", "private",
+                    "all_steps_verified", "actual_model_inference_verified",
+                    "can_publish"}
+            if (type(projection) is not dict or set(projection) != keys or
+                projection.get("schema") !=
+                    "retailgrowth.feature2-private-trace-history.v1" or
+                (projection.get("shop_id"), projection.get("campaign_id"),
+                 projection.get("workflow_id"), projection.get("source_sha256"))
+                    != (sid,cid,wid,source_sha256) or
+                projection.get("private") is not True or
+                projection.get("all_steps_verified") is not True or
+                projection.get("actual_model_inference_verified") is not False or
+                projection.get("can_publish") is not False or
+                type(projection.get("events")) is not list or
+                not 1 <= len(projection["events"]) <= 100 or
+                any(type(e) is not dict or set(e) != {
+                    "sequence","stage","status","evidence_class",
+                    "failure_code","event_sha256","can_publish"}
+                    for e in projection["events"])):
+                return 404, {"error":"NOT_FOUND"}
+            if not current(sid, cid, wid, source_sha256):
+                return 404, {"error":"NOT_FOUND"}
+            return 200, deepcopy(projection)
+        except (ValueError, PermissionError, KeyError, TypeError):
+            return 404, {"error":"NOT_FOUND"}
+        except StorageUnavailable:
+            return 503, {"error":"PRIVATE_TRACE_UNAVAILABLE"}
+
+
+class Feature2PrivateWavAdapter:
+    """F2-20 private, original WAV *binary* response (never a public URL).
+
+    A real HTTP route must use the raw bytes response (not JSON.serialize),
+    set the returned no-store headers and enforce the existing JWT boundary.
+    All source, media, original WAV and editor verification is injected from
+    trusted RLS + private blob service; no browser-supplied path is accepted.
+    """
+
+    def __init__(self, verify_token, tenant_store, *, plan_reader=None,
+                 asset_reader=None, blob_reader=None, wav_verifier=None):
+        self.verify_token, self.tenant_store = verify_token, tenant_store
+        self.plan_reader, self.asset_reader = plan_reader, asset_reader
+        self.blob_reader, self.wav_verifier = blob_reader, wav_verifier
+
+    def get(self, shop_id, campaign_id, audio_asset_id,
+            original_audio_sha256, authorization):
+        from copy import deepcopy
+        from hashlib import sha256
+        import re
+        code, identity = _feature2_private_scope(
+            self.verify_token, self.tenant_store, shop_id, campaign_id,
+            authorization)
+        if code is not None:
+            return code, {"error":"UNAUTHORIZED" if code == 401 else
+                          "PRIVATE_AUDIO_UNAVAILABLE" if code == 503 else
+                          "NOT_FOUND" if code == 404 else "INVALID_REQUEST"}
+        sid, cid, actor, token = identity
+        try:
+            aid = canonical_uuid(audio_asset_id)
+            if (UUID(aid).version != 4 or type(original_audio_sha256) is not str or
+                not re.fullmatch("[0-9a-f]{64}",original_audio_sha256)):
+                return 400, {"error":"INVALID_REQUEST"}
+        except (ValueError, TypeError, AttributeError):
+            return 400, {"error":"INVALID_REQUEST"}
+        if not all(callable(f) for f in (
+                self.plan_reader, self.asset_reader, self.blob_reader,
+                self.wav_verifier)):
+            return 503, {"error":"PRIVATE_AUDIO_UNAVAILABLE"}
+        try:
+            def editor(s,c):
+                return ((s,c)==(sid,cid) and
+                    _feature2_private_editor(self.tenant_store, token, actor, sid, cid))
+            if not editor(sid,cid):
+                return 404, {"error":"NOT_FOUND"}
+            first=self.plan_reader(token,actor,sid,cid)
+            if type(first) is not dict:
+                return 404, {"error":"NOT_FOUND"}
+            verified=self.wav_verifier(
+                shop_id=sid,campaign_id=cid,source_plan=deepcopy(first),
+                audio_asset_id=aid,requested_audio_sha256=original_audio_sha256,
+                authorize_current_editor=editor,
+                read_current_plan=lambda s,c:self.plan_reader(token,actor,s,c),
+                read_registered_private_asset=lambda s,c,a:
+                    self.asset_reader(token,actor,s,c,a),
+                read_private_blob=lambda s,c,a:self.blob_reader(token,actor,s,c,a))
+            if (type(verified) is not dict or
+                verified.get("schema")!="retailgrowth.feature2-private-original-wav-read.v1" or
+                verified.get("shop_id")!=sid or verified.get("campaign_id")!=cid or
+                verified.get("asset_id")!=aid or
+                verified.get("original_audio_sha256")!=original_audio_sha256 or
+                verified.get("mime_type")!="audio/wav" or
+                verified.get("private") is not True or
+                verified.get("can_publish") is not False or
+                verified.get("can_dispatch_motion") is not False or
+                verified.get("human_listen_required") is not True or
+                verified.get("commercial_rights_not_certified") is not True or
+                type(verified.get("audio_bytes")) is not bytes or
+                not 128 <= len(verified["audio_bytes"]) <= 20_000_000 or
+                sha256(verified["audio_bytes"]).hexdigest()!=original_audio_sha256):
+                return 404, {"error":"NOT_FOUND"}
+            if not editor(sid,cid):
+                return 404, {"error":"NOT_FOUND"}
+            return 200, {
+                "body":verified["audio_bytes"],
+                "headers":{"Content-Type":"audio/wav",
+                           "Cache-Control":"private, no-store",
+                           "Pragma":"no-cache",
+                           "X-Content-Type-Options":"nosniff",
+                           "Content-Disposition":
+                                'attachment; filename="original-'+aid+'.wav"'},
+            }
+        except (ValueError,PermissionError,TypeError,KeyError):
+            return 404, {"error":"NOT_FOUND"}
+        except StorageUnavailable:
+            return 503, {"error":"PRIVATE_AUDIO_UNAVAILABLE"}
+
+
+class Feature2BlindHistoryAdapter:
+    """F2-08 independent-signed score history: review only, no autoapproval."""
+
+    def __init__(self, verify_token, tenant_store, *, history_reader=None,
+                 receipt_verifier=None, history_projector=None):
+        self.verify_token, self.tenant_store = verify_token, tenant_store
+        self.history_reader = history_reader
+        self.receipt_verifier = receipt_verifier
+        self.history_projector = history_projector
+
+    def get(self, shop_id, campaign_id, experiment_id, authorization):
+        import re
+        code, identity = _feature2_private_scope(
+            self.verify_token, self.tenant_store,
+            shop_id, campaign_id, authorization)
+        if code is not None:
+            return code, {"error":"UNAUTHORIZED" if code == 401 else
+                          "PRIVATE_HISTORY_UNAVAILABLE" if code == 503 else
+                          "NOT_FOUND" if code == 404 else "INVALID_REQUEST"}
+        sid, cid, actor, token = identity
+        if type(experiment_id) is not str or not re.fullmatch(
+                "[a-zA-Z0-9_-]{10,120}", experiment_id):
+            return 400, {"error":"INVALID_REQUEST"}
+        if not all(callable(f) for f in (
+                self.history_reader, self.receipt_verifier, self.history_projector)):
+            return 503, {"error":"PRIVATE_HISTORY_UNAVAILABLE"}
+        try:
+            def editor(s,c):
+                return (s,c)==(sid,cid) and _feature2_private_editor(
+                    self.tenant_store,token,actor,sid,cid)
+            if not editor(sid,cid):
+                return 404, {"error":"NOT_FOUND"}
+            out=self.history_projector(
+                shop_id=sid,campaign_id=cid,experiment_id=experiment_id,
+                current_editor=editor,
+                read_private_history=lambda s,c,e:
+                    self.history_reader(token,actor,s,c,e),
+                verify_signed_history_receipt=lambda s,c,e,n,sha,digests:
+                    self.receipt_verifier(token,actor,s,c,e,n,sha,digests))
+            if (type(out) is not dict or out.get("schema") !=
+                "retailgrowth.feature2-private-blind-review-history.v1" or
+                out.get("experiment_id")!=experiment_id or
+                out.get("private") is not True or
+                out.get("can_publish") is not False or
+                out.get("paid_motion_permitted") is not False or
+                out.get("source_quality_not_certified") is not True or
+                type(out.get("records")) is not list):
+                return 404, {"error":"NOT_FOUND"}
+            if not editor(sid,cid):
+                return 404, {"error":"NOT_FOUND"}
+            return 200,out
+        except (ValueError,PermissionError,TypeError,KeyError):
+            return 404, {"error":"NOT_FOUND"}
+        except StorageUnavailable:
+            return 503, {"error":"PRIVATE_HISTORY_UNAVAILABLE"}
+
+
+class Feature2ReviewedDraftAdapter:
+    """F2-03/F2-31 signed human-reviewed prompt draft CAS, never publish.
+
+    Browser supplies *identifiers only*. All prompt text, reviewer evidence,
+    current draft, and write-CAS are fetched from trusted JWT/RLS readers.
+    No POST retry, paid model, browser-asserted approval, or provider egress.
+    """
+
+    def __init__(self, verify_token, tenant_store, *, draft_reader=None,
+                 proposal_reader=None, decision_verifier=None, draft_saver=None,
+                 reviewed_draft_commit=None):
+        self.verify_token, self.tenant_store = verify_token, tenant_store
+        self.draft_reader, self.proposal_reader = draft_reader, proposal_reader
+        self.decision_verifier, self.draft_saver = decision_verifier, draft_saver
+        self.reviewed_draft_commit = reviewed_draft_commit
+
+    def post(self, shop_id, campaign_id, authorization, payload):
+        import re
+        code, identity = _feature2_private_scope(
+            self.verify_token,self.tenant_store,
+            shop_id,campaign_id,authorization)
+        if code is not None:
+            return code, {"error":"UNAUTHORIZED" if code == 401 else
+                          "REVIEW_STORE_UNAVAILABLE" if code == 503 else
+                          "NOT_FOUND" if code == 404 else "INVALID_REQUEST"}
+        sid,cid,actor,token=identity
+        expected={"schema","shop_id","campaign_id","creative_plan_sha256",
+                  "proposal_id","source_revision","review_event_id","request_id",
+                  "requires_independently_signed_human_review",
+                  "requires_backend_compare_and_swap","allow_publish",
+                  "allow_paid_motion"}
+        if type(payload) is not dict or set(payload)!=expected:
+            return 400, {"error":"INVALID_REQUEST"}
+        try:
+            proposal_id=canonical_uuid(payload["proposal_id"])
+            review_id=canonical_uuid(payload["review_event_id"])
+            request_id=canonical_uuid(payload["request_id"])
+            if any(UUID(v).version!=4 for v in
+                   (proposal_id,review_id,request_id)):
+                return 400, {"error":"INVALID_REQUEST"}
+        except (ValueError,TypeError,AttributeError):
+            return 400, {"error":"INVALID_REQUEST"}
+        if (payload["schema"]!="retailgrowth.feature2-reviewed-draft-request.v1" or
+            payload["shop_id"]!=sid or payload["campaign_id"]!=cid or
+            type(payload["creative_plan_sha256"]) is not str or
+            not re.fullmatch("[0-9a-f]{64}",payload["creative_plan_sha256"]) or
+            type(payload["source_revision"]) is not int or
+            not 0<=payload["source_revision"]<100000 or
+            payload["requires_independently_signed_human_review"] is not True or
+            payload["requires_backend_compare_and_swap"] is not True or
+            payload["allow_publish"] is not False or
+            payload["allow_paid_motion"] is not False):
+            return 400, {"error":"INVALID_REQUEST"}
+        if not all(callable(f) for f in (
+            self.draft_reader,self.proposal_reader,self.decision_verifier,
+            self.draft_saver,self.reviewed_draft_commit)):
+            return 503, {"error":"REVIEW_STORE_UNAVAILABLE"}
+        try:
+            def editor(s,c):
+                return (s,c)==(sid,cid) and _feature2_private_editor(
+                    self.tenant_store,token,actor,sid,cid)
+            if not editor(sid,cid):
+                return 404, {"error":"NOT_FOUND"}
+            # The proposal's immutable plan SHA is verified against a trusted
+            # source row, NOT only the browser's repeated digest.
+            pending=self.proposal_reader(token,actor,sid,cid,proposal_id)
+            if (type(pending) is not dict or
+                pending.get("shop_id")!=sid or pending.get("campaign_id")!=cid or
+                pending.get("proposal_id")!=proposal_id or
+                pending.get("creative_plan_sha256")!=
+                    payload["creative_plan_sha256"] or
+                type(pending.get("original_prompt")) is not str or
+                type(pending.get("improved_prompt")) is not str):
+                return 404, {"error":"NOT_FOUND"}
+            result=self.reviewed_draft_commit(
+                shop_id=sid,campaign_id=cid,proposal_id=proposal_id,
+                review_event_id=review_id,
+                expected_revision=payload["source_revision"],
+                original_prompt=pending["original_prompt"],
+                improved_prompt=pending["improved_prompt"],
+                current_editor=editor,
+                read_current_draft=lambda s,c:self.draft_reader(token,actor,s,c),
+                read_staged_proposal=lambda s,c,p:
+                    self.proposal_reader(token,actor,s,c,p),
+                verify_signed_editor_decision=lambda s,c,p,e,rev,original,proposed:
+                    self.decision_verifier(token,actor,s,c,p,e,rev,original,proposed),
+                save_draft_cas=lambda s,c,p,rev,e,data:self.draft_saver(
+                    token,actor,s,c,p,rev,e,request_id,data))
+            if (type(result) is not dict or
+                result.get("schema")!="retailgrowth.feature2-reviewed-prompt-draft.v1" or
+                result.get("shop_id")!=sid or result.get("campaign_id")!=cid or
+                result.get("proposal_id")!=proposal_id or
+                result.get("review_event_id")!=review_id or
+                result.get("source_revision")!=payload["source_revision"] or
+                type(result.get("revision")) is not int or
+                result["revision"]!=payload["source_revision"]+1 or
+                result.get("review_status")!="DRAFT" or
+                result.get("private") is not True or
+                result.get("can_publish") is not False or
+                result.get("can_dispatch_paid_motion") is not False or
+                result.get("requires_fresh_media_rights") is not True or
+                result.get("requires_new_copy_fact_review") is not True):
+                return 404, {"error":"NOT_FOUND"}
+            if not editor(sid,cid):
+                return 404, {"error":"NOT_FOUND"}
+            return 201,result
+        except (ValueError,PermissionError,TypeError,KeyError):
+            return 404, {"error":"NOT_FOUND"}
+        except StorageUnavailable:
+            return 503, {"error":"REVIEW_STORE_UNAVAILABLE"}
