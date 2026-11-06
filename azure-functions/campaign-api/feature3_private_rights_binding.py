@@ -6,7 +6,7 @@ accepted as substitutes for verified user JWT + RLS reads.
 """
 from __future__ import annotations
 
-from feature3_current_output_rights import Feature3CurrentOutputRights
+from feature3_current_output_rights import Feature3CurrentOutputRights, _SHA
 from feature3_private_png_reader import Feature3RevocablePNGReader
 
 
@@ -18,7 +18,7 @@ def build_private_png_reader(*, tenant_store, verify_user_jwt,
     This does not provision credentials or enable an Azure endpoint. Caller
     must supply a backend-owned fresh rights lookup and a real JWT verifier.
     """
-    if not callable(verify_user_jwt):
+    # Validate immutable backend pins before constructing any privileged dependency.\n    # A missing or malformed pin must never fall back to an unpinned reader.\n    if (type(expected_output_sha256) is not str or\n            _SHA.fullmatch(expected_output_sha256) is None):\n        raise ValueError("Trusted immutable output SHA-256 required")\n    if (type(minimum_rights_revision) is not int or\n            minimum_rights_revision < 1):\n        raise ValueError("Trusted positive rights revision required")\n    if not callable(verify_user_jwt):
         raise ValueError("Verified user JWT adapter required")
     if not callable(authoritative_read):
         raise ValueError("Backend current rights lookup required")
