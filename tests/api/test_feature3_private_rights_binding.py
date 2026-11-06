@@ -168,5 +168,33 @@ class BindingTests(unittest.TestCase):
         self.assertEqual(self.calls, 0)
 
 
+    def test_scoped_authority_rejects_overloaded_equality_objects(self):
+        class Spoof:
+            def __eq__(self, other):
+                return True
+
+        observed = []
+        def backend(shop, job, asset):
+            observed.append((shop, job, asset))
+            return dict(self.row)
+
+        reader = build_scoped_private_png_reader(
+            shop_id=self.shop, job_id=self.job, tenant_store=Store(),
+            verify_user_jwt=lambda token: self.shop,
+            authoritative_read=backend,
+            trusted_output_pins=lambda shop, job: dict(
+                shop_id=shop, job_id=job,
+                output_sha256="a" * 64, rights_revision=2),
+        )
+        for request in ((Spoof(), self.job, self.asset),
+                        (self.shop, Spoof(), self.asset),
+                        (self.shop, self.job, Spoof())):
+            with self.subTest(request=request):
+                self.assertFalse(reader.rights(*request))
+        self.assertEqual(observed, [])
+        self.assertTrue(reader.rights(self.shop, self.job, self.asset))
+        self.assertEqual(observed, [(self.shop, self.job, self.asset)])
+
+
 if __name__ == "__main__":
     unittest.main()
