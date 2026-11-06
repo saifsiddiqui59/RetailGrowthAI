@@ -271,6 +271,19 @@ export default function Feature3SecureDraftWorkspace({
       onClick={startNewAfterHistory}>
       Start a separate new draft after checking history (may duplicate earlier save)
     </button>}
+    {saved.length>0 && <section aria-label="Private poster review states">
+      <h3>Saved poster review status (read-only)</h3>
+      <ul>
+        {saved.map(d=><li key={d.id}>
+          Poster {d.id.slice(0,8)} · revision {d.revision} · {' '}
+          {d.status==='DRAFT' ? 'Editable draft' :
+            d.status==='APPROVED' ? 'Server status: APPROVED (not published)' :
+              'Server status: REJECTED (read-only)'}
+        </li>)}
+      </ul>
+      <small>Signed backend status only. No public approval or publication
+        rights are granted by this history.</small>
+    </section>}
     {saved.length>0 && <label>Reopen editable v2 design
       <select defaultValue="" disabled={disabled || busy} onChange={restore}>
         <option value="">Select saved DRAFT</option>
