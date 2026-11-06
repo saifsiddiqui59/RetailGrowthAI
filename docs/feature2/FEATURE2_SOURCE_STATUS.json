@@ -104,7 +104,21 @@
           "ci_run_id": 41302121066,
           "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
         }
-      ]
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_copy_retake_adapters.py",
+        "head_sha": "5f25b750dc3e1fe2d3ddaae42587226a8e1c974b",
+        "ci_run_id": 42272190219,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "Authenticated retailer claim review GET verifies signed current offers/draft, rejects fabricated discount and source changes; customer approval/hosted RLS still absent"
+      }
     },
     {
       "id": "F2-03",
@@ -131,6 +145,20 @@
           "original_task_complete": false,
           "integrated_done": false
         }
+      },
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_private_batch_adapters.py",
+        "head_sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "ci_run_id": 42270532246,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "JWT-scoped reviewed prompt draft POST uses current server proposal, independent signed editor decision and one-shot private CAS; mounted durable endpoint not verified"
       }
     },
     {
@@ -241,7 +269,21 @@
           "ci_run_id": 41302121066,
           "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
         }
-      ]
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_private_batch_adapters.py",
+        "head_sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "ci_run_id": 42270532246,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "Private A/B reviewer history GET invokes signed score history with tenant JWT and revocation rechecks; durable hosted reviewer receipts not connected"
+      }
     },
     {
       "id": "F2-09",
@@ -372,7 +414,21 @@
           "ci_run_id": 41304131599,
           "verified_source_head_sha": "501b58dce66bc9240676c29eb1d1b7497e9ac0df"
         }
-      ]
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_private_batch_adapters.py",
+        "head_sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "ci_run_id": 42270532246,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "Private workflow trace GET verifies HMAC chain via trusted injected server secret and tenant-private event reader; actual hosted trace store absent"
+      }
     },
     {
       "id": "F2-13",
@@ -620,7 +676,21 @@
           "ci_run_id": 41302121066,
           "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
         }
-      ]
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_private_batch_adapters.py",
+        "head_sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "ci_run_id": 42270532246,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "Private original WAV binary GET verifies original bytes/hash/current actor and no-store response; tenant-private blob/JWT route not mounted"
+      }
     },
     {
       "id": "F2-21",
@@ -665,7 +735,21 @@
           "ci_run_id": 41302121066,
           "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
         }
-      ]
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_private_upload_cpu_batch.py",
+        "head_sha": "593f7de858bb85b1ef82165c45e17550c9739db1",
+        "ci_run_id": 42271348767,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "JWT-scoped CPU-only once-key quota reservation POST calls verified atomic lease source; real database budget transaction and worker settlement absent"
+      }
     },
     {
       "id": "F2-22",
@@ -778,7 +862,21 @@
           "ci_run_id": 41307027543,
           "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
         }
-      ]
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_copy_retake_adapters.py",
+        "head_sha": "5f25b750dc3e1fe2d3ddaae42587226a8e1c974b",
+        "ci_run_id": 42272190219,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "Explicit local one-shot sentence-retake POST is operator-CPU OFF by default, keeps F7/F4 review gates; genuine Kokoro weights and signed retake storage absent"
+      }
     },
     {
       "id": "F2-28",
@@ -840,7 +938,21 @@
           "ci_run_id": 41302121066,
           "verified_source_head_sha": "79694d2464c4163c713ff78b76c4bc77b3f6ba50"
         }
-      ]
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_private_upload_cpu_batch.py",
+        "head_sha": "593f7de858bb85b1ef82165c45e17550c9739db1",
+        "ci_run_id": 42271348767,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "JWT-gated original MP3/derived WAV pending dual-private registration POST; FFmpeg worker and durable two-asset store not mounted"
+      }
     },
     {
       "id": "F2-30",
@@ -898,7 +1010,21 @@
           "ci_run_id": 41304131599,
           "verified_source_head_sha": "501b58dce66bc9240676c29eb1d1b7497e9ac0df"
         }
-      ]
+      ],
+      "code_first_20261106": {
+        "state": "CLOSED_VERIFIED_OFFLINE_API_SUBSTEP",
+        "scope": "source_only",
+        "source_path": "azure-functions/campaign-api/feature2_adapter.py",
+        "test_path": "tests/api/test_feature2_private_batch_adapters.py",
+        "head_sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "ci_run_id": 42270532246,
+        "exact_head_ci_jobs_passed": 4,
+        "source_code_verified": true,
+        "original_task_complete": false,
+        "main_integrated_done": false,
+        "hosted_acceptance_complete": false,
+        "remaining": "Shared with F2-03, explicit compared script A/B review receipt binds exact source/proposal; live Creative Studio mount/signed editor CAS absent"
+      }
     },
     {
       "id": "F2-32",
@@ -1028,7 +1154,10 @@
       41850403506,
       41901100120,
       41979407804,
-      41985198673
+      41985198673,
+      42270532246,
+      42271348767,
+      42272190219
     ],
     "original_in_progress_unmodified": 17,
     "original_externally_blocked_unmodified": 12,
@@ -1048,7 +1177,122 @@
         "sha": "f5c2d5370fcd75c603f1306ba53936f0edc9a761",
         "closed": true,
         "original_task_complete": false
+      },
+      {
+        "id": "F2-03",
+        "name": "Authenticated private F2 adapter F2-03",
+        "ci_run_id": 42270532246,
+        "sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-08",
+        "name": "Authenticated private F2 adapter F2-08",
+        "ci_run_id": 42270532246,
+        "sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-12",
+        "name": "Authenticated private F2 adapter F2-12",
+        "ci_run_id": 42270532246,
+        "sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-20",
+        "name": "Authenticated private F2 adapter F2-20",
+        "ci_run_id": 42270532246,
+        "sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-31",
+        "name": "Authenticated private F2 adapter F2-31",
+        "ci_run_id": 42270532246,
+        "sha": "6ac68d08b969dd035c438c6c13142d6876e05248",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-21",
+        "name": "Authenticated private F2 adapter F2-21",
+        "ci_run_id": 42271348767,
+        "sha": "593f7de858bb85b1ef82165c45e17550c9739db1",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-29",
+        "name": "Authenticated private F2 adapter F2-29",
+        "ci_run_id": 42271348767,
+        "sha": "593f7de858bb85b1ef82165c45e17550c9739db1",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-02",
+        "name": "Authenticated private F2 adapter F2-02",
+        "ci_run_id": 42272190219,
+        "sha": "5f25b750dc3e1fe2d3ddaae42587226a8e1c974b",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-27",
+        "name": "Authenticated private F2 adapter F2-27",
+        "ci_run_id": 42272190219,
+        "sha": "5f25b750dc3e1fe2d3ddaae42587226a8e1c974b",
+        "closed": true,
+        "original_task_complete": false
       }
-    ]
+    ],
+    "code_first_20261106": {
+      "unique_original_ids_advanced": [
+        "F2-03",
+        "F2-08",
+        "F2-12",
+        "F2-20",
+        "F2-31",
+        "F2-21",
+        "F2-29",
+        "F2-02",
+        "F2-27"
+      ],
+      "new_verified_offline_substeps": 9,
+      "previous_original_source_complete": 9,
+      "original_source_in_progress": 17,
+      "original_externally_blocked": 12,
+      "integrated_done": 0,
+      "note": "Nine NEW verified API-boundary substeps, not original task closure; protected Functions router/runtime, signed DB and model gates remain."
+    }
+  },
+  "last_code_first_batch": {
+    "date": "2026-11-06",
+    "ci": [
+      42270532246,
+      42271348767,
+      42272190219
+    ],
+    "ids": [
+      "F2-03",
+      "F2-08",
+      "F2-12",
+      "F2-20",
+      "F2-31",
+      "F2-21",
+      "F2-29",
+      "F2-02",
+      "F2-27"
+    ],
+    "output": "SIGNED_PRIVATE_API_ADAPTERS_SOURCE_ONLY",
+    "final_hardening": "F2-02 mutable-RLS-alias revocation regression queued in same docs+source commit; verify exact final CI.",
+    "no_gpu": true,
+    "no_paid_model": true,
+    "no_production": true
   }
 }

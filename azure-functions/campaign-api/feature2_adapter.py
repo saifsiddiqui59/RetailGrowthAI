@@ -943,8 +943,10 @@ class Feature2RetailCopyReviewAdapter:
                 draft.get("can_publish") is not False or
                 type(draft.get("copy")) is not dict):
                 return 404,{"error":"NOT_FOUND"}
-            context=deepcopy(original)
-            text=deepcopy(draft["copy"])
+            original_snapshot=deepcopy(original)
+            draft_snapshot=deepcopy(draft)
+            context=deepcopy(original_snapshot)
+            text=deepcopy(draft_snapshot["copy"])
             answer=self.copy_validator(verified_context=context,copy=text)
             expected_sha=sha256(json.dumps(text,ensure_ascii=False,
                 sort_keys=True,separators=(",",":")).encode()).hexdigest()
@@ -960,9 +962,10 @@ class Feature2RetailCopyReviewAdapter:
                 answer.get("can_dispatch_paid_motion") is not False):
                 return 404,{"error":"NOT_FOUND"}
             # Actual owner/offer/rights may change during source review.
-            if (not editor() or
-                self.context_reader(token,actor,sid,cid,did)!=original or
-                self.copy_reader(token,actor,sid,cid,did)!=draft):
+            if (not editor() or original!=original_snapshot or
+                draft!=draft_snapshot or
+                self.context_reader(token,actor,sid,cid,did)!=original_snapshot or
+                self.copy_reader(token,actor,sid,cid,did)!=draft_snapshot):
                 return 404,{"error":"NOT_FOUND"}
             return 200,{"schema":answer["schema"],"copy_sha256":expected_sha,
                 "issues":list(answer["issues"]),"review_required":True,

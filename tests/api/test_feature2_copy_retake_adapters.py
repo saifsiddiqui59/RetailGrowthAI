@@ -228,3 +228,33 @@ def test_f2_27_fake_authorization_and_unreviewed_audio_denied(bad):
     code,out=api.post(SHOP,CAMP,"Bearer signed",request)
     assert code in (400,404),out
     assert "private_sentence_audio_asset_id" not in out
+
+
+def test_f2_02_same_mutable_signed_context_alias_revocation_is_detected():
+    """RLS cache may return the very same dict after a delayed rights revoke."""
+    api,m,s=copy_case()
+    shared=context()
+    calls=[0]
+    def aliased_context(*args):
+        calls[0]+=1
+        if calls[0]==2:
+            shared["approved_offers"][0]["revoked_at"]="2026-11-06T00:00:00Z"
+        return shared
+    api.context_reader=aliased_context
+    assert api.get(SHOP,CAMP,DRAFT,"Bearer signed")[0]==404
+    assert calls[0]==2
+
+
+def test_f2_02_same_mutable_draft_alias_after_review_is_detected():
+    api,m,s=copy_case()
+    shared={"shop_id":SHOP,"campaign_id":CAMP,"draft_id":DRAFT,
+            "private":True,"can_publish":False,"copy":copy()}
+    calls=[0]
+    def changed_alias(*args):
+        calls[0]+=1
+        if calls[0]==2:
+            shared["copy"]["caption"]="90% off everything!"
+        return shared
+    api.copy_reader=changed_alias
+    assert api.get(SHOP,CAMP,DRAFT,"Bearer signed")[0]==404
+    assert calls[0]==2
