@@ -207,6 +207,33 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(self.reader.calls, [])
         self.assertEqual(self.invoke(lambda: self.reader)[0], 200)
 
+    def test_ambiguous_bearer_credentials_rejected_before_factory(self):
+        # Simulate proxy-folded duplicate Authorization headers. Never let
+        # downstream JWT verifier choose a different credential from preflight.
+        calls = []
+        def factory():
+            calls.append("constructed")
+            return self.reader
+        for auth in (
+            "Bearer signed-retailer-test, Bearer attacker-token",
+            "Bearer signed-retailer-test,Bearer attacker-token",
+            "Bearer signed-retailer-test\\\\Bearer attacker-token",
+            "Bearer signed-retailer-test Bearer attacker-token",
+            "Bearer signed-retailer-test, Basic attacker",
+        ):
+            with self.subTest(auth=auth):
+                req = Request()
+                req.headers = {"Authorization": auth}
+                status, body, headers = private_png_response(
+                    req, shop_id=self.shop, job_id=self.job,
+                    reader_factory=factory, enabled=True)
+                self.assertEqual((status, body), (401, b""))
+                self.assertEqual(headers["Cache-Control"],
+                                 "no-store, private, max-age=0")
+        self.assertEqual(calls, [])
+        self.assertEqual(self.reader.calls, [])
+        self.assertEqual(self.invoke(factory)[0], 200)
+
     def test_bad_token_denied_before_reader(self):
         req = Request()
         req.headers = {"Authorization": "Bearer sb_secret_invalid"}
