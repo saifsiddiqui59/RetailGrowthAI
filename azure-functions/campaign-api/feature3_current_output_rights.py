@@ -34,10 +34,16 @@ class Feature3CurrentOutputRights:
     A fresh lookup is required on each invocation, including after byte IO.
     """
 
-    def __init__(self, *, authoritative_read):
+    def __init__(self, *, authoritative_read, expected_output_sha256=None):
         if not callable(authoritative_read):
             raise ValueError("Independent current-rights read required")
+        if (expected_output_sha256 is not None and
+                (type(expected_output_sha256) is not str or
+                 _SHA.fullmatch(expected_output_sha256) is None)):
+            raise ValueError("Canonical expected output SHA-256 required")
         self._read = authoritative_read
+        # Only a trusted backend may pin the immutable digest.
+        self._expected_digest = expected_output_sha256
 
     def __call__(self, shop_id, job_id, asset_id):
         if not all(_uuid4(v) for v in (shop_id, job_id, asset_id)):
@@ -55,7 +61,9 @@ class Feature3CurrentOutputRights:
         digest = row.get("output_sha256")
         revision = row.get("rights_revision")
         if (type(digest) is not str or _SHA.fullmatch(digest) is None or
-                type(revision) is not int or revision < 1):
+                type(revision) is not int or revision < 1 or
+                (self._expected_digest is not None and
+                 digest != self._expected_digest)):
             return False
         return all(row.get(k) is True for k in (
             "output_registered", "source_rights_current",
