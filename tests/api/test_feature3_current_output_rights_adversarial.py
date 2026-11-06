@@ -72,6 +72,21 @@ class AdversarialRightsTests(unittest.TestCase):
                 self.assertIs(rights(shop, self.job, self.asset), False)
         self.assertEqual(self.calls, 0)
 
+    def test_backend_pinned_digest_rejects_substituted_output(self):
+        rights = Feature3CurrentOutputRights(
+            authoritative_read=self.authority, expected_output_sha256="a" * 64)
+        self.assertIs(rights(self.shop, self.job, self.asset), True)
+        self.row["output_sha256"] = "b" * 64
+        self.assertIs(rights(self.shop, self.job, self.asset), False)
+
+    def test_invalid_backend_digest_configuration_fails_closed(self):
+        for invalid in ("", "A" * 64, "0" * 63, True, 42):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    Feature3CurrentOutputRights(
+                        authoritative_read=self.authority,
+                        expected_output_sha256=invalid)
+
     def test_missing_or_extra_authority_fields_never_grant(self):
         for field in list(self.row):
             with self.subTest(field=field):
