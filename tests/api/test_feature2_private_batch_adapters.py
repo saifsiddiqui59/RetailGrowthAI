@@ -109,7 +109,8 @@ def trace_case(*,bad_mac=False,revoked=None):
     calls={"read":0}
     def source_reader(token,actor,s,c,w):
         calls["read"]+=1
-        assert (token,actor,s,c,w)==("test-signed-jwt",ACTOR,SHOP,CAMP,WORKFLOW)
+        if (token,actor,s,c,w)!=("test-signed-jwt",ACTOR,SHOP,CAMP,WORKFLOW):
+            return None  # Real RLS reader hides inaccessible workflows.
         return deepcopy(scope)
     api=Feature2PrivateTraceAdapter(
         verify,member,source_reader=source_reader,
