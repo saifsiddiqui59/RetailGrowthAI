@@ -98,7 +98,7 @@ test('F2-19 rejects forged success/publishing and stale scope',async()=>{
     {...validStatus(),can_publish:true},
     {...validStatus(),paid_api_calls:1},
     {...validStatus(),status:'PUBLISHED'},
-    {...validStatus(),original_audio_sha256:'f'.repeat(64)},
+    {...validStatus(),original_audio_sha256:'not-a-sha'},
     {...validStatus(),shop_id:CAMP},
   ]){
     const api=client(async()=>httpStatus(evil))
