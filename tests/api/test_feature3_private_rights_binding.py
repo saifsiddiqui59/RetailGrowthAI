@@ -5,7 +5,7 @@ from pathlib import Path
 from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "azure-functions" / "campaign-api"))
-from feature3_private_rights_binding import build_private_png_reader
+from feature3_private_rights_binding import build_private_png_reader, build_scoped_private_png_reader
 
 
 class Store:
@@ -89,6 +89,50 @@ class BindingTests(unittest.TestCase):
             with self.subTest(changes=changes):
                 with self.assertRaises(ValueError):
                     self.build(**changes)
+        self.assertEqual(self.calls, 0)
+
+
+    def test_scoped_pins_authorize_only_matching_output(self):
+        calls = []
+        def pins(shop, job):
+            calls.append((shop, job))
+            return dict(shop_id=shop, job_id=job,
+                        output_sha256="a" * 64, rights_revision=2)
+        reader = build_scoped_private_png_reader(
+            shop_id=self.shop, job_id=self.job, tenant_store=Store(),
+            verify_user_jwt=lambda token: self.shop,
+            authoritative_read=self.authority, trusted_output_pins=pins)
+        self.assertTrue(reader.rights(self.shop, self.job, self.asset))
+        self.assertEqual(calls, [(self.shop, self.job)])
+        self.assertFalse(reader.rights(str(uuid4()), self.job, self.asset))
+
+    def test_scoped_pins_reject_cross_shop_and_malformed_authority(self):
+        good = dict(shop_id=self.shop, job_id=self.job,
+                    output_sha256="a" * 64, rights_revision=2)
+        def attempt(callback, shop=None, job=None):
+            return build_scoped_private_png_reader(
+                shop_id=self.shop if shop is None else shop,
+                job_id=self.job if job is None else job,
+                tenant_store=Store(), verify_user_jwt=lambda token: self.shop,
+                authoritative_read=self.authority,
+                trusted_output_pins=callback)
+        bad = [
+            dict(good, shop_id=str(uuid4())),
+            dict(good, job_id=str(uuid4())),
+            dict(good, output_sha256="b" * 63),
+            dict(good, rights_revision=True),
+            dict(good, extra=True),
+            {k: v for k, v in good.items() if k != "rights_revision"},
+            None, [], True,
+        ]
+        for row in bad:
+            with self.subTest(row=repr(row)):
+                with self.assertRaises(ValueError):
+                    attempt(lambda shop, job, value=row: value)
+        with self.assertRaises(ValueError):
+            attempt(lambda shop, job: (_ for _ in ()).throw(RuntimeError("backend down")))
+        with self.assertRaises(ValueError):
+            attempt(lambda shop, job: good, shop="not-a-uuid")
         self.assertEqual(self.calls, 0)
 
 
