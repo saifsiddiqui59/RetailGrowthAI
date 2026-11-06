@@ -131,5 +131,32 @@ class AdversarialRightsTests(unittest.TestCase):
         self.assertFalse(rights(self.shop, self.job, self.asset))
         self.assertEqual(self.calls, 2)
 
+    def test_authority_identity_denies_objects_with_forged_equality(self):
+        # A source adapter must not grant access because a custom object
+        # pretends to compare equal to any signed shop/job/asset identifier.
+        # Only an exact canonical string returned by the authority is valid.
+        class AlwaysEqual:
+            def __eq__(self, other):
+                return True
+            def __ne__(self, other):
+                return False
+
+        class EqualText(str):
+            def __eq__(self, other):
+                return True
+            def __ne__(self, other):
+                return False
+
+        rights = Feature3CurrentOutputRights(authoritative_read=self.authority)
+        self.assertTrue(rights(self.shop, self.job, self.asset))
+        for field in ("shop_id", "job_id", "asset_id"):
+            original = self.row[field]
+            for forged in (AlwaysEqual(), EqualText("not-a-canonical-uuid")):
+                with self.subTest(field=field, forged=type(forged).__name__):
+                    self.row[field] = forged
+                    self.assertFalse(rights(self.shop, self.job, self.asset))
+            self.row[field] = original
+        self.assertTrue(rights(self.shop, self.job, self.asset))
+
 if __name__ == "__main__":
     unittest.main()
