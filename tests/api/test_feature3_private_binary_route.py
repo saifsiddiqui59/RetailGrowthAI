@@ -164,6 +164,25 @@ class RouteTests(unittest.TestCase):
                 self.assertEqual((code, body), (404, b""))
         self.assertEqual(calls, [])
 
+    def test_malformed_method_denied_without_constructing_rights_reader(self):
+        calls = []
+        def factory():
+            calls.append("constructed")
+            return self.reader
+        for invalid in (None, b"GET", 1, [], {}, "POST", "get"):
+            with self.subTest(method=repr(invalid)):
+                class MalformedRequest:
+                    method = invalid
+                    headers = {"Authorization": "Bearer signed-retailer-test"}
+                code, body, headers = private_png_response(
+                    MalformedRequest(), shop_id=self.shop, job_id=self.job,
+                    reader_factory=factory, enabled=True)
+                self.assertEqual((code, body), (405, b""))
+                self.assertEqual(headers["Allow"], "GET")
+                self.assertEqual(headers["Cache-Control"], "no-store, private, max-age=0")
+        self.assertEqual(calls, [])
+        self.assertEqual(self.reader.calls, [])
+
     def test_bad_token_denied_before_reader(self):
         req = Request()
         req.headers = {"Authorization": "Bearer sb_secret_invalid"}
