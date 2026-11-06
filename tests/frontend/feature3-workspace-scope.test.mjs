@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { feature3ContextKey } from '../../frontend/src/features/creative/feature3-context.mjs'
+import { createFeature3DraftWriteGuard } from '../../frontend/src/features/creative/feature3-draft-write-guard.mjs'
 import {
   scopedFeature3WorkspaceValue,currentFeature3WorkspaceRequest,
   createFeature3WorkspaceReadGate,feature3DraftMediaReady,
@@ -188,4 +189,61 @@ test('F3-09 private draft save and reopen both use the same own-image grant fenc
   assert.match(source,/!feature3DraftMediaReady\(design,imageMap\)/)
   assert.match(source,/!feature3DraftMediaReady\(submitted,imageMap\)/)
   assert.doesNotMatch(source,/imageMap\[layer\.asset_id\]/)
+})
+
+
+test('F3-09 uncertain server POST cannot be replayed by rapid subsequent save clicks',()=>{
+  const guard=createFeature3DraftWriteGuard(),api={signed:'session A'}
+  guard.select(scope,api)
+  const first=guard.begin(scope,api)
+  assert.ok(first)
+  assert.equal(guard.begin(scope,api),null,'same-tick duplicate submit must not start')
+  assert.equal(guard.unknownAfterPost(first),true)
+  assert.deepEqual(guard.status(scope,api),{busy:false,uncertain:true,historyChecked:false})
+  for(let i=0;i<3;i++)assert.equal(guard.begin(scope,api),null)
+  assert.equal(guard.resolveDeliberately(scope,api),false,'no retry before fresh history')
+  guard.verifiedHistory(scope,api)
+  assert.equal(guard.status(scope,api).historyChecked,true)
+  assert.equal(guard.begin(scope,api),null,'fresh history alone cannot silently retry POST')
+  assert.equal(guard.resolveDeliberately(scope,api),true)
+  assert.ok(guard.begin(scope,api),'explicit decision after history permits a new write')
+})
+
+test('F3-09 failed or stale history does not unlock unknown POST, and local failures do not lock',()=>{
+  const guard=createFeature3DraftWriteGuard(),api={signed:'A'},rotated={signed:'B'}
+  guard.select(scope,api)
+  const local=guard.begin(scope,api)
+  assert.equal(guard.abortBeforePost(local),true)
+  assert.equal(guard.status(scope,api).uncertain,false)
+  const uncertain=guard.begin(scope,api)
+  assert.equal(guard.unknownAfterPost(uncertain),true)
+  guard.verifiedHistory(scope,api)
+  assert.equal(guard.invalidateHistory(scope,api),true)
+  assert.equal(guard.resolveDeliberately(scope,api),false,'failed next GET cannot count as fresh proof')
+  assert.equal(guard.verifiedHistory(foreign,api),false)
+  assert.equal(guard.verifiedHistory(scope,rotated),false)
+  assert.equal(guard.resolveDeliberately(scope,rotated),false)
+  guard.select(foreign,rotated)
+  const other=guard.begin(foreign,rotated)
+  assert.ok(other,'new tenant may safely start without old tenant ID/revision')
+  assert.equal(guard.unknownAfterPost(uncertain),false,'stale old failure cannot mark new tenant uncertain')
+  assert.equal(guard.complete(other),true)
+  assert.equal(guard.status(foreign,rotated).uncertain,false)
+})
+
+test('F3-09 reconciled save guard is mounted on the signed private workspace, not just advisory copy',async()=>{
+  const source=await readFile(new URL(
+    '../../frontend/src/features/creative/Feature3SecureDraftWorkspace.jsx',import.meta.url),'utf8')
+  for(const usage of [
+    'createFeature3DraftWriteGuard()', 'writeGuard.current.begin(scope,provider)',
+    'writeGuard.current.unknownAfterPost(writeTicket)',
+    'writeGuard.current.abortBeforePost(writeTicket)',
+    'writeGuard.current.verifiedHistory(scope,provider)',
+    'writeGuard.current.resolveDeliberately(scopeKey,feature3Api)',
+    'Start a separate new draft after checking history',
+  ])assert.ok(source.includes(usage),usage)
+  assert.ok(source.indexOf('attemptedPost=true')<
+    source.indexOf('const response=await feature3Api.saveDesign('))
+  assert.ok(source.indexOf('writeGuard.current.begin(scope,provider)')<
+    source.indexOf('const response=await feature3Api.saveDesign('))
 })
