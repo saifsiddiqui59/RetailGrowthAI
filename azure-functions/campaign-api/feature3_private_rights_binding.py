@@ -18,7 +18,15 @@ def build_private_png_reader(*, tenant_store, verify_user_jwt,
     This does not provision credentials or enable an Azure endpoint. Caller
     must supply a backend-owned fresh rights lookup and a real JWT verifier.
     """
-    # Validate immutable backend pins before constructing any privileged dependency.\n    # A missing or malformed pin must never fall back to an unpinned reader.\n    if (type(expected_output_sha256) is not str or\n            _SHA.fullmatch(expected_output_sha256) is None):\n        raise ValueError("Trusted immutable output SHA-256 required")\n    if (type(minimum_rights_revision) is not int or\n            minimum_rights_revision < 1):\n        raise ValueError("Trusted positive rights revision required")\n    if not callable(verify_user_jwt):
+    # Validate trusted pins before constructing any privileged dependency.
+    # Missing or malformed pins must never permit an unpinned reader.
+    if (type(expected_output_sha256) is not str or
+            _SHA.fullmatch(expected_output_sha256) is None):
+        raise ValueError("Trusted immutable output SHA-256 required")
+    if (type(minimum_rights_revision) is not int or
+            minimum_rights_revision < 1):
+        raise ValueError("Trusted positive rights revision required")
+    if not callable(verify_user_jwt):
         raise ValueError("Verified user JWT adapter required")
     if not callable(authoritative_read):
         raise ValueError("Backend current rights lookup required")
@@ -27,8 +35,6 @@ def build_private_png_reader(*, tenant_store, verify_user_jwt,
         expected_output_sha256=expected_output_sha256,
         minimum_rights_revision=minimum_rights_revision,
     )
-    if expected_output_sha256 is None or minimum_rights_revision is None:
-        raise ValueError("Trusted immutable output and revision pins required")
     return Feature3RevocablePNGReader(
         tenant_store=tenant_store,
         verify_user_jwt=verify_user_jwt,
