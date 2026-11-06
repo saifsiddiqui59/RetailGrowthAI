@@ -130,7 +130,9 @@ export default function LocalVoicePanel({
   setError('');setBusy(true)
   try{
    const payload=await onFetchLocalAudio({shop_id:shopId,campaign_id:campaignId,
-      audio_asset_id:saved.private_audio_asset_id})
+      audio_asset_id:saved.private_audio_asset_id,
+      original_audio_sha256:saved.original_audio_sha256,
+      creative_plan_sha256:planSha256})
    const checked=await verifyLocalPrivatePlayback({shopId,campaignId,
       receipt:saved,readResult:payload})
    if(!sameLocalVoiceScope(scope,scopeRef.current))throw Error('Shop or source changed during playback request')
