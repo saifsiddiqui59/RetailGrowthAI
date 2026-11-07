@@ -109,6 +109,35 @@ class HttpTests(unittest.TestCase):
         self.reader.tamper = None
         self.assertEqual(self.call().status, 200)
 
+    def test_png_rejects_invalid_headers_and_chunk_order(self):
+        def build(ihdr, chunks):
+            return (b"\\x89PNG\\r\\n\\x1a\\n" +
+                    png_chunk(b"IHDR", ihdr) +
+                    b"".join(png_chunk(kind, data) for kind, data in chunks) +
+                    png_chunk(b"IEND", b""))
+
+        normal = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
+        compressed = zlib.compress(b"\\x00\\xff\\x00\\x00\\xff")
+        cases = [
+            build(struct.pack(">IIBBBBB", 16384, 16384, 8, 6, 0, 0, 0),
+                  [(b"IDAT", compressed)]),
+            build(struct.pack(">IIBBBBB", 1, 1, 4, 6, 0, 0, 0),
+                  [(b"IDAT", compressed)]),
+            build(struct.pack(">IIBBBBB", 1, 1, 8, 6, 1, 0, 0),
+                  [(b"IDAT", compressed)]),
+            build(normal, [(b"IDAT", compressed), (b"tEXt", b"x=y"),
+                           (b"IDAT", compressed)]),
+            build(normal, [(b"ABCD", b"unexpected"), (b"IDAT", compressed)]),
+        ]
+        for value in cases:
+            with self.subTest(case=len(value)):
+                self.reader.tamper = {"image_bytes": value}
+                response = self.call()
+                self.assertEqual(response.status, 404)
+                self.assertEqual(response.body, b"")
+        self.reader.tamper = None
+        self.assertEqual(self.call().status, 200)
+
     def test_malformed_reader_result_is_denied(self):
         for tamper in (dict(shop_id=str(uuid4())),
                        dict(job_id=str(uuid4())),
