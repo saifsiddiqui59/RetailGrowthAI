@@ -202,7 +202,7 @@ class HttpTests(unittest.TestCase):
         self.reader.tamper = {"image_bytes": valid}
         self.assertEqual(self.call().status, 200)
         invalid = (prefix + chunk(b"IHDR", header) +
-                   chunk(b"ab1d", b"bad-chunk-name") +
+                   chunk(b"ab1d", b"bad-chunk-name" + b"x" * 48) +
                    chunk(b"IDAT", pixels) + chunk(b"IEND", b""))
         self.assertTrue(invalid.startswith(prefix))
         self.reader.tamper = {"image_bytes": invalid}
