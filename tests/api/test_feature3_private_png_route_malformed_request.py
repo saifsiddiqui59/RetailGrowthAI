@@ -51,6 +51,38 @@ class Tests(unittest.TestCase):
         self.assertEqual(response.headers["Cache-Control"], "no-store, private")
         self.assertEqual(invoked, [])
 
+    def test_duplicate_case_variant_authorization_rejected_before_reader(self):
+        class Faulty(Request):
+            pass
+        request = Faulty()
+        request.headers = {
+            "Authorization": "Bearer synthetic-not-a-real-jwt",
+            "authorization": "Bearer synthetic-different-token",
+        }
+        self.assert_denied_before_reader(request)
+
+    def test_header_enumeration_outage_denied_before_reader(self):
+        class UnreadableKeys:
+            def get(self, *args):
+                return "Bearer synthetic-not-a-real-jwt"
+            def keys(self):
+                raise RuntimeError("synthetic header enumeration outage")
+        class Faulty(Request):
+            pass
+        request = Faulty()
+        request.headers = UnreadableKeys()
+        self.assert_denied_before_reader(request)
+
+    def test_nonstring_header_name_denied_before_reader(self):
+        class Faulty(Request):
+            pass
+        request = Faulty()
+        request.headers = {
+            "Authorization": "Bearer synthetic-not-a-real-jwt",
+            123: "untrusted",
+        }
+        self.assert_denied_before_reader(request)
+
     def test_unreadable_request_metadata_denied(self):
         self.assert_denied_before_reader(Broken())
         for field in ("route_params", "headers", "params", "get_body"):
