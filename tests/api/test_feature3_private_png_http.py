@@ -209,6 +209,30 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.call().status, 404)
         self.reader.tamper = None
 
+
+    def test_untrusted_result_identity_cannot_spoof_equality(self):
+        """An injected adapter cannot grant foreign-shop bytes via __eq__."""
+        class AlwaysEqual:
+            def __eq__(self, other):
+                return True
+
+        for field in ("shop_id", "job_id"):
+            with self.subTest(field=field):
+                self.reader.tamper = {field: AlwaysEqual()}
+                reply = self.call()
+                self.assertEqual(reply.status, 404)
+                self.assertEqual(reply.body, b"")
+        self.reader.tamper = None
+        self.assertEqual(self.call().status, 200)
+
+    def test_non_dictionary_reader_result_never_releases_bytes(self):
+        class InvalidReader:
+            def read(self, **kwargs):
+                return [("image_bytes", PNG)]
+        reply = self.call(reader_factory=lambda shop, job: InvalidReader())
+        self.assertEqual(reply.status, 404)
+        self.assertEqual(reply.body, b"")
+
     def test_malformed_reader_result_is_denied(self):
         for tamper in (dict(shop_id=str(uuid4())),
                        dict(job_id=str(uuid4())),
