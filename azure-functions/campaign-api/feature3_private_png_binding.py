@@ -9,6 +9,7 @@ from __future__ import annotations
 from feature3_private_png_reader import Feature3RevocablePNGReader
 from security import SupabaseJWTVerifier
 from tenant_store import TenantStore, canonical_uuid
+from feature3_private_png_tenant import VerifiedGeneratedAssetTenant
 
 
 def build_private_png_reader_factory(*, origin, publishable_key,
@@ -43,7 +44,7 @@ def build_private_png_reader_factory(*, origin, publishable_key,
         # Bind each reader to its factory scope, even if a later caller
         # accidentally reuses the instance for another retailer or job.
         inner = Feature3RevocablePNGReader(
-            tenant_store=user_store,
+            tenant_store=VerifiedGeneratedAssetTenant(user_store),
             verify_user_jwt=verified_jwt,
             current_output_rights=current_output_rights,
             transport=transport,
