@@ -38,13 +38,25 @@ def build_private_png_reader_factory(*, origin, publishable_key,
 
     def factory(shop_id, job_id):
         # Fail before constructing the private reader on malformed route scope.
-        canonical_uuid(shop_id)
-        canonical_uuid(job_id)
-        return Feature3RevocablePNGReader(
+        scoped_shop = canonical_uuid(shop_id)
+        scoped_job = canonical_uuid(job_id)
+        # Bind each reader to its factory scope, even if a later caller
+        # accidentally reuses the instance for another retailer or job.
+        inner = Feature3RevocablePNGReader(
             tenant_store=user_store,
             verify_user_jwt=verified_jwt,
             current_output_rights=current_output_rights,
             transport=transport,
         )
+
+        class ScopedPrivatePNGReader:
+            def read(self, *, user_token, shop_id, job_id):
+                if (type(shop_id) is not str or type(job_id) is not str or
+                        shop_id != scoped_shop or job_id != scoped_job):
+                    from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+                    raise PrivateGeneratedDownloadDenied("Private output unavailable")
+                return inner.read(user_token=user_token, shop_id=shop_id, job_id=job_id)
+
+        return ScopedPrivatePNGReader()
 
     return factory
