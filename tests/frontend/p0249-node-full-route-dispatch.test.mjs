@@ -64,7 +64,7 @@ test('all 13 browser API methods arrive at the existing Node dispatcher with exa
       assert.ok(entry,'Unexpected extra request')
       assert.equal(url,ORIGIN+entry.path)
       assert.equal(options.method,entry.method)
-      assert.equal(options.credentials,undefined)
+      assert.equal(options.credentials,'omit')
       assert.equal(options.headers.Authorization,undefined)
       assert.equal(options.headers['x-rgai-supabase-jwt'],TOKEN)
       assert.equal(options.headers['Content-Type'],entry.method==='GET'?undefined:'application/json')
