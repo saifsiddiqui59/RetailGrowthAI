@@ -39,6 +39,16 @@ def handle_private_png_request(request, *, reader_factory, response_type):
     query = getattr(request, "params", None)
     if query is not None and (not isinstance(query, dict) or bool(query)):
         return _denied(400, response_type)
+    # Refuse GET bodies so proxies cannot disagree about credential or scope.
+    get_body = getattr(request, "get_body", None)
+    if not callable(get_body):
+        return _denied(400, response_type)
+    try:
+        body = get_body()
+    except Exception:
+        return _denied(400, response_type)
+    if type(body) is not bytes or body:
+        return _denied(400, response_type)
     if not callable(reader_factory):
         return _denied(503, response_type)
     reply = private_png_http(
