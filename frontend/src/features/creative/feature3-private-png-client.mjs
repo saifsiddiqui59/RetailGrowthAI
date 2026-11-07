@@ -62,12 +62,40 @@ export function createFeature3PrivatePNGClient({baseUrl,tokenProvider,fetchImpl=
           headers.get('location') !== null) {
         throw Error('Untrusted private generated-image receipt')
       }
-      const array = await response.arrayBuffer()
-      if (!(array instanceof ArrayBuffer) || array.byteLength!==Number(length) ||
-          array.byteLength>MAX) {
+      // Never call response.arrayBuffer(): a dishonest peer could stream an
+      // unbounded body after advertising a short Content-Length.
+      // Allocate only the validated announced size and cancel excess chunks.
+      if (!response.body || typeof response.body.getReader !== 'function') {
+        throw Error('Bounded private PNG streaming unavailable')
+      }
+      const reader=response.body.getReader()
+      const binary=new Uint8Array(Number(length))
+      let offset=0
+      try {
+        while(true) {
+          const packet=await reader.read()
+          if (!packet || typeof packet.done!=='boolean') {
+            throw Error('Malformed private image stream')
+          }
+          if (packet.done) break
+          const chunk=packet.value
+          if (!(chunk instanceof Uint8Array) || chunk.byteLength===0 ||
+              chunk.byteLength>binary.byteLength-offset) {
+            throw Error('Private image stream exceeded declared bytes')
+          }
+          binary.set(chunk,offset)
+          offset+=chunk.byteLength
+        }
+      } catch {
+        try { await reader.cancel() } catch {}
+        throw Error('Private generated-image byte stream denied')
+      } finally {
+        if (typeof reader.releaseLock==='function') reader.releaseLock()
+      }
+      if (offset!==binary.byteLength) {
         throw Error('Private image bytes changed in transit')
       }
-      const binary = new Uint8Array(array)
+      const array=binary.buffer
       if (!PNG_MAGIC.every((value,index)=>binary[index]===value)) {
         throw Error('Invalid generated PNG signature')
       }

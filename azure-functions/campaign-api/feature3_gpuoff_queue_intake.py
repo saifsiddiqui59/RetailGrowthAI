@@ -8,6 +8,8 @@ durable worker must be implemented behind separate provider/onboarding gates.
 """
 from __future__ import annotations
 
+from hashlib import sha256
+import json
 import re
 from uuid import UUID
 
@@ -46,18 +48,22 @@ class Feature3GPUOffQueueIntake:
         self._plan = plan_reader
         self._status = provider_status
 
-    def inspect(self, raw_message):
-        # Must be intentionally OFF, not merely no provider status or a
-        # browser-supplied config. Never inspect a queue in actual paid mode.
+    def require_gpu_off(self):
+        """Reconfirm authoritative paid-provider OFF even with zero visible jobs."""
         try:
             status = self._status()
         except Exception as exc:
             raise Feature3QueueIntakeBlocked(
                 "Current GPU provider OFF status unavailable") from exc
-        if (not isinstance(status,dict) or
+        if (type(status) is not dict or
                 status.get("enabled") is not False):
             raise Feature3QueueIntakeBlocked(
                 "GPU-disabled read-only queue inspection required")
+
+    def inspect(self, raw_message):
+        # Never infer OFF from an empty queue. The caller also checks before
+        # and after the Azure peek, including the zero-message case.
+        self.require_gpu_off()
         try:
             routing = decode_dispatch_envelope(raw_message)
         except GPUEnvelopeDenied as exc:
@@ -91,9 +97,21 @@ class Feature3GPUOffQueueIntake:
                 any(type(v) is not int or not 1 <= v <= 2_147_483_647
                     for v in plan["rights_revisions"])):
             raise Feature3QueueIntakeBlocked("Untrusted private queue preflight receipt")
+        # A provider may be enabled while the authoritative plan was read.
+        # Never issue a stale GPU-OFF receipt after that transition.
+        self.require_gpu_off()
         return {
             "shop_id":routing["shop_id"],"job_id":routing["job_id"],
             "source_count":len(plan["source_asset_ids"]),
+            # Private internal snapshot checksum; not a signature/rights grant.
+            # A peek can compare *current* source IDs, immutable byte hashes
+            # and legal revisions across its bounded before/after reads.
+            # The public operator summary MUST NEVER include this checksum.
+            "source_snapshot_sha256":sha256(json.dumps(
+                [plan["source_asset_ids"],plan["source_sha256s"],
+                 plan["rights_revisions"]],
+                separators=(",",":"),ensure_ascii=True
+            ).encode("utf-8")).hexdigest(),
             "preflight_checked":True,"gpu_enabled":False,
             "provider_call_permitted":False,"claim_performed":False,
             "queue_message_delete_permitted":False,

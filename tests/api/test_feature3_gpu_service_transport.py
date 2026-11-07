@@ -58,6 +58,24 @@ class GPUServiceTransportTests(unittest.TestCase):
                 self._reserve(upper_cost_usd=cost)
             self.store.db.request.assert_not_called()
 
+    def test_reserve_malformed_committed_receipts_are_unknown_not_retryable(self):
+        valid={"shop_id":self.shop,"job_id":self.job,
+               "reservation_id":self.reservation,"reserved_usd":"0.050000",
+               "status":"QUEUED","gpu_started":False}
+        for bad in (
+            {**valid,"job_id":"not-uuid"},
+            {**valid,"reservation_id":"not-uuid"},
+            {**valid,"reserved_usd":"NaN"},
+            {**valid,"reserved_usd":True},
+            {**valid,"provider_charged":True},
+            {k:v for k,v in valid.items() if k!="reservation_id"},
+        ):
+            self.store.db.request.reset_mock()
+            self.store.db.request.return_value=bad
+            with self.subTest(bad=str(bad)),self.assertRaises(StorageUnavailable):
+                self._reserve()
+            self.assertEqual(self.store.db.request.call_count,1)
+
     def test_claim_first_attempt_and_fencing(self):
         self.store.db.request.return_value = {
             "shop_id":self.shop,"job_id":self.job,"attempt":1,
@@ -76,6 +94,18 @@ class GPUServiceTransportTests(unittest.TestCase):
             "claim_token":self.token}
         with self.assertRaises(StorageUnavailable):
             self.store.claim(self.job,self.token)
+
+    def test_one_shot_gpu_claim_rejects_true_attempt_and_forged_ack_fields(self):
+        valid={"shop_id":self.shop,"job_id":self.job,
+               "claim_token":self.token,"attempt":1}
+        for receipt in ({**valid,"attempt":True},
+                        {**valid,"gpu_started":True},
+                        {**valid,"shop_id":"not-uuid"}):
+            self.store.db.request.reset_mock()
+            self.store.db.request.return_value=receipt
+            with self.subTest(receipt=receipt),self.assertRaises(StorageUnavailable):
+                self.store.claim(self.job,self.token)
+            self.store.db.request.assert_called_once()
 
     def test_read_prepaid_two_same_shop_rows_and_active_lease(self):
         lease=(datetime.now(timezone.utc)+timedelta(minutes=8)).isoformat()

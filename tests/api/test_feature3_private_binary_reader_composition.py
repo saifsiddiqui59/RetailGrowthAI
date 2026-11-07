@@ -33,6 +33,7 @@ class FakeTenant:
         self.active=True
         self.status="SUCCEEDED"
         self.foreign_path=False
+        self.asset_overrides={}
         self.calls=[]
         self.outage=False
 
@@ -51,7 +52,12 @@ class FakeTenant:
         self.calls.append("asset")
         path=self.path if not self.foreign_path else (
             f"{uuid4()}/feature3/gpu/{self.job}/untrusted.png")
-        return {"object_path":path,"mime_type":"image/png"}
+        return {
+            "id":self.media, "shop_id":self.shop,
+            "storage_bucket":"retailgrowth-media", "source":"GENERATED",
+            "object_path":path, "mime_type":"image/png",
+            **self.asset_overrides,
+        }
 
 
 class PrivateResponse:
@@ -73,6 +79,8 @@ class ComposedBinaryContractTests(unittest.TestCase):
         self.calls=[]
         self.license_active=True
         self.revoke_at_second_check=False
+        self.expire_jwt_after_last_rights=False
+        self.jwt_active=True
         self.change_during_get=False
         self.spoof_length=None
         self.content_encoding=None
@@ -81,15 +89,18 @@ class ComposedBinaryContractTests(unittest.TestCase):
 
         def verify(token):
             self.calls.append("jwt")
-            if token!="fixture-signed-retailer-token":
+            if token!="fixture-signed-retailer-token" or not self.jwt_active:
                 raise ValueError("Synthetic JWT invalid")
             return self.actor
 
         def current_rights(shop,job,asset):
             self.rights_calls+=1
-            return ((shop,job,asset)==(self.shop,self.job,self.media)
+            allowed=((shop,job,asset)==(self.shop,self.job,self.media)
                     and self.license_active
                     and not (self.revoke_at_second_check and self.rights_calls>=2))
+            if self.expire_jwt_after_last_rights and self.rights_calls==2:
+                self.jwt_active=False
+            return allowed
 
         def transport(request,timeout):
             self.calls.append("private_get")
@@ -140,7 +151,7 @@ class ComposedBinaryContractTests(unittest.TestCase):
         self.assertEqual(headers["X-Feature3-Job-Id"],self.job)
         self.assertEqual(headers["X-Feature3-Media-Asset-Id"],self.media)
         self.assertEqual(headers["X-Feature3-Image-Sha256"],self.digest)
-        self.assertEqual(self.calls,["jwt","private_get"])
+        self.assertEqual(self.calls,["jwt","private_get","jwt"])
         self.assertEqual(self.tenant.calls,
                          ["member","job","asset","member","job","asset"])
         self.assertEqual(self.rights_calls,2)
@@ -149,6 +160,16 @@ class ComposedBinaryContractTests(unittest.TestCase):
         self.assertNotIn("jwt",str(headers).lower())
         self.assertNotIn("signed_url",str(headers).lower())
         self.assertNotIn("provider",str(headers).lower())
+
+    def test_jwt_expired_during_final_rights_yields_opaque_http_404_not_png(self):
+        # The composed route must not return an image even when current
+        # membership, media object and legal rights still appear unchanged.
+        self.expire_jwt_after_last_rights=True
+        response=self.request()
+        self.assert_denied_without_png(response,404)
+        self.assertEqual(self.calls,["jwt","private_get","jwt"])
+        self.assertEqual(self.tenant.calls.count("member"),2)
+        self.assertEqual(self.rights_calls,2)
 
     def test_revoke_membership_or_source_during_real_https_read_denies_body(self):
         for cause in ("membership","license"):
@@ -183,6 +204,46 @@ class ComposedBinaryContractTests(unittest.TestCase):
                     result,405 if case=="bad_method" else
                     401 if case=="bad_token" else 404)
             self.assertNotIn("private_get",self.calls)
+
+    def test_composed_binary_http_denies_forged_media_row_without_private_read(self):
+        # Protect private JSON/PNG even if a future tenant adapter accidentally
+        # returns a valid SHA path for the wrong media row or a public bucket.
+        for field,bad in (
+            ("id",str(uuid4())),
+            ("shop_id",str(uuid4())),
+            ("storage_bucket","public-bucket"),
+            ("source","UPLOAD"),
+            ("id",None),
+        ):
+            self.setUp()
+            self.tenant.asset_overrides[field]=bad
+            with self.subTest(field=field):
+                self.assert_denied_without_png(self.request(),404)
+            self.assertEqual(self.calls,["jwt"])
+            self.assertEqual(self.rights_calls,0)
+            self.assertEqual(self.tenant.calls,["member","job","asset"])
+
+    def test_composed_binary_http_denies_media_row_changed_during_storage_read(self):
+        # Real rights may be withdrawn or a media record replaced during
+        # the private HTTP GET; the second authoritative check is mandatory.
+        for field,bad in (
+            ("id",str(uuid4())),
+            ("shop_id",str(uuid4())),
+            ("storage_bucket","public-bucket"),
+            ("source","UPLOAD"),
+        ):
+            self.setUp()
+            original_reader=self.reader.transport
+            def read_and_change(request,timeout):
+                response=original_reader(request,timeout)
+                self.tenant.asset_overrides[field]=bad
+                return response
+            self.reader.transport=read_and_change
+            with self.subTest(field=field):
+                self.assert_denied_without_png(self.request(),404)
+            self.assertEqual(self.calls,["jwt","private_get"])
+            self.assertEqual(self.tenant.calls.count("asset"),2)
+            self.assertEqual(self.rights_calls,1)
 
     def test_transport_length_recode_and_png_mutation_fail_closed_at_http_boundary(self):
         for case in ("short","long","recoded","wrong_png"):

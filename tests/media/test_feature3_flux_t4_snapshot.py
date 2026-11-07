@@ -68,6 +68,25 @@ class FullSnapshotTests(unittest.TestCase):
    path,manifest,_=self.make(Path(td))
    (path/SHARDS[1]).unlink()
    with self.assertRaises(ProviderBlocked):verify_reviewed_flux_snapshot(path,manifest)
+ def test_duplicate_approval_and_index_keys_fail_closed(self):
+  # Last-key-wins JSON is ambiguous evidence, even if the final value looks safe.
+  with TemporaryDirectory() as td:
+   path,manifest,_=self.make(Path(td))
+   original=manifest.read_text()
+   self.assertIn('"dependencies_operator_approved": true',original)
+   manifest.write_text(original.replace(
+    '"dependencies_operator_approved": true',
+    '"dependencies_operator_approved": false, "dependencies_operator_approved": true'))
+   with self.assertRaises(ProviderBlocked):verify_reviewed_flux_snapshot(path,manifest)
+  with TemporaryDirectory() as td:
+   path,manifest,data=self.make(Path(td))
+   index=path/"model_index.json"
+   index.write_bytes(b'{"_class_name":"WrongPipeline","_class_name":"Flux2KleinPipeline"}')
+   data["model_index_sha256"]=sha(index.read_bytes())
+   manifest.write_text(json.dumps(data))
+   with self.assertRaises(ProviderBlocked):verify_reviewed_flux_snapshot(path,manifest)
+   from flux_t4_review_candidate import build_review_candidate
+   with self.assertRaises(ProviderBlocked):build_review_candidate(path)
  def test_missing_or_replaced_tokenizer_and_scheduler_rejected(self):
   for name in ("tokenizer/tokenizer.json","scheduler/scheduler_config.json"):
    with TemporaryDirectory() as td:

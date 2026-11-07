@@ -72,6 +72,17 @@ class GPUEnvelopeTests(unittest.TestCase):
             with self.subTest(data=str(data)[:80]), self.assertRaises(GPUEnvelopeDenied):
                 decode_dispatch_envelope(data)
 
+    def test_unpaired_unicode_surrogates_fail_closed_as_poison_envelopes(self):
+        # Python can receive malformed in-memory text before the Azure Queue
+        # adapter decodes it. A typed denial is required, not an uncaught
+        # UnicodeEncodeError that could escape poison-message handling.
+        for payload in (self.encoded + chr(0xD800),
+                        self.encoded + chr(0xDFFF),
+                        self.encoded.replace(self.shop, chr(0xD800) + self.shop[1:]),
+                        b"\xed\xa0\x80"):
+            with self.subTest(payload_type=type(payload).__name__), self.assertRaises(GPUEnvelopeDenied):
+                decode_dispatch_envelope(payload)
+
     def test_existing_publisher_generates_exact_decoder_compatible_message(self):
         outbox=Mock()
         outbox.claim_dispatch.return_value=[{
@@ -81,6 +92,8 @@ class GPUEnvelopeTests(unittest.TestCase):
         }]
         queue=Mock()
         queue.send_message.return_value=SimpleNamespace(id=str(uuid4()))
+        # A mocked SQL ACK must explicitly commit, not just return Mock().
+        outbox.confirm_dispatch.return_value=True
         publication=Feature3GPUOutboxPublisher(outbox,queue).dispatch_once(1)
         self.assertEqual(publication["gpu_started"],False)
         sent=queue.send_message.call_args.args[0]

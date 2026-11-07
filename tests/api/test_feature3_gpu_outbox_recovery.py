@@ -44,6 +44,25 @@ class GPUOutboxTests(unittest.TestCase):
                     self.store.claim_dispatch(2)
                 self.assertEqual(self.store.db.request.call_count,1)
 
+    def test_distinct_jobs_cannot_share_one_dispatch_lease_token(self):
+        # A malformed privileged SQL response must be rejected atomically
+        # before any row reaches a queue publisher or ACK path.
+        second = {**self.packet, "job_id": str(uuid4())}
+        self.store.db.request.return_value = [dict(self.packet), second]
+        with self.assertRaisesRegex(StorageUnavailable, "repeated GPU dispatch"):
+            self.store.claim_dispatch(2)
+        self.store.db.request.assert_called_once_with(
+            "rpc/feature3_claim_gpu_dispatch", method="POST", data={"p_limit": 2})
+
+    def test_distinct_dispatch_tokens_are_accepted_for_distinct_jobs(self):
+        second = {**self.packet, "job_id": str(uuid4()),
+                  "dispatch_token": str(uuid4())}
+        self.store.db.request.return_value = [dict(self.packet), second]
+        rows = self.store.claim_dispatch(2)
+        self.assertEqual(len(rows), 2)
+        self.assertNotEqual(rows[0]["dispatch_token"], rows[1]["dispatch_token"])
+        self.assertTrue(all(row["gpu_started"] is False for row in rows))
+
     def test_queue_ack_is_separate_from_paid_worker_claim(self):
         self.store.db.request.return_value = True
         self.assertTrue(self.store.confirm_dispatch(self.job,self.token,True))

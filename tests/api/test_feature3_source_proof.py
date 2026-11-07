@@ -72,4 +72,28 @@ class SourceTests(unittest.TestCase):
                                                 "license_url":"https://licenses.example.org/img"}]
         self.assertIsNotNone(t.feature3_source_asset("jwt",S,A))
 
+
+    def test_malformed_rls_rows_and_license_authorities_fail_closed(self):
+        # An unexpected PostgREST payload must never become a source proof or
+        # raise an unhandled TypeError/AttributeError in the signed API.
+        t = object.__new__(TenantStore)
+        for malformed in (None, "unexpected", 123, [], {"mime_type": []},
+                          {"mime_type": {"unexpected": True}}):
+            t._request = lambda *args, row=malformed, **kwargs: [row]
+            self.assertIsNone(t.feature3_source_asset("jwt", S, A))
+        for bad_url in ("https://", "https://reviewer@licenses.example.org/a",
+                        "https://user:pass@licenses.example.org/a",
+                        "https://licenses.example.org/space path",
+                        "https://licenses.example.org/\nspoof",
+                        "https://licenses.example.org/" + "a" * 501,
+                        "http://licenses.example.org/a"):
+            t._request = lambda *args, url=bad_url, **kwargs: [
+                {**ROW, "license_name": "commercial", "license_url": url}]
+            self.assertIsNone(t.feature3_source_asset("jwt", S, A))
+        t._request = lambda *args, **kwargs: [
+            {**ROW, "license_name": "commercial",
+             "license_url": "https://licenses.example.org/a"}]
+        self.assertEqual(t.feature3_source_asset("jwt", S, A),
+                         {"mime_type": "image/png", "license_name": "commercial"})
+
 if __name__=="__main__":unittest.main()

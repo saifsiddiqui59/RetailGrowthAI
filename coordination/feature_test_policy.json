@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "effective": "2026-10-29",
+  "feature_chat_names": {
+    "2": "reail feature2",
+    "3": "retail feature 3",
+    "4": "retail feature 4",
+    "5": "retail feature 5",
+    "7": "retail feature 7"
+  },
+  "ten_hour_user_absence": {
+    "no_user_facing_samples": true,
+    "no_sample_image_video_reel_or_preview_generation": true,
+    "no_request_for_sample_review": true,
+    "until": "at least 10 hours after these instructions AND until user explicitly requests sample",
+    "offline_automated_fixtures_and_code_tests_allowed": true,
+    "continue_independent_source_work": true
+  },
+  "supabase": {
+    "project_ref": "jeearzffnjbvghwjjjrf",
+    "scope": "existing DEV only",
+    "test_accounts": [
+      {
+        "email": "rgai-owner-test@retailgrowth.test",
+        "role_intent": "test shop owner",
+        "auth_created": false
+      },
+      {
+        "email": "rgai-editor-test@retailgrowth.test",
+        "role_intent": "test shop editor or second shop",
+        "auth_created": false
+      }
+    ],
+    "auth_status": "NOT_CREATED: connected Supabase connector has no Auth Admin createUser action or approved service-role secret",
+    "provision_script": "scripts/dev/provision_test_users.py",
+    "credentials": "Only secret environment variables, no repo/CI/chat plaintext passwords",
+    "shop_membership": "Requires separate approved signed JWT/RLS onboarding; Auth-only accounts do not grant shop privileges",
+    "approval_account": "Use existing user-supplied account only for owner-controlled approval UI. Never store password, login as hidden approver, or auto-approve. Existing email presence was read-only verified.",
+    "browser_testing": "Use Playwright for opt-in UI/auth regression; mocking is not hosted validation, use only non-production test accounts and isolated sessions"
+  },
+  "cost_policy": {
+    "gpu": "OFF",
+    "paid_gpu_inference_allowed": false,
+    "paid_provider_video_or_image_allowed": false,
+    "paid_model_agents_allowed": false,
+    "gpt_4_1_mini": {
+      "available_for_one_off_dev_testing": true,
+      "auto_invoke": false,
+      "require_existing_deployment": true,
+      "requires_explicit_test_budget_and_metered_receipt": true,
+      "max_calls_per_task": 1,
+      "max_input_tokens": 4000,
+      "max_output_tokens": 800,
+      "max_estimated_usd_per_call": 0.05,
+      "require_estimate_before_call": true,
+      "auto_fallback_to_paid_models": false
+    },
+    "testing_priorities": [
+      "read-only source inspection",
+      "unit/contract tests",
+      "CPU FFmpeg",
+      "mocked Playwright",
+      "GPT-4.1 mini only if explicitly bounded and justified"
+    ],
+    "other_costly_cloud_actions": "OFF unless explicitly approved",
+    "prod_deploy": false,
+    "wine_shop_pos_mutation": false
+  },
+  "task_status": {
+    "canonical_events": "coordination/task_progress.json",
+    "reporter": "scripts/coordination/task_status.py",
+    "worker_handoff": "After each coherent task batch, update owned PR/ledger with exact task IDs, source evidence, tests, pending issues. Coordinator reviews task-progress event and status reports after integration.",
+    "automatic_git_verification": "Runs only on trusted main, validates merged PR + fresh four success jobs for DONE",
+    "never_false_done": true
+  }
+}

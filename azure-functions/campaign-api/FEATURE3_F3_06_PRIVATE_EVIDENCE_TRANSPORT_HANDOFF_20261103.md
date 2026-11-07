@@ -1,0 +1,10 @@
+# Feature3 F3-06/F3-13 — independent private PNG operator evidence hardening
+
+**Original tasks:** F3-06 actual Storage/financial/SQL reconciliation; F3-13 hostile source/rights/ACK negative tests.
+
+- This is a separate source-only change to the existing read-only `Feature3VerifiedOutputEvidenceReader`, not a paid GPU job and not a new settlement authority. No duplicate of previously merged operator SQL proposal tests.
+- A supplied private Storage adapter could respond with malformed headers, folded/Unicode content, an unbounded numeric Content-Length or a throwing URL/header accessor. Without hardening, a SHA-consistent but unusable image might have its PNG container verified without actually decoding all pixels, or an opaque service error could escape the private evidence boundary.
+- Before hashing/decode, the reader now requires callable response methods, a mapping-like headers.get, printable/bounded present Content-Type and Content-Encoding, a max-eight-decimal-digit Content-Length identical to immutable SQL length, and maps ordinary adapter exceptions to an opaque denial with no private error context. SHA-256 must still match the twice-read service-only SQL source.
+- Pillow now **fully decodes PNG pixels** after `verify()` to prevent a CRC-valid yet corrupt IDAT stream being accepted as usable output. Three test groups cover header folding/bidi/unbounded numbers, transport errors containing synthetic private keys, and a manually rebuilt CRC-valid but invalid compressed PNG whose updated SHA/SQL path still must fail before final SQL reread.
+- Acceptance remains **source partial** until final-head four-job CI, independent private output/rights/security review, approved current-main merge, and fresh postmerge 4/4. Live independent output evidence SQL RPC remains unapplied pending approval; real private generated output/licensing/paid provider cost/GPU require external authorization. **0/33 fully hosted**.
+- Safety: no paid GPU, hosted DEV/PROD, Storage, financial mutation, user media samples or WineShopPOS.

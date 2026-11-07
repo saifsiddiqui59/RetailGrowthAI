@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import re
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 from uuid import UUID
 
@@ -170,9 +170,26 @@ class TenantStore:
         if not isinstance(rows, list) or len(rows) != 1:
             return None
         item = rows[0]
+        if not isinstance(item, dict):
+            return None
         extensions = {"image/png": ".png", "image/jpeg": ".jpg",
                       "image/webp": ".webp"}
-        ext = extensions.get(item.get("mime_type"))
+        mime = item.get("mime_type")
+        ext = extensions.get(mime) if isinstance(mime, str) else None
+        # License provenance is not a rights approval. Reject malformed
+        # authorities rather than accepting any string starting with https://.
+        license_url = item.get("license_url")
+        valid_license_url = False
+        if (isinstance(license_url, str) and 0 < len(license_url) <= 500 and
+                all(32 < ord(ch) < 127 for ch in license_url)):
+            try:
+                parsed = urlsplit(license_url)
+                valid_license_url = (
+                    parsed.scheme == "https" and bool(parsed.hostname) and
+                    parsed.username is None and parsed.password is None
+                )
+            except ValueError:
+                pass
         if not ext or item.get("id") != aid or item.get("shop_id") != sid or (
             item.get("storage_bucket") != "retailgrowth-media" or
             item.get("source") != "UPLOAD" or
@@ -181,9 +198,7 @@ class TenantStore:
                 ("owned", "cc0", "royalty_free", "commercial") or
             not isinstance(item.get("attribution"), str) or
             len(item["attribution"].strip()) < 10 or
-            (item["license_name"] != "owned" and
-             (not isinstance(item.get("license_url"), str) or
-              not item["license_url"].startswith("https://")))
+            (item["license_name"] != "owned" and not valid_license_url)
         ):
             return None
         return {"mime_type": item["mime_type"],

@@ -144,6 +144,55 @@ class Tests(unittest.TestCase):
             queue.inspect(self.msg)
         self.assertEqual(self.plan.calls,[])
 
+    def test_provider_enabled_during_authoritative_plan_denies_stale_receipt(self):
+        original_check = self.plan.check
+        states = []
+        def provider():
+            states.append(self.enabled)
+            return {"enabled": self.enabled}
+        def enable_during_plan(shop, job):
+            result = original_check(shop, job)
+            self.enabled = True
+            return result
+        self.plan.check = enable_during_plan
+        queue = Feature3GPUOffQueueIntake(
+            plan_reader=self.plan, provider_status=provider)
+        with self.assertRaises(Feature3QueueIntakeBlocked):
+            queue.inspect(self.msg)
+        self.assertEqual(states, [False, True])
+        self.assertEqual(self.plan.calls, [(self.shop, self.job)])
+
+    def test_second_provider_snapshot_outage_or_unknown_fails_closed(self):
+        for second in (None, {"enabled": True}, OSError("provider status lost")):
+            self.setUp()
+            calls = []
+            def provider():
+                calls.append(1)
+                if len(calls) == 1:
+                    return {"enabled": False}
+                if isinstance(second, Exception):
+                    raise second
+                return second
+            queue = Feature3GPUOffQueueIntake(
+                plan_reader=self.plan, provider_status=provider)
+            with self.subTest(second=repr(second)), self.assertRaises(
+                    Feature3QueueIntakeBlocked):
+                queue.inspect(self.msg)
+            self.assertEqual(len(calls), 2)
+            self.assertEqual(self.plan.calls, [(self.shop, self.job)])
+
+    def test_success_requires_two_fresh_gpu_off_snapshots(self):
+        calls = []
+        def provider():
+            calls.append(True)
+            return {"enabled": False}
+        queue = Feature3GPUOffQueueIntake(
+            plan_reader=self.plan, provider_status=provider)
+        receipt = queue.inspect(self.msg)
+        self.assertEqual(len(calls), 2)
+        self.assertIs(receipt["gpu_enabled"], False)
+        self.assertIs(receipt["queue_message_delete_permitted"], False)
+
     def test_missing_reader_or_status_denied_before_any_queue(self):
         with self.assertRaises(ValueError):
             Feature3GPUOffQueueIntake(plan_reader=object(),

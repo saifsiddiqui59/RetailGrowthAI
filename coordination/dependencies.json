@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "description": "Audited seed of cross-feature handoff milestones. This is not the complete 38-task Feature2 backlog. Source fixtures are never production approvals.",
+  "tasks": [
+    {
+      "id": "F3-OPENVTO-FIXTURE",
+      "feature": "3",
+      "kind": "handoff",
+      "level": "fixture",
+      "owner": "feature3",
+      "title": "Immutable MIT OpenVTO model and separate garment demonstration inputs",
+      "depends_on": [],
+      "completion": {
+        "type": "pr_merged",
+        "number": 609,
+        "base": "main"
+      },
+      "acceptance": "Merged original-byte provenance, license and distinct synthetic model and garment inputs; never VTON output."
+    },
+    {
+      "id": "F3-ORIGINAL-HANDOFF",
+      "feature": "3",
+      "kind": "handoff",
+      "level": "fixture",
+      "owner": "feature3",
+      "title": "Original-byte handoff to other feature consumers",
+      "depends_on": [
+        "F3-OPENVTO-FIXTURE"
+      ],
+      "completion": {
+        "type": "pr_merged",
+        "number": 630,
+        "base": "main"
+      },
+      "acceptance": "Merged versioned original-byte handoff; no claim of reviewed commercial garment-on-model output."
+    },
+    {
+      "id": "F2-CREATIVE-SOURCE",
+      "feature": "2",
+      "kind": "handoff",
+      "level": "integration",
+      "owner": "feature2",
+      "title": "Original MIT Creative Director exporter in coordinator main",
+      "depends_on": [],
+      "completion": {
+        "type": "pr_merged",
+        "number": 551,
+        "base": "main"
+      },
+      "acceptance": "Coordinator merged PR #551, verified latest main CI and versioned script/shot/caption contracts; separate spoken voice and human approval."
+    },
+    {
+      "id": "F4-EDITOR-SOURCE",
+      "feature": "4",
+      "kind": "handoff",
+      "level": "integration",
+      "owner": "feature4",
+      "title": "Professional editor and FFmpeg contract integrated into main",
+      "depends_on": [],
+      "completion": {
+        "type": "pr_merged",
+        "number": 322,
+        "base": "main"
+      },
+      "acceptance": "Coordinator merged supported source editor and render pipeline; mock visuals remain explicitly noncommercial."
+    },
+    {
+      "id": "F7-SEMANTIC-SOURCE",
+      "feature": "7",
+      "kind": "handoff",
+      "level": "integration",
+      "owner": "feature7",
+      "title": "AutoBroll semantic editing source integrated into main",
+      "depends_on": [],
+      "completion": {
+        "type": "pr_merged",
+        "number": 513,
+        "base": "main"
+      },
+      "acceptance": "Coordinator merged edit proposals; production-quality audio transcription and signed edits remain separate."
+    },
+    {
+      "id": "F5-GPUOFF-SOURCE",
+      "feature": "5",
+      "kind": "handoff",
+      "level": "integration",
+      "owner": "feature5",
+      "title": "Wan2.2 GPU-off consumer and private-import source accepted",
+      "depends_on": [
+        "F3-ORIGINAL-HANDOFF"
+      ],
+      "completion": {
+        "type": "pr_merged",
+        "number": 465
+      },
+      "acceptance": "Stacked source PR merged under coordinator review; real Wan inference and main release require separate verification."
+    },
+    {
+      "id": "F2-VOICE-QUALITY",
+      "feature": "2",
+      "kind": "task",
+      "level": "fixture",
+      "owner": "feature2",
+      "title": "Independent original-voice / captions fixture and quality gate",
+      "depends_on": [],
+      "completion": {
+        "type": "manual",
+        "approved": false
+      },
+      "acceptance": "Test original WAV/metadata and caption quality against versioned fixture; actual TTS, provider rights and editorial release still separate."
+    },
+    {
+      "id": "F5-F3-CPU-CONTRACT",
+      "feature": "5",
+      "kind": "task",
+      "level": "fixture",
+      "owner": "feature5",
+      "title": "Cross-feature original-image CPU media contract regression",
+      "depends_on": [
+        "F3-ORIGINAL-HANDOFF"
+      ],
+      "completion": {
+        "type": "pr_merged",
+        "number": 465
+      },
+      "acceptance": "Run original-byte SHA, licensed synthetic fixture and CPU FFmpeg/private-import regression; confirm no Wan or VTON generated media. Completion follows existing PR #465; do not recreate source work."
+    },
+    {
+      "id": "F7-F3-VIDEO-CONSUMER",
+      "feature": "7",
+      "kind": "task",
+      "level": "fixture",
+      "owner": "feature7",
+      "title": "Validate Feature3 technical MP4 as editor test media",
+      "depends_on": [
+        "F3-ORIGINAL-HANDOFF"
+      ],
+      "completion": {
+        "type": "pr_merged",
+        "number": 513,
+        "base": "main"
+      },
+      "acceptance": "Verify exact Actions artifact bytes, video codecs, immutable provenance and negative rights tests; never mark consumer signed E2E passed. Completion follows existing PR #513; do not duplicate its actual verified asset tests."
+    },
+    {
+      "id": "F3-LICENSED-MEDIA",
+      "feature": "3",
+      "kind": "approval",
+      "level": "production",
+      "owner": "feature3",
+      "title": "Real model and garment approval with independently reviewed rights",
+      "depends_on": [
+        "F3-ORIGINAL-HANDOFF"
+      ],
+      "completion": {
+        "type": "manual",
+        "approved": false
+      },
+      "acceptance": "Authorized original retailer garment/model, current likeness/commercial license and independent human reviewer evidence."
+    },
+    {
+      "id": "PART3-WAN22-CONTRACT",
+      "feature": "shared",
+      "kind": "approval",
+      "level": "integration",
+      "owner": "coordinator",
+      "title": "Ratify Wan2.2 versus Part3 Wan2.7 job, lease, credit and storage contract",
+      "depends_on": [],
+      "completion": {
+        "type": "manual",
+        "approved": false
+      },
+      "acceptance": "Coordinator freezes compatible versioned native Wan2.2 704x1280 121f/24fps and one-charge/tenant rights interface, not the incompatible Wan2.7 default."
+    },
+    {
+      "id": "F5-GPU-AUTHORIZATION",
+      "feature": "5",
+      "kind": "approval",
+      "level": "production",
+      "owner": "coordinator",
+      "title": "Explicit licensed CUDA/ComfyUI and bounded A100 authorization",
+      "depends_on": [],
+      "completion": {
+        "type": "manual",
+        "approved": false
+      },
+      "acceptance": "User approves exact one-shot cost, weight license/provenance and A100 stop/kill plan; remains GPU OFF by default."
+    },
+    {
+      "id": "F5-REAL-WAN-MOTION",
+      "feature": "5",
+      "kind": "task",
+      "level": "production",
+      "owner": "feature5",
+      "title": "Genuine approved Wan2.2 model wearing approved garment",
+      "depends_on": [
+        "F5-GPUOFF-SOURCE",
+        "F3-LICENSED-MEDIA",
+        "PART3-WAN22-CONTRACT",
+        "F5-GPU-AUTHORIZATION"
+      ],
+      "completion": {
+        "type": "manual",
+        "approved": false
+      },
+      "acceptance": "One authorized genuine Wan video, private media/ledger, full human product and temporal QA with bounded spend."
+    },
+    {
+      "id": "F4-F2-CREATIVE-ADAPTER",
+      "feature": "4",
+      "kind": "task",
+      "level": "integration",
+      "owner": "feature4",
+      "title": "Integrate reviewed Feature2 storyboard with Feature4 editor",
+      "depends_on": [
+        "F2-CREATIVE-SOURCE",
+        "F4-EDITOR-SOURCE"
+      ],
+      "completion": {
+        "type": "manual",
+        "approved": false
+      },
+      "acceptance": "Versioned F2-to-F4 source scene/caption/music contract, exact-head CI and coordinator integrated main."
+    },
+    {
+      "id": "F4-F7-EDIT-ADAPTER",
+      "feature": "4",
+      "kind": "task",
+      "level": "integration",
+      "owner": "feature4",
+      "title": "Execute approved Feature7 semantic edit decisions",
+      "depends_on": [
+        "F7-SEMANTIC-SOURCE",
+        "F4-EDITOR-SOURCE"
+      ],
+      "completion": {
+        "type": "manual",
+        "approved": false
+      },
+      "acceptance": "Versioned approved cut/caption and B-roll semantics supported by actual renderer, preserving original audio and signed rights."
+    },
+    {
+      "id": "F4-PROFESSIONAL-REEL",
+      "feature": "4",
+      "kind": "task",
+      "level": "production",
+      "owner": "feature4",
+      "title": "Owner-reviewed high-quality retailer garment Reel",
+      "depends_on": [
+        "F4-F2-CREATIVE-ADAPTER",
+        "F4-F7-EDIT-ADAPTER",
+        "F5-REAL-WAN-MOTION"
+      ],
+      "completion": {
+        "type": "manual",
+        "approved": false
+      },
+      "acceptance": "Reviewed product fidelity, edit quality, captions, legally usable music/voice and signed final private H264/AAC output."
+    }
+  ]
+}

@@ -66,17 +66,16 @@ test('no download request without explicit secure Storage origin',async()=>{
                        /Storage origin required/)
   assert.equal(calls.length,0)
 })
-test('the v2 UI compiles and displays private success-only download controls',async()=>{
+test('legacy signed-link API remains source-bounded but v2 workspace no longer exposes it',async()=>{
   const req=createRequire(new URL('../../frontend/package.json',import.meta.url))
   const {transformWithEsbuild}=await import(req.resolve('vite'))
   const uri=new URL('../../frontend/src/features/creative/Feature3SecureDraftWorkspace.jsx',
                     import.meta.url)
   const contents=await readFile(uri,'utf8')
   await transformWithEsbuild(contents,'Feature3SecureDraftWorkspace.jsx',{loader:'jsx'})
-  assert.match(contents,/listGeneratedJobs\(shopId\)/)
-  assert.match(contents,/provider[.]getGeneratedImageDownload\(scope,jobId\)/)
-  assert.match(contents,/job.status==='SUCCEEDED'/)
-  assert.match(contents,/not approved for publishing/)
+  assert.doesNotMatch(contents,/getGeneratedImageDownload|scopedFeature3GeneratedLink/)
+  assert.match(contents,/Feature3ReadOnlyReview/)
+  assert.match(contents,/cannot mint\s+signed Storage download links/)
 })
 
 test('short-lived private URL disappears on shop, day, revision or expiration mismatch',async()=>{
@@ -96,11 +95,56 @@ test('short-lived private URL disappears on shop, day, revision or expiration mi
 test('Creative Studio refuses to display stale signed URL during render or delayed JWT response',async()=>{
   const file=new URL('../../frontend/src/features/creative/Feature3SecureDraftWorkspace.jsx',import.meta.url)
   const contents=await readFile(file,'utf8')
-  assert.match(contents,/visibleGeneratedLink && <a/)
-  assert.match(contents,/pendingDownload.current/)
-  assert.match(contents,/activeScope.current.shopId===scope/)
-  assert.match(contents,/scopedFeature3GeneratedLink\(/)
+  assert.doesNotMatch(contents,/visibleGeneratedLink|getGeneratedImageDownload/)
+  assert.match(contents,/scopedFeature3WorkspaceValue\(reviewState,scopeKey,null,feature3Api\)/)
+  assert.match(contents,/createFeature3ReviewSnapshot\(entry,/)
+  assert.match(contents,/readGate.current.cancel\(\)/)
   const req=createRequire(new URL('../../frontend/package.json',import.meta.url))
   const {transformWithEsbuild}=await import(req.resolve('vite'))
   await transformWithEsbuild(contents,'Feature3SecureDraftWorkspace.jsx',{loader:'jsx'})
+})
+
+test('render-time signed-link fence rejects forged URL origins, paths and tokens',async()=>{
+  const {scopedFeature3GeneratedLink}=await import(
+    '../../frontend/src/features/creative/feature3-signed-link-scope.mjs')
+  const now=1000000, requestKey=sid+'|campaign|day'
+  const original={scope:sid,requestKey,jobId:jid,mediaAssetId:aid,
+    url:signed,createdAt:now,expiresInSeconds:60,approvedModel:false}
+  for(const url of [
+    'javascript:alert(1)',
+    'data:text/html,hello',
+    'http://dev.supabase.co/storage/v1/object/sign/retailgrowth-media/'+sid+
+      '/feature3/gpu/'+jid+'/'+'a'.repeat(64)+'.png?token=secret',
+    signed.replace(store,'https://attacker.invalid'),
+    signed.replace(store,'https://dev.supabase.co.evil.invalid'),
+    signed.replace('/object/sign/','/object/public/'),
+    signed.replace(sid,'b1000000-0000-4000-8000-000000000001'),
+    signed.replace(jid,'b1000000-0000-4000-8000-000000000004'),
+    signed.replace('.png?','.jpg?'),
+    signed.replace('?token=','/extra?token='),
+    signed.replace('?token=short-lived-secret',''),
+    signed+'&token=second',
+    signed+'&public=true',
+    signed+'#fragment',
+    signed.replace('https://','https://someone@'),
+    signed.replace('token=short-lived-secret','token=%0A'),
+  ]) {
+    assert.equal(scopedFeature3GeneratedLink({...original,url},sid,now,requestKey),
+      null,'unsafe signed link must not become a rendered href: '+url.slice(0,60))
+  }
+  assert.equal(scopedFeature3GeneratedLink(original,sid,now,requestKey),original)
+})
+
+
+test('F3-09 v2 draft workspace never mints legacy signed generated-output URLs',async()=>{
+  const source=await readFile(new URL('../../frontend/src/features/creative/Feature3SecureDraftWorkspace.jsx',import.meta.url),'utf8')
+  for(const forbidden of ['getGeneratedImageDownload','scopedFeature3GeneratedLink',
+    'visibleGeneratedLink','Request 60-second signed download','setGeneratedLink',
+    'signedStorageOrigin','getGeneratedImageDownload(scope,jobId)']){
+    assert.ok(!source.includes(forbidden),forbidden+' is forbidden in v2 drafts')
+  }
+  const host=await readFile(new URL('../../frontend/src/features/creative/Feature3PosterHost.jsx',import.meta.url),'utf8')
+  assert.match(host,/Feature3GeneratedHistory/)
+  assert.match(host,/binaryClient=\{binaryClient\}/)
+  assert.match(source,/cannot mint\s+signed Storage download links/)
 })

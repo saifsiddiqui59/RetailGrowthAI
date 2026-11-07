@@ -3,7 +3,7 @@
  */
 import { cloneElement, useEffect, useMemo, useRef, useState } from 'react'
 import { createFeature3Api } from './feature3-api.mjs'
-import { scopedFeature3Preview, discardFailedPrivateModelPreview } from './feature3-private-preview.mjs'
+import { scopedFeature3Preview, createFeature3PrivateModelUrlLedger } from './feature3-private-preview.mjs'
 import Feature3GeneratedHistory from './Feature3GeneratedHistory.jsx'
 import {createFeature3PrivatePNGClient} from './feature3-private-png-client.mjs'
 
@@ -42,31 +42,41 @@ export default function Feature3PosterHost({ client, shopId, children }) {
       }):null,[client])
   const [preview, setPreview] = useState(() => empty(shopId))
   // Guard on RENDER too: useEffect cleanup happens after the first paint.
-  const scoped = scopedFeature3Preview(preview, shopId)
+  const scoped = scopedFeature3Preview(preview, shopId, api)
   const nonce = useRef(0)
   const current = useRef({shopId, api})
   current.current = {shopId, api}
-  const urls = useRef([])
-  const release = () => {
-    for (const url of urls.current) URL.revokeObjectURL(url)
-    urls.current = []
-  }
+  const previewLedger=useRef(null)
+  if(!previewLedger.current)previewLedger.current=createFeature3PrivateModelUrlLedger()
+  // A synchronous lease prevents two model GETs before React busy state paints.
+  const modelReadTicket=useRef(null)
+  const release=()=>previewLedger.current.releaseAll()
   useEffect(() => {
     setPreview(empty(shopId))
-    return () => { nonce.current += 1; release() }
+    return () => {
+      nonce.current+=1
+      modelReadTicket.current=null
+      // A failed browser revoke retains the URL in the private ledger for
+      // retry, but scoped render state hides old images immediately.
+      try {release()} catch {}
+    }
   }, [shopId, api])
 
   async function loadPrivateModels() {
-    if (!api || !shopId || scoped.busy) return
+    if (!api || !shopId || scoped.busy || modelReadTicket.current!==null) return
+    const readTicket=Symbol('private-model-library-read')
+    modelReadTicket.current=readTicket
     const scope = shopId
     const provider = api
     const request = ++nonce.current
     const isCurrent = () => request === nonce.current &&
       current.current.shopId === scope && current.current.api === provider
-    release()
-    setPreview({...empty(scope), busy:true})
+    // Hide all old decoded pixels BEFORE any browser Blob revocation attempt.
+    setPreview({...empty(scope), api:provider, busy:true})
     const opened = []
     try {
+      // Never load more models while a previously owned URL cannot be revoked.
+      release()
       const rows = await api.listModels(scope)
       const accepted = []
       const loaded = {}
@@ -87,6 +97,7 @@ export default function Feature3PosterHost({ client, shopId, children }) {
             byte.toString(16).padStart(2, '0')).join('')
           if (fingerprint !== model.image_sha256) continue
           candidateURL = URL.createObjectURL(result.blob)
+          previewLedger.current.track(candidateURL)
           opened.push(candidateURL)
           const picture = await decodeObjectUrl(candidateURL)
           if (!isCurrent()) break
@@ -96,25 +107,31 @@ export default function Feature3PosterHost({ client, shopId, children }) {
           // Absent, corrupt, revoked or non-owned private media is never
           // displayed. Revoke even if decoding failed after URL allocation.
           if (candidateURL !== null) {
-            discardFailedPrivateModelPreview(opened, candidateURL)
+            // A revoke failure throws into the outer fail-closed path. The
+            // pending URL remains owned and new private GETs are denied.
+            previewLedger.current.release(candidateURL)
           }
         }
       }
       if (!isCurrent()) return
-      // The current session exclusively owns these object URLs until cleanup.
-      urls.current = opened.slice()
-      setPreview({scope, models:accepted, imageMap:loaded, busy:false,
+      // Registry continues to own every surviving preview URL until cleanup.
+      setPreview({scope, api:provider, models:accepted, imageMap:loaded, busy:false,
         message:accepted.length
           ? 'Private shop models loaded. Rights are checked again on save.'
           : 'No accessible approved shop models. Other shops’ media remains private.'})
     } catch {
       if (isCurrent()) {
-        opened.forEach(url => URL.revokeObjectURL(url))
-        setPreview({...empty(scope),
-          message:'Private model library unavailable; existing poster tools remain usable.'})
+        try {previewLedger.current.releaseMany(opened)} catch {}
+        setPreview({...empty(scope), api:provider,
+          message:previewLedger.current.pendingCount()>0
+            ? 'Private previews hidden; browser cleanup pending. Retry loading after recovery.'
+            : 'Private model library unavailable; existing poster tools remain usable.'})
       }
     } finally {
-      if (!isCurrent()) opened.forEach(url => URL.revokeObjectURL(url))
+      if (!isCurrent()) {
+        try {previewLedger.current.releaseMany(opened)} catch {}
+      }
+      if(modelReadTicket.current===readTicket)modelReadTicket.current=null
     }
   }
 

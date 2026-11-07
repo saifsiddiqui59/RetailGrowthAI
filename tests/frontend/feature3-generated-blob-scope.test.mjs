@@ -76,6 +76,26 @@ test('malicious external URL returned by URL factory never displays',()=>{
   assert.throws(()=>scope.install(SHOP,JOB,RECEIPT))
   assert.equal(scope.view(SHOP,JOB),null)
 })
+test('malformed blob scheme without an origin and identifier never displays',()=>{
+  for(const malformed of ['blob:', 'blob:javascript:alert(1)',
+    'blob:https://fixture.test/', 'blob:https://fixture.test/id?token=secret',
+    'blob:https://fixture.test/id#fragment', 'blob:https://fixture.test/id\n',
+    'blob:https://fixture.test/id'+String.fromCharCode(92)+'segment',
+    'blob:https://fixture.test/id'+String.fromCharCode(127),
+    'blob:https://fixture.test/id'+String.fromCharCode(0),
+    'blob:https://fixture.test/id'+String.fromCharCode(0x202e)]){
+    const revoked=[]
+    const scope=createFeature3GeneratedBlobScope({
+      createURL:()=>malformed,
+      revokeURL:url=>revoked.push(url),
+    })
+    scope.selectScope(SHOP)
+    assert.throws(()=>scope.install(SHOP,JOB,RECEIPT),/local revocable Blob/)
+    assert.equal(scope.view(SHOP,JOB),null)
+    assert.deepEqual(revoked,[])
+  }
+})
+
 test('generated preview remains OFF by default until independent binary gate',()=>{
   const host=readFileSync(
     new URL('../../frontend/src/features/creative/Feature3PosterHost.jsx',import.meta.url),'utf8')
@@ -87,4 +107,317 @@ test('generated preview remains OFF by default until independent binary gate',()
   assert.match(history,/Clear private preview/)
   assert.match(history,/registry\.current\.clear\(\)/)
   assert.doesNotMatch(history,/getGeneratedImageDownload\(/)
+})
+
+test('duplicate URL factory result never revokes or displays a stale replacement',()=>{
+  const existing='blob:https://fixture.test/same'
+  const revoked=[]
+  const scope=createFeature3GeneratedBlobScope({
+    createURL:()=>existing,
+    revokeURL:url=>revoked.push(url),
+  })
+  scope.selectScope(SHOP)
+  assert.equal(scope.install(SHOP,JOB,RECEIPT),existing)
+  assert.throws(()=>scope.install(SHOP,JOB,RECEIPT),/must be fresh/)
+  assert.equal(scope.view(SHOP,JOB),existing)
+  assert.deepEqual(revoked,[])
+  scope.clear()
+  assert.deepEqual(revoked,[existing])
+})
+
+test('failed old Blob revocation cannot publish or retain the new private preview',()=>{
+  const allocated=[],revoked=[]
+  const scope=createFeature3GeneratedBlobScope({
+    createURL:()=>{
+      const url='blob:https://fixture.test/'+randomUUID()
+      allocated.push(url)
+      return url
+    },
+    revokeURL:url=>{
+      if(url===allocated[0]) throw Error('simulated browser revocation failure')
+      revoked.push(url)
+    },
+  })
+  scope.selectScope(SHOP)
+  const first=scope.install(SHOP,JOB,RECEIPT)
+  assert.equal(scope.view(SHOP,JOB),first)
+  assert.throws(()=>scope.install(SHOP,JOB,RECEIPT),/replacement cleanup failed/)
+  assert.equal(allocated.length,2)
+  assert.deepEqual(revoked,[allocated[1]])
+  assert.equal(scope.view(SHOP,JOB),null)
+  // The failed old URL is hidden but remains owned for a bounded retry.
+  assert.throws(()=>scope.clear(),/cleanup failed/)
+  assert.deepEqual(revoked,[allocated[1]])
+})
+
+test('failed browser image decode discards only the precise current Blob and never an in-flight successor',()=>{
+  const {scope,opened,revoked}=fixture()
+  scope.selectScope(SHOP)
+  const first=scope.install(SHOP,JOB,RECEIPT)
+  assert.equal(scope.discardFailed(OTHER,JOB,first),false)
+  assert.equal(scope.discardFailed(SHOP,randomUUID(),first),false)
+  assert.equal(scope.discardFailed(SHOP,JOB,'blob:https://foreign.test/1'),false)
+  assert.deepEqual(revoked,[])
+  const second=scope.install(SHOP,JOB,RECEIPT)
+  assert.deepEqual(revoked,[first])
+  assert.equal(scope.discardFailed(SHOP,JOB,first),false)
+  assert.equal(scope.view(SHOP,JOB),second)
+  assert.equal(scope.discardFailed(SHOP,JOB,second),true)
+  assert.equal(scope.discardFailed(SHOP,JOB,second),false)
+  assert.deepEqual(revoked,[first,second])
+  assert.equal(opened.length,2)
+  assert.equal(scope.view(SHOP,JOB),null)
+})
+test('decode failure callback is bound to the exact private generated URL',()=>{
+  const history=readFileSync(
+    new URL('../../frontend/src/features/creative/Feature3GeneratedHistory.jsx',import.meta.url),'utf8')
+  assert.match(history,/onError=\{\(\)=>\{/)
+  assert.match(history,/registry\.current\.discardFailed\(displayed\.shopId,displayed\.jobId,displayed\.url\)/)
+  assert.match(history,/setImage\(null\)/)
+  assert.match(history,/Local image was discarded/)
+  assert.doesNotMatch(history,/onError=\{clearImage\}/)
+})
+
+test('failed URL revocation retains hidden private URLs for cleanup after browser recovery',()=>{
+  const issued=[],revoked=[],deny=new Set()
+  const scope=createFeature3GeneratedBlobScope({
+    createURL:()=>{
+      const url='blob:https://fixture.test/'+randomUUID()
+      issued.push(url)
+      return url
+    },
+    revokeURL:url=>{
+      if(deny.has(url))throw Error('browser revoke temporarily failed')
+      revoked.push(url)
+    },
+  })
+  scope.selectScope(SHOP)
+  const first=scope.install(SHOP,JOB,RECEIPT)
+  deny.add(first)
+  assert.throws(()=>scope.selectScope(OTHER),/cleanup failed/)
+  // Scope switches are denied until the hidden URL can be revoked.
+  assert.equal(scope.view(SHOP,JOB),null)
+  assert.equal(scope.view(OTHER,JOB),null)
+  assert.throws(()=>scope.install(SHOP,JOB,RECEIPT))
+  deny.delete(first)
+  scope.selectScope(OTHER)
+  assert.deepEqual(revoked,[first])
+  assert.equal(scope.view(SHOP,JOB),null)
+  scope.selectScope(SHOP)
+  const second=scope.install(SHOP,JOB,RECEIPT)
+  assert.notEqual(second,first)
+  scope.clear()
+  assert.deepEqual(revoked,[first,second])
+})
+
+test('two failed revocations from a replacement stay hidden until a later retry',()=>{
+  const issued=[],revoked=[],deny=new Set()
+  const scope=createFeature3GeneratedBlobScope({
+    createURL:()=>{
+      const url='blob:https://fixture.test/'+randomUUID()
+      issued.push(url)
+      return url
+    },
+    revokeURL:url=>{
+      if(deny.has(url))throw Error('revoke temporary failure')
+      revoked.push(url)
+    },
+  })
+  scope.selectScope(SHOP)
+  const first=scope.install(SHOP,JOB,RECEIPT)
+  deny.add(first)
+  // Fail revocation of the next allocated URL too, even on the error path.
+  const issue=()=>{const url='blob:https://fixture.test/'+randomUUID();issued.push(url);deny.add(url);return url}
+  // Fresh scope supports injectable factories; exercise both failures
+  // in a separately scoped instance with the same failure mechanism.
+  const other=createFeature3GeneratedBlobScope({createURL:issue,revokeURL:url=>{
+    if(deny.has(url))throw Error('revoke temporary failure')
+    revoked.push(url)
+  }})
+  other.selectScope(OTHER)
+  const old=other.install(OTHER,JOB,{...RECEIPT,shopId:OTHER})
+  assert.throws(()=>other.install(OTHER,JOB,{...RECEIPT,shopId:OTHER}),
+    /replacement cleanup failed/)
+  const failedNext=issued[issued.length-1]
+  assert.equal(other.view(OTHER,JOB),null)
+  assert.equal(revoked.includes(old),false)
+  assert.equal(revoked.includes(failedNext),false)
+  // A previously owned pending URL must not be reused as a fresh preview.
+  deny.delete(old);deny.delete(failedNext)
+  other.clear()
+  assert.equal(revoked.filter(url=>url===old).length,1)
+  assert.equal(revoked.filter(url=>url===failedNext).length,1)
+  assert.equal(other.view(OTHER,JOB),null)
+  deny.delete(first)
+  scope.clear()
+})
+
+test('repeated preview attempts cannot allocate unbounded private Blobs while revoke is denied',()=>{
+  const issued=[],revoked=[],deny=new Set()
+  const scope=createFeature3GeneratedBlobScope({
+    createURL:()=>{
+      const next='blob:https://fixture.test/'+randomUUID()
+      issued.push(next)
+      return next
+    },
+    revokeURL:url=>{
+      if(deny.has(url))throw Error('browser revoke remains unavailable')
+      revoked.push(url)
+    },
+  })
+  scope.selectScope(SHOP)
+  const old=scope.install(SHOP,JOB,RECEIPT)
+  deny.add(old)
+  assert.throws(()=>scope.install(SHOP,JOB,RECEIPT),/replacement cleanup failed/)
+  // The replacement was released, but the original is still hidden/pending.
+  assert.equal(issued.length,2)
+  assert.deepEqual(revoked,[issued[1]])
+  assert.equal(scope.view(SHOP,JOB),null)
+  for(let i=0;i<20;i++){
+    assert.throws(()=>scope.install(SHOP,JOB,RECEIPT),/cleanup failed/)
+    assert.equal(issued.length,2,'no additional object URLs while revoke fails')
+    assert.equal(scope.view(SHOP,JOB),null)
+  }
+  deny.delete(old)
+  const recovered=scope.install(SHOP,JOB,RECEIPT)
+  assert.equal(issued.length,3)
+  assert.equal(recovered,issued[2])
+  assert.deepEqual(revoked,[issued[1],old])
+  assert.equal(scope.view(SHOP,JOB),recovered)
+  scope.clear()
+  assert.deepEqual(revoked,[issued[1],old,recovered])
+})
+
+test('decode failure remains non-renderable when browser revoke throws and later recovers',()=>{
+  const issued=[],revoked=[]
+  let fail=true
+  const scope=createFeature3GeneratedBlobScope({
+    createURL:()=>{
+      const next='blob:https://fixture.test/'+randomUUID()
+      issued.push(next)
+      return next
+    },
+    revokeURL:url=>{
+      if(fail)throw Error('browser revoke temporarily denied')
+      revoked.push(url)
+    },
+  })
+  scope.selectScope(SHOP)
+  const first=scope.install(SHOP,JOB,RECEIPT)
+  // onError must return true so the React handler removes its image even
+  // though the browser's revokeObjectURL callback has thrown.
+  assert.equal(scope.discardFailed(SHOP,JOB,first),true)
+  assert.equal(scope.view(SHOP,JOB),null)
+  assert.equal(scope.discardFailed(SHOP,JOB,first),false)
+  assert.throws(()=>scope.install(SHOP,JOB,RECEIPT),/cleanup failed/)
+  assert.equal(issued.length,1,'pending private Blob cannot trigger more allocations')
+  fail=false
+  const second=scope.install(SHOP,JOB,RECEIPT)
+  assert.notEqual(second,first)
+  assert.deepEqual(revoked,[first])
+  assert.equal(scope.view(SHOP,JOB),second)
+  scope.clear()
+  assert.deepEqual(revoked,[first,second])
+})
+
+test('React history hides preview before cleanup and checks live registry ownership',()=>{
+  const history=readFileSync(
+    new URL('../../frontend/src/features/creative/Feature3GeneratedHistory.jsx',import.meta.url),'utf8')
+  assert.match(history,/registry\.current\.view\(shopId,image\.jobId\)===image\.url/)
+  assert.match(history,/const clearImage=\(\)=>\{\s*\+\+epoch\.current\s*imageReadToken\.current=null\s*setImage\(null\)\s*setImageBusy\(false\)\s*setImageMessage\(''\)\s*try \{ registry\.current\.clear\(\) \}/)
+  assert.match(history,/const loadImage=async\(job\)=>[\s\S]*?setImage\(null\)\s*setImageBusy\(true\)\s*setImageMessage\(''\)\s*try\{\s*registry\.current\.clear\(\)/)
+  assert.match(history,/const load=async\(\)=>[\s\S]*?setImage\(null\)\s*setImageBusy\(false\)\s*setImageMessage\(''\)[\s\S]*?setState\(initial\(shop,source\)\)\s*try \{ registry\.current\.clear\(\) \}/)
+  assert.match(history,/Private preview hidden; browser cleanup pending/)
+})
+
+test('private preview fetch is single-flight before React imageBusy state commits',()=>{
+  const history=readFileSync(
+    new URL('../../frontend/src/features/creative/Feature3GeneratedHistory.jsx',import.meta.url),'utf8')
+  // imageBusy alone is asynchronous; a second click must not invalidate the
+  // first nonce or launch another rights-gated private binary GET.
+  assert.match(history,/const imageReadToken=useRef\(null\)/)
+  assert.match(history,/historyReadToken\.current!==null \|\| imageReadToken\.current!==null \|\|\s*job\?\.status!=='SUCCEEDED'/)
+  assert.match(history,/const readToken=Symbol\('private-generated-preview'\)\s*imageReadToken\.current=readToken/)
+  assert.match(history,/if\(imageReadToken\.current===readToken\)imageReadToken\.current=null/)
+  // A history refresh, tenant switch, unmount or explicit Clear invalidates
+  // the old token; its finally cannot unlock a newer in-flight read.
+  assert.match(history,/const load=async\(\)=>\{[\s\S]*?imageReadToken\.current=null/)
+  assert.match(history,/const clearImage=\(\)=>\{\s*\+\+epoch\.current\s*imageReadToken\.current=null/)
+  assert.match(history,/return \(\)=>\{\s*epoch\.current\+=1\s*imageReadToken\.current=null/)
+})
+
+test('generated job history refresh is synchronous single-flight and cannot strand busy state',()=>{
+  const history=readFileSync(
+    new URL('../../frontend/src/features/creative/Feature3GeneratedHistory.jsx',import.meta.url),'utf8')
+  // checked.busy is a React state snapshot and is not sufficient to prevent
+  // two rapid Check clicks from making concurrent private history requests.
+  assert.match(history,/const historyReadToken=useRef\(null\)/)
+  assert.match(history,/if\(!api \|\| !shopId \|\| checked\.busy \|\| historyReadToken\.current!==null \|\|\s*imageReadToken\.current!==null\)return/)
+  assert.match(history,/const refreshToken=Symbol\('private-generated-history'\)\s*historyReadToken\.current=refreshToken/)
+  assert.match(history,/if\(historyReadToken\.current===refreshToken\)\{\s*historyReadToken\.current=null/)
+  assert.match(history,/previous\.shopId===shop && previous\.api===source && previous\.busy/)
+  assert.match(history,/Private history refresh cancelled\./)
+  // A history refresh and a private preview may not race before React renders.
+  assert.match(history,/historyReadToken\.current!==null \|\| imageReadToken\.current!==null/)
+  // A scope/client change invalidates both tokens; stale finally cannot
+  // unlock the new scope's private request or overwrite its busy state.
+  assert.match(history,/historyReadToken\.current=null\s*try \{ registry\.current\.selectScope\(shopId\) \}/)
+  assert.match(history,/return \(\)=>\{\s*epoch\.current\+=1\s*imageReadToken\.current=null\s*historyReadToken\.current=null/)
+})
+
+
+test('same-shop scope reselection retries hidden private Blob cleanup without new allocation',()=>{
+  const issued=[],revoked=[]
+  let deny=true
+  const scope=createFeature3GeneratedBlobScope({
+    createURL:()=>{const url='blob:https://fixture.test/'+randomUUID();issued.push(url);return url},
+    revokeURL:url=>{if(deny)throw Error('revoke unavailable');revoked.push(url)},
+  })
+  scope.selectScope(SHOP)
+  const old=scope.install(SHOP,JOB,RECEIPT)
+  assert.throws(()=>scope.clear(),/cleanup failed/)
+  assert.equal(scope.view(SHOP,JOB),null)
+  assert.throws(()=>scope.selectScope(SHOP),/cleanup failed/)
+  assert.equal(issued.length,1,'reselection cannot allocate another private URL')
+  assert.equal(scope.view(SHOP,JOB),null)
+  deny=false
+  scope.selectScope(SHOP)
+  assert.deepEqual(revoked,[old])
+  const next=scope.install(SHOP,JOB,RECEIPT)
+  assert.notEqual(next,old)
+  assert.equal(scope.view(SHOP,JOB),next)
+  scope.selectScope(SHOP)
+  assert.equal(scope.view(SHOP,JOB),next,'same-scope retry must not revoke live preview')
+  scope.clear()
+  assert.deepEqual(revoked,[old,next])
+})
+
+test('failed private history refresh clears cached statuses before Blob cleanup',()=>{
+  const history=readFileSync(
+    new URL('../../frontend/src/features/creative/Feature3GeneratedHistory.jsx',import.meta.url),'utf8')
+  const start=history.indexOf('const load=async()=>{')
+  const end=history.indexOf('const loadImage=async(job)=>{')
+  assert.ok(start>=0 && end>start)
+  const load=history.slice(start,end)
+  assert.match(load,/setImage\(null\)[\s\S]*?setState\(initial\(shop,source\)\)\s*try \{ registry\.current\.clear\(\) \}/)
+  assert.match(load,/catch \{\s*setImageMessage\('Private preview hidden; browser cleanup pending/)
+})
+
+
+test('history refresh cannot cancel an active private preview GET',()=>{
+  const history=readFileSync(
+    new URL('../../frontend/src/features/creative/Feature3GeneratedHistory.jsx',import.meta.url),'utf8')
+  const start=history.indexOf('const load=async()=>{')
+  const end=history.indexOf('const loadImage=async(job)=>{')
+  assert.ok(start>=0 && end>start)
+  const load=history.slice(start,end)
+  // A pending preview must not be invalidated by a second history click:
+  // the guard must execute before incrementing epoch or clearing its token.
+  const guard=load.indexOf('imageReadToken.current!==null)return')
+  const invalidate=load.indexOf('imageReadToken.current=null')
+  assert.ok(guard>=0 && invalidate>guard)
+  assert.match(history,/onClick=\{load\} disabled=\{!api\|\|!shopId\|\|checked\.busy\|\|imageBusy\}/)
+  // Explicit cancellation remains available if a private binary GET stalls.
+  assert.match(history,/\{imageBusy && <button type="button" onClick=\{clearImage\}>\s*Cancel private preview request/)
+  assert.match(history,/const clearImage=\(\)=>\{\s*\+\+epoch\.current\s*imageReadToken\.current=null/)
 })

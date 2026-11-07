@@ -6,6 +6,8 @@ Never emit raw messages, exception text, resource/customer identifiers or secret
 A 503 with no application marker is NOT itself proof of cold start/worker failure.
 """
 import json
+import math
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -23,6 +25,22 @@ METRICS = (("InstanceCount", "Average"), ("AlwaysReadyUnits", "Total"),
            ("CpuPercentage", "Average"), ("AverageMemoryWorkingSet", "Average"))
 OUTPUT_COLUMNS = frozenset(("bucket", "status", "events", "p95_ms", "category",
                             "metric", "value", "success"))
+# Only fixed-day canonical UTC Azure timestamps are public evidence;
+# never echo an arbitrary Azure string merely because it shares a prefix.
+UTC_STAMP = re.compile(
+    r"2026-10-28T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]"
+    r"(?:\.[0-9]{1,7})?(?:Z|\+00:00)\Z"
+)
+ALLOWED_CLASSES = frozenset((
+    "worker_start", "worker_exit", "host_start", "rpc_exception",
+    "connection_aborted", "other", "InstanceCount", "AlwaysReadyUnits",
+    "CpuPercentage", "AverageMemoryWorkingSet"
+))
+
+
+def public_utc_stamp(value):
+    return isinstance(value, str) and bool(UTC_STAMP.fullmatch(value))
+
 APP_FILTER = ('| where tolower(tostring(column_ifexists("_ResourceId", ""))) '
               'contains "rgai-dev-functions-d4e5ddbd" '
               'or tolower(tostring(column_ifexists("AppRoleName", ""))) '
@@ -55,19 +73,26 @@ def safe_aggregate_rows(output):
         row = {}
         for key in OUTPUT_COLUMNS:
             v = item.get(key)
-            if type(v) in (int, float, bool):
+            if key == "events":
+                if type(v) is int and 0 <= v <= 10_000_000:
+                    row[key] = v
+            elif key in ("p95_ms", "value"):
+                if (type(v) in (int, float) and math.isfinite(v)
+                        and 0 <= v <= 1_000_000_000):
+                    row[key] = round(v, 3)
+            elif key == "bucket" and public_utc_stamp(v):
                 row[key] = v
-            elif isinstance(v, str) and len(v) <= 64:
-                # No raw dynamic identifiers or messages, just known buckets/codes/classes.
-                if key == "bucket" and v.startswith("2026-10-28T"):
+            elif key in ("category", "metric") and isinstance(v, str) and v in ALLOWED_CLASSES:
+                row[key] = v
+            elif key == "status" and isinstance(v, str) and v.isascii() and v.isdecimal() and len(v) <= 3:
+                row[key] = v
+            elif key == "success":
+                # AppDependencies returns tostring(Success) in Kusto. Allow
+                # only literal bools; never publish arbitrary error text.
+                if type(v) is bool:
                     row[key] = v
-                elif key in ("category", "metric") and v in (
-                    "worker_start", "worker_exit", "host_start", "rpc_exception",
-                    "connection_aborted", "other", "InstanceCount", "AlwaysReadyUnits",
-                    "CpuPercentage", "AverageMemoryWorkingSet"):
-                    row[key] = v
-                elif key == "status" and (v.isdecimal() and len(v) <= 3):
-                    row[key] = v
+                elif isinstance(v, str) and v.lower() in ("true", "false"):
+                    row[key] = v.lower() == "true"
         if row:
             rows.append(row)
     return rows
@@ -117,7 +142,9 @@ def safe_metric_points(result, aggregation, name):
             for point in series.get("data", [])[:22]:
                 value = point.get(aggregation.lower())
                 stamp = point.get("timeStamp")
-                if type(value) in (int, float) and isinstance(stamp, str) and stamp.startswith("2026-10-28T"):
+                if (name in {metric for metric, _ in METRICS}
+                        and type(value) in (int, float) and math.isfinite(value)
+                        and 0 <= value <= 1_000_000_000 and public_utc_stamp(stamp)):
                     points.append({"bucket": stamp, "metric": name, "value": round(value, 3)})
     return points[:22]
 

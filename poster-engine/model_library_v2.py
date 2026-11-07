@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
 import re
+import unicodedata
 from urllib.parse import urlsplit
 from uuid import UUID, uuid5
 
@@ -37,6 +38,13 @@ MAX_BYTES = 25 * 1024 * 1024
 MAX_PIXELS = 24_000_000
 
 
+def _unsafe_review_text(text):
+    # Invisible formatting, bidi controls and Unicode line separators can
+    # misrepresent an image license, label or provenance to human reviewers.
+    return any(unicodedata.category(ch) in ("Cc", "Cf", "Cs", "Zl", "Zp")
+               for ch in text)
+
+
 def _uuid(value):
     try:
         canonical = str(UUID(value))
@@ -50,11 +58,36 @@ def _uuid(value):
 def _source_uri(value):
     if not isinstance(value, str) or not 12 <= len(value) <= 1500:
         raise ModelLibraryDenied("Auditable HTTPS model provenance required")
-    parsed = urlsplit(value)
-    if (parsed.scheme != "https" or not parsed.hostname or
-        parsed.username or parsed.password or parsed.fragment or
-        parsed.port not in (None, 443)):
+    # urlsplit silently strips leading C0 controls and embedded CR/LF/TAB.
+    # Reject those before parsing: the stored human-review evidence must be
+    # byte-for-byte the URL actually inspected, not a normalized lookalike.
+    if (any(ord(ch) <= 32 or ch == "\\" for ch in value) or
+            _unsafe_review_text(value)):
         raise ModelLibraryDenied("Only clean HTTPS provenance links are allowed")
+    try:
+        parsed = urlsplit(value)
+        valid = (parsed.scheme == "https" and bool(parsed.hostname) and
+                 not parsed.username and not parsed.password and
+                 not parsed.fragment and parsed.port in (None, 443))
+    except ValueError as exc:
+        # Malformed IPv6 brackets and nonnumeric/out-of-range ports must be
+        # a controlled rights denial, never an uncaught transport 500.
+        raise ModelLibraryDenied("Only clean HTTPS provenance links are allowed") from exc
+    if not valid:
+        raise ModelLibraryDenied("Only clean HTTPS provenance links are allowed")
+    # A declared URL is shown to a human license reviewer. Deny ambiguous
+    # authority spellings (encoded host, IP/localhost, empty/zero-padded port)
+    # rather than silently normalizing a different provenance identity.
+    host = parsed.hostname
+    labels = host.split(".") if host else []
+    if (not host or "%" in parsed.netloc or parsed.netloc.endswith(":") or
+            (parsed.port is not None and not parsed.netloc.endswith(":443")) or
+            host.endswith(".") or len(host) > 253 or len(labels) < 2 or
+            labels[-1].isdigit() or
+            any(not 1 <= len(label) <= 63 or
+                not re.fullmatch(r"[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?", label)
+                for label in labels)):
+        raise ModelLibraryDenied("Unambiguous public HTTPS provenance host required")
     return value
 
 
@@ -79,9 +112,12 @@ def _validate_candidate(candidate):
         raise ModelLibraryDenied("Structured model provenance required")
     _uuid(candidate.owner_shop_id)
     _source_uri(candidate.source_uri)
-    if candidate.scope not in SCOPES or candidate.source_kind not in SOURCE_KINDS:
+    if (type(candidate.scope) is not str or candidate.scope not in SCOPES or
+            type(candidate.source_kind) is not str or
+            candidate.source_kind not in SOURCE_KINDS):
         raise ModelLibraryDenied("Unsupported model library scope or origin")
-    if (candidate.license_id not in KNOWN_LICENSES or
+    if (type(candidate.license_id) is not str or
+        candidate.license_id not in KNOWN_LICENSES or
         not isinstance(candidate.license_evidence_sha256, str) or
         not SHA256.fullmatch(candidate.license_evidence_sha256)):
         raise ModelLibraryDenied("Reviewed asset license evidence is required")
@@ -90,9 +126,11 @@ def _validate_candidate(candidate):
         raise ModelLibraryDenied("Adult synthetic identity and component rights must be verified")
     if (not isinstance(candidate.label, str) or
         not 1 <= len(candidate.label.strip()) <= 64 or
-        candidate.pose not in POSES or
+        len(candidate.label) > 64 or
+        type(candidate.pose) is not str or candidate.pose not in POSES or
         not isinstance(candidate.attribution, str) or
-        len(candidate.attribution) > 200):
+        len(candidate.attribution) > 200 or
+        _unsafe_review_text(candidate.label + candidate.attribution)):
         raise ModelLibraryDenied("Invalid fashion model description or pose")
     if candidate.license_id == "CC-BY-4.0" and not candidate.attribution.strip():
         raise ModelLibraryDenied("CC-BY attribution must accompany all derivative exports")
@@ -119,6 +157,19 @@ def _private_png(raw):
         return cleaned
     except (OSError, UnidentifiedImageError, Image.DecompressionBombError) as exc:
         raise ModelLibraryDenied("Private model image cannot be decoded") from exc
+
+
+def _all_reusable_uses(value):
+    """An independent rights reader must explicitly grant each known use.
+
+    Reject malformed/unhashable entries, duplicates and unknown permissions
+    rather than raising TypeError or silently accepting forged extra uses.
+    """
+    if not isinstance(value, (list, tuple, set, frozenset)) or len(value) != len(USES):
+        return False
+    if any(type(use) is not str or use not in USES for use in value):
+        return False
+    return len(set(value)) == len(USES)
 
 
 def import_model_image(*, candidate, image_bytes, authorize_import,
@@ -153,8 +204,7 @@ def import_model_image(*, candidate, image_bytes, authorize_import,
         rights.get("license_id") != candidate.license_id or
         rights.get("evidence_sha256") != candidate.license_evidence_sha256 or
         rights.get("allow_reuse") is not True or
-        not isinstance(rights.get("uses"), (list, tuple, set, frozenset)) or
-        not USES.issubset(set(rights["uses"]))):
+        not _all_reusable_uses(rights.get("uses"))):
         raise ModelLibraryDenied("Independent reusable-image commercial rights not verified")
     # Hash-pinned lineage allows dedupe/reopening without paying a GPU again.
     source = (candidate.owner_shop_id + "|" + candidate.scope + "|" +
@@ -201,6 +251,20 @@ def import_model_image(*, candidate, image_bytes, authorize_import,
     return record
 
 
+def _approved_model_uses(value, usage):
+    """A reviewed model can grant a strict nonempty subset of known uses.
+
+    Do not let a forged extra use ride along with one valid requested use,
+    nor let unhashable/duplicate entries crash or widen the server boundary.
+    """
+    if (not isinstance(value, (list, tuple, set, frozenset)) or
+            not 1 <= len(value) <= len(USES)):
+        return False
+    if any(type(use) is not str or use not in USES for use in value):
+        return False
+    return len(set(value)) == len(value) and usage in value
+
+
 def checked_model_for_use(*, model, requesting_shop_id, usage, authorize_use):
     """Safely prepare a shared/private model reference for poster/try-on/video.
 
@@ -210,10 +274,13 @@ def checked_model_for_use(*, model, requesting_shop_id, usage, authorize_use):
     shop_id = _uuid(requesting_shop_id)
     if (not isinstance(model, dict) or model.get("schema") !=
         "retailgrowth.model-library.v1" or model.get("status") != "APPROVED"
-        or usage not in USES or model.get("synthetic_adult") is not True or
-        not isinstance(model.get("approved_uses"), (tuple, list, set, frozenset))
-        or usage not in model["approved_uses"] or
-        model.get("scope") not in SCOPES or
+        or type(usage) is not str or usage not in USES or
+        model.get("synthetic_adult") is not True or
+        not _approved_model_uses(model.get("approved_uses"), usage) or
+        type(model.get("license_id")) is not str or
+        model["license_id"] not in KNOWN_LICENSES or
+        type(model.get("scope")) is not str or
+        model["scope"] not in SCOPES or
         not isinstance(model.get("image_sha256"), str) or
         not SHA256.fullmatch(model["image_sha256"]) or
         not callable(authorize_use)):
@@ -222,9 +289,12 @@ def checked_model_for_use(*, model, requesting_shop_id, usage, authorize_use):
     owner = _uuid(model.get("owner_shop_id"))
     if model["scope"] == "shop" and owner != shop_id:
         raise ModelLibraryDenied("Another shop's private models are not accessible")
-    if (model.get("license_id") == "CC-BY-4.0"
-        and not model.get("attribution")):
-        raise ModelLibraryDenied("Attribution required for derivative use")
+    attribution = model.get("attribution", "")
+    if (not isinstance(attribution, str) or len(attribution) > 200 or
+            _unsafe_review_text(attribution) or
+            (model.get("license_id") == "CC-BY-4.0" and
+             not attribution.strip())):
+        raise ModelLibraryDenied("Reviewed model attribution invalid")
     expected_prefix = (f"{owner}/model-library/platform/" if model["scope"] == "platform"
                        else f"{owner}/model-library/")
     key = model.get("storage_key")
@@ -237,6 +307,6 @@ def checked_model_for_use(*, model, requesting_shop_id, usage, authorize_use):
         raise ModelLibraryDenied("Current shop rights, model approval or license revoked")
     return {
         "model_id": model["model_id"], "image_sha256": model["image_sha256"],
-        "storage_key": key, "attribution": model.get("attribution", ""),
+        "storage_key": key, "attribution": attribution,
         "requires_private_signed_media": True, "requires_current_rights": True,
     }

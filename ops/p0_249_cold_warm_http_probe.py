@@ -36,8 +36,12 @@ def verify_dev():
         raise RuntimeError("DEV Function App scope mismatch")
     print("P0_249_SAFE_EXISTING_DEV_SCOPE=true", flush=True)
 
-def classify(returncode, status, tls, first_byte, elapsed, marker=False):
-    if returncode == 0 and status in ("401", "404") and elapsed <= 10 and (status == "404" or marker):
+def classify(returncode, status, tls, first_byte, elapsed, marker=False, route=None):
+    # No 404 on the campaign API is an authentication success; no 401 from
+    # the intentionally nonexistent route proves correct dispatch.
+    eligible = ((route == "campaign" and status == "401" and marker)
+                or (route == "unknown" and status == "404"))
+    if returncode == 0 and eligible and elapsed <= 10:
         category = "EXPECTED_401_OR_404"
     elif returncode == 0 and status == "503":
         category = "CONFIRMED_HTTP_503"
@@ -50,9 +54,37 @@ def classify(returncode, status, tls, first_byte, elapsed, marker=False):
             "post_tls_no_first_byte": returncode != 0 and status == "000" and tls > 0 and first_byte == 0,
             "app_request_marker": bool(marker)}
 
+def final_app_request_marker(header_text):
+    """Do not trust X-Request-ID from curl's earlier proxy/1xx header blocks."""
+    if not isinstance(header_text, str):
+        return False
+    blocks, current = [], []
+    for raw in header_text.splitlines():
+        line = raw.strip()
+        if line.lower().startswith("http/"):
+            if current:
+                blocks.append(current)
+            current = [line]
+        elif current:
+            if not line:
+                blocks.append(current)
+                current = []
+            else:
+                current.append(line)
+    if current:
+        blocks.append(current)
+    return bool(blocks and any(
+        line.lower().startswith("x-request-id:")
+        and line.partition(":")[2].strip()
+        for line in blocks[-1][1:]
+    ))
+
+
 def probe(label, path):
-    if path not in dict((p,n) for n,p in ROUTES):
+    labels = {value: name for name, value in ROUTES}
+    if path not in labels:
         raise ValueError("synthetic fixed paths only")
+    route = labels[path]
     with tempfile.TemporaryDirectory() as temp:
         headers = Path(temp) / "headers"
         args = ["curl", "-sS", "--connect-timeout", "3", "--max-time", "12",
@@ -64,11 +96,11 @@ def probe(label, path):
             raw = run.stdout.split()
             vals = [float(x) for x in raw[1:4]] if len(raw) == 4 else [0,0,0]
             code = raw[0] if raw else "000"
-            marker = (headers.is_file() and any(line.lower().startswith("x-request-id:")
-                     for line in headers.read_text(errors="replace").splitlines()))
-            result = classify(run.returncode, code, *vals, marker)
+            marker = (final_app_request_marker(headers.read_text(errors="replace"))
+                      if headers.is_file() else False)
+            result = classify(run.returncode, code, *vals, marker, route=route)
         except subprocess.TimeoutExpired:
-            result = classify(28, "000", 0, 0, 15)
+            result = classify(28, "000", 0, 0, 15, route=route)
     print("P0_249_SAFE_PROBE=" + json.dumps({"label":label, "timestamp_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"), **result}, sort_keys=True), flush=True)
     return result
 
