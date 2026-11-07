@@ -85,6 +85,9 @@ export function createCampaignApi({ baseUrl, tokenProvider, fetchImpl = fetch,
       try {
         response = await fetchImpl(origin + '/api' + path, {
           method, redirect: 'error', cache: 'no-store',
+          // A browser's default same-origin mode can send ambient cookies.
+          // The isolated Node preview uses only the explicit user JWT header.
+          ...(nodePreview ? { credentials: 'omit' } : {}),
           headers: {
             ...(nodePreview
               ? { 'x-rgai-supabase-jwt': token }

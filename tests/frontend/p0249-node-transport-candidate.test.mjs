@@ -60,7 +60,7 @@ test('only this preview can use the custom Supabase header; never Authorization 
     assert.equal(new URL(url).origin,base)
     assert.equal(options.headers['x-rgai-supabase-jwt'],USER_TOKEN)
     assert.equal(options.headers.Authorization,undefined)
-    assert.equal(options.credentials,undefined)
+    assert.equal(options.credentials,'omit')
     assert.equal(options.redirect,'error')
     assert.equal(options.cache,'no-store')
   }
@@ -149,6 +149,7 @@ test('default customer transport is untouched and preview flag is source-only',a
     }})
   await api.getCampaign(SHOP)
   assert.equal(calls[0].options.headers.Authorization,'Bearer '+USER_TOKEN)
+  assert.equal(calls[0].options.credentials,undefined)
   assert.equal(calls[0].options.headers['x-rgai-supabase-jwt'],undefined)
   const ui=readFileSync(new URL('../../frontend/src/features/campaigns/CampaignDashboard.jsx',import.meta.url),'utf8')
   const env=readFileSync(new URL('../../frontend/.env.production',import.meta.url),'utf8')
