@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from uuid import UUID
+import struct
+import zlib
 
 from feature3_private_png_reader import PrivateGeneratedDownloadDenied
 from tenant_store import StorageUnavailable
@@ -38,6 +40,44 @@ def _canonical(value):
         return False
 
 
+
+def _valid_png(data):
+    """Validate the complete PNG chunk envelope before exposing private bytes.
+
+    Reject truncated, trailing, corrupted or polyglot output; decoding pixels
+    remains the responsibility of the existing private reader.
+    """
+    if type(data) is not bytes or not 100 <= len(data) <= 25 * 1024 * 1024:
+        return False
+    if not data.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+        return False
+    offset, seen_ihdr, seen_idat = 8, False, False
+    while offset + 12 <= len(data):
+        size = struct.unpack_from(">I", data, offset)[0]
+        end = offset + 12 + size
+        if size > len(data) - offset - 12 or end > len(data):
+            return False
+        kind = data[offset + 4:offset + 8]
+        payload = data[offset + 8:end - 4]
+        crc = struct.unpack_from(">I", data, end - 4)[0]
+        if zlib.crc32(kind + payload) & 0xffffffff != crc:
+            return False
+        if not seen_ihdr:
+            if kind != b"IHDR" or size != 13:
+                return False
+            width, height = struct.unpack_from(">II", payload)
+            if not (0 < width <= 16384 and 0 < height <= 16384):
+                return False
+            seen_ihdr = True
+        elif kind == b"IHDR":
+            return False
+        if kind == b"IDAT":
+            seen_idat = True
+        if kind == b"IEND":
+            return seen_idat and size == 0 and end == len(data)
+        offset = end
+    return False
+
 def private_png_http(*, authorization, shop_id, job_id, reader_factory):
     """Return an opaque binary response; caller must mount behind auth=None.
 
@@ -61,7 +101,7 @@ def private_png_http(*, authorization, shop_id, job_id, reader_factory):
         reader = reader_factory(shop_id, job_id)
         result = reader.read(user_token=token, shop_id=shop_id, job_id=job_id)
         raw = result["image_bytes"]
-        if (type(raw) is not bytes or not 100 <= len(raw) <= 25 * 1024 * 1024 or
+        if (not _valid_png(raw) or
                 result.get("mime_type") != "image/png" or
                 result.get("shop_id") != shop_id or
                 result.get("job_id") != job_id or
