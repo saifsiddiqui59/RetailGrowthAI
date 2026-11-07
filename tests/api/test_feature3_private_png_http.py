@@ -187,6 +187,28 @@ class HttpTests(unittest.TestCase):
         self.reader.tamper = None
         self.assertEqual(self.call().status, 200)
 
+    def test_negative_fixture_uses_canonical_png_signature(self):
+        """Negative cases must reach chunk validation, not fail at signature."""
+        def chunk(kind, payload):
+            return png_chunk(kind, payload)
+
+        header = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
+        pixels = zlib.compress(b"\\x00\\xff\\x00\\x00\\xff")
+        prefix = b"\\x89PNG\\r\\n\\x1a\\n"
+        valid = (prefix + chunk(b"IHDR", header) +
+                 chunk(b"tEXt", b"fixture") +
+                 chunk(b"IDAT", pixels) + chunk(b"IEND", b""))
+        self.assertTrue(valid.startswith(prefix))
+        self.reader.tamper = {"image_bytes": valid}
+        self.assertEqual(self.call().status, 200)
+        invalid = (prefix + chunk(b"IHDR", header) +
+                   chunk(b"ab1d", b"bad-chunk-name") +
+                   chunk(b"IDAT", pixels) + chunk(b"IEND", b""))
+        self.assertTrue(invalid.startswith(prefix))
+        self.reader.tamper = {"image_bytes": invalid}
+        self.assertEqual(self.call().status, 404)
+        self.reader.tamper = None
+
     def test_malformed_reader_result_is_denied(self):
         for tamper in (dict(shop_id=str(uuid4())),
                        dict(job_id=str(uuid4())),
