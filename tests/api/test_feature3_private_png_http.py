@@ -19,8 +19,8 @@ def png_chunk(kind, payload):
 
 def synthetic_png():
     ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
-    pixels = zlib.compress(b"\\x00\\xff\\x00\\x00\\xff")
-    return (b"\\x89PNG\\r\\n\\x1a\\n" + png_chunk(b"IHDR", ihdr) +
+    pixels = zlib.compress(b"\x00\xff\x00\x00\xff")
+    return (b"\x89PNG\\r\\n\x1a\\n" + png_chunk(b"IHDR", ihdr) +
             png_chunk(b"tEXt", b"synthetic=" + b"a" * 50) +
             png_chunk(b"IDAT", pixels) + png_chunk(b"IEND", b""))
 
@@ -111,13 +111,13 @@ class HttpTests(unittest.TestCase):
 
     def test_png_rejects_invalid_headers_and_chunk_order(self):
         def build(ihdr, chunks):
-            return (b"\\x89PNG\\r\\n\\x1a\\n" +
+            return (b"\x89PNG\\r\\n\x1a\\n" +
                     png_chunk(b"IHDR", ihdr) +
                     b"".join(png_chunk(kind, data) for kind, data in chunks) +
                     png_chunk(b"IEND", b""))
 
         normal = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
-        compressed = zlib.compress(b"\\x00\\xff\\x00\\x00\\xff")
+        compressed = zlib.compress(b"\x00\xff\x00\x00\xff")
         cases = [
             build(struct.pack(">IIBBBBB", 16384, 16384, 8, 6, 0, 0, 0),
                   [(b"IDAT", compressed)]),
