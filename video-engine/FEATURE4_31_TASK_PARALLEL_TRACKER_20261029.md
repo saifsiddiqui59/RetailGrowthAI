@@ -75,3 +75,9 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 - Existing 30s synthetic encoded split/reorder/trim QA now checks one bounded no-follow MP4 fingerprint including inode/device/size/mtime/ctime around ffprobe and decoded samples. Same-byte atomic source-file replacements fail closed even when SHA256 alone would match.
 - Three new negative tests: identical bytes replaced while probing, while decoding, and oversize rejection before FFmpeg. No output-licensing, real source rights, tenant authorization or commercial quality claims.
 - Source increment only; inspect new exact-head four-job CI and PR #322 merged-base CI. F4-04 remains **IN PROGRESS**, #23 main integration and signed hosted acceptance separately pending. GPU/paid provider/PROD/WineShopPOS unchanged.
+
+## 2026-11-08 — F4-04 pinned render-to-QA SHA boundary (source increment)
+
+- Continuation of original F4-04 on draft PR #322: encoded 30s HyperFrames edit QA now **requires** an independently captured lowercase 64-character SHA256 from its trusted render caller. Normal media CI captures the completed MP4's digest before starting the separate decoder QA process. A swapped output file, forged/missing digest, or SHA mismatch fails before ffprobe/FFmpeg. Previously the checker only self-hashed whatever path it received.
+- Two deterministic negative test methods cover malformed/incorrect SHA and replacement by a different same-profile MP4 before QA; earlier same-byte atomic inode/metadata race tests remain. This is NOT a live job/tenant/rights or visual QA proof.
+- F4-04 remains IN PROGRESS until final-head four-job PR and accepted main integration/hosted gate. Azure packaging issue #650 remains a shared blocker; do not raise the 120-entry ZIP limit. GPU/paid AI/PROD/WineShopPOS unchanged.

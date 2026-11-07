@@ -26,7 +26,9 @@ class EncodedEditorParityTests(unittest.TestCase):
     def prove(self, frames=None):
         with patch.object(qa, "inspect_mp4", return_value=self.profile), \
              patch.object(qa, "_frame", side_effect=list(frames or self.valid)):
-            return verify_mock_editor_output(self.file)
+            return verify_mock_editor_output(
+                self.file,
+                expected_sha256=hashlib.sha256(self.file.read_bytes()).hexdigest())
 
     def test_valid_decoded_pattern_is_source_sha_bound_not_product_approval(self):
         proof = self.prove()
@@ -55,7 +57,8 @@ class EncodedEditorParityTests(unittest.TestCase):
         with patch.object(qa, "inspect_mp4", return_value=self.profile), \
              patch.object(qa, "_frame", side_effect=decode):
             with self.assertRaisesRegex(EditorExportProofError, "changed"):
-                verify_mock_editor_output(self.file)
+                verify_mock_editor_output(
+                    self.file, expected_sha256=hashlib.sha256(self.file.read_bytes()).hexdigest())
         self.profile["seconds"] = 29.0
         with self.assertRaisesRegex(EditorExportProofError, "30s"):
             self.prove()
@@ -72,7 +75,8 @@ class EncodedEditorParityTests(unittest.TestCase):
         with patch.object(qa, "inspect_mp4", side_effect=swap_during_probe), \
              patch.object(qa, "_frame", side_effect=list(self.valid)):
             with self.assertRaisesRegex(EditorExportProofError, "changed"):
-                verify_mock_editor_output(self.file)
+                verify_mock_editor_output(
+                    self.file, expected_sha256=hashlib.sha256(self.file.read_bytes()).hexdigest())
 
     def test_same_byte_atomic_inode_swap_during_decoding_is_denied(self):
         frames = list(self.valid)
@@ -88,15 +92,40 @@ class EncodedEditorParityTests(unittest.TestCase):
         with patch.object(qa, "inspect_mp4", return_value=self.profile), \
              patch.object(qa, "_frame", side_effect=decode):
             with self.assertRaisesRegex(EditorExportProofError, "changed"):
-                verify_mock_editor_output(self.file)
+                verify_mock_editor_output(
+                    self.file, expected_sha256=hashlib.sha256(self.file.read_bytes()).hexdigest())
 
     def test_oversized_mp4_is_denied_before_media_probe(self):
         with self.file.open("wb") as source:
             source.truncate(80 * 1024 * 1024 + 1)
         with patch.object(qa, "inspect_mp4") as probe:
             with self.assertRaisesRegex(EditorExportProofError, "size/type"):
-                verify_mock_editor_output(self.file)
+                verify_mock_editor_output(
+                    self.file, expected_sha256=hashlib.sha256(self.file.read_bytes()).hexdigest())
         probe.assert_not_called()
+
+    def test_render_sha_is_required_before_any_decoder(self):
+        digest = hashlib.sha256(self.file.read_bytes()).hexdigest()
+        for wrong in (None, "", digest.upper(), "g" * 64, "0" * 64, True):
+            with self.subTest(expected=wrong):
+                with patch.object(qa, "inspect_mp4") as probe, \
+                     patch.object(qa, "_frame") as frame:
+                    with self.assertRaisesRegex(
+                        EditorExportProofError, "SHA256|rendered source SHA"
+                    ):
+                        verify_mock_editor_output(self.file, expected_sha256=wrong)
+                    probe.assert_not_called()
+                    frame.assert_not_called()
+
+    def test_replaced_mp4_before_qa_fails_when_same_profile(self):
+        first_sha = hashlib.sha256(self.file.read_bytes()).hexdigest()
+        self.file.write_bytes(b"different-encoded-output" * 200)
+        with patch.object(qa, "inspect_mp4") as probe, \
+             patch.object(qa, "_frame") as frame:
+            with self.assertRaisesRegex(EditorExportProofError, "rendered source SHA"):
+                verify_mock_editor_output(self.file, expected_sha256=first_sha)
+            probe.assert_not_called()
+            frame.assert_not_called()
 
     def test_nonvideo_and_symlink_source_denied(self):
         with self.assertRaises(EditorExportProofError):

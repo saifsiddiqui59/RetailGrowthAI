@@ -162,3 +162,7 @@ Selected actual pinned MIT [Timeline Studio](https://github.com/MartinDelophy/ai
 ## 2026-11-06 — F4-04 decoded editor file identity guard
 
 The original #322 branch now hardens encoded 30s synthetic edit QA against same-byte atomic file swaps. MP4 source identity and SHA256 must remain stable across probe and FFmpeg frame decoding, with bounded regular-file input; regression tests exercise two swap timings and oversized input. This does NOT claim exact trim-frame accuracy, independent product rights, real customer footage, hosted worker success or full F4-04 task completion. Check exact-head 4/4 CI, reconcile other stacked Feature4 PRs safely and keep PR #322 draft pending integration qualification.
+
+### 2026-11-08 — F4-04 exact finished render digest offline QA
+
+The existing final 30s synthetic editor MP4 checker now requires caller-supplied SHA256 of the just-completed render, instead of self-hashing any file found at the QA path. CI pins the digest before decoder execution; mismatched or malformed proofs reject before media scanning. Only offline technical source progress; F4-04 remains IN PROGRESS, parent #322 draft. No signed DEV tenant, customer license or commercial result inferred.

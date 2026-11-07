@@ -109,8 +109,11 @@ for sec in 2 15 26; do
 done
 # F4-MVP-30: verify ACTUAL encoded editor scene order/trim replay and SHA,
 # not just the 30s H264/AAC container. Original synthetic media only.
+# Capture finished render identity BEFORE invoking the independent decoder QA.
+EDITED_RENDER_SHA256="$(sha256sum "$EDITED_MP4" | cut -d' ' -f1)"
 python3 "$ROOT/video-engine/feature4_edited_export_qa.py" \
   --source "$EDITED_MP4" \
+  --expected-sha256 "$EDITED_RENDER_SHA256" \
   --report "$ROOT/ci-artifacts/feature4-30s-editor-encoded-parity.json"
 
 

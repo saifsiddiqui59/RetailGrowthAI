@@ -13,6 +13,7 @@ import hashlib
 import json
 from pathlib import Path
 import os
+import re
 import stat
 import subprocess
 
@@ -79,10 +80,19 @@ def _luma_delta(a, b):
     return sum(abs(x-y) for x, y in zip(a, b)) / len(a)
 
 
-def verify_mock_editor_output(source: Path):
-    """Audit actual encoded 540p 30s TEST edit scene families; never human art QA."""
+def verify_mock_editor_output(source: Path, *, expected_sha256: str):
+    """Audit decoded editor output against an independently pinned render hash.
+
+    This fingerprint comes from the trusted render job before QA runs, not
+    from a client/PR sidecar. Local technical-only proof is not tenant approval.
+    """
+    if (type(expected_sha256) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is None):
+        raise EditorExportProofError("Expected exact lowercase trusted render SHA256")
     source = Path(source)
     source_fingerprint = _source_fingerprint(source)
+    if source_fingerprint[0] != expected_sha256:
+        raise EditorExportProofError("Encoded editor MP4 differs from rendered source SHA")
     try:
         metadata = inspect_mp4(source, max_size=80*1024*1024)
     except PreviewExportError as exc:
@@ -136,13 +146,14 @@ def verify_mock_editor_output(source: Path):
 def main():
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument("--source", required=True)
+    cli.add_argument("--expected-sha256", required=True)
     cli.add_argument("--report", required=True)
     args = cli.parse_args()
     report = Path(args.report)
     if (report.is_symlink() or report.exists() or report.suffix.lower() != ".json"
             or not report.parent.is_dir() or report.parent.is_symlink()):
         raise EditorExportProofError("Private QA output must be new JSON")
-    evidence = verify_mock_editor_output(Path(args.source))
+    evidence = verify_mock_editor_output(Path(args.source), expected_sha256=args.expected_sha256)
     with report.open("x", encoding="utf-8") as f:
         json.dump(evidence, f, indent=2)
         f.write("\n")
