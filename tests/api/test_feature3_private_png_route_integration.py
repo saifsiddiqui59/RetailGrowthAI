@@ -1,5 +1,6 @@
 """F3-08 synthetic private PNG route integration: no hosted identity/rights claims."""
 import io
+from hashlib import sha256
 import sys
 import unittest
 from pathlib import Path
@@ -64,10 +65,14 @@ class PrivateRouteIntegrationTests(unittest.TestCase):
                 return {
                     "shop_id": reader_shop or shop,
                     "job_id": reader_job or job,
+                    "media_asset_id": str(uuid4()),
+                    "image_sha256": sha256(png).hexdigest(),
                     "image_bytes": png,
                     "mime_type": "image/png",
                     "private": True,
                     "signed_url_issued": False,
+                    "approved_model": False,
+                    "publish_approved": False,
                 }
 
         def factory(shop_id, job_id):

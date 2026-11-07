@@ -3,6 +3,9 @@ import sys
 import unittest
 import struct
 import zlib
+from hashlib import sha256
+from io import BytesIO
+from PIL import Image
 from pathlib import Path
 from uuid import uuid4
 
@@ -18,11 +21,10 @@ def png_chunk(kind, payload):
 
 
 def synthetic_png():
-    ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
-    pixels = zlib.compress(b"\x00\xff\x00\x00\xff")
-    return (b"\x89PNG\r\n\x1a\n" + png_chunk(b"IHDR", ihdr) +
-            png_chunk(b"tEXt", b"synthetic=" + b"a" * 50) +
-            png_chunk(b"IDAT", pixels) + png_chunk(b"IEND", b""))
+    out = BytesIO()
+    image = Image.new("RGB", (256, 256), "#124578")
+    image.save(out, format="PNG")
+    return out.getvalue()
 
 
 PNG = synthetic_png()
@@ -38,8 +40,11 @@ class Reader:
         if self.fail:
             raise self.fail
         result = dict(shop_id=self.shop, job_id=self.job,
+                      media_asset_id=str(uuid4()),
+                      image_sha256=sha256(PNG).hexdigest(),
                       image_bytes=PNG, mime_type="image/png",
-                      private=True, signed_url_issued=False)
+                      private=True, signed_url_issued=False,
+                      approved_model=False, publish_approved=False)
         if self.tamper:
             result.update(self.tamper)
         return result
@@ -104,7 +109,7 @@ class HttpTests(unittest.TestCase):
             with self.subTest(length=len(value)):
                 self.reader.tamper = {"image_bytes": value}
                 response = self.call()
-                self.assertEqual(response.status, 404)
+                self.assertEqual(response.status, 503)
                 self.assertEqual(response.body, b"")
         self.reader.tamper = None
         self.assertEqual(self.call().status, 200)
@@ -133,7 +138,7 @@ class HttpTests(unittest.TestCase):
             with self.subTest(case=len(value)):
                 self.reader.tamper = {"image_bytes": value}
                 response = self.call()
-                self.assertEqual(response.status, 404)
+                self.assertEqual(response.status, 503)
                 self.assertEqual(response.body, b"")
         self.reader.tamper = None
         self.assertEqual(self.call().status, 200)
@@ -160,7 +165,7 @@ class HttpTests(unittest.TestCase):
             with self.subTest(case=value):
                 self.reader.tamper = {"image_bytes": value}
                 response = self.call()
-                self.assertEqual(response.status, 404)
+                self.assertEqual(response.status, 503)
                 self.assertEqual(response.body, b"")
         self.reader.tamper = None
         self.assertEqual(self.call().status, 200)
@@ -183,7 +188,7 @@ class HttpTests(unittest.TestCase):
         for value in cases:
             with self.subTest(length=len(value)):
                 self.reader.tamper = {"image_bytes": value}
-                self.assertEqual(self.call().status, 404)
+                self.assertEqual(self.call().status, 503)
         self.reader.tamper = None
         self.assertEqual(self.call().status, 200)
 
@@ -195,15 +200,13 @@ class HttpTests(unittest.TestCase):
         header = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
         pixels = zlib.compress(b"\x00\xff\x00\x00\xff")
         prefix = b"\x89PNG\r\n\x1a\n"
-        valid = (prefix + chunk(b"IHDR", header) +
-                 chunk(b"tEXt", b"fixture=" + b"x" * 48) +
-                 chunk(b"IDAT", pixels) + chunk(b"IEND", b""))
+        valid = PNG
         self.assertTrue(valid.startswith(prefix))
         self.reader.tamper = {"image_bytes": valid}
         self.assertEqual(self.call().status, 200)
-        invalid = (prefix + chunk(b"IHDR", header) +
-                   chunk(b"ab1d", b"bad-chunk-name" + b"x" * 48) +
-                   chunk(b"IDAT", pixels) + chunk(b"IEND", b""))
+        # Inject an invalid chunk with valid CRC into an otherwise normal
+        # production-size PNG. This must reach PNG framing validation.
+        invalid = valid[:33] + chunk(b"ab1d", b"bad-chunk-name") + valid[33:]
         self.assertTrue(invalid.startswith(prefix))
         self.reader.tamper = {"image_bytes": invalid}
         self.assertEqual(self.call().status, 404)
