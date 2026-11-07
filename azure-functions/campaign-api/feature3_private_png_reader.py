@@ -88,8 +88,11 @@ class Feature3RevocablePNGReader:
         except Exception:
             raise PrivateGeneratedDownloadDenied(
                 "Private generated output unavailable") from None
-        if (not isinstance(row, dict) or row.get("id") != job or
-                row.get("shop_id") != shop or row.get("status") != "SUCCEEDED"):
+        # Injected tenant adapters must not impersonate identities via __eq__.
+        if (type(row) is not dict or
+                type(row.get("id")) is not str or row["id"] != job or
+                type(row.get("shop_id")) is not str or row["shop_id"] != shop or
+                type(row.get("status")) is not str or row["status"] != "SUCCEEDED"):
             raise PrivateGeneratedDownloadDenied("Private generated output unavailable")
         asset_id = canonical_uuid(row.get("output_asset_id"))
         try:
@@ -108,15 +111,18 @@ class Feature3RevocablePNGReader:
         # also a trust boundary for any future injected store adapter.
         # A path alone cannot prove that the registered row belongs to this
         # generated output rather than an uploaded/foreign media asset.
-        if (not isinstance(key, str) or
-                asset.get("id") != asset_id or
-                asset.get("shop_id") != shop or
-                asset.get("storage_bucket") != "retailgrowth-media" or
-                asset.get("source") != "GENERATED" or
+        if (type(asset) is not dict or type(key) is not str or
+                type(asset.get("id")) is not str or asset["id"] != asset_id or
+                type(asset.get("shop_id")) is not str or asset["shop_id"] != shop or
+                type(asset.get("storage_bucket")) is not str or
+                asset["storage_bucket"] != "retailgrowth-media" or
+                type(asset.get("source")) is not str or
+                asset["source"] != "GENERATED" or
                 not key.startswith(prefix) or
                 not key.endswith(".png") or
                 not _SHA.fullmatch(key[len(prefix):-4]) or
-                asset.get("mime_type") != "image/png"):
+                type(asset.get("mime_type")) is not str or
+                asset["mime_type"] != "image/png"):
             raise PrivateGeneratedDownloadDenied("Private generated output unavailable")
         # Must be a real backend check of original source rights/approval
         # and immutable output evidence, NOT a caller-created True from UI.
