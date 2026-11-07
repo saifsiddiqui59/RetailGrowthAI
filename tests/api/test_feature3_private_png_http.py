@@ -165,6 +165,28 @@ class HttpTests(unittest.TestCase):
         self.reader.tamper = None
         self.assertEqual(self.call().status, 200)
 
+    def test_rejects_invalid_chunk_names_and_oversized_indexed_palette(self):
+        def assemble(color_type, depth, chunks):
+            header = struct.pack(">IIBBBBB", 1, 1, depth, color_type, 0, 0, 0)
+            return (b"\\x89PNG\\r\\n\\x1a\\n" + png_chunk(b"IHDR", header) +
+                    b"".join(png_chunk(kind, payload) for kind, payload in chunks) +
+                    png_chunk(b"IEND", b""))
+
+        pixel = zlib.compress(b"\\x00\\x00")
+        cases = [
+            assemble(0, 8, [(b"ab1d", b"x"), (b"IDAT", pixel)]),
+            assemble(0, 8, [(b"abcd", b"x"), (b"IDAT", pixel)]),
+            assemble(3, 1, [(b"PLTE", b"\\x00\\x00\\x00" * 3),
+                            (b"IDAT", pixel)]),
+            assemble(0, 8, [(b"tEXt", b"x")]*4096 + [(b"IDAT", pixel)]),
+        ]
+        for value in cases:
+            with self.subTest(length=len(value)):
+                self.reader.tamper = {"image_bytes": value}
+                self.assertEqual(self.call().status, 404)
+        self.reader.tamper = None
+        self.assertEqual(self.call().status, 200)
+
     def test_malformed_reader_result_is_denied(self):
         for tamper in (dict(shop_id=str(uuid4())),
                        dict(job_id=str(uuid4())),
