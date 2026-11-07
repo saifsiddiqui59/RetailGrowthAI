@@ -78,7 +78,7 @@ def build_scoped_private_png_reader(*, shop_id, job_id, tenant_store,
             type(pins["job_id"]) is not str or
             pins["shop_id"] != shop_id or pins["job_id"] != job_id):
         raise ValueError("Trusted output pins mismatch")
-    # A digest/revision pin is not a shop/job authorization grant. Bind
+    # Freeze the initial trusted snapshot: a backend adapter may return the same\n    # mutable dict on every read. Never compare a live dict to itself.\n    pins = dict(pins)\n    # A digest/revision pin is not a shop/job authorization grant. Bind
     # the fresh authority to the exact output scope before reading bytes.
     if not callable(authoritative_read):
         raise ValueError("Backend current rights lookup required")
