@@ -193,8 +193,8 @@ class HttpTests(unittest.TestCase):
             return png_chunk(kind, payload)
 
         header = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
-        pixels = zlib.compress(b"\\x00\\xff\\x00\\x00\\xff")
-        prefix = b"\\x89PNG\\r\\n\\x1a\\n"
+        pixels = zlib.compress(b"\x00\xff\x00\x00\xff")
+        prefix = b"\x89PNG\r\n\x1a\n"
         valid = (prefix + chunk(b"IHDR", header) +
                  chunk(b"tEXt", b"fixture=" + b"x" * 48) +
                  chunk(b"IDAT", pixels) + chunk(b"IEND", b""))
