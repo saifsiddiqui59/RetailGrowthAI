@@ -52,6 +52,7 @@ def _valid_png(data):
     if not data.startswith(b"\x89PNG\r\n\x1a\n"):
         return False
     offset, seen_ihdr, seen_idat, ended_idat = 8, False, False, False
+    seen_plte, color_type = False, None
     while offset + 12 <= len(data):
         size = struct.unpack_from(">I", data, offset)[0]
         end = offset + 12 + size
@@ -76,10 +77,20 @@ def _valid_png(data):
                             3: (1, 2, 4, 8), 4: (8, 16), 6: (8, 16)}
             if payload[8] not in valid_depths[payload[9]]:
                 return False
+            color_type = payload[9]
             seen_ihdr = True
         elif kind == b"IHDR":
             return False
+        if kind == b"PLTE":
+            # Palette must be unique, precede pixel data, and be present for
+            # indexed-color PNGs. Grayscale images cannot carry a palette.
+            if (seen_plte or seen_idat or color_type in (0, 4) or
+                    not 3 <= size <= 768 or size % 3):
+                return False
+            seen_plte = True
         if kind == b"IDAT":
+            if color_type == 3 and not seen_plte:
+                return False
             if ended_idat or size == 0:
                 return False
             seen_idat = True
@@ -89,7 +100,8 @@ def _valid_png(data):
         if kind not in (b"IHDR", b"PLTE", b"IDAT", b"IEND") and not (kind[0] & 0x20):
             return False
         if kind == b"IEND":
-            return seen_idat and size == 0 and end == len(data)
+            return (seen_idat and size == 0 and end == len(data) and
+                    (color_type != 3 or seen_plte))
         offset = end
     return False
 
