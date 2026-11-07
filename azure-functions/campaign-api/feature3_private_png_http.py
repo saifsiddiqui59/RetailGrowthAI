@@ -49,7 +49,7 @@ def _valid_png(data):
     """
     if type(data) is not bytes or not 100 <= len(data) <= 25 * 1024 * 1024:
         return False
-    if not data.startswith(b"\x89PNG\\r\\n\x1a\\n"):
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
         return False
     offset, seen_ihdr, seen_idat, ended_idat = 8, False, False, False
     while offset + 12 <= len(data):
