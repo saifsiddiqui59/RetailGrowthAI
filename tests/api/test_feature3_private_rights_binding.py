@@ -235,6 +235,26 @@ class BindingTests(unittest.TestCase):
 
 
 
+    def test_scoped_reader_freezes_mutable_backend_pin_object(self):
+        # A real adapter can reuse one mutable row object between calls.
+        # Mutation must not rewrite the initial trust baseline in place.
+        shared = dict(shop_id=self.shop, job_id=self.job,
+                      output_sha256="a" * 64, rights_revision=2)
+        reader = build_scoped_private_png_reader(
+            shop_id=self.shop, job_id=self.job, tenant_store=Store(),
+            verify_user_jwt=lambda token: self.shop,
+            authoritative_read=self.authority,
+            trusted_output_pins=lambda shop, job: shared)
+        self.assertTrue(reader.rights(self.shop, self.job, self.asset))
+        shared["rights_revision"] = 3
+        self.assertFalse(reader.rights(self.shop, self.job, self.asset))
+        shared["rights_revision"] = 2
+        shared["output_sha256"] = "b" * 64
+        self.assertFalse(reader.rights(self.shop, self.job, self.asset))
+        shared["output_sha256"] = "a" * 64
+        self.assertTrue(reader.rights(self.shop, self.job, self.asset))
+        self.assertEqual(self.calls, 2)
+
     def test_scoped_reader_denies_pin_lookup_outage_after_construction(self):
         state = {"available": True}
         def pins(shop, job):
