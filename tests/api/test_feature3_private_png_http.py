@@ -138,6 +138,33 @@ class HttpTests(unittest.TestCase):
         self.reader.tamper = None
         self.assertEqual(self.call().status, 200)
 
+    def test_palette_order_and_indexed_color_requirements(self):
+        def make(color_type, chunks):
+            ihdr = struct.pack(">IIBBBBB", 1, 1, 8, color_type, 0, 0, 0)
+            return (b"\\x89PNG\\r\\n\\x1a\\n" +
+                    png_chunk(b"IHDR", ihdr) +
+                    b"".join(png_chunk(kind, data) for kind, data in chunks) +
+                    png_chunk(b"IEND", b""))
+
+        pixels = zlib.compress(b"\\x00\\x00\\x00\\x00\\xff")
+        palette = b"\\x00\\x00\\x00"
+        cases = [
+            make(3, [(b"IDAT", pixels)]),
+            make(3, [(b"IDAT", pixels), (b"PLTE", palette)]),
+            make(3, [(b"PLTE", palette), (b"PLTE", palette), (b"IDAT", pixels)]),
+            make(0, [(b"PLTE", palette), (b"IDAT", pixels)]),
+            make(2, [(b"PLTE", b"ab"), (b"IDAT", pixels)]),
+            make(2, [(b"PLTE", b"a" * 771), (b"IDAT", pixels)]),
+        ]
+        for value in cases:
+            with self.subTest(case=value):
+                self.reader.tamper = {"image_bytes": value}
+                response = self.call()
+                self.assertEqual(response.status, 404)
+                self.assertEqual(response.body, b"")
+        self.reader.tamper = None
+        self.assertEqual(self.call().status, 200)
+
     def test_malformed_reader_result_is_denied(self):
         for tamper in (dict(shop_id=str(uuid4())),
                        dict(job_id=str(uuid4())),
