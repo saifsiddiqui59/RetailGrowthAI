@@ -128,13 +128,14 @@ class EncodedEditorParityTests(unittest.TestCase):
             frame.assert_not_called()
 
     def test_nonvideo_and_symlink_source_denied(self):
+        expected = hashlib.sha256(self.file.read_bytes()).hexdigest()
         with self.assertRaises(EditorExportProofError):
-            verify_mock_editor_output(self.file)
+            verify_mock_editor_output(self.file, expected_sha256=expected)
         backing = self.root / "real-mock.mp4"
         self.file.rename(backing)
         self.file.symlink_to(backing)
         with self.assertRaises(EditorExportProofError):
-            verify_mock_editor_output(self.file)
+            verify_mock_editor_output(self.file, expected_sha256=expected)
 
 
 if __name__ == "__main__":
