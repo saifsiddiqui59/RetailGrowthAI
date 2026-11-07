@@ -196,7 +196,7 @@ class HttpTests(unittest.TestCase):
         pixels = zlib.compress(b"\\x00\\xff\\x00\\x00\\xff")
         prefix = b"\\x89PNG\\r\\n\\x1a\\n"
         valid = (prefix + chunk(b"IHDR", header) +
-                 chunk(b"tEXt", b"fixture") +
+                 chunk(b"tEXt", b"fixture=" + b"x" * 48) +
                  chunk(b"IDAT", pixels) + chunk(b"IEND", b""))
         self.assertTrue(valid.startswith(prefix))
         self.reader.tamper = {"image_bytes": valid}
