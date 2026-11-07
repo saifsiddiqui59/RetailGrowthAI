@@ -235,6 +235,35 @@ class BindingTests(unittest.TestCase):
 
 
 
+    def test_scoped_binding_module_is_valid_python_source(self):
+        # Regression for escaped newline text inserted into a Python comment.
+        source_path = (Path(__file__).resolve().parents[2] /
+                       "azure-functions" / "campaign-api" /
+                       "feature3_private_rights_binding.py")
+        source = source_path.read_text(encoding="utf-8")
+        compile(source, str(source_path), "exec")
+        self.assertIn("pins = dict(pins)", source)
+
+    def test_scoped_binding_rejects_noncanonical_scope_before_pin_lookup(self):
+        calls = []
+        def pins(shop, job):
+            calls.append((shop, job))
+            return dict(shop_id=shop, job_id=job,
+                        output_sha256="a" * 64, rights_revision=2)
+        for bad_shop, bad_job in ((self.shop.upper(), self.job),
+                                  (self.shop, self.job.upper()),
+                                  (self.shop, "not-a-uuid")):
+            with self.subTest(shop=bad_shop, job=bad_job):
+                with self.assertRaises(ValueError):
+                    build_scoped_private_png_reader(
+                        shop_id=bad_shop, job_id=bad_job,
+                        tenant_store=Store(),
+                        verify_user_jwt=lambda token: self.shop,
+                        authoritative_read=self.authority,
+                        trusted_output_pins=pins)
+        self.assertEqual(calls, [])
+        self.assertEqual(self.calls, 0)
+
     def test_scoped_reader_freezes_mutable_backend_pin_object(self):
         # A real adapter can reuse one mutable row object between calls.
         # Mutation must not rewrite the initial trust baseline in place.
