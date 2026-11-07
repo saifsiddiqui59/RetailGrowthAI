@@ -14,6 +14,10 @@ class Request:
         self.route_params = {"shop_id": shop, "job_id": job}
         self.headers = {"Authorization": authorization}
         self.params = {}
+        self.body = b""
+
+    def get_body(self):
+        return self.body
 
 
 class Response:
@@ -80,6 +84,20 @@ class RouteAdapterTests(unittest.TestCase):
     def test_query_cannot_override_route_scope(self):
         request = Request(self.shop, self.job, "Bearer " + "x" * 30)
         request.params = {"shop_id": str(uuid4())}
+        self.assert_denied_without_reader(request, 400)
+
+    def test_get_with_nonempty_body_denied_before_reader(self):
+        for body in (b'{"shop_id":"forged"}', b"token=forged", b"\\x00"):
+            with self.subTest(body=body):
+                request = Request(self.shop, self.job, "Bearer " + "x" * 30)
+                request.body = body
+                self.assert_denied_without_reader(request, 400)
+
+    def test_unreadable_or_malformed_get_body_denied(self):
+        request = Request(self.shop, self.job, "Bearer " + "x" * 30)
+        request.get_body = lambda: "not bytes"
+        self.assert_denied_without_reader(request, 400)
+        request.get_body = lambda: (_ for _ in ()).throw(ValueError("synthetic"))
         self.assert_denied_without_reader(request, 400)
 
     def test_unavailable_factory_never_serves_bytes(self):
