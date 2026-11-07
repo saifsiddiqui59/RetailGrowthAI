@@ -61,9 +61,26 @@ def private_png_http(*, authorization, shop_id, job_id, reader_factory):
         return _opaque(503)
     try:
         reader = reader_factory(shop_id, job_id)
-        # Canonical existing handler owns receipt identity, immutable SHA,
-        # PNG format/pixel validation, private-only flags and response headers.
-        status, body, headers = Feature3PrivateBinaryHTTP(reader=reader).handle(
+
+        class ScopedIdentityReader:
+            # The legacy binary adapter can compare arbitrary objects by ==.
+            # Require exact canonical strings before it sees a receipt.
+            def read(self, *, user_token, shop_id, job_id):
+                receipt = reader.read(user_token=user_token,
+                                      shop_id=shop_id, job_id=job_id)
+                if (type(receipt) is not dict or
+                        type(receipt.get("shop_id")) is not str or
+                        type(receipt.get("job_id")) is not str or
+                        receipt["shop_id"] != shop_id or
+                        receipt["job_id"] != job_id):
+                    from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+                    raise PrivateGeneratedDownloadDenied("Private output unavailable")
+                return receipt
+
+        # Canonical existing handler owns immutable SHA, full receipt flags,
+        # PNG format validation and safe no-URL binary response headers.
+        status, body, headers = Feature3PrivateBinaryHTTP(
+            reader=ScopedIdentityReader()).handle(
             method="GET", authorization=authorization,
             shop_id=shop_id, job_id=job_id)
     except Exception:

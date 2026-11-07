@@ -209,7 +209,7 @@ class HttpTests(unittest.TestCase):
         invalid = valid[:33] + chunk(b"ab1d", b"bad-chunk-name") + valid[33:]
         self.assertTrue(invalid.startswith(prefix))
         self.reader.tamper = {"image_bytes": invalid}
-        self.assertEqual(self.call().status, 404)
+        self.assertEqual(self.call().status, 503)
         self.reader.tamper = None
 
 
@@ -225,6 +225,14 @@ class HttpTests(unittest.TestCase):
                 reply = self.call()
                 self.assertEqual(reply.status, 404)
                 self.assertEqual(reply.body, b"")
+        # A str subclass can also spoof equality; actual output scope must
+        # be a plain canonical string, never an overloaded custom value.
+        class ForgedString(str):
+            def __eq__(self, other):
+                return True
+        for field in ("shop_id", "job_id"):
+            self.reader.tamper = {field: ForgedString("different-scope")}
+            self.assertEqual(self.call().status, 404)
         self.reader.tamper = None
         self.assertEqual(self.call().status, 200)
 
@@ -247,7 +255,11 @@ class HttpTests(unittest.TestCase):
             with self.subTest(tamper=repr(tamper)):
                 self.reader.tamper = tamper
                 reply = self.call()
-                self.assertEqual(reply.status, 404)
+                # Foreign scope is an opaque 404. Other malformed internal
+                # receipts are opaque 503 errors from the canonical validator.
+                expected = 404 if "shop_id" in tamper or "job_id" in tamper else 503
+                self.assertEqual(reply.status, expected)
+                self.assertEqual(reply.body, b"")
                 self.assertEqual(reply.body, b"")
 
 

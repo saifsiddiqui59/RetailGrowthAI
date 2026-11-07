@@ -112,7 +112,7 @@ class PrivateRouteIntegrationTests(unittest.TestCase):
 
     def test_corrupted_png_cannot_release_bytes(self):
         reply = self.serve(bytes_override=self.png[:-4] + b"FAIL")
-        self.assertEqual(reply.status_code, 404)
+        self.assertEqual(reply.status_code, 503)
         self.assertEqual(reply.body, b"")
 
 
