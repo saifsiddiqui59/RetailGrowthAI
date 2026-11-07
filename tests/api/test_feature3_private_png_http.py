@@ -141,13 +141,13 @@ class HttpTests(unittest.TestCase):
     def test_palette_order_and_indexed_color_requirements(self):
         def make(color_type, chunks):
             ihdr = struct.pack(">IIBBBBB", 1, 1, 8, color_type, 0, 0, 0)
-            return (b"\\x89PNG\\r\\n\\x1a\\n" +
+            return (b"\x89PNG\\r\\n\x1a\\n" +
                     png_chunk(b"IHDR", ihdr) +
                     b"".join(png_chunk(kind, data) for kind, data in chunks) +
                     png_chunk(b"IEND", b""))
 
-        pixels = zlib.compress(b"\\x00\\x00\\x00\\x00\\xff")
-        palette = b"\\x00\\x00\\x00"
+        pixels = zlib.compress(b"\x00\x00\x00\x00\xff")
+        palette = b"\x00\x00\x00"
         cases = [
             make(3, [(b"IDAT", pixels)]),
             make(3, [(b"IDAT", pixels), (b"PLTE", palette)]),
