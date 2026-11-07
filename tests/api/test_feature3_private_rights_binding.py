@@ -103,7 +103,7 @@ class BindingTests(unittest.TestCase):
             verify_user_jwt=lambda token: self.shop,
             authoritative_read=self.authority, trusted_output_pins=pins)
         self.assertTrue(reader.rights(self.shop, self.job, self.asset))
-        self.assertEqual(calls, [(self.shop, self.job)])
+        self.assertEqual(calls, [(self.shop, self.job), (self.shop, self.job)])
         self.assertFalse(reader.rights(str(uuid4()), self.job, self.asset))
 
     def test_scoped_reader_never_reuses_pins_for_another_job(self):
@@ -233,6 +233,38 @@ class BindingTests(unittest.TestCase):
         self.assertTrue(reader.rights(self.shop, self.job, self.asset))
         self.assertEqual(observed, [(self.shop, self.job, self.asset)])
 
+
+
+    def test_scoped_reader_denies_pin_lookup_outage_after_construction(self):
+        state = {"available": True}
+        def pins(shop, job):
+            if not state["available"]:
+                raise OSError("synthetic backend outage")
+            return dict(shop_id=shop, job_id=job,
+                        output_sha256="a" * 64, rights_revision=2)
+        reader = build_scoped_private_png_reader(
+            shop_id=self.shop, job_id=self.job, tenant_store=Store(),
+            verify_user_jwt=lambda token: self.shop,
+            authoritative_read=self.authority, trusted_output_pins=pins)
+        state["available"] = False
+        self.assertFalse(reader.rights(self.shop, self.job, self.asset))
+        self.assertEqual(self.calls, 0)
+        state["available"] = True
+        self.assertTrue(reader.rights(self.shop, self.job, self.asset))
+        self.assertEqual(self.calls, 1)
+
+    def test_scoped_reader_denies_pin_scope_change_without_authority_call(self):
+        state = {"shop": self.shop}
+        def pins(shop, job):
+            return dict(shop_id=state["shop"], job_id=job,
+                        output_sha256="a" * 64, rights_revision=2)
+        reader = build_scoped_private_png_reader(
+            shop_id=self.shop, job_id=self.job, tenant_store=Store(),
+            verify_user_jwt=lambda token: self.shop,
+            authoritative_read=self.authority, trusted_output_pins=pins)
+        state["shop"] = str(uuid4())
+        self.assertFalse(reader.rights(self.shop, self.job, self.asset))
+        self.assertEqual(self.calls, 0)
 
 if __name__ == "__main__":
     unittest.main()
