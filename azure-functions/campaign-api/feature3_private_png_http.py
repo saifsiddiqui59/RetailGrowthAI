@@ -141,10 +141,14 @@ def private_png_http(*, authorization, shop_id, job_id, reader_factory):
     try:
         reader = reader_factory(shop_id, job_id)
         result = reader.read(user_token=token, shop_id=shop_id, job_id=job_id)
-        raw = result["image_bytes"]
+        if type(result) is not dict:
+            return _opaque(404)
+        raw = result.get("image_bytes")
         if (not _valid_png(raw) or
                 result.get("mime_type") != "image/png" or
+                type(result.get("shop_id")) is not str or
                 result.get("shop_id") != shop_id or
+                type(result.get("job_id")) is not str or
                 result.get("job_id") != job_id or
                 result.get("private") is not True or
                 result.get("signed_url_issued") is not False):
