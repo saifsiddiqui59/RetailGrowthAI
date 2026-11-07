@@ -60,6 +60,46 @@ class PrivatePNGCompositionTests(unittest.TestCase):
         # RLS denies before rights lookup; no storage bytes were fetched.
         self.assertEqual(self.calls, [])
 
+    def test_factory_reader_rejects_cross_scope_before_jwt_or_rls(self):
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+
+        calls = []
+        class GuardTenant(SyntheticTenant):
+            def member(self, *args):
+                calls.append("member")
+                return False
+
+        tenant = GuardTenant()
+        def verifier(token):
+            calls.append("verify")
+            return str(uuid4())
+
+        reader = self.make(lambda *args: False, verifier=verifier,
+                           tenant=tenant)(self.shop, self.job)
+        foreign_shop, foreign_job = str(uuid4()), str(uuid4())
+        class Spoofed(str):
+            def __eq__(self, other):
+                return True
+        for shop, job in (
+            (foreign_shop, self.job),
+            (self.shop, foreign_job),
+            (Spoofed(self.shop), self.job),
+            (self.shop, Spoofed(self.job)),
+            (object(), self.job),
+        ):
+            with self.subTest(shop=shop, job=job):
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    reader.read(user_token="synthetic-not-hosted-token",
+                                shop_id=shop, job_id=job)
+        self.assertEqual(calls, [])
+        # Same-scope request proceeds into normal JWT/RLS checks and denies
+        # the synthetic tenant; scope guard must not grant access.
+        with self.assertRaises(PermissionError):
+            reader.read(user_token="synthetic-not-hosted-token",
+                        shop_id=self.shop, job_id=self.job)
+        self.assertIn("verify", calls)
+        self.assertIn("member", calls)
+
     def test_bad_injected_tenant_and_verifier_fail_closed(self):
         with self.assertRaises(ValueError):
             self.make(lambda *args: False, tenant=object())
