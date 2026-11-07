@@ -51,7 +51,7 @@ def _valid_png(data):
         return False
     if not data.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
         return False
-    offset, seen_ihdr, seen_idat = 8, False, False
+    offset, seen_ihdr, seen_idat, ended_idat = 8, False, False, False
     while offset + 12 <= len(data):
         size = struct.unpack_from(">I", data, offset)[0]
         end = offset + 12 + size
@@ -66,13 +66,28 @@ def _valid_png(data):
             if kind != b"IHDR" or size != 13:
                 return False
             width, height = struct.unpack_from(">II", payload)
-            if not (0 < width <= 16384 and 0 < height <= 16384):
+            if (not (0 < width <= 16384 and 0 < height <= 16384) or
+                    width * height > 16_777_216 or
+                    payload[8] not in (1, 2, 4, 8, 16) or
+                    payload[9] not in (0, 2, 3, 4, 6) or
+                    payload[10:] != b"\x00\x00\x00"):
+                return False
+            valid_depths = {0: (1, 2, 4, 8, 16), 2: (8, 16),
+                            3: (1, 2, 4, 8), 4: (8, 16), 6: (8, 16)}
+            if payload[8] not in valid_depths[payload[9]]:
                 return False
             seen_ihdr = True
         elif kind == b"IHDR":
             return False
         if kind == b"IDAT":
+            if ended_idat or size == 0:
+                return False
             seen_idat = True
+        elif seen_idat:
+            ended_idat = True
+        # Unknown critical chunks cannot be safely interpreted as PNG.
+        if kind not in (b"IHDR", b"PLTE", b"IDAT", b"IEND") and not (kind[0] & 0x20):
+            return False
         if kind == b"IEND":
             return seen_idat and size == 0 and end == len(data)
         offset = end
