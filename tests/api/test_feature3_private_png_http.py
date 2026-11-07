@@ -168,7 +168,7 @@ class HttpTests(unittest.TestCase):
     def test_rejects_invalid_chunk_names_and_oversized_indexed_palette(self):
         def assemble(color_type, depth, chunks):
             header = struct.pack(">IIBBBBB", 1, 1, depth, color_type, 0, 0, 0)
-            return (b"\x89PNG\\r\\n\x1a\\n" + png_chunk(b"IHDR", header) +
+            return (b"\x89PNG\r\n\x1a\n" + png_chunk(b"IHDR", header) +
                     b"".join(png_chunk(kind, payload) for kind, payload in chunks) +
                     png_chunk(b"IEND", b""))
 
