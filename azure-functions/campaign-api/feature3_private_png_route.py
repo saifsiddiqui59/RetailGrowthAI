@@ -28,19 +28,25 @@ def handle_private_png_request(request, *, reader_factory, response_type):
     """
     if not callable(response_type):
         raise ValueError("Trusted Azure response constructor required")
-    if request is None or getattr(request, "method", None) != "GET":
+    if request is None:
+        return _denied(400, response_type)
+    try:
+        method = request.method
+        params = request.route_params
+        headers = request.headers
+        query = request.params
+        get_body = request.get_body
+    except Exception:
+        return _denied(400, response_type)
+    if method != "GET":
         return _denied(405, response_type)
-    params = getattr(request, "route_params", None)
-    headers = getattr(request, "headers", None)
     if (type(params) is not dict or set(params) != {"shop_id", "job_id"} or
             not callable(getattr(headers, "get", None))):
         return _denied(400, response_type)
     # A query or request body must never override trusted route identifiers.
-    query = getattr(request, "params", None)
     if query is not None and (not isinstance(query, dict) or bool(query)):
         return _denied(400, response_type)
     # Refuse GET bodies so proxies cannot disagree about credential or scope.
-    get_body = getattr(request, "get_body", None)
     if not callable(get_body):
         return _denied(400, response_type)
     try:
@@ -51,8 +57,14 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         return _denied(400, response_type)
     if not callable(reader_factory):
         return _denied(503, response_type)
+    try:
+        authorization = headers.get("Authorization", "")
+    except Exception:
+        return _denied(400, response_type)
+    if type(authorization) is not str:
+        return _denied(400, response_type)
     reply = private_png_http(
-        authorization=headers.get("Authorization", ""),
+        authorization=authorization,
         shop_id=params["shop_id"],
         job_id=params["job_id"],
         reader_factory=reader_factory,
