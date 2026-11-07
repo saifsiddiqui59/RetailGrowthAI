@@ -114,6 +114,33 @@ class BinaryHTTPTests(unittest.TestCase):
                 self.assertEqual(body,b"")
                 self.assert_private_headers(headers)
         self.reader.extra={}
+    def test_forged_scope_equality_can_never_authorize_binary_response(self):
+        # An injected rights reader must return exact strings, never an
+        # object or subclass whose __eq__ says any shop/job is equivalent.
+        class AlwaysEqual:
+            def __eq__(self, other):
+                return True
+            def __ne__(self, other):
+                return False
+
+        class ForgedString(str):
+            def __eq__(self, other):
+                return True
+            def __ne__(self, other):
+                return False
+
+        for field in ("shop_id", "job_id"):
+            for forged in (AlwaysEqual(), ForgedString("foreign-scope")):
+                with self.subTest(field=field, kind=type(forged).__name__):
+                    self.reader.extra = {field: forged}
+                    status, body, headers = self.call()
+                    self.assertEqual((status, body), (503, b""))
+                    self.assert_private_headers(headers)
+                    self.assertNotIn("X-Feature3-Shop-Id", headers)
+                    self.assertNotIn("X-Feature3-Job-Id", headers)
+        self.reader.extra = {}
+        self.assertEqual(self.call()[0], 200)
+
     def test_noncanonical_asset_receipts_never_reach_response_headers(self):
         # A compromised/incompatible rights reader cannot inject noncanonical
         # identifiers into HTTP headers, even with a valid synthetic PNG/SHA.

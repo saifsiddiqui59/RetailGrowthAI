@@ -223,6 +223,8 @@ class Feature3PrivateBinaryHTTP:
             return self._deny(503)
         try:
             if (type(receipt) is not dict or set(receipt)!=_KEYS or
+                    type(receipt.get("shop_id")) is not str or
+                    type(receipt.get("job_id")) is not str or
                     receipt.get("shop_id")!=shop or receipt.get("job_id")!=job or
                     receipt.get("mime_type")!="image/png" or
                     receipt.get("private") is not True or
