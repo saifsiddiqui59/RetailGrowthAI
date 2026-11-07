@@ -52,14 +52,25 @@ def _valid_png(data):
     if not data.startswith(b"\x89PNG\r\n\x1a\n"):
         return False
     offset, seen_ihdr, seen_idat, ended_idat = 8, False, False, False
+    chunk_count = 0
     seen_plte, color_type = False, None
+    payload_header_depth = None
     while offset + 12 <= len(data):
+        chunk_count += 1
+        # Bound parser work independently of the byte-size limit.
+        if chunk_count > 4096:
+            return False
         size = struct.unpack_from(">I", data, offset)[0]
         end = offset + 12 + size
         if size > len(data) - offset - 12 or end > len(data):
             return False
         kind = data[offset + 4:offset + 8]
         payload = data[offset + 8:end - 4]
+        # PNG chunk names are ASCII letters; reserved third byte must be uppercase.
+        if (len(kind) != 4 or
+                any(not (65 <= ch <= 90 or 97 <= ch <= 122) for ch in kind) or
+                not 65 <= kind[2] <= 90):
+            return False
         crc = struct.unpack_from(">I", data, end - 4)[0]
         if zlib.crc32(kind + payload) & 0xffffffff != crc:
             return False
@@ -78,6 +89,7 @@ def _valid_png(data):
             if payload[8] not in valid_depths[payload[9]]:
                 return False
             color_type = payload[9]
+            payload_header_depth = payload[8]
             seen_ihdr = True
         elif kind == b"IHDR":
             return False
@@ -86,6 +98,8 @@ def _valid_png(data):
             # indexed-color PNGs. Grayscale images cannot carry a palette.
             if (seen_plte or seen_idat or color_type in (0, 4) or
                     not 3 <= size <= 768 or size % 3):
+                return False
+            if color_type == 3 and size // 3 > (1 << payload_header_depth):
                 return False
             seen_plte = True
         if kind == b"IDAT":
