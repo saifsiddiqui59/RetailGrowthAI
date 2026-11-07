@@ -63,6 +63,18 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         return _denied(400, response_type)
     if type(authorization) is not str:
         return _denied(400, response_type)
+    # A proxy/framework may preserve differently cased duplicate headers.
+    # Never allow an ambiguous bearer token to reach the private reader.
+    try:
+        names = list(headers.keys())
+        if (any(type(name) is not str for name in names) or
+                sum(name.lower() == "authorization" for name in names) != 1):
+            return _denied(400, response_type)
+        actual_name = next(name for name in names if name.lower() == "authorization")
+        if type(headers.get(actual_name)) is not str or headers.get(actual_name) != authorization:
+            return _denied(400, response_type)
+    except Exception:
+        return _denied(400, response_type)
     reply = private_png_http(
         authorization=authorization,
         shop_id=params["shop_id"],
