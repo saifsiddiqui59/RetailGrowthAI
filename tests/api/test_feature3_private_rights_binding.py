@@ -92,6 +92,33 @@ class BindingTests(unittest.TestCase):
         self.assertEqual(self.calls, 0)
 
 
+    def test_missing_security_dependencies_never_touch_backend_pins(self):
+        # Synthetic only: a miswired production composition must fail before
+        # consulting even an otherwise trusted output-pin backend.
+        calls = []
+        def pins(shop, job):
+            calls.append((shop, job))
+            return dict(shop_id=shop, job_id=job,
+                        output_sha256="a" * 64, rights_revision=2)
+        for overrides in (
+            {"verify_user_jwt": None},
+            {"authoritative_read": None},
+            {"tenant_store": None},
+        ):
+            with self.subTest(overrides=overrides):
+                kwargs = dict(
+                    shop_id=self.shop, job_id=self.job,
+                    tenant_store=Store(),
+                    verify_user_jwt=lambda token: self.shop,
+                    authoritative_read=self.authority,
+                    trusted_output_pins=pins,
+                )
+                kwargs.update(overrides)
+                with self.assertRaises(ValueError):
+                    build_scoped_private_png_reader(**kwargs)
+        self.assertEqual(calls, [])
+        self.assertEqual(self.calls, 0)
+
     def test_scoped_pins_authorize_only_matching_output(self):
         calls = []
         def pins(shop, job):
