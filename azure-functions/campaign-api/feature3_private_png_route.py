@@ -150,9 +150,17 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             if reply.body:
                 return _denied(503, response_type)
             return _denied(reply.status, response_type)
+        # The canonical binary adapter uses the strictly private
+        # "no-store, private, max-age=0" response contract. The route may
+        # also receive the legacy equally restrictive "no-store, private"
+        # variant; never treat public/cacheable policy as success. Use an
+        # exact str check to reject equality-overloaded backend values.
+        policy = reply.headers.get("Cache-Control")
         if (not reply.body.startswith(bytes.fromhex("89504e470d0a1a0a")) or
+                type(reply.headers.get("Content-Type")) is not str or
                 reply.headers.get("Content-Type") != "image/png" or
-                reply.headers.get("Cache-Control") != "no-store, private"):
+                type(policy) is not str or
+                policy not in ("no-store, private", "no-store, private, max-age=0")):
             return _denied(503, response_type)
         # Only reviewed binary response headers may leave this boundary.
         safe_headers = {

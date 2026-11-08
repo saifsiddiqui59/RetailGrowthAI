@@ -91,7 +91,9 @@ class PrivateRouteIntegrationTests(unittest.TestCase):
         self.assertEqual(reply.body, self.png)
         self.assertEqual(reply.mimetype, "image/png")
         self.assertEqual(reply.headers["Content-Length"], str(len(self.png)))
-        self.assertIn("no-store", reply.headers["Cache-Control"])
+        self.assertEqual(reply.headers["Cache-Control"], "no-store, private")
+        self.assertEqual(reply.headers["Vary"], "Authorization")
+        self.assertEqual(reply.headers["Content-Security-Policy"], "default-src 'none'")
         self.assertEqual(self.calls, [(self.token, self.shop, self.job)])
 
     def test_cross_shop_receipt_cannot_release_private_bytes(self):
