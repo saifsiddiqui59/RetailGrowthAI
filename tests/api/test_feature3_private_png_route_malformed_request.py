@@ -96,8 +96,8 @@ class Tests(unittest.TestCase):
         self.assertEqual(response.headers["Content-Length"], "0")
 
     def test_header_injection_denied_before_backend(self):
-        for token in ("Bearer synthetic\\r\\nX-Admin: true",
-                      "Bearer synthetic\\n", "Bearer synthetic\\r"):
+        for token in ("Bearer synthetic" + chr(13) + chr(10) + "X-Admin: true",
+                      "Bearer synthetic" + chr(10), "Bearer synthetic" + chr(13)):
             with self.subTest(token=repr(token)):
                 request = Request()
                 request.headers = {"Authorization": token}
