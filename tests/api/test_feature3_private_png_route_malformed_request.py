@@ -157,8 +157,9 @@ class Tests(unittest.TestCase):
 
     def test_unrelated_header_control_characters_denied_before_reader(self):
         # Synthetic malformed adapter values cannot reach the rights provider.
-        for value in ("safe\r\nInjected: yes", "nul\x00byte",
-                      "tab\tbyte", "delete\x7fbyte"):
+        for value in ("safe" + chr(13) + chr(10) + "Injected: yes",
+                      "nul" + chr(0) + "byte", "tab" + chr(9) + "byte",
+                      "delete" + chr(127) + "byte"):
             with self.subTest(value=repr(value)):
                 request = Request()
                 request.headers = {
@@ -179,6 +180,22 @@ class Tests(unittest.TestCase):
                 request = Request()
                 request.headers = headers
                 self.assert_denied_before_reader(request)
+
+    def test_header_count_exact_boundary_reaches_canonical_adapter(self):
+        # Exactly 64 distinct headers (including Authorization) are allowed.
+        request = Request()
+        request.headers = {"Authorization": "Bearer synthetic", **{
+            f"X-Demo-{i}": "fixture" for i in range(63)
+        }}
+        with patch("feature3_private_png_route.private_png_http",
+                   return_value=SimpleNamespace(
+                       status=404, body=b"",
+                       headers={"Cache-Control": "no-store, private"})) as adapter:
+            response = handle_private_png_request(
+                request, reader_factory=lambda *args: None,
+                response_type=Response)
+        self.assertEqual(response.status_code, 404)
+        adapter.assert_called_once()
 
     def test_header_metadata_limit_boundary_passes_to_canonical_adapter(self):
         request = Request()
