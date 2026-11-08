@@ -101,7 +101,19 @@ def build_scoped_private_png_reader(*, shop_id, job_id, tenant_store,
                 any(type(fresh[k]) is not type(pins[k]) or
                     fresh[k] != pins[k] for k in pins)):
             return None
-        return authoritative_read(request_shop, request_job, asset_id)
+        # A rights lookup can race a revocation or output replacement. Re-read
+        # the immutable backend pins after the authority call as well, so a
+        # mutation during that call cannot authorize a stale snapshot.
+        try:
+            result = authoritative_read(request_shop, request_job, asset_id)
+            after = trusted_output_pins(shop_id, job_id)
+        except Exception:
+            return None
+        if (type(after) is not dict or set(after) != set(pins) or
+                any(type(after[k]) is not type(pins[k]) or
+                    after[k] != pins[k] for k in pins)):
+            return None
+        return result
 
     return build_private_png_reader(
         tenant_store=tenant_store, verify_user_jwt=verify_user_jwt,
