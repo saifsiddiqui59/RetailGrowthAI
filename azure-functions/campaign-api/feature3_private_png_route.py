@@ -5,7 +5,22 @@ JWT/RLS membership and fresh independent rights checks. No fallback reader.
 """
 from __future__ import annotations
 
+import re
+from uuid import UUID
+
 from feature3_private_png_http import private_png_http
+
+_HEADER_NAME = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
+
+
+def _canonical_uuid4(value):
+    if type(value) is not str:
+        return False
+    try:
+        parsed = UUID(value)
+        return parsed.version == 4 and str(parsed) == value
+    except (ValueError, AttributeError):
+        return False
 
 
 def _denied(status, response_type):
@@ -42,6 +57,9 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         return _denied(405, response_type)
     if (type(params) is not dict or set(params) != {"shop_id", "job_id"} or
             not callable(getattr(headers, "get", None))):
+        return _denied(400, response_type)
+    # Reject ambiguous or equality-spoofed path scope before any reader IO.
+    if not all(_canonical_uuid4(params[key]) for key in ("shop_id", "job_id")):
         return _denied(400, response_type)
     # A query or request body must never override trusted route identifiers.
     if query is not None and (type(query) is not dict or bool(query)):
@@ -92,9 +110,8 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         total_header_bytes = 0
         for name in names:
             value = headers.get(name)
-            if type(value) is not str or any(
-                ord(char) < 32 or ord(char) == 127 for char in name + value
-            ):
+            if (type(value) is not str or _HEADER_NAME.fullmatch(name) is None or
+                    any(ord(char) < 32 or ord(char) > 126 for char in value)):
                 return _denied(400, response_type)
             total_header_bytes += len(name) + len(value)
             if total_header_bytes > 16384:
