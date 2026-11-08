@@ -169,6 +169,57 @@ class WorkerHandoffTests(unittest.TestCase):
         self.assertEqual(self.media.uploads, [])
         self.assertEqual(self.admin.completions, [])
 
+    def test_revoked_or_expired_lease_during_staging_never_starts_encoder(self):
+        """A real media transfer may outlive claim approval; skip CPU work."""
+        for mutation in ("current", "authorized"):
+            with self.subTest(mutation=mutation):
+                self.admin = Admin(*sample())
+                self.media = Media()
+                original_download = self.media.download
+
+                def revoke_after_transfer(sid, key, destination):
+                    original_download(sid, key, destination)
+                    setattr(self.admin, mutation, False)
+
+                self.media.download = revoke_after_transfer
+
+                def forbidden_render(*args):
+                    self.fail("revoked or expired claim started FFmpeg renderer")
+
+                outcome = process_feature4_render(
+                    JOB, self.admin, self.media, render_fn=forbidden_render)
+                self.assertEqual(outcome, "STALE")
+                self.assertEqual(len(self.media.downloads), 1)
+                self.assertEqual(self.media.uploads, [])
+                self.assertEqual(self.admin.completions, [])
+                self.assertEqual(self.admin.failures, [])
+
+    def test_lease_loss_stops_additional_private_media_downloads(self):
+        """Do not download 36 assets after the first revoked transfer."""
+        self.admin.bundle["assets"]["second01"] = copy.deepcopy(
+            self.admin.bundle["assets"]["product01"])
+        self.admin.bundle["assets"]["second01"]["object_path"] = (
+            SHOP + "/approved/second01.png")
+        self.admin.bundle["request"]["scenes"][1]["asset_id"] = "second01"
+        original_download = self.media.download
+
+        def lose_lease_after_first(sid, key, destination):
+            original_download(sid, key, destination)
+            self.admin.current = False
+
+        self.media.download = lose_lease_after_first
+
+        def forbidden_render(*args):
+            self.fail("expired claim started rendering")
+
+        result = process_feature4_render(
+            JOB, self.admin, self.media, render_fn=forbidden_render)
+        self.assertEqual(result, "STALE")
+        self.assertEqual(len(self.media.downloads), 1)
+        self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.completions, [])
+        self.assertEqual(self.admin.failures, [])
+
     def test_fencing_race_on_finalization_has_no_signed_url(self):
         self.admin.can_finalize = False
         self.assertEqual(self.run_worker(), "STALE")

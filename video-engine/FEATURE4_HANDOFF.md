@@ -174,3 +174,7 @@ Feature4-owned preview code now binds one bounded MP4 inode/metadata and SHA256 
 ## 2026-11-08 — F4-07 private audio master source identity continuation
 
 Private audio mastering now reuses Feature4's source MP4 fingerprint from preview QA to deny same-byte atomic inode replacement before/after ffprobe and audio FFmpeg transcoding. Added offline synthetic two-seam replacement negatives; original video-packet SHA and output no-clobber behavior remain protected. F4-07 remains **IN PROGRESS** pending all audio-editor semantics, human/listening QA and signed DEV integration. No customer music ownership claim or deployment.
+
+## 2026-11-08 — F4-15 early CPU render lease fence
+
+Feature4 source-only worker rechecks the actual claim lease and authorization after every private media transfer and before invoking the video renderer. Synthetic tests simulate an expiring lease or revoked access during staging, assert zero render/upload/completion/failure writes and no further downloads. The trusted coordinator's claim/queue/billing RPCs remain authoritative; no live Azure/RLS result asserted. F4-15 remains IN PROGRESS.

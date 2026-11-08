@@ -201,6 +201,17 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
                 staged_bytes += path.stat().st_size
                 if staged_bytes > MAX_TOTAL_STAGED_BYTES:
                     raise Feature4HandoffError("Total staged media exceeds the private worker budget")
+                # A claim can expire or authorization can be revoked while
+                # staged private bytes are being downloaded. Stop fetching
+                # more assets immediately and never start a stale CPU encode.
+                if (admin.render_authorized(claim) is not True or
+                        admin.feature4_claim_current(claim) is not True):
+                    return "STALE"
+            # Also fence a zero-asset montage, and do not rely on the
+            # post-render check to avoid unnecessary expensive CPU work.
+            if (admin.render_authorized(claim) is not True or
+                    admin.feature4_claim_current(claim) is not True):
+                return "STALE"
             result = render_fn(request, manifest, staging, output)
             result_path, probe = _verified_render_result(result, output, claim, request, audit)
             if admin.render_authorized(claim) is not True or admin.feature4_claim_current(claim) is not True:
