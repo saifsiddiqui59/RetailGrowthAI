@@ -96,6 +96,10 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             return _denied(400, response_type)
         if not authorization:
             return _denied(401, response_type)
+        # Reject oversized bearer material before body access or backend calls.
+        # The canonical binary handler independently validates token syntax.
+        if len(authorization) > 8200:
+            return _denied(401, response_type)
         # Reject malformed control characters and non-string header values
         # before invoking the private reader, including unrelated headers.
         # This is synthetic request-adapter hardening, not hosted JWT proof.
