@@ -63,6 +63,14 @@ def build_scoped_private_png_reader(*, shop_id, job_id, tenant_store,
         except (ValueError, AttributeError):
             return False
 
+    # Reject missing security dependencies before touching even a backend-owned
+    # output pin provider. A partial composition must never perform IO.
+    if not callable(verify_user_jwt):
+        raise ValueError("Verified user JWT adapter required")
+    if not callable(authoritative_read):
+        raise ValueError("Backend current rights lookup required")
+    if tenant_store is None:
+        raise ValueError("RLS tenant store required")
     if not canonical(shop_id) or not canonical(job_id):
         raise ValueError("Canonical scoped shop/job UUID required")
     if not callable(trusted_output_pins):
