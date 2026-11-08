@@ -105,8 +105,8 @@ class Tests(unittest.TestCase):
 
     def test_unrelated_header_control_characters_denied_before_reader(self):
         # Synthetic malformed adapter values cannot reach the rights provider.
-        for value in ("safe\\r\\nInjected: yes", "nul\\x00byte",
-                      "tab\\tbyte", "delete\\x7fbyte"):
+        for value in ("safe\r\nInjected: yes", "nul\x00byte",
+                      "tab\tbyte", "delete\x7fbyte"):
             with self.subTest(value=repr(value)):
                 request = Request()
                 request.headers = {
@@ -114,6 +114,30 @@ class Tests(unittest.TestCase):
                     "X-Untrusted": value,
                 }
                 self.assert_denied_before_reader(request)
+
+    def test_header_metadata_limits_denied_before_reader(self):
+        # Large untrusted headers must never trigger JWT/rights/storage IO.
+        for headers in (
+            {"Authorization": "Bearer synthetic", **{
+                f"X-Demo-{i}": "fixture" for i in range(64)
+            }},
+            {"Authorization": "Bearer synthetic", "X-Large": "x" * 16384},
+        ):
+            with self.subTest(header_count=len(headers)):
+                request = Request()
+                request.headers = headers
+                self.assert_denied_before_reader(request)
+
+    def test_header_metadata_limit_boundary_passes_to_canonical_adapter(self):
+        request = Request()
+        request.headers = {"Authorization": "Bearer synthetic", "X-Large": "x" * 1000}
+        with patch("feature3_private_png_route.private_png_http",
+                   return_value=SimpleNamespace(status=404, body=b"",
+                       headers={"Cache-Control": "no-store, private"})) as adapter:
+            response = handle_private_png_request(
+                request, reader_factory=lambda *args: None, response_type=Response)
+        self.assertEqual(response.status_code, 404)
+        adapter.assert_called_once()
 
     def test_unrelated_header_nonstring_denied_before_reader(self):
         for value in (None, ["synthetic"], 0):
