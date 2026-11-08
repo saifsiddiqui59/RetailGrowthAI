@@ -163,6 +163,45 @@ class Tests(unittest.TestCase):
         self.assertEqual(response.body, b"")
         self.assertEqual(body_calls, [])
 
+    def test_invalid_bearer_shape_denied_before_body_and_rights(self):
+        # Synthetic malformed credentials are never hosted authorization.
+        for credential in (
+            "Basic synthetic-not-a-jwt",
+            "bearer synthetic-not-a-jwt",
+            "Bearer ",
+            "Bearer short",
+            "Bearer sb_secret_" + "x" * 24,
+            "Bearer sb_publishable_" + "x" * 24,
+            "Bearer token" + chr(127) + "invalid",
+        ):
+            with self.subTest(credential=repr(credential)):
+                request = Request()
+                request.headers = {"Authorization": credential}
+                reads = []
+                request.get_body = lambda: reads.append(True) or b""
+                response = handle_private_png_request(
+                    request,
+                    reader_factory=lambda *args: self.fail("rights invoked"),
+                    response_type=Response,
+                )
+                self.assertEqual(response.status_code, 401)
+                self.assertEqual(response.body, b"")
+                self.assertEqual(reads, [])
+
+    def test_valid_bearer_shape_reaches_canonical_reader(self):
+        request = Request()
+        reads = []
+        request.get_body = lambda: reads.append(True) or b""
+        with patch("feature3_private_png_route.private_png_http",
+                   return_value=SimpleNamespace(status=404, body=b"",
+                       headers={"Cache-Control": "no-store, private"})) as adapter:
+            response = handle_private_png_request(
+                request, reader_factory=lambda *args: None,
+                response_type=Response)
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(reads, [True])
+        adapter.assert_called_once()
+
     def test_header_injection_denied_before_backend(self):
         for token in ("Bearer synthetic" + chr(13) + chr(10) + "X-Admin: true",
                       "Bearer synthetic" + chr(10), "Bearer synthetic" + chr(13)):
