@@ -106,6 +106,26 @@ class PrivatePNGCompositionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.make(lambda *args: False, verifier="not callable")
 
+    def test_cross_project_tenant_binding_is_rejected_before_reader_creation(self):
+        # Synthetic project/key mismatches are never a hosted auth assertion.
+        for field, value in (
+            ("origin", "https://foreign-project.supabase.co"),
+            ("key", "sb_publishable_" + "z" * 24),
+            ("origin", None),
+            ("key", object()),
+        ):
+            with self.subTest(field=field, value=value):
+                tenant = SyntheticTenant()
+                setattr(tenant, field, value)
+                with self.assertRaisesRegex(ValueError, "Tenant store must match"):
+                    self.make(lambda *args: True, tenant=tenant)
+
+    def test_matching_project_tenant_still_denies_without_rls_membership(self):
+        reader = self.make(lambda *args: True)(self.shop, self.job)
+        with self.assertRaises(PermissionError):
+            reader.read(user_token="synthetic-unprivileged",
+                        shop_id=self.shop, job_id=self.job)
+
     def test_reader_rejects_service_key_and_non_https_origin(self):
         tenant = SyntheticTenant()
         tenant.key = "service-role-key"
