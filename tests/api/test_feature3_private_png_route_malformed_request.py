@@ -90,8 +90,9 @@ class Tests(unittest.TestCase):
                         PermissionError("synthetic private storage outage")):
             with self.subTest(failure=type(failure).__name__):
                 calls = []
-                def failing_reader():
-                    calls.append(True)
+                def failing_reader(shop_id, job_id):
+                    # Canonical adapter calls a scoped factory after UUID validation.
+                    calls.append((shop_id, job_id))
                     raise failure
                 response = handle_private_png_request(
                     Request(), reader_factory=failing_reader,
@@ -101,7 +102,8 @@ class Tests(unittest.TestCase):
                 self.assertEqual(response.headers["Content-Length"], "0")
                 self.assertEqual(response.headers["Cache-Control"], "no-store, private")
                 self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
-                self.assertEqual(calls, [True])
+                self.assertEqual(calls, [(Request.route_params['shop_id'],
+                                          Request.route_params['job_id'])])
 
     def test_ambiguous_get_framing_denied_before_reader(self):
         # Synthetic request smuggling boundary; no hosted proxy claims.
