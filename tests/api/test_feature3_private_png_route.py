@@ -64,7 +64,7 @@ class RouteAdapterTests(unittest.TestCase):
         self.assertNotIn("synthetic", repr(response.headers))
 
     def test_invalid_scope_denied_before_reader(self):
-        self.assert_denied_without_reader(Request("not-a-shop", self.job, "Bearer " + "x" * 30), 404)
+        self.assert_denied_without_reader(Request("not-a-shop", self.job, "Bearer " + "x" * 30), 400)
 
     def test_missing_route_metadata_fails_closed(self):
         request = Request(self.shop, self.job, "")
