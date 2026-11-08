@@ -103,6 +103,15 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             encoding = headers.get(encoding_names[0])
             if type(encoding) is not str or encoding.lower() != "identity":
                 return _denied(400, response_type)
+        # The endpoint is a binary-only representation. Reject clients that
+        # explicitly request an incompatible media type; never negotiate an
+        # HTML, JSON or transformed response around private image bytes.
+        accept_names = [name for name in names if name.lower() == "accept"]
+        if accept_names:
+            accept = headers.get(accept_names[0])
+            if type(accept) is not str or accept not in (
+                    "image/png", "image/*", "*/*"):
+                return _denied(406, response_type)
         actual_name = next(name for name in names if name.lower() == "authorization")
         # Read the enumerated header key, not a differently cased alias: some
         # request adapters are case-sensitive, and an absent alias must not
