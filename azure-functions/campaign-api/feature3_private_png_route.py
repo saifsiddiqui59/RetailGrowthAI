@@ -44,7 +44,7 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             not callable(getattr(headers, "get", None))):
         return _denied(400, response_type)
     # A query or request body must never override trusted route identifiers.
-    if query is not None and (not isinstance(query, dict) or bool(query)):
+    if query is not None and (type(query) is not dict or bool(query)):
         return _denied(400, response_type)
     # Refuse GET bodies so proxies cannot disagree about credential or scope.
     if not callable(get_body):
@@ -70,7 +70,7 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         if (any(type(name) is not str for name in names) or
                 sum(name.lower() == "authorization" for name in names) != 1):
             return _denied(400, response_type)
-        actual_name = next(name for name in names if name.lower() == "authorization")
+        # Refuse framing ambiguity even if get_body() reports empty. An upstream\n        # proxy may disagree about Transfer-Encoding versus Content-Length.\n        framing = [name.lower() for name in names if name.lower() in\n                   ("content-length", "transfer-encoding")]\n        if len(framing) != len(set(framing)) or "transfer-encoding" in framing:\n            return _denied(400, response_type)\n        if "content-length" in framing:\n            length_name = next(name for name in names if name.lower() == "content-length")\n            if type(headers.get(length_name)) is not str or headers.get(length_name) != "0":\n                return _denied(400, response_type)\n        actual_name = next(name for name in names if name.lower() == "authorization")
         if type(headers.get(actual_name)) is not str or headers.get(actual_name) != authorization:
             return _denied(400, response_type)
     except Exception:
