@@ -68,6 +68,50 @@ class Feature4MasterTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
         self.assertEqual(list(self.root.glob(".audio-master-*.mp4")), [])
 
+    def test_same_byte_inode_swap_after_audio_probe_is_rejected(self):
+        self.make_source()
+        original_inspect = audio_master.inspect_mp4
+        swapped = False
+
+        def swapped_probe(path, *, max_size):
+            nonlocal swapped
+            result = original_inspect(path, max_size=max_size)
+            if not swapped and Path(path) == self.source:
+                replacement = self.root / "same-bytes-new-inode.mp4"
+                replacement.write_bytes(self.source.read_bytes())
+                replacement.replace(self.source)
+                swapped = True
+            return result
+
+        with patch.object(audio_master, "inspect_mp4", side_effect=swapped_probe):
+            with self.assertRaisesRegex(AudioMasterError, "changed"):
+                master_private_audio(self.source, self.output, expected_seconds=15)
+        self.assertTrue(swapped)
+        self.assertFalse(self.output.exists())
+        self.assertEqual(list(self.root.glob(".audio-master-*.mp4")), [])
+
+    def test_same_byte_inode_swap_during_audio_encode_is_rejected(self):
+        self.make_source()
+        original_run = audio_master._run
+        swapped = False
+
+        def swapped_encode(args, **kwargs):
+            nonlocal swapped
+            result = original_run(args, **kwargs)
+            if not swapped and "-movflags" in args and "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000" in args:
+                replacement = self.root / "same-bytes-new-inode.mp4"
+                replacement.write_bytes(self.source.read_bytes())
+                replacement.replace(self.source)
+                swapped = True
+            return result
+
+        with patch.object(audio_master, "_run", side_effect=swapped_encode):
+            with self.assertRaisesRegex(AudioMasterError, "changed"):
+                master_private_audio(self.source, self.output, expected_seconds=15)
+        self.assertTrue(swapped)
+        self.assertFalse(self.output.exists())
+        self.assertEqual(list(self.root.glob(".audio-master-*.mp4")), [])
+
     def test_wrong_duration_invalid_and_symlink_inputs_fail(self):
         self.make_source()
         with self.assertRaisesRegex(AudioMasterError,"duration"):

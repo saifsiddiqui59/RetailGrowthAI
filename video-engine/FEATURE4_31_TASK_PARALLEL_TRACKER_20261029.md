@@ -86,3 +86,8 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 
 - Private 540p reviewer preview now reads an O_NOFOLLOW regular-file MP4 fingerprint (device/inode/size/mtime/ctime/SHA256) before ffprobe, after probing and after full FFmpeg encoding. Identical-byte atomic swaps fail closed even when the original SHA matches. Added actual synthetic H264/AAC source tests for same-byte swaps at both critical seams, plus oversized sparse input rejected before probe.
 - Continues original F4-13; source **IN PROGRESS**, not a signed hosted download/retailer rights approval. Verifier cannot guarantee remote immutable object or live JWT/RLS; those remain separate acceptance gates. Exact final-head CI still required. No GPU, paid provider, cloud/PROD/WineShopPOS changes.
+
+## 2026-11-08 — F4-07 source-identity continuity for private AAC mastering
+
+- Continued original F4-07 using the **same** no-follow, bounded regular MP4 inode/mtime/ctime/SHA fingerprint helper now owned by F4-13, with no duplicate hash implementation. The audio master fingerprints the source before codec verification, after ffprobe and after actual AAC loudnorm/FFmpeg stream-copy; a same-byte atomic input swap invalidates the mastered output provenance and cleans temporary outputs. H264 packet preservation and no-clobber output remain unchanged.
+- Two synthetic 15s H264/AAC real-source negatives cover same-byte MP4 replacement during probing and after mastering, without making provider or hosted rights claims. Original F4-07 remains **IN PROGRESS** pending real audio mix/quality/hosted checks, while F4-13 remains source partial. Verify exact-head media and merged-base CI. No GPU, paid APIs, DEV/PROD mutation or WineShopPOS changes.

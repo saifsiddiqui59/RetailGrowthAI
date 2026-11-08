@@ -170,3 +170,7 @@ The existing final 30s synthetic editor MP4 checker now requires caller-supplied
 ## 2026-11-08 — F4-13 private preview inode-bound provenance
 
 Feature4-owned preview code now binds one bounded MP4 inode/metadata and SHA256 across codec probe and FFmpeg rendering. Synthetic local 15s H264/AAC tests cover equal-byte atomic source replacements before and after encoding and oversize pre-probe rejection. Original F4-13 remains source **IN PROGRESS**; no cloud-hosted consent, signed end-user rights, tenant authorization or commercial release validation.
+
+## 2026-11-08 — F4-07 private audio master source identity continuation
+
+Private audio mastering now reuses Feature4's source MP4 fingerprint from preview QA to deny same-byte atomic inode replacement before/after ffprobe and audio FFmpeg transcoding. Added offline synthetic two-seam replacement negatives; original video-packet SHA and output no-clobber behavior remain protected. F4-07 remains **IN PROGRESS** pending all audio-editor semantics, human/listening QA and signed DEV integration. No customer music ownership claim or deployment.
