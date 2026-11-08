@@ -1,0 +1,45 @@
+.f4-studio{--f4-bg:#101522;--f4-line:#293244;--f4-accent:#ddba78;font:inherit;color:#eef1f6;background:var(--f4-bg);border-radius:22px;padding:clamp(16px,3vw,36px)}
+.f4-head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;border-bottom:1px solid var(--f4-line);padding-bottom:22px;margin-bottom:24px}
+.f4-head h2{font-size:clamp(24px,3vw,38px);letter-spacing:-.04em;margin:6px 0}.f4-head p{margin:0;color:#aeb8c8}.f4-head .f4-eyebrow{color:var(--f4-accent);font-size:11px;letter-spacing:.19em;font-weight:800}
+.f4-status{border:1px solid #495063;border-radius:100px;padding:7px 12px;font-size:11px;letter-spacing:.08em}
+.f4-layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.8fr);gap:clamp(18px,3vw,42px)}
+.f4-controls{min-width:0}.f4-controls label{display:flex;flex-direction:column;gap:7px;color:#bac4d2;font-size:13px;font-weight:600;margin:0 0 16px}
+.f4-controls input:not([type=checkbox]),.f4-controls select{display:block;width:100%;border:1px solid #3a465b;background:#1b2434;color:#f8fafc;border-radius:9px;padding:12px 11px;font:inherit;min-height:44px}
+.f4-controls select:focus-visible,.f4-controls input:focus-visible,.f4-controls button:focus-visible{outline:3px solid #e2b76c;outline-offset:2px}
+.f4-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.f4-subtitle{font-size:19px;display:flex;justify-content:space-between;margin:18px 0}.f4-subtitle span{font-size:12px;font-weight:500;color:#9aa9c0}
+.f4-scenes{display:grid;gap:13px}.f4-scene{border:1px solid var(--f4-line);background:#182134;border-radius:14px;padding:15px;min-width:0}
+.f4-scene legend{background:var(--f4-bg);padding:0 9px;color:var(--f4-accent);font-weight:800;font-size:11px;letter-spacing:.06em}
+.f4-scene label{margin:11px 0}.f4-reorder{display:flex;gap:9px;justify-content:flex-end}
+.f4-reorder button{border:1px solid #435069;color:#e8eff7;background:transparent;border-radius:7px;padding:7px 11px;cursor:pointer}
+.f4-reorder button:disabled{opacity:.35;cursor:not-allowed}.f4-controls .f4-switch{flex-direction:row;align-items:center;gap:10px;line-height:1.3}
+.f4-issues{border:1px solid #b87965;background:#3c2527;padding:10px 14px;border-radius:9px;margin:10px 0}.f4-issues p{margin:5px 0}
+.f4-guidance,.f4-fine{color:#aeb8c8;line-height:1.55;font-size:12px}.f4-submit{width:100%;padding:13px 17px;background:#e3bd81;color:#161c27;border:0;font-weight:850;border-radius:10px;cursor:pointer}
+.f4-submit:disabled{background:#5b6170;color:#c0c4ce;cursor:not-allowed}.f4-view{display:flex;flex-direction:column;align-items:center;gap:15px;min-width:0}
+.f4-view video{display:block;width:min(100%,350px);aspect-ratio:9/16;object-fit:contain;border-radius:18px;background:#000}
+.f4-phone{display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;width:min(100%,350px);aspect-ratio:9/16;background:radial-gradient(ellipse at 65% 26%,#60798b,#0e111e 69%);border:9px solid #283244;box-shadow:0 15px 35px #0007;border-radius:24px;padding:23px;color:white}
+.f4-streetwear{background:radial-gradient(ellipse at 65% 26%,#655e1c,#0a0a0b 70%)}.f4-festival{background:radial-gradient(ellipse at 65% 26%,#b05251,#28102b 70%)}
+.f4-kicker{font-weight:900;color:#f8d180;letter-spacing:.14em;font-size:11px;position:relative;z-index:2}.f4-mock-motion{position:absolute;inset:15% 9% 35%;display:flex;align-items:center;justify-content:center}
+.f4-mock-motion span{position:absolute;width:54%;aspect-ratio:1;border:2px solid #dcc18a66;border-radius:30%;transform:rotate(35deg)}
+.f4-mock-motion span:nth-child(2){transform:rotate(65deg);width:72%;opacity:.7}.f4-mock-motion span:nth-child(3){transform:rotate(10deg);width:36%;background:#e8c78324}
+.f4-preview-copy{position:relative;z-index:2;background:#070a11c9;padding:18px;border-left:5px solid #edc077;display:grid;gap:12px;margin-top:auto}
+.f4-preview-copy span{font-size:9px;letter-spacing:.12em;color:#f2d398}.f4-preview-copy strong{font-size:clamp(20px,3vw,28px);font-weight:950;line-height:1.12;text-transform:uppercase;overflow-wrap:anywhere}
+.f4-preview-copy em{color:#ecc27c;font-style:normal;font-size:14px;font-weight:800}.f4-mock-label{position:relative;z-index:2;text-align:center;font-size:9px;letter-spacing:.06em;color:#bac4d4;margin-top:14px}
+.f4-view-note{max-width:360px;text-align:center;font-size:12px;line-height:1.6;color:#aeb8c8}
+@media(max-width:900px){.f4-layout{grid-template-columns:minmax(0,1fr)}.f4-view{grid-row:1}.f4-phone{width:min(65%,270px)}}
+@media(max-width:520px){.f4-studio{border-radius:0;padding:16px}.f4-two{grid-template-columns:1fr;gap:0}.f4-phone{width:min(82%,270px)}.f4-head h2{font-size:27px}}
+
+/* Accessible scene scrubber: the mock must reflect the selected storyboard, not only scene 1. */
+.f4-timeline{display:flex;width:min(100%,350px);gap:5px;align-items:stretch;padding:5px;min-height:42px;background:#0a101c;border-radius:12px}
+.f4-timeline button{flex-basis:0;min-width:0;border:1px solid #50617d;border-radius:6px;background:#1c2b3b;color:#c7d4e2;font-size:11px;font-weight:800;cursor:pointer}
+.f4-timeline button.f4-selected{color:#1a1c22;background:#f0c88d;border-color:#f0c88d}
+.f4-timeline button:focus-visible{outline:3px solid #f0c88d;outline-offset:2px}
+
+/* Explicit, neutral storyboard placeholder: NEVER draw a fake human silhouette. */
+.f4-media-placeholder{position:absolute;inset:19% 10% 34%;display:flex;justify-content:center;align-items:center;border:1px dashed #a3adbd88;background:linear-gradient(145deg,#1b2333,#0b111d);border-radius:16px;padding:14px}
+.f4-media-placeholder span{max-width:22ch;letter-spacing:.13em;font-size:11px;text-align:center;line-height:1.7;color:#b3c2d6;font-weight:700}
+
+/* Show ONLY tenant-signed source imagery; this is not a rendered AI advertisement. */
+.f4-source-preview{position:absolute;top:16%;left:8%;width:84%;height:53%;object-fit:contain;border-radius:12px;background:#03060b;z-index:1;box-shadow:0 9px 28px #0006}
+.f4-phone>.f4-source-preview:not(video){object-position:center}
+.f4-view .f4-phone video.f4-source-preview{width:84%;aspect-ratio:auto;object-fit:contain;border-radius:12px}

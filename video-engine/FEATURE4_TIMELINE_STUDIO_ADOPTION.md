@@ -1,0 +1,150 @@
+# RetailGrowthAI Feature #4 — Actual Timeline Studio source adaptation
+
+Checkpoint 2026-10-28. **Source-only, PR #322 draft; no Azure, GPU or public editor deployment.**
+
+## Selected real upstream source
+
+- [MartinDelophy/ai-video-editor](https://github.com/MartinDelophy/ai-video-editor), immutable research commit `e1091feccca3be8832b507eb7e17c9e55eb2233a` (MIT).
+- Preserved original MIT LICENSE, © 2026 MartinDelophy, in `frontend/src/features/video/vendor/LICENSE`. This is adapted real upstream editing code, not a claim of full upstream-app deployment.
+- Upstream pinned commit's actual [Actions #40501035304](https://github.com/MartinDelophy/ai-video-editor/actions/runs/40501035304) SUCCESS: `npm ci`, ESLint, TypeScript typechecks (host and app), Vite production build. That upstream package does **not** define a standalone `npm test` script. Direct local clone/npm installation and launching the entire original application was **not possible in the available network-restricted runtime**; no fabricated local run.
+- Research ownership from [PR #497](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/497): **Feature #2** authors approved `creative_direction_v1`, dialogue, story, camera and exact motion prompts; **Feature #4** assembles, edits and verifies; **Feature #5** validates/inferences motions; **Feature #7** semantically edits existing uploaded footage.
+
+## Original source → Feature #4 source map
+
+| Upstream pinned source | Feature #4 adaptation | Real reused capability |
+| --- | --- | --- |
+| `src/lib/timeline.js` | `frontend/src/features/video/vendor/timeline.js` | Scene ranges, captions, lanes, reorder, timing, formatting |
+| `src/lib/timelineScale.js` | `frontend/src/features/video/vendor/timelineScale.js` | Zoom/ruler ticks, bounded viewport math |
+| `src/lib/projectTrackState.js` | `frontend/src/features/video/vendor/projectTrackState.js` | Multi-track visibility/lock helpers |
+| `src/lib/editorHistoryCore.ts` | `frontend/src/features/video/vendor/editorHistoryCore.mjs` | Exact upstream push/undo/redo algorithm converted from TS generics to JS |
+| `src/lib/timelineCutActions.js` | `frontend/src/features/video/vendor/timelineCut.js` | Original `splitVisualSegmentState` including video sourceStart offsets; unsupported keyframe logic omitted |
+| `src/components/TimelineClips.jsx` | `frontend/src/features/video/vendor/TimelineClips.jsx` | Real React caption/audio clip controls and resize handles |
+| `src/components/TimelineGain.jsx`, `.css` | `frontend/src/features/video/vendor/TimelineGain.*` | Original audio-gain UI, **disabled** when final renderer cannot reproduce it |
+| `src/config/editor.js` | `frontend/src/features/video/vendor/editorConfig.js` | Isolated original timing constants; avoids unrelated upstream host/model dependencies |
+| `src/components/ui.jsx` | `frontend/src/features/video/vendor/WaveformStrip.jsx` | Simplified static waveform adapter, not modeled/synthetic speech or AI waveform |
+
+## RetailGrowthAI integration
+
+- `TimelineStudioSurface.jsx` and `.css`: multi-track timeline rendered **inside** existing feature-owned React workspace, edit/seek, HTML drag reorder, mobile earlier/later controls, source video trims, real segment splitting, caption lane, music lane, undo/redo, ruler and playhead. It **does not** import or run upstream's cloud host, local accounts, browser-WebCodecs exporter or paid models.
+- `timeline-studio-bridge.mjs`: converts upstream timeline operations into the **exact existing** `rg_video_v2` scene allowlist. Keeps 15/30/60s duration, 1–12 scenes, minimum 0.5s clips, shop-private approved asset IDs, unchanged approved captions/offers/CTA. Clip split reuses same approved image/video, advancing video trim source offset. The existing `feature4_intent_compiler.py` remains authoritative for server approval/rights.
+- `creative-direction-adapter.mjs`: proposed frontend read-only `creative_direction_v1` preview bridge, requires Feature2 reviewed shop/campaign/approval/hash, exact approved headline/offer/CTA/media/allowed transitions and no unapproved assets. **UI browser approval flags are NOT authorization.** Feature2 schema and DB snapshot are not coordinator-frozen yet; consumer route remains OFF.
+- `feature4_motion_handoff.py`: source-only, bounded F2 approved motion brief → F5 legacy 5s/480p profile request. Preserves rich prompt and choreography data verbatim and derives shop-scoped idempotency. Coordinator must atomically reserve/claim/outbox before invoking callback. **No actual GPU, Wan, billed inference, queue deployment or live media receipt**.
+- Final export remains HyperFrames + FFmpeg fallback. No second independent renderer. Upstream `projectRenderPlan.js` intentionally **not** used: its offline path drops requested overlays/captions and would create false preview parity.
+
+## Explicit capabilities not yet claimed
+
+- Upstream full 200KB `Timeline.jsx`, 66KB `PreviewStage.jsx`, 127KB `App.jsx` and many unsupported mask/keyframe/3D effects are **not** imported wholesale. This is a bounded adoption of working upstream components and editing algorithms, **not** the entire original UI; deeper editing parity is still pending.
+- Independent subtitle-text editing, per-track gain, arbitrary keyframes, sophisticated source speech alignment and arbitrary motion transforms remain disabled or pending. Only renderer-supported effects are actionable; no silent drop of user-selected effects.
+- The Feature2 `creative_direction_v1` shape shown in tests is a **proposed** handoff, not a merged cross-feature contract. A real Feature2 review must be reissued if a director-locked storyboard is changed.
+- No actual Wan inference, original retailer kurti or human-model quality approval. Mocked media tests are engineering evidence only, not premium fashion-campaign acceptance.
+- No Azure v2 DB/queue/API contract, authenticated hosted E2E, signed output publishing, GPU or PROD delivery without coordinator approval and issue #249 remediation.
+
+## Verification requirements
+
+- Existing `tests/frontend/timeline-studio-adoption.test.mjs`: actual borrowed timeline geometry, caption lanes, zoom, split/trim, history, F2 contract and malicious media denial.
+- Existing `frontend/e2e/timeline-studio.spec.mjs`: actual browser interaction with adapter and mobile locked package (Vite-served test fixture, no public test route).
+- Existing `tests/media/test_feature4_motion_handoff.py`: mock F2→F5 security, exact prompt fidelity, no double dispatch and no GPU.
+- Existing real 30s synthetic 1080×1920 HyperFrames/FFmpeg CI; server snapshot/tenant/rights tests remain mandatory.
+- Inspect **exact latest head** four-job CI after every push and report failures separately. Previous runs with cancelled jobs or upstream passes do not prove the latest edited source.
+
+## Editing correctness follow-up (F4-17/18)
+- The upstream timeline zoom now expands the **actual** track width in a bounded 560–18,000px horizontal scroll surface and aligns playhead and ruler; the earlier zoom changed only tick labels.
+- Caption clip drag handles modify their correct adjacent scene boundary, not an unrelated clip; duration and source start remain protected.
+- Extending/shrinking a reviewed video scene cannot silently reuse the wrong original source frames; the current tenant and known ffprobe-derived source duration are checked at the UI, while authoritative file-duration checks still occur at the renderer.
+- Scene SFX is now selectable from same-shop licensed audio, visibly plotted at the actual scene start and **capped to existing HyperFrames 2-second, 25%-gain behavior**. It is *not* a general voiceover/multitrack-volume editor.
+- New direct Node `studioSplit`/`studioReorder` edit to trusted Python `compile_approved_storyboard` and `render_inputs` tests establish same-plan preservation for source media, approved copy, trims, music and poster plus tenant/tampered-claim refusal.
+- These tests do not substitute for a complete preview-to-final rendered video equivalence test, real garment/motion signoff, hosted authentication and commercial dependency notices.
+
+## Full-Reel approved narration — F4-19
+A bounded additive optional `voiceover_asset_id` appears in the editor and existing trusted `rg_video_v2`→`creative_reel_v1`→HyperFrames contract. Its private rights-approved 15/30/60s audio must cover the entire duration verified by ffprobe before assembly. The HyperFrames HTML uses a deterministic new dedicated audio track, fixed gain, with existing approved soundtrack ducked to 0.12 under narration. No voice model, altered advertising script, AI speech-generation charge, arbitrary DAW curves or unsanctioned endpoint is introduced. SFX remain 2s fixed-gain; they are **not** treated as speech. Three synthetic narration/media-rights tests and the broader code suite passed on exact code-head Actions #40689046813 and #40689055698 (4/4 each); this is NOT spoken-word intelligibility or actual Wan motion acceptance.
+
+## F4-20 — Actual encoded narration-track AAC parity test, 2026-10-28
+- **Implemented and verified on code SHA `9fa5b7d41083aafaa3848c5d7586ee51a2e24304`**: `demo_feature4_diwali.py --with-narration` adds an original, explicitly non-spoken 863 Hz test-only voice recording to the same 30s synthetic, authorized Feature4 private media pipeline. `hyperframes/ci-smoke.sh` enables it in the **existing** 30s/1080p HyperFrames output, not an extra paid renderer or provider call.
+- `hyperframes/check_feature4_output.py` Fourier-analyzes actual final MP4→AAC→PCM audio at 13s and 27s, failing when the voice signal disappears. Real [push CI #40690471199](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40690471199) **4/4 PASS**: 138 Python media tests, actual MP4 **30.000s, 1080×1920, 24fps, H264+AAC, 5,450,263 bytes**; decoded synthetic narrator amplitudes **1,898.71 / 1,898.83**. The standard non-narration 540p render independently preserves 480Hz source video sound and background music ducking. [PR CI #40690478611](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40690478611) is a separately observed check.
+- **Not accepted as authentic spoken narration**: no real TTS or human speech, word timings, spoken comprehension, exact text audio matching, reviewer approval or photoreal retailer garments. `spoken_word_qa_accepted=False`, `commercial_fashion_realism_accepted=False`. This is proof only that approved separate narration **can survive existing HyperFrames export**.
+
+## 2026-10-28 — F4-21/F4-22/F4-23: mock-first security, source preview and F2 edit preservation
+- **F4-21 P0 code completed, final exact-head CI pending:** `compatibleMedia` and `makeVideoDraft` now enforce the *selected* shop before placing source assets in the editor. `validateVideoDraft` rejects foreign/revoked product image or poster, music/audio of the wrong kind/shop, invalid video source in-points/mute flags and advertised source-duration overruns; it also rejects a clearly too-short full-Reel narration when trusted source duration is supplied. Server-side `compile_approved_storyboard` / `_bundle` / `professional.validate` remain the final independent authority and actual ffprobe source-length gate.
+- **F4-22 P0 source-level preview fidelity:** The authenticated source-footage preview seeks to the selected `trim_start` and stops at `trim_start + scene.duration`. Re-selecting/splitting the clip resets the excerpt; it remains *muted, clearly labeled source footage*, not a fake final color/transition/overlay render. Invalid cross-shop or expired private URLs still cannot be used as source HTML. Added pure source-window tests for valid, negative and overrun offsets.
+- **F4-22 P1 keyboard access:** React editor supports Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z on the focused timeline while explicitly respecting native text-input undo, F2 approved read-only, and undo/redo history. Added Playwright mobile keyboard acceptance.
+- **F4-23 P0 approved direction preservation:** `inspectCreativeDirection` now carries optional F2-reviewed `poster_overlay_asset_id`, `trim_start`, and `mute_source` into the existing v2 editor plan; requires same-shop approved F3 poster and valid actual F5/retailer video source, rejects illegal types/negative starts/source-bound overruns, and never rewrites copy/offer/CTA or the original approved package. Motion generation prompts remain stored in the trusted F2 package rather than reparsed by the browser.
+- All acceptance tests use explicitly authorized synthetic fixtures only, not user media or actual Wan human motion. **Do not mark P0 fully accepted until the new source-head 4/4 push/PR CI passes.**
+
+## 2026-10-28 — Verified F4-21 to F4-24 source/CI acceptance (not product release)
+Exact **code** SHA `9fdd205c72820b6affe5591db47c8aca07a64162` passed both [GitHub branch CI #40702356085](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40702356085) and independent [PR CI #40702364957](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40702364957), **4/4 SUCCESS on each**. The branch job logs recorded **54 Playwright browser tests passed**, **138 media tests passed**, plus a real synthetic **30.000s 1080×1920 24fps H.264/AAC MP4 (5,450,263 bytes)**. Existing source tone/music-duck and 863Hz test-narration signals survived AAC decoding. The revised Node Timeline Studio clip-split/SFX contract tests passed in the media suite.
+
+**Implementation verified offline:** shop-scoped image/poster/video/music/narration selection and trim/source-duration checks; signed private source clip preview time window; desktop/mobile timeline Undo/Redo; preservation of approved Feature2 poster overlays and original-video trim/mute fields; fail-closed SFX splitting without replay; Node client edit→trusted Python approved compiler→existing HyperFrames plan; allowed transitions and truthful unsupported effect disclosure.
+
+**Never infer:** real spoken-word/word-timed subtitle acceptance, retailer fashion photorealism, generated Wan F5 movement, actual F3 product identity, commercial music/license signoff, whole upstream project's every editor control, Azure worker memory/cost/runtime, hosted JWT/RLS/lease/quota end-to-end or production release. The release flag remains OFF. Full-size 60s source had earlier opt-in evidence but no same-head commercial human proof. The reviewed SHA-guarded npm dependency lock remains temporary, not committed. Coordinator owns shared `docs/**` reconciliation and main merge; no WineShopPOS/PROD/cloud mutation occurred.
+
+## 2026-10-28 — F4-25 ACTUAL EDITOR→ENCODED VIDEO VERIFIED (offline, original fixtures)
+- Source head `2dc971bbe97b7258e7175b0e835bfbf99a97b74b` verified [push CI #40725721193](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40725721193) and independent [PR CI #40725731267](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40725731267), **4/4 SUCCESS each**. Branch recorded **54 Playwright** and **139 media** tests; PR media run recorded 307 tests due to independently changing other test suites. Both passed their actual audio/video/codec and tenant isolation jobs; no bypass, paid inference, Azure deployment or public endpoints.
+- New `video-engine/demo_feature4_edited_reel.py` invokes the **actual borrowed JS Timeline Studio** operations (split original video at +4sec, reorder four resulting scenes) via `tests/media/test_feature4_editor_to_render_contract.py`. Its output is accepted by `compile_approved_storyboard`, `creative_reel_v1`/private-manifest rights checks and the **same existing HyperFrames compositor**. Mock F3 kurti image/poster and F5 moving human are generated with deterministic original illustrated fixture media and a **clearly disclosed repeated 8→10sec** synthetic walking clip. It preserves two source-video in-points (0/4 seconds), exactly one approved 2-second scene SFX, source authorization, CTA and `20% OFF`, and fails closed if HyperFrames HTML loses these attributes.
+- `ci-smoke.sh` now **actually encodes a second 30-second MP4** based on that edited timeline (540×960, 24fps, H.264/AAC, 2,382,922 bytes); ffprobe and 2/15/26s visual frames are archived. Separate existing source benchmark still exports genuine Full-HD synthetic 30s 1080×1920/24fps H.264/AAC MP4 (5,450,263 bytes) and proves 863Hz narrator test tone survives AAC at 13s/27s. The previous handoff was only source/plan parity; this demonstrates **real edited-frame/video export** for the supported subset without a second renderer.
+- **Manual visual QA:** frames demonstrate changing illustrated garment/motion/poster scenes and an exact `20% OFF` plus approved store CTA. Not photoreal (faceless vector-style garment fixture) and not human approval. `commercial_fashion_realism_accepted=False`, `real_ai_motion=False`, `spoken_word_qa_accepted=False` remain explicit. No rights/voice/garment fidelity claim can be inferred from synthetic assets.
+- **F4-12 reproducibility confirmed**: the *actual Git-tracked* 69,904-byte HyperFrames npm v3 lock hash `2b4016fde9514ac2771660a3a1e81389ee3b1237c72db6acfa1fc540494948a6` passed before direct `npm ci` in both latest exact-head runs (no install-time lock generation). Full library/Chromium/FFmpeg/libvips redistribution-license signoff, Azure Node/Chromium RAM/cold-start and commercial asset licenses still unresolved.
+- **Clear scope boundary:** This validates F4-25 mock **edit→approved source staging→30s MP4 export** for currently supported commands. It does not establish full upstream `Timeline.jsx`/advanced PreviewStage, word-level captions and intelligible spoken narration, genuinely approved Feature3 garment + Feature5 AI motion, Azure HTTP #249 reliability, coordinator JWT/RLS/claim/usage/outbox integration or authenticated hosted retailer E2E. Keep PR #322 DRAFT and main untouched; coordinator owns shared docs.
+
+## 2026-10-28 — F4-26/27 exact-code-head verified, offline readiness (NO production release)
+- At source commit `bc1a63412b3871e0c7db4c7a43bebdf2aadebe3a`, [GitHub PR CI #40728552814](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40728552814) PASSED **all 4 jobs**: Python, isolated Supabase, Frontend/**97 Playwright tests**, FFmpeg/**307 media tests**. The original 30s Full-HD synthetic Reel passed H.264/AAC verification (1080×1920, 24fps, 5,449,447 bytes) and the **actually edited** 30s 540×960 synthetic Reel passed H.264/AAC verification (2,392,330 bytes). The lockfile was Git-tracked and exact SHA-256 checked before direct `npm ci`. The branch-push equivalent [#40728539257](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40728539257) must be independently observed before claiming a second green run.
+- **F4-26 visual compositor bug CLOSED for video-led openings**: previously a 44%-width root `hero-logo` covered the actor face in the actual editor-driven first scene. `professional.py` now shows that giant logo ONLY for text/brand-only intros while retaining a small corner logo on all compositions. The actual edited mock project fails compilation if the big logo appears over a video-led scene or the small brand logo disappears. Reviewed 2s updated MP4 frame shows unobscured stylized model and corner branding. Text-only intro fixture still retains hero logo.
+- **F4-27 stale signed-preview bug CLOSED in tested UI**: `VideoStudio.jsx` now displays a completed private MP4 as the CURRENT composition only when its draft remains in the submitted state; editing/retiming/source switching invalidates current-display status instead of silently replaying an older signed result. Playwright exercises prior job vs new submission vs changed timeline draft. Backend job snapshot/tenant authorization remains independently authoritative; no new public endpoint.
+- This establishes **Feature4 offline source/editor/mock-render acceptance for the supported subset** and a genuine inspected video artifact, NOT the full professional product definition. Original MIT Timeline Studio full application/advanced PreviewStage tools are not completely adopted. User-specific garment detail, authentic human motion from Feature5, spoken real-voice subtitle sync, live JWT/RLS claim/quota/outbox, issue #249 HTTP reliability, third-party commercial licenses, signed-in hosted DEV E2E, and final commercial human visual signoff remain **OPEN**. The illustrated media and test sine-wave narration are explicitly synthetic and do not meet professional retailer quality. Do not enable paid GPU/cloud deployment, merge or declare production-ready.
+
+## F4-34 — working higher-adoption upstream OpenReel source (2026-10-28)
+The owner explicitly requested mature popular open-source editing code instead of hand-implementing the professional editor. Current GitHub comparison: OpenCut ~96.6k stars / 9.6k forks, but its `main` README documents a rewrite not yet the usable editor and `opencut-classic` is archived; Clypra is a Rust/Tauri desktop app. Chosen [augani/openreel-video](https://github.com/augani/openreel-video) ~5,486 stars / 808 forks, recent 2026-10-17 push, React/TypeScript, MIT. Pinned source: **`367d7e90b61b5181f9861b852bb8b9d7a7d2954a`**.
+
+**Actual copied/adapted upstream source, retaining complete license:** `apps/web/src/components/editor/editing-frame-rate.ts` → `frontend/src/features/video/vendor/openreel/editing-frame-rate.mjs`; `apps/web/src/utils/frame-timecode.ts` → `vendor/openreel/frame-timecode.mjs`; `apps/web/src/components/editor/PreviewTimecode.tsx` → `vendor/openreel/FrameTimecodeInput.jsx` (upstream input/key behavior with RetailGrowthAI local authorized playhead instead of global OpenReel store). Original MIT text and copyright © 2024–2026 Augustus Otu and Contributors in `vendor/openreel/LICENSE`. TypeScript type syntax removed for Node test compatibility.
+
+**Real integration:** existing TimelineStudioSurface mounts imported OpenReel frame timecode; typed HH:MM:SS:FF, ArrowUp/Down frame stepping, Enter/Escape, input validation, project duration, timeline track and slider seek now use the same bounded frame-aligned selection. Existing Timeline Studio splitter, F2 immutable copy, private-media checks, and HyperFrames/FFmpeg encoder are retained. New Node and desktop/mobile Playwright checks exercise the adopted source, actual seek and split, denial of invalid timecodes. Not a whole-app replacement, renderer substitution, or advanced effect parity claim; copy more upstream editor modules only as each one is tested against `rg_video_v2` and shop approvals. No GPU, paid infrastructure, PROD, or WineShopPOS change. Four-job exact-head CI must pass before this milestone is verified.
+
+## F4-35 — reuse OpenReel actual clip snapping + timeline item selection (2026-10-28)
+
+Continue existing F4-34 pinned [OpenReel](https://github.com/augani/openreel-video) at `367d7e90b61b5181f9861b852bb8b9d7a7d2954a`, MIT copyright © 2024–2026 Augustus Otu and Contributors. New actual source excerpts: `packages/core/src/timeline/clip-manager.ts` **ClipManager.snapToGrid** → `frontend/src/features/video/vendor/openreel/clip-snap.mjs` (retains grid/clip-boundary distance algorithm, strips TypeScript and heavy global action executor); `apps/web/src/utils/timeline-item-actions.ts` **getTimelineItemRanges, getSplittableTimelineItemIds, getTimelineTrackSelection** → `vendor/openreel/timeline-item-actions.mjs` (pure original item-selection/splittability subset, removes OpenReel store dependencies). The full original MIT license remains at `vendor/openreel/LICENSE`.
+
+Feature4 actually uses these: selected scenes projected read-only into OpenReel media-track layout (IDs/timings only); previous/next cut mobile-accessible controls use returned sorted track selection; Split button requires the original OpenReel interior-time eligibility AND the existing stronger 0.5s/authorization/backend constraints; optional snap-to-cut/grid for direct pointer/range scrub at current zoom uses the real ClipManager snapping algorithm. Typed frame-timecodes remain unsnapped exact user intent, and no renderer-incompatible arbitrary free track editing is exposed. Retains original scene rights and immutable F2 copy, existing HyperFrames final export and source-only default-off live feature switch. Node and mobile Playwright tests verify the actual copied algorithms, same-tenant render draft, navigation, pointer-disabled unsupported split, and snap opt-out.
+
+**Source-only commit does not mean full OpenReel workspace adoption or visual acceptance.** No unsupported effects, GPUs, paid hosting, WineShopPOS or main merge. Exact new-head branch and PR four-job CI required before calling this checkpoint VERIFIED.
+
+
+## F4-44 — independent Timeline Studio visual beat navigation (source-only)
+Proposed audio-beat markers now render on a dedicated read-only timeline lane,
+only for a matching same-shop authorized soundtrack and valid strictly sorted
+millisecond-precision timestamps. Seeking a marker moves the OpenReel frame
+playhead and pointer snapping prefers nearby beat times before the normal
+OpenReel integer grid/cut snapper. At most 120 markers are shown; no changes to
+the server beat-grid, media license, approval, source video or render job occur.
+This is NOT proof of trusted AI viral music selection. Unit tests reject
+unsorted, foreign-shop, unapproved and malformed beat proposals; existing
+React/mobile Playwright tests still cover editor interactions. No new external
+editor fork, paid service, GPU, storage, schema or WineShopPOS modifications.
+
+
+## F4-59 — actual bounded visual duplication (2026-10-29)
+
+- `studioDuplicate` in the already-adopted Timeline Studio bridge implements **repeat the selected visual twice in the same original scene slot** (each half the original scene duration), not lengthening the approved 15/30/60s film or fabricating new source frames. A video repeats from its *approved in-point* for both halves; the compiler and worker still enforce real duration and tenant-granted source bytes.
+- Exact original image/poster/video ID, approved copy, promo and CTA are preserved. Extra clip is not allowed to replay an approved 2s scene SFX, cut that SFX short, create >12 scenes, use a foreign/revoked source, or create sub-0.5s scenes. This is **bounded visual-loop duplication**, not a general infinite-duration timeline. The UI button is disabled on immutable Feature2-approved direction and clearly describes the repeated half-length result.
+- `tests/frontend/timeline-studio-adoption.test.mjs` now tests source in-point restart, exact 30s duration, retained media/promo/rights, one-off SFX and denials. `frontend/e2e/timeline-studio.spec.mjs` tests mobile duplicate → undo → redo → authorized v2 draft submission, time and shop identity, and approval-locked control. Real HyperFrames export consumes this unchanged `rg_video_v2` contract; a separate real encoded duplicate-specific 15/30s media sample is **not claimed**.
+- Commits `cd1f6dec`, `2d5ab41b`, `eff0054a`, `41c171c6`. Exact-head branch/PR CI must be checked. Remaining independent advanced multi-track mix, general effects, real photoreal garment-worn model, narration semantics and hosted deployment stay open; PR #322 remains draft, no GPU/paid resources, PROD/WineShopPOS untouched.
+
+## F4-67 — focused keyboard frame jog on the actual editor tracks (2026-10-29)
+
+The existing imported OpenReel `FrameTimecodeInput` already supported
+Up/Down one-frame stepping while **typing in that input**, but the video-track
+surface could not receive a keyboard focus or step its global playhead. The
+adopted `TimelineStudioSurface.jsx` now gives the tracks a separate focusable
+named region with `aria-keyshortcuts`; left/right step exactly 1 output frame,
+Shift+left/right 10, with the existing 24/30 fps clamp and actual
+`seekToFrame` scene-selection calculation. Source timing, asset grants,
+voice/music, approved promo, submitted draft and history are NOT mutated.
+An immutable Feature2-approved direction still permits this preview-only
+navigation; it does not grant edit permission.
+
+Text/timecode fields, native buttons/links, audio controls and modified
+Ctrl/Meta/Alt keys retain their native behavior. Mobile Playwright tests seek
+00:00:00:01 -> 00:00:00:11 -> 00:00:00:10 -> 00:00:00:09, assert the same 3
+render scenes/15s/shop after submit, and verify approved direction's disabled
+edit controls despite working seek. Commits `4f8c260f`, `ca281aac`,
+`a552dfa8`. Browser/source CI at exact head required before claiming
+verified. This is not a true frame-accurate decoded preview or mobile human
+usability approval; real hosted signed-media preview remains a separate gate.
