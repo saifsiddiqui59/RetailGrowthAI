@@ -378,5 +378,32 @@ class BindingTests(unittest.TestCase):
         self.assertFalse(reader.rights(self.shop, self.job, self.asset))
         self.assertEqual(self.calls, 0)
 
+
+    def test_scoped_reader_rejects_noncanonical_asset_before_authority(self):
+        """Synthetic: malformed asset IDs never reach a backend rights lookup."""
+        observed = []
+        def backend(shop, job, asset):
+            observed.append((shop, job, asset))
+            return dict(self.row)
+        reader = build_scoped_private_png_reader(
+            shop_id=self.shop, job_id=self.job, tenant_store=Store(),
+            verify_user_jwt=lambda token: self.shop,
+            authoritative_read=backend,
+            trusted_output_pins=lambda shop, job: dict(
+                shop_id=shop, job_id=job,
+                output_sha256="a" * 64, rights_revision=2),
+        )
+        class EqualToEverything:
+            def __eq__(self, other):
+                return True
+        for invalid in (None, True, 7, [], {}, EqualToEverything(),
+                        self.asset.upper(), self.asset.replace("-", ""),
+                        str(uuid4()).upper(), "not-an-asset"):
+            with self.subTest(asset=repr(invalid)):
+                self.assertFalse(reader.rights(self.shop, self.job, invalid))
+        self.assertEqual(observed, [])
+        self.assertTrue(reader.rights(self.shop, self.job, self.asset))
+        self.assertEqual(observed, [(self.shop, self.job, self.asset)])
+
 if __name__ == "__main__":
     unittest.main()
