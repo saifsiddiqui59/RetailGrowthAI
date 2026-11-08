@@ -76,10 +76,10 @@ class Tests(unittest.TestCase):
         for name, value in (
             ("Bad Header", "safe"),
             ("X-Name:", "safe"),
-            ("X-Name\\nInjected", "safe"),
-            ("X-Nonascii", "caf\\u00e9"),
-            ("X-Nonascii", "safe\\u0080"),
-            ("X-Nonascii", "safe\\u2028"),
+            ("X-Name" + chr(10) + "Injected", "safe"),
+            ("X-Nonascii", "caf" + chr(0xe9)),
+            ("X-Nonascii", "safe" + chr(0x80)),
+            ("X-Nonascii", "safe" + chr(0x2028)),
         ):
             with self.subTest(name=name, value=value):
                 request = Request()
