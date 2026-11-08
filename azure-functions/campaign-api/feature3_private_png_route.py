@@ -57,12 +57,6 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         return _denied(400, response_type)
     if not callable(reader_factory):
         return _denied(503, response_type)
-    try:
-        authorization = headers.get("Authorization", "")
-    except Exception:
-        return _denied(400, response_type)
-    if type(authorization) is not str:
-        return _denied(400, response_type)
     # A proxy/framework may preserve differently cased duplicate headers.
     # Never allow an ambiguous bearer token to reach the private reader.
     try:
@@ -80,7 +74,11 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             if type(headers.get(length_name)) is not str or headers.get(length_name) != "0":
                 return _denied(400, response_type)
         actual_name = next(name for name in names if name.lower() == "authorization")
-        if type(headers.get(actual_name)) is not str or headers.get(actual_name) != authorization:
+        # Read the enumerated header key, not a differently cased alias: some
+        # request adapters are case-sensitive, and an absent alias must not
+        # silently turn a valid Authorization header into an empty credential.
+        authorization = headers.get(actual_name)
+        if type(authorization) is not str or not authorization:
             return _denied(400, response_type)
     except Exception:
         return _denied(400, response_type)
