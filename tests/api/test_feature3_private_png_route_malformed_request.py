@@ -454,6 +454,39 @@ class Tests(unittest.TestCase):
                 self.assertEqual(body_reads, [])
                 backend.assert_not_called()
 
+    def test_hop_by_hop_and_method_override_headers_fail_closed(self):
+        # Synthetic requests only: reject proxy-controlled routing and
+        # method tunnelling before body, JWT, rights or Storage access.
+        for name, value in (
+            ("Connection", "keep-alive"),
+            ("Keep-Alive", "timeout=5"),
+            ("TE", "trailers"),
+            ("Trailer", "Authorization"),
+            ("Proxy-Connection", "keep-alive"),
+            ("Proxy-Authenticate", "Basic realm=fixture"),
+            ("X-HTTP-Method-Override", "POST"),
+            ("X-Method-Override", "DELETE"),
+            ("X-Original-Method", "PATCH"),
+        ):
+            with self.subTest(name=name):
+                request = Request()
+                request.headers = {
+                    "Authorization": "Bearer synthetic-not-a-real-jwt",
+                    name: value,
+                }
+                body_reads = []
+                request.get_body = lambda: body_reads.append(True) or b""
+                with patch("feature3_private_png_route.private_png_http") as backend:
+                    response = handle_private_png_request(
+                        request, reader_factory=lambda *args: self.fail(
+                            "rights reader must not be invoked"),
+                        response_type=Response)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.body, b"")
+                self.assertEqual(response.headers["Cache-Control"], "no-store, private")
+                self.assertEqual(body_reads, [])
+                backend.assert_not_called()
+
     def test_regular_accept_header_remains_compatible(self):
         request = Request()
         request.headers = {"Authorization": "Bearer synthetic",
