@@ -64,15 +64,6 @@ def handle_private_png_request(request, *, reader_factory, response_type):
     # A query or request body must never override trusted route identifiers.
     if query is not None and (type(query) is not dict or bool(query)):
         return _denied(400, response_type)
-    # Refuse GET bodies so proxies cannot disagree about credential or scope.
-    if not callable(get_body):
-        return _denied(400, response_type)
-    try:
-        body = get_body()
-    except Exception:
-        return _denied(400, response_type)
-    if type(body) is not bytes or body:
-        return _denied(400, response_type)
     if not callable(reader_factory):
         return _denied(503, response_type)
     # A proxy/framework may preserve differently cased duplicate headers.
@@ -118,6 +109,18 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             if total_header_bytes > 16384:
                 return _denied(400, response_type)
     except Exception:
+        return _denied(400, response_type)
+    # Validate bounded metadata before asking the request adapter to materialize
+    # the body. Malformed headers must not trigger a potentially expensive or
+    # unbounded body read, even for GET requests.
+    # Refuse GET bodies so proxies cannot disagree about credential or scope.
+    if not callable(get_body):
+        return _denied(400, response_type)
+    try:
+        body = get_body()
+    except Exception:
+        return _denied(400, response_type)
+    if type(body) is not bytes or body:
         return _denied(400, response_type)
     # A backend provider/reader can fail after request validation. Never
     # propagate its exception or diagnostic details into a public response.
