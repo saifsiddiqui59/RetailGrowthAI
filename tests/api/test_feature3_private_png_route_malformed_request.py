@@ -552,6 +552,24 @@ class Tests(unittest.TestCase):
                 self.assert_denied_before_reader(request)
                 self.assertEqual(body_reads, [])
 
+    def test_proxy_and_method_override_headers_rejected_before_body_io(self):
+        # Regression for the complete fail-closed header set. These are
+        # synthetic requests; no real JWT or hosted rights are asserted.
+        for name in ("Proxy-Authenticate", "TE", "Trailer", "Connection",
+                     "Keep-Alive", "Proxy-Connection",
+                     "X-HTTP-Method-Override", "X-Method-Override",
+                     "X-Original-Method"):
+            with self.subTest(header=name):
+                request = Request()
+                request.headers = {
+                    "Authorization": "Bearer synthetic-not-a-real-jwt",
+                    name: "synthetic",
+                }
+                reads = []
+                request.get_body = lambda: reads.append(True) or b""
+                self.assert_denied_before_reader(request)
+                self.assertEqual(reads, [])
+
     def test_valid_headers_still_check_get_body(self):
         request = Request()
         body_reads = []
