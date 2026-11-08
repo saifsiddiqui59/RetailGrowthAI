@@ -200,6 +200,44 @@ class Tests(unittest.TestCase):
                 self.assert_denied_before_reader(request)
                 self.assertEqual(body_reads, [])
 
+    def test_incompatible_accept_rejected_before_body_or_rights(self):
+        # Synthetic transport-only fixtures; no hosted JWT or rights claim.
+        for value in ("application/json", "text/html", "image/jpeg",
+                      "image/png;q=0", "", "image/png, text/html"):
+            with self.subTest(accept=value):
+                request = Request()
+                request.headers = {
+                    "Authorization": "Bearer synthetic-not-a-real-jwt",
+                    "Accept": value,
+                }
+                reads = []
+                request.get_body = lambda: reads.append(True) or b""
+                response = handle_private_png_request(
+                    request, reader_factory=lambda *args: self.fail(
+                        "private rights reader invoked"), response_type=Response)
+                self.assertEqual(response.status_code, 406)
+                self.assertEqual(response.body, b"")
+                self.assertEqual(response.headers["Cache-Control"], "no-store, private")
+                self.assertEqual(reads, [])
+
+    def test_supported_accept_reaches_canonical_adapter(self):
+        for value in ("image/png", "image/*", "*/*"):
+            with self.subTest(accept=value):
+                request = Request()
+                request.headers = {
+                    "Authorization": "Bearer synthetic-not-a-real-jwt",
+                    "Accept": value,
+                }
+                with patch("feature3_private_png_route.private_png_http",
+                           return_value=SimpleNamespace(
+                               status=404, body=b"",
+                               headers={"Cache-Control": "no-store, private"})) as adapter:
+                    response = handle_private_png_request(
+                        request, reader_factory=lambda *args: None,
+                        response_type=Response)
+                self.assertEqual(response.status_code, 404)
+                adapter.assert_called_once()
+
     def test_explicit_identity_encoding_reaches_binary_adapter(self):
         request = Request()
         request.headers = {
