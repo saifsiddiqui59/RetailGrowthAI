@@ -84,6 +84,7 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         if len(names) > 64:
             return _denied(400, response_type)
         if (any(type(name) is not str for name in names) or
+                len({name.lower() for name in names}) != len(names) or
                 sum(name.lower() == "authorization" for name in names) != 1):
             return _denied(400, response_type)
         # Refuse ambiguous request framing even when the body is empty.
