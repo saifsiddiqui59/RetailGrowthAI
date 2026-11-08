@@ -337,6 +337,36 @@ class Tests(unittest.TestCase):
         self.assertNotEqual(response.status_code, 400)
         self.assertEqual(response.body, b"")
 
+    def test_malformed_headers_do_not_materialize_get_body(self):
+        # Synthetic request adapter: a large body should not be read before
+        # inexpensive, bounded header validation rejects an invalid request.
+        for headers in (
+            {"Authorization": "Bearer synthetic", "Transfer-Encoding": "chunked"},
+            {"Authorization": "Bearer synthetic", "X-Large": "x" * 16384},
+            {"Authorization": "Bearer synthetic", "X-Bad": "nul" + chr(0)},
+            {"Authorization": "Bearer synthetic", "Content-Length": "1000000000"},
+        ):
+            with self.subTest(headers=list(headers)):
+                request = Request()
+                request.headers = headers
+                body_reads = []
+                def forbidden_body_read():
+                    body_reads.append(True)
+                    raise AssertionError("malformed headers must not read body")
+                request.get_body = forbidden_body_read
+                self.assert_denied_before_reader(request)
+                self.assertEqual(body_reads, [])
+
+    def test_valid_headers_still_check_get_body(self):
+        request = Request()
+        body_reads = []
+        def nonempty_body():
+            body_reads.append(True)
+            return b"synthetic forbidden GET body"
+        request.get_body = nonempty_body
+        self.assert_denied_before_reader(request)
+        self.assertEqual(body_reads, [True])
+
     def test_unreadable_request_metadata_denied(self):
         self.assert_denied_before_reader(Broken())
         for field in ("route_params", "headers", "params", "get_body"):
