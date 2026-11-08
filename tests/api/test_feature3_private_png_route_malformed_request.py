@@ -79,11 +79,28 @@ class Tests(unittest.TestCase):
 
     def test_missing_or_nonstring_enumerated_authorization_is_denied(self):
         for headers in ({}, {"authorization": None},
-                        {"AUTHORIZATION": ["Bearer synthetic"]},
-                        {"authorization": ""}):
+                        {"AUTHORIZATION": ["Bearer synthetic"]}):
             with self.subTest(headers=headers):
                 request = Request()
                 request.headers = headers
+                self.assert_denied_before_reader(request)
+
+    def test_empty_bearer_is_401_without_backend_access(self):
+        request = Request()
+        request.headers = {"Authorization": ""}
+        response = handle_private_png_request(
+            request, reader_factory=lambda *args: self.fail("reader invoked"),
+            response_type=Response)
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.body, b"")
+        self.assertEqual(response.headers["Content-Length"], "0")
+
+    def test_header_injection_denied_before_backend(self):
+        for token in ("Bearer synthetic\\r\\nX-Admin: true",
+                      "Bearer synthetic\\n", "Bearer synthetic\\r"):
+            with self.subTest(token=repr(token)):
+                request = Request()
+                request.headers = {"Authorization": token}
                 self.assert_denied_before_reader(request)
 
     def test_duplicate_case_variant_authorization_rejected_before_reader(self):
