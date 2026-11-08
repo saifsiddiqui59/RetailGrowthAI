@@ -83,6 +83,26 @@ class Tests(unittest.TestCase):
         }
         self.assert_denied_before_reader(request)
 
+    def test_backend_reader_failure_returns_opaque_no_store_503(self):
+        # Synthetic failures stand in for a rights authority outage, not
+        # proof of real JWT, tenant isolation or hosted Azure behavior.
+        for failure in (RuntimeError("synthetic rights provider offline"),
+                        PermissionError("synthetic private storage outage")):
+            with self.subTest(failure=type(failure).__name__):
+                calls = []
+                def failing_reader():
+                    calls.append(True)
+                    raise failure
+                response = handle_private_png_request(
+                    Request(), reader_factory=failing_reader,
+                    response_type=Response)
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.body, b"")
+                self.assertEqual(response.headers["Content-Length"], "0")
+                self.assertEqual(response.headers["Cache-Control"], "no-store, private")
+                self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+                self.assertEqual(calls, [True])
+
     def test_unreadable_request_metadata_denied(self):
         self.assert_denied_before_reader(Broken())
         for field in ("route_params", "headers", "params", "get_body"):
