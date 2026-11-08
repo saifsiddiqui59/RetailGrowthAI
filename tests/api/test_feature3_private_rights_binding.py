@@ -103,7 +103,7 @@ class BindingTests(unittest.TestCase):
             verify_user_jwt=lambda token: self.shop,
             authoritative_read=self.authority, trusted_output_pins=pins)
         self.assertTrue(reader.rights(self.shop, self.job, self.asset))
-        self.assertEqual(calls, [(self.shop, self.job), (self.shop, self.job)])
+        self.assertEqual(calls, [(self.shop, self.job)] * 3)
         self.assertFalse(reader.rights(str(uuid4()), self.job, self.asset))
 
     def test_scoped_reader_never_reuses_pins_for_another_job(self):
@@ -147,7 +147,7 @@ class BindingTests(unittest.TestCase):
         snapshot["output_sha256"] = "a" * 64
         self.assertTrue(reader.rights(self.shop, self.job, self.asset))
         self.assertEqual(self.calls, 2)
-        self.assertEqual(len(pin_calls), 5)
+        self.assertEqual(len(pin_calls), 7)
 
     def test_scoped_reader_denies_malformed_pin_refresh(self):
         snapshot = dict(shop_id=self.shop, job_id=self.job,
@@ -283,6 +283,42 @@ class BindingTests(unittest.TestCase):
         shared["output_sha256"] = "a" * 64
         self.assertTrue(reader.rights(self.shop, self.job, self.asset))
         self.assertEqual(self.calls, 2)
+
+    def test_scoped_reader_denies_pin_change_during_authority_lookup(self):
+        # Synthetic race: output is replaced after the first pin check but
+        # before the authority returns an otherwise valid approval receipt.
+        pins_row = dict(shop_id=self.shop, job_id=self.job,
+                        output_sha256="a" * 64, rights_revision=2)
+        def pins(shop, job):
+            return dict(pins_row)
+        def racing_authority(shop, job, asset):
+            pins_row["rights_revision"] = 3
+            return dict(self.row)
+        reader = build_scoped_private_png_reader(
+            shop_id=self.shop, job_id=self.job, tenant_store=Store(),
+            verify_user_jwt=lambda token: self.shop,
+            authoritative_read=racing_authority, trusted_output_pins=pins)
+        self.assertFalse(reader.rights(self.shop, self.job, self.asset))
+        # A stable current snapshot can be accepted again, but the
+        # intervening stale approval must never be returned.
+        pins_row["rights_revision"] = 2
+        self.assertFalse(reader.rights(self.shop, self.job, self.asset))
+        self.assertEqual(self.calls, 0)
+
+    def test_scoped_reader_denies_pin_refresh_outage_after_authority(self):
+        state = {"calls": 0}
+        def pins(shop, job):
+            state["calls"] += 1
+            if state["calls"] == 3:
+                raise OSError("synthetic second pin read failed")
+            return dict(shop_id=shop, job_id=job,
+                        output_sha256="a" * 64, rights_revision=2)
+        reader = build_scoped_private_png_reader(
+            shop_id=self.shop, job_id=self.job, tenant_store=Store(),
+            verify_user_jwt=lambda token: self.shop,
+            authoritative_read=self.authority, trusted_output_pins=pins)
+        self.assertFalse(reader.rights(self.shop, self.job, self.asset))
+        self.assertEqual(self.calls, 1)
 
     def test_scoped_reader_denies_pin_lookup_outage_after_construction(self):
         state = {"available": True}
