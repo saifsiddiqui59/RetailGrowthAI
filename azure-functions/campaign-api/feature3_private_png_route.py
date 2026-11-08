@@ -70,7 +70,16 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         if (any(type(name) is not str for name in names) or
                 sum(name.lower() == "authorization" for name in names) != 1):
             return _denied(400, response_type)
-        # Refuse framing ambiguity even if get_body() reports empty. An upstream\n        # proxy may disagree about Transfer-Encoding versus Content-Length.\n        framing = [name.lower() for name in names if name.lower() in\n                   ("content-length", "transfer-encoding")]\n        if len(framing) != len(set(framing)) or "transfer-encoding" in framing:\n            return _denied(400, response_type)\n        if "content-length" in framing:\n            length_name = next(name for name in names if name.lower() == "content-length")\n            if type(headers.get(length_name)) is not str or headers.get(length_name) != "0":\n                return _denied(400, response_type)\n        actual_name = next(name for name in names if name.lower() == "authorization")
+        # Refuse ambiguous request framing even when the body is empty.
+        framing = [name.lower() for name in names if name.lower() in
+                   ("content-length", "transfer-encoding")]
+        if len(framing) != len(set(framing)) or "transfer-encoding" in framing:
+            return _denied(400, response_type)
+        if "content-length" in framing:
+            length_name = next(name for name in names if name.lower() == "content-length")
+            if type(headers.get(length_name)) is not str or headers.get(length_name) != "0":
+                return _denied(400, response_type)
+        actual_name = next(name for name in names if name.lower() == "authorization")
         if type(headers.get(actual_name)) is not str or headers.get(actual_name) != authorization:
             return _denied(400, response_type)
     except Exception:
