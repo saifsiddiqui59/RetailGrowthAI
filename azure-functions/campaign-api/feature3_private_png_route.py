@@ -87,6 +87,14 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             length_name = next(name for name in names if name.lower() == "content-length")
             if type(headers.get(length_name)) is not str or headers.get(length_name) != "0":
                 return _denied(400, response_type)
+        # This endpoint serves one complete immutable private PNG. Reject
+        # range/conditional/compressed requests rather than allowing an
+        # intermediary to reinterpret partial bytes or cached validators.
+        forbidden = {"range", "if-range", "if-none-match", "if-modified-since",
+                     "if-match", "if-unmodified-since", "content-encoding",
+                     "expect", "upgrade", "proxy-authorization"}
+        if any(name.lower() in forbidden for name in names):
+            return _denied(400, response_type)
         actual_name = next(name for name in names if name.lower() == "authorization")
         # Read the enumerated header key, not a differently cased alias: some
         # request adapters are case-sensitive, and an absent alias must not
