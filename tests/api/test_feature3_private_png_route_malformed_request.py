@@ -184,6 +184,37 @@ class Tests(unittest.TestCase):
                 }
                 self.assert_denied_before_reader(request)
 
+    def test_compressed_private_png_negotiation_denied_before_body_or_reader(self):
+        # Synthetic transport fixtures: compressed responses would invalidate
+        # the exact private PNG byte/digest contract.
+        for encoding in ("gzip", "br", "*", "gzip, identity", "identity;q=0",
+                         "", "deflate"):
+            with self.subTest(encoding=encoding):
+                request = Request()
+                request.headers = {
+                    "Authorization": "Bearer synthetic-not-a-real-jwt",
+                    "Accept-Encoding": encoding,
+                }
+                body_reads = []
+                request.get_body = lambda: body_reads.append(True) or b""
+                self.assert_denied_before_reader(request)
+                self.assertEqual(body_reads, [])
+
+    def test_explicit_identity_encoding_reaches_binary_adapter(self):
+        request = Request()
+        request.headers = {
+            "Authorization": "Bearer synthetic-not-a-real-jwt",
+            "aCcEpT-EnCoDiNg": "IDENTITY",
+        }
+        with patch("feature3_private_png_route.private_png_http",
+                   return_value=SimpleNamespace(status=404, body=b"",
+                       headers={"Cache-Control": "no-store, private"})) as adapter:
+            response = handle_private_png_request(
+                request, reader_factory=lambda *args: None,
+                response_type=Response)
+        self.assertEqual(response.status_code, 404)
+        adapter.assert_called_once()
+
     def test_header_metadata_limits_denied_before_reader(self):
         # Large untrusted headers must never trigger JWT/rights/storage IO.
         for headers in (
