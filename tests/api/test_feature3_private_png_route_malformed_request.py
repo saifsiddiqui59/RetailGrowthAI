@@ -201,6 +201,39 @@ class Tests(unittest.TestCase):
                 }
                 self.assert_denied_before_reader(request)
 
+    def test_duplicate_case_folded_non_auth_headers_denied_before_reader(self):
+        # Different framework adapters may choose first or last header value.
+        # Reject ambiguous non-auth metadata before reaching the private reader.
+        for pair in (
+            ("X-Tenant", "x-tenant"),
+            ("Content-Type", "content-type"),
+            ("X-Request-Id", "X-REQUEST-ID"),
+        ):
+            with self.subTest(pair=pair):
+                request = Request()
+                request.headers = {
+                    "Authorization": "Bearer synthetic-not-a-real-jwt",
+                    pair[0]: "fixture-first",
+                    pair[1]: "fixture-second",
+                }
+                self.assert_denied_before_reader(request)
+
+    def test_distinct_header_names_remain_accepted(self):
+        request = Request()
+        request.headers = {
+            "Authorization": "Bearer synthetic-not-a-real-jwt",
+            "X-Request-Id": "synthetic-1",
+            "X-Tenant-Hint": "untrusted-but-well-formed",
+        }
+        with patch("feature3_private_png_route.private_png_http",
+                   return_value=SimpleNamespace(status=404, body=b"",
+                       headers={"Cache-Control": "no-store, private"})) as adapter:
+            response = handle_private_png_request(
+                request, reader_factory=lambda *args: None,
+                response_type=Response)
+        self.assertEqual(response.status_code, 404)
+        adapter.assert_called_once()
+
     def test_duplicate_case_variant_authorization_rejected_before_reader(self):
         class Faulty(Request):
             pass
