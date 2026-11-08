@@ -121,9 +121,14 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             return _denied(400, response_type)
         if not authorization:
             return _denied(401, response_type)
-        # Reject oversized bearer material before body access or backend calls.
-        # The canonical binary handler independently validates token syntax.
-        if len(authorization) > 8200:
+        # Reject malformed bearer framing before materializing the GET body.
+        # The canonical reader still verifies JWT, tenant and current rights.
+        if (len(authorization) > 8200 or
+                not authorization.startswith("Bearer ") or
+                not 12 <= len(authorization[7:]) <= 8192 or
+                any(ord(ch) < 33 or ord(ch) > 126
+                    for ch in authorization[7:]) or
+                authorization[7:].startswith(("sb_secret_", "sb_publishable_"))):
             return _denied(401, response_type)
         # Reject malformed control characters and non-string header values
         # before invoking the private reader, including unrelated headers.
