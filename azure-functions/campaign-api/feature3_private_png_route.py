@@ -138,7 +138,33 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         )
     except Exception:
         return _denied(503, response_type)
-    return response_type(
-        body=reply.body, status_code=reply.status, headers=reply.headers,
-        mimetype="image/png" if reply.status == 200 else None,
-    )
+    # A broken backend must never dictate arbitrary headers or leak partial
+    # PNG bytes on an error response.
+    try:
+        if (type(reply.status) is not int or
+                reply.status not in (200, 400, 401, 403, 404, 409, 410, 503) or
+                type(reply.body) is not bytes or
+                type(reply.headers) is not dict):
+            return _denied(503, response_type)
+        if reply.status != 200:
+            if reply.body:
+                return _denied(503, response_type)
+            return _denied(reply.status, response_type)
+        if (not reply.body.startswith(bytes.fromhex("89504e470d0a1a0a")) or
+                reply.headers.get("Content-Type") != "image/png" or
+                reply.headers.get("Cache-Control") != "no-store, private"):
+            return _denied(503, response_type)
+        # Only reviewed binary response headers may leave this boundary.
+        safe_headers = {
+            "Content-Type": "image/png",
+            "Cache-Control": "no-store, private",
+            "Pragma": "no-cache",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'",
+            "Vary": "Authorization",
+            "Content-Length": str(len(reply.body)),
+        }
+        return response_type(body=reply.body, status_code=200,
+                             headers=safe_headers, mimetype="image/png")
+    except Exception:
+        return _denied(503, response_type)
