@@ -78,7 +78,12 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # request adapters are case-sensitive, and an absent alias must not
         # silently turn a valid Authorization header into an empty credential.
         authorization = headers.get(actual_name)
-        if type(authorization) is not str or not authorization:
+        if type(authorization) is not str:
+            return _denied(400, response_type)
+        if not authorization:
+            return _denied(401, response_type)
+        # Reject HTTP header injection before the bearer reaches JWT validation.
+        if "\r" in authorization or "\n" in authorization:
             return _denied(400, response_type)
     except Exception:
         return _denied(400, response_type)
