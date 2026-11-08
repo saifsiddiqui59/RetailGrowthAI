@@ -53,6 +53,58 @@ class Tests(unittest.TestCase):
         self.assertEqual(response.headers["Cache-Control"], "no-store, private")
         self.assertEqual(invoked, [])
 
+    def test_noncanonical_route_scope_denied_before_reader(self):
+        # Synthetic scopes must not invoke JWT, rights or storage adapters.
+        shop = Request.route_params["shop_id"]
+        job = Request.route_params["job_id"]
+        class Spoof:
+            def __eq__(self, other):
+                return True
+        for scope in (
+            {"shop_id": shop.upper(), "job_id": job},
+            {"shop_id": Spoof(), "job_id": job},
+            {"shop_id": shop, "job_id": job + "/extra"},
+            {"shop_id": shop, "job_id": None},
+            {"shop_id": shop, "job_id": job.upper()},
+        ):
+            with self.subTest(scope=repr(scope)):
+                request = Request()
+                request.route_params = scope
+                self.assert_denied_before_reader(request)
+
+    def test_invalid_header_name_or_nonascii_value_denied(self):
+        for name, value in (
+            ("Bad Header", "safe"),
+            ("X-Name:", "safe"),
+            ("X-Name\\nInjected", "safe"),
+            ("X-Nonascii", "caf\\u00e9"),
+            ("X-Nonascii", "safe\\u0080"),
+            ("X-Nonascii", "safe\\u2028"),
+        ):
+            with self.subTest(name=name, value=value):
+                request = Request()
+                request.headers = {
+                    "Authorization": "Bearer synthetic-not-a-real-jwt",
+                    name: value,
+                }
+                self.assert_denied_before_reader(request)
+
+    def test_valid_header_token_and_canonical_scope_reach_adapter(self):
+        request = Request()
+        request.headers = {
+            "authorization": "Bearer synthetic-not-a-real-jwt",
+            "X-Correlation_Id": "synthetic-123",
+        }
+        with patch("feature3_private_png_route.private_png_http",
+                   return_value=SimpleNamespace(status=404, body=b"",
+                       headers={"Cache-Control": "no-store, private"})) as adapter:
+            response = handle_private_png_request(
+                request, reader_factory=lambda *args: None, response_type=Response)
+        self.assertEqual(response.status_code, 404)
+        adapter.assert_called_once()
+        self.assertEqual(adapter.call_args.kwargs["shop_id"], request.route_params["shop_id"])
+        self.assertEqual(adapter.call_args.kwargs["job_id"], request.route_params["job_id"])
+
     def test_case_sensitive_header_adapter_passes_exact_enumerated_bearer(self):
         # A synthetic case-sensitive mapping is not an Azure hosted identity.
         for key in ("authorization", "AUTHORIZATION", "Authorization"):
