@@ -92,7 +92,10 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # intermediary to reinterpret partial bytes or cached validators.
         forbidden = {"range", "if-range", "if-none-match", "if-modified-since",
                      "if-match", "if-unmodified-since", "content-encoding",
-                     "expect", "upgrade", "proxy-authorization", "proxy-authenticate",\n                     "te", "trailer", "connection", "keep-alive",\n                     "proxy-connection", "x-http-method-override",\n                     "x-method-override", "x-original-method"}
+                     "expect", "upgrade", "proxy-authorization", "proxy-authenticate",
+                     "te", "trailer", "connection", "keep-alive",
+                     "proxy-connection", "x-http-method-override",
+                     "x-method-override", "x-original-method"}
         if any(name.lower() in forbidden for name in names):
             return _denied(400, response_type)
         # A private binary endpoint never negotiates compressed or transformed
