@@ -321,6 +321,45 @@ class Tests(unittest.TestCase):
                 self.assertEqual(calls, [(Request.route_params['shop_id'],
                                           Request.route_params['job_id'])])
 
+    def test_partial_conditional_and_proxy_headers_denied_before_body(self):
+        # Synthetic requests: no byte ranges, stale validators, proxy auth,
+        # compression or upgrade semantics on private full-image downloads.
+        for header, value in (
+            ("Range", "bytes=0-99"),
+            ("If-Range", "synthetic-etag"),
+            ("If-None-Match", "synthetic-etag"),
+            ("If-Modified-Since", "Mon, 01 Jan 2024 00:00:00 GMT"),
+            ("If-Match", "*"),
+            ("If-Unmodified-Since", "Mon, 01 Jan 2024 00:00:00 GMT"),
+            ("Content-Encoding", "gzip"),
+            ("Expect", "100-continue"),
+            ("Upgrade", "websocket"),
+            ("Proxy-Authorization", "Basic synthetic"),
+        ):
+            with self.subTest(header=header):
+                request = Request()
+                request.headers = {"Authorization": "Bearer synthetic",
+                                   header: value}
+                body_reads = []
+                request.get_body = lambda: body_reads.append(True)
+                with patch("feature3_private_png_route.private_png_http") as backend:
+                    self.assert_denied_before_reader(request)
+                self.assertEqual(body_reads, [])
+                backend.assert_not_called()
+
+    def test_regular_accept_header_remains_compatible(self):
+        request = Request()
+        request.headers = {"Authorization": "Bearer synthetic",
+                           "Accept": "image/png"}
+        with patch("feature3_private_png_route.private_png_http",
+                   return_value=SimpleNamespace(status=404, body=b"",
+                       headers={"Cache-Control": "no-store, private"})) as backend:
+            reply = handle_private_png_request(
+                request, reader_factory=lambda *args: None,
+                response_type=Response)
+        self.assertEqual(reply.status_code, 404)
+        backend.assert_called_once()
+
     def test_ambiguous_get_framing_denied_before_reader(self):
         # Synthetic request smuggling boundary; no hosted proxy claims.
         cases = (
