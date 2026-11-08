@@ -147,6 +147,22 @@ class Tests(unittest.TestCase):
         self.assertEqual(response.body, b"")
         self.assertEqual(response.headers["Content-Length"], "0")
 
+    def test_oversized_bearer_denied_before_body_and_rights(self):
+        # Synthetic credential only. A huge bearer cannot force body IO.
+        request = Request()
+        request.headers = {"Authorization": "Bearer " + "x" * 8194}
+        body_calls = []
+        def read_body():
+            body_calls.append(True)
+            raise AssertionError("body should not be materialized")
+        request.get_body = read_body
+        response = handle_private_png_request(
+            request, reader_factory=lambda *args: self.fail("rights reader invoked"),
+            response_type=Response)
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.body, b"")
+        self.assertEqual(body_calls, [])
+
     def test_header_injection_denied_before_backend(self):
         for token in ("Bearer synthetic" + chr(13) + chr(10) + "X-Admin: true",
                       "Bearer synthetic" + chr(10), "Bearer synthetic" + chr(13)):
