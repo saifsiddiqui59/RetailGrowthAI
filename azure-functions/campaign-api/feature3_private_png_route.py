@@ -61,6 +61,10 @@ def handle_private_png_request(request, *, reader_factory, response_type):
     # Never allow an ambiguous bearer token to reach the private reader.
     try:
         names = list(headers.keys())
+        # Bound untrusted metadata before iterating over header values or
+        # invoking any authentication/rights/storage backend.
+        if len(names) > 64:
+            return _denied(400, response_type)
         if (any(type(name) is not str for name in names) or
                 sum(name.lower() == "authorization" for name in names) != 1):
             return _denied(400, response_type)
@@ -85,11 +89,15 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # Reject malformed control characters and non-string header values
         # before invoking the private reader, including unrelated headers.
         # This is synthetic request-adapter hardening, not hosted JWT proof.
+        total_header_bytes = 0
         for name in names:
             value = headers.get(name)
             if type(value) is not str or any(
                 ord(char) < 32 or ord(char) == 127 for char in name + value
             ):
+                return _denied(400, response_type)
+            total_header_bytes += len(name) + len(value)
+            if total_header_bytes > 16384:
                 return _denied(400, response_type)
     except Exception:
         return _denied(400, response_type)
