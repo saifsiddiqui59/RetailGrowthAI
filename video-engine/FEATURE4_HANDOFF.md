@@ -166,3 +166,7 @@ The original #322 branch now hardens encoded 30s synthetic edit QA against same-
 ### 2026-11-08 — F4-04 exact finished render digest offline QA
 
 The existing final 30s synthetic editor MP4 checker now requires caller-supplied SHA256 of the just-completed render, instead of self-hashing any file found at the QA path. CI pins the digest before decoder execution; mismatched or malformed proofs reject before media scanning. Only offline technical source progress; F4-04 remains IN PROGRESS, parent #322 draft. No signed DEV tenant, customer license or commercial result inferred.
+
+## 2026-11-08 — F4-13 private preview inode-bound provenance
+
+Feature4-owned preview code now binds one bounded MP4 inode/metadata and SHA256 across codec probe and FFmpeg rendering. Synthetic local 15s H264/AAC tests cover equal-byte atomic source replacements before and after encoding and oversize pre-probe rejection. Original F4-13 remains source **IN PROGRESS**; no cloud-hosted consent, signed end-user rights, tenant authorization or commercial release validation.

@@ -79,6 +79,61 @@ class Feature4PreviewTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
         self.assertEqual(list(self.root.glob(".preview-*.mp4")), [])
 
+    def test_same_byte_atomic_swap_during_source_probe_fails(self):
+        self.make_source()
+        original_inspect = inspect_mp4
+        replaced = False
+
+        def swapped_probe(path, *, max_size):
+            nonlocal replaced
+            metadata = original_inspect(path, max_size=max_size)
+            if not replaced and Path(path) == self.source:
+                temp = self.root / "fresh-inode.mp4"
+                temp.write_bytes(self.source.read_bytes())
+                temp.replace(self.source)
+                replaced = True
+            return metadata
+
+        with mock.patch("feature4_private_preview.inspect_mp4",
+                        side_effect=swapped_probe):
+            with self.assertRaisesRegex(PreviewExportError, "changed"):
+                export_private_preview(self.source, self.output, expected_seconds=15)
+        self.assertTrue(replaced)
+        self.assertFalse(self.output.exists())
+        self.assertEqual(list(self.root.glob(".preview-*.mp4")), [])
+
+    def test_same_byte_atomic_swap_during_encode_fails(self):
+        self.make_source()
+        original_run = subprocess.run
+        replaced = False
+
+        def swapped_encode(args, **kwargs):
+            nonlocal replaced
+            result = original_run(args, **kwargs)
+            if not replaced and args[0] == "ffmpeg" and "-movflags" in args:
+                temp = self.root / "fresh-inode.mp4"
+                temp.write_bytes(self.source.read_bytes())
+                temp.replace(self.source)
+                replaced = True
+            return result
+
+        with mock.patch("feature4_private_preview.subprocess.run",
+                        side_effect=swapped_encode):
+            with self.assertRaisesRegex(PreviewExportError, "changed"):
+                export_private_preview(self.source, self.output, expected_seconds=15)
+        self.assertTrue(replaced)
+        self.assertFalse(self.output.exists())
+        self.assertEqual(list(self.root.glob(".preview-*.mp4")), [])
+
+    def test_oversized_source_fails_before_ffprobe(self):
+        with self.source.open("wb") as data:
+            data.truncate(80 * 1024 * 1024 + 1)
+        with mock.patch("feature4_private_preview.inspect_mp4") as probe:
+            with self.assertRaisesRegex(PreviewExportError, "oversized"):
+                export_private_preview(self.source, self.output, expected_seconds=15)
+        probe.assert_not_called()
+        self.assertFalse(self.output.exists())
+
     def test_wrong_duration_and_bad_preset_denied(self):
         self.make_source()
         with self.assertRaisesRegex(PreviewExportError, "duration"):

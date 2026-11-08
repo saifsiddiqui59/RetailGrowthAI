@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import stat
 import subprocess
 import sys
 import tempfile
@@ -60,6 +61,38 @@ def inspect_mp4(path: Path, *, max_size: int):
         raise PreviewExportError("Could not verify local MP4") from exc
 
 
+def _source_fingerprint(path: Path):
+    """Require one bounded MP4 inode/metadata/SHA before and after FFmpeg."""
+    path = Path(path)
+    if (path.suffix.lower() != ".mp4" or path.is_symlink()
+            or path.parent.is_symlink()):
+        raise PreviewExportError("Missing or unsafe local MP4 source")
+
+    def identity(info):
+        return (info.st_dev, info.st_ino, info.st_size,
+                info.st_mtime_ns, info.st_ctime_ns)
+
+    try:
+        fd = os.open(str(path), os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "rb") as data:
+            before = os.fstat(data.fileno())
+            if (not stat.S_ISREG(before.st_mode)
+                    or not 1_000 < before.st_size <= MAX_SOURCE_BYTES):
+                raise PreviewExportError("Missing or oversized regular MP4 source")
+            digest = hashlib.sha256()
+            for block in iter(lambda: data.read(1024 * 1024), b""):
+                digest.update(block)
+            after = os.fstat(data.fileno())
+        current = os.stat(path, follow_symlinks=False)
+    except OSError as exc:
+        raise PreviewExportError("Cannot safely read local MP4 source") from exc
+    if (not stat.S_ISREG(current.st_mode)
+            or identity(before) != identity(after)
+            or identity(after) != identity(current)):
+        raise PreviewExportError("Authorized source file changed during preview rendering")
+    return digest.hexdigest(), identity(current)
+
+
 def export_private_preview(source: Path, target: Path, *, expected_seconds: int):
     """Encode a small full-duration private reviewer copy, atomically.
 
@@ -76,10 +109,13 @@ def export_private_preview(source: Path, target: Path, *, expected_seconds: int)
         raise PreviewExportError("Preview output directory must already be private and local")
     if source.resolve() == target.resolve():
         raise PreviewExportError("Preview source cannot be overwritten")
+    # Capture source identity *before* codec probe and verify that ffprobe did
+    # not witness a path that was atomically swapped to a different inode.
+    original_fingerprint = _source_fingerprint(source)
     original = inspect_mp4(source, max_size=MAX_SOURCE_BYTES)
-    # Pin the actual input bytes before encoding. A changed private source must
-    # never receive a SHA/provenance receipt for an older rendered preview.
-    source_sha = hashlib.sha256(source.read_bytes()).hexdigest()
+    if _source_fingerprint(source) != original_fingerprint:
+        raise PreviewExportError("Authorized source file changed during codec probe")
+    source_sha = original_fingerprint[0]
     if abs(original["seconds"] - expected_seconds) > 0.45:
         raise PreviewExportError("Source is not expected approved render duration")
     # tempfile in the same private directory guarantees atomic rename. Never
@@ -108,8 +144,8 @@ def export_private_preview(source: Path, target: Path, *, expected_seconds: int)
                 or abs(preview["seconds"] - expected_seconds) > 0.45
                 or preview["bytes"] >= original["bytes"]):
             raise PreviewExportError("Preview failed bounded size/codec/duration checks")
-        if hashlib.sha256(source.read_bytes()).hexdigest() != source_sha:
-            raise PreviewExportError("Authorized source bytes changed during preview rendering")
+        if _source_fingerprint(source) != original_fingerprint:
+            raise PreviewExportError("Authorized source file changed during preview rendering")
         # Re-check concurrent target creation. Prevent normal accidental overwrite.
         if target.exists() or target.is_symlink():
             raise PreviewExportError("Preview destination appeared while rendering")
