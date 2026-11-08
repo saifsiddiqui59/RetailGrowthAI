@@ -103,6 +103,38 @@ class Tests(unittest.TestCase):
                 self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
                 self.assertEqual(calls, [True])
 
+    def test_ambiguous_get_framing_denied_before_reader(self):
+        # Synthetic request smuggling boundary; no hosted proxy claims.
+        cases = (
+            {"Authorization": "Bearer synthetic-not-a-real-jwt",
+             "Transfer-Encoding": "chunked"},
+            {"Authorization": "Bearer synthetic-not-a-real-jwt",
+             "Content-Length": "1"},
+            {"Authorization": "Bearer synthetic-not-a-real-jwt",
+             "Content-Length": "0", "content-length": "0"},
+            {"Authorization": "Bearer synthetic-not-a-real-jwt",
+             "Content-Length": 0},
+        )
+        for headers in cases:
+            with self.subTest(headers=headers):
+                request = Request()
+                request.headers = headers
+                self.assert_denied_before_reader(request)
+
+    def test_empty_get_with_explicit_zero_length_preserves_auth_denial(self):
+        request = Request()
+        request.headers = {
+            "Authorization": "Bearer synthetic-not-a-real-jwt",
+            "Content-Length": "0",
+        }
+        response = handle_private_png_request(
+            request, reader_factory=lambda *args: None,
+            response_type=Response)
+        # Valid framing reaches the canonical private handler, which must
+        # reject the synthetic unverified reader without returning bytes.
+        self.assertNotEqual(response.status_code, 400)
+        self.assertEqual(response.body, b"")
+
     def test_unreadable_request_metadata_denied(self):
         self.assert_denied_before_reader(Broken())
         for field in ("route_params", "headers", "params", "get_body"):
