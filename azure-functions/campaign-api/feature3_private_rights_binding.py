@@ -91,13 +91,10 @@ def build_scoped_private_png_reader(*, shop_id, job_id, tenant_store,
     pins = dict(pins)
     # A digest/revision pin is not a shop/job authorization grant. Bind
     # the fresh authority to the exact output scope before reading bytes.
-    if not callable(authoritative_read):
-        raise ValueError("Backend current rights lookup required")
-
     def scoped_authoritative_read(request_shop, request_job, asset_id):
         if (type(request_shop) is not str or type(request_job) is not str or
                 request_shop != shop_id or request_job != job_id or
-                type(asset_id) is not str):
+                not canonical(asset_id)):
             return None
         # Recheck backend-owned pins for every authorization, including the
         # post-byte check. A replaced output invalidates an existing reader.
