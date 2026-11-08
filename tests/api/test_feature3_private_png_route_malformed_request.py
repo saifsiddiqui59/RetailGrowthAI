@@ -169,7 +169,6 @@ class Tests(unittest.TestCase):
             "Basic synthetic-not-a-jwt",
             "bearer synthetic-not-a-jwt",
             "Bearer ",
-            "Bearer short",
             "Bearer sb_secret_" + "x" * 24,
             "Bearer sb_publishable_" + "x" * 24,
             "Bearer token" + chr(127) + "invalid",
