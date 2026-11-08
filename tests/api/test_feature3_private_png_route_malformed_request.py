@@ -3,6 +3,8 @@ import sys
 import unittest
 from pathlib import Path
 from uuid import uuid4
+from unittest.mock import patch
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "azure-functions" / "campaign-api"))
 from feature3_private_png_route import handle_private_png_request
@@ -50,6 +52,39 @@ class Tests(unittest.TestCase):
         self.assertEqual(response.body, b"")
         self.assertEqual(response.headers["Cache-Control"], "no-store, private")
         self.assertEqual(invoked, [])
+
+    def test_case_sensitive_header_adapter_passes_exact_enumerated_bearer(self):
+        # A synthetic case-sensitive mapping is not an Azure hosted identity.
+        for key in ("authorization", "AUTHORIZATION", "Authorization"):
+            with self.subTest(key=key):
+                request = Request()
+                request.headers = {key: "Bearer synthetic-not-a-real-jwt"}
+                calls = []
+                def fake_private_png_http(**kwargs):
+                    calls.append(kwargs)
+                    return SimpleNamespace(
+                        status=404, body=b"",
+                        headers={"Cache-Control": "no-store, private"})
+                with patch("feature3_private_png_route.private_png_http",
+                           side_effect=fake_private_png_http):
+                    response = handle_private_png_request(
+                        request, reader_factory=lambda *args: None,
+                        response_type=Response)
+                self.assertEqual(response.status_code, 404)
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(calls[0]["authorization"],
+                                 "Bearer synthetic-not-a-real-jwt")
+                self.assertEqual(calls[0]["shop_id"], request.route_params["shop_id"])
+                self.assertEqual(calls[0]["job_id"], request.route_params["job_id"])
+
+    def test_missing_or_nonstring_enumerated_authorization_is_denied(self):
+        for headers in ({}, {"authorization": None},
+                        {"AUTHORIZATION": ["Bearer synthetic"]},
+                        {"authorization": ""}):
+            with self.subTest(headers=headers):
+                request = Request()
+                request.headers = headers
+                self.assert_denied_before_reader(request)
 
     def test_duplicate_case_variant_authorization_rejected_before_reader(self):
         class Faulty(Request):
