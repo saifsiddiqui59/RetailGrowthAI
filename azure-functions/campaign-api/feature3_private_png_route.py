@@ -95,6 +95,14 @@ def handle_private_png_request(request, *, reader_factory, response_type):
                      "expect", "upgrade", "proxy-authorization"}
         if any(name.lower() in forbidden for name in names):
             return _denied(400, response_type)
+        # A private binary endpoint never negotiates compressed or transformed
+        # representations. Explicit identity is the only acceptable encoding;
+        # reject wildcard, gzip and multi-valued negotiation before body IO.
+        encoding_names = [name for name in names if name.lower() == "accept-encoding"]
+        if encoding_names:
+            encoding = headers.get(encoding_names[0])
+            if type(encoding) is not str or encoding.lower() != "identity":
+                return _denied(400, response_type)
         actual_name = next(name for name in names if name.lower() == "authorization")
         # Read the enumerated header key, not a differently cased alias: some
         # request adapters are case-sensitive, and an absent alias must not
