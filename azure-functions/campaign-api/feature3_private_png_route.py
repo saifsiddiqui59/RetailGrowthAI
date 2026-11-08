@@ -75,12 +75,18 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             return _denied(400, response_type)
     except Exception:
         return _denied(400, response_type)
-    reply = private_png_http(
-        authorization=authorization,
-        shop_id=params["shop_id"],
-        job_id=params["job_id"],
-        reader_factory=reader_factory,
-    )
+    # A backend provider/reader can fail after request validation. Never
+    # propagate its exception or diagnostic details into a public response.
+    # In particular, a partial binary result must not be returned on failure.
+    try:
+        reply = private_png_http(
+            authorization=authorization,
+            shop_id=params["shop_id"],
+            job_id=params["job_id"],
+            reader_factory=reader_factory,
+        )
+    except Exception:
+        return _denied(503, response_type)
     return response_type(
         body=reply.body, status_code=reply.status, headers=reply.headers,
         mimetype="image/png" if reply.status == 200 else None,
