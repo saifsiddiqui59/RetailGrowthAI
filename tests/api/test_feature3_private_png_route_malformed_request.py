@@ -103,6 +103,28 @@ class Tests(unittest.TestCase):
                 request.headers = {"Authorization": token}
                 self.assert_denied_before_reader(request)
 
+    def test_unrelated_header_control_characters_denied_before_reader(self):
+        # Synthetic malformed adapter values cannot reach the rights provider.
+        for value in ("safe\\r\\nInjected: yes", "nul\\x00byte",
+                      "tab\\tbyte", "delete\\x7fbyte"):
+            with self.subTest(value=repr(value)):
+                request = Request()
+                request.headers = {
+                    "Authorization": "Bearer synthetic-not-a-real-jwt",
+                    "X-Untrusted": value,
+                }
+                self.assert_denied_before_reader(request)
+
+    def test_unrelated_header_nonstring_denied_before_reader(self):
+        for value in (None, ["synthetic"], 0):
+            with self.subTest(value=repr(value)):
+                request = Request()
+                request.headers = {
+                    "Authorization": "Bearer synthetic-not-a-real-jwt",
+                    "X-Untrusted": value,
+                }
+                self.assert_denied_before_reader(request)
+
     def test_duplicate_case_variant_authorization_rejected_before_reader(self):
         class Faulty(Request):
             pass
