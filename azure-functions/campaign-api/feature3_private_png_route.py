@@ -82,9 +82,15 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             return _denied(400, response_type)
         if not authorization:
             return _denied(401, response_type)
-        # Reject HTTP header injection before the bearer reaches JWT validation.
-        if "\r" in authorization or "\n" in authorization:
-            return _denied(400, response_type)
+        # Reject malformed control characters and non-string header values
+        # before invoking the private reader, including unrelated headers.
+        # This is synthetic request-adapter hardening, not hosted JWT proof.
+        for name in names:
+            value = headers.get(name)
+            if type(value) is not str or any(
+                ord(char) < 32 or ord(char) == 127 for char in name + value
+            ):
+                return _denied(400, response_type)
     except Exception:
         return _denied(400, response_type)
     # A backend provider/reader can fail after request validation. Never
