@@ -383,6 +383,50 @@ class Tests(unittest.TestCase):
         self.assert_denied_before_reader(request)
         self.assertEqual(body_reads, [True])
 
+    def test_downstream_response_contract_fails_closed(self):
+        # Synthetic backend faults are not evidence of hosted authentication.
+        for status, body, headers in (
+            (200, b"not-png", {"Content-Type": "image/png",
+                              "Cache-Control": "no-store, private"}),
+            (200, bytes.fromhex("89504e470d0a1a0a"),
+             {"Content-Type": "text/html", "Cache-Control": "no-store, private"}),
+            (404, b"partial-private-image", {}),
+            (302, b"", {"Location": "https://untrusted.invalid"}),
+            (True, b"", {}),
+            (200, "not-bytes", {}),
+            (200, b"", []),
+        ):
+            with self.subTest(status=status, body=repr(body)):
+                with patch("feature3_private_png_route.private_png_http",
+                           return_value=SimpleNamespace(
+                               status=status, body=body, headers=headers)):
+                    response = handle_private_png_request(
+                        Request(), reader_factory=lambda *args: None,
+                        response_type=Response)
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.body, b"")
+                self.assertNotIn("Location", response.headers)
+
+    def test_valid_png_reply_strips_untrusted_backend_headers(self):
+        # This only tests the Azure adapter; full PNG validation lives inside
+        # the independently tested canonical binary handler.
+        png = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
+        with patch("feature3_private_png_route.private_png_http",
+                   return_value=SimpleNamespace(
+                       status=200, body=png,
+                       headers={"Content-Type": "image/png",
+                                "Cache-Control": "no-store, private",
+                                "Set-Cookie": "untrusted=1",
+                                "Location": "https://untrusted.invalid"})):
+            response = handle_private_png_request(
+                Request(), reader_factory=lambda *args: None,
+                response_type=Response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.body, png)
+        self.assertEqual(response.headers["Content-Length"], str(len(png)))
+        self.assertNotIn("Set-Cookie", response.headers)
+        self.assertNotIn("Location", response.headers)
+
     def test_unreadable_request_metadata_denied(self):
         self.assert_denied_before_reader(Broken())
         for field in ("route_params", "headers", "params", "get_body"):
