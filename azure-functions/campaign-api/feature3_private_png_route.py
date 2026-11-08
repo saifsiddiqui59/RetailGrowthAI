@@ -125,7 +125,7 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # The canonical reader still verifies JWT, tenant and current rights.
         if (len(authorization) > 8200 or
                 not authorization.startswith("Bearer ") or
-                not 12 <= len(authorization[7:]) <= 8192 or
+                not 1 <= len(authorization[7:]) <= 8192 or
                 any(ord(ch) < 33 or ord(ch) > 126
                     for ch in authorization[7:]) or
                 authorization[7:].startswith(("sb_secret_", "sb_publishable_"))):
