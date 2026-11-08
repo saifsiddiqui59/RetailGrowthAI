@@ -43,7 +43,7 @@ APP_SCOPE = (
 )
 
 
-def _timestamp(value):
+def _timestamp(value, window):
     if not isinstance(value, str) or not UTC_MINUTE.fullmatch(value):
         return None
     try:
@@ -52,7 +52,9 @@ def _timestamp(value):
         return None
     if parsed.utcoffset() != timezone.utc.utcoffset(parsed) or parsed.second or parsed.microsecond:
         return None
-    for _, first, last in WINDOWS:
+    for label, first, last in WINDOWS:
+        if label != window:
+            continue
         start = datetime.fromisoformat(first.replace("Z", "+00:00"))
         end = datetime.fromisoformat(last.replace("Z", "+00:00"))
         if start <= parsed <= end:
@@ -120,7 +122,7 @@ def safe_rows(payload, *, window, kind):
         raise ValueError("unreviewed evidence scope")
     out = []
     for raw in platform_aggregate_rows(payload):
-        when = _timestamp(raw.get("bucket"))
+        when = _timestamp(raw.get("bucket"), window)
         count = _count(raw.get("events"))
         if when is None or count is None:
             continue
