@@ -32,6 +32,17 @@ def build_private_png_reader_factory(*, origin, publishable_key,
     ):
         raise ValueError("RLS tenant store required")
 
+    # A mismatched injected tenant could read a different project while the
+    # verifier validates tokens for the configured project. Never compose
+    # cross-project credentials, even in tests or an accidental deployment.
+    if tenant is not None and (
+        type(origin) is not str or type(publishable_key) is not str or
+        type(getattr(tenant, "origin", None)) is not str or
+        type(getattr(tenant, "key", None)) is not str or
+        tenant.origin != origin or tenant.key != publishable_key
+    ):
+        raise ValueError("Tenant store must match configured JWT project and public key")
+
     # Even injected test dependencies must use an exact public project origin
     # and publishable key; the reader enforces both at construction.
     verified_jwt = verifier if verifier is not None else SupabaseJWTVerifier(origin)
