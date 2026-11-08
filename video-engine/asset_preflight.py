@@ -97,7 +97,7 @@ def inspect_staged_audio(path):
         raise AssetPreflightError("Audio channel/sample-rate limit failed")
     if duration is not None and (not math.isfinite(duration) or not 0 < duration <= 3600):
         raise AssetPreflightError("Music length limit failed")
-    return {"bytes": size, "sample_rate": rate, "channels": channels}
+    return {"bytes": size, "sample_rate": rate, "channels": channels, "duration_seconds": duration}
 
 
 def preflight_assets(images, music):
