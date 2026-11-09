@@ -1150,3 +1150,42 @@ class Feature2PrivateVoiceGateway:
                           original_audio_sha256, authorization):
         return self.wav.get(shop_id,campaign_id,audio_asset_id,
                             original_audio_sha256,authorization)
+
+
+
+class Feature2PrivateAuditGateway:
+    """Compose F2-08/F2-12 private source readers into validated projections.
+
+    Not mounted in Azure. Exact reviewed HMAC/independent human attestation
+    validator is a trusted injected dependency; missing validator denies GET
+    instead of returning an unsigned, browser-approved synthetic history.
+    """
+
+    def __init__(self,verify_token,tenant_store,private_audit_store,*,
+                 trace_verifier=None,history_projector=None):
+        names=("read_trace_source","read_private_trace_events",
+            "read_private_blind_history","verify_signed_human_history")
+        if (private_audit_store is None or
+            not all(callable(getattr(private_audit_store,name,None))
+                    for name in names)):
+            raise ValueError("Current RLS private audit store required")
+        self.trace=Feature2PrivateTraceAdapter(
+            verify_token,tenant_store,
+            source_reader=private_audit_store.read_trace_source,
+            event_reader=private_audit_store.read_private_trace_events,
+            trace_verifier=trace_verifier)
+        self.blind=Feature2BlindHistoryAdapter(
+            verify_token,tenant_store,
+            history_reader=private_audit_store.read_private_blind_history,
+            receipt_verifier=private_audit_store.verify_signed_human_history,
+            history_projector=history_projector)
+
+    def read_trace(self,shop_id,campaign_id,workflow_id,
+                   source_sha256,authorization):
+        return self.trace.get(shop_id,campaign_id,workflow_id,
+                              source_sha256,authorization)
+
+    def read_blind_history(self,shop_id,campaign_id,experiment_id,
+                           authorization):
+        return self.blind.get(shop_id,campaign_id,experiment_id,
+                              authorization)

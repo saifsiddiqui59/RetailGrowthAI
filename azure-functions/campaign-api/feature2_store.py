@@ -347,3 +347,224 @@ class Feature2PrivateVoiceStore:
         if self._registered_asset_row(token,actor,shop_id,campaign_id,asset_id)!=row:
             raise PermissionError("Private WAV registry changed during read")
         return raw
+
+
+
+class Feature2PrivateAuditStore(Feature2PrivateVoiceStore):
+    """F2-08/F2-12 signed-user *read-only* private workflow/audit backend.
+
+    This is source-only, not an active route, migration, worker signer or human
+    approval authority. Every call uses JWT-scoped PostgREST and current
+    OWNER/EDITOR membership; no service role, public URL, customer script or
+    model invocation. HMAC signatures are trusted ONLY when independently
+    created by a reviewed reviewer/worker commit path, which is not installed.
+    """
+
+    _TABLES=frozenset((
+        "feature2_private_trace_sources",
+        "feature2_private_trace_events",
+        "feature2_private_blind_scores",
+        "feature2_private_blind_attestations",
+    ))
+    _READ_LIMIT=1_048_576
+
+    def __init__(self,tenant_store,*,trace_secret=None,review_secret=None,
+                 transport=None):
+        super().__init__(tenant_store,transport=transport)
+        # Zero-cost readonly source work never manufactures authoritative
+        # HMAC keys. A missing approved key disables the signature verifier.
+        if trace_secret is not None and (
+                type(trace_secret) is not bytes or len(trace_secret)<32):
+            raise ValueError("Approved trace secret must have at least 32 bytes")
+        if review_secret is not None and (
+                type(review_secret) is not bytes or len(review_secret)<32):
+            raise ValueError("Approved independent review key requires 32 bytes")
+        self.trace_secret=trace_secret
+        self.review_secret=review_secret
+
+    def _get_many(self,table,token,query,*,limit):
+        import json
+        from urllib.error import HTTPError,URLError
+        from urllib.parse import urlencode
+        from urllib.request import Request
+        from security import AuthenticationError
+
+        if table not in self._TABLES or type(limit) is not int or (
+                limit not in (51,101)):
+            raise ValueError("Unsupported bounded private audit query")
+        if query.get("limit")!=str(limit):
+            raise ValueError("Private audit query requires hard row cap")
+        url=self.tenants.origin+"/rest/v1/"+table+"?"+urlencode(
+            query,safe="(),.*")
+        req=Request(url,method="GET",headers={
+            "apikey":self.tenants.key,
+            "Authorization":"Bearer "+token,
+            "Accept":"application/json",
+            "Cache-Control":"no-store",
+        })
+        try:
+            with self.transport(req,timeout=8) as resp:
+                raw=resp.read(self._READ_LIMIT+1)
+                if len(raw)>self._READ_LIMIT:
+                    raise StorageUnavailable("Unbounded private audit response")
+                rows=json.loads(raw.decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code in (401,403):
+                raise AuthenticationError("Signed private audit read denied") from exc
+            raise StorageUnavailable("Private audit read unavailable") from exc
+        except (URLError,OSError,UnicodeError,ValueError) as exc:
+            raise StorageUnavailable("Private audit read unavailable") from exc
+        if type(rows) is not list or len(rows)>=limit:
+            raise StorageUnavailable("Ambiguous or unbounded audit history")
+        return rows
+
+    def read_trace_source(self,token,actor,shop_id,campaign_id,workflow_id):
+        from copy import deepcopy
+        sid,cid=self._scope(token,actor,shop_id,campaign_id)
+        wid=canonical_uuid(workflow_id)
+        row=self._get("feature2_private_trace_sources",token,{
+            "select":"shop_id,campaign_id,workflow_id,source_sha256,private,can_publish,revoked_at,revision",
+            "shop_id":"eq."+sid,"campaign_id":"eq."+cid,
+            "workflow_id":"eq."+wid,"limit":"2"})
+        if row is None:
+            return None
+        if (type(row) is not dict or row.get("shop_id")!=sid or
+            row.get("campaign_id")!=cid or row.get("workflow_id")!=wid or
+            type(row.get("source_sha256")) is not str or
+            not __import__("re").fullmatch("[a-f0-9]{64}",row["source_sha256"]) or
+            row.get("private") is not True or
+            row.get("can_publish") is not False or
+            row.get("revoked_at") is not None or
+            type(row.get("revision")) is not int or row["revision"]<0):
+            raise StorageUnavailable("Private trace source modified or revoked")
+        # Second read and role guard occur in Feature2PrivateTraceAdapter.
+        return deepcopy(row)
+
+    def read_private_trace_events(self,token,actor,shop_id,campaign_id,
+                                  workflow_id):
+        from copy import deepcopy
+        sid,cid=self._scope(token,actor,shop_id,campaign_id)
+        wid=canonical_uuid(workflow_id)
+        rows=self._get_many("feature2_private_trace_events",token,{
+            "select":"shop_id,campaign_id,workflow_id,sequence,event_json",
+            "shop_id":"eq."+sid,"campaign_id":"eq."+cid,
+            "workflow_id":"eq."+wid,"order":"sequence.asc","limit":"101"},
+            limit=101)
+        data=[]
+        for idx,row in enumerate(rows,1):
+            if (type(row) is not dict or
+                row.get("shop_id")!=sid or row.get("campaign_id")!=cid or
+                row.get("workflow_id")!=wid or
+                type(row.get("sequence")) is not int or
+                row["sequence"]!=idx or
+                type(row.get("event_json")) is not dict or
+                row["event_json"].get("shop_id")!=sid or
+                row["event_json"].get("campaign_id")!=cid or
+                row["event_json"].get("workflow_id")!=wid or
+                row["event_json"].get("sequence")!=idx):
+                raise StorageUnavailable("Private trace chain order or shop mismatch")
+            data.append(deepcopy(row["event_json"]))
+        self._scope(token,actor,sid,cid)
+        return data
+
+    def read_private_blind_history(self,token,actor,shop_id,campaign_id,
+                                   experiment_id):
+        from copy import deepcopy
+        import re
+        sid,cid=self._scope(token,actor,shop_id,campaign_id)
+        if (type(experiment_id) is not str or
+            not re.fullmatch("[A-Za-z0-9_-]{10,120}",experiment_id)):
+            raise ValueError("Invalid private experiment identifier")
+        rows=self._get_many("feature2_private_blind_scores",token,{
+            "select":"shop_id,campaign_id,experiment_id,revision,review_record",
+            "shop_id":"eq."+sid,"campaign_id":"eq."+cid,
+            "experiment_id":"eq."+experiment_id,
+            "order":"revision.asc","limit":"51"},limit=51)
+        scores=[]
+        for idx,row in enumerate(rows,1):
+            if (type(row) is not dict or row.get("shop_id")!=sid or
+                row.get("campaign_id")!=cid or
+                row.get("experiment_id")!=experiment_id or
+                type(row.get("revision")) is not int or
+                row["revision"]!=idx or type(row.get("review_record")) is not dict or
+                row["review_record"].get("shop_id")!=sid or
+                row["review_record"].get("campaign_id")!=cid or
+                row["review_record"].get("experiment_id")!=experiment_id or
+                row["review_record"].get("revision")!=idx):
+                raise StorageUnavailable("Private human A/B review sequence invalid")
+            scores.append(deepcopy(row["review_record"]))
+        self._scope(token,actor,sid,cid)
+        return scores
+
+    @staticmethod
+    def _attestation_message(shop,campaign,experiment,revision,receipt,
+                             candidates,score_record):
+        import json
+        return json.dumps({
+            "shop_id":shop,"campaign_id":campaign,
+            "experiment_id":experiment,"revision":revision,
+            "receipt_digest":receipt,"candidate_digests":candidates,
+            "review_record":score_record,
+        },ensure_ascii=False,sort_keys=True,
+           separators=(",",":")).encode("utf-8")
+
+    def verify_signed_human_history(self,token,actor,shop_id,campaign_id,
+                                    experiment_id,revision,receipt_digest,
+                                    candidate_digests):
+        """Cryptographic independent-review receipt check, not source creation.
+
+        A backend reviewer service must previously sign the complete frozen
+        review record with the separately provisioned approved secret. A
+        tampered score, replayed revision or foreign shop cannot be certified
+        merely by trusting a PostgREST row's claim that it was reviewed.
+        """
+        import hmac
+        import re
+        sid,cid=self._scope(token,actor,shop_id,campaign_id)
+        if (self.review_secret is None or
+            type(experiment_id) is not str or
+            not re.fullmatch("[A-Za-z0-9_-]{10,120}",experiment_id) or
+            type(revision) is not int or not 1<=revision<=50 or
+            type(receipt_digest) is not str or
+            not re.fullmatch("[a-f0-9]{64}",receipt_digest) or
+            type(candidate_digests) is not dict or
+            set(candidate_digests)!={"A","B"} or
+            any(type(value) is not str or
+                not re.fullmatch("[a-f0-9]{64}",value)
+                for value in candidate_digests.values()) or
+            candidate_digests["A"]==candidate_digests["B"]):
+            return False
+        row=self._get("feature2_private_blind_attestations",token,{
+            "select":"shop_id,campaign_id,experiment_id,revision,receipt_digest,candidate_digests,review_record,server_mac,revoked_at",
+            "shop_id":"eq."+sid,"campaign_id":"eq."+cid,
+            "experiment_id":"eq."+experiment_id,
+            "revision":"eq."+str(revision),"limit":"2"})
+        if (type(row) is not dict or
+            row.get("shop_id")!=sid or row.get("campaign_id")!=cid or
+            row.get("experiment_id")!=experiment_id or
+            row.get("revision")!=revision or
+            row.get("receipt_digest")!=receipt_digest or
+            row.get("candidate_digests")!=candidate_digests or
+            row.get("revoked_at") is not None or
+            type(row.get("review_record")) is not dict or
+            row["review_record"].get("receipt_digest")!=receipt_digest or
+            row["review_record"].get("human_scores") is None or
+            row["review_record"].get("revision")!=revision or
+            type(row.get("server_mac")) is not str or
+            not re.fullmatch("[a-f0-9]{64}",row["server_mac"])):
+            return False
+        # Compare against the current signed persisted review record too:
+        # validates the complete signed scores, not only opaque receipt hash.
+        history=self.read_private_blind_history(
+            token,actor,sid,cid,experiment_id)
+        if revision>len(history) or history[revision-1]!=row["review_record"]:
+            return False
+        raw=self._attestation_message(
+            sid,cid,experiment_id,revision,
+            receipt_digest,candidate_digests,row["review_record"])
+        expected=hmac.digest(self.review_secret,
+            b"retailgrowth.feature2.human-history.v1\n"+raw,"sha256").hex()
+        if not hmac.compare_digest(row["server_mac"],expected):
+            return False
+        self._scope(token,actor,sid,cid)
+        return True
