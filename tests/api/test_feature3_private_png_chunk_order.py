@@ -41,6 +41,19 @@ class PrivatePNGChunkOrderTests(unittest.TestCase):
         self.assertEqual(fixture.calls.count("get"), 1)
         self.assertEqual(fixture.rights_called, 1)
 
+    def test_many_tiny_ancillary_chunks_rejected_with_matching_digest(self):
+        # A byte-size cap alone permits millions of tiny chunks and excessive
+        # CPU work. This synthetic PNG has valid chunk CRCs and a matching SHA.
+        original = self.fixture.png
+        parts = chunks(original)
+        name = b"tEXt"
+        payload = b"x\\x00y"
+        block = (len(payload).to_bytes(4, "big") + name + payload +
+                 (zlib.crc32(name + payload) & 0xffffffff).to_bytes(4, "big"))
+        self.assert_rejected(original[:8] + parts[0][1] +
+                             block * 4097 +
+                             b"".join(raw for _, raw in parts[1:]))
+
     def test_duplicate_ihdr_rejected_before_pillow(self):
         original = self.fixture.png
         parts = chunks(original)
