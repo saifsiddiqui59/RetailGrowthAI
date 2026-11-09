@@ -225,6 +225,7 @@ class Feature3RevocablePNGReader:
             raise PrivateGeneratedDownloadDenied("Untrusted private PNG structure")
         seen_header = False
         seen_pixels = False
+        pixels_finished = False
         while offset + 12 <= len(raw):
             chunk_size = int.from_bytes(raw[offset:offset + 4], "big")
             chunk_type = raw[offset + 4:offset + 8]
@@ -240,8 +241,23 @@ class Feature3RevocablePNGReader:
                 seen_header = True
             elif chunk_type == b"IHDR":
                 raise PrivateGeneratedDownloadDenied("Duplicate private PNG header")
+            # Unknown critical chunks cannot be safely interpreted by the
+            # consumer. PNG IDAT chunks must be contiguous; otherwise a
+            # decoder may silently ignore ambiguous or hidden pixel data.
+            if (chunk_type[0] & 0x20) == 0 and chunk_type not in (
+                    b"IHDR", b"PLTE", b"IDAT", b"IEND"):
+                raise PrivateGeneratedDownloadDenied(
+                    "Untrusted private PNG critical chunk")
+            if chunk_type == b"PLTE" and seen_pixels:
+                raise PrivateGeneratedDownloadDenied(
+                    "Late private PNG palette")
             if chunk_type == b"IDAT":
+                if pixels_finished:
+                    raise PrivateGeneratedDownloadDenied(
+                        "Noncontiguous private PNG pixels")
                 seen_pixels = True
+            elif seen_pixels:
+                pixels_finished = True
             if chunk_type == b"IEND":
                 if not seen_pixels or chunk_size != 0 or end != len(raw):
                     raise PrivateGeneratedDownloadDenied("Untrusted private PNG terminator")
