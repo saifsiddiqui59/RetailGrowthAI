@@ -266,7 +266,7 @@ class Feature3RevocablePNGReader:
                     not 65 <= chunk_type[2] <= 90):
                 raise PrivateGeneratedDownloadDenied(
                     "Untrusted private PNG chunk name")
-            if chunk_type == b"PLTE":
+            # APNG control/frame chunks are not valid for a single immutable\n            # generated poster. Pillow can report one frame for an animated\n            # container with only one declared frame; reject the container\n            # semantics explicitly, including SHA-matched synthetic payloads.\n            if chunk_type in (b"acTL", b"fcTL", b"fdAT"):\n                raise PrivateGeneratedDownloadDenied(\n                    "Animated private PNG container not permitted")\n            if chunk_type == b"PLTE":
                 if seen_palette or seen_pixels:
                     raise PrivateGeneratedDownloadDenied(
                         "Invalid private PNG palette order")
