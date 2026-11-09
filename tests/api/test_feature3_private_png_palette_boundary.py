@@ -33,6 +33,22 @@ class PrivatePNGPaletteBoundaryTests(unittest.TestCase):
             fixture.read()
         self.assertEqual(fixture.calls.count("get"), 1)
 
+    def test_embedded_text_and_exif_metadata_rejected(self):
+        original = self.fixture.png
+        ihdr_end = 8 + 12 + 13
+        # CRC-correct synthetic ancillary chunks must not be served even
+        # when their SHA matches the immutable private object key.
+        payloads = (
+            (b"tEXt", b"comment\\x00private-customer-data"),
+            (b"zTXt", b"comment\\x00\\x00x\\x9c\\x03\\x00\\x00\\x00\\x00\\x01"),
+            (b"iTXt", b"comment\\x00\\x00\\x00\\x00\\x00secret"),
+            (b"eXIf", b"MM\\x00*\\x00\\x00\\x00\\x08"),
+        )
+        for kind, payload in payloads:
+            with self.subTest(kind=kind):
+                self.rejected(original[:ihdr_end] + chunk(kind, payload) +
+                              original[ihdr_end:])
+
     def test_zero_length_palette_rejected(self):
         original = self.fixture.png
         ihdr_end = 8 + 12 + 13
