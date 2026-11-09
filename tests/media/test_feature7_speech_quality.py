@@ -94,7 +94,8 @@ class SpeechReferenceBenchmarkTests(unittest.TestCase):
         self.assertEqual(mismatch['reference_word_count'],1)
         self.assertEqual(mismatch['recognized_word_count'],1)
         self.assertEqual(mismatch['word_error_rate'],1)
-        self.assertEqual(mismatch['cue_coverage_ratio'],1)
+        # Cue-local coverage requires lexical agreement, not just timing.
+        self.assertEqual(mismatch['cue_coverage_ratio'],0)
         self.assertFalse(mismatch['thresholds_passed'])
         self.assertFalse(mismatch['customer_release_ready'])
 
@@ -102,6 +103,7 @@ class SpeechReferenceBenchmarkTests(unittest.TestCase):
         good=self.evaluate(p)
         self.assertEqual(good.returncode,0,good.stderr)
         self.assertEqual(json.loads(good.stdout)['word_error_rate'],0)
+        self.assertEqual(json.loads(good.stdout)['cue_coverage_ratio'],1)
 
         p['reference_srt']='1\n00:00:00,500 --> 00:00:01,300\nनमस्ते\n'
         p['normalized_asr']['words'][0]['word']='नमस्त'
