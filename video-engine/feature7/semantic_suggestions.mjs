@@ -8,12 +8,25 @@
 import {EditValidationError} from './autobroll_semantics.mjs';
 const ensure=(condition,message)=>{if(!condition) throw new EditValidationError(message);};
 const TOKEN=/[\p{L}\p{N}]+/gu;
-function normalizeWords(words) {
+const UNSAFE_WORD=/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069\ufeff]/u;
+// Validate the entire source clock even when no cutaway is selected. A review
+// suggestion must not hide malformed trailing words behind a cue-count limit.
+function validateWordTimeline(words) {
   ensure(Array.isArray(words) && words.length<=3000,'Invalid transcript');
-  return words.flatMap(w=>{
-    ensure(w && typeof w.word==='string' && w.word.length<=80,'Invalid word');
-    return w.word.toLocaleLowerCase('en').match(TOKEN)??[];
-  });
+  let previousStart=-1;
+  for(const w of words) {
+    ensure(w && typeof w.word==='string' && w.word.trim().length>0 &&
+      [...w.word].length<=80 && !UNSAFE_WORD.test(w.word) &&
+      Number.isSafeInteger(w.startMs) && Number.isSafeInteger(w.endMs) &&
+      w.startMs>=0 && w.startMs>=previousStart &&
+      w.endMs>w.startMs && w.endMs<=600000,
+      'Invalid or unordered source word clock');
+    previousStart=w.startMs;
+  }
+}
+function normalizeWords(words) {
+  validateWordTimeline(words);
+  return words.flatMap(w=>w.word.toLocaleLowerCase('en').match(TOKEN)??[]);
 }
 const jaccard=(a,b)=> {
   const sa=new Set(a),sb=new Set(b);
@@ -36,10 +49,15 @@ export function suggestRetakeSelections({shop_id,footage}={}) {
   ensure(typeof shop_id==='string' && shop_id.length>0 &&
     Array.isArray(footage) && footage.length<=12,
     'Invalid retake scope');
+  const sceneIndices=new Set();
   const items=footage.map((f,i)=>{
     ensure(f && f.shop_id===shop_id && Number.isInteger(f.scene_index) &&
+      f.scene_index>=0 && f.scene_index<12 &&
+      !sceneIndices.has(f.scene_index) &&
       Array.isArray(f.words) && typeof f.asset_id==='string' &&
-      f.words.length<=3000,'Invalid retake tenant/source');
+      /^[A-Za-z0-9_-]{1,100}$/.test(f.asset_id),
+      'Invalid retake tenant/source');
+    sceneIndices.add(f.scene_index);
     return {...f,original_index:i,tokens:normalizeWords(f.words)};
   });
   const used=new Set();
@@ -75,7 +93,9 @@ export function suggestOwnedCutaways({shop_id,words,approved_assets,max_cues=3}=
     Array.isArray(approved_assets) && approved_assets.length<=30 &&
     Number.isInteger(max_cues) && max_cues>=0 && max_cues<=12,
     'Invalid cutaway suggestion request');
+  validateWordTimeline(words);
   const used=new Set();
+  const assetIds=new Set();
   const cues=[];
   for(const asset of approved_assets){
     ensure(asset && asset.shop_id===shop_id &&
@@ -84,14 +104,13 @@ export function suggestOwnedCutaways({shop_id,words,approved_assets,max_cues=3}=
       ['image','video'].includes(asset.media_type) &&
       typeof asset.asset_id==='string' && /^[\w-]{1,100}$/.test(asset.asset_id) &&
       Array.isArray(asset.keywords) && asset.keywords.length<=12 &&
-      asset.keywords.every(x=>typeof x==='string' && x.length<=50),
-      'Unapproved or foreign suggested cutaway');
+      asset.keywords.every(x=>typeof x==='string' && x.length<=50) &&
+      !assetIds.has(asset.asset_id),
+      'Unapproved, duplicate or foreign suggested cutaway');
+    assetIds.add(asset.asset_id);
   }
   for(let i=0;i<words.length && cues.length<max_cues;i++){
     const w=words[i];
-    ensure(w && typeof w.word==='string' &&
-      Number.isInteger(w.startMs) && Number.isInteger(w.endMs) &&
-      w.endMs>w.startMs,'Invalid word anchor');
     const token=normalizeWords([w])[0];
     if(!token || used.has(token))continue;
     const asset=approved_assets.find(a=>a.keywords.some(k=>
