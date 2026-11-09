@@ -227,7 +227,15 @@ class Feature3RevocablePNGReader:
         seen_pixels = False
         seen_palette = False
         pixels_finished = False
+        # Bound parser work independently of the 25 MiB byte limit: a PNG
+        # can contain millions of tiny ancillary chunks with valid CRCs.
+        # A generated poster needs nowhere near this many chunks.
+        chunk_count = 0
         while offset + 12 <= len(raw):
+            chunk_count += 1
+            if chunk_count > 4096:
+                raise PrivateGeneratedDownloadDenied(
+                    "Excessive private PNG chunk count")
             chunk_size = int.from_bytes(raw[offset:offset + 4], "big")
             chunk_type = raw[offset + 4:offset + 8]
             end = offset + 12 + chunk_size
