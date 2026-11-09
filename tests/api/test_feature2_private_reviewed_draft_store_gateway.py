@@ -168,7 +168,9 @@ def test_f2_03_31_signed_current_reviewer_receipt_commits_private_only():
     assert out["requires_fresh_media_rights"] is True
     assert out["requires_new_copy_fact_review"] is True
     assert state["commits"]==1
-    assert "original_prompt" not in str(out)
+    assert "original_prompt" not in out
+    assert "improved_prompt" not in out
+    assert ORIGINAL not in str(out) and IMPROVED not in str(out)
     assert "server_mac" not in str(out)
     assert all(p.startswith("/rest/v1/") for p in wire.calls)
 
