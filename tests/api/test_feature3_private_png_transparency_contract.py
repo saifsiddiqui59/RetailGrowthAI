@@ -1,5 +1,7 @@
 """F3-08 synthetic transparency/color-type security tests; no hosted auth."""
 from hashlib import sha256
+from io import BytesIO
+from PIL import Image
 from pathlib import Path
 import sys
 import unittest
@@ -58,6 +60,28 @@ class TransparencyContractTests(unittest.TestCase):
     def test_indexed_transparency_cannot_exceed_palette(self):
         self.rejected(self.inject(3, b"\x00\x00",
                                   palette=b"\x00\x00\x00"))
+
+    def test_indexed_palette_is_required_even_without_transparency(self):
+        raw = self.fixture.png
+        ihdr = bytearray(raw[16:29])
+        ihdr[9] = 3
+        self.rejected(raw[:8] + chunk(b"IHDR", bytes(ihdr)) + raw[33:])
+
+    def test_valid_indexed_png_with_transparency_is_accepted(self):
+        image = Image.new("P", (320, 400), 0)
+        image.putpalette([0, 0, 0, 255, 255, 255])
+        image.info["transparency"] = bytes([0, 255])
+        stream = BytesIO()
+        image.save(stream, format="PNG")
+        binary = stream.getvalue()
+        f = self.fixture
+        f.binary = binary
+        digest = sha256(binary).hexdigest()
+        f.tenant.sha = digest
+        f.tenant.path = f"{f.shop}/feature3/gpu/{f.job}/{digest}.png"
+        f.reader = f.build()
+        self.assertEqual(f.read()["image_bytes"], binary)
+
 
 
 if __name__ == "__main__":
