@@ -4,7 +4,9 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from zipfile import ZipFile, ZIP_DEFLATED
+from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
+import stat
+import warnings
 import unittest
 
 from feature5_motion.infra.wan22_native_preflight import (
@@ -85,6 +87,44 @@ class WanOfflineWheelhouseTest(unittest.TestCase):
             approved["torch"]["sha256"]=hashlib.sha256(path.read_bytes()).hexdigest()
             with self.assertRaisesRegex(WanCompatibilityError,"identity"):
                 audit_offline_wheelhouse(td,reviewed_wheel_sha256=approved)
+
+    def test_deny_archive_member_aliases_symlink_and_unsafe_paths_even_with_matching_sha(self):
+        # The independent manifest digest is deliberately re-pinned here so
+        # the archive-entry safety gate is exercised after SHA validation.
+        fixtures = (
+            ("duplicate", lambda z: (
+                z.writestr("torch/extra.py", "first"),
+                z.writestr("torch/extra.py", "second"))),
+            ("casefold", lambda z: (
+                z.writestr("torch/Extra.py", "first"),
+                z.writestr("torch/extra.py", "second"))),
+            ("dotdot", lambda z: z.writestr("torch/../escape.py", "bad")),
+            ("dot", lambda z: z.writestr("torch/./escape.py", "bad")),
+            ("empty", lambda z: z.writestr("torch//escape.py", "bad")),
+            ("backslash", lambda z: z.writestr("torch\\\\escape.py", "bad")),
+            ("absolute", lambda z: z.writestr("/tmp/escape.py", "bad")),
+            ("colon", lambda z: z.writestr("C:/malware.py", "bad")),
+            ("control", lambda z: z.writestr("torch/control\\x01.py", "bad")),
+            ("symlink", self._write_zip_symlink),
+        )
+        for name, malicious in fixtures:
+            with self.subTest(name=name), TemporaryDirectory() as td:
+                approved = fake_wheels(td)
+                path = next(Path(td).glob("torch-*.whl"))
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", UserWarning)
+                    with ZipFile(path, "a") as archive:
+                        malicious(archive)
+                approved["torch"]["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+                with self.assertRaises(WanCompatibilityError):
+                    audit_offline_wheelhouse(td, reviewed_wheel_sha256=approved)
+
+    @staticmethod
+    def _write_zip_symlink(archive):
+        entry = ZipInfo("torch/sneaky_link")
+        entry.create_system = 3
+        entry.external_attr = (stat.S_IFLNK | 0o777) << 16
+        archive.writestr(entry, "../../escape")
 
     def test_wheelhouse_cannot_be_symlink_or_unreviewed_manifest(self):
         with TemporaryDirectory() as td:

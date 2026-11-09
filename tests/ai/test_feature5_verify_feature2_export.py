@@ -60,6 +60,22 @@ class Feature2OriginalExportBytesTests(unittest.TestCase):
         with self.assertRaises(WanCompatibilityError):
             qualify_export_bytes(json.dumps(make_packet(15)).encode(), duration=30)
 
+    def test_deeply_nested_untrusted_json_is_denied_without_a_traceback(self):
+        # Below the byte limit but beyond Python's JSON decoder nesting limit.
+        # A public-facing exporter boundary must return a denial, never crash.
+        raw = b"[" * 20000 + b"0" + b"]" * 20000
+        self.assertLess(len(raw), MAX_INPUT_BYTES)
+        with self.assertRaises(WanCompatibilityError):
+            qualify_export_bytes(raw, duration=15)
+        cmd = [sys.executable, "-m", "feature5_motion.verify_feature2_export",
+               "--duration", "15"]
+        denied = subprocess.run(cmd, input=raw, capture_output=True,
+                                check=False, timeout=30)
+        self.assertEqual(denied.returncode, 2)
+        self.assertFalse(denied.stdout)
+        self.assertIn(b"no GPU", denied.stderr)
+        self.assertNotIn(b"Traceback", denied.stderr)
+
     def test_actual_cli_stdout_is_only_source_denial_receipt(self):
         packet = make_packet(15)
         cmd = [sys.executable, "-m", "feature5_motion.verify_feature2_export",

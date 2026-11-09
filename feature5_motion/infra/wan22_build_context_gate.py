@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import stat
 from pathlib import Path
 
 from .wan22_native_preflight import (
@@ -29,34 +31,42 @@ def _unique_review_keys(pairs):
 
 
 def _private_review_json(path):
-    """Read a bounded, regular, immutable-for-this-read reviewed manifest.
+    """Read reviewed JSON from a stable, private, no-follow regular descriptor.
 
-    This is only a CPU source-input gate. JSON supplied by an operator is not
-    itself independent approval of a CUDA image, model licence or wheel bytes.
+    This is CPU-only source consistency, NOT independent legal/OCI approval.
+    Holding a descriptor alone is insufficient: re-stat the original path
+    after reading so a same-byte path swap cannot approve the wrong source.
     """
-    import os
-    import stat
-
+    if not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_NONBLOCK"):
+        raise WanCompatibilityError("Secure local reviewed manifest read unavailable")
     item = Path(path)
+
+    def identity(info):
+        return (info.st_dev, info.st_ino, info.st_mode, info.st_nlink,
+                info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
     try:
         before = item.stat(follow_symlinks=False)
-        if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
-                or not 0 < before.st_size <= MAX_REVIEW_BYTES):
-            raise WanCompatibilityError("Missing, linked or oversized reviewed manifest")
-        fd = os.open(item, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or
+                not 0 < before.st_size <= MAX_REVIEW_BYTES):
+            raise ValueError("Missing, linked or oversized reviewed manifest")
+        fd = os.open(item, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
         try:
             with os.fdopen(fd, "rb") as stream:
                 fd = -1
                 opened = os.fstat(stream.fileno())
-                identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
-                if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1
-                        or (opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns) != identity):
-                    raise WanCompatibilityError("Reviewed manifest changed before read")
+                if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1 or
+                        identity(opened) != identity(before)):
+                    raise ValueError("Reviewed manifest changed before open")
                 raw = stream.read(MAX_REVIEW_BYTES + 1)
                 after = os.fstat(stream.fileno())
-                if ((after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns) != identity
-                        or len(raw) != before.st_size):
-                    raise WanCompatibilityError("Reviewed manifest changed during read")
+                # A stable open descriptor does NOT prove its pathname still
+                # resolves to that descriptor, nor that mtime was restored.
+                current = item.stat(follow_symlinks=False)
+                if (len(raw) != before.st_size or
+                        identity(after) != identity(before) or
+                        identity(current) != identity(after)):
+                    raise ValueError("Reviewed manifest changed during read")
         finally:
             if fd != -1:
                 os.close(fd)
@@ -69,8 +79,9 @@ def _private_review_json(path):
         if type(value) is not dict:
             raise ValueError("Reviewed manifest must be a JSON object")
         return value
-    except (OSError, UnicodeError, ValueError) as exc:
+    except (OSError, UnicodeError, ValueError, RecursionError, OverflowError) as exc:
         raise WanCompatibilityError("Unreadable or ambiguous reviewed manifest") from exc
+
 
 def audit_wan22_build_context(
     *, vendored_comfyui, source_manifest, wheelhouse,

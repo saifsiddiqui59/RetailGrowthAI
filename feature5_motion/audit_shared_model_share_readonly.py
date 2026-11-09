@@ -9,7 +9,8 @@ import argparse
 import json
 import os
 from feature5_motion.shared_model_mount import (
-    ACCOUNT, SHARE, EXPECTED, EXPECTED_BYTES, PreflightError, validate_manifest,
+    ACCOUNT, SHARE, EXPECTED, EXPECTED_BYTES, PreflightError,
+    validate_manifest, _reject_duplicate_manifest_keys,
 )
 
 MARKER = "models-sha256-manifest.json"
@@ -25,13 +26,29 @@ def audit_share(share):
     marker_info = marker.get_file_properties()
     if type(marker_info.size) is not int or not 1 <= marker_info.size <= MANIFEST_MAX_BYTES:
         raise PreflightError("Missing, empty or oversized completion marker")
-    data = marker.download_file(max_concurrency=1).readall()
-    if not isinstance(data, bytes) or len(data) != marker_info.size:
+    # Read no more than the already verified small marker length. Even an
+    # overlong SDK response is rejected before any model HEADs/permissions.
+    data = marker.download_file(offset=0, length=marker_info.size,
+                                max_concurrency=1).readall()
+    if type(data) is not bytes or len(data) != marker_info.size:
         raise PreflightError("Manifest readback size mismatch")
+    # File metadata alone cannot prove uploaded weight bytes. It can,
+    # however, detect marker replacement during this read-only audit.
+    marker_after = marker.get_file_properties()
+    if (type(marker_after.size) is not int or marker_after.size != marker_info.size
+            or any(getattr(marker_info, field, None) != getattr(marker_after, field, None)
+                   for field in ("etag", "last_modified"))):
+        raise PreflightError("Completion marker changed during readback")
     try:
-        manifest = json.loads(data.decode("utf-8"))
-    except (ValueError, UnicodeError) as exc:
-        raise PreflightError("Completion marker is not valid UTF8 JSON") from exc
+        manifest = json.loads(
+            data.decode("utf-8"), object_pairs_hook=_reject_duplicate_manifest_keys,
+            parse_constant=lambda _: (_ for _ in ()).throw(
+                ValueError("Non-finite model completion number")),
+        )
+        if type(manifest) is not dict:
+            raise ValueError("Private completion must be a JSON object")
+    except (ValueError, UnicodeError, RecursionError) as exc:
+        raise PreflightError("Completion marker is ambiguous or not valid UTF8 JSON") from exc
     revisions = validate_manifest(manifest)
     for proof in manifest["files"]:
         path = proof["path"]
