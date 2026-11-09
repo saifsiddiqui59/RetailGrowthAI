@@ -127,6 +127,41 @@ class LocalFeature7ReviewJournalTests(unittest.TestCase):
                     self.store.claim_for_feature4(**(kwargs | changes))
         self.assertEqual(self.store.claim_for_feature4(**kwargs)["revision"], 2)
 
+    def test_trusted_clock_cannot_backdate_approval_or_claim(self):
+        stage = self.stage()
+        with self.assertRaises(ReviewStateError):
+            self.store.approve(
+                review_id=stage["review_id"], context=trusted(),
+                candidate_sha256=CANDIDATE, expected_revision=0,
+                confirmed_by_human=True, now_ms=NOW-1)
+        approved = self.approve(stage)
+        # A clock rollback after approval must not consume a future decision.
+        with self.assertRaises(ReviewStateError):
+            self.store.claim_for_feature4(
+                review_id=stage["review_id"], approval_id=approved["approval_id"],
+                context=trusted(), draft_sha256=DRAFT,
+                candidate_sha256=CANDIDATE, expected_revision=1,
+                now_ms=NOW+50)
+        self.assertEqual(
+            self.store.claim_for_feature4(
+                review_id=stage["review_id"], approval_id=approved["approval_id"],
+                context=trusted(), draft_sha256=DRAFT,
+                candidate_sha256=CANDIDATE, expected_revision=1,
+                now_ms=NOW+100)["status"],
+            "CLAIMED_ONCE")
+
+    def test_trusted_clock_rejects_sqlite_overflow_before_write(self):
+        with self.assertRaises(ReviewStateError):
+            self.store.stage(context=trusted(), draft_sha256=DRAFT,
+                             candidate_sha256=CANDIDATE, now_ms=2**63-1)
+        stage = self.stage()
+        with self.assertRaises(ReviewStateError):
+            self.store.approve(
+                review_id=stage["review_id"], context=trusted(),
+                candidate_sha256=CANDIDATE, expected_revision=0,
+                confirmed_by_human=True, now_ms=2**63-1)
+        self.assertEqual(self.approve(stage)["status"], "APPROVED")
+
     def test_revoke_before_and_after_approval_denies_claim(self):
         pending = self.stage()
         self.store.revoke(review_id=pending["review_id"],

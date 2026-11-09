@@ -63,7 +63,7 @@ def _identifier(value, name):
 
 def _clock(now_ms):
     now = int(time.time() * 1000) if now_ms is None else now_ms
-    if type(now) is not int or now < 0:
+    if type(now) is not int or now < 0 or now > (2**63 - 1 - TTL_MS):
         raise ReviewStateError("Invalid trusted time")
     return now
 
@@ -163,7 +163,8 @@ class LocalReviewJournal:
             self._same_scope(row, ctx)
             if (row["status"] != "PENDING" or
                     row["revision"] != expected_revision or
-                    row["candidate_sha256"] != candidate_sha256):
+                    row["candidate_sha256"] != candidate_sha256 or
+                    now < row["created_ms"]):
                 raise ReviewStateError("Stale or changed review")
             approval_id = "f7a_" + secrets.token_hex(16)
             modified = self.db.execute("""
@@ -204,7 +205,8 @@ class LocalReviewJournal:
                     row["draft_sha256"] != draft_sha256 or
                     row["candidate_sha256"] != candidate_sha256 or
                     row["expires_ms"] is None or now > row["expires_ms"] or
-                    now < row["created_ms"]):
+                    now < row["created_ms"] or
+                    now < row["expires_ms"] - TTL_MS):
                 raise ReviewStateError("Stale, expired, foreign or already used approval")
             modified = self.db.execute("""
               UPDATE feature7_local_reviews

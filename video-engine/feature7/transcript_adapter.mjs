@@ -64,27 +64,31 @@ export function projectCaptionsToTrim(captions, trim_start_seconds, duration_sec
     timeline_offset_seconds<=3600, 'Invalid caption clip projection');
   const start=Math.round(trim_start_seconds*1000);
   const end=start+Math.round(duration_seconds*1000);
+  check(Number.isSafeInteger(end) && end<=3600000,
+    'Caption source clip exceeds bounded media duration');
   let totalWords=0;
   // Validate EVERY supplied cue before time filtering: an out-of-range cue
   // must not be able to hide malformed or forged word timings.
   for(const c of captions) {
     check(c && typeof c==='object' && !Array.isArray(c) &&
       typeof c.clipId==='string' && c.clipId.length>0 &&
-      c.clipId.length<=120 && Array.isArray(c.words) &&
+      c.clipId.length<=120 && /^[A-Za-z0-9_-]{1,120}$/.test(c.clipId) && Array.isArray(c.words) &&
       c.words.length>0 && c.words.length<=100 &&
       Number.isSafeInteger(c.startMs) && Number.isSafeInteger(c.endMs) &&
       c.startMs>=0 && c.endMs>c.startMs && c.endMs<=3600000,
       'Invalid caption source timing');
     totalWords+=c.words.length;
     check(totalWords<=3000,'Too many caption words');
+    let lastStart=-1;
     for(const w of c.words) {
       check(w && typeof w==='object' && !Array.isArray(w) &&
         typeof w.text==='string' && w.text.trim().length>0 &&
         [...w.text].length<=80 &&
         Number.isSafeInteger(w.startMs) && Number.isSafeInteger(w.endMs) &&
-        w.startMs>=c.startMs && w.endMs<=c.endMs &&
+        w.startMs>=c.startMs && w.startMs>=lastStart && w.endMs<=c.endMs &&
         w.endMs>w.startMs,
         'Invalid caption word timing');
+      lastStart=w.startMs;
     }
   }
   return captions.filter(c=>c.endMs>start && c.startMs<end).map(c=>{
