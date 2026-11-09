@@ -165,6 +165,11 @@ class Feature3RevocablePNGReader:
                 length = headers.get("Content-Length")
                 mime = headers.get("Content-Type")
                 content_encoding = headers.get("Content-Encoding")
+                # A private immutable object is always a complete 200 response.
+                # Reject proxy-supplied partial-content metadata before body IO.
+                if headers.get("Content-Range") is not None:
+                    raise PrivateGeneratedDownloadDenied(
+                        "Untrusted partial private PNG response")
                 # Refuse folded, invisible or unbounded HTTP metadata before
                 # any authenticated private PNG body is consumed.
                 def printable_header(value):
@@ -183,7 +188,7 @@ class Feature3RevocablePNGReader:
                         "Invalid private image Content-Length")
                 if (mime is not None and
                         (not printable_header(mime) or
-                         mime.split(";", 1)[0].strip().lower() != "image/png")):
+                         mime.strip().lower() != "image/png")):
                     raise PrivateGeneratedDownloadDenied("Invalid private image MIME")
                 raw = response.read(_MAX + 1)
         except PrivateGeneratedDownloadDenied:
