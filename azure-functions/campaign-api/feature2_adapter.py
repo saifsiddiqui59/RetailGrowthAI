@@ -1189,3 +1189,32 @@ class Feature2PrivateAuditGateway:
                            authorization):
         return self.blind.get(shop_id,campaign_id,experiment_id,
                               authorization)
+
+
+
+class Feature2PrivateReviewedDraftGateway:
+    """F2-03/F2-31 source-only independently signed editor CAS composition.
+
+    This gateway does not mount a POST route or create human signatures.
+    A reviewed PostgREST/RPC transaction must be explicitly injected and
+    approved before enabling writes. Failed/unknown POST never auto-retries.
+    """
+
+    def __init__(self,verify_token,tenant_store,private_review_store,*,
+                 reviewed_draft_commit=None):
+        names=("read_current_draft","read_staged_proposal",
+               "verify_editor_decision","save_reviewed_draft_cas")
+        if (private_review_store is None or
+            not all(callable(getattr(private_review_store,n,None))
+                    for n in names)):
+            raise ValueError("Trusted private reviewed draft store required")
+        self.review=Feature2ReviewedDraftAdapter(
+            verify_token,tenant_store,
+            draft_reader=private_review_store.read_current_draft,
+            proposal_reader=private_review_store.read_staged_proposal,
+            decision_verifier=private_review_store.verify_editor_decision,
+            draft_saver=private_review_store.save_reviewed_draft_cas,
+            reviewed_draft_commit=reviewed_draft_commit)
+
+    def commit_draft(self,shop_id,campaign_id,authorization,payload):
+        return self.review.post(shop_id,campaign_id,authorization,payload)

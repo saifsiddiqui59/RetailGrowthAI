@@ -568,3 +568,197 @@ class Feature2PrivateAuditStore(Feature2PrivateVoiceStore):
             return False
         self._scope(token,actor,sid,cid)
         return True
+
+
+
+class Feature2PrivateReviewedDraftStore(Feature2PrivateVoiceStore):
+    """F2-03/F2-31 signed current draft/proposal/independent editor evidence.
+
+    Source-only. This is not an activated hosted RPC or a human sign-in
+    provider. The independent attestation writer must verify actual human
+    ownership before signing. Backend CAS remains disabled until the operator
+    injects an independently reviewed atomic authenticated writer; no
+    service_role, client-side approval, upsert or network POST by default.
+    """
+    _TABLES=frozenset((
+        "feature2_private_prompt_drafts",
+        "feature2_private_prompt_proposals",
+        "feature2_private_editor_decisions",
+    ))
+
+    def __init__(self,tenant_store,*,decision_secret=None,atomic_writer=None,
+                 allow_reviewed_cas=False,transport=None):
+        super().__init__(tenant_store,transport=transport)
+        if decision_secret is not None and (
+                type(decision_secret) is not bytes or len(decision_secret)<32):
+            raise ValueError("Independently approved decision key required")
+        self.decision_secret=decision_secret
+        self.atomic_writer=atomic_writer
+        self.allow_reviewed_cas=allow_reviewed_cas is True
+
+    def read_current_draft(self,token,actor,shop_id,campaign_id):
+        from copy import deepcopy
+        sid,cid=self._scope(token,actor,shop_id,campaign_id)
+        row=self._get("feature2_private_prompt_drafts",token,{
+            "select":"shop_id,campaign_id,revision,brief,review_status,private,can_publish,revoked_at",
+            "shop_id":"eq."+sid,"campaign_id":"eq."+cid,"limit":"2"})
+        if row is None:return None
+        if (type(row) is not dict or row.get("shop_id")!=sid or
+            row.get("campaign_id")!=cid or
+            type(row.get("revision")) is not int or
+            not 0<=row["revision"]<100000 or
+            type(row.get("brief")) is not str or
+            not 1<=len(row["brief"])<=1500 or
+            row.get("review_status")!="DRAFT" or
+            row.get("private") is not True or
+            row.get("can_publish") is not False or
+            row.get("revoked_at") is not None):
+            raise StorageUnavailable("Private prompt source unavailable")
+        return deepcopy(row)
+
+    def read_staged_proposal(self,token,actor,shop_id,campaign_id,proposal_id):
+        from copy import deepcopy
+        from hashlib import sha256
+        sid,cid=self._scope(token,actor,shop_id,campaign_id)
+        pid=canonical_uuid(proposal_id)
+        row=self._get("feature2_private_prompt_proposals",token,{
+            "select":"shop_id,campaign_id,proposal_id,creative_plan_sha256,source_revision,original_prompt,improved_prompt,original_prompt_sha256,improved_prompt_sha256,review_status,private,can_publish,revoked_at",
+            "shop_id":"eq."+sid,"campaign_id":"eq."+cid,
+            "proposal_id":"eq."+pid,"limit":"2"})
+        if row is None:return None
+        if (type(row) is not dict or
+            row.get("shop_id")!=sid or row.get("campaign_id")!=cid or
+            row.get("proposal_id")!=pid or
+            type(row.get("source_revision")) is not int or
+            not 0<=row["source_revision"]<100000 or
+            type(row.get("original_prompt")) is not str or
+            type(row.get("improved_prompt")) is not str or
+            not 1<=len(row["original_prompt"])<=1500 or
+            not 1<=len(row["improved_prompt"])<=1500 or
+            type(row.get("creative_plan_sha256")) is not str or
+            not __import__("re").fullmatch("[a-f0-9]{64}",
+                row["creative_plan_sha256"]) or
+            row.get("original_prompt_sha256")!=sha256(
+                row["original_prompt"].encode("utf-8")).hexdigest() or
+            row.get("improved_prompt_sha256")!=sha256(
+                row["improved_prompt"].encode("utf-8")).hexdigest() or
+            row.get("review_status")!="NEEDS_REVIEW" or
+            row.get("private") is not True or
+            row.get("can_publish") is not False or
+            row.get("revoked_at") is not None):
+            raise StorageUnavailable("Private proposal/immutable SHA unavailable")
+        return deepcopy(row)
+
+    @staticmethod
+    def _signed_decision_bytes(shop,campaign,proposal,review_event,
+                               revision,original,improved,reviewer):
+        import json
+        return json.dumps({
+            "shop_id":shop,"campaign_id":campaign,
+            "proposal_id":proposal,"review_event_id":review_event,
+            "source_revision":revision,
+            "original_prompt_sha256":original,
+            "improved_prompt_sha256":improved,
+            "reviewer_user_id":reviewer,
+        },sort_keys=True,separators=(",",":")).encode("utf-8")
+
+    def verify_editor_decision(self,token,actor,shop_id,campaign_id,
+                               proposal_id,review_event_id,source_revision,
+                               original_sha256,improved_sha256):
+        import re,hmac
+        sid,cid=self._scope(token,actor,shop_id,campaign_id)
+        pid,eid=canonical_uuid(proposal_id),canonical_uuid(review_event_id)
+        reviewer=canonical_uuid(actor)
+        if (self.decision_secret is None or
+            type(source_revision) is not int or
+            not 0<=source_revision<100000 or
+            any(type(s) is not str or
+                not re.fullmatch("[a-f0-9]{64}",s)
+                for s in (original_sha256,improved_sha256))):
+            return False
+        row=self._get("feature2_private_editor_decisions",token,{
+            "select":"shop_id,campaign_id,proposal_id,review_event_id,reviewer_user_id,source_revision,original_prompt_sha256,improved_prompt_sha256,decision_state,server_mac,revoked_at",
+            "shop_id":"eq."+sid,"campaign_id":"eq."+cid,
+            "proposal_id":"eq."+pid,"review_event_id":"eq."+eid,"limit":"2"})
+        if (type(row) is not dict or
+            (row.get("shop_id"),row.get("campaign_id"),row.get("proposal_id"),
+             row.get("review_event_id"),row.get("reviewer_user_id"))!=
+                (sid,cid,pid,eid,reviewer) or
+            row.get("source_revision")!=source_revision or
+            row.get("original_prompt_sha256")!=original_sha256 or
+            row.get("improved_prompt_sha256")!=improved_sha256 or
+            row.get("decision_state")!="SIGNED_EDITOR_DRAFT_ONLY" or
+            row.get("revoked_at") is not None or
+            type(row.get("server_mac")) is not str or
+            not re.fullmatch("[a-f0-9]{64}",row["server_mac"])):
+            return False
+        raw=self._signed_decision_bytes(
+            sid,cid,pid,eid,source_revision,original_sha256,
+            improved_sha256,reviewer)
+        expected=hmac.digest(self.decision_secret,
+            b"retailgrowth.feature2.editor-draft.v1\n"+raw,
+            "sha256").hex()
+        if not hmac.compare_digest(row["server_mac"],expected):
+            return False
+        if (self.read_staged_proposal(token,actor,sid,cid,pid) or {}).get(
+                "source_revision")!=source_revision:
+            return False
+        self._scope(token,actor,sid,cid)
+        return True
+
+    def save_reviewed_draft_cas(self,token,actor,shop_id,campaign_id,
+                                proposal_id,expected_revision,review_event_id,
+                                request_id,payload):
+        """No network POST unless an approved atomic writer is injected.
+
+        Any configured writer must implement immutable proposal/source/SHA +
+        one-shot request UUID + authenticated editor + revision CAS in ONE DB
+        transaction; do not implement best-effort read-then-upsert here.
+        """
+        from copy import deepcopy
+        sid,cid=self._scope(token,actor,shop_id,campaign_id)
+        pid,eid,rid=(canonical_uuid(proposal_id),
+                     canonical_uuid(review_event_id),
+                     canonical_uuid(request_id))
+        if not self.allow_reviewed_cas or not callable(self.atomic_writer):
+            raise StorageUnavailable("Protected reviewed-draft writer not approved")
+        if (type(expected_revision) is not int or
+            not 0<=expected_revision<100000 or
+            type(payload) is not dict or
+            payload.get("shop_id")!=sid or
+            payload.get("campaign_id")!=cid or
+            payload.get("proposal_id")!=pid or
+            payload.get("review_event_id")!=eid or
+            payload.get("source_revision")!=expected_revision or
+            payload.get("revision")!=expected_revision+1 or
+            payload.get("review_status")!="DRAFT" or
+            payload.get("private") is not True or
+            payload.get("can_publish") is not False or
+            payload.get("can_dispatch_paid_motion") is not False or
+            payload.get("provider_call_made") is not False):
+            raise ValueError("Invalid immutable draft CAS payload")
+        original=deepcopy(payload)
+        # No retries on ambiguous ACK: the controller must read a current
+        # signed receipt by request ID, not blindly execute a second write.
+        output=self.atomic_writer(token,actor,sid,cid,pid,expected_revision,
+                                  eid,rid,deepcopy(payload))
+        if (payload!=original or type(output) is not dict or
+                output.get("shop_id")!=sid or
+                output.get("campaign_id")!=cid or
+                output.get("proposal_id")!=pid or
+                output.get("review_event_id")!=eid or
+                output.get("source_revision")!=expected_revision or
+                output.get("revision")!=expected_revision+1 or
+                output.get("original_prompt_sha256")!=
+                    payload.get("original_prompt_sha256") or
+                output.get("improved_prompt_sha256")!=
+                    payload.get("improved_prompt_sha256") or
+                output.get("private") is not True or
+                output.get("review_status")!="DRAFT" or
+                output.get("committed") is not True or
+                output.get("provider_call_made") is not False or
+                output.get("can_publish") is not False or
+                output.get("can_dispatch_paid_motion") is not False):
+            raise StorageUnavailable("Unverified reviewed-draft CAS receipt")
+        self._scope(token,actor,sid,cid)
+        return deepcopy(output)
