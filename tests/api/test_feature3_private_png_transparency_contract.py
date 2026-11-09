@@ -94,6 +94,27 @@ class TransparencyContractTests(unittest.TestCase):
                   chunk(b"PLTE", palette) + raw[33:])
         self.rejected(binary)
 
+    def test_invalid_ihdr_color_type_is_denied(self):
+        raw = self.fixture.png
+        ihdr = bytearray(raw[16:29])
+        ihdr[9] = 5  # PNG color type 5 is reserved
+        self.rejected(raw[:8] + chunk(b"IHDR", bytes(ihdr)) + raw[33:])
+
+    def test_indexed_png_cannot_have_sixteen_bit_depth(self):
+        raw = self.fixture.png
+        ihdr = bytearray(raw[16:29])
+        ihdr[8] = 16
+        ihdr[9] = 3
+        self.rejected(raw[:8] + chunk(b"IHDR", bytes(ihdr)) +
+                      chunk(b"PLTE", bytes([0, 0, 0])) + raw[33:])
+
+    def test_truecolor_png_cannot_have_one_bit_depth(self):
+        raw = self.fixture.png
+        ihdr = bytearray(raw[16:29])
+        ihdr[8] = 1
+        ihdr[9] = 2
+        self.rejected(raw[:8] + chunk(b"IHDR", bytes(ihdr)) + raw[33:])
+
     def test_valid_indexed_png_with_transparency_is_accepted(self):
         image = Image.new("P", (320, 400), 0)
         image.putpalette([0, 0, 0, 255, 255, 255])
