@@ -252,7 +252,9 @@ class Feature3RevocablePNGReader:
                 if chunk_type != b"IHDR" or chunk_size != 13:
                     raise PrivateGeneratedDownloadDenied("Missing private PNG header")
                 seen_header = True
-                # IHDR data starts after the 4-byte length and 4-byte type.\n                # Its color-type byte is data[9], i.e. chunk offset + 17.\n                png_color_type = raw[offset + 17]
+                # IHDR data starts after the 4-byte length and 4-byte type.
+                # Its color-type byte is data[9], i.e. chunk offset + 17.
+                png_color_type = raw[offset + 17]
             elif chunk_type == b"IHDR":
                 raise PrivateGeneratedDownloadDenied("Duplicate private PNG header")
             # Unknown critical chunks cannot be safely interpreted by the
