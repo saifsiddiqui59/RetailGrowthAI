@@ -1,0 +1,64 @@
+"""F3-08 synthetic transparency/color-type security tests; no hosted auth."""
+from hashlib import sha256
+from pathlib import Path
+import sys
+import unittest
+import zlib
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_feature3_private_png_reader import RevocableReaderTests
+from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+
+
+def chunk(kind, payload):
+    return (len(payload).to_bytes(4, "big") + kind + payload +
+            (zlib.crc32(kind + payload) & 0xffffffff).to_bytes(4, "big"))
+
+
+class TransparencyContractTests(unittest.TestCase):
+    def setUp(self):
+        self.fixture = RevocableReaderTests(
+            methodName="test_private_bytes_verified_twice_no_signed_link")
+        self.fixture.setUp()
+
+    def rejected(self, binary):
+        f = self.fixture
+        f.binary = binary
+        digest = sha256(binary).hexdigest()
+        f.tenant.sha = digest
+        f.tenant.path = f"{f.shop}/feature3/gpu/{f.job}/{digest}.png"
+        f.reader = f.build()
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            f.read()
+        self.assertEqual(f.calls.count("get"), 1)
+
+    def inject(self, color_type, transparency, palette=b""):
+        original = self.fixture.png
+        # Rebuild IHDR with correct CRC, and insert synthetic metadata
+        # before the first IDAT. The object digest is also recomputed.
+        ihdr = bytearray(original[16:29])
+        ihdr[9] = color_type
+        header = chunk(b"IHDR", bytes(ihdr))
+        return (original[:8] + header +
+                (chunk(b"PLTE", palette) if palette else b"") +
+                chunk(b"tRNS", transparency) + original[33:])
+
+    def test_rgba_cannot_carry_trns(self):
+        self.rejected(self.inject(6, b"\\x00\\x00"))
+
+    def test_grayscale_requires_two_transparency_bytes(self):
+        self.rejected(self.inject(0, b"\\x00"))
+
+    def test_rgb_requires_six_transparency_bytes(self):
+        self.rejected(self.inject(2, b"\\x00\\x00"))
+
+    def test_indexed_transparency_requires_palette(self):
+        self.rejected(self.inject(3, b"\\x00"))
+
+    def test_indexed_transparency_cannot_exceed_palette(self):
+        self.rejected(self.inject(3, b"\\x00\\x00",
+                                  palette=b"\\x00\\x00\\x00"))
+
+
+if __name__ == "__main__":
+    unittest.main()
