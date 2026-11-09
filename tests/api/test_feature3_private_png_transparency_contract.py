@@ -67,6 +67,33 @@ class TransparencyContractTests(unittest.TestCase):
         ihdr[9] = 3
         self.rejected(raw[:8] + chunk(b"IHDR", bytes(ihdr)) + raw[33:])
 
+    def test_grayscale_palette_is_rejected(self):
+        # PNG spec forbids PLTE for grayscale even with a correct CRC.
+        raw = self.fixture.png
+        ihdr = bytearray(raw[16:29])
+        ihdr[9] = 0
+        binary = (raw[:8] + chunk(b"IHDR", bytes(ihdr)) +
+                  chunk(b"PLTE", bytes([0, 0, 0])) + raw[33:])
+        self.rejected(binary)
+
+    def test_grayscale_alpha_palette_is_rejected(self):
+        raw = self.fixture.png
+        ihdr = bytearray(raw[16:29])
+        ihdr[9] = 4
+        binary = (raw[:8] + chunk(b"IHDR", bytes(ihdr)) +
+                  chunk(b"PLTE", bytes([0, 0, 0])) + raw[33:])
+        self.rejected(binary)
+
+    def test_indexed_palette_cannot_exceed_bit_depth(self):
+        raw = self.fixture.png
+        ihdr = bytearray(raw[16:29])
+        ihdr[8] = 1  # one-bit indexed PNG supports at most two entries
+        ihdr[9] = 3
+        palette = bytes([0, 0, 0, 128, 128, 128, 255, 255, 255])
+        binary = (raw[:8] + chunk(b"IHDR", bytes(ihdr)) +
+                  chunk(b"PLTE", palette) + raw[33:])
+        self.rejected(binary)
+
     def test_valid_indexed_png_with_transparency_is_accepted(self):
         image = Image.new("P", (320, 400), 0)
         image.putpalette([0, 0, 0, 255, 255, 255])
