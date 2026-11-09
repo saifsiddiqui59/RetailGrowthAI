@@ -44,20 +44,20 @@ class TransparencyContractTests(unittest.TestCase):
                 chunk(b"tRNS", transparency) + original[33:])
 
     def test_rgba_cannot_carry_trns(self):
-        self.rejected(self.inject(6, b"\\x00\\x00"))
+        self.rejected(self.inject(6, b"\x00\x00"))
 
     def test_grayscale_requires_two_transparency_bytes(self):
-        self.rejected(self.inject(0, b"\\x00"))
+        self.rejected(self.inject(0, b"\x00"))
 
     def test_rgb_requires_six_transparency_bytes(self):
-        self.rejected(self.inject(2, b"\\x00\\x00"))
+        self.rejected(self.inject(2, b"\x00\x00"))
 
     def test_indexed_transparency_requires_palette(self):
-        self.rejected(self.inject(3, b"\\x00"))
+        self.rejected(self.inject(3, b"\x00"))
 
     def test_indexed_transparency_cannot_exceed_palette(self):
-        self.rejected(self.inject(3, b"\\x00\\x00",
-                                  palette=b"\\x00\\x00\\x00"))
+        self.rejected(self.inject(3, b"\x00\x00",
+                                  palette=b"\x00\x00\x00"))
 
 
 if __name__ == "__main__":
