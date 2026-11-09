@@ -51,6 +51,15 @@ class PrivatePNGPaletteBoundaryTests(unittest.TestCase):
         self.rejected(original[:ihdr_end] + chunk(b"PLTE", bytes([0]) * 771) +
                       original[ihdr_end:])
 
+    def test_duplicate_transparency_before_pixels_rejected(self):
+        original = self.fixture.png
+        ihdr_end = 8 + 12 + 13
+        # Valid CRCs and matching object SHA do not make duplicate
+        # transparency metadata an acceptable immutable poster.
+        transparency = chunk(b"tRNS", bytes([0]))
+        self.rejected(original[:ihdr_end] + transparency + transparency +
+                      original[ihdr_end:])
+
     def test_transparency_after_pixels_rejected(self):
         original = self.fixture.png
         iend_offset = original.rfind(b"IEND") - 4
