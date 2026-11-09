@@ -132,9 +132,9 @@ class PrivatePNGChunkOrderTests(unittest.TestCase):
         # Explicitly reject animation metadata rather than relying on Pillow.
         original = self.fixture.png
         parts = chunks(original)
-        for name, payload in ((b"acTL", b"\\x00\\x00\\x00\\x01\\x00\\x00\\x00\\x00"),
+        for name, payload in ((b"acTL", bytes([0,0,0,1,0,0,0,0])),
                               (b"fcTL", bytes(26)),
-                              (b"fdAT", b"\\x00\\x00\\x00\\x00synthetic")):
+                              (b"fdAT", bytes([0,0,0,0]) + b"synthetic")):
             with self.subTest(chunk=name):
                 block = (len(payload).to_bytes(4, "big") + name + payload +
                          (zlib.crc32(name + payload) & 0xffffffff).to_bytes(4, "big"))
