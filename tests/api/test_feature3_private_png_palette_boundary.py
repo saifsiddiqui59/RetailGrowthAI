@@ -48,14 +48,14 @@ class PrivatePNGPaletteBoundaryTests(unittest.TestCase):
     def test_oversized_palette_rejected(self):
         original = self.fixture.png
         ihdr_end = 8 + 12 + 13
-        self.rejected(original[:ihdr_end] + chunk(b"PLTE", b"\\x00" * 771) +
+        self.rejected(original[:ihdr_end] + chunk(b"PLTE", bytes([0]) * 771) +
                       original[ihdr_end:])
 
     def test_transparency_after_pixels_rejected(self):
         original = self.fixture.png
         iend_offset = original.rfind(b"IEND") - 4
         self.assertGreater(iend_offset, 8)
-        self.rejected(original[:iend_offset] + chunk(b"tRNS", b"\\x00") +
+        self.rejected(original[:iend_offset] + chunk(b"tRNS", bytes([0])) +
                       original[iend_offset:])
 
 
