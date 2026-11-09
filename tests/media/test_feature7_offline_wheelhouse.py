@@ -144,7 +144,7 @@ class OfflineWheelhouseTests(unittest.TestCase):
                        self.wheel_record())
         self.wheels[0]["sha256"]=hashlib.sha256(p.read_bytes()).hexdigest()
         self.save()
-        with self.assertRaisesRegex(WheelhouseRejected,"Dist-info"):
+        with self.assertRaisesRegex(WheelhouseRejected,"[Dd]ist-info"):
             audit_wheelhouse(str(self.root),str(self.manifest))
         self.rewrite_wheel("faster-whisper","1.2.1",base+
                            "Requires-Dist: ???\n")
