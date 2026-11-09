@@ -285,6 +285,15 @@ class Feature3RevocablePNGReader:
                     chunk_size > 768 or chunk_size % 3 != 0):
                 raise PrivateGeneratedDownloadDenied(
                     "Invalid private PNG palette size")
+            # Grayscale PNGs cannot carry PLTE. Indexed palette entries
+            # must fit the IHDR bit depth, even when unused by pixel data.
+            if chunk_type == b"PLTE":
+                bit_depth = raw[24]
+                if (png_color_type in (0, 4) or
+                        (png_color_type == 3 and
+                         chunk_size // 3 > (1 << bit_depth))):
+                    raise PrivateGeneratedDownloadDenied(
+                        "Invalid private PNG palette for color type")
             if chunk_type == b"tRNS":
                 # Transparency must match IHDR color type; indexed alpha
                 # requires a preceding palette and cannot exceed its entries.
