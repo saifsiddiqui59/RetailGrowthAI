@@ -170,6 +170,16 @@ class Feature3RevocablePNGReader:
                 if headers.get("Content-Range") is not None:
                     raise PrivateGeneratedDownloadDenied(
                         "Untrusted partial private PNG response")
+                # No intermediary is allowed to transform an immutable
+                # SHA-named private object. Ambiguous transfer framing can
+                # conceal extra bytes or disagree with Content-Length.
+                transfer_encoding = headers.get("Transfer-Encoding")
+                if transfer_encoding is not None:
+                    if (type(transfer_encoding) is not str or
+                            transfer_encoding.strip().lower() != "chunked" or
+                            headers.get("Content-Length") is not None):
+                        raise PrivateGeneratedDownloadDenied(
+                            "Untrusted private PNG transfer framing")
                 # Refuse folded, invisible or unbounded HTTP metadata before
                 # any authenticated private PNG body is consumed.
                 def printable_header(value):
