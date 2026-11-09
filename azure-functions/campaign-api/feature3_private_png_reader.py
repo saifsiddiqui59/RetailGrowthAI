@@ -128,8 +128,9 @@ class Feature3RevocablePNGReader:
         # and immutable output evidence, NOT a caller-created True from UI.
         try:
             current_rights = self.rights(shop, job, asset_id)
-        except StorageUnavailable:
-            # Preserve opaque 503 for a current rights backend outage.
+        except (StorageUnavailable, OSError):
+            # A genuine backend transport failure must remain an opaque 503,
+            # never be confused with a deliberate rights denial (404).
             raise
         except Exception:
             # A reviewer outage cannot fall back to the Storage key, JWT
