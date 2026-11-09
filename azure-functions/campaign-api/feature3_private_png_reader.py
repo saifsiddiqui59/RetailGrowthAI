@@ -227,6 +227,8 @@ class Feature3RevocablePNGReader:
         seen_pixels = False
         seen_palette = False
         seen_transparency = False
+        png_color_type = None
+        palette_entries = None
         pixels_finished = False
         # Bound parser work independently of the 25 MiB byte limit: a PNG
         # can contain millions of tiny ancillary chunks with valid CRCs.
@@ -249,6 +251,7 @@ class Feature3RevocablePNGReader:
                 if chunk_type != b"IHDR" or chunk_size != 13:
                     raise PrivateGeneratedDownloadDenied("Missing private PNG header")
                 seen_header = True
+                png_color_type = raw[offset + 9]
             elif chunk_type == b"IHDR":
                 raise PrivateGeneratedDownloadDenied("Duplicate private PNG header")
             # Unknown critical chunks cannot be safely interpreted by the
@@ -282,6 +285,16 @@ class Feature3RevocablePNGReader:
                 raise PrivateGeneratedDownloadDenied(
                     "Invalid private PNG palette size")
             if chunk_type == b"tRNS":
+                # Transparency must match IHDR color type; indexed alpha
+                # requires a preceding palette and cannot exceed its entries.
+                if (png_color_type not in (0, 2, 3) or
+                        (png_color_type == 0 and chunk_size != 2) or
+                        (png_color_type == 2 and chunk_size != 6) or
+                        (png_color_type == 3 and (
+                            palette_entries is None or
+                            not 1 <= chunk_size <= palette_entries))):
+                    raise PrivateGeneratedDownloadDenied(
+                        "Invalid private PNG transparency payload")
                 if seen_pixels or seen_transparency:
                     raise PrivateGeneratedDownloadDenied(
                         "Invalid private PNG transparency order")
@@ -291,6 +304,7 @@ class Feature3RevocablePNGReader:
                     raise PrivateGeneratedDownloadDenied(
                         "Invalid private PNG palette order")
                 seen_palette = True
+                palette_entries = chunk_size // 3
             if chunk_type == b"IDAT":
                 if pixels_finished:
                     raise PrivateGeneratedDownloadDenied(
