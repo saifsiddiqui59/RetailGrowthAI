@@ -115,6 +115,16 @@ class TransparencyContractTests(unittest.TestCase):
         ihdr[9] = 2
         self.rejected(raw[:8] + chunk(b"IHDR", bytes(ihdr)) + raw[33:])
 
+    def test_invalid_ihdr_encoding_methods_are_denied(self):
+        # Synthetic PNGs retain correct chunk CRCs and immutable SHA values.
+        # A decoder's tolerance must not relax the PNG format contract.
+        raw = self.fixture.png
+        for offset, value in ((10, 1), (11, 1), (12, 2), (12, 255)):
+            with self.subTest(ihdr_offset=offset, value=value):
+                ihdr = bytearray(raw[16:29])
+                ihdr[offset] = value
+                self.rejected(raw[:8] + chunk(b"IHDR", bytes(ihdr)) + raw[33:])
+
     def test_valid_indexed_png_with_transparency_is_accepted(self):
         image = Image.new("P", (320, 400), 0)
         image.putpalette([0, 0, 0, 255, 255, 255])
