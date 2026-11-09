@@ -5,6 +5,7 @@
  * as non-silent too. Use verified word timings for actual speech-aware cuts.
  */
 import {spawnSync} from 'node:child_process';
+import {verifiedLocalMp4Path} from './local_mp4_guard.mjs';
 
 export class AudioAnalysisError extends Error {}
 
@@ -54,8 +55,10 @@ export function analyzeLocalAudioActivity({path, duration_seconds, has_audio,
     !Number.isFinite(duration_seconds) || duration_seconds<0.5 ||
     duration_seconds>600 || has_audio!==true)
     throw new AudioAnalysisError('An approved local audio-video and duration are required');
+  const source=verifiedLocalMp4Path(path,AudioAnalysisError);
   const p=spawnSync(ffmpeg_bin,['-hide_banner','-nostdin','-v','info',
-    '-i',path,'-vn','-af','silencedetect=noise=-35dB:d=0.35',
+    '-protocol_whitelist','file,pipe','-f','mp4',
+    '-i',source,'-vn','-af','silencedetect=noise=-35dB:d=0.35',
     '-f','null','-'],{encoding:'utf8',timeout:60000,maxBuffer:512*1024});
   if(p.error || p.status!==0) throw new AudioAnalysisError('FFmpeg audio-analysis failed');
   return parseSilencedetect(p.stderr,duration_seconds);
