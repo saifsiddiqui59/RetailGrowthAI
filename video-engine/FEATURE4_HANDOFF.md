@@ -178,3 +178,7 @@ Private audio mastering now reuses Feature4's source MP4 fingerprint from previe
 ## 2026-11-08 — F4-15 early CPU render lease fence
 
 Feature4 source-only worker rechecks the actual claim lease and authorization after every private media transfer and before invoking the video renderer. Synthetic tests simulate an expiring lease or revoked access during staging, assert zero render/upload/completion/failure writes and no further downloads. The trusted coordinator's claim/queue/billing RPCs remain authoritative; no live Azure/RLS result asserted. F4-15 remains IN PROGRESS.
+
+## 2026-11-09 — F4-04 encoded duplicate action regression
+
+The original exact Timeline Studio JS `studioDuplicate` action now compiles into a real 30s HyperFrames duplicate branch in owned media CI, using the existing original synthetic motion source. New SHA- and inode-bound decoded center-frame verifier checks both video instances replay their same inpoint with motion and distinct photo scenes. This remains test-only, **NOT** a real retailer reel, exact source-frame proof or commercial signoff. Retain original F4-04 IN PROGRESS pending other action parity and integration.

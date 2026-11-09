@@ -117,6 +117,23 @@ python3 "$ROOT/video-engine/feature4_edited_export_qa.py" \
   --report "$ROOT/ci-artifacts/feature4-30s-editor-encoded-parity.json"
 
 
+# F4-04: one more real 30s encoded, CPU-only synthetic editor operation.
+# The actual Timeline Studio duplicate is compiled by the same trusted Python
+# plan and the same HyperFrames encoder. No customer AI clips/rights are used.
+DUPLICATE_PROJECT="$TEMP/duplicate-30s-composition"
+DUPLICATE_MP4="$ROOT/ci-artifacts/feature4-30s-540p-actual-duplicate-mock.mp4"
+python3 "$ROOT/video-engine/demo_feature4_edited_reel.py" "$DUPLICATE_PROJECT" --width 540 --edit-mode duplicate
+if [[ "$NODE_MAJOR" -ge 22 ]]; then
+  timeout --signal=TERM --kill-after=10s 420s node "$ROOT/video-engine/hyperframes/render.mjs" "$DUPLICATE_PROJECT" "$DUPLICATE_MP4"
+else
+  timeout --signal=TERM --kill-after=10s 420s npm exec --yes --package=node@22 -- node "$ROOT/video-engine/hyperframes/render.mjs" "$DUPLICATE_PROJECT" "$DUPLICATE_MP4"
+fi
+DUPLICATE_SHA256="$(sha256sum "$DUPLICATE_MP4" | cut -d' ' -f1)"
+python3 "$ROOT/video-engine/feature4_duplicate_export_qa.py" \
+  --source "$DUPLICATE_MP4" \
+  --expected-sha256 "$DUPLICATE_SHA256" \
+  --report "$ROOT/ci-artifacts/feature4-30s-editor-duplicate-encoded-parity.json"
+
 # Once the first source benchmark is recorded, keep this as an opt-in gate to
 # avoid paying a 60s full-resolution encode on every unrelated branch change.
 if [[ "${FEATURE4_FULL_MINUTE_CI:-0}" == "1" ]]; then

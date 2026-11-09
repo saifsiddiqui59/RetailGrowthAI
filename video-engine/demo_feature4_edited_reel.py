@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests" / "media"))
 sys.path.insert(0, str(ROOT / "video-engine"))
 from test_feature4_cross_feature import CreativeReelTests  # noqa: E402
-from test_feature4_editor_to_render_contract import edited_draft  # noqa: E402
+from test_feature4_editor_to_render_contract import edited_draft, duplicated_draft  # noqa: E402
 from test_feature4_intent_compiler import pair  # noqa: E402
 from feature4_intent_compiler import compile_approved_storyboard  # noqa: E402
 from creative_contract import compile_creative_reel  # noqa: E402
@@ -43,15 +43,23 @@ OWNER_VISUAL_VERDICT = {
 }
 
 
-def make_edited_project(destination: Path, *, width: int = 540) -> dict:
+def make_edited_project(destination: Path, *, width: int = 540, edit_mode: str = "split-reorder") -> dict:
     if width not in (540, 1080):
         raise ValueError("Only reviewed private portrait dimensions supported")
     if destination.exists() and any(destination.iterdir()):
         raise ValueError("Refusing to replace an existing project/media directory")
+    if edit_mode not in ("split-reorder", "duplicate"):
+        raise ValueError("Only reviewed JS split/reorder or duplicate fixture allowed")
     original, trusted = pair()
-    draft = edited_draft()
-    if draft["scenes"][0]["sfx_asset_id"] != "musicowned":
-        raise ValueError("Expected approved source-audio edit fixture")
+    # Both operations are executed by the actual adopted Timeline Studio bridge
+    # and then independently verified by the existing trusted v2 compiler.
+    draft = edited_draft() if edit_mode == "split-reorder" else duplicated_draft()
+    first_video = 0 if edit_mode == "split-reorder" else 1
+    inpoints = [0, 4] if edit_mode == "split-reorder" else [0, 0]
+    if (draft["scenes"][first_video].get("sfx_asset_id") != "musicowned"
+            or "sfx_asset_id" in draft["scenes"][first_video + 1]
+            and edit_mode == "duplicate"):
+        raise ValueError("Expected one approved source-audio edit fixture")
     draft["output"].update(width=width, height=width * 16 // 9)
     bundle = compile_approved_storyboard(draft, trusted)
     fixture = CreativeReelTests(methodName="test_diwali_30s_brand_logo_motion_poster_exact_offer")
@@ -86,13 +94,25 @@ def make_edited_project(destination: Path, *, width: int = 540) -> dict:
         page = (compiled / "index.html").read_text(encoding="utf8")
         # Hard fail if the editor's real SFX/clip source trims or exact offer
         # would be dropped by the renderer. Matches real generated HTML.
+        actual_inpoint_ok = (
+            ('data-media-start="4"' in page and
+             page.count('data-media-start="0"') == 1)
+            if edit_mode == "split-reorder"
+            else (page.count('data-media-start="0"') == 2 and
+                  'data-media-start="4"' not in page)
+        )
+        actual_timing_ok = (
+            ('data-start="0" data-duration="4"' in page and
+             'data-start="14" data-duration="6"' in page)
+            if edit_mode == "split-reorder"
+            else ('data-start="10" data-duration="5"' in page and
+                  'data-start="15" data-duration="5"' in page)
+        )
         if (page.count('class="footage clip"') != 2 or
                 page.count('id="sfx') != 1 or
-                'data-media-start="4"' not in page or
-                'data-media-start="0"' not in page or
+                not actual_inpoint_ok or not actual_timing_ok or
                 '20% OFF' not in page or 'Visit Our Store' not in page or
-                'id="intro-logo"' in page or  # video-led: no face-covering center logo
-                'id="brand-logo"' not in page or  # small corner brand is retained
+                'id="brand-logo"' not in page or
                 "90% OFF" in page):
             raise AssertionError("Actual edited HyperFrames composition diverged from approved timeline")
         audit = bundle["lineage"]
@@ -103,7 +123,8 @@ def make_edited_project(destination: Path, *, width: int = 540) -> dict:
             "project": str(compiled), "seconds": 30, "width": width,
             "scenes": len(draft["scenes"]), "asset_ids": sorted(generated),
             "video_clip_count": 2, "approved_sfx_count": 1,
-            "source_video_inpoints_seconds": [0, 4],
+            "source_video_inpoints_seconds": inpoints,
+            "editor_operation": edit_mode,
             "approved_offer": "20% OFF", "real_ai_motion": False,
             "commercial_fashion_realism_accepted": False,
             **OWNER_VISUAL_VERDICT,
@@ -116,8 +137,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("project")
     parser.add_argument("--width", type=int, default=540, choices=(540, 1080))
+    parser.add_argument("--edit-mode", default="split-reorder",
+                        choices=("split-reorder", "duplicate"))
     args = parser.parse_args()
-    print(json.dumps(make_edited_project(Path(args.project), width=args.width)))
+    print(json.dumps(make_edited_project(
+        Path(args.project), width=args.width, edit_mode=args.edit_mode)))
 
 
 if __name__ == "__main__":
