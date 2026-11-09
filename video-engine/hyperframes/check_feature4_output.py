@@ -15,17 +15,20 @@ from PIL import Image, ImageChops, ImageStat
 FRAME_TIMES = (1, 6, 13, 18, 24, 28)
 
 
-def tone_amplitude(mp4, t, hz=480, sample_rate=8000):
+def tone_amplitude(mp4, t, hz=480, sample_rate=8000, window_seconds=1.0):
+    # Windowed PCM checks use actual AAC-decoded bytes, never HTML declarations.
+    if not 0.10 <= window_seconds <= 1.0:
+        raise ValueError("Unsupported bounded AAC inspection window")
     data = subprocess.check_output(
         ["ffmpeg", "-nostdin", "-v", "error", "-ss", str(t), "-i", str(mp4),
-         "-t", "1", "-ac", "1", "-ar", str(sample_rate), "-f", "s16le", "-"],
+         "-t", str(window_seconds), "-ac", "1", "-ar", str(sample_rate), "-f", "s16le", "-"],
         timeout=25,
     )
     samples = array.array("h")
     samples.frombytes(data)
     if sys.byteorder != "little":
         samples.byteswap()
-    if len(samples) < sample_rate // 2:
+    if len(samples) < int(sample_rate * window_seconds * .5):
         raise AssertionError("No usable decoded audio segment")
     re_part = im_part = 0.0
     for i, val in enumerate(samples):
@@ -114,6 +117,14 @@ def check_fullres_artifact(media_dir):
     narr_end = tone_amplitude(encoded_mp4, 27, hz=863)
     if not (narr_mid > 55 and narr_end > 55):
         raise AssertionError("Approved synthetic narration track missing in final AAC")
+    # F4-07: inspect actual encoded AAC near the start and end of the Reel,
+    # not merely the renderer's data-fade-* attributes. The fixture's own
+    # deterministic 0.2s envelope contributes to these measurements, so this
+    # checks the combined exported envelope, NOT renderer-only automation.
+    narr_fade_in = tone_amplitude(encoded_mp4, 0, hz=863, window_seconds=.12)
+    narr_fade_out = tone_amplitude(encoded_mp4, 29.88, hz=863, window_seconds=.12)
+    if not (narr_mid > 1.7 * max(1, narr_fade_in, narr_fade_out)):
+        raise AssertionError("Encoded synthetic narration did not preserve audible start/end fades")
     # Synthetic subtitle is visible at t=1.2s and absent at t=0.6/2.2s.
     # Compare the same first-scene, fixed region to detect true time-gated
     # pixels in the FINAL decoded MP4, without OCR or claiming spoken QA.
@@ -138,6 +149,9 @@ def check_fullres_artifact(media_dir):
             "caption_semantic_alignment_accepted": False,
             "synthetic_narration_mid_amplitude": round(narr_mid, 2),
             "synthetic_narration_end_amplitude": round(narr_end, 2),
+            "synthetic_narration_fade_in_amplitude": round(narr_fade_in, 2),
+            "synthetic_narration_fade_out_amplitude": round(narr_fade_out, 2),
+            "encoded_aac_envelope_checked_not_spoken_quality": True,
             "spoken_word_qa_accepted": False,
             "resolution": "1080x1920", "frames_sampled": len(pictures),
             "scene_deltas": [round(x, 2) for x in scene_changes],
