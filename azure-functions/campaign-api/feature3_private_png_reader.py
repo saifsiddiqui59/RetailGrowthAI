@@ -268,6 +268,13 @@ class Feature3RevocablePNGReader:
                 if bit_depth not in allowed_depths.get(png_color_type, ()):
                     raise PrivateGeneratedDownloadDenied(
                         "Invalid private PNG IHDR color/bit depth")
+                # PNG compression and filter methods must be zero. Interlace
+                # may only be the standard noninterlaced or Adam7 mode.
+                # Validate these bytes before decoding or serving the image.
+                if (raw[offset + 18] != 0 or raw[offset + 19] != 0 or
+                        raw[offset + 20] not in (0, 1)):
+                    raise PrivateGeneratedDownloadDenied(
+                        "Invalid private PNG IHDR encoding methods")
             elif chunk_type == b"IHDR":
                 raise PrivateGeneratedDownloadDenied("Duplicate private PNG header")
             # Unknown critical chunks cannot be safely interpreted by the
