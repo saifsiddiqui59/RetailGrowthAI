@@ -300,6 +300,13 @@ class Feature3RevocablePNGReader:
             if chunk_type in (b"acTL", b"fcTL", b"fdAT"):
                 raise PrivateGeneratedDownloadDenied(
                     "Animated private PNG container not permitted")
+            # Generated private posters are pixel-only artifacts. PNG textual
+            # and EXIF chunks can carry hidden customer data, external links,
+            # or unreviewed rights claims even when pixels and SHA match.
+            # Refuse these chunks instead of trusting Pillow's info mapping.
+            if chunk_type in (b"tEXt", b"zTXt", b"iTXt", b"eXIf"):
+                raise PrivateGeneratedDownloadDenied(
+                    "Private PNG embedded metadata not permitted")
             # Palette entries are RGB triples (1..256 entries). A malformed
             # PLTE can be ignored by some decoders yet accepted as a PNG.
             # Transparency metadata must precede the first pixel chunk.
