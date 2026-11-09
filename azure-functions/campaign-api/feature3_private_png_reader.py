@@ -255,6 +255,19 @@ class Feature3RevocablePNGReader:
                 # IHDR data starts after the 4-byte length and 4-byte type.
                 # Its color-type byte is data[9], i.e. chunk offset + 17.
                 png_color_type = raw[offset + 17]
+                # Reject impossible PNG IHDR bit-depth/color combinations
+                # before any palette or transparency metadata is interpreted.
+                bit_depth = raw[offset + 16]
+                allowed_depths = {
+                    0: (1, 2, 4, 8, 16),
+                    2: (8, 16),
+                    3: (1, 2, 4, 8),
+                    4: (8, 16),
+                    6: (8, 16),
+                }
+                if bit_depth not in allowed_depths.get(png_color_type, ()):
+                    raise PrivateGeneratedDownloadDenied(
+                        "Invalid private PNG IHDR color/bit depth")
             elif chunk_type == b"IHDR":
                 raise PrivateGeneratedDownloadDenied("Duplicate private PNG header")
             # Unknown critical chunks cannot be safely interpreted by the
