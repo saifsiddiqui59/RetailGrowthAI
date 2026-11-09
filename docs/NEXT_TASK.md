@@ -1435,3 +1435,6 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 2. Reconcile F2 parent draft #551 and non-draft child #848; verify #848 current 80-path code review, exact-head four-job CI, protected #650 runtime package closure and parent integration before any main merge. Older F2 #522/#523 closed unmerged as superseded, not feature DONE.
 3. Review sensitive F3 #879 then dependent #880 with independent security/rights reviewer and exact head/current main four-job checks. Keep hosted F3 acceptance separately blocked.
 4. Independently review shared package draft #885 and Issue #249 proposals #888/#887/#889; no automatic DEV capacity, workflow approval or cloud mutation. Continue remaining feature-owned non-GPU source batches while waiting for reviews.
+
+### 2026-11-10 follow-on verification
+- Treat F2 #535, #522 and #523 as verified closed superseded proposals, not merged source. Preserve canonical keeper #848 and parent #551 until independent source/rights/package review and actual integration; avoid duplicate implementation. Refresh 119-item inventory from GitHub before further closures (snapshot includes proposed docs PR #891 and may change).
