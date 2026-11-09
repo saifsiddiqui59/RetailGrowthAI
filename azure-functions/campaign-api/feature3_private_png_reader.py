@@ -273,6 +273,16 @@ class Feature3RevocablePNGReader:
             if chunk_type in (b"acTL", b"fcTL", b"fdAT"):
                 raise PrivateGeneratedDownloadDenied(
                     "Animated private PNG container not permitted")
+            # Palette entries are RGB triples (1..256 entries). A malformed
+            # PLTE can be ignored by some decoders yet accepted as a PNG.
+            # Transparency metadata must precede the first pixel chunk.
+            if chunk_type == b"PLTE" and (chunk_size == 0 or
+                    chunk_size > 768 or chunk_size % 3 != 0):
+                raise PrivateGeneratedDownloadDenied(
+                    "Invalid private PNG palette size")
+            if chunk_type == b"tRNS" and seen_pixels:
+                raise PrivateGeneratedDownloadDenied(
+                    "Late private PNG transparency metadata")
             if chunk_type == b"PLTE":
                 if seen_palette or seen_pixels:
                     raise PrivateGeneratedDownloadDenied(
