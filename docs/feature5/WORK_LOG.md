@@ -440,3 +440,8 @@ Verified F5 draft #465 `82dad625`, F2 #551 open, F4 #322 open, Part3 #125 open a
 - Compared original stacked #712 (Feature2 direct Python nested/cyclic/overflow object denial) and #734 (F2→F3 shot start_second/camera exact-type gates) against current Feature5 parent. Neither original guard/tests were completely integrated; source fixes were ported narrowly without replacing newer parent code.
 - Preserved both original negative test modules and both existing feature handoff files byte-for-byte; these use synthetic fixtures, not a paid Wan/FLUX run or authorized customer data.
 - Proposed one consolidated F5-02 feature-child PR; keep #712/#734 open until final-head mandatory 4/4 CI, reviewer check, parent merge, fresh Feature5 parent CI and exact blob verification. Close originals as superseded only after that. Original F5-02 remains IN PROGRESS, not main-integrated/hosted DONE. No GPU, AI spend, Azure/Supabase/PROD/WineShopPOS writes.
+
+## 2026-11-10 F5-13 source reconciliation from original #763
+- Reconciled original #763 Azure A100 quota snapshot fail-closed validation into current Feature5 parent-derived branch, retaining current source and all existing preflight checks. New code rejects malformed/non-dict quota inventory, missing current used count, boolean/NaN/Infinity/overflow, negative/fractional or ambiguous GPU counts. A positive snapshot remains INSPECTION_PASS_ONLY, never approval to start GPU.
+- Preserved original #763 synthetic negative tests and immutable historical handoff. Original #763 remains open pending exact-head 4/4 CI, accepted merge to existing Feature5 branch and fresh parent 4/4. F5-13 remains IN PROGRESS, not hosted/main DONE.
+- No A100, GPU, model files, paid AI inference, cloud/SQL/PROD, or WineShopPOS actions.
