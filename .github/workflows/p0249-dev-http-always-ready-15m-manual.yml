@@ -1,0 +1,135 @@
+name: RetailGrowthAI #249 DEV-only bounded HTTP Always Ready A/B (manual)
+# A costed scale change. Never run automatically or on PR; no PROD/GPU/customer data.
+# DEV Azure OIDC permission and independent workflow review REQUIRED before main merge.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Must explicitly select YES-DEV-HTTP-ONE-15M after checking Central India rates'
+        required: true
+        type: choice
+        options:
+          - 'NO'
+          - 'YES-DEV-HTTP-ONE-15M'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-dev-always-ready-http
+  cancel-in-progress: false
+jobs:
+  preflight:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.confirm == 'YES-DEV-HTTP-ONE-15M'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Enforce offline rollback and scope tests before Azure login
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/p0_249_always_ready_trial_guarded.py
+          python3 -m unittest -v tests.infra.test_p0_249_always_ready_trial_guarded
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Read exact DEV Azure scale and create rollback-only marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0_249_always_ready_trial_guarded.py preflight --snapshot "$RUNNER_TEMP/p0249-before.json"
+      - name: Persist safe preflight marker for an independent rollback job
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0249-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/p0249-before.json
+          retention-days: 1
+          if-no-files-found: error
+      - name: Sign out of Azure
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
+
+  trial:
+    needs: preflight
+    if: needs.preflight.result == 'success'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: p0249-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/p0249-trial
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Set only HTTP=1, probe known and unknown GETs, always attempt rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0_249_always_ready_trial_guarded.py trial --snapshot "$RUNNER_TEMP/p0249-trial/p0249-before.json"
+      - name: Sign out of Azure
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
+
+  independent-rollback:
+    needs: [preflight, trial]
+    # A separate OIDC runner attempts cleanup even if the trial job has failed.
+    # A canceled entire GitHub workflow / Azure outage may still prevent cleanup:
+    # review run logs and verify original ARM setting manually.
+    if: >-
+      always() &&
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      needs.preflight.result == 'success'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: p0249-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/p0249-rollback
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Independently verify and restore original absent HTTP designation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0_249_always_ready_trial_guarded.py rollback --snapshot "$RUNNER_TEMP/p0249-rollback/p0249-before.json"
+      - name: Sign out of Azure
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
