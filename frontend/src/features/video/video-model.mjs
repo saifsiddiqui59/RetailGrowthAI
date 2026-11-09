@@ -179,3 +179,15 @@ export function sourceClipPlaybackWindow(scene, source) {
   }
   return Object.freeze({start, end})
 }
+
+/** Map a timeline playhead to an authorized source clip's local seek time.
+ *  This is a muted source preview only, NOT a final composited video frame.
+ *  The caller must separately validate the tenant-private preview URL.
+ */
+export function sourceClipTimeForPlayhead(scene, source, playhead) {
+  const window = sourceClipPlaybackWindow(scene, source)
+  if (!window || !valid(playhead) || !valid(scene.start)) return null
+  const offset = playhead - scene.start
+  if (offset < 0 || offset >= scene.duration) return null
+  return Math.max(window.start, Math.min(window.end - .01, window.start + offset))
+}

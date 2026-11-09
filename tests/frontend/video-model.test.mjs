@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   compatibleMedia, makeVideoDraft, shiftVideoScene, retimeVideoDraft, recalculateScenes, validateVideoDraft,
+  sourceClipTimeForPlayhead,
 } from '../../frontend/src/features/video/video-model.mjs'
 
 const shopId = '11111111-1111-4111-8111-111111111111'
@@ -100,4 +101,17 @@ test('scene motion and separate poster overlays are allowlisted, never custom ex
   assert.match(validateVideoDraft(draft, media, tracks).join(' '), /authorized promotional poster/)
   draft.scenes[1].poster_overlay_asset_id = draft.scenes[1].asset_id
   assert.match(validateVideoDraft(draft, media, tracks).join(' '), /distinct authorized/)
+})
+
+test('F4-08 timeline frame jog seeks only inside the same authorized original video excerpt', () => {
+  const scene = { start: 10, duration: 5, trim_start: 3.25 }
+  const source = { kind: 'video', authorized: true, duration_seconds: 20, shop_id: shopId }
+  assert.equal(sourceClipTimeForPlayhead(scene, source, 11.5), 4.75)
+  assert.equal(sourceClipTimeForPlayhead(scene, source, 10), 3.25)
+  assert.equal(sourceClipTimeForPlayhead(scene, source, 15), null)
+  assert.equal(sourceClipTimeForPlayhead(scene, source, 9.9), null)
+  assert.equal(sourceClipTimeForPlayhead(scene, source, NaN), null)
+  assert.equal(sourceClipTimeForPlayhead(scene, {...source, authorized: false}, 11), null)
+  assert.equal(sourceClipTimeForPlayhead(scene, {...source, kind: 'image'}, 11), null)
+  assert.throws(() => sourceClipTimeForPlayhead(scene, {...source, duration_seconds: 4}, 11), /verified video length/)
 })

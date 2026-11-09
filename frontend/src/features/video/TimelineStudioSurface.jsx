@@ -14,7 +14,7 @@ import './TimelineStudioSurface.css'
 // the existing approved rg_video_v2 and trusted HyperFrames renderer.
 // No upstream localStorage account, cloud upload or independent video exporter.
 export default function TimelineStudioSurface({ draft, onChange, onSelectScene, mediaAssets = [], musicAssets = [],
-  selectedSceneIndex = 0, approvedDirection = false, spokenCaptions = [] }) {
+  selectedSceneIndex = 0, approvedDirection = false, spokenCaptions = [], onSeek = () => {} }) {
   const [history, setHistory] = useState(() => createEditorHistory(draft))
   const [playhead, setPlayhead] = useState(0)
   const [snapEnabled, setSnapEnabled] = useState(true)
@@ -77,6 +77,7 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
     const position = Math.min(draft.duration_seconds,
       Math.max(0, Math.round(requested * previewFps) / previewFps))
     setPlayhead(position)
+    onSeek(position)
     const index = spans.findIndex(span => position >= span.start && position < span.end)
     if (index >= 0) onSelectScene(index)
   }
@@ -111,7 +112,7 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
   handlers.current = {
     startTimelineClipDrag: (_event,track,_id,index) => { if(track==='caption')onSelectScene(index) },
     showTrackContextMenu: event => event.preventDefault(),
-    selectCaptionClip: (_event,_id,index,start) => { onSelectScene(index); setPlayhead(start) },
+    selectCaptionClip: (_event,_id,index,start) => { onSelectScene(index); seekToFrame(start) },
     startCaptionResize: (event,_id,index,edge) => {
       const boundary = edge === 'start' ? index - 1 : index
       if (approvedDirection || boundary < 0 || boundary >= draft.scenes.length - 1) return
@@ -229,7 +230,7 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
             onDragStart={()=>{dragFrom.current=i}}
             onDragOver={e=>e.preventDefault()}
             onDrop={e=>{e.preventDefault();if(dragFrom.current!==null){move(dragFrom.current,i);onSelectScene(i)}dragFrom.current=null}}
-            onClick={()=>{onSelectScene(i);setPlayhead(span.start+span.duration/2)}}
+            onClick={()=>{onSelectScene(i);seekToFrame(span.start+span.duration/2)}}
             aria-label={'Scene '+(i+1)+': '+(draft.scenes[i].headline)}>
             <span className="f4-ts-clip-index">{i+1}</span>
             <span className="f4-ts-clip-title">{draft.scenes[i].headline}</span>
