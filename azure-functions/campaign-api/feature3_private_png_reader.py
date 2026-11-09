@@ -226,6 +226,7 @@ class Feature3RevocablePNGReader:
         seen_header = False
         seen_pixels = False
         seen_palette = False
+        seen_transparency = False
         pixels_finished = False
         # Bound parser work independently of the 25 MiB byte limit: a PNG
         # can contain millions of tiny ancillary chunks with valid CRCs.
@@ -280,9 +281,11 @@ class Feature3RevocablePNGReader:
                     chunk_size > 768 or chunk_size % 3 != 0):
                 raise PrivateGeneratedDownloadDenied(
                     "Invalid private PNG palette size")
-            if chunk_type == b"tRNS" and seen_pixels:
-                raise PrivateGeneratedDownloadDenied(
-                    "Late private PNG transparency metadata")
+            if chunk_type == b"tRNS":
+                if seen_pixels or seen_transparency:
+                    raise PrivateGeneratedDownloadDenied(
+                        "Invalid private PNG transparency order")
+                seen_transparency = True
             if chunk_type == b"PLTE":
                 if seen_palette or seen_pixels:
                     raise PrivateGeneratedDownloadDenied(
