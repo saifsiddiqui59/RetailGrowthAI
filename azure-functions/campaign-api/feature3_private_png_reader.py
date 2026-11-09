@@ -206,6 +206,25 @@ class Feature3RevocablePNGReader:
         if length is not None and int(length)!=len(raw):
             raise PrivateGeneratedDownloadDenied(
                 "Private image response length changed")
+        # Reject bytes appended after PNG IEND, including hidden payloads.
+        # Pillow may successfully decode a PNG while silently ignoring such
+        # trailing data; the private output contract is exactly one PNG.
+        offset = 8
+        if not raw.startswith(bytes.fromhex("89504e470d0a1a0a")):
+            raise PrivateGeneratedDownloadDenied("Untrusted private PNG structure")
+        while offset + 12 <= len(raw):
+            chunk_size = int.from_bytes(raw[offset:offset + 4], "big")
+            chunk_type = raw[offset + 4:offset + 8]
+            end = offset + 12 + chunk_size
+            if end > len(raw):
+                raise PrivateGeneratedDownloadDenied("Untrusted private PNG structure")
+            if chunk_type == b"IEND":
+                if chunk_size != 0 or end != len(raw):
+                    raise PrivateGeneratedDownloadDenied("Untrusted trailing PNG data")
+                break
+            offset = end
+        else:
+            raise PrivateGeneratedDownloadDenied("Missing private PNG terminator")
         try:
             with Image.open(BytesIO(raw)) as img:
                 if (img.format != "PNG" or getattr(img,"n_frames",1) != 1 or
