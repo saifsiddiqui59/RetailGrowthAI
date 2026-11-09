@@ -39,10 +39,10 @@ class PrivatePNGPaletteBoundaryTests(unittest.TestCase):
         # CRC-correct synthetic ancillary chunks must not be served even
         # when their SHA matches the immutable private object key.
         payloads = (
-            (b"tEXt", b"comment\\x00private-customer-data"),
-            (b"zTXt", b"comment\\x00\\x00x\\x9c\\x03\\x00\\x00\\x00\\x00\\x01"),
-            (b"iTXt", b"comment\\x00\\x00\\x00\\x00\\x00secret"),
-            (b"eXIf", b"MM\\x00*\\x00\\x00\\x00\\x08"),
+            (b"tEXt", b"comment\x00private-customer-data"),
+            (b"zTXt", b"comment\x00\x00x\x9c\x03\x00\x00\x00\x00\x01"),
+            (b"iTXt", b"comment\x00\x00\x00\x00\x00secret"),
+            (b"eXIf", b"MM\x00*\x00\x00\x00\x08"),
         )
         for kind, payload in payloads:
             with self.subTest(kind=kind):
