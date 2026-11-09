@@ -225,6 +225,7 @@ class Feature3RevocablePNGReader:
             raise PrivateGeneratedDownloadDenied("Untrusted private PNG structure")
         seen_header = False
         seen_pixels = False
+        seen_palette = False
         pixels_finished = False
         while offset + 12 <= len(raw):
             chunk_size = int.from_bytes(raw[offset:offset + 4], "big")
@@ -248,7 +249,20 @@ class Feature3RevocablePNGReader:
                     b"IHDR", b"PLTE", b"IDAT", b"IEND"):
                 raise PrivateGeneratedDownloadDenied(
                     "Untrusted private PNG critical chunk")
-            if chunk_type == b"PLTE" and seen_pixels:
+            # PNG chunk names are exactly four ASCII letters. The third
+            # letter is reserved and must be uppercase; reject ambiguous
+            # or future-incompatible names before Pillow parses the bytes.
+            if (len(chunk_type) != 4 or
+                    any(not (65 <= c <= 90 or 97 <= c <= 122)
+                        for c in chunk_type) or
+                    not 65 <= chunk_type[2] <= 90):
+                raise PrivateGeneratedDownloadDenied(
+                    "Untrusted private PNG chunk name")
+            if chunk_type == b"PLTE":
+                if seen_palette or seen_pixels:
+                    raise PrivateGeneratedDownloadDenied(
+                        "Invalid private PNG palette order")
+                seen_palette = True
                 raise PrivateGeneratedDownloadDenied(
                     "Late private PNG palette")
             if chunk_type == b"IDAT":
