@@ -656,7 +656,7 @@ class RevocableReaderTests(unittest.TestCase):
         self.assertNotIn("SENSITIVE_HTTP",str(caught.exception))
         self.assertEqual(self.rights_called,1)
 
-    def test_current_rights_outage_before_or_after_private_read_denied(self):
+    def test_current_rights_outage_before_or_after_private_read_preserved(self):
         for fail_on in (1,2):
             self.setUp()
             # setUp resets fixtures but does not shadow instance methods.
@@ -670,10 +670,14 @@ class RevocableReaderTests(unittest.TestCase):
                 return original(shop,job,asset)
             self.rights = unavailable
             self.reader = self.build()
+            # A transport timeout is explicitly distinguished from a
+            # deliberate 404 rights denial; the HTTP boundary turns it into
+            # a bodyless 503 without emitting this internal diagnostic.
             with self.subTest(fail_on=fail_on), self.assertRaises(
-                    PrivateGeneratedDownloadDenied) as caught:
+                    TimeoutError) as caught:
                 self.read()
-            self.assertNotIn("SENSITIVE_RIGHTS",str(caught.exception))
+            self.assertIn("SENSITIVE_RIGHTS_SERVICE_FAILURE",
+                          str(caught.exception))
             self.assertEqual(calls[0],fail_on)
             self.assertEqual(self.calls,["verify"] if fail_on==1
                              else ["verify","get"])

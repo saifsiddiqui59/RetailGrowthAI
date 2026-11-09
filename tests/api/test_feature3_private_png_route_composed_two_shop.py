@@ -123,6 +123,8 @@ class ComposedRouteTests(unittest.TestCase):
         self.revoke_on_storage_read = None
         self.expire_token_on_storage_read = None
         self.jwt_revoked = set()
+        self.rights_fail_on = None
+        self.rights_count = 0
         tenant = TwoShopRLS(self.fixtures, self.calls)
 
         def verify(token):
@@ -136,6 +138,9 @@ class ComposedRouteTests(unittest.TestCase):
 
         def fresh_rights(shop, job, asset):
             self.calls.append(("rights", shop))
+            self.rights_count += 1
+            if self.rights_fail_on == self.rights_count:
+                raise TimeoutError("SENSITIVE_RIGHTS_SERVICE_FAILURE")
             current = self.fixtures.get(shop)
             return (current is not None and
                     current["job"] == job and current["asset"] == asset and
@@ -227,6 +232,20 @@ class ComposedRouteTests(unittest.TestCase):
         self.revoke_on_storage_read = None
         self.a["rights_active"] = True
         self.assertEqual(self.request(self.a).status_code, 200)
+
+    def test_rights_transport_outage_before_or_after_storage_is_opaque_503(self):
+        for fail_on in (1, 2):
+            self.setUp()
+            self.rights_fail_on = fail_on
+            reply = self.request(self.a)
+            self.assert_no_private_bytes(reply, 503)
+            self.assertNotIn("SENSITIVE_RIGHTS", repr(reply))
+            self.assertEqual(self.rights_count, fail_on)
+            self.assertEqual(sum(name == "storage"
+                                 for name, _ in self.calls),
+                             0 if fail_on == 1 else 1)
+            self.rights_fail_on = None
+            self.assertEqual(self.request(self.a).status_code, 200)
 
     def test_expired_jwt_after_bytes_denies_even_if_rights_stay_approved(self):
         self.expire_token_on_storage_read = self.b["shop"]

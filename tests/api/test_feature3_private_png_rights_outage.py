@@ -4,14 +4,14 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_feature3_private_png_reader import RevocableReaderTests
+from test_feature3_private_png_reader import RevocableReaderTests as _RevocableReaderFixture
 from feature3_private_png_reader import PrivateGeneratedDownloadDenied
 from tenant_store import StorageUnavailable
 
 
 class CurrentRightsOutageTests(unittest.TestCase):
     def setUp(self):
-        self.fixture = RevocableReaderTests(methodName="test_private_bytes_verified_twice_no_signed_link")
+        self.fixture = _RevocableReaderFixture(methodName="test_private_bytes_verified_twice_no_signed_link")
         self.fixture.setUp()
 
     def test_transport_oserror_preserved_not_misclassified_as_rights_denial(self):

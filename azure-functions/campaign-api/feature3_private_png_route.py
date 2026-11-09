@@ -124,6 +124,11 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             return _denied(400, response_type)
         if not authorization:
             return _denied(401, response_type)
+        # CR/LF in Authorization is malformed HTTP framing (400), not merely
+        # an invalid bearer credential (401). Preserve fail-closed header
+        # injection rejection before body reads or rights/Storage IO.
+        if "\r" in authorization or "\n" in authorization:
+            return _denied(400, response_type)
         # Reject malformed bearer framing before materializing the GET body.
         # The canonical reader still verifies JWT, tenant and current rights.
         if (len(authorization) > 8200 or
