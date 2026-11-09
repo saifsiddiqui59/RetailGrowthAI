@@ -346,6 +346,32 @@ class RevocableReaderTests(unittest.TestCase):
         self.assertEqual(self.calls,["verify","get"])
         self.assertEqual(self.rights_called,1)
 
+    def test_private_png_rejects_trailing_payload_even_with_matching_sha(self):
+        # Pillow accepts data after IEND; an immutable checksum alone does
+        # not establish that the object contains exactly one PNG file.
+        for suffix in (b"EXTRA_PRIVATE_PAYLOAD", b"\\x00" * 64):
+            self.setUp()
+            tampered = self.png + suffix
+            digest = sha256(tampered).hexdigest()
+            self.tenant.path = (
+                f"{self.shop}/feature3/gpu/{self.job}/{digest}.png"
+            )
+            self.binary = tampered
+            with self.subTest(suffix=suffix), self.assertRaisesRegex(
+                    PrivateGeneratedDownloadDenied, "trailing PNG"):
+                self.read()
+            self.assertEqual(self.rights_called, 1)
+            self.assertEqual(self.calls, ["verify", "get"])
+
+    def test_private_png_rejects_missing_iend_even_with_matching_sha(self):
+        self.png = self.png[:-12]
+        digest = sha256(self.png).hexdigest()
+        self.tenant.path = f"{self.shop}/feature3/gpu/{self.job}/{digest}.png"
+        self.binary = self.png
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            self.read()
+        self.assertEqual(self.rights_called, 1)
+
     def test_changed_png_wrong_hash_or_invalid_bytes_deny(self):
         changed=BytesIO()
         Image.new("RGB",(320,400),"#123456").save(changed,"PNG")
