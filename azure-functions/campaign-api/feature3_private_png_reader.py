@@ -278,8 +278,6 @@ class Feature3RevocablePNGReader:
                     raise PrivateGeneratedDownloadDenied(
                         "Invalid private PNG palette order")
                 seen_palette = True
-                raise PrivateGeneratedDownloadDenied(
-                    "Late private PNG palette")
             if chunk_type == b"IDAT":
                 if pixels_finished:
                     raise PrivateGeneratedDownloadDenied(
@@ -288,8 +286,10 @@ class Feature3RevocablePNGReader:
             elif seen_pixels:
                 pixels_finished = True
             if chunk_type == b"IEND":
-                if not seen_pixels or chunk_size != 0 or end != len(raw):
+                if not seen_pixels or chunk_size != 0:
                     raise PrivateGeneratedDownloadDenied("Untrusted private PNG terminator")
+                if end != len(raw):
+                    raise PrivateGeneratedDownloadDenied("Untrusted trailing PNG bytes")
                 break
             offset = end
         else:
