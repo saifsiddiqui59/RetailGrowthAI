@@ -90,6 +90,16 @@ def feature3_registered_source(req: func.HttpRequest) -> func.HttpResponse:
                     "/feature3-source-assets/" + req.route_params["asset_id"])
 
 
+# F3-08: register the binary GET path, but leave delivery fail-closed until
+# a separately reviewed, server-owned JWT/RLS/current-rights reader is wired.
+# Never accept a reader, shop authority, or storage URL from the request.
+@app.route(route="shops/{shop_id}/feature3-private-png/{job_id}", methods=["GET"])
+def feature3_private_png_download(req: func.HttpRequest) -> func.HttpResponse:
+    from feature3_private_png_route import handle_private_png_request
+    return handle_private_png_request(
+        req, reader_factory=None, response_type=func.HttpResponse)
+
+
 # Feature3 private generated-image history is GET-only; paid GPU submit is
 # not publicly registered. Inner HTTPAPI verifies signed JWT + current tenant.
 @app.route(route="shops/{shop_id}/feature3-gpu-jobs", methods=["GET"])
