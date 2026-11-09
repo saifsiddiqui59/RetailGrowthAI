@@ -133,6 +133,36 @@ class RevocableReaderTests(unittest.TestCase):
         return self.reader.read(user_token="fake-signed-retailer-token",
                                 shop_id=self.shop,job_id=self.job)
 
+    def test_private_png_rejects_partial_content_before_body_read(self):
+        reads = []
+        def partial_transport(req, timeout):
+            response = Response(req.full_url, self.png)
+            response.headers["Content-Range"] = "bytes 0-99/100"
+            response.on_read = lambda: reads.append(True)
+            return response
+        self.reader = Feature3RevocablePNGReader(
+            tenant_store=self.tenant, verify_user_jwt=self.verify,
+            current_output_rights=self.rights, transport=partial_transport)
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            self.read()
+        self.assertEqual(reads, [])
+        self.assertEqual(self.rights_called, 1)
+
+    def test_private_png_rejects_mime_parameters_before_body_read(self):
+        reads = []
+        def transformed_transport(req, timeout):
+            response = Response(req.full_url, self.png,
+                                mime="image/png; charset=utf-8")
+            response.on_read = lambda: reads.append(True)
+            return response
+        self.reader = Feature3RevocablePNGReader(
+            tenant_store=self.tenant, verify_user_jwt=self.verify,
+            current_output_rights=self.rights, transport=transformed_transport)
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            self.read()
+        self.assertEqual(reads, [])
+        self.assertEqual(self.rights_called, 1)
+
     def test_private_bytes_verified_twice_no_signed_link(self):
         result=self.read()
         self.assertEqual(result["image_bytes"],self.png)
