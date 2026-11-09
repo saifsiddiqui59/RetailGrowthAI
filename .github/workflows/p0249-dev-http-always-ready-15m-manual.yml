@@ -39,7 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile ops/p0_249_always_ready_trial_guarded.py
-          python3 -m unittest -v tests.infra.test_p0_249_always_ready_trial_guarded
+          python3 -m unittest discover -s tests/infra -p 'test_p0_249_always_ready_trial_guarded.py' -v
       - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -66,7 +66,7 @@ jobs:
     if: needs.preflight.result == 'success'
     environment: dev
     runs-on: ubuntu-24.04
-    timeout-minutes: 17
+    timeout-minutes: 14
     permissions:
       contents: read
       id-token: write
