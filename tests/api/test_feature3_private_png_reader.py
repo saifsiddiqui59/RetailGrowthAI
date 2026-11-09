@@ -544,10 +544,21 @@ class RevocableReaderTests(unittest.TestCase):
             self.assertEqual(self.calls, ["verify", "get"])
             self.assertEqual(self.rights_called, 1)
 
-        # Ordinary printable MIME parameters and identity encoding remain
-        # supported, with the same two live rights checks.
+        # A parameterized MIME is not the exact immutable PNG media type.
+        # Deny before body IO even if the parameter is printable.
         self.setUp()
         self.mime = "image/png; charset=utf-8"
+        body_reads = []
+        self.on_read = lambda: body_reads.append(True)
+        with self.assertRaisesRegex(PrivateGeneratedDownloadDenied,
+                                    "Invalid private image MIME"):
+            self.read()
+        self.assertEqual(body_reads, [])
+        self.assertEqual(self.rights_called, 1)
+
+        # Explicit identity encoding is safe and still checks current rights
+        # on both sides of the authenticated private read.
+        self.setUp()
         self.content_encoding = " identity "
         self.assertEqual(self.read()["image_sha256"], self.sha)
         self.assertEqual(self.rights_called, 2)
