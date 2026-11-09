@@ -1,11 +1,11 @@
 # Open PR triage — 2026-11-10 (snapshot)
 
-> Read-only classification after two verified duplicate closures; not a deployment/merge approval or task acceptance. Pull requests may change after collection.
+> Read-only classification after three verified duplicate closures; not a deployment/merge approval or task acceptance. Pull requests may change after collection.
 
 ## Snapshot
 
-- **118 currently open PRs**: Main-targeted / non-draft: 17; Main-targeted / draft: 12; Feature-branch-targeted / non-draft: 2; Feature-branch-targeted / draft: 87.
-- 29 main-targeted; 89 feature-targeted/stacked. Draft is not merge-ready merely because CI is green.
+- **119 currently open PRs**: Main-targeted / non-draft: 18; Main-targeted / draft: 11; Feature-branch-targeted / non-draft: 2; Feature-branch-targeted / draft: 88.
+- 29 main-targeted; 90 feature-targeted/stacked. Draft is not merge-ready merely because CI is green.
 - Do not treat source completion as task DONE or hosted acceptance; GPU, paid providers, hosted SQL, PROD and WineShopPOS remain untouched.
 
 ## Source preservation and duplicate closures
@@ -15,11 +15,13 @@
 | [#523](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/523) | Open [#848](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848) | All three paths retained; protocol Markdown blob identical; review, blind_human_comparison, content_fingerprint and all six test functions preserved; stricter safety tests added. Closed unmerged, NOT DONE. |
 | [#522](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/522) | Open [#848](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848) | All three paths retained; audit_entries, audit_zip and all three tests preserved; stricter ZIP/Node assertions added. Closed unmerged, NOT DONE. |
 
-Compared exact original source heads #523 a302ba6f and #522 75163a2a to keeper #848 b18459bd. Each original PR conversation has the detailed source comparison. #848 remains open and is NOT integrated.
+Compared exact original source heads #523 a302ba6f, #522 75163a2a and #535 9309e1a6 to keeper #848 b18459bd. Each original PR conversation has the detailed source comparison. #848 remains open and is NOT integrated.
+
+| [#535](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/535) | Open [#848](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848) | Original director context module, seven negative tests and dedicated handoff are each identical Git blobs in #848. Two unique older explanatory handoff paragraphs preserved in #848 PR comment 6748650091. Closed unmerged, NOT DONE. |
 
 ## Priority integration and dedup queue
 
-1. Feature #2: #551 is the main-targeted draft parent; #848 is its feature-targeted consolidated child (80 paths). First resolve issue #650 protected packaging and independently review the real source/tenant/auth changes; require exact-head 4/4 and main compatibility. Historical #522/#523 need no duplicate review.
+1. Feature #2: #551 is the main-targeted draft parent; #848 is its feature-targeted consolidated child (80 paths). First resolve issue #650 protected packaging and independently review the real source/tenant/auth changes; require exact-head 4/4 and main compatibility. Historical #522/#523/#535 need no duplicate review.
 2. Feature #3: review canonical PNG #879 ahead of dependent private-rights/route #880, then separate shared docs #873. Do not count hosted F3-08 DONE.
 3. Issue #650: #885 is a draft shared Azure package manifest fix requiring independent runtime/security review. Keep the 120-entry bound and all security preflight gates.
 4. Issue #249: #888 documents already merged source fixes; #887 shared workflow and #889 DEV capacity trial need separate review and operational approval. Gateway fault remains unresolved until live evidence.
@@ -28,12 +30,13 @@ Compared exact original source heads #523 a302ba6f and #522 75163a2a to keeper #
 
 ## Complete open PR inventory
 
-Groups are mechanically obtained from GitHub open/draft/base filters. Titles are not code-completion evidence.
+Groups from current GitHub open/draft/base filters, including the documentation PR #891 itself. Titles are not code completion evidence.
 
-### Main-targeted / non-draft (17)
+### Main-targeted / non-draft (18)
 
 | PR | Description |
 |---|---|
+| [#891](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/891) | docs(integration): triage all open PRs and record verified F2 duplicate closures |
 | [#889](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/889) | ops(#249): gated 15-minute DEV-only HTTP Always Ready A/B with independent rollback |
 | [#888](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/888) | docs(#249): record verified source integration and Azure diagnostic review gate |
 | [#887](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/887) | ci(#249): review isolated DEV-only manual Azure incident workflow |
@@ -52,14 +55,13 @@ Groups are mechanically obtained from GitHub open/draft/base filters. Titles are
 | [#466](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/466) | docs(feature2): reconcile signed DEV live trend success and Azure 503 draft blocker (#403) |
 | [#356](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/356) | P0 #249: merge validated private Reel SQL proposal without feature conflicts |
 
-### Main-targeted / draft (12)
+### Main-targeted / draft (11)
 
 | PR | Description |
 |---|---|
 | [#885](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/885) | fix(issue650): keep Feature4 source-only QA out of Azure Functions ZIP |
 | [#696](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/696) | feat(coordination): make feature chats read control table and continue next tasks |
 | [#627](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/627) | feat(testing): signed backend-verified worker evidence in Testing Chat |
-| [#535](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/535) | feat(feature2): trusted JWT/RLS creative brief builder, signed media and promotion provenance |
 | [#514](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/514) | feat(feature2): pinned MIT creative director — 15/30/60s contracts, source CI 4/4 green |
 | [#497](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/497) | docs(research): reconcile Feature2 AI Director, Feature4 editor and Feature5 Wan code reuse |
 | [#323](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/323) | Feature #5: gated Hunyuan AI motion provider/worker contracts (source-only) |
@@ -76,10 +78,11 @@ Groups are mechanically obtained from GitHub open/draft/base filters. Titles are
 | [#848](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848) | feat(feature2): consolidate existing Creative Director source PRs for coordinator review |
 | [#121](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/121) | Part 3: secure private Wan output ingestion and media validation |
 
-### Feature-branch-targeted / draft (87)
+### Feature-branch-targeted / draft (88)
 
 | PR | Description |
 |---|---|
+| [#892](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/892) | Feature7: consolidate three divergent source/security PRs #736 #725 #747 |
 | [#852](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/852) | Feature4 F4-13: canonical same-shop storage object keys before private source download |
 | [#851](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/851) | Feature4 F4-15: fence encoded-output SHA and original inode through private upload |
 | [#850](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/850) | Feature4 F4-10: prevent stale shop/draft render ACKs from revealing signed previews |
