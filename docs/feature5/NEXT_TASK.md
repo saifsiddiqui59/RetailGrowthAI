@@ -374,3 +374,10 @@ Canonical owner snapshot: `docs/feature5/F5_22_TASK_DEPENDENCIES_20261029.json`.
 1. Verify **final exact PR #781 head** all four Part 1 CI jobs, including `tests/ai/test_feature5_wan22_weight_identity_integration.py` (path swap during open SHA, hardlink introduced during read and earlier shard replaced after its hash); repair actual code/test failures without disabling the source check.
 2. Independently review reconciled, overlapping old F5-14 draft changes #771 and #746 now in current #781. Merge only reviewed, compatible Feature5-owned scope through stacked parent #465, recheck that parent's exact-head four-job CI, and preserve later independent main acceptance/CI. Do not claim the 22-task inventory DONE from source PR/test green.
 3. Still **BLOCKED** for the real F5-14 release criterion: the operator-owned original three trusted Wan weights in a verified private read-only mount, full actual SHA/size readback, independent provenance/license and approved runtime. No GPU/paid inference, cloud changes, PROD, customer media or WineShopPOS.
+
+
+## 2026-11-09 — Feature5 integration-first next batch
+- #781 is merged into #465 parent feature branch only (merge `0dfdf05382ec50b40ea2e4a243dcd07048300179`; branch CI #42659822666 4/4). Do not remerge #781 or its proven duplicate drafts #685/#694/#698/#702.
+- Review overlapping #688/#691 and any other still-open original child commits for *unique* stronger protections before closing; compare actual bytes/behaviors rather than Git ancestry alone.
+- Parent #465 stays DRAFT on #323: independently review feature5 private/infra/license/cost/lease paths; resolve current-main compatibility; run exact-head 4-job CI and after permitted merge, fresh main 4/4. No task DONE until accepted scope and receipt.
+- Continue F5-02/F5-13/F5-14 CPU-only source work and synthetic F5-17 clip QA. Real signed rights, licensed model weights, Wan inference and paid GPU remain blocked/off.
