@@ -47,7 +47,7 @@ class PrivatePNGChunkOrderTests(unittest.TestCase):
         original = self.fixture.png
         parts = chunks(original)
         name = b"tEXt"
-        payload = b"x\\x00y"
+        payload = b"x\x00y"
         block = (len(payload).to_bytes(4, "big") + name + payload +
                  (zlib.crc32(name + payload) & 0xffffffff).to_bytes(4, "big"))
         self.assert_rejected(original[:8] + parts[0][1] +
@@ -72,7 +72,7 @@ class PrivatePNGChunkOrderTests(unittest.TestCase):
         original = self.fixture.png
         parts = chunks(original)
         name = b"tEXt"
-        payload = b"note\\x00fixture"
+        payload = b"note\x00fixture"
         block = (len(payload).to_bytes(4, "big") + name + payload +
                  (zlib.crc32(name + payload) & 0xffffffff).to_bytes(4, "big"))
         self.assert_rejected(original[:8] + block + original[8:])
@@ -93,7 +93,7 @@ class PrivatePNGChunkOrderTests(unittest.TestCase):
         idat_index = next(i for i, (name, _) in enumerate(parts)
                           if name == b"IDAT")
         name = b"tEXt"
-        payload = b"note\\x00synthetic"
+        payload = b"note\x00synthetic"
         block = (len(payload).to_bytes(4, "big") + name + payload +
                  (zlib.crc32(name + payload) & 0xffffffff).to_bytes(4, "big"))
         # Split one valid compressed IDAT payload across two adjacent IDAT
@@ -143,6 +143,25 @@ class PrivatePNGChunkOrderTests(unittest.TestCase):
                 # Reset the synthetic transport call ledger for next subtest.
                 self.fixture.calls.clear()
                 self.fixture.rights_called = 0
+
+    def test_valid_palette_before_pixels_is_accepted_by_png_parser(self):
+        # A palette before IDAT is legal for RGB PNGs; it must not be
+        # confused with the late/duplicate palette denial cases.
+        original = self.fixture.png
+        parts = chunks(original)
+        name = b"PLTE"
+        payload = bytes([0, 0, 0])
+        block = (len(payload).to_bytes(4, "big") + name + payload +
+                 (zlib.crc32(name + payload) & 0xffffffff).to_bytes(4, "big"))
+        altered = original[:8] + parts[0][1] + block + b"".join(
+            raw for _, raw in parts[1:])
+        self.fixture.binary = altered
+        digest = sha256(altered).hexdigest()
+        self.fixture.tenant.sha = digest
+        self.fixture.tenant.path = (
+            f"{self.fixture.shop}/feature3/gpu/{self.fixture.job}/{digest}.png")
+        self.fixture.reader = self.fixture.build()
+        self.assertEqual(self.fixture.read()["image_bytes"], altered)
 
     def test_duplicate_palette_rejected_with_matching_digest(self):
         original = self.fixture.png
