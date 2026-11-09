@@ -1427,3 +1427,6 @@ Feature3 verified source-integration checkpoint:
 - Verified open PR inventory after dedup: **118 open** (17 non-draft main-targeted, 12 draft main-targeted, 2 non-draft feature-targeted, 87 draft feature-targeted). Snapshot and all PR links: `docs/integration/OPEN_PR_TRIAGE_20261110.md`.
 - Historical F2 draft PRs #523 and #522 closed **unmerged** with file/function/test preservation evidence; canonical keeper is open child PR #848, itself pending parent #551, source review, #650 packaging checks and 4/4 CI. Closing duplicates does **not** add an integrated DONE task.
 - Sensitive F3 source #879/#880, #249 live gateway, shared #650 packaging and feature stack dependencies remain unaccepted. No GPU, provider cost, Azure/SQL deployment, PROD or WineShopPOS mutation.
+
+### 2026-11-10 integration-triage follow-on (same review proposal)
+- Additional historical Feature2 draft #535 closed unmerged after its director context implementation, negative tests and dedicated handoff were verified identical Git blobs in keeper #848; two unique old handoff paragraphs preserved in keeper review comment. Live open PR re-query after opening docs PR #891 and concurrent repository changes: **119**, grouped 18 non-draft main/11 draft main/2 non-draft feature/88 draft feature. Inventory file refreshed. No accepted original task DONE increment.
