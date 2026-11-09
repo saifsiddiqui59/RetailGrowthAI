@@ -114,5 +114,35 @@ class PrivatePNGChunkOrderTests(unittest.TestCase):
 
 
 
+    def test_duplicate_palette_rejected_with_matching_digest(self):
+        original = self.fixture.png
+        parts = chunks(original)
+        name = b"PLTE"
+        payload = bytes([0, 0, 0])
+        block = (len(payload).to_bytes(4, "big") + name + payload +
+                 (zlib.crc32(name + payload) & 0xffffffff).to_bytes(4, "big"))
+        self.assert_rejected(original[:8] + parts[0][1] + block + block +
+                             b"".join(raw for _, raw in parts[1:]))
+
+    def test_reserved_lowercase_chunk_name_rejected(self):
+        original = self.fixture.png
+        parts = chunks(original)
+        name = b"abca"  # third byte is reserved and must be uppercase
+        payload = b"synthetic"
+        block = (len(payload).to_bytes(4, "big") + name + payload +
+                 (zlib.crc32(name + payload) & 0xffffffff).to_bytes(4, "big"))
+        self.assert_rejected(original[:8] + parts[0][1] + block +
+                             b"".join(raw for _, raw in parts[1:]))
+
+    def test_nonletter_chunk_name_rejected(self):
+        original = self.fixture.png
+        parts = chunks(original)
+        name = b"ab1A"
+        payload = b"synthetic"
+        block = (len(payload).to_bytes(4, "big") + name + payload +
+                 (zlib.crc32(name + payload) & 0xffffffff).to_bytes(4, "big"))
+        self.assert_rejected(original[:8] + parts[0][1] + block +
+                             b"".join(raw for _, raw in parts[1:]))
+
 if __name__ == "__main__":
     unittest.main()
