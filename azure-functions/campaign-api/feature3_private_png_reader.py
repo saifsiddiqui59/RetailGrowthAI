@@ -223,15 +223,28 @@ class Feature3RevocablePNGReader:
         offset = 8
         if not raw.startswith(bytes.fromhex("89504e470d0a1a0a")):
             raise PrivateGeneratedDownloadDenied("Untrusted private PNG structure")
+        seen_header = False
+        seen_pixels = False
         while offset + 12 <= len(raw):
             chunk_size = int.from_bytes(raw[offset:offset + 4], "big")
             chunk_type = raw[offset + 4:offset + 8]
             end = offset + 12 + chunk_size
             if end > len(raw):
                 raise PrivateGeneratedDownloadDenied("Untrusted private PNG structure")
+            # A valid single-image PNG starts with exactly one 13-byte IHDR
+            # and contains IDAT before its final zero-length IEND. Enforce
+            # this before handing potentially hostile bytes to Pillow.
+            if not seen_header:
+                if chunk_type != b"IHDR" or chunk_size != 13:
+                    raise PrivateGeneratedDownloadDenied("Missing private PNG header")
+                seen_header = True
+            elif chunk_type == b"IHDR":
+                raise PrivateGeneratedDownloadDenied("Duplicate private PNG header")
+            if chunk_type == b"IDAT":
+                seen_pixels = True
             if chunk_type == b"IEND":
-                if chunk_size != 0 or end != len(raw):
-                    raise PrivateGeneratedDownloadDenied("Untrusted trailing PNG data")
+                if not seen_pixels or chunk_size != 0 or end != len(raw):
+                    raise PrivateGeneratedDownloadDenied("Untrusted private PNG terminator")
                 break
             offset = end
         else:
