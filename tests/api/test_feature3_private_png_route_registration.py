@@ -45,6 +45,39 @@ class PrivatePngRegistrationTests(unittest.TestCase):
         self.assertFalse(any(isinstance(n.func, ast.Name) and n.func.id == "dispatch"
                              for n in calls))
 
+    def test_runtime_route_preserves_fail_closed_reader_boundary(self):
+        """Execute the registered handler without Azure or real JWT credentials."""
+        import copy
+        import sys
+        from types import ModuleType, SimpleNamespace
+        from unittest.mock import patch
+
+        node = copy.deepcopy(self.routes[0])
+        node.decorator_list = []
+        isolated = ast.Module(body=[node], type_ignores=[])
+        ast.fix_missing_locations(isolated)
+        calls = []
+        sentinel = object()
+
+        def guarded_adapter(request, *, reader_factory, response_type):
+            calls.append((request, reader_factory, response_type))
+            if reader_factory is not None:
+                raise AssertionError("Unreviewed reader activated in public route")
+            return sentinel
+
+        fake_module = ModuleType("feature3_private_png_route")
+        fake_module.handle_private_png_request = guarded_adapter
+        fake_response = object()
+        scope = {"func": SimpleNamespace(HttpRequest=object, HttpResponse=fake_response)}
+        with patch.dict(sys.modules, {"feature3_private_png_route": fake_module}):
+            exec(compile(isolated, str(SOURCE), "exec"), scope)
+            request = SimpleNamespace(route_params={"shop_id": "untrusted",
+                                                     "job_id": "untrusted"})
+            result = scope["feature3_private_png_download"](request)
+
+        self.assertIs(result, sentinel)
+        self.assertEqual(calls, [(request, None, fake_response)])
+
     def test_binary_route_has_no_write_method_or_client_rights_input(self):
         node = self.routes[0]
         names = {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
