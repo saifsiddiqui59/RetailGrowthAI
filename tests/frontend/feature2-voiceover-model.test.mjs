@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {F2_VOICES,emptyVoiceSelection,makeVoiceAction,validateVoiceSelection,
-  voiceChoices} from '../../frontend/src/features/voiceover/voiceover-model.mjs'
+  voiceChoices,isCurrentPrivateUpload} from '../../frontend/src/features/voiceover/voiceover-model.mjs'
 const SHOP='11111111-1111-4111-8111-111111111111'
 const CAM='22222222-2222-4222-8222-222222222222'
 const ID='33333333-3333-4333-8333-333333333333'
@@ -46,4 +46,17 @@ test('foreign voice and style, forged booleans, extra keys, missing spend opt-in
     planSha256:SHA,userConfirmedCharge:confirmed,idempotencyKey:ID}))
  assert.throws(()=>makeVoiceAction({selection:ai,shopId:SHOP,campaignId:CAM,
     planSha256:SHA,userConfirmedCharge:true,idempotencyKey:'fake'}))
+})
+
+test('private upload receipt cannot survive same-metadata File replacement or source switch',()=>{
+ const original={name:'narration.wav',size:4096,lastModified:100,mime:'audio/wav'}
+ const replacement={...original}
+ const scope=SHOP+':'+CAM+':'+SHA+':reviewed-script'
+ const current={submittedFile:original,currentFile:original,
+   submittedScope:scope,currentScope:scope}
+ assert.equal(isCurrentPrivateUpload(current),true)
+ assert.equal(isCurrentPrivateUpload({...current,currentFile:replacement}),false)
+ assert.equal(isCurrentPrivateUpload({...current,currentScope:scope+':revised'}),false)
+ assert.equal(isCurrentPrivateUpload({...current,submittedFile:null}),false)
+ assert.equal(isCurrentPrivateUpload({...current,submittedScope:''}),false)
 })

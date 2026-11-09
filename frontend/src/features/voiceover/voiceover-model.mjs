@@ -231,3 +231,12 @@ export function verifyPrivateVoiceJobStatus({
     human_review_required:true,
   })
 }
+
+// A file picker can replace an upload with a *different* File having identical
+// name, size and lastModified. Only object identity and current tenant/script
+// scope can authorize displaying the original private-upload receipt.
+export function isCurrentPrivateUpload({submittedFile,currentFile,submittedScope,currentScope}) {
+  return submittedFile!=null && submittedFile===currentFile &&
+    typeof submittedScope==='string' && submittedScope.length>0 &&
+    submittedScope===currentScope
+}
