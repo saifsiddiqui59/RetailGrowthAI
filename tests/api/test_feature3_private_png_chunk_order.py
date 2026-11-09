@@ -127,7 +127,7 @@ class PrivatePNGChunkOrderTests(unittest.TestCase):
 
 
 
-    def test_duplicate_palette_rejected_with_matching_digest(self):
+    def test_apng_control_chunks_rejected_with_matching_digest(self):\n        # An APNG with one declared frame may still report n_frames == 1.\n        # Explicitly reject animation metadata rather than relying on Pillow.\n        original = self.fixture.png\n        parts = chunks(original)\n        for name, payload in ((b"acTL", b"\\x00\\x00\\x00\\x01\\x00\\x00\\x00\\x00"),\n                              (b"fcTL", bytes(26)),\n                              (b"fdAT", b"\\x00\\x00\\x00\\x00synthetic")):\n            with self.subTest(chunk=name):\n                block = (len(payload).to_bytes(4, "big") + name + payload +\n                         (zlib.crc32(name + payload) & 0xffffffff).to_bytes(4, "big"))\n                self.assert_rejected(original[:8] + parts[0][1] + block +\n                                     b"".join(raw for _, raw in parts[1:]))\n                # Reset the synthetic transport call ledger for next subtest.\n                self.fixture.calls.clear()\n                self.fixture.rights_called = 0\n\n    def test_duplicate_palette_rejected_with_matching_digest(self):
         original = self.fixture.png
         parts = chunks(original)
         name = b"PLTE"
