@@ -563,6 +563,46 @@ class RevocableReaderTests(unittest.TestCase):
         self.assertEqual(self.read()["image_sha256"], self.sha)
         self.assertEqual(self.rights_called, 2)
 
+    def test_private_png_transfer_framing_denied_before_body_read(self):
+        # A proxy must not combine chunked framing with Content-Length or
+        # introduce unsupported encodings into an authenticated object read.
+        cases = (
+            {"Transfer-Encoding": "gzip"},
+            {"Transfer-Encoding": "chunked", "Content-Length": "123"},
+            {"Transfer-Encoding": ["chunked"]},
+            {"Transfer-Encoding": "chunked, gzip"},
+            {"Transfer-Encoding": "chunked\\r\\nX-Injected: yes"},
+            {"Content-Range": "bytes 0-99/100"},
+        )
+        for extra in cases:
+            self.setUp()
+            original = self.reader.transport
+            reads = []
+            def malformed(req, timeout):
+                response = original(req, timeout)
+                response.headers.update(extra)
+                response.on_read = lambda: reads.append(True)
+                return response
+            self.reader.transport = malformed
+            with self.subTest(extra=repr(extra)), self.assertRaises(
+                    PrivateGeneratedDownloadDenied):
+                self.read()
+            self.assertEqual(reads, [])
+            self.assertEqual(self.rights_called, 1)
+
+        # An explicitly chunked, length-free transport remains valid after
+        # immutable SHA and two independent current-rights checks.
+        self.setUp()
+        original = self.reader.transport
+        def chunked(req, timeout):
+            response = original(req, timeout)
+            response.headers.pop("Content-Length", None)
+            response.headers["Transfer-Encoding"] = "chunked"
+            return response
+        self.reader.transport = chunked
+        self.assertEqual(self.read()["image_sha256"], self.sha)
+        self.assertEqual(self.rights_called, 2)
+
     def test_malformed_private_http_metadata_never_reaches_second_rights_read(self):
         # A future injected gateway may return typed, missing or throwing
         # headers. No raw TypeError or private binary may escape this reader.
