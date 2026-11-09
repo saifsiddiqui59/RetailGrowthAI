@@ -14,10 +14,9 @@
 |---|---|---|
 | [#523](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/523) | Open [#848](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848) | All three paths retained; protocol Markdown blob identical; review, blind_human_comparison, content_fingerprint and all six test functions preserved; stricter safety tests added. Closed unmerged, NOT DONE. |
 | [#522](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/522) | Open [#848](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848) | All three paths retained; audit_entries, audit_zip and all three tests preserved; stricter ZIP/Node assertions added. Closed unmerged, NOT DONE. |
+| [#535](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/535) | Open [#848](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848) | Original director context module, seven negative tests and dedicated handoff are each identical Git blobs in #848. Two unique older explanatory handoff paragraphs preserved in #848 PR comment 6748650091. Closed unmerged, NOT DONE. |
 
 Compared exact original source heads #523 a302ba6f, #522 75163a2a and #535 9309e1a6 to keeper #848 b18459bd. Each original PR conversation has the detailed source comparison. #848 remains open and is NOT integrated.
-
-| [#535](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/535) | Open [#848](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848) | Original director context module, seven negative tests and dedicated handoff are each identical Git blobs in #848. Two unique older explanatory handoff paragraphs preserved in #848 PR comment 6748650091. Closed unmerged, NOT DONE. |
 
 ## Priority integration and dedup queue
 
