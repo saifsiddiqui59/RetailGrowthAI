@@ -220,14 +220,14 @@ class ProfessionalVideoTests(unittest.TestCase):
         ) / "index.html").read_text()
         for index, transition in enumerate(("fade", "slide", "cut")):
             self.assertIn(
-                f'<video class="footage clip trans-{transition}" id="video{index}"',
+                f'<video class="footage clip" id="video{index}" data-transition="{transition}"',
                 transitions,
             )
             self.assertIn(f'class="clip scene s{index%3} has-video', transitions)
             self.assertIn(f'trans-{transition}', transitions)
-        self.assertIn('.footage.trans-fade{animation:editorialFade', transitions)
-        self.assertIn('.footage.trans-slide{animation:editorialSlide', transitions)
-        self.assertIn('.footage.trans-cut{animation:none}', transitions)
+        self.assertIn('.footage[data-transition="fade"]{animation:editorialFade', transitions)
+        self.assertIn('.footage[data-transition="slide"]{animation:editorialSlide', transitions)
+        self.assertIn('.footage[data-transition="cut"]{animation:none}', transitions)
         self.assertEqual(transitions.count('data-volume="1" style="--span:5s"'), 3)
 
 
