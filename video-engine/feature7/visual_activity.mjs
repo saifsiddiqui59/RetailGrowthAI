@@ -76,7 +76,8 @@ export function parseSceneChangeLog(log,duration_seconds){
     validNumber(duration_seconds,600)&&duration_seconds>=.5,
     'Invalid scene-change evidence');
   const timestamps=[];
-  const re=/\bpts_time:\s*([\d.]+)\b/g;
+  // Capture the complete FFmpeg token so -1.0/NaN/exponent/2.0junk cannot masquerade as valid positive time.
+  const re=/\bpts_time:\s*([^\s]+)/g;
   let match;
   while((match=re.exec(log))!==null){
     const time=Number(match[1]);

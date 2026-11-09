@@ -53,7 +53,9 @@ export function suggestGapCuts({asset_id,source_scene_index,words,
     const gapStart=runs[i-1].source_end_ms;
     const gapEnd=runs[i].source_start_ms;
     const diff=gapEnd-gapStart;
-    if(diff>=250 && proposals.length<max_removals){
+    // A filtered 40ms utterance (e.g. "no") must never become a suggested deletion.
+    const containsSpeech=words.some(w=>w.startMs<gapEnd && w.endMs>gapStart);
+    if(diff>=250 && !containsSpeech && proposals.length<max_removals){
       proposals.push({source_start_ms:gapStart,source_end_ms:gapEnd,
         proposed_remove_ms:diff,
         reason:'word_timing_pause_only',
