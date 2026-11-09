@@ -64,6 +64,55 @@ class PrivatePNGChunkOrderTests(unittest.TestCase):
                  (zlib.crc32(name + payload) & 0xffffffff).to_bytes(4, "big"))
         self.assert_rejected(original[:8] + block + original[8:])
 
+    def test_unknown_critical_chunk_rejected_with_matching_digest(self):
+        original = self.fixture.png
+        parts = chunks(original)
+        name = b"ABCD"
+        payload = b"synthetic"
+        block = (len(payload).to_bytes(4, "big") + name + payload +
+                 (zlib.crc32(name + payload) & 0xffffffff).to_bytes(4, "big"))
+        self.assert_rejected(original[:8] + parts[0][1] + block +
+                             b"".join(raw for _, raw in parts[1:]))
+
+    def test_noncontiguous_idat_rejected_with_matching_digest(self):
+        original = self.fixture.png
+        parts = chunks(original)
+        idat_index = next(i for i, (name, _) in enumerate(parts)
+                          if name == b"IDAT")
+        name = b"tEXt"
+        payload = b"note\\x00synthetic"
+        block = (len(payload).to_bytes(4, "big") + name + payload +
+                 (zlib.crc32(name + payload) & 0xffffffff).to_bytes(4, "big"))
+        # Split one valid compressed IDAT payload across two adjacent IDAT
+        # chunks, then insert a valid ancillary chunk between them.
+        raw = parts[idat_index][1]
+        size = int.from_bytes(raw[:4], "big")
+        pixels = raw[8:8 + size]
+        mid = len(pixels) // 2
+        def idat(data):
+            return (len(data).to_bytes(4, "big") + b"IDAT" + data +
+                    (zlib.crc32(b"IDAT" + data) & 0xffffffff).to_bytes(4, "big"))
+        altered = (original[:8] +
+                   b"".join(part for _, part in parts[:idat_index]) +
+                   idat(pixels[:mid]) + block + idat(pixels[mid:]) +
+                   b"".join(part for _, part in parts[idat_index + 1:]))
+        self.assert_rejected(altered)
+
+    def test_late_palette_rejected_with_matching_digest(self):
+        original = self.fixture.png
+        parts = chunks(original)
+        index = next(i for i, (name, _) in enumerate(parts)
+                     if name == b"IDAT")
+        name = b"PLTE"
+        payload = bytes([0, 0, 0])
+        block = (len(payload).to_bytes(4, "big") + name + payload +
+                 (zlib.crc32(name + payload) & 0xffffffff).to_bytes(4, "big"))
+        self.assert_rejected(original[:8] +
+                             b"".join(part for _, part in parts[:index + 1]) +
+                             block +
+                             b"".join(part for _, part in parts[index + 1:]))
+
+
 
 if __name__ == "__main__":
     unittest.main()
