@@ -1218,3 +1218,31 @@ class Feature2PrivateReviewedDraftGateway:
 
     def commit_draft(self,shop_id,campaign_id,authorization,payload):
         return self.review.post(shop_id,campaign_id,authorization,payload)
+
+
+
+class Feature2PrivateCpuBudgetGateway:
+    """F2-21 code-only bridge from signed RLS quota to one-shot CPU lease.
+
+    Server must inject its independently approved durable single-transaction
+    reservation writer and bounded monotonic clock; disabled by default.
+    No model/audio/paid provider dispatch exists in this gateway.
+    """
+
+    def __init__(self,verify_token,tenant_store,private_cpu_store,*,
+                 reserve_validator=None,server_clock_ms=None):
+        fields=("read_current_plan","read_authoritative_quota",
+                "reserve_atomic_once")
+        if (private_cpu_store is None or
+            not all(callable(getattr(private_cpu_store,f,None))
+                    for f in fields)):
+            raise ValueError("Current signed private CPU store required")
+        self.adapter=Feature2LocalCpuReservationAdapter(
+            verify_token,tenant_store,
+            plan_reader=private_cpu_store.read_current_plan,
+            quota_reader=private_cpu_store.read_authoritative_quota,
+            atomic_reserver=private_cpu_store.reserve_atomic_once,
+            reserve_validator=reserve_validator,server_clock_ms=server_clock_ms)
+
+    def reserve(self,shop_id,campaign_id,authorization,payload):
+        return self.adapter.post(shop_id,campaign_id,authorization,payload)

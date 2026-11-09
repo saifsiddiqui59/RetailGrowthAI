@@ -762,3 +762,127 @@ class Feature2PrivateReviewedDraftStore(Feature2PrivateVoiceStore):
             raise StorageUnavailable("Unverified reviewed-draft CAS receipt")
         self._scope(token,actor,sid,cid)
         return deepcopy(output)
+
+
+
+class Feature2PrivateCpuBudgetStore(Feature2PrivateVoiceStore):
+    """F2-21 current signed-user Kokoro quota and approval-disabled reservation.
+
+    Read-only JWT/RLS quota policy comes from the same tenant identity and
+    vetted plan store. The exclusive durable budget+lease writer is injected
+    only after independent reviewed DB RPC deployment; missing writer, spent
+    CPU, forged payment/publish flag or a transient network failure cannot
+    fall back to any provider or reissue a queued job.
+    """
+    _TABLES=frozenset(("feature2_private_cpu_budgets",))
+
+    def __init__(self,tenant_store,private_voice_store,*,
+                 atomic_reserver=None,operator_cpu_reservation_enabled=False,
+                 transport=None):
+        super().__init__(tenant_store,transport=transport)
+        if (private_voice_store is None or
+            getattr(private_voice_store,"tenants",None) is not tenant_store or
+            not callable(getattr(private_voice_store,"read_current_plan",None))):
+            raise ValueError("Same-session private voice plan store required")
+        self.private_voice_store=private_voice_store
+        self.atomic_reserver=atomic_reserver
+        self.operator_cpu_reservation_enabled=(
+            operator_cpu_reservation_enabled is True)
+
+    def read_current_plan(self,token,actor,shop_id,campaign_id):
+        return self.private_voice_store.read_current_plan(
+            token,actor,shop_id,campaign_id)
+
+    def read_authoritative_quota(self,token,actor,shop_id,campaign_id):
+        from copy import deepcopy
+        import re
+        sid,cid=self._scope(token,actor,shop_id,campaign_id)
+        row=self._get("feature2_private_cpu_budgets",token,{
+            "select":"shop_id,campaign_id,quota_policy,revoked_at",
+            "shop_id":"eq."+sid,"campaign_id":"eq."+cid,"limit":"2"})
+        if row is None:
+            return None
+        if (type(row) is not dict or row.get("shop_id")!=sid or
+            row.get("campaign_id")!=cid or row.get("revoked_at") is not None or
+            type(row.get("quota_policy")) is not dict):
+            raise StorageUnavailable("Invalid signed CPU quota record")
+        quota=deepcopy(row["quota_policy"])
+        ints=("budget_revision","reserved_cpu_ms","used_cpu_ms",
+              "monthly_cpu_limit_ms","active_cpu_jobs",
+              "max_active_cpu_jobs","per_job_reserved_cpu_ms")
+        if (quota.get("shop_id")!=sid or quota.get("campaign_id")!=cid or
+            quota.get("provider")!="kokoro-onnx" or
+            quota.get("paid_api_calls_allowed") is not False or
+            quota.get("policy_state")!="ACTIVE" or
+            type(quota.get("period_id")) is not str or
+            not re.fullmatch(r"\d{4}-(?:0[1-9]|1[0-2])",quota["period_id"]) or
+            any(type(quota.get(k)) is not int for k in ints) or
+            quota["budget_revision"]<0 or
+            not 0<=quota["reserved_cpu_ms"]<=86_400_000 or
+            not 0<=quota["used_cpu_ms"]<=86_400_000 or
+            not 1000<=quota["monthly_cpu_limit_ms"]<=86_400_000 or
+            not 0<=quota["active_cpu_jobs"]<=4 or
+            not 1<=quota["max_active_cpu_jobs"]<=4 or
+            not 2000<=quota["per_job_reserved_cpu_ms"]<=180_000):
+            raise StorageUnavailable("Untrusted or elevated CPU budget policy")
+        self._scope(token,actor,sid,cid)
+        return quota
+
+    def reserve_atomic_once(self,token,actor,shop_id,campaign_id,job_key,
+                            request_sha256,budget_revision,reserved_cpu_ms,
+                            request):
+        import json
+        import re
+        from copy import deepcopy
+        from hashlib import sha256
+        sid,cid=self._scope(token,actor,shop_id,campaign_id)
+        key=canonical_uuid(job_key)
+        if (type(request_sha256) is not str or
+            not re.fullmatch("[0-9a-f]{64}",request_sha256) or
+            type(budget_revision) is not int or budget_revision<0 or
+            type(reserved_cpu_ms) is not int or
+            not 2000<=reserved_cpu_ms<=180000 or
+            type(request) is not dict or
+            request.get("shop_id")!=sid or
+            request.get("campaign_id")!=cid or
+            request.get("job_key")!=key or
+            request.get("budget_revision")!=budget_revision or
+            request.get("reserved_cpu_ms")!=reserved_cpu_ms or
+            request.get("provider")!="kokoro-onnx" or
+            request.get("paid_api_calls_allowed") is not False or
+            request_sha256!=sha256(json.dumps(
+                request,sort_keys=True,separators=(",",":")).encode()).hexdigest()):
+            raise ValueError("Invalid immutable CPU reservation request")
+        if (not self.operator_cpu_reservation_enabled or
+            not callable(self.atomic_reserver)):
+            raise StorageUnavailable("Atomic private CPU quota writer not approved")
+        # This fresh read is NOT an atomicity substitute: the supplied writer
+        # MUST lock quota+source+idempotency+lease in a single DB transaction.
+        quota=self.read_authoritative_quota(token,actor,sid,cid)
+        if (quota is None or quota["budget_revision"]!=budget_revision or
+            quota["per_job_reserved_cpu_ms"]!=reserved_cpu_ms or
+            quota["active_cpu_jobs"]>=quota["max_active_cpu_jobs"] or
+            quota["reserved_cpu_ms"]+quota["used_cpu_ms"]+reserved_cpu_ms>
+                quota["monthly_cpu_limit_ms"]):
+            raise PermissionError("Stale or exhausted private CPU quota")
+        snapshot=deepcopy(request)
+        output=self.atomic_reserver(
+            token,actor,sid,cid,key,request_sha256,budget_revision,
+            reserved_cpu_ms,deepcopy(request))
+        if (type(output) is not dict or snapshot!=request or
+            output.get("schema")!="retailgrowth.feature2-local-cpu-reservation.v1" or
+            output.get("shop_id")!=sid or output.get("campaign_id")!=cid or
+            output.get("job_key")!=key or
+            output.get("request_sha256")!=request_sha256 or
+            output.get("provider")!="kokoro-onnx" or
+            output.get("period_id")!=quota["period_id"] or
+            output.get("reserved_cpu_ms")!=reserved_cpu_ms or
+            output.get("status")!="RESERVED" or
+            output.get("private") is not True or
+            output.get("can_publish") is not False or
+            output.get("paid_api_calls")!=0 or
+            type(output.get("paid_api_calls")) is not int or
+            output.get("atomic_unique_commit") is not True):
+            raise StorageUnavailable("Unverified durable CPU lease receipt")
+        self._scope(token,actor,sid,cid)
+        return deepcopy(output)
