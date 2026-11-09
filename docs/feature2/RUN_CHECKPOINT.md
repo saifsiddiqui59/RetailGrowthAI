@@ -272,3 +272,18 @@ The owner requested: **if code work is finished and tests have passed, mark it C
 - Existing original task totals **9 SOURCE_COMPLETE / 17 SOURCE_IN_PROGRESS / 12 EXTERNALLY_BLOCKED; 0/38 main-integrated DONE** remain unchanged. The **9 new offline adapter substeps** are separately closed after exact code-head CI, while originals stay IN_PROGRESS. Prior 17 already-verified historical substeps and F2-19 are retained, not reimplemented.
 - This single follow-up source/doc commit adds a F2-02 mutable RLS context/draft alias revocation guard with two new negative tests; **its own final-head CI must be checked** before accepting that additional hardening. No PR merge until protected independent review for parent #551; child #848 remains stacked.
 - NEXT concrete coding/integration: operator-reviewed Functions runtime/router wiring, signed JWT-backed private PostgREST readers, atomic budget/CAS registrations, real CPU Kokoro/F7 signatures and F4 media handoff. Tests should use synthetic test shop assets without requiring commercial retailer identities; do not claim a live integration pass.
+
+
+## 2026-11-09 — Feature2 code-first JWT/trace/review integration continuation
+
+**Original ledger unchanged: 9 SOURCE_COMPLETE / 17 SOURCE_IN_PROGRESS / 12 EXTERNALLY_BLOCKED, 0/38 main-integrated DONE.** Eight affected original IDs have additional tested source-only substeps, not eight newly completed tasks. We tested three prior F2-10/19/20/26 phases from November 6 plus F2-08/12 and F2-03/31 in two new batches. Exact source heads:
+
+- #42283898465 at `71f9733b` — 4/4: current JWT/RLS voice plan/job and private registered original WAV storage readers; isolated signed HTTP tests.
+- #42284871646 at `bfb6e66a` — 4/4: GET-only voice status and WAV routes (default OFF); undeclared protected ZIP import rejected by earlier CI #42284505820 and removed. No package guard bypass.
+- #42285862962 at `090d67d8` — 4/4: bounded original SHA-bound WAV browser reader; initial false-negative status-only assertion corrected.
+- #42571554660 at `bb7b53db` — 4/4: F2-08 independent HMAC private score history and F2-12 ordered original private trace source/event store, signed JWT RLS tests.
+- #42572366036 at `6461acc0` — 4/4: F2-03/F2-31 signed prompt editor evidence and default-disabled atomic CAS gateway; fixed one bad test assertion that confused SHA field with leaked original text.
+
+**No hosted service/migration, actual approved human review, Kokoro/ASR inference, licensed customer asset, real audio or signed browser release is claimed.** Source-only review SQL lives under `ai-agents/sql/*_REVIEW_ONLY.sql` and has not been applied; actual tenant protections, immutable CAS, key handling, private blob bucket and real work require independent review. The `function_app.py` routes are still 503 fail-closed until packaged dependencies are explicitly approved; no paid model, GPU, PROD, WineShopPOS or Azure DB changes.
+
+**Protected integration remains open:** Child [PR #848](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848) stacked behind parent [PR #551](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/551); parent has no recorded independent reviews. Do not self-approve the protected package/root/API or treat these tests as accepted main-integrated DONE. After code review: enable reviewed source validators, implement durable authenticated atomic CAS and ledger, mount the existing signed voice selector in Creative Studio, and run actual separate two-shop DEV negative tests with test accounts and synthetic media. No new sample or user preview required.

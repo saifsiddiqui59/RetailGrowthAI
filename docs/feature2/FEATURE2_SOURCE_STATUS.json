@@ -2,7 +2,7 @@
   "schema_version": 1,
   "feature": "2",
   "total_task_ids": 38,
-  "recorded_at": "2026-11-05",
+  "recorded_at": "2026-11-09",
   "source_ledger": "docs/feature2/FEATURE2_38_TASK_LEDGER_20261029.md",
   "source_ledger_note": "Source-only scope evidence. An imported snapshot is not integrated DONE.",
   "current_source_pr": 848,
@@ -159,6 +159,17 @@
         "main_integrated_done": false,
         "hosted_acceptance_complete": false,
         "remaining": "JWT-scoped reviewed prompt draft POST uses current server proposal, independent signed editor decision and one-shot private CAS; mounted durable endpoint not verified"
+      },
+      "followup_source_20261109": {
+        "scope": "VERIFIED_SOURCE_COMPONENT_ONLY",
+        "status": "CLOSED_AT_TESTED_SUBSTEP",
+        "independent_original_task_status": "SOURCE_IN_PROGRESS",
+        "evidence_head_sha": "6461acc0bac80f7d5f0a812705b78aa4dcda71ad",
+        "source_test_ci_run_id": 42572366036,
+        "notes": "2026-11-09 new source: signed JWT current draft/proposal and independently keyed review-decision reader, with operator-disabled atomic CAS callback; synthetic test head 6461acc0; real hosted writer and actual human reviewer not verified",
+        "hosted_done": false,
+        "main_integrated_done": false,
+        "no_paid_calls": true
       }
     },
     {
@@ -283,6 +294,17 @@
         "main_integrated_done": false,
         "hosted_acceptance_complete": false,
         "remaining": "Private A/B reviewer history GET invokes signed score history with tenant JWT and revocation rechecks; durable hosted reviewer receipts not connected"
+      },
+      "followup_source_20261109": {
+        "scope": "VERIFIED_SOURCE_COMPONENT_ONLY",
+        "status": "CLOSED_AT_TESTED_SUBSTEP",
+        "independent_original_task_status": "SOURCE_IN_PROGRESS",
+        "evidence_head_sha": "bb7b53db36d1fef4e833564fe8790d3331ea48df",
+        "source_test_ci_run_id": 42571554660,
+        "notes": "2026-11-09 new source: private HMAC-signed full-score history RLS reader, separate cryptographic attestation and negative tests; genuine human identity/migration not verified",
+        "hosted_done": false,
+        "main_integrated_done": false,
+        "no_paid_calls": true
       }
     },
     {
@@ -353,7 +375,18 @@
           "ci_run_id": 41307027543,
           "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
         }
-      ]
+      ],
+      "followup_source_20261109": {
+        "scope": "VERIFIED_SOURCE_COMPONENT_ONLY",
+        "status": "CLOSED_AT_TESTED_SUBSTEP",
+        "independent_original_task_status": "SOURCE_IN_PROGRESS",
+        "evidence_head_sha": "090d67d87b580234d02bc06160f3bf8e7a19e17a",
+        "source_test_ci_run_id": 42285862962,
+        "notes": "2026-11-06 new source: LocalVoicePanel passes private original WAV SHA plus plan digest to signed reader; actual Creative Studio mount remains absent",
+        "hosted_done": false,
+        "main_integrated_done": false,
+        "no_paid_calls": true
+      }
     },
     {
       "id": "F2-11",
@@ -428,6 +461,17 @@
         "main_integrated_done": false,
         "hosted_acceptance_complete": false,
         "remaining": "Private workflow trace GET verifies HMAC chain via trusted injected server secret and tenant-private event reader; actual hosted trace store absent"
+      },
+      "followup_source_20261109": {
+        "scope": "VERIFIED_SOURCE_COMPONENT_ONLY",
+        "status": "CLOSED_AT_TESTED_SUBSTEP",
+        "independent_original_task_status": "SOURCE_IN_PROGRESS",
+        "evidence_head_sha": "bb7b53db36d1fef4e833564fe8790d3331ea48df",
+        "source_test_ci_run_id": 42571554660,
+        "notes": "2026-11-09 new source: JWT-scoped trace source and 1..100 ordered HMAC events, double read and changed source denial; actual immutable backend CAS/worker signatures not deployed",
+        "hosted_done": false,
+        "main_integrated_done": false,
+        "no_paid_calls": true
       }
     },
     {
@@ -632,7 +676,18 @@
             "integrated_done": false
           }
         }
-      ]
+      ],
+      "followup_source_20261109": {
+        "scope": "VERIFIED_SOURCE_COMPONENT_ONLY",
+        "status": "CLOSED_AT_TESTED_SUBSTEP",
+        "independent_original_task_status": "SOURCE_IN_PROGRESS",
+        "evidence_head_sha": "090d67d87b580234d02bc06160f3bf8e7a19e17a",
+        "source_test_ci_run_id": 42285862962,
+        "notes": "2026-11-06 new source: signed JWT PostgREST current plan/job reader, GET-only 503-fail-closed HTTP endpoint; actual protected verifier package/migration not reviewed",
+        "hosted_done": false,
+        "main_integrated_done": false,
+        "no_paid_calls": true
+      }
     },
     {
       "id": "F2-20",
@@ -690,6 +745,17 @@
         "main_integrated_done": false,
         "hosted_acceptance_complete": false,
         "remaining": "Private original WAV binary GET verifies original bytes/hash/current actor and no-store response; tenant-private blob/JWT route not mounted"
+      },
+      "followup_source_20261109": {
+        "scope": "VERIFIED_SOURCE_COMPONENT_ONLY",
+        "status": "CLOSED_AT_TESTED_SUBSTEP",
+        "independent_original_task_status": "SOURCE_IN_PROGRESS",
+        "evidence_head_sha": "090d67d87b580234d02bc06160f3bf8e7a19e17a",
+        "source_test_ci_run_id": 42285862962,
+        "notes": "2026-11-06 new source: private WAV registered asset, no-redirect original bytes reader, SHA/PCM and bounded streaming client; live private bucket/rights not approved",
+        "hosted_done": false,
+        "main_integrated_done": false,
+        "no_paid_calls": true
       }
     },
     {
@@ -817,7 +883,18 @@
           "ci_run_id": 41307027543,
           "verified_source_head_sha": "de02305407f847242621590a52d0ac62020554a0"
         }
-      ]
+      ],
+      "followup_source_20261109": {
+        "scope": "VERIFIED_SOURCE_COMPONENT_ONLY",
+        "status": "CLOSED_AT_TESTED_SUBSTEP",
+        "independent_original_task_status": "SOURCE_IN_PROGRESS",
+        "evidence_head_sha": "090d67d87b580234d02bc06160f3bf8e7a19e17a",
+        "source_test_ci_run_id": 42285862962,
+        "notes": "2026-11-06 new source: private job/status+WAV callback compatible with existing source review UI; signed Feature7 endpoint/Creative Studio host absent",
+        "hosted_done": false,
+        "main_integrated_done": false,
+        "no_paid_calls": true
+      }
     },
     {
       "id": "F2-27",
@@ -1024,6 +1101,17 @@
         "main_integrated_done": false,
         "hosted_acceptance_complete": false,
         "remaining": "Shared with F2-03, explicit compared script A/B review receipt binds exact source/proposal; live Creative Studio mount/signed editor CAS absent"
+      },
+      "followup_source_20261109": {
+        "scope": "VERIFIED_SOURCE_COMPONENT_ONLY",
+        "status": "CLOSED_AT_TESTED_SUBSTEP",
+        "independent_original_task_status": "SOURCE_IN_PROGRESS",
+        "evidence_head_sha": "6461acc0bac80f7d5f0a812705b78aa4dcda71ad",
+        "source_test_ci_run_id": 42572366036,
+        "notes": "2026-11-09 new source: exact signed human source/revision evidence and reviewed-draft CAS gateway, not activated; actual human reviewer and app approval panel not hosted",
+        "hosted_done": false,
+        "main_integrated_done": false,
+        "no_paid_calls": true
       }
     },
     {
@@ -1157,7 +1245,12 @@
       41985198673,
       42270532246,
       42271348767,
-      42272190219
+      42272190219,
+      42283898465,
+      42284871646,
+      42285862962,
+      42571554660,
+      42572366036
     ],
     "original_in_progress_unmodified": 17,
     "original_externally_blocked_unmodified": 12,
@@ -1249,6 +1342,70 @@
         "sha": "5f25b750dc3e1fe2d3ddaae42587226a8e1c974b",
         "closed": true,
         "original_task_complete": false
+      },
+      {
+        "id": "F2-03",
+        "name": "Additional private RLS/HTTP/audit source component 2026-11-09",
+        "ci_run_id": 42572366036,
+        "sha": "6461acc0bac80f7d5f0a812705b78aa4dcda71ad",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-08",
+        "name": "Additional private RLS/HTTP/audit source component 2026-11-09",
+        "ci_run_id": 42571554660,
+        "sha": "bb7b53db36d1fef4e833564fe8790d3331ea48df",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-10",
+        "name": "Additional private RLS/HTTP/audit source component 2026-11-09",
+        "ci_run_id": 42285862962,
+        "sha": "090d67d87b580234d02bc06160f3bf8e7a19e17a",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-12",
+        "name": "Additional private RLS/HTTP/audit source component 2026-11-09",
+        "ci_run_id": 42571554660,
+        "sha": "bb7b53db36d1fef4e833564fe8790d3331ea48df",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-19",
+        "name": "Additional private RLS/HTTP/audit source component 2026-11-09",
+        "ci_run_id": 42285862962,
+        "sha": "090d67d87b580234d02bc06160f3bf8e7a19e17a",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-20",
+        "name": "Additional private RLS/HTTP/audit source component 2026-11-09",
+        "ci_run_id": 42285862962,
+        "sha": "090d67d87b580234d02bc06160f3bf8e7a19e17a",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-26",
+        "name": "Additional private RLS/HTTP/audit source component 2026-11-09",
+        "ci_run_id": 42285862962,
+        "sha": "090d67d87b580234d02bc06160f3bf8e7a19e17a",
+        "closed": true,
+        "original_task_complete": false
+      },
+      {
+        "id": "F2-31",
+        "name": "Additional private RLS/HTTP/audit source component 2026-11-09",
+        "ci_run_id": 42572366036,
+        "sha": "6461acc0bac80f7d5f0a812705b78aa4dcda71ad",
+        "closed": true,
+        "original_task_complete": false
       }
     ],
     "code_first_20261106": {
@@ -1294,5 +1451,69 @@
     "no_gpu": true,
     "no_paid_model": true,
     "no_production": true
+  },
+  "source_components_20261109": {
+    "unique_original_ids_advanced": [
+      "F2-03",
+      "F2-08",
+      "F2-10",
+      "F2-12",
+      "F2-19",
+      "F2-20",
+      "F2-26",
+      "F2-31"
+    ],
+    "component_substeps_closed": 8,
+    "detailed_evidence": [
+      {
+        "ids": [
+          "F2-10",
+          "F2-19",
+          "F2-20",
+          "F2-26"
+        ],
+        "run": 42285862962,
+        "sha": "090d67d87b580234d02bc06160f3bf8e7a19e17a",
+        "label": "Signed private voice persistence+GET and original WAV browser playback (CIs #42283898465/#42284871646/#42285862962)"
+      },
+      {
+        "ids": [
+          "F2-08",
+          "F2-12"
+        ],
+        "run": 42571554660,
+        "sha": "bb7b53db36d1fef4e833564fe8790d3331ea48df",
+        "label": "Signed-user RLS A/B audit and trace source history, bounded HMAC verifier"
+      },
+      {
+        "ids": [
+          "F2-03",
+          "F2-31"
+        ],
+        "run": 42572366036,
+        "sha": "6461acc0bac80f7d5f0a812705b78aa4dcda71ad",
+        "label": "Signed reviewed prompt draft current RLS/attestation readers and disabled-by-default CAS writer"
+      }
+    ],
+    "sql_proposals_only": [
+      "ai-agents/sql/feature2_private_voice_REVIEW_ONLY.sql",
+      "ai-agents/sql/feature2_private_audit_REVIEW_ONLY.sql",
+      "ai-agents/sql/feature2_private_prompt_review_REVIEW_ONLY.sql"
+    ],
+    "private_runtime_verified_source": true,
+    "hosted_runtime_enabled": false,
+    "protected_runtime_package_review_needed": true,
+    "independently_signed_customer_reviews_obtained": false,
+    "origin_counts_unchanged": {
+      "SOURCE_IN_PROGRESS": 17,
+      "SOURCE_COMPLETE": 9,
+      "EXTERNALLY_BLOCKED": 12
+    },
+    "integrated_done": 0,
+    "no_hosted_db_write": true,
+    "no_gpu": true,
+    "no_paid_provider": true,
+    "no_production": true,
+    "no_wineshoppos": true
   }
 }
