@@ -137,6 +137,28 @@ class RouteAdapterTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertEqual(self.calls, 1)
 
+    def test_oversized_header_value_denied_before_body_and_reader(self):
+        request = Request(self.shop, self.job, "Bearer " + "x" * 30)
+        request.headers["X-Synthetic-Overflow"] = "x" * 20000
+        request.get_body = lambda: self.fail("body read before oversized header denial")
+        self.assert_denied_without_reader(request, 400)
+
+    def test_cumulative_header_budget_denied_before_body_and_reader(self):
+        request = Request(self.shop, self.job, "Bearer " + "x" * 30)
+        for index in range(10):
+            request.headers[f"X-Synthetic-{index}"] = "a" * 2000
+        request.get_body = lambda: self.fail("body read before header budget denial")
+        self.assert_denied_without_reader(request, 400)
+
+    def test_header_budget_boundary_keeps_normal_auth_path(self):
+        request = Request(self.shop, self.job, "Bearer " + "x" * 30)
+        # Exactly 16384 total key+value characters is permitted.
+        baseline = sum(len(k) + len(v) for k, v in request.headers.items())
+        request.headers["X-Fixture"] = "a" * (16384 - baseline - len("X-Fixture"))
+        response = self.call("", request=request)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(self.calls, 1)
+
     def test_malformed_headers_denied(self):
         request = Request(self.shop, self.job, "Bearer " + "x" * 30)
         request.headers = None
