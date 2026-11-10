@@ -19,7 +19,9 @@ _SHA=re.compile(r"^[a-f0-9]{64}$")
 _MAX=25*1024*1024
 # The trusted reader validates full pixels; this HTTP boundary independently
 # rejects non-PNG or trailing-payload receipts before publishing private bytes.
-_PNG_MAGIC=b"\x89PNG\r\n\x1a\n"
+_PNG_MAGIC=b"\x89PNG\r
+\x1a
+"
 _PNG_IEND=b"\x00\x00\x00\x00IEND\xaeB\x60\x82"
 
 
@@ -75,7 +77,11 @@ def _valid_png_chunks(raw):
         # interleaved IDAT sequence must never reach the private response.
         if kind[0] in range(65,91) and kind not in (b"IHDR",b"PLTE",b"IDAT",b"IEND"):
             return False
-        # Generated private posters have no need for ancillary metadata.\n        # Reject even CRC-valid text/EXIF/ICC chunks from a faulty reader.\n        if kind[0] in range(97,123):\n            return False\n        if kind==b"PLTE":
+        # Generated private posters have no need for ancillary metadata.
+        # Reject even CRC-valid text/EXIF/ICC chunks from a faulty reader.
+        if kind[0] in range(97,123):
+            return False
+        if kind==b"PLTE":
             if (saw_plte or saw_idat or color_type in (0,4) or
                     length==0 or length>768 or length%3!=0 or
                     (color_type==3 and length//3>(1<<bit_depth))):
