@@ -99,6 +99,19 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             self.call(d,s,r,data,reader=reader)
         self.assertEqual(counts[0],2)
 
+    def test_revocation_after_compilation_is_not_accepted(self):
+        d,s,r,data=self.setup_case()
+        counts=[0]
+        def reader(*_):
+            counts[0]+=1
+            answer=dict(r)
+            if counts[0]>=3:
+                answer["review_status"]="REVOKED"
+            return answer
+        with self.assertRaises(CreativeContractError):
+            self.call(d,s,r,data,reader=reader)
+        self.assertEqual(counts[0],3)
+
     def test_no_browser_supplied_audio_reader_or_receipt(self):
         d,s,r,data=self.setup_case()
         with self.assertRaises(CreativeContractError):
