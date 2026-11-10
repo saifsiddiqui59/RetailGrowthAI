@@ -137,7 +137,7 @@ class Y1CanaryGuardTests(unittest.TestCase):
                   "sku":{"name":"Y1","tier":"Dynamic"}},
              ]), \
              patch.object(guard, "command",return_value={
-                 "linuxFxVersion":"PYTHON|3.12","appSettings":"SECRET"}),
+                 "linuxFxVersion":"PYTHON|3.12","appSettings":"SECRET"}), \
              contextlib.redirect_stdout(buffer):
             guard.verify()
         self.assertNotIn("SECRET",buffer.getvalue())
