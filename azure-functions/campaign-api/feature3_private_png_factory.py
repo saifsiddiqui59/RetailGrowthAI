@@ -10,7 +10,8 @@ import re
 
 from feature3_private_png_reader import Feature3RevocablePNGReader, PrivateGeneratedDownloadDenied
 
-# Reject malformed JWT framing before any trusted verifier, RLS or Storage IO.\n# Base64url segments with length modulo four == one cannot decode to bytes.
+# Reject malformed JWT framing before any trusted verifier, RLS or Storage IO.
+# Base64url segments with length modulo four == one cannot decode to bytes.
 # This is only syntactic validation; cryptographic verification remains mandatory.
 _JWT_SEGMENT = re.compile(r"[A-Za-z0-9_-]+")
 
