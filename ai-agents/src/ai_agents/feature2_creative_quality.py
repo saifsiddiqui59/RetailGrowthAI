@@ -807,6 +807,13 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
         # characters (e.g. 50ｐｅｒｃｅｎｔ), preserving original offsets.
         # Never normalize signed offer wording, stored copy or the digest:
         # source approval still requires the exact original text span.
+        # A compatibility glyph can expand into multiple ASCII digits (e.g.
+        # circled 20). Reject ambiguous expansions rather than silently
+        # skipping them during numeric offer detection.
+        if any(len(unicodedata.normalize("NFKC", ch)) > 1 and
+               any(c.isdecimal() or c == "%" for c in
+                   unicodedata.normalize("NFKC", ch)) for ch in text):
+            issues.add("DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED")
         shadow="".join(
             normalized if len(normalized)==1 else char
             for char in text
