@@ -167,6 +167,8 @@ class Feature4MasterTests(unittest.TestCase):
                  "commercial_release_eligible":False}
         audio_master._write_private_receipt(report,payload)
         self.assertEqual(__import__("json").loads(report.read_text()),payload)
+        if __import__("os").name == "posix":
+            self.assertEqual(report.stat().st_mode & 0o777, 0o600)
         with self.assertRaisesRegex(AudioMasterError,"new JSON"):
             audio_master._write_private_receipt(report,payload)
         self.assertEqual(__import__("json").loads(report.read_text()),payload)
