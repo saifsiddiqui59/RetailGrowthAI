@@ -201,6 +201,23 @@ class RouteAdapterTests(unittest.TestCase):
         self.assertEqual(self.calls, 1)
         self.assertEqual(request.headers.length_reads, 1)
 
+    def test_ambiguous_bearer_delimiters_fail_before_body_and_reader(self):
+        # A proxy must never interpret a comma-separated credential or
+        # quoted/escaped bearer value differently from the private reader.
+        for delimiter in (",", ";", '"', "\\"):
+            with self.subTest(delimiter=delimiter):
+                request = Request(self.shop, self.job,
+                                  "Bearer " + "x" * 15 + delimiter + "y" * 15)
+                request.get_body = lambda: self.fail(
+                    "GET body read before malformed bearer denial")
+                self.assert_denied_without_reader(request, 401)
+
+    def test_plain_synthetic_bearer_still_reaches_reader(self):
+        request = Request(self.shop, self.job, "Bearer " + "x" * 30)
+        response = self.call("", request=request)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(self.calls, 1)
+
     def test_malformed_headers_denied(self):
         request = Request(self.shop, self.job, "Bearer " + "x" * 30)
         request.headers = None
