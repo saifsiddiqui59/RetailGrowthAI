@@ -1076,3 +1076,9 @@ Feature3 decision: synthetic image/video/browser fixtures may unblock offline so
 
 ### 2026-11-10 additional historical F2 handoff reconciliation
 - F2 draft #535 closed unmerged after exact Git-blob equality of implementation, tests and dedicated handoff in open #848 was checked. Only two original generic handoff explanatory paragraphs differed; these were preserved on #848 as review comment 6748650091, without modifying code or changing CI head. Thus #848 remains the canonical source keeper; original work is neither main-integrated nor hosted-accepted.
+
+
+### 2026-11-10 — source reconciliation over raw PR-count reduction
+- User-directed 50-PR scan executed as bounded connector batches, rather than 50 autonomous workers (approved coordination maximum remains 10 separately claimed tasks). Exact status/base/head and changed-file lists were checked for 50 historical PRs, then code ancestry compared to their feature keeper. Every old head diverged, so closing from title/age/ahead-behind numbers alone is prohibited.
+- Do not weaken or bypass failing old CI. Defer red/merge-conflicting/independently protected PRs, keep unique safety tests and move to the next independent PR. Original F4 UI-only #838 merged into feature parent after exact-head green 4/4; #763 closed superseded only after #896 preservation and source 4/4. Feature-only source merges do **not** increment integrated original task DONE without reviewed main merge and main CI.
+- No GPU/paid inference, Azure/SQL/PROD or WineShopPOS changes; see `docs/integration/OPEN_PR_TRIAGE_20261110.md`.
