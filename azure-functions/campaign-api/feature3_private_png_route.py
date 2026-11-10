@@ -83,14 +83,14 @@ def handle_private_png_request(request, *, reader_factory, response_type):
                 len({name.lower() for name in names}) != len(names) or
                 sum(name.lower() == "authorization" for name in names) != 1):
             return _denied(400, response_type)
-        # Refuse ambiguous request framing even when the body is empty.
+        # Snapshot each untrusted header value exactly once. Framework/proxy\n        # mappings can be stateful; repeated get() calls must not swap the\n        # validated credential or framing value before the private reader.\n        values = {name: headers.get(name) for name in names}\n        # Refuse ambiguous request framing even when the body is empty.
         framing = [name.lower() for name in names if name.lower() in
                    ("content-length", "transfer-encoding")]
         if len(framing) != len(set(framing)) or "transfer-encoding" in framing:
             return _denied(400, response_type)
         if "content-length" in framing:
             length_name = next(name for name in names if name.lower() == "content-length")
-            if type(headers.get(length_name)) is not str or headers.get(length_name) != "0":
+            if type(values[length_name]) is not str or values[length_name] != "0":
                 return _denied(400, response_type)
         # This endpoint serves one complete immutable private PNG. Reject
         # range/conditional/compressed requests rather than allowing an
@@ -108,7 +108,7 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # reject wildcard, gzip and multi-valued negotiation before body IO.
         encoding_names = [name for name in names if name.lower() == "accept-encoding"]
         if encoding_names:
-            encoding = headers.get(encoding_names[0])
+            encoding = values[encoding_names[0]]
             if type(encoding) is not str or encoding.lower() != "identity":
                 return _denied(400, response_type)
         # The endpoint is a binary-only representation. Reject clients that
@@ -116,7 +116,7 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # HTML, JSON or transformed response around private image bytes.
         accept_names = [name for name in names if name.lower() == "accept"]
         if accept_names:
-            accept = headers.get(accept_names[0])
+            accept = values[accept_names[0]]
             if type(accept) is not str or accept not in (
                     "image/png", "image/*", "*/*"):
                 return _denied(406, response_type)
@@ -124,7 +124,7 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # Read the enumerated header key, not a differently cased alias: some
         # request adapters are case-sensitive, and an absent alias must not
         # silently turn a valid Authorization header into an empty credential.
-        authorization = headers.get(actual_name)
+        authorization = values[actual_name]
         if type(authorization) is not str:
             return _denied(400, response_type)
         if not authorization:
@@ -148,7 +148,7 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # This is synthetic request-adapter hardening, not hosted JWT proof.
         total_header_bytes = 0
         for name in names:
-            value = headers.get(name)
+            value = values[name]
             # Bound untrusted values before scanning their characters.
             # A huge framework-provided header must not force an unbounded
             # validation pass before authentication is denied.
