@@ -304,7 +304,11 @@ class Feature3RevocablePNGReader:
             # and EXIF chunks can carry hidden customer data, external links,
             # or unreviewed rights claims even when pixels and SHA match.
             # Refuse these chunks instead of trusting Pillow's info mapping.
-            if chunk_type in (b"tEXt", b"zTXt", b"iTXt", b"eXIf"):
+            # ICC profiles, suggested palettes and calibration chunks may
+            # also contain opaque user-controlled metadata; generated PNGs
+            # do not need these to deliver verified pixels.
+            if chunk_type in (b"tEXt", b"zTXt", b"iTXt", b"eXIf",
+                              b"iCCP", b"sPLT", b"pCAL", b"sCAL"):
                 raise PrivateGeneratedDownloadDenied(
                     "Private PNG embedded metadata not permitted")
             # Palette entries are RGB triples (1..256 entries). A malformed
