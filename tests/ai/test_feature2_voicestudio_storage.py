@@ -172,3 +172,16 @@ def test_private_wav_readback_denies_tamper_without_retry():
     with pytest.raises(PrivateVoiceStorageDenied):
         store.verify_pair(SHOP, CAMPAIGN, JOB, sha, sha)
     assert len(calls) == 1
+
+
+@pytest.mark.parametrize("mutate", [
+    lambda data: data + b"untrusted-trailing-data",
+    lambda data: data[:4] + (len(data) + 100).to_bytes(4, "little") + data[8:],
+    lambda data: data[:4] + (len(data) - 20).to_bytes(4, "little") + data[8:],
+])
+def test_riff_envelope_mismatch_never_reaches_storage(mutate):
+    store, calls = harness()
+    original = mutate(wav())
+    with pytest.raises(PrivateVoiceStorageDenied, match="RIFF byte length"):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
