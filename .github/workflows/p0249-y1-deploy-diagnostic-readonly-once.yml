@@ -1,0 +1,59 @@
+name: "RetailGrowthAI #249 existing Y1 deployment/indexing diagnosis (no writes)"
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0249-y1-deploy-diagnostic-readonly-once.yml'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Read only existing DEV Y1 deployment status and safe build flags"
+        type: choice
+        required: true
+        options: ['NO','YES-Y1-READONLY-BUILD']
+permissions:
+  contents: read
+concurrency:
+  group: rgai-y1-deployment-diagnosis-readonly
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' &&
+        inputs.confirm == 'YES-Y1-READONLY-BUILD') ||
+       (github.event_name == 'push' &&
+        startsWith(github.event.head_commit.message,
+        'audit(#249): inspect Y1 remote build and deployment logs')))
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 13
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Offline no-write/secret redaction tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/p0249_y1_deploy_diagnostic_readonly.py
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_deploy_diagnostic_readonly.py' -v
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Inspect original FC1 and exact Y1; classify build settings, Kudu status and index
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_deploy_diagnostic_readonly.py
+      - name: Logout
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
