@@ -71,6 +71,30 @@ class FactoryTests(unittest.TestCase):
                 with self.assertRaises(PrivateGeneratedDownloadDenied):
                     reader.read(user_token="synthetic", shop_id=shop, job_id=job)
 
+    def test_malformed_tokens_denied_before_verifier(self):
+        calls = []
+        def verify(token):
+            calls.append(token)
+            raise AssertionError("verifier should not be called")
+        factory = TrustedPrivatePNGFactory(
+            tenant_store=Store(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )
+        reader = factory(self.shop, self.job)
+        bad = (None, b"token", 42, "", "a" * 8193, "a b",
+               "a\\n", "a\\r", "a\\t", "\\x00", "\\x7f")
+        for token in bad:
+            with self.subTest(token=repr(token)), self.assertRaises(PrivateGeneratedDownloadDenied):
+                reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, [])
+
+    def test_token_string_subclass_denied(self):
+        class Token(str):
+            pass
+        reader = self.make()(self.shop, self.job)
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            reader.read(user_token=Token("synthetic"), shop_id=self.shop, job_id=self.job)
+
     def test_valid_scope_reaches_real_reader_and_denies_fake_jwt(self):
         # No mocked success: the actual reader must reject the fixture token.
         reader = self.make()(self.shop, self.job)
