@@ -217,6 +217,52 @@ class FactoryTests(unittest.TestCase):
             self.assertEqual(calls[-1], token)
         self.assertEqual(len(calls), 3)
 
+    def test_ambiguous_payload_claims_denied_before_verifier_or_rls(self):
+        calls = []
+        class CountingStore(Store):
+            def member(self, *args):
+                calls.append("rls")
+                raise AssertionError("tenant IO before verification")
+        def verify(token):
+            calls.append("jwt")
+            raise AssertionError("ambiguous payload must not reach verifier")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=CountingStore(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        header = "eyJhbGciOiJIUzI1NiJ9"
+        signature = "c2lnbmF0dXJl"
+        for payload in (
+            '{"sub":"one","sub":"two"}',
+            '{"sub":null}', '{"sub":1}', '{"sub":""}',
+            '[]', 'null', '{"role":"authenticated"}',
+            '{"sub":"fixture","nested":{"x":1,"x":2}}',
+            '{"sub":"fixture","nested":{"x":1,"x":2}}',
+        ):
+            segment = base64.urlsafe_b64encode(payload.encode()).decode().rstrip("=")
+            with self.subTest(payload=payload):
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    reader.read(user_token=f"{header}.{segment}.{signature}",
+                                shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, [])
+
+    def test_valid_payload_still_requires_cryptographic_verification(self):
+        calls = []
+        def verify(token):
+            calls.append(token)
+            raise ValueError("unsigned synthetic fixture")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=Store(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        payload = base64.urlsafe_b64encode(
+            b'{"sub":"fixture-user","role":"authenticated"}'
+        ).decode().rstrip("=")
+        token = f"eyJhbGciOiJIUzI1NiJ9.{payload}.c2lnbmF0dXJl"
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, [token])
+
     def test_valid_scope_reaches_real_reader_and_denies_fake_jwt(self):
         # No mocked success: the actual reader must reject the fixture token.
         reader = self.make()(self.shop, self.job)
