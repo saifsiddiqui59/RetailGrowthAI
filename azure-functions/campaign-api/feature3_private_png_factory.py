@@ -10,7 +10,7 @@ import re
 
 from feature3_private_png_reader import Feature3RevocablePNGReader, PrivateGeneratedDownloadDenied
 
-# Reject malformed JWT framing before any trusted verifier, RLS or Storage IO.
+# Reject malformed JWT framing before any trusted verifier, RLS or Storage IO.\n# Base64url segments with length modulo four == one cannot decode to bytes.
 # This is only syntactic validation; cryptographic verification remains mandatory.
 _JWT_SEGMENT = re.compile(r"[A-Za-z0-9_-]+")
 
@@ -59,6 +59,7 @@ class TrustedPrivatePNGFactory:
                         user_token.startswith(("sb_secret_", "sb_publishable_")) or
                         len(parts := user_token.split(".")) != 3 or
                         any(not 2 <= len(part) <= 4096 or
+                            len(part) % 4 == 1 or
                             _JWT_SEGMENT.fullmatch(part) is None for part in parts)):
                     raise PrivateGeneratedDownloadDenied("Private output unavailable")
                 return reader.read(user_token=user_token, shop_id=expected_shop,
