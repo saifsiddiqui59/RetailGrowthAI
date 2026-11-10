@@ -96,8 +96,10 @@ process.stdin.on('end',()=>{
     };
     const receipt=approveCreativeDraftFromTrustedReaders(
       b,'Bearer offline-jwt-for-current-owner',c.shop_id,reviewStore,KEY);
-    assert.equal(membershipChecks,2);
-    assert.equal(editorialReads,1);
+    // F2-31 must revalidate both the persisted review and membership at
+    // signing time, beyond the original JWT/early membership checks.
+    assert.equal(membershipChecks,3);
+    assert.equal(editorialReads,2);
     assert.equal(verifyCreativeApproval(b,receipt,KEY,c.shop_id),true);
     const handoff=editorHandoff(b,receipt,KEY,c.shop_id);
     assert.equal(handoff.can_publish,false);
