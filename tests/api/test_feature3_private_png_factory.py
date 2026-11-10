@@ -95,6 +95,48 @@ class FactoryTests(unittest.TestCase):
         with self.assertRaises(PrivateGeneratedDownloadDenied):
             reader.read(user_token=Token("synthetic"), shop_id=self.shop, job_id=self.job)
 
+    def test_malformed_jwt_segments_never_reach_verifier_or_store(self):
+        calls = []
+        class CountingStore(Store):
+            def member(self, *args):
+                calls.append("membership")
+                raise AssertionError("unexpected tenant access")
+        def verify(token):
+            calls.append("verify")
+            raise AssertionError("unexpected JWT verification")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=CountingStore(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        bad = (
+            "abc", "a.b", "a.b.c.d", ".abc.def", "abc..def",
+            "abc.def.", "abc.def.ghi=", "abc.def.ghi\\n",
+            "abc.def.ghi xyz", "abc.def.ghi/", "abc.def.ghi+",
+            "sb_secret_" + "a" * 30, "sb_publishable_" + "a" * 30,
+            "a" * 4097 + ".bbb.ccc",
+        )
+        for token in bad:
+            with self.subTest(token=token[:32]):
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    reader.read(user_token=token, shop_id=self.shop,
+                                job_id=self.job)
+        self.assertEqual(calls, [])
+
+    def test_well_formed_synthetic_jwt_still_requires_real_verifier(self):
+        calls = []
+        def verify(token):
+            calls.append(token)
+            raise ValueError("synthetic token is not signed")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=Store(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmaXh0dXJlIn0.c2lnbmF0dXJl"
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            reader.read(user_token=token, shop_id=self.shop,
+                        job_id=self.job)
+        self.assertEqual(calls, [token])
+
     def test_valid_scope_reaches_real_reader_and_denies_fake_jwt(self):
         # No mocked success: the actual reader must reject the fixture token.
         reader = self.make()(self.shop, self.job)
