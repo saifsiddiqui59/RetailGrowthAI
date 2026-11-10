@@ -137,8 +137,33 @@ function approveCreativeDraftFromTrustedReaders(bundle, authorization, shopId, r
   } catch (error) {
     reject('Current reviewer membership cannot be revalidated');
   }
+  // Re-read both authoritative sources immediately before signing. A reviewer
+  // can lose rights, change the offer, or be removed while the first private
+  // review is being checked. This is a fail-closed source fence, not a
+  // substitute for the coordinator's atomic RLS/CAS approval transaction.
+  let latestReview, latestMember;
+  try {
+    latestReview = readers.readEditorialReview(jwt, actor, shopId, creative.campaign_id);
+    latestMember = readers.currentMembership(jwt, actor, shopId);
+  } catch (error) {
+    reject('Current editorial review and membership cannot be revalidated');
+  }
+  if (!latestReview || latestReview.shop_id !== shopId ||
+      latestReview.campaign_id !== creative.campaign_id ||
+      latestReview.reviewer_id !== actor ||
+      latestReview.plan_sha256 !== originalPlanSha ||
+      latestReview.motion_sha256 !== motionSha ||
+      latestReview.revoked_at != null ||
+      latestReview.source_media_current !== true ||
+      latestReview.claims_current !== true ||
+      latestReview.approved_by_human !== true ||
+      !latestMember || latestMember.active !== true ||
+      latestMember.shop_id !== shopId || latestMember.user_id !== actor ||
+      !['OWNER', 'EDITOR'].includes(latestMember.role)) {
+    reject('Editorial rights, claims or reviewer membership changed before signing');
+  }
   const reviewer = {
-    id: actor, shop_id: shopId, role: member.role,
+    id: actor, shop_id: shopId, role: latestMember.role,
     server_verified: true, current_member: true,
     completed_claims_review: true, completed_media_rights_review: true,
     completed_storyboard_review: true, completed_script_review: true
