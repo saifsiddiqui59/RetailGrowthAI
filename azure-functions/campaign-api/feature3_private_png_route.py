@@ -61,7 +61,10 @@ def handle_private_png_request(request, *, reader_factory, response_type):
     # Reject ambiguous or equality-spoofed path scope before any reader IO.
     if not all(_canonical_uuid4(params[key]) for key in ("shop_id", "job_id")):
         return _denied(400, response_type)
-    # Freeze the validated route scope. A mutable framework mapping must not\n    # substitute another tenant/job between validation and the reader call.\n    shop_id, job_id = params["shop_id"], params["job_id"]\n    # A query or request body must never override trusted route identifiers.
+    # Freeze the validated route scope. A mutable framework mapping must not
+    # substitute another tenant/job between validation and the reader call.
+    shop_id, job_id = params["shop_id"], params["job_id"]
+    # A query or request body must never override trusted route identifiers.
     if query is not None and (type(query) is not dict or bool(query)):
         return _denied(400, response_type)
     if not callable(reader_factory):
