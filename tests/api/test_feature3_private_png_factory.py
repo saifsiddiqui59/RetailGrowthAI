@@ -8,7 +8,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "azure-functions" / "campaign-api"))
-from feature3_private_png_factory import TrustedPrivatePNGFactory
+from feature3_private_png_factory import TrustedPrivatePNGFactory, _safe_jwt_json
 from feature3_private_png_reader import PrivateGeneratedDownloadDenied
 
 
@@ -259,6 +259,37 @@ class FactoryTests(unittest.TestCase):
             b'{"sub":"fixture-user","role":"authenticated"}'
         ).decode().rstrip("=")
         token = f"eyJhbGciOiJIUzI1NiJ9.{payload}.c2lnbmF0dXJl"
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, [token])
+
+    def test_jwt_header_and_payload_are_distinct_structures(self):
+        # Regression: a truthy header flag must not be overwritten by the
+        # decoded JSON object. Valid synthetic JWTs still need signature checks.
+        def segment(obj):
+            return base64.urlsafe_b64encode(
+                json.dumps(obj).encode("utf-8")
+            ).decode("ascii").rstrip("=")
+
+        self.assertTrue(_safe_jwt_json(segment({"alg": "RS256"}), header=True))
+        self.assertTrue(_safe_jwt_json(segment({"sub": "fixture-user"})))
+        self.assertFalse(_safe_jwt_json(segment({"alg": "none"}), header=True))
+        self.assertFalse(_safe_jwt_json(segment({"role": "authenticated"})))
+        self.assertFalse(_safe_jwt_json(segment({"alg": "HS256"})))
+        self.assertFalse(_safe_jwt_json(segment({"sub": "fixture-user"}), header=True))
+
+    def test_valid_jwt_shape_reaches_verifier_but_never_grants_fixture_access(self):
+        calls = []
+        def verify(token):
+            calls.append(token)
+            raise ValueError("synthetic signature is not valid")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=Store(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        header = base64.urlsafe_b64encode(b'{"alg":"RS256"}').decode().rstrip("=")
+        payload = base64.urlsafe_b64encode(b'{"sub":"fixture-user"}').decode().rstrip("=")
+        token = f"{header}.{payload}.c2lnbmF0dXJl"
         with self.assertRaises(PrivateGeneratedDownloadDenied):
             reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
         self.assertEqual(calls, [token])
