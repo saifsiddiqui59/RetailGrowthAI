@@ -111,16 +111,36 @@ def verify():
     site = resource(SITE, "Microsoft.Web/sites")
     plan = resource(PLAN, "Microsoft.Web/serverfarms")
     tags = {str(k).lower(): str(v).lower() for k, v in (site.get("tags") or {}).items()}
-    if (site.get("name") != SITE or site.get("location") != "centralindia" or
-        plan.get("name") != PLAN or plan.get("location") != "centralindia" or
-        (plan.get("sku") or {}).get("name") != "Y1" or
-        (plan.get("sku") or {}).get("tier") != "Dynamic" or
-        not site.get("properties", {}).get("reserved") or
-        tags.get("app") != "retailgrowthai" or tags.get("environment") != "dev" or
-        tags.get("purpose") != "p0249-http-ingress-isolation"):
-        raise RuntimeError("New resource shape, role or tag mismatch")
     cfg = command("functionapp", "config", "show", "-g", RG, "-n", SITE)
-    if str(cfg.get("linuxFxVersion", "")).upper() != "PYTHON|3.12":
+    # Only pre-approved, nonsecret ARM fields. Never print app settings,
+    # subscription IDs, storage endpoints, connection strings or identity.
+    proof = {
+        "site_name": site.get("name"),
+        "site_region": site.get("location"),
+        "site_kind": site.get("kind"),
+        "site_reserved": (site.get("properties") or {}).get("reserved"),
+        "plan_name": plan.get("name"),
+        "plan_region": plan.get("location"),
+        "plan_sku": (plan.get("sku") or {}).get("name"),
+        "plan_tier": (plan.get("sku") or {}).get("tier"),
+        "plan_reserved": (plan.get("properties") or {}).get("reserved"),
+        "app_tag": tags.get("app"),
+        "env_tag": tags.get("environment"),
+        "purpose_tag": tags.get("purpose"),
+        "python_stack": cfg.get("linuxFxVersion"),
+    }
+    print("P0249_Y1_SANITIZED_RESOURCE_PROOF=" +
+          json.dumps(proof, sort_keys=True), flush=True)
+    if (proof["site_name"] != SITE or
+        str(proof["site_region"]).lower().replace(" ", "") != "centralindia" or
+        "linux" not in str(proof["site_kind"]).lower().split(",") or
+        proof["plan_name"] != PLAN or
+        str(proof["plan_region"]).lower().replace(" ", "") != "centralindia" or
+        proof["plan_sku"] != "Y1" or proof["plan_tier"] != "Dynamic" or
+        proof["app_tag"] != "retailgrowthai" or proof["env_tag"] != "dev" or
+        proof["purpose_tag"] != "p0249-http-ingress-isolation"):
+        raise RuntimeError("New resource shape or purpose tag mismatch")
+    if str(proof["python_stack"]).upper() != "PYTHON|3.12":
         raise RuntimeError("Y1 runtime mismatch")
     print("P0249_Y1_ARM_VERIFIED=Y1_LINUX_PYTHON312_ORIGINAL_FLEX_UNCHANGED", flush=True)
 
