@@ -52,6 +52,22 @@ class PrivatePNGPaletteBoundaryTests(unittest.TestCase):
                 self.rejected(original[:ihdr_end] + chunk(kind, payload) +
                               original[ihdr_end:])
 
+    def test_opaque_profile_and_calibration_chunks_rejected(self):
+        original = self.fixture.png
+        ihdr_end = 8 + 12 + 13
+        # A correct CRC and matching object SHA do not make embedded
+        # ICC/calibration metadata safe to return to a retailer.
+        payloads = (
+            (b"iCCP", b"profile\\x00\\x00compressed"),
+            (b"sPLT", b"palette\\x00\\x08\\x00"),
+            (b"pCAL", b"calibration\\x00opaque"),
+            (b"sCAL", b"\\x01opaque"),
+        )
+        for kind, payload in payloads:
+            with self.subTest(kind=kind):
+                self.rejected(original[:ihdr_end] + chunk(kind, payload) +
+                              original[ihdr_end:])
+
     def test_zero_length_palette_rejected(self):
         original = self.fixture.png
         ihdr_end = 8 + 12 + 13
