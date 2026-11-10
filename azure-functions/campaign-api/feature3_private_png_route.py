@@ -83,7 +83,11 @@ def handle_private_png_request(request, *, reader_factory, response_type):
                 len({name.lower() for name in names}) != len(names) or
                 sum(name.lower() == "authorization" for name in names) != 1):
             return _denied(400, response_type)
-        # Snapshot each untrusted header value exactly once. Framework/proxy\n        # mappings can be stateful; repeated get() calls must not swap the\n        # validated credential or framing value before the private reader.\n        values = {name: headers.get(name) for name in names}\n        # Refuse ambiguous request framing even when the body is empty.
+        # Snapshot each untrusted header value exactly once. Framework/proxy
+        # mappings can be stateful; repeated get() calls must not swap the
+        # validated credential or framing value before the private reader.
+        values = {name: headers.get(name) for name in names}
+        # Refuse ambiguous request framing even when the body is empty.
         framing = [name.lower() for name in names if name.lower() in
                    ("content-length", "transfer-encoding")]
         if len(framing) != len(set(framing)) or "transfer-encoding" in framing:
