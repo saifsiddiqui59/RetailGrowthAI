@@ -123,3 +123,7 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 - Preserved original #732 synthetic AAC 15s test and both original dedicated source handoff documents verbatim; retained existing 30s FFmpeg/hyperframes test gates and protected #650 120-member ZIP packaging ceiling.
 - This is a single Feature4 source-review branch for those ORIGINAL F4 IDs, not a new task ID. Original #711/#732 should remain open until final-head four-job CI and parent integration, then close as superseded with exact receipts. Neither F4-05 nor F4-07 is accepted main-integrated/hosted/commercial DONE. Other PRs (#710/#715/#716 etc.) still have unique code and must NOT be closed as duplicates.
 - No cloud deploy, new Azure resources, paid models, GPU, real customer footage, PROD, shared schema or WineShopPOS actions.
+
+### 2026-11-10 F4-15 original #710 source reconciliation
+- Existing parent already rejects stale rights/lease immediately after every private download and before CPU rendering, with negative tests. Old #710 uniquely fenced rights/lease revocation while loading the trusted DB bundle. The current parent-derived PR ports only that missing guard and original synthetic race test, plus original feature handoff. No new task ID or source reset.
+- F4-15 remains IN PROGRESS; final-source 4/4, feature-parent merge and fresh parent 4/4 are required before source supersession; final main/hosted acceptance additionally needs independent review, #650 package integrity and real authorization. No GPU, paid models, Azure/SQL/PROD or WineShopPOS change.

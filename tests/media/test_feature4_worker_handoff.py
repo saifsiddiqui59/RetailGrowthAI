@@ -220,6 +220,22 @@ class WorkerHandoffTests(unittest.TestCase):
         self.assertEqual(self.admin.completions, [])
         self.assertEqual(self.admin.failures, [])
 
+    def test_lease_replaced_while_loading_bundle_never_stages_media(self):
+        """Original #710 F4-15: rights may change inside approved bundle read."""
+        original = self.admin.load_feature4_bundle
+
+        def load_then_expire(claim):
+            bundle = original(claim)
+            self.admin.current = False
+            return bundle
+
+        self.admin.load_feature4_bundle = load_then_expire
+        self.assertEqual(self.run_worker(), "STALE")
+        self.assertEqual(self.media.downloads, [])
+        self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.completions, [])
+        self.assertEqual(self.admin.failures, [])
+
     def test_fencing_race_on_finalization_has_no_signed_url(self):
         self.admin.can_finalize = False
         self.assertEqual(self.run_worker(), "STALE")

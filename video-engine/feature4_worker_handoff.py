@@ -186,6 +186,11 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
         return "DENIED"
     try:
         request, manifest, objects, audit = _bundle(claim, admin.load_feature4_bundle(claim))
+        # A rights/lease change during the authoritative bundle lookup must
+        # block all private staging and CPU work, not just output finalization.
+        if (admin.render_authorized(claim) is not True or
+                admin.feature4_claim_current(claim) is not True):
+            return "STALE"
         with tempfile.TemporaryDirectory(prefix="retailgrowth-f4-") as tmp:
             root = Path(tmp)
             staging = root / "media"
