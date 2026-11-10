@@ -1464,3 +1464,9 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 - Verify fresh Feature4 parent push 4/4 for source commit `5d858bc`; if parent/PR main checks fail, record and **skip** to independent PRs per owner; do not bypass protected #650 package tests.
 - Review #898 final-source 4/4 and #899 final-source 4/4; both currently reported mergeable=false against updated Feature4 parent, so **never force-merge**, postpone compatibility repair; retain originals #716/#770 open until content verified integrated.
 - Current source-only merged #897 (old #710 retired) cannot certify hosted/rights/main DONE. Continue reviewing untouched PRs from second 50 list in `docs/integration/OPEN_PR_TRIAGE_20261110.md`, skipping unapproved security/workflow/deploy changes.
+
+
+### 2026-11-10 — continue after second fifty-PR triage
+- Process remaining 41 of the second audited 50 by actual code/test and fresh current-parent compatibility. Old F4 #770 may be retired only after current F4 #899 caption QA source and tests are accepted, green and merged into parent; old #716 similarly after #898 receipt race source. Neither replacement is currently accepted main DONE.
+- Independent protected review before touching #885 (#650 deployment manifest), #887/#889 (DEV workflows), #823 (JWT verifier), #880/#879 (private PNG/rights), #855 (shared scheduler removal), or shared docs #891. Hold big F2 #848/#551, F7 #513, F4 #322, F5 #323 and Part3 #125 until reviewed exact-head CI/merge into main and fresh main 4/4.
+- Source-only PRs #705/#695 are merged with original 4/4, but F4 parent/main CI and actual visual/runtime acceptance must be verified separately. Skip failed independent PRs per user instruction and continue without weakening tests, no GPU/paid/cloud/PROD/WineShopPOS actions.
