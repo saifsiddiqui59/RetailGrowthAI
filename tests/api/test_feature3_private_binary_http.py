@@ -272,6 +272,28 @@ class BinaryHTTPTests(unittest.TestCase):
         self.reader.png = original
         self.assertEqual(self.call()[0], 200)
 
+    def test_empty_idat_only_png_is_rejected_despite_valid_crc_and_sha(self):
+        # An untrusted reader can forge a self-consistent receipt for a PNG
+        # containing only empty IDAT chunks. No private bytes may be returned.
+        original = self.reader.png
+        def chunk(kind, payload):
+            return (len(payload).to_bytes(4, "big") + kind + payload +
+                    (crc32(kind + payload) & 0xffffffff).to_bytes(4, "big"))
+        ihdr = original[:33]
+        iend = original[-12:]
+        for count in (1, 2, 10):
+            forged = ihdr + chunk(b"IDAT", b"") * count + iend
+            self.reader.png = forged
+            with self.subTest(empty_chunks=count):
+                status, body, headers = self.call()
+                self.assertEqual((status, body), (503, b""))
+                self.assert_private_headers(headers)
+        # A zero-length IDAT chunk alongside actual image data remains valid.
+        self.reader.png = ihdr + chunk(b"IDAT", b"") + original[33:]
+        self.assertEqual(self.call()[0], 200)
+        self.reader.png = original
+        self.assertEqual(self.call()[0], 200)
+
     def test_pathological_png_chunk_count_is_denied(self):
         # Repeated valid ancillary chunks must not turn private download into
         # unbounded CPU work, even with a matching forged receipt SHA.
