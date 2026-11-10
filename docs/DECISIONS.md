@@ -1096,3 +1096,5 @@ Feature3 decision: synthetic image/video/browser fixtures may unblock offline so
 
 ## 2026-11-11 IST — Old-source PR closure after equivalent or stronger parent integration
 For original PRs #712/#734 (Feature5) and #741 (Feature7), close unmerged **only** after checking a successfully merged source-replacement PR, four successful exact-source-head and fresh parent jobs, and direct preservation of original code/test functionality. Blob identity is preferred; explicitly document superseding security-strengthened blobs instead of inaccurately claiming equality. These source closures are not permission to merge feature parents into main or mark hosted/original task DONE. Continue GPU-OFF, paid-provider-OFF, no cloud/SQL/PROD/WineShopPOS changes.
+
+2026-11-11 source de-duplication extension: F2-19/F2-21 original #821 may be retired as source-superseded by open consolidated #848 because the original private job-status reader, contract tests and historical handoff were compared and preserved with stricter safety. This does **not** authorize #848 main integration, protected #650 bypass or hosted task acceptance. Continue source-vs-integrated distinction.
