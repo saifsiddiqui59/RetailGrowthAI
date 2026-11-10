@@ -76,6 +76,22 @@ class RouteAdapterTests(unittest.TestCase):
             with self.subTest(method=method):
                 self.assert_denied_without_reader(Request(self.shop, self.job, "Bearer " + "x" * 30, method), 405)
 
+    def test_spoofed_get_method_denied_before_reader(self):
+        # A Python object can claim equality to GET without being an HTTP
+        # method string. Never let it reach the rights reader.
+        class EqualGet:
+            def __eq__(self, other):
+                return other == "GET"
+
+        class SpoofedMethod(str):
+            def __eq__(self, other):
+                return True
+
+        for method in (EqualGet(), SpoofedMethod("POST"), None, b"GET"):
+            with self.subTest(method=type(method).__name__):
+                request = Request(self.shop, self.job, "Bearer " + "x" * 30, method)
+                self.assert_denied_without_reader(request, 405)
+
     def test_unexpected_route_identity_denied(self):
         request = Request(self.shop, self.job, "Bearer " + "x" * 30)
         request.route_params["asset_id"] = str(uuid4())
