@@ -1,3 +1,4 @@
+import { verifyRetailerInbox } from '../features/dashboard/retailer-inbox-model.mjs'
 // RetailGrowthAI-only lightweight Supabase Auth v1 + PostgREST client.
 // No service-role keys, no client-side authorization assumptions.
 // Use a publishable key and let PostgreSQL RLS enforce every tenant boundary.
@@ -470,6 +471,257 @@ export function createRetailClient({
       license_name: licenseName, object_path: objectPath }
   }
 
+  // Separate signed model-original upload: never changes /uploads/ behavior
+  // or asserts that licensed source bytes have been reviewed.
+  async function uploadModelOriginal(shopId, {file, modelId, licenseName,
+    licenseUrl = '', attribution = '', confirmedRights = false}) {
+    ensureConfigured()
+    if (!UUID_V4.test(shopId || '') || !UUID_V4.test(modelId || '') ||
+        !confirmedRights || !LICENSES.has(licenseName) ||
+        typeof attribution !== 'string' ||
+        attribution.trim().length < 10 || attribution.trim().length > 200 ||
+        typeof licenseUrl !== 'string' || licenseUrl.length > 500)
+      throw new Error('Valid shop, model and declared source rights required.')
+    if (licenseName !== 'owned') {
+      try {
+        const link = new URL(licenseUrl)
+        if (link.protocol !== 'https:' || !link.hostname || link.username || link.password)
+          throw new Error('Invalid license evidence URL')
+      } catch { throw new Error('HTTPS source license evidence is required.') }
+    }
+    await verifyImageBytes(file)
+    if (file.type !== 'image/png') throw new Error('Model original must be PNG.')
+    if (!globalThis.crypto?.subtle) throw new Error('Secure SHA256 unavailable')
+    const digestBytes = await globalThis.crypto.subtle.digest('SHA-256',await file.arrayBuffer())
+    const digest = Array.from(new Uint8Array(digestBytes), b => b.toString(16).padStart(2,'0')).join('')
+    const objectPath = shopId+'/model-library/'+modelId+'/'+digest+'.png'
+    const response = await fetchImpl(origin+'/storage/v1/object/retailgrowth-media/'+objectPath,{
+      method:'POST',redirect:'error',cache:'no-store',
+      headers:{apikey:key,Authorization:'Bearer '+await accessToken(),
+        'Content-Type':'image/png','x-upsert':'false'},
+      body:file,
+    })
+    if (!response.ok) throw new Error('Private original upload denied or exists')
+    return Object.freeze({shop_id:shopId,model_id:modelId,object_path:objectPath,
+      image_sha256:digest,bytes:file.size,upload_only:true,
+      rights_verified:false,registered:false})
+  }
+
+  // Existing campaign_days RLS already checks active shop membership.
+  // One read-only, bounded month query; NOT a social posting history endpoint.
+  async function listShopCalendarMonth(shopId, month) {
+    if (!UUID_V4.test(shopId || '') || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month || '')) {
+      throw new Error('Invalid business calendar scope')
+    }
+    const [year, number] = month.split('-').map(Number)
+    if (year < 2000 || year > 2099) throw new Error('Invalid business calendar month')
+    const start = month + '-01'
+    const end = new Date(Date.UTC(year, number, 1, 12)).toISOString().slice(0, 10)
+    const records = await send('/rest/v1/campaign_days', {
+      query: { select: 'id,shop_id,campaign_id,scheduled_date,topic,review_status',
+        shop_id: 'eq.' + shopId,
+        and: '(scheduled_date.gte.' + start + ',scheduled_date.lt.' + end + ')',
+        order: 'scheduled_date.asc', limit: '201' },
+      token: await accessToken(),
+    })
+    if (!Array.isArray(records) || records.length > 200 ||
+        records.some(row => !row || row.shop_id !== shopId)) {
+      throw new Error('Business calendar data could not be verified')
+    }
+    return records
+  }
+  // Private image read: both metadata and Storage enforce the retailer JWT/RLS.
+  // Do not create public/signed Storage URLs or accept browser-provided object paths.
+  async function downloadPrivateImage(shopId, assetId) {
+    if (!UUID_V4.test(shopId || '') || !UUID_V4.test(assetId || '')) {
+      throw new Error('Invalid private image scope')
+    }
+    const rows = await table('media_assets', {query: {
+      select: 'id,shop_id,storage_bucket,object_path,mime_type,source,license_name',
+      shop_id: 'eq.' + shopId, id: 'eq.' + assetId, limit: '1',
+    }})
+    const row = Array.isArray(rows) && rows.length === 1 ? rows[0] : null
+    const extensions = {'image/png':'.png','image/jpeg':'.jpg','image/webp':'.webp'}
+    const ext = extensions[row?.mime_type] || ''
+    const filePath = new RegExp('^' + shopId +
+      '/uploads/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}' +
+      ext.replace('.', '[.]') + '$', 'i')
+    const modelPath = new RegExp('^' + shopId +
+      '/model-library/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/[a-f0-9]{64}[.]png$', 'i')
+    if (!row || row.id !== assetId || row.shop_id !== shopId ||
+        row.storage_bucket !== 'retailgrowth-media' || row.source !== 'UPLOAD' ||
+        !ext || typeof row.license_name !== 'string' || !row.license_name.trim() ||
+        typeof row.object_path !== 'string' ||
+        !(filePath.test(row.object_path) || (row.mime_type === 'image/png' &&
+          modelPath.test(row.object_path)))) {
+      throw new Error('This private uploaded image is not registered or authorized')
+    }
+    const endpoint = origin + '/storage/v1/object/authenticated/retailgrowth-media/' +
+      row.object_path.split('/').map(encodeURIComponent).join('/')
+    const response = await fetchImpl(endpoint, {
+      method: 'GET', redirect: 'error', cache: 'no-store',
+      headers: {apikey:key, Authorization:'Bearer ' + await accessToken(),
+        Accept:row.mime_type},
+    })
+    if (!response.ok || !response.body) throw new Error('Private image read was denied')
+    if ((response.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase() !== row.mime_type) {
+      throw new Error('Private image content type did not match registration')
+    }
+    const maxBytes = 25 * 1024 * 1024
+    const contentLength = response.headers.get('Content-Length')
+    if (contentLength !== null &&
+        (!/^\d+$/.test(contentLength) || Number(contentLength) > maxBytes)) {
+      throw new Error('Private image exceeds safe preview size')
+    }
+    const reader = response.body.getReader()
+    let total = 0
+    const pieces = []
+    try {
+      while (true) {
+        const {value,done} = await reader.read()
+        if (done) break
+        total += value.byteLength
+        if (total > maxBytes) {
+          await reader.cancel().catch(()=>{})
+          throw new Error('Private image exceeds safe preview size')
+        }
+        pieces.push(value)
+      }
+    } finally { reader.releaseLock() }
+    const bytes = new Uint8Array(total)
+    let position=0
+    for (const piece of pieces) {bytes.set(piece,position);position+=piece.byteLength}
+    const png=[137,80,78,71,13,10,26,10].every((b,i)=>bytes[i]===b)
+    const jpg=bytes[0]===255 && bytes[1]===216 && bytes[2]===255
+    const webp=[82,73,70,70].every((b,i)=>bytes[i]===b) &&
+      [87,69,66,80].every((b,i)=>bytes[i+8]===b)
+    if (total < 100 || (row.mime_type==='image/png' && !png) ||
+        (row.mime_type==='image/jpeg' && !jpg) ||
+        (row.mime_type==='image/webp' && !webp)) {
+      throw new Error('Private image signature is invalid')
+    }
+    return {blob:new Blob([bytes],{type:row.mime_type}),
+      filename:'retailgrowth-image-'+assetId.slice(0,8)+ext}
+  }
+
+  // User-JWT + shop-RLS metadata history. Explicit 100-record pages; an extra
+  // row detects whether more data exists without an unbounded query or count.
+  // Offset is not taken from arbitrary URL input and does not grant access.
+  // Retailer notification RPC is separate from the ROOT-only alert namespace.
+  // User JWT and PostgreSQL current shop membership authorize every read/write.
+  async function listRetailerInbox(shopId, view = 'all', category = 'all', limit = 20, offset = 0) {
+    if (!UUID_V4.test(shopId || '') || !['all','unread'].includes(view) ||
+        !['all','campaign','video','poster'].includes(category) ||
+        !Number.isSafeInteger(limit) || limit < 1 || limit > 40 ||
+        !Number.isSafeInteger(offset) || offset < 0 || offset > 100000) {
+      throw new Error('Invalid retailer inbox scope')
+    }
+    const result = await send('/rest/v1/rpc/retail_retailer_inbox', {
+      method:'POST', token:await accessToken(),
+      body:{p_shop_id:shopId,p_view:view,p_category:category,p_limit:limit,p_offset:offset},
+    })
+    return verifyRetailerInbox(shopId,result,view,category,limit)
+  }
+  async function setRetailerInboxRead(shopId, id, read) {
+    if (!UUID_V4.test(shopId || '') || !Number.isSafeInteger(id) || id < 1 ||
+        typeof read !== 'boolean') throw new Error('Invalid retailer inbox update')
+    const result = await send('/rest/v1/rpc/retail_retailer_set_inbox_read', {
+      method:'POST', token:await accessToken(),
+      body:{p_shop_id:shopId,p_event_id:id,p_read:read},
+    })
+    if (!result || result.shop_id !== shopId || result.id !== id || result.read !== read) {
+      throw new Error('Retailer read status was not confirmed')
+    }
+    return result
+  }
+  // Server-side keyset history: first 100 visible records anchor the next
+  // window. New uploads cannot move the page boundary as offset paging did.
+  // The DB's (created_at DESC,id DESC) is authoritative; no migration needed.
+  async function listMediaAssetsKeysetPage(shopId, cursor = null) {
+    if (!UUID_V4.test(shopId || '')) throw new Error('Invalid media page scope')
+    // PostgreSQL stores microsecond timestamps. Date.parse loses the final
+    // three fractional digits, which can reject valid same-ms keyset pages.
+    // Compare normalized UTC digits without floating-point or timezone rounding.
+    const timestampKey = value => {
+      if (typeof value !== 'string') return null
+      const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(?:Z|[+]00:00)$/.exec(value)
+      if (!m) return null
+      const date = new Date(m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':'+m[6]+'Z')
+      if (!Number.isFinite(date.getTime()) ||
+          date.getUTCFullYear() !== Number(m[1]) ||
+          date.getUTCMonth()+1 !== Number(m[2]) ||
+          date.getUTCDate() !== Number(m[3]) ||
+          date.getUTCHours() !== Number(m[4]) ||
+          date.getUTCMinutes() !== Number(m[5]) ||
+          date.getUTCSeconds() !== Number(m[6])) return null
+      return m.slice(1,7).join('')+(m[7]||'').padEnd(6,'0')
+    }
+    const timestamp = value => timestampKey(value) !== null
+    if (cursor !== null && (!cursor || !UUID_V4.test(cursor.id || '') ||
+        !timestamp(cursor.created_at))) throw new Error('Invalid media page cursor')
+    const query = {
+      select:'id,shop_id,source,license_name,mime_type,created_at',
+      shop_id:'eq.' + shopId, order:'created_at.desc,id.desc', limit:'101',
+    }
+    if (cursor) {
+      // Use the PostgREST OR expression rather than untrusted URL fragments.
+      // UUID and UTC date are validated before building a filter.
+      query.or = '(created_at.lt.' + cursor.created_at +
+        ',and(created_at.eq.' + cursor.created_at + ',id.lt.' + cursor.id + '))'
+    }
+    const rows = await table('media_assets', {query})
+    if (!Array.isArray(rows) || rows.length > 101 ||
+        rows.some(x => !x || !UUID_V4.test(x.id || '') ||
+          !UUID_V4.test(x.shop_id || '') || x.shop_id !== shopId ||
+          !timestamp(x.created_at) ||
+          typeof x.license_name !== 'string' ||
+          !['UPLOAD','STOCK','GENERATED'].includes(x.source) ||
+          !['image/png','image/jpeg','image/webp'].includes(x.mime_type))) {
+      throw new Error('Media history page could not be verified')
+    }
+    // Fail closed if the database unexpectedly returned out-of-order rows.
+    for (let i=1;i<rows.length;i++) {
+      const first=rows[i-1],next=rows[i]
+      const before=timestampKey(first.created_at), after=timestampKey(next.created_at)
+      if (before < after || (before===after &&
+          first.id.toLowerCase() <= next.id.toLowerCase())) {
+        throw new Error('Media history ordering could not be verified')
+      }
+    }
+    if (cursor && rows.length && (timestampKey(rows[0].created_at)>timestampKey(cursor.created_at) ||
+      (timestampKey(rows[0].created_at)===timestampKey(cursor.created_at) &&
+        rows[0].id.toLowerCase()>=cursor.id.toLowerCase()))) {
+      throw new Error('Media history cursor boundary could not be verified')
+    }
+    // A mixed-tenant RLS response is invalid, never silently filtered.
+    // The 100th raw row still anchors the next keyset window.
+    const page=rows.slice(0,100)
+    const last=page.at(-1)
+    return {
+      items:page.filter(row => row.license_name.trim()),
+      nextCursor:rows.length===101 && last
+        ? {id:last.id,created_at:last.created_at}:null,
+    }
+  }
+  async function listMediaAssetsPage(shopId, offset = 0) {
+    if (!UUID_V4.test(shopId || '') || !Number.isSafeInteger(offset) ||
+        offset < 0 || offset % 100 !== 0) throw new Error('Invalid media page scope')
+    const rows = await table('media_assets', { query: {
+      select: 'id,shop_id,source,license_name,mime_type',
+      shop_id: 'eq.' + shopId, order: 'created_at.desc,id.desc',
+      offset: String(offset), limit: '101',
+    } })
+    if (!Array.isArray(rows) || rows.length > 101 ||
+        rows.some(row => !row || typeof row !== 'object')) {
+      throw new Error('Media page could not be verified')
+    }
+    return {
+      items: rows.slice(0, 100).filter(row =>
+        row.shop_id === shopId && typeof row.license_name === 'string' &&
+        Boolean(row.license_name.trim())),
+      nextOffset: rows.length === 101 ? offset + 100 : null,
+    }
+  }
   async function listMediaAssets(shopId) {
     if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/.test(shopId || '')) throw new Error('Invalid shop ID')
     const rows = await table('media_assets', {
@@ -484,7 +736,7 @@ export function createRetailClient({
     listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
     isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
     listPlatformNotifications, setPlatformNotificationRead, listPlatformSubscriptionWatch,
-    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listMediaAssets, uploadImageAsset,
+    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, listMediaAssetsPage, listMediaAssetsKeysetPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset, uploadModelOriginal,
   }
 }
 

@@ -1,0 +1,58 @@
+{
+  "schema": "retailgrowth.feature3.synthetic-demo-inputs.v1",
+  "source_repository": "Prompt-Haus/OpenVTO",
+  "source_commit": "10140178cdb198ff17ad7b226c432bd63d732fc2",
+  "license": "MIT-demo-assets",
+  "license_url": "https://github.com/Prompt-Haus/OpenVTO/blob/10140178cdb198ff17ad7b226c432bd63d732fc2/LICENSE",
+  "license_scope": "testing-and-demonstration-only",
+  "source_readme": "https://github.com/Prompt-Haus/OpenVTO/blob/10140178cdb198ff17ad7b226c432bd63d732fc2/README.md",
+  "provenance": "Fictional AI-generated people and clothing demo assets from OpenVTO; pinned Git object bytes",
+  "tenant_private": false,
+  "rights_approved_for_customer_publishing": false,
+  "virtual_tryon_generated_by_retailgrowth": false,
+  "feature4": {
+    "first_frame": "model_posture.jpg",
+    "garment": "garment_front.jpg",
+    "mode": "STILL_IMAGE_EDITOR_TEST_ONLY",
+    "private_client_publish_allowed": false
+  },
+  "feature5": {
+    "first_frame": "model_posture.jpg",
+    "garment": "garment_front.jpg",
+    "mode": "IMAGE_TO_VIDEO_INPUT_TEST_ONLY",
+    "provider_call_authorized": false,
+    "cost_reservation_authorized": false
+  },
+  "assets": [
+    {
+      "id": "fictional_model_fullbody",
+      "role": "fictional_adult_model",
+      "file": "model_posture.jpg",
+      "mime_type": "image/jpeg",
+      "size_bytes": 103914,
+      "git_blob_sha1": "72a86a60280976ce5c73db9525d9648b54d1126a",
+      "source_path": "packages/sdk/openvto/assets/people/1_posture.jpg",
+      "source_url": "https://raw.githubusercontent.com/Prompt-Haus/OpenVTO/10140178cdb198ff17ad7b226c432bd63d732fc2/packages/sdk/openvto/assets/people/1_posture.jpg"
+    },
+    {
+      "id": "fictional_model_avatar",
+      "role": "fictional_adult_avatar",
+      "file": "model_avatar.png",
+      "mime_type": "image/png",
+      "size_bytes": 1207867,
+      "git_blob_sha1": "fc88e5d07282009a14b0bd58fbdd58bc2f89ace0",
+      "source_path": "packages/sdk/openvto/assets/avatars/1.png",
+      "source_url": "https://raw.githubusercontent.com/Prompt-Haus/OpenVTO/10140178cdb198ff17ad7b226c432bd63d732fc2/packages/sdk/openvto/assets/avatars/1.png"
+    },
+    {
+      "id": "synthetic_demo_shirt",
+      "role": "synthetic_garment",
+      "file": "garment_front.jpg",
+      "mime_type": "image/jpeg",
+      "size_bytes": 32633,
+      "git_blob_sha1": "878fde8857f58862723f85d7f8bd723c65a8e498",
+      "source_path": "packages/sdk/openvto/assets/clothes/shirts/1_front.jpg",
+      "source_url": "https://raw.githubusercontent.com/Prompt-Haus/OpenVTO/10140178cdb198ff17ad7b226c432bd63d732fc2/packages/sdk/openvto/assets/clothes/shirts/1_front.jpg"
+    }
+  ]
+}

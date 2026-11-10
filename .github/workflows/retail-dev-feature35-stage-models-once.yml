@@ -1,0 +1,114 @@
+name: RetailGrowthAI Feature3+5 Cool LRS model stage (one-time)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/retail-dev-feature35-stage-models-once.yml']
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-feature35-model-stage
+  cancel-in-progress: false
+jobs:
+  stage:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: dev
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-retailgrowth-dev
+      ACCOUNT: rgaimodelseastus26
+      SHARE: retailgrowth-models
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: CPU-only Python syntax preflight
+        run: python3 -m py_compile scripts/ops/stage_feature35_models_to_azure_files.py
+      - name: Azure login using existing DEV OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify correct DEV subscription and Resource Group
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${AZ_SUB:-}"
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          test "$(az account show --query state -o tsv)" = Enabled
+          test "$(az group show -g "$RG" --query location -o tsv)" = centralindia
+          test "$(az group show -g "$RG" --query tags.environment -o tsv | tr '[:upper:]' '[:lower:]')" = dev
+          test "$(az group show -g "$RG" --query tags.app -o tsv | tr '[:upper:]' '[:lower:]')" = retailgrowthai
+      - name: Create/read exact East US Standard LRS StorageV2 account
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! az storage account show -n "$ACCOUNT" -g "$RG" -o json > "$RUNNER_TEMP/pre.json" 2>/dev/null; then
+            test "$(az storage account check-name -n "$ACCOUNT" --query nameAvailable -o tsv)" = true || {
+              echo "::error::Storage name already taken or inaccessible"; exit 4;
+            }
+            az storage account create -n "$ACCOUNT" -g "$RG" -l eastus \
+              --sku Standard_LRS --kind StorageV2 \
+              --https-only true --allow-blob-public-access false --min-tls-version TLS1_2 \
+              --tags app=retailgrowthai environment=dev feature=feature5 purpose=shared-ai-models \
+              -o none
+          fi
+          az storage account show -n "$ACCOUNT" -g "$RG" -o json > "$RUNNER_TEMP/actual.json"
+          python3 - "$RUNNER_TEMP/actual.json" "$ACCOUNT" "$AZ_SUB" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1])); t={k.lower():str(v).lower() for k,v in (x.get('tags') or {}).items()}
+          assert x.get('name')==sys.argv[2] and x.get('location')=='eastus'
+          assert x.get('id','').lower().startswith('/subscriptions/'+sys.argv[3].lower()+'/resourcegroups/rg-retailgrowth-dev/')
+          assert x.get('kind')=='StorageV2' and x.get('sku',{}).get('name')=='Standard_LRS'
+          assert x.get('isHnsEnabled') in (False,None) and x.get('allowBlobPublicAccess') is False
+          assert x.get('enableHttpsTrafficOnly') is True and x.get('minimumTlsVersion')=='TLS1_2'
+          assert t.get('app')=='retailgrowthai' and t.get('environment')=='dev' and t.get('feature')=='feature5'
+          print('PASS scoped DEV Standard LRS East US GPv2 account')
+          PY
+      - name: Create/read exact classic Cool SMB Azure Files share
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$(az storage account show -g "$RG" -n "$ACCOUNT" --query id -o tsv)"
+          shareurl="https://management.azure.com${base}/fileServices/default/shares/$SHARE?api-version=2023-05-01"
+          if ! az rest --method get --url "$shareurl" -o json > "$RUNNER_TEMP/share.json" 2>/dev/null; then
+            az rest --method get \
+              --url "https://management.azure.com${base}/fileServices/default/shares?api-version=2023-05-01" -o json > "$RUNNER_TEMP/list.json"
+            python3 - "$RUNNER_TEMP/list.json" "$SHARE" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1]))
+          assert all(x.get('name')!=sys.argv[2] for x in data.get('value',[])), "Existing share cannot be overwritten"
+          PY
+            az rest --method put --url "$shareurl" --headers Content-Type=application/json \
+              --body '{"properties":{"accessTier":"Cool","shareQuota":64,"enabledProtocols":"SMB"}}' -o none
+          fi
+          az rest --method get --url "$shareurl" -o json > "$RUNNER_TEMP/share.json"
+          python3 - "$RUNNER_TEMP/share.json" "$SHARE" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1])); p=x.get('properties') or {}
+          assert x.get('name')==sys.argv[2] and p.get('shareQuota')==64
+          assert str(p.get('accessTier','')).lower()=='cool' and p.get('enabledProtocols') in (None,'SMB')
+          assert '/providers/Microsoft.Storage/storageAccounts/' in x.get('id','')
+          print('PASS classic Cool LRS SMB share, 64GiB quota; no GPUs')
+          PY
+      - name: Install CPU-only streaming packages
+        run: python3 -m pip install --disable-pip-version-check 'azure-storage-file-share>=12.18,<13' 'huggingface_hub>=0.32,<2' 'requests>=2.31,<3'
+      - name: Download six official ComfyUI models into the same share
+        shell: bash
+        env:
+          RETAIL_F35_ALLOW_STAGE: 'YES'
+        run: |
+          set -euo pipefail
+          umask 077
+          export AZURE_STORAGE_ACCOUNT_KEY="$(az storage account keys list -g "$RG" -n "$ACCOUNT" --query '[0].value' -o tsv)"
+          test -n "$AZURE_STORAGE_ACCOUNT_KEY"
+          python3 scripts/ops/stage_feature35_models_to_azure_files.py
+          unset AZURE_STORAGE_ACCOUNT_KEY
+      - name: Logout Azure
+        if: always()
+        run: az logout >/dev/null 2>&1 || true

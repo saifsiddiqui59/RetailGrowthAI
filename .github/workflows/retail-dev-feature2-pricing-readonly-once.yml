@@ -1,0 +1,72 @@
+name: RetailGrowthAI Feature2 official regional pricing inspection (read only)
+
+# One-shot, main-only and protected existing-resource audit; NO model inference.
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/retail-dev-feature2-pricing-readonly-once.yml
+      - scripts/ci/feature2_price_probe.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retailgrowthai-feature2-pricing-readonly-20261026
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'chore(feature2): verify official regional GPT-4.1-mini price meters')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-retailgrowth-dev
+      ACCOUNT: rgai-dev-openai-d4e5ddbd
+      MODEL: rgai-gpt-41-mini
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify exact RetailGrowthAI DEV tagged resource and existing model only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AZ_SUB"
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          az group show -g "$RG" -o json > "$RUNNER_TEMP/rg.json"
+          az cognitiveservices account show -g "$RG" -n "$ACCOUNT" -o json > "$RUNNER_TEMP/model-account.json"
+          az cognitiveservices account deployment show -g "$RG" -n "$ACCOUNT" --deployment-name "$MODEL" -o json > "$RUNNER_TEMP/model-deployment.json"
+          python3 - "$RUNNER_TEMP/rg.json" "$RUNNER_TEMP/model-account.json" "$RUNNER_TEMP/model-deployment.json" <<'PY'
+          import json,sys
+          group, account, deployment = [json.load(open(p)) for p in sys.argv[1:]]
+          tags = group.get('tags') or {}
+          assert tags.get('app')=='RetailGrowthAI' and tags.get('environment')=='dev'
+          assert account.get('name')=='rgai-dev-openai-d4e5ddbd'
+          assert (account.get('location') or '').replace(' ','').lower()=='southindia'
+          assert account.get('kind','').lower()=='openai'
+          assert account.get('sku',{}).get('name')=='S0'
+          assert deployment.get('name')=='rgai-gpt-41-mini'
+          assert deployment.get('properties',{}).get('model',{}).get('name')=='gpt-4.1-mini'
+          assert deployment.get('sku',{}).get('name')=='Standard'
+          print('FEATURE2_EXISTING_SOUTHINDIA_GPT41MINI_S0=PASS')
+          print('FEATURE2_MODEL_CREDENTIALS_READ=NO')
+          PY
+      - name: Inspect public Microsoft Retail Prices API, no Azure model request
+        run: python3 scripts/ci/feature2_price_probe.py
+      - name: Sign out
+        if: always()
+        run: az logout || true

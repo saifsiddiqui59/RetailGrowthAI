@@ -7,6 +7,7 @@ Passing machine ffprobe alone NEVER results in approval for Feature4.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import MappingProxyType
 from uuid import UUID
 from .contracts import MotionError, canonical_uuid
 
@@ -42,7 +43,7 @@ class VisualReview:
             raise MotionError("Missing immutable clip hash for visual review")
         if self.decision not in ("APPROVED", "REJECTED"):
             raise MotionError("Human quality decision required")
-        if type(self.checks) is not dict or set(self.checks) != set(CATEGORIES):
+        if type(self.checks) not in (dict, MappingProxyType) or set(self.checks) != set(CATEGORIES):
             raise MotionError("Incomplete visual acceptance checklist")
         if any(type(v) is not bool for v in self.checks.values()):
             raise MotionError("Each visual check must be manually assessed")
@@ -50,6 +51,10 @@ class VisualReview:
             raise MotionError("Reviewer explanation required")
         if type(self.ai_disclosure_approved) is not bool:
             raise MotionError("Disclosure review required")
+        # frozen=True does NOT freeze a caller-provided dict. Deep-copy the
+        # primitive bool checklist into an immutable mapping, so a caller
+        # cannot flip any human approval after constructing the receipt.
+        object.__setattr__(self,"checks",MappingProxyType(dict(self.checks)))
 
     def approved_for_feature4(self, *, authoritative_shop_id: str, actual_media_sha256: str,
                               reviewer_has_write_role: bool) -> bool:

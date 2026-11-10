@@ -1,0 +1,5 @@
+-- SUPERSEDED: DO NOT APPLY this early design draft.
+-- Reviewed replacement proposal: ai-agents/sql/feature2_ready_migration_COORDINATOR_REVIEW.sql
+-- The replacement uses service-role-only writes after JWT/tenant checks and
+-- avoids allowing an authenticated user to forge sourced recommendation drafts.
+-- Source proposal remains unapplied until coordinator migration review.

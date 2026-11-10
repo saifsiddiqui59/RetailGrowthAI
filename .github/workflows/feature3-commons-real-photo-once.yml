@@ -1,0 +1,62 @@
+name: Feature3 public CC0 real-image verification (no secrets)
+on:
+  push:
+    branches:
+      - feat/feature3-independent-commons-license-gpuoff-20261028
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-real-commons-source:
+    name: Original CC0 image / Commons hash / license
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install only offline image decoder
+        run: python -m pip install 'Pillow==11.3.0'
+      - name: Download exactly one publicly licensed original (never a tenant image)
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --max-time 35 --retry 0 \
+            --user-agent 'RetailGrowthAI-SourceRightsAudit/1.0' \
+            'https://commons.wikimedia.org/wiki/Special:FilePath/Bengal_mundari_saree_photos.png' \
+            --output /tmp/f3-commons-original.png
+          test "$(wc -c </tmp/f3-commons-original.png)" -eq 1437034
+          sha1sum /tmp/f3-commons-original.png | grep -F '0a1208be9af509df01bd043cbade7e4d7bb3252e'
+      - name: Independently recheck published Commons CC0 rights and actual bytes
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, pathlib, sys, uuid
+          sys.path.insert(0, 'poster-engine')
+          from feature3_commons_license_v1 import verify_commons_cc0_garment
+          raw=pathlib.Path('/tmp/f3-commons-original.png').read_bytes()
+          evidence=verify_commons_cc0_garment(
+              shop_id=str(uuid.uuid4()), media_asset_id=str(uuid.uuid4()),
+              image_bytes=raw,
+              commons_file_title='File:Bengal mundari saree photos.png',
+              tenant_private_authorized=True)
+          assert evidence['official_source_hash_matched']
+          assert evidence['license_verified_on_source']
+          assert not evidence['model_likeness_release_verified']
+          assert not evidence['retailer_product_ownership_verified']
+          assert not evidence['virtual_tryon_approved']
+          assert not evidence['gpu_authorized']
+          print('PUBLIC_SOURCE_CC0_BYTES_AND_LICENSE_VERIFIED='+json.dumps(
+              {k:evidence[k] for k in
+               ('license','image_sha256','size_bytes','dimensions',
+                'official_source_hash_matched','license_verified_on_source',
+                'model_likeness_release_verified','virtual_tryon_approved')}))
+          print('NOTE: private JWT shop authorization SIMULATED; model consent and VTON output NOT tested')
+          PY
+      - name: Delete downloaded original
+        if: always()
+        shell: bash
+        run: rm -f /tmp/f3-commons-original.png

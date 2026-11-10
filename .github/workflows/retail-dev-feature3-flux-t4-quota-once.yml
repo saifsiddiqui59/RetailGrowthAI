@@ -1,0 +1,61 @@
+name: RetailGrowthAI Feature3 FLUX reuse Feature5 T4 quota (read-only)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature3-flux-t4-quota-once.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: retailgrowth-dev-feature3-flux-readonly-quota
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    name: Read existing Feature5 environment T4 quota for FLUX
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      EXPECTED_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RG: rg-retailgrowth-dev
+      TARGET_ENV: rgai-f5-gpu-canary-eastus
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Authenticate existing RetailGrowthAI DEV OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Validate DEV identity and read T4 capacity without any writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$EXPECTED_SUB"
+          test "$(az account show --query id -o tsv)" = "$EXPECTED_SUB"
+          test "$(az account show --query state -o tsv)" = Enabled
+          test "$(az group show --name "$RG" --query location -o tsv)" = centralindia
+          test "$(az group show --name "$RG" --query tags.environment -o tsv | tr '[:upper:]' '[:lower:]')" = dev
+          test "$(az group show --name "$RG" --query tags.app -o tsv | tr '[:upper:]' '[:lower:]')" = retailgrowthai
+          az containerapp env show -g "$RG" -n "$TARGET_ENV" -o json > "$RUNNER_TEMP/f3-env.json"
+          if ! az containerapp env list-usages -g "$RG" -n "$TARGET_ENV" -o json > "$RUNNER_TEMP/f3-t4-usage.json"; then
+            echo "::error::T4 quota could not be read; GPU deployment remains blocked"
+            exit 1
+          fi
+          python3 scripts/ci/feature3_gpu_quota.py --environment "$RUNNER_TEMP/f3-env.json" --quota "$RUNNER_TEMP/f3-t4-usage.json"
+          echo "READ_ONLY_DONE: existing T4 quota checked; no GPU allocated."
+      - name: Remove short-lived Azure OIDC session
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true

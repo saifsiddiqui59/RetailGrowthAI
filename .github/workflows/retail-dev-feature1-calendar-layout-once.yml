@@ -1,0 +1,117 @@
+name: RetailGrowthAI DEV calendar layout fix (existing Free SWA only)
+# One-shot controlled, source-reviewed frontend-only DEV release. No new resources.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature1-calendar-layout-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-free-swa-ui-release
+  cancel-in-progress: false
+jobs:
+  existing_swa_only:
+    if: "github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release(dev): publish Feature1 calendar full-width existing Free SWA')"
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-retailgrowth-dev
+      SWA: retailgrowthai-dev-preview
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Verify isolated Calendar page source and public-only frontend
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'className="rg-workspace-page rg-campaign-calendar-page"' src/features/dashboard/RecentCampaignCalendar.jsx
+          grep -Fq '.retail-shell .rg-campaign-calendar-page{display:block;width:100%' src/features/dashboard/dashboard-v2.css
+          grep -Fq 'className="rg-verified-calendar-day"' src/features/dashboard/RecentCampaignCalendar.jsx
+          grep -Fq '.rg-calendar{display:grid' src/features/campaigns/CampaignDashboard.css
+          grep -Fq "calendar panels stay full width after Campaign Studio CSS loads" e2e/dashboard-v2.spec.mjs
+          grep -Fxq 'VITE_SUPABASE_URL=https://jeearzffnjbvghwjjjrf.supabase.co' .env.production
+          grep -Fxq 'VITE_CAMPAIGN_API_BASE_URL=https://rgai-dev-functions-d4e5ddbd.azurewebsites.net' .env.production
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          npm test
+          npm run build
+          test -s dist/index.html
+          test -s dist/staticwebapp.config.json
+          grep -FRq 'rg-campaign-calendar-page' dist/assets/
+          grep -FRq 'rg-verified-calendar-day' dist/assets/
+          if grep -REq 'sb_secret_|RETAIL_SUPABASE_SERVICE_ROLE_KEY|RETAIL_FOUNDRY_API_KEY' dist; then
+            echo "::error::Privileged key marker found in public SPA bundle"; exit 3
+          fi
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Assert exact existing RetailGrowthAI tagged DEV resource group and Free SWA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AZ_SUB"
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          az group show -n "$RG" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          o=json.load(open(sys.argv[1]))
+          tags={k.lower():str(v).lower() for k,v in (o.get('tags') or {}).items()}
+          assert o['name']=='rg-retailgrowth-dev' and o['location'].replace(' ','').lower()=='centralindia'
+          assert tags.get('app')=='retailgrowthai' and tags.get('environment')=='dev'
+          PY
+          az staticwebapp show -g "$RG" -n "$SWA" -o json > "$RUNNER_TEMP/swa.json"
+          python3 - "$RUNNER_TEMP/swa.json" <<'PY'
+          import json,sys
+          o=json.load(open(sys.argv[1]))
+          assert o['name']=='retailgrowthai-dev-preview'
+          assert o['defaultHostname']=='purple-dune-06b5da200.2.azurestaticapps.net'
+          assert (o.get('sku') or {}).get('name','').lower()=='free'
+          PY
+      - name: Obtain masked transient key for existing SWA upload only
+        id: token
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="$(az staticwebapp secrets list -g "$RG" -n "$SWA" --query 'properties.apiKey' -o tsv)"
+          test -n "$key"
+          echo "::add-mask::$key"
+          echo "value=$key" >> "$GITHUB_OUTPUT"
+      - uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9
+        with:
+          azure_static_web_apps_api_token: ${{ steps.token.outputs.value }}
+          action: upload
+          app_location: frontend
+          api_location: ''
+          output_location: dist
+          app_build_command: npm run build
+          production_branch: main
+      - name: Verify real DEV calendar SPA and served CSS selector
+        shell: bash
+        run: |
+          set -euo pipefail
+          host="$(az staticwebapp show -g "$RG" -n "$SWA" --query defaultHostname -o tsv)"
+          test "$host" = 'purple-dune-06b5da200.2.azurestaticapps.net'
+          for path in '' calendar campaigns account; do
+            curl -fsSL --retry 2 --max-time 25 "https://$host/$path" -o "$RUNNER_TEMP/page.html"
+            grep -Fq 'id="root"' "$RUNNER_TEMP/page.html"
+          done
+          css="$(grep -oE 'href="/assets/[^"]+\.css"' "$RUNNER_TEMP/page.html" | head -1 | cut -d'"' -f2)"
+          test -n "$css"
+          curl -fsSL --retry 2 --max-time 25 "https://$host$css" -o "$RUNNER_TEMP/calendar.css"
+          grep -Fq '.rg-campaign-calendar-page' "$RUNNER_TEMP/calendar.css"
+          echo "PASS: existing Free SWA serves new Calendar CSS and SPA routes; signed-in browser layout remains separately verified by mocked Playwright (not hosted E2E)"
+      - name: Clear Azure session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true

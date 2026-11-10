@@ -1,0 +1,58 @@
+name: RetailGrowthAI DEV #249 matched-route 20 sample reliability
+# One-shot existing-DEV only, anonymous fixed campaign GET, 20 observations each
+# on original Python Flex and existing Free SWA named Node preview. No writes,
+# JWT, tenant media, resource plan changes, paid compute or production.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0-249-powered-equal-route-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: retailgrowth-p0249-20sample-campaign-http
+  cancel-in-progress: false
+jobs:
+  sample:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'audit(dev): RetailGrowthAI 249 powered equal-route')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 32
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Prove bounded GET-only series offline before protected login
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/p0_249_powered_equal_route_probe.py tests/infra/test_p0_249_powered_equal_route_probe.py
+          python3 - <<'PY'
+          import runpy
+          ns=runpy.run_path("tests/infra/test_p0_249_powered_equal_route_probe.py")
+          for name,check in sorted(ns.items()):
+              if name.startswith("test_") and callable(check):
+                  check()
+                  print("P0249_20GET_TEST=" + name + "=PASS",flush=True)
+          PY
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Genuine original Flex and free Node same-route HTTP sample
+        shell: bash
+        env:
+          RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0_249_powered_equal_route_probe.py
+      - name: End DEV Azure read-only identity
+        if: always()
+        run: az logout >/dev/null 2>&1 || true

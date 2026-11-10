@@ -1,0 +1,172 @@
+name: RetailGrowthAI 249 premerge existing DEV HTTP canary (one-shot)
+# Coordinator-only: trusted main workflow checks out the exact reviewed unmerged
+# source commit, upgrades only existing DEV Functions code, samples anonymous
+# GET reliability, then restores a known-CI-green source baseline on failure.
+# Neither candidate nor rollback is proof of the original deployed ZIP's digest.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0-249-dev-premerge-canary-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-existing-dev-source-canary
+  cancel-in-progress: false
+jobs:
+  canary:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'release(dev): RetailGrowthAI 249 premerge import isolation canary')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      BASE_SHA: 6e8077f4d7525a5c77c4871f902d24930918574a
+      CANDIDATE_SHA: 7b887b6a1f168b0197ed0acf670f22c3597be1e7
+      EXPECTED_CI_RUN: '40754062483'
+      RG: rg-retailgrowth-dev
+      APP: rgai-dev-functions-d4e5ddbd
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - name: Checkout reviewed candidate, not unreviewed HEAD or customer site
+        uses: actions/checkout@v7
+        with:
+          ref: 7b887b6a1f168b0197ed0acf670f22c3597be1e7
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact four successful PR jobs, source-only diff and indexing gates
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git merge-base --is-ancestor "$BASE_SHA" HEAD
+          result="$(gh api "repos/saifsiddiqui59/RetailGrowthAI/actions/runs/$EXPECTED_CI_RUN" --jq '.conclusion')"
+          test "$result" = success || { echo "::error::Unmerged candidate four-job CI is not successful"; exit 3; }
+          # The exact source commit must not change runtime files other than
+          # the bounded Python entrypoint; no infra/secrets/schema drift.
+          git diff --name-only "$BASE_SHA" "$CANDIDATE_SHA" > "$RUNNER_TEMP/changed.txt"
+          python3 - "$RUNNER_TEMP/changed.txt" <<'PY'
+          from pathlib import Path
+          import sys
+          paths=Path(sys.argv[1]).read_text().splitlines()
+          assert 'azure-functions/campaign-api/function_app.py' in paths
+          assert all(p=='azure-functions/campaign-api/function_app.py'
+                     or p.startswith('docs/') or p.startswith('tests/infra/')
+                     for p in paths), 'unexpected runtime change'
+          PY
+          python3 - <<'PY'
+          import runpy
+          for path in ('tests/infra/test_p0_249_lazy_worker_imports.py',
+                       'tests/infra/test_p0_249_indexing_import_smoke.py'):
+              ns=runpy.run_path(path)
+              for name, fn in sorted(ns.items()):
+                  if name.startswith('test_') and callable(fn):
+                      fn()
+          print('P0249_PREDEPLOY_IMPORT_INDEXING=PASS',flush=True)
+          PY
+          python3 scripts/deploy/package.py --check
+          python3 -m unittest scripts/deploy/test_package.py
+      - name: Build candidate and source-baseline rollback ZIPs with verified pinned FFmpeg
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/media" "$RUNNER_TEMP/build" "$RUNNER_TEMP/rollback-src"
+          image='mwader/static-ffmpeg@sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822'
+          docker pull "$image" >/dev/null
+          cid="$(docker create "$image" -version)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          docker cp "$cid:/ffmpeg" "$RUNNER_TEMP/media/ffmpeg"
+          docker cp "$cid:/ffprobe" "$RUNNER_TEMP/media/ffprobe"
+          chmod 755 "$RUNNER_TEMP/media/ffmpeg" "$RUNNER_TEMP/media/ffprobe"
+          cat > "$RUNNER_TEMP/media/THIRD_PARTY_NOTICES.txt" <<'NOTICE'
+          FFmpeg and ffprobe: static Linux x86_64 GPL distribution with libx264 and AAC.
+          Corresponding source/build instructions: https://github.com/wader/static-ffmpeg
+          Distribution digest: sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822
+          License and redistribution terms: https://ffmpeg.org/legal.html
+          NOTICE
+          python3 scripts/deploy/package.py --ffmpeg-dir "$RUNNER_TEMP/media" --output "$RUNNER_TEMP/build/candidate.zip"
+          python3 scripts/deploy/package.py --verify-zip "$RUNNER_TEMP/build/candidate.zip"
+          git archive "$BASE_SHA" | tar -xf - -C "$RUNNER_TEMP/rollback-src"
+          python3 "$RUNNER_TEMP/rollback-src/scripts/deploy/package.py" --ffmpeg-dir "$RUNNER_TEMP/media" --output "$RUNNER_TEMP/build/source-baseline.zip"
+          python3 "$RUNNER_TEMP/rollback-src/scripts/deploy/package.py" --verify-zip "$RUNNER_TEMP/build/source-baseline.zip"
+          echo 'P0249_CANDIDATE_ROLLBACK_PACKAGES_VALID=true'
+          echo 'P0249_BASELINE_IS_TESTED_GIT_SOURCE_NOT_EXACT_PREDEPLOY_ZIP=true'
+      - uses: azure/login@v3
+        id: oidc
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Read-only exact tagged Central India DEV app scope + capabilities
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0,'ops')
+          from flex_ingress_correlation import audit_scope
+          assert audit_scope()
+          print('P0249_EXACT_DEV_SCOPE_OIDC=PASS',flush=True)
+          PY
+          test "$(az functionapp show -g "$RG" -n "$APP" --query name -o tsv)" = "$APP"
+          az functionapp config appsettings list -g "$RG" -n "$APP" --query '[].name' -o tsv > "$RUNNER_TEMP/existing-setting-names"
+          for key in RETAIL_SUPABASE_URL RETAIL_SUPABASE_PUBLISHABLE_KEY RETAIL_SUPABASE_SERVICE_ROLE_KEY RETAIL_STORAGE; do
+            grep -Fxq "$key" "$RUNNER_TEMP/existing-setting-names"
+          done
+          az functionapp function list -g "$RG" -n "$APP" --query '[].name' -o tsv > "$RUNNER_TEMP/previous-triggers"
+          for fn in read_campaign plan_campaign render_campaign_reel recover_stale_jobs; do
+            grep -Eq "/$fn$" "$RUNNER_TEMP/previous-triggers"
+          done
+          echo 'P0249_ORIGINAL_TRIGGER_INDEX_PREDEPLOY=PASS'
+      - name: Deploy only candidate code ZIP to existing DEV app (no settings or SKU changes)
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          touch "$RUNNER_TEMP/p0249-zip-upload-attempted"
+          az functionapp deployment source config-zip -g "$RG" -n "$APP" --src "$RUNNER_TEMP/build/candidate.zip" --build-remote true -o none
+          echo 'P0249_EXISTING_DEV_CODE_ONLY_DEPLOY=COMPLETE'
+      - name: Verify indexing and run real matched-route 20+20 HTTP acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=0
+          for attempt in $(seq 1 12); do
+            az functionapp function list -g "$RG" -n "$APP" --query '[].name' -o tsv > "$RUNNER_TEMP/candidate-triggers"
+            if grep -Eq '/read_campaign$' "$RUNNER_TEMP/candidate-triggers" &&
+               grep -Eq '/plan_campaign$' "$RUNNER_TEMP/candidate-triggers" &&
+               grep -Eq '/render_campaign_reel$' "$RUNNER_TEMP/candidate-triggers" &&
+               grep -Eq '/recover_stale_jobs$' "$RUNNER_TEMP/candidate-triggers"; then ok=1; break; fi
+            sleep 10
+          done
+          test "$ok" = 1 || { echo "::error::Required existing worker/HTTP trigger indexing failed"; exit 4; }
+          echo 'P0249_POSTDEPLOY_HTTP_AND_WORKER_INDEX=PASS'
+          python3 -u ops/p0_249_powered_equal_route_probe.py
+          echo 'P0249_POSTDEPLOY_20GET_NO_503=PASS_SMALL_SAMPLE'
+      - name: Restore reviewed pre-change main source ZIP if deployment or live acceptance failed
+        if: failure() && steps.oidc.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Nothing to restore if the code upload was never attempted.
+          test -f "$RUNNER_TEMP/p0249-zip-upload-attempted" || { echo "P0249_NO_DEPLOY_ATTEMPT_NO_ROLLBACK=true"; exit 0; }
+          # Source baseline was 4/4 CI verified, but its bytes may not be the
+          # exact historical deployed app. Never call this bit-identical rollback.
+          if [ -f "$RUNNER_TEMP/build/source-baseline.zip" ]; then
+            az functionapp deployment source config-zip -g "$RG" -n "$APP" \
+              --src "$RUNNER_TEMP/build/source-baseline.zip" --build-remote true -o none
+            echo 'P0249_SOURCE_BASELINE_RESTORED=TRUE_EXACT_PRIOR_DEPLOY_BYTES_UNKNOWN'
+          else
+            echo "::error::No source-baseline package exists; no destructive fallback attempted"
+            exit 4
+          fi
+      - name: End protected DEV Azure OIDC session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true

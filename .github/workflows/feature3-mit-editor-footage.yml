@@ -1,0 +1,77 @@
+name: Feature3 actual MIT source → FFmpeg technical editor footage (GPU OFF)
+
+on:
+  push:
+    branches:
+      - feat/feature3-mit-technical-footage-20261029
+    paths:
+      - .github/workflows/feature3-mit-editor-footage.yml
+      - poster-engine/feature3_demo_footage.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-to-editor-video:
+    name: Actual 1080x1920 H264/AAC footage with validated upstream stills
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install minimal decoder
+        run: python -m pip install 'Pillow==11.3.0'
+      - name: Install FFmpeg and ffprobe for actual non-GPU video encode
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Fetch genuine pinned OpenVTO synthetic garment and avatar
+        run: python poster-engine/feature3_demo_inputs.py --output test-artifacts/feature3-openvto
+      - name: Preserve pinned upstream MIT license notice
+        shell: bash
+        run: |
+          python - <<'PY'
+          from hashlib import sha1
+          from pathlib import Path
+          from urllib.request import Request,urlopen
+          url='https://raw.githubusercontent.com/Prompt-Haus/OpenVTO/10140178cdb198ff17ad7b226c432bd63d732fc2/LICENSE'
+          with urlopen(Request(url,headers={'User-Agent':'RetailGrowthAI-LicensedDemo/1.0'}),timeout=15) as response:
+              assert response.geturl()==url
+              raw=response.read(2048)
+          assert len(raw)==1068
+          assert sha1(f'blob {len(raw)}\0'.encode()+raw).hexdigest()=='d246e4160c1d8c59bc9e99a90b095ec42ee5cec5'
+          Path('test-artifacts/feature3-openvto/LICENSE-openvto.txt').write_bytes(raw)
+          PY
+      - name: Render silent 9s Full HD input for Feature4 / Feature7
+        run: |
+          ffmpeg -hide_banner -version | head -n 1
+          python poster-engine/feature3_demo_footage.py \
+            --inputs test-artifacts/feature3-openvto \
+            --output test-artifacts/feature3-openvto/feature4-editor-input.mp4
+      - name: Verify no customer or paid approvals
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,pathlib,hashlib
+          root=pathlib.Path('test-artifacts/feature3-openvto')
+          row=json.loads((root/'technical_footage_manifest.json').read_text())
+          raw=(root/row['mp4_filename']).read_bytes()
+          assert hashlib.sha256(raw).hexdigest()==row['mp4_sha256']
+          assert row['video_codec']=='h264' and row['audio_codec']=='aac'
+          assert row['width']==1080 and row['height']==1920
+          assert row['publish_approved'] is False
+          assert row['vton_inference_performed'] is False
+          assert row['model_wears_product_garment'] is False
+          assert row['provider_call_permitted'] is False
+          print('VERIFIED_TECHNICAL_EDITOR_MP4_SHA256='+row['mp4_sha256'])
+          PY
+      - name: Upload short video and original source references for editors
+        uses: actions/upload-artifact@v4
+        with:
+          name: feature3-openvto-editor-input-mp4
+          path: test-artifacts/feature3-openvto/
+          if-no-files-found: error
+          retention-days: 30

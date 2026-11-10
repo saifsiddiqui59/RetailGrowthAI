@@ -1,0 +1,11 @@
+{
+  "platform": {
+    "apiRuntime": "node:22"
+  },
+  "globalHeaders": {
+    "X-Robots-Tag": "noindex, nofollow",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Cache-Control": "no-store"
+  }
+}

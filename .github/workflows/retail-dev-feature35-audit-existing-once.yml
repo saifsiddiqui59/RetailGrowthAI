@@ -1,0 +1,119 @@
+name: RetailGrowthAI Feature3+5 GPU-OFF existing model audit (read-only)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature35-audit-existing-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-feature35-readonly-audit
+  cancel-in-progress: false
+jobs:
+  audit:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: dev
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-retailgrowth-dev
+      ACCOUNT: rgaimodelseastus26
+      SHARE: retailgrowth-models
+      ENV_NAME: rgai-f5-gpu-canary-eastus
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Compile offline preflight, no model fetch
+        run: python3 -m py_compile scripts/ops/feature35_model_share_preflight.py
+      - name: Authenticate into EXISTING RetailGrowthAI DEV OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Read-only verify DEV tags and exact StorageV2 Cool LRS share
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${AZ_SUB:-}" && test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          test "$(az group show -n "$RG" --query tags.app -o tsv | tr '[:upper:]' '[:lower:]')" = retailgrowthai
+          test "$(az group show -n "$RG" --query tags.environment -o tsv | tr '[:upper:]' '[:lower:]')" = dev
+          az storage account show -g "$RG" -n "$ACCOUNT" -o json > "$RUNNER_TEMP/account.json"
+          python3 - "$RUNNER_TEMP/account.json" "$AZ_SUB" <<'PY'
+          import json,sys
+          a=json.load(open(sys.argv[1]));t={k.lower():str(v).lower() for k,v in a.get('tags',{}).items()}
+          assert a['location']=='eastus' and a['sku']['name']=='Standard_LRS' and a['kind']=='StorageV2'
+          assert t.get('app')=='retailgrowthai' and t.get('environment')=='dev'
+          assert a['id'].lower().startswith('/subscriptions/'+sys.argv[2].lower()+'/resourcegroups/rg-retailgrowth-dev/')
+          assert a.get('allowBlobPublicAccess') is False and a.get('enableHttpsTrafficOnly') is True
+          print('PASS existing private East US StorageV2 Standard_LRS account')
+          PY
+          aid="$(az storage account show -g "$RG" -n "$ACCOUNT" --query id -o tsv)"
+          az rest --method get --url "https://management.azure.com${aid}/fileServices/default/shares/${SHARE}?api-version=2023-05-01" -o json > "$RUNNER_TEMP/share.json"
+          python3 - "$RUNNER_TEMP/share.json" <<'PY'
+          import json,sys
+          s=json.load(open(sys.argv[1]));p=s['properties']
+          assert s['name']=='retailgrowth-models' and p['shareQuota']==64
+          assert p['accessTier'].lower()=='cool' and p.get('enabledProtocols','SMB')=='SMB'
+          assert '/providers/Microsoft.Storage/storageAccounts/' in s['id']
+          print('PASS existing classic Azure Files Cool SMB LRS 64GiB')
+          PY
+      - name: Check six private model file metadata plus upstream revisions (only tiny manifest GET)
+        shell: bash
+        env:
+          RETAIL_F35_ALLOW_READONLY: YES
+        run: |
+          set -euo pipefail
+          umask 077
+          python3 -m pip install --disable-pip-version-check 'azure-storage-file-share==12.23.0'
+          export AZURE_STORAGE_ACCOUNT_KEY="$(az storage account keys list -g "$RG" -n "$ACCOUNT" --query '[0].value' -o tsv)"
+          test -n "$AZURE_STORAGE_ACCOUNT_KEY"
+          echo "::add-mask::$AZURE_STORAGE_ACCOUNT_KEY"
+          python3 scripts/ops/feature35_model_share_preflight.py
+          unset AZURE_STORAGE_ACCOUNT_KEY
+      - name: Read-only A100 managed environment, storage binding and job execution inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          az containerapp env show -g "$RG" -n "$ENV_NAME" -o json > "$RUNNER_TEMP/env.json"
+          python3 - "$RUNNER_TEMP/env.json" <<'PY'
+          import json,sys
+          env=json.load(open(sys.argv[1]));t={k.lower():str(v).lower() for k,v in (env.get('tags') or {}).items()}
+          loc=str(env.get('location','')).lower().replace(' ','')
+          print('SAFE_ENV_IDENTITY_CHECK: name_match=%s location=%s app_tag_match=%s dev_tag_match=%s' % (
+            env.get('name')=='rgai-f5-gpu-canary-eastus', loc,
+            t.get('app')=='retailgrowthai', t.get('environment')=='dev'))
+          assert env.get('name')=='rgai-f5-gpu-canary-eastus', 'Unexpected managed environment name'
+          assert loc=='eastus', 'Unexpected managed environment location'
+          assert t.get('app')=='retailgrowthai', 'Missing RetailGrowthAI ownership tag'
+          assert t.get('environment')=='dev', 'Missing RetailGrowthAI DEV tag'
+          print('PASS exact East US RetailGrowthAI DEV managed environment')
+          PY
+          if az containerapp env storage show -g "$RG" -n "$ENV_NAME" --storage-name rgai-models-readonly -o json > "$RUNNER_TEMP/mount.json" 2>/dev/null; then
+            python3 - "$RUNNER_TEMP/mount.json" <<'PY'
+          import json,sys
+          x=json.load(open(sys.argv[1])); a=(x.get('properties') or {}).get('azureFile') or {}
+          assert (a.get('accountName'),a.get('shareName'),a.get('accessMode')) == ('rgaimodelseastus26','retailgrowth-models','ReadOnly')
+          print('SHARED_MODEL_ENVIRONMENT_BINDING=READONLY_EXISTING')
+          PY
+          else
+            echo "SHARED_MODEL_ENVIRONMENT_BINDING=ABSENT_NO_WRITE"
+          fi
+          az containerapp job list -g "$RG" --query "[].{name:name,trigger:properties.configuration.triggerType,profile:properties.workloadProfileName}" -o json
+          if az containerapp job show -g "$RG" -n rgai-f5-wan22-a100-canary -o none 2>/dev/null; then
+            az containerapp job execution list -g "$RG" -n rgai-f5-wan22-a100-canary --query "[].{name:name,status:properties.status}" -o json
+          else
+            echo "FEATURE5_NAMED_MANUAL_GPU_JOB=ABSENT"
+          fi
+          echo "NO_GPU_START_NO_CLOUD_MUTATION"
+      - name: Public East US A100 retail meter discovery (no subscription or GPU)
+        if: always()
+        run: python3 scripts/ops/feature35_public_a100_price_probe.py
+      - name: Logout Azure
+        if: always()
+        run: az logout >/dev/null 2>&1 || true

@@ -1,0 +1,14 @@
+{
+  "name": "retailgrowthai-secure-node-http-read-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.mjs",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check src/security.mjs && node --check src/tenant-read.mjs && node --check src/private-reads.mjs && node --check src/poster-writes.mjs && node --check src/v1-contract.mjs && node --check src/campaign-day-writes.mjs && node --check src/reel-intent.mjs && node --check src/routes.mjs && node --check src/secure-api-dispatch.mjs"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.0.0"
+  }
+}

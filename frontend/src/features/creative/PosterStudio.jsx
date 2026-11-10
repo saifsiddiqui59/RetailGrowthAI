@@ -2,12 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import { drawPoster, POSTER_SIZES, POSTER_TEMPLATES } from './poster-canvas.mjs'
 import { validateSignedVideoUrl } from '../campaigns/campaign-api.mjs'
 import './PosterStudio.css'
+import Feature3StudioPanel from './Feature3StudioPanel.jsx'
+import Feature3SecureDraftWorkspace from './Feature3SecureDraftWorkspace.jsx'
+import { feature3ContextKey } from './feature3-context.mjs'
 
 const MAX_BYTES = 25 * 1024 * 1024
 const SUPPORTED = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 export default function PosterStudio({ day, businessName = 'Your business', api = null,
-  campaignId = '', persisted = false, authorizedAssets = [], supabaseOrigin = '', onSelected = null }) {
+  campaignId = '', persisted = false, authorizedAssets = [], supabaseOrigin = '', onSelected = null,
+  approvedModels = [], authenticatedModelImageMap = {}, feature3Api = null }) {
   const canvas = useRef(null)
   const [brand, setBrand] = useState(businessName || 'Your business')
   const [template, setTemplate] = useState('editorial')
@@ -29,6 +33,7 @@ export default function PosterStudio({ day, businessName = 'Your business', api 
   const [remoteMessage, setRemoteMessage] = useState('')
   const [savedPosters, setSavedPosters] = useState([])
   const [historyBusy, setHistoryBusy] = useState(false)
+  const [showCpuStudio, setShowCpuStudio] = useState(false)
 
   useEffect(() => {
     setBrand(businessName || 'Your business')
@@ -51,6 +56,7 @@ export default function PosterStudio({ day, businessName = 'Your business', api 
     setRemoteMessage('')
     setRemoteError('')
     setSavedPosters([])
+    setShowCpuStudio(false)
   }, [day.id, campaignId])
   // Only intentional edits invalidate the selected cloud draft. Restoring a
   // saved design must not be erased by its own programmatic field updates.
@@ -367,6 +373,33 @@ export default function PosterStudio({ day, businessName = 'Your business', api 
           <p className="rg-subtle">{POSTER_SIZES[size].join(' × ')} pixels · Day {day.day_index} · {photo ? 'Your photo' : 'Add your photo for export'}</p>
         </div>
       </div>
+      {persisted && feature3ContextKey({
+        shopId: day.shop_id, campaignId, dayId: day.id,
+      }) && <div className="rg-poster-remote"
+        aria-label="Low-cost poster design (local)">
+        <button type="button" className="rg-button rg-secondary"
+          aria-expanded={showCpuStudio}
+          onClick={() => setShowCpuStudio(open => !open)}>
+          {showCpuStudio ? 'Hide' : 'Open'} CPU Poster Studio (local editable draft)
+        </button>
+        <p className="rg-subtle">Create text-led promotional layouts with
+          no new dependency or GPU. This v2 editor is local-only:
+          its JSON is not a saved campaign poster, and the live private
+          v1 save/render/select controls above remain separate.</p>
+        {showCpuStudio && (feature3Api
+          ? <Feature3SecureDraftWorkspace
+              key={day.id + ':' + campaignId}
+              shopId={day.shop_id} campaignId={campaignId} dayId={day.id}
+              brandKit={{shopId: day.shop_id, businessName: brand}}
+              imageMap={authenticatedModelImageMap}
+              approvedModels={approvedModels} feature3Api={feature3Api} />
+          : <Feature3StudioPanel
+              key={day.id + ':' + campaignId}
+              shopId={day.shop_id} campaignId={campaignId} dayId={day.id}
+              brandKit={{shopId: day.shop_id, businessName: brand}}
+              imageMap={authenticatedModelImageMap}
+              approvedModels={approvedModels} />)}
+      </div>}
     </section>
   )
 }

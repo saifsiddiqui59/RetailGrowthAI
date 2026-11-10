@@ -160,3 +160,7 @@ select set_config('request.jwt.claim.role','service_role',true);
 rollback;
 \echo 'PASS: cross-shop read/write, owner forgery, viewer escalation, revocation and anon-denial RLS tests'
 
+
+-- The ordered Feature #2 migration is automatically applied by local Supabase;
+-- exercise its tenant-RLS and service-only invariants after foundational tests.
+\i tests/security/feature2_trends_negative.sql

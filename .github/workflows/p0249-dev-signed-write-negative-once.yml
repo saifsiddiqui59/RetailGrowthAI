@@ -1,0 +1,54 @@
+name: RetailGrowthAI #249 signed Supabase JWT six DEV write denials
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0249-dev-signed-write-negative-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-live-canary
+  cancel-in-progress: false
+jobs:
+  signed-jwt-write-negative-canary:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'test(dev): RetailGrowthAI P0 249 signed write denial HTTP diagnostic')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    env:
+      RGAI_P0249_WRITE_NEGATIVE_APPROVAL: OWNER_APPROVED_AUTH_ONLY_WRITE_NEGATIVE
+      RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+      RGAI_DEV_PUBLISHABLE_KEY: sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify only exact RetailGrowthAI synthetic Auth account scope, never DB/Queue/PROD
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RGAI_DEV_SERVICE_KEY"
+          test "$GITHUB_REPOSITORY" = 'saifsiddiqui59/RetailGrowthAI'
+          test "$GITHUB_REF" = 'refs/heads/main'
+          python3 -m py_compile tests/e2e/p0249_dev_signed_write_negative_once.py
+          python3 tests/infra/test_p0249_signed_write_canary_source.py
+          node --test tests/security/p0249_poster_reel_shared_writer.test.mjs
+          grep -Fq 'if(render) return await writer.requestPosterRender' experiments/secure-node-http/src/poster-writes.mjs
+          grep -Fq 'P0249_REAL_JWT_DEV_ALL_SIX_UNOWNED_WRITES_DENIED=PASSED' tests/e2e/p0249_dev_signed_write_negative_once.py
+          grep -Fq 'P0249_CROSS_SITE_SIGNED_JWT_MUTATION_BLOCKED=true' tests/e2e/p0249_dev_signed_write_negative_once.py
+          grep -Fq 'P0249_FORGED_SIGNED_WRITE_JWT_DENIED=true' tests/e2e/p0249_dev_signed_write_negative_once.py
+          grep -Fq 'P0249_WRITE_DENIAL_MISMATCH_CASE=' tests/e2e/p0249_dev_signed_write_negative_once.py
+          # The known missing-poster HTTP 400 MUST still fail; classify enum only.
+          grep -Fq 'P0249_POSTER_RENDER_400_SAFE_ERROR=' tests/e2e/p0249_dev_signed_write_negative_once.py
+          echo 'P0249_DEV_SIGNED_WRITE_NEGATIVE_SOURCE_GUARDS=true'
+      - name: Exercise genuine signed JWT denial on six isolated DEV write paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u tests/e2e/p0249_dev_signed_write_negative_once.py
+          echo 'P0249_NO_SHOP_MEDIA_JOB_OR_QUOTA_WRITTEN_BY_CANARY=true'

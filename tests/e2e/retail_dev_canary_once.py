@@ -364,7 +364,7 @@ def upload_using_playwright(*, shop_id, email, password, image_bytes, cleanup_pa
 
 
 
-def preflight_dev_http_auth_routes(*, transport=None, clock=None):
+def preflight_dev_http_auth_routes(*, transport=None, clock=None, include_prompt=False):
     """Fail BEFORE temp Auth/shop creation when DEV ingress cannot return 401.
 
     No bearer, user identities, customer data, RPC or account creation is sent.
@@ -381,6 +381,8 @@ def preflight_dev_http_auth_routes(*, transport=None, clock=None):
         ("GET", "/api/render-jobs/"+placeholder),
         ("POST", "/api/campaigns"),
     ]
+    if include_prompt:
+        checks.append(("POST", "/api/shops/"+placeholder+"/improve-prompt"))
     for method,path in checks:
         req=urllib.request.Request(
             API+path,method=method,
@@ -412,11 +414,19 @@ def main():
         raise RuntimeError("Invalid key type; never use privileged key in browser")
     # Never create temporary GoTrue accounts if the existing Azure HTTP
     # authorization boundary is failing its no-JWT preflight.
-    preflight_dev_http_auth_routes()
+    prompt_only = os.environ.get("RGAI_DEV_FEATURE2_PROMPT_CANARY") == "1"
+    full_feature2 = os.environ.get("RGAI_DEV_FEATURE2_CANARY") == "1"
+    if prompt_only and (full_feature2 or os.environ.get("RGAI_DEV_PLAYWRIGHT_UPLOAD") == "1"):
+        raise RuntimeError("Prompt-only canary cannot be combined with draft or media modes")
+    preflight_dev_http_auth_routes(include_prompt=prompt_only)
     admins=api_key_headers(key)
     if key.startswith("sb_secret_"):
         # GoTrue admin API needs a service key, never send publishable.
         admins["Authorization"]="Bearer "+key
+    if full_feature2:
+        # Guarded live source evidence check occurs BEFORE creating either user.
+        from feature2_dev_live_canary import preflight_live_source
+        preflight_live_source(call, SUPABASE, admins, dt.datetime.now(dt.timezone.utc))
     marker=uuid.uuid4().hex[:12]
     accounts=[]
     shops=[]
@@ -470,6 +480,14 @@ def main():
                 raise RuntimeError("RLS failed to reveal newly bootstrapped OWNER shop")
             accounts[-1]=(uid,bearer)
         a=accounts[0][1];b=accounts[1][1]
+        if prompt_only:
+            from feature2_dev_live_canary import run_live_feature2_prompt
+            run_live_feature2_prompt(call, api=API, supabase=SUPABASE,
+                                     owner=a, outsider=b, shops=shops,
+                                     accounts=accounts)
+            status="PASSED"
+            print("RETAILGROWTHAI_CANARY_RESULT="+status,flush=True)
+            return  # Existing exact test-owned cleanup in finally.
         if os.environ.get("RGAI_DEV_PLAYWRIGHT_UPLOAD") == "1":
             # Real Chromium form interaction: no native OS picker or browser
             # service-role key. Exact media cleanup is tracked before RPC ACK.
@@ -488,6 +506,14 @@ def main():
                   "p_attribution":"Original synthetic RetailGrowthAI DEV canary image; created entirely in Python."},
                 headers=a,expect=(200,))
         if not isinstance(asset,str): raise RuntimeError("Storage RPC did not return UUID")
+        if os.environ.get("RGAI_DEV_FEATURE2_CANARY") == "1":
+            from feature2_dev_live_canary import run_live_feature2
+            run_live_feature2(call, api=API, supabase=SUPABASE,
+                              owner=a, outsider=b, shops=shops,
+                              accounts=accounts, asset=asset)
+            status="PASSED"
+            print("RETAILGROWTHAI_CANARY_RESULT="+status,flush=True)
+            return  # Shared finally still cleans exact media/users/shops.
         start=(dt.datetime.now(dt.timezone(dt.timedelta(hours=5,minutes=30))).date()
                +dt.timedelta(days=1)).isoformat()
         request={"shop_id":shops[0],"brief":"Create seven distinct daily educational clothing styling ideas for a small boutique; no special offers.",
@@ -867,6 +893,12 @@ def main():
                     headers=admins,expect=(200,))
                 if remaining:
                     raise RuntimeError("Test shop still exists after scoped delete")
+                if full_feature2 or prompt_only:
+                    query=urllib.parse.urlencode({"shop_id":"eq."+sid,"select":"id"})
+                    _,orphan_drafts=call(SUPABASE+"/rest/v1/shop_content_drafts?"+query,
+                        headers=admins,expect=(200,))
+                    if orphan_drafts:
+                        raise RuntimeError("Feature2 draft survived scoped cascade cleanup")
             except Exception:
                 failures+=1
                 print("CANARY_CLEANUP_FAILURE_KIND=shop_or_media",flush=True)
