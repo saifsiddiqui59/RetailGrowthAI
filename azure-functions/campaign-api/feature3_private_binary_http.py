@@ -128,7 +128,7 @@ class Feature3PrivateBinaryHTTP:
         }
 
     def handle(self, *, method, authorization, shop_id, job_id):
-        if method!="GET":
+        if type(method) is not str or method!="GET":
             status,body,headers=self._deny(405)
             return status,body,{**headers,"Allow":"GET"}
         if (type(authorization) is not str or
@@ -153,7 +153,7 @@ class Feature3PrivateBinaryHTTP:
             if (type(receipt) is not dict or set(receipt)!=_KEYS or
                     type(receipt.get("shop_id")) is not str or receipt["shop_id"]!=shop or
                     type(receipt.get("job_id")) is not str or receipt["job_id"]!=job or
-                    receipt.get("mime_type")!="image/png" or
+                    type(receipt.get("mime_type")) is not str or receipt["mime_type"]!="image/png" or
                     receipt.get("private") is not True or
                     receipt.get("signed_url_issued") is not False or
                     receipt.get("approved_model") is not False or
