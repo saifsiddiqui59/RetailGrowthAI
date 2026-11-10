@@ -803,10 +803,19 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
             pattern=r"(?<!\w)"+re.escape(claim)+r"(?!\w)"
             approved_spans.extend((m.start(),m.end()) for m in
                                    re.finditer(pattern,text,flags=re.I))
-        hits=(list(_CLAIM_PERCENT.finditer(text)) +
-              list(_CLAIM_WORD_PERCENT.finditer(text)) +
-              list(_CLAIM_LOCAL_PERCENT.finditer(text)))
-        if hits and (not approved_spans or _CLAIM_WIDE.search(text) or
+        # Detection-only single-codepoint NFKC folds compatibility-width
+        # characters (e.g. 50ｐｅｒｃｅｎｔ), preserving original offsets.
+        # Never normalize signed offer wording, stored copy or the digest:
+        # source approval still requires the exact original text span.
+        shadow="".join(
+            normalized if len(normalized)==1 else char
+            for char in text
+            for normalized in (unicodedata.normalize("NFKC",char),)
+        )
+        hits=(list(_CLAIM_PERCENT.finditer(shadow)) +
+              list(_CLAIM_WORD_PERCENT.finditer(shadow)) +
+              list(_CLAIM_LOCAL_PERCENT.finditer(shadow)))
+        if hits and (not approved_spans or _CLAIM_WIDE.search(shadow) or
                      any(not any(a<=hit.start() and hit.end()<=b
                                  for a,b in approved_spans) for hit in hits)):
             issues.add("DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED")
