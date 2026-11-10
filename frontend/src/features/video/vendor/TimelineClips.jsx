@@ -14,6 +14,7 @@ export const TimelineAudioClip = memo(function TimelineAudioClip({
   rangeSelected,
   waveformVisible,
   gainDisabled,
+  hideGain = false,
   t,
   handlersRef,
 }) {
@@ -31,7 +32,7 @@ export const TimelineAudioClip = memo(function TimelineAudioClip({
       onClick={(event) => handlersRef.current.selectAudioClip(event, segment.id)}
     >
       {waveformVisible ? <WaveformStrip peaks={segment.peaks} volume={segment.volume ?? 1} timeline active /> : null}
-      <TimelineGain volume={segment.volume ?? 1} disabled={gainDisabled} t={t} onChange={(volume) => handlersRef.current.setAudioSegments((items) => items.map((item) => item.id === segment.id ? { ...item, volume } : item))} />
+      {!hideGain && <TimelineGain volume={segment.volume ?? 1} disabled={gainDisabled} t={t} onChange={(volume) => handlersRef.current.setAudioSegments((items) => items.map((item) => item.id === segment.id ? { ...item, volume } : item))} />}
       <span className="audio-clip-duration" data-compact-duration={formatCompactDuration(segment.duration)}>{formatTime(segment.duration)}</span>
     </div>
   );
