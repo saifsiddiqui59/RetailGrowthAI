@@ -249,6 +249,29 @@ class BinaryHTTPTests(unittest.TestCase):
         self.reader.png=original
         self.assertEqual(self.call()[0],200)
 
+    def test_crc_valid_ancillary_metadata_never_leaks_from_private_http(self):
+        # Defense in depth: a compromised rights reader may return PNG bytes
+        # with a valid digest but embedded private EXIF/text/profile metadata.
+        original = self.reader.png
+        def chunk(kind, payload):
+            return (len(payload).to_bytes(4, "big") + kind + payload +
+                    (crc32(kind + payload) & 0xffffffff).to_bytes(4, "big"))
+        for kind, payload in (
+            (b"tEXt", b"Comment\\x00synthetic-private-value"),
+            (b"zTXt", b"Comment\\x00\\x00compressed"),
+            (b"iTXt", b"Comment\\x00\\x00\\x00\\x00\\x00private"),
+            (b"eXIf", b"synthetic-exif"),
+            (b"iCCP", b"Profile\\x00\\x00synthetic"),
+            (b"tIME", bytes((26, 1, 1, 0, 0, 0, 0))),
+        ):
+            self.reader.png = original[:33] + chunk(kind, payload) + original[33:]
+            with self.subTest(kind=kind):
+                status, body, headers = self.call()
+                self.assertEqual((status, body), (503, b""))
+                self.assert_private_headers(headers)
+        self.reader.png = original
+        self.assertEqual(self.call()[0], 200)
+
     def test_pathological_png_chunk_count_is_denied(self):
         # Repeated valid ancillary chunks must not turn private download into
         # unbounded CPU work, even with a matching forged receipt SHA.
