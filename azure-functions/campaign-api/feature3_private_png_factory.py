@@ -18,24 +18,26 @@ from feature3_private_png_reader import Feature3RevocablePNGReader, PrivateGener
 _JWT_SEGMENT = re.compile(r"[A-Za-z0-9_-]+")
 
 
-def _safe_jwt_header(segment):
-    """Reject unsigned/ambiguous JOSE headers before auth or tenant IO.
+def _safe_jwt_json(segment, *, header=False):
+    """Reject ambiguous JWT JSON before auth or tenant IO.
 
     This is not JWT verification: the cryptographic verifier still checks
     signature, issuer, audience, expiry and user identity.
     """
     try:
         raw = base64.urlsafe_b64decode(segment + "=" * (-len(segment) % 4))
-        if not 2 <= len(raw) <= 2048:
+        if not 2 <= len(raw) <= (2048 if header else 8192):
             return False
         def unique_pairs(pairs):
             result = {}
             for key, value in pairs:
                 if key in result:
-                    raise ValueError("duplicate JOSE header field")
+                    raise ValueError("duplicate JWT JSON field")
                 result[key] = value
             return result
         header = json.loads(raw.decode("utf-8"), object_pairs_hook=unique_pairs)
+        if not header:
+            return type(header) is dict and type(header.get("sub")) is str and bool(header["sub"])
         return (type(header) is dict and
                 type(header.get("alg")) is str and
                 header["alg"] in ("HS256", "RS256", "ES256") and
@@ -91,7 +93,8 @@ class TrustedPrivatePNGFactory:
                         any(not 2 <= len(part) <= 4096 or
                             len(part) % 4 == 1 or
                             _JWT_SEGMENT.fullmatch(part) is None for part in parts) or
-                        not _safe_jwt_header(parts[0])):
+                        not _safe_jwt_json(parts[0], header=True) or
+                        not _safe_jwt_json(parts[1])):
                     raise PrivateGeneratedDownloadDenied("Private output unavailable")
                 return reader.read(user_token=user_token, shop_id=expected_shop,
                                    job_id=expected_job)
