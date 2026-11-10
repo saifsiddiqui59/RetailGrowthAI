@@ -36,6 +36,7 @@ def _valid_png_chunks(raw):
         return False
     offset=8
     saw_idat=False
+    idat_payload_bytes=0
     idat_closed=False
     saw_plte=False
     # IHDR color type is fixed at byte 25 of a PNG stream. Only indexed
@@ -88,13 +89,17 @@ def _valid_png_chunks(raw):
                 return False
             saw_plte=True
         if kind==b"IDAT":
+            # Empty IDAT chunks are legal PNG framing, but a stream consisting
+            # only of empty chunks has no image data and must not be served.
             if idat_closed:
                 return False
             saw_idat=True
+            idat_payload_bytes+=length
         elif saw_idat:
             idat_closed=True
         if kind==b"IEND":
-            return (length==0 and saw_idat and end==len(raw) and
+            return (length==0 and saw_idat and idat_payload_bytes>0 and
+                    end==len(raw) and
                     (color_type!=3 or saw_plte))
         offset=end
     return False
