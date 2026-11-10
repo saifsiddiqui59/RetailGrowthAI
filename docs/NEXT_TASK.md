@@ -1448,3 +1448,9 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 
 #### 2026-11-10 deferred CI gates after 50 PR scan
 - F4 #838 parent push #42760121390: FFmpeg exit 124 timeout; #322 PR merge-ref #42760128811 has same timeout plus #650 Python ZIP blocker. F5 #896 parent push #42758853513: frontend/FFmpeg failed (Python/Supabase green). Preserve full failures as pending, do not assert parent/main 4/4 from successful source branch CI. Per current owner instruction, skip fixes and continue another independent PR; return to these only in a separate repair batch.
+
+
+### 2026-11-10 next-50-PR integration follow-up
+- Consult `docs/integration/OPEN_PR_TRIAGE_20261110.md` batch-2 receipt for 50 exact IDs and eight merged original PRs. Preserve existing original task IDs; feature-parent-only #705/#695/#762/#754/#739 are source-integrated but **NOT** original task DONE.
+- Check latest F4 parent push [#42766557861](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/42766557861) and #322 synchronize [#42766563772](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/42766563772), and latest main push after docs/research `bdb27ee` before claiming 4/4. Issue650 package gate must not be weakened. Skip unrelated failed CI/conflicts and continue independent older PRs until unique changes are safely reconciled.
+- Shared/sensitive #885, #887, #889, #879/#880, #823, #125, #323, #513/#551 and docs PR #891 require scoped independent review, no unguarded main merge or paid GPU/cloud action. User has no real customer footage/accounts requirement for synthetic tests; do not mistake synthetic evidence for hosted rights.
