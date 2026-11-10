@@ -75,7 +75,7 @@ def _valid_png_chunks(raw):
         # interleaved IDAT sequence must never reach the private response.
         if kind[0] in range(65,91) and kind not in (b"IHDR",b"PLTE",b"IDAT",b"IEND"):
             return False
-        if kind==b"PLTE":
+        # Generated private posters have no need for ancillary metadata.\n        # Reject even CRC-valid text/EXIF/ICC chunks from a faulty reader.\n        if kind[0] in range(97,123):\n            return False\n        if kind==b"PLTE":
             if (saw_plte or saw_idat or color_type in (0,4) or
                     length==0 or length>768 or length%3!=0 or
                     (color_type==3 and length//3>(1<<bit_depth))):
