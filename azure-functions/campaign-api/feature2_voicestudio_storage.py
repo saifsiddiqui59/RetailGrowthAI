@@ -95,6 +95,39 @@ class VoiceStudioPrivateStorage:
         except (HTTPError, URLError, OSError, TimeoutError):
             raise PrivateVoiceStorageDenied("Private WAV write failed or is uncertain") from None
 
+    def _read_and_verify(self, path, expected_sha):
+        if type(expected_sha) is not str or not _HASH.fullmatch(expected_sha):
+            raise PrivateVoiceStorageDenied("Original private digest required")
+        url = self.origin + "/storage/v1/object/" + BUCKET + "/" + quote(path, safe="/")
+        req = Request(url, method="GET", headers=self.headers)
+        try:
+            with self.send(req, timeout=30) as response:
+                if response.status != 200 or response.geturl() != url:
+                    raise PrivateVoiceStorageDenied("Private WAV readback not authorized")
+                content = response.read(MAX_WAV + 1)
+        except (HTTPError, URLError, OSError, TimeoutError):
+            raise PrivateVoiceStorageDenied("Private WAV readback unavailable or uncertain") from None
+        _wav(content)
+        if sha256(content).hexdigest() != expected_sha:
+            raise PrivateVoiceStorageDenied("Private WAV byte digest changed after upload")
+        return len(content)
+
+    def verify_pair(self, shop_id, campaign_id, request_id, original_sha, render_sha):
+        """Verify both current private bytes before separately registered SQL receipt.
+
+        Does not create a public signed URL, grant review or mark a job complete.
+        """
+        original_path, render_path = self.paths(shop_id, campaign_id, request_id)
+        original_size = self._read_and_verify(original_path, original_sha)
+        render_size = self._read_and_verify(render_path, render_sha)
+        return {"status": "PRIVATE_WAV_READBACK_VERIFIED_NOT_REGISTERED",
+                "shop_id": shop_id, "campaign_id": campaign_id,
+                "request_id": request_id,
+                "original_sha256": original_sha, "render_sha256": render_sha,
+                "original_bytes": original_size, "render_bytes": render_size,
+                "sql_original_key_claim_and_registration_still_required": True,
+                "publish_approved": False}
+
     def write_private_audio(self, shop_id, campaign_id, request_id,
                             original, render_wav, original_sha, render_sha, claim):
         """One attempt per object; require a unique SQL claim first.
