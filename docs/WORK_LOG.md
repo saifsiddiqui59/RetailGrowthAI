@@ -861,3 +861,9 @@ Work completed: #859 merged & postmerge 4/4, #866 merged (postmerge running), #8
 - Completed Feature4 original #838 (F4-08 finite frame seek) **merged** to current Feature4 parent #322 at `73055a0beac66cff9d7f58f1847b9e07061564ad`; exact original head `74bc376af78c55c2e3fc1fb93ede681c603594ac`, Actions run #41070937220 4/4 success. Fresh parent push #42760121390 and #322 sync #42760128811 pending at check; no main/hosted DONE.
 - Feature5 original #763 marked **closed as superseded, not directly merged**; unique finite quota safety ported through #896 on existing F5 parent at `19d49acb58ef35db62c81cb01110b140d40c451e`, exact source #42688235824 four green jobs and all four Git blob matches. F5-13 not original task DONE and GPU OFF.
 - Live query end of batch **100 open PRs (81 draft, 19 non-draft)**, historical snapshots retained separately. Detailed 50-ID list and classification appended to `docs/integration/OPEN_PR_TRIAGE_20261110.md`. No model/inference costs, Azure/Supabase/PROD or WineShopPOS changes.
+
+
+#### 2026-11-10 final CI follow-up / deferred failures
+- F4 source-only #838 merged, but fresh parent push #42760121390 FFmpeg/media exited 124 (timeout). #322 merge-ref #42760128811 also had FFmpeg timeout and existing protected #650 Python ZIP gate. Source PR #838 earlier 4/4 does not turn full parent/main green.
+- F5 source-only #896 merged, but fresh parent push #42758853513 frontend and FFmpeg jobs failed, Python and Supabase succeeded. Source-head #42688235824 was 4/4. F5-13 remains IN PROGRESS. Owner requested move past failed tasks rather than retry/fix within this batch; CI is recorded, not suppressed.
+- No accepted feature-to-main original task DONE, no paid GPU inference, Azure/hosted SQL, PROD or WineShopPOS changes.
