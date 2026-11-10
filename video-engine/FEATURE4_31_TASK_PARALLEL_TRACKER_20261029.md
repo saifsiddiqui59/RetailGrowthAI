@@ -123,3 +123,9 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 - Preserved original #732 synthetic AAC 15s test and both original dedicated source handoff documents verbatim; retained existing 30s FFmpeg/hyperframes test gates and protected #650 120-member ZIP packaging ceiling.
 - This is a single Feature4 source-review branch for those ORIGINAL F4 IDs, not a new task ID. Original #711/#732 should remain open until final-head four-job CI and parent integration, then close as superseded with exact receipts. Neither F4-05 nor F4-07 is accepted main-integrated/hosted/commercial DONE. Other PRs (#710/#715/#716 etc.) still have unique code and must NOT be closed as duplicates.
 - No cloud deploy, new Azure resources, paid models, GPU, real customer footage, PROD, shared schema or WineShopPOS actions.
+
+
+### 2026-11-10 — F4-12 original #770 metadata-only readability receipt
+- Ported the original #770 cue-density warning contract and unchanged synthetic unit tests to current Feature4 parent code; verified source does not rewrite approved caption text or timing and carries only numerical cue indexes/warning codes in private receipt. The original sidecar SRT/VTT remains exclusive and private.
+- F4-12 IN PROGRESS until exact last-head 4/4, parent source merge and fresh CI; no automatic hosted/decoded legibility, copyright, RLS, voice alignment, human approval or main-DONE claim.
+- Zero GPU/paid AI, Azure/SQL/PROD/WineShopPOS effects.
