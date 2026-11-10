@@ -218,6 +218,32 @@ class RouteAdapterTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertEqual(self.calls, 1)
 
+    def test_untrusted_authority_headers_denied_before_body_or_reader(self):
+        # All identities and rights are established server-side. These
+        # synthetic caller claims must never reach an auth/storage reader.
+        for header in (
+            "X-Shop-Id", "X-Job-Id", "X-Media-Asset-Id",
+            "X-User-Id", "X-Actor-Id", "X-Role", "X-Tenant-Id",
+            "X-Original-Authorization", "X-Forwarded-Authorization",
+            "X-Auth-Token", "X-Auth-User", "X-Auth-Role",
+            "X-Feature3-Shop-Id", "X-Feature3-Job-Id",
+            "X-Feature3-Media-Asset-Id", "X-Feature3-Rights",
+            "X-Feature3-Approved", "X-Feature3-Publish-Approved",
+        ):
+            with self.subTest(header=header):
+                request = Request(self.shop, self.job, "Bearer " + "x" * 30)
+                request.headers[header.swapcase()] = "synthetic-untrusted"
+                request.get_body = lambda: self.fail(
+                    "body read before caller-supplied authority denial")
+                self.assert_denied_without_reader(request, 400)
+
+    def test_unrelated_extension_header_keeps_authentication_path(self):
+        request = Request(self.shop, self.job, "Bearer " + "x" * 30)
+        request.headers["X-Synthetic-Trace"] = "fixture-only"
+        response = self.call("", request=request)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(self.calls, 1)
+
     def test_malformed_headers_denied(self):
         request = Request(self.shop, self.job, "Bearer " + "x" * 30)
         request.headers = None
