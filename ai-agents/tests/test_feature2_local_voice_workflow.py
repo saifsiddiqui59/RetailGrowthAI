@@ -876,3 +876,52 @@ def test_f2_21_inplace_quota_alias_after_cpu_lease_is_rejected():
     with pytest.raises(LocalVoiceJobDenied,match="revoked after CPU budget lease"):
         run(authorize_current_editor=authorized)
     assert len(calls)==1
+# Original #758 F2-21 post-lease CPU policy and receipt privilege negatives.
+# These tests use only mock quota/lease readers; no model/worker/spend.
+@pytest.mark.parametrize("tamper",[
+    {"paid_api_calls":False},
+    {"can_dispatch_paid_motion":True},
+    {"real_model_inference_observed":True},
+])
+def test_f2_21_original_reservation_receipt_never_grants_paid_or_worker(tamper):
+    run,calls=budget_case(save_tamper=tamper)
+    with pytest.raises(LocalVoiceJobDenied,match="reservation evidence"):
+        run()
+    assert len(calls)==1
+
+
+@pytest.mark.parametrize("late_change",[
+    {"policy_state":"SUSPENDED"},
+    {"budget_revision":6},
+    {"shop_id":"55555555-5555-4555-8555-555555555555"},
+    {"paid_api_calls_allowed":True},
+    {"period_id":"2026-11"},
+])
+def test_f2_21_current_policy_revoked_during_atomic_lease_denies_success(late_change):
+    reads=[]
+    def policy(*args):
+        reads.append(args)
+        row=cpu_policy()
+        if len(reads)>1:
+            row.update(late_change)
+        return row
+    run,calls=budget_case()
+    with pytest.raises(LocalVoiceJobDenied,match="policy revoked after"):
+        run(read_authoritative_quota=policy)
+    assert len(calls)==1 and len(reads)==2
+
+
+def test_f2_21_current_policy_advance_keeps_pending_review_only():
+    reads=[]
+    def policy(*args):
+        reads.append(args)
+        row=cpu_policy()
+        if len(reads)>1:
+            row["budget_revision"]=8
+        return row
+    run,calls=budget_case()
+    result=run(read_authoritative_quota=policy)
+    assert len(calls)==1 and len(reads)==2
+    assert result["reservation_is_not_worker_completion"] is True
+    assert result["paid_api_calls"]==0
+    assert result["can_publish"] is False

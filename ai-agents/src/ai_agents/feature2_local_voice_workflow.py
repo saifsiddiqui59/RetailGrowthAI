@@ -375,7 +375,8 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
         receipt["paid_api_calls"]!=0 or
         receipt.get("can_publish") is not False or
         any(flag in receipt and receipt[flag] is not False for flag in (
-            "can_dispatch_motion","commercial_use_approved",
+            "can_dispatch_motion","can_dispatch_paid_motion",
+            "real_model_inference_observed","commercial_use_approved",
             "may_auto_invoke_azure","paid_inference_authorized")) or
         ("paid_calls" in receipt and
          (type(receipt["paid_calls"]) is not int or
@@ -390,6 +391,20 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
         source_plan!=source_snapshot or quota!=quota_snapshot or
         receipt!=receipt_snapshot):
         raise LocalVoiceJobDenied("Voice source revoked after CPU budget lease")
+    # The signed budget can be revoked by the operator while the atomic
+    # reservation callback executes. Never treat a spent lease as authority
+    # to dispatch. The durable worker must independently fence it too.
+    current_quota=read_authoritative_quota(shop_id,campaign_id)
+    if (type(current_quota) is not dict or
+        current_quota.get("shop_id")!=shop_id or
+        current_quota.get("campaign_id")!=campaign_id or
+        current_quota.get("provider")!="kokoro-onnx" or
+        current_quota.get("paid_api_calls_allowed") is not False or
+        current_quota.get("policy_state")!="ACTIVE" or
+        current_quota.get("period_id")!=quota_snapshot["period_id"] or
+        type(current_quota.get("budget_revision")) is not int or
+        current_quota["budget_revision"]<quota_snapshot["budget_revision"]):
+        raise LocalVoiceJobDenied("CPU budget policy revoked after atomic lease")
     return {"schema":receipt_snapshot["schema"],"shop_id":shop_id,
             "campaign_id":campaign_id,"creative_plan_sha256":plan_sha,
             "job_key":job_key,"request_sha256":request_sha,
