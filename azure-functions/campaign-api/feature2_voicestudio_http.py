@@ -6,12 +6,22 @@ shop access, provider URL, voice/model or rights from browser input.
 """
 from __future__ import annotations
 
+from uuid import UUID
+
 from ai_agents.feature2_voicestudio_registration import run_verified_private_voice_job
 from ai_agents.feature2_voicestudio_adapter import VoiceStudioUnavailable
 from security import AuthenticationError
 from tenant_store import StorageUnavailable, canonical_uuid
 from feature2_voicestudio_sql import VoiceStudioSqlDenied
 from feature2_voicestudio_storage import PrivateVoiceStorageDenied
+
+
+def _asset_id(value):
+    try:
+        return (type(value) is str and canonical_uuid(value) == value
+                and UUID(value).version == 4)
+    except (ValueError, TypeError, AttributeError):
+        return False
 
 
 class VoiceStudioSignedAPI:
@@ -88,8 +98,7 @@ class VoiceStudioSignedAPI:
                 or result.get("review_status") != "NEEDS_REVIEW"
                 or result.get("approved_to_render_or_publish") is not False
                 or result.get("private_audio_url") is not None
-                or not isinstance(result.get("audio_asset_id"), str)
-                or canonical_uuid(result["audio_asset_id"]) != result["audio_asset_id"]
+                or not _asset_id(result.get("audio_asset_id"))
             ):
                 return 503, {"error": "VOICE_PRIVATE_REVIEW_UNVERIFIED"}
             return 202, {
