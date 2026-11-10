@@ -107,6 +107,21 @@ def handle_private_png_request(request, *, reader_factory, response_type):
                      "x-method-override", "x-original-method"}
         if any(name.lower() in forbidden for name in names):
             return _denied(400, response_type)
+        # Refuse caller-supplied identity/rights hints. Reverse proxies and
+        # downstream adapters must never treat an X-* assertion as an
+        # alternative JWT, shop membership or output-release authority.
+        # Only the route UUIDs and the verified bearer token are inputs.
+        untrusted_authority = {
+            "x-shop-id", "x-job-id", "x-media-asset-id",
+            "x-user-id", "x-actor-id", "x-role", "x-tenant-id",
+            "x-original-authorization", "x-forwarded-authorization",
+            "x-auth-token", "x-auth-user", "x-auth-role",
+            "x-feature3-shop-id", "x-feature3-job-id",
+            "x-feature3-media-asset-id", "x-feature3-rights",
+            "x-feature3-approved", "x-feature3-publish-approved",
+        }
+        if any(name.lower() in untrusted_authority for name in names):
+            return _denied(400, response_type)
         # A private binary endpoint never negotiates compressed or transformed
         # representations. Explicit identity is the only acceptable encoding;
         # reject wildcard, gzip and multi-valued negotiation before body IO.
