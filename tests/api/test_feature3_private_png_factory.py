@@ -1,5 +1,7 @@
 """Synthetic F3-08 factory contract tests; not hosted JWT/RLS evidence."""
 import sys
+import base64
+import json
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -159,6 +161,61 @@ class FactoryTests(unittest.TestCase):
             reader.read(user_token=token, shop_id=self.shop,
                         job_id=self.job)
         self.assertEqual(calls, [token])
+
+    def test_untrusted_jose_header_rejected_without_verifier_or_tenant_io(self):
+        calls = []
+        class CountingStore(Store):
+            def member(self, *args):
+                calls.append("tenant")
+                raise AssertionError("tenant access before signed verification")
+        def verify(token):
+            calls.append("verifier")
+            raise AssertionError("unsigned/ambiguous JOSE must not reach verifier")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=CountingStore(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        headers = (
+            '{"alg":"none"}',
+            '{"alg":"HS256","alg":"none"}',
+            '{"alg":"none","alg":"HS256"}',
+            '{"alg":"HS512"}',
+            '{"alg":123}',
+            '{"alg":"HS256","crit":["exp"]}',
+            '{"alg":"HS256","jku":"https://example.invalid/key"}',
+            '{"alg":"HS256","jwk":{}}',
+            '{"alg":"HS256","x5u":"https://example.invalid/cert"}',
+            '{"alg":"HS256","x5c":[]}',
+            '{"alg":"HS256","zip":"DEF"}',
+            '[]', 'null', '{"typ":"JWT"}',
+        )
+        for header in headers:
+            segment = base64.urlsafe_b64encode(header.encode()).decode().rstrip("=")
+            token = segment + ".eyJzdWIiOiJmaXh0dXJlIn0.c2lnbmF0dXJl"
+            with self.subTest(header=header):
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, [])
+
+    def test_supported_jose_headers_still_require_cryptographic_verification(self):
+        calls = []
+        def verify(token):
+            calls.append(token)
+            raise ValueError("fixture is not cryptographically signed")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=Store(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        for algorithm in ("HS256", "RS256", "ES256"):
+            segment = base64.urlsafe_b64encode(
+                json.dumps({"alg": algorithm, "typ": "JWT"}).encode()
+            ).decode().rstrip("=")
+            token = segment + ".eyJzdWIiOiJmaXh0dXJlIn0.c2lnbmF0dXJl"
+            with self.subTest(algorithm=algorithm):
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
+            self.assertEqual(calls[-1], token)
+        self.assertEqual(len(calls), 3)
 
     def test_valid_scope_reaches_real_reader_and_denies_fake_jwt(self):
         # No mocked success: the actual reader must reject the fixture token.
