@@ -9,3 +9,5 @@ The older open draft [#715](https://github.com/saifsiddiqui59/RetailGrowthAI/pul
 Acceptance: exact final-head Part1 CI four jobs, legitimate affected-lead review for the shared Feature7 decision contract, compatible merge onto existing Feature4 parent, fresh parent four-job CI, and eventual reviewed main/hosted tenant authorization and original rights checks. Only after accepted source merge with complete tests may original #715 be retired as source-superseded. Do not mark F4-04/F4-20 DONE or approve actual customer release.
 
 No GPU/paid inference, hosted SQL/Azure, PROD or WineShopPOS changes. Feature4 parent #322 and Issue #650/#249 remain separate.
+
+2026-11-11 follow-up: commit `60ce7a39251e2865864af26b01bda0f7e1725db4` adds deterministic canonical key-order and nested transition-replay negative regression coverage in `tests/media/test_feature4_edit_execution.py`. This is **source-only**: exact-head four-job CI has not yet been verified for this commit; PR #906 remains draft/conflicted and affected Feature7 review is outstanding. No merge or DONE claim.
