@@ -13,6 +13,38 @@ case "$OUTPUT" in
   /|/tmp|/mnt|/home|/root|/var|/etc|/dev|/proc|/sys)
     echo "Unsafe system directory" >&2; exit 2;;
 esac
+# Fail closed before writing anything. A fresh final basename is insufficient:
+# an ancestor symlink or '..' could redirect this private QA render elsewhere.
+# This check is a path preflight, not a production-grade atomic output lease.
+if ! python3 - "$OUTPUT" <<'PY'
+import os
+import stat
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+if path.anchor != "/" or ".." in path.parts or not path.name:
+    raise SystemExit(2)
+parent = Path("/")
+for component in path.parts[1:-1]:
+    parent /= component
+    try:
+        info = os.lstat(parent)
+    except OSError:
+        raise SystemExit(2)
+    if not stat.S_ISDIR(info.st_mode) or stat.S_ISLNK(info.st_mode):
+        raise SystemExit(2)
+if not os.access(parent, os.W_OK | os.X_OK):
+    raise SystemExit(2)
+PY
+then
+  echo "Unsafe private output path (traversal, symlink ancestor or missing parent)" >&2
+  exit 2
+fi
+# Missing local codecs/Node must not leave an orphan private directory.
+command -v ffmpeg >/dev/null
+command -v ffprobe >/dev/null
+node -e 'if(Number(process.versions.node.split(".")[0])<22) process.exit(2)'
 mkdir -m 700 -- "$OUTPUT"
 WORK="$(mktemp -d)"
 trap 'rm -rf -- "$WORK"' EXIT
@@ -21,9 +53,6 @@ PROOF="$OUTPUT/feature4-stock-60s-provenance.json"
 VIDEO="$OUTPUT/feature4-stock-garment-60s.mp4"
 MASTER="$OUTPUT/feature4-stock-garment-60s-mastered.mp4"
 SMALL="$OUTPUT/feature4-stock-garment-60s-small.mp4"
-command -v ffmpeg >/dev/null
-command -v ffprobe >/dev/null
-node -e 'if(Number(process.versions.node.split(".")[0])<22) process.exit(2)'
 python3 "$ROOT/video-engine/feature4_garment_integration.py" --download \
   --seconds 60 --project "$PROJECT" --provenance "$PROOF"
 timeout --signal=TERM --kill-after=12s 750s \
