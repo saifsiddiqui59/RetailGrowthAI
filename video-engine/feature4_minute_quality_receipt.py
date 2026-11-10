@@ -47,6 +47,31 @@ def _record(path):
 
 
 
+def _require_distinct_render_stages(*paths):
+    """Reject reused/aliased render stages, including hardlinks.
+
+    Hash-linked receipts must describe separate source, mastered, preview and
+    captioned outputs; the same inode cannot satisfy multiple pipeline steps.
+    """
+    stages=[Path(p) for p in paths]
+    for i,left in enumerate(stages):
+        for right in stages[i+1:]:
+            try:
+                aliased=(left.resolve()==right.resolve()
+                         or (left.exists() and right.exists()
+                             and left.samefile(right)))
+            except OSError as exc:
+                raise MinuteProofError("Cannot verify distinct render stages") from exc
+            if aliased:
+                raise MinuteProofError("QA render stages must be distinct files")
+
+
+def _require_changed_render_bytes(original_sha, master_sha, preview_sha):
+    """A no-op copy is not evidence of audio mastering or preview encoding."""
+    if len({original_sha,master_sha,preview_sha})!=3:
+        raise MinuteProofError("QA render stages must contain distinct encoded bytes")
+
+
 def validate_visibility_evidence(*, original, provenance, visibility_proof):
     """Require evidence for every real rendered scene without false visual claims."""
     p=_record(provenance)
@@ -128,6 +153,8 @@ def validate_captioned_review(*, preview, provenance, captioned, caption_srt,
             or _sha(inputs[2],size_limit=20_000)!=hashlib.sha256(approved_vtt.encode("utf-8")).hexdigest()):
         raise MinuteProofError("Actual private captions differ from beat-snapped approved scene cues")
     video_sha=_sha(inputs[0])
+    if video_sha==_sha(preview):
+        raise MinuteProofError("Captioned output must differ from its uncaptioned preview")
     srt_sha=_sha(inputs[1],size_limit=20_000)
     if (source["width"],source["height"])!=(540,960) or (
         encoded["width"],encoded["height"])!=(540,960) or (
@@ -208,8 +235,10 @@ def validate_minute_evidence(*, original, master, preview, provenance,
     # Require the actual captioned MP4/SRT/VTT/burn-in and visibility proof.
     if not all(x is not None for x in (*caption_args, visibility_proof, endcard_proof)):
         raise MinuteProofError("Missing mandatory 60s captioned, scene or endcard proof")
+    _require_distinct_render_stages(original,master,preview,captioned)
     files=[Path(original),Path(master),Path(preview)]
     h0,h1,h2=(_sha(x) for x in files)
+    _require_changed_render_bytes(h0,h1,h2)
     p,m,a,v,s=(_record(x) for x in
                (provenance,motion,master_proof,preview_proof,contact_proof))
     try:
