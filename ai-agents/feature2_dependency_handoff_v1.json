@@ -1,0 +1,180 @@
+{
+  "schema": "retailgrowth.feature2-dependency-handoff.v1",
+  "snapshot_date": "2026-10-29",
+  "tracking_issue": 403,
+  "unified_draft_pr": 551,
+  "source_branch": "feat/feature2-unified-offline-source-20261028",
+  "fixed_total_tasks": 38,
+  "task_status_counts": {
+    "COMPLETE_SOURCE_SCOPED": 6,
+    "IN_PROGRESS": 20,
+    "BLOCKED": 12
+  },
+  "scope": "Read-only coordinator dependency routing; no production authority, budget authorization or acceptance implied.",
+  "release_gates": [
+    {
+      "dependency_id": "COORD-PACKAGE-650",
+      "issue": 650,
+      "owner": "Shared coordinator / Azure packager",
+      "required_output": "Explicit audited Azure Functions runtime import closure and safe <=120 ZIP member packaging policy; pinned executable Node and MIT attribution in deployable archive",
+      "acceptance_criteria": "Four previously failing protected Gate2/rollback tests PASS without skipping, disabling or silently raising security bounds; exact-head 4/4 and postmerge independently reviewed",
+      "status": "BLOCKED",
+      "affected_task_ids": [
+        1,
+        2,
+        3,
+        4,
+        8,
+        9,
+        10,
+        12,
+        15,
+        17,
+        18,
+        19,
+        20,
+        21,
+        26,
+        27,
+        29,
+        30,
+        31,
+        32,
+        37
+      ],
+      "fixture_must_not_satisfy": true
+    }
+  ],
+  "dependencies": [
+    {
+      "task_id": 14,
+      "dependency_id": "F2-CPU-KOKORO-REAL-001",
+      "owner": "Feature #2 CPU voice operator",
+      "required_output": "Immutable verified 114 MB INT8 Kokoro ONNX model, voice pack, approved runtime and genuine decoded WAV/MP3 review",
+      "acceptance_criteria": "Execute pinned ONNX CPU inference and actual sample playback/PCM/word-quality/human-review tests with measured cost and hashes; no mock engine, no publishing",
+      "status": "BLOCKED",
+      "source_evidence_class": "NOT_VERIFIED_PRODUCTION",
+      "fixture_must_not_satisfy": true
+    },
+    {
+      "task_id": 16,
+      "dependency_id": "F7-SIGNED-WAV-ASR-001",
+      "owner": "Feature #7 Editing Analysis",
+      "required_output": "Authenticated tenant-registered original WAV SHA, versioned CPU ASR transcript, signed per-word timing receipt and source provenance",
+      "acceptance_criteria": "F2 verifies original private bytes, active shop/rights, model pin, HMAC receipt and revocation; compare real words without synthetic transcripts",
+      "status": "BLOCKED",
+      "source_evidence_class": "NOT_VERIFIED_PRODUCTION",
+      "fixture_must_not_satisfy": true
+    },
+    {
+      "task_id": 22,
+      "dependency_id": "F1-F2-VOICE-UI-MOUNT-001",
+      "owner": "Feature #1 / shared coordinator",
+      "required_output": "Mounted VoiceoverSelector in authenticated Creative Studio with live shop/campaign/plan and trusted JWT/RLS callbacks",
+      "acceptance_criteria": "Signed OWNER/EDITOR positive, VIEWER/foreign/revoked denial, stale response fencing, source errors, browser UI and CI evidence",
+      "status": "BLOCKED",
+      "source_evidence_class": "NOT_VERIFIED_PRODUCTION",
+      "fixture_must_not_satisfy": true
+    },
+    {
+      "task_id": 23,
+      "dependency_id": "F4-MIXED-REEL-001",
+      "owner": "Feature #4 / shared coordinator",
+      "required_output": "Ratified original-WAV narration receipt, original dialogue and captions, licensed music rights and actual editor timeline/FFmpeg mix output",
+      "acceptance_criteria": "Offline source-compatible handoff plus privately signed actual MP4 proof, listenable audio, timed transcript, ducking, source/licensing negatives and human review",
+      "status": "BLOCKED",
+      "source_evidence_class": "NOT_VERIFIED_PRODUCTION",
+      "fixture_must_not_satisfy": true
+    },
+    {
+      "task_id": 24,
+      "dependency_id": "F5-WAN-LEASE-001",
+      "owner": "Feature #5 / shared coordinator",
+      "required_output": "Versioned F2 motion prompt/garment SHA/first-frame UUID contract accepted by F5 with durable zero-default paid lease",
+      "acceptance_criteria": "F5 independently validates tenant/rights/model profile, GPU-OFF dry run, reject any unpaid/unauthorized dispatch; paid provider not authorized by fixture",
+      "status": "BLOCKED",
+      "source_evidence_class": "NOT_VERIFIED_PRODUCTION",
+      "fixture_must_not_satisfy": true
+    },
+    {
+      "task_id": 25,
+      "dependency_id": "AZURE-249-HTTP-503",
+      "owner": "Azure issue #249 lead",
+      "required_output": "Verified fix for genuine Python Azure Functions 503 and ambiguous signed POST acknowledgement with traceable request IDs",
+      "acceptance_criteria": "Protected live signed request, negative canary, before/after 503 evidence, exactly-once POST/GET and 4/4 release CI; no blind retry",
+      "status": "BLOCKED",
+      "source_evidence_class": "NOT_VERIFIED_PRODUCTION",
+      "fixture_must_not_satisfy": true
+    },
+    {
+      "task_id": 33,
+      "dependency_id": "F2-LIVE-MULTITENANT-001",
+      "owner": "Shared coordinator / Feature #2",
+      "required_output": "Two genuinely authenticated approved DEV shop identities with fresh media/offer grants and revocation checks",
+      "acceptance_criteria": "Live signed tenant A/B ownership, VIEWER denial, revoked member fail closed and no cross-tenant read/write; record protected run, not mocked JWT",
+      "status": "BLOCKED",
+      "source_evidence_class": "NOT_VERIFIED_PRODUCTION",
+      "fixture_must_not_satisfy": true
+    },
+    {
+      "task_id": 34,
+      "dependency_id": "F3-LIVE-RIGHTS-APPROVAL-001",
+      "owner": "Feature #3 / shared coordinator / retailer",
+      "required_output": "Current independently reviewed garment+model source rights, original private SHA, exact offer SKU and human commercial/editorial consent",
+      "acceptance_criteria": "Legitimate original private registered sources with latest APPROVED review and expiry/revocation gates; synthetic OpenVTO fixture does not count",
+      "status": "BLOCKED",
+      "source_evidence_class": "NOT_VERIFIED_PRODUCTION",
+      "fixture_must_not_satisfy": true
+    },
+    {
+      "task_id": 35,
+      "dependency_id": "F2-DEV-HOSTED-E2E-001",
+      "owner": "Shared coordinator / Feature #2",
+      "required_output": "Approved DEV protected deployment: pinned executable Node MIT package, secured signed F2 APIs, live auth media source and stable Azure routing",
+      "acceptance_criteria": "Playwright signed OWNER/EDITOR POST and readback of exact nonce/shop/DRAFT, 401/403/409 negative cases, no paid inference without reserve and 4/4 CI",
+      "status": "BLOCKED",
+      "source_evidence_class": "NOT_VERIFIED_PRODUCTION",
+      "fixture_must_not_satisfy": true
+    },
+    {
+      "task_id": 36,
+      "dependency_id": "F4-F2-COMMERCIAL-REEL-QA-001",
+      "owner": "Feature #4 / Feature #2 / retailer",
+      "required_output": "Actual rights-cleared 30s private reel, genuine narration and media references, independent two-reviewer creative assessment",
+      "acceptance_criteria": "Rendered downloadable private MP4 plus audio/visual product-fidelity checks, human scores, current signed authorization and explicit unpublished state",
+      "status": "BLOCKED",
+      "source_evidence_class": "NOT_VERIFIED_PRODUCTION",
+      "fixture_must_not_satisfy": true
+    },
+    {
+      "task_id": 37,
+      "dependency_id": "COORD-F2-PR551-INTEGRATION-001",
+      "owner": "Shared coordinator",
+      "required_output": "Review unified draft PR #551 versus seven constituent drafts and reconcile issue #650 while retaining all MIT notices",
+      "acceptance_criteria": "Merge only once after exact-head 4/4, ownership/contract/source review; independently check postmerge main 4/4 and no schema drift",
+      "status": "BLOCKED",
+      "source_evidence_class": "NOT_VERIFIED_PRODUCTION",
+      "fixture_must_not_satisfy": true
+    },
+    {
+      "task_id": 38,
+      "dependency_id": "COORD-F2-CANONICAL-DOCS-001",
+      "owner": "Shared coordinator",
+      "required_output": "Updated PROJECT_STATE, NEXT_TASK, DECISIONS, WORK_LOG with merged Feature2 scope and real versus fixture status",
+      "acceptance_criteria": "Record exact hashes, PR, CI, spend/media rights and all outstanding gates after integration, do not claim production/GPU/paid/hosted based on synthetic tests",
+      "status": "BLOCKED",
+      "source_evidence_class": "NOT_VERIFIED_PRODUCTION",
+      "fixture_must_not_satisfy": true
+    }
+  ],
+  "assertions": {
+    "fixtures_are_production_media": false,
+    "demo_openvto_has_customer_publishing_rights": false,
+    "synthetic_jwt_proves_hosted_rls": false,
+    "synthetic_audio_is_genuine_onnx_tts": false,
+    "offline_director_proves_paid_model_execution": false,
+    "allow_automatic_retry_on_unknown_post": false,
+    "allow_publishing_or_paid_motion": false,
+    "gpu_enabled": false
+  }
+}

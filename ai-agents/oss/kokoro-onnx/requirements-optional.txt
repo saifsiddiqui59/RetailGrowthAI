@@ -1,0 +1,4 @@
+# Install in isolated, explicitly approved CPU worker only. Not normal CI.
+# Uses actual MIT upstream library source, no reimplementation of inference.
+kokoro-onnx==0.6.1
+soundfile>=0.13,<1
