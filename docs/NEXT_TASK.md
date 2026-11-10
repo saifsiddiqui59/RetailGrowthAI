@@ -1458,3 +1458,9 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 
 #### 2026-11-10 second-batch CI defer
 - Last feature-parent push after 5 F4 source merges: #42766557861 media job FAILED, 3 other jobs green. #322 PR merge-ref #42766563772 Python FAILED and FFmpeg pending at check. Do not claim current F4 source parent/main 4/4. Defer fixes in this audit sweep per owner instruction, then work independent reviewed PRs. #897/#898 were separately opened and are outside the selected next-50 inventory; avoid duplicating their F4-15/F4-07/F4-13 work.
+
+
+### 2026-11-10 next after F4 #897 source merge
+- Verify fresh Feature4 parent push 4/4 for source commit `5d858bc`; if parent/PR main checks fail, record and **skip** to independent PRs per owner; do not bypass protected #650 package tests.
+- Review #898 final-source 4/4 and #899 final-source 4/4; both currently reported mergeable=false against updated Feature4 parent, so **never force-merge**, postpone compatibility repair; retain originals #716/#770 open until content verified integrated.
+- Current source-only merged #897 (old #710 retired) cannot certify hosted/rights/main DONE. Continue reviewing untouched PRs from second 50 list in `docs/integration/OPEN_PR_TRIAGE_20261110.md`, skipping unapproved security/workflow/deploy changes.
