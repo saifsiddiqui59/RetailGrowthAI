@@ -74,6 +74,11 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # invoking any authentication/rights/storage backend.
         if len(names) > 64:
             return _denied(400, response_type)
+        # Bound individual names before lowercasing or token matching. An
+        # oversized framework-provided key must not consume unbounded CPU
+        # or reach the authentication/Storage boundary.
+        if any(type(name) is not str or len(name) > 256 for name in names):
+            return _denied(400, response_type)
         if (any(type(name) is not str for name in names) or
                 len({name.lower() for name in names}) != len(names) or
                 sum(name.lower() == "authorization" for name in names) != 1):
