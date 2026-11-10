@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
-import { createCampaignApi, validateSignedVideoUrl } from './campaign-api.mjs'
+import { createCampaignApi, validateSignedVideoUrl, P0249_NODE_PREVIEW_ORIGIN } from './campaign-api.mjs'
 import sampleCampaign from './fixtures/sample-campaign.json'
 import {
   buildCampaignRequest, cloneCampaign, formatDayDate, linkedInText,
@@ -392,12 +392,18 @@ function LiveImageUploader({ client, shopId, onUploaded }) {
 
 export default function CampaignDashboard() {
   const { user, client } = useRetailAuth()
+  // OFF unless this frontend build is deliberately deployed into the exact
+  // isolated DEV named-preview origin. The normal customer site stays on Python.
+  const nodePreview = import.meta.env?.VITE_P0249_NODE_TRANSPORT_ENABLED === 'true'
   const api = useMemo(() => createCampaignApi({
-    baseUrl: import.meta.env?.VITE_CAMPAIGN_API_BASE_URL || '',
+    baseUrl: nodePreview ? P0249_NODE_PREVIEW_ORIGIN :
+      (import.meta.env?.VITE_CAMPAIGN_API_BASE_URL || ''),
+    transport: nodePreview ? 'node-preview' : 'python',
+    browserOrigin: typeof window === 'undefined' ? '' : window.location.origin,
     tokenProvider: () => client.getAccessToken(),
     supabaseOrigin: import.meta.env?.VITE_SUPABASE_URL || '',
     supabasePublishableKey: import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY || '',
-  }), [client])
+  }), [client, nodePreview])
   const [shops, setShops] = useState([])
   const [shopId, setShopId] = useState('')
   const [assets, setAssets] = useState([])
