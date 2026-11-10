@@ -272,3 +272,50 @@ def test_reviewed_revision_cannot_inject_or_remove_source(bad):
     with pytest.raises(PromptRevisionRejected):
         run(improved_prompt=bad)
     assert writes==[]
+
+
+def test_editor_revoked_during_private_cas_never_reports_success():
+    # Synthetic callbacks only. The storage operation may already have
+    # committed; a real database must fence membership atomically at write.
+    checks = []
+    def editor(*scope):
+        checks.append(scope)
+        return len(checks) <= 2
+    run, writes, reviews = approved_draft_bridge(editor=editor)
+    with pytest.raises(PromptRevisionRejected, match="revoked during"):
+        run()
+    assert len(checks) == 3
+    assert len(writes) == 1 and len(reviews) == 1
+    assert writes[0]["can_publish"] is False
+    assert writes[0]["can_dispatch_paid_motion"] is False
+
+
+@pytest.mark.parametrize("escalated", [
+    {"can_publish": True},
+    {"can_dispatch_paid_motion": True},
+    {"provider_call_made": True},
+    {"review_status": "APPROVED"},
+    {"needs_copy_fact_review": False},
+    {"needs_media_rights_review": False},
+])
+def test_private_cas_receipt_cannot_claim_elevated_rights(escalated):
+    run, writes, _ = approved_draft_bridge(storage_tamper=escalated)
+    with pytest.raises(PromptRevisionRejected, match="Durable"):
+        run()
+    assert len(writes) == 1
+
+
+def test_private_cas_explicit_restricted_receipt_remains_review_only():
+    run, writes, _ = approved_draft_bridge(storage_tamper={
+        "review_status": "DRAFT",
+        "can_publish": False,
+        "can_dispatch_paid_motion": False,
+        "provider_call_made": False,
+        "needs_copy_fact_review": True,
+        "needs_media_rights_review": True,
+    })
+    result = run()
+    assert len(writes) == 1
+    assert result["review_status"] == "DRAFT"
+    assert result["can_publish"] is False
+    assert result["can_dispatch_paid_motion"] is False
