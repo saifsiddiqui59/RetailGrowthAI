@@ -1,0 +1,98 @@
+/* Feature #7 embedded review controls. Import from existing Feature4 workspace.
+   No global body/sidebar overrides; honors reduced motion and dark themes. */
+.rgai-f7-review {
+  font-family: inherit;
+  color: inherit;
+  background: var(--panel-bg, #f7f8fa);
+  border: 1px solid var(--panel-border, #d3d9e2);
+  border-radius: 14px;
+  padding: clamp(14px, 2.5vw, 24px);
+  display: grid;
+  gap: 12px;
+  max-width: 820px;
+  min-width: 0;
+}
+.rgai-f7-review h2, .rgai-f7-review h3 {
+  margin: 0;
+  font-size: clamp(1rem, 2vw, 1.4rem);
+}
+.rgai-f7-review p { margin: 0; line-height: 1.55; }
+.rgai-f7-review video {
+  width: 100%;
+  max-height: min(68vh, 520px);
+  background: #141b25;
+  border-radius: 10px;
+  object-fit: contain;
+}
+.rgai-f7-review select, .rgai-f7-review button {
+  font: inherit;
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-height: 44px;
+  min-width: 0;
+}
+.rgai-f7-review input[type="range"] { width: 100%; cursor: pointer; }
+.rgai-f7-review input[type="checkbox"] { margin-inline-end: 10px; }
+.rgai-f7-review .rgai-f7-caption-review,
+.rgai-f7-review .rgai-f7-quality-review {
+  border: 1px solid var(--panel-border, #d3d9e2);
+  background: var(--panel-elevated, transparent);
+  padding: 12px;
+  border-radius: 10px;
+}
+.rgai-f7-review .rgai-f7-feedback { font-weight: 600; }
+.rgai-f7-review :focus-visible {
+  outline: 3px solid #3d83e7;
+  outline-offset: 3px;
+}
+.rgai-f7-review button:disabled { opacity: 0.45; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) {
+  .rgai-f7-review * { scroll-behavior: auto !important; }
+}
+
+/* Optional human correction inside the same private Feature7 reviewer.
+   Captions are TEXT suggestions until independently approved on server. */
+.rgai-f7-review .rgai-f7-caption-correction {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+  margin: 0;
+  border: 1px solid var(--panel-border, #d3d9e2);
+  border-radius: 10px;
+  background: var(--panel-elevated, transparent);
+}
+.rgai-f7-review .rgai-f7-caption-correction legend {
+  font-weight: 700;
+  padding-inline: 8px;
+}
+.rgai-f7-review .rgai-f7-caption-correction textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 76px;
+  font: inherit;
+  line-height: 1.45;
+  padding: 10px 12px;
+  border: 1px solid var(--panel-border, #d3d9e2);
+  border-radius: 8px;
+  background: var(--input-bg, #fff);
+  color: var(--input-fg, #111827);
+}
+.rgai-f7-review .rgai-f7-caption-correction label {
+  display: flex;
+  align-items: start;
+  gap: 6px;
+}
+.rgai-f7-review .rgai-f7-caption-correction button {
+  width: fit-content;
+  max-width: 100%;
+  white-space: normal;
+}
+@media (max-width: 520px) {
+  .rgai-f7-review .rgai-f7-caption-correction { padding: 12px; }
+  .rgai-f7-review .rgai-f7-caption-correction button { width: 100%; }
+}
