@@ -128,3 +128,47 @@ def test_invalid_origin_denied(origin):
 def test_invalid_service_role_credential_denied():
     with pytest.raises(ValueError):
         VoiceStudioPrivateStorage("https://test-project.supabase.co", "not-a-key")
+
+
+def test_readback_verifies_original_and_render_from_private_bucket():
+    payload = wav()
+    events = []
+    class ReadResult(io.BytesIO):
+        status = 200
+        def __init__(self, url):
+            super().__init__(payload)
+            self.url = url
+        def geturl(self): return self.url
+    def sender(req, timeout):
+        events.append(req.get_method())
+        if req.get_method() == "POST":
+            return Success(req.full_url)
+        return ReadResult(req.full_url)
+    store, _ = harness(transport=sender)
+    write(store)
+    sha = sha256(payload).hexdigest()
+    result = store.verify_pair(SHOP, CAMPAIGN, JOB, sha, sha)
+    assert result["status"] == "PRIVATE_WAV_READBACK_VERIFIED_NOT_REGISTERED"
+    assert result["original_bytes"] == len(payload)
+    assert result["render_bytes"] == len(payload)
+    assert result["publish_approved"] is False
+    assert events == ["POST", "POST", "GET", "GET"]
+
+
+def test_private_wav_readback_denies_tamper_without_retry():
+    payload = wav()
+    calls = []
+    class ReadResult(io.BytesIO):
+        status = 200
+        def __init__(self, url):
+            super().__init__(payload[:-5] + b"abcde")
+            self.url = url
+        def geturl(self): return self.url
+    def sender(req, timeout):
+        calls.append(req)
+        return ReadResult(req.full_url)
+    store, _ = harness(transport=sender)
+    sha = sha256(payload).hexdigest()
+    with pytest.raises(PrivateVoiceStorageDenied):
+        store.verify_pair(SHOP, CAMPAIGN, JOB, sha, sha)
+    assert len(calls) == 1
