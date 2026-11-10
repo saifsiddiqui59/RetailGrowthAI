@@ -339,13 +339,31 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
         not now_ms<receipt["lease_expires_ms"]<=now_ms+300_000 or
         receipt.get("status")!="RESERVED" or
         receipt.get("private") is not True or
-        receipt.get("paid_api_calls")!=0 or
+        type(receipt.get("paid_api_calls")) is not int or
+        receipt["paid_api_calls"]!=0 or
+        any(receipt.get(flag) is not False for flag in
+            ("can_dispatch_paid_motion", "can_dispatch_motion",
+             "real_model_inference_observed") if flag in receipt) or
         receipt.get("can_publish") is not False or
         receipt.get("atomic_unique_commit") is not True):
         raise LocalVoiceJobDenied("Durable private CPU reservation evidence invalid")
     if (authorize_current_editor(shop_id,campaign_id) is not True or
         read_current_plan(shop_id,campaign_id)!=source_plan):
         raise LocalVoiceJobDenied("Voice source revoked after CPU budget lease")
+    # A lease receipt alone does not override a policy revoked during the
+    # reservation callback. The durable worker must also fence this state;
+    # this source guard never attempts to cancel or retry a spent lease.
+    current_quota=read_authoritative_quota(shop_id,campaign_id)
+    if (type(current_quota) is not dict or
+        current_quota.get("shop_id")!=shop_id or
+        current_quota.get("campaign_id")!=campaign_id or
+        current_quota.get("provider")!="kokoro-onnx" or
+        current_quota.get("paid_api_calls_allowed") is not False or
+        current_quota.get("policy_state")!="ACTIVE" or
+        current_quota.get("period_id")!=quota["period_id"] or
+        type(current_quota.get("budget_revision")) is not int or
+        current_quota["budget_revision"]<quota["budget_revision"]):
+        raise LocalVoiceJobDenied("CPU budget policy revoked after atomic lease")
     return {"schema":receipt["schema"],"shop_id":shop_id,
             "campaign_id":campaign_id,"creative_plan_sha256":plan_sha,
             "job_key":job_key,"request_sha256":request_sha,
