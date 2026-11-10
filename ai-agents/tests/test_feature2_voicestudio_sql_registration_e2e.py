@@ -124,7 +124,7 @@ def test_original_key_sql_client_real_storage_and_f2_producer_compose():
 def test_sql_membership_revocation_prevents_provider_and_storage_egress():
     trusted, sql_net, private_net, args = build()
     sql_net.revoked = True
-    with pytest.raises(PermissionError):
+    with pytest.raises(VoiceStudioSqlDenied, match="denied or uncertain"):
         run_verified_private_voice_job(**args)
     assert private_net.calls == [] and trusted.registrations == 0
 
