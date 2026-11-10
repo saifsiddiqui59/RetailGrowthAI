@@ -122,6 +122,20 @@ class TrustedEditExecutionTests(unittest.TestCase):
         revised = execute_approved_edit(draft, trusted, edits)
         self.assertEqual(revised["request"]["scenes"][0]["trim_start"], 2.5)
 
+    def test_review_digest_is_key_order_stable_but_rejects_nested_replay(self):
+        draft, trusted, edits = reviewed_pair()
+        reordered = dict(reversed(list(edits.items())))
+        self.assertEqual(edit_decision_fingerprint(edits),
+                         edit_decision_fingerprint(reordered))
+        self.assertEqual(execute_approved_edit(draft, trusted, reordered)["request"]["scenes"][0]["duration"], 9)
+
+        # An unchanged outer approval ID must not authorize a modified nested
+        # transition, even if the remaining decision fields are identical.
+        replay = copy.deepcopy(edits)
+        replay["scenes"][0]["transition"] = "fade"
+        with self.assertRaisesRegex(CreativeContractError, "persisted review"):
+            execute_approved_edit(draft, trusted, replay)
+
     def test_invalid_or_dangerous_edit_commands_fail_closed(self):
         cases = [
             ("duplicate index", lambda e: e["scenes"][1].update(source_scene_index=1)),
