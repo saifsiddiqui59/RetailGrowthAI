@@ -53,6 +53,45 @@ class RouteAdapterTests(unittest.TestCase):
         self.assertEqual(response.headers["Content-Length"], "0")
         self.assertIn("no-store", response.headers["Cache-Control"])
 
+    def test_route_scope_cannot_change_after_validation(self):
+        # The request adapter can mutate route_params while get_body runs.
+        # The trusted reader must receive the exact previously checked IDs.
+        request = Request(self.shop, self.job, "Bearer " + "x" * 30)
+        foreign_shop, foreign_job = str(uuid4()), str(uuid4())
+        seen = []
+
+        def mutate_scope():
+            request.route_params["shop_id"] = foreign_shop
+            request.route_params["job_id"] = foreign_job
+            return b""
+
+        def trusted_factory(shop, job):
+            seen.append((shop, job))
+            raise RuntimeError("synthetic reader unavailable")
+
+        request.get_body = mutate_scope
+        response = self.call("", request=request, factory=trusted_factory)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(seen, [(self.shop, self.job)])
+        self.assertNotEqual(seen[0], (foreign_shop, foreign_job))
+
+    def test_route_scope_mutation_to_invalid_ids_cannot_override_snapshot(self):
+        request = Request(self.shop, self.job, "Bearer " + "x" * 30)
+        seen = []
+
+        def mutate_scope():
+            request.route_params.clear()
+            return b""
+
+        def trusted_factory(shop, job):
+            seen.append((shop, job))
+            raise RuntimeError("synthetic reader unavailable")
+
+        request.get_body = mutate_scope
+        response = self.call("", request=request, factory=trusted_factory)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(seen, [(self.shop, self.job)])
+
     def test_missing_token_denied_before_reader(self):
         self.assert_denied_without_reader(Request(self.shop, self.job, ""), 401)
 
