@@ -132,6 +132,32 @@ class BinaryHTTPTests(unittest.TestCase):
         self.reader.extra = {}
         self.assertEqual(self.call()[0], 200)
 
+    def test_spoofed_http_method_and_mime_cannot_bypass_primitive_checks(self):
+        # Python equality overrides must not turn a foreign method into GET,
+        # or an untrusted Content-Type into the approved PNG media type.
+        class EqualToGet:
+            def __eq__(self, other):
+                return other == "GET"
+        class EqualToPng:
+            def __eq__(self, other):
+                return other == "image/png"
+        class SpoofedMethod(str):
+            def __eq__(self, other):
+                return True
+        for forged in (EqualToGet(), SpoofedMethod("POST")):
+            with self.subTest(method=type(forged).__name__):
+                status, body, headers = self.call(method=forged)
+                self.assertEqual((status, body), (405, b""))
+                self.assertEqual(headers["Allow"], "GET")
+        self.assertEqual(self.reader.calls, [])
+        for forged in (EqualToPng(),):
+            self.reader.extra = {"mime_type": forged}
+            status, body, headers = self.call()
+            self.assertEqual((status, body), (503, b""))
+            self.assert_private_headers(headers)
+        self.reader.extra = {}
+        self.assertEqual(self.call()[0], 200)
+
     def test_valid_sha_does_not_make_non_png_or_trailing_bytes_downloadable(self):
         # A forged or broken reader can supply a self-consistent SHA; the HTTP
         # boundary must still reject non-PNG bytes and trailing payloads.
