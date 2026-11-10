@@ -197,9 +197,8 @@ class Feature3RevocablePNGReader:
                          not length.isdigit() or int(length) > _MAX)):
                     raise PrivateGeneratedDownloadDenied(
                         "Invalid private image Content-Length")
-                if (mime is not None and
-                        (not printable_header(mime) or
-                         mime.strip().lower() != "image/png")):
+                if (not printable_header(mime) or
+                        mime.strip().lower() != "image/png"):
                     raise PrivateGeneratedDownloadDenied("Invalid private image MIME")
                 raw = response.read(_MAX + 1)
         except PrivateGeneratedDownloadDenied:
