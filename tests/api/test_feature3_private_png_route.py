@@ -122,6 +122,21 @@ class RouteAdapterTests(unittest.TestCase):
         self.assertEqual(response.body, b"")
         self.assertEqual(self.calls, 0)
 
+    def test_oversized_header_names_denied_before_body_or_reader(self):
+        # A malicious adapter may expose a huge header key even when there
+        # are only a few keys. Deny it before reading the body or rights.
+        request = Request(self.shop, self.job, "Bearer " + "x" * 30)
+        request.headers["X-" + "a" * 300] = "fixture"
+        request.get_body = lambda: self.fail("GET body read before header denial")
+        self.assert_denied_without_reader(request, 400)
+
+    def test_header_name_limit_allows_normal_request_to_reach_reader(self):
+        request = Request(self.shop, self.job, "Bearer " + "x" * 30)
+        request.headers["X-" + "a" * 254] = "fixture"
+        response = self.call("", request=request)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(self.calls, 1)
+
     def test_malformed_headers_denied(self):
         request = Request(self.shop, self.job, "Bearer " + "x" * 30)
         request.headers = None
