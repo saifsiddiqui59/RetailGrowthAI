@@ -53,7 +53,7 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         get_body = request.get_body
     except Exception:
         return _denied(400, response_type)
-    if method != "GET":
+    if type(method) is not str or method != "GET":
         return _denied(405, response_type)
     if (type(params) is not dict or set(params) != {"shop_id", "job_id"} or
             not callable(getattr(headers, "get", None))):
