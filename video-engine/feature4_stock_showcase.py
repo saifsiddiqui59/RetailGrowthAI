@@ -51,37 +51,58 @@ class TrustedHostRedirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req,fp,code,msg,headers,newurl)
 
 def retrieve_stock(destination:Path, urls):
-    """Only fetch fixed allowlisted URLs; bounded size; atomic output."""
+    """Only fetch fixed allowlisted URLs; private atomic, no-clobber output."""
+    destination=Path(destination)
     destination.parent.mkdir(parents=True,exist_ok=True)
+    if (destination.exists() or destination.is_symlink()
+            or destination.parent.is_symlink()):
+        raise StockShowcaseError("Refusing to overwrite or redirect stock destination")
     opener=urllib.request.build_opener(TrustedHostRedirect)
     error=None
     for source_url in urls:
         u=urllib.parse.urlsplit(source_url)
         if u.scheme!="https" or u.hostname!="videos.pexels.com":
             raise StockShowcaseError("Unapproved stock URL")
-        partial=destination.with_suffix(".download")
+        partial=None
         try:
             with opener.open(urllib.request.Request(source_url,headers={
                 "User-Agent":"RetailGrowthAI-Feature4-StockEditingQA/1.0",
                 "Accept":"video/mp4,*/*;q=0.8",
-            }),timeout=55) as response, partial.open("wb") as output:
+            }),timeout=55) as response:
                 if urllib.parse.urlsplit(response.url).hostname!="videos.pexels.com":
                     raise StockShowcaseError("Stock media origin changed")
                 if response.headers.get("Content-Type","").split(";")[0].strip().lower() not in ("video/mp4","application/octet-stream","binary/octet-stream"):
                     raise StockShowcaseError("Stock response was not an MP4")
+                # Unpredictable 0600 temp name prevents pre-planted .download
+                # symlinks. Never truncate or replace an existing destination.
+                fd,name=tempfile.mkstemp(prefix=".feature4-stock-",suffix=".download",
+                                          dir=destination.parent)
+                partial=Path(name)
                 size=0
-                while True:
-                    chunk=response.read(1024*1024)
-                    if not chunk: break
-                    size+=len(chunk)
-                    if size>MAX_MEDIA_BYTES: raise StockShowcaseError("Stock media size cap exceeded")
-                    output.write(chunk)
-            if size<50_000: raise StockShowcaseError("Downloaded stock clip too small")
-            partial.replace(destination)
-            return {"download_url":source_url,"sha256":hashlib.sha256(destination.read_bytes()).hexdigest(),"size_bytes":size}
+                digest=hashlib.sha256()
+                with os.fdopen(fd,"wb") as output:
+                    while True:
+                        chunk=response.read(1024*1024)
+                        if not chunk: break
+                        size+=len(chunk)
+                        if size>MAX_MEDIA_BYTES:
+                            raise StockShowcaseError("Stock media size cap exceeded")
+                        output.write(chunk)
+                        digest.update(chunk)
+            if size<50_000:
+                raise StockShowcaseError("Downloaded stock clip too small")
+            # Atomic no-overwrite publish on the same filesystem. A concurrent
+            # destination creation fails instead of clobbering private bytes.
+            os.link(partial,destination)
+            partial.unlink()
+            return {"download_url":source_url,"sha256":digest.hexdigest(),
+                    "size_bytes":size}
         except (OSError,urllib.error.URLError,StockShowcaseError) as exc:
             error=exc
-            partial.unlink(missing_ok=True)
+            if partial is not None:
+                partial.unlink(missing_ok=True)
+            if destination.exists() or destination.is_symlink():
+                raise StockShowcaseError("Refusing to overwrite stock destination") from exc
     raise StockShowcaseError("Verified Pexels stock video could not be downloaded: "+type(error).__name__)
 
 def check_input(source:Path):
