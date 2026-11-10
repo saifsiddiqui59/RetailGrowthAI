@@ -879,3 +879,8 @@ Work completed: #859 merged & postmerge 4/4, #866 merged (postmerge running), #8
 #### 2026-11-10 batch-2 postmerge exception receipt
 - CI for current F4 feature parent `5cd5ae7`: #42766557861 FFmpeg/media failed (Python/frontend/Supabase passed). Parent #322 PR sync #42766563772 Python failed, FFmpeg not yet finished at time of check. The original eight individual source CI receipts remain as previously recorded; no false feature/main DONE event. Skipped repair per user instruction, no weakening tests.
 - Live count independently changed again due new draft #898 (alongside #897): **94 open PRs, 75 draft, 19 non-draft**. Fixed second batch still 50 original IDs, eight merged/42 retained. No GPU/paid AI, DEV/PROD, SQL or WineShopPOS changes.
+
+
+### 2026-11-10 second 50-PR review resumed / F4 source reconciliation
+- Confirmed already merged exact old PRs #705/#695/#739/#754/#762 into Feature4 parent and #312/#313/#497 into main, preserving source/history. Created original F4-15 post-bundle lease fence and regression in #897, head `a452416`, [CI #42766432623](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/42766432623) 4/4 green, merged F4 source parent `5d858bc`, four changed file Git blob hashes identical. Closed original #710 as source-superseded not accepted main DONE.
+- Original #716 audio receipt preflight/race, tests and tracker ported to #898; #770 subtitle density flags/tests/tracker to #899. Both still DRAFT, with source CI initially running and currently conflicting with advanced F4 parent; no forced merge or original closure. Live open PRs 93 (74 drafts/19 non-drafts) at snapshot. No hosted/rights/main acceptance or AI GPU/cloud mutations.
