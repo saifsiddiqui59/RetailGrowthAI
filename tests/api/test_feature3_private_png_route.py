@@ -159,6 +159,48 @@ class RouteAdapterTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertEqual(self.calls, 1)
 
+    def test_stateful_authorization_mapping_is_read_only_once(self):
+        # A synthetic proxy mapping swaps the bearer token on repeated reads.
+        # The adapter must validate and pass one stable credential snapshot.
+        class FlippingHeaders(dict):
+            def __init__(self, initial):
+                super().__init__(initial)
+                self.auth_reads = 0
+
+            def get(self, key, default=None):
+                if key == "Authorization":
+                    self.auth_reads += 1
+                    if self.auth_reads > 1:
+                        return "Bearer " + "z" * 30
+                return super().get(key, default)
+
+        request = Request(self.shop, self.job, "Bearer " + "x" * 30)
+        request.headers = FlippingHeaders(request.headers)
+        response = self.call("", request=request)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(self.calls, 1)
+        self.assertEqual(request.headers.auth_reads, 1)
+
+    def test_stateful_content_length_cannot_change_after_validation(self):
+        class FlippingHeaders(dict):
+            def __init__(self, initial):
+                super().__init__(initial)
+                self.length_reads = 0
+
+            def get(self, key, default=None):
+                if key == "Content-Length":
+                    self.length_reads += 1
+                    return "0" if self.length_reads == 1 else "99"
+                return super().get(key, default)
+
+        request = Request(self.shop, self.job, "Bearer " + "x" * 30)
+        request.headers["Content-Length"] = "0"
+        request.headers = FlippingHeaders(request.headers)
+        response = self.call("", request=request)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(self.calls, 1)
+        self.assertEqual(request.headers.length_reads, 1)
+
     def test_malformed_headers_denied(self):
         request = Request(self.shop, self.job, "Bearer " + "x" * 30)
         request.headers = None
