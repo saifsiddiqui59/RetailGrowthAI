@@ -10,7 +10,7 @@ from hashlib import sha256
 import io
 import re
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from uuid import UUID
 import wave
@@ -61,8 +61,16 @@ class VoiceStudioPrivateStorage:
     """Private, no-upsert writer. Not an authenticated public API."""
 
     def __init__(self, origin, service_role_key, *, transport=None):
-        if (type(origin) is not str or not origin.startswith("https://")
-                or any(x in origin for x in ("?", "#", "@")) or origin.rstrip("/").count("/") != 2):
+        try:
+            parsed = urlsplit(origin)
+            valid_origin = (type(origin) is str and parsed.scheme == "https"
+                            and parsed.hostname is not None
+                            and parsed.username is None and parsed.password is None
+                            and parsed.path in ("", "/") and not parsed.query
+                            and not parsed.fragment and parsed.port in (None, 443))
+        except (ValueError, TypeError):
+            valid_origin = False
+        if not valid_origin:
             raise PrivateVoiceStorageDenied("Trusted Supabase HTTPS origin required")
         self.origin = origin.rstrip("/")
         self.headers = backend_headers(service_role_key)
@@ -101,6 +109,7 @@ class VoiceStudioPrivateStorage:
                     ("request_id", request_id)))
                 or not isinstance(original_sha, str) or not _HASH.fullmatch(original_sha)
                 or not isinstance(render_sha, str) or not _HASH.fullmatch(render_sha)
+                or type(original) is not bytes or type(render_wav) is not bytes
                 or sha256(original).hexdigest() != original_sha
                 or sha256(render_wav).hexdigest() != render_sha):
             raise PrivateVoiceStorageDenied("Unverified voice claim or media digests")
