@@ -6,7 +6,13 @@ No client-supplied rights, service-role store or mock fallback is permitted.
 """
 from __future__ import annotations
 
+import re
+
 from feature3_private_png_reader import Feature3RevocablePNGReader, PrivateGeneratedDownloadDenied
+
+# Reject malformed JWT framing before any trusted verifier, RLS or Storage IO.
+# This is only syntactic validation; cryptographic verification remains mandatory.
+_JWT_SEGMENT = re.compile(r"[A-Za-z0-9_-]+")
 
 
 class TrustedPrivatePNGFactory:
@@ -49,8 +55,11 @@ class TrustedPrivatePNGFactory:
                 if (type(shop_id) is not str or type(job_id) is not str or
                         shop_id != expected_shop or job_id != expected_job):
                     raise PrivateGeneratedDownloadDenied("Private output unavailable")
-                if (type(user_token) is not str or not 1 <= len(user_token) <= 8192 or
-                        any(ord(ch) < 33 or ord(ch) > 126 for ch in user_token)):
+                if (type(user_token) is not str or not 12 <= len(user_token) <= 8192 or
+                        user_token.startswith(("sb_secret_", "sb_publishable_")) or
+                        len(parts := user_token.split(".")) != 3 or
+                        any(not 2 <= len(part) <= 4096 or
+                            _JWT_SEGMENT.fullmatch(part) is None for part in parts)):
                     raise PrivateGeneratedDownloadDenied("Private output unavailable")
                 return reader.read(user_token=user_token, shop_id=expected_shop,
                                    job_id=expected_job)
