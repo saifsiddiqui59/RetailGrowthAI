@@ -97,3 +97,13 @@ def test_invisible_format_controls_in_approved_offer_are_not_authoritative():
         inspect_retailer_copy_claims(
             verified_context=context, copy=_copy("20% off on SKU-A")
         )
+
+
+@pytest.mark.parametrize("spoof", ["⑳% off", "㊿% off"])
+def test_expanding_compatibility_numerals_cannot_hide_extra_discount(spoof):
+    result = inspect_retailer_copy_claims(
+        verified_context=_context(),
+        copy=_copy("20% off on SKU-A, plus " + spoof),
+    )
+    assert "DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED" in result["issues"]
+    assert result["can_publish"] is False
