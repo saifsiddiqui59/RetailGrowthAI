@@ -6,7 +6,7 @@ No client-supplied rights, service-role store or mock fallback is permitted.
 """
 from __future__ import annotations
 
-from feature3_private_png_reader import Feature3RevocablePNGReader
+from feature3_private_png_reader import Feature3RevocablePNGReader, PrivateGeneratedDownloadDenied
 
 
 class TrustedPrivatePNGFactory:
@@ -48,7 +48,9 @@ class TrustedPrivatePNGFactory:
             def read(self, *, user_token, shop_id: str, job_id: str):
                 if (type(shop_id) is not str or type(job_id) is not str or
                         shop_id != expected_shop or job_id != expected_job):
-                    from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+                    raise PrivateGeneratedDownloadDenied("Private output unavailable")
+                if (type(user_token) is not str or not 1 <= len(user_token) <= 8192 or
+                        any(ord(ch) < 33 or ord(ch) > 126 for ch in user_token)):
                     raise PrivateGeneratedDownloadDenied("Private output unavailable")
                 return reader.read(user_token=user_token, shop_id=expected_shop,
                                    job_id=expected_job)
