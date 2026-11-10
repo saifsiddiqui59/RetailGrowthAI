@@ -98,6 +98,7 @@ class Y1CanaryGuardTests(unittest.TestCase):
         with patch.object(guard, "group_scoped"), \
              patch.object(guard, "resource", side_effect=[
                  {"name":guard.SITE,"location":"centralindia",
+                  "kind":"functionapp,linux",
                   "properties":{"reserved":True},
                   "tags":{"app":"RetailGrowthAI","environment":"dev",
                           "purpose":"p0249-http-ingress-isolation"}},
@@ -106,6 +107,42 @@ class Y1CanaryGuardTests(unittest.TestCase):
              ]), \
              patch.object(guard,"command",return_value={"linuxFxVersion":"PYTHON|3.12"}):
             guard.verify()
+
+    def test_verify_rejects_nonlinux_site_even_when_y1_sku(self):
+        with patch.object(guard, "group_scoped"), \
+             patch.object(guard, "resource", side_effect=[
+                 {"name":guard.SITE,"location":"centralindia",
+                  "kind":"functionapp",
+                  "properties":{"reserved":False},
+                  "tags":{"app":"RetailGrowthAI","environment":"dev",
+                          "purpose":"p0249-http-ingress-isolation"}},
+                 {"name":guard.PLAN,"location":"centralindia",
+                  "sku":{"name":"Y1","tier":"Dynamic"}},
+             ]), \
+             patch.object(guard, "command", return_value={"linuxFxVersion":"PYTHON|3.12"}), \
+             self.assertRaises(RuntimeError):
+            guard.verify()
+
+    def test_verify_does_not_log_any_credentials_or_raw_arm_payload(self):
+        import contextlib
+        import io
+        buffer=io.StringIO()
+        with patch.object(guard, "group_scoped"), \
+             patch.object(guard, "resource", side_effect=[
+                 {"name":guard.SITE,"location":"centralindia",
+                  "kind":"functionapp,linux",
+                  "tags":{"app":"RetailGrowthAI","environment":"dev",
+                          "purpose":"p0249-http-ingress-isolation","token":"DO_NOT_PRINT"}},
+                 {"name":guard.PLAN,"location":"centralindia",
+                  "sku":{"name":"Y1","tier":"Dynamic"}},
+             ]), \
+             patch.object(guard, "command",return_value={
+                 "linuxFxVersion":"PYTHON|3.12","appSettings":"SECRET"}),
+             contextlib.redirect_stdout(buffer):
+            guard.verify()
+        self.assertNotIn("SECRET",buffer.getvalue())
+        self.assertNotIn("DO_NOT_PRINT",buffer.getvalue())
+        self.assertIn("P0249_Y1_ARM_VERIFIED",buffer.getvalue())
 
     def test_probe_requires_20_of_20_hosted_responses(self):
         results = [(200,True,0.4)] + [
