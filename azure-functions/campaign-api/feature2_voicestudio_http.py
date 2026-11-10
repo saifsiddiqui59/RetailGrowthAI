@@ -88,6 +88,8 @@ class VoiceStudioSignedAPI:
                 or result.get("review_status") != "NEEDS_REVIEW"
                 or result.get("approved_to_render_or_publish") is not False
                 or result.get("private_audio_url") is not None
+                or not isinstance(result.get("audio_asset_id"), str)
+                or canonical_uuid(result["audio_asset_id"]) != result["audio_asset_id"]
             ):
                 return 503, {"error": "VOICE_PRIVATE_REVIEW_UNVERIFIED"}
             return 202, {
@@ -102,8 +104,8 @@ class VoiceStudioSignedAPI:
             }
         except (AuthenticationError,):
             return 401, {"error": "UNAUTHORIZED"}
-        except (ValueError, TypeError, KeyError):
-            return 400, {"error": "INVALID_REQUEST"}
         except (VoiceStudioUnavailable, VoiceStudioSqlDenied, PrivateVoiceStorageDenied,
                 StorageUnavailable, TimeoutError, OSError):
             return 503, {"error": "VOICE_STUDIO_UNAVAILABLE"}
+        except (ValueError, TypeError, KeyError):
+            return 400, {"error": "INVALID_REQUEST"}
