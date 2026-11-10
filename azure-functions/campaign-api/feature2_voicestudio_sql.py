@@ -19,6 +19,7 @@ from admin_store import backend_headers
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 MAX_JSON = 32 * 1024
 RPC = {
+    "plan": "feature2_voicestudio_plan",
     "claim": "feature2_voicestudio_claim",
     "register": "feature2_voicestudio_register",
     "receipt": "feature2_voicestudio_receipt",
@@ -98,6 +99,36 @@ class VoiceStudioSqlStore:
         if type(data) is not dict:
             raise VoiceStudioSqlDenied("SQL RPC did not return one receipt")
         return data
+
+    def read_current_plan(self, shop_id, campaign_id):
+        """Server-only current approved script and live membership from SQL.
+
+        A revoked/foreign plan should be denied by the RPC itself and by this
+        defensive response shape. Never promote a browser-provided plan.
+        """
+        if not all(_uuid4(x) for x in (shop_id, campaign_id)):
+            raise VoiceStudioSqlDenied("Invalid reviewed voice plan scope")
+        result = self._rpc("plan", {
+            "p_actor_id": self.actor_id,
+            "p_shop_id": shop_id,
+            "p_campaign_id": campaign_id,
+        })
+        if (
+            result.get("shop_id") != shop_id
+            or result.get("campaign_id") != campaign_id
+            or result.get("active_editor") is not True
+            or result.get("script_review") != "APPROVED_FOR_NARRATION"
+            or result.get("can_publish") is not False
+            or not _sha(result.get("plan_sha256"))
+            or type(result.get("duration_seconds")) is not int
+            or result["duration_seconds"] not in (15, 30, 60)
+            or not isinstance(result.get("voice"), str)
+            or not re.fullmatch(r"[a-zA-Z0-9_.-]{1,64}", result["voice"])
+            or not isinstance(result.get("voiceover_script"), str)
+            or not 1 <= len(result["voiceover_script"].strip()) <= 3000
+        ):
+            raise VoiceStudioSqlDenied("Current signed voice plan is unavailable or revoked")
+        return result
 
     def claim_once(self, shop_id, campaign_id, request_id, plan_sha256):
         if not all(_uuid4(v) for v in (shop_id, campaign_id, request_id)) or not _sha(plan_sha256):
