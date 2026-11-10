@@ -145,7 +145,8 @@ def handle_private_png_request(request, *, reader_factory, response_type):
                 not 1 <= len(authorization[7:]) <= 8192 or
                 any(ord(ch) < 33 or ord(ch) > 126
                     for ch in authorization[7:]) or
-                authorization[7:].startswith(("sb_secret_", "sb_publishable_"))):
+                authorization[7:].startswith(("sb_secret_", "sb_publishable_")) or
+                any(ch in authorization[7:] for ch in (",", ";", '"', "\\"))):
             return _denied(401, response_type)
         # Reject malformed control characters and non-string header values
         # before invoking the private reader, including unrelated headers.
