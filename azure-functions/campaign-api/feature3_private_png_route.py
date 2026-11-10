@@ -149,12 +149,16 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         total_header_bytes = 0
         for name in names:
             value = headers.get(name)
-            if (type(value) is not str or _HEADER_NAME.fullmatch(name) is None or
+            # Bound untrusted values before scanning their characters.
+            # A huge framework-provided header must not force an unbounded
+            # validation pass before authentication is denied.
+            if (type(value) is not str or
+                    len(value) > 16384 - total_header_bytes - len(name)):
+                return _denied(400, response_type)
+            if (_HEADER_NAME.fullmatch(name) is None or
                     any(ord(char) < 32 or ord(char) > 126 for char in value)):
                 return _denied(400, response_type)
             total_header_bytes += len(name) + len(value)
-            if total_header_bytes > 16384:
-                return _denied(400, response_type)
     except Exception:
         return _denied(400, response_type)
     # Validate bounded metadata before asking the request adapter to materialize
