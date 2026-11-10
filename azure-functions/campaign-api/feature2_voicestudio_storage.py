@@ -9,6 +9,7 @@ from __future__ import annotations
 from hashlib import sha256
 import io
 import re
+import struct
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
@@ -43,6 +44,10 @@ def _wav(data):
         raise PrivateVoiceStorageDenied("Invalid bounded private WAV")
     if data[:4] != b"RIFF" or data[8:12] != b"WAVE":
         raise PrivateVoiceStorageDenied("Invalid PCM WAVE header")
+    # wave.open accepts bytes appended beyond RIFF, so reject ambiguous payloads.
+    # A private object digest alone does not establish a well-formed WAV envelope.
+    if struct.unpack_from("<I", data, 4)[0] != len(data) - 8:
+        raise PrivateVoiceStorageDenied("RIFF byte length does not match object")
     try:
         with wave.open(io.BytesIO(data), "rb") as stream:
             channels, width, rate, frames = (stream.getnchannels(),
