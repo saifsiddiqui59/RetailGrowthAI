@@ -41,7 +41,17 @@ class Backend:
     def __call__(self, req, timeout):
         self.requests.append((req, timeout))
         name = req.full_url.rsplit("/", 1)[-1]
-        if name == "feature2_voicestudio_claim":
+        if name == "feature2_voicestudio_plan":
+            payload = {
+                "shop_id": SHOP, "campaign_id": CAMPAIGN,
+                "voiceover_script": "A reviewed synthetic retail sample.",
+                "plan_sha256": SHA,
+                "voice": "alloy", "duration_seconds": 15,
+                "active_editor": True,
+                "script_review": "APPROVED_FOR_NARRATION",
+                "can_publish": False,
+            }
+        elif name == "feature2_voicestudio_claim":
             payload = {
                 "shop_id": SHOP, "campaign_id": CAMPAIGN,
                 "request_id": JOB, "plan_sha256": SHA,
@@ -98,10 +108,12 @@ def claim():
 def test_uses_only_three_server_post_rpc_paths_with_private_key():
     backend = Backend()
     sql = store(backend)
+    assert sql.read_current_plan(SHOP, CAMPAIGN)["plan_sha256"] == SHA
     assert sql.claim_once(SHOP, CAMPAIGN, JOB, SHA) == claim()
     assert sql.register_verified_private_pair(SHOP, CAMPAIGN, JOB, claim(), proof())["status"] == "REGISTERED_PRIVATE_NEEDS_REVIEW"
     assert sql.read_private_receipt(SHOP, CAMPAIGN, JOB)["audio_asset_id"] == ASSET
     assert [x.full_url.rsplit("/", 1)[-1] for x, _ in backend.requests] == [
+        "feature2_voicestudio_plan",
         "feature2_voicestudio_claim",
         "feature2_voicestudio_register",
         "feature2_voicestudio_receipt",
@@ -115,7 +127,10 @@ def test_uses_only_three_server_post_rpc_paths_with_private_key():
         assert body["p_actor_id"] == ACTOR
         assert body["p_shop_id"] == SHOP
         assert body["p_campaign_id"] == CAMPAIGN
-        assert body["p_request_id"] == JOB
+        if request.full_url.endswith("feature2_voicestudio_plan"):
+            assert "p_request_id" not in body
+        else:
+            assert body["p_request_id"] == JOB
 
 
 @pytest.mark.parametrize("bad", [
@@ -213,3 +228,26 @@ def test_receipt_refuses_unreviewed_or_publishable_asset():
             continue
         with pytest.raises(VoiceStudioSqlDenied):
             store(backend).read_private_receipt(SHOP, CAMPAIGN, JOB)
+
+
+@pytest.mark.parametrize("changed", [
+    {"shop_id": str(uuid4())},
+    {"active_editor": False},
+    {"script_review": "DRAFT"},
+    {"voiceover_script": ""},
+    {"can_publish": True},
+    {"plan_sha256": "not-a-sha"},
+    {"duration_seconds": True},
+])
+def test_current_sql_plan_must_remain_tenant_reviewed(changed):
+    backend = Backend()
+    backend.next_reply = {
+        "shop_id": SHOP, "campaign_id": CAMPAIGN,
+        "voiceover_script": "reviewed synthetic fixture",
+        "plan_sha256": SHA, "voice": "alloy",
+        "duration_seconds": 15, "active_editor": True,
+        "script_review": "APPROVED_FOR_NARRATION", "can_publish": False,
+        **changed,
+    }
+    with pytest.raises(VoiceStudioSqlDenied):
+        store(backend).read_current_plan(SHOP, CAMPAIGN)
