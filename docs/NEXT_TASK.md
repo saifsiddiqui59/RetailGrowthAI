@@ -1444,3 +1444,7 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 - See `docs/integration/OPEN_PR_TRIAGE_20261110.md` for the 50 exact PR IDs checked and source-vs-parent discrepancies. Do **not** bulk-close the 48 retained: verify source/test equivalence or preserve unique negatives before supersession. Work in bounded nonconflicting groups; on failed historical CI, defer and move to next independent source candidate without bypass.
 - Verify post-#838 F4 parent push #42760121390 and parent #322 PR merge-ref #42760128811 exact results; protect #650 ZIP gate and independently review main integration. Verify any fresh F5 parent CI after #896, but do not start GPU or certify model success. F2 #551/#848 remain separate review/integration gate.
 - Prepare reviewed canonical status receipts only after accepted source integration into main, protected reviews and fresh main 4/4; no DONE from feature-branch-only merges.
+
+
+#### 2026-11-10 deferred CI gates after 50 PR scan
+- F4 #838 parent push #42760121390: FFmpeg exit 124 timeout; #322 PR merge-ref #42760128811 has same timeout plus #650 Python ZIP blocker. F5 #896 parent push #42758853513: frontend/FFmpeg failed (Python/Supabase green). Preserve full failures as pending, do not assert parent/main 4/4 from successful source branch CI. Per current owner instruction, skip fixes and continue another independent PR; return to these only in a separate repair batch.
