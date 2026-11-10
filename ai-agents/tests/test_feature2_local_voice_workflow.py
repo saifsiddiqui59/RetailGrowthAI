@@ -31,7 +31,9 @@ def execute(*,engine=mock,auth=lambda *x:True):
     def write(shop,camp,key,original,source):
         actions.append("write")
         return {"shop_id":shop,"campaign_id":camp,"audio_asset_id":str(uuid4()),
-                "original_audio_sha256":sha256(original).hexdigest(),"private":True}
+                "original_audio_sha256":sha256(original).hexdigest(),"private":True,
+                "review_state":"PENDING_HUMAN_LISTEN_AND_RIGHTS",
+                "can_publish":False,"can_dispatch_motion":False}
     def call():
         return synthesize_and_stage(shop_id=SHOP,campaign_id=CAMP,
          source_plan=expected,voice_id="af_heart",lang="en-us",
@@ -61,6 +63,23 @@ def test_test_double_claims_positive_remains_pending_review():
     assert receipt["audio_bytes"] is None and receipt["signed_url"] is None
     assert receipt["stt_status"]=="F7_PENDING_SIGNED_AUDIO_ADAPTER"
     assert events==["reserve","write"]
+
+
+def test_private_original_voice_storage_revocation_denies_stale_success():
+    calls=[]
+    def authority(*args):
+        calls.append(1)
+        return len(calls)<3
+    def injected_engine(**kw):
+        return {**mock(**kw),"test_only":False,
+            "actual_inference_verified":True,"model":"mock-only",
+            "upstream_revision":"mock-only"}
+    perform,events=execute(engine=injected_engine,auth=authority)
+    # A mock engine only exercises the protocol; no genuine ONNX inference.
+    with pytest.raises(LocalVoiceJobDenied,match="revoked during private"):
+        perform()
+    assert events==["reserve","write"]
+    assert len(calls)==3
 
 
 # Mock-only *signed* transcription and trusted store tests: no model executed.

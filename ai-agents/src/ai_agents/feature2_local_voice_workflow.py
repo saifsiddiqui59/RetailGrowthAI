@@ -100,8 +100,18 @@ def synthesize_and_stage(*,shop_id,campaign_id,source_plan,voice_id,lang,speed,
     if (type(result) is not dict or not _uuid(result.get("audio_asset_id")) or
         result.get("shop_id")!=shop_id or result.get("campaign_id")!=campaign_id or
         result.get("original_audio_sha256")!=metrics["sha256"] or
-        result.get("private") is not True):
-        raise LocalVoiceJobDenied("Original audio was not registered in private storage")
+        result.get("private") is not True or
+        result.get("review_state")!="PENDING_HUMAN_LISTEN_AND_RIGHTS" or
+        result.get("can_publish") is not False or
+        result.get("can_dispatch_motion") is not False):
+        raise LocalVoiceJobDenied("Original audio was not registered pending private review")
+    # Storage can take long enough for a user to lose membership or a draft
+    # to change. Prevent an obsolete success receipt even if the backend
+    # claimed persistence. Actual DB/Blob rollback must be enforced by the
+    # coordinator's atomic writer, not by this after-the-fact check.
+    if (authorize_editor(shop_id,campaign_id) is not True or
+        read_current_plan(shop_id,campaign_id)!=source_plan):
+        raise LocalVoiceJobDenied("Original voice source revoked during private registration")
     return {**envelope,"private_audio_asset_id":result["audio_asset_id"],
             "audio_bytes":None,"signed_url":None,
             "f4_must_recheck_private_rights":True}
