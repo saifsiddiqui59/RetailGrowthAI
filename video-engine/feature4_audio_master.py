@@ -147,8 +147,12 @@ def _write_private_receipt(proof: Path, report: dict):
     _check_private_receipt_path(proof)
     created = False
     try:
-        with proof.open("x", encoding="utf-8") as handle:
-            created = True
+        # Create in 0600 mode even on hosts with a permissive process umask.
+        # O_EXCL denies competing writers; O_NOFOLLOW rejects a final symlink.
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(str(proof), flags, 0o600)
+        created = True
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
             json.dump(report, handle, indent=2, allow_nan=False)
             handle.write("\n")
     except (OSError, TypeError, ValueError) as exc:
