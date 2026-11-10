@@ -1,0 +1,75 @@
+name: "RetailGrowthAI #249 resume existing DEV Y1 HTTP canary deployment"
+# No ARM provisioning. Existing isolated Y1 site and plan ONLY.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0249-dev-y1-resume-existing-once.yml'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Deploy only the existing dedicated DEV Y1 HTTP canary, no other app"
+        required: true
+        type: choice
+        options: ['NO', 'YES-DEPLOY-EXISTING-Y1-CANARY']
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-existing-y1-resume-only
+  cancel-in-progress: false
+jobs:
+  resume-verify-deploy-and-probe:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' &&
+        inputs.confirm == 'YES-DEPLOY-EXISTING-Y1-CANARY') ||
+       (github.event_name == 'push' &&
+        startsWith(github.event.head_commit.message,
+        'ops(#249): resume existing Y1 HTTP canary deploy')))
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Offline safety checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/p0249_y1_canary_guard.py ops/p0249-y1-canary/function_app.py
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_canary.py' -v
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Prove existing DEV Y1 site+plan runtime and original Flex intact
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_canary_guard.py verify
+      - name: Deploy only standalone HTTP canary code to preexisting DEV Y1 site
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd ops/p0249-y1-canary && zip -q "$RUNNER_TEMP/p0249-y1-canary.zip" function_app.py host.json requirements.txt)
+          az functionapp deployment source config-zip \
+            -g rg-retailgrowth-dev -n rgai-dev-y1-p0249-d4e5ddbd \
+            --src "$RUNNER_TEMP/p0249-y1-canary.zip" \
+            --build-remote true -o none
+      - name: Validate real cold readiness and 20 HTTP requests against Y1 only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_canary_guard.py probe
+      - name: Always clear Azure OIDC login
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
