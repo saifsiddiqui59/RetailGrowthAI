@@ -854,3 +854,10 @@ Work completed: #859 merged & postmerge 4/4, #866 merged (postmerge running), #8
 
 ### 2026-11-10 continuation — third verified F2 duplicate closed
 - Compared F2 PR #535 `9309e1a6` against #848 `b18459bd`: exactly equal source module SHA `23277033`, original tests SHA `d03a3e30` and dedicated handoff SHA `71b93b79`; two generic explanatory handoff paragraphs captured in keeper #848 comment 6748650091 before closing #535 unmerged. Updated full PR audit snapshot after new docs PR #891 and concurrent changes: 119 open (18/11 main, 2/88 feature by non-draft/draft). No source/main integration or deployment performed by this documentation branch.
+
+
+### 2026-11-10 50-PR read-only triage plus two verified source closures
+- Pulled exact metadata/changed-path inventory for 50 open historical PRs (25 Feature2, 21 Feature4, 4 Feature5), compared all source branch commit ancestry against current keeper; all 50 diverged. Spot-checked original code/test blobs for F2 and F4 and live exact-head historical CI for selected candidates. Red/unique/cross-feature candidates deferred without altering source or weakening tests.
+- Completed Feature4 original #838 (F4-08 finite frame seek) **merged** to current Feature4 parent #322 at `73055a0beac66cff9d7f58f1847b9e07061564ad`; exact original head `74bc376af78c55c2e3fc1fb93ede681c603594ac`, Actions run #41070937220 4/4 success. Fresh parent push #42760121390 and #322 sync #42760128811 pending at check; no main/hosted DONE.
+- Feature5 original #763 marked **closed as superseded, not directly merged**; unique finite quota safety ported through #896 on existing F5 parent at `19d49acb58ef35db62c81cb01110b140d40c451e`, exact source #42688235824 four green jobs and all four Git blob matches. F5-13 not original task DONE and GPU OFF.
+- Live query end of batch **100 open PRs (81 draft, 19 non-draft)**, historical snapshots retained separately. Detailed 50-ID list and classification appended to `docs/integration/OPEN_PR_TRIAGE_20261110.md`. No model/inference costs, Azure/Supabase/PROD or WineShopPOS changes.
