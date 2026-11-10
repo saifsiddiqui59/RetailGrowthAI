@@ -11,7 +11,7 @@ import re
 import wave
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 MAX_WAV_BYTES = 8 * 1024 * 1024
 MAX_TEXT_CHARS = 3000
@@ -20,6 +20,12 @@ _TOKEN = re.compile(r"^[a-zA-Z0-9_.-]{1,64}$")
 
 class VoiceStudioUnavailable(RuntimeError):
     """A denied or unavailable voice request; never includes credentials."""
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # Never forward the server-only API key to an upstream Location target.
+        raise VoiceStudioUnavailable("VoiceStudio redirects are forbidden")
 
 
 def _speech_endpoint(base_url: str) -> str:
@@ -57,9 +63,14 @@ def _validate_pcm_wav(data: bytes) -> None:
                 or stream.getsampwidth() not in (1, 2, 3, 4)
                 or not 8000 <= stream.getframerate() <= 96000
                 or stream.getnframes() < 1
+                or stream.getcomptype() != "NONE"
                 or stream.getnframes() / stream.getframerate() > 180
             ):
                 raise VoiceStudioUnavailable("VoiceStudio WAV exceeds audio policy")
+            frame_count = stream.getnframes()
+            expected_bytes = frame_count * stream.getnchannels() * stream.getsampwidth()
+            if len(stream.readframes(frame_count)) != expected_bytes:
+                raise VoiceStudioUnavailable("VoiceStudio WAV frames are incomplete")
     except (EOFError, wave.Error) as exc:
         raise VoiceStudioUnavailable("VoiceStudio returned malformed PCM WAV") from exc
 
@@ -102,11 +113,16 @@ def synthesize_voice_wav(
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         method="POST",
     )
-    sender = transport if transport is not None else urlopen
+    sender = transport if transport is not None else build_opener(_NoRedirect()).open
     try:
         with sender(request, timeout=45) as response:
+            if response.geturl() != endpoint or response.status != 200:
+                raise VoiceStudioUnavailable("VoiceStudio response origin/status changed")
+            mime = response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+            if mime not in ("audio/wav", "audio/wave", "audio/x-wav", "application/octet-stream"):
+                raise VoiceStudioUnavailable("VoiceStudio returned unexpected content type")
             blob = response.read(MAX_WAV_BYTES + 1)
-    except (HTTPError, URLError, OSError, TimeoutError) as exc:
+    except (HTTPError, URLError, OSError, TimeoutError):
         raise VoiceStudioUnavailable("Private VoiceStudio speech request failed") from None
 
     if not isinstance(blob, bytes) or len(blob) > MAX_WAV_BYTES:
