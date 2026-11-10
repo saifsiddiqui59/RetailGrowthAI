@@ -185,3 +185,28 @@ def test_riff_envelope_mismatch_never_reaches_storage(mutate):
     with pytest.raises(PrivateVoiceStorageDenied, match="RIFF byte length"):
         write(store, original=original, original_sha=sha256(original).hexdigest())
     assert calls == []
+
+
+@pytest.mark.parametrize("mutate", [
+    # A second valid chunk hidden inside the RIFF envelope.
+    lambda data: data + b"JUNK" + (4).to_bytes(4, "little") + b"evil",
+    # A malformed chunk header, fully inside the declared envelope.
+    lambda data: data + b"ABCD",
+])
+def test_hidden_riff_chunks_denied_before_network(mutate):
+    store, calls = harness()
+    original = mutate(wav())
+    original = original[:4] + (len(original) - 8).to_bytes(4, "little") + original[8:]
+    with pytest.raises(PrivateVoiceStorageDenied):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
+
+
+def test_non_pcm_format_denied_before_network():
+    store, calls = harness()
+    original = bytearray(wav())
+    original[20:22] = (3).to_bytes(2, "little")
+    original = bytes(original)
+    with pytest.raises(PrivateVoiceStorageDenied):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
