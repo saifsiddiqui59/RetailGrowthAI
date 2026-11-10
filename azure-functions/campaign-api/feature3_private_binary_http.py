@@ -19,9 +19,7 @@ _SHA=re.compile(r"^[a-f0-9]{64}$")
 _MAX=25*1024*1024
 # The trusted reader validates full pixels; this HTTP boundary independently
 # rejects non-PNG or trailing-payload receipts before publishing private bytes.
-_PNG_MAGIC=b"\x89PNG\r
-\x1a
-"
+_PNG_MAGIC=bytes.fromhex("89504e470d0a1a0a")
 _PNG_IEND=b"\x00\x00\x00\x00IEND\xaeB\x60\x82"
 
 
