@@ -29,9 +29,12 @@ class PrivatePNGPaletteBoundaryTests(unittest.TestCase):
         fixture.tenant.path = (
             f"{fixture.shop}/feature3/gpu/{fixture.job}/{digest}.png")
         fixture.reader = fixture.build()
+        # Each subtest performs one new authenticated private read; the
+        # shared fixture intentionally retains earlier request history.
+        reads_before = fixture.calls.count("get")
         with self.assertRaises(PrivateGeneratedDownloadDenied):
             fixture.read()
-        self.assertEqual(fixture.calls.count("get"), 1)
+        self.assertEqual(fixture.calls.count("get") - reads_before, 1)
 
     def test_embedded_text_and_exif_metadata_rejected(self):
         original = self.fixture.png
