@@ -198,7 +198,7 @@ TINPUT="a"*64
 TKEY=b"offline-test-only-trace-hmac-key-32b"
 TNOW=1761720000000
 
-def trace_case(*,active=None,worker=None):
+def trace_case(*,active=None,worker=None,receipt_override=None):
     stored=[]
     def current(s,c,w,h):
         if active:
@@ -213,7 +213,8 @@ def trace_case(*,active=None,worker=None):
         assert data["customer_data_in_event"] is False
         stored.append(data)
         return {"shop_id":s,"campaign_id":c,"workflow_id":w,"event_id":e,
-                "sequence":n,"event_sha256":digest,"private":True,"committed":True}
+                "sequence":n,"event_sha256":digest,"private":True,"committed":True,
+                **(receipt_override or {})}
     def run(*,stage="AI_WRITER",status="SUCCEEDED",num=1,prior="0"*64,
             external=None,source=TINPUT,output="b"*64,eid=TEVENT,
             failure_code=None,evidence_class="SOURCE_ONLY"):
@@ -276,8 +277,11 @@ def test_trace_revocation_after_initial_read_denies_durable_append():
 
 from ai_agents.feature2_creative_quality import stage_blind_human_review_revision
 
-def human_case(*,verify=lambda *v:True,editor=lambda *v:True,rev=0):
-    candidates={"A":fixture(15),"B":fixture(30)}
+def human_case(*,verify=lambda *v:True,editor=lambda *v:True,rev=0,
+               receipt_override=None,candidates_override=None,
+               mutate_payload=None):
+    candidates=({"A":fixture(15),"B":fixture(30)}
+                if candidates_override is None else candidates_override)
     reviews=[{"candidate_id":candidate,"reviewer_id":reviewer,
               "scores":{k:3 for k in RUBRIC_WEIGHTS}}
              for candidate in ("A","B")
@@ -285,9 +289,12 @@ def human_case(*,verify=lambda *v:True,editor=lambda *v:True,rev=0):
     stored=[]
     def save(s,c,e,revision,digest,record):
         stored.append(record)
+        if mutate_payload is not None:
+            mutate_payload(record)
         return {"shop_id":s,"campaign_id":c,
                 "experiment_id":e,"revision":revision+1,
-                "receipt_digest":digest,"private":True}
+                "receipt_digest":digest,"private":True,
+                **(receipt_override or {})}
     def run(**override):
         return stage_blind_human_review_revision(
             shop_id=TSHOP,campaign_id=TCAMP,
@@ -377,6 +384,85 @@ def test_private_ab_history_denies_foreign_tampered_or_publishable_history(chang
             read_private_history=lambda *a:copy.deepcopy(rows),
             verify_signed_history_receipt=lambda *a:True)
 
+@pytest.mark.parametrize("tamper", [
+    "boolean_revision", "same_candidate_digests", "replayed_receipt"
+])
+def test_private_blind_history_denies_ambiguous_or_replayed_score_receipts(tamper):
+    rows = history_fixture()
+    if tamper == "boolean_revision":
+        rows[0]["revision"] = True  # bool compares equal to integer 1 in Python
+    elif tamper == "same_candidate_digests":
+        rows[0]["candidate_digests"]["B"] = rows[0]["candidate_digests"]["A"]
+    else:
+        rows[1]["receipt_digest"] = rows[0]["receipt_digest"]
+    with pytest.raises(Feature2TraceDenied, match="revision"):
+        read_private_blind_review_history(
+            shop_id=TSHOP, campaign_id=TCAMP, experiment_id=HISTORY_EXP,
+            current_editor=lambda *a: True,
+            read_private_history=lambda *a: copy.deepcopy(rows),
+            verify_signed_history_receipt=lambda *a: True,
+        )
+
+
+
+@pytest.mark.parametrize("tamper", ["swapped_labels", "replacement_candidate"])
+def test_private_blind_history_rejects_candidate_identity_changes_between_revisions(tamper):
+    # Even individually signed revision receipts cannot redefine an existing
+    # experiment's A/B assignments without a new experiment identifier.
+    rows = history_fixture()
+    if tamper == "swapped_labels":
+        rows[1]["candidate_digests"] = {"A": "b" * 64, "B": "a" * 64}
+    else:
+        rows[1]["candidate_digests"]["B"] = "c" * 64
+    calls = []
+
+    def signer(*args):
+        calls.append(args)
+        return True
+
+    with pytest.raises(Feature2TraceDenied, match="candidates changed"):
+        read_private_blind_review_history(
+            shop_id=TSHOP, campaign_id=TCAMP, experiment_id=HISTORY_EXP,
+            current_editor=lambda *_: True,
+            read_private_history=lambda *_: copy.deepcopy(rows),
+            verify_signed_history_receipt=signer,
+        )
+    # First revision was checked; changed second revision never reached signer.
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("tamper", ["score", "receipt"])
+def test_private_blind_history_denies_mutable_reader_alias_changed_by_signer(tamper):
+    # A backend reader may hand out the SAME mutable rows object twice.
+    # Previously comparing source() with rows could compare an object to itself
+    # after a signer mutated it, silently accepting stale or mixed evidence.
+    shared = history_fixture()
+    calls = []
+
+    def read(*_):
+        calls.append("read")
+        return shared
+
+    def signer(*_):
+        calls.append("verify")
+        if calls.count("verify") == 1:
+            if tamper == "score":
+                shared[0]["human_scores"]["A"] = 99.0
+            else:
+                shared[0]["receipt_digest"] = "f" * 64
+        return True
+
+    with pytest.raises(Feature2TraceDenied, match="changed mid-read"):
+        read_private_blind_review_history(
+            shop_id=TSHOP, campaign_id=TCAMP, experiment_id=HISTORY_EXP,
+            current_editor=lambda *_: True,
+            read_private_history=read,
+            verify_signed_history_receipt=signer,
+        )
+    assert calls.count("read") == 2
+
+
+
 def test_blind_history_rejects_unsigned_receipts_and_revoked_editor():
     rows=history_fixture()
     with pytest.raises(Feature2TraceDenied,match="signed"):
@@ -465,3 +551,270 @@ def test_private_trace_read_denies_revoked_role_and_changed_database():
     run,_=private_trace_history_case(reader=changing)
     with pytest.raises(Feature2TraceDenied,match="changed"):
         run()
+
+
+# User-supplied reviewer callbacks in these tests are synthetic mocks only.
+# Passing an HMAC or a mock signed score never certifies external reviewers.
+def test_private_trace_rejects_revocation_during_writer_return():
+    calls=[]
+    def authorize(*args):
+        calls.append(1)
+        return len(calls)<3
+    run,rows=trace_case(active=authorize)
+    with pytest.raises(Feature2TraceDenied,match="revoked during private append"):
+        run()
+    assert len(rows)==1  # Backend must separately roll back/compensate.
+    assert len(calls)==3
+
+
+@pytest.mark.parametrize("elevated",[
+    {"can_publish":True},
+    {"paid_motion_permitted":True},
+])
+def test_trace_never_accepts_publishing_privileges_from_private_cas(elevated):
+    run,rows=trace_case(receipt_override=elevated)
+    with pytest.raises(Feature2TraceDenied,match="append not verified"):
+        run()
+    assert len(rows)==1  # Synthetic writer effect is not an authorized release.
+
+
+def test_signed_blind_review_rejects_revocation_during_cas():
+    calls=[]
+    def authorize(*args):
+        calls.append(1)
+        return len(calls)<3
+    run,writes=human_case(editor=authorize)
+    with pytest.raises(Feature2TraceDenied,match="revoked during private revision"):
+        run()
+    assert len(calls)==3
+    assert len(writes)==1  # Real CAS must fence transactional authorization.
+
+
+@pytest.mark.parametrize("elevated",[
+    {"can_publish":True},
+    {"paid_motion_permitted":True},
+    {"review_status":"PUBLISHED"},
+])
+def test_blind_review_denies_store_publishing_or_paid_authority(elevated):
+    run,writes=human_case(receipt_override=elevated)
+    with pytest.raises(Feature2TraceDenied,match="revision not confirmed"):
+        run()
+    assert len(writes)==1
+
+
+# F2-08: a scoring receipt/history is NOT a rights grant or billing
+# authorization. These are deterministic independent-signer fixtures only.
+@pytest.mark.parametrize("elevated", [
+    {"can_publish": "false"},
+    {"can_publish": 0},
+    {"paid_motion_permitted": "no"},
+    {"paid_motion_permitted": None},
+    {"approved_to_publish": True},
+    {"commercial_use_approved": True},
+    {"can_dispatch_paid_motion": 1},
+    {"paid_calls": False},
+    {"paid_calls": 1},
+    {"billing": "PAID"},
+    {"private_download_url": "https://example.invalid/preview"},
+])
+def test_f2_08_private_cas_denies_ambiguous_rights_and_paid_receipts(elevated):
+    run, writes = human_case(receipt_override=elevated)
+    with pytest.raises(Feature2TraceDenied, match="revision not confirmed"):
+        run()
+    assert len(writes) == 1  # Real backend must fence/rollback CAS separately.
+
+
+@pytest.mark.parametrize("elevated", [
+    {"paid_motion_permitted": True},
+    {"paid_motion_permitted": "false"},
+    {"approved_to_publish": True},
+    {"commercial_use_approved": None},
+    {"can_dispatch_paid_motion": 0},
+    {"paid_calls": False},
+    {"paid_calls": 1},
+    {"billing": "CHARGED"},
+    {"private_download_url": "https://example.invalid/private"},
+])
+def test_f2_08_private_score_history_rejects_hidden_grants(elevated):
+    rows = history_fixture()
+    rows[0].update(elevated)
+    with pytest.raises(Feature2TraceDenied, match="revision invalid"):
+        read_private_blind_review_history(
+            shop_id=TSHOP, campaign_id=TCAMP, experiment_id=HISTORY_EXP,
+            current_editor=lambda *scope: True,
+            read_private_history=lambda *scope: copy.deepcopy(rows),
+            verify_signed_history_receipt=lambda *scope: True,
+        )
+
+
+def test_f2_08_private_history_with_explicit_pending_fields_remains_score_only():
+    rows = history_fixture()
+    for item in rows:
+        item.update({
+            "paid_motion_permitted": False,
+            "approved_to_publish": False,
+            "commercial_use_approved": False,
+            "can_dispatch_paid_motion": False,
+            "paid_calls": 0, "billing": "NONE", "private_download_url": None,
+        })
+    output = read_private_blind_review_history(
+        shop_id=TSHOP, campaign_id=TCAMP, experiment_id=HISTORY_EXP,
+        current_editor=lambda *scope: True,
+        read_private_history=lambda *scope: copy.deepcopy(rows),
+        verify_signed_history_receipt=lambda *scope: True,
+    )
+    assert len(output["records"]) == 2
+    assert output["can_publish"] is False
+    assert output["paid_motion_permitted"] is False
+
+
+def test_f2_08_private_cas_explicit_pending_fields_still_accepted():
+    run, writes = human_case(receipt_override={
+        "can_publish": False, "paid_motion_permitted": False,
+        "approved_to_publish": False, "commercial_use_approved": False,
+        "can_dispatch_paid_motion": False, "paid_calls": 0,
+        "billing": "NONE", "private_download_url": None,
+    })
+    output = run()
+    assert len(writes) == 1
+    assert output["approved_to_publish"] is False
+    assert output["paid_motion_permitted"] is False
+
+
+# F2-12: the private trace reader must freeze the first signed snapshot.
+# This is a local forged backend reader fixture, never a real signed worker.
+def test_f2_12_trace_history_denies_same_list_mutated_on_final_read():
+    callbacks = []
+    shared = []
+    def current(*scope):
+        callbacks.append(scope)
+        if len(callbacks) == 2:
+            shared[0]["status"] = "FAILED"
+        return True
+    def alias_reader(rows):
+        if not shared:
+            shared.extend(rows)
+        return shared
+    run, _ = private_trace_history_case(reader=alias_reader,current=current)
+    with pytest.raises(Feature2TraceDenied,match="changed during readback"):
+        run()
+    assert len(callbacks)==2
+
+
+@pytest.mark.parametrize("forgery", [
+    {"can_publish": "false"},
+    {"can_publish": 0},
+    {"paid_motion_permitted": "no"},
+    {"paid_motion_permitted": None},
+    {"approved_to_publish": True},
+    {"commercial_use_approved": 1},
+    {"paid_inference_authorized": True},
+    {"paid_calls": False},
+    {"paid_calls": 1},
+    {"billing": "CHARGED"},
+    {"private_download_url": "https://example.invalid/staged"},
+])
+def test_f2_12_signed_private_trace_cas_denies_wrong_type_grants(forgery):
+    run, rows=trace_case(receipt_override=forgery)
+    with pytest.raises(Feature2TraceDenied,match="append not verified"):
+        run()
+    assert len(rows)==1
+
+
+def test_f2_12_trace_receipt_explicit_unpaid_review_only_metadata_passes():
+    run, rows=trace_case(receipt_override={
+        "can_publish": False, "paid_motion_permitted":False,
+        "approved_to_publish":False,
+        "commercial_use_approved":False,
+        "paid_inference_authorized":False,
+        "paid_calls":0, "billing":"NONE", "private_download_url":None,
+    })
+    result=run()
+    assert len(rows)==1
+    assert result["can_publish"] is False
+    assert result["private"] is True
+    assert result["evidence_class"]=="SOURCE_ONLY"
+
+
+# F2-08: structural comparisons to the same mutable backend object are
+# insufficient when review verification or private CAS callbacks mutate it.
+def test_f2_08_mutable_candidate_alias_during_signed_review_is_denied():
+    shared={"A":fixture(15),"B":fixture(30)}
+    touched=[]
+    def verify(*_):
+        if not touched:
+            shared["A"]["creative_direction_v1"]["voiceover_script"]="changed after verification began"
+        touched.append(True)
+        return True
+    run,writes=human_case(verify=verify,candidates_override=shared)
+    with pytest.raises(Feature2TraceDenied,match="candidate changed before durable revision"):
+        run()
+    assert touched and writes==[]
+
+
+def test_f2_08_mutable_reviewer_rows_during_signed_verification_are_denied():
+    rows=[{"candidate_id":candidate,"reviewer_id":reviewer,
+           "scores":{key:3 for key in RUBRIC_WEIGHTS}}
+          for candidate in ("A","B")
+          for reviewer in ("signed-human-one","signed-human-two")]
+    touched=[]
+    def verify(*_):
+        if not touched:
+            rows[0]["scores"]["storytelling_and_hook"]=1
+        touched.append(True)
+        return True
+    run,writes=human_case(verify=verify)
+    with pytest.raises(Feature2TraceDenied,match="candidate changed before durable revision"):
+        run(reviews=rows)
+    assert touched and writes==[]
+
+
+@pytest.mark.parametrize("forgery", [
+    {"revision":True},
+    {"signed_url":"https://example.invalid/reviewer"},
+])
+def test_f2_08_cas_denies_ambiguous_revision_or_external_url(forgery):
+    run,writes=human_case(receipt_override=forgery)
+    with pytest.raises(Feature2TraceDenied,match="Durable human review revision"):
+        run()
+    assert len(writes)==1
+
+
+def test_f2_08_writer_cannot_mutate_review_scores_after_signed_cas():
+    def mutate(record):
+        record["review_result"]["blind_review_results"]["A"]=99.0
+    run,writes=human_case(mutate_payload=mutate)
+    with pytest.raises(Feature2TraceDenied,match="Durable human review revision"):
+        run()
+    assert len(writes)==1
+
+
+# F2-12: Python bool == int is not durable monotone trace sequencing.
+def test_f2_12_trace_cas_rejects_boolean_sequence_even_for_first_event():
+    run,rows=trace_case(receipt_override={"sequence":True})
+    with pytest.raises(Feature2TraceDenied,match="append not verified"):
+        run()
+    assert len(rows)==1
+
+
+def test_f2_12_trace_read_rejects_boolean_previous_sequence():
+    run,rows=trace_case()
+    first=run(stage="TREND",status="STARTED",output=None)
+    rows[0]["sequence"]=True  # True compares equal to expected sequence 1.
+    with pytest.raises(Feature2TraceDenied,match="Current private trace chain changed"):
+        run(stage="AI_WRITER",num=2,prior=first["event_sha256"],
+            eid="55555555-5555-4555-8555-555555555555")
+    assert len(rows)==1
+
+
+@pytest.mark.parametrize("extra",[
+    {"signed_url":"https://example.invalid/trace"},
+    {"can_dispatch_motion":True},
+    {"can_dispatch_motion":0},
+    {"may_auto_invoke_azure":"false"},
+])
+def test_f2_12_trace_cas_refuses_hidden_public_or_paid_grants(extra):
+    run,rows=trace_case(receipt_override=extra)
+    with pytest.raises(Feature2TraceDenied,match="append not verified"):
+        run()
+    assert len(rows)==1

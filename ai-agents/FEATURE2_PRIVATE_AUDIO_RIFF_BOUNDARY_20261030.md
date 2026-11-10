@@ -1,0 +1,9 @@
+# Feature2 F2-29 — private MP3/WAV RIFF boundary security (2026-10-30)
+
+**Source implementation, not hosted acceptance or commercially approved media.**
+
+The previously implemented private original WAV reader and FFmpeg-derived MP3 WAV validator consumed only the first WAV `data` chunk through `wave.open`. This did not ensure RIFF's declared byte extent matched the uploaded blob, or refuse an additional `fmt ` or `data` chunk that could hide unreviewed media in a registered original. The amended `_inspect` insists that the physical byte length and RIFF header agree; limits chunks to 32, each ancillary metadata chunk to 64KiB, checks chunk-header bounds plus odd-size padding, denies duplicate/reordered audio format/data, and compares complete data-chunk payload against expected mono/stereo PCM frames.
+
+The same verifier applies to signed-editor original WAV uploads and private FFmpeg-derived WAV bytes. New existing-file offline Python tests use stdlib WAVs to show appended bytes, length-corrected duplicate data, duplicate format and malformed internal sizes are denied; fake FFmpeg success tests prove the decoder refuses a hidden trailer, and valid **fixture-only** PCM preserves original/derived hashes while all review/publishing rights remain FALSE. Actual FFmpeg tests on hosts with the binary remain separately conditional; none of these mocks proves actual MP3 codec decoding or human voice fidelity.
+
+Deployment/approval remains blocked: coordinator #650 immutable 120-entry Functions ZIP gate (repair PR #665 unmerged), live #249 DEV HTTP 503, authenticated multi-tenant JWT/RLS, atomic private dual-asset registration, human/commercial rights review, exact-head four-job CI and fresh postmerge main 4/4. This work adds **no new Python source module** to the protected Functions ZIP and does not modify coordinator-owned workflow or shared contracts. GPU and paid models OFF, no DEV writes, PROD or WineShopPOS changes.
