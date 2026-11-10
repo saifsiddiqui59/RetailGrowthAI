@@ -98,4 +98,4 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     output = compile_approved_storyboard(deepcopy(draft), deepcopy(snapshot))
     if output["request"].get("voiceover_asset_id") != asset_id or output["request"].get("voiceover_source") != "retailer":
         raise CreativeContractError("Video compiler discarded approved voice source")
-    return output
+    # The compiler may perform additional trusted reads. Do not return a reel\n    # compiled from narration whose approval was revoked during that work.\n    if authoritative() != before:\n        raise CreativeContractError("Narration approval changed during compilation")\n    return output\n
