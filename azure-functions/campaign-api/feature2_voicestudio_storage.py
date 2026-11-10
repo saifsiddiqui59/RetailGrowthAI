@@ -48,6 +48,28 @@ def _wav(data):
     # A private object digest alone does not establish a well-formed WAV envelope.
     if struct.unpack_from("<I", data, 4)[0] != len(data) - 8:
         raise PrivateVoiceStorageDenied("RIFF byte length does not match object")
+    # Reject hidden chunks and trailing payloads within an otherwise valid RIFF.
+    # This private contract accepts canonical fmt + data PCM only.
+    cursor = 12
+    chunks = []
+    while cursor < len(data):
+        if len(data) - cursor < 8:
+            raise PrivateVoiceStorageDenied("Truncated WAV chunk header")
+        kind = data[cursor:cursor + 4]
+        length = struct.unpack_from("<I", data, cursor + 4)[0]
+        end = cursor + 8 + length
+        padded_end = end + (length & 1)
+        if end > len(data) or padded_end > len(data):
+            raise PrivateVoiceStorageDenied("WAV chunk exceeds RIFF envelope")
+        if length & 1 and data[end] != 0:
+            raise PrivateVoiceStorageDenied("Nonzero WAV chunk padding")
+        chunks.append((kind, length))
+        cursor = padded_end
+    if (cursor != len(data) or len(chunks) != 2 or chunks[0][0] != b"fmt "
+            or chunks[1][0] != b"data" or chunks[0][1] not in (16, 18)):
+        raise PrivateVoiceStorageDenied("Noncanonical private PCM WAV chunks")
+    if struct.unpack_from("<H", data, 20)[0] != 1:
+        raise PrivateVoiceStorageDenied("Only PCM private WAV accepted")
     try:
         with wave.open(io.BytesIO(data), "rb") as stream:
             channels, width, rate, frames = (stream.getnchannels(),
