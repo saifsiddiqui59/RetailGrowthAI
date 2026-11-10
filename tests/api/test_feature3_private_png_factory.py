@@ -122,6 +122,29 @@ class FactoryTests(unittest.TestCase):
                                 job_id=self.job)
         self.assertEqual(calls, [])
 
+    def test_impossible_base64url_segment_lengths_denied_before_verifier(self):
+        # A length modulo four of one is impossible for base64url-encoded
+        # bytes, regardless of JWT signature or key. No tenant IO is allowed.
+        calls = []
+        class CountingStore(Store):
+            def member(self, *args):
+                calls.append("membership")
+                raise AssertionError("unexpected RLS access")
+        def verify(token):
+            calls.append("verify")
+            raise AssertionError("unexpected JWT verification")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=CountingStore(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        for token in ("abcde.bb.cc", "aa.abcde.cc", "aa.bb.abcde",
+                      "a" * 4093 + ".bb.cc"):
+            with self.subTest(token=token[:20]):
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    reader.read(user_token=token, shop_id=self.shop,
+                                job_id=self.job)
+        self.assertEqual(calls, [])
+
     def test_well_formed_synthetic_jwt_still_requires_real_verifier(self):
         calls = []
         def verify(token):
