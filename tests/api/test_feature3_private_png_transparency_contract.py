@@ -30,9 +30,12 @@ class TransparencyContractTests(unittest.TestCase):
         f.tenant.sha = digest
         f.tenant.path = f"{f.shop}/feature3/gpu/{f.job}/{digest}.png"
         f.reader = f.build()
+        # Subtests reuse the same fixture: assert one private read per
+        # rejected candidate, not one read across the entire test method.
+        previous_gets = f.calls.count("get")
         with self.assertRaises(PrivateGeneratedDownloadDenied):
             f.read()
-        self.assertEqual(f.calls.count("get"), 1)
+        self.assertEqual(f.calls.count("get") - previous_gets, 1)
 
     def inject(self, color_type, transparency, palette=b""):
         original = self.fixture.png
