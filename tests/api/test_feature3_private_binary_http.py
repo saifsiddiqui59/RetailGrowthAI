@@ -114,6 +114,24 @@ class BinaryHTTPTests(unittest.TestCase):
                 self.assertEqual(body,b"")
                 self.assert_private_headers(headers)
         self.reader.extra={}
+    def test_spoofed_receipt_identity_cannot_authorize_private_bytes(self):
+        # Injected rights adapters must not authorize using attacker __eq__.
+        class AlwaysEqual:
+            def __eq__(self, other):
+                return True
+        class SpoofedString(str):
+            def __eq__(self, other):
+                return True
+        for key in ("shop_id", "job_id", "media_asset_id"):
+            for forged in (AlwaysEqual(), SpoofedString("foreign")):
+                self.reader.extra = {key: forged}
+                with self.subTest(key=key, forged=type(forged).__name__):
+                    status, body, headers = self.call()
+                    self.assertEqual((status, body), (503, b""))
+                    self.assert_private_headers(headers)
+        self.reader.extra = {}
+        self.assertEqual(self.call()[0], 200)
+
     def test_valid_sha_does_not_make_non_png_or_trailing_bytes_downloadable(self):
         # A forged or broken reader can supply a self-consistent SHA; the HTTP
         # boundary must still reject non-PNG bytes and trailing payloads.
