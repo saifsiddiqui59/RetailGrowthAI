@@ -1438,3 +1438,9 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 
 ### 2026-11-10 follow-on verification
 - Treat F2 #535, #522 and #523 as verified closed superseded proposals, not merged source. Preserve canonical keeper #848 and parent #551 until independent source/rights/package review and actual integration; avoid duplicate implementation. Refresh 119-item inventory from GitHub before further closures (snapshot includes proposed docs PR #891 and may change).
+
+
+### 2026-11-10 — next after 50-PR triage
+- See `docs/integration/OPEN_PR_TRIAGE_20261110.md` for the 50 exact PR IDs checked and source-vs-parent discrepancies. Do **not** bulk-close the 48 retained: verify source/test equivalence or preserve unique negatives before supersession. Work in bounded nonconflicting groups; on failed historical CI, defer and move to next independent source candidate without bypass.
+- Verify post-#838 F4 parent push #42760121390 and parent #322 PR merge-ref #42760128811 exact results; protect #650 ZIP gate and independently review main integration. Verify any fresh F5 parent CI after #896, but do not start GPU or certify model success. F2 #551/#848 remain separate review/integration gate.
+- Prepare reviewed canonical status receipts only after accepted source integration into main, protected reviews and fresh main 4/4; no DONE from feature-branch-only merges.
