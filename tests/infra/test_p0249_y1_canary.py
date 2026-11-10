@@ -55,10 +55,37 @@ class Y1CanaryGuardTests(unittest.TestCase):
 
     def test_preflight_refuses_existing_canary(self):
         with patch.object(guard, "group_scoped", return_value="dummy"), \
-             patch.object(guard, "resource", return_value={"name": guard.SITE}), \
-             patch.object(guard, "command", side_effect=AssertionError("no what-if")):
-            with self.assertRaises(RuntimeError):
-                guard.preflight()
+             patch.object(guard, "command", return_value=[
+                 {"name": guard.SITE, "type": "Microsoft.Web/sites"}
+             ]) as azure, \
+             self.assertRaises(RuntimeError):
+            guard.preflight()
+        self.assertEqual(azure.call_count, 1)
+
+    def test_arm_403_cannot_be_interpreted_as_resource_absent(self):
+        with patch.object(guard, "group_scoped", return_value="dummy"), \
+             patch.object(guard, "command", side_effect=RuntimeError("403")) as azure, \
+             self.assertRaises(RuntimeError):
+            guard.preflight()
+        azure.assert_called_once_with(
+            "resource", "list", "-g", guard.RG,
+            "--resource-type", "Microsoft.Web/sites"
+        )
+
+    def test_invalid_arm_inventory_fails_closed(self):
+        for response in (None, {}, [None], [{"bad": 1}, "unexpected"]):
+            with self.subTest(response=response), \
+                 patch.object(guard, "command", return_value=response), \
+                 self.assertRaises(RuntimeError):
+                guard.assert_absent(guard.SITE, "Microsoft.Web/sites")
+
+    def test_successful_arm_inventory_returns_empty(self):
+        with patch.object(guard, "command", return_value=[
+            {"name": guard.FLEX_SITE}, {"name": "unrelated"}
+        ]) as azure:
+            guard.assert_absent(guard.SITE, "Microsoft.Web/sites")
+        azure.assert_called_once_with("resource", "list", "-g", guard.RG,
+                                      "--resource-type", "Microsoft.Web/sites")
 
     def test_mismatched_subscription_aborts_before_rg_calls(self):
         with patch.dict(os.environ, {"RGAI_DEV_EXPECTED_SUBSCRIPTION": "expected"}), \
