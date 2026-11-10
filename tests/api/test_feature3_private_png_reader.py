@@ -148,6 +148,23 @@ class RevocableReaderTests(unittest.TestCase):
         self.assertEqual(reads, [])
         self.assertEqual(self.rights_called, 1)
 
+    def test_private_png_rejects_missing_content_type_before_body_read(self):
+        # Synthetic Storage responses without a declared media type are not
+        # acceptable private image receipts, even when pixels/SHA are valid.
+        reads = []
+        def missing_mime(req, timeout):
+            response = Response(req.full_url, self.png)
+            del response.headers["Content-Type"]
+            response.on_read = lambda: reads.append(True)
+            return response
+        self.reader = Feature3RevocablePNGReader(
+            tenant_store=self.tenant, verify_user_jwt=self.verify,
+            current_output_rights=self.rights, transport=missing_mime)
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            self.read()
+        self.assertEqual(reads, [])
+        self.assertEqual(self.rights_called, 1)
+
     def test_private_png_rejects_mime_parameters_before_body_read(self):
         reads = []
         def transformed_transport(req, timeout):
