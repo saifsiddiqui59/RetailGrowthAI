@@ -35,13 +35,14 @@ def _safe_jwt_json(segment, *, header=False):
                     raise ValueError("duplicate JWT JSON field")
                 result[key] = value
             return result
-        header = json.loads(raw.decode("utf-8"), object_pairs_hook=unique_pairs)
+        claims = json.loads(raw.decode("utf-8"), object_pairs_hook=unique_pairs)
+        if type(claims) is not dict:
+            return False
         if not header:
-            return type(header) is dict and type(header.get("sub")) is str and bool(header["sub"])
-        return (type(header) is dict and
-                type(header.get("alg")) is str and
-                header["alg"] in ("HS256", "RS256", "ES256") and
-                not any(key in header for key in
+            return type(claims.get("sub")) is str and bool(claims["sub"])
+        return (type(claims.get("alg")) is str and
+                claims["alg"] in ("HS256", "RS256", "ES256") and
+                not any(key in claims for key in
                         ("crit", "jku", "jwk", "x5u", "x5c", "zip")))
     except (ValueError, UnicodeError, TypeError, OverflowError):
         return False
