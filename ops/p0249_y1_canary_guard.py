@@ -22,12 +22,10 @@ STORAGE = "rgaid4e5ddbdf0d21d96"
 TEMPLATE = "infra/azure/p0249-classic-y1-dev-canary.bicep"
 
 
-def command(*args, allow_missing=False):
+def command(*args):
     p = subprocess.run(["az", *args, "-o", "json", "--only-show-errors"],
                        check=False, text=True, capture_output=True, timeout=180)
     if p.returncode:
-        if allow_missing:
-            return None
         raise RuntimeError("Azure DEV read/preview command failed")
     return json.loads(p.stdout)
 
@@ -58,9 +56,21 @@ def group_scoped():
     return expected
 
 
-def resource(name, rtype, *, allow_missing=False):
+def resource(name, rtype):
     return command("resource", "show", "-g", RG, "-n", name,
-                   "--resource-type", rtype, allow_missing=allow_missing)
+                   "--resource-type", rtype)
+
+
+def assert_absent(name, rtype):
+    """List succeeds with [] on absence; a 403 or other CLI error must STOP."""
+    resources = command("resource", "list", "-g", RG, "--resource-type", rtype)
+    if not isinstance(resources, list):
+        raise RuntimeError("DEV ARM inventory is not a resource list")
+    if any(not isinstance(item, dict) for item in resources):
+        raise RuntimeError("Malformed DEV ARM inventory")
+    if any(str(item.get("name", "")).casefold() == name.casefold()
+           for item in resources):
+        raise RuntimeError("Refusing to overwrite existing canary resource")
 
 
 def expected_two_creations(preview):
@@ -88,10 +98,8 @@ def expected_two_creations(preview):
 
 def preflight():
     group_scoped()
-    if resource(SITE, "Microsoft.Web/sites", allow_missing=True) is not None:
-        raise RuntimeError("Refusing to overwrite Y1 site")
-    if resource(PLAN, "Microsoft.Web/serverfarms", allow_missing=True) is not None:
-        raise RuntimeError("Refusing to overwrite Y1 plan")
+    assert_absent(SITE, "Microsoft.Web/sites")
+    assert_absent(PLAN, "Microsoft.Web/serverfarms")
     preview = command("deployment", "group", "what-if", "-g", RG,
                       "--template-file", TEMPLATE, "--no-pretty-print")
     expected_two_creations(preview)
