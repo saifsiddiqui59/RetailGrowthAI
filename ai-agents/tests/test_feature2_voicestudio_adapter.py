@@ -18,6 +18,21 @@ def _wav():
     return out.getvalue()
 
 
+class FakeVoiceStudioReply(io.BytesIO):
+    status = 200
+    headers = {"Content-Type": "audio/wav"}
+
+    def __init__(self, data, *, url="http://127.0.0.1:3900/v1/audio/speech", status=200,
+                 content_type="audio/wav"):
+        super().__init__(data)
+        self.url = url
+        self.status = status
+        self.headers = {"Content-Type": content_type}
+
+    def geturl(self):
+        return self.url
+
+
 def _call(**overrides):
     params = {
         "text": "Welcome to our shop.",
@@ -26,7 +41,7 @@ def _call(**overrides):
         "voice": "alloy",
         "enabled": True,
         "commercial_model_verified": True,
-        "transport": lambda req, timeout: io.BytesIO(_wav()),
+        "transport": lambda req, timeout: FakeVoiceStudioReply(_wav()),
     }
     params.update(overrides)
     return synthesize_voice_wav(**params)
@@ -36,7 +51,7 @@ def test_pcm_wav_speech_returned_from_stub():
     seen = []
     def transport(req, timeout):
         seen.append((req, timeout))
-        return io.BytesIO(_wav())
+        return FakeVoiceStudioReply(_wav())
     assert _call(transport=transport) == _wav()
     assert len(seen) == 1
     req, timeout = seen[0]
@@ -82,7 +97,7 @@ def test_denials_without_network(config):
 ])
 def test_malformed_or_oversized_response_denied(blob):
     with pytest.raises(VoiceStudioUnavailable):
-        _call(transport=lambda req, timeout: io.BytesIO(blob))
+        _call(transport=lambda req, timeout: FakeVoiceStudioReply(blob))
 
 
 def test_upstream_error_is_redacted():
@@ -92,3 +107,20 @@ def test_upstream_error_is_redacted():
     with pytest.raises(VoiceStudioUnavailable) as err:
         _call(transport=transport)
     assert "secret" not in str(err.value)
+
+
+@pytest.mark.parametrize("reply", [
+    {"status": 202},
+    {"url": "https://attacker.example/v1/audio/speech"},
+    {"content_type": "text/html"},
+    {"content_type": ""},
+])
+def test_status_origin_and_mime_denied(reply):
+    with pytest.raises(VoiceStudioUnavailable):
+        _call(transport=lambda req, timeout: FakeVoiceStudioReply(_wav(), **reply))
+
+
+def test_truncated_riff_data_denied_even_if_header_claims_longer():
+    audio = _wav()
+    with pytest.raises(VoiceStudioUnavailable):
+        _call(transport=lambda req, timeout: FakeVoiceStudioReply(audio[:45]))
