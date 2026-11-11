@@ -96,7 +96,8 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     # compiler must not silently replace the tenant object while processing.
     before_asset = deepcopy(snapshot["assets"][asset_id])
     original = read_current_private_wav(shop, campaign, asset_id)
-    if type(original) is not bytes or not 44 <= len(original) <= 8 * 1024 * 1024:
+    if (type(original) is not bytes or not 44 <= len(original)
+            <= 44 + duration * 96000 * 2 * 2):
         raise CreativeContractError("Bounded private narration bytes required")
     # wave.open accepts trailing bytes and ignores an inconsistent RIFF length.
     # A private asset must be one complete, canonical RIFF/WAVE object.
