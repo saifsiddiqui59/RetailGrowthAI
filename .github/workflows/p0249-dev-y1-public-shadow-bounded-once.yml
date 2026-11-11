@@ -1,0 +1,152 @@
+name: "RetailGrowthAI #249 bounded Y1 public-only JWT shadow activation (DEV)"
+# Explicitly owner-approved DEV temporary READ-ONLY config; no service_role, queues or private customer media.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0249-dev-y1-public-shadow-bounded-once.yml'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "TEMPORARILY set 3 public-only DEV Y1 appsettings; independent cleanup mandatory"
+        type: choice
+        required: true
+        options: ["NO", "YES-Y1-DEV-PUBLIC-SHADOW-BOUNDED"]
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-dev-y1-readonly-shadow
+  cancel-in-progress: false
+jobs:
+  preflight:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' &&
+        inputs.confirm == 'YES-Y1-DEV-PUBLIC-SHADOW-BOUNDED') ||
+       (github.event_name == 'push' &&
+        startsWith(github.event.head_commit.message,
+        'ops(#249): bounded DEV Y1 public-only JWT shadow trial')))
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RGAI_DEV_P0249_PUBLISHABLE_KEY: "sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Offline security/rollback regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/p0249_y1_public_shadow_trial_guard.py
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_public_shadow_trial_guard.py' -v
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Read Y1-only exact original config state, refuse any occupied settings
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_public_shadow_trial_guard.py preflight \
+            --marker "$RUNNER_TEMP/p0249-public-before.json"
+      - name: Persist safe run-bound ABSENT marker before any mutation
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0249-public-before-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/p0249-public-before.json
+          retention-days: 1
+          if-no-files-found: error
+      - name: Logout
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
+
+  temporary-negative-test:
+    needs: preflight
+    if: needs.preflight.result == 'success'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RGAI_DEV_P0249_PUBLISHABLE_KEY: "sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: p0249-public-before-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/p0249-public
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Set ONLY three public settings, test invalid/missing JWT, always restore
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker="$RUNNER_TEMP/p0249-public/p0249-public-before.json"
+          cleanup() {
+            python3 -u ops/p0249_y1_public_shadow_trial_guard.py rollback --marker "$marker"
+          }
+          trap cleanup EXIT
+          python3 -u ops/p0249_y1_public_shadow_trial_guard.py activate --marker "$marker"
+          sleep 35
+          python3 -u ops/p0249_y1_public_shadow_trial_guard.py test --marker "$marker"
+      - name: Logout
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
+
+  independent-restore:
+    needs: [preflight, temporary-negative-test]
+    if: >-
+      always() &&
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      needs.preflight.result == 'success'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RGAI_DEV_P0249_PUBLISHABLE_KEY: "sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: p0249-public-before-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/p0249-public
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Independently verify all 3 ephemeral settings absent afterward
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_public_shadow_trial_guard.py rollback \
+            --marker "$RUNNER_TEMP/p0249-public/p0249-public-before.json"
+      - name: Logout
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
