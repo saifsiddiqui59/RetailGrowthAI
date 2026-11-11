@@ -18,18 +18,18 @@ function pcmWavDuration(b) {
     const id=b.toString('ascii',offset,offset+4);
     const len=b.readUInt32LE(offset+4);
     const start=offset+8,end=start+len;
-    if (end>b.length) return false;
+    if (end>b.length) return null;
     if (id==='fmt ') {
-      if (fmt!==null || len<16) return false;
+      if (fmt!==null || len<16) return null;
       const format=b.readUInt16LE(start),channels=b.readUInt16LE(start+2);
       const rate=b.readUInt32LE(start+4),byteRate=b.readUInt32LE(start+8);
       const align=b.readUInt16LE(start+12),bits=b.readUInt16LE(start+14);
       if (format!==1 || channels<1 || channels>2 || rate<8000 || rate>48000 ||
-          bits!==16 || align!==channels*2 || byteRate!==rate*align) return false;
+          bits!==16 || align!==channels*2 || byteRate!==rate*align) return null;
       fmt=align;
       byteRate=rate*align;
     }
-    if (id==='data') {if (data!==0 || len===0) return false;data=len;}
+    if (id==='data') {if (data!==0 || len===0) return null;data=len;}
     offset=end+(len%2);
   }
   return offset===b.length && fmt!==null && data>0 && data%fmt===0
