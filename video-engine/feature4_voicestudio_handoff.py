@@ -63,7 +63,10 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         request_id = record.get("request_id")
         if not isinstance(digest, str) or not _HASH.fullmatch(digest) or not _uuid4(request_id):
             raise CreativeContractError("Missing private narration origin digest")
-        row = snapshot.get("assets", {}).get(asset_id)
+        assets = snapshot.get("assets")
+        if type(assets) is not dict:
+            raise CreativeContractError("Trusted private media manifest required")
+        row = assets.get(asset_id)
         expected_path = f"{shop}/voicestudio/{campaign}/{request_id}/render.wav"
         if (not isinstance(row, dict) or row.get("shop_id") != shop
                 or row.get("approved") is not True
