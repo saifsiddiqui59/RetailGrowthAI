@@ -27,7 +27,10 @@ function pcmWavDuration(b) {
       const format=b.readUInt16LE(start),channels=b.readUInt16LE(start+2);
       const rate=b.readUInt32LE(start+4),declaredByteRate=b.readUInt32LE(start+8);
       const align=b.readUInt16LE(start+12),bits=b.readUInt16LE(start+14);
-      if (format!==1 || channels<1 || channels>2 || rate<8000 || rate>48000 ||
+      // Plain PCM fmt is 16 bytes; the only supported extended PCM fmt is
+      // WAVEFORMATEX with cbSize=0. Reject opaque extra format metadata.
+      if ((len!==16 && (len!==18 || b.readUInt16LE(start+16)!==0)) ||
+          format!==1 || channels<1 || channels>2 || rate<8000 || rate>48000 ||
           bits!==16 || align!==channels*2 || declaredByteRate!==rate*align) return null;
       fmt=align;
       byteRate=rate*align;
