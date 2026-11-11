@@ -50,7 +50,7 @@ class Y1ReadOnlyCampaignShadowTests(unittest.TestCase):
         for auth in ("", "garbage", "bearer token", "Basic anything",
                      "Bearer ", "Bearer " + "x" * 8193):
             with self.subTest(auth=auth[:10]), \
-                 patch.object(shadow, "HTTPAPI",
+                 patch.object(shadow, "_build_original_api",
                               side_effect=AssertionError("must never access store")):
                 self.assertEqual(
                     shadow.handle_campaign_get(auth, UUID, environment={}),
@@ -58,10 +58,8 @@ class Y1ReadOnlyCampaignShadowTests(unittest.TestCase):
                 )
 
     def test_feature_off_denies_before_any_sql_or_jwks(self):
-        with patch.object(shadow, "SupabaseJWTVerifier",
-                          side_effect=AssertionError("no JWT verification")), \
-             patch.object(shadow, "TenantStore",
-                          side_effect=AssertionError("no SQL")):
+        with patch.object(shadow, "_build_original_api",
+                          side_effect=AssertionError("no JWT or SQL access")):
             self.assertEqual(
                 shadow.handle_campaign_get("Bearer suspect", UUID, environment={}),
                 (503, {"error": "SERVICE_NOT_CONFIGURED"}),
@@ -71,7 +69,7 @@ class Y1ReadOnlyCampaignShadowTests(unittest.TestCase):
         for env in ({"RGAI_P0249_READONLY_SHADOW": "true"},
                     {"RGAI_P0249_READONLY_SHADOW": "true",
                      "RETAIL_SUPABASE_URL": ENV["RETAIL_SUPABASE_URL"]}):
-            with patch.object(shadow, "HTTPAPI",
+            with patch.object(shadow, "_build_original_api",
                               side_effect=AssertionError("no API")):
                 self.assertEqual(
                     shadow.handle_campaign_get("Bearer invalid", UUID, environment=env),
@@ -81,9 +79,9 @@ class Y1ReadOnlyCampaignShadowTests(unittest.TestCase):
     def test_signed_get_delegates_exactly_to_original_httpapi(self):
         api = MagicMock()
         api.handle.return_value = (404, {"error": "NOT_FOUND"})
-        with patch.object(shadow, "SupabaseJWTVerifier") as verify, \
-             patch.object(shadow, "TenantStore") as store, \
-             patch.object(shadow, "HTTPAPI", return_value=api) as api_type:
+        with patch("security.SupabaseJWTVerifier") as verify, \
+             patch("tenant_store.TenantStore") as store, \
+             patch("http_api.HTTPAPI", return_value=api) as api_type:
             output = shadow.handle_campaign_get("Bearer synthetic-jwt", UUID,
                                                  environment=ENV)
         self.assertEqual(output, (404, {"error": "NOT_FOUND"}))
@@ -94,6 +92,25 @@ class Y1ReadOnlyCampaignShadowTests(unittest.TestCase):
         api.handle.assert_called_once_with(
             "GET", "/campaigns/" + UUID, "Bearer synthetic-jwt",
         )
+
+    def test_python_v1_module_import_never_requires_heavy_original_auth(self):
+        import ast
+        tree = ast.parse(SOURCE.read_text())
+        top_imports = [
+            a.module for a in tree.body if isinstance(a, ast.ImportFrom)
+        ]
+        self.assertIn("request_diagnostics", top_imports)
+        for forbidden in ("http_api", "tenant_store", "security"):
+            self.assertNotIn(forbidden, top_imports)
+        # The imports still live inside a guarded builder; do not replace
+        # original signed authentication with a permissive fallback.
+        builder = next(n for n in tree.body
+                       if isinstance(n, ast.FunctionDef) and
+                       n.name == "_build_original_api")
+        nested_imports = [x.module for x in ast.walk(builder)
+                          if isinstance(x, ast.ImportFrom)]
+        self.assertEqual(set(nested_imports),
+                         {"http_api", "tenant_store", "security"})
 
     def test_main_preserves_denial_headers_without_token_leak(self):
         request = MagicMock()
