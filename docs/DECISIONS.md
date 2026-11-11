@@ -1084,3 +1084,6 @@ Owner direction to reuse original VoiceStudio code implemented with unchanged pi
 
 ## 2026-11-11 — Fast-path Feature2 source merge, separate sensitive integration reviews
 For speed, isolate source-safe VoiceStudio original-key/private WAV composition in direct-main PR #932 (4/4 exact-head) while keeping JWT/SQL privileged client PR #920, review-only SQL schema #923, and root Azure route #925 independently reviewable. Do not merge a protected root API or deploy a service-role SQL procedure merely because offline CI passed. Private voice can only return NEEDS_REVIEW and never publish rights; the commercial model and licensing evidence must be verified independently; default OmniVoice CC-BY-NC weights remain disabled. Preserve old source F2/F4/F7 rights checks; WineShopPOS/PROD/paid/GPU untouched.
+
+## 2026-11-11 — Operator-only model licensing registry in VoiceStudio SQL proposal
+The review-only SQL PR #923 now requires an operator-maintained commercial model rights registry, with independent checks for weights, tokenizers, dependencies and upstream AGPL obligations, revoked status, exact revision identifiers and no service/public write access. All four RPC reads must check current nonrevoked evidence. No model rights are auto-approved or seeded; SQL stays unapplied until independent security/legal review, and source tests do not replace real licenses.
