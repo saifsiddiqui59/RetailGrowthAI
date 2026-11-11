@@ -207,7 +207,7 @@ class Y1SignedOriginalTwoShopParity(TestCase):
 
     def test_malformed_campaign_cannot_read_other_tenants(self):
         token = make_token(A_USER)
-        for campaign in ("../" + B_CAMPAIGN, B_CAMPAIGN.upper(), "not-a-uuid"):
+        for campaign in ("../" + B_CAMPAIGN, "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA", "not-a-uuid"):
             # Source HTTPAPI may ask for malformed campaign before DB dispatch,
             # but no other tenant row is returned or leaked.
             before = len(self.backend.requests)
@@ -222,7 +222,8 @@ class Y1SignedOriginalTwoShopParity(TestCase):
             route_params={"campaign_id": B_CAMPAIGN},
             headers={"Authorization": "Bearer " + token},
         )
-        result = shadow.main(request)
+        with patch.dict("os.environ", ENV):
+            result = shadow.main(request)
         self.assertEqual(result.status_code, 404)
         body = result.get_body().decode("utf-8")
         self.assertEqual(json.loads(body), {"error": "NOT_FOUND"})
