@@ -129,6 +129,19 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             with self.subTest(mutate=mutate), self.assertRaises(CreativeContractError):
                 self.call(d,s,r,malformed)
 
+    def test_private_wav_rejects_hidden_riff_chunks(self):
+        # A correct outer RIFF length is insufficient: wave.open ignores
+        # unknown chunks after data, duplicate data and trailing bytes.
+        for extra in (b"JUNK" + (4).to_bytes(4, "little") + b"evil",
+                      b"data" + (2).to_bytes(4, "little") + b"xx",
+                      b"JUNK" + (5).to_bytes(4, "little") + b"short"):
+            d, s, r, data = self.setup_case()
+            forged = data + extra
+            forged = forged[:4] + (len(forged) - 8).to_bytes(4, "little") + forged[8:]
+            r["feature4_audio_sha256"] = sha256(forged).hexdigest()
+            with self.subTest(extra=extra), self.assertRaises(CreativeContractError):
+                self.call(d, s, r, forged)
+
     def test_revocation_during_read_is_not_accepted(self):
         d,s,r,data=self.setup_case()
         counts=[0]
