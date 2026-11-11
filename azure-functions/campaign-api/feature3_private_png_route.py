@@ -244,9 +244,10 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # Reject inconsistent inner binary receipts before releasing bytes.
         # Never trust a backend Content-Length that disagrees with the body.
         # Bound response allocation before handing bytes to the Azure host.
-        # A compromised/misconfigured private reader must not return an
-        # unbounded image even with a self-consistent Content-Length.
-        if len(reply.body) > 64 * 1024 * 1024:
+        # Enforce the canonical private reader's 25 MiB limit at the Azure
+        # response boundary too, even if an injected backend is compromised.
+        # Never release a larger payload solely because its length agrees.
+        if len(reply.body) > 25 * 1024 * 1024:
             return _denied(503, response_type)
         declared_length = reply.headers.get("Content-Length")
         if (type(declared_length) is not str or
