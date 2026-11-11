@@ -44,8 +44,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile ops/p0249_y1_public_shadow_trial_guard.py
+          python3 -m py_compile ops/p0249_y1_public_shadow_trial_guard.py tests/e2e/p0249_y1_signed_auth_shadow_once.py
           python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_public_shadow_trial_guard.py' -v
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_real_signed_shadow_source.py' -v
       - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
