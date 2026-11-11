@@ -48,7 +48,12 @@ def _safe_jwt_json(segment, *, header=False):
         if base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=") != segment:
             return False
         if not header:
-            return type(claims.get("sub")) is str and bool(claims["sub"])
+            subject = claims.get("sub")
+            # An opaque user identifier must not contain whitespace, control
+            # characters or Unicode lookalikes. Signature verification remains
+            # mandatory; this is only a pre-auth ambiguity fence.
+            return (type(subject) is str and 1 <= len(subject) <= 256 and
+                    all(33 <= ord(ch) <= 126 for ch in subject))
         return (type(claims.get("alg")) is str and
                 claims["alg"] in ("HS256", "RS256", "ES256") and
                 not any(key in claims for key in
