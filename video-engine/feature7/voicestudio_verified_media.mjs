@@ -79,7 +79,8 @@ export async function bindVerifiedVoiceStudioMedia({
   // claimed original video. Otherwise valid signed words could refer to
   // fabricated audio beyond the video timeline.
   deny(wavDuration!==null && Number.isFinite(source_duration_seconds) &&
-    source_duration_seconds>0 && wavDuration.seconds<=source_duration_seconds+0.02 &&
+    source_duration_seconds>0 &&
+    wavDuration.seconds<=source_duration_seconds+1/wavDuration.sampleRate &&
     sha(wav)===original_audio_sha256);
   // A valid HMAC must never bless word offsets beyond the actual PCM sample clock.
   // Permit at most one PCM sample for decimal timestamp rounding, not a 20ms
