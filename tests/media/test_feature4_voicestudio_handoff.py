@@ -194,7 +194,7 @@ class VoiceStudioHandoffTests(unittest.TestCase):
 
         d, s, r, data = self.setup_case()
         # Add one unaligned PCM byte and a legal zero RIFF padding byte.
-        payload = data[:40] + (len(data) - 44 + 1).to_bytes(4, "little") + data[44:] + b"\\x01\\x00"
+        payload = data[:40] + (len(data) - 44 + 1).to_bytes(4, "little") + data[44:] + bytes((1, 0))
         payload = payload[:4] + (len(payload) - 8).to_bytes(4, "little") + payload[8:]
         r["feature4_audio_sha256"] = sha256(payload).hexdigest()
         with self.assertRaises(CreativeContractError):
