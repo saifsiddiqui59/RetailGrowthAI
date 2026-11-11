@@ -536,3 +536,20 @@ def test_post_read_membership_provider_failure_denies_private_audio_without_retr
     assert exc.value.__cause__ is None
     assert len(storage.calls) == 1 and len(sql.calls) == 2
     assert len(tenant.calls) == 2
+
+
+def test_audio_asset_identity_rotation_during_private_read_denies_bytes():
+    """An original-key job must not swap the private asset identity mid-read."""
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def rotated(*ids):
+        receipt = original(*ids)
+        if len(sql.calls) == 2:
+            receipt["audio_asset_id"] = str(uuid4())
+        return receipt
+    sql.read_private_receipt = rotated
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1
+    assert len(sql.calls) == 2
+    assert len(tenant.calls) == 1
