@@ -204,7 +204,8 @@ def write_zip(path: Path, entries: dict[str, bytes]):
         )
         raise ValueError(
             f"Functions ZIP manifest exceeds 120 members ({len(entries)}): "
-            f"{counts}; audit runtime dependencies rather than raising limits"
+            f"{counts}; members={', '.join(sorted(entries))}; "
+            "audit runtime dependencies rather than raising limits"
         )
     path.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(path, "w", compression=ZIP_DEFLATED, compresslevel=6) as zip_file:
