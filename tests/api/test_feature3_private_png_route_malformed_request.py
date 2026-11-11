@@ -108,6 +108,30 @@ class Tests(unittest.TestCase):
                 self.assertEqual(response.body, b"")
                 self.assertEqual(response.headers["Content-Length"], "0")
 
+    def test_backend_receipt_metadata_is_bounded_before_validation(self):
+        # Synthetic compromised reader response, never hosted authorization.
+        # Reject oversized names and header floods without forwarding bytes.
+        png_like = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
+        base = {"Content-Type": "image/png",
+                "Cache-Control": "no-store, private",
+                "Content-Length": str(len(png_like))}
+        mutations = (
+            {"X-" + "a" * 100000: "fixture"},
+            {"X-Test-%d" % i: "fixture" for i in range(100)},
+        )
+        for extra in mutations:
+            with self.subTest(extra_count=len(extra)):
+                with patch("feature3_private_png_route.private_png_http",
+                           return_value=SimpleNamespace(
+                               status=200, body=png_like,
+                               headers={**base, **extra})):
+                    response = handle_private_png_request(
+                        Request(), reader_factory=lambda *args: None,
+                        response_type=Response)
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.body, b"")
+                self.assertEqual(response.headers["Content-Length"], "0")
+
     def test_private_png_backend_transformation_and_duplicate_headers_denied(self):
         # Synthetic compromised backend fixtures; no hosted authorization.
         png_like = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
