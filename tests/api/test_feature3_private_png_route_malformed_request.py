@@ -162,6 +162,18 @@ class Tests(unittest.TestCase):
                 self.assertEqual(response.body, b"")
                 self.assertEqual(response.headers["Content-Length"], "0")
 
+    def test_oversized_route_uuid_denied_before_reader_or_body(self):
+        # Synthetic untrusted framework path parameters; not hosted auth.
+        for key in ("shop_id", "job_id"):
+            with self.subTest(key=key):
+                request = Request()
+                request.route_params = dict(Request.route_params)
+                request.route_params[key] = "a" * (1024 * 1024)
+                body_reads = []
+                request.get_body = lambda: body_reads.append(True) or b""
+                self.assert_denied_before_reader(request)
+                self.assertEqual(body_reads, [])
+
     def test_noncanonical_route_scope_denied_before_reader(self):
         # Synthetic scopes must not invoke JWT, rights or storage adapters.
         shop = Request.route_params["shop_id"]
