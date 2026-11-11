@@ -270,6 +270,18 @@ def handle_private_png_request(request, *, reader_factory, response_type):
                     "Content-Security-Policy", "Vary",
                 } for name in backend_names)):
             return _denied(503, response_type)
+        # Treat injected backend metadata as untrusted even when header names
+        # are allowlisted. Bound all values before digest/receipt validation;
+        # reject custom equality objects and oversized diagnostic strings.
+        total_backend_header_bytes = 0
+        for name in backend_names:
+            value = reply.headers[name]
+            if type(value) is not str or len(value) > 4096:
+                return _denied(503, response_type)
+            total_backend_header_bytes += len(name) + len(value)
+            if total_backend_header_bytes > 8192 or any(
+                    ord(char) < 32 or ord(char) > 126 for char in value):
+                return _denied(503, response_type)
         # The canonical verified binary handler supplies scope and checksum
         # receipts. Validate these before stripping internal identifiers from
         # the public Azure response; never trust mismatched backend scope.
