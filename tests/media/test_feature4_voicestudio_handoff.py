@@ -80,6 +80,23 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             with self.subTest(mutate=mutate),self.assertRaises(CreativeContractError):
                 self.call(draft,snapshot,receipt,data)
 
+    def test_spoofed_voice_provider_or_campaign_denied_before_private_io(self):
+        for key, forged in (("voiceover_source", "ai"),
+                            ("voiceover_source", "voicestudio-unreviewed"),
+                            ("campaign_id", str(uuid4()))):
+            draft, snapshot, receipt, data = self.setup_case()
+            draft[key] = forged
+            calls = []
+            def receipt_reader(*args):
+                calls.append(args)
+                return dict(receipt)
+            with self.subTest(key=key, forged=forged), self.assertRaises(CreativeContractError):
+                compile_voicestudio_narrated_reel(
+                    draft=draft, snapshot=snapshot,
+                    read_current_receipt=receipt_reader,
+                    read_current_private_wav=lambda *_: data)
+            self.assertEqual(calls, [], "Invalid scope must not access private media")
+
     def test_private_narration_rights_metadata_requires_nonblank_strings(self):
         # Truthy numbers, containers and whitespace are not legal evidence.
         for key in ("rights_source", "rights_evidence"):
