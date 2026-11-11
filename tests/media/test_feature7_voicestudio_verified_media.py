@@ -37,12 +37,18 @@ await assert.rejects(()=>bindVerifiedVoiceStudioMedia({
  ...base,source_duration_seconds:0.5,
  review:{...review,words:[{word:'नमस्कार',start:.1,end:.4}]}
 }));
-// Boundary tolerance permits only a small sample-clock rounding difference.
+// Original-video duration permits at most one verified PCM sample of rounding.
 const nearBoundary=await bindVerifiedVoiceStudioMedia({
- ...base,source_duration_seconds:0.99,
+ ...base,source_duration_seconds:1-1/16000,
  review:{...review,words:[{word:'नमस्कार',start:.1,end:.7}]}
 });
 assert.equal(nearBoundary.evidence.source_sha256,v);
+// Two samples of fabricated audio beyond the video must fail even with a
+// matching WAV digest, active lease and valid Marathi word timings.
+await assert.rejects(()=>bindVerifiedVoiceStudioMedia({
+ ...base,source_duration_seconds:1-2/16000,
+ review:{...review,words:[{word:'नमस्कार',start:.1,end:.7}]}
+}));
 const denied=async changes=>assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,...changes}));
 await denied({readOriginalVideo:async()=>Buffer.from('changed')});
 await denied({readExtractedWav:async()=>Buffer.alloc(64)});
