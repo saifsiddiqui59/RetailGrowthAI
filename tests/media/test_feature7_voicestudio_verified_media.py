@@ -74,6 +74,20 @@ await denied({readExtractedWav:async()=>dataFirst,
  original_audio_sha256:digest(dataFirst),
  review:{...review,audio_sha256:digest(dataFirst)},
  readCurrentLease:async()=>({...lease,audio_sha256:digest(dataFirst)})});
+// A trailing metadata chunk after samples is ambiguous and must never be signed.
+const trailing=Buffer.concat([wav,Buffer.from('JUNK'),Buffer.from([4,0,0,0]),Buffer.alloc(4)]);
+trailing.writeUInt32LE(trailing.length-8,4);
+await denied({readExtractedWav:async()=>trailing,
+ original_audio_sha256:digest(trailing),
+ review:{...review,audio_sha256:digest(trailing)},
+ readCurrentLease:async()=>({...lease,audio_sha256:digest(trailing)})});
+// Even a zero-length trailing chunk must be denied.
+const zeroTrailing=Buffer.concat([wav,Buffer.from('LIST'),Buffer.alloc(4)]);
+zeroTrailing.writeUInt32LE(zeroTrailing.length-8,4);
+await denied({readExtractedWav:async()=>zeroTrailing,
+ original_audio_sha256:digest(zeroTrailing),
+ review:{...review,audio_sha256:digest(zeroTrailing)},
+ readCurrentLease:async()=>({...lease,audio_sha256:digest(zeroTrailing)})});
 console.log('original bytes, Marathi captions and lease revocation denials passed');
 """
 class VerifiedMediaTests(unittest.TestCase):
