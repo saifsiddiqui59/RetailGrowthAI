@@ -412,6 +412,47 @@ class FactoryTests(unittest.TestCase):
             reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
         self.assertEqual(calls, [token])
 
+    def test_noncanonical_signature_denied_before_verifier_and_rls(self):
+        # A signature's unused pad bits must be zero, even when permissive
+        # Base64URL decoders would produce identical signature bytes.
+        calls = []
+        class CountingStore(Store):
+            def member(self, *args):
+                calls.append("rls")
+                raise AssertionError("untrusted signature reached tenant store")
+        def verify(token):
+            calls.append("verify")
+            raise AssertionError("untrusted signature reached verifier")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=CountingStore(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        header = "eyJhbGciOiJSUzI1NiJ9"
+        payload = "eyJzdWIiOiJmaXh0dXJlIn0"
+        for signature in ("", "_x", "_z", "a", "AA=", "AA+",
+                          "AA/", "AA\\n", "AA\\r"):
+            with self.subTest(signature=repr(signature)):
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    reader.read(user_token=f"{header}.{payload}.{signature}",
+                                shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, [])
+
+    def test_canonical_signature_still_requires_crypto_verification(self):
+        calls = []
+        def verify(token):
+            calls.append(token)
+            raise ValueError("fixture is not signed")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=Store(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        token = ("eyJhbGciOiJSUzI1NiJ9."
+                 "eyJzdWIiOiJmaXh0dXJlIn0."
+                 "c2lnbmF0dXJl")
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, [token])
+
     def test_valid_scope_reaches_real_reader_and_denies_fake_jwt(self):
         # No mocked success: the actual reader must reject the fixture token.
         reader = self.make()(self.shop, self.job)
