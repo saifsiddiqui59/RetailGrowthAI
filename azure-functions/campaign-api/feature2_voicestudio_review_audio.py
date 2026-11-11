@@ -7,6 +7,7 @@ membership remain valid. It cannot approve, publish or render the asset.
 from __future__ import annotations
 
 import re
+from hashlib import sha256
 from uuid import UUID
 
 from security import AuthenticationError
@@ -82,7 +83,8 @@ def read_current_voiceover_for_review(
         content = private_storage.read_verified_original(
             shop_id, campaign_id, request_id, before["original_sha256"]
         )
-        if type(content) is not bytes or not 44 <= len(content) <= 8 * 1024 * 1024:
+        if (type(content) is not bytes or not 44 <= len(content) <= 8 * 1024 * 1024
+                or sha256(content).hexdigest() != before["original_sha256"]):
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
         # A role, claim, rights or reviewed plan could be revoked during I/O.
         if _receipt(sql_receipt, shop_id, campaign_id, request_id) != before:
