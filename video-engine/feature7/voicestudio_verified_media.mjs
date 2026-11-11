@@ -19,7 +19,10 @@ function pcmWavDuration(b) {
     const len=b.readUInt32LE(offset+4);
     const start=offset+8,end=start+len;
     if (end>b.length) return null;
-    // No chunks may follow PCM samples: reject appended payloads even when RIFF\n    // length and attacker-supplied digest are internally consistent.\n    if (seenData) return null;\n    if (id==='fmt ') {
+    // No chunks may follow PCM samples: reject appended payloads even when RIFF
+    // length and attacker-supplied digest are internally consistent.
+    if (seenData) return null;
+    if (id==='fmt ') {
       if (fmt!==null || len<16) return null;
       const format=b.readUInt16LE(start),channels=b.readUInt16LE(start+2);
       const rate=b.readUInt32LE(start+4),declaredByteRate=b.readUInt32LE(start+8);
