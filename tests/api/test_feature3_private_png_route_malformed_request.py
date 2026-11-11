@@ -70,6 +70,23 @@ class Tests(unittest.TestCase):
         self.assertEqual(response.body, b"")
         self.assertEqual(response.headers["Content-Length"], "0")
 
+    def test_backend_png_above_canonical_reader_limit_denied(self):
+        # A synthetic compromised backend must not bypass the reader's
+        # 25 MiB cap by returning a self-consistent Content-Length.
+        png_like = bytes.fromhex("89504e470d0a1a0a") + b"x" * (25 * 1024 * 1024)
+        with patch("feature3_private_png_route.private_png_http",
+                   return_value=SimpleNamespace(
+                       status=200, body=png_like,
+                       headers={"Content-Type": "image/png",
+                                "Cache-Control": "no-store, private",
+                                "Content-Length": str(len(png_like))})):
+            response = handle_private_png_request(
+                Request(), reader_factory=lambda *args: None,
+                response_type=Response)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.body, b"")
+        self.assertEqual(response.headers["Content-Length"], "0")
+
     def test_private_png_receipt_length_mismatch_fails_closed(self):
         # Synthetic backend replies are not proof of signed hosted access.
         # Even a PNG-looking body must not escape if the trusted adapter
