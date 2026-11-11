@@ -1,0 +1,194 @@
+name: RetailGrowthAI #249 existing Y1 read-only campaign shadow route DEV only
+# Owner-selected alternate HTTP hosting. No new ARM resources or original Flex change.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0249-dev-y1-campaign-readonly-shadow-once.yml'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Only deploy two GET functions to isolated existing DEV Y1; real tenant reads disabled"
+        required: true
+        type: choice
+        options: ["NO", "YES-Y1-GET-SHADOW"]
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-dev-y1-readonly-shadow
+  cancel-in-progress: false
+jobs:
+  deploy-and-prove-denial:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' &&
+        inputs.confirm == 'YES-Y1-GET-SHADOW') ||
+       (github.event_name == 'push' &&
+        startsWith(github.event.head_commit.message,
+        'feat(#249): stage readonly campaign GET shadow on existing Y1')))
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 32
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Test original JWT/RLS delegation, read-only route and fail closed gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --quiet \
+            'azure-functions==1.24.0' 'PyJWT[crypto]==2.10.1'
+          python3 -m unittest discover -s tests/infra \
+            -p 'test_p0249_y1_readonly_campaign_shadow.py' -v
+          python3 -m unittest discover -s tests/infra \
+            -p 'test_p0249_y1_v1_index_recovery.py' -v
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify existing isolated Y1 and original FC1 unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_canary_guard.py verify
+      - name: Require current Y1 only hosts original isolated HTTP health canary
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp function list -g rg-retailgrowth-dev \
+            -n rgai-dev-y1-p0249-d4e5ddbd \
+            --query "[].name" -o json > "$RUNNER_TEMP/p0249-existing-functions.json"
+          python3 - "$RUNNER_TEMP/p0249-existing-functions.json" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1]))
+          names={str(x).split('/')[-1].casefold() for x in data}
+          if names!={'p0249_health'} or len(data)!=1:
+              raise SystemExit("DENIED: Y1 hosts unexpected functions, refuse ZIP overwrite")
+          print("P0249_Y1_EXISTING_FUNCTIONS=ONLY_P0249_HEALTH",flush=True)
+          PY
+          # The shadow campaign endpoint must stay disabled for genuine JWTs:
+          # never output Azure appsetting values or original production config.
+          active="$(az functionapp config appsettings list -g rg-retailgrowth-dev \
+            -n rgai-dev-y1-p0249-d4e5ddbd \
+            --query "[?name=='RGAI_P0249_READONLY_SHADOW' && value=='true'].name" -o tsv)"
+          test -z "$active" || { echo "::error::Shadow already enabled; refuse staging"; exit 2; }
+      - name: Build local Linux Python3.12 ZIP using original auth/store source verbatim
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACKAGE="$RUNNER_TEMP/p0249-y1-readonly-package"
+          mkdir -p "$PACKAGE/p0249_health" "$PACKAGE/campaign_read" \
+                   "$PACKAGE/ai_agents" "$PACKAGE/.python_packages/lib/site-packages"
+          cp ops/p0249-y1-v1-canary/p0249_health/__init__.py "$PACKAGE/p0249_health/"
+          cp ops/p0249-y1-v1-canary/p0249_health/function.json "$PACKAGE/p0249_health/"
+          cp ops/p0249-y1-v1-canary/host.json "$PACKAGE/"
+          cp ops/p0249-y1-readonly-campaign/campaign_read/__init__.py "$PACKAGE/campaign_read/"
+          cp ops/p0249-y1-readonly-campaign/campaign_read/function.json "$PACKAGE/campaign_read/"
+          cp ops/p0249-y1-readonly-campaign/requirements.txt "$PACKAGE/"
+          for file in http_api.py tenant_store.py security.py draft_api.py request_diagnostics.py; do
+            cp "azure-functions/campaign-api/$file" "$PACKAGE/$file"
+          done
+          cp ai-agents/src/ai_agents/__init__.py ai-agents/src/ai_agents/schemas.py \
+            "$PACKAGE/ai_agents/"
+          python3 -m pip install --disable-pip-version-check --quiet --no-cache-dir \
+            -r "$PACKAGE/requirements.txt" \
+            --target "$PACKAGE/.python_packages/lib/site-packages"
+          python3 - "$PACKAGE" <<'PY'
+          import ast,json,pathlib,sys
+          root=pathlib.Path(sys.argv[1])
+          found=[]
+          for path in root.glob("*/function.json"):
+              manifest=json.loads(path.read_text())
+              triggers=[x for x in manifest["bindings"] if x["type"]=="httpTrigger"]
+              assert len(triggers)==1 and triggers[0]["methods"]==["get"]
+              assert manifest["scriptFile"]=="__init__.py"
+              found.append(path.parent.name)
+          assert set(found)=={"campaign_read","p0249_health"} and len(found)==2
+          for mod in ("http_api.py","tenant_store.py","security.py",
+                      "draft_api.py","request_diagnostics.py","ai_agents/schemas.py"):
+              assert (root/mod).is_file()
+              ast.parse((root/mod).read_text())
+          print("P0249_Y1_READONLY_PACKAGE=2_GET_ROUTES_ORIGINAL_JWT_RLS",flush=True)
+          PY
+          (cd "$PACKAGE" && zip -qr "$RUNNER_TEMP/p0249-y1-readonly.zip" .)
+      - name: Replace code only on isolated Y1, no Function App settings or ARM writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp deployment source config-zip \
+            -g rg-retailgrowth-dev -n rgai-dev-y1-p0249-d4e5ddbd \
+            --src "$RUNNER_TEMP/p0249-y1-readonly.zip" \
+            --build-remote false -o none
+      - name: Confirm exactly two indexed GET-only functions after bounded async ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 10); do
+            az functionapp function list -g rg-retailgrowth-dev \
+              -n rgai-dev-y1-p0249-d4e5ddbd \
+              --query "[].name" -o json > "$RUNNER_TEMP/p0249-index.json"
+            if python3 - "$RUNNER_TEMP/p0249-index.json" "$i" <<'PY'
+          import json,sys
+          rows=json.load(open(sys.argv[1]))
+          names=[str(x).split('/')[-1].casefold() for x in rows]
+          valid=set(names)=={"p0249_health","campaign_read"} and len(rows)==2
+          print(f"P0249_Y1_READONLY_INDEX_ATTEMPT={sys.argv[2]} count={len(rows)} exact_two={valid}",flush=True)
+          raise SystemExit(0 if valid else 1)
+          PY
+            then
+              break
+            fi
+            if [ "$i" -eq 10 ]; then
+              echo "::error::Y1 read-only function index did not settle"
+              exit 2
+            fi
+            sleep 15
+          done
+      - name: Verify original health 20/20 and 12 real unauthenticated campaign GET denials
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_canary_guard.py probe
+          python3 - <<'PY'
+          import urllib.error, urllib.request, uuid, time
+          base="https://rgai-dev-y1-p0249-d4e5ddbd.azurewebsites.net"
+          ok=0
+          for n in range(12):
+              req=urllib.request.Request(
+                  f"{base}/api/campaigns/11111111-1111-4111-8111-111111111111",
+                  headers={"Cache-Control":"no-store"},
+                  method="GET")
+              start=time.monotonic()
+              try:
+                  with urllib.request.urlopen(req,timeout=18) as res:
+                      code=res.status; marker=bool(res.headers.get("X-Request-ID"))
+              except urllib.error.HTTPError as ex:
+                  code=ex.code; marker=bool(ex.headers.get("X-Request-ID"))
+              elapsed=time.monotonic()-start
+              accepted=(code==401 and marker and elapsed <18)
+              ok+=int(accepted)
+              print(f"P0249_Y1_SIGNED_API_NEGATIVE={n+1} status={code} marker={marker} elapsed={elapsed:.3f} accepted={accepted}",flush=True)
+          print(f"P0249_Y1_SIGNED_API_NEGATIVE_ACCEPTED={ok}/12",flush=True)
+          assert ok==12, "Y1 original-auth contract not reliably enforcing unauthenticated denial"
+          PY
+      - name: Confirm exact Y1 and unchanged original FC1 after deployment
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_canary_guard.py verify
+      - name: Logout Azure OIDC
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
