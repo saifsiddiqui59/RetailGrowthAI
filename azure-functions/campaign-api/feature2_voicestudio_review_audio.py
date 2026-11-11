@@ -12,7 +12,7 @@ from uuid import UUID
 
 from security import AuthenticationError
 from tenant_store import StorageUnavailable, canonical_uuid
-from feature2_voicestudio_storage import PrivateVoiceStorageDenied
+from feature2_voicestudio_storage import PrivateVoiceStorageDenied, _wav
 
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 
@@ -92,7 +92,7 @@ def read_current_voiceover_for_review(
         if (type(content) is not bytes or not 44 <= len(content) <= 8 * 1024 * 1024
                 or sha256(content).hexdigest() != before["original_sha256"]):
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
-        # A role, claim, rights or reviewed plan could be revoked during I/O.
+        # Defense in depth: a swapped or mocked storage reader cannot return\n        # digest-matching arbitrary bytes as reviewable PCM audio.\n        _wav(content)\n        # A role, claim, rights or reviewed plan could be revoked during I/O.
         if _receipt(sql_receipt, shop_id, campaign_id, request_id) != before:
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
         if canonical_uuid(verify_token(token)) != user_id:
