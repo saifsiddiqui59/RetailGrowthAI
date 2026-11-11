@@ -144,6 +144,11 @@ class VoiceStudioHandoffTests(unittest.TestCase):
     def test_approved_15_second_narration_compiles_without_30_second_assumption(self):
         draft, snapshot, receipt, _ = self.setup_case()
         draft["duration_seconds"] = 15
+        # The approved storyboard must also cover exactly 15s; changing only
+        # the narration receipt leaves the original 30s scene timeline invalid.
+        for index, scene in enumerate(draft["scenes"]):
+            scene["start"] = index * 5
+            scene["duration"] = 5
         receipt["render_duration_seconds"] = 15
         data = pcm(15)
         receipt["feature4_audio_sha256"] = sha256(data).hexdigest()
