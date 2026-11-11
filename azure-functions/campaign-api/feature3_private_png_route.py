@@ -107,6 +107,7 @@ def handle_private_png_request(request, *, reader_factory, response_type):
                      "if-match", "if-unmodified-since", "content-encoding",
                      "expect", "upgrade", "proxy-authorization", "proxy-authenticate",
                      "te", "trailer", "connection", "keep-alive",
+                     "cookie", "cookie2", "set-cookie",
                      "proxy-connection", "x-http-method-override",
                      "x-method-override", "x-original-method"}
         if any(name.lower() in forbidden for name in names):
