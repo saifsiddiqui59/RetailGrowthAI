@@ -117,6 +117,10 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         padded_end = end + (size & 1)
         if padded_end > len(original):
             raise CreativeContractError("Private narration WAV chunk exceeds RIFF")
+        if size & 1 and original[end] != 0:
+            raise CreativeContractError("Nonzero private narration WAV padding")
+        if kind == b"data" and size == 0:
+            raise CreativeContractError("Empty private narration PCM data")
         if kind == b"fmt ":
             if seen_fmt or seen_data or size != 16 or int.from_bytes(original[offset + 8:offset + 10], "little") != 1:
                 raise CreativeContractError("Noncanonical private narration PCM format")
