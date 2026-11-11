@@ -260,8 +260,34 @@ def handle_private_png_request(request, *, reader_factory, response_type):
                 # Treat the backend receipt as a fixed contract, not an
                 # arbitrary HTTP response. Unexpected headers (including
                 # redirects and content-disposition) cannot be trusted.
-                any(name not in {"Content-Type", "Cache-Control",
-                                 "Content-Length"} for name in backend_names)):
+                any(name not in {
+                    "Content-Type", "Cache-Control", "Content-Length",
+                    "X-Feature3-Shop-Id", "X-Feature3-Job-Id",
+                    "X-Feature3-Media-Asset-Id", "X-Feature3-Image-Sha256",
+                    "Content-Disposition", "Pragma", "X-Content-Type-Options",
+                    "Content-Security-Policy", "Vary",
+                } for name in backend_names)):
+            return _denied(503, response_type)
+        # The canonical verified binary handler supplies scope and checksum
+        # receipts. Validate these before stripping internal identifiers from
+        # the public Azure response; never trust mismatched backend scope.
+        from hashlib import sha256
+        for key, expected in (
+            ("X-Feature3-Shop-Id", shop_id),
+            ("X-Feature3-Job-Id", job_id),
+            ("X-Feature3-Image-Sha256", sha256(reply.body).hexdigest()),
+            ("Pragma", "no-cache"),
+            ("X-Content-Type-Options", "nosniff"),
+            ("Content-Security-Policy", "default-src 'none'"),
+            ("Vary", "Authorization"),
+            ("Content-Disposition", f'attachment; filename="feature3-{job_id}.png"'),
+        ):
+            if key in reply.headers and (
+                    type(reply.headers[key]) is not str or
+                    reply.headers[key] != expected):
+                return _denied(503, response_type)
+        if "X-Feature3-Media-Asset-Id" in reply.headers and not _canonical_uuid4(
+                reply.headers["X-Feature3-Media-Asset-Id"]):
             return _denied(503, response_type)
         declared_length = reply.headers.get("Content-Length")
         if (type(declared_length) is not str or
