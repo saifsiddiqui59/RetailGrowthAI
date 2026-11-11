@@ -256,10 +256,11 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         if (any(type(name) is not str or
                 _HEADER_NAME.fullmatch(name) is None for name in backend_names) or
                 len({name.lower() for name in backend_names}) != len(backend_names) or
-                any(name.lower() in {
-                    "content-encoding", "transfer-encoding", "content-range",
-                    "set-cookie", "location", "etag", "last-modified",
-                } for name in backend_names)):
+                # Treat the backend receipt as a fixed contract, not an
+                # arbitrary HTTP response. Unexpected headers (including
+                # redirects and content-disposition) cannot be trusted.
+                any(name not in {"Content-Type", "Cache-Control",
+                                 "Content-Length"} for name in backend_names)):
             return _denied(503, response_type)
         declared_length = reply.headers.get("Content-Length")
         if (type(declared_length) is not str or
