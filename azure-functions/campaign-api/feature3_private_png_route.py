@@ -143,6 +143,15 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         })
         if any(name.lower() in untrusted_authority for name in names):
             return _denied(400, response_type)
+        # Reject whole families of proxy-injected identities, including
+        # future provider-specific suffixes not covered by the fixed list.
+        # None can substitute for a verified end-user JWT and RLS lookup.
+        identity_prefixes = (
+            "x-auth-request-", "x-ms-token-", "x-client-cert",
+            "x-forwarded-client-cert", "x-ssl-client-", "x-user-",
+        )
+        if any(name.lower().startswith(identity_prefixes) for name in names):
+            return _denied(400, response_type)
         # A private binary endpoint never negotiates compressed or transformed
         # representations. Explicit identity is the only acceptable encoding;
         # reject wildcard, gzip and multi-valued negotiation before body IO.
