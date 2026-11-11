@@ -80,7 +80,9 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
             raise CreativeContractError("Feature4 trusted media does not match private VoiceStudio asset")
         return record
 
-    before = authoritative()
+    # Freeze the trusted receipt: a service reader may reuse and mutate its dict.
+    # Comparing against a live alias would silently accept in-place revocation.
+    before = deepcopy(authoritative())
     original = read_current_private_wav(shop, campaign, asset_id)
     if type(original) is not bytes or not 44 <= len(original) <= 8 * 1024 * 1024:
         raise CreativeContractError("Bounded private narration bytes required")
