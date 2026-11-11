@@ -18,6 +18,20 @@ from feature3_private_png_reader import Feature3RevocablePNGReader, PrivateGener
 _JWT_SEGMENT = re.compile(r"[A-Za-z0-9_-]+")
 
 
+def _canonical_jwt_signature(segment):
+    """Reject ambiguous or empty JWS signature bytes before trusted IO.
+
+    This checks wire encoding only. The server-owned verifier must still
+    cryptographically authenticate the complete compact JWT.
+    """
+    try:
+        raw = base64.urlsafe_b64decode(segment + "=" * (-len(segment) % 4))
+        return (bool(raw) and
+                base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=") == segment)
+    except (ValueError, TypeError, OverflowError):
+        return False
+
+
 def _safe_jwt_json(segment, *, header=False):
     """Reject ambiguous JWT JSON before auth or tenant IO.
 
@@ -111,7 +125,8 @@ class TrustedPrivatePNGFactory:
                             len(part) % 4 == 1 or
                             _JWT_SEGMENT.fullmatch(part) is None for part in parts) or
                         not _safe_jwt_json(parts[0], header=True) or
-                        not _safe_jwt_json(parts[1])):
+                        not _safe_jwt_json(parts[1]) or
+                        not _canonical_jwt_signature(parts[2])):
                     raise PrivateGeneratedDownloadDenied("Private output unavailable")
                 return reader.read(user_token=user_token, shop_id=expected_shop,
                                    job_id=expected_job)
