@@ -585,3 +585,27 @@ def test_receipt_missing_identity_denied_without_private_get(field):
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1
     assert not storage.calls
+
+
+@pytest.mark.parametrize("result", [1, "true", [], {"allowed": True}])
+def test_non_boolean_membership_response_denied_before_private_get(result):
+    """A malformed RLS adapter result must not grant access by truthiness."""
+    args, tenant, sql, storage, _ = harness()
+    tenant.member = lambda *a, **kw: result
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert not sql.calls and not storage.calls
+
+
+@pytest.mark.parametrize("result", [1, "true", [True], {"allowed": True}])
+def test_non_boolean_membership_response_after_private_get_denies_audio(result):
+    """Do not disclose private bytes if the second membership read is malformed."""
+    args, tenant, sql, storage, _ = harness()
+    calls = []
+    def membership(*a, **kw):
+        calls.append((a, kw))
+        return True if len(calls) == 1 else result
+    tenant.member = membership
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(calls) == 2 and len(storage.calls) == 1 and len(sql.calls) == 2
