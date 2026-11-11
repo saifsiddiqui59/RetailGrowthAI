@@ -69,6 +69,24 @@ await denied({readNowMs:()=>clock,
 clock=now;
 await denied({readNowMs:()=>clock,
   readCurrentLease:async()=>{clock=now+30001;return {...lease};}});
+// An injected clock that rolls backwards after signing must not revive a lease.
+clock=now;
+let leaseReads=0;
+await denied({readNowMs:()=>clock,
+  readCurrentLease:async()=>{
+    clock=now+(++leaseReads===1?100:50);
+    return {...lease};
+  }});
+// A monotonic clock advancing across both lease reads remains valid.
+clock=now;
+leaseReads=0;
+const monotonic=await bindVerifiedVoiceStudioMedia({...base,
+  readNowMs:()=>clock,
+  readCurrentLease:async()=>{
+    clock=now+(++leaseReads===1?100:200);
+    return {...lease};
+  }});
+assert.equal(monotonic.evidence.source_sha256,v);
 clock=now;
 await denied({readNowMs:()=>Number.NaN});
 clock=now;
