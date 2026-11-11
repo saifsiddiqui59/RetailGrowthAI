@@ -141,6 +141,33 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         result = self.call(d, s, r, data)
         self.assertEqual(result["request"]["voiceover_asset_id"], d["voiceover_asset_id"])
 
+    def test_approved_15_second_narration_compiles_without_30_second_assumption(self):
+        draft, snapshot, receipt, _ = self.setup_case()
+        draft["duration_seconds"] = 15
+        receipt["render_duration_seconds"] = 15
+        data = pcm(15)
+        receipt["feature4_audio_sha256"] = sha256(data).hexdigest()
+        result = self.call(draft, snapshot, receipt, data)
+        self.assertEqual(result["request"]["voiceover_asset_id"], draft["voiceover_asset_id"])
+        self.assertEqual(result["request"]["voiceover_source"], "retailer")
+
+    def test_wrong_receipt_duration_denied_before_private_media_read(self):
+        draft, snapshot, receipt, data = self.setup_case()
+        receipt["render_duration_seconds"] = 15
+        private_reads = []
+        with self.assertRaises(CreativeContractError):
+            compile_voicestudio_narrated_reel(
+                draft=draft, snapshot=snapshot,
+                read_current_receipt=lambda *_: dict(receipt),
+                read_current_private_wav=lambda *_: private_reads.append(True) or data)
+        self.assertEqual(private_reads, [])
+
+    def test_non_bytes_private_media_rejected_before_compilation(self):
+        for forged in (bytearray(pcm()), memoryview(pcm()), None, "not WAV"):
+            draft, snapshot, receipt, _ = self.setup_case()
+            with self.subTest(type=type(forged).__name__), self.assertRaises(CreativeContractError):
+                self.call(draft, snapshot, receipt, forged)
+
     def test_bytes_changed_or_timeline_wrong_denied(self):
         d,s,r,data=self.setup_case()
         with self.assertRaises(CreativeContractError):
