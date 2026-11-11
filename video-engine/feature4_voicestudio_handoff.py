@@ -97,6 +97,33 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     if (original[:4] != b"RIFF" or original[8:12] != b"WAVE"
             or int.from_bytes(original[4:8], "little") != len(original) - 8):
         raise CreativeContractError("Private narration RIFF length or type invalid")
+    # Validate the complete RIFF chunk walk, not just its outer length.
+    # wave.open can ignore bytes after the PCM data chunk, even when the
+    # forged RIFF length includes them. Reject ambiguous trailing payloads.
+    offset = 12
+    seen_fmt = seen_data = False
+    while offset < len(original):
+        if offset + 8 > len(original):
+            raise CreativeContractError("Truncated private narration WAV chunk")
+        kind = original[offset:offset + 4]
+        size = int.from_bytes(original[offset + 4:offset + 8], "little")
+        end = offset + 8 + size
+        padded_end = end + (size & 1)
+        if padded_end > len(original):
+            raise CreativeContractError("Private narration WAV chunk exceeds RIFF")
+        if kind == b"fmt ":
+            if seen_fmt or seen_data or size != 16 or int.from_bytes(original[offset + 8:offset + 10], "little") != 1:
+                raise CreativeContractError("Noncanonical private narration PCM format")
+            seen_fmt = True
+        elif kind == b"data":
+            if not seen_fmt or seen_data or padded_end != len(original):
+                raise CreativeContractError("Private narration WAV data is not terminal")
+            seen_data = True
+        else:
+            raise CreativeContractError("Unexpected private narration WAV chunk")
+        offset = padded_end
+    if not seen_fmt or not seen_data:
+        raise CreativeContractError("Private narration WAV chunks missing")
     if sha256(original).hexdigest() != before["feature4_audio_sha256"]:
         raise CreativeContractError("VoiceStudio private narration bytes changed")
     try:
