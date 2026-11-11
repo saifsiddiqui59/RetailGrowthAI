@@ -72,6 +72,29 @@ class Tests(unittest.TestCase):
                 request.route_params = scope
                 self.assert_denied_before_reader(request)
 
+    def test_proxy_rewrite_and_forwarded_authority_denied_before_reader(self):
+        # Proxy assertions must never override the signed user or canonical
+        # route scope. These are synthetic metadata, not hosted auth tests.
+        for name, value in (
+            ("Forwarded", "for=192.0.2.1;host=other.example"),
+            ("X-Forwarded-Host", "other.example"),
+            ("X-Forwarded-Uri", "/shops/foreign/feature3-private-png/other"),
+            ("X-Forwarded-Prefix", "/admin"),
+            ("X-Original-URL", "/admin"),
+            ("X-Rewrite-URL", "/shops/foreign"),
+            ("X-Original-Uri", "/shops/foreign"),
+            ("X-Envoy-Original-Path", "/shops/foreign"),
+            ("X-MS-Original-URL", "/shops/foreign"),
+            ("X-MS-Original-Host", "other.example"),
+        ):
+            with self.subTest(header=name):
+                request = Request()
+                request.headers = {
+                    "Authorization": "Bearer synthetic-not-a-real-jwt",
+                    name: value,
+                }
+                self.assert_denied_before_reader(request)
+
     def test_invalid_header_name_or_nonascii_value_denied(self):
         for name, value in (
             ("Bad Header", "safe"),
