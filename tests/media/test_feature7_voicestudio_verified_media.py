@@ -53,6 +53,9 @@ await denied({readExtractedWav:async()=>truncated,
  original_audio_sha256:digest(truncated),
  review:{...review,audio_sha256:digest(truncated)},
  readCurrentLease:async()=>({...lease,audio_sha256:digest(truncated)})});
+// Source video is 2s, but the verified WAV contains only 1s of PCM.
+// Word timings inside video bounds but outside audio bounds must not be signed.
+await denied({review:{...review,words:[{word:'नमस्कार',start:1.1,end:1.4}]}});
 await denied({readCurrentLease:async()=>({...lease,shop_id:'foreign'})});
 let calls=0;
 await denied({readCurrentLease:async()=>({...lease,active:++calls===1})});
