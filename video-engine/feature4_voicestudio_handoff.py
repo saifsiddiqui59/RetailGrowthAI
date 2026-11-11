@@ -124,10 +124,21 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         if kind == b"fmt ":
             if seen_fmt or seen_data or size != 16 or int.from_bytes(original[offset + 8:offset + 10], "little") != 1:
                 raise CreativeContractError("Noncanonical private narration PCM format")
+            channels = int.from_bytes(original[offset + 10:offset + 12], "little")
+            sample_rate = int.from_bytes(original[offset + 12:offset + 16], "little")
+            byte_rate = int.from_bytes(original[offset + 16:offset + 20], "little")
+            block_align = int.from_bytes(original[offset + 20:offset + 22], "little")
+            bits = int.from_bytes(original[offset + 22:offset + 24], "little")
+            if (channels not in (1, 2) or not 8000 <= sample_rate <= 96000
+                    or bits != 16 or block_align != channels * 2
+                    or byte_rate != sample_rate * block_align):
+                raise CreativeContractError("Inconsistent private narration PCM format")
             seen_fmt = True
         elif kind == b"data":
             if not seen_fmt or seen_data or padded_end != len(original):
                 raise CreativeContractError("Private narration WAV data is not terminal")
+            if size != duration * sample_rate * block_align:
+                raise CreativeContractError("Private narration PCM data length mismatch")
             seen_data = True
         else:
             raise CreativeContractError("Unexpected private narration WAV chunk")
