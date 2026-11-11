@@ -61,6 +61,19 @@ let calls=0;
 await denied({readCurrentLease:async()=>({...lease,active:++calls===1})});
 calls=0;
 await denied({readCurrentLease:async()=>({...lease,expires_at_ms:now+(++calls===1?30000:20000)})});
+// A second data chunk must not be accepted even when RIFF and SHA match.
+const duplicateData=Buffer.concat([wav,Buffer.from('data'),Buffer.from([2,0,0,0]),Buffer.alloc(2)]);
+duplicateData.writeUInt32LE(duplicateData.length-8,4);
+await denied({readExtractedWav:async()=>duplicateData,
+ original_audio_sha256:digest(duplicateData),
+ review:{...review,audio_sha256:digest(duplicateData)},
+ readCurrentLease:async()=>({...lease,audio_sha256:digest(duplicateData)})});
+// A data chunk before fmt is not a valid bounded PCM source for signing.
+const dataFirst=Buffer.concat([wav.subarray(0,12),wav.subarray(36),wav.subarray(12,36)]);
+await denied({readExtractedWav:async()=>dataFirst,
+ original_audio_sha256:digest(dataFirst),
+ review:{...review,audio_sha256:digest(dataFirst)},
+ readCurrentLease:async()=>({...lease,audio_sha256:digest(dataFirst)})});
 console.log('original bytes, Marathi captions and lease revocation denials passed');
 """
 class VerifiedMediaTests(unittest.TestCase):
