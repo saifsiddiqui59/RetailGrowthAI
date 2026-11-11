@@ -35,6 +35,8 @@ def _safe_jwt_json(segment, *, header=False):
                     raise ValueError("duplicate JWT JSON field")
                 result[key] = value
             return result
+        # Byte-bounded JSON can still exceed the parser recursion limit.
+        # Fail closed rather than leaking a 500 response.
         claims = json.loads(raw.decode("utf-8"), object_pairs_hook=unique_pairs)
         if type(claims) is not dict:
             return False
@@ -44,7 +46,7 @@ def _safe_jwt_json(segment, *, header=False):
                 claims["alg"] in ("HS256", "RS256", "ES256") and
                 not any(key in claims for key in
                         ("crit", "jku", "jwk", "x5u", "x5c", "zip")))
-    except (ValueError, UnicodeError, TypeError, OverflowError):
+    except (ValueError, UnicodeError, TypeError, OverflowError, RecursionError):
         return False
 
 
