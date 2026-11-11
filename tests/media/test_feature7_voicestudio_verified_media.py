@@ -88,6 +88,24 @@ let calls=0;
 await denied({readCurrentLease:async()=>({...lease,active:++calls===1})});
 calls=0;
 await denied({readCurrentLease:async()=>({...lease,expires_at_ms:now+(++calls===1?30000:20000)})});
+// A lease store may return the SAME mutable object twice. Mutating that object
+// during the second read must not bypass the original signed lease snapshot.
+for (const field of ['active','shop_id','asset_id','job_id','source_sha256',
+                     'audio_sha256','model_id','expires_at_ms']) {
+ let reads=0;
+ const reused={...lease};
+ await denied({readCurrentLease:async()=>{
+   if (++reads===2) reused[field]=field==='active'?false:
+     field==='expires_at_ms'?now+20000:
+     field.endsWith('sha256')?'0'.repeat(64):'changed';
+   return reused;
+ }});
+}
+// An unmodified reused lease remains valid: reject mutation, not object reuse.
+const stableReused={...lease};
+const stableResult=await bindVerifiedVoiceStudioMedia({...base,
+ readCurrentLease:async()=>stableReused});
+assert.equal(stableResult.evidence.source_sha256,v);
 // Even an unchanged lease snapshot is invalid if the clock advanced past expiry
 // during async source reads / evidence generation.
 let clock=now;
