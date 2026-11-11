@@ -186,6 +186,19 @@ def ffmpeg_files(folder: Path):
 
 
 def write_zip(path: Path, entries: dict[str, bytes]):
+    # Fail before writing a deployable artifact; keep verifier protections.
+    if len(entries) > 120:
+        by_area = {}
+        for name in entries:
+            area = name.split("/", 1)[0] if "/" in name else "(root)"
+            by_area[area] = by_area.get(area, 0) + 1
+        counts = ", ".join(
+            f"{area}={count}" for area, count in sorted(by_area.items())
+        )
+        raise ValueError(
+            f"Functions ZIP manifest exceeds 120 members ({len(entries)}): "
+            f"{counts}; audit runtime dependencies rather than raising limits"
+        )
     path.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(path, "w", compression=ZIP_DEFLATED, compresslevel=6) as zip_file:
         for name in sorted(entries):
