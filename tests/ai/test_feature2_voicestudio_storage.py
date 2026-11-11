@@ -174,6 +174,90 @@ def test_private_wav_readback_denies_tamper_without_retry():
     assert len(calls) == 1
 
 
+def test_private_original_and_render_readers_return_exact_digest_checked_bytes():
+    payload = wav()
+    calls = []
+    class ReadResult(io.BytesIO):
+        status = 200
+        def __init__(self, url):
+            super().__init__(payload)
+            self.url = url
+        def geturl(self): return self.url
+    def sender(req, timeout):
+        calls.append((req, timeout))
+        return ReadResult(req.full_url)
+    store, _ = harness(transport=sender)
+    digest = sha256(payload).hexdigest()
+    original = store.read_verified_original(SHOP, CAMPAIGN, JOB, digest)
+    render = store.read_verified_render(SHOP, CAMPAIGN, JOB, digest)
+    assert type(original) is bytes and original == payload
+    assert type(render) is bytes and render == payload
+    assert [r.get_method() for r, _ in calls] == ["GET", "GET"]
+    assert calls[0][0].full_url.endswith("/original.wav")
+    assert calls[1][0].full_url.endswith("/render.wav")
+    assert all(req.get_header("Apikey") == SECRET and timeout == 30 for req, timeout in calls)
+
+
+@pytest.mark.parametrize("bad", [
+    {"shop_id": str(uuid4()) + "/../other"},
+    {"campaign_id": "not-a-uuid"},
+    {"request_id": ""},
+    {"expected_sha": "0"},
+    {"expected_sha": None},
+])
+def test_private_wav_reader_rejects_invalid_identity_before_egress(bad):
+    calls = []
+    def sender(req, timeout):
+        calls.append(req)
+        raise AssertionError("invalid reader should not reach network")
+    store, _ = harness(transport=sender)
+    digest = sha256(wav()).hexdigest()
+    kw = {"shop_id": SHOP, "campaign_id": CAMPAIGN,
+          "request_id": JOB, "expected_sha": digest}
+    kw.update(bad)
+    with pytest.raises(PrivateVoiceStorageDenied):
+        store.read_verified_original(kw["shop_id"], kw["campaign_id"], kw["request_id"], kw["expected_sha"])
+    assert calls == []
+
+
+def test_private_reader_denies_tampered_bytes_and_no_second_get():
+    original = wav()
+    calls = []
+    class ReadResult(io.BytesIO):
+        status = 200
+        def __init__(self, url):
+            super().__init__(original[:-1] + b"\x00")
+            self.url = url
+        def geturl(self): return self.url
+    def sender(req, timeout):
+        calls.append(req)
+        return ReadResult(req.full_url)
+    store, _ = harness(transport=sender)
+    with pytest.raises(PrivateVoiceStorageDenied, match="digest"):
+        store.read_verified_render(SHOP, CAMPAIGN, JOB, sha256(original).hexdigest())
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("status,redirect", [
+    (302, None), (200, "https://attacker.example/exfil"),
+    (404, None), (500, None),
+])
+def test_private_reader_never_trusts_redirect_or_unsuccessful_response(status, redirect):
+    class Reply(io.BytesIO):
+        def __init__(self, url):
+            super().__init__(wav())
+            self.status = status
+            self.url = redirect or url
+        def geturl(self): return self.url
+    sent = []
+    def sender(req, timeout):
+        sent.append(req)
+        return Reply(req.full_url)
+    store, _ = harness(transport=sender)
+    with pytest.raises(PrivateVoiceStorageDenied):
+        store.read_verified_original(SHOP, CAMPAIGN, JOB, sha256(wav()).hexdigest())
+    assert len(sent) == 1
+
 @pytest.mark.parametrize("mutate", [
     lambda data: data + b"untrusted-trailing-data",
     lambda data: data[:4] + (len(data) + 100).to_bytes(4, "little") + data[8:],
@@ -253,51 +337,3 @@ def test_overlong_pcm_denied_before_storage_network():
     with pytest.raises(PrivateVoiceStorageDenied, match="frame geometry"):
         write(store, original=original, original_sha=sha256(original).hexdigest())
     assert calls == []
-
-
-def test_write_and_verify_reconciles_both_objects_without_approval():
-    payload = wav()
-    methods = []
-    class ReadResult(io.BytesIO):
-        status = 200
-        def __init__(self, url):
-            super().__init__(payload)
-            self.url = url
-        def geturl(self): return self.url
-    def sender(req, timeout):
-        methods.append(req.get_method())
-        return Success(req.full_url) if req.get_method() == "POST" else ReadResult(req.full_url)
-    store, _ = harness(transport=sender)
-    digest = sha256(payload).hexdigest()
-    receipt = store.write_and_verify_private_audio(
-        SHOP, CAMPAIGN, JOB, payload, payload, digest, digest,
-        {"status": "CLAIMED_ONCE", "shop_id": SHOP,
-         "campaign_id": CAMPAIGN, "request_id": JOB})
-    assert methods == ["POST", "POST", "GET", "GET"]
-    assert receipt["status"] == "PRIVATE_WAV_RECONCILED_NOT_REGISTERED"
-    assert receipt["original_bytes"] == len(payload)
-    assert receipt["sql_original_key_claim_and_registration_still_required"] is True
-    assert receipt["publish_approved"] is False
-
-
-def test_reconciliation_digest_mismatch_fails_without_retry_or_registration():
-    payload = wav()
-    altered = payload[:-2] + b"\\x00\\x00"
-    methods = []
-    class ReadResult(io.BytesIO):
-        status = 200
-        def __init__(self, url):
-            super().__init__(altered)
-            self.url = url
-        def geturl(self): return self.url
-    def sender(req, timeout):
-        methods.append(req.get_method())
-        return Success(req.full_url) if req.get_method() == "POST" else ReadResult(req.full_url)
-    store, _ = harness(transport=sender)
-    digest = sha256(payload).hexdigest()
-    with pytest.raises(PrivateVoiceStorageDenied, match="digest changed"):
-        store.write_and_verify_private_audio(
-            SHOP, CAMPAIGN, JOB, payload, payload, digest, digest,
-            {"status": "CLAIMED_ONCE", "shop_id": SHOP,
-             "campaign_id": CAMPAIGN, "request_id": JOB})
-    assert methods == ["POST", "POST", "GET"]

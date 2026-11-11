@@ -44,12 +44,10 @@ def _wav(data):
         raise PrivateVoiceStorageDenied("Invalid bounded private WAV")
     if data[:4] != b"RIFF" or data[8:12] != b"WAVE":
         raise PrivateVoiceStorageDenied("Invalid PCM WAVE header")
-    # wave.open accepts bytes appended beyond RIFF, so reject ambiguous payloads.
-    # A private object digest alone does not establish a well-formed WAV envelope.
+    # Deny hidden chunks, trailing data, and impossible frame geometry even
+    # when a WAV decoder could ignore extra content after the RIFF envelope.
     if struct.unpack_from("<I", data, 4)[0] != len(data) - 8:
         raise PrivateVoiceStorageDenied("RIFF byte length does not match object")
-    # Reject hidden chunks and trailing payloads within an otherwise valid RIFF.
-    # This private contract accepts canonical fmt + data PCM only.
     cursor = 12
     chunks = []
     while cursor < len(data):
@@ -70,11 +68,9 @@ def _wav(data):
         raise PrivateVoiceStorageDenied("Noncanonical private PCM WAV chunks")
     if struct.unpack_from("<H", data, 20)[0] != 1:
         raise PrivateVoiceStorageDenied("Only PCM private WAV accepted")
-    # A WAVEFORMATEX fmt chunk of 18 bytes must explicitly declare no
-    # extension. Reject misleading frame geometry before opening the stream.
     if chunks[0][1] == 18 and struct.unpack_from("<H", data, 36)[0] != 0:
         raise PrivateVoiceStorageDenied("Unexpected PCM format extension")
-    channels, rate, byte_rate, block_align, bits = struct.unpack_from("<HI IHH".replace(" ", ""), data, 22)
+    channels, rate, byte_rate, block_align, bits = struct.unpack_from("<HIIHH", data, 22)
     if (channels not in (1, 2) or bits != 16 or not 8000 <= rate <= 96000
             or block_align != channels * (bits // 8)
             or byte_rate != rate * block_align
@@ -133,7 +129,12 @@ class VoiceStudioPrivateStorage:
         except (HTTPError, URLError, OSError, TimeoutError):
             raise PrivateVoiceStorageDenied("Private WAV write failed or is uncertain") from None
 
-    def _read_and_verify(self, path, expected_sha):
+    def _get_verified(self, path, expected_sha):
+        """Read a known object with a trusted SHA. Never accept a raw browser path.
+
+        The only public-facing callers must recheck current tenant membership,
+        audio review/rights and claim state before and after this operation.
+        """
         if type(expected_sha) is not str or not _HASH.fullmatch(expected_sha):
             raise PrivateVoiceStorageDenied("Original private digest required")
         url = self.origin + "/storage/v1/object/" + BUCKET + "/" + quote(path, safe="/")
@@ -148,7 +149,25 @@ class VoiceStudioPrivateStorage:
         _wav(content)
         if sha256(content).hexdigest() != expected_sha:
             raise PrivateVoiceStorageDenied("Private WAV byte digest changed after upload")
-        return len(content)
+        return content
+
+    def _read_and_verify(self, path, expected_sha):
+        # Used by the original-key SQL registration gate. No media returned.
+        return len(self._get_verified(path, expected_sha))
+
+    def read_verified_original(self, shop_id, campaign_id, request_id, original_sha):
+        """Worker-only source for a tenant-authorized human audio review.
+
+        Caller must obtain the current SQL review receipt and recheck RLS
+        before/after I/O. The private original is never a signed public link.
+        """
+        original_path, _ = self.paths(shop_id, campaign_id, request_id)
+        return self._get_verified(original_path, original_sha)
+
+    def read_verified_render(self, shop_id, campaign_id, request_id, render_sha):
+        """Worker-only Feature4 PCM source; approval must be checked elsewhere."""
+        _, render_path = self.paths(shop_id, campaign_id, request_id)
+        return self._get_verified(render_path, render_sha)
 
     def verify_pair(self, shop_id, campaign_id, request_id, original_sha, render_sha):
         """Verify both current private bytes before separately registered SQL receipt.
@@ -163,29 +182,6 @@ class VoiceStudioPrivateStorage:
                 "request_id": request_id,
                 "original_sha256": original_sha, "render_sha256": render_sha,
                 "original_bytes": original_size, "render_bytes": render_size,
-                "sql_original_key_claim_and_registration_still_required": True,
-                "publish_approved": False}
-
-    def write_and_verify_private_audio(self, shop_id, campaign_id, request_id,
-                                       original, render_wav, original_sha,
-                                       render_sha, claim):
-        """Write once, then reconcile exact private bytes; never register/approve.
-
-        On a partial or uncertain write, propagate denial without retrying or
-        deleting either object. A separate authorized SQL receipt is required.
-        """
-        receipt = self.write_private_audio(
-            shop_id, campaign_id, request_id, original, render_wav,
-            original_sha, render_sha, claim,
-        )
-        verified = self.verify_pair(
-            shop_id, campaign_id, request_id, original_sha, render_sha,
-        )
-        if (verified["original_bytes"] != len(original)
-                or verified["render_bytes"] != len(render_wav)):
-            raise PrivateVoiceStorageDenied("Private WAV reconciliation size mismatch")
-        return {**receipt, **verified,
-                "status": "PRIVATE_WAV_RECONCILED_NOT_REGISTERED",
                 "sql_original_key_claim_and_registration_still_required": True,
                 "publish_approved": False}
 
