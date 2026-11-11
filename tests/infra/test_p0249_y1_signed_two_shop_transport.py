@@ -8,7 +8,7 @@ import importlib.util
 import io
 import json
 from pathlib import Path
-from types import SimpleNamespace
+from types import SimpleNamespace, ModuleType
 from unittest import TestCase
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
@@ -24,7 +24,28 @@ sys.path.insert(0, str(ROOT / "azure-functions/campaign-api"))
 SHADOW = ROOT / "ops/p0249-y1-readonly-campaign/campaign_read/__init__.py"
 spec = importlib.util.spec_from_file_location("p0249_signed_two_shop_shadow", SHADOW)
 shadow = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(shadow)
+try:
+    import azure.functions  # installed in the real Y1 package and pytest CI
+except ModuleNotFoundError:
+    # Infra unittest also executes with system Python and no azure-functions.
+    # Stub ONLY the framework response shape, never JWT, HTTPAPI or TenantStore.
+    framework = ModuleType("azure.functions")
+    class LocalHttpResponse:
+        def __init__(self, body, *, status_code, mimetype, headers):
+            self.status_code = status_code
+            self.mimetype = mimetype
+            self.headers = headers
+            self._body = body.encode("utf-8")
+        def get_body(self):
+            return self._body
+    framework.HttpResponse = LocalHttpResponse
+    package = ModuleType("azure")
+    package.__path__ = []
+    package.functions = framework
+    with patch.dict(sys.modules, {"azure": package, "azure.functions": framework}):
+        spec.loader.exec_module(shadow)
+else:
+    spec.loader.exec_module(shadow)
 
 ORIGIN = "https://fixture-p0249.supabase.co"
 ENV = {
