@@ -246,6 +246,35 @@ class FactoryTests(unittest.TestCase):
                                 shop_id=self.shop, job_id=self.job)
         self.assertEqual(calls, [])
 
+    def test_deeply_nested_jwt_json_fails_closed_before_verifier(self):
+        # A compact synthetic JWT can exhaust json.loads recursion while
+        # remaining below the byte limit. It must never trigger tenant IO.
+        calls = []
+        def verify(token):
+            calls.append("verify")
+            raise AssertionError("malformed JWT reached verifier")
+        class CountingStore(Store):
+            def member(self, *args):
+                calls.append("member")
+                raise AssertionError("malformed JWT reached RLS")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=CountingStore(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        def encoded(raw):
+            return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
+        deep = "[" * 1200 + "0" + "]" * 1200
+        valid_header = encoded('{"alg":"RS256"}')
+        valid_payload = encoded('{"sub":"fixture"}')
+        for token in (
+            f"{encoded(deep)}.{valid_payload}.c2lnbmF0dXJl",
+            f"{valid_header}.{encoded(deep)}.c2lnbmF0dXJl",
+        ):
+            with self.subTest(segment=token[:20]):
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, [])
+
     def test_valid_payload_still_requires_cryptographic_verification(self):
         calls = []
         def verify(token):
