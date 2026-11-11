@@ -56,7 +56,7 @@ def _safe_jwt_json(segment, *, header=False):
                     all(33 <= ord(ch) <= 126 for ch in subject))
         return (type(claims.get("alg")) is str and
                 claims["alg"] in ("HS256", "RS256", "ES256") and
-                (claims.get("typ") is None or
+                ("typ" not in claims or
                  (type(claims["typ"]) is str and claims["typ"] == "JWT")) and
                 not any(key in claims for key in
                         ("crit", "jku", "jwk", "x5u", "x5c", "zip", "b64", "cty")))
