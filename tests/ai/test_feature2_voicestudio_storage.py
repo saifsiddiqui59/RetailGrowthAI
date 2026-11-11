@@ -233,7 +233,7 @@ def test_nonzero_pcm_extension_denied_before_network():
     original = bytearray(wav())
     # Convert canonical 16-byte fmt chunk into 18-byte fmt with cbSize=1.
     original[16:20] = (18).to_bytes(4, "little")
-    original[36:36] = b"\\x01\\x00"
+    original[36:36] = bytes((1, 0))
     original[4:8] = (len(original) - 8).to_bytes(4, "little")
     original = bytes(original)
     with pytest.raises(PrivateVoiceStorageDenied, match="format extension"):
