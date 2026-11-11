@@ -89,8 +89,8 @@ def main():
         raise RuntimeError("Wrong DEV Supabase key class")
     # Deny before creating any account if the original shadow is not enabled:
     # flag-OFF handlers return 503 to a well-formed dummy bearer. No token logs.
-    status, _, _, _ = y1_read("fake-but-wellformed-jwt")
-    if status != 401:
+    status, marked, _, _ = y1_read("fake-but-wellformed-jwt")
+    if status != 401 or not marked:
         # Once active, invalid JWT should always be a marked 401.
         raise RuntimeError("Y1 original auth route is unavailable")
     _, jwks, _, _ = helper.request(
