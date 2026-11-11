@@ -10,10 +10,10 @@ const sha=b=>createHash('sha256').update(b).digest('hex');
 const SHA=/^[a-f0-9]{64}$/;
 // Validate the extracted audio container, not merely its SHA: a digest of junk
 // bytes is still junk. Restrict to bounded, uncompressed PCM WAV.
-function validPcmWav(b) {
+function pcmWavDuration(b) {
   if (b.length<44 || b.toString('ascii',0,4)!=='RIFF' ||
-      b.toString('ascii',8,12)!=='WAVE' || b.readUInt32LE(4)!==b.length-8) return false;
-  let offset=12,fmt=null,data=0;
+      b.toString('ascii',8,12)!=='WAVE' || b.readUInt32LE(4)!==b.length-8) return null;
+  let offset=12,fmt=null,data=0,byteRate=0;
   while (offset+8<=b.length) {
     const id=b.toString('ascii',offset,offset+4);
     const len=b.readUInt32LE(offset+4);
@@ -27,11 +27,13 @@ function validPcmWav(b) {
       if (format!==1 || channels<1 || channels>2 || rate<8000 || rate>48000 ||
           bits!==16 || align!==channels*2 || byteRate!==rate*align) return false;
       fmt=align;
+      byteRate=rate*align;
     }
     if (id==='data') {if (data!==0 || len===0) return false;data=len;}
     offset=end+(len%2);
   }
-  return offset===b.length && fmt!==null && data>0 && data%fmt===0;
+  return offset===b.length && fmt!==null && data>0 && data%fmt===0
+    ? data/byteRate : null;
 }
 export async function bindVerifiedVoiceStudioMedia({
   readOriginalVideo,readExtractedWav,readCurrentLease,
@@ -48,7 +50,12 @@ export async function bindVerifiedVoiceStudioMedia({
   deny(sha(video)===original_video_sha256);
   const wav=await readExtractedWav({shop_id,asset_id,job_id,video_sha256:original_video_sha256});
   deny(Buffer.isBuffer(wav) && wav.length>=44 && wav.length<=64*1024*1024);
-  deny(validPcmWav(wav) && sha(wav)===original_audio_sha256);
+  const wavDuration=pcmWavDuration(wav);
+  deny(wavDuration!==null && sha(wav)===original_audio_sha256);
+  // A valid HMAC must never bless word offsets beyond the actual PCM sample clock.
+  // The original video may be longer than the extracted speech segment.
+  deny(Array.isArray(review?.words) && review.words.every(w=>
+    Number.isFinite(w?.end) && w.end<=wavDuration+0.02));
   const lease=await readCurrentLease({shop_id,asset_id,job_id});
   const signed=bindVoiceStudioReview({review,shop_id,asset_id,job_id,
     original_video_sha256,original_audio_sha256,source_duration_seconds,
