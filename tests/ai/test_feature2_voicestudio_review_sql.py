@@ -57,3 +57,25 @@ def test_sql_does_not_pretend_reviewed_audio_is_published():
     assert "provider'='kokoro-onnx'" not in sql
     assert "grant insert on public.feature2_voicestudio_jobs to authenticated" not in sql
     assert "for all to authenticated" not in sql
+
+
+def test_commercial_model_registry_is_owner_only_and_revocation_checked():
+    sql = source()
+    assert sql.count("create table public.feature2_voicestudio_model_reviews") == 1
+    assert sql.count("create table public.feature2_voicestudio_plans") == 1
+    assert sql.count("create function public.feature2_voicestudio_plan(") == 1
+    assert sql.count("commit;") == 1
+    assert "references public.feature2_voicestudio_model_reviews(id)" in sql
+    assert "revoke all on public.feature2_voicestudio_model_reviews from public, anon, authenticated, service_role" in sql
+    assert "grant select on public.feature2_voicestudio_model_reviews to service_role" in sql
+    assert "grant insert on public.feature2_voicestudio_model_reviews" not in sql
+    assert "weights_commercial_allowed boolean not null default false" in sql
+    assert "tokenizer_commercial_allowed boolean not null default false" in sql
+    assert "dependencies_commercial_allowed boolean not null default false" in sql
+    assert "agpl_compliance_reviewed boolean not null default false" in sql
+    assert sql.count("from public.feature2_voicestudio_model_reviews lic") == 4
+    assert sql.count("lic.revoked_at is null") == 4
+    assert sql.count("lic.weights_commercial_allowed is true") == 4
+    assert sql.count("lic.tokenizer_commercial_allowed is true") == 4
+    assert sql.count("lic.dependencies_commercial_allowed is true") == 4
+    assert sql.count("lic.agpl_compliance_reviewed is true") == 4
