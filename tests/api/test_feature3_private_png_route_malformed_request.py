@@ -659,6 +659,7 @@ class Tests(unittest.TestCase):
             status=200, body=png,
             headers={"Content-Type": "image/png",
                      "Cache-Control": "no-store, private, max-age=0",
+                     "Content-Length": str(len(png)),
                      "X-Feature3-Image-Sha256": "sensitive-not-for-browser",
                      "Set-Cookie": "private-credential"})
         with patch("feature3_private_png_route.private_png_http",
@@ -701,6 +702,7 @@ class Tests(unittest.TestCase):
                        status=200, body=png,
                        headers={"Content-Type": "image/png",
                                 "Cache-Control": "no-store, private",
+                                "Content-Length": str(len(png)),
                                 "Set-Cookie": "untrusted=1",
                                 "Location": "https://untrusted.invalid"})):
             response = handle_private_png_request(
