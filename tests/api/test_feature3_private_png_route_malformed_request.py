@@ -87,6 +87,37 @@ class Tests(unittest.TestCase):
         self.assertEqual(response.body, b"")
         self.assertEqual(response.headers["Content-Length"], "0")
 
+    def test_private_png_backend_transformation_and_duplicate_headers_denied(self):
+        # Synthetic compromised backend fixtures; no hosted authorization.
+        png_like = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
+        base = {"Content-Type": "image/png",
+                "Cache-Control": "no-store, private",
+                "Content-Length": str(len(png_like))}
+        mutations = (
+            {"Content-Encoding": "gzip"},
+            {"Transfer-Encoding": "chunked"},
+            {"Content-Range": "bytes 0-9/10"},
+            {"Set-Cookie": "session=synthetic"},
+            {"Location": "https://example.invalid/fixture"},
+            {"ETag": "synthetic"},
+            {"Last-Modified": "Mon, 01 Jan 2024 00:00:00 GMT"},
+            {"content-type": "image/png"},
+            {"cache-control": "no-store, private"},
+            {"Content-Length\\nInjected": "1"},
+        )
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                with patch("feature3_private_png_route.private_png_http",
+                           return_value=SimpleNamespace(
+                               status=200, body=png_like,
+                               headers={**base, **mutation})):
+                    response = handle_private_png_request(
+                        Request(), reader_factory=lambda *args: None,
+                        response_type=Response)
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.body, b"")
+                self.assertEqual(response.headers["Content-Length"], "0")
+
     def test_private_png_receipt_length_mismatch_fails_closed(self):
         # Synthetic backend replies are not proof of signed hosted access.
         # Even a PNG-looking body must not escape if the trusted adapter
