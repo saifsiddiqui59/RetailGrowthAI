@@ -92,14 +92,14 @@ export async function bindVerifiedVoiceStudioMedia({
   deny(Array.isArray(review?.words) && review.words.every(w=>
     Number.isFinite(w?.end) && w.end<=wavDuration.seconds+1/wavDuration.sampleRate));
   const lease=await readCurrentLease({shop_id,asset_id,job_id});
-  const signed=bindVoiceStudioReview({review,shop_id,asset_id,job_id,
+  // Snapshot the first lease: a storage adapter may reuse and mutate its object\n  // on the second read. Comparing two aliases would silently accept revocation.\n  const leaseSnapshot={...lease};\n  const signed=bindVoiceStudioReview({review,shop_id,asset_id,job_id,
     original_video_sha256,original_audio_sha256,source_duration_seconds,
-    lease,model_id,key,now_ms:checkedTime()});
+    lease:leaseSnapshot,model_id,key,now_ms:checkedTime()});
   // Fail closed if revocation/scope changes during the signing operation.
   const current=await readCurrentLease({shop_id,asset_id,job_id});
   deny(current && current.active===true &&
     ['shop_id','asset_id','job_id','source_sha256','audio_sha256','model_id','expires_at_ms']
-      .every(field=>current[field]===lease[field]) &&
+      .every(field=>current[field]===leaseSnapshot[field]) &&
     current.expires_at_ms>checkedTime());
   return signed;
 }
