@@ -87,6 +87,18 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             with self.subTest(invalid=invalid), self.assertRaises(CreativeContractError):
                 self.call(d,s,r,data)
 
+    def test_trusted_receipt_type_confusion_denied(self):
+        # Python considers True == 1, but durable approval must be boolean.
+        for key, forged in (
+            ("private", 1), ("rights_reviewed", 1),
+            ("render_duration_seconds", 30.0),
+            ("revoked_at", False),
+        ):
+            draft, snapshot, receipt, data = self.setup_case()
+            receipt[key] = forged
+            with self.subTest(key=key), self.assertRaises(CreativeContractError):
+                self.call(draft, snapshot, receipt, data)
+
     def test_bytes_changed_or_timeline_wrong_denied(self):
         d,s,r,data=self.setup_case()
         with self.assertRaises(CreativeContractError):
