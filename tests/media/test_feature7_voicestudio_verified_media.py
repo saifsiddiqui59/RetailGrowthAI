@@ -65,6 +65,15 @@ await denied({readExtractedWav:async()=>truncated,
  original_audio_sha256:digest(truncated),
  review:{...review,audio_sha256:digest(truncated)},
  readCurrentLease:async()=>({...lease,audio_sha256:digest(truncated)})});
+// Word end is bound to the exact PCM sample clock (16kHz), not a 20ms
+// allowance: a self-consistent signed claim for speech beyond the audio fails.
+await denied({review:{...review,words:[{word:'नमस्कार',start:.7,end:1.001}]}});
+// One sample of timestamp rounding is allowed at the exact boundary.
+const oneSample=await bindVerifiedVoiceStudioMedia({...base,
+ review:{...review,words:[{word:'नमस्कार',start:.7,end:1+1/16000}]}});
+assert.equal(oneSample.evidence.source_sha256,v);
+// Larger-than-one-sample drift fails, including for otherwise valid WAV/SHA/lease.
+await denied({review:{...review,words:[{word:'नमस्कार',start:.7,end:1+2/16000}]}});
 // Source video is 2s, but the verified WAV contains only 1s of PCM.
 // Word timings inside video bounds but outside audio bounds must not be signed.
 await denied({review:{...review,words:[{word:'नमस्कार',start:1.1,end:1.4}]}});
