@@ -167,8 +167,10 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         raise CreativeContractError("Malformed private narration WAV") from exc
     if authoritative() != before or snapshot["assets"].get(asset_id) != before_asset:
         raise CreativeContractError("Narration approval or private asset changed during read")
-    if draft != frozen_draft or snapshot != frozen_snapshot:
-        raise CreativeContractError("Approved reel inputs changed during private read")
+    if draft != frozen_draft:
+        raise CreativeContractError("Narration draft changed during private read")
+    if snapshot != frozen_snapshot:
+        raise CreativeContractError("Approved reel snapshot changed during private read")
     output = compile_approved_storyboard(deepcopy(frozen_draft), deepcopy(snapshot))
     if output["request"].get("voiceover_asset_id") != asset_id or output["request"].get("voiceover_source") != "retailer":
         raise CreativeContractError("Video compiler discarded approved voice source")
