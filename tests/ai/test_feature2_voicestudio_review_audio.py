@@ -295,3 +295,30 @@ def test_uncertain_private_read_failure_denies_without_retry(error):
         read_current_voiceover_for_review(**args)
     assert len(storage.calls) == 1
     assert len(sql.calls) == 1
+
+
+@pytest.mark.parametrize("header", [
+    "Bearer  " + TOKEN, "Bearer " + TOKEN + " ",
+    "Bearer " + TOKEN + "\\n", "Bearer " + TOKEN + "\\t",
+    "Bearer " + TOKEN + " extra",
+])
+def test_malformed_bearer_header_never_reaches_sql_or_storage(header):
+    args, tenant, sql, storage, _ = harness(authorization=header)
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert not tenant.calls and not sql.calls and not storage.calls
+
+
+def test_in_place_sql_receipt_revocation_during_private_get_is_denied():
+    args, tenant, sql, storage, _ = harness()
+    shared = SQL.read_private_receipt(sql, SHOP, CAMPAIGN, JOB)
+    calls = []
+    def reused_receipt(*ids):
+        calls.append(ids)
+        if len(calls) == 2:
+            shared["review_status"] = "REVOKED"
+        return shared
+    sql.read_private_receipt = reused_receipt
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert len(calls) == 2 and len(storage.calls) == 1
