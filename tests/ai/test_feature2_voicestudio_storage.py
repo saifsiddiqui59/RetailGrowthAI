@@ -257,3 +257,83 @@ def test_private_reader_never_trusts_redirect_or_unsuccessful_response(status, r
     with pytest.raises(PrivateVoiceStorageDenied):
         store.read_verified_original(SHOP, CAMPAIGN, JOB, sha256(wav()).hexdigest())
     assert len(sent) == 1
+
+@pytest.mark.parametrize("mutate", [
+    lambda data: data + b"untrusted-trailing-data",
+    lambda data: data[:4] + (len(data) + 100).to_bytes(4, "little") + data[8:],
+    lambda data: data[:4] + (len(data) - 20).to_bytes(4, "little") + data[8:],
+])
+def test_riff_envelope_mismatch_never_reaches_storage(mutate):
+    store, calls = harness()
+    original = mutate(wav())
+    with pytest.raises(PrivateVoiceStorageDenied, match="RIFF byte length"):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
+
+
+@pytest.mark.parametrize("mutate", [
+    # A second valid chunk hidden inside the RIFF envelope.
+    lambda data: data + b"JUNK" + (4).to_bytes(4, "little") + b"evil",
+    # A malformed chunk header, fully inside the declared envelope.
+    lambda data: data + b"ABCD",
+])
+def test_hidden_riff_chunks_denied_before_network(mutate):
+    store, calls = harness()
+    original = mutate(wav())
+    original = original[:4] + (len(original) - 8).to_bytes(4, "little") + original[8:]
+    with pytest.raises(PrivateVoiceStorageDenied):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
+
+
+def test_non_pcm_format_denied_before_network():
+    store, calls = harness()
+    original = bytearray(wav())
+    original[20:22] = (3).to_bytes(2, "little")
+    original = bytes(original)
+    with pytest.raises(PrivateVoiceStorageDenied):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
+
+
+@pytest.mark.parametrize("offset,value", [
+    (28, 123),  # forged byte rate
+    (32, 4),    # forged block alignment
+    (34, 8),    # forged bit depth
+])
+def test_inconsistent_pcm_geometry_denied_before_network(offset, value):
+    store, calls = harness()
+    original = bytearray(wav())
+    width = 4 if offset == 28 else 2
+    original[offset:offset + width] = value.to_bytes(width, "little")
+    original = bytes(original)
+    with pytest.raises(PrivateVoiceStorageDenied, match="frame geometry"):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
+
+
+def test_nonzero_pcm_extension_denied_before_network():
+    store, calls = harness()
+    original = bytearray(wav())
+    # Convert canonical 16-byte fmt chunk into 18-byte fmt with cbSize=1.
+    original[16:20] = (18).to_bytes(4, "little")
+    original[36:36] = bytes((1, 0))
+    original[4:8] = (len(original) - 8).to_bytes(4, "little")
+    original = bytes(original)
+    with pytest.raises(PrivateVoiceStorageDenied, match="format extension"):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
+
+
+def test_overlong_pcm_denied_before_storage_network():
+    store, calls = harness()
+    out = io.BytesIO()
+    with wave.open(out, "wb") as stream:
+        stream.setnchannels(1)
+        stream.setsampwidth(2)
+        stream.setframerate(16000)
+        stream.writeframes(b"\x01\x02" * (16000 * 60 + 1))
+    original = out.getvalue()
+    with pytest.raises(PrivateVoiceStorageDenied, match="frame geometry"):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
