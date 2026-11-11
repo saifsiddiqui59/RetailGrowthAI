@@ -1,0 +1,176 @@
+name: "RetailGrowthAI #249 DEV Y1 temporary genuine signed JWT GET (bounded)"
+# Three jobs: read-only preflight -> temporary PUBLIC-only settings + Auth user
+# -> independent rollback. No new Function App, queues, campaigns or tenant grants.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0249-dev-y1-temporary-signed-read-once.yml'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Temporarily enable ONLY isolated DEV Y1 public read shadow with independent rollback"
+        required: true
+        type: choice
+        options: ["NO", "YES-DEV-Y1-TEMP-SIGNED-READ"]
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-y1-signed-read-one-shot
+  cancel-in-progress: false
+jobs:
+  preflight:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' &&
+        inputs.confirm == 'YES-DEV-Y1-TEMP-SIGNED-READ') ||
+       (github.event_name == 'push' &&
+        startsWith(github.event.head_commit.message,
+        'test(#249): run temporary signed JWT on isolated Y1')))
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Source test all scoped controls before Azure login
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/p0249_y1_public_shadow_guard.py ops/p0249_y1_signed_disposable_read.py
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_temporary_signed_read.py' -v
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify ONLY exact existing DEV Y1/original Flex and prior shadow settings absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_public_shadow_guard.py preflight \
+            --marker "$RUNNER_TEMP/p0249-signed-original-absent.json"
+      - name: Persist nonsecret run-bound rollback marker BEFORE any write
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0249-signed-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/p0249-signed-original-absent.json
+          retention-days: 1
+          if-no-files-found: error
+      - name: Logout
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
+
+  bounded-signed-trial:
+    needs: preflight
+    if: needs.preflight.result == 'success'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: p0249-signed-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/p0249-signed
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Set ONLY public DEV project URL, publishable key and temporary read-only flag
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_public_shadow_guard.py activate \
+            --marker "$RUNNER_TEMP/p0249-signed/p0249-signed-original-absent.json"
+      - name: Require Y1 original health before disposable Auth creation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import sys,time
+          sys.path.insert(0,"ops")
+          from p0249_y1_canary_guard import get
+          for i in range(10):
+              status,marked,sec=get("/api/p0249/health",15)
+              if status==200 and marked:
+                  print("P0249_Y1_PUBLIC_READ_SHADOW_HEALTH=PASS",flush=True)
+                  break
+              if i==9: raise SystemExit("Isolated Y1 not healthy after public settings restart")
+              time.sleep(8)
+          PY
+      - name: Create exactly one disposable Auth user, test true project-issued JWT, clean it
+        shell: bash
+        env:
+          RGAI_P0249_Y1_SIGNED_TEST_APPROVAL: OWNER_APPROVED_Y1_SIGNED_READ
+          RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+          RGAI_DEV_PUBLISHABLE_KEY: sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq
+        run: |
+          set -euo pipefail
+          test -n "$RGAI_DEV_SERVICE_KEY"
+          python3 -u ops/p0249_y1_signed_disposable_read.py
+      - name: In-job cleanup of exact three originally absent Y1 public test settings
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if test -f "$RUNNER_TEMP/p0249-signed/p0249-signed-original-absent.json"; then
+            python3 -u ops/p0249_y1_public_shadow_guard.py rollback \
+              --marker "$RUNNER_TEMP/p0249-signed/p0249-signed-original-absent.json"
+          fi
+      - name: Logout
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
+
+  independent-rollback:
+    needs: [preflight, bounded-signed-trial]
+    if: >-
+      always() &&
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      needs.preflight.result == 'success'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: p0249-signed-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/p0249-rollback
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Independently enforce original ABSENT settings; never delete another owner's value
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_public_shadow_guard.py rollback \
+            --marker "$RUNNER_TEMP/p0249-rollback/p0249-signed-original-absent.json"
+      - name: Logout
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
