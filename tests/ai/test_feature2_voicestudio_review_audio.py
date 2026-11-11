@@ -403,3 +403,33 @@ def test_digest_matching_wav_with_hidden_trailing_bytes_denied():
     with pytest.raises(VoiceStudioReviewDenied):
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1 and len(tenant.calls) == 1
+
+
+def test_signed_identity_rotation_during_private_read_denies_audio():
+    args, tenant, sql, storage, tokens = harness()
+    identities = iter((USER, str(uuid4())))
+    def rotating_verifier(token):
+        tokens.append(token)
+        return next(identities)
+    args["verify_token"] = rotating_verifier
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1
+    assert len(sql.calls) == 2
+    assert len(tenant.calls) == 1
+    assert tokens == [TOKEN, TOKEN]
+
+
+def test_approved_plan_receipt_changed_during_private_read_denies_audio():
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def changed_plan(*ids):
+        receipt = original(*ids)
+        if len(sql.calls) == 2:
+            receipt["plan_sha256"] = sha256(b"unreviewed replacement script").hexdigest()
+        return receipt
+    sql.read_private_receipt = changed_plan
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1 and len(sql.calls) == 2
+    assert len(tenant.calls) == 1
