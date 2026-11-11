@@ -16,3 +16,9 @@ No paid model, GPU, Azure/PROD mutation or WineShopPOS change.
 - Commit `99e87276195bf8d124ddf83c08f4d9ce84722ab9` repaired a critical escaped-newline source bug: `_wav(content)` had been part of a Python comment, so malformed digest-matching WAV payloads were not independently rejected. The validator now executes before post-read SQL/JWT/membership checks. Existing synthetic negative tests `test_digest_matching_non_wav_denied_even_with_swapped_storage_reader` and `test_digest_matching_wav_with_hidden_trailing_bytes_denied` exercise this behavior.
 - NEXT CODE ACTION: run `python -m pytest -q tests/ai/test_feature2_voicestudio_review_audio.py` on this exact branch; inspect the latest exact-head four-job Part 1 CI for the new commit and repair failures within F2-owned paths. Then verify #937 independent security review and reconcile latest main without bypassing protected #920/#923/#925. Do not merge until independently approved and exact-head 4/4, followed by fresh main 4/4.
 - Local pytest and exact-head CI **not verified** at this checkpoint; no deployment or paid model execution.
+
+
+## 2026-11-11 continuation checkpoint — JWT identity and approved-plan rotation
+- Source test commit `563a2c39d914dc59bc54b3591a1fd03243eaee56`: two additional synthetic denial tests cover a JWT subject changing after private WAV read and an approved plan SHA changing between SQL receipt reads. Both must deny bytes before any downstream handoff.
+- NEXT CODE ACTION: run `python -m pytest -q tests/ai/test_feature2_voicestudio_review_audio.py` at the **current** #937 head, repair any owned test failures, and inspect exact-head four-job Actions. Reconcile with latest main only after checking changed paths and concurrent workers. Independent review of #937 and protected #920/#923/#925 remains required; do not merge or deploy without it.
+- Tests and exact-head CI for this new commit are not yet verified. No model inference or hosted resources were used.
