@@ -86,6 +86,11 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     original = read_current_private_wav(shop, campaign, asset_id)
     if type(original) is not bytes or not 44 <= len(original) <= 8 * 1024 * 1024:
         raise CreativeContractError("Bounded private narration bytes required")
+    # wave.open accepts trailing bytes and ignores an inconsistent RIFF length.
+    # A private asset must be one complete, canonical RIFF/WAVE object.
+    if (original[:4] != b"RIFF" or original[8:12] != b"WAVE"
+            or int.from_bytes(original[4:8], "little") != len(original) - 8):
+        raise CreativeContractError("Private narration RIFF length or type invalid")
     if sha256(original).hexdigest() != before["feature4_audio_sha256"]:
         raise CreativeContractError("VoiceStudio private narration bytes changed")
     try:
