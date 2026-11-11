@@ -213,7 +213,7 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         calls=[0]
         def private_reader(*_):
             calls[0]+=1
-            return data if calls[0]==1 else data[:-2]+b"\\x00\\x00"
+            return data if calls[0]==1 else data[:-2]+b"\x00\x00"
         with self.assertRaises(CreativeContractError):
             compile_voicestudio_narrated_reel(
                 draft=d,snapshot=s,
