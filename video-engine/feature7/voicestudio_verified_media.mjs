@@ -22,10 +22,10 @@ function pcmWavDuration(b) {
     if (id==='fmt ') {
       if (fmt!==null || len<16) return null;
       const format=b.readUInt16LE(start),channels=b.readUInt16LE(start+2);
-      const rate=b.readUInt32LE(start+4),byteRate=b.readUInt32LE(start+8);
+      const rate=b.readUInt32LE(start+4),declaredByteRate=b.readUInt32LE(start+8);
       const align=b.readUInt16LE(start+12),bits=b.readUInt16LE(start+14);
       if (format!==1 || channels<1 || channels>2 || rate<8000 || rate>48000 ||
-          bits!==16 || align!==channels*2 || byteRate!==rate*align) return null;
+          bits!==16 || align!==channels*2 || declaredByteRate!==rate*align) return null;
       fmt=align;
       byteRate=rate*align;
     }
