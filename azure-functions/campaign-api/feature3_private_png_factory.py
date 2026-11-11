@@ -62,6 +62,14 @@ def _safe_jwt_json(segment, *, header=False):
         if base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=") != segment:
             return False
         if not header:
+            # NumericDate claims must not be ambiguous booleans, floats or
+            # strings. Cryptographic verification remains mandatory.
+            for time_claim in ("exp", "nbf", "iat"):
+                if time_claim in claims and (
+                        type(claims[time_claim]) is not int or
+                        claims[time_claim] < 0 or
+                        claims[time_claim] > 253402300799):
+                    return False
             subject = claims.get("sub")
             # An opaque user identifier must not contain whitespace, control
             # characters or Unicode lookalikes. Signature verification remains

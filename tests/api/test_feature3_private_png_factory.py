@@ -162,6 +162,34 @@ class FactoryTests(unittest.TestCase):
                         job_id=self.job)
         self.assertEqual(calls, [token])
 
+    def test_temporal_claims_denied_before_trusted_verifier(self):
+        calls = []
+        def verify(token):
+            calls.append(token)
+            raise ValueError("fixture is unsigned")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=Store(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        def make_token(payload):
+            header = base64.urlsafe_b64encode(b'{"alg":"RS256"}').decode().rstrip("=")
+            encoded = base64.urlsafe_b64encode(
+                json.dumps(payload).encode()).decode().rstrip("=")
+            return f"{header}.{encoded}.c2lnbmF0dXJl"
+        for claim in ("exp", "nbf", "iat"):
+            for value in (True, False, None, "123", 1.5, -1, 253402300800, [], {}):
+                with self.subTest(claim=claim, value=value):
+                    with self.assertRaises(PrivateGeneratedDownloadDenied):
+                        reader.read(user_token=make_token({"sub": "fixture", claim: value}),
+                                    shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, [])
+        for claim in ("exp", "nbf", "iat"):
+            candidate = make_token({"sub": "fixture", claim: 1893456000})
+            with self.assertRaises(PrivateGeneratedDownloadDenied):
+                reader.read(user_token=candidate, shop_id=self.shop, job_id=self.job)
+            self.assertEqual(calls[-1], candidate)
+        self.assertEqual(len(calls), 3)
+
     def test_untrusted_jose_header_rejected_without_verifier_or_tenant_io(self):
         calls = []
         class CountingStore(Store):
