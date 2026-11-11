@@ -5,6 +5,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+import types
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -14,7 +15,28 @@ sys.path.insert(0, str(ROOT / "azure-functions/campaign-api"))
 SOURCE = ROOT / "ops/p0249-y1-readonly-campaign/campaign_read/__init__.py"
 spec = importlib.util.spec_from_file_location("p0249_y1_campaign_read_shadow", SOURCE)
 shadow = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(shadow)
+try:
+    import azure.functions  # noqa: F401; installed in real Linux deploy workflow
+except ModuleNotFoundError:
+    # The full repo's Python CI intentionally does not install azure-functions.
+    # Supply only the transport shape while importing the real auth/RLS logic;
+    # real Azure Functions import is exercised separately in the deploy job.
+    functions = types.ModuleType("azure.functions")
+    class LocalResponse:
+        def __init__(self, body, *, status_code, mimetype, headers):
+            self.status_code = status_code
+            self.headers = headers
+            self._body = body.encode("utf-8")
+        def get_body(self):
+            return self._body
+    functions.HttpResponse = LocalResponse
+    package = types.ModuleType("azure")
+    package.__path__ = []
+    package.functions = functions
+    with patch.dict(sys.modules, {"azure": package, "azure.functions": functions}):
+        spec.loader.exec_module(shadow)
+else:
+    spec.loader.exec_module(shadow)
 UUID = "11111111-1111-4111-8111-111111111111"
 ENV = {
     "RGAI_P0249_READONLY_SHADOW": "true",
