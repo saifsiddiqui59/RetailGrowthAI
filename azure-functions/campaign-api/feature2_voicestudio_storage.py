@@ -166,6 +166,29 @@ class VoiceStudioPrivateStorage:
                 "sql_original_key_claim_and_registration_still_required": True,
                 "publish_approved": False}
 
+    def write_and_verify_private_audio(self, shop_id, campaign_id, request_id,
+                                       original, render_wav, original_sha,
+                                       render_sha, claim):
+        """Write once, then reconcile exact private bytes; never register/approve.
+
+        On a partial or uncertain write, propagate denial without retrying or
+        deleting either object. A separate authorized SQL receipt is required.
+        """
+        receipt = self.write_private_audio(
+            shop_id, campaign_id, request_id, original, render_wav,
+            original_sha, render_sha, claim,
+        )
+        verified = self.verify_pair(
+            shop_id, campaign_id, request_id, original_sha, render_sha,
+        )
+        if (verified["original_bytes"] != len(original)
+                or verified["render_bytes"] != len(render_wav)):
+            raise PrivateVoiceStorageDenied("Private WAV reconciliation size mismatch")
+        return {**receipt, **verified,
+                "status": "PRIVATE_WAV_RECONCILED_NOT_REGISTERED",
+                "sql_original_key_claim_and_registration_still_required": True,
+                "publish_approved": False}
+
     def write_private_audio(self, shop_id, campaign_id, request_id,
                             original, render_wav, original_sha, render_sha, claim):
         """One attempt per object; require a unique SQL claim first.
