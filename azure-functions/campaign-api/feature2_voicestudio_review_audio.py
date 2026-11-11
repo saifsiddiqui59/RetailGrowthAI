@@ -95,5 +95,6 @@ def read_current_voiceover_for_review(
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
         return content
     except (AuthenticationError, StorageUnavailable, PrivateVoiceStorageDenied,
-            VoiceStudioReviewDenied, ValueError, TypeError, OSError, TimeoutError):
+            VoiceStudioReviewDenied, ValueError, TypeError, KeyError, AttributeError,
+            OSError, ConnectionError, TimeoutError, RuntimeError):
         raise VoiceStudioReviewDenied("Private VoiceStudio review access denied") from None
