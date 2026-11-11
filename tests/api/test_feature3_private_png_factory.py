@@ -323,6 +323,41 @@ class FactoryTests(unittest.TestCase):
             reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
         self.assertEqual(calls, [token])
 
+    def test_noncanonical_base64url_and_nonfinite_json_denied(self):
+        # The untrusted syntax filter and the signed verifier must not
+        # disagree about JSON constants or base64url pad bits.
+        def encoded(raw):
+            return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
+
+        header = encoded('{"alg":"RS256"}')
+        payload = encoded('{"sub":"fixture"}')
+        for raw in ('{"sub":"fixture","n":NaN}',
+                    '{"sub":"fixture","n":Infinity}',
+                    '{"sub":"fixture","n":-Infinity}'):
+            with self.subTest(raw=raw):
+                self.assertFalse(_safe_jwt_json(encoded(raw)))
+
+        # One-byte 0xff encodes as _w. _x has the same decoded byte
+        # under permissive decoders but is not canonical base64url.
+        self.assertFalse(_safe_jwt_json("_x"))
+        self.assertTrue(_safe_jwt_json(header, header=True))
+        self.assertTrue(_safe_jwt_json(payload))
+
+        calls = []
+        def verify(token):
+            calls.append(token)
+            raise AssertionError("malformed JWT reached verifier")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=Store(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        for raw in ('{"sub":"fixture","n":NaN}',
+                    '{"sub":"fixture","n":Infinity}'):
+            token = f"{header}.{encoded(raw)}.c2lnbmF0dXJl"
+            with self.assertRaises(PrivateGeneratedDownloadDenied):
+                reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, [])
+
     def test_valid_scope_reaches_real_reader_and_denies_fake_jwt(self):
         # No mocked success: the actual reader must reject the fixture token.
         reader = self.make()(self.shop, self.job)
