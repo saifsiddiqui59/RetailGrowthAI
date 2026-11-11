@@ -173,6 +173,29 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                 read_current_receipt=lambda *_: dict(receipt),
                 read_current_private_wav=changing_reader)
 
+    def test_private_reader_cannot_swap_other_approved_scene_media(self):
+        draft, snapshot, receipt, data = self.setup_case()
+        other = next(key for key in snapshot["assets"] if key != draft["voiceover_asset_id"])
+        def changing_reader(*_):
+            snapshot["assets"][other]["object_path"] = "foreign/changed-scene.mp4"
+            return data
+        with self.assertRaisesRegex(CreativeContractError, "snapshot changed"):
+            compile_voicestudio_narrated_reel(
+                draft=draft, snapshot=snapshot,
+                read_current_receipt=lambda *_: dict(receipt),
+                read_current_private_wav=changing_reader)
+
+    def test_private_reader_cannot_change_approved_campaign_scene_order(self):
+        draft, snapshot, receipt, data = self.setup_case()
+        def changing_reader(*_):
+            snapshot["campaign_id"] = str(uuid4())
+            return data
+        with self.assertRaises(CreativeContractError):
+            compile_voicestudio_narrated_reel(
+                draft=draft, snapshot=snapshot,
+                read_current_receipt=lambda *_: dict(receipt),
+                read_current_private_wav=changing_reader)
+
     def test_wrong_receipt_duration_denied_before_private_media_read(self):
         draft, snapshot, receipt, data = self.setup_case()
         receipt["render_duration_seconds"] = 15
