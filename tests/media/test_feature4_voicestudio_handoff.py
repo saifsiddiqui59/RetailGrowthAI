@@ -80,6 +80,13 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             with self.subTest(mutate=mutate),self.assertRaises(CreativeContractError):
                 self.call(draft,snapshot,receipt,data)
 
+    def test_malformed_trusted_media_manifest_fails_closed(self):
+        for invalid in (None, [], "not-a-manifest", 7):
+            d,s,r,data=self.setup_case()
+            s["assets"]=invalid
+            with self.subTest(invalid=invalid), self.assertRaises(CreativeContractError):
+                self.call(d,s,r,data)
+
     def test_bytes_changed_or_timeline_wrong_denied(self):
         d,s,r,data=self.setup_case()
         with self.assertRaises(CreativeContractError):
