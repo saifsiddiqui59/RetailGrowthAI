@@ -199,7 +199,7 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                 read_current_private_wav=lambda *_:data)
         self.assertEqual(reads[0],3)
 
-    def test_no_browser_supplied_audio_reader_or_receipt(self):
+    def test_private_bytes_replaced_during_compilation_denied(self):\n        d,s,r,data=self.setup_case()\n        calls=[0]\n        def private_reader(*_):\n            calls[0]+=1\n            return data if calls[0]==1 else data[:-2]+b"\\x00\\x00"\n        with self.assertRaises(CreativeContractError):\n            compile_voicestudio_narrated_reel(\n                draft=d,snapshot=s,\n                read_current_receipt=lambda *_:dict(r),\n                read_current_private_wav=private_reader)\n        self.assertEqual(calls[0],2)\n\n    def test_revocation_after_final_private_read_denied(self):\n        d,s,r,data=self.setup_case()\n        calls=[0]\n        def reader(*_):\n            calls[0]+=1\n            answer=dict(r)\n            if calls[0]>=4:answer["review_status"]="REVOKED"\n            return answer\n        with self.assertRaises(CreativeContractError):\n            self.call(d,s,r,data,reader=reader)\n        self.assertEqual(calls[0],4)\n\n    def test_no_browser_supplied_audio_reader_or_receipt(self):
         d,s,r,data=self.setup_case()
         with self.assertRaises(CreativeContractError):
             compile_voicestudio_narrated_reel(
