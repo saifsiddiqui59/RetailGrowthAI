@@ -63,6 +63,7 @@ class SQL:
             "campaign_id": CAMPAIGN, "request_id": JOB,
             "plan_sha256": PLAN_SHA,
             "original_sha256": sha256(pcm()).hexdigest(),
+            "render_sha256": sha256(b"paired render receipt").hexdigest(),
             "private": True,
             "review_status": "REVOKED" if self.revoke_on_second and len(self.calls) == 2 else self.status,
             "commercial_rights_confirmed": True,
@@ -342,3 +343,31 @@ def test_unexpected_provider_exception_is_sanitized_and_never_retried(dependency
     assert len(storage.calls) == 0
     assert len(sql.calls) == (0 if dependency == "jwt" else 1 if dependency == "storage" else 0)
     assert len(tenant.calls) == (0 if dependency == "jwt" else 1)
+
+
+@pytest.mark.parametrize("bad_render", [None, "", "f" * 63, "F" * 64, 123])
+def test_missing_or_malformed_render_pair_receipt_denied_before_private_read(bad_render):
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def invalid_pair(*ids):
+        receipt = original(*ids)
+        receipt["render_sha256"] = bad_render
+        return receipt
+    sql.read_private_receipt = invalid_pair
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 0
+
+
+def test_render_pair_digest_revoked_during_original_read_denies_disclosure():
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def changed_pair(*ids):
+        receipt = original(*ids)
+        if len(sql.calls) == 2:
+            receipt["render_sha256"] = "a" * 64
+        return receipt
+    sql.read_private_receipt = changed_pair
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1 and len(sql.calls) == 2
