@@ -87,6 +87,27 @@ class Tests(unittest.TestCase):
         self.assertEqual(response.body, b"")
         self.assertEqual(response.headers["Content-Length"], "0")
 
+    def test_backend_unexpected_receipt_headers_fail_closed(self):
+        # Only the canonical three-field receipt is accepted. Synthetic
+        # backend extras must not become public response metadata.
+        png_like = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
+        canonical = {"Content-Type": "image/png",
+                     "Cache-Control": "no-store, private",
+                     "Content-Length": str(len(png_like))}
+        for extra in ("Content-Disposition", "Refresh", "X-Accel-Redirect",
+                      "X-Internal-Authorization", "Server", "content-length"):
+            with self.subTest(extra=extra):
+                with patch("feature3_private_png_route.private_png_http",
+                           return_value=SimpleNamespace(
+                               status=200, body=png_like,
+                               headers={**canonical, extra: "synthetic"})):
+                    response = handle_private_png_request(
+                        Request(), reader_factory=lambda *args: None,
+                        response_type=Response)
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.body, b"")
+                self.assertEqual(response.headers["Content-Length"], "0")
+
     def test_private_png_backend_transformation_and_duplicate_headers_denied(self):
         # Synthetic compromised backend fixtures; no hosted authorization.
         png_like = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
