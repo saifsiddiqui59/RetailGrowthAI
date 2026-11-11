@@ -22,3 +22,6 @@ This is **review-only SQL, not a migration**. It has not been executed on the li
 5. Keep VoiceStudio GPU/paid/weights OFF until real commercial model component licensing and AGPL obligations are cleared.
 
 **Status:** F2-19 / F2-20 SOURCE PROPOSED, NOT DEPLOYED, NO LIVE VOICE, NO AUTOMATIC DONE. WineShopPOS untouched.
+
+## 2026-11-11 model-rights hardening
+The review-only schema now includes `feature2_voicestudio_model_reviews` with revision-specific upstream source commit, model identifier/revision, weights license, signed rights evidence digest, independent reviewer and four separately cleared checks for model weights, tokenizers, dependencies and upstream AGPL obligations. There are NO seeded approvals; the service role is strictly SELECT-only on the review registry, and no public/client write path exists. All four private VoiceStudio plan/claim/register/receipt RPCs independently reject revoked/uncleared model references, including if rights were revoked after job claim. Static tests assert one schema copy, four current model checks and no granted write authority. These checks are **necessary but not a substitute** for an actual approved upstream commercial model, model-weight license review, legal obligations or signed retailer consent. SQL remains UNAPPLIED pending security review.
