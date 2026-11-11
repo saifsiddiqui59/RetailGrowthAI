@@ -26,3 +26,6 @@ Date: 2026-11-11. Primary objective: ship one working script → licensed voice 
 
 ## Exit criteria for product acceptance
 A real licensed model is selected without violating upstream terms; one actual reviewed script synthesizes a non-fabricated private WAV under an authenticated test tenant; a second shop is denied; original and F4 render WAV readback match stored SHA; F7 emits signed source-backed words (or explicit missing-word denial); F4 creates a real authorized private 9:16 H.264/AAC MP4 with correct captions, voice/music ducking and no unlicensed content; signed download and usage/retry ledger pass; parent PR source is merged and main CI 4/4; remaining hosted DEV/auth/real user tests run separately before production. Do not claim DONE from synthetic fixtures.
+
+## Latest source-only checkpoint
+#932/#936 merged with fresh four-job main CI; #918 source validator and #937 protected original listening gate are reviewed separately. Protected SQL/RLS/router #920/#923/#925 remain DRAFT, not deployed. Main 4/4 proves source smoke tests, not licensed model output or signed two-shop hosted voice.
