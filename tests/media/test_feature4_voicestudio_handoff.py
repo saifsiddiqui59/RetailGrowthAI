@@ -171,6 +171,34 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             self.call(d,s,r,data,reader=reader)
         self.assertEqual(calls[0],3)
 
+    def test_private_media_replacement_during_read_denied(self):
+        d,s,r,data=self.setup_case()
+        asset=d["voiceover_asset_id"]
+        def private_reader(*_):
+            s["assets"][asset]["object_path"]="other-tenant/forged.wav"
+            return data
+        with self.assertRaises(CreativeContractError):
+            compile_voicestudio_narrated_reel(
+                draft=d,snapshot=s,
+                read_current_receipt=lambda *_:dict(r),
+                read_current_private_wav=private_reader)
+
+    def test_private_media_replacement_during_compile_denied(self):
+        d,s,r,data=self.setup_case()
+        asset=d["voiceover_asset_id"]
+        reads=[0]
+        def receipt_reader(*_):
+            reads[0]+=1
+            if reads[0]==3:
+                s["assets"][asset]["rights_evidence"]="replaced-during-compile"
+            return dict(r)
+        with self.assertRaises(CreativeContractError):
+            compile_voicestudio_narrated_reel(
+                draft=d,snapshot=s,
+                read_current_receipt=receipt_reader,
+                read_current_private_wav=lambda *_:data)
+        self.assertEqual(reads[0],3)
+
     def test_no_browser_supplied_audio_reader_or_receipt(self):
         d,s,r,data=self.setup_case()
         with self.assertRaises(CreativeContractError):
