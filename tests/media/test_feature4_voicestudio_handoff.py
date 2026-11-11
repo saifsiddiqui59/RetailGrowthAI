@@ -134,7 +134,7 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             writer.setnchannels(2)
             writer.setsampwidth(2)
             writer.setframerate(96000)
-            writer.writeframes(b"\\x02\\x01\\x04\\x03" * (96000 * 30))
+            writer.writeframes(bytes((2, 1, 4, 3)) * (96000 * 30))
         data = out.getvalue()
         self.assertGreater(len(data), 8 * 1024 * 1024)
         r["feature4_audio_sha256"] = sha256(data).hexdigest()
