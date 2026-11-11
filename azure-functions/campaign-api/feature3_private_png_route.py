@@ -254,8 +254,9 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # supplied by a faulty internal adapter. Never accept a transformed,
         # ranged, cookie-bearing or case-duplicated backend representation.
         backend_names = list(reply.headers)
-        if (any(type(name) is not str or
-                _HEADER_NAME.fullmatch(name) is None for name in backend_names) or
+        if (len(backend_names) > 16 or
+                any(type(name) is not str or len(name) > 256 or
+                    _HEADER_NAME.fullmatch(name) is None for name in backend_names) or
                 len({name.lower() for name in backend_names}) != len(backend_names) or
                 # Treat the backend receipt as a fixed contract, not an
                 # arbitrary HTTP response. Unexpected headers (including
