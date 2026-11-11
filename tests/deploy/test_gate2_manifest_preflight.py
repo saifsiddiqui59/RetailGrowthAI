@@ -28,6 +28,17 @@ class Gate2ManifestPreflightTests(unittest.TestCase):
             self.assertFalse(destination.exists())
             self.assertFalse(destination.parent.exists())
 
+    def test_unsafe_paths_rejected_before_artifact_creation(self):
+        for unsafe in ("../escape.py", "/absolute.py", "nested/../escape.py",
+                       "nested\\\\escape.py", ".env", "local.settings.json",
+                       "nested/secret.env", ""):
+            with self.subTest(name=unsafe), tempfile.TemporaryDirectory() as temp:
+                destination = Path(temp) / "nested" / "functions.zip"
+                with self.assertRaisesRegex(ValueError, "Unsafe or secret-like ZIP member"):
+                    package.write_zip(destination, {unsafe: b"fixture"})
+                self.assertFalse(destination.exists())
+                self.assertFalse(destination.parent.exists())
+
     def test_exact_member_limit_still_writes_deterministic_archive(self):
         with tempfile.TemporaryDirectory() as temp:
             destination = Path(temp) / "functions.zip"
