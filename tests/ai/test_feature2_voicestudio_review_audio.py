@@ -484,3 +484,39 @@ def test_sql_receipt_failure_after_private_get_denies_without_retry():
     assert exc.value.__cause__ is None
     assert len(storage.calls) == 1 and len(sql.calls) == 2
     assert len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("field,invalid", [
+    ("private", False),
+    ("commercial_rights_confirmed", False),
+    ("publish_approved", True),
+    ("review_status", "APPROVED_FOR_EDITING"),
+    ("audio_asset_id", str(uuid4()).upper()),
+    ("plan_sha256", "0" * 63),
+])
+def test_receipt_requires_private_rights_and_unapproved_review_state(field, invalid):
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def changed(*ids):
+        receipt = original(*ids)
+        receipt[field] = invalid
+        return receipt
+    sql.read_private_receipt = changed
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1
+    assert not storage.calls
+
+
+def test_sql_reader_factory_failure_denies_before_storage_without_retry():
+    args, tenant, sql, storage, _ = harness()
+    calls = []
+    def unavailable(uid):
+        calls.append(uid)
+        raise TimeoutError("private SQL reader factory unavailable")
+    args["sql_store_factory"] = unavailable
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert calls == [USER]
+    assert len(tenant.calls) == 1
+    assert not storage.calls
