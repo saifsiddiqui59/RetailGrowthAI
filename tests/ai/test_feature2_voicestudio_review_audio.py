@@ -452,3 +452,35 @@ def test_digest_matching_wav_with_false_riff_length_denied(declared_offset):
     with pytest.raises(VoiceStudioReviewDenied):
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1 and len(tenant.calls) == 1
+
+
+def test_expired_jwt_during_private_read_denies_without_disclosing_bytes():
+    args, tenant, sql, storage, _ = harness()
+    checks = []
+    def expires_after_get(token):
+        checks.append(token)
+        if len(checks) == 2:
+            raise ValueError("expired signed JWT")
+        return USER
+    args["verify_token"] = expires_after_get
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert checks == [TOKEN, TOKEN]
+    assert len(storage.calls) == 1 and len(sql.calls) == 2
+    assert len(tenant.calls) == 1
+
+
+def test_sql_receipt_failure_after_private_get_denies_without_retry():
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def disconnect_after_get(*ids):
+        if len(sql.calls) == 1:
+            sql.calls.append(ids)
+            raise TimeoutError("private SQL connection diagnostic")
+        return original(*ids)
+    sql.read_private_receipt = disconnect_after_get
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$") as exc:
+        read_current_voiceover_for_review(**args)
+    assert exc.value.__cause__ is None
+    assert len(storage.calls) == 1 and len(sql.calls) == 2
+    assert len(tenant.calls) == 1
