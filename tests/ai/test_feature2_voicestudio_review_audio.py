@@ -553,3 +553,35 @@ def test_audio_asset_identity_rotation_during_private_read_denies_bytes():
     assert len(storage.calls) == 1
     assert len(sql.calls) == 2
     assert len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("field", ["shop_id", "campaign_id", "request_id"])
+def test_receipt_foreign_scope_denied_before_private_storage_access(field):
+    """A signed editor cannot read a receipt belonging to another original key."""
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def swapped(*ids):
+        receipt = original(*ids)
+        receipt[field] = str(uuid4())
+        return receipt
+    sql.read_private_receipt = swapped
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1
+    assert len(tenant.calls) == 1
+    assert not storage.calls
+
+
+@pytest.mark.parametrize("field", ["audio_asset_id", "shop_id", "campaign_id", "request_id"])
+def test_receipt_missing_identity_denied_without_private_get(field):
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def incomplete(*ids):
+        receipt = original(*ids)
+        receipt.pop(field)
+        return receipt
+    sql.read_private_receipt = incomplete
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1
+    assert not storage.calls
