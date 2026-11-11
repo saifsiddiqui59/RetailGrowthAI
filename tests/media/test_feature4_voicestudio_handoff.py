@@ -177,6 +177,29 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         with self.assertRaises(CreativeContractError):
             self.call(d, s, r, odd)
 
+    def test_private_wav_rejects_inconsistent_pcm_headers_and_partial_frames(self):
+        # Valid SHA and RIFF length do not make a forged PCM layout safe.
+        for offset, width, value in (
+            (22, 2, 1),        # 8-bit samples but 16-bit frame data
+            (32, 2, 1),        # block alignment disagrees with channels
+            (28, 4, 1),        # byte rate disagrees with sample rate
+            (24, 4, 0),        # invalid sample rate
+            (22, 2, 24),       # unsupported 24-bit PCM
+        ):
+            d, s, r, data = self.setup_case()
+            forged = data[:offset] + value.to_bytes(width, "little") + data[offset + width:]
+            r["feature4_audio_sha256"] = sha256(forged).hexdigest()
+            with self.subTest(offset=offset, value=value), self.assertRaises(CreativeContractError):
+                self.call(d, s, r, forged)
+
+        d, s, r, data = self.setup_case()
+        # Add one unaligned PCM byte and a legal zero RIFF padding byte.
+        payload = data[:40] + (len(data) - 44 + 1).to_bytes(4, "little") + data[44:] + b"\\x01\\x00"
+        payload = payload[:4] + (len(payload) - 8).to_bytes(4, "little") + payload[8:]
+        r["feature4_audio_sha256"] = sha256(payload).hexdigest()
+        with self.assertRaises(CreativeContractError):
+            self.call(d, s, r, payload)
+
     def test_revocation_during_read_is_not_accepted(self):
         d,s,r,data=self.setup_case()
         counts=[0]
