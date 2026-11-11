@@ -9,7 +9,12 @@ import {createHash} from 'node:crypto';
 import {bindVerifiedVoiceStudioMedia} from './video-engine/feature7/voicestudio_verified_media.mjs';
 const digest=b=>createHash('sha256').update(b).digest('hex');
 const video=Buffer.from('synthetic-original-video');
-const wav=Buffer.concat([Buffer.from('RIFF'),Buffer.alloc(60,1)]);
+const wav=Buffer.alloc(44+32000);
+wav.write('RIFF',0);wav.writeUInt32LE(wav.length-8,4);wav.write('WAVE',8);
+wav.write('fmt ',12);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);
+wav.writeUInt16LE(1,22);wav.writeUInt32LE(16000,24);
+wav.writeUInt32LE(32000,28);wav.writeUInt16LE(2,32);
+wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(32000,40);
 const v=digest(video),a=digest(wav),now=1730000000000;
 const review={schema:'retailgrowth.feature7-voicestudio-asr-review.v1',
  audio_sha256:a,language:'mr',text:'नमस्कार',words:[{word:'नमस्कार',start:.1,end:.7}],
@@ -32,6 +37,22 @@ await denied({readExtractedWav:async()=>Buffer.alloc(64)});
 await denied({readOriginalVideo:async()=>Buffer.alloc(0)});
 await denied({readOriginalVideo:async()=>Buffer.alloc(256*1024*1024+1)});
 await denied({readExtractedWav:async()=>Buffer.alloc(44)});
+// A self-consistent digest must not authorize corrupt, compressed or truncated WAV.
+const malformed=Buffer.from(wav);malformed.write('NOPE',8);
+await denied({readExtractedWav:async()=>malformed,
+ original_audio_sha256:digest(malformed),
+ review:{...review,audio_sha256:digest(malformed)},
+ readCurrentLease:async()=>({...lease,audio_sha256:digest(malformed)})});
+const compressed=Buffer.from(wav);compressed.writeUInt16LE(3,20);
+await denied({readExtractedWav:async()=>compressed,
+ original_audio_sha256:digest(compressed),
+ review:{...review,audio_sha256:digest(compressed)},
+ readCurrentLease:async()=>({...lease,audio_sha256:digest(compressed)})});
+const truncated=wav.subarray(0,wav.length-2);
+await denied({readExtractedWav:async()=>truncated,
+ original_audio_sha256:digest(truncated),
+ review:{...review,audio_sha256:digest(truncated)},
+ readCurrentLease:async()=>({...lease,audio_sha256:digest(truncated)})});
 await denied({readCurrentLease:async()=>({...lease,shop_id:'foreign'})});
 let calls=0;
 await denied({readCurrentLease:async()=>({...lease,active:++calls===1})});
