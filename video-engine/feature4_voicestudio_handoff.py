@@ -93,6 +93,9 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     # must not change duration, source or selected media between approval and
     # the final compilation (the receipt is bound to the original duration).
     frozen_draft = deepcopy(draft)
+    # Other approved scene/music/media inputs must remain immutable while
+    # trusted callbacks run; checking only the narration row is insufficient.
+    frozen_snapshot = deepcopy(snapshot)
     # Freeze the trusted receipt: a service reader may reuse and mutate its dict.
     # Comparing against a live alias would silently accept in-place revocation.
     before = deepcopy(authoritative())
@@ -164,8 +167,8 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         raise CreativeContractError("Malformed private narration WAV") from exc
     if authoritative() != before or snapshot["assets"].get(asset_id) != before_asset:
         raise CreativeContractError("Narration approval or private asset changed during read")
-    if draft != frozen_draft:
-        raise CreativeContractError("Narration draft changed during private read")
+    if draft != frozen_draft or snapshot != frozen_snapshot:
+        raise CreativeContractError("Approved reel inputs changed during private read")
     output = compile_approved_storyboard(deepcopy(frozen_draft), deepcopy(snapshot))
     if output["request"].get("voiceover_asset_id") != asset_id or output["request"].get("voiceover_source") != "retailer":
         raise CreativeContractError("Video compiler discarded approved voice source")
@@ -179,7 +182,7 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     if (type(final_bytes) is not bytes or len(final_bytes) != len(original)
             or sha256(final_bytes).hexdigest() != before["feature4_audio_sha256"]):
         raise CreativeContractError("Private narration replaced during compilation")
-    if (draft != frozen_draft or authoritative() != before
+    if (draft != frozen_draft or snapshot != frozen_snapshot or authoritative() != before
             or snapshot["assets"].get(asset_id) != before_asset):
         raise CreativeContractError("Narration changed after final private read")
     return output
