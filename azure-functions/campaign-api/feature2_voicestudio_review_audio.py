@@ -42,6 +42,8 @@ def _receipt(sql_reader, shop, campaign, request):
         or result.get("publish_approved") is not False
         or type(result.get("original_sha256")) is not str
         or _SHA.fullmatch(result["original_sha256"]) is None
+        or type(result.get("render_sha256")) is not str
+        or _SHA.fullmatch(result["render_sha256"]) is None
         or type(result.get("plan_sha256")) is not str
         or _SHA.fullmatch(result["plan_sha256"]) is None
     ):
