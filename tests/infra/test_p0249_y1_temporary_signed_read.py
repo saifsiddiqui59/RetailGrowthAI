@@ -74,7 +74,7 @@ class P0249Y1TemporarySignedReadTests(unittest.TestCase):
         self.assertEqual(azure.call_count,1)
         args=azure.call_args.args
         self.assertEqual(args[:4],("functionapp","config","appsettings","set"))
-        self.assertEqual(args[6],guard.scope.SITE)
+        self.assertEqual(args[args.index("-n")+1],guard.scope.SITE)
         settings=args[args.index("--settings")+1:]
         self.assertEqual(set(settings),{k+"="+v for k,v in guard.SETTING_VALUES.items()})
         self.assertFalse(any("service_role" in x.lower() for x in settings))
