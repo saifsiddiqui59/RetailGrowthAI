@@ -207,3 +207,67 @@ def test_storage_returning_valid_length_but_wrong_sha_is_rejected_twice():
     # Invalid bytes are blocked before any second SQL/tenant read.
     assert len(sql.calls) == 1
     assert len(tenant.calls) == 1
+
+
+def _jwt_harness():
+    import jwt
+    from datetime import datetime, timedelta, timezone
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from security import SupabaseJWTVerifier
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    issuer = "https://retail-test.supabase.co/auth/v1"
+
+    class JWK:
+        def __init__(self, public_key):
+            self.key = public_key
+
+    class Client:
+        def get_signing_key_from_jwt(self, _token):
+            return JWK(key.public_key())
+
+    verifier = SupabaseJWTVerifier(
+        "https://retail-test.supabase.co", jwks_client=Client()
+    )
+
+    def sign(**changes):
+        claims = {
+            "sub": USER, "iss": issuer, "aud": "authenticated",
+            "role": "authenticated",
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+        }
+        claims.update(changes)
+        return jwt.encode(claims, key, algorithm="RS256")
+    return verifier, sign
+
+
+def test_current_reviewer_accepts_real_verified_local_rsa_jwt():
+    verify, sign = _jwt_harness()
+    signed = sign()
+    args, tenant, sql, storage, _ = harness(
+        verify_token=verify, authorization="Bearer " + signed
+    )
+    tenant.member = lambda token, uid, shop, write=False: (
+        token == signed and uid == USER and shop == SHOP and write
+    )
+    assert read_current_voiceover_for_review(**args) == pcm()
+    assert len(storage.calls) == 1 and len(sql.calls) == 2
+
+
+@pytest.mark.parametrize("claim", [
+    {"iss": "https://foreign.supabase.co/auth/v1"},
+    {"aud": "another-audience"},
+    {"role": "service_role"},
+    {"is_anonymous": True},
+])
+def test_current_reviewer_refuses_forged_or_cross_project_claims(claim):
+    verify, sign = _jwt_harness()
+    signed = sign(**claim)
+    args, tenant, sql, storage, _ = harness(
+        verify_token=verify, authorization="Bearer " + signed
+    )
+    tenant.member = lambda *a, **k: True
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 0 and len(sql.calls) == 0
