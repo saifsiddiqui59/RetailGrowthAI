@@ -317,6 +317,22 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         present = attested.intersection(reply.headers)
         if present != attested:
             return _denied(503, response_type)
+        # A successful private response must preserve all anti-cache,
+        # anti-sniff, CSP, authorization-vary and safe filename protections.
+        # Missing security metadata cannot be treated as legacy success.
+        required_protection = {
+            "Pragma": "no-cache",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'",
+            "Vary": "Authorization",
+            "Content-Disposition": f'attachment; filename="feature3-{job_id}.png"',
+        }
+        if any(
+            type(reply.headers.get(key)) is not str or
+            reply.headers[key] != expected
+            for key, expected in required_protection.items()
+        ):
+            return _denied(503, response_type)
         if "X-Feature3-Media-Asset-Id" in reply.headers and not _canonical_uuid4(
                 reply.headers["X-Feature3-Media-Asset-Id"]):
             return _denied(503, response_type)
