@@ -377,9 +377,10 @@ class FactoryTests(unittest.TestCase):
             ).decode("ascii").rstrip("=")
         header = segment({"alg": "RS256"})
         signature = "c2lnbmF0dXJl"
-        bad_subjects = (" ", " fixture", "fixture ", "fixture\\nother",
-                        "fixture\\tother", "fixture\\u200bother",
-                        "fixture\\u00a0other", "a" * 257)
+        bad_subjects = (" ", " fixture", "fixture ", "fixture" + chr(10) + "other",
+                        "fixture" + chr(9) + "other",
+                        "fixture" + chr(0x200b) + "other",
+                        "fixture" + chr(0xa0) + "other", "a" * 257)
         for subject in bad_subjects:
             with self.subTest(subject=repr(subject)):
                 token = f"{header}.{segment({'sub': subject})}.{signature}"
