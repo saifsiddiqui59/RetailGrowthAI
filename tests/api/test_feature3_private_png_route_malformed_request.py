@@ -687,5 +687,28 @@ class Tests(unittest.TestCase):
                 self.assert_denied_before_reader(request)
 
 
+    def test_proxy_identity_assertions_denied_before_reader(self):
+        # Synthetic proxy headers must never substitute for signed user JWT.
+        # No private factory, rights lookup or Storage reader may run.
+        for header in (
+            "X-Forwarded-User", "X-Forwarded-Email",
+            "X-Forwarded-Groups", "X-Remote-User",
+            "X-Authenticated-User", "X-Authenticated-Email",
+            "X-MS-CLIENT-PRINCIPAL", "X-MS-CLIENT-PRINCIPAL-ID",
+            "X-MS-CLIENT-PRINCIPAL-NAME",
+            "X-MS-CLIENT-PRINCIPAL-IDP",
+            "X-Goog-Authenticated-User-Email",
+            "X-Goog-Authenticated-User-ID",
+            "CF-Access-Authenticated-User-Email",
+            "X-Amzn-Oidc-Identity", "X-Amzn-Oidc-Data",
+            "X-Amzn-Oidc-Accesstoken",
+        ):
+            with self.subTest(header=header):
+                request = Request()
+                request.headers = dict(request.headers)
+                request.headers[header] = "synthetic-untrusted-identity"
+                self.assert_denied_before_reader(request)
+
+
 if __name__ == "__main__":
     unittest.main()
