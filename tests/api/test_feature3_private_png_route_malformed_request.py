@@ -905,5 +905,38 @@ class Tests(unittest.TestCase):
                 self.assert_denied_before_reader(request)
 
 
+    def test_partial_backend_rights_attestation_is_not_released(self):
+        # Synthetic backend compromise: a media identifier without the full
+        # signed tenant/job/checksum receipt must not authorize private bytes.
+        png_like = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
+        shop_id = Request.route_params["shop_id"]
+        job_id = Request.route_params["job_id"]
+        complete = {
+            "Content-Type": "image/png",
+            "Cache-Control": "no-store, private",
+            "Content-Length": str(len(png_like)),
+            "X-Feature3-Shop-Id": shop_id,
+            "X-Feature3-Job-Id": job_id,
+            "X-Feature3-Image-Sha256": __import__("hashlib").sha256(png_like).hexdigest(),
+            "X-Feature3-Media-Asset-Id": "123e4567-e89b-42d3-a456-426614174000",
+        }
+        for missing in (
+            "X-Feature3-Shop-Id", "X-Feature3-Job-Id",
+            "X-Feature3-Image-Sha256", "X-Feature3-Media-Asset-Id",
+        ):
+            with self.subTest(missing=missing):
+                headers = dict(complete)
+                del headers[missing]
+                with patch("feature3_private_png_route.private_png_http",
+                           return_value=SimpleNamespace(
+                               status=200, body=png_like, headers=headers)):
+                    response = handle_private_png_request(
+                        Request(), reader_factory=lambda *args: None,
+                        response_type=Response)
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.body, b"")
+                self.assertEqual(response.headers["Content-Length"], "0")
+
+
 if __name__ == "__main__":
     unittest.main()
