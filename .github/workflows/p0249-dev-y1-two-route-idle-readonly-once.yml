@@ -1,0 +1,108 @@
+name: "RetailGrowthAI #249 DEV Y1 two-route idle HTTP repeat (read-only)"
+# No deployment, no settings, no subscription mutations, no customer auth.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0249-dev-y1-two-route-idle-readonly-once.yml'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Read-only 2-route Y1 ingress soak; no Azure writes"
+        required: true
+        type: choice
+        options: ["NO", "YES-Y1-READONLY-2ROUTE"]
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-y1-two-route-readonly
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' &&
+        inputs.confirm == 'YES-Y1-READONLY-2ROUTE') ||
+       (github.event_name == 'push' &&
+        startsWith(github.event.head_commit.message,
+        'audit(#249): verify Y1 two GET routes after idle')))
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Offline allowlisted source and no-mutation regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/p0249_y1_canary_guard.py
+          python3 -m unittest discover -s tests/infra \
+            -p 'test_p0249_y1_two_route_idle_readonly.py' -v
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Exact original Flex FC1 and tagged Y1 ownership check
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_canary_guard.py verify
+      - name: Confirm exactly two original-boundary GET function names
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp function list -g rg-retailgrowth-dev \
+            -n rgai-dev-y1-p0249-d4e5ddbd \
+            --query "[].name" -o json > "$RUNNER_TEMP/p0249-index.json"
+          python3 - "$RUNNER_TEMP/p0249-index.json" <<'PY'
+          import json,sys
+          names=json.load(open(sys.argv[1]))
+          actual=[str(name).split("/")[-1].casefold() for name in names]
+          ok=len(actual)==2 and set(actual)=={"p0249_health","campaign_read"}
+          print(f"P0249_Y1_2ROUTE_INDEXED={len(actual)} valid={ok}",flush=True)
+          if not ok:
+              raise SystemExit("Y1 read-only smoke denied: expected exactly 2 GET functions")
+          PY
+      - name: Two-window hosted synthetic GET + missing-JWT denials, 4-minute idle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u - <<'PY'
+          import sys,time
+          sys.path.insert(0,"ops")
+          import p0249_y1_canary_guard as g
+          cid="11111111-1111-4111-8111-111111111111"
+          for window in ("immediate","after_240s_idle"):
+              if window=="after_240s_idle":
+                  print("P0249_Y1_START_IDLE_SECONDS=240",flush=True)
+                  time.sleep(240)
+              g.probe()   # 20 real HTTP GETs, requires exact 200/404 and handler marker
+              ok=0
+              for i in range(6):
+                  status,marker,elapsed=g.get("/api/campaigns/"+cid,18)
+                  accepted=status==401 and marker and elapsed<18
+                  ok+=int(accepted)
+                  print(f"P0249_Y1_2ROUTE_DENIAL window={window} i={i+1} status={status} marked={marker} seconds={elapsed} accepted={accepted}",flush=True)
+              print(f"P0249_Y1_2ROUTE_DENIAL_SUMMARY window={window} accepted={ok}/6",flush=True)
+              if ok!=6:
+                  raise SystemExit("Missing-JWT original campaign GET not reliably denied")
+          print("P0249_Y1_2ROUTE_WINDOWS=2 HEALTH_20_20_EACH=PASS DENIAL_12_12=PASS",flush=True)
+          PY
+      - name: Confirm exact Y1, existing original Flex and DEV scope at completion
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_canary_guard.py verify
+      - name: Always end read-only Azure OIDC session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
