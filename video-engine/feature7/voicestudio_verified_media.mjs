@@ -33,7 +33,10 @@ function pcmWavDuration(b) {
       byteRate=rate*align;
     }
     if (id==='data') {if (seenData || fmt===null || len===0) return null;seenData=true;data=len;}
-    // RIFF odd-sized chunks require a zero pad byte. Do not sign ambiguous\n    // hidden payload bytes, even if an attacker supplies a matching digest.\n    if (len%2 && (end>=b.length || b[end]!==0)) return null;\n    offset=end+(len%2);
+    // RIFF odd-sized chunks require a zero pad byte. Do not sign ambiguous
+    // hidden payload bytes, even if an attacker supplies a matching digest.
+    if (len%2 && (end>=b.length || b[end]!==0)) return null;
+    offset=end+(len%2);
   }
   return offset===b.length && fmt!==null && seenData && data>0 && data%fmt===0
     ? data/byteRate : null;
