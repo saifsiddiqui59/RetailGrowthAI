@@ -241,6 +241,12 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # also receive the legacy equally restrictive "no-store, private"
         # variant; never treat public/cacheable policy as success. Use an
         # exact str check to reject equality-overloaded backend values.
+        # Reject inconsistent inner binary receipts before releasing bytes.
+        # Never trust a backend Content-Length that disagrees with the body.
+        declared_length = reply.headers.get("Content-Length")
+        if (type(declared_length) is not str or
+                declared_length != str(len(reply.body))):
+            return _denied(503, response_type)
         policy = reply.headers.get("Cache-Control")
         if (not reply.body.startswith(bytes.fromhex("89504e470d0a1a0a")) or
                 type(reply.headers.get("Content-Type")) is not str or
