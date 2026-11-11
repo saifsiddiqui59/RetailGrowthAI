@@ -186,6 +186,13 @@ def ffmpeg_files(folder: Path):
 
 
 def write_zip(path: Path, entries: dict[str, bytes]):
+    # Reject unsafe archive paths before writing bytes to disk, not after verify_zip.
+    for name in entries:
+        if (not isinstance(name, str) or not name or name.startswith("/")
+                or ".." in name.split("/") or "\\" in name
+                or name.startswith(".") or name.endswith(".env")
+                or "local.settings.json" in name):
+            raise ValueError("Unsafe or secret-like ZIP member: " + str(name))
     # Fail before writing a deployable artifact; keep verifier protections.
     if len(entries) > 120:
         by_area = {}
