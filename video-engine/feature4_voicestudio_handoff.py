@@ -45,6 +45,12 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         raise CreativeContractError("Canonical private narration scope required")
     if draft.get("shop_id") != shop:
         raise CreativeContractError("Voice request tenant mismatch")
+    # Never reinterpret a browser-selected provider or an unrelated campaign
+    # as an approved retailer-owned VoiceStudio narration source.
+    if draft.get("voiceover_source") not in (None, "retailer"):
+        raise CreativeContractError("VoiceStudio narration source must be retailer-approved")
+    if "campaign_id" in draft and draft["campaign_id"] != campaign:
+        raise CreativeContractError("VoiceStudio narration campaign mismatch")
     duration = draft.get("duration_seconds")
     if type(duration) is not int or duration not in (15, 30, 60):
         raise CreativeContractError("Invalid approved narration timeline")
