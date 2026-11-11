@@ -8,10 +8,20 @@ import os
 
 import azure.functions as func
 
-from http_api import HTTPAPI
 from request_diagnostics import RequestDiagnostics
-from security import SupabaseJWTVerifier
-from tenant_store import TenantStore
+
+
+def _build_original_api(origin, publishable_key):
+    """Defer heavy JWT/RLS imports until the shadow is explicitly enabled.
+
+    Python v1 functions must index even with the shadow disabled. If the
+    database or cryptography layer is unavailable, never replace the original
+    app with a permissive mock or return customer data.
+    """
+    from http_api import HTTPAPI
+    from security import SupabaseJWTVerifier
+    from tenant_store import TenantStore
+    return HTTPAPI(SupabaseJWTVerifier(origin), TenantStore(origin, publishable_key))
 
 
 def handle_campaign_get(authorization, campaign_id, *, environment=None):
@@ -32,7 +42,7 @@ def handle_campaign_get(authorization, campaign_id, *, environment=None):
     public_key = env.get("RETAIL_SUPABASE_PUBLISHABLE_KEY")
     if not origin or not public_key:
         return 503, {"error": "SERVICE_NOT_CONFIGURED"}
-    api = HTTPAPI(SupabaseJWTVerifier(origin), TenantStore(origin, public_key))
+    api = _build_original_api(origin, public_key)
     return api.handle("GET", "/campaigns/" + campaign_id, authorization)
 
 
