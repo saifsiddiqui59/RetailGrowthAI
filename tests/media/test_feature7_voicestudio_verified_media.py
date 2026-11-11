@@ -61,6 +61,19 @@ let calls=0;
 await denied({readCurrentLease:async()=>({...lease,active:++calls===1})});
 calls=0;
 await denied({readCurrentLease:async()=>({...lease,expires_at_ms:now+(++calls===1?30000:20000)})});
+// Even an unchanged lease snapshot is invalid if the clock advanced past expiry
+// during async source reads / evidence generation.
+let clock=now;
+await denied({readNowMs:()=>clock,
+  readExtractedWav:async()=>{clock=now+30001;return wav;}});
+clock=now;
+await denied({readNowMs:()=>clock,
+  readCurrentLease:async()=>{clock=now+30001;return {...lease};}});
+clock=now;
+await denied({readNowMs:()=>Number.NaN});
+clock=now;
+const signedWithClock=await bindVerifiedVoiceStudioMedia({...base,readNowMs:()=>clock});
+assert.equal(signedWithClock.evidence.source_sha256,v);
 // A second data chunk must not be accepted even when RIFF and SHA match.
 const duplicateData=Buffer.concat([wav,Buffer.from('data'),Buffer.from([2,0,0,0]),Buffer.alloc(2)]);
 duplicateData.writeUInt32LE(duplicateData.length-8,4);
