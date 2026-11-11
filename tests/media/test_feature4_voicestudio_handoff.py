@@ -151,6 +151,28 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         self.assertEqual(result["request"]["voiceover_asset_id"], draft["voiceover_asset_id"])
         self.assertEqual(result["request"]["voiceover_source"], "retailer")
 
+    def test_private_reader_cannot_mutate_approved_draft_timeline(self):
+        draft, snapshot, receipt, data = self.setup_case()
+        def changing_reader(*_):
+            draft["duration_seconds"] = 15
+            return data
+        with self.assertRaisesRegex(CreativeContractError, "draft changed"):
+            compile_voicestudio_narrated_reel(
+                draft=draft, snapshot=snapshot,
+                read_current_receipt=lambda *_: dict(receipt),
+                read_current_private_wav=changing_reader)
+
+    def test_private_reader_cannot_mutate_approved_draft_source(self):
+        draft, snapshot, receipt, data = self.setup_case()
+        def changing_reader(*_):
+            draft["voiceover_source"] = "ai"
+            return data
+        with self.assertRaisesRegex(CreativeContractError, "draft changed"):
+            compile_voicestudio_narrated_reel(
+                draft=draft, snapshot=snapshot,
+                read_current_receipt=lambda *_: dict(receipt),
+                read_current_private_wav=changing_reader)
+
     def test_wrong_receipt_duration_denied_before_private_media_read(self):
         draft, snapshot, receipt, data = self.setup_case()
         receipt["render_duration_seconds"] = 15
