@@ -95,7 +95,12 @@ class VoiceStudioPrivateStorage:
         except (HTTPError, URLError, OSError, TimeoutError):
             raise PrivateVoiceStorageDenied("Private WAV write failed or is uncertain") from None
 
-    def _read_and_verify(self, path, expected_sha):
+    def _get_verified(self, path, expected_sha):
+        """Read a known object with a trusted SHA. Never accept a raw browser path.
+
+        The only public-facing callers must recheck current tenant membership,
+        audio review/rights and claim state before and after this operation.
+        """
         if type(expected_sha) is not str or not _HASH.fullmatch(expected_sha):
             raise PrivateVoiceStorageDenied("Original private digest required")
         url = self.origin + "/storage/v1/object/" + BUCKET + "/" + quote(path, safe="/")
@@ -110,7 +115,25 @@ class VoiceStudioPrivateStorage:
         _wav(content)
         if sha256(content).hexdigest() != expected_sha:
             raise PrivateVoiceStorageDenied("Private WAV byte digest changed after upload")
-        return len(content)
+        return content
+
+    def _read_and_verify(self, path, expected_sha):
+        # Used by the original-key SQL registration gate. No media returned.
+        return len(self._get_verified(path, expected_sha))
+
+    def read_verified_original(self, shop_id, campaign_id, request_id, original_sha):
+        """Worker-only source for a tenant-authorized human audio review.
+
+        Caller must obtain the current SQL review receipt and recheck RLS
+        before/after I/O. The private original is never a signed public link.
+        """
+        original_path, _ = self.paths(shop_id, campaign_id, request_id)
+        return self._get_verified(original_path, original_sha)
+
+    def read_verified_render(self, shop_id, campaign_id, request_id, render_sha):
+        """Worker-only Feature4 PCM source; approval must be checked elsewhere."""
+        _, render_path = self.paths(shop_id, campaign_id, request_id)
+        return self._get_verified(render_path, render_sha)
 
     def verify_pair(self, shop_id, campaign_id, request_id, original_sha, render_sha):
         """Verify both current private bytes before separately registered SQL receipt.
