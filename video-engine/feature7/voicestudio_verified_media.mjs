@@ -71,7 +71,12 @@ export async function bindVerifiedVoiceStudioMedia({
   const wav=await readExtractedWav({shop_id,asset_id,job_id,video_sha256:original_video_sha256});
   deny(Buffer.isBuffer(wav) && wav.length>=44 && wav.length<=64*1024*1024);
   const wavDuration=pcmWavDuration(wav);
-  deny(wavDuration!==null && sha(wav)===original_audio_sha256);
+  // An extracted full-source WAV cannot contain more PCM time than its
+  // claimed original video. Otherwise valid signed words could refer to
+  // fabricated audio beyond the video timeline.
+  deny(wavDuration!==null && Number.isFinite(source_duration_seconds) &&
+    source_duration_seconds>0 && wavDuration<=source_duration_seconds+0.02 &&
+    sha(wav)===original_audio_sha256);
   // A valid HMAC must never bless word offsets beyond the actual PCM sample clock.
   // The original video may be longer than the extracted speech segment.
   deny(Array.isArray(review?.words) && review.words.every(w=>
