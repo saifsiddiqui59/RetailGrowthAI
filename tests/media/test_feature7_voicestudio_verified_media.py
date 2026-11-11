@@ -88,6 +88,24 @@ await denied({readExtractedWav:async()=>zeroTrailing,
  original_audio_sha256:digest(zeroTrailing),
  review:{...review,audio_sha256:digest(zeroTrailing)},
  readCurrentLease:async()=>({...lease,audio_sha256:digest(zeroTrailing)})});
+
+// A 1-second 16kHz PCM source permits at most one sample beyond its clock.
+await bindVerifiedVoiceStudioMedia({...base,review:{...review,words:[{word:'नमस्कार',start:.1,end:1+1/16000}]}});
+await denied({review:{...review,words:[{word:'नमस्कार',start:.1,end:1+2/16000}]}});
+// A reader returning the same mutable lease object must not conceal revocation.
+const sharedLease={...lease};
+let reads=0;
+await denied({readCurrentLease:async()=>{
+  if (++reads===2) sharedLease.active=false;
+  return sharedLease;
+}});
+// A missing RIFF padding byte must be rejected, even with matching hashes.
+const oddChunk=Buffer.concat([wav.subarray(0,36),Buffer.from('JUNK'),Buffer.from([1,0,0,0]),Buffer.from([7]),wav.subarray(36)]);
+oddChunk.writeUInt32LE(oddChunk.length-8,4);
+await denied({readExtractedWav:async()=>oddChunk,
+ original_audio_sha256:digest(oddChunk),
+ review:{...review,audio_sha256:digest(oddChunk)},
+ readCurrentLease:async()=>({...lease,audio_sha256:digest(oddChunk)})});
 console.log('original bytes, Marathi captions and lease revocation denials passed');
 """
 class VerifiedMediaTests(unittest.TestCase):
