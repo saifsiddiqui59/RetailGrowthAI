@@ -474,7 +474,6 @@ def feature2_collect_india_trends(timer: func.TimerRequest):
     ))
     run_daily_collection(datetime.now(timezone.utc), store)
 
-
 # VoiceStudio integration route — SOURCE ONLY, independent security review
 # required before merging this root Functions registration or enabling DEV.
 # Default is OFF; no model is downloaded or started during function indexing.
