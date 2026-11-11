@@ -80,6 +80,15 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             with self.subTest(mutate=mutate),self.assertRaises(CreativeContractError):
                 self.call(draft,snapshot,receipt,data)
 
+    def test_private_narration_rights_metadata_requires_nonblank_strings(self):
+        # Truthy numbers, containers and whitespace are not legal evidence.
+        for key in ("rights_source", "rights_evidence"):
+            for forged in (True, 1, ["unreviewed"], {"claimed": True}, "   ", ""):
+                draft, snapshot, receipt, data = self.setup_case()
+                snapshot["assets"][draft["voiceover_asset_id"]][key] = forged
+                with self.subTest(key=key, forged=forged), self.assertRaises(CreativeContractError):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_malformed_trusted_media_manifest_fails_closed(self):
         for invalid in (None, [], "not-a-manifest", 7):
             d,s,r,data=self.setup_case()
