@@ -18,6 +18,7 @@ class Y1ReadOnlyWorkflowTests(unittest.TestCase):
             "--build-remote false", "P0249_Y1_SIGNED_API_NEGATIVE_ACCEPTED=",
             "RGAI_P0249_READONLY_SHADOW",
             "P0249_Y1_READONLY_PACKAGE=2_GET_ROUTES_ORIGINAL_JWT_RLS",
+            "P0249_Y1_LAZY_IMPORT_PACKAGE_INDEX=PASS",
         ):
             with self.subTest(needle=needle):
                 self.assertIn(needle,s)
