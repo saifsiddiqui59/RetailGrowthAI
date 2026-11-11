@@ -938,5 +938,34 @@ class Tests(unittest.TestCase):
                 self.assertEqual(response.headers["Content-Length"], "0")
 
 
+    def test_missing_entire_backend_attestation_is_denied(self):
+        # A synthetic backend with valid-looking PNG bytes and headers cannot
+        # omit canonical tenant/job/asset/digest proof and still return 200.
+        # No hosted JWT, live rights or real account is used here.
+        png_like = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
+        legacy = {
+            "Content-Type": "image/png",
+            "Content-Length": str(len(png_like)),
+            "Cache-Control": "no-store, private, max-age=0",
+        }
+        for missing in ("all", "asset-only", "digest-only"):
+            with self.subTest(missing=missing):
+                headers = dict(legacy)
+                if missing == "asset-only":
+                    headers["X-Feature3-Media-Asset-Id"] = str(uuid4())
+                elif missing == "digest-only":
+                    from hashlib import sha256
+                    headers["X-Feature3-Image-Sha256"] = sha256(png_like).hexdigest()
+                with patch("feature3_private_png_route.private_png_http",
+                           return_value=SimpleNamespace(status=200, body=png_like,
+                                                        headers=headers)):
+                    response = handle_private_png_request(
+                        Request(), reader_factory=lambda *args: None,
+                        response_type=Response)
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.body, b"")
+                self.assertEqual(response.headers["Content-Length"], "0")
+
+
 if __name__ == "__main__":
     unittest.main()
