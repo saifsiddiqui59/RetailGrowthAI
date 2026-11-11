@@ -748,6 +748,56 @@ class Tests(unittest.TestCase):
                 self.assertEqual(response.body, b"")
                 self.assertNotIn("Location", response.headers)
 
+    def test_canonical_backend_scope_and_digest_receipts_are_verified(self):
+        # Mocked canonical receipt; no live JWT, tenant or hosted rights.
+        from hashlib import sha256
+        png = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
+        shop = Request.route_params["shop_id"]
+        job = Request.route_params["job_id"]
+        asset = str(uuid4())
+        headers = {
+            "Content-Type": "image/png",
+            "Content-Length": str(len(png)),
+            "Cache-Control": "no-store, private, max-age=0",
+            "X-Feature3-Shop-Id": shop,
+            "X-Feature3-Job-Id": job,
+            "X-Feature3-Media-Asset-Id": asset,
+            "X-Feature3-Image-Sha256": sha256(png).hexdigest(),
+            "Content-Disposition": f'attachment; filename="feature3-{job}.png"',
+            "Pragma": "no-cache",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'",
+            "Vary": "Authorization",
+        }
+        with patch("feature3_private_png_route.private_png_http",
+                   return_value=SimpleNamespace(status=200, body=png,
+                                                headers=headers)):
+            response = handle_private_png_request(
+                Request(), reader_factory=lambda *args: None,
+                response_type=Response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.body, png)
+        self.assertNotIn("X-Feature3-Shop-Id", response.headers)
+        self.assertNotIn("X-Feature3-Image-Sha256", response.headers)
+        for key, wrong in (
+            ("X-Feature3-Shop-Id", str(uuid4())),
+            ("X-Feature3-Job-Id", str(uuid4())),
+            ("X-Feature3-Media-Asset-Id", "not-a-uuid"),
+            ("X-Feature3-Image-Sha256", "0" * 64),
+            ("Content-Disposition", "attachment; filename=other.png"),
+            ("Vary", "*"),
+        ):
+            with self.subTest(key=key):
+                corrupt = dict(headers, **{key: wrong})
+                with patch("feature3_private_png_route.private_png_http",
+                           return_value=SimpleNamespace(
+                               status=200, body=png, headers=corrupt)):
+                    denied = handle_private_png_request(
+                        Request(), reader_factory=lambda *args: None,
+                        response_type=Response)
+                self.assertEqual(denied.status_code, 503)
+                self.assertEqual(denied.body, b"")
+
     def test_canonical_strict_no_cache_policy_is_accepted_without_leaking_headers(self):
         # Actual Feature3PrivateBinaryHTTP returns this exact header; a
         # disagreement between the two adapters previously made every
