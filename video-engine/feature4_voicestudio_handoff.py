@@ -83,6 +83,9 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     # Freeze the trusted receipt: a service reader may reuse and mutate its dict.
     # Comparing against a live alias would silently accept in-place revocation.
     before = deepcopy(authoritative())
+    # Freeze trusted media metadata as well as approval: a private reader or
+    # compiler must not silently replace the tenant object while processing.
+    before_asset = deepcopy(snapshot["assets"][asset_id])
     original = read_current_private_wav(shop, campaign, asset_id)
     if type(original) is not bytes or not 44 <= len(original) <= 8 * 1024 * 1024:
         raise CreativeContractError("Bounded private narration bytes required")
@@ -103,13 +106,13 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
                 raise CreativeContractError("Narration timeline/profile does not match approved reel")
     except (EOFError, wave.Error) as exc:
         raise CreativeContractError("Malformed private narration WAV") from exc
-    if authoritative() != before:
-        raise CreativeContractError("Narration approval changed during private read")
+    if authoritative() != before or snapshot["assets"].get(asset_id) != before_asset:
+        raise CreativeContractError("Narration approval or private asset changed during read")
     output = compile_approved_storyboard(deepcopy(draft), deepcopy(snapshot))
     if output["request"].get("voiceover_asset_id") != asset_id or output["request"].get("voiceover_source") != "retailer":
         raise CreativeContractError("Video compiler discarded approved voice source")
     # The compiler may perform additional trusted reads. Do not return a reel
     # compiled from narration whose approval was revoked during that work.
-    if authoritative() != before:
-        raise CreativeContractError("Narration approval changed during compilation")
+    if authoritative() != before or snapshot["assets"].get(asset_id) != before_asset:
+        raise CreativeContractError("Narration approval or private asset changed during compilation")
     return output
