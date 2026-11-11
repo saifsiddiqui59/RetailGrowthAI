@@ -53,6 +53,29 @@ class Tests(unittest.TestCase):
         self.assertEqual(response.headers["Cache-Control"], "no-store, private")
         self.assertEqual(invoked, [])
 
+    def test_private_png_receipt_length_mismatch_fails_closed(self):
+        # Synthetic backend replies are not proof of signed hosted access.
+        # Even a PNG-looking body must not escape if the trusted adapter
+        # reports a missing, inconsistent or noncanonical byte count.
+        png_like = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
+        for declared in (None, "0", str(len(png_like) + 1),
+                         "0" + str(len(png_like)), len(png_like)):
+            with self.subTest(declared=declared):
+                request = Request()
+                headers = {"Content-Type": "image/png",
+                           "Cache-Control": "no-store, private"}
+                if declared is not None:
+                    headers["Content-Length"] = declared
+                with patch("feature3_private_png_route.private_png_http",
+                           return_value=SimpleNamespace(
+                               status=200, body=png_like, headers=headers)):
+                    response = handle_private_png_request(
+                        request, reader_factory=lambda *args: None,
+                        response_type=Response)
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.body, b"")
+                self.assertEqual(response.headers["Content-Length"], "0")
+
     def test_noncanonical_route_scope_denied_before_reader(self):
         # Synthetic scopes must not invoke JWT, rights or storage adapters.
         shop = Request.route_params["shop_id"]
