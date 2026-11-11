@@ -13,7 +13,7 @@ const SHA=/^[a-f0-9]{64}$/;
 function pcmWavDuration(b) {
   if (b.length<44 || b.toString('ascii',0,4)!=='RIFF' ||
       b.toString('ascii',8,12)!=='WAVE' || b.readUInt32LE(4)!==b.length-8) return null;
-  let offset=12,fmt=null,data=0,byteRate=0;
+  let offset=12,fmt=null,data=0,byteRate=0,seenData=false;
   while (offset+8<=b.length) {
     const id=b.toString('ascii',offset,offset+4);
     const len=b.readUInt32LE(offset+4);
@@ -29,10 +29,10 @@ function pcmWavDuration(b) {
       fmt=align;
       byteRate=rate*align;
     }
-    if (id==='data') {if (data!==0 || len===0) return null;data=len;}
+    if (id==='data') {if (seenData || fmt===null || len===0) return null;seenData=true;data=len;}
     offset=end+(len%2);
   }
-  return offset===b.length && fmt!==null && data>0 && data%fmt===0
+  return offset===b.length && fmt!==null && seenData && data>0 && data%fmt===0
     ? data/byteRate : null;
 }
 export async function bindVerifiedVoiceStudioMedia({
