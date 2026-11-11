@@ -51,7 +51,7 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
 
     def authoritative():
         record = read_current_receipt(shop, campaign, asset_id)
-        if not isinstance(record, dict) or any(record.get(k) != v for k, v in (
+        if type(record) is not dict or any(type(record.get(k)) is not type(v) or record.get(k) != v for k, v in (
             ("shop_id", shop), ("campaign_id", campaign),
             ("audio_asset_id", asset_id),
             ("review_status", "APPROVED_FOR_EDITING"),
@@ -61,14 +61,14 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
             raise CreativeContractError("Private VoiceStudio source unapproved or revoked")
         digest = record.get("feature4_audio_sha256")
         request_id = record.get("request_id")
-        if not isinstance(digest, str) or not _HASH.fullmatch(digest) or not _uuid4(request_id):
+        if type(digest) is not str or not _HASH.fullmatch(digest) or not _uuid4(request_id):
             raise CreativeContractError("Missing private narration origin digest")
         assets = snapshot.get("assets")
         if type(assets) is not dict:
             raise CreativeContractError("Trusted private media manifest required")
         row = assets.get(asset_id)
         expected_path = f"{shop}/voicestudio/{campaign}/{request_id}/render.wav"
-        if (not isinstance(row, dict) or row.get("shop_id") != shop
+        if (type(row) is not dict or row.get("shop_id") != shop
                 or row.get("approved") is not True
                 or row.get("kind") != "audio"
                 or row.get("source_feature") != "retailer"
