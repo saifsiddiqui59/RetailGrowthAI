@@ -106,6 +106,20 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         with self.assertRaises(CreativeContractError):
             self.call(d,s,r,pcm(15))
 
+    def test_private_wav_rejects_trailing_bytes_and_forged_riff_size(self):
+        # The digest can match a malformed private object; container framing
+        # must independently reject bytes that wave.open silently ignores.
+        for mutate in (
+            lambda raw: raw + b"untrusted trailing bytes",
+            lambda raw: raw[:4] + (len(raw) - 9).to_bytes(4, "little") + raw[8:],
+            lambda raw: b"RIFX" + raw[4:],
+        ):
+            d,s,r,data=self.setup_case()
+            malformed=mutate(data)
+            r["feature4_audio_sha256"]=sha256(malformed).hexdigest()
+            with self.subTest(mutate=mutate), self.assertRaises(CreativeContractError):
+                self.call(d,s,r,malformed)
+
     def test_revocation_during_read_is_not_accepted(self):
         d,s,r,data=self.setup_case()
         counts=[0]
