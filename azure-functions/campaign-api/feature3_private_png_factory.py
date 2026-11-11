@@ -70,6 +70,14 @@ def _safe_jwt_json(segment, *, header=False):
                         claims[time_claim] < 0 or
                         claims[time_claim] > 253402300799):
                     return False
+            # Contradictory time windows are invalid even at preflight.
+            # The trusted verifier still enforces signature and clock.
+            if ("exp" in claims and "nbf" in claims and
+                    claims["exp"] < claims["nbf"]):
+                return False
+            if ("exp" in claims and "iat" in claims and
+                    claims["exp"] < claims["iat"]):
+                return False
             subject = claims.get("sub")
             # An opaque user identifier must not contain whitespace, control
             # characters or Unicode lookalikes. Signature verification remains
