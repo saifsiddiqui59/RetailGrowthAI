@@ -187,6 +187,12 @@ class FactoryTests(unittest.TestCase):
             '{"alg":"HS256","x5u":"https://example.invalid/cert"}',
             '{"alg":"HS256","x5c":[]}',
             '{"alg":"HS256","zip":"DEF"}',
+            '{"alg":"HS256","b64":false}',
+            '{"alg":"HS256","b64":true}',
+            '{"alg":"HS256","cty":"JWT"}',
+            '{"alg":"HS256","typ":"application/jwt"}',
+            '{"alg":"HS256","typ":123}',
+            '{"alg":"HS256","typ":null}',
             '[]', 'null', '{"typ":"JWT"}',
         )
         for header in headers:
