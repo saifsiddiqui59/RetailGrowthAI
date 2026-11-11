@@ -171,7 +171,7 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         # A nonzero odd-chunk padding byte is not a canonical WAV object.
         d, s, r, data = self.setup_case()
         # Append an odd data payload and its deliberately nonzero pad byte.
-        odd = data[:40] + (len(data) - 44 + 1).to_bytes(4, "little") + data[44:] + b"\\x01\\xff"
+        odd = data[:40] + (len(data) - 44 + 1).to_bytes(4, "little") + data[44:] + b"\x01\xff"
         odd = odd[:4] + (len(odd) - 8).to_bytes(4, "little") + odd[8:]
         r["feature4_audio_sha256"] = sha256(odd).hexdigest()
         with self.assertRaises(CreativeContractError):
