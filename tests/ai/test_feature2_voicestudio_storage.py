@@ -253,3 +253,51 @@ def test_overlong_pcm_denied_before_storage_network():
     with pytest.raises(PrivateVoiceStorageDenied, match="frame geometry"):
         write(store, original=original, original_sha=sha256(original).hexdigest())
     assert calls == []
+
+
+def test_write_and_verify_reconciles_both_objects_without_approval():
+    payload = wav()
+    methods = []
+    class ReadResult(io.BytesIO):
+        status = 200
+        def __init__(self, url):
+            super().__init__(payload)
+            self.url = url
+        def geturl(self): return self.url
+    def sender(req, timeout):
+        methods.append(req.get_method())
+        return Success(req.full_url) if req.get_method() == "POST" else ReadResult(req.full_url)
+    store, _ = harness(transport=sender)
+    digest = sha256(payload).hexdigest()
+    receipt = store.write_and_verify_private_audio(
+        SHOP, CAMPAIGN, JOB, payload, payload, digest, digest,
+        {"status": "CLAIMED_ONCE", "shop_id": SHOP,
+         "campaign_id": CAMPAIGN, "request_id": JOB})
+    assert methods == ["POST", "POST", "GET", "GET"]
+    assert receipt["status"] == "PRIVATE_WAV_RECONCILED_NOT_REGISTERED"
+    assert receipt["original_bytes"] == len(payload)
+    assert receipt["sql_original_key_claim_and_registration_still_required"] is True
+    assert receipt["publish_approved"] is False
+
+
+def test_reconciliation_digest_mismatch_fails_without_retry_or_registration():
+    payload = wav()
+    altered = payload[:-2] + b"\\x00\\x00"
+    methods = []
+    class ReadResult(io.BytesIO):
+        status = 200
+        def __init__(self, url):
+            super().__init__(altered)
+            self.url = url
+        def geturl(self): return self.url
+    def sender(req, timeout):
+        methods.append(req.get_method())
+        return Success(req.full_url) if req.get_method() == "POST" else ReadResult(req.full_url)
+    store, _ = harness(transport=sender)
+    digest = sha256(payload).hexdigest()
+    with pytest.raises(PrivateVoiceStorageDenied, match="digest changed"):
+        store.write_and_verify_private_audio(
+            SHOP, CAMPAIGN, JOB, payload, payload, digest, digest,
+            {"status": "CLAIMED_ONCE", "shop_id": SHOP,
+             "campaign_id": CAMPAIGN, "request_id": JOB})
+    assert methods == ["POST", "POST", "GET"]
