@@ -39,11 +39,17 @@ export async function bindVerifiedVoiceStudioMedia({
   readOriginalVideo,readExtractedWav,readCurrentLease,
   original_video_sha256,original_audio_sha256,
   shop_id,asset_id,job_id,model_id,review,key,
-  source_duration_seconds,now_ms=Date.now()
+  source_duration_seconds,now_ms=Date.now(),readNowMs
 }={}) {
   deny([readOriginalVideo,readExtractedWav,readCurrentLease].every(f=>typeof f==='function') &&
     SHA.test(original_video_sha256??'') && SHA.test(original_audio_sha256??'') &&
-    Number.isSafeInteger(now_ms));
+    Number.isSafeInteger(now_ms) &&
+    (readNowMs===undefined || typeof readNowMs==='function'));
+  // Track elapsed time across asynchronous media reads; a lease can expire
+  // even if its snapshot is unchanged. An injected clock is for offline tests.
+  const started=performance.now();
+  const currentTime=()=>readNowMs ? readNowMs() : now_ms+Math.max(0,performance.now()-started);
+  const checkedTime=()=>{const t=currentTime();deny(Number.isFinite(t) && t>=now_ms);return t;};
   // Bounded buffers: no file paths, URLs, user-provided digests as substitutes.
   const video=await readOriginalVideo({shop_id,asset_id,job_id});
   deny(Buffer.isBuffer(video) && video.length>0 && video.length<=256*1024*1024);
@@ -59,12 +65,12 @@ export async function bindVerifiedVoiceStudioMedia({
   const lease=await readCurrentLease({shop_id,asset_id,job_id});
   const signed=bindVoiceStudioReview({review,shop_id,asset_id,job_id,
     original_video_sha256,original_audio_sha256,source_duration_seconds,
-    lease,model_id,key,now_ms});
+    lease,model_id,key,now_ms:checkedTime()});
   // Fail closed if revocation/scope changes during the signing operation.
   const current=await readCurrentLease({shop_id,asset_id,job_id});
   deny(current && current.active===true &&
     ['shop_id','asset_id','job_id','source_sha256','audio_sha256','model_id','expires_at_ms']
       .every(field=>current[field]===lease[field]) &&
-    current.expires_at_ms>now_ms);
+    current.expires_at_ms>checkedTime());
   return signed;
 }
