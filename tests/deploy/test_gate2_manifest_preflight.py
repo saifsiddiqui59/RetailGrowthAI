@@ -23,8 +23,10 @@ class Gate2ManifestPreflightTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             destination = Path(temp) / "nested" / "functions.zip"
             entries = {f"ai_agents/module_{i:03d}.py": b"fixture" for i in range(121)}
-            with self.assertRaisesRegex(ValueError, "exceeds 120 members"):
+            with self.assertRaisesRegex(ValueError, "exceeds 120 members") as failure:
                 package.write_zip(destination, entries)
+            self.assertIn("ai_agents/module_000.py", str(failure.exception))
+            self.assertIn("ai_agents/module_120.py", str(failure.exception))
             self.assertFalse(destination.exists())
             self.assertFalse(destination.parent.exists())
 
