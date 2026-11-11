@@ -92,8 +92,12 @@ def read_current_voiceover_for_review(
         if (type(content) is not bytes or not 44 <= len(content) <= 8 * 1024 * 1024
                 or sha256(content).hexdigest() != before["original_sha256"]):
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
-        # Defense in depth: reject digest-matching non-WAV or hidden payloads.
-        # This validation must execute before any post-read authorization checks.
+        # wave.open accepts bytes beyond the declared RIFF envelope. Require
+        # the full object to be exactly the RIFF payload, with no hidden tail.
+        # This check must precede post-read authorization and byte disclosure.
+        if (content[:4] != b"RIFF" or content[8:12] != b"WAVE"
+                or int.from_bytes(content[4:8], "little") != len(content) - 8):
+            raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
         _wav(content)
         # A role, claim, rights or reviewed plan could be revoked during I/O.
         if _receipt(sql_receipt, shop_id, campaign_id, request_id) != before:
