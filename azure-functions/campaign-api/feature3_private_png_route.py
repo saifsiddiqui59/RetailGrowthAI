@@ -14,7 +14,8 @@ _HEADER_NAME = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
 
 
 def _canonical_uuid4(value):
-    if type(value) is not str:
+    # Bound untrusted path input before parsing; canonical UUID4 is 36 chars.
+    if type(value) is not str or len(value) != 36:
         return False
     try:
         parsed = UUID(value)
