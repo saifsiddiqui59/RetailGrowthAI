@@ -271,3 +271,27 @@ def test_current_reviewer_refuses_forged_or_cross_project_claims(claim):
     with pytest.raises(VoiceStudioReviewDenied):
         read_current_voiceover_for_review(**args)
     assert len(storage.calls) == 0 and len(sql.calls) == 0
+
+
+@pytest.mark.parametrize("error", [ConnectionError("sql connection lost"), TimeoutError("sql timeout"), RuntimeError("sql uncertain acknowledgement")])
+def test_uncertain_sql_receipt_failure_denies_without_private_get(error):
+    args, _, sql, storage, _ = harness()
+    def unavailable(*_ids):
+        raise error
+    sql.read_private_receipt = unavailable
+    with pytest.raises(VoiceStudioReviewDenied, match="access denied"):
+        read_current_voiceover_for_review(**args)
+    assert not storage.calls
+
+
+@pytest.mark.parametrize("error", [ConnectionError("storage connection lost"), TimeoutError("storage timeout"), RuntimeError("storage unknown outcome")])
+def test_uncertain_private_read_failure_denies_without_retry(error):
+    args, _, sql, storage, _ = harness()
+    def unavailable(*_ids):
+        storage.calls.append(_ids)
+        raise error
+    storage.read_verified_original = unavailable
+    with pytest.raises(VoiceStudioReviewDenied, match="access denied"):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1
+    assert len(sql.calls) == 1
