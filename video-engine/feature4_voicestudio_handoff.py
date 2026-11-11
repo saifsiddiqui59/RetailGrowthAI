@@ -76,7 +76,10 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
                 or row.get("object_path") != expected_path
                 or row.get("mime_type") != "audio/wav"
                 or row.get("license_name") not in ("owned", "commercial")
-                or not row.get("rights_source") or not row.get("rights_evidence")):
+                or type(row.get("rights_source")) is not str
+                or not row["rights_source"].strip()
+                or type(row.get("rights_evidence")) is not str
+                or not row["rights_evidence"].strip()):
             raise CreativeContractError("Feature4 trusted media does not match private VoiceStudio asset")
         return record
 
