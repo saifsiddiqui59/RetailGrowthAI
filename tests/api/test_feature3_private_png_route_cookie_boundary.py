@@ -50,6 +50,28 @@ class CookieBoundaryTests(unittest.TestCase):
                 self.assertEqual(req.body_reads, 0)
                 backend.assert_not_called()
 
+    def test_proxy_identity_header_families_fail_before_body_or_reader(self):
+        # Synthetic identity metadata is never proof of a signed user.
+        for key in (
+            "X-Auth-Request-User", "x-auth-request-email",
+            "X-MS-TOKEN-AAD-ACCESS-TOKEN", "X-Client-Cert-Subject",
+            "X-Forwarded-Client-Cert", "X-SSL-Client-Verify",
+            "X-User-Role", "x-user-tenant",
+        ):
+            with self.subTest(header=key):
+                req = Request({
+                    "Authorization": "Bearer synthetic-not-a-real-jwt",
+                    key: "synthetic-proxy-identity",
+                })
+                with patch("feature3_private_png_route.private_png_http") as backend:
+                    result = handle_private_png_request(
+                        req, reader_factory=lambda: None, response_type=Response
+                    )
+                self.assertEqual(result.status_code, 400)
+                self.assertEqual(result.body, b"")
+                self.assertEqual(req.body_reads, 0)
+                backend.assert_not_called()
+
     def test_bearer_without_cookie_reaches_canonical_adapter(self):
         req = Request({"Authorization": "Bearer synthetic-not-a-real-jwt"})
         with patch(
