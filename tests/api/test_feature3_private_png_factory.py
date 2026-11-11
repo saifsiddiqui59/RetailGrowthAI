@@ -358,6 +358,53 @@ class FactoryTests(unittest.TestCase):
                 reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
         self.assertEqual(calls, [])
 
+    def test_ambiguous_subject_denied_before_verifier_and_rls(self):
+        calls = []
+        class CountingStore(Store):
+            def member(self, *args):
+                calls.append("rls")
+                raise AssertionError("untrusted subject reached tenant IO")
+        def verify(token):
+            calls.append("verify")
+            raise AssertionError("untrusted subject reached verifier")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=CountingStore(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        def segment(obj):
+            return base64.urlsafe_b64encode(
+                json.dumps(obj, ensure_ascii=False).encode("utf-8")
+            ).decode("ascii").rstrip("=")
+        header = segment({"alg": "RS256"})
+        signature = "c2lnbmF0dXJl"
+        bad_subjects = (" ", " fixture", "fixture ", "fixture\\nother",
+                        "fixture\\tother", "fixture\\u200bother",
+                        "fixture\\u00a0other", "a" * 257)
+        for subject in bad_subjects:
+            with self.subTest(subject=repr(subject)):
+                token = f"{header}.{segment({'sub': subject})}.{signature}"
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, [])
+
+    def test_printable_subject_still_requires_real_signature(self):
+        calls = []
+        def verify(token):
+            calls.append(token)
+            raise ValueError("synthetic JWT has no trusted signature")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=Store(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        def segment(obj):
+            return base64.urlsafe_b64encode(
+                json.dumps(obj).encode("utf-8")
+            ).decode("ascii").rstrip("=")
+        token = f"{segment({'alg': 'RS256'})}.{segment({'sub': 'fixture-user'})}.c2lnbmF0dXJl"
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, [token])
+
     def test_valid_scope_reaches_real_reader_and_denies_fake_jwt(self):
         # No mocked success: the actual reader must reject the fixture token.
         reader = self.make()(self.shop, self.job)
