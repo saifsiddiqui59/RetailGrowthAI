@@ -123,6 +123,17 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             "x-feature3-media-asset-id", "x-feature3-rights",
             "x-feature3-approved", "x-feature3-publish-approved",
         }
+        # Reject proxy identity assertions before any JWT/RLS/Storage IO.
+        # They are not an alternate source of user or tenant authority.
+        untrusted_authority.update({
+            "x-forwarded-user", "x-forwarded-email", "x-forwarded-groups",
+            "x-remote-user", "x-authenticated-user", "x-authenticated-email",
+            "x-ms-client-principal", "x-ms-client-principal-id",
+            "x-ms-client-principal-name", "x-ms-client-principal-idp",
+            "x-goog-authenticated-user-email", "x-goog-authenticated-user-id",
+            "cf-access-authenticated-user-email", "x-amzn-oidc-identity",
+            "x-amzn-oidc-data", "x-amzn-oidc-accesstoken",
+        })
         if any(name.lower() in untrusted_authority for name in names):
             return _denied(400, response_type)
         # A private binary endpoint never negotiates compressed or transformed
