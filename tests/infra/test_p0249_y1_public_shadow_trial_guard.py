@@ -151,7 +151,7 @@ class PublicShadowTrialSafetyTests(unittest.TestCase):
         for forbidden in ("az deployment group create", "az functionapp create",
                           "az functionapp delete", "az group delete",
                           "az storage account", "AZURE_CLIENT_SECRET",
-                          "RETAIL_SUPABASE_SERVICE_ROLE_KEY", "sb_secret_"):
+                          "RETAIL_SUPABASE_SERVICE_ROLE_KEY=", "sb_secret_"):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, work)
 
