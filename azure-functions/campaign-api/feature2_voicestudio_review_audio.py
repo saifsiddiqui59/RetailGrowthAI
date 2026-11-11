@@ -79,7 +79,7 @@ def read_current_voiceover_for_review(
         raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
     try:
         user_id = canonical_uuid(verify_token(token))
-        if not tenant_store.member(token, user_id, shop_id, write=True):
+        if tenant_store.member(token, user_id, shop_id, write=True) is not True:
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
         reader = sql_store_factory(user_id)
         sql_receipt = getattr(reader, "read_private_receipt", None)
