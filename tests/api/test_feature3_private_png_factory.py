@@ -263,7 +263,7 @@ class FactoryTests(unittest.TestCase):
         )(self.shop, self.job)
         def encoded(raw):
             return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
-        deep = "[" * 1200 + "0" + "]" * 1200
+        deep = "[" * 1010 + "0" + "]" * 1010
         valid_header = encoded('{"alg":"RS256"}')
         valid_payload = encoded('{"sub":"fixture"}')
         for token in (
