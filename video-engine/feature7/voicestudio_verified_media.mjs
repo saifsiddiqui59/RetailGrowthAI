@@ -18,7 +18,7 @@ function pcmWavDuration(b) {
     const id=b.toString('ascii',offset,offset+4);
     const len=b.readUInt32LE(offset+4);
     const start=offset+8,end=start+len;
-    if (end>b.length) return null;
+    if (end>b.length || end+(len%2)>b.length) return null;
     // No chunks may follow PCM samples: reject appended payloads even when RIFF
     // length and attacker-supplied digest are internally consistent.
     if (seenData) return null;
@@ -36,7 +36,7 @@ function pcmWavDuration(b) {
     offset=end+(len%2);
   }
   return offset===b.length && fmt!==null && seenData && data>0 && data%fmt===0
-    ? data/byteRate : null;
+    ? {duration:data/byteRate, sampleTolerance:fmt/byteRate} : null;
 }
 export async function bindVerifiedVoiceStudioMedia({
   readOriginalVideo,readExtractedWav,readCurrentLease,
@@ -58,16 +58,19 @@ export async function bindVerifiedVoiceStudioMedia({
   // A valid HMAC must never bless word offsets beyond the actual PCM sample clock.
   // The original video may be longer than the extracted speech segment.
   deny(Array.isArray(review?.words) && review.words.every(w=>
-    Number.isFinite(w?.end) && w.end<=wavDuration+0.02));
+    Number.isFinite(w?.end) && w.end<=wavDuration.duration+wavDuration.sampleTolerance));
   const lease=await readCurrentLease({shop_id,asset_id,job_id});
+  // Snapshot the lease before signing: the reader may return a mutable object.
+  deny(lease && typeof lease==='object');
+  const leaseSnapshot=Object.freeze({...lease});
   const signed=bindVoiceStudioReview({review,shop_id,asset_id,job_id,
     original_video_sha256,original_audio_sha256,source_duration_seconds,
-    lease,model_id,key,now_ms});
+    lease:leaseSnapshot,model_id,key,now_ms});
   // Fail closed if revocation/scope changes during the signing operation.
   const current=await readCurrentLease({shop_id,asset_id,job_id});
   deny(current && current.active===true &&
     ['shop_id','asset_id','job_id','source_sha256','audio_sha256','model_id','expires_at_ms']
-      .every(field=>current[field]===lease[field]) &&
+      .every(field=>current[field]===leaseSnapshot[field]) &&
     current.expires_at_ms>now_ms);
   return signed;
 }
