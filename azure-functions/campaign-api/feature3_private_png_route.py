@@ -286,13 +286,13 @@ def handle_private_png_request(request, *, reader_factory, response_type):
                     type(reply.headers[key]) is not str or
                     reply.headers[key] != expected):
                 return _denied(503, response_type)
-        # A partial attestation is ambiguous: the canonical handler must not
-        # attach a media identifier without its matching tenant/job/digest
-        # receipt. Legacy receipts with no attestation remain compatible.
+        # The canonical binary handler always returns a complete tenant/job,
+        # immutable asset and digest attestation. A missing attestation is not
+        # a legacy success: fail closed if an injected adapter strips it.
         attested = {"X-Feature3-Shop-Id", "X-Feature3-Job-Id",
                     "X-Feature3-Image-Sha256", "X-Feature3-Media-Asset-Id"}
         present = attested.intersection(reply.headers)
-        if present and present != attested:
+        if present != attested:
             return _denied(503, response_type)
         if "X-Feature3-Media-Asset-Id" in reply.headers and not _canonical_uuid4(
                 reply.headers["X-Feature3-Media-Asset-Id"]):
