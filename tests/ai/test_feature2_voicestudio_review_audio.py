@@ -520,3 +520,19 @@ def test_sql_reader_factory_failure_denies_before_storage_without_retry():
     assert calls == [USER]
     assert len(tenant.calls) == 1
     assert not storage.calls
+
+
+def test_post_read_membership_provider_failure_denies_private_audio_without_retry():
+    args, tenant, sql, storage, _ = harness()
+    original_member = tenant.member
+    def fails_after_private_get(*a, **kw):
+        if len(tenant.calls) == 1:
+            tenant.calls.append((a[0], a[1], a[2], kw.get("write", False)))
+            raise TimeoutError("private membership provider failure")
+        return original_member(*a, **kw)
+    tenant.member = fails_after_private_get
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$") as exc:
+        read_current_voiceover_for_review(**args)
+    assert exc.value.__cause__ is None
+    assert len(storage.calls) == 1 and len(sql.calls) == 2
+    assert len(tenant.calls) == 2
