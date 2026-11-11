@@ -70,6 +70,16 @@ def _wav(data):
         raise PrivateVoiceStorageDenied("Noncanonical private PCM WAV chunks")
     if struct.unpack_from("<H", data, 20)[0] != 1:
         raise PrivateVoiceStorageDenied("Only PCM private WAV accepted")
+    # A WAVEFORMATEX fmt chunk of 18 bytes must explicitly declare no
+    # extension. Reject misleading frame geometry before opening the stream.
+    if chunks[0][1] == 18 and struct.unpack_from("<H", data, 36)[0] != 0:
+        raise PrivateVoiceStorageDenied("Unexpected PCM format extension")
+    channels, rate, byte_rate, block_align, bits = struct.unpack_from("<HI IHH".replace(" ", ""), data, 22)
+    if (channels not in (1, 2) or bits != 16 or not 8000 <= rate <= 96000
+            or block_align != channels * (bits // 8)
+            or byte_rate != rate * block_align
+            or chunks[1][1] == 0 or chunks[1][1] % block_align):
+        raise PrivateVoiceStorageDenied("Inconsistent private PCM frame geometry")
     try:
         with wave.open(io.BytesIO(data), "rb") as stream:
             channels, width, rate, frames = (stream.getnchannels(),
