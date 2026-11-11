@@ -243,7 +243,7 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # exact str check to reject equality-overloaded backend values.
         # Reject inconsistent inner binary receipts before releasing bytes.
         # Never trust a backend Content-Length that disagrees with the body.
-        declared_length = reply.headers.get("Content-Length")
+        # Bound response allocation before handing bytes to the Azure host.\n        # A compromised/misconfigured private reader must not return an\n        # unbounded image even with a self-consistent Content-Length.\n        if len(reply.body) > 64 * 1024 * 1024:\n            return _denied(503, response_type)\n        declared_length = reply.headers.get("Content-Length")
         if (type(declared_length) is not str or
                 declared_length != str(len(reply.body))):
             return _denied(503, response_type)
