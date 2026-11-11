@@ -92,6 +92,31 @@ await denied({readNowMs:()=>Number.NaN});
 clock=now;
 const signedWithClock=await bindVerifiedVoiceStudioMedia({...base,readNowMs:()=>clock});
 assert.equal(signedWithClock.evidence.source_sha256,v);
+// A malicious caller cannot substitute another valid source with matching
+// self-declared hashes while the authoritative lease pins the original bytes.
+const otherVideo=Buffer.from('synthetic-other-video');
+await denied({readOriginalVideo:async()=>otherVideo,
+ original_video_sha256:digest(otherVideo)});
+const otherWav=Buffer.from(wav);otherWav[44]^=1;
+await denied({readExtractedWav:async()=>otherWav,
+ original_audio_sha256:digest(otherWav),
+ review:{...review,audio_sha256:digest(otherWav)}});
+// Lease changes during signing must deny, even when active and unexpired.
+for (const field of ['asset_id','job_id','source_sha256','audio_sha256','model_id']) {
+ let reads=0;
+ await denied({readCurrentLease:async()=>{
+   const current={...lease};
+   if (++reads===2) current[field]=field.endsWith('sha256')?'0'.repeat(64):'changed';
+   return current;
+ }});
+}
+// A clock that expires only on the second lease check must fail closed.
+clock=now;leaseReads=0;
+await denied({readNowMs:()=>clock,
+ readCurrentLease:async()=>{
+   clock=now+(++leaseReads===1?100:30001);
+   return {...lease};
+ }});
 // A second data chunk must not be accepted even when RIFF and SHA match.
 const duplicateData=Buffer.concat([wav,Buffer.from('data'),Buffer.from([2,0,0,0]),Buffer.alloc(2)]);
 duplicateData.writeUInt32LE(duplicateData.length-8,4);
