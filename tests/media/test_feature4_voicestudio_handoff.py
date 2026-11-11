@@ -131,6 +131,32 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             self.call(d,s,r,data,reader=reader)
         self.assertEqual(counts[0],3)
 
+    def test_in_place_receipt_revocation_during_read_denied(self):
+        # A trusted service reader can return the same mutable cached dict.
+        # An aliased baseline must never hide a post-read approval change.
+        d,s,r,data=self.setup_case()
+        calls=[0]
+        def reader(*_):
+            calls[0]+=1
+            if calls[0]==2:
+                r["review_status"]="REVOKED"
+            return r
+        with self.assertRaises(CreativeContractError):
+            self.call(d,s,r,data,reader=reader)
+        self.assertEqual(calls[0],2)
+
+    def test_in_place_receipt_revocation_during_compile_denied(self):
+        d,s,r,data=self.setup_case()
+        calls=[0]
+        def reader(*_):
+            calls[0]+=1
+            if calls[0]==3:
+                r["revoked_at"]="2026-11-11T00:00:00Z"
+            return r
+        with self.assertRaises(CreativeContractError):
+            self.call(d,s,r,data,reader=reader)
+        self.assertEqual(calls[0],3)
+
     def test_no_browser_supplied_audio_reader_or_receipt(self):
         d,s,r,data=self.setup_case()
         with self.assertRaises(CreativeContractError):
