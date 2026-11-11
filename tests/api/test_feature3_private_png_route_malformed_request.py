@@ -798,7 +798,7 @@ class Tests(unittest.TestCase):
                 self.assertEqual(denied.status_code, 503)
                 self.assertEqual(denied.body, b"")
 
-    def test_canonical_strict_no_cache_policy_is_accepted_without_leaking_headers(self):
+    def test_canonical_cache_policy_with_untrusted_cookie_is_denied(self):
         # Actual Feature3PrivateBinaryHTTP returns this exact header; a
         # disagreement between the two adapters previously made every
         # valid private PNG download return opaque HTTP 503.
@@ -815,9 +815,8 @@ class Tests(unittest.TestCase):
             response = handle_private_png_request(
                 Request(), reader_factory=lambda *args: None,
                 response_type=Response)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.body, png)
-        self.assertEqual(response.headers["Cache-Control"], "no-store, private")
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.body, b"")
         self.assertNotIn("Set-Cookie", response.headers)
         self.assertNotIn("X-Feature3-Image-Sha256", response.headers)
 
@@ -841,7 +840,7 @@ class Tests(unittest.TestCase):
                 self.assertEqual(response.body, b"")
                 self.assertEqual(response.headers["Content-Length"], "0")
 
-    def test_valid_png_reply_strips_untrusted_backend_headers(self):
+    def test_untrusted_backend_cookie_or_redirect_denied(self):
         # This only tests the Azure adapter; full PNG validation lives inside
         # the independently tested canonical binary handler.
         png = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
@@ -856,9 +855,9 @@ class Tests(unittest.TestCase):
             response = handle_private_png_request(
                 Request(), reader_factory=lambda *args: None,
                 response_type=Response)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.body, png)
-        self.assertEqual(response.headers["Content-Length"], str(len(png)))
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.body, b"")
+        self.assertEqual(response.headers["Content-Length"], "0")
         self.assertNotIn("Set-Cookie", response.headers)
         self.assertNotIn("Location", response.headers)
 
