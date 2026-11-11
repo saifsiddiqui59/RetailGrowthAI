@@ -89,6 +89,29 @@ await denied({readNowMs:()=>clock,
     clock=now+(++leaseReads===1?100:50);
     return {...lease};
   }});
+// Sub-millisecond rollback cannot be hidden by integer truncation.
+clock=now;leaseReads=0;
+await denied({readNowMs:()=>clock,
+ readCurrentLease:async()=>{
+   clock=now+(++leaseReads===1?100.9:100.1);
+   return {...lease};
+ }});
+// Fractional expiry must fail closed: 0.1ms beyond the lease is expired.
+clock=now;leaseReads=0;
+await denied({readNowMs:()=>clock,
+ readCurrentLease:async()=>{
+   clock=now+(++leaseReads===1?100:30000.1);
+   return {...lease};
+ }});
+// A fractional but monotonic reading is valid before expiry.
+clock=now;leaseReads=0;
+const fractionalOk=await bindVerifiedVoiceStudioMedia({...base,
+ readNowMs:()=>clock,
+ readCurrentLease:async()=>{
+   clock=now+(++leaseReads===1?100.1:100.9);
+   return {...lease};
+ }});
+assert.equal(fractionalOk.evidence.source_sha256,v);
 // A monotonic clock advancing across both lease reads remains valid.
 clock=now;
 leaseReads=0;
