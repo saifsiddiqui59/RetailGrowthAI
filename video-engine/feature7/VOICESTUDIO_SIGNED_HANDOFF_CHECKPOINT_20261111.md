@@ -14,3 +14,13 @@ Added `tests/media/test_feature7_voicestudio_signed_handoff.py` with positive Hi
 - New scoped follow-on child branch `feat/feature7-voicestudio-wav-chunk-integrity-20261111` rejects duplicated RIFF `data` chunks and a `data` chunk preceding the PCM `fmt ` declaration, even if attacker-provided WAV bytes and SHA256 are self-consistent. Deterministic negative cases added in `tests/media/test_feature7_voicestudio_verified_media.py`.
 - Next: exact-head four-job PR CI, merge child to #513 if green and policy eligible; Integration Sprint owns serialized parent-to-main reconciliation. Confirm parent CI and independently reviewed current-main compatibility before accepted DONE.
 - Original F7-06 remains IN PROGRESS. F4 dependency [#910](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/910) is merged only into F4 parent; licensed model, hosted STT, real JWT/RLS, GPU and paid inference remain OFF.
+
+
+## 2026-11-11 — follow-on strict WAV chunk boundary
+- After merged child #933, scoped follow-on rejects all RIFF chunks following the verified PCM data chunk, including zero-length LIST and self-consistent SHA256 trailing JUNK. Deterministic negative cases added to `tests/media/test_feature7_voicestudio_verified_media.py`.
+- Next: verify exact-head four-job CI; if green and reviewed, merge child into #513, then let Integration Sprint reconcile parent with current main. Revisit lease expiry clock races and original extraction provenance as next independent F7 tasks. F4 dependency #910 remains parent-only. No model, GPU, paid, cloud or PROD work.
+
+## 2026-11-11 — executable WAV gate repair
+- Reviewed child #940 patch and found escaped `\\n` text inside a `//` comment, which commented out the `seenData` rejection and following `fmt` branch. Replaced with real newlines in commit `a02f571b1bcf764c43a90c3ca31f4bc54117880b` so trailing chunks are rejected as intended.
+- Exact-head four-job CI is not yet reported for this commit; no child merge. Container cannot resolve github.com for local clone, so local targeted tests remain unverified. Do not claim 4/4.
+- NEXT CODE ACTION: verify the exact-head CI jobs; run the owned offline `test_feature7_voicestudio_verified_media.py` and signed-handoff tests in a reachable runner; if green, merge #940 into parent #513 using expected head SHA, then inspect parent CI and queue parent-to-main reconciliation for the Integration Sprint. Next independent task: lease expiry race against current clock rather than caller-provided `now_ms`.
