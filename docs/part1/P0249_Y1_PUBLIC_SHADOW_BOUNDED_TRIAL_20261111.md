@@ -1,0 +1,21 @@
+# Issue #249 — bounded DEV Y1 public-only signed read shadow activation
+
+**SOURCE PREPARED ONLY. Not merged, deployed, activated, or accepted.** Original Flex gateway defect remains open. The isolated DEV Y1 Python 3.12 Function App already serves a read-only original campaign GET shadow with two GET functions and verified missing-JWT 401s, but the activation flag and real Supabase credentials have remained absent.
+
+## Motivation and exact scope
+- Next increment after the hosted Y1 20/20 health and 12/12 missing-bearer campaign denial: exercise the unchanged original `SupabaseJWTVerifier` + `HTTPAPI` + `TenantStore` with the **same real DEV Supabase project**, without giving Y1 an elevated service-role key or adding any write/timer/queue route.
+- Connected DEV project `jeearzffnjbvghwjjjrf` was verified `ACTIVE_HEALTHY`. Only its public `https://jeearzffnjbvghwjjjrf.supabase.co` and active `sb_publishable_...` key are eligible for a temporary test; the publishable key is already present in this repository's earlier DEV synthetic-auth GitHub workflow and was verified against its current connected-project API. Never copy a `sb_secret_` or `service_role` key into Azure Functions app settings.
+- The trial touches **only** the tagged isolated `rgai-dev-y1-p0249-d4e5ddbd`, never original `rgai-dev-functions-d4e5ddbd`, WineShopPOS, PROD, GPU, storage queues, media jobs or frontend routing.
+
+## Protected implementation
+- `ops/p0249_y1_public_shadow_trial_guard.py` enforces exact existing DEV subscription/region/tags/site/plan and unchanged FC1, exactly the two expected indexed HTTP functions, and checks that ALL THREE target app settings are initially **absent** before it writes a run-bound non-secret marker to disk.
+- A deliberately explicit, owner-authorized, main-only protected workflow `.github/workflows/p0249-dev-y1-public-shadow-bounded-once.yml` sets ONLY `RETAIL_SUPABASE_URL`, `RETAIL_SUPABASE_PUBLISHABLE_KEY`, and `RGAI_P0249_READONLY_SHADOW=true` in the isolated Y1. A configuration change restarts Azure Functions; the workflow allows a bounded reinitialization delay before its actual anonymous/malformed-token negative GETs. It never creates new cloud resources, grants roles, edits GitHub secrets, writes Supabase SQL, or changes original Flex.
+- Both the test job's `EXIT` trap and **a separate independent OIDC cleanup job** recheck the run-bound marker and remove only keys that were absent before the test AND whose current values exactly match the trial. If a new actor alters a setting, cleanup stops rather than destroy their value. **An entire workflow cancellation or cloud outage can still prevent cleanup**; watch the run, verify restoration and use carefully scoped manual commands if needed.
+- The 16-request GET-only negative/health sequence checks handler-marked HTTP401 for no/malformed JWT and handler-marked HTTP200 for health, plus 18-second response cap, with no JWTs in logs. The capability is NOT demonstrated until the verified actual Azure run is complete. The temporary flag is restored to OFF after the test.
+
+## Not yet validated / gate
+This temporary public-only activation test is **not a positive signed JWT** test and does **not** prove active two-shop membership/RLS, real customer authorization or complete API migration. Existing local source PR #934 exercises true original JWT/JWKS/HTTPAPI/TenantStore with locally simulated PostgREST only. A separate authorized hosted test with two disposable, nonprivileged signed DEV users and current real RLS remains necessary before a permanent API cutover. Do not copy a service-role key into Y1, point the frontend at Y1, expose queue/timer workers, or mark original #249 resolved.
+
+`.github/workflows/**` changes and DEV configuration need an independent affected-lead/human security review even if source CI passes, per `AGENTS.md` and `docs/FEATURE_SELF_MERGE_POLICY_20261031.md`. Owner allowed a bounded DEV trial but this does not waive independent review. No changes were run in Azure while preparing this PR.
+
+Microsoft docs: https://learn.microsoft.com/en-us/azure/azure-functions/functions-app-settings ; Supabase publishable key and per-user RLS: https://supabase.com/docs/guides/getting-started/api-keys .
