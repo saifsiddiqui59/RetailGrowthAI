@@ -81,6 +81,8 @@ jobs:
     env:
       RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       RGAI_DEV_P0249_PUBLISHABLE_KEY: "sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq"
+      RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+      RGAI_DEV_P0249_JWT_CANARY_APPROVAL: OWNER_APPROVED_READ_ONLY_JWT_TEST
     steps:
       - uses: actions/checkout@v7
         with:
@@ -106,6 +108,9 @@ jobs:
           python3 -u ops/p0249_y1_public_shadow_trial_guard.py activate --marker "$marker"
           sleep 35
           python3 -u ops/p0249_y1_public_shadow_trial_guard.py test --marker "$marker"
+          # The elevated key stays ONLY in this protected transient runner.
+          # It is never passed to the Azure Y1 appsettings/config.
+          python3 -u tests/e2e/p0249_y1_signed_auth_shadow_once.py
       - name: Logout
         if: always()
         shell: bash
