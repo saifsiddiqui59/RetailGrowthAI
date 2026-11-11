@@ -132,6 +132,36 @@ class Tests(unittest.TestCase):
                 self.assertEqual(response.body, b"")
                 self.assertEqual(response.headers["Content-Length"], "0")
 
+    def test_backend_allowlisted_receipt_values_are_bounded_and_plain(self):
+        # An allowlisted header name cannot smuggle oversized/control-bearing
+        # values or equality-spoofed metadata through the Azure adapter.
+        class EqualString:
+            def __eq__(self, other):
+                return True
+
+        png = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
+        base = {"Content-Type": "image/png",
+                "Cache-Control": "no-store, private",
+                "Content-Length": str(len(png))}
+        for key, value in (
+            ("Content-Type", "image/png" + " " * 5000),
+            ("Cache-Control", "no-store, private\\r\\nX-Leak: fixture"),
+            ("Content-Length", EqualString()),
+            ("Pragma", "x" * 5000),
+            ("Vary", "Authorization\\x7f"),
+        ):
+            with self.subTest(key=key, value_type=type(value).__name__):
+                with patch("feature3_private_png_route.private_png_http",
+                           return_value=SimpleNamespace(
+                               status=200, body=png,
+                               headers={**base, key: value})):
+                    response = handle_private_png_request(
+                        Request(), reader_factory=lambda: None,
+                        response_type=Response)
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.body, b"")
+                self.assertEqual(response.headers["Content-Length"], "0")
+
     def test_private_png_backend_transformation_and_duplicate_headers_denied(self):
         # Synthetic compromised backend fixtures; no hosted authorization.
         png_like = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
