@@ -37,8 +37,15 @@ def _safe_jwt_json(segment, *, header=False):
             return result
         # Byte-bounded JSON can still exceed the parser recursion limit.
         # Fail closed rather than leaking a 500 response.
-        claims = json.loads(raw.decode("utf-8"), object_pairs_hook=unique_pairs)
+        def reject_nonfinite(value):
+            raise ValueError("non-finite JWT JSON number")
+        claims = json.loads(raw.decode("utf-8"), object_pairs_hook=unique_pairs,
+                            parse_constant=reject_nonfinite)
         if type(claims) is not dict:
+            return False
+        # Enforce canonical unpadded base64url, not merely decodability.
+        # Ambiguous encodings must not reach a verifier with different parsing.
+        if base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=") != segment:
             return False
         if not header:
             return type(claims.get("sub")) is str and bool(claims["sub"])
