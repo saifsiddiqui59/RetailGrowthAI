@@ -125,6 +125,22 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(CreativeContractError):
                 self.call(draft, snapshot, receipt, data)
 
+    def test_approved_high_rate_stereo_pcm_not_rejected_by_arbitrary_8mb_cap(self):
+        # 30s at 96kHz stereo 16-bit is 11.52 MB, a valid bounded
+        # narration profile under the existing supported sample-rate contract.
+        d, s, r, _ = self.setup_case()
+        out = io.BytesIO()
+        with wave.open(out, "wb") as writer:
+            writer.setnchannels(2)
+            writer.setsampwidth(2)
+            writer.setframerate(96000)
+            writer.writeframes(b"\\x02\\x01\\x04\\x03" * (96000 * 30))
+        data = out.getvalue()
+        self.assertGreater(len(data), 8 * 1024 * 1024)
+        r["feature4_audio_sha256"] = sha256(data).hexdigest()
+        result = self.call(d, s, r, data)
+        self.assertEqual(result["request"]["voiceover_asset_id"], d["voiceover_asset_id"])
+
     def test_bytes_changed_or_timeline_wrong_denied(self):
         d,s,r,data=self.setup_case()
         with self.assertRaises(CreativeContractError):
