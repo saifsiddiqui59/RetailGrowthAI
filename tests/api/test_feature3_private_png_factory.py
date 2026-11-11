@@ -481,6 +481,57 @@ class FactoryTests(unittest.TestCase):
             reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
         self.assertEqual(calls, [token])
 
+    def test_contradictory_numeric_date_window_denied_before_trusted_io(self):
+        # Synthetic JWTs only: structural validity is not authentication.
+        calls = []
+        class CountingStore(Store):
+            def member(self, *args):
+                calls.append("rls")
+                raise AssertionError("invalid JWT reached tenant IO")
+        def verify(token):
+            calls.append("verify")
+            raise AssertionError("invalid JWT reached verifier")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=CountingStore(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        def segment(value):
+            return base64.urlsafe_b64encode(
+                json.dumps(value).encode("utf-8")
+            ).decode("ascii").rstrip("=")
+        header = segment({"alg": "RS256"})
+        for dates in (
+            {"exp": 10, "nbf": 11},
+            {"exp": 10, "iat": 11},
+            {"exp": 0, "nbf": 1, "iat": 1},
+        ):
+            with self.subTest(dates=dates):
+                payload = segment({"sub": "fixture-user", **dates})
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    reader.read(user_token=f"{header}.{payload}.c2lnbmF0dXJl",
+                                shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, [])
+
+    def test_consistent_numeric_date_window_still_requires_signature(self):
+        calls = []
+        def verify(token):
+            calls.append(token)
+            raise ValueError("synthetic token not cryptographically verified")
+        reader = TrustedPrivatePNGFactory(
+            tenant_store=Store(), verify_user_jwt=verify,
+            current_output_rights=self.rights,
+        )(self.shop, self.job)
+        def segment(value):
+            return base64.urlsafe_b64encode(
+                json.dumps(value).encode("utf-8")
+            ).decode("ascii").rstrip("=")
+        token = (f"{segment({'alg': 'RS256'})}."
+                 f"{segment({'sub': 'fixture-user', 'iat': 1, 'nbf': 2, 'exp': 3})}."
+                 "c2lnbmF0dXJl")
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            reader.read(user_token=token, shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, [token])
+
     def test_valid_scope_reaches_real_reader_and_denies_fake_jwt(self):
         # No mocked success: the actual reader must reject the fixture token.
         reader = self.make()(self.shop, self.job)
