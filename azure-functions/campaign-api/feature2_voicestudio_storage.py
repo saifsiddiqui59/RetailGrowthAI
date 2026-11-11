@@ -78,7 +78,8 @@ def _wav(data):
     if (channels not in (1, 2) or bits != 16 or not 8000 <= rate <= 96000
             or block_align != channels * (bits // 8)
             or byte_rate != rate * block_align
-            or chunks[1][1] == 0 or chunks[1][1] % block_align):
+            or chunks[1][1] == 0 or chunks[1][1] % block_align
+            or chunks[1][1] // block_align > rate * 60):
         raise PrivateVoiceStorageDenied("Inconsistent private PCM frame geometry")
     try:
         with wave.open(io.BytesIO(data), "rb") as stream:
