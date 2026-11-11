@@ -239,3 +239,17 @@ def test_nonzero_pcm_extension_denied_before_network():
     with pytest.raises(PrivateVoiceStorageDenied, match="format extension"):
         write(store, original=original, original_sha=sha256(original).hexdigest())
     assert calls == []
+
+
+def test_overlong_pcm_denied_before_storage_network():
+    store, calls = harness()
+    out = io.BytesIO()
+    with wave.open(out, "wb") as stream:
+        stream.setnchannels(1)
+        stream.setsampwidth(2)
+        stream.setframerate(16000)
+        stream.writeframes(b"\x01\x02" * (16000 * 60 + 1))
+    original = out.getvalue()
+    with pytest.raises(PrivateVoiceStorageDenied, match="frame geometry"):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
