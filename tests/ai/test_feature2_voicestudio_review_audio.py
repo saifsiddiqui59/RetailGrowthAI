@@ -196,3 +196,14 @@ def test_bogus_original_payload_denied():
     storage.read_verified_original = lambda *ids: b"fake"
     with pytest.raises(VoiceStudioReviewDenied):
         read_current_voiceover_for_review(**args)
+
+
+def test_storage_returning_valid_length_but_wrong_sha_is_rejected_twice():
+    args, tenant, sql, storage, _ = harness()
+    original = pcm()
+    storage.read_verified_original = lambda *ids: original[:-1] + bytes([original[-1] ^ 1])
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    # Invalid bytes are blocked before any second SQL/tenant read.
+    assert len(sql.calls) == 1
+    assert len(tenant.calls) == 1
