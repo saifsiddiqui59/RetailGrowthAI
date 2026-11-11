@@ -98,7 +98,8 @@ def read_current_voiceover_for_review(
         if not tenant_store.member(token, user_id, shop_id, write=True):
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
         return content
-    except (AuthenticationError, StorageUnavailable, PrivateVoiceStorageDenied,
-            VoiceStudioReviewDenied, ValueError, TypeError, KeyError, AttributeError,
-            OSError, ConnectionError, TimeoutError, RuntimeError):
+    except Exception:
+        # Third-party JWT, SQL and Storage adapters can raise provider-specific
+        # exceptions. Never leak their messages or accidentally return private
+        # bytes when a security dependency fails. Do not retry uncertain I/O.
         raise VoiceStudioReviewDenied("Private VoiceStudio review access denied") from None
