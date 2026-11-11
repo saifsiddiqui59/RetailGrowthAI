@@ -210,3 +210,32 @@ def test_non_pcm_format_denied_before_network():
     with pytest.raises(PrivateVoiceStorageDenied):
         write(store, original=original, original_sha=sha256(original).hexdigest())
     assert calls == []
+
+
+@pytest.mark.parametrize("offset,value", [
+    (28, 123),  # forged byte rate
+    (32, 4),    # forged block alignment
+    (34, 8),    # forged bit depth
+])
+def test_inconsistent_pcm_geometry_denied_before_network(offset, value):
+    store, calls = harness()
+    original = bytearray(wav())
+    width = 4 if offset == 28 else 2
+    original[offset:offset + width] = value.to_bytes(width, "little")
+    original = bytes(original)
+    with pytest.raises(PrivateVoiceStorageDenied, match="frame geometry"):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
+
+
+def test_nonzero_pcm_extension_denied_before_network():
+    store, calls = harness()
+    original = bytearray(wav())
+    # Convert canonical 16-byte fmt chunk into 18-byte fmt with cbSize=1.
+    original[16:20] = (18).to_bytes(4, "little")
+    original[36:36] = b"\\x01\\x00"
+    original[4:8] = (len(original) - 8).to_bytes(4, "little")
+    original = bytes(original)
+    with pytest.raises(PrivateVoiceStorageDenied, match="format extension"):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
