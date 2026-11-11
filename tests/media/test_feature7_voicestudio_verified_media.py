@@ -130,6 +130,32 @@ await denied({readExtractedWav:async()=>dataFirst,
  original_audio_sha256:digest(dataFirst),
  review:{...review,audio_sha256:digest(dataFirst)},
  readCurrentLease:async()=>({...lease,audio_sha256:digest(dataFirst)})});
+// A legitimate odd-sized pre-audio RIFF chunk needs exactly one zero pad.
+const oddChunk=Buffer.concat([Buffer.from('JUNK'),Buffer.from([1,0,0,0]),Buffer.from([7,0])]);
+const padded=Buffer.concat([wav.subarray(0,12),oddChunk,wav.subarray(12)]);
+padded.writeUInt32LE(padded.length-8,4);
+const paddedDigest=digest(padded);
+const paddedLease=()=>({...lease,audio_sha256:paddedDigest});
+const paddedReview={...review,audio_sha256:paddedDigest};
+const paddedSigned=await bindVerifiedVoiceStudioMedia({...base,
+ readExtractedWav:async()=>padded,original_audio_sha256:paddedDigest,
+ review:paddedReview,readCurrentLease:async()=>paddedLease()});
+assert.equal(paddedSigned.evidence.source_sha256,v);
+// Nonzero padding cannot be blessed merely by recalculating the SHA and lease.
+const poisonedPad=Buffer.from(padded);poisonedPad[21]=255;
+const poisonedDigest=digest(poisonedPad);
+await denied({readExtractedWav:async()=>poisonedPad,
+ original_audio_sha256:poisonedDigest,
+ review:{...review,audio_sha256:poisonedDigest},
+ readCurrentLease:async()=>({...lease,audio_sha256:poisonedDigest})});
+// A missing pad byte must fail without accepting the next chunk header as padding.
+const missingPad=Buffer.concat([padded.subarray(0,21),padded.subarray(22)]);
+missingPad.writeUInt32LE(missingPad.length-8,4);
+const missingDigest=digest(missingPad);
+await denied({readExtractedWav:async()=>missingPad,
+ original_audio_sha256:missingDigest,
+ review:{...review,audio_sha256:missingDigest},
+ readCurrentLease:async()=>({...lease,audio_sha256:missingDigest})});
 // A trailing metadata chunk after samples is ambiguous and must never be signed.
 const trailing=Buffer.concat([wav,Buffer.from('JUNK'),Buffer.from([4,0,0,0]),Buffer.alloc(4)]);
 trailing.writeUInt32LE(trailing.length-8,4);
