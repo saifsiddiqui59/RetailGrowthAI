@@ -136,6 +136,25 @@ class PublicShadowTrialSafetyTests(unittest.TestCase):
                  self.assertRaises(RuntimeError):
                 trial.indexed()
 
+    def test_protected_workflow_has_separate_rollback_and_no_other_azure_mutation(self):
+        work = (ROOT / ".github/workflows/p0249-dev-y1-public-shadow-bounded-once.yml").read_text()
+        self.assertIn("environment: dev", work)
+        self.assertEqual(work.count("environment: dev"), 3)
+        self.assertIn("cancel-in-progress: false", work)
+        self.assertIn("independent-restore:", work)
+        self.assertIn("needs: [preflight, temporary-negative-test]", work)
+        self.assertIn("github.ref == 'refs/heads/main'", work)
+        self.assertIn("YES-Y1-DEV-PUBLIC-SHADOW-BOUNDED", work)
+        self.assertIn("p0249_y1_public_shadow_trial_guard.py preflight", work)
+        self.assertIn("p0249_y1_public_shadow_trial_guard.py activate", work)
+        self.assertIn("p0249_y1_public_shadow_trial_guard.py rollback", work)
+        for forbidden in ("az deployment group create", "az functionapp create",
+                          "az functionapp delete", "az group delete",
+                          "az storage account", "AZURE_CLIENT_SECRET",
+                          "RETAIL_SUPABASE_SERVICE_ROLE_KEY", "sb_secret_"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, work)
+
     def test_live_negative_probe_requires_marker_and_exact_status(self):
         self.marker()
         with patch.object(trial, "indexed"), \
