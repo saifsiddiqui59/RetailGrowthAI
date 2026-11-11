@@ -82,8 +82,6 @@ jobs:
     env:
       RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       RGAI_DEV_P0249_PUBLISHABLE_KEY: "sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq"
-      RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
-      RGAI_DEV_P0249_JWT_CANARY_APPROVAL: OWNER_APPROVED_READ_ONLY_JWT_TEST
     steps:
       - uses: actions/checkout@v7
         with:
@@ -98,6 +96,9 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Set ONLY three public settings, test invalid/missing JWT, always restore
+        env:
+          RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+          RGAI_DEV_P0249_JWT_CANARY_APPROVAL: OWNER_APPROVED_READ_ONLY_JWT_TEST
         shell: bash
         run: |
           set -euo pipefail
