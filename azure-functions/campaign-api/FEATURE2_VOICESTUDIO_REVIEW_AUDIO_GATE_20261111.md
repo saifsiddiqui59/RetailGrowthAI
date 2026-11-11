@@ -22,3 +22,9 @@ No paid model, GPU, Azure/PROD mutation or WineShopPOS change.
 - Source test commit `563a2c39d914dc59bc54b3591a1fd03243eaee56`: two additional synthetic denial tests cover a JWT subject changing after private WAV read and an approved plan SHA changing between SQL receipt reads. Both must deny bytes before any downstream handoff.
 - NEXT CODE ACTION: run `python -m pytest -q tests/ai/test_feature2_voicestudio_review_audio.py` at the **current** #937 head, repair any owned test failures, and inspect exact-head four-job Actions. Reconcile with latest main only after checking changed paths and concurrent workers. Independent review of #937 and protected #920/#923/#925 remains required; do not merge or deploy without it.
 - Tests and exact-head CI for this new commit are not yet verified. No model inference or hosted resources were used.
+
+## 2026-11-11 checkpoint — post-read fail-closed cases
+- Added two synthetic tests on source commit `1c0c1f668198c25c457841d52a27843f6eea1f86`: JWT expiry after private WAV GET and SQL receipt timeout after GET must both deny audio without retry or leaked provider error.
+- Prior run #43038370849 had Python success (1/4), with the other three jobs failing at system-package/Chromium installation steps; a failed-job rerun was requested, but it is NOT exact-head evidence for this newer commit.
+- **NEXT CODE ACTION:** run `python -m pytest -q tests/ai/test_feature2_voicestudio_review_audio.py` on exact head; inspect four-job Actions on head `1c0c1f66`, diagnose any failures and retry only safe transient infrastructure errors. Reconcile fresh main and independently review protected #937/#920/#923/#925; no merge or deployment before review and 4/4 exact-head, then fresh main 4/4.
+- No inference, GPU, paid model, hosted SQL, DEV/PROD deployment or WineShopPOS change.
