@@ -60,9 +60,12 @@ export async function bindVerifiedVoiceStudioMedia({
   let lastCheckedMs=now_ms;
   const checkedTime=()=>{
     const t=currentTime();
+    // Compare raw readings before integer conversion. Flooring first masks
+    // backwards sub-millisecond jumps at lease expiry boundaries.
     deny(Number.isFinite(t) && t>=lastCheckedMs && t<=Number.MAX_SAFE_INTEGER);
-    lastCheckedMs=Math.floor(t);
-    return lastCheckedMs;
+    lastCheckedMs=t;
+    // Round UP so a lease cannot survive by truncating a fractional ms.
+    return Math.ceil(t);
   };
   // Bounded buffers: no file paths, URLs, user-provided digests as substitutes.
   const video=await readOriginalVideo({shop_id,asset_id,job_id});
