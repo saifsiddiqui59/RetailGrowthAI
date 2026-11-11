@@ -31,6 +31,18 @@ const result=await bindVerifiedVoiceStudioMedia(base);
 assert.equal(result.evidence.source_sha256,v);
 assert.equal(result.captions[0].words[0].text,'नमस्कार');
 assert.equal(result.feature4_edit_advice.executable,false);
+// An audio stream longer than the original video must not be signed, even
+// with authentic PCM bytes, valid SHA and an otherwise active source lease.
+await assert.rejects(()=>bindVerifiedVoiceStudioMedia({
+ ...base,source_duration_seconds:0.5,
+ review:{...review,words:[{word:'नमस्कार',start:.1,end:.4}]}
+}));
+// Boundary tolerance permits only a small sample-clock rounding difference.
+const nearBoundary=await bindVerifiedVoiceStudioMedia({
+ ...base,source_duration_seconds:0.99,
+ review:{...review,words:[{word:'नमस्कार',start:.1,end:.7}]}
+});
+assert.equal(nearBoundary.evidence.source_sha256,v);
 const denied=async changes=>assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,...changes}));
 await denied({readOriginalVideo:async()=>Buffer.from('changed')});
 await denied({readExtractedWav:async()=>Buffer.alloc(64)});
