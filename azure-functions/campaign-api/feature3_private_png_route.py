@@ -133,6 +133,11 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             "x-goog-authenticated-user-email", "x-goog-authenticated-user-id",
             "cf-access-authenticated-user-email", "x-amzn-oidc-identity",
             "x-amzn-oidc-data", "x-amzn-oidc-accesstoken",
+            # Proxy rewrite/identity metadata is not a signed user claim.
+            "forwarded", "x-forwarded-host", "x-forwarded-uri",
+            "x-forwarded-prefix", "x-original-url", "x-rewrite-url",
+            "x-original-uri", "x-envoy-original-path",
+            "x-ms-original-url", "x-ms-original-host",
         })
         if any(name.lower() in untrusted_authority for name in names):
             return _denied(400, response_type)
