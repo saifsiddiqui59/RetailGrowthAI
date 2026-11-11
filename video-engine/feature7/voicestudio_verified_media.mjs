@@ -49,7 +49,7 @@ export async function bindVerifiedVoiceStudioMedia({
   // even if its snapshot is unchanged. An injected clock is for offline tests.
   const started=performance.now();
   const currentTime=()=>readNowMs ? readNowMs() : now_ms+Math.max(0,performance.now()-started);
-  const checkedTime=()=>{const t=currentTime();deny(Number.isFinite(t) && t>=now_ms);return t;};
+  const checkedTime=()=>{const t=currentTime();deny(Number.isFinite(t) && t>=now_ms && t<=Number.MAX_SAFE_INTEGER);return Math.floor(t);};
   // Bounded buffers: no file paths, URLs, user-provided digests as substitutes.
   const video=await readOriginalVideo({shop_id,asset_id,job_id});
   deny(Buffer.isBuffer(video) && video.length>0 && video.length<=256*1024*1024);
