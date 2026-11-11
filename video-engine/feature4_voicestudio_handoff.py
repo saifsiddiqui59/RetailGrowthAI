@@ -154,7 +154,7 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
             if (reader.getnchannels() not in (1, 2) or reader.getsampwidth() != 2
                     or rate < 8000 or rate > 96000 or reader.getcomptype() != "NONE"
                     or frames != duration * rate
-                    or len(reader.readframes(frames)) != frames * reader.getnchannels() * 2):
+                    or reader.getnframes() * reader.getnchannels() * 2 != size):
                 raise CreativeContractError("Narration timeline/profile does not match approved reel")
     except (EOFError, wave.Error) as exc:
         raise CreativeContractError("Malformed private narration WAV") from exc
