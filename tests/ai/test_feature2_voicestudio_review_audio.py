@@ -322,3 +322,23 @@ def test_in_place_sql_receipt_revocation_during_private_get_is_denied():
     with pytest.raises(VoiceStudioReviewDenied):
         read_current_voiceover_for_review(**args)
     assert len(calls) == 2 and len(storage.calls) == 1
+
+
+@pytest.mark.parametrize("dependency", ["jwt", "sql", "storage"])
+def test_unexpected_provider_exception_is_sanitized_and_never_retried(dependency):
+    args, tenant, sql, storage, tokens = harness()
+    def unexpected(*_args, **_kwargs):
+        raise LookupError("private provider diagnostic must not escape")
+    if dependency == "jwt":
+        args["verify_token"] = unexpected
+    elif dependency == "sql":
+        sql.read_private_receipt = unexpected
+    else:
+        storage.read_verified_original = unexpected
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$") as exc:
+        read_current_voiceover_for_review(**args)
+    assert "private provider diagnostic" not in str(exc.value)
+    assert exc.value.__cause__ is None
+    assert len(storage.calls) == 0
+    assert len(sql.calls) == (0 if dependency == "jwt" else 1 if dependency == "storage" else 0)
+    assert len(tenant.calls) == (0 if dependency == "jwt" else 1)
