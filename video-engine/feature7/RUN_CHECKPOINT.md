@@ -145,3 +145,10 @@
 - Child #942 commits `bfa2db285680f4b923d16c38556e8ec17ac9de4a` and `ac31a808c826170c50a279aca641d97e2d12f3ab`: compare unrounded clock readings to detect sub-ms rollback; round expiry checks upward, with negative rollback/expiry and positive monotonic regression cases.
 - Exact-head four-job CI and local Node regression execution are **not verified**; do not merge until checked. Parent #513 remains non-mergeable against main at inspection. Upstream #911 and F4 #910 already merged into their respective feature parents.
 - NEXT CODE ACTION: run `python -m unittest tests/media/test_feature7_voicestudio_verified_media.py` in a checked-out branch; inspect exact-head CI for child #942, repair scoped failures, merge green child into #513, then reconcile parent conflicts with latest main under serialized integration policy. Keep source-only status, GPU/paid/cloud/PROD OFF.
+
+## 2026-11-12 — F7 VoiceStudio PCM format hardening (source only)
+- Child PR #942, branch `feat/feature7-voicestudio-monotonic-lease-20261111`: source commit `6c9453ef7a07347d6e7a26dcafd1b3fb0e657dd4`, deterministic test commit `1771afd0df3aace1a8630a570e1ed0e774491ee6`.
+- Reject ambiguous PCM `fmt ` extensions; accept 16-byte PCM and 18-byte WAVEFORMATEX only with zero cbSize. Negative tests cover nonzero cbSize and unsupported extra bytes, with a positive zero-extension case. All test hashes/leases are consistent to verify parser enforcement.
+- SOURCE IN PROGRESS: targeted Node/Python tests and exact-final-head 4-job CI not yet verified. No parent/main merge. F4 dependency #910; existing #911 already closed.
+- NEXT: run `python -m unittest tests/media/test_feature7_voicestudio_verified_media.py` on an available full checkout, inspect exact-head four-job CI, repair owner-scoped failures, then safely merge eligible #942 into parent #513 only after scope/review/CI gates. Parent main reconciliation belongs to serialized integration writer.
+- GPU/models/paid/cloud/PROD/WineShopPOS OFF; no shared auth/schema changes.
