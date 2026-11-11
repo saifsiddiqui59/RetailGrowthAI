@@ -234,6 +234,23 @@ def main(argv=None):
         assert "video-engine/render.py" in entries
         assert "poster-engine/render.py" in entries
         assert "ai_agents/schemas.py" in entries
+        # The deployable archive also adds three FFmpeg/license members.
+        # Check the complete budget without needing approved binaries.
+        candidate_count = len(entries) + 3
+        print(f"Gate2 ZIP member budget: {candidate_count}/120 "
+              f"({len(entries)} source/wrapper + 3 FFmpeg/license)")
+        if candidate_count > 120:
+            by_area = {}
+            for name in entries:
+                area = name.split("/", 1)[0] if "/" in name else "(root)"
+                by_area[area] = by_area.get(area, 0) + 1
+            print("Gate2 oversized areas: " +
+                  ", ".join(f"{area}={count}" for area, count in sorted(by_area.items())),
+                  file=sys.stderr)
+            raise ValueError(
+                f"Gate2 source layout requires {candidate_count} ZIP members; "
+                "120 maximum; audit bundled modules rather than weakening verifier"
+            )
         print("PASS: source layout, import wrapper, queue settings and lease/timeout checks; no cloud calls")
         return 0
     if args.ffmpeg_dir is None:
