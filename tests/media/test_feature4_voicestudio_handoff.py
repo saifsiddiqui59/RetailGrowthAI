@@ -180,11 +180,11 @@ class VoiceStudioHandoffTests(unittest.TestCase):
     def test_private_wav_rejects_inconsistent_pcm_headers_and_partial_frames(self):
         # Valid SHA and RIFF length do not make a forged PCM layout safe.
         for offset, width, value in (
-            (22, 2, 1),        # 8-bit samples but 16-bit frame data
+            (22, 2, 3),        # unsupported three-channel PCM
             (32, 2, 1),        # block alignment disagrees with channels
             (28, 4, 1),        # byte rate disagrees with sample rate
             (24, 4, 0),        # invalid sample rate
-            (22, 2, 24),       # unsupported 24-bit PCM
+            (34, 2, 24),       # unsupported 24-bit PCM
         ):
             d, s, r, data = self.setup_case()
             forged = data[:offset] + value.to_bytes(width, "little") + data[offset + width:]
