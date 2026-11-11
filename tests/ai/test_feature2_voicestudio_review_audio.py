@@ -371,3 +371,35 @@ def test_render_pair_digest_revoked_during_original_read_denies_disclosure():
     with pytest.raises(VoiceStudioReviewDenied):
         read_current_voiceover_for_review(**args)
     assert len(storage.calls) == 1 and len(sql.calls) == 2
+
+
+def test_digest_matching_non_wav_denied_even_with_swapped_storage_reader():
+    args, tenant, sql, storage, _ = harness()
+    malicious = b"not-wave" + b"x" * 100
+    digest = sha256(malicious).hexdigest()
+    original_reader = sql.read_private_receipt
+    def receipt(*ids):
+        result = original_reader(*ids)
+        result["original_sha256"] = digest
+        return result
+    sql.read_private_receipt = receipt
+    storage.read_verified_original = lambda *ids: malicious
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1 and len(tenant.calls) == 1
+
+
+def test_digest_matching_wav_with_hidden_trailing_bytes_denied():
+    args, tenant, sql, storage, _ = harness()
+    malicious = pcm() + b"hidden"
+    digest = sha256(malicious).hexdigest()
+    original_reader = sql.read_private_receipt
+    def receipt(*ids):
+        result = original_reader(*ids)
+        result["original_sha256"] = digest
+        return result
+    sql.read_private_receipt = receipt
+    storage.read_verified_original = lambda *ids: malicious
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1 and len(tenant.calls) == 1
