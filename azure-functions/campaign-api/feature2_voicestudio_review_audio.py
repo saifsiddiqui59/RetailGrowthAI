@@ -46,7 +46,9 @@ def _receipt(sql_reader, shop, campaign, request):
         or _SHA.fullmatch(result["plan_sha256"]) is None
     ):
         raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
-    return result
+    # Snapshot the SQL receipt: adapters may reuse/mutate the same dict during I/O.
+    # A live reference would make post-read revocation comparisons ineffective.
+    return dict(result)
 
 
 def read_current_voiceover_for_review(
@@ -68,8 +70,10 @@ def read_current_voiceover_for_review(
             and callable(getattr(tenant_store, "member", None))
             and callable(getattr(private_storage, "read_verified_original", None))):
         raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
-    token = authorization[7:].strip()
-    if not 8 <= len(token) <= 8192:
+    token = authorization[7:]
+    # Never normalize malformed Authorization headers into accepted credentials.
+    if (token != token.strip() or any(ch.isspace() for ch in token)
+            or not 8 <= len(token) <= 8192):
         raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
     try:
         user_id = canonical_uuid(verify_token(token))
