@@ -52,7 +52,15 @@ export async function bindVerifiedVoiceStudioMedia({
   // even if its snapshot is unchanged. An injected clock is for offline tests.
   const started=performance.now();
   const currentTime=()=>readNowMs ? readNowMs() : now_ms+Math.max(0,performance.now()-started);
-  const checkedTime=()=>{const t=currentTime();deny(Number.isFinite(t) && t>=now_ms && t<=Number.MAX_SAFE_INTEGER);return Math.floor(t);};
+  // Never allow an injected or system clock to move backwards between lease checks.
+  // A rollback could otherwise make an expired lease appear active at return.
+  let lastCheckedMs=now_ms;
+  const checkedTime=()=>{
+    const t=currentTime();
+    deny(Number.isFinite(t) && t>=lastCheckedMs && t<=Number.MAX_SAFE_INTEGER);
+    lastCheckedMs=Math.floor(t);
+    return lastCheckedMs;
+  };
   // Bounded buffers: no file paths, URLs, user-provided digests as substitutes.
   const video=await readOriginalVideo({shop_id,asset_id,job_id});
   deny(Buffer.isBuffer(video) && video.length>0 && video.length<=256*1024*1024);
