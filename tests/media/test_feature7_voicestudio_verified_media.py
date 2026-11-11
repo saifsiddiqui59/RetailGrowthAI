@@ -206,6 +206,31 @@ await denied({readExtractedWav:async()=>missingPad,
  original_audio_sha256:missingDigest,
  review:{...review,audio_sha256:missingDigest},
  readCurrentLease:async()=>({...lease,audio_sha256:missingDigest})});
+// Plain PCM fmt permits exactly 16 bytes or WAVEFORMATEX with a zero
+// extension length. An attacker cannot smuggle unknown format metadata into
+// a matching WAV SHA, lease and review receipt.
+const fmtExtra=(extra)=> {
+ const b=Buffer.concat([wav.subarray(0,36),extra,wav.subarray(36)]);
+ b.writeUInt32LE(b.length-8,4);
+ b.writeUInt32LE(16+extra.length,16);
+ return b;
+};
+const deniedFmt=async b=>denied({
+ readExtractedWav:async()=>b,original_audio_sha256:digest(b),
+ review:{...review,audio_sha256:digest(b)},
+ readCurrentLease:async()=>({...lease,audio_sha256:digest(b)})
+});
+await deniedFmt(fmtExtra(Buffer.from([1,0])));
+await deniedFmt(fmtExtra(Buffer.from([0,0,1,0])));
+const validExtended=fmtExtra(Buffer.from([0,0]));
+const validExtendedDigest=digest(validExtended);
+const validExtendedSigned=await bindVerifiedVoiceStudioMedia({...base,
+ readExtractedWav:async()=>validExtended,
+ original_audio_sha256:validExtendedDigest,
+ review:{...review,audio_sha256:validExtendedDigest},
+ readCurrentLease:async()=>({...lease,audio_sha256:validExtendedDigest})
+});
+assert.equal(validExtendedSigned.evidence.source_sha256,v);
 // A trailing metadata chunk after samples is ambiguous and must never be signed.
 const trailing=Buffer.concat([wav,Buffer.from('JUNK'),Buffer.from([4,0,0,0]),Buffer.alloc(4)]);
 trailing.writeUInt32LE(trailing.length-8,4);
