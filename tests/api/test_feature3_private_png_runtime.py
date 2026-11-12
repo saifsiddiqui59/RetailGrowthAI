@@ -63,6 +63,19 @@ class RuntimeCompositionTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     self.build(authoritative_rights_read=provider)
 
+    def test_mutated_project_store_is_rejected_before_reader_creation(self):
+        class MutableStore(SyntheticStore):
+            pass
+        for field, value in (("origin", "https://foreign.supabase.co"),
+                             ("key", "sb_publishable_foreign_test_key"),
+                             ("origin", object()), ("key", object())):
+            with self.subTest(field=field, value_type=type(value).__name__):
+                store = MutableStore()
+                factory = self.build(tenant_store=store)
+                setattr(store, field, value)
+                with self.assertRaises(ValueError):
+                    factory(str(uuid4()), str(uuid4()))
+
     def test_cross_project_store_is_rejected(self):
         class ForeignStore(SyntheticStore):
             origin = "https://foreign-project.supabase.co"
