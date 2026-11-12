@@ -139,7 +139,7 @@ class Tests(unittest.TestCase):
             def __eq__(self, other):
                 return True
 
-        png = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
+        png = bytes.fromhex("89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de0000000c49444154789c63606060000000040001f61738550000000049454e44ae426082")
         base = {"Content-Type": "image/png",
                 "Cache-Control": "no-store, private",
                 "Content-Length": str(len(png))}
