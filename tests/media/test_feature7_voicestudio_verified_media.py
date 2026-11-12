@@ -210,6 +210,23 @@ for (const field of ['asset_id','job_id','source_sha256','audio_sha256','model_i
    return current;
  }});
 }
+// An own-property accessor is not an authoritative lease snapshot. A getter
+// could swap tenant/source/expiry values between validation and signing.
+for (const field of ['shop_id','asset_id','job_id','source_sha256',
+                     'audio_sha256','model_id','active','expires_at_ms']) {
+  let getterReads=0;
+  await denied({readCurrentLease:async()=>{
+    const receipt={...lease};
+    Object.defineProperty(receipt,field,{enumerable:true,
+      get(){getterReads++;return lease[field];}});
+    return receipt;
+  }});
+  assert.equal(getterReads,0,'lease accessors must not execute');
+}
+// A frozen plain-data lease is valid and must not regress.
+const frozenLeaseSigned=await bindVerifiedVoiceStudioMedia({...base,
+  readCurrentLease:async()=>Object.freeze({...lease})});
+assert.equal(frozenLeaseSigned.evidence.source_sha256,v);
 // A clock that expires only on the second lease check must fail closed.
 clock=now;leaseReads=0;
 await denied({readNowMs:()=>clock,
