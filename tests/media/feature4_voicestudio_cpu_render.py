@@ -59,6 +59,21 @@ def main():
             actual_frames = int(counted["streams"][0]["nb_read_frames"])
             assert actual_frames == 30 * 24, (
                 f"Encoded Reel has {actual_frames} frames, expected 720")
+            # Probe decoded timestamps rather than trusting only nb_read_frames:
+            # a malformed concat can advertise 720 frames yet leave a large
+            # frozen/timestamp gap near the end of the narration.
+            frames = json.loads(subprocess.check_output(
+                ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                 "-show_frames", "-show_entries",
+                 "frame=best_effort_timestamp_time", "-of", "json",
+                 str(output)], text=True, timeout=90))["frames"]
+            timestamps = [float(f["best_effort_timestamp_time"]) for f in frames
+                          if "best_effort_timestamp_time" in f]
+            assert len(timestamps) == 720, "Decoded video timestamp count mismatches Reel"
+            assert abs(timestamps[0]) < 0.05, "Reel starts with a video timestamp gap"
+            assert abs(timestamps[-1] - 719 / 24) < 0.05, "Reel video ends prematurely"
+            assert all(0.03 < b - a < 0.06 for a, b in zip(timestamps, timestamps[1:])), (
+                "Video frame timestamps are nonmonotonic or contain gaps")
             assert int(audio[0]["channels"]) in (1, 2), "Unsupported AAC channel layout"
             assert int(audio[0]["sample_rate"]) >= 8000, "Invalid AAC sample rate"
             assert abs(float(audio[0].get("duration", info["format"]["duration"])) - 30) < 0.3, "AAC track duration mismatches Reel"
