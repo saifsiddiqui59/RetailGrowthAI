@@ -27,6 +27,17 @@ const base={shop_id:'shop1',asset_id:'asset1',job_id:'job1',model_id:'pinned',
  source_duration_seconds:2,now_ms:now,
  readOriginalVideo:async()=>video,readExtractedWav:async()=>wav,
  readCurrentLease:async()=>({...lease})};
+// Invalid source clocks must fail before any private byte/lease reads.
+for (const invalidDuration of [undefined,null,0,-1,181,Infinity,NaN,'2']) {
+ let reads=0;
+ await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,
+  source_duration_seconds:invalidDuration,
+  readOriginalVideo:async()=>{reads++;return video;},
+  readExtractedWav:async()=>{reads++;return wav;},
+  readCurrentLease:async()=>{reads++;return {...lease};}
+ }));
+ assert.equal(reads,0,'invalid duration must not touch private readers');
+}
 const result=await bindVerifiedVoiceStudioMedia(base);
 assert.equal(result.evidence.source_sha256,v);
 assert.equal(result.captions[0].words[0].text,'नमस्कार');
