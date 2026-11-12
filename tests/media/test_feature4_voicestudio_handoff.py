@@ -141,6 +141,27 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         result = self.call(d, s, r, data)
         self.assertEqual(result["request"]["voiceover_asset_id"], d["voiceover_asset_id"])
 
+    def test_approved_60_second_stereo_narration_compiles(self):
+        # Real PCM framing, not a forged RIFF size: cover the maximum
+        # supported reel duration and stereo audio without paid synthesis.
+        draft, snapshot, receipt, _ = self.setup_case()
+        draft["duration_seconds"] = 60
+        for index, scene in enumerate(draft["scenes"]):
+            scene["start"] = index * 20
+            scene["duration"] = 20
+        receipt["render_duration_seconds"] = 60
+        out = io.BytesIO()
+        with wave.open(out, "wb") as writer:
+            writer.setnchannels(2)
+            writer.setsampwidth(2)
+            writer.setframerate(48000)
+            writer.writeframes(bytes((1, 2, 3, 4)) * (48000 * 60))
+        data = out.getvalue()
+        receipt["feature4_audio_sha256"] = sha256(data).hexdigest()
+        result = self.call(draft, snapshot, receipt, data)
+        self.assertEqual(result["request"]["voiceover_asset_id"], draft["voiceover_asset_id"])
+        self.assertEqual(result["request"]["duration_seconds"], 60)
+
     def test_approved_15_second_narration_compiles_without_30_second_assumption(self):
         draft, snapshot, receipt, _ = self.setup_case()
         draft["duration_seconds"] = 15
