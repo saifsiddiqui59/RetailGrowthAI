@@ -81,6 +81,28 @@ async function deniedWord(changes,readCurrentLease) {
  await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,
    review:{...review,...changes},readCurrentLease}));
 }
+// An accessor-backed word LIST is as unsafe as accessor-backed entries.
+// Neither own nor inherited getters may run before the trusted lease gate.
+let wordListGetterCalls=0,wordListLeaseCalls=0;
+const getterReview={...review};
+Object.defineProperty(getterReview,'words',{enumerable:true,
+ get(){wordListGetterCalls++;throw Error('untrusted word-list getter');}});
+await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,
+ review:getterReview,readCurrentLease:async()=>{wordListLeaseCalls++;return {...lease};}}));
+assert.equal(wordListGetterCalls,0);
+assert.equal(wordListLeaseCalls,0);
+const inheritedList=Object.create({words:[{word:'नमस्कार',start:.1,end:.7}]});
+for(const field of ['schema','audio_sha256','language','text','approved','renderable',
+ 'word_timings_present','model_revision_verified_by_worker','requires_feature7_signed_evidence']) {
+ inheritedList[field]=review[field];
+}
+await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,
+ review:inheritedList,readCurrentLease:async()=>{wordListLeaseCalls++;return {...lease};}}));
+assert.equal(wordListLeaseCalls,0);
+const frozenWordsReview=Object.freeze({...review,
+ words:Object.freeze([Object.freeze({word:'नमस्कार',start:.1,end:.7})])});
+const frozenWordsResult=await bindVerifiedVoiceStudioMedia({...base,review:frozenWordsReview});
+assert.equal(frozenWordsResult.evidence.source_sha256,v);
 // Sparse arrays and accessor-backed array slots are not stable word evidence.
 // An overridden map method must never run inside the trusted signing bridge.
 let slotReads=0, arrayLeaseReads=0;
