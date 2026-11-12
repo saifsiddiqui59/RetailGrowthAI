@@ -8,6 +8,20 @@ import {EditValidationError} from './autobroll_semantics.mjs';
 const deny=(ok)=>{if(!ok)throw new EditValidationError('Unverified original media or lease');};
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const SHA=/^[a-f0-9]{64}$/;
+// Lease receipts must contain own, ordinary data properties. Accessors can
+// return different scopes or expiry values during snapshot and final checks.
+const LEASE_FIELDS=['shop_id','asset_id','job_id','source_sha256',
+  'audio_sha256','model_id','active','expires_at_ms'];
+function leaseValues(receipt) {
+  deny(receipt!==null && typeof receipt==='object');
+  const values=Object.create(null);
+  for (const field of LEASE_FIELDS) {
+    const descriptor=Object.getOwnPropertyDescriptor(receipt,field);
+    deny(descriptor && Object.hasOwn(descriptor,'value'));
+    values[field]=descriptor.value;
+  }
+  return values;
+}
 // Validate the extracted audio container, not merely its SHA: a digest of junk
 // bytes is still junk. Restrict to bounded, uncompressed PCM WAV.
 function pcmWavDuration(b) {
@@ -104,13 +118,7 @@ export async function bindVerifiedVoiceStudioMedia({
   // A revoked or malformed lease must not be allowed to mutate the worker's
   // source/review inputs through a reused object reference. Capture only the
   // expected lease fields, never trust inherited prototype properties.
-  deny(lease!==null && typeof lease==='object' &&
-    ['shop_id','asset_id','job_id','source_sha256','audio_sha256',
-     'model_id','active','expires_at_ms'].every(field=>
-       Object.hasOwn(lease,field)));
-  const leaseSnapshot=Object.fromEntries(
-    ['shop_id','asset_id','job_id','source_sha256','audio_sha256',
-     'model_id','active','expires_at_ms'].map(field=>[field,lease[field]]));
+  const leaseSnapshot=leaseValues(lease);
   const signed=bindVoiceStudioReview({review,shop_id,asset_id,job_id,
     original_video_sha256,original_audio_sha256,source_duration_seconds,
     lease:leaseSnapshot,model_id,key,now_ms:checkedTime()});
@@ -118,12 +126,10 @@ export async function bindVerifiedVoiceStudioMedia({
   const current=await readCurrentLease({shop_id,asset_id,job_id});
   // The final receipt must be an authoritative own-field snapshot too;
   // inherited active/scope fields cannot revive a revoked or swapped lease.
-  deny(current!==null && typeof current==='object' &&
-    ['shop_id','asset_id','job_id','source_sha256','audio_sha256',
-     'model_id','active','expires_at_ms'].every(field=>Object.hasOwn(current,field)));
-  deny(current && current.active===true &&
+  const finalLease=leaseValues(current);
+  deny(finalLease.active===true &&
     ['shop_id','asset_id','job_id','source_sha256','audio_sha256','model_id','expires_at_ms']
-      .every(field=>current[field]===leaseSnapshot[field]) &&
-    current.expires_at_ms>checkedTime());
+      .every(field=>finalLease[field]===leaseSnapshot[field]) &&
+    finalLease.expires_at_ms>checkedTime());
   return signed;
 }
