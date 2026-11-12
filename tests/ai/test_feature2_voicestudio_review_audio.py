@@ -302,6 +302,10 @@ def test_uncertain_private_read_failure_denies_without_retry(error):
     "Bearer  " + TOKEN, "Bearer " + TOKEN + " ",
     "Bearer " + TOKEN + "\\n", "Bearer " + TOKEN + "\\t",
     "Bearer " + TOKEN + " extra",
+    "Bearer " + TOKEN + "\n",
+    "Bearer " + TOKEN + "\r\n",
+    "Bearer " + TOKEN + "\t",
+    "Bearer " + TOKEN + "\u00a0",
 ])
 def test_malformed_bearer_header_never_reaches_sql_or_storage(header):
     args, tenant, sql, storage, _ = harness(authorization=header)
