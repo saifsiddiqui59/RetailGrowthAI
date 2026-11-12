@@ -153,7 +153,8 @@ def transcribe_private_voice(
                           "word": word.strip()})
         previous_end = end
     transcript = parsed.get("text")
-    if not isinstance(transcript, str) or not transcript.strip() or len(transcript) > 12000:
+    if (type(transcript) is not str or not transcript.strip() or len(transcript) > 12000
+            or any(ord(ch) < 32 or 0xD800 <= ord(ch) <= 0xDFFF for ch in transcript)):
         raise VoiceStudioTranscriptionDenied("Missing ASR transcript text")
     reported_language = parsed.get("language")
     if not isinstance(reported_language, str) or len(reported_language) > 20:
