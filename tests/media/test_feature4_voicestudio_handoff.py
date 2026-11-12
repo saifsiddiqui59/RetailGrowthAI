@@ -177,6 +177,26 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         self.assertEqual(result["request"]["voiceover_asset_id"], draft["voiceover_asset_id"])
         self.assertEqual(result["request"]["voiceover_source"], "retailer")
 
+    def test_receipt_reader_cannot_mutate_scope_before_private_wav_access(self):
+        # Receipt lookup is trusted I/O and may execute arbitrary callbacks.
+        # It must not be allowed to change approved inputs before WAV access.
+        for target in ("draft", "snapshot"):
+            draft, snapshot, receipt, data = self.setup_case()
+            private_reads = []
+            def receipt_reader(*_):
+                if target == "draft":
+                    draft["duration_seconds"] = 15
+                else:
+                    snapshot["campaign_id"] = str(uuid4())
+                return dict(receipt)
+            with self.subTest(target=target), self.assertRaisesRegex(
+                    CreativeContractError, "scope changed during receipt lookup"):
+                compile_voicestudio_narrated_reel(
+                    draft=draft, snapshot=snapshot,
+                    read_current_receipt=receipt_reader,
+                    read_current_private_wav=lambda *_: private_reads.append(True) or data)
+            self.assertEqual(private_reads, [])
+
     def test_private_reader_cannot_mutate_approved_draft_timeline(self):
         draft, snapshot, receipt, data = self.setup_case()
         def changing_reader(*_):
