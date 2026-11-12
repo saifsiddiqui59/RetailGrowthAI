@@ -353,7 +353,9 @@ def handle_private_png_request(request, *, reader_factory, response_type):
                 declared_length != str(len(backend_body))):
             return _denied(503, response_type)
         policy = backend_headers.get("Cache-Control")
-        if (not backend_body.startswith(bytes.fromhex("89504e470d0a1a0a")) or
+        if (len(backend_body) < 45 or
+                not backend_body.startswith(bytes.fromhex("89504e470d0a1a0a")) or
+                not backend_body.endswith(bytes.fromhex("0000000049454e44ae426082")) or
                 type(backend_headers.get("Content-Type")) is not str or
                 backend_headers.get("Content-Type") != "image/png" or
                 type(policy) is not str or
