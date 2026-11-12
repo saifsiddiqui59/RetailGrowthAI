@@ -152,6 +152,30 @@ class PrivatePNGCompositionTests(unittest.TestCase):
                                 shop_id=self.shop, job_id=self.job)
                 self.assertEqual(calls, [])
 
+    def test_project_rotation_during_byte_read_denies_returned_bytes(self):
+        from unittest.mock import patch
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+
+        for field, replacement in (
+            ("origin", "https://foreign-project.supabase.co"),
+            ("key", "sb_publishable_" + "z" * 24),
+        ):
+            with self.subTest(field=field):
+                tenant = SyntheticTenant()
+                class SimulatedReader:
+                    def __init__(self, **kwargs):
+                        pass
+
+                    def read(self, **kwargs):
+                        setattr(tenant, field, replacement)
+                        return b"synthetic-private-png-bytes"
+
+                with patch("feature3_private_png_binding.Feature3RevocablePNGReader", SimulatedReader):
+                    reader = self.make(lambda *args: True, tenant=tenant)(self.shop, self.job)
+                    with self.assertRaises(PrivateGeneratedDownloadDenied):
+                        reader.read(user_token="synthetic-not-hosted",
+                                    shop_id=self.shop, job_id=self.job)
+
     def test_reader_rejects_service_key_and_non_https_origin(self):
         tenant = SyntheticTenant()
         tenant.key = "service-role-key"
