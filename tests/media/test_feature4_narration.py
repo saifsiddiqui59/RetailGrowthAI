@@ -101,6 +101,31 @@ class NarrationMediaTests(unittest.TestCase):
         self.assertIn("Silk &amp; festive style",html)
         self.assertEqual(render_inputs(f.request,f.manifest).plan["caption_cues"],cues)
 
+    def test_approved_voice_music_and_spoken_captions_share_one_render_timeline(self):
+        # Exercise the existing HyperFrames project builder, not a second mixer.
+        # Narration, the ducked bed and approved spoken captions must coexist
+        # in the same compiled project without duplicate voice clips.
+        f = self.fixture()
+        cues = [
+            {"start": 0.5, "duration": 2.5, "text": "Festive collection"},
+            {"start": 12.0, "duration": 2.0, "text": "Made for you"},
+            {"start": 26.0, "duration": 3.0, "text": "Visit today"},
+        ]
+        f.request["script"]["transcript"] = cues
+        with tempfile.TemporaryDirectory() as tmp:
+            project = compile_creative_reel(
+                f.request, f.manifest, f.assets, Path(tmp) / "render")
+            page = (project / "index.html").read_text()
+            self.assertEqual(page.count('id="approved-voiceover"'), 1)
+            self.assertEqual(page.count('class="clip spoken-caption"'), len(cues))
+            self.assertIn('data-track-index="5" data-volume="0.12"', page)
+            self.assertIn('data-track-index="7" data-volume="1"', page)
+            self.assertIn('data-start="12.0" data-duration="2.0" data-track-index="8"', page)
+            info = render_inputs(f.request, f.manifest)
+            self.assertEqual(info.plan["caption_cues"], cues)
+            self.assertEqual(info.plan["voiceover_asset_id"], "approved_narration")
+            self.assertIn("licensed_music", info.audit["media_asset_ids"])
+
     def test_reviewed_subtitle_milliseconds_preserved_without_tolerance_overlap(self):
         cues=[
             {"start":0.5,"duration":1.25,"text":"Silk & craft"},
