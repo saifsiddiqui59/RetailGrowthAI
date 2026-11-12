@@ -817,7 +817,18 @@ class Tests(unittest.TestCase):
     def test_canonical_backend_scope_and_digest_receipts_are_verified(self):
         # Mocked canonical receipt; no live JWT, tenant or hosted rights.
         from hashlib import sha256
-        png = bytes.fromhex("89504e470d0a1a0a") + b"synthetic"
+        # Produce a complete deterministic PNG, not merely its signature.
+        # The route validates the IEND trailer before releasing private bytes.
+        import struct
+        import zlib
+        def chunk(kind, payload):
+            data = kind + payload
+            return (struct.pack(">I", len(payload)) + data +
+                    struct.pack(">I", zlib.crc32(data) & 0xffffffff))
+        png = (bytes.fromhex("89504e470d0a1a0a") +
+               chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)) +
+               chunk(b"IDAT", zlib.compress(b"\\x00\\x00\\x00\\x00")) +
+               chunk(b"IEND", b""))
         shop = Request.route_params["shop_id"]
         job = Request.route_params["job_id"]
         asset = str(uuid4())
