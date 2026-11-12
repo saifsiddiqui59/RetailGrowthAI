@@ -648,3 +648,36 @@ def test_malformed_receipt_types_and_digests_never_trigger_private_get(field, ba
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1
     assert not storage.calls
+
+
+def test_original_digest_rotated_after_private_get_denies_audio_without_retry():
+    """A new original-key receipt cannot authorize bytes from the old key."""
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def rotated(*ids):
+        receipt = original(*ids)
+        if len(sql.calls) == 2:
+            receipt["original_sha256"] = sha256(b"new original audio").hexdigest()
+        return receipt
+    sql.read_private_receipt = rotated
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1 and len(sql.calls) == 2
+    assert len(tenant.calls) == 1
+
+
+def test_in_place_original_digest_rotation_during_private_get_denies_audio():
+    """Snapshot receipt fields even if the SQL adapter reuses its dictionary."""
+    args, tenant, sql, storage, _ = harness()
+    shared = SQL.read_private_receipt(sql, SHOP, CAMPAIGN, JOB)
+    calls = []
+    def reused(*ids):
+        calls.append(ids)
+        if len(calls) == 2:
+            shared["original_sha256"] = sha256(b"rotated original").hexdigest()
+        return shared
+    sql.read_private_receipt = reused
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1 and len(calls) == 2
+    assert len(tenant.calls) == 1
