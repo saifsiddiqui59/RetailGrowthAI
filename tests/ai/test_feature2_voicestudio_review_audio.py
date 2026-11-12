@@ -792,3 +792,31 @@ def test_receipt_digest_rotation_after_private_get_denies_audio(bad):
     with pytest.raises(VoiceStudioReviewDenied):
         read_current_voiceover_for_review(**args)
     assert len(storage.calls) == 1 and len(sql.calls) == 2
+
+
+@pytest.mark.parametrize("mutation", ["extra_chunk", "nonzero_pad", "truncated_data"])
+def test_digest_matching_noncanonical_riff_never_reaches_second_authorization(mutation):
+    """Even a digest-matching private object must satisfy the strict PCM envelope."""
+    import struct
+    args, tenant, sql, storage, _ = harness()
+    original = pcm()
+    if mutation == "extra_chunk":
+        payload = original[:12] + b"JUNK" + struct.pack("<I", 4) + b"hide" + original[12:]
+    elif mutation == "nonzero_pad":
+        payload = original[:12] + b"JUNK" + struct.pack("<I", 1) + b"x!" + original[12:]
+    else:
+        payload = original[:-2]
+    payload = payload[:4] + struct.pack("<I", len(payload) - 8) + payload[8:]
+    original_reader = sql.read_private_receipt
+
+    def receipt(*ids):
+        result = original_reader(*ids)
+        result["original_sha256"] = sha256(payload).hexdigest()
+        return result
+
+    sql.read_private_receipt = receipt
+    storage.read_verified_original = lambda *ids: payload
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1
+    assert len(tenant.calls) == 1
