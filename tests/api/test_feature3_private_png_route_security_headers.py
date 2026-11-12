@@ -31,7 +31,7 @@ class Request:
 class PrivateResponseSecurityHeaders(unittest.TestCase):
     def test_missing_or_tampered_protection_fails_closed(self):
         req = Request()
-        image = bytes.fromhex("89504e470d0a1a0a") + b"synthetic-only"
+        image = bytes.fromhex("89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de0000000c49444154789c63606060000000040001f61738550000000049454e44ae426082")
         headers = {
             "Content-Type": "image/png",
             "Content-Length": str(len(image)),
