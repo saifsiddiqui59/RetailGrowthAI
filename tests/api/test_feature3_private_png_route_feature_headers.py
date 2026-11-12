@@ -69,5 +69,30 @@ class FeatureHeaderIsolationTests(unittest.TestCase):
                 backend.assert_not_called()
 
 
+    def test_future_proxy_identity_families_fail_before_body_and_backend(self):
+        # Prefix-based denial prevents a future proxy extension from being
+        # mistaken for verified JWT/RLS authority. Synthetic values only.
+        for header in (
+            "X-Forwarded-User-Email",
+            "X-Forwarded-Identity-Claims",
+            "X-Authenticated-Groups",
+            "X-Remote-User-Roles",
+            "X-Identity-Provider",
+            "X-Supabase-Role",
+            "X-JWT-Claims",
+            "X-Access-Token-Subject",
+        ):
+            with self.subTest(header=header):
+                request = Request({header: "synthetic-forged-authority"})
+                with patch("feature3_private_png_route.private_png_http") as backend:
+                    response = handle_private_png_request(
+                        request, reader_factory=lambda *args: None,
+                        response_type=Response)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.body, b"")
+                self.assertEqual(request.body_reads, 0)
+                backend.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
