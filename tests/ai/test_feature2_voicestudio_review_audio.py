@@ -733,3 +733,15 @@ def test_sql_receipt_type_confusion_and_approval_bypass_denied_before_audio(fiel
     assert len(tenant.calls) == 1
     assert len(sql.calls) == 1
     assert storage.calls == []
+
+
+@pytest.mark.parametrize("bad_token", [
+    TOKEN + "\x00", TOKEN + "\x1f", TOKEN + "\x7f",
+    TOKEN + "\u200b", TOKEN + "\u00e9",
+])
+def test_non_ascii_or_control_bearer_denied_before_jwt_and_storage(bad_token):
+    args, tenant, sql, storage, tokens = harness(authorization="Bearer " + bad_token)
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert tokens == []
+    assert not tenant.calls and not sql.calls and not storage.calls
