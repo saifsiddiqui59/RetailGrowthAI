@@ -144,7 +144,8 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             "x-original-uri", "x-envoy-original-path",
             "x-ms-original-url", "x-ms-original-host",
         })
-        if any(name.lower() in untrusted_authority or\n               name.lower().startswith("x-feature3-") for name in names):
+        if any(name.lower() in untrusted_authority or
+               name.lower().startswith("x-feature3-") for name in names):
             return _denied(400, response_type)
         # Reject whole families of proxy-injected identities, including
         # future provider-specific suffixes not covered by the fixed list.
