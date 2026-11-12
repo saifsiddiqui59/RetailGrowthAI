@@ -37,6 +37,11 @@ reject({original_video_sha256:'c'.repeat(64)});
 reject({original_audio_sha256:'c'.repeat(64)});
 reject({model_id:'other'});
 reject({now_ms:now+60001});
+// Never permit negative or overflowing clocks to produce signed lease evidence.
+reject({now_ms:-1,lease:{...lease,expires_at_ms:60000}});
+reject({now_ms:Number.MAX_SAFE_INTEGER-599999,
+ lease:{...lease,expires_at_ms:Number.MAX_SAFE_INTEGER}});
+reject({now_ms:1.5});
 reject({lease:{...lease,active:false}});
 reject({lease:{...lease,job_id:'foreign'}});
 reject({review:{...review,approved:true}});
