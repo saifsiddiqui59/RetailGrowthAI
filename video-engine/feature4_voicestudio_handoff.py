@@ -99,6 +99,10 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     # Freeze the trusted receipt: a service reader may reuse and mutate its dict.
     # Comparing against a live alias would silently accept in-place revocation.
     before = deepcopy(authoritative())
+    # A receipt callback is external trusted I/O too: deny mutations before
+    # accessing the private WAV, not only after its bytes have been read.
+    if draft != frozen_draft or snapshot != frozen_snapshot:
+        raise CreativeContractError("Narration scope changed during receipt lookup")
     # Freeze trusted media metadata as well as approval: a private reader or
     # compiler must not silently replace the tenant object while processing.
     before_asset = deepcopy(snapshot["assets"][asset_id])
