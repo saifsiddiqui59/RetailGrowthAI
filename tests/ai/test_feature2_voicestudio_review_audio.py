@@ -847,3 +847,26 @@ def test_private_reader_mutable_bytearray_denied_even_with_correct_digest():
     with pytest.raises(VoiceStudioReviewDenied):
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1 and len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("field,revoked", [
+    ("commercial_rights_confirmed", False),
+    ("publish_approved", True),
+    ("private", False),
+    ("review_status", "REVOKED"),
+])
+def test_review_receipt_rights_or_approval_change_during_private_get_denies_bytes(field, revoked):
+    """Never disclose private original audio after mid-read rights/state changes."""
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def changed(*ids):
+        receipt = original(*ids)
+        if len(sql.calls) == 2:
+            receipt[field] = revoked
+        return receipt
+    sql.read_private_receipt = changed
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1
+    assert len(sql.calls) == 2
+    assert len(tenant.calls) == 1
