@@ -110,8 +110,11 @@ export async function bindVerifiedVoiceStudioMedia({
   // Permit at most one PCM sample for decimal timestamp rounding, not a 20ms
   // interval that could sign words with no corresponding original audio.
   // The original video may be longer than the extracted speech segment.
-  deny(Array.isArray(review?.words) && review.words.every(w=>
-    Number.isFinite(w?.end) && w.end<=wavDuration.seconds+1/wavDuration.sampleRate));
+  // Reject oversized ASR responses before iterating over attacker-supplied words.
+  // The signed transcript contract allows at most 2000 words.
+  deny(Array.isArray(review?.words) && review.words.length>=1 && review.words.length<=2000 &&
+    review.words.every(w=>Number.isFinite(w?.end) &&
+      w.end<=wavDuration.seconds+1/wavDuration.sampleRate));
   const lease=await readCurrentLease({shop_id,asset_id,job_id});
   // Snapshot the first lease: a storage adapter may reuse and mutate its object
   // on the second read. Comparing two aliases would silently accept revocation.
