@@ -318,6 +318,31 @@ await denied({readExtractedWav:async()=>zeroTrailing,
  original_audio_sha256:digest(zeroTrailing),
  review:{...review,audio_sha256:digest(zeroTrailing)},
  readCurrentLease:async()=>({...lease,audio_sha256:digest(zeroTrailing)})});
+// Duplicate fmt chunks must not redefine the PCM clock, even when the
+// duplicate is byte-for-byte identical and every digest is recomputed.
+const duplicateFmt=Buffer.concat([
+ wav.subarray(0,36),wav.subarray(12,36),wav.subarray(36)
+]);
+duplicateFmt.writeUInt32LE(duplicateFmt.length-8,4);
+await deniedFmt(duplicateFmt);
+// Empty PCM data is not evidence of an original speech sample.
+const emptyData=Buffer.from(wav.subarray(0,44));
+emptyData.writeUInt32LE(emptyData.length-8,4);
+emptyData.writeUInt32LE(0,40);
+await deniedFmt(emptyData);
+// A non-audio metadata chunk between fmt and data is legal if bounded;
+// its presence must not accidentally shift or extend the PCM sample clock.
+const middleChunk=Buffer.concat([
+ wav.subarray(0,36),Buffer.from('LIST'),Buffer.alloc(4),wav.subarray(36)
+]);
+middleChunk.writeUInt32LE(middleChunk.length-8,4);
+const middleHash=digest(middleChunk);
+const middleResult=await bindVerifiedVoiceStudioMedia({...base,
+ readExtractedWav:async()=>middleChunk,original_audio_sha256:middleHash,
+ review:{...review,audio_sha256:middleHash},
+ readCurrentLease:async()=>({...lease,audio_sha256:middleHash})
+});
+assert.equal(middleResult.evidence.source_sha256,v);
 console.log('original bytes, Marathi captions and lease revocation denials passed');
 """
 class VerifiedMediaTests(unittest.TestCase):
