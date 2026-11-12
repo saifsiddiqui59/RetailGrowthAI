@@ -62,7 +62,11 @@ export function bindVoiceStudioReview({
     schema:'retailgrowth.feature7-voicestudio-signed-review.v1',
     shop_id,asset_id,job_id,original_video_sha256,original_audio_sha256,
     language:review.language,transcript:normalized,evidence,
-    whisperx_json:{segments:[{words:review.words.map(w=>({...w}))}]},
+    // Export only canonical, validated words; never re-emit arbitrary ASR object
+    // properties (including attacker-supplied metadata) as trusted evidence.
+    whisperx_json:{segments:[{words:normalized.words.map(w=>({
+      word:w.word,start:w.startMs/1000,end:w.endMs/1000
+    }))}]},
     captions,feature4_edit_advice:Object.freeze({
       source_asset_id:asset_id,source_sha256:original_video_sha256,
       caption_cues_review_only:true,original_audio_preserved:true,
