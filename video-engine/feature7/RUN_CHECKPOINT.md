@@ -180,3 +180,9 @@
 - Prior head `2b3f8fba8182d65809d9b3f97222544f822f95f4` returned **zero PR workflow runs** via GitHub commit-run lookup. New exact-head 4/4 and local targeted tests remain UNVERIFIED; do not mark tested or merge merely from this checkpoint.
 - Existing upstream #911 and #926 are merged into parent #513. Feature4 dependency #910 is merged into its feature parent. Parent #513 is still unmerged to main.
 - NEXT CODE ACTION: run `python -m unittest tests/media/test_feature7_voicestudio_verified_media.py` in an available checkout; repair any owner-scoped failure, inspect final-head 4 mandatory jobs, then merge eligible #942 into #513 only after green CI and policy checks. Main merge remains serialized with Integration Sprint. Keep SOURCE IN PROGRESS until fresh main 4/4 and acceptance.
+
+
+## 2026-11-12 F7 accessor-backed lease hardening
+- Source commit 1f3fe03f8a1a63cf3705ddc2f3d9d7b8b8f12b69: lease receipts now require own data-property descriptors; accessors are rejected without invocation at both snapshot and final verification. Prevents mutable getter side effects from altering source/tenant/expiry during HMAC signing.
+- Regression commit c0aafd1da9f33b76c1eaf8cb54d0e8aa659747da: eight accessor negative cases plus frozen plain-data lease positive case in tests/media/test_feature7_voicestudio_verified_media.py.
+- NEXT: execute offline Node-backed Python test, verify exact-head four mandatory CI jobs for c0aafd1d, then reconcile eligible #942 into parent #513 under feature-owned merge policy. Parent/main reconciliation remains serialized; F4 dependency #910 linked. Do not claim CI or acceptance without evidence. GPU/paid/cloud/PROD/WineShopPOS untouched.
