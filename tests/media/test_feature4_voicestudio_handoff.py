@@ -76,6 +76,24 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         })
         self.assertNotIn("voiceover_source",draft)
 
+    def test_compiler_cannot_inject_unsafe_worker_audio_path(self):
+        # Even trusted compiler output is a boundary before FFmpeg opens files.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original_compiler = adapter.compile_approved_storyboard
+        for unsafe in ("../private.wav", "/etc/passwd", "assets/../../secret.wav",
+                       "C:\\private.wav", "assets//voice.wav", "assets/./voice.wav",
+                       "assets/voice\\n.wav"):
+            draft, snapshot, receipt, data = self.setup_case()
+            def forged_compiler(*args):
+                output = original_compiler(*args)
+                output["manifest"]["assets"][draft["voiceover_asset_id"]]["path"] = unsafe
+                return output
+            with self.subTest(path=unsafe), patch.object(
+                    adapter, "compile_approved_storyboard", side_effect=forged_compiler):
+                with self.assertRaisesRegex(CreativeContractError, "manifest changed"):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_private_narration_cannot_be_reused_as_soundtrack_or_sfx(self):
         # Approval is purpose-scoped: voiceover is not a music/SFX license.
         for reuse in ("music", "sfx"):
