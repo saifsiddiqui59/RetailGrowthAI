@@ -74,6 +74,24 @@ await denied({readExtractedWav:async()=>dataFirst,
  original_audio_sha256:digest(dataFirst),
  review:{...review,audio_sha256:digest(dataFirst)},
  readCurrentLease:async()=>({...lease,audio_sha256:digest(dataFirst)})});
+// A bounded number of metadata chunks is permitted, but an adversarial
+// chunk flood must not be signed even if its declared RIFF size and SHA match.
+const junk=Buffer.alloc(8);junk.write('JUNK',0);
+const withJunk=count=>{
+  const b=Buffer.concat([wav.subarray(0,36),...Array.from({length:count},()=>junk),wav.subarray(36)]);
+  b.writeUInt32LE(b.length-8,4);
+  return b;
+};
+const oneJunk=withJunk(1),oneHash=digest(oneJunk);
+const allowed=await bindVerifiedVoiceStudioMedia({...base,
+  readExtractedWav:async()=>oneJunk,original_audio_sha256:oneHash,
+  review:{...review,audio_sha256:oneHash},
+  readCurrentLease:async()=>({...lease,audio_sha256:oneHash})});
+assert.equal(allowed.evidence.audio_sha256,oneHash);
+const flood=withJunk(128),floodHash=digest(flood);
+await denied({readExtractedWav:async()=>flood,
+  original_audio_sha256:floodHash,review:{...review,audio_sha256:floodHash},
+  readCurrentLease:async()=>({...lease,audio_sha256:floodHash})});
 console.log('original bytes, Marathi captions and lease revocation denials passed');
 """
 class VerifiedMediaTests(unittest.TestCase):
