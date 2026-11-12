@@ -160,6 +160,10 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             "x-authenticated-", "x-remote-user-", "x-identity-",
             "x-supabase-", "x-jwt-", "x-access-token-",
             "x-feature3-",
+            # Provider-managed identity headers are not user JWT evidence.
+            # Reject future suffixes as well as the known fixed names above.
+            "x-ms-client-principal-", "x-amzn-oidc-",
+            "x-goog-authenticated-", "cf-access-",
         )
         if any(name.lower().startswith(identity_prefixes) for name in names):
             return _denied(400, response_type)
