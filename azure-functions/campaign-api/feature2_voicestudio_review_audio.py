@@ -56,6 +56,23 @@ def _receipt(sql_reader, shop, campaign, request):
     return dict(result)
 
 
+def _canonical_pcm_chunks(content):
+    """Only the expected fmt/data RIFF chunks may carry private review audio."""
+    offset = 12
+    for expected in (b"fmt ", b"data"):
+        if offset + 8 > len(content) or content[offset:offset + 4] != expected:
+            raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
+        size = int.from_bytes(content[offset + 4:offset + 8], "little")
+        end = offset + 8 + size
+        if end > len(content):
+            raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
+        if size % 2 and (end >= len(content) or content[end] != 0):
+            raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
+        offset = end + (size % 2)
+    if offset != len(content):
+        raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
+
+
 def read_current_voiceover_for_review(
     *,
     shop_id, campaign_id, request_id, authorization,
@@ -102,6 +119,7 @@ def read_current_voiceover_for_review(
         if (content[:4] != b"RIFF" or content[8:12] != b"WAVE"
                 or int.from_bytes(content[4:8], "little") != len(content) - 8):
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
+        _canonical_pcm_chunks(content)
         _wav(content)
         # A role, claim, rights or reviewed plan could be revoked during I/O.
         if _receipt(sql_receipt, shop_id, campaign_id, request_id) != before:
