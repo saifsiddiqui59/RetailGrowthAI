@@ -745,3 +745,50 @@ def test_non_ascii_or_control_bearer_denied_before_jwt_and_storage(bad_token):
         read_current_voiceover_for_review(**args)
     assert tokens == []
     assert not tenant.calls and not sql.calls and not storage.calls
+
+
+@pytest.mark.parametrize("field,revoked", [
+    ("commercial_rights_confirmed", False),
+    ("publish_approved", True),
+    ("private", False),
+    ("review_status", "REVOKED"),
+])
+def test_receipt_security_revocation_after_private_get_denies_audio(field, revoked):
+    """A concurrent SQL rights/approval change must block bytes already fetched."""
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+
+    def changed_after_get(*ids):
+        receipt = original(*ids)
+        if len(sql.calls) == 2:
+            receipt[field] = revoked
+        return receipt
+
+    sql.read_private_receipt = changed_after_get
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1
+    assert len(sql.calls) == 2
+    assert len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("bad", [
+    {"original_sha256": "0" * 64},
+    {"render_sha256": "0" * 64},
+    {"plan_sha256": "0" * 64},
+])
+def test_receipt_digest_rotation_after_private_get_denies_audio(bad):
+    """The original, paired render and reviewed plan must remain bound."""
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+
+    def changed_after_get(*ids):
+        receipt = original(*ids)
+        if len(sql.calls) == 2:
+            receipt.update(bad)
+        return receipt
+
+    sql.read_private_receipt = changed_after_get
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1 and len(sql.calls) == 2
