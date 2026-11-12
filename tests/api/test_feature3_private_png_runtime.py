@@ -6,7 +6,7 @@ from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "azure-functions" / "campaign-api"))
 from feature3_private_png_runtime import build_private_png_reader_factory
-from feature3_private_png_reader import Feature3RevocablePNGReader
+from feature3_private_png_reader import PrivateGeneratedDownloadDenied
 
 
 ORIGIN = "https://synthetic-dev-project.supabase.co"
@@ -39,8 +39,23 @@ class RuntimeCompositionTests(unittest.TestCase):
     def test_reader_is_real_fail_closed_reader_not_mock_grant(self):
         factory = self.build()
         reader = factory(str(uuid4()), str(uuid4()))
-        self.assertIsInstance(reader, Feature3RevocablePNGReader)
-        self.assertFalse(reader.rights(str(uuid4()), str(uuid4()), str(uuid4())))
+        self.assertTrue(callable(reader.read))
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            reader.read(user_token="synthetic-test-token",
+                        shop_id=str(uuid4()), job_id=str(uuid4()))
+
+    def test_reader_rejects_foreign_scope_before_jwt_or_storage(self):
+        shop, job = str(uuid4()), str(uuid4())
+        reader = self.build()(shop, job)
+        for foreign_shop, foreign_job in (
+            (str(uuid4()), job), (shop, str(uuid4())),
+            (shop.upper(), job), (shop, job.upper()),
+            (object(), job), (shop, object()),
+        ):
+            with self.subTest(foreign_shop=foreign_shop, foreign_job=foreign_job):
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    reader.read(user_token="synthetic-test-token",
+                                shop_id=foreign_shop, job_id=foreign_job)
 
     def test_no_authoritative_rights_provider_is_never_allowed(self):
         for provider in (None, False, {}, "approved"):
