@@ -93,6 +93,8 @@ class PrivateRouteIntegrationTests(unittest.TestCase):
         self.assertEqual(reply.headers["Content-Length"], str(len(self.png)))
         self.assertEqual(reply.headers["Cache-Control"], "no-store, private")
         self.assertEqual(reply.headers["Vary"], "Authorization")
+        self.assertEqual(reply.headers["Content-Disposition"],
+                         f'attachment; filename="feature3-{self.job}.png"')
         self.assertEqual(reply.headers["Content-Security-Policy"], "default-src 'none'")
         self.assertEqual(self.calls, [(self.token, self.shop, self.job)])
 
