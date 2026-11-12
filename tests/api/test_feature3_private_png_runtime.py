@@ -1,0 +1,84 @@
+"""F3-08 synthetic-only server composition tests; no hosted auth claims."""
+import sys
+import unittest
+from pathlib import Path
+from uuid import uuid4
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "azure-functions" / "campaign-api"))
+from feature3_private_png_runtime import build_private_png_reader_factory
+from feature3_private_png_reader import Feature3RevocablePNGReader
+
+
+ORIGIN = "https://synthetic-dev-project.supabase.co"
+KEY = "sb_publishable_synthetic_test_only_12345"
+
+
+class SyntheticStore:
+    origin = ORIGIN
+    key = KEY
+
+    def member(self, *args):
+        raise AssertionError("not a hosted test")
+
+    def feature3_gpu_job(self, *args):
+        raise AssertionError("not a hosted test")
+
+    def feature3_generated_asset(self, *args):
+        raise AssertionError("not a hosted test")
+
+
+class RuntimeCompositionTests(unittest.TestCase):
+    def build(self, **overrides):
+        values = dict(supabase_origin=ORIGIN, publishable_key=KEY,
+                      authoritative_rights_read=lambda *args: None,
+                      jwt_verifier=lambda token: str(uuid4()),
+                      tenant_store=SyntheticStore())
+        values.update(overrides)
+        return build_private_png_reader_factory(**values)
+
+    def test_reader_is_real_fail_closed_reader_not_mock_grant(self):
+        factory = self.build()
+        reader = factory(str(uuid4()), str(uuid4()))
+        self.assertIsInstance(reader, Feature3RevocablePNGReader)
+        self.assertFalse(reader.rights(str(uuid4()), str(uuid4()), str(uuid4())))
+
+    def test_no_authoritative_rights_provider_is_never_allowed(self):
+        for provider in (None, False, {}, "approved"):
+            with self.subTest(provider=provider):
+                with self.assertRaises(ValueError):
+                    self.build(authoritative_rights_read=provider)
+
+    def test_cross_project_store_is_rejected(self):
+        class ForeignStore(SyntheticStore):
+            origin = "https://foreign-project.supabase.co"
+        with self.assertRaises(ValueError):
+            self.build(tenant_store=ForeignStore())
+
+    def test_service_key_and_insecure_origin_are_rejected(self):
+        for origin, key in (
+            (ORIGIN, "synthetic-service-role-key"),
+            ("http://synthetic-dev-project.supabase.co", KEY),
+            ("https://synthetic-dev-project.supabase.co.evil.test", KEY),
+        ):
+            with self.subTest(origin=origin, key=key):
+                with self.assertRaises(ValueError):
+                    self.build(supabase_origin=origin, publishable_key=key)
+
+    def test_invalid_digest_and_revision_fail_at_factory_creation(self):
+        for options in (dict(expected_output_sha256="not-a-sha"),
+                        dict(minimum_rights_revision=0),
+                        dict(minimum_rights_revision=True)):
+            with self.subTest(options=options):
+                with self.assertRaises(ValueError):
+                    self.build(**options)
+
+    def test_untrusted_scoped_identifiers_cannot_construct_reader(self):
+        factory = self.build()
+        for shop, job in ((object(), str(uuid4())),
+                          (str(uuid4()), object())):
+            with self.assertRaises(ValueError):
+                factory(shop, job)
+
+
+if __name__ == "__main__":
+    unittest.main()
