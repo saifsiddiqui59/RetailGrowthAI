@@ -446,6 +446,27 @@ await denied({readExtractedWav:async()=>metadataFlood,
  original_audio_sha256:floodHash,
  review:{...review,audio_sha256:floodHash},
  readCurrentLease:async()=>({...lease,audio_sha256:floodHash})});
+// The trusted PCM parser has a strict 128-chunk ceiling (fmt and data
+// count as chunks). A 126-metadata-chunk WAV remains valid; 127 fails closed.
+const boundedWav=(count)=>{
+ const b=Buffer.concat([wav.subarray(0,12),
+   Buffer.concat(Array.from({length:count},()=>emptyChunk)),wav.subarray(12)]);
+ b.writeUInt32LE(b.length-8,4);
+ return b;
+};
+const atLimit=boundedWav(126),atLimitHash=digest(atLimit);
+const atLimitSigned=await bindVerifiedVoiceStudioMedia({...base,
+ readExtractedWav:async()=>atLimit,original_audio_sha256:atLimitHash,
+ review:{...review,audio_sha256:atLimitHash},
+ readCurrentLease:async()=>({...lease,audio_sha256:atLimitHash})});
+assert.equal(atLimitSigned.evidence.source_sha256,v);
+const overLimit=boundedWav(127),overLimitHash=digest(overLimit);
+let overLimitLeaseReads=0;
+await denied({readExtractedWav:async()=>overLimit,
+ original_audio_sha256:overLimitHash,
+ review:{...review,audio_sha256:overLimitHash},
+ readCurrentLease:async()=>{overLimitLeaseReads++;return {...lease,audio_sha256:overLimitHash};}});
+assert.equal(overLimitLeaseReads,0);
 // Normal metadata before the PCM stream still signs correctly.
 const smallMetadata=Buffer.concat([wav.subarray(0,12),
  Buffer.concat(Array.from({length:4},()=>emptyChunk)),wav.subarray(12)]);
