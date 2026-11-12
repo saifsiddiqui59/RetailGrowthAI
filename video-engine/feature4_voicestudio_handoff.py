@@ -51,6 +51,14 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         raise CreativeContractError("VoiceStudio narration source must be retailer-approved")
     if "campaign_id" in draft and draft["campaign_id"] != campaign:
         raise CreativeContractError("VoiceStudio narration campaign mismatch")
+    # An approved narration receipt authorizes voiceover only. Reusing the same
+    # private WAV as background music or scene SFX would silently broaden its
+    # reviewed purpose and may double-mix the voice into the final Reel.
+    if draft.get("music_asset_id") == asset_id or any(
+        type(scene) is dict and scene.get("sfx_asset_id") == asset_id
+        for scene in draft.get("scenes", []) if type(draft.get("scenes")) is list
+    ):
+        raise CreativeContractError("Approved narration cannot be reused as music or SFX")
     duration = draft.get("duration_seconds")
     if type(duration) is not int or duration not in (15, 30, 60):
         raise CreativeContractError("Invalid approved narration timeline")
