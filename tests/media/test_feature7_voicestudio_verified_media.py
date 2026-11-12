@@ -60,6 +60,24 @@ async function deniedWord(changes,readCurrentLease) {
  await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,
    review:{...review,...changes},readCurrentLease}));
 }
+// Sparse arrays and accessor-backed array slots are not stable word evidence.
+// An overridden map method must never run inside the trusted signing bridge.
+let slotReads=0, arrayLeaseReads=0;
+const sparseWords=new Array(1);
+await deniedWord({words:sparseWords},async()=>{arrayLeaseReads++;return {...lease};});
+const accessorWords=[{word:'नमस्कार',start:.1,end:.7}];
+Object.defineProperty(accessorWords,'0',{configurable:true,enumerable:true,
+ get(){slotReads++;return {word:'नमस्कार',start:.1,end:.7};}});
+await deniedWord({words:accessorWords},async()=>{arrayLeaseReads++;return {...lease};});
+assert.equal(slotReads,0);
+assert.equal(arrayLeaseReads,0);
+let overriddenMapCalls=0;
+const shadowedWords=[{word:'नमस्कार',start:.1,end:.7}];
+shadowedWords.map=()=>{overriddenMapCalls++;throw Error('untrusted map executed');};
+const shadowedResult=await bindVerifiedVoiceStudioMedia({...base,
+ review:{...review,words:shadowedWords}});
+assert.equal(shadowedResult.evidence.source_sha256,v);
+assert.equal(overriddenMapCalls,0);
 // Inherited ASR timing is equally untrusted, but ordinary own fields remain valid.
 const inheritedWord=Object.create({end:.7});
 inheritedWord.word='नमस्कार';inheritedWord.start=.1;
