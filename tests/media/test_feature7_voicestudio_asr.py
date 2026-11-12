@@ -143,8 +143,8 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
     def test_unsafe_transcript_text_denied_before_signed_handoff(self):
         # Words can be valid while the top-level transcript carries controls
         # or an unpaired surrogate. Neither may enter review/caption artifacts.
-        for value in ("hello\\x00world", "hello\\nworld", "\\ud800",
-                      "valid " + "\\udfff", "x" * 12001):
+        for value in ("hello\x00world", "hello\nworld", "\ud800",
+                      "valid " + "\udfff", "x" * 12001):
             self.payload["text"] = value
             def escaped_sender(req, timeout):
                 return Reply(json.dumps(self.payload, ensure_ascii=True).encode("ascii"))
