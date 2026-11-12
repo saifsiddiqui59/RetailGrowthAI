@@ -59,6 +59,18 @@ def main():
             samples = struct.unpack("<" + "h" * (len(pcm) // 2), pcm)
             rms = math.sqrt(sum(x * x for x in samples) / len(samples))
             assert rms > 100, "Encoded narration/music unexpectedly silent"
+            # Confirm audio survives into the second half of the Reel; a first-
+            # second-only PCM probe would miss truncated narration or a mixer
+            # that silently drops the approved voiceover after the opening.
+            late_pcm = subprocess.check_output(
+                ["ffmpeg", "-nostdin", "-v", "error", "-ss", "20",
+                 "-i", str(output), "-map", "0:a:0", "-t", "1",
+                 "-ac", "1", "-ar", "8000", "-f", "s16le",
+                 "-acodec", "pcm_s16le", "-"], timeout=45)
+            assert len(late_pcm) >= 8000 * 2, "Late narration audio is truncated"
+            late_samples = struct.unpack("<" + "h" * (len(late_pcm) // 2), late_pcm)
+            late_rms = math.sqrt(sum(x * x for x in late_samples) / len(late_samples))
+            assert late_rms > 100, "Encoded narration/music silent at 20 seconds"
             print("PASS: original approved synthetic PCM narration + music/captions encoded by existing HyperFrames CPU renderer")
     finally:
         fixture.root_tmp.cleanup()
