@@ -212,6 +212,10 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
             # absolute path, traversal, Windows separator or control byte to FFmpeg.
             or manifest_asset["path"].startswith(("/", "\\"))
             or "\\" in manifest_asset["path"]
+            # Reject drive-relative and URI-shaped paths as well as percent-encoded
+            # traversal. Worker paths are literal sandbox paths, never URLs.
+            or ":" in manifest_asset["path"]
+            or "%" in manifest_asset["path"]
             or any(part in ("", ".", "..") for part in manifest_asset["path"].split("/"))
             or any(ord(ch) < 32 or ord(ch) == 127 for ch in manifest_asset["path"])
             or manifest_asset.get("rights") != {
