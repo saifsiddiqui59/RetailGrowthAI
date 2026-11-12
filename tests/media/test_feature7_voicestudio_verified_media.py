@@ -31,6 +31,20 @@ const result=await bindVerifiedVoiceStudioMedia(base);
 assert.equal(result.evidence.source_sha256,v);
 assert.equal(result.captions[0].words[0].text,'नमस्कार');
 assert.equal(result.feature4_edit_advice.executable,false);
+// Only normalized ASR words may leave the trusted bridge: arbitrary upstream
+// object properties must not be re-exported as if covered by the HMAC digest.
+const injected=await bindVerifiedVoiceStudioMedia({...base,review:{...review,
+ words:[{word:'नमस्कार',start:.1,end:.7,tenant_override:'foreign',
+         private_token:'must-not-escape'}]}});
+assert.deepEqual(injected.whisperx_json.segments[0].words,
+ [{word:'नमस्कार',start:.1,end:.7}]);
+assert.equal(JSON.stringify(injected).includes('must-not-escape'),false);
+// Canonical timestamps agree with the signed transcript millisecond clock.
+const fractional=await bindVerifiedVoiceStudioMedia({...base,review:{...review,
+ words:[{word:'नमस्कार',start:.1004,end:.7004}]}});
+assert.deepEqual(fractional.whisperx_json.segments[0].words,
+ [{word:'नमस्कार',start:.1,end:.7}]);
+
 // An audio stream longer than the original video must not be signed, even
 // with authentic PCM bytes, valid SHA and an otherwise active source lease.
 await assert.rejects(()=>bindVerifiedVoiceStudioMedia({
