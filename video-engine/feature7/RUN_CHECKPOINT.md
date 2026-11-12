@@ -165,3 +165,12 @@
 - Verification: local git clone unavailable due github.com DNS failure; targeted tests and final-head four-job CI are NOT verified. No merge attempted. Do not mark DONE or SOURCE READY without tests and scope review.
 - NEXT CODE ACTION: run `python -m unittest tests.media.test_feature7_voicestudio_verified_media` (or direct pytest file), inspect exact-head 4/4 PR CI, fix owned failures, then merge eligible #942 to #513 with expected head SHA; reconcile #513 against latest main through serialized integration writer.
 - No cloud/PROD, paid/GPU inference, shared auth/schema or WineShopPOS changes.
+
+
+## 2026-11-12 — F7 VoiceStudio PCM/lease regression batch
+- Child PR #942 (stacked onto parent #513); upstream #911/#926 already merged into the feature parent; F4 dependency #910 merged into F4 parent.
+- Added deterministic invalid PCM header arithmetic cases (channels, sample rate, byte rate, block alignment, bit depth), a valid stereo 16-bit PCM fixture, and unsafe/non-finite lease-clock cases in `tests/media/test_feature7_voicestudio_verified_media.py`.
+- Source logic unchanged; regression commits `45dba2ef9a822a4e350d4f0c33f6eaa004973fdd` and `03f7c7bee2ca530f3ffbf64978b6e101ccda7466`.
+- Verification NOT claimed: sandbox cannot resolve github.com for checkout; exact-head four-job Actions results still need verification. Do not merge on stale CI evidence.
+- NEXT CODE ACTION: inspect exact-head four-job CI for #942; fix owner-scope failures (max two bounded repairs). If green, integrate eligible child into #513 with expected head SHA, then resolve parent/main conflicts in a separately reviewed integration. Keep F4 #910 dependency linked; no main merge by F7.
+- GPU, paid inference, cloud/PROD, WineShopPOS and shared auth/schema untouched.
