@@ -156,6 +156,10 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         identity_prefixes = (
             "x-auth-request-", "x-ms-token-", "x-client-cert",
             "x-forwarded-client-cert", "x-ssl-client-", "x-user-",
+            "x-forwarded-user-", "x-forwarded-identity-",
+            "x-authenticated-", "x-remote-user-", "x-identity-",
+            "x-supabase-", "x-jwt-", "x-access-token-",
+            "x-feature3-",
         )
         if any(name.lower().startswith(identity_prefixes) for name in names):
             return _denied(400, response_type)
