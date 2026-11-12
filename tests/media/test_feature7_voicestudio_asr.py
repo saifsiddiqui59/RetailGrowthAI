@@ -140,6 +140,19 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
         self.assertEqual(result["words"][0],
                          {"start":0.1,"end":0.7,"word":"नमस्ते"})
 
+    def test_unsafe_transcript_text_denied_before_signed_handoff(self):
+        # Words can be valid while the top-level transcript carries controls
+        # or an unpaired surrogate. Neither may enter review/caption artifacts.
+        for value in ("hello\\x00world", "hello\\nworld", "\\ud800",
+                      "valid " + "\\udfff", "x" * 12001):
+            self.payload["text"] = value
+            def escaped_sender(req, timeout):
+                return Reply(json.dumps(self.payload, ensure_ascii=True).encode("ascii"))
+            with self.subTest(text=repr(value)), self.assertRaises(VoiceStudioTranscriptionDenied):
+                self.call(transport=escaped_sender)
+        self.payload["text"] = "नमस्ते दुनिया"
+        self.assertEqual(self.call()["text"], "नमस्ते दुनिया")
+
     def test_upstream_status_url_and_mime_are_verified(self):
         for conf in [{"status":202},{"url":"https://evil.test/"},{"mime":"text/html"}]:
             def sender(req,timeout):
