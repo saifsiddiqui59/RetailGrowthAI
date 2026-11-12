@@ -6,6 +6,7 @@ JWT/RLS membership and fresh independent rights checks. No fallback reader.
 from __future__ import annotations
 
 import re
+from itertools import islice
 from uuid import UUID
 
 from feature3_private_png_http import private_png_http
@@ -75,7 +76,7 @@ def handle_private_png_request(request, *, reader_factory, response_type):
     # A proxy/framework may preserve differently cased duplicate headers.
     # Never allow an ambiguous bearer token to reach the private reader.
     try:
-        names = list(headers.keys())
+        names = list(islice(headers.keys(), 65))
         # Bound untrusted metadata before iterating over header values or
         # invoking any authentication/rights/storage backend.
         if len(names) > 64:
@@ -265,7 +266,7 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # A successful private binary receipt must be unambiguous even when
         # supplied by a faulty internal adapter. Never accept a transformed,
         # ranged, cookie-bearing or case-duplicated backend representation.
-        backend_names = list(reply.headers)
+        backend_names = list(islice(reply.headers, 17))
         if (len(backend_names) > 16 or
                 any(type(name) is not str or len(name) > 256 or
                     _HEADER_NAME.fullmatch(name) is None for name in backend_names) or
