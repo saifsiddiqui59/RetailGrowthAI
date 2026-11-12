@@ -135,7 +135,18 @@ export async function bindVerifiedVoiceStudioMedia({
   });
   deny(words.every(w=>Number.isFinite(w.end) &&
     w.end<=wavDuration.seconds+1/wavDuration.sampleRate));
-  const stableReview={...review,words};
+  // Snapshot only the upstream review contract's own data properties. Object
+  // spread executes arbitrary metadata getters and can change the source digest,
+  // language or approval flags after the PCM clock has been verified.
+  const stableReview=Object.create(null);
+  for (const field of ['schema','audio_sha256','language','text','approved',
+    'renderable','word_timings_present','model_revision_verified_by_worker',
+    'requires_feature7_signed_evidence']) {
+    const descriptor=Object.getOwnPropertyDescriptor(review,field);
+    deny(descriptor && Object.hasOwn(descriptor,'value'));
+    stableReview[field]=descriptor.value;
+  }
+  stableReview.words=words;
   const lease=await readCurrentLease({shop_id,asset_id,job_id});
   // Snapshot the first lease: a storage adapter may reuse and mutate its object
   // on the second read. Comparing two aliases would silently accept revocation.
