@@ -78,7 +78,12 @@ def build_private_png_reader_factory(*, origin, publishable_key,
                     raise PrivateGeneratedDownloadDenied("Private output unavailable")
                 if not project_matches():
                     raise PrivateGeneratedDownloadDenied("Private output unavailable")
-                return inner.read(user_token=user_token, shop_id=shop_id, job_id=job_id)
+                result = inner.read(user_token=user_token, shop_id=shop_id, job_id=job_id)
+                # Project credentials may rotate during JWT/RLS/Storage IO.
+                # Never release bytes after the trusted project binding changes.
+                if not project_matches():
+                    raise PrivateGeneratedDownloadDenied("Private output unavailable")
+                return result
 
         return ScopedPrivatePNGReader()
 
