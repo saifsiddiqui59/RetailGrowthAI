@@ -28,3 +28,8 @@ No paid model, GPU, Azure/PROD mutation or WineShopPOS change.
 - Prior run #43038370849 had Python success (1/4), with the other three jobs failing at system-package/Chromium installation steps; a failed-job rerun was requested, but it is NOT exact-head evidence for this newer commit.
 - **NEXT CODE ACTION:** run `python -m pytest -q tests/ai/test_feature2_voicestudio_review_audio.py` on exact head; inspect four-job Actions on head `1c0c1f66`, diagnose any failures and retry only safe transient infrastructure errors. Reconcile fresh main and independently review protected #937/#920/#923/#925; no merge or deployment before review and 4/4 exact-head, then fresh main 4/4.
 - No inference, GPU, paid model, hosted SQL, DEV/PROD deployment or WineShopPOS change.
+
+## 2026-11-13 scoped F2 continuation
+- Added four parameterized fail-closed regression cases for mid-read rights revocation, private flag revocation, approval-state change, and review-status revocation in commit `6ad31df98dc6467f73637870f2aa1ad4c5511a8a` (source-only; no inference).
+- Local checkout/pytest blocked by `github.com` DNS resolution in execution container; do not claim tests passed. No retry of uncertain provider/SQL/storage effects.
+- **NEXT CODE ACTION:** on exact PR #937 head run `python -m pytest -q tests/ai/test_feature2_voicestudio_review_audio.py`, inspect the new head's four CI jobs and repair any F2-owned failures; recheck latest main and changed paths, request independent security review, and do not merge protected #937/#920/#923/#925 without review and exact-head 4/4. After any eligible merge verify fresh main 4/4.
