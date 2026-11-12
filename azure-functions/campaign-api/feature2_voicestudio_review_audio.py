@@ -77,7 +77,8 @@ def read_current_voiceover_for_review(
         raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
     token = authorization[7:]
     # Never normalize malformed Authorization headers into accepted credentials.
-    if (token != token.strip() or any(ch.isspace() for ch in token)
+    if (token != token.strip() or not token.isascii()
+            or any(ord(ch) < 33 or ord(ch) > 126 for ch in token)
             or not 8 <= len(token) <= 8192):
         raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
     try:
