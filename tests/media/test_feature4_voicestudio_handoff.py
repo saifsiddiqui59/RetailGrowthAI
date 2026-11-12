@@ -219,6 +219,24 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                 read_current_receipt=lambda *_: dict(receipt),
                 read_current_private_wav=changing_reader)
 
+    def test_receipt_callback_cannot_swap_other_scene_before_private_wav_access(self):
+        # A receipt lookup is trusted external I/O; reject a changed media
+        # manifest before requesting any private narration bytes.
+        draft, snapshot, receipt, data = self.setup_case()
+        other = next(key for key in snapshot["assets"]
+                     if key != draft["voiceover_asset_id"])
+        private_reads = []
+        def receipt_reader(*_):
+            snapshot["assets"][other]["object_path"] = "foreign/changed-scene.mp4"
+            return dict(receipt)
+        with self.assertRaisesRegex(CreativeContractError,
+                                    "scope changed during receipt lookup"):
+            compile_voicestudio_narrated_reel(
+                draft=draft, snapshot=snapshot,
+                read_current_receipt=receipt_reader,
+                read_current_private_wav=lambda *_: private_reads.append(True) or data)
+        self.assertEqual(private_reads, [])
+
     def test_private_reader_cannot_swap_other_approved_scene_media(self):
         draft, snapshot, receipt, data = self.setup_case()
         other = next(key for key in snapshot["assets"] if key != draft["voiceover_asset_id"])
