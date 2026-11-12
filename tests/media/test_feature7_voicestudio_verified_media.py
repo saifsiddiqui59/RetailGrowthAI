@@ -375,6 +375,27 @@ const middleResult=await bindVerifiedVoiceStudioMedia({...base,
  readCurrentLease:async()=>({...lease,audio_sha256:middleHash})
 });
 assert.equal(middleResult.evidence.source_sha256,v);
+// A bounded WAV must not spend unbounded CPU walking millions of empty chunks.
+// Even a 32 KiB attacker-controlled RIFF can contain >4096 zero-length chunks.
+const emptyChunk=Buffer.concat([Buffer.from('JUNK'),Buffer.alloc(4)]);
+const metadataFlood=Buffer.concat([wav.subarray(0,12),
+ Buffer.concat(Array.from({length:4097},()=>emptyChunk)),wav.subarray(12)]);
+metadataFlood.writeUInt32LE(metadataFlood.length-8,4);
+const floodHash=digest(metadataFlood);
+await denied({readExtractedWav:async()=>metadataFlood,
+ original_audio_sha256:floodHash,
+ review:{...review,audio_sha256:floodHash},
+ readCurrentLease:async()=>({...lease,audio_sha256:floodHash})});
+// Normal metadata before the PCM stream still signs correctly.
+const smallMetadata=Buffer.concat([wav.subarray(0,12),
+ Buffer.concat(Array.from({length:4},()=>emptyChunk)),wav.subarray(12)]);
+smallMetadata.writeUInt32LE(smallMetadata.length-8,4);
+const smallHash=digest(smallMetadata);
+const smallResult=await bindVerifiedVoiceStudioMedia({...base,
+ readExtractedWav:async()=>smallMetadata,original_audio_sha256:smallHash,
+ review:{...review,audio_sha256:smallHash},
+ readCurrentLease:async()=>({...lease,audio_sha256:smallHash})});
+assert.equal(smallResult.evidence.source_sha256,v);
 console.log('original bytes, Marathi captions and lease revocation denials passed');
 """
 class VerifiedMediaTests(unittest.TestCase):
