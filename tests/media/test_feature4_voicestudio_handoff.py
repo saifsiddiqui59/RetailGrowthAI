@@ -352,6 +352,32 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         with self.assertRaises(CreativeContractError):
             self.call(d, s, r, payload)
 
+    def test_private_wav_rejects_duplicate_format_and_unknown_predata_chunks(self):
+        # A valid matching SHA must not make extra RIFF metadata trusted.
+        # Neither an additional fmt chunk nor an unreviewed JUNK chunk is
+        # part of the canonical private PCM handoff accepted by Feature4.
+        for extra in (
+            b"fmt " + (16).to_bytes(4, "little") + pcm() [20:36],
+            b"JUNK" + (4).to_bytes(4, "little") + b"test",
+        ):
+            d, s, r, data = self.setup_case()
+            forged = data[:36] + extra + data[36:]
+            forged = forged[:4] + (len(forged) - 8).to_bytes(4, "little") + forged[8:]
+            r["feature4_audio_sha256"] = sha256(forged).hexdigest()
+            with self.subTest(chunk=extra[:4]), self.assertRaises(CreativeContractError):
+                self.call(d, s, r, forged)
+
+    def test_private_wav_rejects_out_of_range_sample_rate_with_matching_digest(self):
+        for rate in (7999, 96001):
+            d, s, r, data = self.setup_case()
+            forged = bytearray(data)
+            forged[24:28] = rate.to_bytes(4, "little")
+            forged[28:32] = (rate * 2).to_bytes(4, "little")
+            raw = bytes(forged)
+            r["feature4_audio_sha256"] = sha256(raw).hexdigest()
+            with self.subTest(rate=rate), self.assertRaises(CreativeContractError):
+                self.call(d, s, r, raw)
+
     def test_revocation_during_read_is_not_accepted(self):
         d,s,r,data=self.setup_case()
         counts=[0]
