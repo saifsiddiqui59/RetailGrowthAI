@@ -54,6 +54,30 @@ class RuntimeCompositionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.build(tenant_store=ForeignStore())
 
+    def test_project_config_cannot_be_spoofed_by_overloaded_equality(self):
+        class MatchesAnything:
+            def __eq__(self, other):
+                return True
+
+        class StringSubclass(str):
+            pass
+
+        for origin, key in (
+            (MatchesAnything(), KEY),
+            (ORIGIN, MatchesAnything()),
+            (StringSubclass(ORIGIN), KEY),
+            (ORIGIN, StringSubclass(KEY)),
+        ):
+            with self.subTest(origin_type=type(origin).__name__,
+                              key_type=type(key).__name__):
+                class ForgedStore(SyntheticStore):
+                    pass
+                forged = ForgedStore()
+                forged.origin = origin
+                forged.key = key
+                with self.assertRaises(ValueError):
+                    self.build(tenant_store=forged)
+
     def test_service_key_and_insecure_origin_are_rejected(self):
         for origin, key in (
             (ORIGIN, "synthetic-service-role-key"),
