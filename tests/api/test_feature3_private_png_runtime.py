@@ -154,6 +154,33 @@ class RuntimeCompositionTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     self.build(**options)
 
+    def test_canonical_scoped_reader_constructs_without_backend_access(self):
+        """Valid route scope must construct without JWT, RLS or Storage IO."""
+        class NoBackendStore(SyntheticStore):
+            def member(self, *args):
+                raise AssertionError("factory must not query membership")
+
+        shop, job = str(uuid4()), str(uuid4())
+        reader = self.build(tenant_store=NoBackendStore())(shop, job)
+        self.assertTrue(callable(reader.read))
+
+    def test_cached_reader_rejects_rotation_even_after_config_restored(self):
+        """A reader must not authorize a mismatched project during rotation."""
+        class MutableStore(SyntheticStore):
+            pass
+
+        store = MutableStore()
+        shop, job = str(uuid4()), str(uuid4())
+        reader = self.build(tenant_store=store)(shop, job)
+        store.key = "sb_publishable_rotated_synthetic_only"
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            reader.read(user_token="synthetic-test-token", shop_id=shop, job_id=job)
+        store.key = KEY
+        # Restored configuration must still enforce current rights, never
+        # turn a previous denial into a cached positive authorization.
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            reader.read(user_token="synthetic-test-token", shop_id=shop, job_id=job)
+
     def test_untrusted_scoped_identifiers_cannot_construct_reader(self):
         factory = self.build()
         for shop, job in ((object(), str(uuid4())),
