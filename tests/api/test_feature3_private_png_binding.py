@@ -126,6 +126,32 @@ class PrivatePNGCompositionTests(unittest.TestCase):
             reader.read(user_token="synthetic-unprivileged",
                         shop_id=self.shop, job_id=self.job)
 
+    def test_rotated_project_denied_at_factory_and_cached_reader(self):
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+
+        for field, replacement in (
+            ("origin", "https://foreign-project.supabase.co"),
+            ("key", "sb_publishable_" + "z" * 24),
+            ("origin", object()),
+            ("key", object()),
+        ):
+            with self.subTest(field=field, replacement_type=type(replacement).__name__):
+                tenant = SyntheticTenant()
+                calls = []
+                def verifier(token):
+                    calls.append("jwt")
+                    return str(uuid4())
+                factory = self.make(lambda *args: calls.append("rights"),
+                                    verifier=verifier, tenant=tenant)
+                cached = factory(self.shop, self.job)
+                setattr(tenant, field, replacement)
+                with self.assertRaises(ValueError):
+                    factory(self.shop, self.job)
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    cached.read(user_token="synthetic-unprivileged",
+                                shop_id=self.shop, job_id=self.job)
+                self.assertEqual(calls, [])
+
     def test_reader_rejects_service_key_and_non_https_origin(self):
         tenant = SyntheticTenant()
         tenant.key = "service-role-key"
