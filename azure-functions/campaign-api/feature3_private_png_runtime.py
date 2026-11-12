@@ -62,9 +62,24 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                 raise ValueError("Canonical scoped route IDs required")
         except (ValueError, AttributeError, TypeError) as exc:
             raise ValueError("Canonical scoped route IDs required") from exc
-        return Feature3RevocablePNGReader(
+        reader = Feature3RevocablePNGReader(
             tenant_store=store,
             verify_user_jwt=verifier,
             current_output_rights=rights,
         )
+        bound_shop, bound_job = shop_id, job_id
+
+        class ScopedPrivatePNGReader:
+            """Prevent accidental reuse of this reader for another route scope."""
+
+            def read(self, *, user_token, shop_id, job_id):
+                from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+                if (type(shop_id) is not str or type(job_id) is not str or
+                        shop_id != bound_shop or job_id != bound_job):
+                    raise PrivateGeneratedDownloadDenied(
+                        "Private generated output unavailable")
+                return reader.read(user_token=user_token,
+                                   shop_id=bound_shop, job_id=bound_job)
+
+        return ScopedPrivatePNGReader()
     return factory
