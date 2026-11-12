@@ -26,6 +26,9 @@ echo "PASS: 30s 1080x1920 H.264/AAC multi-image Reel, xfade, generated tone, ove
 # Feature #4 gates a real deterministic CPU producer run, not only HTML compilation.
 # No tenant credentials or new cloud resources are required.
 bash "$ROOT/video-engine/hyperframes/ci-smoke.sh"
+# Exercise actual approved synthetic WAV + music + timed captions through the
+# existing F4 compiler and HyperFrames CPU encoder (no TTS, GPU or cloud).
+python3 "$ROOT/tests/media/feature4_voicestudio_cpu_render.py"
 
 # Feature4 real-stock review candidate, only on this branch's PR CI.
 # Fail if real Pexels media cannot be fetched; never fall back to the
