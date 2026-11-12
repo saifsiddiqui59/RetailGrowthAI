@@ -31,6 +31,8 @@ def _denied(status, response_type):
             "Cache-Control": "no-store, private",
             "Pragma": "no-cache",
             "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'",
+            "Vary": "Authorization",
             "Content-Length": "0",
         },
     )
