@@ -820,3 +820,30 @@ def test_digest_matching_noncanonical_riff_never_reaches_second_authorization(mu
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1
     assert len(tenant.calls) == 1
+
+
+def test_digest_matching_non_pcm_wav_denied_before_post_read_authorization():
+    """Even a matching SQL SHA must not authorize compressed/non-PCM bytes."""
+    args, tenant, sql, storage, _ = harness()
+    malformed = bytearray(pcm())
+    malformed[20:22] = (3).to_bytes(2, "little")  # IEEE float, not PCM
+    payload = bytes(malformed)
+    original = sql.read_private_receipt
+    def matching_receipt(*ids):
+        receipt = original(*ids)
+        receipt["original_sha256"] = sha256(payload).hexdigest()
+        return receipt
+    sql.read_private_receipt = matching_receipt
+    storage.read_verified_original = lambda *ids: payload
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1 and len(tenant.calls) == 1
+
+
+def test_private_reader_mutable_bytearray_denied_even_with_correct_digest():
+    """Storage adapters must return immutable bytes, not mutable buffers."""
+    args, tenant, sql, storage, _ = harness()
+    storage.read_verified_original = lambda *ids: bytearray(pcm())
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1 and len(tenant.calls) == 1
