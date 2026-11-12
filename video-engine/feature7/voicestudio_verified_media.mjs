@@ -97,7 +97,16 @@ export async function bindVerifiedVoiceStudioMedia({
   const lease=await readCurrentLease({shop_id,asset_id,job_id});
   // Snapshot the first lease: a storage adapter may reuse and mutate its object
   // on the second read. Comparing two aliases would silently accept revocation.
-  const leaseSnapshot={...lease};
+  // A revoked or malformed lease must not be allowed to mutate the worker's
+  // source/review inputs through a reused object reference. Capture only the
+  // expected lease fields, never trust inherited prototype properties.
+  deny(lease!==null && typeof lease==='object' &&
+    ['shop_id','asset_id','job_id','source_sha256','audio_sha256',
+     'model_id','active','expires_at_ms'].every(field=>
+       Object.hasOwn(lease,field)));
+  const leaseSnapshot=Object.fromEntries(
+    ['shop_id','asset_id','job_id','source_sha256','audio_sha256',
+     'model_id','active','expires_at_ms'].map(field=>[field,lease[field]]));
   const signed=bindVoiceStudioReview({review,shop_id,asset_id,job_id,
     original_video_sha256,original_audio_sha256,source_duration_seconds,
     lease:leaseSnapshot,model_id,key,now_ms:checkedTime()});
