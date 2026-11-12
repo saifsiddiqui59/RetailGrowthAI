@@ -62,6 +62,14 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                 raise ValueError("Canonical scoped route IDs required")
         except (ValueError, AttributeError, TypeError) as exc:
             raise ValueError("Canonical scoped route IDs required") from exc
+        # A long-lived server factory must not accept a store whose project
+        # configuration was replaced after the initial trusted composition.
+        # Re-check before any JWT, RLS, rights or Storage operation.
+        if (type(getattr(store, "origin", None)) is not str or
+                type(getattr(store, "key", None)) is not str or
+                store.origin != supabase_origin.rstrip("/") or
+                store.key != publishable_key):
+            raise ValueError("Tenant store project changed after composition")
         reader = Feature3RevocablePNGReader(
             tenant_store=store,
             verify_user_jwt=verifier,
