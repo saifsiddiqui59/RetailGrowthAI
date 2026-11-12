@@ -97,6 +97,23 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
                     self.call(**case)
                 self.assertEqual(self.calls,[])
 
+    def test_malformed_locale_inputs_never_egress(self):
+        for language in ([], {}, 7, True, ["hi"], {"locale": "hi"}):
+            self.calls.clear()
+            with self.subTest(language=repr(language)), self.assertRaises(VoiceStudioTranscriptionDenied):
+                self.call(language=language)
+            self.assertEqual(self.calls, [])
+
+    def test_malformed_upstream_language_never_reaches_signed_review(self):
+        for reported in ("", "hi\\x00", "hi\\n", "\\ud800", [], {}, 42, True):
+            self.payload["language"] = reported
+            def sender(req, timeout):
+                return Reply(json.dumps(self.payload, ensure_ascii=True).encode("ascii"))
+            with self.subTest(reported=repr(reported)), self.assertRaises(VoiceStudioTranscriptionDenied):
+                self.call(language=None, transport=sender)
+        self.payload["language"] = "mr"
+        self.assertEqual(self.call(language="mr")["language"], "mr")
+
     def test_missing_or_invalid_word_timing_fails_closed(self):
         bad=[
             None, [],
