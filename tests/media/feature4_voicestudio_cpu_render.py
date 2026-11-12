@@ -98,6 +98,19 @@ def main():
             assert late_narration > 100, "Approved narration disappeared before 20 seconds"
             assert late_bed > 5, "Music bed disappeared before 20 seconds"
             assert late_narration > late_bed, "Late music masks approved narration"
+            # End-of-reel verification catches an AAC muxer that truncates the
+            # approved track after the mid-reel probe, despite valid duration
+            # metadata. Use the same synthetic frequency separation at 29s.
+            tail_pcm = subprocess.check_output(
+                ["ffmpeg", "-nostdin", "-v", "error", "-ss", "29",
+                 "-i", str(output), "-map", "0:a:0", "-t", "0.8",
+                 "-ac", "1", "-ar", "8000", "-f", "s16le",
+                 "-acodec", "pcm_s16le", "-"], timeout=45)
+            assert len(tail_pcm) >= 6000 * 2, "Final AAC narration is truncated"
+            tail_samples = struct.unpack("<" + "h" * (len(tail_pcm) // 2), tail_pcm)
+            assert tone_magnitude(tail_samples, 350) > 100, "Approved narration missing at Reel end"
+            assert tone_magnitude(tail_samples, 196) > 5, "Music bed missing at Reel end"
+            assert tone_magnitude(tail_samples, 350) > tone_magnitude(tail_samples, 196), "End music masks narration"
             print("PASS: original approved synthetic PCM narration + music/captions encoded by existing HyperFrames CPU renderer")
     finally:
         fixture.root_tmp.cleanup()
