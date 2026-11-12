@@ -159,7 +159,7 @@ class RuntimeCompositionTests(unittest.TestCase):
         for shop, job in ((object(), str(uuid4())),
                           (str(uuid4()), object()),
                           ("not-a-uuid", str(uuid4())),
-                          (str(uuid4()).upper(), str(uuid4())):
+                          (str(uuid4()).upper(), str(uuid4()))):
             with self.assertRaises(ValueError):
                 factory(shop, job)
 
