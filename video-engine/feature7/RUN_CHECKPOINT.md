@@ -174,3 +174,9 @@
 - Verification NOT claimed: sandbox cannot resolve github.com for checkout; exact-head four-job Actions results still need verification. Do not merge on stale CI evidence.
 - NEXT CODE ACTION: inspect exact-head four-job CI for #942; fix owner-scope failures (max two bounded repairs). If green, integrate eligible child into #513 with expected head SHA, then resolve parent/main conflicts in a separately reviewed integration. Keep F4 #910 dependency linked; no main merge by F7.
 - GPU, paid inference, cloud/PROD, WineShopPOS and shared auth/schema untouched.
+
+## 2026-11-12 F7 VoiceStudio PCM structure regression
+- Child PR #942, commit `1a8e14b71de3aa69ccd4d4a0a126d4791d87e3dc`: extended existing `tests/media/test_feature7_voicestudio_verified_media.py` with duplicate `fmt ` chunk rejection, empty PCM data rejection, and valid bounded `LIST` metadata before `data` positive compatibility. No source model, shared contract, cloud, GPU or PROD change.
+- Prior head `2b3f8fba8182d65809d9b3f97222544f822f95f4` returned **zero PR workflow runs** via GitHub commit-run lookup. New exact-head 4/4 and local targeted tests remain UNVERIFIED; do not mark tested or merge merely from this checkpoint.
+- Existing upstream #911 and #926 are merged into parent #513. Feature4 dependency #910 is merged into its feature parent. Parent #513 is still unmerged to main.
+- NEXT CODE ACTION: run `python -m unittest tests/media/test_feature7_voicestudio_verified_media.py` in an available checkout; repair any owner-scoped failure, inspect final-head 4 mandatory jobs, then merge eligible #942 into #513 only after green CI and policy checks. Main merge remains serialized with Integration Sprint. Keep SOURCE IN PROGRESS until fresh main 4/4 and acceptance.
