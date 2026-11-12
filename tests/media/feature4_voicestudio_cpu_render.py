@@ -20,7 +20,10 @@ from test_feature4_narration import NarrationMediaTests
 def main():
     fixture = NarrationMediaTests().fixture()
     try:
-        # The shared narration fixture defaults to the 540x960 preview preset.\n        # Exercise the approved final-export preset before asserting Full HD.\n        fixture.request["output"].update({"width": 1080, "height": 1920, "fps": 24})\n        fixture.request["script"]["transcript"] = [
+        # The shared narration fixture defaults to the 540x960 preview preset.
+        # Exercise the approved final-export preset before asserting Full HD.
+        fixture.request["output"].update({"width": 1080, "height": 1920, "fps": 24})
+        fixture.request["script"]["transcript"] = [
             {"start": 0.5, "duration": 2.5, "text": "Approved synthetic caption"},
             {"start": 14.0, "duration": 2.0, "text": "Original fixture narration"},
         ]
