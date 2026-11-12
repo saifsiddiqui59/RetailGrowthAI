@@ -37,8 +37,14 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
         supabase_origin)
     if not callable(verifier):
         raise ValueError("Trusted JWT verifier required")
-    if (getattr(store, "origin", None) != supabase_origin.rstrip("/") or
-            getattr(store, "key", None) != publishable_key):
+    # Do not permit equality-overloaded objects or string subclasses to
+    # impersonate the configured project or public key at this trust boundary.
+    store_origin = getattr(store, "origin", None)
+    store_key = getattr(store, "key", None)
+    if (type(store_origin) is not str or
+            type(store_key) is not str or
+            store_origin != supabase_origin.rstrip("/") or
+            store_key != publishable_key):
         raise ValueError("Tenant store must match configured project")
     rights = Feature3CurrentOutputRights(
         authoritative_read=authoritative_rights_read,
