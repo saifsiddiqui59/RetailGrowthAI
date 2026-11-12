@@ -45,6 +45,28 @@ const fractional=await bindVerifiedVoiceStudioMedia({...base,review:{...review,
 assert.deepEqual(fractional.whisperx_json.segments[0].words,
  [{word:'नमस्कार',start:.1,end:.7}]);
 
+// Accessor-backed ASR word fields are not stable PCM clock evidence.
+// Reject before lease access and never invoke an untrusted getter.
+for (const field of ['word','start','end']) {
+ let getterCalls=0, leaseCalls=0;
+ const unstable={word:'नमस्कार',start:.1,end:.7};
+ Object.defineProperty(unstable,field,{enumerable:true,
+   get(){getterCalls++;return field==='word'?'नमस्कार':.7;}});
+ await deniedWord({words:[unstable]},()=>{leaseCalls++;return {...lease};});
+ assert.equal(getterCalls,0);
+ assert.equal(leaseCalls,0);
+}
+async function deniedWord(changes,readCurrentLease) {
+ await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,
+   review:{...review,...changes},readCurrentLease}));
+}
+// Inherited ASR timing is equally untrusted, but ordinary own fields remain valid.
+const inheritedWord=Object.create({end:.7});
+inheritedWord.word='नमस्कार';inheritedWord.start=.1;
+await deniedWord({words:[inheritedWord]},async()=>({...lease}));
+const plainWord=await bindVerifiedVoiceStudioMedia({...base,
+ review:{...review,words:[Object.freeze({word:'नमस्कार',start:.1,end:.7})]}});
+assert.equal(plainWord.evidence.source_sha256,v);
 // An audio stream longer than the original video must not be signed, even
 // with authentic PCM bytes, valid SHA and an otherwise active source lease.
 await assert.rejects(()=>bindVerifiedVoiceStudioMedia({
