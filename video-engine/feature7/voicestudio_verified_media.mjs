@@ -75,6 +75,10 @@ export async function bindVerifiedVoiceStudioMedia({
 }={}) {
   deny([readOriginalVideo,readExtractedWav,readCurrentLease].every(f=>typeof f==='function') &&
     SHA.test(original_video_sha256??'') && SHA.test(original_audio_sha256??'') &&
+    // Reject impossible source clocks before invoking private media readers.
+    // Otherwise invalid requests can force up to 320 MiB of unnecessary I/O.
+    Number.isFinite(source_duration_seconds) && source_duration_seconds>0 &&
+    source_duration_seconds<=180 &&
     Number.isSafeInteger(now_ms) &&
     (readNowMs===undefined || typeof readNowMs==='function'));
   // Track elapsed time across asynchronous media reads; a lease can expire
