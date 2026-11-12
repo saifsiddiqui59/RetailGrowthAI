@@ -91,7 +91,7 @@ def transcribe_private_voice(
     """Return unsignable *review-only* words, not an approved F7 transcript."""
     if enabled is not True or commercial_model_verified is not True:
         raise VoiceStudioTranscriptionDenied("VoiceStudio ASR model not enabled/verified")
-    if language is not None and language not in _ALLOWED_LANGUAGES:
+    if language is not None and (type(language) is not str or language not in _ALLOWED_LANGUAGES):
         raise VoiceStudioTranscriptionDenied("Unsupported ASR locale")
     if type(api_key) is not str or len(api_key) < 16:
         raise VoiceStudioTranscriptionDenied("Private ASR credential required")
@@ -157,7 +157,7 @@ def transcribe_private_voice(
             or any(ord(ch) < 32 or 0xD800 <= ord(ch) <= 0xDFFF for ch in transcript)):
         raise VoiceStudioTranscriptionDenied("Missing ASR transcript text")
     reported_language = parsed.get("language")
-    if not isinstance(reported_language, str) or len(reported_language) > 20:
+    if (type(reported_language) is not str or not reported_language\n            or len(reported_language) > 20 or\n            any(ord(ch) < 32 or 0xD800 <= ord(ch) <= 0xDFFF\n                for ch in reported_language)):
         raise VoiceStudioTranscriptionDenied("Invalid ASR language report")
     if language and reported_language != language:
         raise VoiceStudioTranscriptionDenied("Unexpected transcription language")
