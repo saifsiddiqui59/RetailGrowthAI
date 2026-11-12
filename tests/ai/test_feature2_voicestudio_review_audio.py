@@ -681,3 +681,22 @@ def test_in_place_original_digest_rotation_during_private_get_denies_audio():
         read_current_voiceover_for_review(**args)
     assert len(storage.calls) == 1 and len(calls) == 2
     assert len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("field", ["shop_id", "campaign_id", "request_id"])
+def test_sql_scope_identifier_must_be_plain_string(field):
+    """Reject non-string provider objects even when they compare equal to scope."""
+    args, tenant, sql, storage, _ = harness()
+    class EqualToScope:
+        def __eq__(self, other):
+            return True
+    original = sql.read_private_receipt
+    def malformed(*ids):
+        receipt = original(*ids)
+        receipt[field] = EqualToScope()
+        return receipt
+    sql.read_private_receipt = malformed
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1
+    assert not storage.calls
