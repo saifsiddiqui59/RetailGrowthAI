@@ -239,18 +239,26 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         )
     except Exception:
         return _denied(503, response_type)
+    # Freeze the backend envelope once. A stateful adapter must not change
+    # its body or attestation between validation and public byte release.
+    try:
+        backend_status = reply.status
+        backend_body = reply.body
+        backend_headers = reply.headers
+    except Exception:
+        return _denied(503, response_type)
     # A broken backend must never dictate arbitrary headers or leak partial
     # PNG bytes on an error response.
     try:
-        if (type(reply.status) is not int or
-                reply.status not in (200, 400, 401, 403, 404, 409, 410, 503) or
-                type(reply.body) is not bytes or
-                type(reply.headers) is not dict):
+        if (type(backend_status) is not int or
+                backend_status not in (200, 400, 401, 403, 404, 409, 410, 503) or
+                type(backend_body) is not bytes or
+                type(backend_headers) is not dict):
             return _denied(503, response_type)
-        if reply.status != 200:
-            if reply.body:
+        if backend_status != 200:
+            if backend_body:
                 return _denied(503, response_type)
-            return _denied(reply.status, response_type)
+            return _denied(backend_status, response_type)
         # The canonical binary adapter uses the strictly private
         # "no-store, private, max-age=0" response contract. The route may
         # also receive the legacy equally restrictive "no-store, private"
@@ -262,12 +270,12 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # Enforce the canonical private reader's 25 MiB limit at the Azure
         # response boundary too, even if an injected backend is compromised.
         # Never release a larger payload solely because its length agrees.
-        if len(reply.body) > 25 * 1024 * 1024:
+        if len(backend_body) > 25 * 1024 * 1024:
             return _denied(503, response_type)
         # A successful private binary receipt must be unambiguous even when
         # supplied by a faulty internal adapter. Never accept a transformed,
         # ranged, cookie-bearing or case-duplicated backend representation.
-        backend_names = list(islice(reply.headers, 17))
+        backend_names = list(islice(backend_headers, 17))
         if (len(backend_names) > 16 or
                 any(type(name) is not str or len(name) > 256 or
                     _HEADER_NAME.fullmatch(name) is None for name in backend_names) or
@@ -288,7 +296,7 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # reject custom equality objects and oversized diagnostic strings.
         total_backend_header_bytes = 0
         for name in backend_names:
-            value = reply.headers[name]
+            value = backend_headers[name]
             if type(value) is not str or len(value) > 4096:
                 return _denied(503, response_type)
             total_backend_header_bytes += len(name) + len(value)
@@ -302,23 +310,23 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         for key, expected in (
             ("X-Feature3-Shop-Id", shop_id),
             ("X-Feature3-Job-Id", job_id),
-            ("X-Feature3-Image-Sha256", sha256(reply.body).hexdigest()),
+            ("X-Feature3-Image-Sha256", sha256(backend_body).hexdigest()),
             ("Pragma", "no-cache"),
             ("X-Content-Type-Options", "nosniff"),
             ("Content-Security-Policy", "default-src 'none'"),
             ("Vary", "Authorization"),
             ("Content-Disposition", f'attachment; filename="feature3-{job_id}.png"'),
         ):
-            if key in reply.headers and (
-                    type(reply.headers[key]) is not str or
-                    reply.headers[key] != expected):
+            if key in backend_headers and (
+                    type(backend_headers[key]) is not str or
+                    backend_headers[key] != expected):
                 return _denied(503, response_type)
         # The canonical binary handler always returns a complete tenant/job,
         # immutable asset and digest attestation. A missing attestation is not
         # a legacy success: fail closed if an injected adapter strips it.
         attested = {"X-Feature3-Shop-Id", "X-Feature3-Job-Id",
                     "X-Feature3-Image-Sha256", "X-Feature3-Media-Asset-Id"}
-        present = attested.intersection(reply.headers)
+        present = attested.intersection(backend_headers)
         if present != attested:
             return _denied(503, response_type)
         # A successful private response must preserve all anti-cache,
@@ -332,22 +340,22 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             "Content-Disposition": f'attachment; filename="feature3-{job_id}.png"',
         }
         if any(
-            type(reply.headers.get(key)) is not str or
-            reply.headers[key] != expected
+            type(backend_headers.get(key)) is not str or
+            backend_headers[key] != expected
             for key, expected in required_protection.items()
         ):
             return _denied(503, response_type)
-        if "X-Feature3-Media-Asset-Id" in reply.headers and not _canonical_uuid4(
-                reply.headers["X-Feature3-Media-Asset-Id"]):
+        if "X-Feature3-Media-Asset-Id" in backend_headers and not _canonical_uuid4(
+                backend_headers["X-Feature3-Media-Asset-Id"]):
             return _denied(503, response_type)
-        declared_length = reply.headers.get("Content-Length")
+        declared_length = backend_headers.get("Content-Length")
         if (type(declared_length) is not str or
-                declared_length != str(len(reply.body))):
+                declared_length != str(len(backend_body))):
             return _denied(503, response_type)
-        policy = reply.headers.get("Cache-Control")
-        if (not reply.body.startswith(bytes.fromhex("89504e470d0a1a0a")) or
-                type(reply.headers.get("Content-Type")) is not str or
-                reply.headers.get("Content-Type") != "image/png" or
+        policy = backend_headers.get("Cache-Control")
+        if (not backend_body.startswith(bytes.fromhex("89504e470d0a1a0a")) or
+                type(backend_headers.get("Content-Type")) is not str or
+                backend_headers.get("Content-Type") != "image/png" or
                 type(policy) is not str or
                 policy not in ("no-store, private", "no-store, private, max-age=0")):
             return _denied(503, response_type)
@@ -359,12 +367,12 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             "X-Content-Type-Options": "nosniff",
             "Content-Security-Policy": "default-src 'none'",
             "Vary": "Authorization",
-            "Content-Length": str(len(reply.body)),
+            "Content-Length": str(len(backend_body)),
             # Emit only the server-derived safe attachment name, never a
             # client filename or an arbitrary backend disposition value.
             "Content-Disposition": f'attachment; filename="feature3-{job_id}.png"',
         }
-        return response_type(body=reply.body, status_code=200,
+        return response_type(body=backend_body, status_code=200,
                              headers=safe_headers, mimetype="image/png")
     except Exception:
         return _denied(503, response_type)
