@@ -15,6 +15,9 @@ function pcmWavDuration(b) {
       b.toString('ascii',8,12)!=='WAVE' || b.readUInt32LE(4)!==b.length-8) return null;
   let offset=12,fmt=null,data=0,byteRate=0,sampleRate=0,seenData=false;
   while (offset+8<=b.length) {
+    // RIFF chunk identifiers are printable four-byte ASCII FourCCs. Do not
+    // silently skip binary/control identifiers with attacker-pinned digests.
+    for (let i=offset;i<offset+4;i++) if (b[i]<0x20 || b[i]>0x7e) return null;
     const id=b.toString('ascii',offset,offset+4);
     const len=b.readUInt32LE(offset+4);
     const start=offset+8,end=start+len;
