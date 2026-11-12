@@ -94,5 +94,26 @@ class FeatureHeaderIsolationTests(unittest.TestCase):
                 backend.assert_not_called()
 
 
+    def test_future_cloud_identity_header_suffixes_fail_closed(self):
+        # Provider identity metadata is never an alternative to the verified
+        # retailer bearer JWT, even when a proxy adds new header suffixes.
+        for header in (
+            "X-MS-CLIENT-PRINCIPAL-ROLES-V2",
+            "X-AMZN-OIDC-CUSTOM-CLAIMS",
+            "X-GOOG-AUTHENTICATED-USER-GROUPS",
+            "CF-ACCESS-IDENTITY-CLAIMS",
+        ):
+            with self.subTest(header=header):
+                request = Request({header: "synthetic-not-verified-authority"})
+                with patch("feature3_private_png_route.private_png_http") as backend:
+                    response = handle_private_png_request(
+                        request, reader_factory=lambda *args: None,
+                        response_type=Response)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.body, b"")
+                self.assertEqual(request.body_reads, 0)
+                backend.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
