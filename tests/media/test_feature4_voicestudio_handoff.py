@@ -58,13 +58,22 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         self.assertEqual(result["manifest"]["assets"][aid]["shop_id"],snapshot["shop_id"])
         self.assertEqual(result["bundle"]["assets"][aid]["object_path"],
                          snapshot["assets"][aid]["object_path"])
-        for container in ("manifest", "bundle"):
-            exported = result[container]["assets"][aid]
-            for key in ("shop_id", "object_path", "storage_bucket", "mime_type",
-                        "license_name", "rights_source", "rights_evidence",
-                        "source_feature", "kind", "approved"):
-                with self.subTest(container=container, key=key):
-                    self.assertEqual(exported[key], snapshot["assets"][aid][key])
+        exported = result["bundle"]["assets"][aid]
+        for key in ("shop_id", "object_path", "storage_bucket", "mime_type",
+                    "license_name", "rights_source", "rights_evidence",
+                    "source_feature", "kind", "approved"):
+            self.assertEqual(exported[key], snapshot["assets"][aid][key])
+        worker = result["manifest"]["assets"][aid]
+        self.assertEqual(worker["shop_id"], snapshot["shop_id"])
+        self.assertEqual(worker["kind"], "audio")
+        self.assertEqual(worker["source_feature"], "retailer")
+        self.assertTrue(worker["approved"])
+        self.assertTrue(worker["path"])
+        self.assertEqual(worker["rights"], {
+            "license": exported["license_name"], "commercial_use": True,
+            "source": exported["rights_source"],
+            "evidence": exported["rights_evidence"],
+        })
         self.assertNotIn("voiceover_source",draft)
 
     def test_private_narration_cannot_be_reused_as_soundtrack_or_sfx(self):
