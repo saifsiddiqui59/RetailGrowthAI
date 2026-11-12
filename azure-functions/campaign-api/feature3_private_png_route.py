@@ -358,6 +358,9 @@ def handle_private_png_request(request, *, reader_factory, response_type):
             "Content-Security-Policy": "default-src 'none'",
             "Vary": "Authorization",
             "Content-Length": str(len(reply.body)),
+            # Emit only the server-derived safe attachment name, never a
+            # client filename or an arbitrary backend disposition value.
+            "Content-Disposition": f'attachment; filename="feature3-{job_id}.png"',
         }
         return response_type(body=reply.body, status_code=200,
                              headers=safe_headers, mimetype="image/png")
