@@ -13,8 +13,10 @@ const SHA=/^[a-f0-9]{64}$/;
 function pcmWavDuration(b) {
   if (b.length<44 || b.toString('ascii',0,4)!=='RIFF' ||
       b.toString('ascii',8,12)!=='WAVE' || b.readUInt32LE(4)!==b.length-8) return null;
-  let offset=12,fmt=null,data=0,byteRate=0,seenData=false;
+  let offset=12,fmt=null,data=0,byteRate=0,seenData=false,chunkCount=0;
   while (offset+8<=b.length) {
+    // Prevent CPU exhaustion from adversarial metadata-only RIFF chunks.
+    if (++chunkCount>128) return null;
     const id=b.toString('ascii',offset,offset+4);
     const len=b.readUInt32LE(offset+4);
     const start=offset+8,end=start+len;
