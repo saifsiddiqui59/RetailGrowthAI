@@ -112,9 +112,24 @@ export async function bindVerifiedVoiceStudioMedia({
   // The original video may be longer than the extracted speech segment.
   // Reject oversized ASR responses before iterating over attacker-supplied words.
   // The signed transcript contract allows at most 2000 words.
-  deny(Array.isArray(review?.words) && review.words.length>=1 && review.words.length<=2000 &&
-    review.words.every(w=>Number.isFinite(w?.end) &&
-      w.end<=wavDuration.seconds+1/wavDuration.sampleRate));
+  // Snapshot exact ASR word fields before checking the PCM clock. Accessor-backed
+  // or inherited fields could change after the clock check but before HMAC
+  // signing, allowing a different word timeline to be signed.
+  deny(Array.isArray(review?.words) && review.words.length>=1 &&
+    review.words.length<=2000);
+  const words=review.words.map(w=>{
+    deny(w!==null && typeof w==='object');
+    const values=Object.create(null);
+    for (const field of ['word','start','end']) {
+      const descriptor=Object.getOwnPropertyDescriptor(w,field);
+      deny(descriptor && Object.hasOwn(descriptor,'value'));
+      values[field]=descriptor.value;
+    }
+    return values;
+  });
+  deny(words.every(w=>Number.isFinite(w.end) &&
+    w.end<=wavDuration.seconds+1/wavDuration.sampleRate));
+  const stableReview={...review,words};
   const lease=await readCurrentLease({shop_id,asset_id,job_id});
   // Snapshot the first lease: a storage adapter may reuse and mutate its object
   // on the second read. Comparing two aliases would silently accept revocation.
@@ -122,7 +137,7 @@ export async function bindVerifiedVoiceStudioMedia({
   // source/review inputs through a reused object reference. Capture only the
   // expected lease fields, never trust inherited prototype properties.
   const leaseSnapshot=leaseValues(lease);
-  const signed=bindVoiceStudioReview({review,shop_id,asset_id,job_id,
+  const signed=bindVoiceStudioReview({review:stableReview,shop_id,asset_id,job_id,
     original_video_sha256,original_audio_sha256,source_duration_seconds,
     lease:leaseSnapshot,model_id,key,now_ms:checkedTime()});
   // Fail closed if revocation/scope changes during the signing operation.
