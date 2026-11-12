@@ -85,6 +85,13 @@ await denied({readExtractedWav:async()=>truncated,
  original_audio_sha256:digest(truncated),
  review:{...review,audio_sha256:digest(truncated)},
  readCurrentLease:async()=>({...lease,audio_sha256:digest(truncated)})});
+// A huge review-only word array must be denied before a potentially costly
+// per-word PCM scan or any lease read, even with authentic WAV and hashes.
+let oversizedLeaseReads=0;
+await denied({review:{...review,words:Array.from({length:2001},()=>({
+ word:'नमस्कार',start:.1,end:.2}))},
+ readCurrentLease:async()=>{oversizedLeaseReads++;return {...lease};}});
+assert.equal(oversizedLeaseReads,0);
 // Word end is bound to the exact PCM sample clock (16kHz), not a 20ms
 // allowance: a self-consistent signed claim for speech beyond the audio fails.
 await denied({review:{...review,words:[{word:'नमस्कार',start:.7,end:1.001}]}});
