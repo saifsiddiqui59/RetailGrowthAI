@@ -114,6 +114,19 @@ def main():
             assert tone_magnitude(tail_samples, 350) > 100, "Approved narration missing at Reel end"
             assert tone_magnitude(tail_samples, 196) > 5, "Music bed missing at Reel end"
             assert tone_magnitude(tail_samples, 350) > tone_magnitude(tail_samples, 196), "End music masks narration"
+            # Decode the actual encoded portrait frames at the beginning and
+            # near the end. Container metadata alone cannot prove that the
+            # video track is decodable for the full approved narration span.
+            for second in (1, 15, 29):
+                frame = subprocess.check_output(
+                    ["ffmpeg", "-nostdin", "-v", "error", "-ss", str(second),
+                     "-i", str(output), "-map", "0:v:0", "-frames:v", "1",
+                     "-vf", "scale=32:56,format=gray", "-f", "rawvideo", "-"],
+                    timeout=45)
+                assert len(frame) == 32 * 56, (
+                    f"Missing or undecodable portrait video frame at {second}s")
+                assert max(frame) - min(frame) >= 5, (
+                    f"Near-uniform encoded video frame at {second}s")
             print("PASS: original approved synthetic PCM narration + music/captions encoded by existing HyperFrames CPU renderer")
     finally:
         fixture.root_tmp.cleanup()
