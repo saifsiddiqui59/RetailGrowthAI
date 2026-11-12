@@ -30,9 +30,10 @@ function pcmWavDuration(b) {
   let offset=12,fmt=null,data=0,byteRate=0,sampleRate=0,seenData=false;
   // Bound chunk-walking work independently of byte size: a 64 MiB file can
   // otherwise contain millions of empty metadata chunks before PCM samples.
+  // Reject excessive metadata even when the overall WAV byte limit is respected.
   let chunkCount=0;
   while (offset+8<=b.length) {
-    if (++chunkCount>4096) return null;
+    if (++chunkCount>128) return null;
     // RIFF chunk identifiers are printable four-byte ASCII FourCCs. Do not
     // silently skip binary/control identifiers with attacker-pinned digests.
     for (let i=offset;i<offset+4;i++) if (b[i]<0x20 || b[i]>0x7e) return null;
