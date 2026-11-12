@@ -112,6 +112,11 @@ export async function bindVerifiedVoiceStudioMedia({
     lease:leaseSnapshot,model_id,key,now_ms:checkedTime()});
   // Fail closed if revocation/scope changes during the signing operation.
   const current=await readCurrentLease({shop_id,asset_id,job_id});
+  // The final receipt must be an authoritative own-field snapshot too;
+  // inherited active/scope fields cannot revive a revoked or swapped lease.
+  deny(current!==null && typeof current==='object' &&
+    ['shop_id','asset_id','job_id','source_sha256','audio_sha256',
+     'model_id','active','expires_at_ms'].every(field=>Object.hasOwn(current,field)));
   deny(current && current.active===true &&
     ['shop_id','asset_id','job_id','source_sha256','audio_sha256','model_id','expires_at_ms']
       .every(field=>current[field]===leaseSnapshot[field]) &&
