@@ -43,6 +43,10 @@ def _wav(data):
         raise PrivateVoiceStorageDenied("Invalid bounded private WAV")
     if data[:4] != b"RIFF" or data[8:12] != b"WAVE":
         raise PrivateVoiceStorageDenied("Invalid PCM WAVE header")
+    # wave.open tolerates appended bytes and inconsistent RIFF lengths. Reject
+    # any bytes outside the declared envelope before storage I/O.
+    if int.from_bytes(data[4:8], "little") != len(data) - 8:
+        raise PrivateVoiceStorageDenied("Invalid PCM WAVE RIFF envelope")
     try:
         with wave.open(io.BytesIO(data), "rb") as stream:
             channels, width, rate, frames = (stream.getnchannels(),
