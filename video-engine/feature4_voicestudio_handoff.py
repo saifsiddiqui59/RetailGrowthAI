@@ -189,6 +189,19 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     output = compile_approved_storyboard(deepcopy(frozen_draft), deepcopy(snapshot))
     if output["request"].get("voiceover_asset_id") != asset_id or output["request"].get("voiceover_source") != "retailer":
         raise CreativeContractError("Video compiler discarded approved voice source")
+    # Verify private narration provenance survives both compiler outputs.
+    for container in ("manifest", "bundle"):
+        media = output.get(container)
+        if type(media) is not dict or type(media.get("assets")) is not dict:
+            raise CreativeContractError("Compiled private narration manifest missing")
+        compiled_asset = media["assets"].get(asset_id)
+        if type(compiled_asset) is not dict or any(
+            compiled_asset.get(key) != before_asset.get(key)
+            for key in ("shop_id", "object_path", "storage_bucket", "mime_type",
+                        "license_name", "rights_source", "rights_evidence",
+                        "source_feature", "kind", "approved")
+        ):
+            raise CreativeContractError("Compiled private narration asset changed")
     # The compiler may perform additional trusted reads. Do not return a reel
     # compiled from narration whose approval was revoked during that work.
     if authoritative() != before or snapshot["assets"].get(asset_id) != before_asset:
