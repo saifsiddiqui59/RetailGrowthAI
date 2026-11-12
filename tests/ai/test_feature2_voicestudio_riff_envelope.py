@@ -20,8 +20,10 @@ def _pcm():
         stream.setnchannels(1)
         stream.setsampwidth(2)
         stream.setframerate(16000)
-        stream.writeframes(b"\\x00\\x01" * 160)
-    return output.getvalue()
+        stream.writeframes(bytes((0, 1)) * 160)
+    payload = output.getvalue()
+    assert len(payload) == 44 + 320  # 160 mono 16-bit PCM frames, not escaped ASCII.
+    return payload
 
 
 def test_exact_riff_envelope_is_accepted():
