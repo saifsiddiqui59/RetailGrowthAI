@@ -28,7 +28,8 @@ export function bindVoiceStudioReview({
     [shop_id,asset_id,job_id,model_id].every(v=>typeof v==='string'&&ID.test(v)) &&
     Number.isFinite(source_duration_seconds) &&
     source_duration_seconds>0 && source_duration_seconds<=180 &&
-    Number.isSafeInteger(now_ms),
+    Number.isSafeInteger(now_ms) && now_ms>=0 &&
+    Number.isSafeInteger(now_ms+600000),
     'Untrusted VoiceStudio review or source');
   deny(lease && lease.shop_id===shop_id && lease.asset_id===asset_id &&
     lease.job_id===job_id && lease.source_sha256===original_video_sha256 &&
