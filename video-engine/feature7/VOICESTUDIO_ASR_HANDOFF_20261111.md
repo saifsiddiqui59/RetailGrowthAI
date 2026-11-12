@@ -32,3 +32,9 @@ Next: adapt this validated word list to the existing Feature7 signed transcript 
 - Source `8d7d82df` and regression `3b3dbdf9` on child #942: require all eight authoritative lease fields to be **own properties on the second lease receipt**, not only the first. Deny prototype-forged final active/scope fields; preserve valid null-prototype own-field receipts.
 - Exact-head GitHub PR workflow lookup returned zero runs at inspection; child #942 remains open and GitHub reports non-mergeable. Targeted runtime suite not executed in this run. No child/parent/main merge or hosted activity.
 - **NEXT CODE ACTION:** run `python -m unittest tests/media/test_feature7_voicestudio_verified_media.py` on checkout, repair any owned test failures, obtain exact-head mandatory 4/4 CI, then safely integrate eligible #942 into parent #513; reconcile parent against main separately. F4 dependency #910 remains linked. SOURCE IN PROGRESS.
+
+
+## 2026-11-12 canonical word export hardening
+- Scoped source commit `e6eda7d83d73b78481fc565aff256981303b3584`: the signed review's `whisperx_json` now exports only normalized word/text and millisecond-rounded timestamps, not untrusted arbitrary properties copied from upstream VoiceStudio word objects. HMAC transcript hash and captions use the same normalized words.
+- Regression commit `e478709c686957e88aff4ef4f7566652886266fa`: negative injected tenant/token metadata case and positive fractional-time canonicalization.
+- Verification pending: local git checkout cannot resolve github.com; exact-head four-job CI must be inspected before merging. No main merge. NEXT: verify test_feature7_voicestudio_verified_media.py, exact-head four-job CI, then merge eligible child #942 into #513 and resolve parent/main drift under integration writer. F4 dependency #910 already merged to its feature parent. No GPU/paid/PROD/cloud/WineShopPOS.
