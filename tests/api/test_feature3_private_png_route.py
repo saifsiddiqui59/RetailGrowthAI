@@ -52,6 +52,9 @@ class RouteAdapterTests(unittest.TestCase):
         self.assertIsNone(response.mimetype)
         self.assertEqual(response.headers["Content-Length"], "0")
         self.assertIn("no-store", response.headers["Cache-Control"])
+        self.assertEqual(response.headers["Content-Security-Policy"], "default-src 'none'")
+        self.assertEqual(response.headers["Vary"], "Authorization")
+        self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
 
     def test_route_scope_cannot_change_after_validation(self):
         # The request adapter can mutate route_params while get_body runs.
