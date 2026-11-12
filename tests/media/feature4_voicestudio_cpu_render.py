@@ -45,6 +45,10 @@ def main():
             audio = [s for s in streams if s.get("codec_type") == "audio"]
             assert len(video) == len(audio) == 1, "Expected one video and one audio track"
             assert video[0]["codec_name"] == "h264" and audio[0]["codec_name"] == "aac"
+            assert (int(video[0]["width"]), int(video[0]["height"])) == (1080, 1920), "Reel is not vertical Full HD"
+            assert video[0].get("pix_fmt") == "yuv420p", "Reel pixel format is not broadly playable"
+            assert video[0].get("r_frame_rate") == "24/1", "Reel frame rate drifted from approved 24 fps"
+            assert abs(float(audio[0].get("duration", info["format"]["duration"])) - 30) < 0.3, "AAC track duration mismatches Reel"
             assert abs(float(info["format"]["duration"]) - 30) < 0.3
             assert output.stat().st_size > 10000
             # Decode actual AAC, not merely inspect an audio-stream header.
