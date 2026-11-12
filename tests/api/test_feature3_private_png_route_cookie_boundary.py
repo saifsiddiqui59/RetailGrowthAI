@@ -72,6 +72,26 @@ class CookieBoundaryTests(unittest.TestCase):
                 self.assertEqual(req.body_reads, 0)
                 backend.assert_not_called()
 
+    def test_short_or_malformed_bearer_never_reads_body_or_calls_backend(self):
+        # The canonical handler requires >=12 token bytes. Reject at the
+        # outer boundary too, before potentially expensive GET body reads.
+        for credential in (
+            "Bearer a", "Bearer short12345", "Bearer ",
+            "Basic synthetic-test-only", "Bearer sb_secret_fixture",
+            "Bearer synthetic,second-token",
+        ):
+            with self.subTest(credential=credential):
+                req = Request({"Authorization": credential})
+                with patch("feature3_private_png_route.private_png_http") as backend:
+                    result = handle_private_png_request(
+                        req, reader_factory=lambda *args: None,
+                        response_type=Response,
+                    )
+                self.assertEqual(result.status_code, 401)
+                self.assertEqual(result.body, b"")
+                self.assertEqual(req.body_reads, 0)
+                backend.assert_not_called()
+
     def test_bearer_without_cookie_reaches_canonical_adapter(self):
         req = Request({"Authorization": "Bearer synthetic-not-a-real-jwt"})
         with patch(
