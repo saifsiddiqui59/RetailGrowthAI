@@ -198,6 +198,28 @@ await denied({readExtractedWav:async()=>dataFirst,
  original_audio_sha256:digest(dataFirst),
  review:{...review,audio_sha256:digest(dataFirst)},
  readCurrentLease:async()=>({...lease,audio_sha256:digest(dataFirst)})});
+// Binary/control FourCC identifiers cannot be silently skipped before PCM.
+// These files have consistent RIFF lengths, SHA-256, review and lease digests.
+for (const fourcc of [Buffer.from([0,65,66,67]),Buffer.from([65,10,66,67]),
+                       Buffer.from([65,66,67,127]),Buffer.from([65,66,67,255])]) {
+ const chunk=Buffer.concat([fourcc,Buffer.alloc(4)]);
+ const malformedId=Buffer.concat([wav.subarray(0,12),chunk,wav.subarray(12)]);
+ malformedId.writeUInt32LE(malformedId.length-8,4);
+ const h=digest(malformedId);
+ await denied({readExtractedWav:async()=>malformedId,
+  original_audio_sha256:h,review:{...review,audio_sha256:h},
+  readCurrentLease:async()=>({...lease,audio_sha256:h})});
+}
+// Printable unknown FourCCs remain valid metadata before PCM.
+const printableChunk=Buffer.concat([Buffer.from('JUNK'),Buffer.alloc(4)]);
+const printableWav=Buffer.concat([wav.subarray(0,12),printableChunk,wav.subarray(12)]);
+printableWav.writeUInt32LE(printableWav.length-8,4);
+const printableHash=digest(printableWav);
+const printableSigned=await bindVerifiedVoiceStudioMedia({...base,
+ readExtractedWav:async()=>printableWav,original_audio_sha256:printableHash,
+ review:{...review,audio_sha256:printableHash},
+ readCurrentLease:async()=>({...lease,audio_sha256:printableHash})});
+assert.equal(printableSigned.evidence.source_sha256,v);
 // A legitimate odd-sized pre-audio RIFF chunk needs exactly one zero pad.
 const oddChunk=Buffer.concat([Buffer.from('JUNK'),Buffer.from([1,0,0,0]),Buffer.from([7,0])]);
 const padded=Buffer.concat([wav.subarray(0,12),oddChunk,wav.subarray(12)]);
