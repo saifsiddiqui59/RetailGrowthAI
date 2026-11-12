@@ -609,3 +609,18 @@ def test_non_boolean_membership_response_after_private_get_denies_audio(result):
     with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
         read_current_voiceover_for_review(**args)
     assert len(calls) == 2 and len(storage.calls) == 1 and len(sql.calls) == 2
+
+
+def test_nonboolean_post_read_membership_denied():
+    args, tenant, sql, storage, _ = harness()
+    original_member = tenant.member
+    calls = [0]
+    def membership(token, uid, shop, *, write=False):
+        calls[0] += 1
+        if calls[0] == 2:
+            return 1  # Truthy integer must never grant post-I/O access.
+        return original_member(token, uid, shop, write=write)
+    tenant.member = membership
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert calls[0] == 2 and len(storage.calls) == 1 and len(sql.calls) == 2
