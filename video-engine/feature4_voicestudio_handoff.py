@@ -54,9 +54,12 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     # An approved narration receipt authorizes voiceover only. Reusing the same
     # private WAV as background music or scene SFX would silently broaden its
     # reviewed purpose and may double-mix the voice into the final Reel.
-    if draft.get("music_asset_id") == asset_id or any(
-        type(scene) is dict and scene.get("sfx_asset_id") == asset_id
-        for scene in draft.get("scenes", []) if type(draft.get("scenes")) is list
+    scenes = draft.get("scenes")
+    if draft.get("music_asset_id") == asset_id or (
+        type(scenes) is list and any(
+            type(scene) is dict and scene.get("sfx_asset_id") == asset_id
+            for scene in scenes
+        )
     ):
         raise CreativeContractError("Approved narration cannot be reused as music or SFX")
     duration = draft.get("duration_seconds")
