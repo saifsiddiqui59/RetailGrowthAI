@@ -189,19 +189,32 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     output = compile_approved_storyboard(deepcopy(frozen_draft), deepcopy(snapshot))
     if output["request"].get("voiceover_asset_id") != asset_id or output["request"].get("voiceover_source") != "retailer":
         raise CreativeContractError("Video compiler discarded approved voice source")
-    # Verify private narration provenance survives both compiler outputs.
-    for container in ("manifest", "bundle"):
-        media = output.get(container)
-        if type(media) is not dict or type(media.get("assets")) is not dict:
-            raise CreativeContractError("Compiled private narration manifest missing")
-        compiled_asset = media["assets"].get(asset_id)
-        if type(compiled_asset) is not dict or any(
-            compiled_asset.get(key) != before_asset.get(key)
-            for key in ("shop_id", "object_path", "storage_bucket", "mime_type",
-                        "license_name", "rights_source", "rights_evidence",
-                        "source_feature", "kind", "approved")
-        ):
-            raise CreativeContractError("Compiled private narration asset changed")
+    # The worker manifest intentionally replaces private object keys with
+    # sandbox-local paths; verify its rights and identity separately from
+    # the authoritative bundle, which must preserve the private object key.
+    bundle_asset = output.get("bundle", {}).get("assets", {}).get(asset_id)
+    if type(bundle_asset) is not dict or any(
+        bundle_asset.get(key) != before_asset.get(key)
+        for key in ("shop_id", "object_path", "storage_bucket", "mime_type",
+                    "license_name", "rights_source", "rights_evidence",
+                    "source_feature", "kind", "approved")
+    ):
+        raise CreativeContractError("Compiled private narration bundle changed")
+    manifest_asset = output.get("manifest", {}).get("assets", {}).get(asset_id)
+    if (type(manifest_asset) is not dict
+            or manifest_asset.get("shop_id") != shop
+            or manifest_asset.get("kind") != "audio"
+            or manifest_asset.get("source_feature") != "retailer"
+            or manifest_asset.get("approved") is not True
+            or type(manifest_asset.get("path")) is not str
+            or not manifest_asset["path"].strip()
+            or manifest_asset.get("rights") != {
+                "license": before_asset["license_name"],
+                "commercial_use": True,
+                "source": before_asset["rights_source"],
+                "evidence": before_asset["rights_evidence"],
+            }):
+        raise CreativeContractError("Compiled private narration manifest changed")
     # The compiler may perform additional trusted reads. Do not return a reel
     # compiled from narration whose approval was revoked during that work.
     if authoritative() != before or snapshot["assets"].get(asset_id) != before_asset:
