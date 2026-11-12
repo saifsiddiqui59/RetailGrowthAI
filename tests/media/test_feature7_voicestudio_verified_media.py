@@ -271,6 +271,39 @@ const validExtendedSigned=await bindVerifiedVoiceStudioMedia({...base,
  readCurrentLease:async()=>({...lease,audio_sha256:validExtendedDigest})
 });
 assert.equal(validExtendedSigned.evidence.source_sha256,v);
+// Reject self-consistent WAV digests with inconsistent PCM format arithmetic.
+// These are not audio sample clocks that can authorize word-level timings.
+for (const [offset,write] of [
+ [22,b=>b.writeUInt16LE(0,22)],             // no channels
+ [22,b=>b.writeUInt16LE(3,22)],             // unsupported channels
+ [24,b=>b.writeUInt32LE(7999,24)],         // unsupported sample rate
+ [24,b=>b.writeUInt32LE(48001,24)],
+ [28,b=>b.writeUInt32LE(31999,28)],        // forged byte rate
+ [32,b=>b.writeUInt16LE(4,32)],            // forged block alignment
+ [34,b=>b.writeUInt16LE(8,34)]             // non-16-bit samples
+]) {
+ const bad=Buffer.from(wav);write(bad);
+ const h=digest(bad);
+ await denied({readExtractedWav:async()=>bad,
+  original_audio_sha256:h,review:{...review,audio_sha256:h},
+  readCurrentLease:async()=>({...lease,audio_sha256:h})});
+}
+// A valid two-channel PCM sample clock remains supported (no mono-only regression).
+const stereo=Buffer.from(wav);
+stereo.writeUInt16LE(2,22);
+stereo.writeUInt32LE(64000,28);
+stereo.writeUInt16LE(4,32);
+const stereoHash=digest(stereo);
+const stereoSigned=await bindVerifiedVoiceStudioMedia({...base,
+ readExtractedWav:async()=>stereo,original_audio_sha256:stereoHash,
+ review:{...review,audio_sha256:stereoHash},
+ readCurrentLease:async()=>({...lease,audio_sha256:stereoHash}),
+ source_duration_seconds:1});
+assert.equal(stereoSigned.evidence.source_sha256,v);
+// Non-finite and unsafe clock readings cannot validate an otherwise valid lease.
+for (const invalidTime of [Infinity,-Infinity,Number.NaN,Number.MAX_SAFE_INTEGER+1]) {
+ await denied({readNowMs:()=>invalidTime});
+}
 // A trailing metadata chunk after samples is ambiguous and must never be signed.
 const trailing=Buffer.concat([wav,Buffer.from('JUNK'),Buffer.from([4,0,0,0]),Buffer.alloc(4)]);
 trailing.writeUInt32LE(trailing.length-8,4);
