@@ -329,7 +329,7 @@ class Tests(unittest.TestCase):
 
     def test_missing_or_nonstring_enumerated_authorization_is_denied(self):
         for headers in ({}, {"authorization": None},
-                        {"AUTHORIZATION": ["Bearer synthetic"]}):
+                        {"AUTHORIZATION": ["Bearer synthetic-fixture-token"]}):
             with self.subTest(headers=headers):
                 request = Request()
                 request.headers = headers
@@ -400,8 +400,8 @@ class Tests(unittest.TestCase):
         adapter.assert_called_once()
 
     def test_header_injection_denied_before_backend(self):
-        for token in ("Bearer synthetic" + chr(13) + chr(10) + "X-Admin: true",
-                      "Bearer synthetic" + chr(10), "Bearer synthetic" + chr(13)):
+        for token in ("Bearer synthetic-fixture-token" + chr(13) + chr(10) + "X-Admin: true",
+                      "Bearer synthetic-fixture-token" + chr(10), "Bearer synthetic-fixture-token" + chr(13)):
             with self.subTest(token=repr(token)):
                 request = Request()
                 request.headers = {"Authorization": token}
@@ -492,20 +492,32 @@ class Tests(unittest.TestCase):
     def test_header_metadata_limits_denied_before_reader(self):
         # Large untrusted headers must never trigger JWT/rights/storage IO.
         for headers in (
-            {"Authorization": "Bearer synthetic", **{
+            {"Authorization": "Bearer synthetic-fixture-token", **{
                 f"X-Demo-{i}": "fixture" for i in range(64)
             }},
-            {"Authorization": "Bearer synthetic", "X-Large": "x" * 16384},
+            {"Authorization": "Bearer synthetic-fixture-token", "X-Large": "x" * 16384},
         ):
             with self.subTest(header_count=len(headers)):
                 request = Request()
                 request.headers = headers
                 self.assert_denied_before_reader(request)
 
+    def test_short_bearer_is_denied_before_body_and_reader(self):
+        # The adapter now requires at least 12 bearer characters; keep
+        # metadata boundary fixtures long enough to test their own paths.
+        request = Request()
+        request.headers = {"Authorization": "Bearer synthetic"}
+        request.get_body = lambda: self.fail("short bearer read GET body")
+        response = handle_private_png_request(
+            request, reader_factory=lambda *args: self.fail("reader invoked"),
+            response_type=Response)
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.body, b"")
+
     def test_header_count_exact_boundary_reaches_canonical_adapter(self):
         # Exactly 64 distinct headers (including Authorization) are allowed.
         request = Request()
-        request.headers = {"Authorization": "Bearer synthetic", **{
+        request.headers = {"Authorization": "Bearer synthetic-fixture-token", **{
             f"X-Demo-{i}": "fixture" for i in range(63)
         }}
         with patch("feature3_private_png_route.private_png_http",
@@ -520,7 +532,7 @@ class Tests(unittest.TestCase):
 
     def test_header_metadata_limit_boundary_passes_to_canonical_adapter(self):
         request = Request()
-        request.headers = {"Authorization": "Bearer synthetic", "X-Large": "x" * 1000}
+        request.headers = {"Authorization": "Bearer synthetic-fixture-token", "X-Large": "x" * 1000}
         with patch("feature3_private_png_route.private_png_http",
                    return_value=SimpleNamespace(status=404, body=b"",
                        headers={"Cache-Control": "no-store, private"})) as adapter:
@@ -643,7 +655,7 @@ class Tests(unittest.TestCase):
         ):
             with self.subTest(header=header):
                 request = Request()
-                request.headers = {"Authorization": "Bearer synthetic",
+                request.headers = {"Authorization": "Bearer synthetic-fixture-token",
                                    header: value}
                 body_reads = []
                 request.get_body = lambda: body_reads.append(True)
@@ -687,7 +699,7 @@ class Tests(unittest.TestCase):
 
     def test_regular_accept_header_remains_compatible(self):
         request = Request()
-        request.headers = {"Authorization": "Bearer synthetic",
+        request.headers = {"Authorization": "Bearer synthetic-fixture-token",
                            "Accept": "image/png"}
         with patch("feature3_private_png_route.private_png_http",
                    return_value=SimpleNamespace(status=404, body=b"",
@@ -734,10 +746,10 @@ class Tests(unittest.TestCase):
         # Synthetic request adapter: a large body should not be read before
         # inexpensive, bounded header validation rejects an invalid request.
         for headers in (
-            {"Authorization": "Bearer synthetic", "Transfer-Encoding": "chunked"},
-            {"Authorization": "Bearer synthetic", "X-Large": "x" * 16384},
-            {"Authorization": "Bearer synthetic", "X-Bad": "nul" + chr(0)},
-            {"Authorization": "Bearer synthetic", "Content-Length": "1000000000"},
+            {"Authorization": "Bearer synthetic-fixture-token", "Transfer-Encoding": "chunked"},
+            {"Authorization": "Bearer synthetic-fixture-token", "X-Large": "x" * 16384},
+            {"Authorization": "Bearer synthetic-fixture-token", "X-Bad": "nul" + chr(0)},
+            {"Authorization": "Bearer synthetic-fixture-token", "Content-Length": "1000000000"},
         ):
             with self.subTest(headers=list(headers)):
                 request = Request()
