@@ -118,7 +118,12 @@ export async function bindVerifiedVoiceStudioMedia({
   // signing, allowing a different word timeline to be signed.
   deny(Array.isArray(review?.words) && review.words.length>=1 &&
     review.words.length<=2000);
-  const words=review.words.map(w=>{
+  // Never dispatch through an upstream array's overridable map method or
+  // read accessor-backed array indices. Sparse words are not timing evidence.
+  const words=Array.from({length:review.words.length},(_,index)=>{
+    const entry=Object.getOwnPropertyDescriptor(review.words,String(index));
+    deny(entry && Object.hasOwn(entry,'value'));
+    const w=entry.value;
     deny(w!==null && typeof w==='object');
     const values=Object.create(null);
     for (const field of ['word','start','end']) {
