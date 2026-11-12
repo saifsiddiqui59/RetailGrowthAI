@@ -6,6 +6,8 @@ claims are accepted as dependencies. Hosted integration remains gated.
 """
 from __future__ import annotations
 
+from uuid import UUID
+
 from feature3_current_output_rights import Feature3CurrentOutputRights
 from feature3_private_png_reader import Feature3RevocablePNGReader
 from security import SupabaseJWTVerifier
@@ -48,6 +50,12 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
     def factory(shop_id, job_id):
         if type(shop_id) is not str or type(job_id) is not str:
             raise ValueError("Canonical scoped route IDs required")
+        try:
+            if any(UUID(value).version != 4 or str(UUID(value)) != value
+                   for value in (shop_id, job_id)):
+                raise ValueError("Canonical scoped route IDs required")
+        except (ValueError, AttributeError, TypeError) as exc:
+            raise ValueError("Canonical scoped route IDs required") from exc
         return Feature3RevocablePNGReader(
             tenant_store=store,
             verify_user_jwt=verifier,
