@@ -86,6 +86,15 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                         shop_id != bound_shop or job_id != bound_job):
                     raise PrivateGeneratedDownloadDenied(
                         "Private generated output unavailable")
+                # Revalidate at use time as well as construction time: a
+                # cached scoped reader may outlive a rotated/mutated store.
+                # Deny before invoking JWT verification or any RLS/byte read.
+                if (type(getattr(store, "origin", None)) is not str or
+                        type(getattr(store, "key", None)) is not str or
+                        store.origin != supabase_origin.rstrip("/") or
+                        store.key != publishable_key):
+                    raise PrivateGeneratedDownloadDenied(
+                        "Private generated output unavailable")
                 return reader.read(user_token=user_token,
                                    shop_id=bound_shop, job_id=bound_job)
 
