@@ -45,6 +45,27 @@ const fractional=await bindVerifiedVoiceStudioMedia({...base,review:{...review,
 assert.deepEqual(fractional.whisperx_json.segments[0].words,
  [{word:'नमस्कार',start:.1,end:.7}]);
 
+// Review envelope metadata is untrusted too. Accessors must never execute
+// during the source gate; unrelated hostile metadata must not be enumerated.
+for (const field of ['schema','audio_sha256','language','text','approved',
+ 'renderable','word_timings_present','model_revision_verified_by_worker',
+ 'requires_feature7_signed_evidence']) {
+ let getterCalls=0,leaseCalls=0;
+ const accessorReview={...review};
+ Object.defineProperty(accessorReview,field,{enumerable:true,
+  get(){getterCalls++;throw Error('untrusted review getter');}});
+ await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,
+  review:accessorReview,readCurrentLease:async()=>{leaseCalls++;return {...lease};}}));
+ assert.equal(getterCalls,0);
+ assert.equal(leaseCalls,0);
+}
+let extraGetterCalls=0;
+const metadataReview={...review};
+Object.defineProperty(metadataReview,'untrusted_extra',{enumerable:true,
+ get(){extraGetterCalls++;throw Error('unexpected metadata read');}});
+const metadataResult=await bindVerifiedVoiceStudioMedia({...base,review:metadataReview});
+assert.equal(metadataResult.evidence.source_sha256,v);
+assert.equal(extraGetterCalls,0);
 // Accessor-backed ASR word fields are not stable PCM clock evidence.
 // Reject before lease access and never invoke an untrusted getter.
 for (const field of ['word','start','end']) {
