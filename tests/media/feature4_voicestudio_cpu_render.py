@@ -51,6 +51,16 @@ def main():
             assert (int(video[0]["width"]), int(video[0]["height"])) == (1080, 1920), "Reel is not vertical Full HD"
             assert video[0].get("pix_fmt") == "yuv420p", "Reel pixel format is not broadly playable"
             assert video[0].get("r_frame_rate") == "24/1", "Reel frame rate drifted from approved 24 fps"
+            # Count decoded video frames, not just the advertised frame rate.
+            counted = json.loads(subprocess.check_output(
+                ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                 "-count_frames", "-show_entries", "stream=nb_read_frames",
+                 "-of", "json", str(output)], text=True, timeout=60))
+            actual_frames = int(counted["streams"][0]["nb_read_frames"])
+            assert actual_frames == 30 * 24, (
+                f"Encoded Reel has {actual_frames} frames, expected 720")
+            assert int(audio[0]["channels"]) in (1, 2), "Unsupported AAC channel layout"
+            assert int(audio[0]["sample_rate"]) >= 8000, "Invalid AAC sample rate"
             assert abs(float(audio[0].get("duration", info["format"]["duration"])) - 30) < 0.3, "AAC track duration mismatches Reel"
             assert abs(float(info["format"]["duration"]) - 30) < 0.3
             assert output.stat().st_size > 10000
