@@ -141,7 +141,15 @@ def transcribe_private_voice(
                 or not 1 <= len(word.strip()) <= 120
                 or any(ord(ch) < 32 for ch in word)):
             raise VoiceStudioTranscriptionDenied("ASR words are unaligned or invalid")
-        validated.append({"start": round(start, 3), "end": round(end, 3),
+        # Validate the canonical millisecond clock used by signed receipts:
+        # sub-ms words may collapse or overlap after upstream float checks.
+        canonical_start, canonical_end = round(start, 3), round(end, 3)
+        if (canonical_end <= canonical_start or
+                (validated and canonical_start < validated[-1]["end"])):
+            raise VoiceStudioTranscriptionDenied("ASR timestamps collapse after canonicalization")
+        if any(0xD800 <= ord(ch) <= 0xDFFF for ch in word):
+            raise VoiceStudioTranscriptionDenied("Invalid ASR Unicode word")
+        validated.append({"start": canonical_start, "end": canonical_end,
                           "word": word.strip()})
         previous_end = end
     transcript = parsed.get("text")
