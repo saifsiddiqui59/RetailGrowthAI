@@ -113,6 +113,27 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
             with self.subTest(words=words),self.assertRaises(VoiceStudioTranscriptionDenied):
                 self.call()
 
+    def test_canonical_millisecond_timing_and_unicode_fail_closed(self):
+        # Upstream timings may be valid floats but invalid after receipt
+        # canonicalization. Never sign zero-length or overlapping words.
+        invalid = [
+            [{"start":0.1001,"end":0.1004,"word":"tiny"}],
+            [{"start":0.1001,"end":0.1006,"word":"first"},
+             {"start":0.1007,"end":0.1012,"word":"second"}],
+            [{"start":0.1,"end":0.7,"word":"\\ud800"}],
+        ]
+        for words in invalid:
+            self.payload["words"] = words
+            with self.subTest(words=words), self.assertRaises(VoiceStudioTranscriptionDenied):
+                self.call()
+        self.payload["words"] = [
+            {"start":0.1001,"end":0.7001,"word":"नमस्ते"},
+            {"start":0.8001,"end":1.5001,"word":"दुनिया"},
+        ]
+        result = self.call()
+        self.assertEqual(result["words"][0],
+                         {"start":0.1,"end":0.7,"word":"नमस्ते"})
+
     def test_upstream_status_url_and_mime_are_verified(self):
         for conf in [{"status":202},{"url":"https://evil.test/"},{"mime":"text/html"}]:
             def sender(req,timeout):
