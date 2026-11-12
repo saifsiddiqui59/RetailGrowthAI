@@ -99,6 +99,27 @@ await denied({readCurrentLease:async()=>partial});
 const ownFields=await bindVerifiedVoiceStudioMedia({...base,
  readCurrentLease:async()=>Object.assign(Object.create(null),lease)});
 assert.equal(ownFields.evidence.source_sha256,v);
+// A forged final receipt cannot inherit active/scope fields after an
+// authentic first lease was checked. A legitimate own-field final receipt works.
+let finalReads=0;
+await denied({readCurrentLease:async()=>{
+ if (++finalReads===1) return {...lease};
+ return Object.create({...lease});
+}});
+finalReads=0;
+await denied({readCurrentLease:async()=>{
+ if (++finalReads===1) return {...lease};
+ const forged=Object.assign(Object.create({active:true}),lease);
+ delete forged.active;
+ return forged;
+}});
+finalReads=0;
+const finalOwn=await bindVerifiedVoiceStudioMedia({...base,
+ readCurrentLease:async()=>{
+  ++finalReads;
+  return Object.assign(Object.create(null),lease);
+ }});
+assert.equal(finalOwn.evidence.source_sha256,v);
 // A lease store may return the SAME mutable object twice. Mutating that object
 // during the second read must not bypass the original signed lease snapshot.
 for (const field of ['active','shop_id','asset_id','job_id','source_sha256',
