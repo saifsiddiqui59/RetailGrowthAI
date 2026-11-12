@@ -208,6 +208,12 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
             or manifest_asset.get("approved") is not True
             or type(manifest_asset.get("path")) is not str
             or not manifest_asset["path"].strip()
+            # Worker paths must stay relative to its sandbox. Never pass an
+            # absolute path, traversal, Windows separator or control byte to FFmpeg.
+            or manifest_asset["path"].startswith(("/", "\\"))
+            or "\\" in manifest_asset["path"]
+            or any(part in ("", ".", "..") for part in manifest_asset["path"].split("/"))
+            or any(ord(ch) < 32 or ord(ch) == 127 for ch in manifest_asset["path"])
             or manifest_asset.get("rights") != {
                 "license": before_asset["license_name"],
                 "commercial_use": True,
