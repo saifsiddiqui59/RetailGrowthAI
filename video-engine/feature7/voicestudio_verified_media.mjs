@@ -116,12 +116,19 @@ export async function bindVerifiedVoiceStudioMedia({
   // Snapshot exact ASR word fields before checking the PCM clock. Accessor-backed
   // or inherited fields could change after the clock check but before HMAC
   // signing, allowing a different word timeline to be signed.
-  deny(Array.isArray(review?.words) && review.words.length>=1 &&
-    review.words.length<=2000);
+  // The review's words property itself is untrusted. Read its descriptor
+  // before inspecting length or entries: an accessor can execute arbitrary
+  // code before any lease/source evidence is validated.
+  deny(review!==null && typeof review==='object');
+  const wordsDescriptor=Object.getOwnPropertyDescriptor(review,'words');
+  deny(wordsDescriptor && Object.hasOwn(wordsDescriptor,'value'));
+  const reviewWords=wordsDescriptor.value;
+  deny(Array.isArray(reviewWords) && reviewWords.length>=1 &&
+    reviewWords.length<=2000);
   // Never dispatch through an upstream array's overridable map method or
   // read accessor-backed array indices. Sparse words are not timing evidence.
-  const words=Array.from({length:review.words.length},(_,index)=>{
-    const entry=Object.getOwnPropertyDescriptor(review.words,String(index));
+  const words=Array.from({length:reviewWords.length},(_,index)=>{
+    const entry=Object.getOwnPropertyDescriptor(reviewWords,String(index));
     deny(entry && Object.hasOwn(entry,'value'));
     const w=entry.value;
     deny(w!==null && typeof w==='object');
