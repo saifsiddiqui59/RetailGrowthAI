@@ -624,3 +624,27 @@ def test_nonboolean_post_read_membership_denied():
     with pytest.raises(VoiceStudioReviewDenied):
         read_current_voiceover_for_review(**args)
     assert calls[0] == 2 and len(storage.calls) == 1 and len(sql.calls) == 2
+
+
+@pytest.mark.parametrize("field,bad", [
+    ("audio_asset_id", str(__import__("uuid").uuid1())),
+    ("original_sha256", "A" * 64),
+    ("render_sha256", "g" * 64),
+    ("plan_sha256", 123),
+    ("commercial_rights_confirmed", 1),
+    ("publish_approved", 0),
+    ("private", 1),
+])
+def test_malformed_receipt_types_and_digests_never_trigger_private_get(field, bad):
+    """Fail closed on type-confused SQL booleans, UUID versions and digests."""
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def malformed(*ids):
+        receipt = original(*ids)
+        receipt[field] = bad
+        return receipt
+    sql.read_private_receipt = malformed
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1
+    assert not storage.calls
