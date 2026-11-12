@@ -133,3 +133,87 @@
 - Original missing #765 (full-token FFmpeg scene clock parser) and #764 (40ms speech word cannot become an advisory deletion gap) are now reconciled into existing #513 parent **source** commit `560be085ff761ba81e8bd1e56d14f7a2de79bdfe`; original diff tests and parent newer local-MP4 safety source were preserved in six feature-owned files. Both originals remain OPEN awaiting 4/4 exact combined test evidence.
 - Exact source-head Actions [push #42674311062](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/42674311062) and [PR #42674318967](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/42674318967) both report workflow conclusion FAILURE, **but no started job failed**: the push run created only Python, frontend and Supabase jobs, all SUCCESS (missing FFmpeg); PR run created only FFmpeg and Supabase jobs, both SUCCESS (missing Python and frontend). GitHub's retry-failed-jobs API returned **403 workflow run cannot be retried** on both runs. Thus **required 4/4 is NOT established on this head**; do not mark original F7-U/F7-R done or close old PRs from these runs.
 - This feature-scoped source checkpoint intentionally triggers a fresh normal CI run without weakening tests or deploying resources. Verify all four jobs actually start and PASS on its new exact commit before duplicate retirement; escalate missing-runner behavior as a CI infrastructure blocker if it repeats. No live media, hosted JWT/RLS, GPU, paid inference, Azure resources, PROD or WineShopPOS.
+
+
+## 2026-11-11 — F7 VoiceStudio original-video duration guard (source-only)
+- Stacked [#942](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/942) now includes `85273dd6` and `87bc54b8`: require independently read extracted PCM WAV duration <= declared original-video duration + 20ms clock tolerance, even with self-consistent SHA/lease; deterministic denial for 1s audio with 0.5s video and positive 0.99s boundary. Own paths only.
+- Parent [#513](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/513) remains open/conflicted against main; upstream [#911](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/911) and F4 dependency [#910](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/910) merged. This does NOT establish source-video duration from authenticated original bytes; caller must independently verify video metadata and tenant/lease.
+- Local checkout/test execution blocked by GitHub DNS failure; exact final-head four-job CI not yet verified. No child merge, main merge, cloud, GPU, paid inference or PROD.
+- NEXT CODE ACTION: add deterministic test for PCM sample-clock mismatch and lease expiry after delayed media reads; check exact #942 head four-job CI, repair owner-scope failures, merge green eligible child into #513, reconcile parent against latest main with independent review and fresh 4/4 before any main integration.
+
+## 2026-11-11 F7 fractional lease-clock hardening
+- Child #942 commits `bfa2db285680f4b923d16c38556e8ec17ac9de4a` and `ac31a808c826170c50a279aca641d97e2d12f3ab`: compare unrounded clock readings to detect sub-ms rollback; round expiry checks upward, with negative rollback/expiry and positive monotonic regression cases.
+- Exact-head four-job CI and local Node regression execution are **not verified**; do not merge until checked. Parent #513 remains non-mergeable against main at inspection. Upstream #911 and F4 #910 already merged into their respective feature parents.
+- NEXT CODE ACTION: run `python -m unittest tests/media/test_feature7_voicestudio_verified_media.py` in a checked-out branch; inspect exact-head CI for child #942, repair scoped failures, merge green child into #513, then reconcile parent conflicts with latest main under serialized integration policy. Keep source-only status, GPU/paid/cloud/PROD OFF.
+
+## 2026-11-12 — F7 VoiceStudio PCM format hardening (source only)
+- Child PR #942, branch `feat/feature7-voicestudio-monotonic-lease-20261111`: source commit `6c9453ef7a07347d6e7a26dcafd1b3fb0e657dd4`, deterministic test commit `1771afd0df3aace1a8630a570e1ed0e774491ee6`.
+- Reject ambiguous PCM `fmt ` extensions; accept 16-byte PCM and 18-byte WAVEFORMATEX only with zero cbSize. Negative tests cover nonzero cbSize and unsupported extra bytes, with a positive zero-extension case. All test hashes/leases are consistent to verify parser enforcement.
+- SOURCE IN PROGRESS: targeted Node/Python tests and exact-final-head 4-job CI not yet verified. No parent/main merge. F4 dependency #910; existing #911 already closed.
+- NEXT: run `python -m unittest tests/media/test_feature7_voicestudio_verified_media.py` on an available full checkout, inspect exact-head four-job CI, repair owner-scoped failures, then safely merge eligible #942 into parent #513 only after scope/review/CI gates. Parent main reconciliation belongs to serialized integration writer.
+- GPU/models/paid/cloud/PROD/WineShopPOS OFF; no shared auth/schema changes.
+
+## 2026-11-12 — F7 lease-snapshot parser repair
+- Child [#942](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/942) source commit `321e8472bf926a593bd52920b06c322fb065f868` repaired three literal escaped `\\n` sequences embedded in the executable lease-snapshot block of `voicestudio_verified_media.mjs`. These had left a syntax error despite earlier checkpoints claiming the guard was repaired. The first lease is now actually copied before the second lease read, retaining mutable-object revocation protection.
+- No local checkout/tests: github.com DNS unavailable in execution container. Exact-head GitHub Actions query for the repair SHA returned zero PR-triggered runs; **four-job CI remains UNVERIFIED**. Do not merge #942 or #513 without targeted tests, required reviews and fresh exact-head four-job CI.
+- NEXT CODE ACTION: run `python -m unittest tests/media/test_feature7_voicestudio_verified_media.py` on a full checkout and `node --check video-engine/feature7/voicestudio_verified_media.mjs`; inspect exact final-head four-job Actions and repair owned failures (two bounded retries), then merge eligible child into #513 with expected-head SHA and reconcile parent against current main in serialized integration. F4 dependency #910 is already merged into its feature parent; #911 and #926 already merged into F7 parent. GPU/paid/cloud/PROD/WineShopPOS OFF.
+
+## 2026-11-12 — RIFF FourCC fail-closed source batch
+- Source commit `8c2f441336a1f6939ff4704e2d96c91a269dbdda`: reject nonprintable/control-byte RIFF chunk IDs before accepting an otherwise valid SHA-pinned WAV. Preserves valid printable pre-data JUNK metadata.
+- Regression commit `5ba54cb7f6a7dad65ad3d69617360bc171616b6d`: four self-consistent malicious FourCC negative fixtures and printable positive fixture, all offline/CPU.
+- Child #942 targets parent #513; original upstream #911 and signed evidence #926 are already merged to parent. Feature4 dependency #910 merged to its own parent.
+- Verification: local git clone unavailable due github.com DNS failure; targeted tests and final-head four-job CI are NOT verified. No merge attempted. Do not mark DONE or SOURCE READY without tests and scope review.
+- NEXT CODE ACTION: run `python -m unittest tests.media.test_feature7_voicestudio_verified_media` (or direct pytest file), inspect exact-head 4/4 PR CI, fix owned failures, then merge eligible #942 to #513 with expected head SHA; reconcile #513 against latest main through serialized integration writer.
+- No cloud/PROD, paid/GPU inference, shared auth/schema or WineShopPOS changes.
+
+
+## 2026-11-12 — F7 VoiceStudio PCM/lease regression batch
+- Child PR #942 (stacked onto parent #513); upstream #911/#926 already merged into the feature parent; F4 dependency #910 merged into F4 parent.
+- Added deterministic invalid PCM header arithmetic cases (channels, sample rate, byte rate, block alignment, bit depth), a valid stereo 16-bit PCM fixture, and unsafe/non-finite lease-clock cases in `tests/media/test_feature7_voicestudio_verified_media.py`.
+- Source logic unchanged; regression commits `45dba2ef9a822a4e350d4f0c33f6eaa004973fdd` and `03f7c7bee2ca530f3ffbf64978b6e101ccda7466`.
+- Verification NOT claimed: sandbox cannot resolve github.com for checkout; exact-head four-job Actions results still need verification. Do not merge on stale CI evidence.
+- NEXT CODE ACTION: inspect exact-head four-job CI for #942; fix owner-scope failures (max two bounded repairs). If green, integrate eligible child into #513 with expected head SHA, then resolve parent/main conflicts in a separately reviewed integration. Keep F4 #910 dependency linked; no main merge by F7.
+- GPU, paid inference, cloud/PROD, WineShopPOS and shared auth/schema untouched.
+
+## 2026-11-12 F7 VoiceStudio PCM structure regression
+- Child PR #942, commit `1a8e14b71de3aa69ccd4d4a0a126d4791d87e3dc`: extended existing `tests/media/test_feature7_voicestudio_verified_media.py` with duplicate `fmt ` chunk rejection, empty PCM data rejection, and valid bounded `LIST` metadata before `data` positive compatibility. No source model, shared contract, cloud, GPU or PROD change.
+- Prior head `2b3f8fba8182d65809d9b3f97222544f822f95f4` returned **zero PR workflow runs** via GitHub commit-run lookup. New exact-head 4/4 and local targeted tests remain UNVERIFIED; do not mark tested or merge merely from this checkpoint.
+- Existing upstream #911 and #926 are merged into parent #513. Feature4 dependency #910 is merged into its feature parent. Parent #513 is still unmerged to main.
+- NEXT CODE ACTION: run `python -m unittest tests/media/test_feature7_voicestudio_verified_media.py` in an available checkout; repair any owner-scoped failure, inspect final-head 4 mandatory jobs, then merge eligible #942 into #513 only after green CI and policy checks. Main merge remains serialized with Integration Sprint. Keep SOURCE IN PROGRESS until fresh main 4/4 and acceptance.
+
+
+## 2026-11-12 F7 accessor-backed lease hardening
+- Source commit 1f3fe03f8a1a63cf3705ddc2f3d9d7b8b8f12b69: lease receipts now require own data-property descriptors; accessors are rejected without invocation at both snapshot and final verification. Prevents mutable getter side effects from altering source/tenant/expiry during HMAC signing.
+- Regression commit c0aafd1da9f33b76c1eaf8cb54d0e8aa659747da: eight accessor negative cases plus frozen plain-data lease positive case in tests/media/test_feature7_voicestudio_verified_media.py.
+- NEXT: execute offline Node-backed Python test, verify exact-head four mandatory CI jobs for c0aafd1d, then reconcile eligible #942 into parent #513 under feature-owned merge policy. Parent/main reconciliation remains serialized; F4 dependency #910 linked. Do not claim CI or acceptance without evidence. GPU/paid/cloud/PROD/WineShopPOS untouched.
+
+## 2026-11-12 — bounded word-count preflight
+- Source `fccae9b67e1bd04351e452cbb5841af1739fe040` bounds the review-only VoiceStudio word array to 1–2000 entries **before** per-word PCM timestamp iteration; existing signed-transcript limit is unchanged.
+- Test `0abc7f2690b562990b42f61b239a93fdff6b1f95` denies 2001 otherwise valid Hindi words and asserts no lease reader was invoked. Scoped to F7 source and test paths; no new STT, model, shared contract or cloud operations.
+- Verification: local GitHub checkout DNS failed; exact-head PR workflow query for test commit returned zero runs. Targeted tests and mandatory 4/4 CI are **not verified**. Do not merge child or parent without required evidence.
+- NEXT CODE ACTION: execute `python -m unittest tests/media/test_feature7_voicestudio_verified_media.py` on available checkout, verify exact-head four-job CI, repair owned failures, then merge eligible child #942 into parent #513 (not main); reconcile parent conflicts under Integration Sprint. F4 dependency #910 remains linked. SOURCE IN PROGRESS.
+
+## 2026-11-12 — VoiceStudio word snapshot batch
+- Child PR #942 on F7 parent #513: code `534de8295f6b63e2b126ff6c5e976af020ff996a`, deterministic negative/positive tests `8805ce04b7de60260f449275dd3107b208fbbc65`.
+- Own-data `word/start/end` ASR timing snapshot now rejects accessor/inherited properties before PCM bounds and HMAC evidence generation; tests assert no getter invocation or lease reads on rejected words and frozen plain words remain valid. No new STT engine; upstream #911 and F4 dependency #910 unchanged.
+- Exact-head PR-triggered workflow lookup on `8805ce04b7de60260f449275dd3107b208fbbc65` returned zero runs. Local git checkout blocked by github.com DNS; offline targeted tests and mandatory four-job CI NOT verified. Child #942 open and reported mergeable; parent #513 open and conflicted. Do not merge without tests, CI and parent reconciliation.
+- NEXT CODE ACTION: obtain executable repository checkout or CI run; execute `python -m unittest tests/media/test_feature7_voicestudio_verified_media.py` (or repository test runner), repair failures in F7 scope, then check exact final-head 4/4 and integrate eligible child into #513. Main merge remains serialized with integration writer; no GPU, paid inference, cloud, PROD or WineShopPOS.
+
+## 2026-11-12 — F7 bounded RIFF scan code batch
+- Implemented 128-total-chunk ceiling in `voicestudio_verified_media.mjs` (commit `c9e5cc91`); previously the checked source still allowed 4096 chunks. Keeps ordinary PCM metadata supported.
+- Added exact boundary regression in `test_feature7_voicestudio_verified_media.py` (commit `4ee0eec7`): 126 metadata + fmt/data signs; 127 metadata + fmt/data denies before lease access.
+- Local GitHub checkout blocked by DNS; no targeted test execution. GitHub commit workflow lookup on `4ee0eec7` returned no PR runs. This checkpoint changes head again; exact-final-head four-job CI is still unverified. PR #942 mergeability was false on immediate post-push inspection; do not merge without recheck and passing CI.
+- NEXT: run offline `python -m unittest tests.media.test_feature7_voicestudio_verified_media` (or direct file) against this exact branch, repair any failures, verify four mandatory jobs on final head, then merge eligible child #942 into parent #513 with expected head SHA. Parent #513 is currently conflicted against main; handoff to serialized integration writer. Upstream #911 merged; F4 dependency #910. GPU/paid/cloud/PROD/WineShopPOS untouched.
+
+## 2026-11-12 — F7 VoiceStudio word-array integrity batch
+- Resumed child [#942](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/942) stacked on [#513](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/513). Original [#911](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/911) and signed-video [#926](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/926) already merged into the feature parent; F4 dependency [#910](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/910) merged into its own F4 parent, not main.
+- **Owned code:** `d98305ac9f2be63b60ef685e4051b526596275e5` snapshots only own data descriptors of every ASR array index and uses a native bounded array traversal instead of dispatching an upstream `.map` method. Rejects sparse/accessor slots before reading a lease or HMAC signing. No new STT/model/provider.
+- **Owned deterministic regression:** `f7e908c177e3265cd3ade4ad22d60cba1f880d2f` rejects sparse and accessor-backed word slots without invoking getters or lease readers, and accepts valid words despite a malicious overridden map method without invoking it.
+- **Verification:** container GitHub clone failed due DNS; targeted Python/Node tests NOT EXECUTED locally. Exact-head 4-job GitHub Actions is required and NOT yet verified for these commits. No merge or accepted DONE claim.
+- **NEXT CODE ACTION:** execute `python -m unittest tests.media.test_feature7_voicestudio_verified_media` in a checkout with Node installed, repair any failure in F7-owned files, verify exact-final-head 4/4 CI, then integrate eligible #942 into #513 with expected head SHA and independently reconcile #513 against main. Preserve human review, tenant lease and model licensing gates. No cloud/PROD/GPU/paid/WineShopPOS.
+
+## 2026-11-12 — VoiceStudio review envelope getter hardening
+- Child [#942](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/942), stacked on parent [#513](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/513); upstream [#911](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/911) and signed bridge [#926](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/926) already merged into parent. F4 dependency [#910](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/910) merged into F4 parent only.
+- Source commit `035f71d16fc69e277662f7b6702cc49071481012`: use own data-property descriptors for the review envelope rather than spreading untrusted review metadata (which could execute getters before signing). Test commit `7be7e2940c9f5f99d4912a4444a0bc48a7094791`: negative accessor cases for each signed review field and positive ignored-extra-metadata case.
+- Local git clone unavailable due to DNS resolution failure; no offline test pass claimed. Exact-head four-job CI pending. No child merge or main merge; GPU/model/paid/cloud/PROD OFF.
+- NEXT CODE ACTION: run `python -m unittest tests.media.test_feature7_voicestudio_verified_media` in reachable checkout; inspect exact-head four mandatory Actions jobs, repair scoped failures (max two attempts), then merge eligible child #942 into #513 using expected SHA and verify parent CI. Parent-to-main remains serialized with Integration Sprint; do not mark DONE without fresh main 4/4.
