@@ -59,6 +59,24 @@ def main():
             samples = struct.unpack("<" + "h" * (len(pcm) // 2), pcm)
             rms = math.sqrt(sum(x * x for x in samples) / len(samples))
             assert rms > 100, "Encoded narration/music unexpectedly silent"
+            # Verify the original narration tone is actually present in decoded
+            # AAC, rather than passing because the music bed alone is audible.
+            # The synthetic fixture uses 350 Hz narration and 196 Hz music.
+            # Integer-Hz, one-second windows make this a deterministic DFT bin.
+            def tone_magnitude(samples, frequency):
+                n = len(samples)
+                return abs(sum(
+                    sample * complex(
+                        math.cos(-2 * math.pi * frequency * i / 8000),
+                        math.sin(-2 * math.pi * frequency * i / 8000))
+                    for i, sample in enumerate(samples)
+                )) / n
+
+            narration_level = tone_magnitude(samples, 350)
+            bed_level = tone_magnitude(samples, 196)
+            assert narration_level > 100, "Approved 350 Hz narration missing from AAC"
+            assert bed_level > 5, "Licensed 196 Hz music bed missing from AAC"
+            assert narration_level > bed_level, "Music bed is not ducked below narration"
             # Confirm audio survives into the second half of the Reel; a first-
             # second-only PCM probe would miss truncated narration or a mixer
             # that silently drops the approved voiceover after the opening.
