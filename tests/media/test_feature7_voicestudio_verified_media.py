@@ -88,6 +88,17 @@ let calls=0;
 await denied({readCurrentLease:async()=>({...lease,active:++calls===1})});
 calls=0;
 await denied({readCurrentLease:async()=>({...lease,expires_at_ms:now+(++calls===1?30000:20000)})});
+// Inherited fields are not authoritative database lease receipts: reject a
+// forged prototype even if its inherited values exactly match valid scope.
+const inherited=Object.create({...lease});
+await denied({readCurrentLease:async()=>inherited});
+const partial=Object.assign(Object.create({active:true}),{...lease});
+delete partial.active;
+await denied({readCurrentLease:async()=>partial});
+// A plain own-field lease is still accepted (no valid worker regression).
+const ownFields=await bindVerifiedVoiceStudioMedia({...base,
+ readCurrentLease:async()=>Object.assign(Object.create(null),lease)});
+assert.equal(ownFields.evidence.source_sha256,v);
 // A lease store may return the SAME mutable object twice. Mutating that object
 // during the second read must not bypass the original signed lease snapshot.
 for (const field of ['active','shop_id','asset_id','job_id','source_sha256',
