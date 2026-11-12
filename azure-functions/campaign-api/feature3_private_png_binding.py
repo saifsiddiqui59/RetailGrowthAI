@@ -6,7 +6,7 @@ It does not register an Azure route or authorize deployment.
 """
 from __future__ import annotations
 
-from feature3_private_png_reader import Feature3RevocablePNGReader
+from feature3_private_png_reader import Feature3RevocablePNGReader, PrivateGeneratedDownloadDenied
 from security import SupabaseJWTVerifier
 from tenant_store import TenantStore, canonical_uuid
 from feature3_private_png_tenant import VerifiedGeneratedAssetTenant
@@ -48,7 +48,17 @@ def build_private_png_reader_factory(*, origin, publishable_key,
     verified_jwt = verifier if verifier is not None else SupabaseJWTVerifier(origin)
     user_store = tenant if tenant is not None else TenantStore(origin, publishable_key)
 
+    def project_matches():
+        return (type(getattr(user_store, "origin", None)) is str and
+                type(getattr(user_store, "key", None)) is str and
+                user_store.origin == origin and
+                user_store.key == publishable_key)
+
     def factory(shop_id, job_id):
+        # An injected store can be reconfigured after composition. Refuse
+        # before any JWT, tenant or Storage access, including cached readers.
+        if not project_matches():
+            raise ValueError("Tenant store project changed after composition")
         # Fail before constructing the private reader on malformed route scope.
         scoped_shop = canonical_uuid(shop_id)
         scoped_job = canonical_uuid(job_id)
@@ -66,6 +76,8 @@ def build_private_png_reader_factory(*, origin, publishable_key,
                 if (type(shop_id) is not str or type(job_id) is not str or
                         shop_id != scoped_shop or job_id != scoped_job):
                     from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+                    raise PrivateGeneratedDownloadDenied("Private output unavailable")
+                if not project_matches():
                     raise PrivateGeneratedDownloadDenied("Private output unavailable")
                 return inner.read(user_token=user_token, shop_id=shop_id, job_id=job_id)
 
