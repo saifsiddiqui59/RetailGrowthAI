@@ -60,6 +60,24 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                          snapshot["assets"][aid]["object_path"])
         self.assertNotIn("voiceover_source",draft)
 
+    def test_private_narration_cannot_be_reused_as_soundtrack_or_sfx(self):
+        # Approval is purpose-scoped: voiceover is not a music/SFX license.
+        for reuse in ("music", "sfx"):
+            draft, snapshot, receipt, data = self.setup_case()
+            aid = draft["voiceover_asset_id"]
+            if reuse == "music":
+                draft["music_asset_id"] = aid
+            else:
+                draft["scenes"][0]["sfx_asset_id"] = aid
+            reads = []
+            with self.subTest(reuse=reuse), self.assertRaisesRegex(
+                    CreativeContractError, "cannot be reused"):
+                compile_voicestudio_narrated_reel(
+                    draft=draft, snapshot=snapshot,
+                    read_current_receipt=lambda *_: reads.append("receipt") or dict(receipt),
+                    read_current_private_wav=lambda *_: reads.append("wav") or data)
+            self.assertEqual(reads, [], "Invalid audio purpose must fail before private I/O")
+
     def test_foreign_and_unapproved_sources_rejected(self):
         mutations=[
             lambda d,s,r: d.update(shop_id=str(uuid4())),
