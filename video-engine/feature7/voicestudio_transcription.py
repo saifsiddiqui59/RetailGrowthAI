@@ -139,7 +139,7 @@ def transcribe_private_voice(
                 or start < previous_end - .01 or start < 0 or end <= start
                 or end > seconds + .1 or not isinstance(word, str)
                 or not 1 <= len(word.strip()) <= 120
-                or any(ord(ch) < 32 for ch in word)):
+                or any(ord(ch) < 32 or 0xD800 <= ord(ch) <= 0xDFFF for ch in word)):
             raise VoiceStudioTranscriptionDenied("ASR words are unaligned or invalid")
         # Validate the canonical millisecond clock used by signed receipts:
         # sub-ms words may collapse or overlap after upstream float checks.
