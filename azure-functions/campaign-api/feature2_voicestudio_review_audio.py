@@ -33,6 +33,9 @@ def _receipt(sql_reader, shop, campaign, request):
     if (
         type(result) is not dict
         or not _v4(result.get("audio_asset_id"))
+        or type(result.get("shop_id")) is not str
+        or type(result.get("campaign_id")) is not str
+        or type(result.get("request_id")) is not str
         or result.get("shop_id") != shop
         or result.get("campaign_id") != campaign
         or result.get("request_id") != request
