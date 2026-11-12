@@ -296,7 +296,7 @@ stereo.writeUInt16LE(4,32);
 const stereoHash=digest(stereo);
 const stereoSigned=await bindVerifiedVoiceStudioMedia({...base,
  readExtractedWav:async()=>stereo,original_audio_sha256:stereoHash,
- review:{...review,audio_sha256:stereoHash},
+ review:{...review,audio_sha256:stereoHash,words:[{word:'नमस्कार',start:.1,end:.4}]},
  readCurrentLease:async()=>({...lease,audio_sha256:stereoHash}),
  source_duration_seconds:1});
 assert.equal(stereoSigned.evidence.source_sha256,v);
