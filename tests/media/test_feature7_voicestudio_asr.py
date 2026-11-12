@@ -120,12 +120,18 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
             [{"start":0.1001,"end":0.1004,"word":"tiny"}],
             [{"start":0.1001,"end":0.1006,"word":"first"},
              {"start":0.1007,"end":0.1012,"word":"second"}],
-            [{"start":0.1,"end":0.7,"word":"\\ud800"}],
         ]
         for words in invalid:
             self.payload["words"] = words
             with self.subTest(words=words), self.assertRaises(VoiceStudioTranscriptionDenied):
                 self.call()
+        self.payload["words"] = [{"start":0.1,"end":0.7,"word":"\\ud800"}]
+        # Use escaped JSON so the invalid surrogate reaches the parser rather
+        # than failing UTF-8 encoding in the test transport itself.
+        def escaped_sender(req, timeout):
+            return Reply(json.dumps(self.payload).encode("ascii"))
+        with self.assertRaises(VoiceStudioTranscriptionDenied):
+            self.call(transport=escaped_sender)
         self.payload["words"] = [
             {"start":0.1001,"end":0.7001,"word":"नमस्ते"},
             {"start":0.8001,"end":1.5001,"word":"दुनिया"},
