@@ -75,7 +75,6 @@ def build_private_png_reader_factory(*, origin, publishable_key,
             def read(self, *, user_token, shop_id, job_id):
                 if (type(shop_id) is not str or type(job_id) is not str or
                         shop_id != scoped_shop or job_id != scoped_job):
-                    from feature3_private_png_reader import PrivateGeneratedDownloadDenied
                     raise PrivateGeneratedDownloadDenied("Private output unavailable")
                 if not project_matches():
                     raise PrivateGeneratedDownloadDenied("Private output unavailable")
