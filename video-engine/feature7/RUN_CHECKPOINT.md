@@ -186,3 +186,9 @@
 - Source commit 1f3fe03f8a1a63cf3705ddc2f3d9d7b8b8f12b69: lease receipts now require own data-property descriptors; accessors are rejected without invocation at both snapshot and final verification. Prevents mutable getter side effects from altering source/tenant/expiry during HMAC signing.
 - Regression commit c0aafd1da9f33b76c1eaf8cb54d0e8aa659747da: eight accessor negative cases plus frozen plain-data lease positive case in tests/media/test_feature7_voicestudio_verified_media.py.
 - NEXT: execute offline Node-backed Python test, verify exact-head four mandatory CI jobs for c0aafd1d, then reconcile eligible #942 into parent #513 under feature-owned merge policy. Parent/main reconciliation remains serialized; F4 dependency #910 linked. Do not claim CI or acceptance without evidence. GPU/paid/cloud/PROD/WineShopPOS untouched.
+
+## 2026-11-12 — bounded word-count preflight
+- Source `fccae9b67e1bd04351e452cbb5841af1739fe040` bounds the review-only VoiceStudio word array to 1–2000 entries **before** per-word PCM timestamp iteration; existing signed-transcript limit is unchanged.
+- Test `0abc7f2690b562990b42f61b239a93fdff6b1f95` denies 2001 otherwise valid Hindi words and asserts no lease reader was invoked. Scoped to F7 source and test paths; no new STT, model, shared contract or cloud operations.
+- Verification: local GitHub checkout DNS failed; exact-head PR workflow query for test commit returned zero runs. Targeted tests and mandatory 4/4 CI are **not verified**. Do not merge child or parent without required evidence.
+- NEXT CODE ACTION: execute `python -m unittest tests/media/test_feature7_voicestudio_verified_media.py` on available checkout, verify exact-head four-job CI, repair owned failures, then merge eligible child #942 into parent #513 (not main); reconcile parent conflicts under Integration Sprint. F4 dependency #910 remains linked. SOURCE IN PROGRESS.
