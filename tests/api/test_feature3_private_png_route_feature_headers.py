@@ -51,6 +51,23 @@ class FeatureHeaderIsolationTests(unittest.TestCase):
                 self.assertEqual(request.body_reads, 0)
                 backend.assert_not_called()
 
+    def test_alternate_proxy_credentials_never_reach_reader(self):
+        for header in (
+            "X-Api-Key", "X-Supabase-Auth", "X-User-JWT",
+            "X-Forwarded-Access-Token", "X-Forwarded-Id-Token",
+            "X-Original-Access-Token", "X-Original-Id-Token",
+        ):
+            with self.subTest(header=header):
+                request = Request({header: "synthetic-credential-not-authority"})
+                with patch("feature3_private_png_route.private_png_http") as backend:
+                    response = handle_private_png_request(
+                        request, reader_factory=lambda *args: None,
+                        response_type=Response)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.body, b"")
+                self.assertEqual(request.body_reads, 0)
+                backend.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
