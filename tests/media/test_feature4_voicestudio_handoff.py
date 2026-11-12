@@ -58,6 +58,13 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         self.assertEqual(result["manifest"]["assets"][aid]["shop_id"],snapshot["shop_id"])
         self.assertEqual(result["bundle"]["assets"][aid]["object_path"],
                          snapshot["assets"][aid]["object_path"])
+        for container in ("manifest", "bundle"):
+            exported = result[container]["assets"][aid]
+            for key in ("shop_id", "object_path", "storage_bucket", "mime_type",
+                        "license_name", "rights_source", "rights_evidence",
+                        "source_feature", "kind", "approved"):
+                with self.subTest(container=container, key=key):
+                    self.assertEqual(exported[key], snapshot["assets"][aid][key])
         self.assertNotIn("voiceover_source",draft)
 
     def test_private_narration_cannot_be_reused_as_soundtrack_or_sfx(self):
