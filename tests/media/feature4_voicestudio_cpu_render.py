@@ -89,6 +89,11 @@ def main():
             late_samples = struct.unpack("<" + "h" * (len(late_pcm) // 2), late_pcm)
             late_rms = math.sqrt(sum(x * x for x in late_samples) / len(late_samples))
             assert late_rms > 100, "Encoded narration/music silent at 20 seconds"
+            late_narration = tone_magnitude(late_samples, 350)
+            late_bed = tone_magnitude(late_samples, 196)
+            assert late_narration > 100, "Approved narration disappeared before 20 seconds"
+            assert late_bed > 5, "Music bed disappeared before 20 seconds"
+            assert late_narration > late_bed, "Late music masks approved narration"
             print("PASS: original approved synthetic PCM narration + music/captions encoded by existing HyperFrames CPU renderer")
     finally:
         fixture.root_tmp.cleanup()
