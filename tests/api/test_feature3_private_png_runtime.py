@@ -76,6 +76,36 @@ class RuntimeCompositionTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     factory(str(uuid4()), str(uuid4()))
 
+    def test_cached_reader_denies_store_rotation_before_any_backend_call(self):
+        class MutableStore(SyntheticStore):
+            pass
+
+        class CountingVerifier:
+            def __init__(self):
+                self.calls = 0
+
+            def __call__(self, token):
+                self.calls += 1
+                raise AssertionError("JWT must not run after project rotation")
+
+        for field, replacement in (
+            ("origin", "https://foreign-project.supabase.co"),
+            ("key", "sb_publishable_foreign_test_key"),
+            ("origin", object()),
+            ("key", object()),
+        ):
+            with self.subTest(field=field, value_type=type(replacement).__name__):
+                store = MutableStore()
+                verifier = CountingVerifier()
+                shop, job = str(uuid4()), str(uuid4())
+                reader = self.build(tenant_store=store, jwt_verifier=verifier)(
+                    shop, job)
+                setattr(store, field, replacement)
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    reader.read(user_token="synthetic-test-token",
+                                shop_id=shop, job_id=job)
+                self.assertEqual(verifier.calls, 0)
+
     def test_cross_project_store_is_rejected(self):
         class ForeignStore(SyntheticStore):
             origin = "https://foreign-project.supabase.co"
