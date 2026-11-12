@@ -700,3 +700,32 @@ def test_sql_scope_identifier_must_be_plain_string(field):
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1
     assert not storage.calls
+
+
+@pytest.mark.parametrize("field,forged", [
+    ("private", 1),
+    ("private", "true"),
+    ("commercial_rights_confirmed", 1),
+    ("commercial_rights_confirmed", "true"),
+    ("publish_approved", 0),
+    ("publish_approved", None),
+    ("review_status", "APPROVED_FOR_EDITING"),
+    ("original_sha256", "A" * 64),
+    ("plan_sha256", "a" * 63),
+])
+def test_sql_receipt_type_confusion_and_approval_bypass_denied_before_audio(field, forged):
+    """SQL adapter must not coerce booleans, approval states or digest formats."""
+    args, tenant, sql, storage, _ = harness()
+    original_reader = sql.read_private_receipt
+
+    def forged_receipt(*ids):
+        receipt = original_reader(*ids)
+        receipt[field] = forged
+        return receipt
+
+    sql.read_private_receipt = forged_receipt
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(tenant.calls) == 1
+    assert len(sql.calls) == 1
+    assert storage.calls == []
