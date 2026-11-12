@@ -54,6 +54,45 @@ class BackendFailureIsolationTests(unittest.TestCase):
         self.assertNotIn("X-Feature3-Shop-Id", result.headers)
         return result
 
+    def test_backend_exceptions_are_opaque_and_never_leak_private_diagnostics(self):
+        request = FakeRequest()
+        calls = []
+        def failing_backend(**kwargs):
+            calls.append(kwargs)
+            raise RuntimeError("synthetic-private-tenant-secret")
+        with patch("feature3_private_png_route.private_png_http", side_effect=failing_backend):
+            result = handle_private_png_request(
+                request, reader_factory=lambda *args: None,
+                response_type=FakeResponse)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(request.body_reads, 1)
+        self.assertEqual(result.status_code, 503)
+        self.assertEqual(result.body, b"")
+        self.assertEqual(result.headers["Content-Length"], "0")
+        self.assertEqual(result.headers["Cache-Control"], "no-store, private")
+        self.assertNotIn("synthetic-private-tenant-secret", str(result.__dict__))
+
+    def test_hostile_backend_response_properties_fail_closed(self):
+        class HostileResponse:
+            @property
+            def status(self):
+                raise RuntimeError("synthetic-private-diagnostic")
+        self.assertEqual(self.invoke(HostileResponse()).status_code, 503)
+
+    def test_success_with_missing_scope_receipts_is_never_released(self):
+        # A synthetic PNG signature is not evidence of a real authorized asset.
+        # Even a correctly declared byte count cannot replace backend attestation.
+        png = bytes.fromhex("89504e470d0a1a0a") + b"synthetic-fixture"
+        self.assertEqual(self.invoke(SimpleNamespace(
+            status=200, body=png,
+            headers={"Content-Type": "image/png",
+                     "Content-Length": str(len(png)),
+                     "Cache-Control": "no-store, private",
+                     "Pragma": "no-cache",
+                     "X-Content-Type-Options": "nosniff",
+                     "Content-Security-Policy": "default-src 'none'",
+                     "Vary": "Authorization"})).status_code, 503)
+
     def test_empty_canonical_denials_preserve_only_opaque_status(self):
         for status in (400, 401, 403, 404, 409, 410, 503):
             with self.subTest(status=status):
