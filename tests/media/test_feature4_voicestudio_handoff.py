@@ -82,7 +82,8 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         import feature4_voicestudio_handoff as adapter
         original_compiler = adapter.compile_approved_storyboard
         for unsafe in ("../private.wav", "/etc/passwd", "assets/../../secret.wav",
-                       "C:\\private.wav", "assets//voice.wav", "assets/./voice.wav",
+                       "C:\\private.wav", "C:private.wav", "https://evil.test/voice.wav",
+                       "assets/%2e%2e/voice.wav", "assets//voice.wav", "assets/./voice.wav",
                        "assets/voice\\n.wav"):
             draft, snapshot, receipt, data = self.setup_case()
             def forged_compiler(*args):
