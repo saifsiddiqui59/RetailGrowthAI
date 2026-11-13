@@ -63,6 +63,13 @@ def _canonical_pcm_chunks(content):
         if offset + 8 > len(content) or content[offset:offset + 4] != expected:
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
         size = int.from_bytes(content[offset + 4:offset + 8], "little")
+        # The private VoiceStudio contract emits canonical PCM16: a 16-byte
+        # fmt body and a nonempty, frame-aligned data body. Reject alternate
+        # chunk layouts even when a decoder would tolerate them.
+        if expected == b"fmt " and size != 16:
+            raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
+        if expected == b"data" and (size == 0 or size % 2):
+            raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
         end = offset + 8 + size
         if end > len(content):
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
