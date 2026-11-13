@@ -285,6 +285,50 @@ class PrivatePNGCompositionTests(unittest.TestCase):
                         shop_id=self.shop, job_id=self.job)
         self.assertEqual(observed, [])
 
+    def test_side_effecting_key_getter_rotates_origin_and_denies_reader(self):
+        from unittest.mock import patch
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+
+        class RotatingTenant(SyntheticTenant):
+            def __init__(self):
+                self.current_origin = SyntheticTenant.origin
+                self.rotate = False
+                self.key_reads = 0
+
+            @property
+            def origin(self):
+                return self.current_origin
+
+            @property
+            def key(self):
+                self.key_reads += 1
+                if self.rotate:
+                    self.current_origin = "https://foreign-project.supabase.co"
+                return SyntheticTenant.key
+
+        tenant = RotatingTenant()
+        calls = []
+        class SyntheticReader:
+            def __init__(self, **kwargs):
+                calls.append("construct")
+            def read(self, **kwargs):
+                calls.append("bytes")
+                return b"synthetic-bytes"
+
+        with patch("feature3_private_png_binding.Feature3RevocablePNGReader",
+                   SyntheticReader):
+            factory = self.make(lambda *args: calls.append("rights"),
+                                verifier=lambda token: calls.append("jwt"),
+                                tenant=tenant)
+            cached = factory(self.shop, self.job)
+            tenant.rotate = True
+            with self.assertRaises(ValueError):
+                factory(self.shop, self.job)
+            with self.assertRaises(PrivateGeneratedDownloadDenied):
+                cached.read(user_token="synthetic-not-hosted",
+                            shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, ["construct"])
+
     def test_reader_rejects_service_key_and_non_https_origin(self):
         tenant = SyntheticTenant()
         tenant.key = "service-role-key"
