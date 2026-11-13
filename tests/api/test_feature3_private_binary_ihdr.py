@@ -15,7 +15,7 @@ from feature3_private_binary_http import Feature3PrivateBinaryHTTP
 
 def png():
     out = BytesIO()
-    Image.new("RGB", (64, 64), "#776655").save(out, format="PNG")
+    Image.new("RGB", (256, 256), "#776655").save(out, format="PNG")
     return out.getvalue()
 
 
@@ -63,6 +63,20 @@ class PrivateIHDRBoundaryTests(unittest.TestCase):
         self.assertEqual(body, self.reader.raw)
         self.assertEqual(headers["Cache-Control"], "no-store, private, max-age=0")
 
+    def test_small_decodable_png_is_denied_even_with_matching_receipt(self):
+        # A 64px PNG has valid pixels, CRC and a matching synthetic SHA,
+        # but the private generated-output contract requires >=256px.
+        original = self.reader.raw
+        small = BytesIO()
+        Image.new("RGB", (64, 64), "#776655").save(small, format="PNG")
+        self.reader.raw = small.getvalue()
+        status, body, headers = self.response()
+        self.assertEqual((status, body), (503, b""))
+        self.assertEqual(headers["Cache-Control"], "no-store, private, max-age=0")
+        self.assertNotIn("Content-Disposition", headers)
+        self.reader.raw = original
+        self.assertEqual(self.response()[0], 200)
+
     def test_self_consistent_digest_cannot_authorize_invalid_ihdr(self):
         original = self.reader.raw
         variants = [
@@ -75,7 +89,7 @@ class PrivateIHDRBoundaryTests(unittest.TestCase):
             mutate_ihdr(mutate_ihdr(original, 16, (4096).to_bytes(4, "big")),
                         20, (8192).to_bytes(4, "big")),
             mutate_ihdr(original, 24, b"\x01"),  # RGB cannot have 1-bit depth
-            mutate_ihdr(original, 25, b"\x05"),  # invalid colour type
+            mutate_ihdr(original, 25, bytes((5,))),  # invalid colour type
             mutate_ihdr(original, 26, b"\x01"),  # compression
             mutate_ihdr(original, 27, b"\x01"),  # filter
             mutate_ihdr(original, 28, b"\x02"),  # interlace
@@ -124,6 +138,36 @@ class PrivateIHDRBoundaryTests(unittest.TestCase):
         original = self.reader.raw
         self.reader.raw = original + b"trailing-forged-bytes"
         self.assertEqual(self.response()[:2], (503, b""))
+        self.reader.raw = original
+        self.assertEqual(self.response()[0], 200)
+
+    def test_transparency_chunk_order_and_size_are_fail_closed(self):
+        original = self.reader.raw
+
+        def chunk(kind, payload):
+            return (len(payload).to_bytes(4, "big") + kind + payload
+                    + (crc32(kind + payload) & 0xffffffff).to_bytes(4, "big"))
+
+        # The RGB synthetic fixture permits one six-byte tRNS before IDAT.
+        valid = chunk(b"tRNS", bytes((0, 1, 0, 2, 0, 3)))
+        self.reader.raw = original[:33] + valid + original[33:]
+        self.assertEqual(self.response()[0], 200)
+
+        invalid = [
+            original[:33] + valid + valid + original[33:],
+            original[:-12] + valid + original[-12:],
+            original[:33] + chunk(b"tRNS", bytes((0, 1))) + original[33:],
+            original[:33] + chunk(b"tRNS", b"") + original[33:],
+            # Indexed transparency without a palette cannot be authorized.
+            mutate_ihdr(original, 25, bytes((3,)))[:33] + valid +
+            mutate_ihdr(original, 25, bytes((3,)))[33:],
+        ]
+        for forged in invalid:
+            self.reader.raw = forged
+            with self.subTest(length=len(forged), digest=sha256(forged).hexdigest()):
+                status, body, headers = self.response()
+                self.assertEqual((status, body), (503, b""))
+                self.assertEqual(headers["Vary"], "Authorization")
         self.reader.raw = original
         self.assertEqual(self.response()[0], 200)
 
