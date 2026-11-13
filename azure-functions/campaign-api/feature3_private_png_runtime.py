@@ -109,6 +109,12 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                         shop_id != bound_shop or job_id != bound_job):
                     raise PrivateGeneratedDownloadDenied(
                         "Private generated output unavailable")
+                # A caller-provided token must be a primitive string. Reject
+                # objects with side-effecting string/equality behavior before
+                # JWT, RLS, rights or private Storage access.
+                if type(user_token) is not str or not user_token:
+                    raise PrivateGeneratedDownloadDenied(
+                        "Private generated output unavailable")
                 # Revalidate at use time as well as construction time: a
                 # cached scoped reader may outlive a rotated/mutated store.
                 # Deny before invoking JWT verification or any RLS/byte read.
