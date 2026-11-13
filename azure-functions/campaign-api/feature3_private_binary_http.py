@@ -9,6 +9,7 @@ a private image. Existing 60-second signed URLs cannot be retroactively revoked.
 from __future__ import annotations
 
 from hashlib import sha256
+from uuid import UUID
 import re
 from zlib import crc32
 
@@ -134,14 +135,23 @@ class Feature3PrivateBinaryHTTP:
         if (type(authorization) is not str or
                 not authorization.startswith("Bearer ") or
                 not 12<=len(authorization)<=8200 or
-                any(ord(c)<33 or ord(c)==127 for c in authorization[7:])):
+                any(ord(c)<33 or ord(c)>126 for c in authorization[7:]) or
+                any(c in authorization[7:] for c in (",", ";", '"', "\\"))):
             return self._deny(401)
         token=authorization[7:]
         if token.startswith(("sb_secret_","sb_publishable_")):
             return self._deny(401)
+        # Do not normalize an alternate tenant/job spelling into a trusted
+        # scope. Reject malformed or non-v4 route IDs before JWT/RLS/Storage.
+        if (type(shop_id) is not str or type(job_id) is not str or
+                len(shop_id)!=36 or len(job_id)!=36):
+            return self._deny(404)
         try:
             shop=canonical_uuid(shop_id)
             job=canonical_uuid(job_id)
+            if (shop!=shop_id or job!=job_id or
+                    UUID(shop).version!=4 or UUID(job).version!=4):
+                return self._deny(404)
             receipt=self.reader.read(user_token=token,shop_id=shop,job_id=job)
         except (PrivateGeneratedDownloadDenied,ValueError,TypeError,KeyError):
             return self._deny(404)
@@ -161,7 +171,9 @@ class Feature3PrivateBinaryHTTP:
                 return self._deny(503)
             if type(receipt.get("media_asset_id")) is not str:
                 return self._deny(503)
-            canonical_uuid(receipt["media_asset_id"])
+            asset_id=canonical_uuid(receipt["media_asset_id"])
+            if asset_id!=receipt["media_asset_id"] or UUID(asset_id).version!=4:
+                return self._deny(503)
             raw=receipt.get("image_bytes")
             digest=receipt.get("image_sha256")
             if (type(raw) is not bytes or not 100<=len(raw)<=_MAX or
