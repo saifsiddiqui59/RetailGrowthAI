@@ -90,7 +90,7 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
             verify_user_jwt=verifier,
             current_output_rights=rights,
         )
-        bound_shop, bound_job = shop_id, job_id
+        # Constructor hooks may read or mutate the injected store. Refuse to\n        # hand out a scoped reader if project identity changed during setup.\n        if not project_matches():\n            raise ValueError("Tenant store project changed during reader construction")\n        bound_shop, bound_job = shop_id, job_id
 
         class ScopedPrivatePNGReader:
             """Prevent accidental reuse of this reader for another route scope."""
