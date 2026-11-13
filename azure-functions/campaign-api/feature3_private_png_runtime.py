@@ -51,6 +51,19 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
         expected_output_sha256=expected_output_sha256,
         minimum_rights_revision=minimum_rights_revision,
     )
+    def project_matches():
+        """Fail closed on unreadable or rotated injected project credentials."""
+        try:
+            first_origin = store.origin
+            key = store.key
+            last_origin = store.origin
+        except Exception:
+            return False
+        return (type(first_origin) is str and type(key) is str and
+                type(last_origin) is str and
+                first_origin == supabase_origin.rstrip("/") and
+                key == publishable_key and last_origin == first_origin)
+
     # Reader constructor checks exact HTTPS Supabase origin, publishable
     # key and RLS read methods. Never silently fall back to a mock reader.
     def factory(shop_id, job_id):
@@ -65,10 +78,7 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
         # A long-lived server factory must not accept a store whose project
         # configuration was replaced after the initial trusted composition.
         # Re-check before any JWT, RLS, rights or Storage operation.
-        if (type(getattr(store, "origin", None)) is not str or
-                type(getattr(store, "key", None)) is not str or
-                store.origin != supabase_origin.rstrip("/") or
-                store.key != publishable_key):
+        if not project_matches():
             raise ValueError("Tenant store project changed after composition")
         reader = Feature3RevocablePNGReader(
             tenant_store=store,
@@ -89,14 +99,16 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                 # Revalidate at use time as well as construction time: a
                 # cached scoped reader may outlive a rotated/mutated store.
                 # Deny before invoking JWT verification or any RLS/byte read.
-                if (type(getattr(store, "origin", None)) is not str or
-                        type(getattr(store, "key", None)) is not str or
-                        store.origin != supabase_origin.rstrip("/") or
-                        store.key != publishable_key):
+                if not project_matches():
                     raise PrivateGeneratedDownloadDenied(
                         "Private generated output unavailable")
-                return reader.read(user_token=user_token,
-                                   shop_id=bound_shop, job_id=bound_job)
+                result = reader.read(user_token=user_token,
+                                     shop_id=bound_shop, job_id=bound_job)
+                # Deny bytes if the backend changed project during JWT/RLS/IO.
+                if not project_matches():
+                    raise PrivateGeneratedDownloadDenied(
+                        "Private generated output unavailable")
+                return result
 
         return ScopedPrivatePNGReader()
     return factory
