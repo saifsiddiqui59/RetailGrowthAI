@@ -44,7 +44,7 @@ export function bindVoiceStudioReview({
       'model_id','active','expires_at_ms'].map(field=>[field,
       Object.getOwnPropertyDescriptor(lease,field).value]));
   // Only a trusted worker may supply the lease and independently checked hashes.
-  deny(review?.schema==='retailgrowth.feature7-voicestudio-asr-reviewSnapshot.v1' &&
+  deny(reviewSnapshot.schema==='retailgrowth.feature7-voicestudio-asr-review.v1' &&
     reviewSnapshot.approved===false && reviewSnapshot.renderable===false &&
     reviewSnapshot.requires_feature7_signed_evidence===true &&
     reviewSnapshot.word_timings_present===true &&
