@@ -29,3 +29,9 @@ Source-only, model OFF, no GPU/paid provider, hosted DEV/PROD or WineShopPOS cha
 - Added four post-storage-get revocation regression cases for commercial rights, publish approval, private visibility and review state in commit `66d461a4eae3b06d839b9386a0d0be4e3c0db63f` on PR #937. No runtime/cloud/model changes.
 - Prior head `3bea13d347ea45ffaf07c0dd3a4b2a6adeef36c8` had four successful GitHub Actions jobs (run 43462581416). This is NOT evidence for the new head.
 - **NEXT CODE ACTION:** inspect exact final PR head, run targeted `python -m pytest -q tests/ai/test_feature2_voicestudio_review_audio.py tests/ai/test_feature2_voicestudio_riff_envelope.py`, fix any failure, verify four exact-head Actions jobs. Then reconcile stacked parent/current main only after reviewing changed paths; obtain independent security review before protected merge. Do not deploy SQL, cloud, GPU or paid model.
+
+
+## 2026-11-14 F2-19/F2-20 PCM format enforcement
+- Source commit `d1cdba9f29dae3fa72f5d6da0cb0d48b14d1d804`: enforce literal PCM format tag 1 and 16-bit fmt depth before private review disclosure, independent of Python wave decoder behavior.
+- Regression commit `532c631d790bfb1e446ec08f60d186a14a352704`: four matching-SHA malformed WAV format cases (float, extensible, 8/32-bit). Source-only; no model, SQL migration, cloud deployment or WineShopPOS change.
+- **NEXT CODE ACTION:** on exact current PR #937 head run `python -m pytest -q tests/ai/test_feature2_voicestudio_review_audio.py tests/ai/test_feature2_voicestudio_riff_envelope.py`, inspect exact-head four mandatory CI jobs and fix any failures; check latest main and protected PR #920/#923/#925 before reconciliation. Stacked draft PR #937 cannot be direct-main merged and independent security review is still mandatory. Verify fresh main 4/4 after any eligible reviewed merge; do not mark F2-19/F2-20 DONE prematurely.
