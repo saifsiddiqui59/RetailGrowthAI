@@ -129,6 +129,28 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
                           source_sha256=sha256(malformed).hexdigest())
             self.assertEqual(self.calls, [])
 
+    def test_large_riff_metadata_denied_without_private_audio_egress(self):
+        # Self-consistent RIFF metadata must not consume the entire WAV budget.
+        # Keep the real original PCM payload and hash valid in both cases.
+        def with_junk(size):
+            chunk = b"JUNK" + size.to_bytes(4, "little") + b"x" * size
+            raw = bytearray(self.original[:36] + chunk + self.original[36:])
+            raw[4:8] = (len(raw) - 8).to_bytes(4, "little")
+            return bytes(raw)
+
+        # Below the bound is permitted and retains original word timings.
+        accepted = with_junk(1024)
+        self.assertEqual(self.call(original_wav=accepted,
+                         source_sha256=sha256(accepted).hexdigest())["language"], "hi")
+        self.assertEqual(len(self.calls), 1)
+        self.calls.clear()
+        # A 1 MiB JUNK chunk plus fmt metadata exceeds the cumulative bound.
+        oversized = with_junk(1024 * 1024)
+        with self.assertRaises(VoiceStudioTranscriptionDenied):
+            self.call(original_wav=oversized,
+                      source_sha256=sha256(oversized).hexdigest())
+        self.assertEqual(self.calls, [])
+
     def test_zero_sample_rate_wav_fails_closed_without_egress(self):
         # RIFF header may be structurally readable while PCM rate is zero.
         # The worker must raise its domain denial, never ZeroDivisionError.
