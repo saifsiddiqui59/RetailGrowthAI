@@ -69,6 +69,11 @@ export function bindVoiceStudioReview({
   deny(Array.isArray(reviewSnapshot.words) && reviewSnapshot.words.length>=1 &&
     reviewSnapshot.words.length<=2000 && typeof reviewSnapshot.text==='string' &&
     reviewSnapshot.text.length<=20000 && reviewSnapshot.text.trim().length>0,'Missing real word timings');
+  // Pin the indexed word identities before normalization. A mutable array can
+  // replace an element without changing the review's `words` reference; never
+  // sign a transcript derived from a list that changed mid-operation.
+  const wordIdentities=Array.from({length:reviewSnapshot.words.length},(_,i)=>
+    Object.getOwnPropertyDescriptor(reviewSnapshot.words,String(i))?.value);
   // Validate each word's own data descriptors before the normalizer reads it.
   // Accessor-backed timestamps or text must not execute inside a signing path.
   for (let i=0;i<reviewSnapshot.words.length;i++) {
@@ -82,6 +87,12 @@ export function bindVoiceStudioReview({
     source_duration_seconds,
     transcript:{segments:[{words:reviewSnapshot.words}]}
   });
+  deny(reviewSnapshot.words.length===wordIdentities.length &&
+    wordIdentities.every((word,i)=>{
+      const descriptor=Object.getOwnPropertyDescriptor(reviewSnapshot.words,String(i));
+      return descriptor && Object.hasOwn(descriptor,'value') &&
+        Object.is(descriptor.value,word);
+    }), 'VoiceStudio word list changed during normalization');
   // Reject a review whose identity, word-list reference or approval flags were
   // changed while untrusted word objects were being normalized.
   requireOwnDataFields(review,reviewFields);
