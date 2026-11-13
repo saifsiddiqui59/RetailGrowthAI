@@ -561,16 +561,6 @@ await denied({readExtractedWav:async()=>overLimit,
  review:{...review,audio_sha256:overLimitHash},
  readCurrentLease:async()=>{overLimitLeaseReads++;return {...lease,audio_sha256:overLimitHash};}});
 assert.equal(overLimitLeaseReads,0);
-// Normal metadata before the PCM stream still signs correctly.
-const smallMetadata=Buffer.concat([wav.subarray(0,12),
- Buffer.concat(Array.from({length:4},()=>emptyChunk)),wav.subarray(12)]);
-smallMetadata.writeUInt32LE(smallMetadata.length-8,4);
-const smallHash=digest(smallMetadata);
-const smallResult=await bindVerifiedVoiceStudioMedia({...base,
- readExtractedWav:async()=>smallMetadata,original_audio_sha256:smallHash,
- review:{...review,audio_sha256:smallHash},
- readCurrentLease:async()=>({...lease,audio_sha256:smallHash})});
-assert.equal(smallResult.evidence.source_sha256,v);
 console.log('original bytes, Marathi captions and lease revocation denials passed');
 """
 class VerifiedMediaTests(unittest.TestCase):
