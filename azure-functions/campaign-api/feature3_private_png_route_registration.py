@@ -42,15 +42,17 @@ def build_private_png_blueprint(*, azure_functions, reader_factory):
     # Azure's ANONYMOUS host setting is NOT user authorization. The route
     # always delegates to the JWT/RLS/current-rights reader and fails closed.
     # No function key or admin credential is ever a substitute for user JWT.
-    @route_decorator(route=ROUTE, methods=["GET"],
-                     auth_level=auth_level.ANONYMOUS)
     def feature3_private_png(request):
         return handle_private_png_request(
             request, reader_factory=reader_factory, response_type=response_type
         )
 
-    # A malformed decorator may silently discard the handler or replace it
-    # with a non-callable object. Reject that contract before opt-in mounting.
-    if not callable(feature3_private_png):
-        raise ValueError("Azure Functions route registration discarded handler")
+    # Do not allow a host shim/decorator to replace this security boundary
+    # with a different callable. A callable replacement could bypass the
+    # injected reader even though a simple callable() check would pass.
+    decorated = route_decorator(
+        route=ROUTE, methods=["GET"], auth_level=auth_level.ANONYMOUS
+    )(feature3_private_png)
+    if decorated is not feature3_private_png:
+        raise ValueError("Azure Functions route registration replaced private handler")
     return blueprint
