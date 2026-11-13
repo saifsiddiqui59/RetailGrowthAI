@@ -108,6 +108,23 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                 with self.assertRaisesRegex(CreativeContractError, "manifest changed"):
                     self.call(draft, snapshot, receipt, data)
 
+    def test_compiler_rejects_windows_device_narration_worker_paths(self):
+        # The worker may stage on Windows or a case-insensitive mounted volume.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        for unsafe in ("assets/CON.wav", "assets/nul.wav", "assets/COM1.wav",
+                       "assets/LPT9.wav", "assets/voice./render.wav"):
+            draft, snapshot, receipt, data = self.setup_case()
+            def forged(*args):
+                result = original(*args)
+                result["manifest"]["assets"][draft["voiceover_asset_id"]]["path"] = unsafe
+                return result
+            with self.subTest(path=unsafe), patch.object(
+                    adapter, "compile_approved_storyboard", side_effect=forged):
+                with self.assertRaisesRegex(CreativeContractError, "manifest changed"):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_compiler_cannot_alias_private_voice_worker_path_with_other_media(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
