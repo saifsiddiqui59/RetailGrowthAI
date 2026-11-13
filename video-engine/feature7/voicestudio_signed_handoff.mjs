@@ -32,7 +32,13 @@ export function bindVoiceStudioReview({
     'model_revision_verified_by_worker','language','audio_sha256','words','text']);
   requireOwnDataFields(lease,['shop_id','asset_id','job_id','source_sha256',
     'audio_sha256','model_id','active','expires_at_ms']);
-  // Snapshot authoritative lease fields once: later word normalization may invoke\n  // other code, so never re-read a mutable lease after initial validation.\n  const leaseSnapshot=Object.fromEntries(\n    ['shop_id','asset_id','job_id','source_sha256','audio_sha256',\n      'model_id','active','expires_at_ms'].map(field=>[field,\n      Object.getOwnPropertyDescriptor(lease,field).value]));\n  // Only a trusted worker may supply the lease and independently checked hashes.
+  // Snapshot authoritative lease fields once: later word normalization may invoke
+  // other code, so never re-read a mutable lease after initial validation.
+  const leaseSnapshot=Object.fromEntries(
+    ['shop_id','asset_id','job_id','source_sha256','audio_sha256',
+      'model_id','active','expires_at_ms'].map(field=>[field,
+      Object.getOwnPropertyDescriptor(lease,field).value]));
+  // Only a trusted worker may supply the lease and independently checked hashes.
   deny(review?.schema==='retailgrowth.feature7-voicestudio-asr-review.v1' &&
     review.approved===false && review.renderable===false &&
     review.requires_feature7_signed_evidence===true &&
@@ -48,7 +54,12 @@ export function bindVoiceStudioReview({
     Number.isSafeInteger(now_ms) && now_ms>=0 &&
     Number.isSafeInteger(now_ms+600000),
     'Untrusted VoiceStudio review or source');
-  deny(leaseSnapshot.shop_id===shop_id && leaseSnapshot.asset_id===asset_id &&\n    leaseSnapshot.job_id===job_id && leaseSnapshot.source_sha256===original_video_sha256 &&\n    leaseSnapshot.audio_sha256===original_audio_sha256 &&\n    leaseSnapshot.model_id===model_id && leaseSnapshot.active===true &&\n    Number.isSafeInteger(leaseSnapshot.expires_at_ms) &&\n    leaseSnapshot.expires_at_ms>now_ms && leaseSnapshot.expires_at_ms<=now_ms+600000,
+  deny(leaseSnapshot.shop_id===shop_id && leaseSnapshot.asset_id===asset_id &&
+    leaseSnapshot.job_id===job_id && leaseSnapshot.source_sha256===original_video_sha256 &&
+    leaseSnapshot.audio_sha256===original_audio_sha256 &&
+    leaseSnapshot.model_id===model_id && leaseSnapshot.active===true &&
+    Number.isSafeInteger(leaseSnapshot.expires_at_ms) &&
+    leaseSnapshot.expires_at_ms>now_ms && leaseSnapshot.expires_at_ms<=now_ms+600000,
     'Missing active exact-source ASR lease');
   deny(Array.isArray(review.words) && review.words.length>=1 &&
     review.words.length<=2000 && typeof review.text==='string' &&
@@ -66,7 +77,13 @@ export function bindVoiceStudioReview({
     source_duration_seconds,
     transcript:{segments:[{words:review.words}]}
   });
-  // Recheck after normalization: a mutable lease revoked mid-operation must\n  // never yield a signed transcript, even when the adapter reuses one object.\n  requireOwnDataFields(lease,Object.keys(leaseSnapshot));\n  deny(Object.entries(leaseSnapshot).every(([field,value])=>\n    Object.is(Object.getOwnPropertyDescriptor(lease,field).value,value)),\n    'ASR lease changed during transcript normalization');\n  const expires_at_ms=Math.min(leaseSnapshot.expires_at_ms,now_ms+600000);
+  // Recheck after normalization: a mutable lease revoked mid-operation must
+  // never yield a signed transcript, even when the adapter reuses one object.
+  requireOwnDataFields(lease,Object.keys(leaseSnapshot));
+  deny(Object.entries(leaseSnapshot).every(([field,value])=>
+    Object.is(Object.getOwnPropertyDescriptor(lease,field).value,value)),
+    'ASR lease changed during transcript normalization');
+  const expires_at_ms=Math.min(leaseSnapshot.expires_at_ms,now_ms+600000);
   const evidence=sealTranscriptEvidence({key,now_ms,data:{
     shop_id,asset_id,job_id,source_sha256:original_video_sha256,
     transcript_sha256:normalized.transcript_sha256,model_id,
