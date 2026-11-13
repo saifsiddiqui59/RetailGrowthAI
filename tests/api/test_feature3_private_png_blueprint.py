@@ -32,6 +32,15 @@ class BlueprintTests(unittest.TestCase):
             Blueprint=Blueprint, HttpResponse=Response,
             AuthLevel=SimpleNamespace(ANONYMOUS="anonymous"))
 
+    def test_optional_route_matches_existing_fail_closed_registration(self):
+        # Static source contract: never introduce a second public path for
+        # the same private asset or accidentally enable an unreviewed reader.
+        source = (Path(__file__).resolve().parents[2] / "azure-functions" /
+                  "campaign-api" / "function_app.py").read_text(encoding="utf-8")
+        self.assertIn('route="' + ROUTE + '"', source)
+        self.assertIn("reader_factory=None, response_type=func.HttpResponse", source)
+        self.assertNotIn("register_blueprint", source)
+
     def test_untrusted_factory_or_incomplete_host_contract_refused(self):
         for factory in (None, object(), "browser-rights"):
             with self.assertRaises(ValueError):
