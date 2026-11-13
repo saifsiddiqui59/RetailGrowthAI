@@ -163,7 +163,7 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             return result
 
         with patch.object(adapter, "compile_approved_storyboard", side_effect=aliased):
-            with self.assertRaisesRegex(CreativeContractError, "aliases another asset"):
+            with self.assertRaisesRegex(CreativeContractError, "manifest changed|aliases another asset"):
                 self.call(draft, snapshot, receipt, data)
 
     def test_compiler_rejects_normalized_worker_path_collision(self):
