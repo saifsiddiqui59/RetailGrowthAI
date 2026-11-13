@@ -44,15 +44,15 @@ export function bindVoiceStudioReview({
       'model_id','active','expires_at_ms'].map(field=>[field,
       Object.getOwnPropertyDescriptor(lease,field).value]));
   // Only a trusted worker may supply the lease and independently checked hashes.
-  deny(review?.schema==='retailgrowth.feature7-voicestudio-asr-review.v1' &&
-    review.approved===false && review.renderable===false &&
-    review.requires_feature7_signed_evidence===true &&
-    review.word_timings_present===true &&
-    review.model_revision_verified_by_worker===false &&
-    ['en','hi','mr'].includes(review.language) &&
+  deny(review?.schema==='retailgrowth.feature7-voicestudio-asr-reviewSnapshot.v1' &&
+    reviewSnapshot.approved===false && reviewSnapshot.renderable===false &&
+    reviewSnapshot.requires_feature7_signed_evidence===true &&
+    reviewSnapshot.word_timings_present===true &&
+    reviewSnapshot.model_revision_verified_by_worker===false &&
+    ['en','hi','mr'].includes(reviewSnapshot.language) &&
     SHA.test(original_video_sha256??'') &&
     SHA.test(original_audio_sha256??'') &&
-    review.audio_sha256===original_audio_sha256 &&
+    reviewSnapshot.audio_sha256===original_audio_sha256 &&
     [shop_id,asset_id,job_id,model_id].every(v=>typeof v==='string'&&ID.test(v)) &&
     Number.isFinite(source_duration_seconds) &&
     source_duration_seconds>0 && source_duration_seconds<=180 &&
@@ -66,21 +66,21 @@ export function bindVoiceStudioReview({
     Number.isSafeInteger(leaseSnapshot.expires_at_ms) &&
     leaseSnapshot.expires_at_ms>now_ms && leaseSnapshot.expires_at_ms<=now_ms+600000,
     'Missing active exact-source ASR lease');
-  deny(Array.isArray(review.words) && review.words.length>=1 &&
-    review.words.length<=2000 && typeof review.text==='string' &&
-    review.text.length<=20000 && review.text.trim().length>0,'Missing real word timings');
+  deny(Array.isArray(reviewSnapshot.words) && reviewSnapshot.words.length>=1 &&
+    reviewSnapshot.words.length<=2000 && typeof reviewSnapshot.text==='string' &&
+    reviewSnapshot.text.length<=20000 && reviewSnapshot.text.trim().length>0,'Missing real word timings');
   // Validate each word's own data descriptors before the normalizer reads it.
   // Accessor-backed timestamps or text must not execute inside a signing path.
-  for (let i=0;i<review.words.length;i++) {
-    deny(Object.hasOwn(review.words,i),'Sparse VoiceStudio word list');
-    requireOwnDataFields(review.words[i],['word','start','end']);
+  for (let i=0;i<reviewSnapshot.words.length;i++) {
+    deny(Object.hasOwn(reviewSnapshot.words,i),'Sparse VoiceStudio word list');
+    requireOwnDataFields(reviewSnapshot.words[i],['word','start','end']);
   }
   // Normalize through the existing transcript hash contract; never sign the
   // audio digest in place of the original VIDEO digest.
   const normalized=normalizeWhisperx({
     shop_id,asset_id,source_sha256:original_video_sha256,
     source_duration_seconds,
-    transcript:{segments:[{words:review.words}]}
+    transcript:{segments:[{words:reviewSnapshot.words}]}
   });
   // Reject a review whose identity, word-list reference or approval flags were
   // changed while untrusted word objects were being normalized.
@@ -108,7 +108,7 @@ export function bindVoiceStudioReview({
   return Object.freeze({
     schema:'retailgrowth.feature7-voicestudio-signed-review.v1',
     shop_id,asset_id,job_id,original_video_sha256,original_audio_sha256,
-    language:review.language,transcript:normalized,evidence,
+    language:reviewSnapshot.language,transcript:normalized,evidence,
     // Export only canonical, validated words; never re-emit arbitrary ASR object
     // properties (including attacker-supplied metadata) as trusted evidence.
     whisperx_json:{segments:[{words:normalized.words.map(w=>({
