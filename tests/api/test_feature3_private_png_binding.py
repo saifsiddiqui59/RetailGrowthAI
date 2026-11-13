@@ -152,6 +152,37 @@ class PrivatePNGCompositionTests(unittest.TestCase):
                                 shop_id=self.shop, job_id=self.job)
                 self.assertEqual(calls, [])
 
+    def test_rotation_during_reader_construction_fails_before_reader_is_returned(self):
+        from unittest.mock import patch
+
+        for field, replacement in (
+            ("origin", "https://other-project.supabase.co"),
+            ("key", "sb_publishable_" + "z" * 24),
+        ):
+            with self.subTest(field=field):
+                tenant = SyntheticTenant()
+                calls = []
+
+                class RotatingReader:
+                    def __init__(self, **kwargs):
+                        calls.append("construct")
+                        setattr(tenant, field, replacement)
+
+                    def read(self, **kwargs):
+                        calls.append("read")
+                        return b"synthetic-private-bytes"
+
+                with patch("feature3_private_png_binding.Feature3RevocablePNGReader",
+                           RotatingReader):
+                    factory = self.make(
+                        lambda *args: calls.append("rights"),
+                        verifier=lambda token: calls.append("jwt"),
+                        tenant=tenant,
+                    )
+                    with self.assertRaisesRegex(ValueError, "during reader construction"):
+                        factory(self.shop, self.job)
+                self.assertEqual(calls, ["construct"])
+
     def test_project_rotation_during_byte_read_denies_returned_bytes(self):
         from unittest.mock import patch
         from feature3_private_png_reader import PrivateGeneratedDownloadDenied
