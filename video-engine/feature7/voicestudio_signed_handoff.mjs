@@ -74,6 +74,7 @@ export function bindVoiceStudioReview({
   // sign a transcript derived from a list that changed mid-operation.
   const wordIdentities=Array.from({length:reviewSnapshot.words.length},(_,i)=>
     Object.getOwnPropertyDescriptor(reviewSnapshot.words,String(i))?.value);
+  const wordSnapshots=[];
   // Validate each word's own data descriptors before the normalizer reads it.
   // Accessor-backed timestamps or text must not execute inside a signing path.
   for (let i=0;i<reviewSnapshot.words.length;i++) {
@@ -84,6 +85,7 @@ export function bindVoiceStudioReview({
     const word=reviewSnapshot.words[i];
     const value=Object.fromEntries(['word','start','end'].map(field=>
       [field,Object.getOwnPropertyDescriptor(word,field).value]));
+    wordSnapshots.push(value);
     deny(typeof value.word==='string' && value.word.trim().length>0 &&
       value.word.length<=120 && typeof value.start==='number' &&
       typeof value.end==='number' && Number.isFinite(value.start) &&
@@ -98,6 +100,16 @@ export function bindVoiceStudioReview({
     source_duration_seconds,
     transcript:{segments:[{words:reviewSnapshot.words}]}
   });
+  // Recheck every word field: a Proxy may mutate a sibling word's timing or
+  // text while the normalizer reads an earlier word without replacing slots.
+  deny(wordSnapshots.every((snapshot,i)=>{
+    const word=reviewSnapshot.words[i];
+    return ['word','start','end'].every(field=>{
+      const descriptor=Object.getOwnPropertyDescriptor(word,field);
+      return descriptor && Object.hasOwn(descriptor,'value') &&
+        Object.is(descriptor.value,snapshot[field]);
+    });
+  }), 'VoiceStudio word fields changed during normalization');
   deny(reviewSnapshot.words.length===wordIdentities.length &&
     wordIdentities.every((word,i)=>{
       const descriptor=Object.getOwnPropertyDescriptor(reviewSnapshot.words,String(i));
