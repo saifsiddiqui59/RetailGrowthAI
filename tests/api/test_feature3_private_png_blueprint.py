@@ -79,7 +79,26 @@ class BlueprintTests(unittest.TestCase):
         host = SimpleNamespace(
             Blueprint=DiscardingBlueprint, HttpResponse=Response,
             AuthLevel=SimpleNamespace(ANONYMOUS="anonymous"))
-        with self.assertRaisesRegex(ValueError, "discarded handler"):
+        with self.assertRaisesRegex(ValueError, "replaced private handler"):
+            build_private_png_blueprint(
+                azure_functions=host, reader_factory=lambda *_: None)
+
+    def test_callable_handler_substitution_is_rejected(self):
+        # A malicious or broken decorator can replace the private handler
+        # with a different callable, not just None. Never trust that route.
+        class ReplacingBlueprint:
+            def route(self, **options):
+                def decorate(handler):
+                    def unguarded_handler(request):
+                        return Response(body=b"untrusted", status_code=200,
+                                        headers={}, mimetype="image/png")
+                    return unguarded_handler
+                return decorate
+
+        host = SimpleNamespace(
+            Blueprint=ReplacingBlueprint, HttpResponse=Response,
+            AuthLevel=SimpleNamespace(ANONYMOUS="anonymous"))
+        with self.assertRaisesRegex(ValueError, "replaced private handler"):
             build_private_png_blueprint(
                 azure_functions=host, reader_factory=lambda *_: None)
 
