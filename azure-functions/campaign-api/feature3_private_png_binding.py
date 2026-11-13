@@ -65,6 +65,8 @@ def build_private_png_reader_factory(*, origin, publishable_key,
         if not project_matches():
             raise ValueError("Tenant store project changed after composition")
         # Fail before constructing the private reader on malformed route scope.
+        if type(shop_id) is not str or type(job_id) is not str:
+            raise ValueError("Route scope must be exact UUID strings")
         scoped_shop = canonical_uuid(shop_id)
         scoped_job = canonical_uuid(job_id)
         # Bind each reader to its factory scope, even if a later caller
