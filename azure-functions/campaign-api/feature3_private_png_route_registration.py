@@ -28,12 +28,17 @@ def build_private_png_blueprint(*, azure_functions, reader_factory):
             auth_level is None or not hasattr(auth_level, "ANONYMOUS")):
         raise ValueError("Azure Functions Blueprint/response contract required")
 
+    # Fail before registration if a malformed host shim cannot provide a
+    # genuine decorator. Never silently publish an unguarded HTTP handler.
     blueprint = blueprint_type()
+    route_decorator = getattr(blueprint, "route", None)
+    if not callable(route_decorator):
+        raise ValueError("Azure Functions Blueprint route decorator required")
 
     # Azure's ANONYMOUS host setting is NOT user authorization. The route
     # always delegates to the JWT/RLS/current-rights reader and fails closed.
     # No function key or admin credential is ever a substitute for user JWT.
-    @blueprint.route(route=ROUTE, methods=["GET"],
+    @route_decorator(route=ROUTE, methods=["GET"],
                      auth_level=auth_level.ANONYMOUS)
     def feature3_private_png(request):
         return handle_private_png_request(
