@@ -30,6 +30,11 @@ export function bindVoiceStudioReview({
   requireOwnDataFields(review,['schema','approved','renderable',
     'requires_feature7_signed_evidence','word_timings_present',
     'model_revision_verified_by_worker','language','audio_sha256','words','text']);
+  const reviewFields=['schema','approved','renderable',
+    'requires_feature7_signed_evidence','word_timings_present',
+    'model_revision_verified_by_worker','language','audio_sha256','words','text'];
+  const reviewSnapshot=Object.fromEntries(reviewFields.map(field=>[field,
+    Object.getOwnPropertyDescriptor(review,field).value]));
   requireOwnDataFields(lease,['shop_id','asset_id','job_id','source_sha256',
     'audio_sha256','model_id','active','expires_at_ms']);
   // Snapshot authoritative lease fields once: later word normalization may invoke
@@ -77,6 +82,12 @@ export function bindVoiceStudioReview({
     source_duration_seconds,
     transcript:{segments:[{words:review.words}]}
   });
+  // Reject a review whose identity, word-list reference or approval flags were
+  // changed while untrusted word objects were being normalized.
+  requireOwnDataFields(review,reviewFields);
+  deny(Object.entries(reviewSnapshot).every(([field,value])=>
+    Object.is(Object.getOwnPropertyDescriptor(review,field).value,value)),
+    'VoiceStudio review changed during transcript normalization');
   // Recheck after normalization: a mutable lease revoked mid-operation must
   // never yield a signed transcript, even when the adapter reuses one object.
   requireOwnDataFields(lease,Object.keys(leaseSnapshot));
