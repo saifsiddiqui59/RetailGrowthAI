@@ -97,6 +97,19 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
                     self.call(**case)
                 self.assertEqual(self.calls,[])
 
+    def test_riff_declared_length_mismatch_denied_without_egress(self):
+        # A valid WAV decoder may ignore trailing bytes or RIFF size tampering.
+        # Never send those noncanonical original bytes to the ASR endpoint.
+        cases = [self.original + b"extra",
+                 self.original[:-2],
+                 self.original[:4] + (len(self.original) - 9).to_bytes(4, "little") + self.original[8:]]
+        for malformed in cases:
+            self.calls.clear()
+            with self.subTest(length=len(malformed)), self.assertRaises(VoiceStudioTranscriptionDenied):
+                self.call(original_wav=malformed,
+                          source_sha256=sha256(malformed).hexdigest())
+            self.assertEqual(self.calls, [])
+
     def test_zero_sample_rate_wav_fails_closed_without_egress(self):
         # RIFF header may be structurally readable while PCM rate is zero.
         # The worker must raise its domain denial, never ZeroDivisionError.
