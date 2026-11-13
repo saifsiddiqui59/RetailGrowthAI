@@ -393,6 +393,28 @@ def test_digest_matching_non_wav_denied_even_with_swapped_storage_reader():
     assert len(sql.calls) == 1 and len(tenant.calls) == 1
 
 
+
+def test_digest_matching_wav_with_extra_riff_chunk_denied():
+    """Reject covert metadata chunks even when RIFF length and SHA are consistent."""
+    args, tenant, sql, storage, _ = harness()
+    original = pcm()
+    extra = b"JUNK" + (4).to_bytes(4, "little") + b"hide"
+    malformed = bytearray(original + extra)
+    malformed[4:8] = (len(malformed) - 8).to_bytes(4, "little")
+    payload = bytes(malformed)
+    reader = sql.read_private_receipt
+    def receipt(*ids):
+        result = reader(*ids)
+        result["original_sha256"] = sha256(payload).hexdigest()
+        return result
+    sql.read_private_receipt = receipt
+    storage.read_verified_original = lambda *ids: payload
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1 and len(tenant.calls) == 1
+
+
+
 def test_digest_matching_wav_with_hidden_trailing_bytes_denied():
     args, tenant, sql, storage, _ = harness()
     malicious = pcm() + b"hidden"
