@@ -223,6 +223,34 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(CreativeContractError, "aliases another asset"):
                 self.call(draft, snapshot, receipt, data)
 
+    def test_compiler_rejects_windows_trimmed_staging_aliases(self):
+        # Windows strips trailing dots/spaces from filename components and
+        # treats backslashes as separators; neither may alias approved WAV.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        for transform in (
+            lambda path: path + ".",
+            lambda path: path.replace("/", "\\\\"),
+            lambda path: path.replace("/", "/./"),
+        ):
+            draft, snapshot, receipt, data = self.setup_case()
+            aid = draft["voiceover_asset_id"]
+
+            def forged(*args):
+                output = original(*args)
+                other_id = next(key for key in output["manifest"]["assets"] if key != aid)
+                output["manifest"]["assets"][other_id]["path"] = transform(
+                    output["manifest"]["assets"][aid]["path"]
+                )
+                return output
+
+            with self.subTest(transform=transform), patch.object(
+                adapter, "compile_approved_storyboard", side_effect=forged
+            ):
+                with self.assertRaisesRegex(CreativeContractError, "aliases another asset"):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_compiler_cannot_retarget_approved_narration_scope(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
