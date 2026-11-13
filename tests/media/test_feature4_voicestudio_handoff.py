@@ -125,6 +125,30 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                 with self.assertRaisesRegex(CreativeContractError, "manifest changed"):
                     self.call(draft, snapshot, receipt, data)
 
+    def test_compiler_cannot_alias_private_voice_object_as_other_media(self):
+        # Distinct asset IDs and staging filenames must not share one private
+        # VoiceStudio object key, even when the worker paths differ.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        draft, snapshot, receipt, data = self.setup_case()
+        aid = draft["voiceover_asset_id"]
+
+        def forged(*args):
+            output = original(*args)
+            other_id = next(key for key in output["bundle"]["assets"] if key != aid)
+            output["bundle"]["assets"][other_id]["storage_bucket"] = (
+                output["bundle"]["assets"][aid]["storage_bucket"]
+            )
+            output["bundle"]["assets"][other_id]["object_path"] = (
+                output["bundle"]["assets"][aid]["object_path"]
+            )
+            return output
+
+        with patch.object(adapter, "compile_approved_storyboard", side_effect=forged):
+            with self.assertRaisesRegex(CreativeContractError, "object aliases another asset"):
+                self.call(draft, snapshot, receipt, data)
+
     def test_compiler_cannot_alias_private_voice_worker_path_with_other_media(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
