@@ -63,10 +63,12 @@ def build_private_png_reader_factory(*, origin, publishable_key,
         # property is being read. Re-read both values to reject that rotation
         # before handing out a reader or releasing private bytes.
         try:
-            return (type(user_store.origin) is str and
-                    type(user_store.key) is str and
-                    user_store.origin == origin and
-                    user_store.key == publishable_key)
+            second_origin = user_store.origin
+            second_key = user_store.key
+            final_origin = user_store.origin
+            return (type(second_origin) is str and type(second_key) is str and
+                    type(final_origin) is str and second_origin == origin and
+                    second_key == publishable_key and final_origin == origin)
         except Exception:
             return False
 
