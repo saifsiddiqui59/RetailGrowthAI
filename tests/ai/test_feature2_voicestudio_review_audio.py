@@ -1133,3 +1133,26 @@ def test_digest_matching_noncanonical_pcm_format_denied_before_second_authorizat
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1
     assert len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("field,revoked", [
+    ("commercial_rights_confirmed", False),
+    ("publish_approved", True),
+    ("private", False),
+    ("review_status", "APPROVED_FOR_EDITING"),
+])
+def test_review_rights_revoked_during_storage_get_never_disclose_audio(field, revoked):
+    """The second SQL read must revoke access even after a valid private GET."""
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def changing_receipt(*ids):
+        receipt = original(*ids)
+        if len(sql.calls) == 2:
+            receipt[field] = revoked
+        return receipt
+    sql.read_private_receipt = changing_receipt
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1
+    assert len(sql.calls) == 2
+    assert len(tenant.calls) == 1
