@@ -244,6 +244,9 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
             # Restrict the server-created worker path to unambiguous ASCII.
             # Unicode lookalikes and nonprinting marks are not needed for IDs.
             or not re.fullmatch(r"[A-Za-z0-9_./-]+", manifest_asset["path"])
+            # A verified PCM/WAV must not be handed to FFmpeg under a
+            # different container extension by a compromised compiler.
+            or not manifest_asset["path"].endswith(".wav")
             or manifest_asset.get("rights") != {
                 "license": before_asset["license_name"],
                 "commercial_use": True,
