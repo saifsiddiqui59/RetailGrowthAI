@@ -175,7 +175,7 @@ class RuntimeCompositionTests(unittest.TestCase):
             @property
             def key(self):
                 self.key_reads += 1
-                if self.key_reads == 3:
+                if self.key_reads == 4:
                     self._origin = "https://foreign-project.supabase.co"
                 return KEY
 
