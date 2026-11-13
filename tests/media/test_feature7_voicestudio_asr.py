@@ -97,6 +97,18 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
                     self.call(**case)
                 self.assertEqual(self.calls,[])
 
+    def test_zero_sample_rate_wav_fails_closed_without_egress(self):
+        # RIFF header may be structurally readable while PCM rate is zero.
+        # The worker must raise its domain denial, never ZeroDivisionError.
+        malformed = bytearray(self.original)
+        malformed[24:28] = (0).to_bytes(4, "little")
+        malformed[28:32] = (0).to_bytes(4, "little")
+        self.calls.clear()
+        with self.assertRaises(VoiceStudioTranscriptionDenied):
+            self.call(original_wav=bytes(malformed),
+                      source_sha256=sha256(malformed).hexdigest())
+        self.assertEqual(self.calls, [])
+
     def test_malformed_locale_inputs_never_egress(self):
         for language in ([], {}, 7, True, ["hi"], {"locale": "hi"}):
             self.calls.clear()
