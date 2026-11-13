@@ -180,6 +180,10 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
                 raise CreativeContractError("Narration timeline/profile does not match approved reel")
     except (EOFError, wave.Error) as exc:
         raise CreativeContractError("Malformed private narration WAV") from exc
+    # Never hand unverified private bytes to the compiler: the receipt digest
+    # binds the exact approved PCM object, not merely its WAV header/profile.
+    if sha256(original).hexdigest() != before["feature4_audio_sha256"]:
+        raise CreativeContractError("Private narration digest differs from approved receipt")
     if authoritative() != before or snapshot["assets"].get(asset_id) != before_asset:
         raise CreativeContractError("Narration approval or private asset changed during read")
     if draft != frozen_draft:
