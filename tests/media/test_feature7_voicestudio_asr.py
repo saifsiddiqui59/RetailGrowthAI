@@ -105,7 +105,7 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
             self.assertEqual(self.calls, [])
 
     def test_malformed_upstream_language_never_reaches_signed_review(self):
-        for reported in ("", "hi\\x00", "hi\\n", "\\ud800", [], {}, 42, True):
+        for reported in ("", "hi\x00", "hi\n", "\ud800", [], {}, 42, True):
             self.payload["language"] = reported
             def sender(req, timeout):
                 return Reply(json.dumps(self.payload, ensure_ascii=True).encode("ascii"))
