@@ -156,6 +156,28 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                     read_current_private_wav=lambda *_: reads.append("wav") or data)
             self.assertEqual(reads, [], "Invalid audio purpose must fail before private I/O")
 
+    def test_compiler_cannot_reuse_approved_voice_as_music_or_sfx(self):
+        # Input purpose checks alone cannot constrain future compiler output.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        for reuse in ("music", "sfx"):
+            draft, snapshot, receipt, data = self.setup_case()
+            aid = draft["voiceover_asset_id"]
+
+            def forged(*args):
+                result = original(*args)
+                if reuse == "music":
+                    result["request"]["music_asset_id"] = aid
+                else:
+                    result["request"].setdefault("scenes", [{}])[0]["sfx_asset_id"] = aid
+                return result
+
+            with self.subTest(reuse=reuse), patch.object(
+                    adapter, "compile_approved_storyboard", side_effect=forged):
+                with self.assertRaisesRegex(CreativeContractError, "cannot be reused"):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_foreign_and_unapproved_sources_rejected(self):
         mutations=[
             lambda d,s,r: d.update(shop_id=str(uuid4())),
