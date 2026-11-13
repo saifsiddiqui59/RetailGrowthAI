@@ -374,6 +374,50 @@ class PrivatePNGCompositionTests(unittest.TestCase):
                             job_id=self.job)
         self.assertEqual(calls, ["construct"])
 
+    def test_last_key_getter_rotation_denies_cached_reader_before_bytes(self):
+        from unittest.mock import patch
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+
+        class FinalKeyRotatesOrigin(SyntheticTenant):
+            def __init__(self):
+                self.current_origin = SyntheticTenant.origin
+                self.key_reads = 0
+                self.rotate = False
+
+            @property
+            def origin(self):
+                return self.current_origin
+
+            @property
+            def key(self):
+                self.key_reads += 1
+                # The third key getter is the final getter in the project
+                # snapshot; the origin must be checked AFTER that getter.
+                if self.rotate and self.key_reads == 3:
+                    self.current_origin = "https://foreign-project.supabase.co"
+                return SyntheticTenant.key
+
+        tenant = FinalKeyRotatesOrigin()
+        calls = []
+        class SyntheticReader:
+            def __init__(self, **kwargs):
+                calls.append("construct")
+            def read(self, **kwargs):
+                calls.append("private_bytes")
+                return b"synthetic-private-bytes"
+
+        with patch("feature3_private_png_binding.Feature3RevocablePNGReader", SyntheticReader):
+            factory = self.make(lambda *args: calls.append("rights"),
+                                verifier=lambda token: calls.append("jwt"),
+                                tenant=tenant)
+            cached = factory(self.shop, self.job)
+            tenant.key_reads = 0
+            tenant.rotate = True
+            with self.assertRaises(PrivateGeneratedDownloadDenied):
+                cached.read(user_token="synthetic-not-hosted",
+                            shop_id=self.shop, job_id=self.job)
+        self.assertEqual(calls, ["construct"])
+
     def test_reader_rejects_service_key_and_non_https_origin(self):
         tenant = SyntheticTenant()
         tenant.key = "service-role-key"
