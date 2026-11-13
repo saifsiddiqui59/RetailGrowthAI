@@ -79,6 +79,25 @@ for (const field of ['word','start','end']) {
   assert.equal(calls,0,field);
 }
 reject({review:{...review,words:[,review.words[1]]}});
+// A lease revoked while a word is normalized cannot be signed. A Proxy can
+// mutate the authoritative lease without exposing an accessor descriptor.
+for (const field of ['active','shop_id','expires_at_ms']) {
+  const mutable={...lease};
+  let changed=false;
+  const word=new Proxy({...review.words[0]},{
+    get(target,property,receiver) {
+      if (property==='word' && !changed) {
+        changed=true;
+        mutable[field]=field==='active'?false:
+          field==='shop_id'?'foreign':now-1;
+      }
+      return Reflect.get(target,property,receiver);
+    }
+  });
+  reject({lease:mutable,review:{...review,words:[word,review.words[1]]}});
+  assert.equal(changed,true,field);
+}
+
 // Null-prototype records with explicit own data fields remain compatible.
 assert.equal(bindVoiceStudioReview({...input,review:Object.assign(Object.create(null),review),
   lease:Object.assign(Object.create(null),lease)}).approved,false);
