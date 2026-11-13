@@ -10,11 +10,28 @@ const SHA=/^[a-f0-9]{64}$/;
 const ID=/^[A-Za-z0-9_-]{1,120}$/;
 const deny=(condition,message)=>{if(!condition)throw new EditValidationError(message);};
 
+// Reject accessor-backed and inherited metadata before reading untrusted review or
+// lease fields. These objects are worker handoff inputs, never authorization.
+function requireOwnDataFields(value,fields) {
+  deny(value!==null && typeof value==='object' && !Array.isArray(value),
+    'Invalid VoiceStudio handoff record');
+  for (const field of fields) {
+    const descriptor=Object.getOwnPropertyDescriptor(value,field);
+    deny(descriptor && Object.hasOwn(descriptor,'value'),
+      'Unsafe VoiceStudio handoff field');
+  }
+}
+
 export function bindVoiceStudioReview({
   review,shop_id,asset_id,job_id,original_video_sha256,
   original_audio_sha256,source_duration_seconds,lease,
   model_id,key,now_ms=Date.now()
 }={}) {
+  requireOwnDataFields(review,['schema','approved','renderable',
+    'requires_feature7_signed_evidence','word_timings_present',
+    'model_revision_verified_by_worker','language','audio_sha256','words','text']);
+  requireOwnDataFields(lease,['shop_id','asset_id','job_id','source_sha256',
+    'audio_sha256','model_id','active','expires_at_ms']);
   // Only a trusted worker may supply the lease and independently checked hashes.
   deny(review?.schema==='retailgrowth.feature7-voicestudio-asr-review.v1' &&
     review.approved===false && review.renderable===false &&
