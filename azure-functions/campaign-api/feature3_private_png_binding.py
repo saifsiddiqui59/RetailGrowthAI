@@ -56,8 +56,19 @@ def build_private_png_reader_factory(*, origin, publishable_key,
             store_key = user_store.key
         except Exception:
             return False
-        return (type(store_origin) is str and type(store_key) is str and
-                store_origin == origin and store_key == publishable_key)
+        if (type(store_origin) is not str or type(store_key) is not str or
+                store_origin != origin or store_key != publishable_key):
+            return False
+        # A hostile or malfunctioning adapter may mutate origin while its key
+        # property is being read. Re-read both values to reject that rotation
+        # before handing out a reader or releasing private bytes.
+        try:
+            return (type(user_store.origin) is str and
+                    type(user_store.key) is str and
+                    user_store.origin == origin and
+                    user_store.key == publishable_key)
+        except Exception:
+            return False
 
     def factory(shop_id, job_id):
         # An injected store can be reconfigured after composition. Refuse
