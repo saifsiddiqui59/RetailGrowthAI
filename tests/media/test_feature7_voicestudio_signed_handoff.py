@@ -101,6 +101,42 @@ for (const field of ['active','shop_id','expires_at_ms']) {
   assert.equal(changed,true,field);
 }
 
+// Word normalization must not allow review flags or source identity to drift.
+for (const field of ['approved','renderable','language','audio_sha256','words','text']) {
+  const mutable={...review};
+  let changed=false;
+  const first=new Proxy({...review.words[0]},{
+    get(target,property,receiver) {
+      if (property==='word' && !changed) {
+        changed=true;
+        mutable[field]=field==='approved'||field==='renderable'?true:
+          field==='language'?'mr':field==='audio_sha256'?'c'.repeat(64):
+          field==='words'?[...review.words]:review.text+' changed';
+      }
+      return Reflect.get(target,property,receiver);
+    }
+  });
+  mutable.words=[first,review.words[1]];
+  reject({review:mutable});
+  assert.equal(changed,true,field);
+}
+// A mid-normalization replacement with an accessor must not execute it.
+{
+  const mutable={...review};
+  let getterCalls=0;
+  const first=new Proxy({...review.words[0]},{
+    get(target,property,receiver) {
+      if(property==='word') {
+        Object.defineProperty(mutable,'language',{configurable:true,
+          get(){getterCalls++;throw Error('unsafe review getter');}});
+      }
+      return Reflect.get(target,property,receiver);
+    }
+  });
+  mutable.words=[first,review.words[1]];
+  reject({review:mutable});
+  assert.equal(getterCalls,0);
+}
 // Null-prototype records with explicit own data fields remain compatible.
 assert.equal(bindVoiceStudioReview({...input,review:Object.assign(Object.create(null),review),
   lease:Object.assign(Object.create(null),lease)}).approved,false);
