@@ -271,7 +271,7 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     if any(
         other_id != asset_id and type(other) is dict
         and type(other.get("path")) is str
-        and other["path"].casefold() == narration_path.casefold()
+        and __import__("posixpath").normpath(other["path"]).casefold() == narration_path.casefold()
         for other_id, other in output["manifest"]["assets"].items()
     ):
         raise CreativeContractError("Compiled private narration worker path aliases another asset")
