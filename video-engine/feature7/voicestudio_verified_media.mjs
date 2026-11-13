@@ -31,7 +31,7 @@ function pcmWavDuration(b) {
   // Bound chunk-walking work independently of byte size: a 64 MiB file can
   // otherwise contain millions of empty metadata chunks before PCM samples.
   // Reject excessive metadata even when the overall WAV byte limit is respected.
-  let chunkCount=0;
+  let chunkCount=0, metadataBytes=0;
   while (offset+8<=b.length) {
     if (++chunkCount>128) return null;
     // RIFF chunk identifiers are printable four-byte ASCII FourCCs. Do not
@@ -44,6 +44,12 @@ function pcmWavDuration(b) {
     // No chunks may follow PCM samples: reject appended payloads even when RIFF
     // length and attacker-supplied digest are internally consistent.
     if (seenData) return null;
+    // A valid PCM digest must not conceal tens of MiB of non-audio payload.
+    // Bound all pre-audio metadata together, including padding and fmt bytes.
+    if (id!=='data') {
+      metadataBytes+=8+len+(len%2);
+      if (metadataBytes>1024*1024) return null;
+    }
     if (id==='fmt ') {
       if (fmt!==null || len<16) return null;
       const format=b.readUInt16LE(start),channels=b.readUInt16LE(start+2);
