@@ -69,6 +69,12 @@ def build_private_png_reader_factory(*, origin, publishable_key,
             raise ValueError("Route scope must be exact UUID strings")
         scoped_shop = canonical_uuid(shop_id)
         scoped_job = canonical_uuid(job_id)
+        # Reject alternate UUID spellings rather than constructing a reader
+        # whose pinned canonical scope cannot match the original route input.
+        # This also avoids inconsistent authorization/audit identities across
+        # callers that compare the raw URL against canonical database UUIDs.
+        if shop_id != scoped_shop or job_id != scoped_job:
+            raise ValueError("Route scope must use canonical UUID strings")
         # Bind each reader to its factory scope, even if a later caller
         # accidentally reuses the instance for another retailer or job.
         inner = Feature3RevocablePNGReader(
