@@ -18,6 +18,7 @@ from urllib.error import HTTPError, URLError
 
 MAX_WAV = 8 * 1024 * 1024
 MAX_JSON = 512 * 1024
+MAX_WAV_METADATA = 1024 * 1024
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 _ALLOWED_LANGUAGES = frozenset(("en", "hi", "mr"))
 # Direction overrides and isolates can visually spoof review/caption text.
@@ -68,6 +69,7 @@ def _checked_wav(wav_bytes):
     offset = 12
     seen_fmt = seen_data = False
     chunks = 0
+    metadata_bytes = 0
     while offset + 8 <= len(wav_bytes):
         chunks += 1
         if chunks > 128 or seen_data:
@@ -80,6 +82,10 @@ def _checked_wav(wav_bytes):
         if end > len(wav_bytes) or (length % 2 and
                                     (end >= len(wav_bytes) or wav_bytes[end] != 0)):
             raise VoiceStudioTranscriptionDenied("Invalid WAV chunk boundary")
+        if ident != b"data":
+            metadata_bytes += 8 + length + length % 2
+            if metadata_bytes > MAX_WAV_METADATA:
+                raise VoiceStudioTranscriptionDenied("WAV metadata exceeds limit")
         if ident == b"fmt ":
             if seen_fmt or seen_data:
                 raise VoiceStudioTranscriptionDenied("Duplicate WAV format")
