@@ -85,7 +85,8 @@ export async function bindVerifiedVoiceStudioMedia({
     // Otherwise invalid requests can force up to 320 MiB of unnecessary I/O.
     Number.isFinite(source_duration_seconds) && source_duration_seconds>0 &&
     source_duration_seconds<=180 &&
-    Number.isSafeInteger(now_ms) &&
+    Number.isSafeInteger(now_ms) && now_ms>=0 &&
+    Number.isSafeInteger(now_ms+600000) &&
     (readNowMs===undefined || typeof readNowMs==='function'));
   // Track elapsed time across asynchronous media reads; a lease can expire
   // even if its snapshot is unchanged. An injected clock is for offline tests.
