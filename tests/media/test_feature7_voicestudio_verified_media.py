@@ -27,6 +27,20 @@ const base={shop_id:'shop1',asset_id:'asset1',job_id:'job1',model_id:'pinned',
  source_duration_seconds:2,now_ms:now,
  readOriginalVideo:async()=>video,readExtractedWav:async()=>wav,
  readCurrentLease:async()=>({...lease})};
+// Scope and HMAC-key failures must never invoke tenant-private readers.
+// Validation at the downstream signer would otherwise occur after I/O.
+for (const override of [
+ {shop_id:'../foreign'}, {shop_id:''}, {asset_id:'foreign/asset'},
+ {job_id:'job with spaces'}, {model_id:'invalid:model'},
+ {model_id:'x'.repeat(121)}, {key:undefined},
+ {key:Buffer.alloc(31)}, {key:'not-a-server-secret'}
+]) {
+ let reads=0;
+ const noRead=async()=>{reads++;throw Error('private reader invoked');};
+ await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,...override,
+  readOriginalVideo:noRead,readExtractedWav:noRead,readCurrentLease:noRead}));
+ assert.equal(reads,0,'invalid scope or HMAC key must not read private media');
+}
 // Invalid source clocks must fail before any private byte/lease reads.
 for (const invalidDuration of [undefined,null,0,-1,181,Infinity,NaN,'2']) {
  let reads=0;
