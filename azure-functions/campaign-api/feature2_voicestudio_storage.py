@@ -9,6 +9,7 @@ from __future__ import annotations
 from hashlib import sha256
 import io
 import re
+import struct
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
@@ -43,6 +44,39 @@ def _wav(data):
         raise PrivateVoiceStorageDenied("Invalid bounded private WAV")
     if data[:4] != b"RIFF" or data[8:12] != b"WAVE":
         raise PrivateVoiceStorageDenied("Invalid PCM WAVE header")
+    # Deny hidden chunks, trailing data, and impossible frame geometry even
+    # when a WAV decoder could ignore extra content after the RIFF envelope.
+    if struct.unpack_from("<I", data, 4)[0] != len(data) - 8:
+        raise PrivateVoiceStorageDenied("RIFF byte length does not match object")
+    cursor = 12
+    chunks = []
+    while cursor < len(data):
+        if len(data) - cursor < 8:
+            raise PrivateVoiceStorageDenied("Truncated WAV chunk header")
+        kind = data[cursor:cursor + 4]
+        length = struct.unpack_from("<I", data, cursor + 4)[0]
+        end = cursor + 8 + length
+        padded_end = end + (length & 1)
+        if end > len(data) or padded_end > len(data):
+            raise PrivateVoiceStorageDenied("WAV chunk exceeds RIFF envelope")
+        if length & 1 and data[end] != 0:
+            raise PrivateVoiceStorageDenied("Nonzero WAV chunk padding")
+        chunks.append((kind, length))
+        cursor = padded_end
+    if (cursor != len(data) or len(chunks) != 2 or chunks[0][0] != b"fmt "
+            or chunks[1][0] != b"data" or chunks[0][1] not in (16, 18)):
+        raise PrivateVoiceStorageDenied("Noncanonical private PCM WAV chunks")
+    if struct.unpack_from("<H", data, 20)[0] != 1:
+        raise PrivateVoiceStorageDenied("Only PCM private WAV accepted")
+    if chunks[0][1] == 18 and struct.unpack_from("<H", data, 36)[0] != 0:
+        raise PrivateVoiceStorageDenied("Unexpected PCM format extension")
+    channels, rate, byte_rate, block_align, bits = struct.unpack_from("<HIIHH", data, 22)
+    if (channels not in (1, 2) or bits != 16 or not 8000 <= rate <= 96000
+            or block_align != channels * (bits // 8)
+            or byte_rate != rate * block_align
+            or chunks[1][1] == 0 or chunks[1][1] % block_align
+            or chunks[1][1] // block_align > rate * 60):
+        raise PrivateVoiceStorageDenied("Inconsistent private PCM frame geometry")
     try:
         with wave.open(io.BytesIO(data), "rb") as stream:
             channels, width, rate, frames = (stream.getnchannels(),
@@ -95,7 +129,12 @@ class VoiceStudioPrivateStorage:
         except (HTTPError, URLError, OSError, TimeoutError):
             raise PrivateVoiceStorageDenied("Private WAV write failed or is uncertain") from None
 
-    def _read_and_verify(self, path, expected_sha):
+    def _get_verified(self, path, expected_sha):
+        """Read a known object with a trusted SHA. Never accept a raw browser path.
+
+        The only public-facing callers must recheck current tenant membership,
+        audio review/rights and claim state before and after this operation.
+        """
         if type(expected_sha) is not str or not _HASH.fullmatch(expected_sha):
             raise PrivateVoiceStorageDenied("Original private digest required")
         url = self.origin + "/storage/v1/object/" + BUCKET + "/" + quote(path, safe="/")
@@ -110,7 +149,25 @@ class VoiceStudioPrivateStorage:
         _wav(content)
         if sha256(content).hexdigest() != expected_sha:
             raise PrivateVoiceStorageDenied("Private WAV byte digest changed after upload")
-        return len(content)
+        return content
+
+    def _read_and_verify(self, path, expected_sha):
+        # Used by the original-key SQL registration gate. No media returned.
+        return len(self._get_verified(path, expected_sha))
+
+    def read_verified_original(self, shop_id, campaign_id, request_id, original_sha):
+        """Worker-only source for a tenant-authorized human audio review.
+
+        Caller must obtain the current SQL review receipt and recheck RLS
+        before/after I/O. The private original is never a signed public link.
+        """
+        original_path, _ = self.paths(shop_id, campaign_id, request_id)
+        return self._get_verified(original_path, original_sha)
+
+    def read_verified_render(self, shop_id, campaign_id, request_id, render_sha):
+        """Worker-only Feature4 PCM source; approval must be checked elsewhere."""
+        _, render_path = self.paths(shop_id, campaign_id, request_id)
+        return self._get_verified(render_path, render_sha)
 
     def verify_pair(self, shop_id, campaign_id, request_id, original_sha, render_sha):
         """Verify both current private bytes before separately registered SQL receipt.

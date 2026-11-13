@@ -172,3 +172,168 @@ def test_private_wav_readback_denies_tamper_without_retry():
     with pytest.raises(PrivateVoiceStorageDenied):
         store.verify_pair(SHOP, CAMPAIGN, JOB, sha, sha)
     assert len(calls) == 1
+
+
+def test_private_original_and_render_readers_return_exact_digest_checked_bytes():
+    payload = wav()
+    calls = []
+    class ReadResult(io.BytesIO):
+        status = 200
+        def __init__(self, url):
+            super().__init__(payload)
+            self.url = url
+        def geturl(self): return self.url
+    def sender(req, timeout):
+        calls.append((req, timeout))
+        return ReadResult(req.full_url)
+    store, _ = harness(transport=sender)
+    digest = sha256(payload).hexdigest()
+    original = store.read_verified_original(SHOP, CAMPAIGN, JOB, digest)
+    render = store.read_verified_render(SHOP, CAMPAIGN, JOB, digest)
+    assert type(original) is bytes and original == payload
+    assert type(render) is bytes and render == payload
+    assert [r.get_method() for r, _ in calls] == ["GET", "GET"]
+    assert calls[0][0].full_url.endswith("/original.wav")
+    assert calls[1][0].full_url.endswith("/render.wav")
+    assert all(req.get_header("Apikey") == SECRET and timeout == 30 for req, timeout in calls)
+
+
+@pytest.mark.parametrize("bad", [
+    {"shop_id": str(uuid4()) + "/../other"},
+    {"campaign_id": "not-a-uuid"},
+    {"request_id": ""},
+    {"expected_sha": "0"},
+    {"expected_sha": None},
+])
+def test_private_wav_reader_rejects_invalid_identity_before_egress(bad):
+    calls = []
+    def sender(req, timeout):
+        calls.append(req)
+        raise AssertionError("invalid reader should not reach network")
+    store, _ = harness(transport=sender)
+    digest = sha256(wav()).hexdigest()
+    kw = {"shop_id": SHOP, "campaign_id": CAMPAIGN,
+          "request_id": JOB, "expected_sha": digest}
+    kw.update(bad)
+    with pytest.raises(PrivateVoiceStorageDenied):
+        store.read_verified_original(kw["shop_id"], kw["campaign_id"], kw["request_id"], kw["expected_sha"])
+    assert calls == []
+
+
+def test_private_reader_denies_tampered_bytes_and_no_second_get():
+    original = wav()
+    calls = []
+    class ReadResult(io.BytesIO):
+        status = 200
+        def __init__(self, url):
+            super().__init__(original[:-1] + b"\x00")
+            self.url = url
+        def geturl(self): return self.url
+    def sender(req, timeout):
+        calls.append(req)
+        return ReadResult(req.full_url)
+    store, _ = harness(transport=sender)
+    with pytest.raises(PrivateVoiceStorageDenied, match="digest"):
+        store.read_verified_render(SHOP, CAMPAIGN, JOB, sha256(original).hexdigest())
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("status,redirect", [
+    (302, None), (200, "https://attacker.example/exfil"),
+    (404, None), (500, None),
+])
+def test_private_reader_never_trusts_redirect_or_unsuccessful_response(status, redirect):
+    class Reply(io.BytesIO):
+        def __init__(self, url):
+            super().__init__(wav())
+            self.status = status
+            self.url = redirect or url
+        def geturl(self): return self.url
+    sent = []
+    def sender(req, timeout):
+        sent.append(req)
+        return Reply(req.full_url)
+    store, _ = harness(transport=sender)
+    with pytest.raises(PrivateVoiceStorageDenied):
+        store.read_verified_original(SHOP, CAMPAIGN, JOB, sha256(wav()).hexdigest())
+    assert len(sent) == 1
+
+@pytest.mark.parametrize("mutate", [
+    lambda data: data + b"untrusted-trailing-data",
+    lambda data: data[:4] + (len(data) + 100).to_bytes(4, "little") + data[8:],
+    lambda data: data[:4] + (len(data) - 20).to_bytes(4, "little") + data[8:],
+])
+def test_riff_envelope_mismatch_never_reaches_storage(mutate):
+    store, calls = harness()
+    original = mutate(wav())
+    with pytest.raises(PrivateVoiceStorageDenied, match="RIFF byte length"):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
+
+
+@pytest.mark.parametrize("mutate", [
+    # A second valid chunk hidden inside the RIFF envelope.
+    lambda data: data + b"JUNK" + (4).to_bytes(4, "little") + b"evil",
+    # A malformed chunk header, fully inside the declared envelope.
+    lambda data: data + b"ABCD",
+])
+def test_hidden_riff_chunks_denied_before_network(mutate):
+    store, calls = harness()
+    original = mutate(wav())
+    original = original[:4] + (len(original) - 8).to_bytes(4, "little") + original[8:]
+    with pytest.raises(PrivateVoiceStorageDenied):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
+
+
+def test_non_pcm_format_denied_before_network():
+    store, calls = harness()
+    original = bytearray(wav())
+    original[20:22] = (3).to_bytes(2, "little")
+    original = bytes(original)
+    with pytest.raises(PrivateVoiceStorageDenied):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
+
+
+@pytest.mark.parametrize("offset,value", [
+    (28, 123),  # forged byte rate
+    (32, 4),    # forged block alignment
+    (34, 8),    # forged bit depth
+])
+def test_inconsistent_pcm_geometry_denied_before_network(offset, value):
+    store, calls = harness()
+    original = bytearray(wav())
+    width = 4 if offset == 28 else 2
+    original[offset:offset + width] = value.to_bytes(width, "little")
+    original = bytes(original)
+    with pytest.raises(PrivateVoiceStorageDenied, match="frame geometry"):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
+
+
+def test_nonzero_pcm_extension_denied_before_network():
+    store, calls = harness()
+    original = bytearray(wav())
+    # Convert canonical 16-byte fmt chunk into 18-byte fmt with cbSize=1.
+    original[16:20] = (18).to_bytes(4, "little")
+    original[36:36] = bytes((1, 0))
+    original[4:8] = (len(original) - 8).to_bytes(4, "little")
+    original = bytes(original)
+    with pytest.raises(PrivateVoiceStorageDenied, match="format extension"):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
+
+
+def test_overlong_pcm_denied_before_storage_network():
+    store, calls = harness()
+    out = io.BytesIO()
+    with wave.open(out, "wb") as stream:
+        stream.setnchannels(1)
+        stream.setsampwidth(2)
+        stream.setframerate(16000)
+        stream.writeframes(b"\x01\x02" * (16000 * 60 + 1))
+    original = out.getvalue()
+    with pytest.raises(PrivateVoiceStorageDenied, match="frame geometry"):
+        write(store, original=original, original_sha=sha256(original).hexdigest())
+    assert calls == []
