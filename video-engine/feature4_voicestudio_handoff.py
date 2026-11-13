@@ -264,6 +264,16 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
                 "evidence": before_asset["rights_evidence"],
             }):
         raise CreativeContractError("Compiled private narration manifest changed")
+    # A relative path can still alias another approved media asset. Never let
+    # the narration share a staged worker filename with music, SFX or footage:
+    # the worker could then mix or overwrite unrelated tenant-approved bytes.
+    narration_path = manifest_asset["path"]
+    if any(
+        other_id != asset_id and type(other) is dict
+        and other.get("path") == narration_path
+        for other_id, other in output["manifest"]["assets"].items()
+    ):
+        raise CreativeContractError("Compiled private narration worker path aliases another asset")
     # The compiler may perform additional trusted reads. Do not return a reel
     # compiled from narration whose approval was revoked during that work.
     if authoritative() != before or snapshot["assets"].get(asset_id) != before_asset:
